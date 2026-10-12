@@ -187,6 +187,13 @@ namespace RavenfieldVR.Runtime
                 switch ((EVREventType)_event.eventType)
                 {
                     case EVREventType.VREvent_Quit:
+                        if (Core.AutoTest.Requested)
+                        {
+                            // The virtual headset used for automated runs makes SteamVR open room setup, which asks the
+                            // running app to quit; the test keeps going.
+                            Log.Info("SteamVR asked the game to quit; ignored during the autotest.");
+                            break;
+                        }
                         Log.Info("SteamVR is shutting down; exiting the game.");
                         system.AcknowledgeQuit_Exiting();
                         Application.Quit();

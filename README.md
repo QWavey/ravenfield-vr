@@ -1,117 +1,148 @@
 # Ravenfield VR
 
-A VR mod for Ravenfield (Steam, current Unity 2020.3 build) that runs through SteamVR. It was built and tuned for a Quest 3 on SteamVR (Steam Link, Air Link/Link cable or Virtual Desktop in SteamVR mode); Index, Vive and Reverb G2 controllers have default bindings too.
+A VR mod for Ravenfield (Steam, Unity 2020.3 build) that runs through SteamVR. Built and tuned for a Quest 3 on SteamVR (Steam Link, Air Link / Link cable, or Virtual Desktop in SteamVR mode); Index, Vive and Reverb G2 controllers have default bindings too.
 
 What you get:
 
-- Stereo rendering through Valve's OpenVR XR plugin, roomscale tracking, snap or smooth turning, comfort vignette.
-- Tracked hands. Your gun sits in your hand and fires where its barrel points. Grab the handguard with the other hand to aim with both hands.
-- Manual reloading for every gun, including modded ones: drop the magazine, pull a fresh one from your pouch, seat it, rack the slide or charging handle. Bolt and pump actions are cycled by hand, shotguns take shells one at a time, launchers are loaded by hand.
-- Grenades thrown with your arm, melee weapons that hit when you swing them.
+- Stereo rendering through Valve's OpenVR XR plugin, roomscale tracking, snap or smooth turning, comfort vignette, graphics presets made for VR.
+- Free hands. The gun sits in your hand and fires where its barrel points; nothing is glued to anything. Each weapon's own finger pose (from its mod's arm rig) shapes your hand around its grip, or switch to the weapon's own first-person arms, moved to your controllers by IK.
+- Manual reloading for every gun, modded ones included: magazines slide in and out along the well, slides, bolts, charging handles and pumps move with your hand, break-action shotguns and revolvers open, machine guns have feed covers. Your ammo pouch shows what the gun takes.
+- The mod's own sounds for each action (magazine out, magazine in, rack back, slam home), cut out of its reload audio, so a reload sounds like what your hands are doing instead of the whole reload clip playing at once.
+- Semi/auto switching on guns that have it, and the fire-mode, flashlight, laser, bipod and inspect keys of weapon and mutator scripts reachable from the controllers.
+- Fallen soldiers drop their weapons; pick one up and it replaces the one in that slot.
+- Grenades with a pin you pull and an arm you throw with; melee weapons that hit when you swing them.
 - Scopes you look through (magnified lens with a reticle) on weapons that only had a 2D overlay.
-- Every menu (main menu, pause, loadout, squad map, options, dialogs) on panels you point at with a laser. Text fields open the SteamVR keyboard.
-- The HUD as a frame in front of you, lined up so objective and squad markers sit on their targets in the world.
-- Vehicles with stick controls, a steering wheel and flight stick you can grab, and turrets that aim where you look.
-- All controls rebindable in SteamVR's binding UI, plus an in-headset settings panel.
-
-## Requirements
-
-- Ravenfield on Steam (Windows).
-- SteamVR. For a Quest, any way of running SteamVR games works; Steam Link is the simplest.
-- Nothing else. BepInEx 5 is included and installed for you (an existing BepInEx 5 install, e.g. from RavenM, is reused).
+- Every menu on panels you point at with a laser; text fields open the SteamVR keyboard. The HUD as a frame in front of you, lined up with the world. Vehicle gunner sights shown at infinity, so they never double.
+- Cars and Humvees with a steering wheel you grab and turn, and your own weapon usable from the driver seat. Helicopters, planes and tanks keep stick controls; turrets aim where you look.
 
 ## Install
 
 1. Close Ravenfield.
-2. Extract the release zip anywhere and double-click `install.cmd` (or run `install.ps1` in PowerShell).
-   It finds Ravenfield through your Steam libraries. For a custom location: `install.cmd "D:\Games\Ravenfield"`.
-3. Put on the headset, start SteamVR, then launch Ravenfield from Steam (or from the SteamVR library).
+2. Run `RavenfieldVR-Setup-1.0.0.exe`. It finds Ravenfield in your Steam libraries (or pick the folder) and installs. Keep "Pressing Play in Steam opens the launcher" ticked: Steam then asks every time you press Play whether to start in VR or on the monitor, and with which graphics preset. If Steam is running, Setup asks to close it for a moment (Steam rewrites its launch options when it exits) and starts it again.
+3. Put on the headset, press Play on Ravenfield in Steam, choose **Play in VR**.
 
-To remove it, run `uninstall.cmd`. Everything the installer replaced is restored from the backup it made in `Ravenfield/RavenfieldVR-backup/`.
+To update, run the newer Setup. To remove the mod, run Setup and press Uninstall: everything it replaced is restored from `Ravenfield/RavenfieldVR-backup/`, and the launcher is taken out of Steam's launch options again (your own launch options stay).
 
-**Flat play with the mod installed:** VR starts only when SteamVR is already running when you launch the game. Otherwise Ravenfield starts normally on your monitor and SteamVR is left alone. Steam launch options `-vr` force VR, `-novr` force flat mode, and the `AutoStartSteamVR` setting makes the game start SteamVR itself whenever a headset driver reports a headset.
+No Setup? The release zip has `install.cmd` / `uninstall.cmd` that do the same from PowerShell, without the Steam launch option; start the game with `RavenfieldVR-Launcher.exe` in the game folder instead.
+
+The launcher remembers your choice when you tick "Start this way from now on"; hold **Shift** while pressing Play to see it again. Without the launcher, VR starts only when SteamVR is already running; `-vr` forces VR, `-novr` forces flat.
 
 ## First minutes
 
-- **Height** is calibrated automatically a moment after you first spawn: stand up straight. Re-do it any time from the settings panel ("Calibrate now"). Playing seated? Turn on "Seated play" and calibrate while sitting.
-- **Settings panel:** double-click the left stick. **Recenter** is on that panel too.
-- **Gun angle:** if guns feel tilted in your hand, use "Gun pitch" in the settings panel.
+- **Height** is calibrated a moment after you first spawn: stand up straight. Redo it from the settings panel ("Calibrate now"). Playing seated? Turn on "Seated play" and calibrate while sitting.
+- **Settings panel:** double-click the left stick. Recenter, SteamVR bindings and Mod keys are at the bottom.
+- **Gun angle:** if guns feel tilted in your hand, use "Gun pitch" on the panel.
 
-## Controls (Quest / Touch, right-handed)
+## Controls (Quest Touch, right-handed)
 
 | Input | On foot | In a vehicle |
 | --- | --- | --- |
 | Right trigger | Fire | Fire mounted weapon |
 | Left trigger | Use: enter vehicle, ladder, interact | Use: leave vehicle |
-| Grips | Grab: foregrip, magazine, slide, holsters | Grab: steering wheel, flight stick |
-| Left stick | Move. Click: sprint. Double-click: VR settings | Steer / throttle (car), collective and yaw (helicopter), rudder and throttle (plane) |
-| Right stick | Turn. Push up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
-| A | Magazine release | |
-| B | Slide release. Hold: fire mode / under-barrel. Double: scoreboard | Countermeasures. Hold: auto-hover (helicopter) |
+| Grips | Grab: foregrip, magazine, slide, bolt, cover, grenade pin, holsters, pouch, anything lying on the ground | Grab: steering wheel, flight stick |
+| Left stick | Move. Click: sprint. Double-click: VR settings. Hold: scoreboard | Steer and throttle (car), collective and yaw (helicopter), rudder and throttle (plane) |
+| Right stick | Turn. Up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
+| B | Drop the magazine / open a break-action or revolver | |
+| A | Slide or bolt release; pulls a grenade's pin. Hold: fire mode (semi/auto, or the weapon's own mode switch) | Countermeasures. Hold: auto-hover (helicopter) |
 | X | Squad order (hold and point, release to send) | |
 | Y | Squad map. Hold: pause menu. Double: loadout | |
+| Menu (≡) | Pause menu. Hold: Mod keys | |
 
 Change anything in SteamVR: **Settings → Controllers → Manage controller bindings → Ravenfield**, or the "SteamVR bindings" button on the settings panel. Left-handed players: set "Weapon hand: Left" and restart; the default bindings mirror automatically.
 
 Other gestures:
 
-- **Holsters:** reach over your weapon-side shoulder and grip for your primary, to your weapon-side hip for the sidearm, to your chest for gear (three chest positions for gear slots 3-5).
+- **Holsters:** reach over your weapon-side shoulder and grip for your primary, to your weapon-side hip for the sidearm, to your chest for gear. Put a gun back where it lives and let go to have both hands free.
 - **Night vision:** grip with your off hand at the side of your head.
-- **Map:** turn the back of your off-hand wrist toward your face. The minimap enlarges, and health and ammo appear on your wrist.
+- **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
-- **Aiming down sights** is just bringing the sights to your eye. That gives you the game's aiming accuracy bonus, and scopes switch to their magnified lens.
+- **Aiming down sights** is just bringing the sights to your eye. Scopes switch to their magnified lens.
 
 ## Reloading
 
-The round counter on the side of your gun shows what is in it: `28+1` is 28 in the magazine plus one chambered, `RACK` means a round is waiting in the magazine but none is chambered, `OPEN` means the slide is locked back, `NO MAG` means the magazine is out.
+The counter on the side of your gun shows its state: `28+1` (28 in the magazine plus one chambered), `RACK` (no round chambered), `OPEN` (slide locked back, or a break-action open), `NO MAG`, `COVER OPEN` / `CLOSE COVER` on machine guns. The pouch on your body shows a copy of what the gun takes and how many spares you have.
 
-**Magazine-fed weapons (rifles, pistols, SMGs, LMGs)**
+**Magazine-fed weapons**
 
-1. Press A: the magazine drops out.
-2. Move your off hand to your pouch (off-hand hip by default) and grip. A fresh magazine appears in your hand.
-3. Bring its top to the magazine well. It seats with a click when close and roughly aligned.
-4. If the slide locked back on empty, press B or grab the slide and let it go. If you reloaded before running dry you still have a round chambered and can keep shooting. Otherwise grab the slide or charging handle with your off hand, pull it back all the way and release.
+1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a while; rounds still in them then go back to your reserve, so nothing is lost.
+2. Grip at your pouch (off-hand hip by default): a fresh magazine is in your hand.
+3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it.
+4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go.
 
-Racking with a round already chambered ejects that round. Releasing a magazine near your pouch puts it back. By default rounds left in a dropped magazine go back to your reserve, as in normal Ravenfield. Turn off `ReturnRoundsOnMagDrop` and they stay in the magazine instead, so you can catch it and use it again.
+Tactical reload with one hand: push a fresh magazine hard into the base of the seated one and it knocks the old one out, then slide the new one in. This works where the magazine sticks out of the gun; pistols and guns whose well swallows the magazine (KRISS Vector style) need B or a hand pull.
 
-**Bolt-action, pump and lever guns** chamber the next round only when you cycle them: after every shot, grab the bolt (or the pump, which sits where your support hand already is), pull back and release.
+**Bolt-action, lever and pump guns** move only by hand: pull the bolt or pump back and push it forward again to chamber the next round. Let go half way and it stays there.
 
-**Shotguns and other shell-fed weapons** take rounds one at a time (or in clips, when the weapon is set up for that). Grip at the pouch for a shell, push it into the gun's loading port, repeat. Rack to chamber.
+**Shotguns with a tube** take shells one at a time at the loading port; semi-automatic ones cycle themselves after each shot, pump guns need the pump.
 
-**Rocket and grenade launchers:** grip at the pouch for a round and push it into the launcher.
+**Break-action shotguns, revolvers and break-action launchers:** press B to open (the barrels tip down, the cylinder swings out, fired cases fall out). Push shells into the chambers from your pouch (a revolver with a speedloader takes all six at once). Flick your wrist up or press B to close.
 
-**Grenades:** hold the trigger, throw with your arm, let go of the trigger at the end of the throw.
+**Machine guns** with a feed cover: grab the cover's rear latch and lift it (with the cover shut and the belt in the feed the box will not come off). Drop the old box (B), slide a new box onto its rails (a short, heavy slide), then take the belt end at the mouth of the box and lay it on the feed tray under the cover; it clicks in. Press the cover down over the belt and rack if the bolt is forward. The counter walks you through it: `LAY BELT`, `CLOSE COVER`, `RACK`.
 
-**Melee weapons** hit what you swing them through. The trigger still does the game's normal attack.
+**Rocket and grenade launchers:** grip at the pouch for a round and push it in.
 
-Prefer the game's normal reloads? Set "Reloading: Assisted" and the A button plays the standard reload.
+**Grenades:** pull the pin with your other hand (grip the ring at the top and pull it away), or press A to flick it out one-handed. Nothing happens while you keep holding the grenade; hold the trigger, throw with your arm and let go of the trigger at the end of the throw, and the fuse starts as it leaves your hand. Thrown with the pin still in, it is a dud: it bounces and lies there, and picking it up puts it back in your pouch. Put the grenade away with the pin out and the pin goes back in. Smoke grenades work the same; ammo bags, medic bags and charges have no pin. **Melee weapons** hit what you swing them through.
 
-### Odd modded weapons
+Loose magazines, shells and duds are physical: they bounce off your gun, your gun can push them around, and they never catch on your own body. Bullets pass through them.
 
-Weapon rigs are worked out automatically from each gun's own animations: which part moves when it fires (the slide or bolt), which part leaves during the reload (the magazine), and where the animator puts the hands and sights. If a mod still behaves strangely, add an entry to `BepInEx/config/RavenfieldVR.weapons.json` (it is created with an example):
+Holding a long gun with one hand works, but it kicks harder, droops a little and trails your wrist; rest your other hand on the handguard to steady it. Pistols are made for one hand.
+
+Prefer the game's normal reloads? Set "Reloading: Assisted" and B plays the standard reload.
+
+## Mod keys and fire modes
+
+Many workshop weapons and mutators come with scripts that listen for keyboard keys: X for a fire-mode switch, H for a flashlight, J for a laser, I to inspect, T for a bipod or HUD toggle. Hold the Menu button (≡) for **Mod keys**: a panel listing every key the held weapon's scripts and the running mutators listen for, labelled with what it does. Point and press. The press goes only to that script.
+
+Holding A on a weapon with its own fire-mode script presses that script's key (it switches with its own animation and sound). Weapons whose mod built the modes as sub-weapons cycle those. Other automatic weapons switch between semi and auto; semi-only weapons (most pistols, shotguns, rifles and DMRs) stay semi.
+
+## Driving
+
+Grab the steering wheel of a car or Humvee with one or both hands and turn it; the car steers with it. Let go and the left stick steers again. While driving, reach to a holster to draw that weapon and shoot with one hand while steering with the other; put it back to get the horn again. Tanks, helicopters and planes use the sticks (helicopters and planes also have a grabbable flight stick).
+
+## Graphics
+
+Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("Graphics"). A preset sets the render resolution, MSAA, shadow distance and quality, level of detail, per-pixel lights, texture size, vegetation and view distance, layered on top of the game's own options. "Game" leaves graphics to the game's options menu. Render scale stays adjustable after picking a preset.
+
+## Odd modded weapons
+
+Weapon rigs are worked out from each gun's own animations: what moves when it fires (slide, bolt), what moves in the reload (magazine, charging handle, cover, barrels, cylinder), where the mod's hands hold it and how its fingers curl. Where a bolt is part of the receiver mesh, the mod's own racking hand shows where the handle is, and that piece of the mesh is cut out to move with your hand (or a small handle is added when the mesh cannot be read).
+
+If a mod still behaves strangely, add an entry to `BepInEx/config/RavenfieldVR.weapons.json` (created with an example):
 
 ```json
-{ "weapons": [ { "match": "mosin", "action": "Manual", "slide": "bolt", "slideTravel": 0.09, "gripForward": 0.01, "pitch": -4 } ] }
+{ "weapons": [ { "match": "mosin", "action": "Manual", "slide": "bolt", "slideTravel": 0.09, "gripForward": 0.01, "pitch": -4, "magKick": "false" } ] }
 ```
 
-`action` is one of `SelfLoading`, `Manual`, `ShellFed`, `SingleShot`, `Throwable`, `Melee`, `NoAmmo`. `magazine` and `slide` take transform names from the weapon. Set `DumpWeaponRigs = true` in the config to log what was detected for every gun you pick up.
+`action` is one of `SelfLoading`, `Manual`, `ShellFed`, `SingleShot`, `BreakOpen`, `Throwable`, `Melee`, `NoAmmo`. `magazine` and `slide` take transform names from the weapon. `magKick` allows or forbids knocking out the magazine with a fresh one.
+
+**Checking every installed weapon:** start the game with `-rfvr-selftest` (works flat, from the main menu). `BepInEx/RavenfieldVR-weapon-report.txt` then lists for every weapon how each part was found, the sounds bound to each action and where each reload sound comes from (the mod, a vanilla weapon, or synthesised), and anything suspicious. `-rfvr-dumprig=name` adds the full transform tree of matching weapons (`RavenfieldVR-rig-dump.txt`).
+
+**Automated test:** `ravenfield.exe -map island2023 -nointro -rfvr-autotest [-vr]` plays a match by itself with every installed mutator on, equips and fires every weapon and (in VR, holding it in simulated hands when no controllers are connected) checks that its draw animation is skipped and its model is visible, runs its reload and throws each grenade with and without its pin, then writes `BepInEx/RavenfieldVR-autotest.txt` and quits. `-rfvr-perf` measures the mod's per-frame cost in any session.
 
 ## Settings
 
-Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg` and most of it is also on the in-headset panel. Notable ones:
+Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; most of it is also on the in-headset panel. Notable ones:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
+| `GraphicsPreset` | Medium | Low, Medium, High, Ultra or Game |
+| `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting (a preset sets it) |
 | `StereoMode` | MultiPass | SinglePassInstanced is faster, but some map shaders then draw in one eye only |
-| `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting |
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
+| `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms |
 | `TurnMode` / `SnapTurnAngle` | Snap / 30 | |
-| `Vignette` | 0.35 | Tunnel vignette while moving with the stick |
-| `PhysicalCrouch` | on | |
-| `RoomscaleMovement` | on | Walking in your room moves your soldier, with collision |
 | `MagazinePouch` | OffHandHip | Also Chest, DominantHip, OffHandChest |
+| `ShowPouch` | on | Show the gun's ammo at the pouch |
 | `TwoHandRecoilReduction` | 0.6 | How much a second hand on the gun tames recoil |
-| `TurretAim` | Head | Turrets follow your head or your weapon hand |
+| `WeaponWeight` | on | Long guns held in one hand droop and trail the wrist |
+| `FireSelector` | on | Semi/auto switching on automatic weapons |
+| `WeaponsWhileDriving` | on | Draw your weapon from the driver seat of cars |
+| `EnemyWeaponDrops` | on | Fallen soldiers drop their weapon |
+| `ModWeaponSounds` | on | Use each mod's own sounds for manual actions (a vanilla weapon's when the mod has none for an action) |
+| `GrenadePins` | on | Grenades need their pin pulled; off makes every throw live |
+| `BeltByHand` | on | Lay a machine gun's belt on the feed tray yourself; off lays it when the cover closes |
+| `SkipDrawAnimation` | on | Skip the weapon's draw animation in VR (you draw it with your hand) |
+| `ReturnRoundsOnMagDrop` | on | Rounds in magazines that get cleared away return to your reserve |
 | `HudDistance` / `HudHorizontalFov` | 4 m / 72° | Where the HUD frame sits and how wide it is |
 
 ## Building from source
@@ -120,18 +151,18 @@ No .NET SDK needed:
 
 ```powershell
 ./tools/fetch-deps.ps1     # BepInEx, OpenVR XR plugin, Roslyn compiler (into tools/)
-./build.ps1 -Package       # compiles against your installed game, writes dist/RavenfieldVR and a zip
+./build.ps1 -Package       # compiles against your installed game: dist/RavenfieldVR, the zip, the launcher and Setup.exe
 ./install.ps1
 ```
 
-`build.ps1` publicizes the game's assemblies into `build/refs` for compile-time access only; nothing from the game is redistributed. `tools/inspect_weapon_bundles.py` (needs `pip install UnityPy`) prints the rig of any workshop weapon bundle, which helps when writing overrides.
+`build.ps1` publicizes the game's assemblies into `build/refs` for compile-time access only; nothing from the game is redistributed. Setup.exe also runs unattended: `--install [--game DIR] [--no-steam-option]`, `--uninstall [--keep-settings]`.
 
 ## Troubleshooting
 
-- **The game opens on the monitor only.** Check `BepInEx/LogOutput.log` for lines starting with `[Ravenfield VR]`. "Not starting VR: SteamVR is not running" means SteamVR was not open yet: start it first or add `-vr`. "OpenVR failed to initialise" includes SteamVR's reason (for example `Init_HmdNotFound` when the headset is not streaming).
-- **"Unity did not register the 'OpenVR Display' subsystem".** The runtime files under `ravenfield_Data` are missing. Run the installer again. A game update or "Verify integrity of game files" can remove them.
+- **The game opens on the monitor only.** Check `BepInEx/LogOutput.log` for lines starting with `[Ravenfield VR]`. "Not starting VR: SteamVR is not running" means SteamVR was not open and the game was not started through the launcher's Play in VR. "OpenVR failed to initialise" includes SteamVR's reason (for example `Init_HmdNotFound` when the headset is not streaming).
+- **"Unity did not register the 'OpenVR Display' subsystem".** The runtime files under `ravenfield_Data` are missing. Run Setup again; a game update or "Verify integrity of game files" can remove them.
 - **Controls do nothing in the headset.** Open the SteamVR binding UI for Ravenfield and select "Ravenfield VR default".
-- **Low frame rate.** Lower `RenderScale` or SteamVR's resolution, keep `PostProcessing` off, reduce the bot count. Ravenfield is CPU-heavy with many bots.
+- **Low frame rate.** Pick a lower graphics preset, keep `PostProcessing` off, reduce the bot count. Ravenfield is CPU-heavy with many bots.
 - **A weapon sits wrong in the hand.** Use "Gun pitch" for all guns, or a per-weapon override (above).
 
 ## Known limitations
@@ -139,4 +170,5 @@ No .NET SDK needed:
 - Night vision and other effects the game applies to its own camera are not copied to the headset camera.
 - Third-person vehicle cameras and the death camera follow the game's camera position, turning with it only around the vertical axis.
 - Ravenscript mods that draw their own screen-space UI get the same head-locked HUD treatment as the game's HUD.
-- Weapons with very unusual rigs fall back to estimated grab points until they get an override entry.
+- Weapons without any animator get their parts by name only; a few of those keep an estimated handle position.
+- Materials a mod ships with a shader the graphics card cannot run (magenta) are swapped for the game's own version of that shader, or a plain one, so they may look a little different from what the modder intended.

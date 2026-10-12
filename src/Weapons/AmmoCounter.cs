@@ -66,17 +66,25 @@ namespace RavenfieldVR.Weapons
             }
             if (_flash != null && Time.unscaledTime < _flashUntil)
             {
-                _text.text = _flash;
+                Show(_flash);
                 _text.color = Empty;
                 return;
             }
             _flash = null;
-            string text = ammo.CounterText();
-            if (_text.text != text)
+            Show(ammo.CounterText());
+            _text.color = ammo.Loaded == 0 ? Empty : (ammo.SlideLocked || !ammo.CanFire) ? Warn : Normal;
+        }
+
+        // TextMesh.text's getter builds a new string on every read, so the last value set is remembered instead.
+        private string _shown;
+
+        private void Show(string text)
+        {
+            if (!ReferenceEquals(text, _shown))
             {
                 _text.text = text;
+                _shown = text;
             }
-            _text.color = ammo.Loaded == 0 ? Empty : (ammo.SlideLocked || !ammo.CanFire) ? Warn : Normal;
         }
 
         public void Destroy()

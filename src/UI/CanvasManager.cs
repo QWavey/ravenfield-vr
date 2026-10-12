@@ -38,13 +38,22 @@ namespace RavenfieldVR.UI
             public RigidPose LocalPose; // relative to the rig root
             public float NextRoleCheck;
             public int Order;
+            /// <summary>A vehicle seat's sight (gunner reticle): shown at optical infinity, not at HUD distance.</summary>
+            public bool Collimated;
         }
+
+        /// <summary>
+        /// Distance for collimated sights. Far enough that both eyes see the reticle without disparity (no double
+        /// image when focusing on the target), inside the UI camera's far plane; the angular size is kept.
+        /// </summary>
+        private const float CollimatedDistance = 80f;
 
         private readonly VRRig _rig;
         private readonly Camera _eventCamera;
         private readonly Dictionary<Canvas, Tracked> _tracked = new Dictionary<Canvas, Tracked>();
         private readonly HashSet<Canvas> _own = new HashSet<Canvas>();
         private float _nextScan;
+        private readonly List<Canvas> _dead = new List<Canvas>();
         private bool _wasGameplay;
 
         public bool AnyMenuVisible { get; private set; }
@@ -86,7 +95,8 @@ namespace RavenfieldVR.UI
             bool gameplay = GameContext.InGame && !GameContext.GameMenuOpen;
             bool gameplayChanged = gameplay != _wasGameplay;
             _wasGameplay = gameplay;
-            var dead = new List<Canvas>();
+            List<Canvas> dead = _dead;
+            dead.Clear();
             foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
             {
                 Tracked t = kv.Value;
@@ -99,6 +109,7 @@ namespace RavenfieldVR.UI
                 if (Time.unscaledTime >= t.NextRoleCheck || gameplayChanged)
                 {
                     t.NextRoleCheck = Time.unscaledTime + 0.5f;
+                    t.Collimated = t.Canvas.GetComponentInParent<Vehicle>() != null;
                     // During gameplay with no game menu open everything is HUD, even canvases that happen to
                     // hold a clickable element; menus only exist while the game shows its cursor (or outside a match).
                     t.Role = gameplay ? CanvasRole.Hud : Classify(t.Canvas);
@@ -220,10 +231,11 @@ namespace RavenfieldVR.UI
                 }
                 if (t.Role == CanvasRole.Hud)
                 {
-                    // Head-locked frame matching the game camera's frustum.
-                    float width = 2f * distance * Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad);
+                    // Head-locked frame matching the game camera's frustum (vehicle sights far out, same angular size).
+                    float d = t.Collimated ? CollimatedDistance : distance;
+                    float width = 2f * d * Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad);
                     float scale = width / t.Size.x;
-                    float depth = distance - 0.001f * Mathf.Clamp(t.Order, -100, 100);
+                    float depth = d - 0.001f * d / distance * Mathf.Clamp(t.Order, -100, 100);
                     t.Rect.SetPositionAndRotation(head.position + head.forward * depth, head.rotation);
                     t.Rect.localScale = Vector3.one * scale;
                 }

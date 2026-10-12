@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Globalization;
 using BepInEx.Configuration;
@@ -21,6 +22,8 @@ namespace RavenfieldVR.Core
     /// Most values are read live each frame, so edits from the in-VR settings panel or a
     /// config manager apply immediately.
     /// </summary>
+    public enum HandsMode { VRHands, WeaponArms }
+
     public static class VRConfig
     {
         // General
@@ -31,6 +34,7 @@ namespace RavenfieldVR.Core
         // Rendering
         public static ConfigEntry<StereoMode> Stereo;
         public static ConfigEntry<float> RenderScale;
+        public static ConfigEntry<GraphicsPreset> Graphics;
         public static ConfigEntry<MirrorMode> Mirror;
         public static ConfigEntry<float> NearClip;
         public static ConfigEntry<bool> PostProcessing;
@@ -73,13 +77,27 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<int> MaxMagProps;
         public static ConfigEntry<float> RecoilStrength;
         public static ConfigEntry<float> TwoHandRecoilReduction;
+        public static ConfigEntry<bool> WeaponWeight;
+        public static ConfigEntry<bool> SkipDrawAnimation;
+        public static ConfigEntry<HandsMode> Hands;
         public static ConfigEntry<bool> TwoHandedAiming;
         public static ConfigEntry<bool> VRScopes;
         public static ConfigEntry<int> ScopeResolution;
         public static ConfigEntry<bool> HolsterSwitching;
+        public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<float> ThrowVelocityMultiplier;
+        public static ConfigEntry<bool> GrenadePins;
+        public static ConfigEntry<bool> BeltByHand;
         public static ConfigEntry<float> MeleeSwingSpeed;
         public static ConfigEntry<float> GrabRadius;
+        public static ConfigEntry<bool> ModWeaponSounds;
+        public static ConfigEntry<bool> FireSelector;
+        public static ConfigEntry<bool> ShowPouch;
+        public static ConfigEntry<bool> WeaponsWhileDriving;
+        public static ConfigEntry<bool> EnemyWeaponDrops;
+        public static ConfigEntry<float> DroppedWeaponLifetime;
+        public static ConfigEntry<int> MaxDroppedWeapons;
+        public static ConfigEntry<float> DroppedWeaponAmmo;
 
         // UI
         public static ConfigEntry<float> HudDistance;
@@ -94,6 +112,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> DebugLogging;
         public static ConfigEntry<bool> ShowGrabZones;
         public static ConfigEntry<bool> DumpWeaponRigs;
+        public static ConfigEntry<bool> WeaponSelfTest;
 
         public static void Bind(ConfigFile cfg)
         {
@@ -106,6 +125,9 @@ namespace RavenfieldVR.Core
 
             Stereo = cfg.Bind("Rendering", "StereoMode", StereoMode.MultiPass,
                 "MultiPass works with every shader. SinglePassInstanced is faster but some map/mod shaders then render in one eye only. Restart required.");
+            Graphics = cfg.Bind("Rendering", "GraphicsPreset", GraphicsPreset.Medium,
+                "VR graphics preset (Low, Medium, High, Ultra) layered on the game's own options; Game leaves graphics to the game's menu. " +
+                "Picking a preset also sets RenderScale, which you can still adjust.");
             RenderScale = cfg.Bind("Rendering", "RenderScale", 1.0f,
                 new ConfigDescription("Eye texture resolution multiplier on top of SteamVR's own resolution.", new AcceptableValueRange<float>(0.5f, 2.0f)));
             Mirror = cfg.Bind("Rendering", "MirrorView", MirrorMode.Right,
@@ -177,6 +199,13 @@ namespace RavenfieldVR.Core
             MaxMagProps = cfg.Bind("Weapons", "MaxDroppedMags", 12, "Maximum dropped magazines kept at once.");
             RecoilStrength = cfg.Bind("Weapons", "RecoilStrength", 1f,
                 new ConfigDescription("Visual/aim recoil applied to the gun in your hand.", new AcceptableValueRange<float>(0f, 3f)));
+            Hands = cfg.Bind("Weapons", "Hands", HandsMode.VRHands,
+                "VRHands: the mod's own hands (fingers posed like each weapon's rig). WeaponArms: the weapon's own first-person arms, " +
+                "gloves and sleeves, moved by IK to your controllers.");
+            SkipDrawAnimation = cfg.Bind("Weapons", "SkipDrawAnimation", true,
+                "Skip the weapon's draw animation in VR (you draw it with your hand); the game's draw delay before firing stays.");
+            WeaponWeight = cfg.Bind("Weapons", "WeaponWeight", true,
+                "Long and heavy guns held in one hand droop a little and trail the wrist; supported by the other hand they follow it exactly.");
             TwoHandRecoilReduction = cfg.Bind("Weapons", "TwoHandRecoilReduction", 0.6f,
                 new ConfigDescription("Fraction of recoil removed while holding the foregrip.", new AcceptableValueRange<float>(0f, 1f)));
             TwoHandedAiming = cfg.Bind("Weapons", "TwoHandedAiming", true, "Gripping the foregrip steers the barrel with both hands.");
@@ -185,11 +214,32 @@ namespace RavenfieldVR.Core
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
             HolsterSwitching = cfg.Bind("Weapons", "HolsterSwitching", true,
-                "Reach over your shoulder / to your hip / chest and grip to draw primary, sidearm or gear.");
+                "Reach over your shoulder / to your hip / chest and grip to draw primary, sidearm or gear. Gripping at the holster of the weapon you hold puts it away and frees your hand.");
+            GripToHoldWeapon = cfg.Bind("Weapons", "GripToHoldWeapon", false,
+                "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty.");
             ThrowVelocityMultiplier = cfg.Bind("Weapons", "ThrowVelocityMultiplier", 1.4f,
                 new ConfigDescription("Multiplier on hand speed when throwing.", new AcceptableValueRange<float>(0.5f, 4f)));
+            GrenadePins = cfg.Bind("Weapons", "GrenadePins", true,
+                "Fused grenades have a pin: pull it with the other hand (or press A) before throwing. Thrown with the pin in, a grenade is a dud you can pick up again. Off = every throw is live.");
+            BeltByHand = cfg.Bind("Weapons", "BeltByHand", true,
+                "Belt-fed machine guns: after seating a new box, take the belt end from the box mouth and lay it on the feed tray before closing the cover. Off = closing the cover lays it for you.");
             MeleeSwingSpeed = cfg.Bind("Weapons", "MeleeSwingSpeed", 2.6f,
                 new ConfigDescription("Blade speed (m/s) needed for a melee hit.", new AcceptableValueRange<float>(1f, 8f)));
+            WeaponsWhileDriving = cfg.Bind("Weapons", "WeaponsWhileDriving", true,
+                "Driving a car or Humvee: reach to a holster to draw that weapon and shoot while steering with the other hand (put it back for the horn).");
+            ShowPouch = cfg.Bind("Weapons", "ShowPouch", true,
+                "Show what the held weapon feeds from (its magazine, a shell, a rocket) and the spare count at the ammo pouch on your body.");
+            FireSelector = cfg.Bind("Weapons", "FireSelector", true,
+                "Fire-mode button switches automatic weapons between semi and auto (only weapons authored as automatic; " +
+                "weapons with their own sub-weapon modes keep those).");
+            EnemyWeaponDrops = cfg.Bind("Weapons", "EnemyWeaponDrops", true,
+                "Fallen soldiers drop their weapon; grip it to pick it up (your weapon from that slot is dropped in exchange).");
+            DroppedWeaponLifetime = cfg.Bind("Weapons", "DroppedWeaponLifetime", 90f, "Seconds a dropped weapon stays on the ground.");
+            MaxDroppedWeapons = cfg.Bind("Weapons", "MaxDroppedWeapons", 16, "Most dropped weapons kept at once (oldest disappear first).");
+            DroppedWeaponAmmo = cfg.Bind("Weapons", "DroppedWeaponAmmo", 0.5f,
+                new ConfigDescription("Share of a weapon's full reserve ammo that comes with a weapon picked up from a soldier.", new AcceptableValueRange<float>(0f, 1f)));
+            ModWeaponSounds = cfg.Bind("Weapons", "ModWeaponSounds", true,
+                "Play each weapon's own reload sounds for each manual action (mag out, mag in, slide). Off uses built-in mechanical sounds.");
             GrabRadius = cfg.Bind("Weapons", "GrabRadius", 0.09f,
                 new ConfigDescription("How close (m) your hand must be to grab a slide, foregrip or magazine.", new AcceptableValueRange<float>(0.03f, 0.25f)));
 
@@ -208,18 +258,30 @@ namespace RavenfieldVR.Core
             DebugLogging = cfg.Bind("Debug", "VerboseLogging", false, "Log extra diagnostics.");
             ShowGrabZones = cfg.Bind("Debug", "ShowGrabZones", false, "Draw spheres at mag wells, slides, foregrips, pouches and holsters.");
             DumpWeaponRigs = cfg.Bind("Debug", "DumpWeaponRigs", false, "Log the detected parts of every weapon you equip.");
+            WeaponSelfTest = cfg.Bind("Debug", "WeaponSelfTest", false,
+                "After content loads, analyse every installed weapon (vanilla and mods) and write BepInEx/RavenfieldVR-weapon-report.txt. Same as launching with -rfvr-selftest.");
         }
 
         public static bool LeftHanded => DominantHand.Value == Handedness.Left;
 
+        private static readonly Dictionary<ConfigEntry<string>, KeyValuePair<string, Vector3>> ParsedVectors =
+            new Dictionary<ConfigEntry<string>, KeyValuePair<string, Vector3>>();
+
+        /// <summary>The entry as a vector, parsed once per value (it is read every frame for hand and gun offsets).</summary>
         public static Vector3 ParseVector(ConfigEntry<string> entry, Vector3 fallback)
         {
-            if (TryParseVector(entry.Value, out Vector3 v))
+            string text = entry.Value;
+            if (ParsedVectors.TryGetValue(entry, out KeyValuePair<string, Vector3> cached) && ReferenceEquals(cached.Key, text))
             {
-                return v;
+                return cached.Value;
             }
-            Log.WarnOnce("vec:" + entry.Definition.Key, $"Config {entry.Definition.Section}.{entry.Definition.Key} = '{entry.Value}' is not 'x, y, z'; using {fallback}.");
-            return fallback;
+            if (!TryParseVector(text, out Vector3 v))
+            {
+                Log.WarnOnce("vec:" + entry.Definition.Key, $"Config {entry.Definition.Section}.{entry.Definition.Key} = '{text}' is not 'x, y, z'; using {fallback}.");
+                v = fallback;
+            }
+            ParsedVectors[entry] = new KeyValuePair<string, Vector3>(text, v);
+            return v;
         }
 
         public static bool TryParseVector(string text, out Vector3 v)

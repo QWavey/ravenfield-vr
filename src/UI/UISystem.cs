@@ -24,9 +24,11 @@ namespace RavenfieldVR.UI
         public readonly Camera EventCamera;
         public readonly CanvasManager Canvases;
         public readonly VRSettingsPanel Settings;
+        public readonly ModKeysPanel ModKeys;
         private readonly VRKeyboard _keyboard;
         private readonly LaserPointer _laser;
         private readonly WristHud _wrist;
+        private readonly SeatSights _sights = new SeatSights();
         private VRInputModule _module;
         private EventSystem _eventSystem;
         private readonly List<BaseInputModule> _disabledModules = new List<BaseInputModule>();
@@ -68,6 +70,8 @@ namespace RavenfieldVR.UI
             Canvases = new CanvasManager(rig, EventCamera);
             Settings = new VRSettingsPanel(rig, EventCamera);
             Canvases.RegisterOwn(Settings.Canvas);
+            ModKeys = new ModKeysPanel(rig, EventCamera);
+            Canvases.RegisterOwn(ModKeys.Canvas);
             _keyboard = new VRKeyboard();
             _laser = new LaserPointer();
             _wrist = new WristHud(rig);
@@ -84,12 +88,19 @@ namespace RavenfieldVR.UI
                 VRInput.Consume(DigitalAction.VRMenu);
                 Settings.Toggle();
             }
+            if (VRInput.GetPressed(DigitalAction.ModKeys))
+            {
+                VRInput.Consume(DigitalAction.ModKeys);
+                ModKeys.Toggle();
+            }
             if (Settings.IsOpen)
             {
                 Settings.Refresh();
             }
+            ModKeys.Update();
 
-            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || (!GameContext.InGame && HasAnyVisibleCanvas());
+            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || (!GameContext.InGame && HasAnyVisibleCanvas());
+            VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen;
 
             // Whichever hand pulls its trigger becomes the pointer.
             if (_module != null && MenuMode)
@@ -125,6 +136,10 @@ namespace RavenfieldVR.UI
                 if (Settings.IsOpen)
                 {
                     _targets.Add(Settings.Canvas);
+                }
+                if (ModKeys.IsOpen)
+                {
+                    _targets.Add(ModKeys.Canvas);
                 }
                 _module.Targets = _targets;
                 _module.PointerActive = MenuMode && pointer.Tracked;
@@ -196,6 +211,8 @@ namespace RavenfieldVR.UI
         {
             Canvases.BeforeRender();
             Settings.BeforeRender();
+            _sights.BeforeRender(_rig.Head);
+            ModKeys.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
             _laser.Update(show, pointer.Pointer.position, show ? _module.HitPoint : Vector3.zero, show && _module.HasHit, _module != null && _module.HoveredObject != null);
@@ -213,6 +230,8 @@ namespace RavenfieldVR.UI
             RestoreModules();
             Canvases.Dispose();
             Settings.Dispose();
+            _sights.Restore();
+            ModKeys.Dispose();
             _keyboard.Dispose();
             _laser.Destroy();
             _wrist.Destroy();
@@ -225,6 +244,7 @@ namespace RavenfieldVR.UI
                 UnityEngine.Object.Destroy(EventCamera.gameObject);
             }
             VRGameInput.PointerOverUI = false;
+            VRGameInput.PanelOpen = false;
             if (Instance == this)
             {
                 Instance = null;

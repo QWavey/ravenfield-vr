@@ -1,3 +1,4 @@
+using System.Collections;
 using HarmonyLib;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
@@ -8,11 +9,77 @@ namespace RavenfieldVR.Weapons
     /// <summary>Hooks that let the VR ammo model and sight-to-eye aiming drive the game's weapons.</summary>
     internal static class WeaponHooks
     {
+        /// <summary>
+        /// A weapon the player carries, in VR. Seat-mounted guns (vehicle LMGs, turrets) are left to the game: they
+        /// reload, aim and show their sights as designed.
+        /// </summary>
         public static bool PlayerWeaponInVR(Weapon w) =>
-            VRManager.Active && WeaponSystem.Instance != null && w != null && w.UserIsPlayer();
+            VRManager.Active && WeaponSystem.Instance != null && w != null && w.UserIsPlayer() && !w.IsMountedWeapon();
 
         /// <summary>Set while the mod itself asks the game to reload (assisted mode / scripted refills).</summary>
         public static bool AllowGameReload;
+    }
+
+    /// <summary>
+    /// In VR the weapon is drawn by your hand, not by an animation: the draw clip (raising the gun, often working the
+    /// bolt or slide on the way) is skipped by stepping the animator past it with its events muted. The game's own
+    /// draw delay before the weapon can fire runs on a separate timer and stays as it is.
+    /// The animator is stepped in short increments because the state machine takes one transition per update
+    /// (trigger -> draw state, then draw -> idle on exit time), and once more on the next frame because an animator
+    /// enabled this frame only initialises in the coming animation pass.
+    /// </summary>
+    [HarmonyPatch(typeof(Weapon), nameof(Weapon.Unholster))]
+    internal static class WeaponUnholsterPatch
+    {
+        private const int Steps = 25;
+        private const float StepSeconds = 0.1f;
+
+        private static void Postfix(Weapon __instance)
+        {
+            if (!VRConfig.SkipDrawAnimation.Value || !WeaponHooks.PlayerWeaponInVR(__instance))
+            {
+                return;
+            }
+            Animator anim = __instance.animator;
+            if (anim == null || anim.runtimeAnimatorController == null)
+            {
+                return;
+            }
+            if (anim.isActiveAndEnabled && anim.isInitialized)
+            {
+                Step(anim);
+            }
+            if (VRManager.Instance != null)
+            {
+                VRManager.Instance.StartCoroutine(StepNextFrame(__instance, anim));
+            }
+        }
+
+        private static IEnumerator StepNextFrame(Weapon weapon, Animator anim)
+        {
+            yield return null; // runs after this frame's Update calls, before its animation pass
+            if (weapon != null && anim != null && anim.isActiveAndEnabled && weapon.user != null && weapon.user.activeWeapon == weapon)
+            {
+                Step(anim);
+            }
+        }
+
+        private static void Step(Animator anim)
+        {
+            bool events = anim.fireEvents;
+            try
+            {
+                anim.fireEvents = false;
+                for (int i = 0; i < Steps; i++)
+                {
+                    anim.Update(StepSeconds);
+                }
+            }
+            finally
+            {
+                anim.fireEvents = events;
+            }
+        }
     }
 
     [HarmonyPatch(typeof(Weapon), nameof(Weapon.CanFire))]

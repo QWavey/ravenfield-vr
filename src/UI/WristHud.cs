@@ -57,20 +57,28 @@ namespace RavenfieldVR.UI
             Vector3 toHead = (_rig.Head.position - pos).normalized;
             _go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(-toHead, off.Palm.Forward));
 
-            string ammo = "";
             WeaponSystem ws = WeaponSystem.Instance;
             HeldWeapon held = ws?.Held;
-            if (held != null && held.ActiveAmmo != null && held.ActiveAmmo.Participates)
-            {
-                AmmoState a = held.ActiveAmmo;
-                string reserve = a.InfiniteSpare ? "∞" : a.SpareAmmo.ToString();
-                ammo = $"\n{a.CounterText()}  ·  {reserve} reserve";
-            }
+            AmmoState a = held != null && held.ActiveAmmo != null && held.ActiveAmmo.Participates ? held.ActiveAmmo : null;
             float hp = Mathf.Max(0f, actor.health);
-            Color hpColor = hp > 60f ? new Color(0.85f, 0.88f, 0.84f, _alpha) : hp > 30f ? new Color(0.95f, 0.72f, 0.25f, _alpha) : new Color(0.92f, 0.32f, 0.26f, _alpha);
-            _text.text = $"{hp:0} HP{ammo}";
-            _text.color = hpColor;
+            string counter = a != null ? a.CounterText() : null;
+            int spare = a == null ? -2 : a.InfiniteSpare ? -1 : a.SpareAmmo;
+            int hpWhole = Mathf.RoundToInt(hp);
+            // Rebuilt only when what it shows changes: no string garbage every frame.
+            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare)
+            {
+                _shownHp = hpWhole;
+                _shownCounter = counter;
+                _shownSpare = spare;
+                string reserve = spare == -1 ? "\u221e" : spare.ToString();
+                _text.text = a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve";
+            }
+            _text.color = hp > 60f ? new Color(0.85f, 0.88f, 0.84f, _alpha) : hp > 30f ? new Color(0.95f, 0.72f, 0.25f, _alpha) : new Color(0.92f, 0.32f, 0.26f, _alpha);
         }
+
+        private int _shownHp = int.MinValue;
+        private string _shownCounter;
+        private int _shownSpare = int.MinValue;
 
         public void Destroy()
         {

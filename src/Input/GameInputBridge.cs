@@ -38,6 +38,9 @@ namespace RavenfieldVR.Input
         /// <summary>Set by the UI module while a laser pointer is over a menu, so triggers don't also act in game.</summary>
         public static bool PointerOverUI { get; set; }
 
+        /// <summary>Set by the UI system while one of the mod's own panels (VR settings, Mod keys) is open in game.</summary>
+        public static bool PanelOpen { get; set; }
+
         /// <summary>Weapon systems set this while the dominant trigger must not fire (e.g. holding a grenade pin).</summary>
         public static bool SuppressFire { get; set; }
 
@@ -90,7 +93,8 @@ namespace RavenfieldVR.Input
                 _scoreboardOpen = !_scoreboardOpen;
             }
             Set(KeyBinds.Scoreboard, _scoreboardOpen);
-            Set(KeyBinds.Fire, VRInput.GetHeld(DigitalAction.Fire, dom) && !SuppressFire && !(menu && PointerOverUI));
+            // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
+            Set(KeyBinds.Fire, VRInput.GetHeld(DigitalAction.Fire, dom) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
 
             if (menu)
             {
@@ -126,28 +130,63 @@ namespace RavenfieldVR.Input
             SetAxis(KeyBinds.Vertical, MoveStick.y);
             Set(KeyBinds.Kick, VRInput.GetHeld(DigitalAction.Kick));
 
-            Weapon weapon = actor.activeWeapon;
-            if (VRInput.GetPressed(DigitalAction.FireMode))
-            {
-                bool sightsOnly = weapon != null && weapon.HasAnyAltSightModes() && !weapon.HasAnySubWeapons();
-                Set(sightsOnly ? KeyBinds.NextScope : KeyBinds.FireMode, true);
-            }
-
-            if (VRConfig.Reload.Value == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
-            {
-                Set(KeyBinds.Reload, true);
-            }
+            HandleWeaponButtons(actor.activeWeapon);
 
             UpdateSprint(actor);
             UpdateStickJumpCrouch(actor);
         }
 
+        /// <summary>Fire mode / sights and the assisted reload for the personal weapon in hand.</summary>
+        private static void HandleWeaponButtons(Weapon weapon)
+        {
+            if (VRInput.GetPressed(DigitalAction.FireMode))
+            {
+                // Looking through the sights: flip the magnifier / alternate sight. Otherwise: the weapon's own
+                // fire-mode script, the mod's sub-weapon modes, else our semi/auto selector (automatic weapons only).
+                Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
+                bool aiming = system != null && system.Held != null && system.Held.Aiming;
+                ScriptKey magnifier = aiming ? ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) : null;
+                if (magnifier != null)
+                {
+                    ScriptKeys.Tap(magnifier.Key, magnifier.Script);
+                }
+                else if (weapon != null && weapon.HasAnyAltSightModes() && (aiming || !weapon.HasAnySubWeapons() && !Weapons.FireSelector.HasModes(weapon)
+                                                                             && ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) == null))
+                {
+                    Set(KeyBinds.NextScope, true);
+                }
+                else if (system == null || VRConfig.FireSelector.Value == false || !system.HandleFireModePress(weapon))
+                {
+                    Set(KeyBinds.FireMode, true);
+                }
+            }
+            if (VRConfig.Reload.Value == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
+            {
+                Set(KeyBinds.Reload, true);
+            }
+        }
+
         private static void ComputeSeated()
         {
+            Actor actor = GameContext.PlayerActor;
+            if (actor != null && (Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null))
+            {
+                // A personal weapon in hand (drawn from the seat, or a seat the game lets you shoot from): its buttons
+                // work the weapon, the car keeps the sticks and the wheel.
+                HandleWeaponButtons(actor.activeWeapon);
+                SprintActive = false;
+                _jumpLatch = _downLatch = false;
+                return;
+            }
             // Vehicle axes are produced by the CarInput/HelicopterInput/AirplaneInput patches; here only buttons.
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.Dominant))
             {
                 Set(KeyBinds.Countermeasures, true);
+            }
+            // B reloads a mounted gun (a car's LMG, a turret), as R does on the keyboard.
+            if (VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
+            {
+                Set(KeyBinds.Reload, true);
             }
             if (VRInput.GetPressed(DigitalAction.FireMode))
             {

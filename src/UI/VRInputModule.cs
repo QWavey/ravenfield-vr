@@ -78,6 +78,7 @@ namespace RavenfieldVR.UI
             if (!PointerActive || EventCamera == null)
             {
                 HasHit = false;
+                VRGameInput.PointerOverUI = false;
                 if (_pressed)
                 {
                     Release(null);

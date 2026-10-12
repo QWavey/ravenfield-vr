@@ -20,22 +20,20 @@ namespace RavenfieldVR.UI
     public sealed class VRSettingsPanel : IDisposable
     {
         private const float CanvasWidth = 980f;
-        private const float RowHeight = 58f;
+        private const float RowHeight = UiKit.RowHeight;
 
-        private static readonly Color PanelColor = new Color32(27, 30, 33, 240);
-        private static readonly Color RowRule = new Color32(58, 63, 68, 255);
-        private static readonly Color TextColor = new Color32(226, 228, 223, 255);
-        private static readonly Color MutedText = new Color32(150, 156, 160, 255);
-        private static readonly Color ButtonColor = new Color32(42, 46, 51, 255);
-        private static readonly Color ButtonHover = new Color32(56, 61, 67, 255);
-        private static readonly Color Accent = new Color32(201, 160, 74, 255);
-        private static readonly Color AccentText = new Color32(24, 22, 18, 255);
+        private static readonly Color RowRule = UiKit.RowRule;
+        private static readonly Color TextColor = UiKit.TextColor;
+        private static readonly Color MutedText = UiKit.MutedText;
+        private static readonly Color ButtonColor = UiKit.ButtonColor;
+        private static readonly Color ButtonHover = UiKit.ButtonHover;
+        private static readonly Color Accent = UiKit.Accent;
+        private static readonly Color AccentText = UiKit.AccentText;
 
         private readonly VRRig _rig;
         private readonly GameObject _root;
         public readonly Canvas Canvas;
         private readonly RectTransform _content;
-        private readonly Font _font;
         private readonly List<Action> _refreshers = new List<Action>();
         private RigidPose _localPose;
         private float _height;
@@ -45,61 +43,13 @@ namespace RavenfieldVR.UI
         public VRSettingsPanel(VRRig rig, Camera eventCamera)
         {
             _rig = rig;
-            _font = FindGameFont();
-            _root = new GameObject("RavenfieldVR Settings");
-            UnityEngine.Object.DontDestroyOnLoad(_root);
-            _root.layer = 5;
-            Canvas = _root.AddComponent<Canvas>();
-            Canvas.renderMode = RenderMode.WorldSpace;
-            Canvas.worldCamera = eventCamera;
-            Canvas.sortingOrder = 500;
-            _root.AddComponent<GraphicRaycaster>();
+            Canvas = UiKit.MakePanel("RavenfieldVR Settings", eventCamera, out _root, out _content);
             var rect = (RectTransform)_root.transform;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-
-            Image bg = _root.AddComponent<Image>();
-            bg.color = PanelColor;
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.layer = 5;
-            _content = (RectTransform)contentGo.transform;
-            _content.SetParent(rect, false);
-            _content.anchorMin = new Vector2(0f, 1f);
-            _content.anchorMax = new Vector2(1f, 1f);
-            _content.pivot = new Vector2(0.5f, 1f);
-            _content.anchoredPosition = Vector2.zero;
 
             Build();
             rect.sizeDelta = new Vector2(CanvasWidth, _height + 36f);
             _content.sizeDelta = new Vector2(0f, _height);
             _root.SetActive(false);
-        }
-
-        private static Font FindGameFont()
-        {
-            try
-            {
-                if (IngameMenuUi.instance != null)
-                {
-                    Text t = IngameMenuUi.instance.GetComponentInChildren<Text>(true);
-                    if (t != null && t.font != null)
-                    {
-                        return t.font;
-                    }
-                }
-                foreach (Text t in Resources.FindObjectsOfTypeAll<Text>())
-                {
-                    if (t.font != null && t.font.name != "Arial")
-                    {
-                        return t.font;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Fall through to the built-in font.
-            }
-            return Resources.GetBuiltinResource<Font>("Arial.ttf");
         }
 
         // ---- layout ---------------------------------------------------------------------------------
@@ -124,12 +74,17 @@ namespace RavenfieldVR.UI
             Section("Weapons");
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
             Toggle("Two-handed aiming", VRConfig.TwoHandedAiming);
+            Choice("Hands", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
             Toggle("Holster switching", VRConfig.HolsterSwitching);
             Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
+            Toggle("Grenade pins", VRConfig.GrenadePins);
+            Toggle("Lay MG belts by hand", VRConfig.BeltByHand);
             Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0;-0;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
             Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
 
             Section("Display");
+            Choice("Graphics", VRConfig.Graphics, new[] { GraphicsPreset.Low, GraphicsPreset.Medium, GraphicsPreset.High, GraphicsPreset.Ultra, GraphicsPreset.Game },
+                new[] { "Low", "Medium", "High", "Ultra", "Game" });
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
             Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
             Toggle("Ammo counter on gun", VRConfig.GunAmmoCounter);
@@ -154,23 +109,8 @@ namespace RavenfieldVR.UI
             return rt;
         }
 
-        private Text MakeText(RectTransform parent, string text, int size, FontStyle style, Color color, TextAnchor anchor)
-        {
-            var go = new GameObject("Text", typeof(RectTransform));
-            go.layer = 5;
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            Text t = go.AddComponent<Text>();
-            t.font = _font;
-            t.text = text;
-            t.fontSize = size;
-            t.fontStyle = style;
-            t.color = color;
-            t.alignment = anchor;
-            t.raycastTarget = false;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            return t;
-        }
+        private static Text MakeText(RectTransform parent, string text, int size, FontStyle style, Color color, TextAnchor anchor) =>
+            UiKit.MakeText(parent, text, size, style, color, anchor);
 
         private void Label(string text, int size, FontStyle style, Color color, float indent, float height)
         {
@@ -194,41 +134,10 @@ namespace RavenfieldVR.UI
             _height += 6f;
         }
 
-        private static void Stretch(RectTransform rt, float left, float right)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(left, 0f);
-            rt.offsetMax = new Vector2(-right, 0f);
-        }
+        private static void Stretch(RectTransform rt, float left, float right) => UiKit.Stretch(rt, left, right);
 
-        private Button MakeButton(RectTransform parent, string label, float x, float width, Action onClick, out Text text)
-        {
-            var go = new GameObject("Button", typeof(RectTransform));
-            go.layer = 5;
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            rt.anchorMin = new Vector2(1f, 0.5f);
-            rt.anchorMax = new Vector2(1f, 0.5f);
-            rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(-x, 0f);
-            rt.sizeDelta = new Vector2(width, RowHeight - 14f);
-            Image img = go.AddComponent<Image>();
-            img.color = Color.white;
-            Button b = go.AddComponent<Button>();
-            ColorBlock colors = b.colors;
-            colors.normalColor = ButtonColor;
-            colors.highlightedColor = ButtonHover;
-            colors.pressedColor = Accent;
-            colors.selectedColor = ButtonColor;
-            colors.fadeDuration = 0.05f;
-            b.colors = colors;
-            b.navigation = new Navigation { mode = Navigation.Mode.None };
-            b.onClick.AddListener(() => onClick());
-            text = MakeText(rt, label, 21, FontStyle.Normal, TextColor, TextAnchor.MiddleCenter);
-            Stretch(text.rectTransform, 6f, 6f);
-            return b;
-        }
+        private static Button MakeButton(RectTransform parent, string label, float x, float width, Action onClick, out Text text) =>
+            UiKit.MakeButton(parent, label, x, width, onClick, out text);
 
         private RectTransform LabeledRow(string label)
         {
@@ -299,9 +208,10 @@ namespace RavenfieldVR.UI
         private void Footer()
         {
             RectTransform row = Row(RowHeight + 10f);
-            MakeButton(row, "Close", 34f, 160f, Close, out _);
-            MakeButton(row, "SteamVR bindings", 206f, 250f, VRInput.OpenBindingUI, out _);
-            MakeButton(row, "Recenter", 468f, 170f, () =>
+            MakeButton(row, "Close", 34f, 140f, Close, out _);
+            MakeButton(row, "SteamVR bindings", 186f, 230f, VRInput.OpenBindingUI, out _);
+            MakeButton(row, "Mod keys", 428f, 150f, () => UISystem.Instance?.ModKeys.Open(), out _);
+            MakeButton(row, "Recenter", 590f, 150f, () =>
             {
                 _rig.Recenter();
                 UISystem.Instance?.Canvases.RecenterMenus();

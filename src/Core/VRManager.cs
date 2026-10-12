@@ -62,6 +62,7 @@ namespace RavenfieldVR.Core
                 Rig = new VRRig();
                 Weapons = new WeaponSystem(Rig);
                 UI = new UISystem(Rig);
+                CacheFrameDelegates();
             }
             catch (Exception e)
             {
@@ -72,13 +73,18 @@ namespace RavenfieldVR.Core
 
             VRGameInput.Enabled = inputReady;
             _active = true;
+            ScriptKeys.Enabled = true;
             Application.onBeforeRender += OnBeforeRender;
             SceneManager.activeSceneChanged += OnSceneChanged;
             OpenVRRuntime.DashboardChanged += OnDashboard;
             VRConfig.RenderScale.SettingChanged += OnRenderSettingChanged;
             VRConfig.Mirror.SettingChanged += OnRenderSettingChanged;
+            VRConfig.Graphics.SettingChanged += OnGraphicsPresetChanged;
+            GraphicsPresets.Apply();
             _subscribed = true;
             Log.Info("VR active.");
+            // Content may have finished loading before VR came up; the warm-up skips rigs already analysed.
+            WeaponWarmup.Start();
         }
 
         /// <summary>
@@ -129,13 +135,45 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
+            PerfProbe.Frame();
             OpenVRRuntime.PumpEvents();
             OpenVRRuntime.EnforceFramePacing();
+            Log.Guard("Input", _inputUpdate);
+            Log.Guard("Rig.Update", _rigUpdate);
+            Log.Guard("UI.Update", _uiUpdate);
+            Log.Guard("Weapons.Update", _weaponsUpdate);
+        }
+
+        // Per-frame work goes to Log.Guard as delegates made once: passing a method group allocates a new delegate
+        // (garbage) on every call, ten times a frame.
+        private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender;
+        private Action[] _handApply;
+
+        private static void UpdateInput()
+        {
             VRInput.Update();
             VRGameInput.Compute();
-            Log.Guard("Rig.Update", Rig.Update);
-            Log.Guard("UI.Update", UI.Update);
-            Log.Guard("Weapons.Update", Weapons.Update);
+            ScriptKeys.Update();
+            // Mod scripts that read Shift for sprinting (tactical sprint animations) see the VR sprint.
+            ScriptKeys.SetHeld("left shift", VRGameInput.SprintActive && Util.GameContext.PlayerOnFoot);
+        }
+
+        private void CacheFrameDelegates()
+        {
+            _inputUpdate = UpdateInput;
+            _rigUpdate = Rig.Update;
+            _uiUpdate = UI.Update;
+            _weaponsUpdate = Weapons.Update;
+            _suppressor = Rig.Suppressor.Refresh;
+            _weaponsLate = Weapons.LateUpdate;
+            _rigRender = Rig.BeforeRender;
+            _weaponsRender = Weapons.BeforeRender;
+            _uiRender = UI.BeforeRender;
+            _handApply = new Action[Rig.Hands.Length];
+            for (int i = 0; i < Rig.Hands.Length; i++)
+            {
+                _handApply[i] = Rig.Hands[i].Model.Apply;
+            }
         }
 
         private void LateUpdate()
@@ -144,8 +182,8 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
-            Log.Guard("Suppressor", Rig.Suppressor.Refresh);
-            Log.Guard("Weapons.LateUpdate", Weapons.LateUpdate);
+            Log.Guard("Suppressor", _suppressor);
+            Log.Guard("Weapons.LateUpdate", _weaponsLate);
         }
 
         private void OnBeforeRender()
@@ -154,12 +192,12 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
-            Log.Guard("Rig.BeforeRender", Rig.BeforeRender);
-            Log.Guard("Weapons.BeforeRender", Weapons.BeforeRender);
-            Log.Guard("UI.BeforeRender", UI.BeforeRender);
-            foreach (VRHand hand in Rig.Hands)
+            Log.Guard("Rig.BeforeRender", _rigRender);
+            Log.Guard("Weapons.BeforeRender", _weaponsRender);
+            Log.Guard("UI.BeforeRender", _uiRender);
+            foreach (Action apply in _handApply)
             {
-                Log.Guard("HandModel", hand.Model.Apply);
+                Log.Guard("HandModel", apply);
             }
         }
 
@@ -180,6 +218,8 @@ namespace RavenfieldVR.Core
 
         private void OnRenderSettingChanged(object sender, EventArgs e) => OpenVRRuntime.ApplyLiveSettings();
 
+        private void OnGraphicsPresetChanged(object sender, EventArgs e) => GraphicsPresets.OnPresetChanged();
+
         private void Shutdown()
         {
             if (_subscribed)
@@ -188,10 +228,13 @@ namespace RavenfieldVR.Core
                 SceneManager.activeSceneChanged -= OnSceneChanged;
                 OpenVRRuntime.DashboardChanged -= OnDashboard;
                 VRConfig.RenderScale.SettingChanged -= OnRenderSettingChanged;
+                VRConfig.Graphics.SettingChanged -= OnGraphicsPresetChanged;
                 VRConfig.Mirror.SettingChanged -= OnRenderSettingChanged;
                 _subscribed = false;
             }
             _active = false;
+            ScriptKeys.Enabled = false;
+            ScriptKeys.Clear();
             VRGameInput.Enabled = false;
             UI?.Dispose();
             Weapons?.Dispose();

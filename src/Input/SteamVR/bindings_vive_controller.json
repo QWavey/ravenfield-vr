@@ -18,7 +18,7 @@
         { "path": "/user/hand/left/input/trackpad", "mode": "joystick",
           "inputs": { "position": { "output": "/actions/main/in/Move" } } },
         { "path": "/user/hand/left/input/trackpad", "mode": "complex_button",
-          "inputs": { "single": { "output": "/actions/main/in/Sprint" }, "double": { "output": "/actions/main/in/VRMenu" } } },
+          "inputs": { "single": { "output": "/actions/main/in/Sprint" }, "double": { "output": "/actions/main/in/VRMenu" }, "long": { "output": "/actions/main/in/ModKeys" } } },
         { "path": "/user/hand/right/input/trackpad", "mode": "joystick",
           "inputs": { "position": { "output": "/actions/main/in/TurnStick" } } },
         { "path": "/user/hand/right/input/trackpad", "mode": "complex_button",

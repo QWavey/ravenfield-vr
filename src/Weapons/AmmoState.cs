@@ -17,6 +17,14 @@ namespace RavenfieldVR.Weapons
         public bool Chambered;
         public bool MagInserted = true;
         public bool SlideLocked;
+        /// <summary>Break-action / revolver: open for loading (cannot fire).</summary>
+        public bool Open;
+        /// <summary>Bolt / pump / lever left open by hand (manual actions do not spring shut).</summary>
+        public bool BoltOpen;
+        /// <summary>Machine gun feed cover lifted (cannot fire).</summary>
+        public bool CoverOpen;
+        /// <summary>Machine gun: the belt of the seated box lies on the feed tray (the cover was closed over it).</summary>
+        public bool BeltLaid = true;
 
         private int _expectedAmmo;
 
@@ -32,7 +40,12 @@ namespace RavenfieldVR.Weapons
 
         public bool UsesDetachableMag => Rig.Action == ActionType.SelfLoading || (Rig.Action == ActionType.Manual && Rig.MagazinePath != null);
         public bool UsesChamber => Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.Manual || Rig.Action == ActionType.ShellFed;
-        public bool SelfLoading => Rig.Action == ActionType.SelfLoading;
+        /// <summary>The action cycles itself after a shot (feeds the next round).</summary>
+        public bool SelfLoading => (Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.ShellFed) && !Rig.CyclesByHand;
+        public bool HasCover => Rig.Hinge == HingeKind.FeedCover;
+        /// <summary>Rounds can reach the chamber: a magazine is seated (or internal) and, on a belt-fed gun, the belt is laid.</summary>
+        public bool FeedReady => (MagInserted || !UsesDetachableMag) && (!HasCover || BeltLaid && !CoverOpen);
+        private bool LoadsDirectly => Rig.Action == ActionType.SingleShot || Rig.Action == ActionType.BreakOpen;
         public bool Participates => Rig.Action != ActionType.NoAmmo && Rig.Action != ActionType.Throwable && Rig.Action != ActionType.Melee;
 
         public int SpareAmmo
@@ -52,11 +65,11 @@ namespace RavenfieldVR.Weapons
                 {
                     return true;
                 }
-                if (Rig.Action == ActionType.SingleShot)
+                if (LoadsDirectly)
                 {
-                    return MagRounds > 0;
+                    return MagRounds > 0 && !Open;
                 }
-                return Chambered && !SlideLocked;
+                return Chambered && !SlideLocked && !BoltOpen && !(HasCover && CoverOpen);
             }
         }
 
@@ -76,6 +89,10 @@ namespace RavenfieldVR.Weapons
             }
             MagInserted = true;
             SlideLocked = false;
+            Open = false;
+            CoverOpen = false;
+            BeltLaid = true;
+            BoltOpen = false;
             Sync();
         }
 
@@ -125,7 +142,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (Rig.Action == ActionType.SingleShot)
+            if (LoadsDirectly)
             {
                 MagRounds = Mathf.Max(0, MagRounds - 1);
                 Sync();
@@ -134,7 +151,7 @@ namespace RavenfieldVR.Weapons
             Chambered = false;
             if (SelfLoading)
             {
-                if (MagInserted && MagRounds > 0)
+                if (FeedReady && MagRounds > 0)
                 {
                     MagRounds--;
                     Chambered = true;
@@ -157,6 +174,7 @@ namespace RavenfieldVR.Weapons
             int rounds = MagRounds;
             MagInserted = false;
             MagRounds = 0;
+            BeltLaid = !HasCover;
             Sync();
             return rounds;
         }
@@ -165,8 +183,42 @@ namespace RavenfieldVR.Weapons
         {
             MagInserted = true;
             MagRounds = Mathf.Clamp(rounds, 0, Capacity);
+            ReturnSpare(rounds - MagRounds); // more than this weapon's magazine holds: the rest goes to the reserve
+            // A new box's belt still has to be laid on the feed tray under the cover.
+            BeltLaid = !HasCover;
             Sync();
         }
+
+        public void SetOpen(bool open)
+        {
+            Open = open;
+            Sync();
+        }
+
+        public void SetCoverOpen(bool open)
+        {
+            if (CoverOpen && !open && MagInserted && !VRConfig.BeltByHand.Value)
+            {
+                BeltLaid = true; // closing the cover over the belt
+            }
+            CoverOpen = open;
+            Sync();
+        }
+
+        /// <summary>The belt end laid on the feed tray (cover open, a box seated).</summary>
+        public bool LayBelt()
+        {
+            if (!HasCover || !CoverOpen || !MagInserted || BeltLaid)
+            {
+                return false;
+            }
+            BeltLaid = true;
+            Sync();
+            return true;
+        }
+
+        /// <summary>A belt-fed gun's box stays put while the belt runs through the closed cover.</summary>
+        public bool BoxLocked => HasCover && MagInserted && BeltLaid && !CoverOpen;
 
         /// <summary>Pushes individual rounds into an internal magazine/tube.</summary>
         /// <returns>How many were accepted.</returns>
@@ -201,7 +253,7 @@ namespace RavenfieldVR.Weapons
         public bool RackForward()
         {
             SlideLocked = false;
-            bool hasRound = (MagInserted || !UsesDetachableMag) && MagRounds > 0;
+            bool hasRound = FeedReady && MagRounds > 0;
             if (hasRound && !Chambered)
             {
                 MagRounds--;
@@ -259,7 +311,43 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Rounds coming back from a magazine left lying around, up to the weapon's reserve limit (where the game caps
+        /// resupply): an ammo bag may have refilled the reserve in the meantime.
+        /// </summary>
+        public void ReturnSpareCapped(int rounds)
+        {
+            if (InfiniteSpare || rounds <= 0)
+            {
+                return;
+            }
+            int cap = Weapon != null ? Weapon.configuration.spareAmmo : int.MaxValue;
+            SpareAmmo = Mathf.Max(SpareAmmo, (int)System.Math.Min(cap, (long)SpareAmmo + rounds));
+        }
+
+        private int _counterKey = int.MinValue;
+        private string _counterText = "";
+
+        /// <summary>Everything the counter text depends on, so the string is only rebuilt when something changed.</summary>
+        private int CounterKey()
+        {
+            int flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
+                        | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0);
+            return (MagRounds * 397) ^ (Capacity << 20) ^ (flags << 12);
+        }
+
         public string CounterText()
+        {
+            int key = CounterKey();
+            if (key != _counterKey)
+            {
+                _counterKey = key;
+                _counterText = BuildCounterText();
+            }
+            return _counterText;
+        }
+
+        private string BuildCounterText()
         {
             if (!Participates)
             {
@@ -267,7 +355,19 @@ namespace RavenfieldVR.Weapons
             }
             if (Rig.Action == ActionType.SingleShot)
             {
-                return MagRounds > 0 ? "LOADED" : "EMPTY";
+                return Open ? "OPEN" : MagRounds > 0 ? "LOADED" : "EMPTY";
+            }
+            if (Rig.Action == ActionType.BreakOpen)
+            {
+                return Open ? $"OPEN {MagRounds}/{Capacity}" : MagRounds.ToString();
+            }
+            if (HasCover && CoverOpen)
+            {
+                return MagInserted && !BeltLaid ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
+            }
+            if (HasCover && MagInserted && !BeltLaid)
+            {
+                return VRConfig.BeltByHand.Value ? "OPEN COVER" : "CLOSE COVER";
             }
             if (UsesDetachableMag && !MagInserted)
             {

@@ -1,0 +1,94 @@
+using System.Collections;
+using System.Collections.Generic;
+using HarmonyLib;
+using RavenfieldVR.Core;
+using UnityEngine;
+
+namespace RavenfieldVR.Weapons
+{
+    /// <summary>
+    /// Analysing a weapon rig samples its animations on a copy of the weapon and takes tens of milliseconds, which is
+    /// a visible hitch in a headset the first time a weapon type is drawn in a match. In VR every installed weapon is
+    /// analysed ahead of time while the main menu is up (one per frame; the menu tolerates it), so drawing, picking up
+    /// and switching weapons in a match never waits for it. Pauses while a match runs.
+    /// </summary>
+    internal static class WeaponWarmup
+    {
+        private static bool _running;
+        private static bool _rescan;
+
+        public static void Start()
+        {
+            if (!VRManager.Active || VRManager.Instance == null || WeaponSelfTest.Running)
+            {
+                return;
+            }
+            if (_running)
+            {
+                _rescan = true; // more content loaded mid-run: go over the weapon list again when this pass ends
+                return;
+            }
+            VRManager.Instance.StartCoroutine(Run());
+        }
+
+        private static IEnumerator Run()
+        {
+            _running = true;
+            var entries = new List<WeaponManager.WeaponEntry>();
+            int analysed = 0;
+            float started = Time.realtimeSinceStartup;
+            do
+            {
+                _rescan = false;
+                entries.Clear();
+                if (WeaponManager.instance != null && WeaponManager.instance.allWeapons != null)
+                {
+                    entries.AddRange(WeaponManager.instance.allWeapons);
+                }
+                foreach (WeaponManager.WeaponEntry entry in entries)
+                {
+                    // Only in menus: in a match the frame rate matters more than the cache.
+                    while (GameManager.IsIngame(out bool noGameplay) && !noGameplay)
+                    {
+                        yield return new WaitForSecondsRealtime(1f);
+                    }
+                    if (entry == null || entry.prefab == null)
+                    {
+                        continue;
+                    }
+                    Weapon weapon = entry.prefab.GetComponent<Weapon>();
+                    if (weapon == null || WeaponAnalyzer.IsCached(weapon, entry))
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        WeaponAnalyzer.Get(weapon, entry);
+                        foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
+                        {
+                            if (sub != weapon && !WeaponAnalyzer.IsCached(sub, entry))
+                            {
+                                WeaponAnalyzer.Get(sub, entry);
+                            }
+                        }
+                        analysed++;
+                    }
+                    catch (System.Exception e)
+                    {
+                        Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {e.Message}");
+                    }
+                    yield return null;
+                }
+            }
+            while (_rescan && VRManager.Active);
+            Log.Info($"Pre-analysed {analysed} weapon rigs in {Time.realtimeSinceStartup - started:0.0} s.");
+            _running = false;
+        }
+    }
+
+    [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnAllContentLoaded))]
+    internal static class WarmupContentLoadedPatch
+    {
+        private static void Postfix() => WeaponWarmup.Start();
+    }
+}

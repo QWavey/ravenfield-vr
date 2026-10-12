@@ -11,7 +11,7 @@ namespace RavenfieldVR.Weapons
     {
         /// <summary>Case-insensitive substring of the weapon's name or prefab name.</summary>
         public string match = "";
-        /// <summary>SelfLoading, Manual, ShellFed, SingleShot, Throwable, Melee or NoAmmo; empty keeps the detected one.</summary>
+        /// <summary>SelfLoading, Manual, ShellFed, SingleShot, BreakOpen, Throwable, Melee or NoAmmo; empty keeps the detected one.</summary>
         public string action = "";
         /// <summary>Name of the magazine transform; empty keeps the detected one.</summary>
         public string magazine = "";
@@ -26,6 +26,8 @@ namespace RavenfieldVR.Weapons
         public float gripUp;
         /// <summary>Degrees of extra barrel pitch for this weapon only.</summary>
         public float pitch;
+        /// <summary>"true"/"false": whether a fresh magazine can knock the seated one out; empty keeps the detected value.</summary>
+        public string magKick = "";
     }
 
     [Serializable]
@@ -117,6 +119,10 @@ namespace RavenfieldVR.Weapons
                 if (o.lockOnEmpty == "true" || o.lockOnEmpty == "false")
                 {
                     d.LockOnEmpty = o.lockOnEmpty == "true";
+                }
+                if (o.magKick == "true" || o.magKick == "false")
+                {
+                    d.MagKickable = o.magKick == "true";
                 }
                 d.GripPoint += d.AimAxis * o.gripForward + d.Up * o.gripUp;
                 if (o.pitch != 0f)

@@ -53,6 +53,8 @@ namespace RavenfieldVR.Core
             host.hideFlags = HideFlags.DontSave;
             VRManager manager = host.AddComponent<VRManager>();
             manager.RequestVR = wantVR;
+            AutoTest.Install();
+            PerfProbe.Enabled |= System.Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perf", System.StringComparison.OrdinalIgnoreCase));
         }
 
         private void OnDestroy()

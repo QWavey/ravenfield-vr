@@ -21,6 +21,9 @@ namespace RavenfieldVR.Weapons
         private readonly VRScope _scope;
         private readonly AmmoCounter _counter;
 
+        /// <summary>The weapon's own sounds for manual actions (procedural fallback).</summary>
+        public readonly WeaponSoundPlayer Sounds;
+
         // Two-handed grip.
         public bool TwoHanded { get; private set; }
         private float _twoHandBlend;
@@ -29,10 +32,30 @@ namespace RavenfieldVR.Weapons
         private Vector3 _recoilPos, _recoilPosVel;
         private Vector2 _recoilRot, _recoilRotVel;
 
+        // Handling by weapon class: how much harder it kicks in one hand, how far it sags and how slowly it follows
+        // the wrist when nothing supports the front.
+        private readonly float _oneHandRecoil;
+        private readonly float _sagDegrees;
+        private readonly float _followRate;
+        private Quaternion _carriedRot;
+        private bool _carriedInit;
+
+        /// <summary>
+        /// The front of the gun is supported: steering with both hands, or the off hand on the handguard / cupping a
+        /// pistol grip even when two-handed steering is switched off.
+        /// </summary>
+        public bool Supported => TwoHanded || _system.Rig.Off.Role == HandRole.Foregrip;
+
         // Visual overrides.
         public float SlideOffset;
-        private Vector3 _magOriginalScale = Vector3.one;
+        /// <summary>0 closed .. 1 fully open, for break-open barrels, a revolver crane or a feed cover.</summary>
+        public float HingeOpenness;
+        private Quaternion _hingeRestLocal;
+        private bool _hingeOverridden;
+        private Vector3[] _magOriginalScales;
         private bool _magHidden;
+        private readonly BoltPiece _boltPiece;
+        private readonly ArmIK _armIK;
 
         public bool Aiming { get; private set; }
 
@@ -52,26 +75,96 @@ namespace RavenfieldVR.Weapons
             ActiveWeapon = weapon;
             ActiveRig = rig;
             ActiveAmmo = ammo;
+            Sounds = new WeaponSoundPlayer(rig, system.Sounds);
             Reload = new ReloadInteractions(system, this);
-            if (rig.Magazine != null)
+            _magOriginalScales = new Vector3[rig.MagazineParts.Length];
+            for (int i = 0; i < rig.MagazineParts.Length; i++)
             {
-                _magOriginalScale = rig.Magazine.localScale;
+                _magOriginalScales[i] = rig.MagazineParts[i].localScale;
             }
             if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
             {
                 _scope = new VRScope(system.Rig, rig);
             }
             _counter = new AmmoCounter(rig);
+            int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
+            if (repaired > 0)
+            {
+                Log.InfoOnce("matfix:" + rig.Data.Key, $"{weapon.name}: repaired {repaired} renderer(s) with shaders this graphics API cannot draw.");
+            }
+            _gunCollider = GunCollider.Create(rig);
+            Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+            if (VRConfig.Hands.Value == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
+            {
+                _armIK = new ArmIK(system, this);
+            }
+            ActionType action = rig.Data.Action;
+            if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed))
+            {
+                // No part of this model moves when the action is worked: give it a handle that does.
+                try
+                {
+                    _boltPiece = BoltPiece.Create(rig);
+                }
+                catch (System.Exception e)
+                {
+                    Log.WarnOnce("boltpiece:" + rig.Data.Key, $"Could not build a moving handle for {rig.Data.Key}: {e.Message}");
+                }
+            }
         }
 
         public bool IsPistolGrip => Rig.Data.IsPistol;
 
+        /// <summary>
+        /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
+        /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
+        /// </summary>
+        private static void Handling(WeaponRigData d, Weapon w, out float oneHandRecoil, out float sag, out float follow)
+        {
+            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
+            if (d.IsPistol)
+            {
+                oneHandRecoil = 1.15f; sag = 0f; follow = 60f;
+            }
+            else if (d.IsMachineGun)
+            {
+                oneHandRecoil = 2.6f; sag = 11f; follow = 7f;
+            }
+            else if (d.Action == ActionType.SingleShot && w.configuration.ammo <= 1 && length > 0.4f)
+            {
+                oneHandRecoil = 1.6f; sag = 8f; follow = 8f; // launchers
+            }
+            else if (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual && w.configuration.projectilesPerShot > 1)
+            {
+                oneHandRecoil = 2.2f; sag = 6f; follow = 12f; // shotguns
+            }
+            else if (length < 0.32f)
+            {
+                oneHandRecoil = 1.5f; sag = 3f; follow = 22f; // SMGs, PDWs
+            }
+            else
+            {
+                oneHandRecoil = 1.9f; sag = 5f; follow = 14f; // rifles, DMRs, snipers
+            }
+        }
+
         // ---------------------------------------------------------------------------------------------
+
+        private readonly GunCollider _gunCollider;
 
         public void Update()
         {
+            _gunCollider?.Update();
             VRHand main = _system.Rig.Dominant;
             main.Role = HandRole.Weapon;
+            if (main.Model != null)
+            {
+                main.Model.WeaponGripCurls = Rig.Data.GripCurls;
+            }
+            if (_system.Rig.Off.Model != null)
+            {
+                _system.Rig.Off.Model.WeaponSupportCurls = Rig.Data.SupportCurls;
+            }
             Weapon active = Weapon.GetActiveSubWeapon() ?? Weapon;
             if (active != ActiveWeapon)
             {
@@ -93,17 +186,29 @@ namespace RavenfieldVR.Weapons
             bool aim;
             if (d.HasEyePoint)
             {
-                Vector3 eye = Rig.ToWorld(d.EyePoint);
-                float dist = Mathf.Min(Vector3.Distance(eyeL, eye), Vector3.Distance(eyeR, eye));
-                float angle = Vector3.Angle(head.forward, Rig.DirToWorld(d.EyeDirection));
-                aim = Aiming ? dist < 0.11f && angle < 35f : dist < 0.075f && angle < 25f;
+                // Either eye on the sight line, anywhere from a cheek weld to arms-length behind the sights.
+                Vector3 eyePoint = Rig.ToWorld(d.EyePoint);
+                Vector3 dir = Rig.DirToWorld(d.EyeDirection);
+                float best = float.MaxValue;
+                foreach (Vector3 e in Eyes(eyeL, eyeR))
+                {
+                    Vector3 rel = e - eyePoint;
+                    float along = Vector3.Dot(rel, dir);
+                    if (along < -0.6f || along > 0.15f)
+                    {
+                        continue;
+                    }
+                    best = Mathf.Min(best, (rel - dir * along).magnitude);
+                }
+                float angle = Vector3.Angle(head.forward, dir);
+                aim = Aiming ? best < 0.07f && angle < 35f : best < 0.045f && angle < 25f;
             }
             else
             {
                 Vector3 muzzle = Rig.ToWorld(d.MuzzlePoint);
                 Vector3 axis = Rig.AimWorld;
                 float best = float.MaxValue;
-                foreach (Vector3 e in new[] { eyeL, eyeR })
+                foreach (Vector3 e in Eyes(eyeL, eyeR))
                 {
                     Vector3 rel = e - muzzle;
                     float behind = -Vector3.Dot(rel, axis);
@@ -119,18 +224,33 @@ namespace RavenfieldVR.Weapons
             Aiming = aim;
         }
 
+        private readonly Vector3[] _eyes = new Vector3[2];
+
+        private Vector3[] Eyes(Vector3 left, Vector3 right)
+        {
+            _eyes[0] = left;
+            _eyes[1] = right;
+            return _eyes;
+        }
+
         public void FlashCounter(string message) => _counter.Flash(message);
 
         /// <summary>Called by the off-hand grab logic.</summary>
         public void SetTwoHanded(bool on) => TwoHanded = on;
 
-        public void OnShot()
+        /// <param name="fired">The weapon that fired: this one or its under-barrel / sub weapon (which kicks as itself).</param>
+        public void OnShot(Weapon fired)
         {
-            Weapon.Configuration c = Weapon.configuration;
+            Weapon.Configuration c = (fired != null ? fired : Weapon).configuration;
             float strength = VRConfig.RecoilStrength.Value;
-            if (TwoHanded)
+            if (Supported)
             {
-                strength *= 1f - VRConfig.TwoHandRecoilReduction.Value;
+                // Long guns: the support hand takes most of it; a pistol cupped in two hands a little.
+                strength *= Rig.Data.IsPistol ? 0.8f : 1f - VRConfig.TwoHandRecoilReduction.Value;
+            }
+            else
+            {
+                strength *= Rig.Data.IsPistol ? 1f : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
             float kick = Mathf.Clamp(c.kickback, 0f, 10f);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
@@ -166,12 +286,16 @@ namespace RavenfieldVR.Weapons
         {
             VRHand main = _system.Rig.Dominant;
             VRHand off = _system.Rig.Off;
-            if (!main.Tracked)
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            StepRecoil(dt); // also while untracked, so shots in a tracking gap do not bank up into one big jolt
+            if (!main.HasPose)
             {
+                // Never tracked yet: the game's pose stays, but the magazine, slide and hinge still show their real
+                // state, and time-driven mechanics (a magazine leaving the well) must not freeze mid-air.
+                ApplyPartOverrides();
+                Reload.BeforeRender();
                 return;
             }
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            StepRecoil(dt);
             _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * 10f);
 
             WeaponRigData d = Rig.Data;
@@ -192,6 +316,25 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
+            // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly.
+            if (VRConfig.WeaponWeight.Value && !Supported && _sagDegrees > 0f)
+            {
+                Vector3 pitchAxis = gunRot * Vector3.Cross(d.Up, d.AimAxis).normalized;
+                Quaternion target = Quaternion.AngleAxis(_sagDegrees, pitchAxis) * gunRot;
+                if (!_carriedInit)
+                {
+                    _carriedRot = target;
+                    _carriedInit = true;
+                }
+                _carriedRot = Quaternion.Slerp(_carriedRot, target, 1f - Mathf.Exp(-_followRate * dt));
+                gunRot = _carriedRot;
+            }
+            else
+            {
+                _carriedRot = gunRot;
+                _carriedInit = true;
+            }
+
             // Recoil rotates the gun about its grip and pushes it back along the barrel.
             Quaternion recoil = Quaternion.Euler(_recoilRot.x, _recoilRot.y, 0f);
             Quaternion aimFrame = gunRot * gripInGun.rotation;
@@ -208,18 +351,18 @@ namespace RavenfieldVR.Weapons
             desiredGunBody.Multiply(gunInRoot.Inverse()).ApplyTo(root);
 
             ApplyPartOverrides();
-            HideArms();
-
-            if (TwoHanded)
+            if (_armIK != null && _armIK.Active)
             {
-                off.Model.OverridePose(new RigidPose(Rig.ToWorld(d.SupportPoint), Rig.GunBody.rotation * Quaternion.LookRotation(d.AimAxis, d.Up)));
+                _armIK.Solve();
+                SetHandModelsSuppressed(true);
             }
-            else if (off.Role == HandRole.Foregrip && d.IsPistol)
+            else
             {
-                off.Model.OverridePose(new RigidPose(Rig.ToWorld(d.SupportPoint), Rig.GunBody.rotation * Quaternion.LookRotation(d.AimAxis, d.Up)));
+                HideArms();
             }
 
             Reload.BeforeRender();
+            Sounds.Update();
             _scope?.BeforeRender(Aiming);
             _counter.BeforeRender(ActiveAmmo);
             DrawDebugZones();
@@ -280,31 +423,94 @@ namespace RavenfieldVR.Weapons
         private void ApplyPartOverrides()
         {
             WeaponRigData d = Rig.Data;
-            Transform slide = Rig.Slide;
-            if (slide != null && SlideOffset > 0.0005f)
+            float fraction = SlideOffset / Mathf.Max(d.SlideTravel.magnitude, 1e-4f);
+            if (SlideOffset > 0.0005f)
             {
-                float travel = d.SlideTravel.magnitude;
-                Vector3 worldTravel = Rig.DirToWorld(d.SlideTravel) * (SlideOffset / Mathf.Max(travel, 1e-4f));
-                Transform parent = slide.parent;
-                Vector3 localTravel = parent != null ? parent.InverseTransformVector(worldTravel) : worldTravel;
-                slide.localPosition = d.SlideRestLocal + localTravel;
+                MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * fraction);
+                // A separate charging handle travels with the bolt (its own stroke length).
+                MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(fraction));
             }
+            _boltPiece?.SetOffset(Rig, d.SlideTravel * fraction);
+            ApplyHinge(d);
 
-            Transform mag = Rig.Magazine;
             AmmoState ammo = ActiveAmmo ?? Ammo;
-            if (mag != null && ammo != null && ammo.UsesDetachableMag)
+            if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
             {
+                // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
+                // Scaling hides mesh-renderer and skinned magazines alike.
                 bool hide = !ammo.MagInserted;
                 if (hide)
                 {
-                    // Scaling hides both mesh-renderer and skinned magazines.
-                    mag.localScale = Vector3.one * 1e-4f;
+                    foreach (Transform part in Rig.MagazineParts)
+                    {
+                        part.localScale = Vector3.one * 1e-4f;
+                    }
                     _magHidden = true;
                 }
                 else if (_magHidden)
                 {
-                    mag.localScale = _magOriginalScale;
-                    _magHidden = false;
+                    RestoreMagazine();
+                }
+            }
+        }
+
+        /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
+        private void ApplyHinge(WeaponRigData d)
+        {
+            Transform hinge = Rig.Hinge;
+            if (hinge == null)
+            {
+                return;
+            }
+            if (HingeOpenness <= 0.001f)
+            {
+                if (_hingeOverridden)
+                {
+                    hinge.localRotation = _hingeRestLocal;
+                    _hingeOverridden = false;
+                }
+                return;
+            }
+            if (!_hingeOverridden)
+            {
+                _hingeRestLocal = hinge.localRotation;
+                _hingeOverridden = true;
+            }
+            Vector3 axisWorld = Rig.DirToWorld(d.HingeAxis);
+            Vector3 axisLocal = hinge.parent != null ? hinge.parent.InverseTransformDirection(axisWorld) : axisWorld;
+            hinge.localRotation = Quaternion.AngleAxis(d.HingeOpenAngle * HingeOpenness, axisLocal) * _hingeRestLocal;
+        }
+
+        private void MovePart(Transform part, Vector3 restLocal, Vector3 travelGun)
+        {
+            if (part == null)
+            {
+                return;
+            }
+            Vector3 worldTravel = Rig.DirToWorld(travelGun);
+            Transform parent = part.parent;
+            part.localPosition = restLocal + (parent != null ? parent.InverseTransformVector(worldTravel) : worldTravel);
+        }
+
+        private void RestoreMagazine()
+        {
+            for (int i = 0; i < Rig.MagazineParts.Length; i++)
+            {
+                if (Rig.MagazineParts[i] != null)
+                {
+                    Rig.MagazineParts[i].localScale = _magOriginalScales[i];
+                }
+            }
+            _magHidden = false;
+        }
+
+        private void SetHandModelsSuppressed(bool suppressed)
+        {
+            foreach (VRHand h in _system.Rig.Hands)
+            {
+                if (h.Model != null)
+                {
+                    h.Model.Suppressed = suppressed;
                 }
             }
         }
@@ -323,15 +529,43 @@ namespace RavenfieldVR.Weapons
         /// <summary>Undo every visual change before the weapon is holstered, dropped or VR stops.</summary>
         public void Release()
         {
-            Reload.Release();
-            if (Rig.Magazine != null && _magHidden)
+            try
             {
-                Rig.Magazine.localScale = _magOriginalScale;
-                _magHidden = false;
+                Reload.Release();
             }
+            catch (System.Exception e)
+            {
+                // The rest of the cleanup (parts, hands, renderers) must still run.
+                Log.Exception("Releasing reload state", e);
+            }
+            if (_magHidden)
+            {
+                RestoreMagazine();
+            }
+            Sounds.Destroy();
             if (Rig.Slide != null)
             {
                 Rig.Slide.localPosition = Rig.Data.SlideRestLocal;
+            }
+            if (Rig.Handle != null)
+            {
+                Rig.Handle.localPosition = Rig.Data.HandleRestLocal;
+            }
+            if (_hingeOverridden && Rig.Hinge != null)
+            {
+                Rig.Hinge.localRotation = _hingeRestLocal;
+                _hingeOverridden = false;
+            }
+            HingeOpenness = 0f;
+            _boltPiece?.Destroy();
+            SetHandModelsSuppressed(false);
+            if (_system.Rig.Dominant.Model != null)
+            {
+                _system.Rig.Dominant.Model.WeaponGripCurls = null;
+            }
+            if (_system.Rig.Off.Model != null)
+            {
+                _system.Rig.Off.Model.WeaponSupportCurls = null;
             }
             foreach (Renderer r in Rig.ArmRenderers)
             {
@@ -342,6 +576,7 @@ namespace RavenfieldVR.Weapons
             }
             _scope?.Destroy();
             _counter.Destroy();
+            _gunCollider?.Destroy();
             DestroyDebug();
             TwoHanded = false;
             VRHand main = _system.Rig.Dominant;

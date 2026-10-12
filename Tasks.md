@@ -18,19 +18,40 @@
 16. [x] Vehicles, ladders, death/spectator cameras
 17. [x] Installer / uninstaller and packaging
 18. [x] Placeholder sweep, flat-mode load test, docs
-19. [ ] Weapon analysis that holds for every modded rig
-20. [ ] All-weapons self-test report (every installed weapon, including workshop mods)
-21. [ ] Free hands: no snapping, live fingers, holster to empty hands
-22. [ ] Magazine sliding (insert along the well, slide out on release) for mags, shells and rockets
-23. [ ] Weapon sounds per action from the mod's own audio, no continuous reload audio
-24. [ ] Enemy weapons drop on death and can be picked up (swap with your own)
-25. [ ] Easy installer: one-click Setup.exe with install, update and uninstall
-26. [ ] Private GitHub repo and release
-27. [ ] Placeholder sweep over all new code
-28. [ ] Bug hunt, 10 rounds
-29. [ ] Rebuild, in-game verification (flat, self-test, virtual headset), docs
-
-
+19. [x] Weapon analysis that holds for every modded rig
+20. [x] All-weapons self-test report (every installed weapon, including workshop mods)
+21. [x] Free hands: no snapping, live fingers, holster to empty hands
+22. [x] Magazine sliding (insert along the well, slide out on release) for mags, shells and rockets
+23. [x] Weapon sounds per action from the mod's own audio, no continuous reload audio
+24. [x] Enemy weapons drop on death and can be picked up (swap with your own)
+25. [x] Easy installer: one-click Setup.exe with install, update and uninstall
+26. [x] Every weapon has a working magazine/feed and a cycling handle
+27. [x] Machine guns: big box/drum/belt magazines and feed covers
+28. [x] Semi/auto fire selector that respects each gun's real modes
+29. [x] Visible ammo pouch, mag-kick tactical reloads, one-handed reloads
+30. [x] Quest 3 (Touch Plus) controller support
+31. [x] Graphics presets applied in game
+32. [x] Launcher with VR/flat choice and graphics preset, opened from Steam's Play button
+33. [ ] Measured performance pass over the mod's per-frame work
+34. [x] Automated in-game smoke test (match with every mutator, every weapon equipped)
+35. [x] Mutator compatibility
+36. [ ] Gun feel pass and VR UI de-slop
+37. [ ] Weapon's own arms with IK (option next to the VR hands)
+38. [x] Controllers satisfy "press any key"; gunner sights and HUD reticles collimated at infinity
+39. [x] Physical steering wheel in cars and Humvees, weapons usable while driving
+40. [x] Magazine and slide controls: B ejects, A releases slide/bolt, pull a seated magazine by hand, no mag kick on deep-well guns
+41. [x] Every weapon fires one-handed, with more recoil than two-handed
+42. [x] Placeholder sweep over all new code
+43. [x] Bug hunt, 10 rounds
+44. [ ] Rebuild, in-game verification (flat, self-test, virtual headset), docs
+45. [ ] Private GitHub repo and release
+46. [x] Grenade pins: pulled by hand (or A), fuse starts on the throw, pinned throws are duds you can pick up
+47. [x] Dropped magazines keep their rounds, any free hand picks them up; loose props collide with the gun, never the player's body
+48. [x] Belt-fed machine guns: box locked under a closed cover, belt laid on the feed tray by hand
+49. [x] Scope lens on the scope model's own ocular, not an estimated eye point
+50. [x] Materials that would render magenta repaired on copies (props, pouch, drops) and held weapons
+51. [x] Autotest with simulated controllers: draw-skip, visible-model and grenade-pin checks
+52. [x] Draw animation skipped on every weapon; weapon sounds never silenced after a reload slice
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -83,11 +104,56 @@ For 24. When a bot dies its active weapon drops as a physical model (third-perso
 
 For 25. Compile a Windows setup program (C#/.NET Framework 4.8 WinForms) that carries the release inside it: finds Ravenfield, shows what is installed, installs/updates/uninstalls with the same manifest logic as install.ps1, one window, no PowerShell needed. Done when: Setup.exe installs and uninstalls on this PC.
 
-For 26. Create the private GitHub repo QWavey/ravenfield-vr, commit the project (dependencies and decompiled game code excluded), push, and attach Setup.exe and the zip to a release. Done when: the repo and release exist and are private.
+For 26. From the self-test: advanced-reload weapons with a real magazine are magazine weapons; charging handles that only move in the reload animation are found from that motion; static rigs (no animator) get their magazine and bolt from names and mesh geometry (a separate mesh under the receiver ahead of the grip, a part on top of the receiver behind the sight line); sound cues match one per action, leading the motion. Done when: the report shows a real or deliberately virtual part for every magazine/bolt weapon and no magazine weapon is treated as shell-fed.
 
-For 27. Run the placeholder sweep over all source (stubs, fake/simulated values, truncated logic, settings that do nothing). Done when: no real placeholder remains.
+For 27. Detect machine guns (automatic, large capacity, box/drum/belt magazine) and give them a longer, heavier insertion; detect a feed cover (a part the reload animation swings open on top of the receiver) that must be lifted before a new box goes in and closed after; heavy weapons steer with lag when held one-handed. Done when: an MG with a cover requires open, insert, close; one without slides its box/drum in along its own axis.
 
-For 28. Ten bug-hunt rounds over different areas, each verified and fixed. Done when: ten rounds are reported with their fixes.
+For 28. The FireMode button cycles the mod's own sub-weapons when it has them (their design decides the modes); otherwise an automatic weapon toggles semi/auto through the game's SetSingleFire/SetAutoFire, with looped fire audio cut to one shot in semi; a semi-only weapon (shotguns, pistols, rifles, DMRs authored without auto) never gets an auto mode. Done when: toggling works on automatic weapons and is refused on semi-only ones.
 
-For 29. Build, install, flat launch, self-test over all installed weapons, virtual-headset launch, README and memory updated. Done when: logs show no exceptions and the report is reviewed.
+For 29. A pouch on the body shows what the held weapon feeds from (its own magazine mesh, shell or rocket) and the spare count; grabbing it gives you one. Pushing a fresh magazine into an occupied well knocks the old one out (mag kick), so the off hand alone can do a tactical reload. Done when: the pouch shows the current weapon's ammo and a fresh mag can kick out the inserted one and seat.
 
+For 30. Quest 3 Touch Plus over Link, Air Link, Steam Link and Virtual Desktop: verify which controller type SteamVR reports for each path and ship bindings for all of them (oculus_touch, plus Index emulation), including thumbstick touch/click, A/B/X/Y, menu button, capacitive finger curl, haptics, and the grip pose offsets. Done when: every action is bound by default on each controller type a Quest 3 can show up as.
+
+For 31. A Graphics preset (Low, Medium, High, Ultra) applied at startup and live from the VR settings panel: render scale, MSAA, shadow distance/resolution/cascades, LOD bias, pixel lights, texture mip limit, terrain detail and tree distance, particle/soft-particle settings, camera far clip, all layered over (not fighting) the game's own options. Done when: switching presets visibly changes these settings and the game's own options menu still works.
+
+For 32. RavenfieldVR-Launcher.exe (WinForms) asks Play in VR / Play flat and the graphics preset, remembers the choice (hold Shift to show it again), and starts the game with the matching arguments while keeping Steam's playing state; Setup.exe sets Ravenfield's Steam launch option to run the launcher (with Steam closed, backed up, removed again on uninstall). Done when: pressing Play in Steam opens the launcher and both buttons start the game in the chosen mode.
+
+For 33. Instrument the mod's per-frame work (Update/LateUpdate/BeforeRender) with timers and GC-allocation counters behind -rfvr-perf; measure a baseline; remove per-frame allocations and repeated searches in the hot paths; re-measure and keep only measured wins. Done when: a before/after table exists and the mod allocates nothing per frame in steady state.
+
+For 34. -rfvr-autotest starts an instant-action match in flat or null-driver VR, enables every installed mutator, spawns the player, equips every weapon in turn and runs the manual reload steps programmatically (eject, insert, rack, shells), logs exceptions and perf, then quits. Done when: an autotest run completes and its log shows no exceptions from the mod.
+
+For 35. Review every installed mutator (scripts, keybinds, weapon and ammo changes); make sure the mod adopts outside ammo/weapon changes and that mutator hotkeys can be pressed from the controllers. Done when: the autotest runs with all mutators enabled without errors and mutator keys are reachable in VR.
+
+For 36. Weight and inertia by weapon size, recoil by class (pistol, rifle, shotgun, sniper, MG), two-hand stabilisation, haptics on every mechanical event, slide-lock feel; run /unvibe over the VR UI (settings panel, counters, pouch, launcher, Setup.exe). Done when: weapon classes feel distinct and the UI has no generic tells.
+
+For 37. Option "Hands: VR hands / weapon's own arms": the mod's first-person arms stay visible; two-bone IK (shoulder/elbow/hand found from the arm chain, twist helpers skipped) re-roots both arms at body-relative shoulders, the gun hand keeps its authored grip on the weapon, the off hand follows the controller (or the foregrip / slide / magazine it holds), elbows bend toward a natural pole, out-of-reach shoulders slide toward the hand. Idea from github.com/GDani31/ravenfield-vr-mod (no license, so own implementation). Done when: with the option on, the mod's gloves hold each gun as authored and the off arm reaches the off controller without tearing.
+
+For 38. Controller buttons count for Input.anyKeyDown (and the Lua proxy) so "press any key" screens continue; vehicle seat HUDs (gunner reticles, near 3D sight renderers) are head-locked at a large distance with their angular size kept, drawn by an overlay camera so the barrel never covers them. Done when: a press-any-key prompt continues from the controller and a tank gunner reticle shows single in stereo.
+
+For 39. In first person in a car or Humvee (vanilla vehicles, and mod cars whose wheel the analysis finds: the transform the game turns with A/D), the steering wheel can be grabbed with one or both hands and turned; its angle drives the car's steering instead of the stick, and the hands stay on the rim while held. With a hand off the wheel, the player's weapon can be drawn and fired from the seat (normally impossible), with the other hand still steering. Tanks, helicopters and planes keep stick controls. Done when: turning the grabbed wheel steers the car, and a weapon fires from the driver seat.
+
+For 40. Quest bindings: B ejects the magazine, A releases a locked slide / bolt catch (also by pulling the slide or bolt back and letting go). The off hand can grab the seated magazine and pull it out along the well. Mag kicking only works where the magazine sticks out of the gun: guns whose well swallows most of the magazine (KRISS Vector style) need the button or a hand pull. Done when: bindings match, a seated magazine can be pulled out by hand, and the kick is refused on deep-well guns.
+
+For 41. Every weapon fires while held in one hand; recoil is stronger one-handed (scaled by weapon class: pistols barely, rifles more, shotguns, LMGs and launchers most) and heavy weapons sag and lag when not supported. Done when: one-handed recoil is visibly larger than two-handed for a rifle and similar for a pistol.
+
+For 42. Run the placeholder sweep over all source (stubs, fake/simulated values, truncated logic, settings that do nothing). Done when: no real placeholder remains.
+
+For 43. Ten bug-hunt rounds over different areas, each verified and fixed. Done when: ten rounds are reported with their fixes.
+
+For 44. Build, install, flat launch, self-test over all installed weapons, virtual-headset launch, README and memory updated. Done when: logs show no exceptions and the report is reviewed.
+
+For 45. Create the private GitHub repo QWavey/ravenfield-vr, commit the project (dependencies and decompiled game code excluded), push, and attach Setup.exe, the launcher and the zip to a release. Done when: the repo and release exist and are private.
+
+For 46. Fused grenades (projectile is a GrenadeProjectile; bags, kits and charges excluded) carry a pin: the mod's own pin/ring part when it has one, else a split ring on top. The off hand grips it and pulls it 5.5 cm away (or A flicks it out); holding does nothing, the fuse starts when the grenade leaves the hand. Thrown with the pin in, a physical dud lands instead; grabbing it (or the clean-up) refunds the grenade. Done when: the autotest reports "dud, no live grenade, refunded" and "live grenade thrown" for every grenade.
+
+For 47. Ejected and dropped magazines keep their rounds (Owner = the ammo they came from); any free hand picks up any loose magazine; seating gives the rounds, stowing returns them, despawn returns them capped at the reserve limit. Loose props live on a layer bullets ignore and never collide with the player's controller, hitboxes or ragdoll; a light physics stand-in on the held gun lets them bounce off it. Done when: no rounds are created or lost across eject, pick-up, seat, stow and despawn.
+
+For 48. With a feed cover: B and the hand pull refuse while the cover is shut over a laid belt ("OPEN COVER"); after seating a box the belt end is taken from the box mouth (a strip of rounds follows the hand) and laid on the feed tray; the counter walks through LAY BELT, CLOSE COVER, RACK. Option BeltByHand. Done when: the autotest's MG reloads report "belt laid".
+
+For 49. For weapons with a 2D scope overlay, the analysis measures the scope model (meshes named like a scope, a slim tube over the bore) and puts the eye line and the lens on its ocular end, sized to the tube. Done when: the self-test lists "scope model (ocular measured)" for the vanilla RECON LRR.
+
+For 50. A material whose shader cannot run (or an empty slot) is swapped for the game's own compiled shader of the same name, else Standard, else a neutral gunmetal; working materials are untouched. Applied to magazine props, the pouch display, dropped weapons, grenade duds and the held weapon. Done when: copies never render magenta.
+
+For 51. Without controllers (virtual headset) the autotest holds simulated hands where a player would, so the full held-weapon path runs and the mirror shows the real VR view; it checks the draw animation is skipped, that each weapon has a visible model, and throws every grenade with and without its pin. Done when: a VR autotest completes with only mod-side problems.
+
+For 52. The draw clip is stepped past in 0.1 s increments (one transition per animator update), now and on the next frame for animators enabled that frame; one-shot weapon sounds play through their own source so a faded reload slice can no longer leave them at zero volume. Done when: the autotest finds no draw animation playing and every magazine weapon has a mag-in and mag-out sound.

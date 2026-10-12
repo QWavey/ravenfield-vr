@@ -16,7 +16,7 @@ namespace RavenfieldVR.Input
     public enum DigitalAction
     {
         Fire, Grab, MagRelease, SlideRelease, FireMode, Sprint, Use, WeaponNext, Kick,
-        Squad, Map, Loadout, Scoreboard, Pause, VRMenu, Countermeasures
+        Squad, Map, Loadout, Scoreboard, Pause, VRMenu, Countermeasures, ModKeys
     }
 
     public enum PoseKind { Raw, Grip, Tip }
@@ -184,12 +184,14 @@ namespace RavenfieldVR.Input
             CVRInput input = OpenVR.Input;
             if (input == null)
             {
+                ClearEdges();
                 return;
             }
             EVRInputError err = input.UpdateActionState(_activeSets, SetSize);
             if (err != EVRInputError.None && err != EVRInputError.NoData)
             {
                 Log.WarnOnce("uas:" + err, "UpdateActionState failed: " + err);
+                ClearEdges();
                 return;
             }
 
@@ -242,6 +244,13 @@ namespace RavenfieldVR.Input
                     }
                 }
             }
+        }
+
+        /// <summary>A frame without fresh action data has no presses or releases (last frame's must not repeat).</summary>
+        private static void ClearEdges()
+        {
+            Array.Clear(Pressed, 0, Pressed.Length);
+            Array.Clear(Released, 0, Released.Length);
         }
 
         private static void UpdateSkeletons(CVRInput input)

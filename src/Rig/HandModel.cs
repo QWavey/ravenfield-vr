@@ -25,7 +25,6 @@ namespace RavenfieldVR.Rig
         private readonly Quaternion[][] _restRotations = new Quaternion[5][];
         private readonly float[] _curl = new float[5];
         private readonly Renderer[] _renderers;
-        private RigidPose? _override;
         private bool _visible = true;
 
         // Knuckle positions (right hand, palm space) and segment lengths in metres; index 0 = thumb.
@@ -141,9 +140,6 @@ namespace RavenfieldVR.Rig
             _sharedMaterial.color = c;
         }
 
-        /// <summary>Pins the model to a world pose for this frame (gun grip, foregrip, slide…).</summary>
-        public void OverridePose(RigidPose world) => _override = world;
-
         public void SetVisible(bool visible)
         {
             if (_visible == visible)
@@ -162,16 +158,19 @@ namespace RavenfieldVR.Rig
         {
             if (!_hand.Tracked)
             {
-                _override = null;
                 return;
             }
-            SetVisible(true);
+            SetVisible(!Suppressed);
+            if (Suppressed)
+            {
+                return;
+            }
 
             Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero);
             posOffset.x *= _hand.Mirror;
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
-            RigidPose target = _override ?? _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
-            _override = null;
+            // Always the tracked hand: held objects follow the hand, never the reverse.
+            RigidPose target = _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
             _root.SetPositionAndRotation(target.position, target.rotation);
 
             float[] goal = TargetCurls();
@@ -190,45 +189,95 @@ namespace RavenfieldVR.Rig
 
         private readonly float[] _goal = new float[5];
 
+        /// <summary>
+        /// The held weapon's own finger pose for this hand's role (from the mod's arm rig), or null for the generic
+        /// pose. Used as how far each finger may open while holding, so the hand wraps this gun the way its author
+        /// animated it while the tracked fingers keep moving on top.
+        /// </summary>
+        public float[] WeaponGripCurls;
+        /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
+        public bool Suppressed;
+        public float[] WeaponSupportCurls;
+
+        /// <summary>
+        /// Finger targets: the tracked fingers (SteamVR skeletal curls, or trigger/grip/thumb input) always drive the
+        /// pose; a held object only sets how far each finger can open, so fingers never freeze around a weapon.
+        /// </summary>
         private float[] TargetCurls()
         {
             Hand side = _hand.Side;
             float trigger = VRInput.GetTrigger(side);
             float grip = VRInput.GetGrip(side);
+            if (VRInput.HasSkeleton(side))
+            {
+                for (int f = 0; f < 5; f++)
+                {
+                    _goal[f] = VRInput.GetCurl(side, f);
+                }
+            }
+            else
+            {
+                Fill(grip * 0.6f, trigger, grip, grip, grip);
+            }
+
             switch (_hand.Role)
             {
                 case HandRole.Weapon:
-                    Fill(0.55f, 0.32f + 0.5f * trigger, 0.9f, 0.92f, 0.94f);
-                    break;
-                case HandRole.Foregrip:
-                case HandRole.Cockpit:
-                    Fill(0.5f, 0.78f, 0.8f, 0.82f, 0.85f);
-                    break;
-                case HandRole.Magazine:
-                case HandRole.Throwable:
-                    Fill(0.45f, 0.62f, 0.66f, 0.7f, 0.74f);
-                    break;
-                case HandRole.Slide:
-                    Fill(0.55f, 0.55f, 0.75f, 0.85f, 0.9f);
-                    break;
-                case HandRole.Pointer:
-                    Fill(0.6f, 0.02f, 0.92f, 0.94f, 0.95f);
-                    break;
-                default:
-                    if (VRInput.HasSkeleton(side))
+                    // Trigger finger follows the trigger; the other fingers wrap the grip but still move.
+                    if (WeaponGripCurls != null)
                     {
-                        for (int f = 0; f < 5; f++)
-                        {
-                            _goal[f] = VRInput.GetCurl(side, f);
-                        }
+                        float[] c = WeaponGripCurls;
+                        _goal[1] = Mathf.Lerp(Pose(c[1], 0.3f) * 0.85f, 0.85f, trigger);
+                        Minimum(Pose(c[0], 0.35f), -1f, Pose(c[2], 0.7f), Pose(c[3], 0.72f), Pose(c[4], 0.74f));
                     }
                     else
                     {
-                        Fill(grip * 0.6f, trigger, grip, grip, grip);
+                        _goal[1] = Mathf.Lerp(0.3f, 0.82f, trigger);
+                        Minimum(0.35f, -1f, 0.7f, 0.72f, 0.74f);
                     }
+                    break;
+                case HandRole.Foregrip:
+                    if (WeaponSupportCurls != null)
+                    {
+                        float[] c = WeaponSupportCurls;
+                        Minimum(Pose(c[0], 0.3f), Pose(c[1], 0.55f), Pose(c[2], 0.6f), Pose(c[3], 0.62f), Pose(c[4], 0.65f));
+                    }
+                    else
+                    {
+                        Minimum(0.3f, 0.55f, 0.6f, 0.62f, 0.65f);
+                    }
+                    break;
+                case HandRole.Cockpit:
+                    Minimum(0.3f, 0.55f, 0.6f, 0.62f, 0.65f);
+                    break;
+                case HandRole.Magazine:
+                case HandRole.Throwable:
+                    Minimum(0.3f, 0.45f, 0.5f, 0.52f, 0.55f);
+                    break;
+                case HandRole.Slide:
+                case HandRole.Hinge:
+                case HandRole.Pin:
+                case HandRole.Belt:
+                    Minimum(0.35f, 0.4f, 0.55f, 0.6f, 0.62f);
+                    break;
+                case HandRole.Pointer:
+                    _goal[1] = Mathf.Min(_goal[1], 0.1f);
+                    Minimum(-1f, -1f, 0.8f, 0.82f, 0.84f);
                     break;
             }
             return _goal;
+        }
+
+        /// <summary>A measured curl, kept within what still reads as holding something; the fallback when unmeasured.</summary>
+        private static float Pose(float measured, float fallback) => measured < 0f ? fallback : Mathf.Clamp(measured, 0.15f, 0.92f);
+
+        private void Minimum(float thumb, float index, float middle, float ring, float pinky)
+        {
+            _goal[0] = Mathf.Max(_goal[0], thumb);
+            _goal[1] = Mathf.Max(_goal[1], index);
+            _goal[2] = Mathf.Max(_goal[2], middle);
+            _goal[3] = Mathf.Max(_goal[3], ring);
+            _goal[4] = Mathf.Max(_goal[4], pinky);
         }
 
         private void Fill(float thumb, float index, float middle, float ring, float pinky)

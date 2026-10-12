@@ -6,7 +6,7 @@ using UnityEngine;
 namespace RavenfieldVR.Rig
 {
     /// <summary>What a hand is currently doing; drives the hand pose and arbitrates grabs.</summary>
-    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster }
+    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster, Hinge, Pin, Belt }
 
     /// <summary>
     /// One tracked hand: world poses (raw controller, palm, pointer), derived gun frame, velocity history,
@@ -19,6 +19,12 @@ namespace RavenfieldVR.Rig
         public HandModel Model { get; private set; }
 
         public bool Tracked { get; private set; }
+
+        /// <summary>
+        /// The hand has a usable pose: tracked, or held at its last tracked pose (moving with the body) while the
+        /// controller is out of view, so a held gun stays put instead of snapping to the flat-screen viewmodel.
+        /// </summary>
+        public bool HasPose { get; private set; }
         public RigidPose Raw { get; private set; }
         public RigidPose Palm { get; private set; }
         public RigidPose Pointer { get; private set; }
@@ -39,6 +45,8 @@ namespace RavenfieldVR.Rig
         private bool _hasTip, _hasGrip;
         private Vector3 _lastRigPosition;
         private bool _hasLastRig;
+        private RigidPose _lastRawLocal;
+        private bool _hasLastRaw;
 
         public bool IsLeft => Side == Hand.Left;
         public float Mirror => IsLeft ? -1f : 1f;
@@ -55,24 +63,45 @@ namespace RavenfieldVR.Rig
         public void UpdatePose(Transform rigRoot)
         {
             HandPose raw = VRInput.GetPose(Side, PoseKind.Raw);
-            Tracked = raw.valid;
-            if (!raw.valid)
+            RigidPose rawLocal;
+            if (raw.valid)
             {
+                rawLocal = raw.pose;
+                _lastRawLocal = rawLocal;
+                _hasLastRaw = true;
+                Tracked = true;
+            }
+            else if (AutoTest.Requested && SimulatedLocal(rigRoot, out rawLocal))
+            {
+                // Automated runs on the virtual headset have no controllers: hold the hands where a player would, so
+                // the whole held-weapon path (and what the mirror shows) is the real VR one.
+                Tracked = true;
+            }
+            else if (_hasLastRaw)
+            {
+                rawLocal = _lastRawLocal;
+                Tracked = false;
+            }
+            else
+            {
+                Tracked = false;
+                HasPose = false;
                 Model.SetVisible(false);
                 return;
             }
+            HasPose = true;
 
             RigidPose rig = RigidPose.Of(rigRoot);
-            Raw = rig.Multiply(raw.pose);
+            Raw = rig.Multiply(rawLocal);
             Root.SetPositionAndRotation(Raw.position, Raw.rotation);
 
-            HandPose tip = VRInput.GetPose(Side, PoseKind.Tip);
+            HandPose tip = raw.valid ? VRInput.GetPose(Side, PoseKind.Tip) : default;
             _hasTip = tip.valid;
             Pointer = tip.valid
                 ? rig.Multiply(tip.pose)
                 : Raw.Multiply(new RigidPose(Vector3.zero, Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))))));
 
-            HandPose grip = VRInput.GetPose(Side, PoseKind.Grip);
+            HandPose grip = raw.valid ? VRInput.GetPose(Side, PoseKind.Grip) : default;
             _hasGrip = grip.valid;
             Vector3 palmPos = grip.valid ? rig.TransformPoint(grip.pose.position) : Raw.TransformPoint(new Vector3(0f, -0.025f, -0.055f));
             // The palm frame uses the pointer orientation: forward = where the hand points, up = back of the fist's top.
@@ -90,11 +119,36 @@ namespace RavenfieldVR.Rig
             _lastRigPosition = rigRoot.position;
             _hasLastRig = true;
 
-            Velocity = rig.rotation * raw.velocity + rigVelocity;
-            AngularVelocity = rig.rotation * raw.angularVelocity;
+            Velocity = (raw.valid ? rig.rotation * raw.velocity : Vector3.zero) + rigVelocity;
+            AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             _velHistory[_historyIndex] = Velocity;
             _timeHistory[_historyIndex] = Time.unscaledTime;
             _historyIndex = (_historyIndex + 1) % HistoryLength;
+        }
+
+        /// <summary>
+        /// Autotest hands, in rig space: the gun hand low and forward of the head, the other hand further out where a
+        /// handguard would be, both pointing where the head faces.
+        /// </summary>
+        private bool SimulatedLocal(Transform rigRoot, out RigidPose local)
+        {
+            local = default;
+            VRRig rig = VRRig.Instance;
+            if (rig == null || rig.Camera == null)
+            {
+                return false;
+            }
+            Transform head = rig.Head;
+            Vector3 headLocal = rigRoot.InverseTransformPoint(head.position);
+            float yaw = (Quaternion.Inverse(rigRoot.rotation) * head.rotation).eulerAngles.y;
+            Quaternion facing = Quaternion.Euler(0f, yaw, 0f);
+            bool gunHand = Side == VRInput.Dominant;
+            var offset = gunHand ? new Vector3(0.16f, -0.26f, 0.40f) : new Vector3(-0.08f, -0.29f, 0.62f);
+            offset.x *= VRConfig.LeftHanded ? -1f : 1f;
+            Quaternion pointer = facing * Quaternion.Euler(gunHand ? 4f : 10f, 0f, 0f);
+            Quaternion laser = Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))));
+            local = new RigidPose(headLocal + facing * offset, pointer * Quaternion.Inverse(laser));
+            return true;
         }
 
         /// <summary>

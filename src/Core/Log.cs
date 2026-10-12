@@ -23,7 +23,14 @@ namespace RavenfieldVR.Core
             }
         }
 
-        public static void Exception(string context, Exception e) => _source?.LogError($"{context}: {e}");
+        /// <summary>Raised for every logged exception (the autotest collects them).</summary>
+        public static event Action<string, Exception> ExceptionLogged;
+
+        public static void Exception(string context, Exception e)
+        {
+            _source?.LogError($"{context}: {e}");
+            ExceptionLogged?.Invoke(context, e);
+        }
 
         /// <summary>Logs a message only the first time a given key is seen (per session).</summary>
         public static void WarnOnce(string key, string message)
@@ -48,6 +55,10 @@ namespace RavenfieldVR.Core
         /// </summary>
         public static void Guard(string context, Action action)
         {
+            if (PerfProbe.Enabled)
+            {
+                PerfProbe.Begin(context);
+            }
             try
             {
                 action();
@@ -57,6 +68,13 @@ namespace RavenfieldVR.Core
                 if (Once.Add("guard:" + context + ":" + e.GetType().Name + ":" + e.Message))
                 {
                     Exception(context, e);
+                }
+            }
+            finally
+            {
+                if (PerfProbe.Enabled)
+                {
+                    PerfProbe.End(context);
                 }
             }
         }

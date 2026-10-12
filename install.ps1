@@ -118,11 +118,16 @@ Write-Step 'Copying Ravenfield VR'
 foreach ($f in Get-RelativeFiles 'BepInEx/plugins/RavenfieldVR') { Install-File $f }
 Write-Step 'Copying the OpenVR XR runtime'
 foreach ($f in Get-RelativeFiles 'ravenfield_Data') { Install-File $f }
+if (Test-Path (Join-Path $Source 'RavenfieldVR-Launcher.exe')) {
+    Write-Step 'Copying the launcher'
+    Install-File 'RavenfieldVR-Launcher.exe'
+}
 
 # --- record ----------------------------------------------------------------------------------------
 $manifest = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'
 $backupRef = if ($previousBackup) { $previousBackup } elseif (Test-Path $backupDir) { $backupDir } else { '' }
-$lines = @("# Ravenfield VR install $stamp", "installedBepInEx=$installedBepInEx", "backup=$backupRef")
+$modVersion = (Get-Item (Join-Path $Source 'BepInEx/plugins/RavenfieldVR/RavenfieldVR.dll')).VersionInfo.FileVersion
+$lines = @("# Ravenfield VR install $stamp", "version=$modVersion", "installedBepInEx=$installedBepInEx", "backup=$backupRef")
 $lines += $added | ForEach-Object { "added=$_" }
 $lines += $backedUp | ForEach-Object { "replaced=$_" }
 Set-Content -Path $manifest -Value $lines -Encoding UTF8

@@ -48,6 +48,11 @@ namespace RavenfieldVR.Rig
                 ReleaseAll();
                 return;
             }
+            if ((_onWheel[0] || _onWheel[1]) && _wheel == null || _stickHand != null && _stick == null)
+            {
+                ReleaseAll(); // the vehicle was destroyed under the hands
+                FindControls();
+            }
             foreach (VRHand hand in _rig.Hands)
             {
                 UpdateHand(hand);
@@ -130,8 +135,6 @@ namespace RavenfieldVR.Rig
                     float handSteer = Mathf.Clamp(_wheelBase[i] + angle / maxRot, -1f, 1f);
                     int holders = (_onWheel[0] ? 1 : 0) + (_onWheel[1] ? 1 : 0);
                     _steer = holders == 2 ? Mathf.Lerp(_steer, handSteer, 0.5f) : handSteer;
-                    Vector3 rim = _wheel.transform.position + now.normalized * Mathf.Clamp(now.magnitude, 0.12f, 0.25f);
-                    hand.Model.OverridePose(new RigidPose(rim, Quaternion.LookRotation(_wheel.transform.forward, now.normalized)));
                 }
             }
 
@@ -147,9 +150,21 @@ namespace RavenfieldVR.Rig
                 {
                     Vector3 local = Quaternion.Inverse(_seat.transform.rotation) * palm - _stickStartLocal;
                     VehicleInput.FlightStick = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
-                    hand.Model.OverridePose(new RigidPose(_stick.position, _seat.transform.rotation));
                 }
             }
+        }
+
+        /// <summary>After the game's own wheel animation: the rim sits exactly where the hands turned it.</summary>
+        public void BeforeRender()
+        {
+            if (_wheel == null || !(_onWheel[0] || _onWheel[1]))
+            {
+                return;
+            }
+            _wheel.turn = _steer; // the game's wheel animation carries on smoothly from here when let go
+            Vector3 euler = _wheel.transform.localEulerAngles;
+            euler.z = _steer * _wheel.maxRotation;
+            _wheel.transform.localEulerAngles = euler;
         }
 
         private bool NearWheel(Vector3 palm)

@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
@@ -11,13 +13,35 @@ namespace RavenfieldVR.Weapons
     /// Grenades and other throwables leave the hand with the hand's real velocity when the trigger is released.
     /// The game's throw animation is bypassed: the projectile is spawned through the weapon's own Shoot()
     /// (so ammo, cooldown, emotes and resupply logic stay intact) and its velocity is replaced afterwards.
+    /// Fused grenades have a pin: pull it with the other hand (or press A), and nothing happens while you keep holding
+    /// the grenade; the fuse starts when it leaves your hand, like a spoon flying off. Thrown with the pin still in it
+    /// is a dud: it bounces and lies there, and picking it up puts the grenade back in your pouch.
     /// </summary>
     public sealed class ThrowableHandler
     {
+        private const float PinGrabRadius = 0.07f;
+        private const float PinPullDistance = 0.055f;
+
         private readonly WeaponSystem _sys;
         private bool _armed;
         private readonly List<Projectile> _spawned = new List<Projectile>();
         private ThrowableWeapon _listening;
+
+        // Pin state for the grenade in hand.
+        private ThrowableWeapon _pinFor;
+        private WeaponRig _pinRig;
+        private bool _usesPin;
+        private bool _pinPulled;
+        private bool _holdingPin;
+        private Transform _modPin;
+        private Vector3 _modPinScale;
+        private Vector3 _pinLocal;
+        private Vector3 _pinAxisLocal;
+        private GameObject _ring;
+        private VRHand _ringHand;
+
+        /// <summary>Live projectiles the last throw spawned (the autotest checks a pinned throw spawns none).</summary>
+        internal int LastLiveCount { get; private set; }
 
         public ThrowableHandler(WeaponSystem sys)
         {
@@ -32,9 +56,17 @@ namespace RavenfieldVR.Weapons
                 _armed = false;
                 return;
             }
+            if (_pinFor != weapon)
+            {
+                SetupPin(held, weapon);
+            }
             VRGameInput.SuppressFire = true;
             VRHand hand = _sys.Rig.Dominant;
             hand.Role = HandRole.Throwable;
+            if (_usesPin)
+            {
+                UpdatePin();
+            }
             if (VRInput.GetPressed(DigitalAction.Fire, hand.Side) && !GameContextBlocksThrow())
             {
                 _armed = true;
@@ -51,13 +83,19 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static bool GameContextBlocksThrow() => Util.GameContext.GameMenuOpen;
+        private static bool GameContextBlocksThrow() => Util.GameContext.GameMenuOpen || VRGameInput.PanelOpen && VRGameInput.PointerOverUI;
 
         private void Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
         {
+            LastLiveCount = 0;
             if (!weapon.CanFire() || !weapon.unholstered)
             {
                 hand.Haptic(0.08f, 40f, 0.4f);
+                return;
+            }
+            if (_usesPin && !_pinPulled)
+            {
+                ThrowDud(weapon, hand, velocity);
                 return;
             }
             if (_listening != weapon)
@@ -88,9 +126,26 @@ namespace RavenfieldVR.Weapons
                 }
                 p.velocity = velocity;
                 p.transform.rotation = Quaternion.LookRotation(dir);
+                LastLiveCount++;
             }
             _spawned.Clear();
+            if (_usesPin && LastLiveCount > 0)
+            {
+                _sys.Sounds.Play(MechSound.Spoon, hand.Palm.position, 0.8f);
+            }
             hand.Haptic(0.04f, 90f, 0.6f);
+            ResetPin(); // the next grenade comes out of the pouch with its pin in
+        }
+
+        /// <summary>Pin still in: the grenade leaves the hand as an inert, physical object.</summary>
+        private void ThrowDud(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
+        {
+            GrenadeDud.Spawn(_pinRig, weapon, hand.Palm.position, hand.Palm.rotation, velocity, hand.AngularVelocity);
+            weapon.ammo = Mathf.Max(0, weapon.ammo - 1);
+            weapon.InstantlyReload(); // the next one from the pouch, as after a real throw
+            weapon.user?.EmoteToss();
+            hand.Haptic(0.03f, 70f, 0.4f);
+            ResetPin();
         }
 
         private void OnSpawned(Projectile[] projectiles)
@@ -101,6 +156,302 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        // ---- the pin -----------------------------------------------------------------------------------
+
+        private static readonly Regex PinName = new Regex(@"\b(pin|ring|pullring|pinring|pull ring|safety pin)\b");
+        private static readonly Regex ArmName = new Regex(@"hand|arm(?!ature|or)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
+        private static readonly Regex NotAGrenade = new Regex(@"bag|kit|c4|charge|mine|claymore|beacon|molotov|cocktail|knife|axe|tomahawk", RegexOptions.IgnoreCase);
+
+        /// <summary>Fused grenades get a pin; bags, kits, charges and other throwables do not.</summary>
+        internal static bool HasPin(ThrowableWeapon weapon)
+        {
+            if (!VRConfig.GrenadePins.Value)
+            {
+                return false;
+            }
+            GameObject projectile = weapon.configuration.projectilePrefab;
+            return projectile != null && projectile.GetComponent<GrenadeProjectile>() != null && !NotAGrenade.IsMatch(weapon.name);
+        }
+
+        private void SetupPin(HeldWeapon held, ThrowableWeapon weapon)
+        {
+            ResetVisuals();
+            _pinFor = weapon;
+            _pinRig = held.Rig;
+            _usesPin = HasPin(weapon);
+            _pinPulled = false;
+            _holdingPin = false;
+            _modPin = null;
+            if (!_usesPin)
+            {
+                return;
+            }
+            WeaponRigData d = held.Rig.Data;
+            _modPin = FindModPin(weapon.transform);
+            if (_modPin != null)
+            {
+                _modPinScale = _modPin.localScale;
+                _pinLocal = held.Rig.ToGun(PartCenter(_modPin));
+            }
+            else
+            {
+                // No pin part: a ring at the top of the grenade, on its side.
+                Bounds b = GunCollider.VisibleBounds(held.Rig, out bool measured);
+                float up = measured ? Mathf.Abs(Vector3.Dot(b.extents, Abs(d.Up))) : 0.05f;
+                Vector3 side = Vector3.Cross(d.Up, d.AimAxis).normalized;
+                _pinLocal = (measured ? b.center : d.GripPoint) + d.Up * (up * 0.85f) + side * 0.018f;
+                _ring = PinRing.Create();
+            }
+            _pinAxisLocal = Vector3.Cross(d.Up, d.AimAxis).normalized;
+        }
+
+        private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+        private static Transform FindModPin(Transform root)
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            {
+                string name = Regex.Replace(Regex.Replace(t.name, "(?<=[a-z])(?=[A-Z])", " "), "[^A-Za-z]+", " ").ToLowerInvariant();
+                if (!PinName.IsMatch(name))
+                {
+                    continue;
+                }
+                // Finger bones ("ring_01_l") hang under the hand: anything below an arm bone is not a pin.
+                bool underArm = false;
+                for (Transform p = t; p != null && p != root; p = p.parent)
+                {
+                    if (ArmName.IsMatch(p.name))
+                    {
+                        underArm = true;
+                        break;
+                    }
+                }
+                if (!underArm)
+                {
+                    return t;
+                }
+            }
+            return null;
+        }
+
+        private static Vector3 PartCenter(Transform t)
+        {
+            Renderer r = t.GetComponentInChildren<Renderer>(true);
+            return r != null && !(r is SkinnedMeshRenderer) ? r.bounds.center : t.position;
+        }
+
+        private Vector3 PinWorld => _pinRig != null && _pinRig.GunBody != null
+            ? (_modPin != null && !_pinPulled ? PartCenter(_modPin) : _pinRig.ToWorld(_pinLocal))
+            : Vector3.zero;
+
+        private void UpdatePin()
+        {
+            VRHand off = _sys.Rig.Off;
+            VRHand dom = _sys.Rig.Dominant;
+            if (!_pinPulled)
+            {
+                Vector3 pin = PinWorld;
+                if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed
+                    && Vector3.Distance(off.Palm.position, pin) < PinGrabRadius)
+                {
+                    VRInput.Consume(DigitalAction.Grab, off.Side);
+                    _holdingPin = true;
+                    off.Role = HandRole.Pin;
+                    off.Haptic(0.015f, 160f, 0.3f);
+                }
+                if (_holdingPin)
+                {
+                    if (!off.GrabHeld)
+                    {
+                        _holdingPin = false; // let go before it came out
+                        off.Role = HandRole.Free;
+                    }
+                    else if (Vector3.Distance(off.Palm.position, pin) > PinPullDistance)
+                    {
+                        PullPin(off);
+                    }
+                }
+                if (!_pinPulled && VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side))
+                {
+                    VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
+                    PullPin(null); // one-handed: the thumb flicks the ring off
+                }
+            }
+            if (_ringHand != null && (!_ringHand.GrabHeld || !_ringHand.Tracked))
+            {
+                DropRing(_ringHand.ThrowVelocity());
+            }
+        }
+
+        /// <summary>Pin out: the grenade is ready, the fuse waits for the throw.</summary>
+        internal void PullPin(VRHand into)
+        {
+            if (!_usesPin || _pinPulled)
+            {
+                return;
+            }
+            Vector3 at = PinWorld;
+            _pinPulled = true;
+            _holdingPin = false;
+            if (_modPin != null)
+            {
+                // The piece that comes away is the grenade's own pin; the one on the grenade disappears with it.
+                _ring = PinRing.CreateFrom(_modPin, at);
+                _modPin.localScale = Vector3.one * 1e-4f;
+            }
+            if (_ring == null)
+            {
+                _ring = PinRing.Create();
+            }
+            _ring.transform.position = at;
+            _sys.Sounds.Play(MechSound.PinPull, at, 0.7f);
+            _sys.Rig.Dominant.Haptic(0.03f, 140f, 0.45f);
+            if (into != null)
+            {
+                into.Role = HandRole.Pin;
+                into.Haptic(0.04f, 180f, 0.6f);
+                _ringHand = into;
+            }
+            else
+            {
+                DropRing(_sys.Rig.Dominant.Velocity + _sys.Rig.Dominant.Palm.Up * 1.2f);
+            }
+        }
+
+        private void DropRing(Vector3 velocity)
+        {
+            if (_ringHand != null && _ringHand.Role == HandRole.Pin)
+            {
+                _ringHand.Role = HandRole.Free;
+            }
+            _ringHand = null;
+            if (_ring == null)
+            {
+                return;
+            }
+            PinRing.Drop(_ring, velocity);
+            _ring = null;
+        }
+
+        /// <summary>Called from BeforeRender: the ring sits in the fuse, or in the hand that pulled it.</summary>
+        public void BeforeRender()
+        {
+            // The grenade's animator writes the pin part's transform every frame: keep it hidden once pulled.
+            if (_modPin != null && _pinPulled)
+            {
+                _modPin.localScale = Vector3.one * 1e-4f;
+            }
+            if (_ring == null || _pinRig == null || _pinRig.GunBody == null)
+            {
+                return;
+            }
+            if (_ringHand != null)
+            {
+                RigidPose palm = _ringHand.Palm;
+                _ring.transform.SetPositionAndRotation(palm.position + palm.Forward * 0.035f, palm.rotation);
+            }
+            else if (!_pinPulled)
+            {
+                _ring.transform.SetPositionAndRotation(_pinRig.ToWorld(_pinLocal),
+                    _pinRig.GunBody.rotation * OpenVRMath.SafeLookRotation(_pinAxisLocal, _pinRig.Data.AimAxis));
+            }
+        }
+
+        /// <summary>A fresh grenade in hand: pin back in.</summary>
+        private void ResetPin()
+        {
+            if (_ringHand != null)
+            {
+                DropRing(_ringHand.Velocity);
+            }
+            else if (_ring != null && _pinPulled)
+            {
+                DropRing(Vector3.zero);
+            }
+            _pinPulled = false;
+            _holdingPin = false;
+            if (_modPin != null)
+            {
+                _modPin.localScale = _modPinScale;
+            }
+            else if (_usesPin && _ring == null)
+            {
+                _ring = PinRing.Create();
+            }
+            VRHand off = _sys.Rig.Off;
+            if (off.Role == HandRole.Pin && _ringHand == null)
+            {
+                off.Role = HandRole.Free;
+            }
+        }
+
+        private void ResetVisuals()
+        {
+            if (_ringHand != null)
+            {
+                DropRing(_ringHand.Velocity);
+            }
+            if (_ring != null)
+            {
+                Object.Destroy(_ring);
+                _ring = null;
+            }
+            if (_modPin != null)
+            {
+                _modPin.localScale = _modPinScale;
+            }
+            VRHand off = _sys.Rig.Off;
+            if (off.Role == HandRole.Pin)
+            {
+                off.Role = HandRole.Free;
+            }
+            _holdingPin = false;
+        }
+
+        /// <summary>
+        /// Autotest: a throw with the pin in must not spawn a live grenade (a dud lands instead and picking it up refunds
+        /// it); with the pin pulled the same throw must spawn one.
+        /// </summary>
+        internal IEnumerator SelfCheck(HeldWeapon held, System.Action<string> report)
+        {
+            var weapon = held.Weapon as ThrowableWeapon;
+            if (weapon == null)
+            {
+                yield break;
+            }
+            if (_pinFor != weapon)
+            {
+                SetupPin(held, weapon);
+            }
+            if (!_usesPin)
+            {
+                report("throwable without a pin");
+                yield break;
+            }
+            float until = Time.realtimeSinceStartup + 3f;
+            while ((!weapon.unholstered || !weapon.CanFire()) && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            VRHand hand = _sys.Rig.Dominant;
+            Transform head = _sys.Rig.Head;
+            Vector3 lob = (Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized + Vector3.up).normalized * 16f;
+            int before = weapon.ammo + weapon.spareAmmo;
+            int duds = GrenadeDud.Count;
+            Throw(weapon, hand, lob);
+            bool dud = GrenadeDud.Count == duds + 1 && LastLiveCount == 0;
+            bool refunded = GrenadeDud.RefundLast(weapon.user) && weapon.ammo + weapon.spareAmmo == before;
+            report($"pin in: {(dud ? "dud, no live grenade" : "LIVE GRENADE WITH THE PIN IN")}, picked up again: {(refunded ? "refunded" : "NOT REFUNDED")}");
+            until = Time.realtimeSinceStartup + 3f;
+            while (!weapon.CanFire() && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            PullPin(null);
+            Throw(weapon, hand, lob);
+            report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
+        }
+
         public void Release()
         {
             _armed = false;
@@ -109,6 +460,11 @@ namespace RavenfieldVR.Weapons
                 _listening.onSpawnProjectiles.RemoveListener(OnSpawned);
                 _listening = null;
             }
+            // Put away with the pin out: it goes back in (no surprises in the pouch).
+            ResetVisuals();
+            _pinFor = null;
+            _pinRig = null;
+            _pinPulled = false;
             VRGameInput.SuppressFire = false;
         }
     }

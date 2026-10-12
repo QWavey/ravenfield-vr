@@ -111,6 +111,14 @@ $cscArgs += $sources
 Invoke-Csc $cscArgs
 Write-Step "Built $(Join-Path $Build 'RavenfieldVR.dll')"
 
+# install.ps1 (dev layout) installs from dist/RavenfieldVR: keep its plugin current on plain builds too,
+# otherwise an install after a non-package build silently ships the previous DLL.
+$distPlugin = Join-Path $Root 'dist/RavenfieldVR/BepInEx/plugins/RavenfieldVR'
+if (-not $Package -and (Test-Path $distPlugin)) {
+    Copy-Item (Join-Path $Build 'RavenfieldVR.dll'), (Join-Path $Build 'RavenfieldVR.pdb') $distPlugin -Force
+    Write-Step "Updated $distPlugin"
+}
+
 # --- 3. Package ------------------------------------------------------------------------------
 if ($Package) {
     $version = (Select-String -Path (Join-Path $Root 'src/Core/PluginInfo.cs') -Pattern 'Version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
@@ -136,6 +144,16 @@ if ($Package) {
     Get-ChildItem $x64Out -Filter *.dll | ForEach-Object { Copy-Item $_.FullName (Join-Path $pluginRuntime ($_.Name + '.bin')) -Force }
     Copy-Item (Join-Path $subsysOut 'UnitySubsystemsManifest.json') $pluginRuntime -Force
 
+    # Launcher (VR / flat + graphics preset), installed next to ravenfield.exe and run from Steam's Play button.
+    $fx = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
+    Invoke-Csc @(
+        '-nologo', '-target:winexe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig',
+        "-out:$(Join-Path $dist 'RavenfieldVR-Launcher.exe')", "-win32manifest:$(Join-Path $Root 'installer/app.manifest')",
+        "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll", "-r:$fx/System.Windows.Forms.dll",
+        (Join-Path $Root 'installer/Launcher.cs')
+    )
+    Write-Step 'Built RavenfieldVR-Launcher.exe'
+
     New-Item -ItemType Directory -Force (Join-Path $dist 'tools') | Out-Null
     Copy-Item (Join-Path $Root 'tools/common.ps1') (Join-Path $dist 'tools') -Force
     foreach ($f in 'install.ps1', 'uninstall.ps1', 'install.cmd', 'uninstall.cmd', 'README.md', 'THIRD-PARTY-NOTICES.md') {
@@ -146,4 +164,20 @@ if ($Package) {
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $dist '*') -DestinationPath $zip
     Write-Step "Release zip: $zip"
+
+    # One-file setup program carrying the release.
+    $setupObj = Join-Path $Build 'setup'
+    New-Item -ItemType Directory -Force $setupObj | Out-Null
+    Set-Content -Path (Join-Path $setupObj 'version.txt') -Value $version -NoNewline -Encoding ASCII
+    $setupExe = Join-Path $Root "dist/RavenfieldVR-Setup-$version.exe"
+    Invoke-Csc @(
+        '-nologo', '-target:winexe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig',
+        "-out:$setupExe", "-win32manifest:$(Join-Path $Root 'installer/app.manifest')",
+        "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll",
+        "-r:$fx/System.Windows.Forms.dll", "-r:$fx/System.IO.Compression.dll", "-r:$fx/System.IO.Compression.FileSystem.dll",
+        "-resource:$zip,RavenfieldVR.Setup.payload.zip",
+        "-resource:$(Join-Path $setupObj 'version.txt'),RavenfieldVR.Setup.version.txt",
+        (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs')
+    )
+    Write-Step "Setup: $setupExe"
 }

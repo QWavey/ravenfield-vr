@@ -18,6 +18,7 @@ namespace RavenfieldVR.Weapons
 
         private readonly VRRig _vrRig;
         private readonly WeaponRig _rig;
+        private readonly float _radius;
         private readonly Camera _camera;
         private readonly RenderTexture _texture;
         private readonly GameObject _root;
@@ -27,7 +28,7 @@ namespace RavenfieldVR.Weapons
 
         public static bool Wanted(Weapon w, WeaponRig rig)
         {
-            if (!rig.Data.HasEyePoint || w.renderTextureCamera != null || w.configuration.scopeAimObject == null)
+            if (!rig.Data.HasEyePoint || rig.Data.EyeFromLine || w.renderTextureCamera != null || w.configuration.scopeAimObject == null)
             {
                 return false;
             }
@@ -44,7 +45,11 @@ namespace RavenfieldVR.Weapons
 
             _root = new GameObject("RavenfieldVR Scope");
             _root.transform.SetParent(rig.GunBody, false);
-            Vector3 lensPos = rig.Data.EyePoint + rig.Data.EyeDirection * EyeRelief;
+            // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
+            Vector3 lensPos = rig.Data.HasScopeModel
+                ? rig.Data.ScopeOcular - rig.Data.EyeDirection * 0.002f
+                : rig.Data.EyePoint + rig.Data.EyeDirection * EyeRelief;
+            _radius = rig.Data.HasScopeModel ? rig.Data.ScopeRadius : LensRadius;
             _root.transform.localPosition = lensPos;
             _root.transform.localRotation = Quaternion.LookRotation(rig.Data.EyeDirection, rig.Data.Up);
 
@@ -72,7 +77,7 @@ namespace RavenfieldVR.Weapons
             go.transform.localPosition = new Vector3(0f, 0f, z);
             // The disc faces back toward the eye (-Z of the sight line).
             go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            go.transform.localScale = Vector3.one * LensRadius;
+            go.transform.localScale = Vector3.one * _radius;
             go.AddComponent<MeshFilter>().sharedMesh = _disc;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
@@ -142,7 +147,7 @@ namespace RavenfieldVR.Weapons
             Camera vr = _vrRig.Camera;
             float baseFov = 60f;
             float magnification = Mathf.Max(1.5f, baseFov / Mathf.Max(1f, _rig.Weapon.GetAimFov()));
-            float lensAngle = 2f * Mathf.Atan(LensRadius / EyeRelief) * Mathf.Rad2Deg;
+            float lensAngle = 2f * Mathf.Atan(_radius / EyeRelief) * Mathf.Rad2Deg;
             _camera.fieldOfView = Mathf.Clamp(lensAngle / magnification, 0.5f, 60f);
             _camera.cullingMask = vr.cullingMask & ~IgnoreLayers;
             _camera.clearFlags = vr.clearFlags;

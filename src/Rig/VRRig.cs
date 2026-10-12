@@ -395,8 +395,9 @@ namespace RavenfieldVR.Rig
                 {
                     return h;
                 }
-                // Before calibration, treat the current height as standing height.
-                return Mathf.Max(0.5f, HeadLocal.y);
+                // Before calibration, treat the current height as standing height, whatever it is: a floor set too
+                // high (or a headset reporting floor level) must still put the eyes at the game's eye height.
+                return HeadLocal.y;
             }
         }
 
@@ -460,6 +461,7 @@ namespace RavenfieldVR.Rig
             {
                 h.UpdatePose(Root);
             }
+            _cockpit.BeforeRender();
 
             if (player != null && (Mode == RigMode.OnFoot || Mode == RigMode.Anchored) && player.fpCamera != null)
             {
@@ -550,6 +552,9 @@ namespace RavenfieldVR.Rig
             return new RigidPose(p.position, Quaternion.Euler(0f, p.rotation.eulerAngles.y, 0f));
         }
 
+        private Camera _cullSource;
+        private int _nextCullCopy;
+
         private void CopyCameraSettings(Camera reference, FpsActorController player)
         {
             // UI (layer 5) is drawn by the UI camera on top of the world; the weapon layer is drawn here with real depth.
@@ -582,20 +587,27 @@ namespace RavenfieldVR.Rig
             Camera.cullingMask = mask;
             Camera.clearFlags = clear;
             Camera.backgroundColor = background;
-            Camera.farClipPlane = far;
+            Camera.farClipPlane = Mathf.Min(far, GraphicsPresets.FarClipCap);
             Camera.nearClipPlane = VRConfig.NearClip.Value;
             Camera.allowHDR = reference.allowHDR;
-            Camera.allowMSAA = reference.allowMSAA;
+            Camera.allowMSAA = GraphicsPresets.ForceMsaa ?? reference.allowMSAA;
             Camera.renderingPath = reference.renderingPath;
             Camera.depthTextureMode = reference.depthTextureMode | DepthTextureMode.Depth;
             Camera.useOcclusionCulling = reference.useOcclusionCulling;
             Camera.layerCullSpherical = reference.layerCullSpherical;
-            float[] cull = reference.layerCullDistances;
-            if (cull != null && cull.Length == 32)
+            // layerCullDistances returns a fresh array on every read: copy it when the source camera changes and
+            // twice a second after that, not every frame.
+            if (reference != _cullSource || Time.frameCount >= _nextCullCopy)
             {
-                cull[UiLayer] = 0f;
-                cull[FirstPersonLayer] = 0f;
-                Camera.layerCullDistances = cull;
+                _cullSource = reference;
+                _nextCullCopy = Time.frameCount + 45;
+                float[] cull = reference.layerCullDistances;
+                if (cull != null && cull.Length == 32)
+                {
+                    cull[UiLayer] = 0f;
+                    cull[FirstPersonLayer] = 0f;
+                    Camera.layerCullDistances = cull;
+                }
             }
             UpdatePostProcessing(reference);
         }

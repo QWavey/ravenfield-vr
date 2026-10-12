@@ -25,6 +25,11 @@ namespace RavenfieldVR.Weapons
         public readonly PropKind Kind;
         public readonly string WeaponKey;
         public int Rounds;
+        /// <summary>
+        /// The ammo the rounds came from. A dropped magazine keeps its rounds (pick it up and seat it to use them);
+        /// if it despawns first they go back to this reserve, so leaving a half-full magazine behind costs nothing.
+        /// </summary>
+        public AmmoState Owner;
         public VRHand HeldBy { get; private set; }
 
         /// <summary>Insertion end (top of a magazine, nose of a shell/rocket) in prop space.</summary>
@@ -33,16 +38,21 @@ namespace RavenfieldVR.Weapons
         public readonly Vector3 InsertDirLocal;
         /// <summary>Unit vector pointing like the weapon barrel, in prop space.</summary>
         public readonly Vector3 FrontLocal;
-        private readonly Vector3 _baseLocal;
+        /// <summary>Bottom end (base plate of a magazine, rim of a shell) in prop space.</summary>
+        public readonly Vector3 BaseLocal;
         private readonly Rigidbody _body;
         private readonly Collider _collider;
         private float _dropTime = -1f;
 
-        public bool Seating;
-        public RigidPose SeatFrom;
-        public float SeatProgress;
+        /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
+        public bool OnRail;
+        /// <summary>How far along the rail (0 = at the well entry, RailLength = seated).</summary>
+        public float RailDepth;
+        /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
+        public readonly float RailLength;
+        public float LastTick;
 
-        private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front)
+        private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front, bool machineGun)
         {
             Go = go;
             Kind = kind;
@@ -54,14 +64,28 @@ namespace RavenfieldVR.Weapons
                 : Vector3.Cross(InsertDirLocal, Vector3.right).normalized;
             float extent = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(InsertDirLocal)));
             TipLocal = bounds.center + InsertDirLocal * extent;
-            _baseLocal = bounds.center - InsertDirLocal * extent;
+            BaseLocal = bounds.center - InsertDirLocal * extent;
+            switch (kind)
+            {
+                case PropKind.Shell:
+                    RailLength = Mathf.Clamp(extent * 1.4f, 0.025f, 0.06f);
+                    break;
+                case PropKind.Rocket:
+                    RailLength = Mathf.Clamp(extent * 1.0f, 0.12f, 0.5f);
+                    break;
+                default:
+                    // Magazines slide in for roughly half their length before they latch; a machine gun's box or
+                    // drum hooks on with a short, heavy slide along its rails.
+                    RailLength = machineGun ? Mathf.Clamp(extent * 0.35f, 0.03f, 0.06f) : Mathf.Clamp(extent * 0.9f, 0.03f, 0.09f);
+                    break;
+            }
 
             var box = go.AddComponent<BoxCollider>();
             box.center = bounds.center;
             box.size = Vector3.Max(bounds.size, new Vector3(0.01f, 0.01f, 0.01f));
             _collider = box;
             _body = go.AddComponent<Rigidbody>();
-            _body.mass = kind == PropKind.Rocket ? 2f : 0.4f;
+            _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _body.isKinematic = true;
@@ -84,7 +108,7 @@ namespace RavenfieldVR.Weapons
             Bounds bounds = d.MagBounds;
             if (kind == PropKind.Magazine && rig.Magazine != null)
             {
-                go = CopyVisuals(rig.Magazine);
+                go = CopyVisuals(rig);
             }
             if (go == null)
             {
@@ -93,54 +117,210 @@ namespace RavenfieldVR.Weapons
             }
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
-            var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal);
+            var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun);
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
             Cull();
             return prop;
         }
 
-        private static GameObject CopyVisuals(Transform source)
+        /// <summary>Visual-only copy of what the weapon feeds from, in magazine space (for the pouch display).</summary>
+        internal static GameObject BuildDisplay(WeaponRig rig, PropKind kind, out Bounds bounds, out Vector3 insertLocal, out Vector3 frontLocal)
         {
+            WeaponRigData d = rig.Data;
+            Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
+            insertLocal = (seatInv * -d.MagEjectAxis).normalized;
+            frontLocal = seatInv * d.AimAxis;
+            GameObject go = null;
+            bounds = d.MagBounds;
+            if (kind == PropKind.Magazine && rig.Magazine != null)
+            {
+                go = CopyVisuals(rig);
+            }
+            if (go == null)
+            {
+                go = new GameObject("RavenfieldVR Pouch " + kind);
+                bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds);
+            }
+            go.name = "RavenfieldVR Pouch " + kind;
+            SetLayer(go, HeldLayer);
+            foreach (Collider c in go.GetComponentsInChildren<Collider>(true))
+            {
+                Object.Destroy(c);
+            }
+            return go;
+        }
+
+        internal static int DisplayLayer => HeldLayer;
+
+        /// <summary>
+        /// Copies the magazine's look: its own meshes, the pieces that travel with it, and for skinned guns the
+        /// triangles of the gun mesh that the magazine bones drive. Everything is expressed in magazine space.
+        /// </summary>
+        private static GameObject CopyVisuals(WeaponRig rig)
+        {
+            Transform source = rig.Magazine;
             var root = new GameObject("mag");
             bool any = false;
             Quaternion inv = Quaternion.Inverse(source.rotation);
-            foreach (Renderer r in source.GetComponentsInChildren<Renderer>(true))
+            var magBones = new HashSet<Transform>();
+            foreach (Transform part in rig.MagazineParts)
             {
-                Mesh mesh = null;
-                Material[] mats = r.sharedMaterials;
-                if (r is MeshRenderer)
+                foreach (Transform t in part.GetComponentsInChildren<Transform>(true))
                 {
-                    MeshFilter mf = r.GetComponent<MeshFilter>();
-                    mesh = mf != null ? mf.sharedMesh : null;
+                    magBones.Add(t);
                 }
-                else if (r is SkinnedMeshRenderer smr && smr.sharedMesh != null)
-                {
-                    mesh = new Mesh { name = smr.sharedMesh.name + " (baked)" };
-                    smr.BakeMesh(mesh);
-                }
-                if (mesh == null)
-                {
-                    continue;
-                }
-                var part = new GameObject(r.name);
-                part.transform.SetParent(root.transform, false);
-                part.transform.localPosition = inv * (r.transform.position - source.position);
-                part.transform.localRotation = inv * r.transform.rotation;
-                // Baked skinned meshes are already in world scale; static meshes keep their transform's scale.
-                part.transform.localScale = r is SkinnedMeshRenderer ? Vector3.one : r.transform.lossyScale;
-                part.AddComponent<MeshFilter>().sharedMesh = mesh;
-                var mr = part.AddComponent<MeshRenderer>();
-                mr.sharedMaterials = mats;
-                mr.shadowCastingMode = ShadowCastingMode.On;
-                any = true;
             }
+
+            foreach (Transform part in rig.MagazineParts)
+            {
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                {
+                    Mesh mesh = null;
+                    if (r is MeshRenderer)
+                    {
+                        MeshFilter mf = r.GetComponent<MeshFilter>();
+                        mesh = mf != null ? mf.sharedMesh : null;
+                    }
+                    else if (r is SkinnedMeshRenderer smr && smr.sharedMesh != null)
+                    {
+                        mesh = new Mesh { name = smr.sharedMesh.name + " (baked)" };
+                        smr.BakeMesh(mesh);
+                    }
+                    if (mesh == null)
+                    {
+                        continue;
+                    }
+                    AddPart(root.transform, r.name, mesh, r.sharedMaterials, inv * (r.transform.position - source.position), inv * r.transform.rotation,
+                        r is SkinnedMeshRenderer ? Vector3.one : r.transform.lossyScale);
+                    any = true;
+                }
+            }
+
+            // Skinned guns: the magazine is a bone; cut its triangles out of the gun mesh.
+            if (!any && rig.Data.MagazineIsSkinned)
+            {
+                foreach (SkinnedMeshRenderer smr in rig.Weapon.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    Mesh cut = ExtractBoneTriangles(smr, magBones);
+                    if (cut != null)
+                    {
+                        AddPart(root.transform, smr.name + " (magazine)", cut, smr.sharedMaterials,
+                            inv * (smr.transform.position - source.position), inv * smr.transform.rotation, Vector3.one);
+                        any = true;
+                    }
+                }
+            }
+
             if (!any)
             {
                 Object.Destroy(root);
                 return null;
             }
             return root;
+        }
+
+        private static void AddPart(Transform root, string name, Mesh mesh, Material[] materials, Vector3 localPos, Quaternion localRot, Vector3 scale)
+        {
+            var part = new GameObject(name);
+            part.transform.SetParent(root, false);
+            part.transform.localPosition = localPos;
+            part.transform.localRotation = localRot;
+            part.transform.localScale = scale;
+            part.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = part.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = Util.MaterialFix.Fix(materials);
+            mr.shadowCastingMode = ShadowCastingMode.On;
+        }
+
+        /// <summary>Triangles whose vertices are driven mostly by the given bones, baked in the renderer's space.</summary>
+        private static Mesh ExtractBoneTriangles(SkinnedMeshRenderer smr, HashSet<Transform> bones)
+        {
+            Mesh shared = smr.sharedMesh;
+            if (shared == null || !shared.isReadable || smr.bones == null)
+            {
+                return null;
+            }
+            Transform[] smrBones = smr.bones;
+            var boneIsMag = new bool[smrBones.Length];
+            bool anyBone = false;
+            for (int i = 0; i < smrBones.Length; i++)
+            {
+                boneIsMag[i] = smrBones[i] != null && bones.Contains(smrBones[i]);
+                anyBone |= boneIsMag[i];
+            }
+            if (!anyBone)
+            {
+                return null;
+            }
+            BoneWeight[] weights = shared.boneWeights;
+            if (weights == null || weights.Length != shared.vertexCount)
+            {
+                return null;
+            }
+            var baked = new Mesh();
+            smr.BakeMesh(baked);
+            Vector3[] verts = baked.vertices;
+            Vector3[] normals = baked.normals;
+            Vector2[] uv = shared.uv;
+            var map = new Dictionary<int, int>();
+            var newVerts = new List<Vector3>();
+            var newNormals = new List<Vector3>();
+            var newUv = new List<Vector2>();
+            var subMeshes = new List<int[]>();
+            for (int sub = 0; sub < shared.subMeshCount; sub++)
+            {
+                int[] tris = shared.GetTriangles(sub);
+                var keep = new List<int>();
+                for (int t = 0; t + 2 < tris.Length; t += 3)
+                {
+                    if (!DrivenBy(weights[tris[t]], boneIsMag) || !DrivenBy(weights[tris[t + 1]], boneIsMag) || !DrivenBy(weights[tris[t + 2]], boneIsMag))
+                    {
+                        continue;
+                    }
+                    for (int k = 0; k < 3; k++)
+                    {
+                        int source = tris[t + k];
+                        if (!map.TryGetValue(source, out int idx))
+                        {
+                            idx = newVerts.Count;
+                            map[source] = idx;
+                            newVerts.Add(verts[source]);
+                            newNormals.Add(normals != null && normals.Length > source ? normals[source] : Vector3.up);
+                            newUv.Add(uv != null && uv.Length > source ? uv[source] : Vector2.zero);
+                        }
+                        keep.Add(idx);
+                    }
+                }
+                subMeshes.Add(keep.ToArray());
+            }
+            Object.Destroy(baked);
+            if (newVerts.Count == 0)
+            {
+                return null;
+            }
+            var result = new Mesh { name = shared.name + " (magazine)" };
+            result.indexFormat = newVerts.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            result.SetVertices(newVerts);
+            result.SetNormals(newNormals);
+            result.SetUVs(0, newUv);
+            result.subMeshCount = subMeshes.Count;
+            for (int sub = 0; sub < subMeshes.Count; sub++)
+            {
+                result.SetTriangles(subMeshes[sub], sub);
+            }
+            result.RecalculateBounds();
+            return result;
+        }
+
+        private static bool DrivenBy(BoneWeight w, bool[] boneIsMag)
+        {
+            float share = 0f;
+            if (w.boneIndex0 < boneIsMag.Length && boneIsMag[w.boneIndex0]) share += w.weight0;
+            if (w.boneIndex1 < boneIsMag.Length && boneIsMag[w.boneIndex1]) share += w.weight1;
+            if (w.boneIndex2 < boneIsMag.Length && boneIsMag[w.boneIndex2]) share += w.weight2;
+            if (w.boneIndex3 < boneIsMag.Length && boneIsMag[w.boneIndex3]) share += w.weight3;
+            return share >= 0.5f;
         }
 
         private static Bounds BuildProcedural(GameObject go, PropKind kind, Vector3 insertLocal, Vector3 frontLocal, Bounds magBounds)
@@ -215,6 +395,7 @@ namespace RavenfieldVR.Weapons
             _body.isKinematic = true;
             _collider.enabled = false;
             _dropTime = -1f;
+            OnRail = false;
             SetLayer(Go, HeldLayer);
         }
 
@@ -224,16 +405,23 @@ namespace RavenfieldVR.Weapons
             RigidPose palm = hand.Palm;
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
-            Vector3 pos = palm.position + palm.Up * 0.01f - rot * _baseLocal;
+            Vector3 pos = palm.position + palm.Up * 0.01f - rot * BaseLocal;
             return new RigidPose(pos, rot);
         }
 
         public void FollowHand()
         {
-            if (HeldBy != null && !Seating)
+            if (HeldBy != null && !OnRail)
             {
                 HoldPose(HeldBy).ApplyTo(Go.transform);
             }
+        }
+
+        /// <summary>World pose at the current rail depth, given the seated pose of the magazine/shell/rocket.</summary>
+        public RigidPose RailPose(RigidPose seat)
+        {
+            Vector3 insert = seat.TransformDirection(InsertDirLocal);
+            return new RigidPose(seat.position - insert * (RailLength - RailDepth), seat.rotation);
         }
 
         public Vector3 TipWorld => Go.transform.TransformPoint(TipLocal);
@@ -250,33 +438,30 @@ namespace RavenfieldVR.Weapons
                 }
                 HeldBy = null;
             }
-            Seating = false;
-            SetLayer(Go, WorldLayer);
+            OnRail = false;
+            int layer = PropPhysics.Layer;
+            SetLayer(Go, layer >= 0 ? layer : WorldLayer);
             _collider.enabled = true;
             _body.isKinematic = false;
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
-            IgnorePlayerCollision();
-        }
-
-        private void IgnorePlayerCollision()
-        {
-            FpsActorController player = LocalPlayer.controller;
-            if (player == null)
-            {
-                return;
-            }
-            foreach (Collider c in player.GetComponentsInChildren<Collider>())
-            {
-                if (c != null && c.enabled)
-                {
-                    Physics.IgnoreCollision(_collider, c, true);
-                }
-            }
+            PropPhysics.IgnorePlayer(_collider);
+            GunCollider.Current?.OnPropDropped(_collider);
         }
 
         public bool IsDropped => _dropTime >= 0f;
+
+        /// <summary>Removed by the clean-up: rounds still inside go back to the reserve they came from.</summary>
+        public void Despawn()
+        {
+            if (Owner != null && Rounds > 0 && VRConfig.ReturnRoundsOnMagDrop.Value)
+            {
+                Owner.ReturnSpareCapped(Rounds);
+            }
+            Rounds = 0;
+            Destroy();
+        }
 
         public void Destroy()
         {
@@ -293,18 +478,21 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Nearest dropped prop of the given weapon within <paramref name="radius"/>.</summary>
+        /// <summary>
+        /// Nearest dropped prop within <paramref name="radius"/>, measured to its collider (a long magazine can be taken
+        /// by either end); only props of <paramref name="weaponKey"/> unless it is null.
+        /// </summary>
         public static MagazineProp NearestDropped(Vector3 point, float radius, string weaponKey)
         {
             MagazineProp best = null;
             float bestDist = radius;
             foreach (MagazineProp p in Alive)
             {
-                if (!p.IsDropped || p.Go == null || p.WeaponKey != weaponKey)
+                if (!p.IsDropped || p.Go == null || weaponKey != null && p.WeaponKey != weaponKey)
                 {
                     continue;
                 }
-                float d = Vector3.Distance(p.Go.transform.position, point);
+                float d = Vector3.Distance(p._collider.ClosestPoint(point), point);
                 if (d < bestDist)
                 {
                     bestDist = d;
@@ -336,7 +524,7 @@ namespace RavenfieldVR.Weapons
                 bool expired = Time.time - p._dropTime > lifetime || p.Go.transform.position.y < -500f || dropped > max;
                 if (expired)
                 {
-                    p.Destroy();
+                    p.Despawn();
                 }
             }
         }

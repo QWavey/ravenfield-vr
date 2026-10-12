@@ -1,0 +1,151 @@
+using RavenfieldVR.Core;
+using RavenfieldVR.Rig;
+using UnityEngine;
+
+namespace RavenfieldVR.Weapons
+{
+    /// <summary>
+    /// The ammo pouch made visible: a copy of what the held weapon feeds from (its own magazine model, a shell, a
+    /// rocket) sits at the pouch on your body with the number of spares next to it, and lifts a little when your
+    /// free hand is close enough to take one.
+    /// </summary>
+    internal sealed class PouchDisplay
+    {
+        private const float MaxSize = 0.26f;
+
+        private readonly WeaponSystem _sys;
+        private GameObject _root;
+        private GameObject _model;
+        private TextMesh _label;
+        private WeaponRigData _builtFor;
+        private PropKind _builtKind;
+        private Vector3 _insertLocal, _frontLocal;
+        private Bounds _bounds;
+        private float _scale = 1f;
+        private float _hover;
+
+        public PouchDisplay(WeaponSystem sys)
+        {
+            _sys = sys;
+        }
+
+        public void BeforeRender(HeldWeapon held)
+        {
+            AmmoState ammo = held != null ? held.ActiveAmmo : null;
+            bool show = VRConfig.ShowPouch.Value && VRConfig.Reload.Value == ReloadMode.Manual && held != null && ammo != null && ammo.Participates
+                        && held.ActiveRig.Data.Action != ActionType.Throwable && GameContextOnFoot();
+            if (!show)
+            {
+                SetVisible(false);
+                return;
+            }
+            WeaponRig rig = held.ActiveRig;
+            PropKind kind = ammo.UsesDetachableMag ? PropKind.Magazine : rig.Data.Action == ActionType.SingleShot ? PropKind.Rocket : PropKind.Shell;
+            if (_builtFor != rig.Data || _builtKind != kind || _model == null)
+            {
+                Build(rig, kind);
+                _builtFor = rig.Data;
+                _builtKind = kind;
+            }
+            SetVisible(true);
+
+            BodyZones zones = _sys.Zones;
+            VRHand off = _sys.Rig.Off;
+            bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
+            _hover = Mathf.MoveTowards(_hover, reaching ? 1f : 0f, Time.unscaledDeltaTime * 8f);
+
+            // Standing up in the pouch, facing forward with the body.
+            Quaternion propBasis = Quaternion.LookRotation(Vector3.ProjectOnPlane(_frontLocal, _insertLocal).sqrMagnitude > 1e-4f ? _frontLocal : Vector3.forward, _insertLocal);
+            Quaternion worldBasis = Quaternion.LookRotation(zones.TorsoForward, Vector3.up);
+            Quaternion rot = worldBasis * Quaternion.Inverse(propBasis);
+            float scale = _scale * (1f + 0.06f * _hover);
+            Vector3 lift = Vector3.up * (0.015f * _hover);
+            Transform t = _model.transform;
+            t.localScale = Vector3.one * scale;
+            t.rotation = rot;
+            t.position = zones.Pouch + lift - rot * (_bounds.center * scale);
+
+            int spare = ammo.InfiniteSpare ? -1 : ammo.SpareAmmo;
+            if (spare != _shownSpare || ammo.Capacity != _shownCapacity)
+            {
+                _shownSpare = spare;
+                _shownCapacity = ammo.Capacity;
+                _label.text = PouchText(spare, ammo.Capacity, kind);
+            }
+            _label.color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
+            Vector3 side = Vector3.Cross(Vector3.up, zones.TorsoForward).normalized;
+            float halfWidth = Mathf.Abs(Vector3.Dot(_bounds.extents, Abs(Quaternion.Inverse(rot) * side))) * scale;
+            _label.transform.position = zones.Pouch + lift + side * (halfWidth + 0.018f) + Vector3.up * 0.01f;
+            Transform head = _sys.Rig.Head;
+            Vector3 toHead = _label.transform.position - head.position;
+            _label.transform.rotation = toHead.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(toHead, Vector3.up) : Quaternion.identity;
+        }
+
+        private int _shownSpare = int.MinValue, _shownCapacity = -1;
+
+        private static string PouchText(int spare, int capacity, PropKind kind)
+        {
+            if (spare < 0)
+            {
+                return "\u221e";
+            }
+            if (kind != PropKind.Magazine)
+            {
+                return spare.ToString();
+            }
+            int mags = spare / Mathf.Max(1, capacity);
+            return spare - mags * capacity > 0 ? mags + "+" : mags.ToString();
+        }
+
+        private static bool GameContextOnFoot() => Util.GameContext.PlayerOnFoot || DrivingWeapons.Armed;
+
+        private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+        private void Build(WeaponRig rig, PropKind kind)
+        {
+            if (_root == null)
+            {
+                _root = new GameObject("RavenfieldVR Pouch");
+                Object.DontDestroyOnLoad(_root);
+                var labelGo = new GameObject("Count");
+                labelGo.layer = MagazineProp.DisplayLayer;
+                labelGo.transform.SetParent(_root.transform, false);
+                _label = labelGo.AddComponent<TextMesh>();
+                Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _label.font = font;
+                labelGo.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                _label.fontSize = 64;
+                _label.characterSize = 0.0028f;
+                _label.anchor = TextAnchor.MiddleLeft;
+                _label.fontStyle = FontStyle.Bold;
+            }
+            if (_model != null)
+            {
+                Object.Destroy(_model);
+            }
+            _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal);
+            _model.transform.SetParent(_root.transform, true);
+            float size = _bounds.size.magnitude;
+            _scale = size > MaxSize ? MaxSize / size : 1f; // a rocket shows smaller than life
+        }
+
+        private void SetVisible(bool visible)
+        {
+            if (_root != null && _root.activeSelf != visible)
+            {
+                _root.SetActive(visible);
+            }
+        }
+
+        public void Destroy()
+        {
+            if (_root != null)
+            {
+                Object.Destroy(_root);
+            }
+            _root = null;
+            _model = null;
+            _builtFor = null;
+        }
+    }
+}

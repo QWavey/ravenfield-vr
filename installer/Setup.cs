@@ -1,0 +1,725 @@
+// Ravenfield VR setup program: one window, everything it installs is embedded in the exe.
+// Install / update / uninstall follow the same manifest + backup rules as install.ps1 / uninstall.ps1.
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Microsoft.Win32;
+
+namespace RavenfieldVR.Setup
+{
+    internal static class Program
+    {
+        /// <summary>
+        /// No arguments: the setup window. Unattended:
+        ///   --install [--game DIR] [--no-steam-option]      install or update
+        ///   --uninstall [--game DIR] [--keep-settings]      uninstall
+        ///   --steam-option-test FILE --launcher PATH        add then remove the launch option in a copy of a localconfig.vdf
+        /// Unattended runs log to RavenfieldVR-setup.log next to the exe and return 0 on success.
+        /// </summary>
+        [STAThread]
+        private static int Main(string[] args)
+        {
+            if (args.Length == 0)
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new SetupForm());
+                return 0;
+            }
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RavenfieldVR-setup.log");
+            var log = new List<string>();
+            Action<string> write = line => log.Add(DateTime.Now.ToString("HH:mm:ss ") + line);
+            try
+            {
+                string Arg(string name)
+                {
+                    int i = Array.FindIndex(args, a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+                }
+                bool Flag(string name) => args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+                string game = Arg("--game") ?? Installer.FindRavenfield();
+                var installer = new Installer(write);
+                if (Flag("--steam-option-test"))
+                {
+                    string file = Arg("--steam-option-test"), launcher = Arg("--launcher");
+                    write("Before: " + SteamLaunchOption.Read(file));
+                    SteamLaunchOption.ApplyToFile(file, launcher, write);
+                    write("After add: " + SteamLaunchOption.Read(file));
+                    SteamLaunchOption.RemoveFromFile(file, write);
+                    write("After remove: " + SteamLaunchOption.Read(file));
+                }
+                else if (Flag("--install"))
+                {
+                    if (!Installer.IsRavenfieldFolder(game))
+                    {
+                        throw new InvalidOperationException("Ravenfield folder not found; pass --game DIR.");
+                    }
+                    installer.Install(game);
+                    if (!Flag("--no-steam-option"))
+                    {
+                        if (SteamLaunchOption.SteamRunning())
+                        {
+                            write("Steam is running: launch option not changed (close Steam or use the setup window).");
+                        }
+                        else
+                        {
+                            SteamLaunchOption.Apply(Path.Combine(game, Installer.LauncherName), write);
+                        }
+                    }
+                }
+                else if (Flag("--uninstall"))
+                {
+                    installer.Uninstall(game, Flag("--keep-settings"));
+                    if (!SteamLaunchOption.SteamRunning())
+                    {
+                        SteamLaunchOption.Remove(write);
+                    }
+                    else
+                    {
+                        write("Steam is running: remove the launcher from Ravenfield's launch options yourself.");
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException("Unknown arguments: " + string.Join(" ", args));
+                }
+                File.WriteAllLines(logPath, log);
+                return 0;
+            }
+            catch (Exception e)
+            {
+                write("Error: " + e.Message);
+                File.WriteAllLines(logPath, log);
+                return 1;
+            }
+        }
+    }
+
+    /// <summary>Installs the embedded release into a Ravenfield folder and removes it again.</summary>
+    internal sealed class Installer
+    {
+        public const string ManifestRelative = @"BepInEx\plugins\RavenfieldVR\install-manifest.txt";
+        public const string LauncherName = "RavenfieldVR-Launcher.exe";
+        private static readonly string[] LoaderFiles = { "winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt" };
+
+        private readonly Action<string> _log;
+
+        public Installer(Action<string> log)
+        {
+            _log = log;
+        }
+
+        public static string Version
+        {
+            get
+            {
+                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("RavenfieldVR.Setup.version.txt"))
+                using (var r = new StreamReader(s))
+                {
+                    return r.ReadToEnd().Trim();
+                }
+            }
+        }
+
+        // ---- finding the game --------------------------------------------------------------------------
+
+        public static string FindRavenfield()
+        {
+            foreach (string lib in SteamLibraries())
+            {
+                string dir = Path.Combine(lib, "steamapps", "common", "Ravenfield");
+                if (File.Exists(Path.Combine(dir, "ravenfield.exe")))
+                {
+                    return dir;
+                }
+            }
+            return null;
+        }
+
+        public static string SteamDir()
+        {
+            string steam = null;
+            foreach (string key in new[] { @"HKEY_CURRENT_USER\Software\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam" })
+            {
+                steam = (Registry.GetValue(key, "SteamPath", null) ?? Registry.GetValue(key, "InstallPath", null)) as string;
+                if (!string.IsNullOrEmpty(steam))
+                {
+                    break;
+                }
+            }
+            if (string.IsNullOrEmpty(steam))
+            {
+                steam = @"C:\Program Files (x86)\Steam";
+            }
+            return steam.Replace('/', '\\');
+        }
+
+        private static IEnumerable<string> SteamLibraries()
+        {
+            var libs = new List<string>();
+            string steam = SteamDir();
+            libs.Add(steam);
+            string vdf = Path.Combine(steam, "steamapps", "libraryfolders.vdf");
+            if (File.Exists(vdf))
+            {
+                foreach (Match m in Regex.Matches(File.ReadAllText(vdf), "\"path\"\\s+\"([^\"]+)\""))
+                {
+                    string p = m.Groups[1].Value.Replace(@"\\", @"\");
+                    if (!libs.Contains(p, StringComparer.OrdinalIgnoreCase))
+                    {
+                        libs.Add(p);
+                    }
+                }
+            }
+            return libs;
+        }
+
+        public static bool IsRavenfieldFolder(string dir) => !string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, "ravenfield.exe"));
+
+        public static bool GameRunning() => Process.GetProcessesByName("ravenfield").Length > 0;
+
+        /// <summary>Installed mod version, or null.</summary>
+        public static string InstalledVersion(string game)
+        {
+            string manifest = Path.Combine(game, ManifestRelative);
+            if (!File.Exists(manifest))
+            {
+                return File.Exists(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll")) ? "unknown version" : null;
+            }
+            string line = File.ReadAllLines(manifest).FirstOrDefault(l => l.StartsWith("version=", StringComparison.Ordinal));
+            return line != null ? line.Substring("version=".Length) : "unknown version";
+        }
+
+        public static string BepInExProblem(string game)
+        {
+            string dll = Path.Combine(game, @"BepInEx\core\BepInEx.dll");
+            if (!File.Exists(dll))
+            {
+                return null;
+            }
+            string ver = FileVersionInfo.GetVersionInfo(dll).FileVersion ?? "";
+            return ver.StartsWith("6", StringComparison.Ordinal)
+                ? "BepInEx " + ver + " (version 6) is installed. Ravenfield mods, including this one, need BepInEx 5."
+                : null;
+        }
+
+        // ---- install -----------------------------------------------------------------------------------
+
+        public void Install(string game)
+        {
+            if (GameRunning())
+            {
+                throw new InvalidOperationException("Ravenfield is running. Close it first.");
+            }
+            string bepProblem = BepInExProblem(game);
+            if (bepProblem != null)
+            {
+                throw new InvalidOperationException(bepProblem);
+            }
+
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string backupDir = Path.Combine(game, "RavenfieldVR-backup", stamp);
+            var added = new List<string>();
+            var replaced = new List<string>();
+            var ours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string previousBackup = "";
+            bool previousInstalledBepInEx = false;
+
+            string manifestPath = Path.Combine(game, ManifestRelative);
+            if (File.Exists(manifestPath))
+            {
+                foreach (string line in File.ReadAllLines(manifestPath))
+                {
+                    if (line.StartsWith("added=", StringComparison.Ordinal)) ours.Add(line.Substring(6));
+                    else if (line.StartsWith("replaced=", StringComparison.Ordinal)) replaced.Add(line.Substring(9));
+                    else if (line.StartsWith("backup=", StringComparison.Ordinal)) previousBackup = line.Substring(7);
+                    else if (line == "installedBepInEx=True") previousInstalledBepInEx = true;
+                }
+                _log("Updating the existing install.");
+                Directory.Delete(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR"), true);
+            }
+
+            bool installBepInEx = previousInstalledBepInEx || !File.Exists(Path.Combine(game, @"BepInEx\core\BepInEx.dll"));
+            using (Stream payload = Assembly.GetExecutingAssembly().GetManifestResourceStream("RavenfieldVR.Setup.payload.zip"))
+            using (var zip = new ZipArchive(payload, ZipArchiveMode.Read))
+            {
+                if (!installBepInEx)
+                {
+                    _log("Keeping the BepInEx 5 already installed.");
+                }
+                foreach (ZipArchiveEntry entry in zip.Entries)
+                {
+                    if (entry.FullName.EndsWith("/", StringComparison.Ordinal) || entry.Length == 0 && entry.Name.Length == 0)
+                    {
+                        continue;
+                    }
+                    string rel = entry.FullName.Replace('/', '\\');
+                    bool loader = LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase) || rel.StartsWith(@"BepInEx\core\", StringComparison.OrdinalIgnoreCase);
+                    bool mod = rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase) || rel.StartsWith(@"ravenfield_Data\", StringComparison.OrdinalIgnoreCase)
+                               || rel.Equals(LauncherName, StringComparison.OrdinalIgnoreCase);
+                    if (!(mod || loader && installBepInEx))
+                    {
+                        continue;
+                    }
+                    InstallEntry(entry, game, rel, backupDir, ours, added, replaced);
+                }
+            }
+
+            string backupRef = previousBackup.Length > 0 ? previousBackup : Directory.Exists(backupDir) ? backupDir : "";
+            var lines = new List<string>
+            {
+                "# Ravenfield VR install " + stamp,
+                "version=" + Version,
+                "installedBepInEx=" + (installBepInEx ? "True" : "False"),
+                "backup=" + backupRef
+            };
+            lines.AddRange(added.Select(a => "added=" + a));
+            lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
+            File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
+            _log($"Installed Ravenfield VR {Version}: {added.Count} files, {replaced.Count} original file(s) backed up.");
+        }
+
+        private void InstallEntry(ZipArchiveEntry entry, string game, string rel, string backupDir, HashSet<string> ours, List<string> added, List<string> replaced)
+        {
+            string dst = Path.Combine(game, rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(dst));
+            if (ours.Contains(rel))
+            {
+                Extract(entry, dst);
+                added.Add(rel);
+                return;
+            }
+            if (File.Exists(dst))
+            {
+                if (SameContent(entry, dst))
+                {
+                    return;
+                }
+                if (!replaced.Contains(rel, StringComparer.OrdinalIgnoreCase))
+                {
+                    string bak = Path.Combine(backupDir, rel);
+                    Directory.CreateDirectory(Path.GetDirectoryName(bak));
+                    File.Copy(dst, bak, true);
+                    replaced.Add(rel);
+                }
+                Extract(entry, dst);
+                return;
+            }
+            Extract(entry, dst);
+            added.Add(rel);
+        }
+
+        private static void Extract(ZipArchiveEntry entry, string dst)
+        {
+            using (Stream src = entry.Open())
+            using (FileStream f = File.Create(dst))
+            {
+                src.CopyTo(f);
+            }
+        }
+
+        private static bool SameContent(ZipArchiveEntry entry, string path)
+        {
+            if (new FileInfo(path).Length != entry.Length)
+            {
+                return false;
+            }
+            using (SHA256 sha = SHA256.Create())
+            using (Stream a = entry.Open())
+            using (FileStream b = File.OpenRead(path))
+            {
+                return sha.ComputeHash(a).SequenceEqual(sha.ComputeHash(b));
+            }
+        }
+
+        // ---- uninstall ---------------------------------------------------------------------------------
+
+        public void Uninstall(string game, bool keepSettings)
+        {
+            if (GameRunning())
+            {
+                throw new InvalidOperationException("Ravenfield is running. Close it first.");
+            }
+            string manifestPath = Path.Combine(game, ManifestRelative);
+            if (!File.Exists(manifestPath))
+            {
+                throw new InvalidOperationException("Ravenfield VR was not installed by this setup (no install record found).");
+            }
+            string[] lines = File.ReadAllLines(manifestPath);
+            string backup = lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "";
+            bool installedBepInEx = lines.Contains("installedBepInEx=True");
+            int removed = 0, restored = 0;
+            foreach (string line in lines.Where(l => l.StartsWith("added=", StringComparison.Ordinal)))
+            {
+                string path = Path.Combine(game, line.Substring(6));
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    removed++;
+                }
+            }
+            foreach (string line in lines.Where(l => l.StartsWith("replaced=", StringComparison.Ordinal)))
+            {
+                string rel = line.Substring(9);
+                string src = Path.Combine(backup, rel);
+                if (backup.Length > 0 && File.Exists(src))
+                {
+                    File.Copy(src, Path.Combine(game, rel), true);
+                    restored++;
+                }
+                else
+                {
+                    _log("No backup for " + rel + "; left the modded file in place.");
+                }
+            }
+            DeleteDir(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR"));
+            DeleteDir(Path.Combine(game, @"ravenfield_Data\UnitySubsystems\XRSDKOpenVR"));
+            string subsystems = Path.Combine(game, @"ravenfield_Data\UnitySubsystems");
+            if (Directory.Exists(subsystems) && !Directory.EnumerateFileSystemEntries(subsystems).Any())
+            {
+                Directory.Delete(subsystems);
+            }
+            if (!keepSettings)
+            {
+                foreach (string cfg in new[] { "com.qwavey.ravenfieldvr.cfg", "RavenfieldVR.weapons.json" })
+                {
+                    string p = Path.Combine(game, @"BepInEx\config", cfg);
+                    if (File.Exists(p))
+                    {
+                        File.Delete(p);
+                    }
+                }
+            }
+            if (installedBepInEx)
+            {
+                string plugins = Path.Combine(game, @"BepInEx\plugins");
+                bool others = Directory.Exists(plugins) && Directory.EnumerateFileSystemEntries(plugins).Any();
+                bool configKept = keepSettings && File.Exists(Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"));
+                if (others || configKept)
+                {
+                    _log(others ? "Other BepInEx plugins are installed, so BepInEx stays." : "BepInEx stays so your Ravenfield VR settings are kept.");
+                }
+                else
+                {
+                    DeleteDir(Path.Combine(game, "BepInEx"));
+                    foreach (string f in LoaderFiles)
+                    {
+                        string p = Path.Combine(game, f);
+                        if (File.Exists(p))
+                        {
+                            File.Delete(p);
+                        }
+                    }
+                    _log("Removed BepInEx (this setup had installed it).");
+                }
+            }
+            _log($"Uninstalled: {removed} files removed, {restored} original file(s) restored.");
+        }
+
+        private static void DeleteDir(string dir)
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
+
+    internal sealed class SetupForm : Form
+    {
+        private readonly TextBox _path = new TextBox();
+        private readonly Label _status = new Label();
+        private readonly Button _install = new Button();
+        private readonly Button _uninstall = new Button();
+        private readonly Button _close = new Button();
+        private readonly CheckBox _keepSettings = new CheckBox();
+        private readonly CheckBox _steamLaunch = new CheckBox();
+        private readonly LinkLabel _openConfig = new LinkLabel();
+        private readonly TextBox _log = new TextBox();
+        private readonly Installer _installer;
+
+        public SetupForm()
+        {
+            _installer = new Installer(Log);
+            Text = "Ravenfield VR Setup";
+            Font = new Font("Segoe UI", 9.75f);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(600, 430);
+            BackColor = SystemColors.Window;
+
+            var title = new Label { Text = "Ravenfield VR " + Installer.Version, Font = new Font("Segoe UI Semibold", 15f), AutoSize = true, Location = new Point(20, 16) };
+            var subtitle = new Label
+            {
+                Text = "Plays Ravenfield in your headset through SteamVR.",
+                ForeColor = SystemColors.GrayText,
+                AutoSize = true,
+                Location = new Point(22, 50)
+            };
+            var folderLabel = new Label { Text = "Ravenfield folder", AutoSize = true, Location = new Point(20, 88) };
+            _path.SetBounds(20, 110, 470, 26);
+            _path.TextChanged += (s, e) => RefreshState();
+            var browse = new Button { Text = "Browse…", Bounds = new Rectangle(498, 108, 82, 29) };
+            browse.Click += (s, e) => Browse();
+            _status.SetBounds(20, 144, 560, 40);
+
+            _steamLaunch.Text = "Pressing Play in Steam opens the launcher (VR or flat, graphics preset)";
+            _steamLaunch.Checked = true;
+            _steamLaunch.AutoSize = true;
+            _steamLaunch.Location = new Point(20, 188);
+
+            _keepSettings.Text = "Keep my settings when uninstalling";
+            _keepSettings.Checked = true;
+            _keepSettings.AutoSize = true;
+            _keepSettings.Location = new Point(20, 214);
+
+            _openConfig.Text = "Open the settings file";
+            _openConfig.AutoSize = true;
+            _openConfig.Location = new Point(400, 215);
+            _openConfig.LinkClicked += (s, e) => OpenConfig();
+
+            _log.Multiline = true;
+            _log.ReadOnly = true;
+            _log.ScrollBars = ScrollBars.Vertical;
+            _log.BackColor = SystemColors.Control;
+            _log.Font = new Font("Consolas", 9f);
+            _log.SetBounds(20, 246, 560, 120);
+
+            _install.SetBounds(20, 378, 150, 34);
+            _install.Click += async (s, e) =>
+            {
+                string game = _path.Text.Trim();
+                bool ok = await RunAsync(() => _installer.Install(game), "Installing…", null);
+                if (ok && _steamLaunch.Checked)
+                {
+                    await SetSteamLaunchOption(game, add: true);
+                }
+                if (ok)
+                {
+                    Log(_steamLaunch.Checked
+                        ? "Done. Press Play on Ravenfield in Steam and pick VR or flat."
+                        : "Done. Start Ravenfield with RavenfieldVR-Launcher.exe in the game folder, or with SteamVR running.");
+                }
+            };
+            _uninstall.Text = "Uninstall";
+            _uninstall.SetBounds(180, 378, 120, 34);
+            _uninstall.Click += async (s, e) =>
+            {
+                bool keep = _keepSettings.Checked;
+                string game = _path.Text.Trim();
+                if (await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null))
+                {
+                    await SetSteamLaunchOption(game, add: false);
+                }
+            };
+            _close.Text = "Close";
+            _close.SetBounds(480, 378, 100, 34);
+            _close.Click += (s, e) => Close();
+            AcceptButton = _install;
+            CancelButton = _close;
+
+            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _keepSettings, _openConfig, _log, _install, _uninstall, _close });
+
+            string found = Installer.FindRavenfield();
+            _path.Text = found ?? "";
+            Log(found != null ? "Found Ravenfield in your Steam library." : "Ravenfield was not found automatically. Choose its folder with Browse.");
+            RefreshState();
+        }
+
+        private void Log(string line)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action<string>(Log), line);
+                return;
+            }
+            _log.AppendText(line + Environment.NewLine);
+        }
+
+        private void RefreshState()
+        {
+            string game = _path.Text.Trim();
+            bool valid = Installer.IsRavenfieldFolder(game);
+            string installed = valid ? Installer.InstalledVersion(game) : null;
+            string problem = valid ? Installer.BepInExProblem(game) : null;
+            if (!valid)
+            {
+                _status.Text = "This folder does not contain ravenfield.exe.";
+            }
+            else if (problem != null)
+            {
+                _status.Text = problem;
+            }
+            else if (installed == null)
+            {
+                _status.Text = "Ravenfield VR is not installed yet.";
+            }
+            else
+            {
+                _status.Text = installed == Installer.Version
+                    ? $"Ravenfield VR {installed} is installed."
+                    : $"Ravenfield VR {installed} is installed; this setup has {Installer.Version}.";
+            }
+            _install.Text = installed == null ? "Install" : installed == Installer.Version ? "Reinstall" : "Update";
+            _install.Enabled = valid && problem == null;
+            _uninstall.Enabled = valid && installed != null;
+            _openConfig.Visible = valid && File.Exists(ConfigPath(game));
+        }
+
+        private static string ConfigPath(string game) => Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg");
+
+        private void Browse()
+        {
+            using (var dialog = new FolderBrowserDialog { Description = "Select the Ravenfield folder (the one with ravenfield.exe)." })
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    _path.Text = dialog.SelectedPath;
+                }
+            }
+        }
+
+        private void OpenConfig()
+        {
+            string cfg = ConfigPath(_path.Text.Trim());
+            if (File.Exists(cfg))
+            {
+                Process.Start(new ProcessStartInfo("notepad.exe", "\"" + cfg + "\"") { UseShellExecute = true });
+            }
+        }
+
+        /// <summary>
+        /// Adds or removes the launcher in Ravenfield's Steam launch options. Steam rewrites its config when it exits,
+        /// so it is closed for the change (with permission) and started again; otherwise the user gets the text to paste.
+        /// </summary>
+        private async Task SetSteamLaunchOption(string game, bool add)
+        {
+            string launcher = Path.Combine(game, Installer.LauncherName);
+            string option = SteamLaunchOption.OptionFor(launcher);
+            bool restart = false;
+            if (SteamLaunchOption.SteamRunning())
+            {
+                string what = add ? "add the launcher to" : "take the launcher out of";
+                DialogResult answer = MessageBox.Show(this,
+                    "Steam has to close for a moment to " + what + " Ravenfield's launch options (Steam rewrites them when it exits).\n\n" +
+                    "Close Steam now? It is started again right after.\n\n" +
+                    (add ? "No: the launch option is copied to the clipboard instead. Paste it in Steam > Ravenfield > Properties > Launch Options."
+                         : "No: remove the launcher part from Steam > Ravenfield > Properties > Launch Options yourself."),
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (answer != DialogResult.Yes)
+                {
+                    if (add)
+                    {
+                        Clipboard.SetText(option);
+                        Log("Copied the launch option to the clipboard: " + option);
+                    }
+                    return;
+                }
+                Log("Closing Steam…");
+                if (!await Task.Run(() => SteamLaunchOption.ShutdownSteam(TimeSpan.FromSeconds(30))))
+                {
+                    Log("Steam did not close in time; the launch option was not changed.");
+                    if (add)
+                    {
+                        Clipboard.SetText(option);
+                        Log("Copied the launch option to the clipboard: " + option);
+                    }
+                    return;
+                }
+                restart = true;
+            }
+            try
+            {
+                await Task.Run(() =>
+                {
+                    if (add)
+                    {
+                        SteamLaunchOption.Apply(launcher, Log);
+                    }
+                    else
+                    {
+                        SteamLaunchOption.Remove(Log);
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+                Log("Could not change Steam's launch options: " + e.Message);
+                if (add)
+                {
+                    Clipboard.SetText(option);
+                    Log("Copied the launch option to the clipboard: " + option);
+                }
+            }
+            if (restart)
+            {
+                SteamLaunchOption.StartSteam();
+                Log("Started Steam again.");
+            }
+        }
+
+        private async Task<bool> RunAsync(Action work, string busyText, string doneMessage)
+        {
+            Control[] controls = { _install, _uninstall, _close, _path };
+            foreach (Control c in controls)
+            {
+                c.Enabled = false;
+            }
+            string previous = _status.Text;
+            _status.Text = busyText;
+            bool ok = false;
+            try
+            {
+                await Task.Run(work);
+                ok = true;
+                if (doneMessage != null)
+                {
+                    Log(doneMessage);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Log("Windows denied access to the Ravenfield folder.");
+                if (MessageBox.Show(this, "Windows denied access to the Ravenfield folder. Restart the setup as administrator?", Text,
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(Application.ExecutablePath) { Verb = "runas", UseShellExecute = true });
+                        Close();
+                    }
+                    catch (Exception)
+                    {
+                        Log("The administrator prompt was cancelled.");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log("Error: " + e.Message);
+                _status.Text = previous;
+            }
+            finally
+            {
+                foreach (Control c in controls)
+                {
+                    c.Enabled = true;
+                }
+                RefreshState();
+            }
+            return ok;
+        }
+    }
+}
