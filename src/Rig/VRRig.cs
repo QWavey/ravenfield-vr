@@ -299,12 +299,12 @@ namespace RavenfieldVR.Rig
         private static Camera FollowTarget()
         {
             Camera cam = LocalPlayer.GetCurrentCameraIncludeSpectator();
-            if (cam != null && cam.isActiveAndEnabled)
+            if (cam != null && cam.isActiveAndEnabled && !IsOwnCamera(cam))
             {
                 return cam;
             }
             cam = GameContext.GameMainCamera;
-            if (cam != null && cam.isActiveAndEnabled && cam != Instance?.Camera)
+            if (cam != null && cam.isActiveAndEnabled && !IsOwnCamera(cam))
             {
                 return cam;
             }
@@ -312,12 +312,22 @@ namespace RavenfieldVR.Rig
             Camera best = null;
             foreach (Camera c in Camera.allCameras)
             {
-                if (c != Instance?.Camera && c.targetTexture == null && (best == null || c.depth > best.depth))
+                if (!IsOwnCamera(c) && c.targetTexture == null && (best == null || c.depth > best.depth))
                 {
                     best = c;
                 }
             }
             return best;
+        }
+
+        /// <summary>
+        /// The mod's own cameras (head, UI, event) ride on the rig: following one moves the rig, which moves the camera,
+        /// and the view spins forever.
+        /// </summary>
+        private static bool IsOwnCamera(Camera c)
+        {
+            VRRig rig = Instance;
+            return rig != null && (c == rig.Camera || rig._headCameras.Contains(c) || rig.Root != null && c.transform.IsChildOf(rig.Root));
         }
 
         private int _modeChanges;
