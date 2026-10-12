@@ -68,7 +68,13 @@
 66. [ ] Some M4s and other guns: magazines held at a strange position or angle
 67. [ ] Some M4s: the magazine does not come out
 68. [ ] Smoothing pass over the whole feel (the mod is far from perfect yet)
-69. [ ] Bug hunt, 20 rounds, then improve, 10 rounds
+69. [ ] Holstered weapons visible on the body (pistol on the hip, rifle over the shoulder)
+70. [ ] Hands glued to the held gun or item instead of moving freely
+71. [ ] Scoreboard only with the map, never in the way while aiming
+72. [ ] Bigger, more forgiving grab zones; the hand poses onto the bolt or handle it pulls
+73. [ ] Bolts and handles hard or impossible to pull back with no magazine inserted
+74. [ ] Missing magazine in/out sounds on some guns
+75. [ ] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -207,4 +213,16 @@ For 67. On some M4s the magazine does not come out (eject or hand pull). Identif
 
 For 68. A smoothing pass over how everything feels in the hand: grab/release transitions, haptics, part motion (no snapping), menu and laser behaviour, comfort. Collect everything reported in the headset sessions and polish rather than add. Done when: the next headset session has no feel complaints from the existing list.
 
-For 69. Run /bug-hunt 20 (twenty different areas, verify and fix), then /improve 10 (ten measured rounds, keep only what proves better). Done when: both runs are finished, built, installed, committed and summarised.
+For 69. Holsters are invisible: you cannot see the pistol on your hip or the AK over your shoulder to reach for it. Show each holstered weapon at its holster spot in real time (a copy of its model, or the weapon itself parked there), following the body zones, on the layout from 56, without drawing in front of the eyes. Done when: looking down shows the pistol at the hip, looking over the shoulder shows the rifle, and both follow you.
+
+For 70. The hands still feel fully glued to whatever they hold. Decide with the player what free means here (hand model following the controller with the object only snapping on grab, the off hand leaving a foregrip easily, a soft follow instead of rigid parenting) and make holding feel natural rather than welded. Done when: the player confirms hands feel free in the headset.
+
+For 71. The game's scoreboard covers the view while aiming. In VR, show the scoreboard only together with the map (map open), never on its own. Done when: aiming never brings up the scoreboard and opening the map shows both.
+
+For 72. Grab targets like bolts and charging handles are too small to hit reliably, and the hand does not take a pose on the bolt while pulling it back. Make the grab zones bigger and shaped to the part, and while racking put the hand (fingers pinching the handle) on the part it pulls. Done when: in the headset the bolt is easy to grab on the first try and the hand visibly holds it through the whole stroke.
+
+For 73. With no magazine inserted, bolts and slides are sometimes hard or impossible to pull back. Check the rack logic's conditions (locked open, slide-stop, empty-mag states, rack thresholds) for the empty case. Done when: every bolt and slide racks freely with no magazine on pistols, M4s and AKs.
+
+For 74. Some magazines play no insert or detach sound. Slice the sounds out of the weapon's own reload audio at the mag-out/mag-in moments (the reload timeline knows when), or find good free sounds to ship as donors. Done when: the self-test shows a mag in and mag out sound for every magazine weapon and the reported guns play them in the headset.
+
+For 75. Run /bug-hunt 20 (twenty different areas, verify and fix), then /improve 10 (ten measured rounds, keep only what proves better), after 59-74. Done when: both runs are finished, built, installed, committed and summarised.
