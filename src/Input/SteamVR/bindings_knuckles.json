@@ -1,0 +1,53 @@
+{
+  "controller_type": "knuckles",
+  "name": "Ravenfield VR default (Index)",
+  "description": "Right hand shoots, left hand moves. Right A: mag release, right B: slide release (hold: fire mode, double: scoreboard). Left A: squad orders. Left B: map (hold: pause, double: loadout).",
+  "bindings": {
+    "/actions/main": {
+      "sources": [
+        { "path": "/user/hand/right/input/trigger", "mode": "trigger",
+          "inputs": { "click": { "output": "/actions/main/in/Fire" }, "pull": { "output": "/actions/main/in/TriggerPull" } } },
+        { "path": "/user/hand/left/input/trigger", "mode": "trigger",
+          "inputs": { "click": { "output": "/actions/main/in/Use" }, "pull": { "output": "/actions/main/in/TriggerPull" } } },
+        { "path": "/user/hand/right/input/grip", "mode": "trigger",
+          "inputs": { "click": { "output": "/actions/main/in/Grab" }, "pull": { "output": "/actions/main/in/GripPull" } } },
+        { "path": "/user/hand/left/input/grip", "mode": "trigger",
+          "inputs": { "click": { "output": "/actions/main/in/Grab" }, "pull": { "output": "/actions/main/in/GripPull" } } },
+        { "path": "/user/hand/left/input/thumbstick", "mode": "joystick",
+          "inputs": { "position": { "output": "/actions/main/in/Move" } } },
+        { "path": "/user/hand/left/input/thumbstick", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/Sprint" }, "double": { "output": "/actions/main/in/VRMenu" } } },
+        { "path": "/user/hand/right/input/thumbstick", "mode": "joystick",
+          "inputs": { "position": { "output": "/actions/main/in/TurnStick" } } },
+        { "path": "/user/hand/right/input/thumbstick", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/WeaponNext" }, "long": { "output": "/actions/main/in/Kick" } } },
+        { "path": "/user/hand/right/input/a", "mode": "button",
+          "inputs": { "click": { "output": "/actions/main/in/MagRelease" } } },
+        { "path": "/user/hand/right/input/b", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/SlideRelease" }, "long": { "output": "/actions/main/in/FireMode" }, "double": { "output": "/actions/main/in/Scoreboard" } } },
+        { "path": "/user/hand/left/input/a", "mode": "button",
+          "inputs": { "click": { "output": "/actions/main/in/Squad" } } },
+        { "path": "/user/hand/left/input/b", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/Map" }, "long": { "output": "/actions/main/in/Pause" }, "double": { "output": "/actions/main/in/Loadout" } } },
+        { "path": "/user/hand/right/input/trackpad", "mode": "button",
+          "inputs": { "click": { "output": "/actions/main/in/Countermeasures" } } }
+      ],
+      "poses": [
+        { "output": "/actions/main/in/Pose", "path": "/user/hand/left/pose/raw" },
+        { "output": "/actions/main/in/Pose", "path": "/user/hand/right/pose/raw" },
+        { "output": "/actions/main/in/PoseGrip", "path": "/user/hand/left/pose/grip" },
+        { "output": "/actions/main/in/PoseGrip", "path": "/user/hand/right/pose/grip" },
+        { "output": "/actions/main/in/PoseTip", "path": "/user/hand/left/pose/tip" },
+        { "output": "/actions/main/in/PoseTip", "path": "/user/hand/right/pose/tip" }
+      ],
+      "skeleton": [
+        { "output": "/actions/main/in/SkeletonLeft", "path": "/user/hand/left/input/skeleton/left" },
+        { "output": "/actions/main/in/SkeletonRight", "path": "/user/hand/right/input/skeleton/right" }
+      ],
+      "haptics": [
+        { "output": "/actions/main/out/Haptic", "path": "/user/hand/left/output/haptic" },
+        { "output": "/actions/main/out/Haptic", "path": "/user/hand/right/output/haptic" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "controller_type": "vive_controller",
+  "name": "Ravenfield VR default (Vive wands)",
+  "description": "Trackpads move and turn. Right menu: mag release (hold: fire mode, double: slide release). Left menu: map (hold: pause, double: loadout). Left trackpad click: sprint, right trackpad click: next weapon (hold: kick). Left trigger: use (hold: squad order).",
+  "bindings": {
+    "/actions/main": {
+      "sources": [
+        { "path": "/user/hand/right/input/trigger", "mode": "trigger",
+          "inputs": { "click": { "output": "/actions/main/in/Fire" }, "pull": { "output": "/actions/main/in/TriggerPull" } } },
+        { "path": "/user/hand/left/input/trigger", "mode": "trigger",
+          "inputs": { "pull": { "output": "/actions/main/in/TriggerPull" } } },
+        { "path": "/user/hand/left/input/trigger", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/Use" }, "long": { "output": "/actions/main/in/Squad" } } },
+        { "path": "/user/hand/right/input/grip", "mode": "button",
+          "inputs": { "click": { "output": "/actions/main/in/Grab" } } },
+        { "path": "/user/hand/left/input/grip", "mode": "button",
+          "inputs": { "click": { "output": "/actions/main/in/Grab" } } },
+        { "path": "/user/hand/left/input/trackpad", "mode": "joystick",
+          "inputs": { "position": { "output": "/actions/main/in/Move" } } },
+        { "path": "/user/hand/left/input/trackpad", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/Sprint" }, "double": { "output": "/actions/main/in/VRMenu" } } },
+        { "path": "/user/hand/right/input/trackpad", "mode": "joystick",
+          "inputs": { "position": { "output": "/actions/main/in/TurnStick" } } },
+        { "path": "/user/hand/right/input/trackpad", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/WeaponNext" }, "long": { "output": "/actions/main/in/Kick" } } },
+        { "path": "/user/hand/right/input/application_menu", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/MagRelease" }, "long": { "output": "/actions/main/in/FireMode" }, "double": { "output": "/actions/main/in/SlideRelease" } } },
+        { "path": "/user/hand/left/input/application_menu", "mode": "complex_button",
+          "inputs": { "single": { "output": "/actions/main/in/Map" }, "long": { "output": "/actions/main/in/Pause" }, "double": { "output": "/actions/main/in/Loadout" } } }
+      ],
+      "poses": [
+        { "output": "/actions/main/in/Pose", "path": "/user/hand/left/pose/raw" },
+        { "output": "/actions/main/in/Pose", "path": "/user/hand/right/pose/raw" },
+        { "output": "/actions/main/in/PoseTip", "path": "/user/hand/left/pose/tip" },
+        { "output": "/actions/main/in/PoseTip", "path": "/user/hand/right/pose/tip" }
+      ],
+      "skeleton": [
+        { "output": "/actions/main/in/SkeletonLeft", "path": "/user/hand/left/input/skeleton/left" },
+        { "output": "/actions/main/in/SkeletonRight", "path": "/user/hand/right/input/skeleton/right" }
+      ],
+      "haptics": [
+        { "output": "/actions/main/out/Haptic", "path": "/user/hand/left/output/haptic" },
+        { "output": "/actions/main/out/Haptic", "path": "/user/hand/right/output/haptic" }
+      ]
+    }
+  }
+}

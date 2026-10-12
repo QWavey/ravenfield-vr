@@ -1,0 +1,15 @@
+# Downloaded dependencies (tools/fetch-deps.ps1 restores them)
+tools/bepinex/
+tools/openvr-xr/
+tools/roslyn/
+tools/ilspy/
+
+# Build output
+build/
+dist/
+
+# Decompiled game code for reference only; never commit or redistribute
+.ref/
+
+__pycache__/
+*.pyc

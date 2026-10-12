@@ -1,0 +1,71 @@
+{
+  "default_bindings": [
+    { "controller_type": "oculus_touch", "binding_url": "bindings_oculus_touch.json" },
+    { "controller_type": "knuckles", "binding_url": "bindings_knuckles.json" },
+    { "controller_type": "vive_controller", "binding_url": "bindings_vive_controller.json" },
+    { "controller_type": "hpmotioncontroller", "binding_url": "bindings_hpmotioncontroller.json" }
+  ],
+  "actions": [
+    { "name": "/actions/main/in/Fire", "type": "boolean", "requirement": "mandatory" },
+    { "name": "/actions/main/in/Grab", "type": "boolean", "requirement": "mandatory" },
+    { "name": "/actions/main/in/TriggerPull", "type": "vector1", "requirement": "optional" },
+    { "name": "/actions/main/in/GripPull", "type": "vector1", "requirement": "optional" },
+    { "name": "/actions/main/in/MagRelease", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/SlideRelease", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/FireMode", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Move", "type": "vector2", "requirement": "mandatory" },
+    { "name": "/actions/main/in/TurnStick", "type": "vector2", "requirement": "mandatory" },
+    { "name": "/actions/main/in/Sprint", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Use", "type": "boolean", "requirement": "mandatory" },
+    { "name": "/actions/main/in/WeaponNext", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Kick", "type": "boolean", "requirement": "optional" },
+    { "name": "/actions/main/in/Squad", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Map", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Loadout", "type": "boolean", "requirement": "mandatory" },
+    { "name": "/actions/main/in/Scoreboard", "type": "boolean", "requirement": "optional" },
+    { "name": "/actions/main/in/Pause", "type": "boolean", "requirement": "mandatory" },
+    { "name": "/actions/main/in/VRMenu", "type": "boolean", "requirement": "suggested" },
+    { "name": "/actions/main/in/Countermeasures", "type": "boolean", "requirement": "optional" },
+    { "name": "/actions/main/in/Pose", "type": "pose", "requirement": "mandatory" },
+    { "name": "/actions/main/in/PoseGrip", "type": "pose", "requirement": "optional" },
+    { "name": "/actions/main/in/PoseTip", "type": "pose", "requirement": "optional" },
+    { "name": "/actions/main/in/SkeletonLeft", "type": "skeleton", "skeleton": "/skeleton/hand/left", "requirement": "optional" },
+    { "name": "/actions/main/in/SkeletonRight", "type": "skeleton", "skeleton": "/skeleton/hand/right", "requirement": "optional" },
+    { "name": "/actions/main/out/Haptic", "type": "vibration", "requirement": "optional" }
+  ],
+  "action_sets": [
+    { "name": "/actions/main", "usage": "single" }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/main": "Ravenfield VR",
+      "/actions/main/in/Fire": "Fire weapon",
+      "/actions/main/in/Grab": "Grab (foregrip, magazine, slide, holster)",
+      "/actions/main/in/TriggerPull": "Trigger pull (hands, vehicle throttle)",
+      "/actions/main/in/GripPull": "Grip pull (hands)",
+      "/actions/main/in/MagRelease": "Magazine release",
+      "/actions/main/in/SlideRelease": "Slide / bolt release",
+      "/actions/main/in/FireMode": "Fire mode / under-barrel",
+      "/actions/main/in/Move": "Move (vehicles: steer / helicopter collective)",
+      "/actions/main/in/TurnStick": "Turn, jump, crouch (vehicles: pitch / roll)",
+      "/actions/main/in/Sprint": "Sprint",
+      "/actions/main/in/Use": "Use / enter vehicle / ladder",
+      "/actions/main/in/WeaponNext": "Next weapon",
+      "/actions/main/in/Kick": "Kick",
+      "/actions/main/in/Squad": "Squad order (hold to point)",
+      "/actions/main/in/Map": "Squad map",
+      "/actions/main/in/Loadout": "Loadout",
+      "/actions/main/in/Scoreboard": "Scoreboard",
+      "/actions/main/in/Pause": "Pause menu",
+      "/actions/main/in/VRMenu": "VR settings",
+      "/actions/main/in/Countermeasures": "Vehicle countermeasures / third person",
+      "/actions/main/in/Pose": "Hand pose",
+      "/actions/main/in/PoseGrip": "Palm (grip) pose",
+      "/actions/main/in/PoseTip": "Pointer (aim) pose",
+      "/actions/main/in/SkeletonLeft": "Left hand skeleton",
+      "/actions/main/in/SkeletonRight": "Right hand skeleton",
+      "/actions/main/out/Haptic": "Haptics"
+    }
+  ]
+}
