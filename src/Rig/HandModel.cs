@@ -168,7 +168,8 @@ namespace RavenfieldVR.Rig
                 return;
             }
 
-            Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero);
+            // The fist closes around the controller's handle (the grip pose), so the palm sits beside it.
+            Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
             posOffset.x *= _hand.Mirror;
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
             // Always the tracked hand: held objects follow the hand, never the reverse.
@@ -267,7 +268,31 @@ namespace RavenfieldVR.Rig
                     Minimum(-1f, -1f, 0.8f, 0.82f, 0.84f);
                     break;
             }
+
+            // Wrapping fingers stop on the held object instead of closing through it: at 0.85 the fist leaves about the
+            // 3 cm of a pistol grip, magazine or wheel rim, at 0.75 the 4 cm of a handguard.
+            float cap = HoldCap(_hand.Role);
+            for (int f = 2; f < 5; f++)
+            {
+                _goal[f] = Mathf.Min(_goal[f], cap);
+            }
             return _goal;
+        }
+
+        private static float HoldCap(HandRole role)
+        {
+            switch (role)
+            {
+                case HandRole.Weapon:
+                case HandRole.Magazine:
+                case HandRole.Throwable:
+                case HandRole.Cockpit:
+                    return 0.85f;
+                case HandRole.Foregrip:
+                    return 0.75f;
+                default:
+                    return 1f;
+            }
         }
 
         /// <summary>A measured curl, kept within what still reads as holding something; the fallback when unmeasured.</summary>

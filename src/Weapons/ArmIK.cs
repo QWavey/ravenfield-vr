@@ -81,7 +81,7 @@ namespace RavenfieldVR.Weapons
                     ArmChain c = _left.Chain;
                     RigidPose palm = off.Palm;
                     Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
-                    target = new RigidPose(palm.position - rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale), rot);
+                    target = new RigidPose(off.PalmCentre - rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale), rot);
                 }
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);

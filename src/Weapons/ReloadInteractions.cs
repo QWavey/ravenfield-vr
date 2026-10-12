@@ -134,17 +134,15 @@ namespace RavenfieldVR.Weapons
             float radius = VRConfig.GrabRadius.Value;
             int choice = 0; // 1 catch, 2 rack, 3 pouch, 4 foregrip, 5 feed cover, 6 seated magazine
             float best = float.MaxValue;
-            MagazineProp caught = null;
-            if (Manual)
+            // This weapon's own magazines first, then anything else lying within reach, whatever this gun's reload mode
+            // (picking something up is not a reload). A magazine you are reaching for wins over the pouch and the
+            // gun's parts: bending down to pick one up brings the pouch zone (it follows your head) down with you.
+            MagazineProp caught = _ejecting != null && _ejecting.DistanceTo(palm) < 0.13f
+                ? _ejecting
+                : MagazineProp.NearestDropped(palm, 0.13f, Data.Key) ?? MagazineProp.NearestDropped(palm, 0.13f, null);
+            if (caught != null)
             {
-                // This weapon's own magazines first, then anything else lying within reach.
-                caught = _ejecting != null && Vector3.Distance(_ejecting.Go.transform.position, palm) < 0.13f
-                    ? _ejecting
-                    : MagazineProp.NearestDropped(palm, 0.13f, Data.Key) ?? MagazineProp.NearestDropped(palm, 0.13f, null);
-                if (caught != null)
-                {
-                    Consider(1, Vector3.Distance(caught.Go.transform.position, palm) / 0.13f, ref choice, ref best);
-                }
+                Consider(1, caught.DistanceTo(palm) / 0.13f * 0.4f, ref choice, ref best);
             }
             if (Manual && Ammo.UsesChamber)
             {

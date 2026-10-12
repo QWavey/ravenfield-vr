@@ -245,7 +245,7 @@ namespace RavenfieldVR.Weapons
                     sb.AppendLine($"    magazine: {d.MagMethod}{PartName(r.Weapon, d.MagazinePath)}{(d.MagazinePath != null ? $", {d.MagProtrusion * 100f:0}% outside the gun" : "")}{(d.MagazinePartPaths.Count > 0 ? $" + {d.MagazinePartPaths.Count} piece(s)" : "")}{(d.MagazineToggles ? " (swapped by visibility)" : "")}");
                     sb.AppendLine($"    slide/bolt: {d.SlideMethod}{PartName(r.Weapon, d.SlidePath)}{(d.HandlePath != null ? ", handle" + PartName(r.Weapon, d.HandlePath) : "")}, travel {d.SlideTravel.magnitude * 100f:0.0} cm");
                     sb.AppendLine($"    hands: {d.HandsMethod}, finger pose {(d.GripCurls != null ? "from the rig " + Curls(d.GripCurls) : "generic")}" +
-                                  $"{(d.SupportCurls != null ? " / support " + Curls(d.SupportCurls) : "")}; sights: {(d.HasScopeModel ? $"scope model (ocular measured, lens {d.ScopeRadius * 200f:0.0} cm)" : d.HasEyePoint ? d.EyeFromLine ? "sight line (eye distance estimated)" : "lined up" : "barrel line")}");
+                                  $"{(d.SupportCurls != null ? " / support " + Curls(d.SupportCurls) : "")}; sights: {(d.HasScopeModel ? $"scope model (ocular measured, lens {d.ScopeRadius * 200f:0.0} cm)" : d.HasEyePoint ? d.EyeFromLine ? "sight line (eye distance estimated)" : "lined up" : "barrel line")}{OverBore(d)}");
                     sb.AppendLine($"    reload timeline: mag out {T(d.TMagOut)}, mag in {T(d.TMagIn)}, slide back {T(d.TSlideBack)}, slide home {T(d.TSlideForward)}");
                     sb.AppendLine($"    sound sources: mag out {SoundSource(d, MechSound.MagOut)}, mag in {SoundSource(d, MechSound.MagIn)}, slide back {SoundSource(d, MechSound.SlideBack)}, slide home {SoundSource(d, MechSound.SlideForward)}");
                     if (d.Cues.Count > 0 || d.ShotCues.Count > 0)
@@ -272,6 +272,18 @@ namespace RavenfieldVR.Weapons
         }
 
         private static string T(float t) => t >= 0f ? t.ToString("0.00") + "s" : "-";
+
+        /// <summary>Where the sight line runs relative to the bore (cm up, cm to the side), for guns with a known sight line.</summary>
+        private static string OverBore(WeaponRigData d)
+        {
+            if (!d.HasEyePoint)
+            {
+                return "";
+            }
+            Vector3 rel = d.EyePoint - d.MuzzlePoint;
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            return $" ({Vector3.Dot(rel, d.Up) * 100f:0.0} cm over the bore, {Vector3.Dot(rel, right) * 100f:0.0} cm aside)";
+        }
 
         private static string Curls(float[] c) => "[" + string.Join(" ", c.Select(v => v < 0f ? "-" : v.ToString("0.00")).ToArray()) + "]";
 

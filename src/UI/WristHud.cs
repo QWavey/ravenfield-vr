@@ -53,7 +53,7 @@ namespace RavenfieldVR.UI
 
             // Back of the wrist: behind the palm toward the forearm, on the back-of-hand side.
             Vector3 back = off.Palm.rotation * (off.IsLeft ? Vector3.left : Vector3.right);
-            Vector3 pos = off.Palm.position + back * 0.035f - off.Palm.Forward * 0.07f;
+            Vector3 pos = off.PalmCentre + back * 0.035f - off.Palm.Forward * 0.07f;
             Vector3 toHead = (_rig.Head.position - pos).normalized;
             _go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(-toHead, off.Palm.Forward));
 

@@ -52,6 +52,13 @@
 50. [x] Materials that would render magenta repaired on copies (props, pouch, drops) and held weapons
 51. [x] Autotest with simulated controllers: draw-skip, visible-model and grenade-pin checks
 52. [x] Draw animation skipped on every weapon; weapon sounds never silenced after a reload slice
+53. [x] First Quest session: head and hands from one tracking source, calmer HUD, Desktop Theater, no extra depth pass
+54. [x] Second Quest session: laser bend, invisible third magazine and stuck grab pose, mag kick, dashboard resume, game weapon panel hidden
+55. [x] Hands close around what they hold: fist on the controller handle, fingers stop on the object
+56. [x] Holsters by weapon type: long guns over the shoulders, handguns on the hips, gear on the chest
+57. [x] Magazines lying on the ground can be picked up
+58. [ ] Headset re-test of 53-57
+59. [ ] Invisible VR body that takes the hits when bots shoot you
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -157,3 +164,17 @@ For 50. A material whose shader cannot run (or an empty slot) is swapped for the
 For 51. Without controllers (virtual headset) the autotest holds simulated hands where a player would, so the full held-weapon path runs and the mirror shows the real VR view; it checks the draw animation is skipped, that each weapon has a visible model, and throws every grenade with and without its pin. Done when: a VR autotest completes with only mod-side problems.
 
 For 52. The draw clip is stepped past in 0.1 s increments (one transition per animator update), now and on the next frame for animators enabled that frame; one-shot weapon sounds play through their own source so a faded reload slice can no longer leave them at zero volume. Done when: the autotest finds no draw animation playing and every magazine weapon has a mag-in and mag-out sound.
+
+For 53. The first headset session showed the hands in the upper right, a wobbling view and the HUD glued to the face. Head cameras now take their pose from the OpenVR compositor (Unity's own XR camera tracking off) and controllers are read in the compositor's tracking space, so head and hands agree; the HUD frame follows the head lazily; the forced depth pass per eye is gone; README explains turning off Steam's Desktop Theater. Done when: the log's input check shows the head at standing height with both controllers below it (seen: head 1.62 m, 81-90 fps in the menu).
+
+For 54. From the second session: the laser is drawn from the current hand pose against the current panels; magazines are copied at their recorded scale (the third one was copied from the hidden, shrunken magazine: invisible but held, so the hand stayed closed); the mag kick takes a wider window and measures speed relative to the gun; closing the SteamVR dashboard resumes the match the mod paused for it (sound, physics, held props); the game's weapon panel is hidden in VR (HideGameWeaponHud); holsters tick when the hand reaches one. Done when: built and committed (d42b228); the headset check is 58.
+
+For 55. SteamVR's grip pose is the middle of the controller handle (measured on the Quest Plus render model: within 6 mm of the handle axis), so it is inside the real fist. The hand model now puts its fist hollow there (3.3 cm toward the fingers, 2.6 cm in front of the palm, measured on the model's finger chain) instead of its palm centre, guns are placed from the model's palm centre (where the weapon's own hand holds its grip), and magazines held at the grip pose land in the curled fingers. Wrapping fingers stop at 0.85 curl on a grip, magazine, grenade or wheel and 0.75 on a handguard instead of closing through it. Done when: built; the visual check is 58.
+
+For 56. Holsters are assigned from what each weapon is, not the loadout slot it came in: primary and large-gear weapons (rifles, launchers, long melee) over the dominant shoulder, then the other shoulder; secondaries and small guns on the dominant hip, then a cross-draw on the other hip; grenades, kits and tools on the chest. A full place passes the weapon on to the next free one; ShowGrabZones draws the holsters in use. Done when: built; the headset check is 58.
+
+For 57. A dropped magazine is judged by its own shape (collider), not its transform pivot, and a magazine within reach wins over the pouch (which comes down with you when you bend over). The off hand picks loose magazines up whatever the drawn gun's reload mode, and dropped magazines stay 60 s instead of 20 (existing configs still at 20 are moved by a one-time ConfigRevision migration). Done when: built; the headset check is 58.
+
+For 58. In the Quest: laser straight while looking around, magazines and gun grips inside the closed hand, mag kick, third and later magazines from the pouch, open hand after letting go, holsters on the back and hips, dashboard round trip with sound, and picking a magazine up off the ground with either hand. Done when: the player confirms each in a session.
+
+For 59. Check first what the game already does: the player actor's hitboxes sit where the game puts the actor, which in VR may not match where you physically stand, crouch or lean. Give the player an invisible body that follows the headset (head, torso from the body zones, arms from the hands) and carries the actor's hitboxes, so bots aim at and hit where you really are, and damage, headshots and hit feedback (haptics, screen tint) land on it. Done when: a bot's shot at your real head/torso registers on the player, and leaning out of cover exposes you.

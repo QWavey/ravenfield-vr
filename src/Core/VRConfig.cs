@@ -196,7 +196,8 @@ namespace RavenfieldVR.Core
                 "Racking with a round already chambered ejects (and loses) that round.");
             Pouch = cfg.Bind("Weapons", "MagazinePouch", PouchLocation.OffHandHip,
                 "Where fresh magazines/shells/rockets are grabbed from.");
-            MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 20f, "Seconds dropped magazines stay in the world.");
+            MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 60f,
+                "Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).");
             MaxMagProps = cfg.Bind("Weapons", "MaxDroppedMags", 12, "Maximum dropped magazines kept at once.");
             RecoilStrength = cfg.Bind("Weapons", "RecoilStrength", 1f,
                 new ConfigDescription("Visual/aim recoil applied to the gun in your hand.", new AcceptableValueRange<float>(0f, 3f)));
@@ -263,6 +264,26 @@ namespace RavenfieldVR.Core
             DumpWeaponRigs = cfg.Bind("Debug", "DumpWeaponRigs", false, "Log the detected parts of every weapon you equip.");
             WeaponSelfTest = cfg.Bind("Debug", "WeaponSelfTest", false,
                 "After content loads, analyse every installed weapon (vanilla and mods) and write BepInEx/RavenfieldVR-weapon-report.txt. Same as launching with -rfvr-selftest.");
+
+            Migrate(cfg);
+        }
+
+        /// <summary>
+        /// Moves settings still at an old default to the new one (a value the player chose is kept): BepInEx keeps
+        /// whatever is in the file, so a changed default would otherwise never reach an existing install.
+        /// </summary>
+        private static void Migrate(ConfigFile cfg)
+        {
+            ConfigEntry<int> revision = cfg.Bind("Debug", "ConfigRevision", 0, "Internal: which setting defaults this file has been brought up to. Do not edit.");
+            if (revision.Value < 1)
+            {
+                // Dropped magazines became worth picking up again (they keep their rounds): 20 s was too short.
+                if (Mathf.Approximately(MagPropLifetime.Value, 20f))
+                {
+                    MagPropLifetime.Value = 60f;
+                }
+                revision.Value = 1;
+            }
         }
 
         public static bool LeftHanded => DominantHand.Value == Handedness.Left;

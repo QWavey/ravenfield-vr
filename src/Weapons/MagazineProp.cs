@@ -471,6 +471,21 @@ namespace RavenfieldVR.Weapons
 
         public bool IsDropped => _dropTime >= 0f;
 
+        /// <summary>
+        /// Distance from a point to the prop's own shape. Its transform pivot can sit far from the mesh (many mods
+        /// pivot a magazine at the gun's origin), so grabbing is always judged against the box around the mesh.
+        /// </summary>
+        public float DistanceTo(Vector3 point)
+        {
+            if (_collider != null && _collider.enabled && _collider.gameObject.activeInHierarchy)
+            {
+                return Vector3.Distance(_collider.ClosestPoint(point), point);
+            }
+            var box = _collider as BoxCollider;
+            Vector3 center = box != null ? Go.transform.TransformPoint(box.center) : Go.transform.position;
+            return Vector3.Distance(center, point);
+        }
+
         /// <summary>Removed by the clean-up: rounds still inside go back to the reserve they came from.</summary>
         public void Despawn()
         {
@@ -511,7 +526,7 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                float d = Vector3.Distance(p._collider.ClosestPoint(point), point);
+                float d = p.DistanceTo(point);
                 if (d < bestDist)
                 {
                     bestDist = d;

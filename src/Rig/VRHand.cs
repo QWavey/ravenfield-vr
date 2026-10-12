@@ -152,7 +152,20 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
-        /// Frame a held gun's grip is aligned to: origin at the palm, +Z along the barrel, +Y up the slide.
+        /// The hollow of the closed fist in the hand model's palm space (right hand; origin = palm centre, palm facing -X):
+        /// where a gripped handle runs through the curled fingers.
+        /// </summary>
+        public static readonly Vector3 FistHollow = new Vector3(-0.026f, 0f, 0.034f);
+
+        /// <summary>
+        /// Middle of the hand. <see cref="Palm"/> is the controller's grip pose, the middle of its handle, so it lies inside
+        /// the real fist; the palm itself sits beside it, where the hand model puts its palm and a gun its grip hand.
+        /// </summary>
+        public Vector3 PalmCentre => Palm.TransformPoint(new Vector3(-FistHollow.x * Mirror, -FistHollow.y, -FistHollow.z));
+
+        /// <summary>
+        /// Frame a held gun's grip is aligned to: origin at the palm centre (where the weapon's own hand holds its grip),
+        /// +Z along the barrel, +Y up the slide.
         /// </summary>
         public RigidPose GunFrame
         {
@@ -170,7 +183,7 @@ namespace RavenfieldVR.Rig
                 rot *= Quaternion.Euler(VRConfig.GunPitchTrim.Value, 0f, 0f);
                 Vector3 offset = VRConfig.ParseVector(VRConfig.GunPositionOffset, Vector3.zero);
                 offset.x *= Mirror;
-                return new RigidPose(Palm.position + rot * offset, rot);
+                return new RigidPose(PalmCentre + rot * offset, rot);
             }
         }
 

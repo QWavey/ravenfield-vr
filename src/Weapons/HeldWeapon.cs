@@ -302,7 +302,7 @@ namespace RavenfieldVR.Weapons
             if (_twoHandBlend > 0f && d.HasSupportPoint && !d.IsPistol)
             {
                 Vector3 dirGun = (d.SupportPoint - d.GripPoint).normalized;
-                Vector3 dirWorld = off.Palm.position - hand.position;
+                Vector3 dirWorld = off.PalmCentre - hand.position; // palm centre to palm centre, as the support point is
                 if (dirWorld.sqrMagnitude > 0.0025f)
                 {
                     Quaternion gunFrameBase = Quaternion.LookRotation(dirGun, d.Up);

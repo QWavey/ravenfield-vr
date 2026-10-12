@@ -52,7 +52,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 
 Other gestures:
 
-- **Holsters:** reach over your weapon-side shoulder and grip for your primary, to your weapon-side hip for the sidearm, to your chest for gear; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. The chest holsters are ignored while you aim, so re-gripping a shouldered rifle never switches weapons.
+- **Holsters:** weapons are carried by what they are. Rifles, launchers and other long weapons hang over your shoulders (weapon side first, then the other shoulder), pistols sit on your hips (weapon side, then a cross-draw on the other hip), and grenades and kits on your chest. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. The chest holsters are ignored while you aim, so re-gripping a shouldered rifle never switches weapons.
 - **Night vision:** grip with your off hand at the side of your head.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
@@ -64,7 +64,7 @@ The counter on the side of your gun shows its state: `28+1` (28 in the magazine 
 
 **Magazine-fed weapons**
 
-1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a while; rounds still in them then go back to your reserve, so nothing is lost.
+1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a minute (`DroppedMagLifetime`); rounds still in them then go back to your reserve, so nothing is lost.
 2. Grip at your pouch (off-hand hip by default): a fresh magazine is in your hand.
 3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it.
 4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go.

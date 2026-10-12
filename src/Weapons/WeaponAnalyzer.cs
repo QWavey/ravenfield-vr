@@ -246,8 +246,12 @@ namespace RavenfieldVR.Weapons
             // point thirdPersonTransform at the first-person gun itself; that one obviously stays.
             Transform tp = w.thirdPersonTransform;
             Transform configuredMuzzle = FindMuzzle(w, null, out _);
-            if (tp != null && tp != root && tp.IsChildOf(root) && !configuredMuzzle.IsChildOf(tp) && !gunChain.Contains(tp)
-                && !armBones.Any(b => b.IsChildOf(tp)))
+            bool tpCandidate = tp != null && tp != root && tp.IsChildOf(root) && !configuredMuzzle.IsChildOf(tp) && !gunChain.Contains(tp)
+                && !armBones.Any(b => b.IsChildOf(tp));
+            // Some mods point it at the visible gun and keep the muzzle on a separate, still branch: then that subtree is
+            // the gun, and the gun's reference body (the still branch would make the whole recoiling gun a moving part).
+            Transform tpGun = tpCandidate && HoldsTheOnlyGunModel(w, root, tp, armBones) ? tp : null;
+            if (tpCandidate && tpGun == null)
             {
                 foreach (Transform t in tp.GetComponentsInChildren<Transform>(true))
                 {
@@ -327,6 +331,10 @@ namespace RavenfieldVR.Weapons
                     break;
                 }
                 gunBody = t;
+            }
+            if (tpGun != null && !muzzle.IsChildOf(tpGun))
+            {
+                gunBody = tpGun;
             }
             if (gunBody == muzzle)
             {
@@ -2017,6 +2025,67 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Whether the "third-person" subtree is in fact the visible first-person gun: a real third-person model is a
+        /// copy, so a comparable amount of gun mesh exists outside it. When (almost) all the non-arm mesh lives in that
+        /// subtree, it is the gun, even if the mod keeps its muzzle on a separate branch.
+        /// </summary>
+        private static bool HoldsTheOnlyGunModel(Weapon w, Transform root, Transform tp, HashSet<Transform> armBones)
+        {
+            long inside = 0, outside = 0;
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == w.arms || r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer || !ShownAtRest(r, root))
+                {
+                    continue; // a real third-person copy is hidden in first person: only what is drawn counts
+                }
+                Mesh mesh;
+                if (r is SkinnedMeshRenderer smr)
+                {
+                    mesh = smr.sharedMesh;
+                    if (smr.bones != null && smr.bones.Length > 0 && smr.bones.All(b => b == null || armBones.Contains(b)))
+                    {
+                        continue; // an arms mesh (a gun skinned to the arms' skeleton has gun bones of its own)
+                    }
+                }
+                else
+                {
+                    MeshFilter mf = r.GetComponent<MeshFilter>();
+                    mesh = mf != null ? mf.sharedMesh : null;
+                }
+                if (mesh == null)
+                {
+                    continue;
+                }
+                if (r.transform.IsChildOf(tp))
+                {
+                    inside += mesh.vertexCount;
+                }
+                else
+                {
+                    outside += mesh.vertexCount;
+                }
+            }
+            return inside > 0 && outside * 4 < inside;
+        }
+
+        /// <summary>Enabled and on an active branch up to the weapon root (works on prefabs outside any scene too).</summary>
+        private static bool ShownAtRest(Renderer r, Transform root)
+        {
+            if (!r.enabled)
+            {
+                return false;
+            }
+            for (Transform t = r.transform; t != null && t != root; t = t.parent)
+            {
+                if (!t.gameObject.activeSelf)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static bool OnArmChain(Transform b, Transform root, HashSet<Transform> named, HashSet<Transform> gunChain)

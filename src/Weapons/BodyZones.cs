@@ -1,14 +1,16 @@
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
+using RavenfieldVR.Util;
 using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
     /// Body-relative interaction points derived from the head pose and calibrated height: holsters
-    /// (primary over the shoulder, sidearm on the hip, gear on the chest), the magazine pouch, the
-    /// night-vision touch point beside the head and the look-at-your-wrist gesture.
+    /// (long guns over the shoulders, handguns on the hips, gear on the chest, by what each weapon is rather than
+    /// which loadout slot it came in), the magazine pouch, the night-vision touch point beside the head and the
+    /// look-at-your-wrist gesture.
     /// The torso yaw lags the head so glancing sideways doesn't swing the holsters away.
     /// </summary>
     public sealed class BodyZones
@@ -17,7 +19,7 @@ namespace RavenfieldVR.Weapons
         private float _torsoYaw;
         private bool _hasYaw;
 
-        public Vector3 Chest, OffHip, DomHip, BackShoulder, OffChest, DomChest, Pouch, HeadSide;
+        public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide;
         public Vector3 TorsoForward, TorsoRight;
 
         public const float HolsterRadius = 0.2f;
@@ -70,6 +72,7 @@ namespace RavenfieldVR.Weapons
             DomHip = waist + TorsoRight * (0.18f * side);
             OffHip = waist - TorsoRight * (0.18f * side);
             BackShoulder = neck + Vector3.up * 0.05f - TorsoForward * 0.12f + TorsoRight * (0.17f * side);
+            OffBackShoulder = neck + Vector3.up * 0.05f - TorsoForward * 0.12f - TorsoRight * (0.17f * side);
             OffChest = Chest - TorsoRight * (0.13f * side);
             DomChest = Chest + TorsoRight * (0.13f * side) - Vector3.up * 0.08f;
             HeadSide = head.position - head.right * (0.11f * side) + head.up * 0.02f;
@@ -110,21 +113,106 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Holster slot under <paramref name="point"/>, or -1. Slots: 0 primary, 1 sidearm, 2-4 gear.</summary>
+        // ---- holsters ---------------------------------------------------------------------------------
+
+        private enum Spot { BackDominant, BackOff, DominantHip, OffHip, Chest, OffChest, DominantChest }
+
+        private enum Carry { Long, Hand, Gear }
+
+        private const int SpotCount = 7;
+
+        // Where each kind of weapon is carried, best place first; a full place passes it on to the next.
+        private static readonly Spot[] LongSpots = { Spot.BackDominant, Spot.BackOff, Spot.Chest, Spot.OffChest, Spot.DominantChest, Spot.DominantHip, Spot.OffHip };
+        private static readonly Spot[] HandSpots = { Spot.DominantHip, Spot.OffHip, Spot.DominantChest, Spot.OffChest, Spot.Chest, Spot.BackOff, Spot.BackDominant };
+        private static readonly Spot[] GearSpots = { Spot.Chest, Spot.OffChest, Spot.DominantChest, Spot.OffHip, Spot.DominantHip, Spot.BackOff, Spot.BackDominant };
+
+        // Loadout slot carried at each spot (-1 = empty), rebuilt from the player's weapons when asked.
+        private readonly int[] _spotSlot = new int[SpotCount];
+
+        /// <summary>
+        /// Loadout slot whose holster is under <paramref name="point"/>, or -1. Rifles, launchers and other long weapons
+        /// hang over the shoulders (dominant side first), handguns sit on the hips, grenades and gear on the chest.
+        /// </summary>
         public int HolsterAt(Vector3 point, bool includeChest = true)
         {
+            AssignHolsters(GameContext.PlayerActor);
             float best = HolsterRadius;
             int slot = -1;
-            Check(point, BackShoulder, 0, ref best, ref slot);
-            Check(point, DomHip, 1, ref best, ref slot);
-            if (includeChest)
+            for (int i = 0; i < SpotCount; i++)
             {
-                // The chest gear slots sit where a shouldered rifle's grip hand is: callers leave them out while aiming.
-                Check(point, Chest, 2, ref best, ref slot);
-                Check(point, OffChest, 3, ref best, ref slot);
-                Check(point, DomChest, 4, ref best, ref slot);
+                if (_spotSlot[i] < 0 || !includeChest && IsChest((Spot)i))
+                {
+                    // The chest sits where a shouldered rifle's grip hand is: callers leave it out while aiming.
+                    continue;
+                }
+                Check(point, Position((Spot)i), _spotSlot[i], ref best, ref slot);
             }
             return slot;
+        }
+
+        private void AssignHolsters(Actor actor)
+        {
+            for (int i = 0; i < SpotCount; i++)
+            {
+                _spotSlot[i] = -1;
+            }
+            if (actor == null || actor.weapons == null)
+            {
+                return;
+            }
+            for (int slot = 0; slot < actor.weapons.Length; slot++)
+            {
+                Weapon w = actor.weapons[slot];
+                if (w == null)
+                {
+                    continue;
+                }
+                Spot[] order = CarryOf(w) == Carry.Long ? LongSpots : CarryOf(w) == Carry.Hand ? HandSpots : GearSpots;
+                foreach (Spot s in order)
+                {
+                    if (_spotSlot[(int)s] < 0)
+                    {
+                        _spotSlot[(int)s] = slot;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>What a weapon is, from its own slot type (0 primary, 1 secondary, 2 gear, 3 large gear) and class.</summary>
+        private static Carry CarryOf(Weapon w)
+        {
+            if (w is ThrowableWeapon || w is ToggleableItem || w is SquadLeaderKit || w is FishingRod)
+            {
+                return Carry.Gear;
+            }
+            switch (w.slot)
+            {
+                case 0:
+                case 3:
+                    return Carry.Long;
+                case 1:
+                    return Carry.Hand;
+                default:
+                    // Small gear: a gun (machine pistol, flare gun) goes on the hip, a knife or tool on the chest.
+                    return w is MeleeWeapon ? Carry.Gear : Carry.Hand;
+            }
+        }
+
+        private static bool IsChest(Spot s) => s == Spot.Chest || s == Spot.OffChest || s == Spot.DominantChest;
+
+        private Vector3 Position(Spot s)
+        {
+            switch (s)
+            {
+                case Spot.BackDominant: return BackShoulder;
+                case Spot.BackOff: return OffBackShoulder;
+                case Spot.DominantHip: return DomHip;
+                case Spot.OffHip: return OffHip + TorsoForward * 0.06f; // cross-draw, ahead of the hip
+                case Spot.Chest: return Chest;
+                case Spot.OffChest: return OffChest;
+                default: return DomChest;
+            }
         }
 
         private static void Check(Vector3 p, Vector3 zone, int id, ref float best, ref int slot)
@@ -166,19 +254,24 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            Vector3[] points = { BackShoulder, DomHip, Chest, OffChest, DomChest, Pouch, HeadSide };
+            // Holsters in use (blue), then the pouch (amber) and the night-vision point.
+            AssignHolsters(GameContext.PlayerActor);
             if (_debug == null)
             {
-                _debug = new GameObject[points.Length];
-                for (int i = 0; i < points.Length; i++)
+                _debug = new GameObject[SpotCount + 2];
+                for (int i = 0; i < _debug.Length; i++)
                 {
-                    _debug[i] = DebugSphere(i == 5 ? new Color(1f, 0.7f, 0.2f, 0.35f) : new Color(0.3f, 0.7f, 1f, 0.3f), i == 5 ? PouchRadius : HolsterRadius);
+                    bool pouch = i == SpotCount;
+                    _debug[i] = DebugSphere(pouch ? new Color(1f, 0.7f, 0.2f, 0.35f) : new Color(0.3f, 0.7f, 1f, 0.3f), pouch ? PouchRadius : HolsterRadius);
                 }
             }
-            for (int i = 0; i < points.Length; i++)
+            for (int i = 0; i < SpotCount; i++)
             {
-                _debug[i].transform.position = points[i];
+                _debug[i].SetActive(_spotSlot[i] >= 0);
+                _debug[i].transform.position = Position((Spot)i);
             }
+            _debug[SpotCount].transform.position = Pouch;
+            _debug[SpotCount + 1].transform.position = HeadSide;
         }
 
         public static GameObject DebugSphere(Color c, float radius)

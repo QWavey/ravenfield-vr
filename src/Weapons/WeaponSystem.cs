@@ -98,7 +98,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 palm = h.Palm.position;
                 MagazineProp prop = MagazineProp.NearestDropped(palm, 0.13f, null);
                 GrenadeDud dud = GrenadeDud.Nearest(palm, 0.12f);
-                if (dud != null && (prop == null || dud.Distance(palm) < Vector3.Distance(prop.Go.transform.position, palm)))
+                if (dud != null && (prop == null || dud.Distance(palm) < prop.DistanceTo(palm)))
                 {
                     VRInput.Consume(DigitalAction.Grab, h.Side);
                     if (dud.Refund(GameContext.PlayerActor))
