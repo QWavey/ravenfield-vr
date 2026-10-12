@@ -159,6 +159,20 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static GameObject CopyVisuals(WeaponRig rig)
         {
+            // While the magazine is out of the gun its parts are scaled to nothing: copy them at their real size.
+            Vector3[] hidden = rig.ShowMagazineForCopy();
+            try
+            {
+                return CopyVisualsShown(rig);
+            }
+            finally
+            {
+                rig.RestoreMagazineScales(hidden);
+            }
+        }
+
+        private static GameObject CopyVisualsShown(WeaponRig rig)
+        {
             Transform source = rig.Magazine;
             var root = new GameObject("mag");
             bool any = false;
@@ -399,13 +413,18 @@ namespace RavenfieldVR.Weapons
             SetLayer(Go, HeldLayer);
         }
 
-        /// <summary>World pose the prop takes in the hand: base in the palm, tip up-forward, front forward.</summary>
+        /// <summary>
+        /// World pose the prop takes in the hand: the fist closed around its lower body (a third of the way up from
+        /// the base plate, as you hold a magazine to seat it), tip up-forward, front forward.
+        /// </summary>
         public RigidPose HoldPose(VRHand hand)
         {
             RigidPose palm = hand.Palm;
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
-            Vector3 pos = palm.position + palm.Up * 0.01f - rot * BaseLocal;
+            float gripAt = Kind == PropKind.Magazine ? 0.33f : 0.5f; // shells and rockets are pinched in the middle
+            Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
+            Vector3 pos = palm.position - rot * held;
             return new RigidPose(pos, rot);
         }
 

@@ -77,11 +77,7 @@ namespace RavenfieldVR.Weapons
             ActiveAmmo = ammo;
             Sounds = new WeaponSoundPlayer(rig, system.Sounds);
             Reload = new ReloadInteractions(system, this);
-            _magOriginalScales = new Vector3[rig.MagazineParts.Length];
-            for (int i = 0; i < rig.MagazineParts.Length; i++)
-            {
-                _magOriginalScales[i] = rig.MagazineParts[i].localScale;
-            }
+            _magOriginalScales = rig.MagazinePartScales;
             if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
             {
                 _scope = new VRScope(system.Rig, rig);

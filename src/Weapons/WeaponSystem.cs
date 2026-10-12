@@ -374,6 +374,8 @@ namespace RavenfieldVR.Weapons
             dom.Haptic(0.05f, 100f, 0.6f);
         }
 
+        private int _hoveredHolster = -1;
+
         private void UpdateHolsters()
         {
             if (!VRConfig.HolsterSwitching.Value || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen)
@@ -381,16 +383,24 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             VRHand dom = Rig.Dominant;
-            if (!dom.Tracked || !dom.GrabPressed)
+            if (!dom.Tracked)
             {
-                return;
-            }
-            int slot = Zones.HolsterAt(dom.Palm.position);
-            if (slot < 0)
-            {
+                _hoveredHolster = -1;
                 return;
             }
             Actor actor = GameContext.PlayerActor;
+            int slot = Zones.HolsterAt(dom.Palm.position, includeChest: Held == null || !Held.Aiming);
+            // A short tick when the hand reaches a holster with something in it: holsters are found by feel.
+            bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null;
+            if (usable && slot != _hoveredHolster)
+            {
+                dom.Haptic(0.012f, 220f, 0.35f);
+            }
+            _hoveredHolster = usable ? slot : -1;
+            if (!dom.GrabPressed || slot < 0)
+            {
+                return;
+            }
             if (actor == null || actor.weapons == null || slot >= actor.weapons.Length || actor.weapons[slot] == null)
             {
                 dom.Haptic(0.05f, 40f, 0.3f);

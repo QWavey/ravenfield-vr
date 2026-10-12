@@ -216,7 +216,20 @@ namespace RavenfieldVR.UI
             ModKeys.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
-            _laser.Update(show, pointer.Pointer.position, show ? _module.HitPoint : Vector3.zero, show && _module.HasHit, _module != null && _module.HoveredObject != null);
+            Vector3 end = Vector3.zero;
+            bool hit = false;
+            if (show)
+            {
+                // Drawn from this frame's hand against this frame's panels; the input pass ran earlier in the frame
+                // from the previous pose, and mixing the two bent the line whenever the view moved.
+                var ray = new Ray(pointer.Pointer.position, pointer.Pointer.Forward);
+                hit = _module.TryHit(ray, out end);
+                if (!hit)
+                {
+                    end = ray.origin + ray.direction * 3f;
+                }
+            }
+            _laser.Update(show, pointer.Pointer.position, end, hit, _module != null && _module.HoveredObject != null);
             _wrist.BeforeRender();
         }
 

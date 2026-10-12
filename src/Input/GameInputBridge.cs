@@ -41,6 +41,9 @@ namespace RavenfieldVR.Input
         /// <summary>Set by the UI system while one of the mod's own panels (VR settings, Mod keys) is open in game.</summary>
         public static bool PanelOpen { get; set; }
 
+        /// <summary>The laser is on one of the mod's open panels, so the sticks scroll it and do nothing else.</summary>
+        public static bool SticksOnPanel => PanelOpen && PointerOverUI;
+
         /// <summary>Weapon systems set this while the dominant trigger must not fire (e.g. holding a grenade pin).</summary>
         public static bool SuppressFire { get; set; }
 
@@ -77,8 +80,10 @@ namespace RavenfieldVR.Input
             Array.Clear(Axis, 0, BindCount);
 
             float dz = VRConfig.StickDeadzone.Value;
-            MoveStick = ApplyDeadzone(VRInput.Move, dz);
-            TurnStickRaw = VRInput.TurnStick;
+            // Scrolling one of the mod's panels uses the sticks: they must not also walk, jump or crouch.
+            bool scrollingPanel = SticksOnPanel;
+            MoveStick = scrollingPanel ? Vector2.zero : ApplyDeadzone(VRInput.Move, dz);
+            TurnStickRaw = scrollingPanel ? Vector2.zero : VRInput.TurnStick;
 
             Hand dom = VRInput.Dominant;
             Hand off = VRInput.OffHand;

@@ -358,7 +358,7 @@ namespace RavenfieldVR.Rig
         private void HandleTurning(FpsActorController player)
         {
             TurnInputThisFrame = 0f;
-            if (VRConfig.Turn.Value == TurnMode.Off || GameContext.GameMenuOpen)
+            if (VRConfig.Turn.Value == TurnMode.Off || GameContext.GameMenuOpen || VRGameInput.SticksOnPanel)
             {
                 return;
             }

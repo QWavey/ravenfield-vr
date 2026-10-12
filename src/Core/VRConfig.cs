@@ -88,6 +88,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> ThrowVelocityMultiplier;
         public static ConfigEntry<bool> GrenadePins;
         public static ConfigEntry<bool> BeltByHand;
+        public static ConfigEntry<bool> HideGameWeaponHud;
         public static ConfigEntry<float> MeleeSwingSpeed;
         public static ConfigEntry<float> GrabRadius;
         public static ConfigEntry<bool> ModWeaponSounds;
@@ -223,6 +224,8 @@ namespace RavenfieldVR.Core
                 "Fused grenades have a pin: pull it with the other hand (or press A) before throwing. Thrown with the pin in, a grenade is a dud you can pick up again. Off = every throw is live.");
             BeltByHand = cfg.Bind("Weapons", "BeltByHand", true,
                 "Belt-fed machine guns: after seating a new box, take the belt end from the box mouth and lay it on the feed tray before closing the cover. Off = closing the cover lays it for you.");
+            HideGameWeaponHud = cfg.Bind("Weapons", "HideGameWeaponHud", true,
+                "Hide the game's weapon panel (name, ammo, slots) in VR: the gun's own counter, the pouch and your wrist show the ammo, and weapons come from your holsters.");
             MeleeSwingSpeed = cfg.Bind("Weapons", "MeleeSwingSpeed", 2.6f,
                 new ConfigDescription("Blade speed (m/s) needed for a melee hit.", new AcceptableValueRange<float>(1f, 8f)));
             WeaponsWhileDriving = cfg.Bind("Weapons", "WeaponsWhileDriving", true,

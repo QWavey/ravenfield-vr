@@ -124,6 +124,9 @@ namespace RavenfieldVR.UI
             ProcessScroll(over);
         }
 
+        /// <summary>Where a ray meets the visible panels right now (for drawing the laser from the current hand pose).</summary>
+        public bool TryHit(Ray ray, out Vector3 hit) => IntersectCanvases(ray, out hit);
+
         /// <summary>Nearest intersection of the ray with any visible canvas rectangle.</summary>
         private bool IntersectCanvases(Ray ray, out Vector3 hit)
         {

@@ -666,8 +666,10 @@ namespace RavenfieldVR.Weapons
             float along = Vector3.Dot(rel, insert);
             float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
             float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
-            float speed = Vector3.Dot(off.Velocity, insert);
-            if (along < -0.015f || along > 0.04f || lateral > 0.035f || angle > 30f || speed < 0.6f)
+            // The speed that counts is the new magazine's speed relative to the gun: driving it up into the old one
+            // and bringing the gun down onto it are the same strike.
+            float speed = Vector3.Dot(off.Velocity - _sys.Rig.Dominant.Velocity, insert);
+            if (along < -0.03f || along > 0.06f || lateral > 0.055f || angle > 50f || speed < 0.45f)
             {
                 return false;
             }

@@ -208,12 +208,29 @@ namespace RavenfieldVR.Core
             UI?.OnSceneChanged();
         }
 
+        // Whether the pause menu is open because the SteamVR dashboard opened it (not the player).
+        private bool _pausedForDashboard;
+
+        /// <summary>
+        /// The SteamVR dashboard pauses the match behind it, and closing the dashboard resumes it: otherwise you come
+        /// back to a frozen game with the sound paused and whatever you just let go of hanging in the air.
+        /// </summary>
         private void OnDashboard(bool open)
         {
-            if (open && GameContext.InGame && IngameMenuUi.instance != null && !IngameMenuUi.IsOpen())
+            if (open)
             {
-                IngameMenuUi.Show();
+                if (GameContext.InGame && IngameMenuUi.instance != null && !IngameMenuUi.IsOpen())
+                {
+                    IngameMenuUi.Show();
+                    _pausedForDashboard = true;
+                }
+                return;
             }
+            if (_pausedForDashboard && IngameMenuUi.instance != null && IngameMenuUi.IsOpen())
+            {
+                IngameMenuUi.Hide();
+            }
+            _pausedForDashboard = false;
         }
 
         private void OnRenderSettingChanged(object sender, EventArgs e) => OpenVRRuntime.ApplyLiveSettings();

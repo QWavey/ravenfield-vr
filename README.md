@@ -52,7 +52,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 
 Other gestures:
 
-- **Holsters:** reach over your weapon-side shoulder and grip for your primary, to your weapon-side hip for the sidearm, to your chest for gear. Put a gun back where it lives and let go to have both hands free.
+- **Holsters:** reach over your weapon-side shoulder and grip for your primary, to your weapon-side hip for the sidearm, to your chest for gear; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. The chest holsters are ignored while you aim, so re-gripping a shouldered rifle never switches weapons.
 - **Night vision:** grip with your off hand at the side of your head.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
@@ -141,6 +141,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `ModWeaponSounds` | on | Use each mod's own sounds for manual actions (a vanilla weapon's when the mod has none for an action) |
 | `GrenadePins` | on | Grenades need their pin pulled; off makes every throw live |
 | `BeltByHand` | on | Lay a machine gun's belt on the feed tray yourself; off lays it when the cover closes |
+| `HideGameWeaponHud` | on | Hide the game's weapon panel (name, ammo, slots); the gun, pouch and wrist show ammo |
 | `SkipDrawAnimation` | on | Skip the weapon's draw animation in VR (you draw it with your hand) |
 | `ReturnRoundsOnMagDrop` | on | Rounds in magazines that get cleared away return to your reserve |
 | `HudDistance` / `HudHorizontalFov` | 4 m / 72° | Where the HUD frame sits and how wide it is |

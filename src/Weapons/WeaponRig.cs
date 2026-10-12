@@ -197,6 +197,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Magazine plus any co-moving pieces; all of them are hidden while the magazine is out.</summary>
         public readonly Transform[] MagazineParts;
 
+        /// <summary>The magazine parts' own scales, recorded while the gun was fresh (the magazine is hidden by scaling while out).</summary>
+        public readonly Vector3[] MagazinePartScales;
+
         public WeaponRig(Weapon weapon, WeaponRigData data)
         {
             Weapon = weapon;
@@ -238,6 +241,40 @@ namespace RavenfieldVR.Weapons
                 }
             }
             MagazineParts = parts.ToArray();
+            MagazinePartScales = new Vector3[MagazineParts.Length];
+            for (int i = 0; i < MagazineParts.Length; i++)
+            {
+                MagazinePartScales[i] = MagazineParts[i].localScale;
+            }
+        }
+
+        /// <summary>
+        /// Shows the magazine at its real size for a moment (it is scaled to nothing while out of the gun) so it can be
+        /// copied; returns the scales to put back with <see cref="RestoreMagazineScales"/>.
+        /// </summary>
+        public Vector3[] ShowMagazineForCopy()
+        {
+            var current = new Vector3[MagazineParts.Length];
+            for (int i = 0; i < MagazineParts.Length; i++)
+            {
+                if (MagazineParts[i] != null)
+                {
+                    current[i] = MagazineParts[i].localScale;
+                    MagazineParts[i].localScale = MagazinePartScales[i];
+                }
+            }
+            return current;
+        }
+
+        public void RestoreMagazineScales(Vector3[] scales)
+        {
+            for (int i = 0; i < MagazineParts.Length && i < scales.Length; i++)
+            {
+                if (MagazineParts[i] != null)
+                {
+                    MagazineParts[i].localScale = scales[i];
+                }
+            }
         }
 
         public static Transform Resolve(Transform root, int[] path)

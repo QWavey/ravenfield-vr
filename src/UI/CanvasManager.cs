@@ -419,4 +419,17 @@ namespace RavenfieldVR.UI
             }
         }
     }
+
+    /// <summary>The game's weapon panel (name, ammo, slot icons) has no job in VR; hidden unless the setting says otherwise.</summary>
+    [HarmonyPatch(typeof(IngameUI), nameof(IngameUI.ElementIsVisible))]
+    internal static class HideWeaponHudPatch
+    {
+        private static void Postfix(IngameUI.UIElement element, ref bool __result)
+        {
+            if (__result && element == IngameUI.UIElement.WeaponInfo && VRManager.Active && VRConfig.HideGameWeaponHud.Value)
+            {
+                __result = false;
+            }
+        }
+    }
 }

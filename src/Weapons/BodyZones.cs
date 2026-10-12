@@ -102,7 +102,7 @@ namespace RavenfieldVR.Weapons
             bool inView = Vector3.Dot(_rig.Head.forward, -toHead.normalized) > 0.75f;
             VRGameInput.WristLookGesture = facing && inView && off.Role == HandRole.Free;
 
-            if (off.GrabPressed && off.Role == HandRole.Free && Vector3.Distance(off.Palm.position, HeadSide) < 0.13f)
+            if (off.GrabPressed && off.Role == HandRole.Free && Vector3.Distance(off.Palm.position, HeadSide) < 0.13f && BesideHead(off.Palm.position))
             {
                 VRGameInput.GogglesGesturePressed = true;
                 VRInput.Consume(DigitalAction.Grab, off.Side);
@@ -111,15 +111,19 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Holster slot under <paramref name="point"/>, or -1. Slots: 0 primary, 1 sidearm, 2-4 gear.</summary>
-        public int HolsterAt(Vector3 point)
+        public int HolsterAt(Vector3 point, bool includeChest = true)
         {
             float best = HolsterRadius;
             int slot = -1;
             Check(point, BackShoulder, 0, ref best, ref slot);
             Check(point, DomHip, 1, ref best, ref slot);
-            Check(point, Chest, 2, ref best, ref slot);
-            Check(point, OffChest, 3, ref best, ref slot);
-            Check(point, DomChest, 4, ref best, ref slot);
+            if (includeChest)
+            {
+                // The chest gear slots sit where a shouldered rifle's grip hand is: callers leave them out while aiming.
+                Check(point, Chest, 2, ref best, ref slot);
+                Check(point, OffChest, 3, ref best, ref slot);
+                Check(point, DomChest, 4, ref best, ref slot);
+            }
             return slot;
         }
 
@@ -134,6 +138,18 @@ namespace RavenfieldVR.Weapons
         }
 
         public bool InPouch(Vector3 point) => Vector3.Distance(point, Pouch) < PouchRadius;
+
+        /// <summary>
+        /// Out to the off-hand side of the head, at or above eye level and not in front of the face: the night-vision
+        /// gesture must not fire while the hand works a charging handle just under the eye of a shouldered rifle.
+        /// </summary>
+        private bool BesideHead(Vector3 point)
+        {
+            Transform head = _rig.Head;
+            Vector3 local = head.InverseTransformPoint(point);
+            float side = VRConfig.LeftHanded ? 1f : -1f; // the off hand's side of the head
+            return local.x * side > 0.06f && local.y > -0.04f && local.z < 0.08f;
+        }
 
         private void DrawDebug()
         {
