@@ -59,6 +59,16 @@
 57. [x] Magazines lying on the ground can be picked up
 58. [ ] Headset re-test of 53-57
 59. [ ] Invisible VR body that takes the hits when bots shoot you
+60. [ ] Mag kick: knocking a seated magazine out with a fresh one still fails
+61. [ ] Thumb placement on pistols
+62. [ ] Better-looking, cheaper hand model and glove material
+63. [ ] Tactical reload with both magazines in one hand (H3VR style)
+64. [ ] Pistol magazines will not eject
+65. [ ] Some M4s: pulling the charging handle does not cycle the bolt
+66. [ ] Some M4s and other guns: magazines held at a strange position or angle
+67. [ ] Some M4s: the magazine does not come out
+68. [ ] Smoothing pass over the whole feel (the mod is far from perfect yet)
+69. [ ] Bug hunt, 20 rounds, then improve, 10 rounds
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -178,3 +188,23 @@ For 57. A dropped magazine is judged by its own shape (collider), not its transf
 For 58. In the Quest: laser straight while looking around, magazines and gun grips inside the closed hand, mag kick, third and later magazines from the pouch, open hand after letting go, holsters on the back and hips, dashboard round trip with sound, and picking a magazine up off the ground with either hand. Done when: the player confirms each in a session.
 
 For 59. Check first what the game already does: the player actor's hitboxes sit where the game puts the actor, which in VR may not match where you physically stand, crouch or lean. Give the player an invisible body that follows the headset (head, torso from the body zones, arms from the hands) and carries the actor's hitboxes, so bots aim at and hit where you really are, and damage, headshots and hit feedback (haptics, screen tint) land on it. Done when: a bot's shot at your real head/torso registers on the player, and leaning out of cover exposes you.
+
+For 60. Reported again after the second fix (wider window, speed relative to the gun): bringing a fresh magazine up into the base of the seated one does not knock it out. Log the kick test's numbers (along, lateral, angle, speed, kickable flag) while trying it in the headset, find which condition fails, then fix that one. Done when: a kick ejects the seated magazine on an M4 and an AK in the headset.
+
+For 61. The thumb looks wrong on pistol grips. Compare the thumb's base rotation and curl in the Weapon role against the weapon's own hand pose (GripCurls) for pistols; the thumb should lie along the left side of the frame (right hand), not stick out or cross the slide. Done when: the thumb rests along the frame on the Glock and the M1911 in the headset.
+
+For 62. The procedural glove (primitive capsules and cubes, one flat material) looks crude. Build a better hand: smoother joints (fewer seams), knuckle and palm shape, a proper glove material (normal detail, matte fabric, team tint kept), and fewer draw calls (merge the static palm parts, one material, no shadow casting). Done when: the hand looks like a glove up close and its draw calls/renderers are fewer than now (measure both).
+
+For 63. H3VR-style tactical reload. While the off hand holds a fresh magazine near the gun's seated magazine, holding the magazine release puts the ejected magazine into the same hand, so the hand holds both (research how H3VR does magazine palming before building it). Seat the fresh one and the old one stays in the hand; letting go of grip drops both. Works on Glocks and any detachable-magazine weapon. Done when: in the headset, mag release with a fresh mag at the well leaves both magazines in the off hand, seating one keeps the other, and releasing grip drops what is held.
+
+For 64. Pressing B on pistols does not eject the magazine. Check MagRelease binding and the Manual/UsesDetachableMag/MagInserted conditions for pistols (slot 1), the pistol's analysed magazine part (virtual vs real) and whether the eject path runs. Done when: B drops the magazine on the Glock, M1911 and a modded pistol.
+
+For 65. On some M4-pattern rifles pulling the charging handle back does not cycle the bolt (no chambering, no ejection). Find which ones (self-test: handle found? slide = bolt or carrier?), and make the handle drive the bolt with the rack stroke. Done when: racking the handle on every M4 variant in the report chambers a round in the headset or autotest.
+
+For 66. Some magazines sit oddly in the hand. Check the magazine's analysed insert direction, front axis and base/tip points for the affected guns (HoldPose uses them); wrong axes from a skinned or offset magazine part tilt it. Done when: the magazines of the reported guns sit upright in the fist with the front facing forward.
+
+For 67. On some M4s the magazine does not come out (eject or hand pull). Identify them from the self-test (magazine method, virtual parts, BoxLocked, deep-well rule) and fix the cause. Done when: every M4 variant ejects and releases its magazine by hand.
+
+For 68. A smoothing pass over how everything feels in the hand: grab/release transitions, haptics, part motion (no snapping), menu and laser behaviour, comfort. Collect everything reported in the headset sessions and polish rather than add. Done when: the next headset session has no feel complaints from the existing list.
+
+For 69. Run /bug-hunt 20 (twenty different areas, verify and fix), then /improve 10 (ten measured rounds, keep only what proves better). Done when: both runs are finished, built, installed, committed and summarised.
