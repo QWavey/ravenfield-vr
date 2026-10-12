@@ -35,7 +35,7 @@
 33. [ ] Measured performance pass over the mod's per-frame work
 34. [x] Automated in-game smoke test (match with every mutator, every weapon equipped)
 35. [x] Mutator compatibility
-36. [ ] Gun feel pass and VR UI de-slop
+36. [x] Gun feel pass and VR UI de-slop
 37. [ ] Weapon's own arms with IK (option next to the VR hands)
 38. [x] Controllers satisfy "press any key"; gunner sights and HUD reticles collimated at infinity
 39. [x] Physical steering wheel in cars and Humvees, weapons usable while driving
@@ -43,8 +43,8 @@
 41. [x] Every weapon fires one-handed, with more recoil than two-handed
 42. [x] Placeholder sweep over all new code
 43. [x] Bug hunt, 10 rounds
-44. [ ] Rebuild, in-game verification (flat, self-test, virtual headset), docs
-45. [ ] Private GitHub repo and release
+44. [x] Rebuild, in-game verification (flat, self-test, virtual headset), docs
+45. [x] Private GitHub repo and release
 46. [x] Grenade pins: pulled by hand (or A), fuse starts on the throw, pinned throws are duds you can pick up
 47. [x] Dropped magazines keep their rounds, any free hand picks them up; loose props collide with the gun, never the player's body
 48. [x] Belt-fed machine guns: box locked under a closed cover, belt laid on the feed tray by hand
