@@ -282,6 +282,19 @@ namespace RavenfieldVR.Weapons
         public RigidPose GunBodyPose => RigidPose.Of(GunBody);
 
         public Vector3 ToWorld(Vector3 gunPoint) => GunBody.position + GunBody.rotation * gunPoint;
+
+        /// <summary>
+        /// Parents <paramref name="t"/> to the gun body at a gun-space pose in metres, with unit world scale. Gun
+        /// bones often carry an import scale (0.01, 100); a plain localPosition would be scaled by it and land the
+        /// object (and size it) far from where it belongs.
+        /// </summary>
+        public void AttachInGunSpace(Transform t, Vector3 gunPoint, Quaternion gunRotation)
+        {
+            t.SetParent(GunBody, false);
+            t.SetPositionAndRotation(ToWorld(gunPoint), GunBody.rotation * gunRotation);
+            Vector3 s = GunBody.lossyScale;
+            t.localScale = new Vector3(1f / Mathf.Max(1e-5f, Mathf.Abs(s.x)), 1f / Mathf.Max(1e-5f, Mathf.Abs(s.y)), 1f / Mathf.Max(1e-5f, Mathf.Abs(s.z)));
+        }
         public Vector3 DirToWorld(Vector3 gunDir) => GunBody.rotation * gunDir;
         public Vector3 ToGun(Vector3 world) => Quaternion.Inverse(GunBody.rotation) * (world - GunBody.position);
 

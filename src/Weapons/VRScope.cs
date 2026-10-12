@@ -44,14 +44,12 @@ namespace RavenfieldVR.Weapons
             _texture.Create();
 
             _root = new GameObject("RavenfieldVR Scope");
-            _root.transform.SetParent(rig.GunBody, false);
             // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
             Vector3 lensPos = rig.Data.HasScopeModel
                 ? rig.Data.ScopeOcular - rig.Data.EyeDirection * 0.002f
                 : rig.Data.EyePoint + rig.Data.EyeDirection * EyeRelief;
             _radius = rig.Data.HasScopeModel ? rig.Data.ScopeRadius : LensRadius;
-            _root.transform.localPosition = lensPos;
-            _root.transform.localRotation = Quaternion.LookRotation(rig.Data.EyeDirection, rig.Data.Up);
+            rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(rig.Data.EyeDirection, rig.Data.Up));
 
             var camGo = new GameObject("Scope Camera");
             camGo.transform.SetParent(_root.transform, false);

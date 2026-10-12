@@ -55,6 +55,7 @@ namespace RavenfieldVR.UI
             UiCamera.allowHDR = false;
             UiCamera.allowMSAA = true;
             rig.Suppressor.Ignore(UiCamera);
+            rig.AddHeadCamera(UiCamera); // the UI is drawn from exactly the same eye pose as the world
 
             var evGo = new GameObject("VR UI Event Camera");
             evGo.transform.SetParent(rig.Root, false);

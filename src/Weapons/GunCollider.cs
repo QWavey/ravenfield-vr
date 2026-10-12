@@ -256,6 +256,20 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Seated (a weapon drawn in a car), the stand-in would sit inside the vehicle's own colliders and shove it
+            // every physics step; there are no loose props to bounce off in there anyway.
+            Actor actor = LocalPlayer.actor;
+            bool seated = actor != null && actor.IsSeated();
+            if (_box.enabled == seated)
+            {
+                _box.enabled = !seated;
+                _body.detectCollisions = !seated;
+                _placed = false; // back on foot: jump to the gun instead of sweeping there
+            }
+            if (seated)
+            {
+                return;
+            }
             Vector3 pos = _rig.ToWorld(_origin);
             Quaternion rot = _rig.GunBody.rotation * _frame;
             if (!_placed)

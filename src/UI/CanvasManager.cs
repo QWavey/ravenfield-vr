@@ -211,10 +211,20 @@ namespace RavenfieldVR.UI
             return CanvasRole.Hud;
         }
 
+        private bool _hadHead;
+        private float _menuAwaySince = -1f;
+
         public void BeforeRender()
         {
             Transform head = _rig.Head;
             FpsActorController player = GameContext.Player;
+            RigidPose hud = _rig.HudPose;
+            if (_rig.HeadTracked && !_hadHead)
+            {
+                _hadHead = true;
+                RecenterMenus(); // menus opened before the headset's first pose were placed from nowhere
+            }
+            KeepMenusInView(head);
             float hfov = VRConfig.HudHorizontalFov.Value;
             float distance = VRConfig.HudDistance.Value;
             float aspect = 16f / 9f;
@@ -236,7 +246,7 @@ namespace RavenfieldVR.UI
                     float width = 2f * d * Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad);
                     float scale = width / t.Size.x;
                     float depth = d - 0.001f * d / distance * Mathf.Clamp(t.Order, -100, 100);
-                    t.Rect.SetPositionAndRotation(head.position + head.forward * depth, head.rotation);
+                    t.Rect.SetPositionAndRotation(hud.position + hud.Forward * depth, hud.rotation);
                     t.Rect.localScale = Vector3.one * scale;
                 }
                 else
@@ -274,6 +284,7 @@ namespace RavenfieldVR.UI
                 forward.Normalize();
                 Vector3 pos = head.position + forward * VRConfig.MenuDistance.Value - Vector3.up * 0.08f;
                 _menuAnchor = new RigidPose(pos, Quaternion.LookRotation(forward, Vector3.up));
+                _menuLocalAnchor = _rig.Root.InverseTransformPoint(pos);
             }
             RigidPose anchor = _menuAnchor.Value;
             // Stack overlapping menus by sorting order, a few millimetres apart.
@@ -281,6 +292,36 @@ namespace RavenfieldVR.UI
             t.LocalPose = RigidPose.Of(_rig.Root).Inverse().Multiply(anchor);
             t.Placed = true;
         }
+
+        /// <summary>A menu left behind (turned away for two seconds) comes back in front of you.</summary>
+        private void KeepMenusInView(Transform head)
+        {
+            if (_menuAnchor == null)
+            {
+                _menuAwaySince = -1f;
+                return;
+            }
+            Vector3 toMenu = RigidPose.Of(_rig.Root).Multiply(new RigidPose(_menuLocalAnchor, Quaternion.identity)).position - head.position;
+            Vector3 flatForward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            Vector3 flatTo = Vector3.ProjectOnPlane(toMenu, Vector3.up);
+            bool away = flatForward.sqrMagnitude > 1e-4f && flatTo.sqrMagnitude > 1e-4f && Vector3.Angle(flatForward, flatTo) > 75f;
+            if (!away)
+            {
+                _menuAwaySince = -1f;
+                return;
+            }
+            if (_menuAwaySince < 0f)
+            {
+                _menuAwaySince = Time.unscaledTime;
+            }
+            else if (Time.unscaledTime - _menuAwaySince > 2f)
+            {
+                _menuAwaySince = -1f;
+                RecenterMenus();
+            }
+        }
+
+        private Vector3 _menuLocalAnchor;
 
         /// <summary>Re-centres open menus in front of the player.</summary>
         public void RecenterMenus()

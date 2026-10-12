@@ -26,6 +26,9 @@ namespace RavenfieldVR.Runtime
 
         public static bool DashboardOpen { get; private set; }
 
+        /// <summary>Unity's XR tracking origin mode, for diagnostics.</summary>
+        public static string TrackingOriginName => InputSubsystem != null ? InputSubsystem.GetTrackingOriginMode().ToString() : "none";
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         private struct UserDefinedSettings
         {
@@ -99,6 +102,9 @@ namespace RavenfieldVR.Runtime
                 {
                     Log.Warn("Could not switch OpenVR to floor tracking; heights will be relative to the seated origin.");
                 }
+                // Make the compositor render in the standing (floor) space too, whatever the XR plugin did; the
+                // controllers follow whichever space it ends up in (VRInput.Universe).
+                OpenVR.Compositor?.SetTrackingSpace(ETrackingUniverseOrigin.TrackingUniverseStanding);
 
                 ApplyLiveSettings();
                 Running = true;

@@ -176,12 +176,29 @@ namespace RavenfieldVR.Weapons
 
         // ---------------------------------------------------------------------------------------------
 
+        // Weapons whose VR handling could not be set up: not retried every frame (the game keeps handling them).
+        private readonly HashSet<Weapon> _attachFailed = new HashSet<Weapon>();
+
         private void AttachHeld(Weapon weapon)
         {
-            WeaponRig rig = RigFor(weapon);
-            AmmoState state = StateFor(weapon, create: true);
-            Held = new HeldWeapon(this, weapon, rig, state);
-            Log.Debug($"Holding {weapon.name} ({rig.Data.Action})");
+            if (_attachFailed.Contains(weapon))
+            {
+                return;
+            }
+            try
+            {
+                WeaponRig rig = RigFor(weapon);
+                AmmoState state = StateFor(weapon, create: true);
+                Held = new HeldWeapon(this, weapon, rig, state);
+                Log.Debug($"Holding {weapon.name} ({rig.Data.Action})");
+            }
+            catch (Exception e)
+            {
+                Held = null;
+                _attachFailed.Add(weapon);
+                _attachFailed.RemoveWhere(w => w == null);
+                Log.Exception($"Setting up {weapon.name} for VR (it keeps its normal behaviour)", e);
+            }
         }
 
         private void ReleaseHeld()

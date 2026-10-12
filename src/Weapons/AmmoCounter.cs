@@ -29,11 +29,9 @@ namespace RavenfieldVR.Weapons
             }
             _go = new GameObject("RavenfieldVR Ammo Counter");
             _go.layer = 18;
-            _go.transform.SetParent(rig.GunBody, false);
             WeaponRigData d = rig.Data;
             Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
-            _go.transform.localPosition = d.GripPoint + d.Up * 0.045f - right * 0.035f + d.AimAxis * 0.02f;
-            _go.transform.localRotation = Quaternion.LookRotation(d.AimAxis, d.Up);
+            rig.AttachInGunSpace(_go.transform, d.GripPoint + d.Up * 0.045f - right * 0.035f + d.AimAxis * 0.02f, Quaternion.LookRotation(d.AimAxis, d.Up));
             _text = _go.AddComponent<TextMesh>();
             _text.font = _font;
             _text.fontSize = 64;

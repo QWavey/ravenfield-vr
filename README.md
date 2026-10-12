@@ -12,7 +12,7 @@ What you get:
 - Fallen soldiers drop their weapons; pick one up and it replaces the one in that slot.
 - Grenades with a pin you pull and an arm you throw with; melee weapons that hit when you swing them.
 - Scopes you look through (magnified lens with a reticle) on weapons that only had a 2D overlay.
-- Every menu on panels you point at with a laser; text fields open the SteamVR keyboard. The HUD as a frame in front of you, lined up with the world. Vehicle gunner sights shown at infinity, so they never double.
+- Every menu on panels you point at with a laser; text fields open the SteamVR keyboard. The HUD as a frame in front of you that follows your view loosely (small head movements leave it still), with its markers lined up with the world. Vehicle gunner sights shown at infinity, so they never double.
 - Cars and Humvees with a steering wheel you grab and turn, and your own weapon usable from the driver seat. Helicopters, planes and tanks keep stick controls; turrets aim where you look.
 
 ## Install
@@ -159,6 +159,7 @@ No .NET SDK needed:
 
 ## Troubleshooting
 
+- **Steam offers to play it on a big screen / the view fights with a flat screen.** That is SteamVR's Desktop Theater, which Steam uses for games it thinks are flat. Turn it off for Ravenfield once: Steam Library, right-click Ravenfield, Properties, General, untick "Use Desktop Game Theatre while SteamVR is active".
 - **The game opens on the monitor only.** Check `BepInEx/LogOutput.log` for lines starting with `[Ravenfield VR]`. "Not starting VR: SteamVR is not running" means SteamVR was not open and the game was not started through the launcher's Play in VR. "OpenVR failed to initialise" includes SteamVR's reason (for example `Init_HmdNotFound` when the headset is not streaming).
 - **"Unity did not register the 'OpenVR Display' subsystem".** The runtime files under `ravenfield_Data` are missing. Run Setup again; a game update or "Verify integrity of game files" can remove them.
 - **Controls do nothing in the headset.** Open the SteamVR binding UI for Ravenfield and select "Ravenfield VR default".

@@ -1,0 +1,13 @@
+{
+  "controller_type": "rift",
+  "name": "Ravenfield VR headset",
+  "description": "The headset's own buttons are not used by the game; this empty binding keeps SteamVR from reporting a missing one.",
+  "bindings": {
+    "/actions/main": {
+      "sources": [],
+      "poses": [],
+      "haptics": [],
+      "skeleton": []
+    }
+  }
+}

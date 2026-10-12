@@ -107,9 +107,17 @@ namespace RavenfieldVR.Weapons
             {
                 if (Weapon.ammo > _expectedAmmo)
                 {
-                    // Refilled by the game (resupply crate, ravenscript, infinite-ammo mutator…).
-                    Log.Debug($"{Weapon.name}: ammo changed externally {_expectedAmmo} -> {Weapon.ammo}, adopting.");
-                    AdoptWeaponAmmo();
+                    // Refilled from outside (an infinite-ammo mutator, a script, a resupply): only the rounds change.
+                    // The mechanics stay as the player left them: a refill must never put an ejected magazine back
+                    // into the gun or close an open cover or bolt. With no magazine in, or the gun open, it cannot
+                    // take rounds at all right now, and the value below is simply re-asserted.
+                    bool canTakeRounds = !(UsesDetachableMag && !MagInserted) && !Open && !(HasCover && CoverOpen);
+                    if (canTakeRounds)
+                    {
+                        int chamber = UsesChamber && Chambered && Rig.Action != ActionType.SingleShot ? 1 : 0;
+                        MagRounds = Mathf.Clamp(Weapon.ammo - chamber, 0, Capacity);
+                        Log.Debug($"{Weapon.name}: refilled externally {_expectedAmmo} -> {Weapon.ammo}.");
+                    }
                 }
                 else
                 {

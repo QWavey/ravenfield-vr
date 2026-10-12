@@ -156,7 +156,9 @@ namespace RavenfieldVR.Rig
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
         public void Apply()
         {
-            if (!_hand.Tracked)
+            // Briefly out of the cameras' view the hand holds its last pose relative to the body (as the gun in it
+            // does), so the model keeps being placed there instead of freezing in the world.
+            if (!_hand.HasPose)
             {
                 return;
             }

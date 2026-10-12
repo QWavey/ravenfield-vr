@@ -75,7 +75,7 @@ namespace RavenfieldVR.Input
         private static readonly string[] ManifestFiles =
         {
             "actions.json", "bindings_oculus_touch.json", "bindings_knuckles.json",
-            "bindings_vive_controller.json", "bindings_hpmotioncontroller.json"
+            "bindings_vive_controller.json", "bindings_hpmotioncontroller.json", "bindings_rift.json"
         };
 
         public static string ManifestPath { get; private set; }
@@ -122,6 +122,7 @@ namespace RavenfieldVR.Input
 
                 _activeSets = new[] { new VRActiveActionSet_t { ulActionSet = _set, ulRestrictedToDevice = OpenVR.k_ulInvalidInputValueHandle, nPriority = 0 } };
                 Ready = true;
+                _diagnoseUntil = Time.unscaledTime + 90f;
                 Log.Info("SteamVR Input ready: " + ManifestPath);
                 return true;
             }
@@ -174,6 +175,12 @@ namespace RavenfieldVR.Input
         }
 
         /// <summary>Refreshes action state. Idempotent within a frame.</summary>
+        /// <summary>
+        /// The tracking space the compositor renders the headset in (Unity's XR plugin picks it). Controller poses are
+        /// read in the same space, so hands and head always agree, whether that is standing (floor) or seated.
+        /// </summary>
+        public static ETrackingUniverseOrigin Universe { get; private set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
+
         public static void Update()
         {
             if (!Ready || LastUpdateFrame == Time.frameCount)
@@ -181,6 +188,11 @@ namespace RavenfieldVR.Input
                 return;
             }
             LastUpdateFrame = Time.frameCount;
+            CVRCompositor compositor = OpenVR.Compositor;
+            if (compositor != null)
+            {
+                Universe = compositor.GetTrackingSpace();
+            }
             CVRInput input = OpenVR.Input;
             if (input == null)
             {
@@ -188,6 +200,7 @@ namespace RavenfieldVR.Input
                 return;
             }
             EVRInputError err = input.UpdateActionState(_activeSets, SetSize);
+            Diagnose(input, err);
             if (err != EVRInputError.None && err != EVRInputError.NoData)
             {
                 Log.WarnOnce("uas:" + err, "UpdateActionState failed: " + err);
@@ -246,6 +259,58 @@ namespace RavenfieldVR.Input
             }
         }
 
+        private static float _diagnoseUntil = -1f, _nextDiagnose;
+
+        /// <summary>
+        /// For the first minute and a half of a session, every 2 s: what SteamVR Input returns for each hand (pose,
+        /// trigger, grab) next to what the system reports for the controller devices, so a headset that shows no hands
+        /// can be told apart from a binding that delivers nothing.
+        /// </summary>
+        /// <summary>Logs the input check every 2 s for the next <paramref name="seconds"/> (e.g. after the view changes).</summary>
+        public static void DiagnoseFor(float seconds)
+        {
+            _diagnoseUntil = Mathf.Max(_diagnoseUntil, Time.unscaledTime + seconds);
+        }
+
+        private static int _diagFrames;
+        private static float _diagWindowStart;
+
+        private static void Diagnose(CVRInput input, EVRInputError updateError)
+        {
+            float now = Time.unscaledTime;
+            _diagFrames++;
+            if (now > _diagnoseUntil || now < _nextDiagnose)
+            {
+                return;
+            }
+            _nextDiagnose = now + 2f;
+            var sb = new StringBuilder("Input check: UpdateActionState " + updateError);
+            sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart):0} fps");
+            _diagFrames = 0;
+            _diagWindowStart = now;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig != null && rig.Camera != null)
+            {
+                Vector3 head = rig.Camera.transform.localPosition;
+                sb.Append($", head local ({head.x:0.00}, {head.y:0.00}, {head.z:0.00}), mode {rig.Mode}");
+            }
+            CVRSystem system = OpenVR.System;
+            var pose = new InputPoseActionData_t();
+            for (int h = 0; h < 2; h++)
+            {
+                EVRInputError pe = input.GetPoseActionDataForNextFrame(_pose, Universe, ref pose, PoseSize, HandSource[h]);
+                uint device = system != null
+                    ? system.GetTrackedDeviceIndexForControllerRole(h == 0 ? ETrackedControllerRole.LeftHand : ETrackedControllerRole.RightHand)
+                    : OpenVR.k_unTrackedDeviceIndexInvalid;
+                bool connected = system != null && device != OpenVR.k_unTrackedDeviceIndexInvalid && system.IsTrackedDeviceConnected(device);
+                OpenVRMath.ToUnity(pose.pose.mDeviceToAbsoluteTracking, out Vector3 at, out Quaternion _);
+                sb.Append(h == 0 ? " | left: " : " | right: ")
+                  .Append($"pose {pe} active={pose.bActive} valid={pose.pose.bPoseIsValid} at ({at.x:0.00}, {at.y:0.00}, {at.z:0.00}), device {device} connected={connected}, ")
+                  .Append($"trigger {Trigger[h]:0.00}, grab {Held[(int)DigitalAction.Grab, h]}, type '{ControllerTypes[h]}'");
+            }
+            Log.Info(sb.ToString());
+        }
+
         /// <summary>A frame without fresh action data has no presses or releases (last frame's must not repeat).</summary>
         private static void ClearEdges()
         {
@@ -280,7 +345,7 @@ namespace RavenfieldVR.Input
             var sb = new StringBuilder(64);
             for (int h = 0; h < 2; h++)
             {
-                if (input.GetPoseActionDataForNextFrame(_pose, ETrackingUniverseOrigin.TrackingUniverseStanding, ref poseData, PoseSize, HandSource[h]) != EVRInputError.None
+                if (input.GetPoseActionDataForNextFrame(_pose, Universe, ref poseData, PoseSize, HandSource[h]) != EVRInputError.None
                     || !poseData.bActive)
                 {
                     continue;
@@ -365,7 +430,7 @@ namespace RavenfieldVR.Input
                 return result;
             }
             var data = new InputPoseActionData_t();
-            if (input.GetPoseActionDataForNextFrame(action, ETrackingUniverseOrigin.TrackingUniverseStanding, ref data, PoseSize, HandSource[(int)h]) != EVRInputError.None
+            if (input.GetPoseActionDataForNextFrame(action, Universe, ref data, PoseSize, HandSource[(int)h]) != EVRInputError.None
                 || !data.bActive || !data.pose.bPoseIsValid)
             {
                 return result;

@@ -443,7 +443,10 @@ namespace RavenfieldVR.Weapons
                 {
                     foreach (Transform part in Rig.MagazineParts)
                     {
-                        part.localScale = Vector3.one * 1e-4f;
+                        if (part != null) // a mod may swap or destroy magazine pieces at runtime
+                        {
+                            part.localScale = Vector3.one * 1e-4f;
+                        }
                     }
                     _magHidden = true;
                 }

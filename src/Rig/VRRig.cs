@@ -68,8 +68,6 @@ namespace RavenfieldVR.Rig
 
         // Height calibration.
         private float _calibrationStart = -1f;
-        private float _calibrationSum;
-        private int _calibrationSamples;
         private bool _physicalCrouch;
 
         // Fade state for camera cuts.
@@ -94,6 +92,7 @@ namespace RavenfieldVR.Rig
             Camera.nearClipPlane = VRConfig.NearClip.Value;
             Camera.depth = 100f;
             Camera.tag = "Untagged";
+            AddHeadCamera(Camera);
 
             Suppressor = new CameraSuppressor(Camera);
             Hands[0] = new VRHand(Input.Hand.Left, Root);
@@ -106,8 +105,103 @@ namespace RavenfieldVR.Rig
         // Update: input-driven rig changes (turning, roomscale body moves, crouch, calibration)
         // ---------------------------------------------------------------------------------------------
 
+        // ---------------------------------------------------------------------------------------------
+        // Head pose: driven from SteamVR directly, in the same space as the controllers
+        // ---------------------------------------------------------------------------------------------
+
+        private readonly System.Collections.Generic.List<Camera> _headCameras = new System.Collections.Generic.List<Camera>();
+        private TrackedDevicePose_t _hmdRender, _hmdGame;
+
+        /// <summary>Whether SteamVR has delivered a valid headset pose at least once.</summary>
+        public bool HeadTracked { get; private set; }
+
+        /// <summary>
+        /// A camera that renders the headset view. Unity's implicit XR camera tracking is switched off for it: the
+        /// rig sets its pose from SteamVR's render pose, so the head can never disagree with the controllers (which
+        /// come from SteamVR in the same tracking space) and never depends on how the XR plugin applies tracking.
+        /// </summary>
+        public void AddHeadCamera(Camera c)
+        {
+            if (c == null || _headCameras.Contains(c))
+            {
+                return;
+            }
+            _headCameras.Add(c);
+            UnityEngine.XR.XRDevice.DisableAutoXRCameraTracking(c, true);
+            if (HeadTracked)
+            {
+                c.transform.localPosition = Camera.transform.localPosition;
+                c.transform.localRotation = Camera.transform.localRotation;
+            }
+        }
+
+        /// <summary>The pose the compositor renders this frame with, applied to every head camera.</summary>
+        private void UpdateHeadPose()
+        {
+            CVRCompositor compositor = OpenVR.Compositor;
+            if (compositor == null
+                || compositor.GetLastPoseForTrackedDeviceIndex(OpenVR.k_unTrackedDeviceIndex_Hmd, ref _hmdRender, ref _hmdGame) != EVRCompositorError.None
+                || !_hmdRender.bPoseIsValid)
+            {
+                return; // asleep or lost: keep the last pose
+            }
+            OpenVRMath.ToUnity(_hmdRender.mDeviceToAbsoluteTracking, out Vector3 position, out Quaternion rotation);
+            foreach (Camera c in _headCameras)
+            {
+                if (c != null)
+                {
+                    Transform t = c.transform;
+                    t.localPosition = position;
+                    t.localRotation = rotation;
+                }
+            }
+            if (!HeadTracked)
+            {
+                HeadTracked = true;
+                // A view entered before the headset reported its first pose has a meaningless neutral pose.
+                _neutralPending = Mode == RigMode.Anchored || Mode == RigMode.Follow;
+            }
+        }
+
+        private bool _neutralPending;
+
+        // ---------------------------------------------------------------------------------------------
+        // HUD frame: follows the head lazily instead of being glued to it
+        // ---------------------------------------------------------------------------------------------
+
+        /// <summary>Where the game HUD frame (and the game camera) look from: the eyes, with a lazily following orientation.</summary>
+        public RigidPose HudPose { get; private set; } = RigidPose.Identity;
+
+        private Quaternion _hudRotation = Quaternion.identity;
+        private RigMode _hudMode = RigMode.None;
+
+        private void UpdateHudPose(float dt)
+        {
+            Transform head = Head;
+            Quaternion target = head.rotation;
+            if (_hudMode != Mode || Mode != RigMode.OnFoot)
+            {
+                // Seated, the game aims turrets along this camera (FacingDirection): it must be exactly the head.
+                _hudMode = Mode;
+                _hudRotation = target;
+                HudPose = new RigidPose(head.position, target);
+                return;
+            }
+            // Reading the HUD and small head motions leave the frame where it is; a real turn pulls it along, faster
+            // the further it trails, and it never trails by more than 35 degrees.
+            float angle = Quaternion.Angle(_hudRotation, target);
+            float rate = angle < 3f ? 0f : angle < 15f ? 5f : 14f;
+            _hudRotation = Quaternion.Slerp(_hudRotation, target, 1f - Mathf.Exp(-rate * dt));
+            if (Quaternion.Angle(_hudRotation, target) > 35f)
+            {
+                _hudRotation = Quaternion.RotateTowards(target, _hudRotation, 35f);
+            }
+            HudPose = new RigidPose(head.position, _hudRotation);
+        }
+
         public void Update()
         {
+            UpdateHeadPose();
             UpdateFade();
             FpsActorController player = GameContext.Player;
             DetermineMode(player, out RigMode mode, out object key);
@@ -149,6 +243,14 @@ namespace RavenfieldVR.Rig
             if (player != null && !GameManager.IsSpectating() && !player.inPhotoMode)
             {
                 Actor actor = player.actor;
+                // On foot the view is your own body's, whichever camera the game has active: a mutator's camera
+                // (bodycam, cinematic shake) or the third-person toggle must not take the headset with it.
+                if (actor != null && !actor.dead && !actor.fallenOver && !actor.IsSeated() && !actor.IsOnLadder() && !player.playingVictoryAnimation)
+                {
+                    mode = RigMode.OnFoot;
+                    key = player;
+                    return;
+                }
                 Camera active = player.GetActiveCamera();
                 if (active != null && active == player.fpCamera && player.firstPerson && !player.IsUsingOverrideCamera() && !player.playingVictoryAnimation)
                 {
@@ -218,15 +320,23 @@ namespace RavenfieldVR.Rig
             return best;
         }
 
+        private int _modeChanges;
+
         private void OnModeChanged(RigMode from, RigMode to, object key, FpsActorController player)
         {
-            Log.Debug($"Rig mode {from} -> {to} ({key})");
+            // Logged (sparingly): a view that keeps flipping between modes is exactly the kind of glitch to see here.
+            if (++_modeChanges <= 30 || _modeChanges % 100 == 0)
+            {
+                Log.Info($"View: {from} -> {to} ({key}) [{_modeChanges}]");
+            }
+            Input.VRInput.DiagnoseFor(10f);
             bool cut = from != RigMode.None;
             Mode = to;
             _anchorKey = key;
             Vector3 hl = HeadLocal;
             Quaternion headYaw = Quaternion.Euler(0f, Camera.transform.localEulerAngles.y, 0f);
             _neutralHead = new RigidPose(hl, headYaw);
+            _neutralPending = !HeadTracked;
             _seatYawOffset = 0f;
             _hasLastHeadLocal = false;
 
@@ -340,27 +450,55 @@ namespace RavenfieldVR.Rig
             _hasLastHeadLocal = true;
         }
 
+        private readonly List<float> _calibration = new List<float>(160);
+
+        /// <summary>
+        /// Standing eye height from two seconds after spawning: the 75th percentile of the head heights seen (looking
+        /// down at your hands lowers the head a little; that must not count), only if it is a plausible standing
+        /// height. A window that cannot gather enough samples gives up instead of averaging in whatever comes later
+        /// (a crouch, a seated moment), and is tried again on the next spawn.
+        /// </summary>
         private void UpdateHeightCalibration(FpsActorController player)
         {
             if (_calibrationStart < 0f || Time.unscaledTime < _calibrationStart)
             {
                 return;
             }
+            float elapsed = Time.unscaledTime - _calibrationStart;
             float y = HeadLocal.y;
-            if (y > 0.5f)
+            if (HeadTracked && y > 0.5f && _calibration.Count < _calibration.Capacity)
             {
-                _calibrationSum += y;
-                _calibrationSamples++;
+                _calibration.Add(y);
             }
-            if (Time.unscaledTime > _calibrationStart + 1f && _calibrationSamples > 10)
+            if (elapsed < 2f)
             {
-                float h = _calibrationSum / _calibrationSamples;
-                VRConfig.EyeHeight.Value = Mathf.Round(h * 100f) / 100f;
-                Log.Info($"Calibrated eye height: {VRConfig.EyeHeight.Value:0.00} m");
-                _calibrationStart = -1f;
-                _calibrationSum = 0f;
-                _calibrationSamples = 0;
+                return;
             }
+            if (_calibration.Count >= 30)
+            {
+                _calibration.Sort();
+                float h = _calibration[(int)(_calibration.Count * 0.75f)];
+                if (h >= 1.0f && h <= 2.1f)
+                {
+                    VRConfig.EyeHeight.Value = Mathf.Round(h * 100f) / 100f;
+                    Log.Info($"Calibrated eye height: {VRConfig.EyeHeight.Value:0.00} m");
+                }
+                else
+                {
+                    Log.Info($"Eye height {h:0.00} m does not look like standing; not saved (use Calibrate now, or Seated play).");
+                }
+                EndCalibration();
+            }
+            else if (elapsed > 6f)
+            {
+                EndCalibration(); // not enough tracked samples: try again on the next spawn
+            }
+        }
+
+        private void EndCalibration()
+        {
+            _calibrationStart = -1f;
+            _calibration.Clear();
         }
 
         /// <summary>Uses the current head height as standing (or seated) eye height.</summary>
@@ -454,6 +592,12 @@ namespace RavenfieldVR.Rig
 
         public void BeforeRender()
         {
+            UpdateHeadPose();
+            if (_neutralPending)
+            {
+                _neutralPending = false;
+                Recenter();
+            }
             FpsActorController player = GameContext.Player;
             Camera reference = PlaceOrigin(player);
 
@@ -463,10 +607,12 @@ namespace RavenfieldVR.Rig
             }
             _cockpit.BeforeRender();
 
+            UpdateHudPose(Mathf.Min(Time.unscaledDeltaTime, 0.1f));
             if (player != null && (Mode == RigMode.OnFoot || Mode == RigMode.Anchored) && player.fpCamera != null)
             {
-                // Game logic reads the head through the game camera.
-                player.fpCamera.transform.SetPositionAndRotation(Head.position, Head.rotation);
+                // Game logic reads the head through the game camera; it also projects the HUD markers, so it takes
+                // the HUD frame's (lazily following) orientation and the markers stay on their targets.
+                player.fpCamera.transform.SetPositionAndRotation(HudPose.position, HudPose.rotation);
             }
 
             if (reference != null)
@@ -592,7 +738,9 @@ namespace RavenfieldVR.Rig
             Camera.allowHDR = reference.allowHDR;
             Camera.allowMSAA = GraphicsPresets.ForceMsaa ?? reference.allowMSAA;
             Camera.renderingPath = reference.renderingPath;
-            Camera.depthTextureMode = reference.depthTextureMode | DepthTextureMode.Depth;
+            // Only what the game camera itself asks for: forcing a depth texture makes the forward renderer draw every
+            // opaque object once more per eye, which in multi-pass stereo cost more frame time than anything else here.
+            Camera.depthTextureMode = reference.depthTextureMode;
             Camera.useOcclusionCulling = reference.useOcclusionCulling;
             Camera.layerCullSpherical = reference.layerCullSpherical;
             // layerCullDistances returns a fresh array on every read: copy it when the source camera changes and

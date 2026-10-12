@@ -221,8 +221,29 @@ namespace RavenfieldVR.Launcher
             return null;
         }
 
-        /// <summary>Sets the entry in place (BepInEx keeps the rest of the file); adds it when missing.</summary>
+        /// <summary>The render scale each preset picks (the mod's GraphicsPresets profiles).</summary>
+        private static readonly Dictionary<string, string> PresetRenderScale = new Dictionary<string, string>
+        {
+            ["Low"] = "0.8", ["Medium"] = "1", ["High"] = "1.2", ["Ultra"] = "1.4"
+        };
+
+        /// <summary>
+        /// Sets the preset. A different preset also sets its render scale, as picking it in the headset does (the
+        /// mod only reacts to a change made while it runs); launching again with the same preset keeps a render
+        /// scale adjusted by hand.
+        /// </summary>
         public static void SetGraphicsPreset(string gameDir, string preset)
+        {
+            bool changed = !string.Equals(GetGraphicsPreset(gameDir), preset, StringComparison.OrdinalIgnoreCase);
+            SetEntry(gameDir, Key, preset);
+            if (changed && PresetRenderScale.TryGetValue(preset, out string scale))
+            {
+                SetEntry(gameDir, "RenderScale", scale);
+            }
+        }
+
+        /// <summary>Sets one [Rendering] entry in place (BepInEx keeps the rest of the file); adds it when missing.</summary>
+        private static void SetEntry(string gameDir, string key, string value)
         {
             string path = PathOf(gameDir);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -242,9 +263,9 @@ namespace RavenfieldVR.Launcher
                         sectionAt = i;
                     }
                 }
-                else if (sectionAt >= 0 && (line.StartsWith(Key + " ") || line.StartsWith(Key + "=")))
+                else if (sectionAt >= 0 && (line.StartsWith(key + " ") || line.StartsWith(key + "=")))
                 {
-                    lines[i] = Key + " = " + preset;
+                    lines[i] = key + " = " + value;
                     File.WriteAllLines(path, lines.ToArray(), new UTF8Encoding(false));
                     return;
                 }
@@ -255,7 +276,7 @@ namespace RavenfieldVR.Launcher
                 lines.Add(Section);
                 sectionAt = lines.Count - 1;
             }
-            lines.Insert(sectionAt + 1, Key + " = " + preset);
+            lines.Insert(sectionAt + 1, key + " = " + value);
             File.WriteAllLines(path, lines.ToArray(), new UTF8Encoding(false));
         }
     }

@@ -92,17 +92,19 @@ namespace RavenfieldVR.Core
                 RestoreTerrains();
                 return;
             }
-            QualitySettings.antiAliasing = p.Msaa;
-            QualitySettings.shadows = p.Shadows;
-            QualitySettings.shadowDistance = p.ShadowDistance;
-            QualitySettings.shadowCascades = p.Cascades;
-            QualitySettings.shadowResolution = p.ShadowResolution;
-            QualitySettings.lodBias = p.LodBias;
-            QualitySettings.pixelLightCount = p.PixelLights;
-            QualitySettings.masterTextureLimit = p.TextureLimit;
-            QualitySettings.anisotropicFiltering = p.Anisotropic;
-            QualitySettings.softParticles = p.SoftParticles;
-            QualitySettings.realtimeReflectionProbes = p.RealtimeReflections;
+            // Only what differs: this runs several times at start-up and again at every level start, and some of
+            // these setters are not free (MSAA touches the headset's eye targets, the texture limit reloads textures).
+            if (QualitySettings.antiAliasing != p.Msaa) QualitySettings.antiAliasing = p.Msaa;
+            if (QualitySettings.shadows != p.Shadows) QualitySettings.shadows = p.Shadows;
+            if (!Mathf.Approximately(QualitySettings.shadowDistance, p.ShadowDistance)) QualitySettings.shadowDistance = p.ShadowDistance;
+            if (QualitySettings.shadowCascades != p.Cascades) QualitySettings.shadowCascades = p.Cascades;
+            if (QualitySettings.shadowResolution != p.ShadowResolution) QualitySettings.shadowResolution = p.ShadowResolution;
+            if (!Mathf.Approximately(QualitySettings.lodBias, p.LodBias)) QualitySettings.lodBias = p.LodBias;
+            if (QualitySettings.pixelLightCount != p.PixelLights) QualitySettings.pixelLightCount = p.PixelLights;
+            if (QualitySettings.masterTextureLimit != p.TextureLimit) QualitySettings.masterTextureLimit = p.TextureLimit;
+            if (QualitySettings.anisotropicFiltering != p.Anisotropic) QualitySettings.anisotropicFiltering = p.Anisotropic;
+            if (QualitySettings.softParticles != p.SoftParticles) QualitySettings.softParticles = p.SoftParticles;
+            if (QualitySettings.realtimeReflectionProbes != p.RealtimeReflections) QualitySettings.realtimeReflectionProbes = p.RealtimeReflections;
             FarClipCap = p.FarClip;
             ForceMsaa = p.Msaa > 0;
             ApplyTerrains(p);
