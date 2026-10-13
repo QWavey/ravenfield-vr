@@ -227,7 +227,9 @@ namespace RavenfieldVR.Weapons
             if (Manual && _sys.Zones.InPouch(palm)
                 && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f))
             {
-                Consider(3, Vector3.Distance(palm, _sys.Zones.Pouch) / BodyZones.PouchRadius + 0.15f, ref choice, ref best);
+                // A pistol held low beside the hip puts its slide and its cupping zone within reach of the pouch: a
+                // squeeze in the pouch takes a magazine unless a part of the gun is clearly closer.
+                Consider(3, 0.05f + 0.6f * Vector3.Distance(palm, _sys.Zones.Pouch) / BodyZones.PouchRadius, ref choice, ref best);
             }
             if (GripData.HasSupportPoint || GripData.IsPistol)
             {

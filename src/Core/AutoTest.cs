@@ -687,8 +687,14 @@ namespace RavenfieldVR.Core
             Runtime.RigidPose At(Vector3 palm) => new Runtime.RigidPose(palm - raw.rotation * palmFromRaw, raw.rotation);
             try
             {
+                // Reach for the magazine where it is shown (a player grabs what they see, not the zone's middle).
                 Rig.VRHand.Scripted[side] = At(sys.Zones.Pouch);
-                yield return new WaitForSecondsRealtime(0.6f);
+                yield return new WaitForSecondsRealtime(0.3f);
+                Vector3 shown = sys.Pouch.Shown ? sys.Pouch.GrabPoint : sys.Zones.Pouch;
+                report($"pouch: the shown magazine's grab point is {Vector3.Distance(shown, sys.Zones.Pouch) * 100f:0.0} cm from the pouch point "
+                       + $"({(sys.Zones.InPouch(shown) ? "inside" : "OUTSIDE")} the grab zone), {(rig.Head.position.y - shown.y) * 100f:0} cm under the eyes");
+                Rig.VRHand.Scripted[side] = At(shown);
+                yield return new WaitForSecondsRealtime(0.4f);
                 bool tookOnTouch = off.Held != null;
                 if (off.Held is MagazineProp early)
                 {

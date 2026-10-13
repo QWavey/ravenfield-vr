@@ -1,7 +1,7 @@
 {
   "controller_type": "oculus_touch",
   "name": "Ravenfield VR default (Touch)",
-  "description": "Right hand shoots, left hand moves. B: drop magazine. A: slide / bolt release (hold: fire mode). Left stick hold: scoreboard. X: squad orders. Y: map (hold: pause, double: loadout). Menu button: pause (hold: mod keys). Left stick double-click: VR settings. Grips grab foregrips, magazines, slides and holsters.",
+  "description": "Right hand shoots, left hand moves. B: drop magazine. A: slide / bolt release (hold: fire mode). Left stick hold: scoreboard. X: squad orders. Y: map (hold: pause, double: loadout). The menu button stays SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there). Grips grab foregrips, magazines, slides and holsters.",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -28,9 +28,7 @@
         { "path": "/user/hand/left/input/x", "mode": "button",
           "inputs": { "click": { "output": "/actions/main/in/Squad" } } },
         { "path": "/user/hand/left/input/y", "mode": "complex_button",
-          "inputs": { "single": { "output": "/actions/main/in/Map" }, "long": { "output": "/actions/main/in/Pause" }, "double": { "output": "/actions/main/in/Loadout" } } },
-        { "path": "/user/hand/left/input/system", "mode": "complex_button",
-          "inputs": { "single": { "output": "/actions/main/in/Pause" }, "long": { "output": "/actions/main/in/ModKeys" } } }
+          "inputs": { "single": { "output": "/actions/main/in/Map" }, "long": { "output": "/actions/main/in/Pause" }, "double": { "output": "/actions/main/in/Loadout" } } }
       ],
       "poses": [
         { "output": "/actions/main/in/Pose", "path": "/user/hand/left/pose/raw" },

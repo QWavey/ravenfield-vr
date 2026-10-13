@@ -7,11 +7,14 @@ namespace RavenfieldVR.Weapons
     /// <summary>
     /// The ammo pouch made visible: a copy of what the held weapon feeds from (its own magazine model, a shell, a
     /// rocket) sits at the pouch on your body with the number of spares next to it, and lifts a little when your
-    /// free hand is close enough to take one.
+    /// free hand is close enough to take one. Whatever the magazine, its top (the end you grab) stands at the same
+    /// spot just above the pouch point, where the grab is answered; longer magazines reach further down.
     /// </summary>
     internal sealed class PouchDisplay
     {
         private const float MaxSize = 0.26f;
+        /// <summary>How far above the pouch point the top of the shown magazine stands.</summary>
+        private const float TopAbovePouch = 0.025f;
 
         private readonly WeaponSystem _sys;
         private GameObject _root;
@@ -63,7 +66,11 @@ namespace RavenfieldVR.Weapons
             Transform t = _model.transform;
             t.localScale = Vector3.one * scale;
             t.rotation = rot;
-            t.position = zones.Pouch + lift - rot * (_bounds.center * scale);
+            float along = Mathf.Abs(Vector3.Dot(_bounds.extents, Abs(_insertLocal.normalized)));
+            Vector3 topLocal = _bounds.center + _insertLocal.normalized * along;
+            Vector3 top = zones.Pouch + lift + Vector3.up * TopAbovePouch;
+            t.position = top - rot * (topLocal * scale);
+            GrabPoint = top - Vector3.up * Mathf.Min(0.03f, along * scale);
 
             int spare = ammo.InfiniteSpare ? -1 : ammo.SpareAmmo;
             if (spare != _shownSpare || ammo.Capacity != _shownCapacity)
@@ -82,6 +89,11 @@ namespace RavenfieldVR.Weapons
         }
 
         private int _shownSpare = int.MinValue, _shownCapacity = -1;
+
+        /// <summary>Where a hand takes the shown magazine: just under its top (world, last frame drawn).</summary>
+        internal Vector3 GrabPoint { get; private set; }
+
+        internal bool Shown => _root != null && _root.activeSelf;
 
         private static string PouchText(int spare, int capacity, PropKind kind)
         {

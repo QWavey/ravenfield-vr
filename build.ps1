@@ -107,6 +107,10 @@ $cscArgs += $references | ForEach-Object { "-r:$_" }
 Get-ChildItem (Join-Path $Root 'src/Input/SteamVR') -Filter *.json | ForEach-Object {
     $cscArgs += "-resource:$($_.FullName),RavenfieldVR.Input.$($_.Name)"
 }
+# The glove model and its textures (tools/hands/convert_glove.py makes them from assets/hands/steamvr-glove).
+Get-ChildItem (Join-Path $Root 'src/Rig/Glove') -File | Where-Object { $_.Extension -in '.bin', '.jpg', '.png' } | ForEach-Object {
+    $cscArgs += "-resource:$($_.FullName),RavenfieldVR.Rig.Glove.$($_.Name)"
+}
 $cscArgs += $sources
 Invoke-Csc $cscArgs
 Write-Step "Built $(Join-Path $Build 'RavenfieldVR.dll')"

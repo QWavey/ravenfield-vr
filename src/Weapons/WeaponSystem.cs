@@ -23,6 +23,9 @@ namespace RavenfieldVR.Weapons
         private readonly MeleeHandler _melee;
         public readonly WeaponDrops Drops;
         private readonly PouchDisplay _pouch;
+
+        /// <summary>Self-test: the pouch as shown (where its magazine stands).</summary>
+        internal PouchDisplay Pouch => _pouch;
         private readonly HolsterDisplay _holsters;
         private readonly MagReadout _readout;
         private readonly Dictionary<Weapon, AmmoState> _ammo = new Dictionary<Weapon, AmmoState>();

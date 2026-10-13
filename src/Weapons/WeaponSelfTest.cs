@@ -484,6 +484,22 @@ namespace RavenfieldVR.Weapons
             {
                 VRManager.Instance.StartCoroutine(WeaponSelfTest.Run());
             }
+            if (Rig.HandPreview.CloseupsRequested && VRManager.Instance != null)
+            {
+                VRManager.Instance.StartCoroutine(HandShots());
+            }
+        }
+
+        /// <summary>-rfvr-handshots: the glove pictures, then quit (a quick look at the hand model without a test run).</summary>
+        private static System.Collections.IEnumerator HandShots()
+        {
+            yield return null;
+            string dir = BepInEx.Paths.BepInExRootPath;
+            string error = Rig.HandPreview.Capture(System.IO.Path.Combine(dir, "RavenfieldVR-hands.png"))
+                           ?? Rig.HandPreview.CaptureCloseups(System.IO.Path.Combine(dir, "RavenfieldVR-hand-closeups.png"));
+            Log.Info(error == null ? "Hand pictures written." : "Hand pictures failed: " + error);
+            yield return null;
+            Application.Quit();
         }
     }
 }

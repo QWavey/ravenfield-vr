@@ -46,7 +46,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 | A | Slide or bolt release; pulls a grenade's pin. Hold: fire mode (semi/auto, or the weapon's own mode switch) | Countermeasures. Hold: auto-hover (helicopter) |
 | X | Squad order (hold and point, release to send) | |
 | Y | Squad map. Hold: pause menu. Double: loadout | |
-| Menu (≡) | Pause menu. Hold: Mod keys | |
+| Menu (≡) | SteamVR's own dashboard (the match pauses behind it); not bound by the mod | |
 
 Change anything in SteamVR: **Settings → Controllers → Manage controller bindings → Ravenfield**, or the "SteamVR bindings" button on the settings panel. Left-handed players: set "Weapon hand: Left" and restart; the default bindings mirror automatically.
 
@@ -91,7 +91,7 @@ Prefer the game's normal reloads? Set "Reloading: Assisted" and B plays the stan
 
 ## Mod keys and fire modes
 
-Many workshop weapons and mutators come with scripts that listen for keyboard keys: X for a fire-mode switch, H for a flashlight, J for a laser, I to inspect, T for a bipod or HUD toggle. Hold the Menu button (≡) for **Mod keys**: a panel listing every key the held weapon's scripts and the running mutators listen for, labelled with what it does. Point and press. The press goes only to that script.
+Many workshop weapons and mutators come with scripts that listen for keyboard keys: X for a fire-mode switch, H for a flashlight, J for a laser, I to inspect, T for a bipod or HUD toggle. Open **Mod keys** from the settings panel (double-click the left stick, "Mod keys" at the bottom): a panel listing every key the held weapon's scripts and the running mutators listen for, labelled with what it does. Point and press. The press goes only to that script.
 
 Holding A on a weapon with its own fire-mode script presses that script's key (it switches with its own animation and sound). Weapons whose mod built the modes as sub-weapons cycle those. Other automatic weapons switch between semi and auto; semi-only weapons (most pistols, shotguns, rifles and DMRs) stay semi.
 

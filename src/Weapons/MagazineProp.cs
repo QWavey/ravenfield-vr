@@ -149,6 +149,10 @@ namespace RavenfieldVR.Weapons
             {
                 go = CopyVisuals(rig);
                 fitKey = go != null ? "mag:" + d.Key : null;
+                if (go != null)
+                {
+                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                }
             }
             if (go == null)
             {
@@ -176,6 +180,10 @@ namespace RavenfieldVR.Weapons
             if (kind == PropKind.Magazine && rig.Magazine != null)
             {
                 go = CopyVisuals(rig);
+                if (go != null)
+                {
+                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                }
             }
             if (go == null)
             {
@@ -192,6 +200,53 @@ namespace RavenfieldVR.Weapons
         }
 
         internal static int DisplayLayer => HeldLayer;
+
+        /// <summary>
+        /// The bounds of what a copy actually shows, in its root's space. The analysis measures the magazine part alone at
+        /// its idle pose; the copy also carries the pieces that travel with it (rounds, a follower) and skinned triangles
+        /// baked from the gun's mesh, and a magazine held or displayed by the analysis box sat off its real middle (pistol
+        /// magazines hung low in the pouch and in the hand). A copy measuring far from the analysis keeps the analysis.
+        /// </summary>
+        private static Bounds RenderedBounds(GameObject root, Bounds analysed, string key)
+        {
+            Matrix4x4 toRoot = root.transform.worldToLocalMatrix;
+            bool any = false;
+            var b = new Bounds();
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null)
+                {
+                    continue;
+                }
+                Bounds mb = mf.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    Vector3 p = m.MultiplyPoint3x4(corner);
+                    if (!any)
+                    {
+                        b = new Bounds(p, Vector3.zero);
+                        any = true;
+                    }
+                    else
+                    {
+                        b.Encapsulate(p);
+                    }
+                }
+            }
+            float size = b.size.magnitude, expected = analysed.size.magnitude;
+            if (!any || size < 0.02f || size > 1.5f || expected > 0.02f && (size > expected * 3f || size < expected / 3f))
+            {
+                Log.InfoOnce("magbounds:" + key, $"Magazine copy of {key} measures {size * 100f:0.0} cm against {expected * 100f:0.0} cm analysed; the analysed size is used.");
+                return analysed;
+            }
+            if ((b.center - analysed.center).magnitude > 0.01f || Mathf.Abs(size - expected) > 0.01f)
+            {
+                Log.InfoOnce("magbounds:" + key, $"Magazine copy of {key}: shown bounds centre {b.center * 100f} cm, size {size * 100f:0.0} cm (analysed {analysed.center * 100f} cm, {expected * 100f:0.0} cm).");
+            }
+            return b;
+        }
 
         /// <summary>
         /// Copies the magazine's look: its own meshes, the pieces that travel with it, and for skinned guns the

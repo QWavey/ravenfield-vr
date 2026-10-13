@@ -97,6 +97,22 @@
 95. [x] Reloading the akimbo pistols with lasers dropped the pistols (the second pistol was taken for the magazine)
 96. [x] Grips on slides, bolts, charging handles and pumps close on the part being worked
 97. [x] Equipping a weapon showed the flat game's arms holding it for a split second
+98. [ ] Mag kick (knocking the seated magazine out with a fresh one) sometimes does not work
+99. [ ] RPGs show something black under them
+100. [ ] The wrench is held too close to the face (it stands up into the line of sight)
+101. [ ] Cyan-blue picture for 2-3 seconds when loading into a map
+102. [ ] Map loading screens are far away from the player
+103. [ ] Main menu: something flickers / the map turns and the menu lags while picking a map or changing settings
+104. [ ] The Steam (menu) button also opened Ravenfield's pause menu
+105. [ ] Bolts do not move back on many weapons, and the hand has to reach inside the gun to work them
+106. [ ] Pouch: some pistol magazines cannot be taken; the magazine shows too low and drifts; every magazine in the same place
+107. [ ] A better hand: the procedural glove's fingers stuck out of the palm (now Valve's SteamVR tactical glove)
+108. [ ] Working a slide, bolt or pump nudges the gun a little (it reacts to the pull and the snap home)
+109. [ ] Weapon features Boneworks has that we do not: check and implement
+110. [ ] A realistic mud splash on the view when a grenade or explosion goes off close by (Call of Duty style)
+111. [ ] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
+112. [ ] /bug-hunt 20 (after 98-111)
+113. [ ] /improve 20 (after the bug hunt); make everything smooth
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -292,3 +308,35 @@ For 95. The P220 akimbo weapons' analysis took the part "P220 DUAL" (the second 
 For 96. While racking a slide, pulling a bolt or charging handle or working a pump, the hand closes on the part it holds: the part is measured on its own (rendered as depth) the first time it is taken and the solid moves with it; palm and fingers settle on it as on a grip. Done when: the rack-grip check (hand put on the rack point by script, taken the real way) reports few points inside the part at rest and pulled half way, and the pictures show the hand on it.
 
 For 97. A weapon drawn after the mod's Update in a frame (the game switches weapons in its own Update or LateUpdate) was drawn once where the flat game holds it, in its own arms, before the mod took it over. The take-over is checked again right before rendering. Done when: the autotest counts no frame drawn with a new weapon not yet in the VR hand and none with the weapon's own arms showing.
+
+For 98. From the Quest session of 2026-10-13: driving a fresh magazine into the seated one's base sometimes does nothing. The log of that session shows kicks working (e.g. M4A1 at 0.26 m/s) and attempts held back by the angle (61-126 deg) and lateral offset (9-10 cm) limits. Make it forgiving: any magazine of the gun (empty ones too) kicks, a slow firm push past the base knocks it out as well as a fast strike, the window scales with the magazine's size, and the angle limit is wider. Done when: the H3VR kick check passes at slow and fast speeds and with the magazine tilted 45 deg, and a fresh magazine passing beside the gun (not at the base) kicks nothing.
+
+For 99. The RPG-7 (and RPG-7V) analysis takes the part "RPG-7_Reload_Cube" (80 cm, 0% outside the gun) for the rocket: probably a hidden helper box of the mod's reload animation that the mod's magazine overrides make visible. Check the SMAW ("Smaw Rocket Container", 88% outside), Javelin ("Javelin Scope" taken as magazine, 240 cm), Carl Gustav and Panzerfaust too. Done when: pictures of every launcher in the VR autotest show no black box, and a helper part that is never visible in the idle pose is not shown by the mod.
+
+For 100. The wrench (and other melee weapons held by a handle) stands straight up out of the fist, into the view. Hold melee tools along the fist's real axis (the controller handle tilts forward about 40-50 deg from the pointing direction), so the head points forward and up, away from the face. Done when: the wrench picture from the VR autotest shows its head forward of the hand, below eye height, and the melee hit test still sweeps the real blade.
+
+For 101. Some 2-3 seconds of cyan-blue picture while a map loads. Find out what draws it (the rig following a camera that clears to a solid colour, the minimap camera, or SteamVR showing its own frame while the game stalls) with pictures taken through the load in the VR autotest, then show something calm instead (black or the loading screen). Done when: pictures every half second from the loading screen to the first gameplay frame show no cyan-blue frame.
+
+For 102. The loading screen (its 3D decoration and the "LOADING ..." canvas) is drawn far away. Show it at a comfortable distance in front of the player (about 2-3 m, a fixed size, like a screen in a dark room). Done when: the load pictures show the loading screen filling a comfortable part of the view.
+
+For 103. In the main menu something flickers or turns (the menu background camera moving the rig, or the weapon warm-up's measuring) and the menu lags while picking a map or changing settings. Find it with menu pictures and frame times (-rfvr-perf) in the menu, and keep the menu's world still and its frame rate steady. Done when: menu pictures over 10 seconds show no moving background and the menu holds the headset's frame rate during warm-up.
+
+For 104. On the Quest the left menu button is SteamVR's dashboard button; the mod also bound it to Ravenfield's pause menu (and opened the pause menu when the dashboard opened), so one press opened both. Implemented 2026-10-13: the button is no longer bound (pause stays on holding Y; mod keys are on the settings panel), and the dashboard pauses the match without the game's menu, resuming when it closes. Done when: on the Quest, pressing the menu button opens only the SteamVR dashboard and closing it resumes the match.
+
+For 105. Many rifles' moving part is the bolt carrier inside the receiver (found by its motion when firing), so the rack point sits inside the gun: the hand has to reach into the receiver, the inside moves and the bolt handle you see stays put. 72 weapons have no moving part at all (a virtual handle). Grab the handle where it is (the part's visible surface outside the receiver, or the point the mod's own reload hand takes), and move the visible handle with the pull. Done when: the rack-grip pictures for rifles, pistols and pumps show the hand on the outside handle or slide, and it moves back with the hand.
+
+For 106. The pouch magazine was placed by the analysis box of the magazine, which on some (pistol) magazines is not where the copied model is: it showed low and away from where the grab answers. Implemented 2026-10-13 (to verify): the copy's own rendered bounds place it, its top always stands just above the pouch point (any magazine), the pouch hangs from the neck pivot (looking down no longer moves it) at belt height, and a squeeze at the pouch beats a nearby pistol's slide or cupping zone. Done when: the autotest reaches for the shown magazine and takes one with a pistol and a rifle, and the shown magazine is inside the grab zone.
+
+For 107. The user found the procedural glove bad (fingers stuck out of the palm like sausages) and asked for a downloaded model. Sketchfab needs a login, so free models without one were compared; Valve's SteamVR glove (BSD-3, steamvr_unity_plugin) was taken: a textured tactical glove rigged to SteamVR's hand skeleton. tools/hands/convert_glove.py converts it (re-skinned onto the mod's palm + 5x3 joints), each joint curls the way Valve's open-hand-to-fist poses move it, contact is tested at the finger pads (the glove is padded: pads reach 9-17 mm from the bones) and on the glove's real palm surface. The old glove is backed up (tag procedural-glove-backup, backup/procedural-glove) and selectable with Glove = Simple. Done when: grip close-ups show the glove wrapping pistol grips, rifle grips, handguards, magazines and bolts without clipping, at a size that suits the guns (see the notes below).
+
+For 108. In Boneworks the gun moves a little when you rack it: pulling the slide tugs the gun toward the pull, letting it snap home jolts it. Add small impulses to the held gun's recoil spring from the worked part's pull speed and its snap home, a magazine seating and a magazine pulled out. Done when: the rack check measures the gun moving a few millimetres with the pull and a jolt when the slide returns.
+
+For 109. Compare with Boneworks' gun handling (chamber check, ejected casings that stay, weight and inertia, stock against the shoulder, re-grabbing anywhere on the gun, magazine count by looking, etc.), list what is missing and implement the most valuable parts.
+
+For 110. A grenade or explosion close to the player throws mud on the view: dark brown splats and droplets head-locked in front of the eyes that slide down and fade over 2-4 seconds, more and bigger the closer and larger the blast, from the side it came from, none through walls; water splashes for blasts in water. Done when: an autotest explosion next to the player shows splats in the pictures and they are gone 4 seconds later.
+
+For 111. Boneworks poses each hand for what it holds (grip-specific hand poses). Count the poses it has (per object type and grip) and make sure the mod has at least as many distinct, good-looking poses (pistol grip, rifle grip, handguard, pump, bolt, charging handle, magazine, magazine pinch, grenade, pin, knife, two-handed melee, launcher, ladder, steering wheel, flight stick, pointing, relaxed, fist).
+
+For 112. Bug hunt, 20 rounds, a different area each round, after 98-111.
+
+For 113. Improve, 20 measured rounds, after the bug hunt.

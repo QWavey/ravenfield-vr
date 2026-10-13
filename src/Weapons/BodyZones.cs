@@ -19,7 +19,7 @@ namespace RavenfieldVR.Weapons
         private float _torsoYaw;
         private bool _hasYaw;
 
-        public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide;
+        public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide, Belt;
         public Vector3 TorsoForward, TorsoRight;
 
         public const float HolsterRadius = 0.2f;
@@ -78,9 +78,14 @@ namespace RavenfieldVR.Weapons
                 height *= 1.35f; // seated calibration is lower than standing anatomy
             }
 
-            Vector3 neck = head.position - Vector3.up * 0.12f - TorsoForward * 0.08f;
+            // The neck pivot the head turns about (about 9 cm under and 8 cm behind the eyes): looking down at the pouch
+            // or a holster swings the eyes forward and down, but not the body the spots hang from.
+            Vector3 pivot = head.position + head.rotation * new Vector3(0f, -0.09f, -0.08f);
+            Vector3 neck = pivot - Vector3.up * 0.03f;
             Chest = neck - Vector3.up * 0.22f + TorsoForward * 0.12f;
-            Vector3 waist = head.position - Vector3.up * (0.44f * height) + TorsoForward * 0.06f;
+            Vector3 waist = neck - Vector3.up * (0.44f * height - 0.12f) + TorsoForward * 0.14f;
+            // The belt line, where the pouch rides: about 62% of the eye height above the floor, just in front of the body.
+            Vector3 belt = neck - Vector3.up * (0.38f * height - 0.12f) + TorsoForward * 0.14f;
             DomHip = waist + TorsoRight * (0.18f * side);
             OffHip = waist - TorsoRight * (0.18f * side);
             BackShoulder = neck + Vector3.up * 0.05f - TorsoForward * 0.12f + TorsoRight * (0.17f * side);
@@ -88,14 +93,15 @@ namespace RavenfieldVR.Weapons
             OffChest = Chest - TorsoRight * (0.13f * side);
             DomChest = Chest + TorsoRight * (0.13f * side) - Vector3.up * 0.08f;
             HeadSide = head.position - head.right * (0.11f * side) + head.up * 0.02f;
+            Belt = belt;
 
             switch (VRConfig.Pouch.Value)
             {
                 // Each a hand's width from the nearest holster spot, so the holstered weapon and the pouch never overlap.
-                case PouchLocation.DominantHip: Pouch = waist + TorsoRight * (0.09f * side) + TorsoForward * 0.13f; break;
+                case PouchLocation.DominantHip: Pouch = belt + TorsoRight * (0.1f * side); break;
                 case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
                 case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
-                default: Pouch = waist - TorsoRight * (0.09f * side) + TorsoForward * 0.13f; break; // front of the belt, off-hand side
+                default: Pouch = belt - TorsoRight * (0.1f * side); break; // front of the belt, off-hand side
             }
         }
 

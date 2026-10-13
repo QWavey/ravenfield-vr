@@ -23,6 +23,7 @@ namespace RavenfieldVR.Core
     /// config manager apply immediately.
     /// </summary>
     public enum HandsMode { VRHands, WeaponArms }
+    public enum GloveStyle { Tactical, Simple }
 
     public static class VRConfig
     {
@@ -80,6 +81,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> WeaponWeight;
         public static ConfigEntry<bool> SkipDrawAnimation;
         public static ConfigEntry<HandsMode> Hands;
+        public static ConfigEntry<GloveStyle> Glove;
         public static ConfigEntry<bool> TwoHandedAiming;
         public static ConfigEntry<bool> VRScopes;
         public static ConfigEntry<int> ScopeResolution;
@@ -209,6 +211,9 @@ namespace RavenfieldVR.Core
             Hands = cfg.Bind("Weapons", "Hands", HandsMode.VRHands,
                 "VRHands: the mod's own hands (fingers posed like each weapon's rig). WeaponArms: the weapon's own first-person arms, " +
                 "gloves and sleeves, moved by IK to your controllers.");
+            Glove = cfg.Bind("Weapons", "Glove", GloveStyle.Tactical,
+                "Tactical: a textured tactical glove (Valve's SteamVR glove) whose fingers move like SteamVR's own hand poses. " +
+                "Simple: the mod's earlier plain glove. Applies when the game starts.");
             SkipDrawAnimation = cfg.Bind("Weapons", "SkipDrawAnimation", true,
                 "Skip the weapon's draw animation in VR (you draw it with your hand); the game's draw delay before firing stays.");
             WeaponWeight = cfg.Bind("Weapons", "WeaponWeight", true,
