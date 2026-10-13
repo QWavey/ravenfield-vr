@@ -292,8 +292,8 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
-            SetVisible(!Suppressed);
-            if (Suppressed)
+            SetVisible(!Suppressed && !HiddenByHeld);
+            if (Suppressed || HiddenByHeld)
             {
                 return;
             }
@@ -380,7 +380,7 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>Holding a measured weapon by its grip or handguard: palm and fingers close on its model.</summary>
-        private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable);
+        private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable || _hand.Role == HandRole.Magazine);
 
         private static float MaxAngle(int f, int s) => f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
 
@@ -605,6 +605,8 @@ namespace RavenfieldVR.Rig
         private float _snapBlend;
         /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
         public bool Suppressed;
+        /// <summary>What the hand holds is carried without a visible hand (an ammo or medic bag).</summary>
+        public bool HiddenByHeld;
         public float[] WeaponSupportCurls;
 
         /// <summary>

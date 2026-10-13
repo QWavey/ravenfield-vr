@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
@@ -103,6 +104,7 @@ namespace RavenfieldVR.Weapons
                 _armIK = new ArmIK(system, this);
             }
             _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
+            _isKit = IsKit(weapon);
             _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
             ActionType action = rig.Data.Action;
             if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed))
@@ -321,7 +323,14 @@ namespace RavenfieldVR.Weapons
             _recoilRot += _recoilRotVel * dt;
             _recoilPos = Vector3.ClampMagnitude(_recoilPos, 0.12f);
             _recoilRot = Vector2.ClampMagnitude(_recoilRot, 25f);
+            PeakKick = Mathf.Max(PeakKick, Mathf.Abs(_recoilRot.x));
+            PeakBack = Mathf.Max(PeakBack, -_recoilPos.z);
         }
+
+        /// <summary>Self-test: the largest muzzle climb (degrees) and push back (metres) since <see cref="ResetKick"/>.</summary>
+        internal float PeakKick { get; private set; }
+        internal float PeakBack { get; private set; }
+        internal void ResetKick() => PeakKick = PeakBack = 0f;
 
         // ---------------------------------------------------------------------------------------------
 
@@ -478,8 +487,68 @@ namespace RavenfieldVR.Weapons
                 _gunCollider.UseShape(_volume.HullPieces, _volume);
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
-            return _solid ?? (_solid = _volume.Solid);
+            UpdateSeatedMagSolid();
+            return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
         }
+
+        private GunVolume _magVolume;
+        private bool _magVolumeTried, _magSolidShown;
+        private Transform _magFrame;
+
+        /// <summary>
+        /// The seated magazine is measured on its own (it is a prop of its own once out, so it is not part of the gun's
+        /// solid): while it is in the gun and shown, the hands close on it too (a magazine-held gun, a hand on the well).
+        /// </summary>
+        private void UpdateSeatedMagSolid()
+        {
+            _magSolidShown = false;
+            if (_magFrame == null)
+            {
+                foreach (Transform part in Rig.MagazineParts)
+                {
+                    if (part != null)
+                    {
+                        _magFrame = part;
+                        break;
+                    }
+                }
+                if (_magFrame == null)
+                {
+                    return;
+                }
+            }
+            if (_magHidden || !_magFrame.gameObject.activeInHierarchy)
+            {
+                return;
+            }
+            if (_magVolume == null && !_magVolumeTried)
+            {
+                _magVolumeTried = true;
+                var renderers = new List<Renderer>();
+                foreach (Transform part in Rig.MagazineParts)
+                {
+                    if (part != null)
+                    {
+                        foreach (Renderer r in part.GetComponentsInChildren<Renderer>(false))
+                        {
+                            if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                            {
+                                renderers.Add(r);
+                            }
+                        }
+                    }
+                }
+                _magVolume = GunVolume.Measure("seated:" + Rig.Data.Key, renderers, _magFrame);
+            }
+            if (_magVolume != null && _magVolume.Ready)
+            {
+                _magVolume.SetPose(_magFrame.position, _magFrame.rotation);
+                _magSolidShown = true;
+            }
+        }
+
+        /// <summary>Self-test: inside the gun or its seated magazine (not grown).</summary>
+        private bool InsideModel(Vector3 p) => _volume.InsideModel(p) || _magSolidShown && _magVolume.InsideModel(p);
 
         /// <summary>Self-test: the measured solid (null until measured).</summary>
         internal GunVolume Volume => _volume;
@@ -491,20 +560,55 @@ namespace RavenfieldVR.Weapons
             {
                 return "not measured";
             }
-            hand.Model.Measure(_volume.InsideModel, _volume.Solid, out int buried, out int samples, out int touching);
+            hand.Model.Measure(InsideModel, _solid ?? _volume.Solid, out int buried, out int samples, out int touching);
             return $"{buried}/{samples} points inside the gun, {touching}/4 fingers on it";
+        }
+
+        /// <summary>
+        /// A kit carried like a bag (it throws an ammo box or medipack): no glove is shown on it; the bag hangs from the
+        /// hand the way the game shows it.
+        /// </summary>
+        private readonly bool _isKit;
+
+        private static bool IsKit(Weapon weapon)
+        {
+            GameObject projectile = weapon.configuration != null ? weapon.configuration.projectilePrefab : null;
+            if (projectile != null && (projectile.GetComponentInChildren<Ammobox>(true) != null || projectile.GetComponentInChildren<Medipack>(true) != null
+                                       || projectile.GetComponentInChildren<ResupplyCrate>(true) != null))
+            {
+                return true;
+            }
+            return System.Text.RegularExpressions.Regex.IsMatch(weapon.name, @"\b(bag|kit|medkit|medic|ammo ?box|first ?aid)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
         private void SnapHands(VRHand main, VRHand off)
         {
+            if (main.Model != null)
+            {
+                main.Model.HiddenByHeld = _isKit;
+            }
             System.Func<Vector3, bool> solid = HandSolid();
             if (main.Model != null)
             {
-                main.Model.Solid = main.Role == HandRole.Weapon || main.Role == HandRole.Throwable ? solid : null;
+                if (main.Role == HandRole.Weapon || main.Role == HandRole.Throwable)
+                {
+                    main.Model.Solid = solid;
+                }
+                else if (main.Model.Solid == _solid)
+                {
+                    main.Model.Solid = null; // only what this weapon set: a magazine in that hand keeps its own
+                }
             }
             if (off.Model != null)
             {
-                off.Model.Solid = off.Role == HandRole.Foregrip ? solid : null;
+                if (off.Role == HandRole.Foregrip)
+                {
+                    off.Model.Solid = solid;
+                }
+                else if (off.Model.Solid == _solid)
+                {
+                    off.Model.Solid = null;
+                }
             }
             if (main.Model != null)
             {
@@ -778,6 +882,7 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Dominant.Model.WeaponIsPistol = false;
                 _system.Rig.Dominant.Model.SnapPose = null;
                 _system.Rig.Dominant.Model.Solid = null;
+                _system.Rig.Dominant.Model.HiddenByHeld = false;
             }
             if (_system.Rig.Off.Model != null)
             {

@@ -104,6 +104,9 @@ namespace RavenfieldVR.Weapons
             return model;
         }
 
+        /// <summary>The weapon dropped last (self-test).</summary>
+        internal DroppedWeapon Newest => _drops.Count > 0 ? _drops[_drops.Count - 1] : null;
+
         public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare)
         {
             GameObject model = ModelFor(entry);

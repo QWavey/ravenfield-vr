@@ -1482,6 +1482,159 @@ namespace RavenfieldVR.Weapons
             report($"tactical reload: {(palmable ? "fresh magazine at the well" : "fresh magazine away from the well (simulated hand)")}, old magazine {(kept ? "kept in the hand" : "NOT KEPT")}, rounds {(Ammo.InfiniteSpare || after == before ? "add up" : $"DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, spare {Ammo.SpareAmmo}, in hand {inHand}; weapon ammo {Ammo.Weapon.ammo})")}");
         }
 
+        private int TotalRounds(int inHand) => Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
+
+        /// <summary>
+        /// Autotest: moves the simulated off hand so the magazine it holds stands lined up below the well, its tip
+        /// <paramref name="below"/> under the seated magazine's base (sideways by <paramref name="aside"/>), moving at
+        /// <paramref name="speed"/> into the well.
+        /// </summary>
+        private void PlaceFreshMag(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float below, float aside, float speed)
+        {
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(fresh.InsertDirLocal);
+            Vector3 side = seat.TransformDirection(Vector3.Cross(fresh.InsertDirLocal, fresh.FrontLocal).normalized);
+            float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
+            var hold = new RigidPose(seat.position - insert * (length + below) + side * aside, seat.rotation);
+            VRHand.Scripted[(int)off.Side] = hold.Multiply(holdInRaw.Inverse());
+            VRHand.ScriptedVelocity[(int)off.Side] = insert * speed;
+        }
+
+        /// <summary>
+        /// Autotest: the two H3VR reloads through the real hand path, the simulated off hand moved by script. Mag kick: a
+        /// fresh magazine driven up into the seated one knocks it out and slides in after it. Tactical: the fresh
+        /// magazine waits under the well while the gun hand presses the release; the old one lands in the same hand,
+        /// the fresh one goes in.
+        /// </summary>
+        internal IEnumerator H3vrReloadSelfCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            VRHand dom = _sys.Rig.Dominant;
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free)
+            {
+                report("h3vr reloads: skipped (no detachable magazine or the hand is busy)");
+                yield break;
+            }
+            VRInput.SimulatedGrab[(int)off.Side] = true;
+            try
+            {
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    bool kick = pass == 0;
+                    if (kick && !Data.MagKickable)
+                    {
+                        report("mag kick: this magazine sits too deep in the gun to be knocked out (not kickable)");
+                        continue;
+                    }
+                    if (!Ammo.MagInserted)
+                    {
+                        TakeFromPouch(off);
+                        if (off.Held is MagazineProp seatFirst && AcceptsNow(seatFirst))
+                        {
+                            SeatProp(off, seatFirst);
+                        }
+                    }
+                    int oldRounds = Ammo.MagRounds;
+                    int before = TotalRounds(0);
+                    TakeFromPouch(off);
+                    if (!(off.Held is MagazineProp fresh))
+                    {
+                        report((kick ? "mag kick" : "tactical reload (h3vr)") + ": NO FRESH MAGAZINE from the pouch");
+                        continue;
+                    }
+                    int freshRounds = fresh.Rounds;
+                    yield return null;
+                    RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
+                    MagazineProp old = null;
+                    bool knocked = false, palmed = false;
+                    if (kick)
+                    {
+                        // From 8 cm below, up into the old magazine at 0.9 m/s.
+                        const float Speed = 0.9f;
+                        for (float below = 0.08f; below > -0.02f; below -= Speed * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
+                        {
+                            PlaceFreshMag(off, fresh, holdInRaw, below, 0f, Speed);
+                            yield return null;
+                            if (!Ammo.MagInserted)
+                            {
+                                knocked = true;
+                                break;
+                            }
+                        }
+                        yield return new WaitForEndOfFrame();
+                        shot("mag-kick");
+                    }
+                    else
+                    {
+                        // Lined up 5 cm under the well, a little aside so it does not strike the old one; the gun hand
+                        // presses the release.
+                        PlaceFreshMag(off, fresh, holdInRaw, 0.05f, 0.03f, 0f);
+                        yield return null;
+                        yield return null;
+                        VRInput.SimulatePress(DigitalAction.MagRelease, dom.Side);
+                        yield return null;
+                        yield return null;
+                        old = _palmed;
+                        palmed = old != null && ReferenceEquals(old.HeldBy, off);
+                        knocked = !Ammo.MagInserted;
+                        yield return new WaitForEndOfFrame();
+                        shot("h3vr-tactical-two-magazines");
+                    }
+                    // Then up the well until it seats.
+                    float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
+                    float start = kick ? -0.02f : 0.04f;
+                    for (float below = start; below > -length - 0.03f && fresh.Go != null && ReferenceEquals(off.Held, fresh); below -= 0.6f * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
+                    {
+                        PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.6f);
+                        yield return null;
+                    }
+                    VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                    yield return null;
+                    bool seated = Ammo.MagInserted && Ammo.MagRounds == freshRounds;
+                    int inHand = off.Held is MagazineProp h ? h.Rounds : 0;
+                    int dropped = 0;
+                    if (kick)
+                    {
+                        foreach (MagazineProp m in MagazineProp.All)
+                        {
+                            if (m.IsDropped && m.WeaponKey == Data.Key && m.Rounds == oldRounds)
+                            {
+                                dropped = m.Rounds;
+                                break;
+                            }
+                        }
+                    }
+                    int after = TotalRounds(inHand) + dropped;
+                    yield return new WaitForEndOfFrame();
+                    shot(kick ? "mag-kick-seated" : "h3vr-tactical-seated");
+                    string sum = Ammo.InfiniteSpare || after == before ? "rounds add up" : $"ROUNDS DO NOT ADD UP ({before} -> {after})";
+                    if (kick)
+                    {
+                        report($"mag kick: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, {sum}");
+                    }
+                    else
+                    {
+                        report($"tactical reload (h3vr): old magazine {(palmed ? $"in the same hand as the fresh one ({oldRounds} rounds)" : knocked ? "released but NOT IN THE HAND" : "NOT RELEASED")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, then {(inHand > 0 ? $"the old one held ({inHand} rounds)" : "nothing in the hand")}, {sum}");
+                    }
+                    // Clean up: whatever is left in the hand back into the pouch.
+                    if (off.Held is MagazineProp leftover)
+                    {
+                        Ammo.ReturnSpare(leftover.Rounds);
+                        leftover.Rounds = 0;
+                        leftover.Destroy();
+                    }
+                    VRHand.Scripted[(int)off.Side] = null;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                VRHand.Scripted[(int)off.Side] = null;
+                VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                VRInput.SimulatedGrab[(int)off.Side] = false;
+            }
+        }
+
         /// <summary>
         /// Autotest: the off hand takes the handguard (as a grab there would) for a picture of both hands on the gun, then
         /// lets go. Reports whether the glove took the weapon's own support pose.

@@ -505,8 +505,109 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(p.position + towardFingers * spacing - insert * 0.025f, p.rotation);
         }
 
+        private GunVolume _volume;
+        private bool _volumeTried;
+        private int _posedFrame = -1;
+        private static readonly System.Func<Vector3, bool>[] HandSolids = new System.Func<Vector3, bool>[2];
+
+        /// <summary>
+        /// The fingers of the hand holding magazines close on them: the solid of every magazine that hand holds (the one
+        /// in the fist and a palmed second one), each measured once per magazine type from its own model.
+        /// </summary>
+        private void ShapeHand()
+        {
+            VRHand hand = HeldBy;
+            if (hand == null || hand.Model == null || Kind != PropKind.Magazine)
+            {
+                return;
+            }
+            if (_volume == null && !_volumeTried)
+            {
+                _volumeTried = true;
+                var renderers = new List<Renderer>();
+                foreach (Renderer r in Go.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                    {
+                        renderers.Add(r);
+                    }
+                }
+                _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform);
+            }
+            int side = (int)hand.Side;
+            System.Func<Vector3, bool> solid = HandSolids[side] ?? (HandSolids[side] = p => HeldSolid(hand, p));
+            hand.Model.Solid = solid;
+        }
+
+        private static bool HeldSolid(VRHand hand, Vector3 p)
+        {
+            foreach (MagazineProp m in Alive)
+            {
+                if (m.HeldBy != hand || m._volume == null || !m._volume.Ready || m.Go == null)
+                {
+                    continue;
+                }
+                if (m._posedFrame != Time.frameCount)
+                {
+                    m._posedFrame = Time.frameCount;
+                    m._volume.SetPose(m.Go.transform.position, m.Go.transform.rotation);
+                }
+                if (m._volume.Solid(p))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Self-test: how much of this hand is buried in the magazines it holds.</summary>
+        internal static string HandClipping(VRHand hand)
+        {
+            if (hand.Model == null)
+            {
+                return "not measured";
+            }
+            bool measured = false;
+            foreach (MagazineProp m in Alive)
+            {
+                measured |= m.HeldBy == hand && m._volume != null && m._volume.Ready;
+            }
+            if (!measured)
+            {
+                return "not measured (magazine shape not ready)";
+            }
+            hand.Model.Measure(p => InsideHeld(hand, p), p => HeldSolid(hand, p), out int buried, out int samples, out int touching);
+            return $"{buried}/{samples} points inside the magazines, {touching}/4 fingers on them";
+        }
+
+        private static bool InsideHeld(VRHand hand, Vector3 p)
+        {
+            foreach (MagazineProp m in Alive)
+            {
+                if (m.HeldBy == hand && m._volume != null && m._volume.Ready && m.Go != null)
+                {
+                    m._volume.SetPose(m.Go.transform.position, m.Go.transform.rotation);
+                    if (m._volume.InsideModel(p))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>A hand let go of its magazines: it no longer closes on them.</summary>
+        private static void ReleaseHand(VRHand hand)
+        {
+            if (hand != null && hand.Model != null && hand.Model.Solid == HandSolids[(int)hand.Side])
+            {
+                hand.Model.Solid = null;
+            }
+        }
+
         public void FollowHand()
         {
+            ShapeHand();
             if (HeldBy != null && !OnRail)
             {
                 RigidPose target = HoldPose(HeldBy);
@@ -543,6 +644,7 @@ namespace RavenfieldVR.Weapons
                     HeldBy.Held = null;
                     HeldBy.Role = HandRole.Free;
                 }
+                ReleaseHand(HeldBy);
                 HeldBy = null;
             }
             OnRail = false;
@@ -617,6 +719,7 @@ namespace RavenfieldVR.Weapons
                 HeldBy.Held = null;
                 HeldBy.Role = HandRole.Free;
             }
+            ReleaseHand(HeldBy);
             HeldBy = null;
             Alive.Remove(this);
             if (Go != null)

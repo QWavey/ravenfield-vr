@@ -148,7 +148,29 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static GunVolume For(WeaponRig rig, Quaternion frame, Vector3 origin)
         {
-            string key = rig.Data.Key;
+            if (rig.GunBody == null)
+            {
+                return null;
+            }
+            GunCollider.Envelope(rig.Data, frame, origin, out Vector3 envMin, out Vector3 envMax);
+            return Cached(rig.Data.Key, () => Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax));
+        }
+
+        /// <summary>
+        /// The volume of any set of renderers (a magazine on the gun or in the hand), in the frame of <paramref name="frame"/>
+        /// as it is now; kept under <paramref name="key"/>.
+        /// </summary>
+        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame)
+        {
+            if (frame == null || renderers.Count == 0)
+            {
+                return null;
+            }
+            return Cached(key, () => Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f));
+        }
+
+        private static GunVolume Cached(string key, Func<GunVolume> build)
+        {
             if (Cache.TryGetValue(key, out GunVolume cached))
             {
                 CacheOrder.Remove(key);
@@ -158,11 +180,15 @@ namespace RavenfieldVR.Weapons
             GunVolume v = null;
             try
             {
-                v = Build(rig, frame, origin);
+                v = build();
             }
             catch (Exception e)
             {
                 Log.WarnOnce("gunvolume:" + key, $"Could not measure the shape of {key} for the hands: {e.Message}");
+            }
+            if (v == null)
+            {
+                return null; // not kept: tried again the next time it is held
             }
             Cache[key] = v;
             CacheOrder.Add(key);
@@ -200,19 +226,14 @@ namespace RavenfieldVR.Weapons
             return 31;
         }
 
-        private static readonly Vector3[] Corners = new Vector3[8];
-
-        private static GunVolume Build(WeaponRig rig, Quaternion frame, Vector3 origin)
+        private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax)
         {
             Shader shader = DepthShader();
-            List<Renderer> renderers = GunCollider.VisibleRenderers(rig);
-            if (shader == null || renderers.Count == 0 || rig.GunBody == null)
+            if (shader == null || renderers.Count == 0)
             {
                 return null;
             }
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            Quaternion fr = rig.GunBody.rotation * frame;
-            Vector3 fp = rig.ToWorld(origin);
             Quaternion finv = Quaternion.Inverse(fr);
 
             // The model's extent in the frame, kept within the envelope a held weapon can sensibly have.
@@ -236,7 +257,6 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            GunCollider.Envelope(rig.Data, frame, origin, out Vector3 envMin, out Vector3 envMax);
             box.SetMinMax(Vector3.Max(box.min, envMin), Vector3.Min(box.max, envMax));
             if (box.size.x <= 0f || box.size.y <= 0f || box.size.z <= 0f)
             {
@@ -321,7 +341,7 @@ namespace RavenfieldVR.Weapons
                     targets[2 * d] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, min.z - Gap)), fr * look, w, h, shader);
                     targets[2 * d + 1] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, max.z + Gap)), fr * Quaternion.LookRotation(-dirs[d].Item1, dirs[d].Item2), w, h, shader);
                 }
-                volume = new GunVolume(rig.Data.Key, views, box) { Texels = texels };
+                volume = new GunVolume(key, views, box) { Texels = texels };
                 foreach (Renderer r in renderers)
                 {
                     volume._wantHull |= !ShapeFit.Readable(r);

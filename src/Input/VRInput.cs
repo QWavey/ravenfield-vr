@@ -225,6 +225,11 @@ namespace RavenfieldVR.Input
                     Pressed[a, slot] = state && !was;
                     Released[a, slot] = !state && was;
                     Consumed[a, slot] = false;
+                    if (PressPending[a, slot])
+                    {
+                        PressPending[a, slot] = false;
+                        Pressed[a, slot] = true;
+                    }
                     if (Pressed[a, slot])
                     {
                         HeldSince[a * 3 + slot] = now;
@@ -398,6 +403,15 @@ namespace RavenfieldVR.Input
         /// </summary>
         public static bool GetPressedRecently(DigitalAction a, Hand h, float seconds) =>
             GetHeld(a, h) && Unclaimed[(int)a, (int)h] && !Consumed[(int)a, (int)h] && Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] <= seconds;
+
+        private static readonly bool[,] PressPending = new bool[DigitalCount, 3];
+
+        /// <summary>Autotest: a button press on a simulated hand, seen as pressed on the next input update.</summary>
+        internal static void SimulatePress(DigitalAction a, Hand h)
+        {
+            PressPending[(int)a, (int)h] = true;
+            PressPending[(int)a, 2] = true;
+        }
 
         /// <summary>Autotest: the grip of a simulated hand closes now (held until <see cref="SimulatedGrab"/> is cleared).</summary>
         internal static void SimulateGrabPress(Hand h)

@@ -119,7 +119,7 @@ namespace RavenfieldVR.Rig
             _lastRigPosition = rigRoot.position;
             _hasLastRig = true;
 
-            Velocity = (raw.valid ? rig.rotation * raw.velocity : Vector3.zero) + rigVelocity;
+            Velocity = (raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero) + rigVelocity;
             AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             _velHistory[_historyIndex] = Velocity;
             _timeHistory[_historyIndex] = Time.unscaledTime;
@@ -130,9 +130,18 @@ namespace RavenfieldVR.Rig
         /// Autotest hands, in rig space: the gun hand low and forward of the head, the other hand further out where a
         /// handguard would be, both pointing where the head faces.
         /// </summary>
+        /// <summary>Autotest: a scripted world pose (and velocity) for a simulated hand, instead of where it rests.</summary>
+        internal static readonly RigidPose?[] Scripted = new RigidPose?[2];
+        internal static readonly Vector3[] ScriptedVelocity = new Vector3[2];
+
         private bool SimulatedLocal(Transform rigRoot, out RigidPose local)
         {
             local = default;
+            if (Scripted[(int)Side].HasValue)
+            {
+                local = RigidPose.Of(rigRoot).Inverse().Multiply(Scripted[(int)Side].Value);
+                return true;
+            }
             VRRig rig = VRRig.Instance;
             if (rig == null || rig.Camera == null)
             {

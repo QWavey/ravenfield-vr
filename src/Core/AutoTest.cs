@@ -193,6 +193,23 @@ namespace RavenfieldVR.Core
             report($"support hand ({off.Role}): {held.HandClipping(off)}");
         }
 
+        /// <summary>Close-ups of the off hand holding magazines, and how much of it is buried in them.</summary>
+        private static void MagHandCloseups(string name, Action<string> report)
+        {
+            Rig.VRHand off = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Off : null;
+            if (off == null || off.Model == null || !(off.Held is MagazineProp))
+            {
+                return;
+            }
+            Vector3 c = off.Model.Root.position;
+            Vector3 up = Vector3.up;
+            Vector3 right = off.Palm.rotation * Vector3.right;
+            void Shot(string side, Vector3 from) => Shots.Capture($"{name}-{side}", from, Quaternion.LookRotation(c - from, up), 45f);
+            Shot("hand-out", c - right * 0.28f * off.Mirror + up * 0.06f);
+            Shot("hand-in", c + right * 0.28f * off.Mirror + up * 0.06f);
+            report($"{name}: magazine hand {MagazineProp.HandClipping(off)}");
+        }
+
         private static string _clipNow;
         private static HeldWeapon _clipPending;
 
@@ -316,24 +333,197 @@ namespace RavenfieldVR.Core
             {
                 yield break;
             }
+            // Let go in a forward swing (2.5 m/s): it should fly on with the hand's speed, then lie still on the ground.
+            Rig.VRHand dom = Rig.VRRig.Instance.Dominant;
+            Vector3 swing = Vector3.ProjectOnPlane(Rig.VRRig.Instance.Head.forward, Vector3.up).normalized * 2.5f;
+            Runtime.RigidPose start = dom.Raw;
+            for (int i = 0; i < 6; i++)
+            {
+                Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(start.position + swing * (0.011f * i), start.rotation);
+                Rig.VRHand.ScriptedVelocity[(int)dom.Side] = swing;
+                yield return null;
+            }
             int slot = sys.TestLetFall();
+            Rig.VRHand.Scripted[(int)dom.Side] = null;
+            Rig.VRHand.ScriptedVelocity[(int)dom.Side] = Vector3.zero;
             if (slot < 0)
             {
                 report("let go: NOTHING DROPPED");
                 yield break;
             }
+            DroppedWeapon thrown = sys.Drops.Newest;
+            Rigidbody body = thrown != null && thrown.Go != null ? thrown.Go.GetComponent<Rigidbody>() : null;
+            float speed = body != null ? body.velocity.magnitude : 0f;
             yield return new WaitForSecondsRealtime(0.7f);
             yield return new WaitForEndOfFrame();
             Shots.Capture("dropped-weapon");
             Transform head = Rig.VRRig.Instance.Head;
             Shots.Capture("dropped-weapon-looking-down", head.position, Quaternion.LookRotation(Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized * 0.6f + Vector3.down), 90f);
             bool gone = actor.weapons[slot] == null;
+            string drift = "";
+            if (thrown != null && thrown.Go != null)
+            {
+                yield return new WaitForSecondsRealtime(1.5f);
+                drift = DriftLine("thrown weapon", thrown.Go, 4f);
+                yield return new WaitForSecondsRealtime(4f);
+                drift = drift.Replace("{to}", Fmt(thrown.Go));
+            }
             float until = Time.realtimeSinceStartup + VRConfig.WeaponReturnSeconds.Value + 3f;
             while (actor.weapons[slot] == null && Time.realtimeSinceStartup < until)
             {
                 yield return null;
             }
-            report($"let go: {(gone ? "fell out of the hand" : "STILL IN THE LOADOUT")}, {(actor.weapons[slot] != null ? "back in its holster" : "NEVER CAME BACK")}");
+            report($"let go: {(gone ? "fell out of the hand" : "STILL IN THE LOADOUT")}, left the hand at {speed:0.0} m/s{(speed < 1.2f ? " (NOT THROWN with the swing)" : "")}, {(actor.weapons[slot] != null ? "back in its holster" : "NEVER CAME BACK")}");
+            if (drift.Length > 0)
+            {
+                report(drift);
+            }
+        }
+
+        private static readonly Dictionary<GameObject, Vector3> DriftFrom = new Dictionary<GameObject, Vector3>();
+
+        /// <summary>Starts watching how far a resting object moves; completed by replacing {to} with <see cref="Fmt"/> later.</summary>
+        private static string DriftLine(string what, GameObject go, float seconds)
+        {
+            DriftFrom[go] = go.transform.position;
+            return $"{what} on the ground: {{to}} in {seconds:0} s";
+        }
+
+        private static string Fmt(GameObject go)
+        {
+            if (go == null || !DriftFrom.TryGetValue(go, out Vector3 from))
+            {
+                return "gone";
+            }
+            Vector3 d = go.transform.position - from;
+            DriftFrom.Remove(go);
+            return d.magnitude > 0.15f ? $"MOVED {d.magnitude * 100f:0} cm (up {d.y * 100f:0} cm)" : $"still ({d.magnitude * 100f:0.0} cm)";
+        }
+
+        /// <summary>
+        /// Weapons a fallen soldier drops, put on the ground near the player: after they settle they must stay where they
+        /// lie.
+        /// </summary>
+        private static IEnumerator GroundDriftCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = LocalPlayer.actor;
+            if (sys == null || actor == null || sys.Drops == null)
+            {
+                yield break;
+            }
+            Transform head = Rig.VRRig.Instance.Head;
+            Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            var drops = new List<DroppedWeapon>();
+            int n = 0;
+            foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
+            {
+                if (e == null || e.prefab == null || e.slot != WeaponManager.WeaponSlot.Primary)
+                {
+                    continue;
+                }
+                Vector3 above = actor.Position() + fwd * (1.4f + 0.5f * n) + Vector3.Cross(Vector3.up, fwd) * (0.6f * (n - 1)) + Vector3.up * 1.5f;
+                if (!Physics.Raycast(above, Vector3.down, out RaycastHit hit, 5f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    continue;
+                }
+                DroppedWeapon d = sys.Drops.Spawn(e, new Runtime.RigidPose(hit.point + Vector3.up * 0.25f, Quaternion.LookRotation(Vector3.Cross(Vector3.up, fwd), Vector3.up)), Vector3.one, Vector3.zero, -1, -1);
+                if (d != null)
+                {
+                    drops.Add(d);
+                }
+                if (++n >= 3)
+                {
+                    break;
+                }
+            }
+            yield return new WaitForSecondsRealtime(2f);
+            var lines = new List<string>();
+            foreach (DroppedWeapon d in drops)
+            {
+                if (d.Go != null)
+                {
+                    lines.Add(DriftLine(d.Entry.name, d.Go, 5f));
+                }
+            }
+            yield return new WaitForSecondsRealtime(5f);
+            for (int i = 0; i < drops.Count; i++)
+            {
+                if (i < lines.Count)
+                {
+                    report(lines[i].Replace("{to}", Fmt(drops[i].Go)));
+                }
+                if (drops[i].Go != null)
+                {
+                    UnityEngine.Object.Destroy(drops[i].Go);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The pouch through the hand path: the off hand in the pouch with the grip open takes nothing; squeezing takes a
+        /// magazine; swinging and opening the hand throws it.
+        /// </summary>
+        private static IEnumerator PouchThrowCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            if (sys == null || off == null || sys.Held == null || off.Role != Rig.HandRole.Free || off.Held != null || !sys.Held.ActiveAmmo.UsesDetachableMag)
+            {
+                report("pouch: skipped (no magazine-fed weapon in hand or the off hand is busy)");
+                yield break;
+            }
+            int side = (int)off.Side;
+            Runtime.RigidPose raw = off.Raw;
+            Vector3 palmFromRaw = raw.InverseTransformPoint(off.Palm.position);
+            Runtime.RigidPose At(Vector3 palm) => new Runtime.RigidPose(palm - raw.rotation * palmFromRaw, raw.rotation);
+            try
+            {
+                Rig.VRHand.Scripted[side] = At(sys.Zones.Pouch);
+                yield return new WaitForSecondsRealtime(0.6f);
+                bool tookOnTouch = off.Held != null;
+                if (off.Held is MagazineProp early)
+                {
+                    early.Destroy();
+                }
+                Input.VRInput.SimulateGrabPress(off.Side);
+                yield return null;
+                yield return null;
+                var mag = off.Held as MagazineProp;
+                bool took = mag != null;
+                float flown = 0f;
+                if (took)
+                {
+                    Vector3 swing = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized * 3f + Vector3.up * 1f;
+                    Vector3 from = sys.Zones.Pouch;
+                    for (int i = 0; i < 6; i++)
+                    {
+                        Rig.VRHand.Scripted[side] = At(from + swing * (0.011f * i));
+                        Rig.VRHand.ScriptedVelocity[side] = swing;
+                        yield return null;
+                    }
+                    Input.VRInput.SimulatedGrab[side] = false;
+                    yield return null;
+                    yield return null;
+                    Vector3 released = mag.Go != null ? mag.Go.transform.position : Vector3.zero;
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    flown = mag.Go != null ? Vector3.Distance(mag.Go.transform.position, released) : 0f;
+                    if (mag.Go != null)
+                    {
+                        sys.Held.ActiveAmmo.ReturnSpare(mag.Rounds);
+                        mag.Rounds = 0;
+                        mag.Destroy();
+                    }
+                }
+                report($"pouch: a hand in the pouch with the grip open takes {(tookOnTouch ? "A MAGAZINE (TAKEN BY TOUCH)" : "nothing")}; squeezing takes {(took ? "a magazine" : "NOTHING")}{(took ? flown > 0.6f ? $"; let go in a swing it flew {flown:0.0} m" : $"; let go in a swing it moved only {flown:0.0} m (NOT THROWN)" : "")}");
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
+                Input.VRInput.SimulatedGrab[side] = false;
+            }
         }
 
         private static IEnumerator Deploy()
@@ -361,6 +551,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = Mathf.Max(1, entries.Count / 28);
+            int recoilRifles = 0, recoilPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -480,12 +671,19 @@ namespace RavenfieldVR.Core
                         {
                             tacticalDone = true;
                             yield return held.Reload.TacticalSelfCheck(lines.Add, name => Shots.Capture(name));
+                            yield return held.Reload.H3vrReloadSelfCheck(lines.Add, name =>
+                            {
+                                Shots.Capture(name);
+                                MagHandCloseups(name, lines.Add);
+                            });
                         }
                         if (!dropDone && tacticalDone && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol)
                         {
                             dropDone = true;
+                            yield return PouchThrowCheck(lines.Add);
                             yield return DropCheck(lines.Add);
                             yield return ReachCheck(lines.Add);
+                            yield return GroundDriftCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {
@@ -520,6 +718,7 @@ namespace RavenfieldVR.Core
                     bool counts = held != null && held.Weapon == weapon && held.ActiveAmmo != null && held.ActiveAmmo.Participates
                                   && held.Rig.Data.Action != ActionType.Throwable;
                     _shots = 0;
+                    held?.ResetKick();
                     Weapon listened = counts ? ready : null;
                     listened?.onSpawnProjectiles.AddListener(CountShot);
                     for (int i = 0; i < 3; i++)
@@ -547,6 +746,31 @@ namespace RavenfieldVR.Core
                         if (_shots == 0)
                         {
                             Problem($"[{entry.name}] DID NOT FIRE (counter {held.ActiveAmmo.CounterText()})");
+                        }
+                        else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4))
+                        {
+                            float oneKick = held.PeakKick, oneBack = held.PeakBack;
+                            string recoilLine = null;
+                            yield return TwoHandRecoil(held, weapon, (kick, back) =>
+                            {
+                                recoilLine = $"recoil: one hand {oneKick:0.0} deg climb, {oneBack * 100f:0.0} cm back; two hands {kick:0.0} deg, {back * 100f:0.0} cm";
+                                if (oneKick < 0.2f)
+                                {
+                                    recoilLine += " - NO RECOIL one-handed";
+                                }
+                                else if (kick >= oneKick)
+                                {
+                                    recoilLine += " - TWO HANDS NOT STEADIER";
+                                }
+                            });
+                            if (recoilLine != null)
+                            {
+                                lines.Add(recoilLine);
+                                if (recoilLine.Contains(" - "))
+                                {
+                                    Problem($"[{entry.name}] {recoilLine}");
+                                }
+                            }
                         }
                     }
                     if (FireSelector.HasModes(weapon))
@@ -628,6 +852,46 @@ namespace RavenfieldVR.Core
             }
             return $"{total} renderers ({armsOnly} counted as arms, {inactive} inactive, {disabled} disabled, {noMesh} without mesh, "
                    + $"{zeroScale} scaled to zero, {noMaterial} without material): {string.Join(", ", names.ToArray())}";
+        }
+
+        /// <summary>
+        /// Recoil with the support hand on: the off hand takes the handguard, three more shots, and the kick is measured
+        /// for <paramref name="result"/> (muzzle climb in degrees, push back in metres).
+        /// </summary>
+        private static IEnumerator TwoHandRecoil(HeldWeapon held, Weapon weapon, Action<float, float> result)
+        {
+            Rig.VRHand off = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Off : null;
+            if (off == null || off.Role != Rig.HandRole.Free)
+            {
+                yield break;
+            }
+            Input.VRInput.SimulatedGrab[(int)off.Side] = true;
+            off.Role = Rig.HandRole.Foregrip;
+            held.SetTwoHanded(true);
+            yield return new WaitForSecondsRealtime(0.3f);
+            held.ResetKick();
+            for (int i = 0; i < 3; i++)
+            {
+                try
+                {
+                    Weapon active = weapon.GetActiveSubWeapon();
+                    active.Fire(active.CurrentMuzzle().forward, true);
+                    active.StopFire();
+                }
+                catch (Exception)
+                {
+                    // reported by the one-handed shots already
+                }
+                yield return new WaitForSecondsRealtime(0.25f);
+                if (held.ActiveAmmo != null && held.ActiveAmmo.Rig.CyclesByHand)
+                {
+                    held.Reload.CycleForTest();
+                }
+            }
+            result(held.PeakKick, held.PeakBack);
+            Input.VRInput.SimulatedGrab[(int)off.Side] = false;
+            yield return null; // the grip opens: the handguard is let go
+            yield return null;
         }
 
         private static int _shots;
