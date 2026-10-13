@@ -48,7 +48,10 @@ namespace RavenfieldVR.Rig
             new[] { 0.034f, 0.020f, 0.019f }
         };
 
-        private static readonly float[] Radii = { 0.0105f, 0.0090f, 0.0094f, 0.0090f, 0.0080f };
+        private static readonly float[] Radii = { 0.0092f, 0.0078f, 0.0081f, 0.0078f, 0.0069f };
+
+        /// <summary>The whole glove at real-hand size (about 19 cm from wrist to the tip of the middle finger).</summary>
+        private const float HandScale = 0.9f;
         private static readonly float[] MaxCurl = { 55f, 85f, 95f, 70f };
 
         /// <summary>Between the thumb and index tips (right hand, palm space): where a pinched bolt handle sits.</summary>
@@ -59,6 +62,7 @@ namespace RavenfieldVR.Rig
             _hand = hand;
             _root = new GameObject("Hand Model").transform;
             _root.SetParent(hand.Root, false);
+            _root.localScale = Vector3.one * HandScale;
             EnsureMaterial();
 
             float m = hand.Mirror;
@@ -70,7 +74,7 @@ namespace RavenfieldVR.Rig
                 Vector3 local = Mirror(Knuckles[f]);
                 Quaternion baseRot = f == 0
                     ? Quaternion.Euler(-28f, -32f * m, 0f) // thumb points forward and up along the top of the grip
-                    : Quaternion.Euler(0f, (f - 2.5f) * 2.5f * m, 0f);
+                    : Quaternion.Euler(0f, (f - 2.5f) * 5f * m, 0f); // fingers fan out a little, so the hand reads as a hand
                 for (int s = 0; s < 3; s++)
                 {
                     var joint = new GameObject($"F{f}J{s}").transform;
@@ -210,7 +214,22 @@ namespace RavenfieldVR.Rig
                 want = Vector3.ClampMagnitude(GraspAnchor.Value - target.TransformPoint(local), 0.05f);
             }
             _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
-            _root.SetPositionAndRotation(target.position + _graspOffset, target.rotation);
+            // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
+            // easing in when the grip is taken and back out to the tracked hand when it is let go.
+            _snapBlend = Mathf.MoveTowards(_snapBlend, SnapPose.HasValue ? 1f : 0f, dt / 0.08f);
+            if (SnapPose.HasValue)
+            {
+                _lastSnap = SnapPose.Value;
+            }
+            Vector3 position = target.position + _graspOffset;
+            Quaternion rotation = target.rotation;
+            if (_snapBlend > 0f)
+            {
+                float e = _snapBlend * _snapBlend * (3f - 2f * _snapBlend);
+                position = Vector3.Lerp(position, _lastSnap.position, e);
+                rotation = Quaternion.Slerp(rotation, _lastSnap.rotation, e);
+            }
+            _root.SetPositionAndRotation(position, rotation);
 
             float[] goal = TargetCurls();
             float k = 1f - Mathf.Exp(-25f * dt);
@@ -255,6 +274,14 @@ namespace RavenfieldVR.Rig
         public float[] WeaponGripCurls;
         /// <summary>The held weapon has a pistol grip held in one hand (the thumb lies along the frame).</summary>
         public bool WeaponIsPistol;
+
+        /// <summary>
+        /// Where the glove goes while it holds a weapon by a grip that has an authored hand pose: palm centre and frame
+        /// (+Z toward the fingers, +Y toward the thumb) of the weapon's own hand. Null for the tracked pose.
+        /// </summary>
+        public RigidPose? SnapPose;
+        private RigidPose _lastSnap;
+        private float _snapBlend;
         /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
         public bool Suppressed;
         public float[] WeaponSupportCurls;
@@ -279,12 +306,24 @@ namespace RavenfieldVR.Rig
             {
                 Fill(grip * 0.6f, trigger, grip, grip, grip);
             }
+            // A hand at rest is never ruler-straight: a slight natural curl, more toward the little finger.
+            Minimum(0.1f, 0.12f, 0.16f, 0.2f, 0.24f);
 
             switch (_hand.Role)
             {
                 case HandRole.Weapon:
                     // Trigger finger follows the trigger; the other fingers wrap the grip but still move.
-                    if (WeaponGripCurls != null)
+                    if (WeaponGripCurls != null && SnapPose.HasValue)
+                    {
+                        // On the weapon's own grip pose: the fingers close as its own hand does; only the trigger
+                        // finger moves with the trigger.
+                        float[] c = WeaponGripCurls;
+                        _goal[1] = Mathf.Lerp(Pose(c[1], 0.3f) * 0.85f, 0.85f, trigger);
+                        _goal[2] = Pose(c[2], 0.7f);
+                        _goal[3] = Pose(c[3], 0.72f);
+                        _goal[4] = Pose(c[4], 0.74f);
+                    }
+                    else if (WeaponGripCurls != null)
                     {
                         float[] c = WeaponGripCurls;
                         _goal[1] = Mathf.Lerp(Pose(c[1], 0.3f) * 0.85f, 0.85f, trigger);
@@ -300,7 +339,12 @@ namespace RavenfieldVR.Rig
                     _goal[0] = WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0]) : Mathf.Lerp(0.25f, 0.45f, _goal[0]);
                     break;
                 case HandRole.Foregrip:
-                    if (WeaponSupportCurls != null)
+                    if (WeaponSupportCurls != null && SnapPose.HasValue)
+                    {
+                        float[] c = WeaponSupportCurls;
+                        Fill(Pose(c[0], 0.3f), Pose(c[1], 0.55f), Pose(c[2], 0.6f), Pose(c[3], 0.62f), Pose(c[4], 0.65f));
+                    }
+                    else if (WeaponSupportCurls != null)
                     {
                         float[] c = WeaponSupportCurls;
                         Minimum(Pose(c[0], 0.3f), Pose(c[1], 0.55f), Pose(c[2], 0.6f), Pose(c[3], 0.62f), Pose(c[4], 0.65f));

@@ -43,6 +43,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Live projectiles the last throw spawned (the autotest checks a pinned throw spawns none).</summary>
         internal int LastLiveCount { get; private set; }
 
+        /// <summary>Time of the last throw made by letting go of the grip (grip-to-hold), so letting go is not also a holster.</summary>
+        internal float GripThrowAt { get; private set; } = -10f;
+
         public ThrowableHandler(WeaponSystem sys)
         {
             _sys = sys;
@@ -78,6 +81,18 @@ namespace RavenfieldVR.Weapons
                 Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
                 if (v.magnitude > 1.1f)
                 {
+                    Throw(weapon, hand, v);
+                }
+            }
+            // Holding by the grip: opening the hand in a throwing motion lets the grenade go, as in other VR games (a slow
+            // release puts it back on the chest instead).
+            if (VRConfig.GripToHoldWeapon.Value && hand.GrabReleased && !GameContextBlocksThrow())
+            {
+                Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                if (v.magnitude > 1.6f)
+                {
+                    _armed = false;
+                    GripThrowAt = Time.unscaledTime;
                     Throw(weapon, hand, v);
                 }
             }

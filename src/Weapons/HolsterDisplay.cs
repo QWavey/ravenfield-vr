@@ -24,6 +24,8 @@ namespace RavenfieldVR.Weapons
             public GameObject Go;
             public Vector3 Centre;   // model bounds centre in its own space
             public float Length;     // along the barrel
+            /// <summary>The model's own frame: barrel and top in its local space, as a rotation (forward = barrel).</summary>
+            public Quaternion Frame = Quaternion.identity;
         }
 
         private readonly WeaponSystem _sys;
@@ -113,18 +115,38 @@ namespace RavenfieldVR.Weapons
                     bounds.Encapsulate(local);
                 }
             }
+            // Third-person models are not authored with the barrel on a fixed axis. The barrel runs along the longest
+            // side; the muzzle is the end farther from the pivot (the hand holds the grip, behind the middle); the top
+            // faces away from the hand (the grip hangs below the barrel).
+            Quaternion frame = Quaternion.identity;
+            float length = 0.5f;
+            if (any)
+            {
+                Vector3 size = bounds.size;
+                int axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+                Vector3 dir = Vector3.zero;
+                dir[axis] = bounds.max[axis] >= -bounds.min[axis] ? 1f : -1f;
+                Vector3 top = Vector3.ProjectOnPlane(bounds.center, dir);
+                if (top.sqrMagnitude < 1e-4f)
+                {
+                    top = Vector3.ProjectOnPlane(axis == 1 ? Vector3.forward : Vector3.up, dir);
+                }
+                frame = Quaternion.LookRotation(dir, top.normalized);
+                length = Mathf.Clamp(size[axis] * uniform, 0.1f, 1.6f);
+            }
             return new Shown
             {
                 Entry = entry,
                 Go = model,
                 Centre = any ? bounds.center : Vector3.zero,
-                Length = any ? Mathf.Clamp(bounds.size.z * uniform, 0.1f, 1.6f) : 0.5f
+                Length = length,
+                Frame = frame
             };
         }
 
         /// <summary>
-        /// The model's +Z is its barrel and +Y its top (as the game holds it). Long guns hang behind the shoulder, muzzle up
-        /// and a little out, sights to the back; pistols point down with the grip to the rear; gear stands upright.
+        /// Long guns hang behind the shoulder, muzzle up and a little out, sights to the back; pistols point down with the
+        /// grip to the rear; gear stands upright (barrel and top from the model's measured frame).
         /// </summary>
         private static void Place(Shown s, BodyZones zones, int spot)
         {
@@ -152,7 +174,7 @@ namespace RavenfieldVR.Weapons
                     centre = at + fwd * 0.06f;
                     break;
             }
-            Quaternion rot = Quaternion.LookRotation(barrel, top);
+            Quaternion rot = Quaternion.LookRotation(barrel, top) * Quaternion.Inverse(s.Frame);
             Transform t = s.Go.transform;
             t.rotation = rot;
             t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);

@@ -1305,6 +1305,24 @@ namespace RavenfieldVR.Weapons
             {
                 yield break;
             }
+            // The simulated hand keeps its grip closed while it handles magazines, as a player's would.
+            VRInput.SimulatedGrab[(int)off.Side] = true;
+            try
+            {
+                foreach (object step in SelfCheckSteps(report))
+                {
+                    yield return step;
+                }
+            }
+            finally
+            {
+                VRInput.SimulatedGrab[(int)off.Side] = false;
+            }
+        }
+
+        private IEnumerable SelfCheckSteps(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
             if (Breaks)
             {
                 SetBreakOpen(true);
@@ -1403,6 +1421,65 @@ namespace RavenfieldVR.Weapons
                 report($"racked: {(Ammo.Chambered ? "chambered" : "NOTHING CHAMBERED")}");
             }
             yield return null;
+        }
+
+        /// <summary>
+        /// Autotest: H3VR-style tactical reload through the real code. A fresh magazine from the pouch in the off hand,
+        /// the release pressed (the old one goes into the same hand), the fresh one seated, the old one still held, then
+        /// both let go. Pictures at each step; rounds must add up.
+        /// </summary>
+        internal IEnumerator TacticalSelfCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesDetachableMag || off.Held != null || Ammo.BoxLocked)
+            {
+                yield break;
+            }
+            if (!Ammo.MagInserted)
+            {
+                TakeFromPouch(off);
+                if (off.Held is MagazineProp first && AcceptsNow(first))
+                {
+                    SeatProp(off, first);
+                }
+            }
+            int before = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo);
+            // The simulated hand keeps its grip closed for the whole check, as a player holding the magazines would.
+            VRInput.SimulatedGrab[(int)off.Side] = true;
+            TakeFromPouch(off);
+            if (!(off.Held is MagazineProp fresh))
+            {
+                VRInput.SimulatedGrab[(int)off.Side] = false;
+                report("tactical reload: no fresh magazine from the pouch");
+                yield break;
+            }
+            MagReadout.TestTarget = fresh;
+            yield return new WaitForSecondsRealtime(0.4f); // the readout fades in
+            yield return new WaitForEndOfFrame();
+            shot("magazine-in-hand");
+            bool palmable = CanPalm(off);
+            TacticalEject(off);
+            MagazineProp old = _palmed;
+            yield return new WaitForEndOfFrame();
+            shot("tactical-two-magazines");
+            if (AcceptsNow(fresh))
+            {
+                SeatProp(off, fresh);
+            }
+            bool kept = old != null && ReferenceEquals(off.Held, old);
+            yield return new WaitForEndOfFrame();
+            shot("tactical-old-magazine-kept");
+            int inHand = off.Held is MagazineProp held ? held.Rounds : 0;
+            int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
+            MagReadout.TestTarget = null;
+            if (off.Held is MagazineProp leftover)
+            {
+                Ammo.ReturnSpare(leftover.Rounds);
+                leftover.Rounds = 0;
+                leftover.Destroy();
+            }
+            VRInput.SimulatedGrab[(int)off.Side] = false;
+            report($"tactical reload: {(palmable ? "fresh magazine at the well" : "fresh magazine away from the well (simulated hand)")}, old magazine {(kept ? "kept in the hand" : "NOT KEPT")}, rounds {(Ammo.InfiniteSpare || after == before ? "add up" : $"DO NOT ADD UP ({before} -> {after})")}");
         }
 
         /// <summary>Autotest: one full manual cycle (back and home), as a hand on the bolt or pump would do.</summary>

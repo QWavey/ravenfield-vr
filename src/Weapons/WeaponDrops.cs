@@ -21,6 +21,14 @@ namespace RavenfieldVR.Weapons
         public int Ammo = -1;
         public int Spare = -1;
         public float DropTime;
+        /// <summary>
+        /// The player's own weapon, let go of away from the body: the loadout slot it came from (-1 for a bot's weapon). It
+        /// goes back to that holster after a while or when you walk away from it.
+        /// </summary>
+        public int OwnerSlot = -1;
+        public float ReturnAt;
+        /// <summary>Meshes baked for this copy (skinned parts), destroyed with it.</summary>
+        public List<Mesh> OwnedMeshes;
     }
 
     /// <summary>
@@ -262,6 +270,11 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            ReturnOwnDrops(actor);
+            if (_drops.Count == 0)
+            {
+                return;
+            }
             VRRig rig = _sys.Rig;
             _handPair[0] = rig.Dominant;
             _handPair[1] = rig.Off;
@@ -318,7 +331,7 @@ namespace RavenfieldVR.Weapons
                 hand.Haptic(0.08f, 40f, 0.4f);
                 return;
             }
-            int slot = SlotFor(drop.Entry, actor);
+            int slot = drop.OwnerSlot >= 0 && drop.OwnerSlot < actor.weapons.Length ? drop.OwnerSlot : SlotFor(drop.Entry, actor);
             Weapon current = actor.weapons[slot];
             if (current != null && current.weaponEntry != null && current.weaponEntry.prefab != null)
             {
@@ -374,10 +387,20 @@ namespace RavenfieldVR.Weapons
                     Remove(d);
                 }
             }
-            // Oldest first when over the cap.
-            while (_drops.Count > max)
+            // Oldest first when over the cap; your own weapon waiting to go back to its holster is never one of them.
+            int count = 0;
+            foreach (DroppedWeapon d in _drops)
             {
-                Remove(_drops[0]);
+                count += d.OwnerSlot < 0 ? 1 : 0;
+            }
+            for (int i = 0; i < _drops.Count && count > max; i++)
+            {
+                if (_drops[i].OwnerSlot < 0)
+                {
+                    Remove(_drops[i]);
+                    i--;
+                    count--;
+                }
             }
         }
 
@@ -387,6 +410,197 @@ namespace RavenfieldVR.Weapons
             if (d.Go != null)
             {
                 UnityEngine.Object.Destroy(d.Go);
+            }
+            if (d.OwnedMeshes != null)
+            {
+                foreach (Mesh m in d.OwnedMeshes)
+                {
+                    UnityEngine.Object.Destroy(m);
+                }
+                d.OwnedMeshes = null;
+            }
+        }
+
+        // ---- your own weapon, let go of ----------------------------------------------------------------
+
+        /// <summary>
+        /// The weapon in your hand falls where you let go of it: a copy of exactly what you held (the first-person model,
+        /// its magazine if one is in), at the pose you held it, with your hand's velocity and the gun's own shape for
+        /// physics. Its rounds stay with it. Null when there was nothing to copy.
+        /// </summary>
+        public DroppedWeapon DropHeld(HeldWeapon held, int slot, Vector3 velocity, Vector3 angularVelocity)
+        {
+            WeaponRig rig = held.Rig;
+            WeaponRigData d = rig.Data;
+            Weapon w = held.Weapon;
+            if (w == null || w.weaponEntry == null || rig.GunBody == null)
+            {
+                return null;
+            }
+            Quaternion frame = OpenVRMath.SafeLookRotation(d.AimAxis, d.Up);
+            var root = new GameObject("RavenfieldVR Dropped " + w.weaponEntry.name);
+            new RigidPose(rig.ToWorld(d.GripPoint), rig.GunBody.rotation * frame).ApplyTo(root.transform);
+            var baked = new List<Mesh>();
+            bool magIn = held.Ammo == null || !held.Ammo.UsesDetachableMag || held.Ammo.MagInserted;
+            if (!CopyHeldModel(rig, root.transform, magIn, baked))
+            {
+                UnityEngine.Object.Destroy(root);
+                return null;
+            }
+            int layer = PropPhysics.Layer;
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            {
+                t.gameObject.layer = layer >= 0 ? layer : 0;
+            }
+            // The held gun's own physics shape, which is fitted in exactly this frame.
+            List<Collider> colliders = ShapeFit.AddColliders(root, GunCollider.Fit(rig, frame, d.GripPoint));
+            var body = root.AddComponent<Rigidbody>();
+            body.mass = 3f;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.velocity = velocity;
+            body.angularVelocity = angularVelocity;
+            PropPhysics.IgnorePlayer(colliders);
+            var drop = new DroppedWeapon
+            {
+                Go = root,
+                Colliders = colliders,
+                Entry = w.weaponEntry,
+                Ammo = Mathf.Max(0, w.ammo),
+                Spare = Mathf.Max(0, w.spareAmmo),
+                DropTime = Time.time,
+                OwnerSlot = slot,
+                ReturnAt = Time.time + Mathf.Max(1f, VRConfig.WeaponReturnSeconds.Value),
+                OwnedMeshes = baked
+            };
+            _drops.Add(drop);
+            return drop;
+        }
+
+        /// <summary>Copies the weapon's visible meshes (no arms, nothing the mod added except its moving bolt piece) under <paramref name="root"/>.</summary>
+        private static bool CopyHeldModel(WeaponRig rig, Transform root, bool magazineIn, List<Mesh> baked)
+        {
+            var skip = new HashSet<Renderer>(rig.ArmRenderers);
+            if (!magazineIn)
+            {
+                foreach (Transform part in rig.MagazineParts)
+                {
+                    if (part != null)
+                    {
+                        foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                        {
+                            skip.Add(r);
+                        }
+                    }
+                }
+            }
+            bool any = false;
+            foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
+            {
+                if (!r.enabled || skip.Contains(r) || r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer)
+                {
+                    continue;
+                }
+                if (GunCollider.AddedByMod(r.transform, rig.Weapon.transform) && !r.name.StartsWith("RavenfieldVR Bolt", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                Mesh mesh;
+                Vector3 scale;
+                if (r is SkinnedMeshRenderer smr)
+                {
+                    if (smr.sharedMesh == null)
+                    {
+                        continue;
+                    }
+                    mesh = new Mesh { name = smr.sharedMesh.name + " (dropped)" };
+                    smr.BakeMesh(mesh);
+                    if (mesh.vertexCount == 0)
+                    {
+                        UnityEngine.Object.Destroy(mesh);
+                        continue;
+                    }
+                    baked.Add(mesh);
+                    scale = Vector3.one; // baked with the renderer's scale
+                }
+                else
+                {
+                    MeshFilter mf = r.GetComponent<MeshFilter>();
+                    if (mf == null || mf.sharedMesh == null)
+                    {
+                        continue;
+                    }
+                    mesh = mf.sharedMesh;
+                    scale = r.transform.lossyScale;
+                    if (scale.sqrMagnitude < 1e-8f)
+                    {
+                        continue; // scaled away (a hidden part)
+                    }
+                }
+                var part = new GameObject(r.name);
+                part.transform.SetParent(root, false);
+                part.transform.SetPositionAndRotation(r.transform.position, r.transform.rotation);
+                part.transform.localScale = scale;
+                part.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var mr = part.AddComponent<MeshRenderer>();
+                mr.sharedMaterials = Util.MaterialFix.Fix(r.sharedMaterials);
+                any = true;
+            }
+            return any;
+        }
+
+        /// <summary>
+        /// Your own dropped weapon goes back to its holster when you leave it lying for a while or walk away from it, as
+        /// long as its slot is still free (pick something else up into it and the dropped one stays a normal drop).
+        /// </summary>
+        private void ReturnOwnDrops(Actor actor)
+        {
+            for (int i = _drops.Count - 1; i >= 0; i--)
+            {
+                DroppedWeapon d = _drops[i];
+                if (d.OwnerSlot < 0 || d.Go == null)
+                {
+                    continue;
+                }
+                bool due = Time.time >= d.ReturnAt || (d.Go.transform.position - actor.Position()).sqrMagnitude > 400f;
+                if (!due)
+                {
+                    continue;
+                }
+                if (actor.dead || d.OwnerSlot >= actor.weapons.Length || actor.weapons[d.OwnerSlot] != null)
+                {
+                    d.OwnerSlot = -1; // its place is taken: an ordinary drop from now on
+                    continue;
+                }
+                // Into the holster, not the hand: the slot must not look like the active one while it is spawned.
+                int active = actor.activeWeaponSlot;
+                if (actor.activeWeapon == null)
+                {
+                    actor.activeWeaponSlot = -1;
+                }
+                Weapon w;
+                try
+                {
+                    w = actor.EquipNewWeaponEntry(d.Entry, d.OwnerSlot, false);
+                }
+                finally
+                {
+                    actor.activeWeaponSlot = active;
+                }
+                if (w != null)
+                {
+                    if (d.Ammo >= 0 && w.configuration.ammo > 0)
+                    {
+                        w.ammo = Mathf.Clamp(d.Ammo, 0, w.configuration.ammo);
+                    }
+                    if (d.Spare >= 0 && w.configuration.spareAmmo >= 0)
+                    {
+                        w.spareAmmo = d.Spare;
+                    }
+                    w.OnAmmoChanged();
+                    _sys.Sounds.Play(MechSound.Holster, _sys.Rig.Head.position - Vector3.up * 0.5f, 0.6f);
+                }
+                Remove(d);
             }
         }
 

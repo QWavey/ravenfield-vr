@@ -86,6 +86,8 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> MagazinePalming;
+        public static ConfigEntry<bool> ReleaseDropsWeapon;
+        public static ConfigEntry<float> WeaponReturnSeconds;
         public static ConfigEntry<bool> ShowHolsters;
         public static ConfigEntry<bool> MagazineReadout;
         public static ConfigEntry<float> ThrowVelocityMultiplier;
@@ -226,6 +228,10 @@ namespace RavenfieldVR.Core
                 "Look at the top of a magazine in your hand (or one lying within reach) to see how many rounds it holds.");
             ShowHolsters = cfg.Bind("Weapons", "ShowHolsters", true,
                 "Show the weapons you carry where they hang on your body: rifles behind the shoulders, pistols on the hips, gear on the chest.");
+            ReleaseDropsWeapon = cfg.Bind("Weapons", "ReleaseDropsWeapon", true,
+                "With GripToHoldWeapon: letting go of a weapon away from your body drops it where you are (pick it up again with either hand); letting go at your body or a holster puts it away.");
+            WeaponReturnSeconds = cfg.Bind("Weapons", "WeaponReturnSeconds", 8f,
+                "Seconds a weapon you dropped lies there before it goes back to its holster (it also goes back when you walk 20 m away).");
             MagazinePalming = cfg.Bind("Weapons", "MagazinePalming", true,
                 "Tactical reloads like H3VR: pressing the magazine release while your other hand holds a fresh magazine at the well puts the old magazine into that hand too. Seat the fresh one and the old one stays in your hand; let go to drop both.");
             ThrowVelocityMultiplier = cfg.Bind("Weapons", "ThrowVelocityMultiplier", 1.4f,

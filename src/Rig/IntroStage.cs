@@ -7,6 +7,7 @@ using RavenfieldVR.Core;
 using RavenfieldVR.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace RavenfieldVR.Rig
 {
@@ -19,6 +20,12 @@ namespace RavenfieldVR.Rig
     /// The view is raised to standing eye height above their floor (the flat camera sits at about knee height).
     /// <c>-rfvr-introdump</c> logs the scene and what moves in it, also in flat play.
     /// </summary>
+    internal static class EyeHeightExtensions
+    {
+        /// <summary>The calibrated eye height, or a standing default before calibration.</summary>
+        public static float ClampEye(this float h) => h > 0.3f ? h : 1.65f;
+    }
+
     public static class IntroStage
     {
         private static readonly bool Dump = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-introdump", StringComparison.OrdinalIgnoreCase));
@@ -58,9 +65,14 @@ namespace RavenfieldVR.Rig
             {
                 _sceneHandle = scene.handle;
                 Walkers.Clear();
+                PlacedTitles.Clear();
                 _hasGround = false;
                 _isIntro = scene.buildIndex == 0 && UnityEngine.Object.FindObjectOfType<GotoMenu>() != null;
                 _phase = _isIntro ? Phase.Idle : Phase.Done;
+            }
+            if (_isIntro)
+            {
+                PlaceTitleInWorld(); // every frame: text that switches on later in the intro too
             }
             if (!_isIntro || _phase == Phase.Done)
             {
@@ -186,8 +198,9 @@ namespace RavenfieldVR.Rig
                 Walker w = Walkers[i];
                 float speed = Mathf.Max(0.3f, ((w.T.position - w.Start) / elapsed).magnitude);
                 // Far enough to take most of the intro to arrive, near enough to be seen at once.
-                float distance = Mathf.Clamp(speed * duration * 0.85f, 3.5f, 11f) + i * 0.9f;
-                float side = (i % 2 == 0 ? 1f : -1f) * (0.75f + 0.35f * (i / 2));
+                // Close enough to reach you a little after the middle of the intro and walk on past before it cuts.
+                float distance = Mathf.Clamp(speed * duration * 0.55f, 2.5f, 7f) + i * 0.6f;
+                float side = (i % 2 == 0 ? 1f : -1f) * (1.1f + 0.4f * (i / 2)); // either side of the title, framing it
                 Vector3 start = eye + forward * distance + right * side;
                 start.y = w.T.position.y;
                 Vector3 target = eye + right * side;
@@ -199,6 +212,20 @@ namespace RavenfieldVR.Rig
             }
             VRRig.Instance?.FadeCut();
             Log.Info($"Intro staged for VR: {Walkers.Count} walker(s) turned toward the view ({duration:0} s intro).");
+            if (Shots.Enabled && VRManager.Instance != null)
+            {
+                VRManager.Instance.StartCoroutine(IntroShots());
+            }
+        }
+
+        private static IEnumerator IntroShots()
+        {
+            foreach (float at in new[] { 0.6f, 2.5f, 5f, 7.5f })
+            {
+                yield return new WaitForSecondsRealtime(at < 1f ? at : 2.5f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture($"intro-{at:0.0}s");
+            }
         }
 
         private static Vector3 Heading(Transform t)
@@ -212,6 +239,67 @@ namespace RavenfieldVR.Rig
         {
             GotoMenu goTo = UnityEngine.Object.FindObjectOfType<GotoMenu>();
             return goTo != null ? Mathf.Clamp(goTo.duration, 4f, 25f) : 10f;
+        }
+
+        private const float TitleDistance = 12f;
+        private const int WorldLayer = 0;
+        private static readonly List<Canvas> PlacedTitles = new List<Canvas>();
+
+        /// <summary>
+        /// The intro's title and text are screen canvases. Left to the HUD conversion they would hang head-locked a few
+        /// metres away and be drawn over everything, in front of soldiers who are further away. Here they become part of
+        /// the scene instead: world-space, out behind where the walkers start, framed as the intro camera framed them, on
+        /// a world layer so the soldiers walk in front of them. (The HUD conversion leaves world-space canvases alone.)
+        /// </summary>
+        private static void PlaceTitleInWorld()
+        {
+            Camera cam = GameCamera();
+            if (cam == null)
+            {
+                return;
+            }
+            foreach (Canvas c in UnityEngine.Object.FindObjectsOfType<Canvas>())
+            {
+                if (c == null || !c.isRootCanvas || c.renderMode == RenderMode.WorldSpace || c.gameObject.scene.buildIndex != 0)
+                {
+                    continue;
+                }
+                var rect = (RectTransform)c.transform;
+                Vector2 size = rect.rect.size;
+                if (size.x < 10f || size.y < 10f)
+                {
+                    size = new Vector2(Screen.width, Screen.height) / Mathf.Max(0.01f, c.scaleFactor);
+                }
+                Log.Info($"Intro: canvas '{c.name}' ({c.renderMode}, {size.x:0}x{size.y:0}, layer {c.gameObject.layer}) placed in the scene behind the walkers.");
+                var scaler = c.GetComponent<CanvasScaler>();
+                if (scaler != null)
+                {
+                    scaler.enabled = false;
+                }
+                c.renderMode = RenderMode.WorldSpace;
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = size;
+                Vector3 forward = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
+                float height = 2f * TitleDistance * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+                Vector3 centre = cam.transform.position + forward * TitleDistance;
+                centre.y = _hasGround ? _ground + VRConfig.EyeHeight.Value.ClampEye() : centre.y;
+                rect.SetPositionAndRotation(centre, Quaternion.LookRotation(forward, Vector3.up));
+                rect.localScale = Vector3.one * (height / size.y);
+                foreach (Transform t in c.GetComponentsInChildren<Transform>(true))
+                {
+                    t.gameObject.layer = WorldLayer;
+                }
+                PlacedTitles.Add(c);
+            }
+            // A 3D text drawn on the UI layer would be painted over the walkers the same way.
+            foreach (TextMesh tm in UnityEngine.Object.FindObjectsOfType<TextMesh>())
+            {
+                if (tm.gameObject.layer == 5 && tm.gameObject.scene.buildIndex == 0)
+                {
+                    tm.gameObject.layer = WorldLayer;
+                }
+            }
         }
 
         /// <summary>The intro's own camera (the enabled one that is not the mod's).</summary>

@@ -105,14 +105,14 @@ namespace RavenfieldVR.Rig
             // thickness from palm to back, x offset of the centre toward the back of the hand).
             float[,] palm =
             {
-                { -0.102f, 0.030f, 0.026f, 0.004f },
-                { -0.080f, 0.029f, 0.024f, 0.004f },
-                { -0.058f, 0.027f, 0.019f, 0.004f }, // wrist
-                { -0.036f, 0.034f, 0.016f, 0.003f },
-                { -0.010f, 0.040f, 0.016f, 0.002f },
-                { 0.018f, 0.042f, 0.015f, 0.001f },
-                { 0.040f, 0.041f, 0.013f, 0.001f }, // knuckles
-                { 0.052f, 0.036f, 0.010f, 0.000f }
+                { -0.096f, 0.027f, 0.022f, 0.003f },
+                { -0.078f, 0.026f, 0.020f, 0.003f },
+                { -0.058f, 0.025f, 0.016f, 0.003f }, // wrist
+                { -0.036f, 0.032f, 0.0135f, 0.002f },
+                { -0.010f, 0.038f, 0.0135f, 0.0015f },
+                { 0.018f, 0.040f, 0.0125f, 0.001f },
+                { 0.040f, 0.039f, 0.011f, 0.001f }, // knuckles
+                { 0.052f, 0.034f, 0.0085f, 0.000f }
             };
             int prev = -1;
             int first = -1;
@@ -153,13 +153,16 @@ namespace RavenfieldVR.Rig
                     float len = lengths[f][s];
                     // Knuckles sit a little proud; a finger is slightly flatter on its pad side.
                     float bulge = s == 0 ? 1.12f : 1.04f;
-                    BoneWeight atJoint = s == 0 ? One(bone) : Two(bone - 1, bone, 0.5f);
-                    int r0 = g.Ring(o - fwd * (s == 0 ? r * 0.6f : 0f), jx, jy, r * bulge * 0.92f, r * bulge, v, atJoint, Vector3.zero);
-                    if (prev >= 0)
+                    if (s == 0)
                     {
-                        // Joint ring shared with the previous segment: no seam where the finger bends.
-                        g.Bridge(prev, r0, false);
+                        // The finger grows out of the palm: a root ring inside the hand on the palm bone, so a curled
+                        // finger stays joined to the knuckle instead of swinging free of it.
+                        prev = g.Ring(o - fwd * 0.024f, jx, jy, r * 1.05f, r * 1.1f, v - 0.5f, One(0), Vector3.zero);
                     }
+                    // Joint ring shared with the bone before (the palm at the knuckle): no seam where the finger bends.
+                    BoneWeight atJoint = Two(s == 0 ? 0 : bone - 1, bone, 0.5f);
+                    int r0 = g.Ring(o, jx, jy, r * bulge * 0.92f, r * bulge, v, atJoint, Vector3.zero);
+                    g.Bridge(prev, r0, false);
                     int r1 = g.Ring(o + fwd * (len * 0.5f), jx, jy, Mathf.Lerp(r, rNext, 0.5f) * 0.9f, Mathf.Lerp(r, rNext, 0.5f) * 0.97f, v + 0.5f, One(bone), Vector3.zero);
                     g.Bridge(r0, r1, false);
                     prev = r1;

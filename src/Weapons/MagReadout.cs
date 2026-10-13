@@ -24,6 +24,9 @@ namespace RavenfieldVR.Weapons
         private string _shown;
         private static readonly Dictionary<int, string> Labels = new Dictionary<int, string>();
 
+        /// <summary>Autotest pictures: shows this magazine's readout whatever the head looks at.</summary>
+        internal static MagazineProp TestTarget;
+
         public MagReadout(WeaponSystem sys)
         {
             _sys = sys;
@@ -54,7 +57,7 @@ namespace RavenfieldVR.Weapons
             Transform head = _sys.Rig.Head;
             HeldWeapon held = _sys.Held;
             bool allowed = VRConfig.MagazineReadout.Value && Util.GameContext.PlayerOnFoot && !Util.GameContext.GameMenuOpen && (held == null || !held.Aiming);
-            MagazineProp best = allowed ? Find(head) : null;
+            MagazineProp best = TestTarget != null && TestTarget.Go != null ? TestTarget : allowed ? Find(head) : null;
             if (best != null)
             {
                 _target = best;

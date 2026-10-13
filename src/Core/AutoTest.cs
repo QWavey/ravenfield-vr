@@ -137,6 +137,73 @@ namespace RavenfieldVR.Core
             Application.Quit();
         }
 
+        /// <summary>Pictures of the body: hands and gloves, the holsters looked down at and from behind, the damage ring.</summary>
+        private static IEnumerator BodyShots()
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            WeaponSystem sys = WeaponSystem.Instance;
+            if (rig == null || sys == null)
+            {
+                yield break;
+            }
+            yield return new WaitForSecondsRealtime(1f);
+            yield return new WaitForEndOfFrame();
+            Transform head = rig.Head;
+            Shots.Capture("body-view");
+            Vector3 flat = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            Shots.Capture("body-looking-down", head.position, Quaternion.LookRotation(flat * 0.35f + Vector3.down, flat), 100f);
+            Vector3 behind = head.position - flat * 0.9f + Vector3.up * 0.15f;
+            Shots.Capture("body-from-behind", behind, Quaternion.LookRotation(head.position - Vector3.up * 0.35f - behind), 80f);
+            Vector3 side = head.position + Vector3.Cross(Vector3.up, flat) * 0.8f - Vector3.up * 0.4f;
+            Shots.Capture("body-from-the-side", side, Quaternion.LookRotation(head.position - Vector3.up * 0.55f - side), 80f);
+            Rig.DamageFeedback damage = Rig.DamageFeedback.Instance;
+            if (damage != null)
+            {
+                damage.OnVignette(0.85f, 3f);
+                damage.OnHitDirection(60f, false);
+                yield return new WaitForSecondsRealtime(0.08f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("damage-from-front-left");
+            }
+        }
+
+        /// <summary>Melee: the blade the swing detection uses, measured on the held weapon.</summary>
+        private static string MeleeCheck(HeldWeapon held)
+        {
+            Bounds b = GunCollider.VisibleBounds(held.Rig, out bool measured);
+            float reach = measured ? Vector3.Dot(b.max - held.Rig.Data.GripPoint, held.Rig.Data.AimAxis) : 0f;
+            return measured ? $"melee: blade reaches {reach * 100f:0} cm past the grip" : "melee: NO MEASURABLE BLADE";
+        }
+
+        /// <summary>Lets the held weapon fall as an opened hand would, pictures it, and waits for it to go back to its holster.</summary>
+        private static IEnumerator DropCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = LocalPlayer.actor;
+            if (sys == null || actor == null)
+            {
+                yield break;
+            }
+            int slot = sys.TestLetFall();
+            if (slot < 0)
+            {
+                report("let go: NOTHING DROPPED");
+                yield break;
+            }
+            yield return new WaitForSecondsRealtime(0.7f);
+            yield return new WaitForEndOfFrame();
+            Shots.Capture("dropped-weapon");
+            Transform head = Rig.VRRig.Instance.Head;
+            Shots.Capture("dropped-weapon-looking-down", head.position, Quaternion.LookRotation(Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized * 0.6f + Vector3.down), 90f);
+            bool gone = actor.weapons[slot] == null;
+            float until = Time.realtimeSinceStartup + VRConfig.WeaponReturnSeconds.Value + 3f;
+            while (actor.weapons[slot] == null && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            report($"let go: {(gone ? "fell out of the hand" : "STILL IN THE LOADOUT")}, {(actor.weapons[slot] != null ? "back in its holster" : "NEVER CAME BACK")}");
+        }
+
         private static IEnumerator Deploy()
         {
             for (int attempt = 0; attempt < 6 && (LocalPlayer.actor == null || LocalPlayer.actor.dead); attempt++)
@@ -157,8 +224,30 @@ namespace RavenfieldVR.Core
         {
             List<WeaponManager.WeaponEntry> entries = WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null).ToList();
             Results.Add($"Weapons to test: {entries.Count} (VR {(VRManager.Active ? "on" : "off")})");
+            if (VRManager.Active)
+            {
+                yield return BodyShots();
+            }
+            int every = Mathf.Max(1, entries.Count / 28);
+            if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
+                // first rifle (tactical reload and the let-go check).
+                int n = 0;
+                entries = entries.Where(e =>
+                {
+                    n++;
+                    Weapon w = e.prefab.GetComponent<Weapon>();
+                    return n % every == 0 || w is MeleeWeapon || w is ThrowableWeapon || e.slot == WeaponManager.WeaponSlot.Primary && n < 40;
+                }).Take(60).ToList();
+                Results.Add($"Quick run: {entries.Count} weapons");
+                every = Mathf.Max(1, entries.Count / 28);
+            }
+            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0;
+            bool tacticalDone = false, dropDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
+                index++;
                 _context = entry.name;
                 Actor actor = LocalPlayer.actor;
                 if (actor == null || actor.dead)
@@ -226,6 +315,41 @@ namespace RavenfieldVR.Core
                         lines.Add("NO VISIBLE MODEL");
                     }
                     yield return held.Reload.SelfCheck(lines.Add);
+                    if (VRManager.Active)
+                    {
+                        // A picture of the weapon in the (simulated) hands: a spread across the list, plus melee, grenades
+                        // and pistols.
+                        ActionType action = held.Rig.Data.Action;
+                        bool want = index % every == 0
+                                    || action == ActionType.Melee && meleeShots++ < 4
+                                    || action == ActionType.Throwable && throwShots++ < 3
+                                    || held.Rig.Data.IsPistol && action == ActionType.SelfLoading && pistolShots++ < 4;
+                        if (want)
+                        {
+                            yield return new WaitForEndOfFrame();
+                            Shots.Capture($"weapon-{index:000}-{entry.name}");
+                        }
+                        if (action == ActionType.Melee)
+                        {
+                            lines.Add(MeleeCheck(held));
+                        }
+                        if (!tacticalDone && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
+                        {
+                            tacticalDone = true;
+                            yield return held.Reload.TacticalSelfCheck(lines.Add, name => Shots.Capture(name));
+                        }
+                        if (!dropDone && tacticalDone && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol)
+                        {
+                            dropDone = true;
+                            yield return DropCheck(lines.Add);
+                            weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
+                            if (weapon != null && actor.activeWeapon != weapon)
+                            {
+                                actor.SwitchWeapon(Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1));
+                                yield return new WaitForSecondsRealtime(1f);
+                            }
+                        }
+                    }
                     if (held.Rig.Data.Action == ActionType.Throwable && weapon is ThrowableWeapon)
                     {
                         var pinLines = new List<string>();

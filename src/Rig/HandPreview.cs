@@ -11,6 +11,19 @@ namespace RavenfieldVR.Rig
     /// </summary>
     internal static class HandPreview
     {
+        private static void Save(Camera cam, RenderTexture rt, string path)
+        {
+            cam.Render();
+            RenderTexture prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            RenderTexture.active = prev;
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            UnityEngine.Object.Destroy(tex);
+        }
+
         public static string Capture(string path)
         {
             var root = new GameObject("RavenfieldVR Hand Preview");
@@ -55,15 +68,11 @@ namespace RavenfieldVR.Rig
                 cam.enabled = false;
                 rt = new RenderTexture(1200, 600, 24);
                 cam.targetTexture = rt;
-                cam.Render();
-                RenderTexture prev = RenderTexture.active;
-                RenderTexture.active = rt;
-                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
-                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-                tex.Apply();
-                RenderTexture.active = prev;
-                File.WriteAllBytes(path, tex.EncodeToPNG());
-                UnityEngine.Object.Destroy(tex);
+                Save(cam, rt, path);
+                // From the other side: the backs of the hands and the knuckles.
+                camGo.transform.localPosition = new Vector3(0f, 0.05f, 1.0f);
+                camGo.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                Save(cam, rt, path.Replace(".png", "-back.png"));
                 foreach (VRHand h in hands)
                 {
                     h.Destroy();

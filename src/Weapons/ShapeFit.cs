@@ -22,6 +22,8 @@ namespace RavenfieldVR.Weapons
         {
             public Vector3[] Points;
             public Bounds Bounds;
+            /// <summary>PhysX could not make a hull of it once: it is a box from then on.</summary>
+            public bool CookFailed;
             private Mesh _mesh;
 
             /// <summary>Hull source mesh (shared by every copy of the model).</summary>
@@ -257,24 +259,133 @@ namespace RavenfieldVR.Weapons
                         {
                             b.Encapsulate(p);
                         }
-                        // A flat piece (a decal, one face of a plate) still needs some thickness to be a solid.
-                        if (b.size.x < 0.004f || b.size.y < 0.004f || b.size.z < 0.004f)
+                        Vector3[] pts = Solid(Thin(Dedupe(g.Hull), 180));
+                        b = new Bounds(pts[0], Vector3.zero);
+                        foreach (Vector3 p in pts)
                         {
-                            Vector3 grow = Vector3.Max(Vector3.zero, new Vector3(0.004f, 0.004f, 0.004f) - b.size) * 0.5f;
-                            int n = g.Hull.Count;
-                            for (int i = 0; i < n; i++)
-                            {
-                                g.Hull.Add(g.Hull[i] + grow);
-                                g.Hull[i] -= grow;
-                            }
-                            b.Expand(grow * 2f);
+                            b.Encapsulate(p);
                         }
-                        list.Add(new Piece { Points = Dedupe(g.Hull), Bounds = b });
+                        list.Add(new Piece { Points = pts, Bounds = b });
                     }
                     result = list.ToArray();
                 }
             }
             return result ?? new Piece[0];
+        }
+
+        /// <summary>Every <c>n</c>-th point down to at most <paramref name="max"/> (extremes are spread evenly through the list).</summary>
+        private static Vector3[] Thin(Vector3[] pts, int max)
+        {
+            if (pts.Length <= max)
+            {
+                return pts;
+            }
+            var keep = new Vector3[max];
+            for (int i = 0; i < max; i++)
+            {
+                keep[i] = pts[(int)((long)i * pts.Length / max)];
+            }
+            return keep;
+        }
+
+        private const float MinThickness = 0.004f;
+
+        /// <summary>
+        /// A point set that spans a real volume. Points lying (almost) on a plane or a line, in any orientation, make PhysX's
+        /// convex cooking fail, and a collider without a shape reports every point as touching it. The set is measured along
+        /// its principal axes and doubled out along each one that is thinner than a few millimetres.
+        /// </summary>
+        private static Vector3[] Solid(Vector3[] pts)
+        {
+            Vector3 mean = Vector3.zero;
+            foreach (Vector3 p in pts)
+            {
+                mean += p;
+            }
+            mean /= Mathf.Max(1, pts.Length);
+            float xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+            foreach (Vector3 p in pts)
+            {
+                Vector3 d = p - mean;
+                xx += d.x * d.x; xy += d.x * d.y; xz += d.x * d.z;
+                yy += d.y * d.y; yz += d.y * d.z; zz += d.z * d.z;
+            }
+            Vector3[] axes = PrincipalAxes(xx, xy, xz, yy, yz, zz);
+            var result = new List<Vector3>(pts);
+            foreach (Vector3 axis in axes)
+            {
+                float min = float.MaxValue, max = float.MinValue;
+                foreach (Vector3 p in result)
+                {
+                    float v = Vector3.Dot(p - mean, axis);
+                    min = Mathf.Min(min, v);
+                    max = Mathf.Max(max, v);
+                }
+                if (max - min >= MinThickness)
+                {
+                    continue;
+                }
+                Vector3 grow = axis * (MinThickness - (max - min)) * 0.5f;
+                int n = result.Count;
+                for (int i = 0; i < n; i++)
+                {
+                    result.Add(result[i] + grow);
+                    result[i] -= grow;
+                }
+            }
+            return result.ToArray();
+        }
+
+        /// <summary>Eigenvectors of a symmetric 3x3 covariance (Jacobi rotations), as unit vectors.</summary>
+        private static Vector3[] PrincipalAxes(float xx, float xy, float xz, float yy, float yz, float zz)
+        {
+            var a = new double[3, 3] { { xx, xy, xz }, { xy, yy, yz }, { xz, yz, zz } };
+            var v = new double[3, 3] { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+            for (int sweep = 0; sweep < 12; sweep++)
+            {
+                for (int p = 0; p < 2; p++)
+                {
+                    for (int q = p + 1; q < 3; q++)
+                    {
+                        if (Math.Abs(a[p, q]) < 1e-12)
+                        {
+                            continue;
+                        }
+                        double theta = (a[q, q] - a[p, p]) / (2 * a[p, q]);
+                        double t = Math.Sign(theta) / (Math.Abs(theta) + Math.Sqrt(theta * theta + 1));
+                        if (theta == 0)
+                        {
+                            t = 1;
+                        }
+                        double c = 1 / Math.Sqrt(t * t + 1), s = t * c;
+                        for (int k = 0; k < 3; k++)
+                        {
+                            double akp = a[k, p], akq = a[k, q];
+                            a[k, p] = c * akp - s * akq;
+                            a[k, q] = s * akp + c * akq;
+                        }
+                        for (int k = 0; k < 3; k++)
+                        {
+                            double apk = a[p, k], aqk = a[q, k];
+                            a[p, k] = c * apk - s * aqk;
+                            a[q, k] = s * apk + c * aqk;
+                        }
+                        for (int k = 0; k < 3; k++)
+                        {
+                            double vkp = v[k, p], vkq = v[k, q];
+                            v[k, p] = c * vkp - s * vkq;
+                            v[k, q] = s * vkp + c * vkq;
+                        }
+                    }
+                }
+            }
+            var axes = new Vector3[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var axis = new Vector3((float)v[0, i], (float)v[1, i], (float)v[2, i]);
+                axes[i] = axis.sqrMagnitude > 1e-8f ? axis.normalized : (i == 0 ? Vector3.right : i == 1 ? Vector3.up : Vector3.forward);
+            }
+            return axes;
         }
 
         private static Vector3[] Dedupe(List<Vector3> pts)
@@ -450,17 +561,28 @@ namespace RavenfieldVR.Weapons
             foreach (Piece p in pieces)
             {
                 Collider c = null;
-                if (p.Points.Length >= 4)
+                if (p.Points.Length >= 4 && !p.CookFailed)
                 {
                     try
                     {
                         var mc = go.AddComponent<MeshCollider>();
                         mc.convex = true;
                         mc.sharedMesh = p.Mesh;
-                        c = mc;
+                        // Cooking failed (PhysX logs it): the collider has no shape and would touch everything. Its box
+                        // instead, and never try that piece again.
+                        if (mc.sharedMesh == null || mc.bounds.size.sqrMagnitude < 1e-10f && go.activeInHierarchy && mc.enabled)
+                        {
+                            p.CookFailed = true;
+                            UnityEngine.Object.DestroyImmediate(mc);
+                        }
+                        else
+                        {
+                            c = mc;
+                        }
                     }
                     catch (Exception)
                     {
+                        p.CookFailed = true;
                         c = null;
                     }
                 }

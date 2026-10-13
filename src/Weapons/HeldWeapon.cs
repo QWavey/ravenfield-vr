@@ -58,6 +58,8 @@ namespace RavenfieldVR.Weapons
         private bool _magHidden;
         private readonly BoltPiece _boltPiece;
         private readonly ArmIK _armIK;
+        /// <summary>The weapon's own right and left hands (bones still animated under the hidden arm meshes).</summary>
+        private readonly ModHand _gripHand, _supportHand;
 
         public bool Aiming { get; private set; }
 
@@ -100,6 +102,8 @@ namespace RavenfieldVR.Weapons
             {
                 _armIK = new ArmIK(system, this);
             }
+            _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
+            _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
             ActionType action = rig.Data.Action;
             if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed))
             {
@@ -371,6 +375,7 @@ namespace RavenfieldVR.Weapons
             desiredGunBody.Multiply(gunInRoot.Inverse()).ApplyTo(root);
 
             ApplyPartOverrides();
+            SnapHands(main, off);
             if (_armIK != null && _armIK.Active)
             {
                 _armIK.Solve();
@@ -412,6 +417,41 @@ namespace RavenfieldVR.Weapons
                         _modeScopes[i].BeforeRender(Aiming);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Boneworks-style grips: the gun hand's glove takes the weapon's own hand pose on its grip, the support hand the
+        /// weapon's support pose on the handguard (slid to wherever you hold it) or on the pistol grip it cups.
+        /// </summary>
+        private void SnapHands(VRHand main, VRHand off)
+        {
+            if (main.Model != null)
+            {
+                main.Model.SnapPose = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose grip)
+                    ? grip
+                    : (RigidPose?)null;
+            }
+            if (off.Model == null)
+            {
+                return;
+            }
+            if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support))
+            {
+                if (!Rig.Data.IsPistol)
+                {
+                    // Along the handguard to where the hand actually is, within the stretch between grip and muzzle.
+                    Vector3 axis = Rig.AimWorld;
+                    float slide = Vector3.Dot(off.PalmCentre - support.position, axis);
+                    float min = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint) - support.position, axis) + 0.08f;
+                    float max = Vector3.Dot(Rig.ToWorld(Rig.Data.MuzzlePoint) - support.position, axis) - 0.04f;
+                    support.position += axis * Mathf.Clamp(slide, Mathf.Min(min, 0f), Mathf.Max(max, 0f));
+                }
+                off.Model.SnapPose = support;
+            }
+            else
+            {
+                off.Model.SnapPose = null;
             }
         }
 
@@ -613,10 +653,12 @@ namespace RavenfieldVR.Weapons
             {
                 _system.Rig.Dominant.Model.WeaponGripCurls = null;
                 _system.Rig.Dominant.Model.WeaponIsPistol = false;
+                _system.Rig.Dominant.Model.SnapPose = null;
             }
             if (_system.Rig.Off.Model != null)
             {
                 _system.Rig.Off.Model.WeaponSupportCurls = null;
+                _system.Rig.Off.Model.SnapPose = null;
             }
             foreach (Renderer r in Rig.ArmRenderers)
             {

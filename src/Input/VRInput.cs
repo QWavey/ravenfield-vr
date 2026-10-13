@@ -377,7 +377,10 @@ namespace RavenfieldVR.Input
         // ---- digital ------------------------------------------------------------------------------
 
         public static bool GetHeld(DigitalAction a) => Held[(int)a, 2];
-        public static bool GetHeld(DigitalAction a, Hand h) => Held[(int)a, (int)h];
+        public static bool GetHeld(DigitalAction a, Hand h) => Held[(int)a, (int)h] || a == DigitalAction.Grab && SimulatedGrab[(int)h];
+
+        /// <summary>Autotest: a closed grip on a simulated hand (the virtual headset has no controllers to squeeze).</summary>
+        internal static readonly bool[] SimulatedGrab = new bool[2];
 
         public static bool GetPressed(DigitalAction a) => Pressed[(int)a, 2] && !Consumed[(int)a, 2];
         public static bool GetPressed(DigitalAction a, Hand h) => Pressed[(int)a, (int)h] && !Consumed[(int)a, (int)h];
@@ -479,8 +482,38 @@ namespace RavenfieldVR.Input
             {
                 return;
             }
-            OpenVR.Input?.TriggerHapticVibrationAction(_haptic, 0f, Mathf.Max(0.001f, duration), Mathf.Clamp(frequency, 1f, 320f),
-                Mathf.Clamp01(amplitude * strength), HandSource[(int)h]);
+            amplitude = Mathf.Clamp01(amplitude * strength);
+            if (IsTouch(h))
+            {
+                // Quest / Rift Touch over SteamVR's Oculus driver: pulses of a few milliseconds or at low strength are
+                // lost in its haptics buffer and never felt, so every pulse gets a felt minimum (scaled by the setting).
+                duration = Mathf.Max(duration, 0.045f);
+                amplitude = Mathf.Max(amplitude, 0.35f * Mathf.Clamp01(strength));
+                frequency = frequency < 120f ? 160f : 320f;
+            }
+            CVRInput input = OpenVR.Input;
+            if (input == null)
+            {
+                return;
+            }
+            EVRInputError err = input.TriggerHapticVibrationAction(_haptic, 0f, Mathf.Max(0.001f, duration), Mathf.Clamp(frequency, 1f, 320f),
+                amplitude, HandSource[(int)h]);
+            if (err != EVRInputError.None)
+            {
+                Log.WarnOnce("haptic:" + h + err, $"Vibration on the {h} controller failed: {err}");
+            }
+            else
+            {
+                Log.InfoOnce("haptic-ok:" + h, $"Vibration on the {h} controller works ({ControllerTypes[(int)h]}).");
+            }
+        }
+
+        /// <summary>Oculus Touch controllers (Quest 1-3, Rift S), as SteamVR reports them, or before any type is known.</summary>
+        private static bool IsTouch(Hand h)
+        {
+            string type = ControllerTypes[(int)h];
+            return string.IsNullOrEmpty(type) || type.IndexOf("oculus", StringComparison.OrdinalIgnoreCase) >= 0
+                   || type.IndexOf("touch", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>Opens SteamVR's binding UI for this game (in the headset).</summary>

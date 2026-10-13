@@ -267,7 +267,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The renderer belongs to something the mod attached to the weapon (its objects are all named "RavenfieldVR ...").</summary>
-        private static bool AddedByMod(Transform t, Transform root)
+        internal static bool AddedByMod(Transform t, Transform root)
         {
             for (; t != null && t != root; t = t.parent)
             {

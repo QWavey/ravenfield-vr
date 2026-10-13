@@ -287,6 +287,24 @@ namespace RavenfieldVR.Weapons
         public bool InPouch(Vector3 point) => Vector3.Distance(point, Pouch) < PouchRadius;
 
         /// <summary>
+        /// At the body: on a holster, or against the torso (within a forearm of the line from the neck to the hips). Letting
+        /// go of a weapon here puts it away instead of dropping it.
+        /// </summary>
+        public bool AtBody(Vector3 point)
+        {
+            if (HolsterAt(point) >= 0)
+            {
+                return true;
+            }
+            Transform head = _rig.Head;
+            Vector3 flat = point - head.position;
+            float below = -flat.y;
+            flat.y = 0f;
+            float waistDrop = head.position.y - (DomHip.y - 0.12f);
+            return below > 0.12f && below < waistDrop && flat.magnitude < 0.3f;
+        }
+
+        /// <summary>
         /// Out to the off-hand side of the head, at or above eye level and not in front of the face: the night-vision
         /// gesture must not fire while the hand works a charging handle just under the eye of a shouldered rifle.
         /// </summary>

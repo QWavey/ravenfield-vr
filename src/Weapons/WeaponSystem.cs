@@ -390,9 +390,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             VRHand dom = Rig.Dominant;
-            if (!dom.Tracked)
+            if (!dom.Tracked || dom.Role == HandRole.Magazine)
             {
-                _hoveredHolster = -1;
+                _hoveredHolster = -1; // a hand holding a magazine has no room for a weapon
                 return;
             }
             Actor actor = GameContext.PlayerActor;
@@ -460,6 +460,11 @@ namespace RavenfieldVR.Weapons
                 _gripLetGoAt = -1f; // out of view: never drop on a tracking gap
                 return;
             }
+            if (Held.Rig.Data.Action == ActionType.Throwable && Time.unscaledTime - _throwables.GripThrowAt < 0.5f)
+            {
+                _gripLetGoAt = -1f; // that release was a throw
+                return;
+            }
             if (dom.GrabReleased)
             {
                 _gripLetGoAt = Time.unscaledTime;
@@ -468,15 +473,63 @@ namespace RavenfieldVR.Weapons
             {
                 _gripLetGoAt = -1f;
             }
-            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > 0.18f)
+            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > 0.12f)
             {
                 _gripLetGoAt = -1f;
                 Actor actor = GameContext.PlayerActor;
-                if (actor != null)
+                if (actor == null)
+                {
+                    return;
+                }
+                // Let go at your body: back in its holster. Anywhere else it falls, like any object you open your hand on.
+                if (VRConfig.ReleaseDropsWeapon.Value && !Zones.AtBody(dom.Palm.position) && Held.Rig.Data.Action != ActionType.Throwable)
+                {
+                    LetFall(actor, dom);
+                }
+                else
                 {
                     HolsterToEmptyHand(actor);
                 }
             }
+        }
+
+        /// <summary>Autotest: lets the held weapon fall as a released grip would; the slot it came from, or -1.</summary>
+        internal int TestLetFall()
+        {
+            Actor actor = GameContext.PlayerActor;
+            if (Held == null || actor == null || actor.weapons == null)
+            {
+                return -1;
+            }
+            int slot = Array.IndexOf(actor.weapons, Held.Weapon);
+            LetFall(actor, Rig.Dominant);
+            return slot;
+        }
+
+        /// <summary>The weapon leaves the hand as a physical object where it was held; it returns to its holster later.</summary>
+        private void LetFall(Actor actor, VRHand dom)
+        {
+            HeldWeapon held = Held;
+            int slot = actor.weapons != null ? Array.IndexOf(actor.weapons, held.Weapon) : -1;
+            if (slot < 0 || actor.IsSeated())
+            {
+                HolsterToEmptyHand(actor);
+                return;
+            }
+            DroppedWeapon drop = Drops.DropHeld(held, slot, dom.ThrowVelocity(), dom.AngularVelocity);
+            if (drop == null)
+            {
+                HolsterToEmptyHand(actor);
+                return;
+            }
+            ReleaseHeld();
+            actor.HolsterActiveWeapon();
+            actor.DropWeapon(slot);
+            if (dom.Role == HandRole.Weapon || dom.Role == HandRole.Throwable)
+            {
+                dom.Role = HandRole.Free;
+            }
+            dom.Haptic(0.03f, 90f, 0.4f);
         }
 
         public void OnSceneChanged()
