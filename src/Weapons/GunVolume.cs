@@ -185,13 +185,13 @@ namespace RavenfieldVR.Weapons
         /// The volume of any set of renderers (a magazine on the gun or in the hand), in the frame of <paramref name="frame"/>
         /// as it is now; kept under <paramref name="key"/>.
         /// </summary>
-        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame)
+        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5)
         {
             if (frame == null || renderers.Count == 0)
             {
                 return null;
             }
-            return Cached(key, () => Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f));
+            return Cached(key, () => Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views));
         }
 
         private static GunVolume Cached(string key, Func<GunVolume> build)
@@ -275,7 +275,7 @@ namespace RavenfieldVR.Weapons
             return _layer;
         }
 
-        private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax)
+        private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5)
         {
             Shader shader = DepthShader();
             if (shader == null || renderers.Count == 0)
@@ -313,14 +313,17 @@ namespace RavenfieldVR.Weapons
             }
             box.Expand(2f * Grow + 0.004f);
 
-            var dirs = new[]
+            var allDirs = new[]
             {
                 (Vector3.right, Vector3.up),
                 (Vector3.up, Vector3.forward),
                 (Vector3.forward, Vector3.up),
+                // Diagonals round the barrel: they cut the corners off round handguards and grips.
                 ((Vector3.right + Vector3.up).normalized, Vector3.forward),
                 ((Vector3.right - Vector3.up).normalized, Vector3.forward)
             };
+            var dirs = new (Vector3, Vector3)[Mathf.Clamp(viewCount, 3, allDirs.Length)];
+            System.Array.Copy(allDirs, dirs, dirs.Length);
             var views = new View[dirs.Length];
             var job = new Job { Views = views, MinZ = new float[dirs.Length], MaxZ = new float[dirs.Length], Far = new float[dirs.Length], Front = new Color32[dirs.Length][], Back = new Color32[dirs.Length][] };
 

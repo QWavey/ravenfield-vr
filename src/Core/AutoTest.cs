@@ -214,6 +214,10 @@ namespace RavenfieldVR.Core
             string magHand = MagazineProp.HandClipping(off, out int mBuried, out _, out int mTouching);
             Metric("magazine hand: points inside the magazines", mBuried);
             Metric("magazine hand: fingers on the magazines (of 4)", mTouching);
+            if (off.Held is MagazineProp shown && shown.Volume != null)
+            {
+                Metric("magazine solid: main-thread ms per magazine type", shown.Volume.RenderMs);
+            }
             report($"{name}: magazine hand {magHand}");
         }
 
@@ -342,6 +346,7 @@ namespace RavenfieldVR.Core
                 Metric(held.Rig.Data.IsPistol ? "gun hand: pistol thumb on the gun (0/1)" : "gun hand: rifle thumb on the grip (0/1)", Rig.VRRig.Instance.Dominant.Model.ThumbTouching ? 1 : 0);
                 Metric("hand solid: main-thread ms per weapon", held.Volume.RenderMs);
                 Metric("hand solid: total ms per weapon", held.Volume.BuildMs);
+                Metric("physics shape choice: main-thread ms per weapon type", held.ShapeChoiceMs);
             }
             // The weapon's own arms where its author animated them, for comparison.
             Renderer[] arms = held.Rig.ArmRenderers;

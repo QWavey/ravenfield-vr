@@ -239,7 +239,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public string Match(GunVolume volume) => Match(volume, out _, out _);
 
-        public string Match(GunVolume volume, out float excessPercent, out float coveredPercent)
+        public string Match(GunVolume volume, out float excessPercent, out float coveredPercent) => Match(volume, 7, 400, out excessPercent, out coveredPercent);
+
+        /// <summary>
+        /// <paramref name="grid"/>³ samples per piece and about <paramref name="surfaceSamples"/> points of the model's
+        /// surface: fine for the self-test, coarse for the one-off choice made in play (a draw must not hitch).
+        /// </summary>
+        public string Match(GunVolume volume, int grid, int surfaceSamples, out float excessPercent, out float coveredPercent)
         {
             Transform t = _go.transform;
             int inside = 0, excess = 0;
@@ -250,7 +256,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Bounds b = c.bounds;
-                const int N = 7;
+                int N = grid;
                 for (int x = 0; x < N; x++)
                 {
                     for (int y = 0; y < N; y++)
@@ -273,7 +279,7 @@ namespace RavenfieldVR.Weapons
             }
             List<Vector3> surface = volume.SurfacePoints(6);
             int covered = 0, tested = 0;
-            for (int i = 0; i < surface.Count; i += Mathf.Max(1, surface.Count / 400))
+            for (int i = 0; i < surface.Count; i += Mathf.Max(1, surface.Count / surfaceSamples))
             {
                 Vector3 p = t.TransformPoint(surface[i]);
                 tested++;

@@ -510,6 +510,9 @@ namespace RavenfieldVR.Weapons
         private static readonly System.Func<Vector3, bool>[] HandSolids = new System.Func<Vector3, bool>[2];
         private static readonly VRHand[] HandSolidOwners = new VRHand[2];
 
+        /// <summary>Self-test: this magazine's measured solid (null until measured).</summary>
+        internal GunVolume Volume => _volume;
+
         private void EnsureVolume()
         {
             if (_volume != null && !_volume.Failed || _volumeTried && _volume == null || Go == null)
@@ -525,7 +528,7 @@ namespace RavenfieldVR.Weapons
                     renderers.Add(r);
                 }
             }
-            _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform);
+            _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform, 3); // box-like: the three axis views see it whole
         }
 
         /// <summary>

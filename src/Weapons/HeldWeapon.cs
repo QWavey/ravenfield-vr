@@ -496,6 +496,9 @@ namespace RavenfieldVR.Weapons
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
         }
 
+        /// <summary>Self-test: how long choosing the physics shape took on the main thread (-1 when no choice was made).</summary>
+        internal float ShapeChoiceMs { get; private set; } = -1f;
+
         /// <summary>Per weapon type: the shape fitted to the rendered model matched it better than the one from the meshes.</summary>
         private static readonly Dictionary<string, bool> RenderedShapeBetter = new Dictionary<string, bool>();
 
@@ -521,9 +524,12 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             ShapeFit.Piece[] meshes = _gunCollider.Pieces;
-            string before = _gunCollider.Match(_volume, out float excess0, out float covered0);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            // Coarse sampling (4³ per piece, ~150 surface points): enough to tell the fits apart without a hitch.
+            string before = _gunCollider.Match(_volume, 4, 150, out float excess0, out float covered0);
             _gunCollider.UseShape(_volume.HullPieces, null);
-            string after = _gunCollider.Match(_volume, out float excess1, out float covered1);
+            string after = _gunCollider.Match(_volume, 4, 150, out float excess1, out float covered1);
+            ShapeChoiceMs = (float)watch.Elapsed.TotalMilliseconds;
             bool better = covered1 - excess1 > covered0 - excess0 + 5f; // a clear margin, not noise
             RenderedShapeBetter[key] = better;
             if (better)
@@ -587,7 +593,7 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
-                _magVolume = GunVolume.Measure("seated:" + Rig.Data.Key, renderers, _magFrame);
+                _magVolume = GunVolume.Measure("seated:" + Rig.Data.Key, renderers, _magFrame, 3);
             }
             if (_magVolume != null && _magVolume.Ready)
             {

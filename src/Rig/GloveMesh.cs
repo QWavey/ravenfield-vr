@@ -25,17 +25,17 @@ namespace RavenfieldVR.Rig
             public readonly List<int> T = new List<int>();
 
             /// <summary>A ring of <see cref="Around"/>+1 vertices (the last repeats the first for the texture seam).</summary>
-            public int Ring(Vector3 centre, Vector3 xAxis, Vector3 yAxis, float a, float b, float v, BoneWeight w, Vector3 bias)
+            public int Ring(Vector3 centre, Vector3 xAxis, Vector3 yAxis, float a, float b, float v, BoneWeight w, Vector3 bias, float roundness = Roundness)
             {
                 int start = V.Count;
                 for (int i = 0; i <= Around; i++)
                 {
                     float t = (float)i / Around * Mathf.PI * 2f;
                     float c = Mathf.Cos(t), s = Mathf.Sin(t);
-                    float px = a * Mathf.Sign(c) * Mathf.Pow(Mathf.Abs(c), 2f / Roundness);
-                    float py = b * Mathf.Sign(s) * Mathf.Pow(Mathf.Abs(s), 2f / Roundness);
-                    float nx = Mathf.Sign(c) * Mathf.Pow(Mathf.Abs(c), 2f - 2f / Roundness) / Mathf.Max(a, 1e-4f);
-                    float ny = Mathf.Sign(s) * Mathf.Pow(Mathf.Abs(s), 2f - 2f / Roundness) / Mathf.Max(b, 1e-4f);
+                    float px = a * Mathf.Sign(c) * Mathf.Pow(Mathf.Abs(c), 2f / roundness);
+                    float py = b * Mathf.Sign(s) * Mathf.Pow(Mathf.Abs(s), 2f / roundness);
+                    float nx = Mathf.Sign(c) * Mathf.Pow(Mathf.Abs(c), 2f - 2f / roundness) / Mathf.Max(a, 1e-4f);
+                    float ny = Mathf.Sign(s) * Mathf.Pow(Mathf.Abs(s), 2f - 2f / roundness) / Mathf.Max(b, 1e-4f);
                     V.Add(centre + xAxis * px + yAxis * py);
                     N.Add((xAxis * nx + yAxis * ny).normalized * 0.85f + bias * 0.15f);
                     UV.Add(new Vector2((float)i / Around * 2f, v));
@@ -105,9 +105,10 @@ namespace RavenfieldVR.Rig
             // thickness from palm to back, x offset of the centre toward the back of the hand).
             float[,] palm =
             {
-                { -0.096f, 0.027f, 0.022f, 0.003f },
-                { -0.078f, 0.026f, 0.020f, 0.003f },
-                { -0.058f, 0.025f, 0.016f, 0.003f }, // wrist
+                // The cuff: round like a sleeve (not the palm's flat box), easing in toward the wrist.
+                { -0.090f, 0.026f, 0.021f, 0.003f },
+                { -0.074f, 0.0245f, 0.0185f, 0.003f },
+                { -0.058f, 0.0235f, 0.0155f, 0.003f }, // wrist
                 { -0.036f, 0.032f, 0.0135f, 0.002f },
                 { -0.010f, 0.038f, 0.0135f, 0.0015f },
                 { 0.018f, 0.040f, 0.0125f, 0.001f },
@@ -121,7 +122,7 @@ namespace RavenfieldVR.Rig
             {
                 var centre = new Vector3(palm[i, 3] * mirror, 0f, palm[i, 0]);
                 // The ring's local X is the hand's thickness, Y its width (the superellipse makes a flat, rounded box).
-                int ring = g.Ring(centre, xAxis, yAxis, palm[i, 2], palm[i, 1], i * 0.6f, One(0), Vector3.zero);
+                int ring = g.Ring(centre, xAxis, yAxis, palm[i, 2], palm[i, 1], i * 0.6f, One(0), Vector3.zero, i < 3 ? 2.05f : Roundness);
                 if (prev >= 0)
                 {
                     g.Bridge(prev, ring, false);
@@ -132,7 +133,7 @@ namespace RavenfieldVR.Rig
                 }
                 prev = ring;
             }
-            g.Cap(first, new Vector3(0.004f * mirror, 0f, -0.108f), Vector3.back, 0f, One(0), true);
+            g.Cap(first, new Vector3(0.003f * mirror, 0f, -0.097f), Vector3.back, 0f, One(0), true); // a shallow dome, not a spike
             g.Cap(prev, new Vector3(0f, 0f, 0.056f), Vector3.forward, 5f, One(0), false);
 
             // Fingers: a tube from the knuckle (inside the palm) through every joint to a rounded tip.
