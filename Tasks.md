@@ -329,6 +329,15 @@ For 106. The pouch magazine was placed by the analysis box of the magazine, whic
 
 For 107. The user found the procedural glove bad (fingers stuck out of the palm like sausages) and asked for a downloaded model. Sketchfab needs a login, so free models without one were compared; Valve's SteamVR glove (BSD-3, steamvr_unity_plugin) was taken: a textured tactical glove rigged to SteamVR's hand skeleton. tools/hands/convert_glove.py converts it (re-skinned onto the mod's palm + 5x3 joints), each joint curls the way Valve's open-hand-to-fist poses move it, contact is tested at the finger pads (the glove is padded: pads reach 9-17 mm from the bones) and on the glove's real palm surface. The old glove is backed up (tag procedural-glove-backup, backup/procedural-glove) and selectable with Glove = Simple. Done when: grip close-ups show the glove wrapping pistol grips, rifle grips, handguards, magazines and bolts without clipping, at a size that suits the guns (see the notes below).
 
+Notes 107, first in-game check (VR autotest on the virtual headset, 2026-10-13 night, only the first rifles: JOLT-20 S, PATRIOT GL, QUICKSILVER; stopped early on request):
+- The glove shows in the game with its textures and moves; it sits where each weapon's own hand sits (same place as the weapon's arms in the comparison pictures).
+- Size: about the size of the weapons' own hands in the close-ups, a little bulky (padded glove, scale 0.88). Not too small; check in the headset whether 0.8 reads better.
+- Support hand on the PATRIOT GL handguard: the thumb points up through the handguard and the fingers lie flat under it instead of wrapping it. The thumb's rest pose (Valve's relaxed thumb) starts inside the gun, and the closing logic ignores segments already inside: the support role needs its own thumb base (along the side of the handguard) and the hand must be pushed out of the handguard before the fingers close.
+- QUICKSILVER: the gun hand hangs under the gun with its fingers closed on air (that weapon's own hand pose is also that low); check against the grip solid.
+- Rack grip (JOLT-20 S): the pinching hand is at the charging area, beside the scope.
+- The open hand at rest is Valve's open hand (fingers spread wide): use the relaxed pose as the resting look.
+- Pistols and magazines were not reached in this short run.
+
 For 108. In Boneworks the gun moves a little when you rack it: pulling the slide tugs the gun toward the pull, letting it snap home jolts it. Add small impulses to the held gun's recoil spring from the worked part's pull speed and its snap home, a magazine seating and a magazine pulled out. Done when: the rack check measures the gun moving a few millimetres with the pull and a jolt when the slide returns.
 
 For 109. Compare with Boneworks' gun handling (chamber check, ejected casings that stay, weight and inertia, stock against the shoulder, re-grabbing anywhere on the gun, magazine count by looking, etc.), list what is missing and implement the most valuable parts.
