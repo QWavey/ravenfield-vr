@@ -44,7 +44,10 @@ namespace RavenfieldVR.Rig
                 return start;
             }
 
-            /// <summary>Quads between two rings; <paramref name="flip"/> turns the faces for rings running the other way.</summary>
+            /// <summary>
+            /// Quads between two rings, facing outward for rings that run counter-clockwise (x toward y) and follow each
+            /// other along +z of their frame; <paramref name="flip"/> turns them for rings running the other way.
+            /// </summary>
             public void Bridge(int r0, int r1, bool flip)
             {
                 for (int i = 0; i < Around; i++)
@@ -52,18 +55,18 @@ namespace RavenfieldVR.Rig
                     int a = r0 + i, b = r0 + i + 1, c = r1 + i, d = r1 + i + 1;
                     if (flip)
                     {
-                        T.Add(a); T.Add(b); T.Add(c);
-                        T.Add(b); T.Add(d); T.Add(c);
+                        T.Add(a); T.Add(c); T.Add(b);
+                        T.Add(b); T.Add(c); T.Add(d);
                     }
                     else
                     {
-                        T.Add(a); T.Add(c); T.Add(b);
-                        T.Add(b); T.Add(c); T.Add(d);
+                        T.Add(a); T.Add(b); T.Add(c);
+                        T.Add(b); T.Add(d); T.Add(c);
                     }
                 }
             }
 
-            /// <summary>Closes a ring with a single centre vertex.</summary>
+            /// <summary>Closes a ring with a single centre vertex: facing +z of the ring's frame, or -z when <paramref name="flip"/>.</summary>
             public void Cap(int ring, Vector3 tip, Vector3 normal, float v, BoneWeight w, bool flip)
             {
                 int centre = V.Count;
@@ -75,11 +78,11 @@ namespace RavenfieldVR.Rig
                 {
                     if (flip)
                     {
-                        T.Add(ring + i); T.Add(ring + i + 1); T.Add(centre);
+                        T.Add(ring + i); T.Add(centre); T.Add(ring + i + 1);
                     }
                     else
                     {
-                        T.Add(ring + i); T.Add(centre); T.Add(ring + i + 1);
+                        T.Add(ring + i); T.Add(ring + i + 1); T.Add(centre);
                     }
                 }
             }

@@ -230,6 +230,21 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>Self-test picture: the glove with these finger curls (thumb..pinky), no tracking needed.</summary>
+        internal void PreviewPose(float[] curls)
+        {
+            SetVisible(true);
+            float sign = -_hand.Mirror;
+            for (int f = 0; f < 5; f++)
+            {
+                for (int s = 0; s < 3; s++)
+                {
+                    float maxAngle = f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
+                    _joints[f][s].localRotation = _restRotations[f][s] * Quaternion.Euler(0f, sign * maxAngle * curls[f], 0f);
+                }
+            }
+        }
+
         private readonly float[] _goal = new float[5];
 
         /// <summary>

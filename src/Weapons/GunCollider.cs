@@ -40,6 +40,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private static readonly List<Collider> Scratch = new List<Collider>();
+        private static readonly List<Collider> PlayerColliders = new List<Collider>();
+        private static int _playerCollidersFrame = -1;
 
         /// <summary>Makes <paramref name="c"/> pass through every collider of the local player's body.</summary>
         public static void IgnorePlayer(Collider c)
@@ -48,15 +50,47 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            foreach (Collider other in CollectPlayerColliders())
+            {
+                Ignore(c, other);
+            }
+        }
+
+        /// <summary>The same for a set of colliders (a model's shape pieces): the player's body is walked once, not per piece.</summary>
+        public static void IgnorePlayer(IList<Collider> colliders)
+        {
+            List<Collider> player = CollectPlayerColliders();
+            foreach (Collider c in colliders)
+            {
+                if (c == null)
+                {
+                    continue;
+                }
+                foreach (Collider other in player)
+                {
+                    Ignore(c, other);
+                }
+            }
+        }
+
+        /// <summary>The player's controller, hitbox and ragdoll colliders, gathered once per frame.</summary>
+        private static List<Collider> CollectPlayerColliders()
+        {
+            if (_playerCollidersFrame == Time.frameCount)
+            {
+                return PlayerColliders;
+            }
+            _playerCollidersFrame = Time.frameCount;
+            PlayerColliders.Clear();
             FpsActorController controller = LocalPlayer.controller;
             if (controller != null)
             {
-                IgnoreAll(c, controller.gameObject);
+                AddAll(controller.gameObject);
             }
             Actor actor = LocalPlayer.actor;
             if (actor != null)
             {
-                IgnoreAll(c, actor.gameObject);
+                AddAll(actor.gameObject);
                 ActiveRaggy ragdoll = actor.ragdoll;
                 if (ragdoll != null)
                 {
@@ -64,24 +98,25 @@ namespace RavenfieldVR.Weapons
                     {
                         foreach (Collider other in ragdoll.animatedColliders)
                         {
-                            Ignore(c, other);
+                            if (other != null)
+                            {
+                                PlayerColliders.Add(other);
+                            }
                         }
                     }
                     if (ragdoll.ragdollObject != null)
                     {
-                        IgnoreAll(c, ragdoll.ragdollObject);
+                        AddAll(ragdoll.ragdollObject);
                     }
                 }
             }
+            return PlayerColliders;
         }
 
-        private static void IgnoreAll(Collider c, GameObject root)
+        private static void AddAll(GameObject root)
         {
             root.GetComponentsInChildren(true, Scratch);
-            foreach (Collider other in Scratch)
-            {
-                Ignore(c, other);
-            }
+            PlayerColliders.AddRange(Scratch);
             Scratch.Clear();
         }
 
@@ -138,10 +173,7 @@ namespace RavenfieldVR.Weapons
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _driver = _go.AddComponent<GunProxyBody>();
             _driver.Body = _body;
-            foreach (Collider b in _boxes)
-            {
-                PropPhysics.IgnorePlayer(b);
-            }
+            PropPhysics.IgnorePlayer(_boxes);
         }
 
         /// <summary>How many convex pieces make up the held gun's shape (self-test and logs).</summary>
@@ -226,12 +258,25 @@ namespace RavenfieldVR.Weapons
             var list = new List<Renderer>();
             foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
             {
-                if (r.enabled && !skip.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer) && !r.name.StartsWith("RavenfieldVR", System.StringComparison.Ordinal))
+                if (r.enabled && !skip.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer) && !AddedByMod(r.transform, rig.Weapon.transform))
                 {
                     list.Add(r);
                 }
             }
             return list;
+        }
+
+        /// <summary>The renderer belongs to something the mod attached to the weapon (its objects are all named "RavenfieldVR ...").</summary>
+        private static bool AddedByMod(Transform t, Transform root)
+        {
+            for (; t != null && t != root; t = t.parent)
+            {
+                if (t.name.StartsWith("RavenfieldVR", System.StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Calls <paramref name="visit"/> with the gun-space corners of each visible weapon mesh; false if there were none.</summary>

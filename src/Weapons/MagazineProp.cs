@@ -48,6 +48,8 @@ namespace RavenfieldVR.Weapons
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private readonly Collider[] _colliders;
+        /// <summary>The pieces' bounds in prop space, for distances while the colliders are off (Unity reports an empty box then).</summary>
+        private readonly Bounds[] _pieceBounds;
         private float _dropTime = -1f;
 
         /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
@@ -96,6 +98,11 @@ namespace RavenfieldVR.Weapons
                 shape = new[] { ShapeFit.BoxPiece(bounds.center, Vector3.Max(bounds.size, new Vector3(0.01f, 0.01f, 0.01f))) };
             }
             _colliders = ShapeFit.AddColliders(go, shape).ToArray();
+            _pieceBounds = new Bounds[shape.Length];
+            for (int i = 0; i < shape.Length; i++)
+            {
+                _pieceBounds[i] = shape[i].Bounds;
+            }
             _body = go.AddComponent<Rigidbody>();
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -546,9 +553,9 @@ namespace RavenfieldVR.Weapons
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
+            PropPhysics.IgnorePlayer(_colliders);
             foreach (Collider c in _colliders)
             {
-                PropPhysics.IgnorePlayer(c);
                 GunCollider.Current?.OnPropDropped(c);
             }
         }
@@ -574,13 +581,20 @@ namespace RavenfieldVR.Weapons
                 return float.MaxValue;
             }
             float best = float.MaxValue;
-            foreach (Collider c in _colliders)
+            if (_colliders[0].enabled && Go.activeInHierarchy)
             {
-                // ClosestPoint needs an enabled collider; while held, the piece's centre is close enough.
-                float d = c.enabled && c.gameObject.activeInHierarchy
-                    ? Vector3.Distance(c.ClosestPoint(point), point)
-                    : Vector3.Distance(c.bounds.center, point);
-                best = Mathf.Min(best, d);
+                foreach (Collider c in _colliders)
+                {
+                    best = Mathf.Min(best, Vector3.Distance(c.ClosestPoint(point), point));
+                }
+                return best;
+            }
+            // Held or sliding in the well the colliders are off and report no bounds at all: measure against the pieces'
+            // boxes in the prop's own space (it is never scaled).
+            Vector3 local = Go.transform.InverseTransformPoint(point);
+            foreach (Bounds b in _pieceBounds)
+            {
+                best = Mathf.Min(best, Mathf.Sqrt(b.SqrDistance(local)));
             }
             return best;
         }

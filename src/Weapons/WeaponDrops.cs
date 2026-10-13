@@ -119,10 +119,7 @@ namespace RavenfieldVR.Weapons
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
-            foreach (Collider box in boxes)
-            {
-                PropPhysics.IgnorePlayer(box);
-            }
+            PropPhysics.IgnorePlayer(boxes);
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
             _drops.Add(drop);

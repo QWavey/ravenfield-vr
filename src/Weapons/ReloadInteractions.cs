@@ -552,14 +552,27 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>The optics sit on top of the receiver, from a hand's width ahead of the eye to the front sight.</summary>
-        private float OpticDistance(Vector3 palm)
+        /// <summary>
+        /// The optics sit on the sight line over the gun itself: from just behind the grip to a little short of the muzzle
+        /// (on a pistol the eye point is at arm's length behind the gun, so a zone measured from the eye would float in
+        /// the air in front of your face).
+        /// </summary>
+        private void OpticSegment(out Vector3 a, out Vector3 b)
         {
             WeaponRigData d = GripData;
             Vector3 eye = d.HasEyePoint ? d.EyePoint : d.GripPoint + d.Up * 0.07f;
             Vector3 dir = d.HasEyePoint ? d.EyeDirection : d.AimAxis;
-            Vector3 a = GripRig.ToWorld(eye + dir * 0.05f);
-            Vector3 b = GripRig.ToWorld(eye + dir * 0.2f);
+            float grip = Vector3.Dot(d.GripPoint - eye, dir);
+            float muzzle = Vector3.Dot(d.MuzzlePoint - eye, dir);
+            float start = grip - 0.05f;
+            float end = Mathf.Max(start + 0.04f, Mathf.Min(grip + 0.3f, muzzle - 0.04f));
+            a = GripRig.ToWorld(eye + dir * start);
+            b = GripRig.ToWorld(eye + dir * end);
+        }
+
+        private float OpticDistance(Vector3 palm)
+        {
+            OpticSegment(out Vector3 a, out Vector3 b);
             Vector3 ab = b - a;
             float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
             return Vector3.Distance(palm, a + ab * t);
@@ -569,9 +582,8 @@ namespace RavenfieldVR.Weapons
         {
             get
             {
-                WeaponRigData d = GripData;
-                Vector3 eye = d.HasEyePoint ? d.EyePoint : d.GripPoint + d.Up * 0.07f;
-                return GripRig.ToWorld(eye + (d.HasEyePoint ? d.EyeDirection : d.AimAxis) * 0.1f);
+                OpticSegment(out Vector3 a, out Vector3 b);
+                return Vector3.Lerp(a, b, 0.4f);
             }
         }
 

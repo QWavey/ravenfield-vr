@@ -57,28 +57,28 @@
 55. [x] Hands close around what they hold: fist on the controller handle, fingers stop on the object
 56. [x] Holsters by weapon type: long guns over the shoulders, handguns on the hips, gear on the chest
 57. [x] Magazines lying on the ground can be picked up
-58. [ ] /bug-hunt 2
-59. [ ] Damage feedback in VR: getting hit shows the flat-screen damage overlay instead of VR damage feedback
-60. [ ] Mag kick: knocking a seated magazine out with a fresh one still fails
-61. [ ] Thumb placement on pistols
-62. [ ] Better-looking, cheaper hand model and glove material
-63. [ ] Tactical reload with both magazines in one hand (H3VR style)
-64. [ ] Pistol magazines will not eject
-65. [ ] Some M4s: pulling the charging handle does not cycle the bolt
-66. [ ] Some M4s and other guns: magazines held at a strange position or angle
-67. [ ] Some M4s: the magazine does not come out
-68. [ ] Smoothing pass over the whole feel (the mod is far from perfect yet)
-69. [ ] Holstered weapons visible on the body (pistol on the hip, rifle over the shoulder)
-70. [ ] Hands glued to the held gun or item instead of moving freely
-71. [ ] Scoreboard only with the map, never in the way while aiming
-72. [ ] Bigger, more forgiving grab zones; the hand poses onto the bolt or handle it pulls
-73. [ ] Bolts and handles hard or impossible to pull back with no magazine inserted
-74. [ ] Missing magazine in/out sounds on some guns
+58. [x] /bug-hunt 2
+59. [x] Damage feedback in VR: getting hit shows the flat-screen damage overlay instead of VR damage feedback
+60. [x] Mag kick: knocking a seated magazine out with a fresh one still fails
+61. [x] Thumb placement on pistols
+62. [x] Better-looking, cheaper hand model and glove material
+63. [x] Tactical reload with both magazines in one hand (H3VR style)
+64. [x] Pistol magazines will not eject
+65. [x] Some M4s: pulling the charging handle does not cycle the bolt
+66. [x] Some M4s and other guns: magazines held at a strange position or angle
+67. [x] Some M4s: the magazine does not come out
+68. [x] Smoothing pass over the whole feel (the mod is far from perfect yet)
+69. [x] Holstered weapons visible on the body (pistol on the hip, rifle over the shoulder)
+70. [x] Hands glued to the held gun or item instead of moving freely
+71. [x] Scoreboard only with the map, never in the way while aiming
+72. [x] Bigger, more forgiving grab zones; the hand poses onto the bolt or handle it pulls
+73. [x] Bolts and handles hard or impossible to pull back with no magazine inserted
+74. [x] Missing magazine in/out sounds on some guns
 75. [ ] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74) USE THE BUG HUNT SKILL (/bug-hunt, and /improve)
-76. [ ] Adjustable scopes: flip a magnifier in front of the red dot (or swap sights) with a hand gesture
-77. [ ] Looking at a magazine shows how many rounds it holds (readout on top of the mag)
-78. [ ] Gun-to-magazine and gun-to-gun collisions off; a visible square touch border shows
-79. [ ] The start-up intro: soldiers walk toward the VR view instead of left to right
+76. [x] Adjustable scopes: flip a magnifier in front of the red dot (or swap sights) with a hand gesture
+77. [x] Looking at a magazine shows how many rounds it holds (readout on top of the mag)
+78. [x] Gun-to-magazine and gun-to-gun collisions off; a visible square touch border shows
+79. [x] The start-up intro: soldiers walk toward the VR view instead of left to right
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.

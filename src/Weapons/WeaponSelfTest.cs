@@ -141,6 +141,9 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Exception("Writing the weapon report failed", e);
             }
+            string handShot = Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-hands.png");
+            string handError = Rig.HandPreview.Capture(handShot);
+            Log.Info(handError == null ? "Glove picture: " + handShot : "Glove picture failed: " + handError);
             Application.runInBackground = runInBackground;
             try
             {

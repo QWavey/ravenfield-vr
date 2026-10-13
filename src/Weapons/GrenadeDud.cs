@@ -75,9 +75,9 @@ namespace RavenfieldVR.Weapons
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
+            PropPhysics.IgnorePlayer(colliders);
             foreach (Collider c in colliders)
             {
-                PropPhysics.IgnorePlayer(c);
                 GunCollider.Current?.OnPropDropped(c);
             }
             Cull();
