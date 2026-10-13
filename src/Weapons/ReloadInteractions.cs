@@ -1479,7 +1479,30 @@ namespace RavenfieldVR.Weapons
                 leftover.Destroy();
             }
             VRInput.SimulatedGrab[(int)off.Side] = false;
-            report($"tactical reload: {(palmable ? "fresh magazine at the well" : "fresh magazine away from the well (simulated hand)")}, old magazine {(kept ? "kept in the hand" : "NOT KEPT")}, rounds {(Ammo.InfiniteSpare || after == before ? "add up" : $"DO NOT ADD UP ({before} -> {after})")}");
+            report($"tactical reload: {(palmable ? "fresh magazine at the well" : "fresh magazine away from the well (simulated hand)")}, old magazine {(kept ? "kept in the hand" : "NOT KEPT")}, rounds {(Ammo.InfiniteSpare || after == before ? "add up" : $"DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, spare {Ammo.SpareAmmo}, in hand {inHand}; weapon ammo {Ammo.Weapon.ammo})")}");
+        }
+
+        /// <summary>
+        /// Autotest: the off hand takes the handguard (as a grab there would) for a picture of both hands on the gun, then
+        /// lets go. Reports whether the glove took the weapon's own support pose.
+        /// </summary>
+        internal IEnumerator TwoHandSelfCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (off.Role != HandRole.Free || GripData.IsPistol || !GripData.HasSupportPoint)
+            {
+                yield break;
+            }
+            VRInput.SimulatedGrab[(int)off.Side] = true;
+            off.Role = HandRole.Foregrip;
+            _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return new WaitForEndOfFrame();
+            shot("two-handed");
+            bool snapped = off.Model != null && off.Model.SnapPose.HasValue;
+            VRInput.SimulatedGrab[(int)off.Side] = false;
+            yield return null; // the grip opens: the foregrip is let go
+            report($"two hands: support hand {(snapped ? "on the weapon's own handguard pose" : "on the tracked hand (no support pose)")}");
         }
 
         /// <summary>Autotest: one full manual cycle (back and home), as a hand on the bolt or pump would do.</summary>

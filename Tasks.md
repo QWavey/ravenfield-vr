@@ -79,6 +79,12 @@
 77. [x] Looking at a magazine shows how many rounds it holds (readout on top of the mag)
 78. [x] Gun-to-magazine and gun-to-gun collisions off; a visible square touch border shows
 79. [x] The start-up intro: soldiers walk toward the VR view instead of left to right
+80. [x] Boneworks-style grips: the hand takes the weapon's own grip pose; letting go drops the weapon, which returns to its holster
+81. [x] Vibration on the Quest 3 controllers for shots, grabs and every interaction
+82. [x] Intro: the soldiers walk past the view before it cuts, and the title stays behind them
+83. [x] Glove at real-hand size, fingers joined to the palm, a pistol held like a pistol
+84. [x] Melee weapons swing along their real blade
+85. [x] Pictures of everything from a VR test run (virtual headset at standing height, not under the map)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -238,3 +244,15 @@ For 77. Looking at a held or loose magazine (its top, where the rounds show) bri
 For 78. Magazines and other weapons collide with the held gun at a box around it (the physics stand-in is a single cube, too big and offset), and a square outline is visible where the hand touches. Shape the gun's physics stand-in from the gun's own meshes (several boxes along receiver, barrel and stock) so props bounce off the gun where it really is, and remove whatever draws the square (grab-zone debug or a collider made visible). Done when: a magazine dropped onto the gun bounces off its real outline and no square shows in normal play.
 
 For 79. The start-up intro (soldiers crossing the screen) plays as the flat version: they walk from left to right across a flat plane in front of you. In VR, place the intro scene so they walk toward the viewer (rotate the intro rig or place the VR view at the end of their path) at a comfortable scale. Done when: in VR the intro soldiers walk toward the headset view.
+
+For 80. Boneworks-style grips: while a weapon is held by a grip its rig has a hand for (the arm bones still animate under the hidden arm meshes), the glove takes that hand's pose and finger curls; the off hand takes the support pose on the handguard, slid to where it actually holds. With GripToHoldWeapon, letting go away from the body drops the held weapon as a physical copy of what was held (its rounds kept, its own physics shape), at the body it is holstered; a dropped weapon returns to its holster after WeaponReturnSeconds or 20 m. Done when: the pictures show the glove wrapping the grips and the let-go check reports "fell out of the hand, back in its holster".
+
+For 81. Haptics reach Quest 3 Touch Plus controllers: pulses shorter or weaker than the Oculus driver passes on are lengthened to a felt minimum (scaled by HapticStrength); the first pulse per hand logs whether SteamVR accepted it. Done when: the log shows "Vibration on the ... controller works" in a headset session.
+
+For 82. The walkers start about half the intro's walk away and pass beside the view at 1.1 m; the intro's screen canvases are placed in the scene 12 m out on a world layer, so the soldiers walk in front of the text. Done when: the intro pictures show the soldiers close and the text behind them.
+
+For 83. The glove is 0.9 scale with slimmer fingers and palm; each finger is rooted inside the palm (a palm-bound ring and a knuckle ring shared with the palm) so a curled finger stays joined; a relaxed default curl and finger spread. Done when: the glove pictures (front and back) show a joined fist and the weapon pictures show the glove on the grip.
+
+For 84. The blade or head of a melee weapon is measured from its own physics shape (farthest point from the grip), and swings are tested along it instead of along the rig's aim axis; melee weapons keep their full-size physics shape. Done when: the autotest reports the blade length and direction for each melee weapon.
+
+For 85. The VR autotest takes pictures (body views, holsters, damage, magazine in hand, tactical reload, dropped weapon, a spread of weapons in hand) into BepInEx/RavenfieldVR-shots; -rfvr-quick tests a spread of about 60 weapons; on the virtual headset (head reported on the floor) the view uses the head's own height. Done when: the pictures show the scene from standing height with hands and holsters visible.

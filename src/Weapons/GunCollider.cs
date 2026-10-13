@@ -196,14 +196,29 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The weapon's shape in the collider frame (origin at the grip, z along the barrel).</summary>
-        internal static ShapeFit.Piece[] Fit(WeaponRig rig, Quaternion frame, Vector3 origin)
+        /// <summary>
+        /// The box (in the collider frame) a held weapon's parts can sensibly be in: a stray shadow plane or a far-off lens
+        /// flare quad outside it is not part of what you hold.
+        /// </summary>
+        internal static void Envelope(WeaponRigData d, Quaternion frame, Vector3 origin, out Vector3 envMin, out Vector3 envMax)
         {
-            WeaponRigData d = rig.Data;
             Quaternion inv = Quaternion.Inverse(frame);
             float muzzle = (inv * (d.MuzzlePoint - origin)).z;
             float halfWidth = d.IsPistol ? 0.035f : 0.07f;
-            var envMin = new Vector3(-halfWidth, -0.22f, d.IsPistol ? -0.07f : -0.45f);
-            var envMax = new Vector3(halfWidth, 0.16f, Mathf.Max(muzzle, 0.1f) + 0.03f);
+            envMin = new Vector3(-halfWidth, -0.22f, d.IsPistol ? -0.07f : -0.45f);
+            envMax = new Vector3(halfWidth, 0.16f, Mathf.Max(muzzle, 0.1f) + 0.03f);
+            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Action == ActionType.NoAmmo)
+            {
+                // Swords, tools and kits are not built along a barrel: a blade held upright must keep its full length.
+                envMin = Vector3.one * -1.8f;
+                envMax = Vector3.one * 1.8f;
+            }
+        }
+
+        internal static ShapeFit.Piece[] Fit(WeaponRig rig, Quaternion frame, Vector3 origin)
+        {
+            WeaponRigData d = rig.Data;
+            Envelope(d, frame, origin, out Vector3 envMin, out Vector3 envMax);
 
             Matrix4x4 worldFromFrame = Matrix4x4.TRS(rig.ToWorld(origin), rig.GunBody.rotation * frame, Vector3.one);
             ShapeFit.Piece[] fitted = ShapeFit.Fit("held:" + d.Key, VisibleRenderers(rig), worldFromFrame.inverse);

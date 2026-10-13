@@ -543,10 +543,12 @@ namespace RavenfieldVR.Rig
             get
             {
                 float h = VRConfig.EyeHeight.Value;
-                if (h > 0.3f)
+                if (h > 0.3f && !(HeadLocal.y < 0.3f && (AutoTest.Requested || Shots.Enabled)))
                 {
                     return h;
                 }
+                // Automated runs on SteamVR's virtual headset: it reports the head on the floor (0, 0, 0), and with a
+                // player's calibrated height the view would sit under the map with the hands below the ground.
                 // Before calibration, treat the current height as standing height, whatever it is: a floor set too
                 // high (or a headset reporting floor level) must still put the eyes at the game's eye height.
                 return HeadLocal.y;
@@ -555,7 +557,8 @@ namespace RavenfieldVR.Rig
 
         private void UpdatePhysicalCrouch(FpsActorController player)
         {
-            if (!VRConfig.PhysicalCrouch.Value || VRConfig.SeatedMode.Value || VRConfig.EyeHeight.Value <= 0.3f)
+            if (!VRConfig.PhysicalCrouch.Value || VRConfig.SeatedMode.Value || VRConfig.EyeHeight.Value <= 0.3f
+                || HeadLocal.y < 0.3f && (AutoTest.Requested || Shots.Enabled)) // the virtual headset's head on the floor is not a crouch
             {
                 _physicalCrouch = false;
                 VRGameInput.PhysicalCrouch = false;

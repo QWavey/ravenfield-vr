@@ -33,7 +33,9 @@ namespace RavenfieldVR.Weapons
         /// pouch or a spare. Taking one of them for the magazine leaves the real one in the gun when it is ejected.
         /// </summary>
         private static readonly Regex NotMagName = new Regex(
-            @"release|catch|button|latch|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋",
+            @"release|catch|button|latch|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
+            // Optics: a magnifier's "Mag 2x" glass is not a magazine.
+            + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9])\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
             RegexOptions.IgnoreCase);
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);

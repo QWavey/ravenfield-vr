@@ -31,6 +31,23 @@ namespace RavenfieldVR.Weapons
             VRManager.Instance.StartCoroutine(Run());
         }
 
+        /// <summary>
+        /// The held weapon's physics shape is fitted from its meshes (tens of thousands of vertices on detailed models): done
+        /// here too, so drawing the weapon in a match finds it ready.
+        /// </summary>
+        private static void PrefitShape(Weapon weapon, WeaponRigData data)
+        {
+            if (data.Action == ActionType.NoAmmo)
+            {
+                return;
+            }
+            var rig = new WeaponRig(weapon, data);
+            ShapeFit.Bake(GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(data.AimAxis, data.Up), data.GripPoint));
+            _fitted++;
+        }
+
+        private static int _fitted;
+
         private static IEnumerator Run()
         {
             _running = true;
@@ -63,7 +80,12 @@ namespace RavenfieldVR.Weapons
                     }
                     try
                     {
-                        WeaponAnalyzer.Get(weapon, entry);
+                        WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
+                        PrefitShape(weapon, data);
+                        if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
+                        {
+                            WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)
+                        }
                         foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
                         {
                             if (sub != weapon && !WeaponAnalyzer.IsCached(sub, entry))
@@ -81,7 +103,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             while (_rescan && VRManager.Active);
-            Log.Info($"Pre-analysed {analysed} weapon rigs in {Time.realtimeSinceStartup - started:0.0} s.");
+            Log.Info($"Pre-analysed {analysed} weapon rigs and {_fitted} physics shapes in {Time.realtimeSinceStartup - started:0.0} s.");
             _running = false;
         }
     }

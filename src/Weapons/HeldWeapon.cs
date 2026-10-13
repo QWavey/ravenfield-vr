@@ -122,6 +122,25 @@ namespace RavenfieldVR.Weapons
         public bool IsPistolGrip => Rig.Data.IsPistol;
 
         /// <summary>
+        /// The rig the reload works on while a sub weapon is active. A fire-mode variant (semi/auto as a second weapon of
+        /// the same model) has no magazine of its own in the analysis: it feeds from the parent's magazine and well, so it
+        /// uses the parent's geometry (its own ammo). Under-barrel launchers and other different actions keep their own.
+        /// </summary>
+        private WeaponRig SubWeaponRig(Weapon sub)
+        {
+            WeaponRig own = _system.RigFor(sub);
+            WeaponRigData d = own.Data;
+            bool noMagazine = d.MagazinePath == null && d.SlidePath == null;
+            bool sameAction = d.Action == Rig.Data.Action;
+            if (noMagazine && sameAction && Rig.Data.MagazinePath != null)
+            {
+                Log.InfoOnce("subrig:" + d.Key, $"{d.Key}: fire-mode variant of {Rig.Data.Key}, reloads with its magazine.");
+                return Rig;
+            }
+            return own;
+        }
+
+        /// <summary>
         /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
         /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
         /// </summary>
@@ -177,7 +196,7 @@ namespace RavenfieldVR.Weapons
             {
                 Reload.Release();
                 ActiveWeapon = active;
-                ActiveRig = active == Weapon ? Rig : _system.RigFor(active);
+                ActiveRig = active == Weapon ? Rig : SubWeaponRig(active);
                 ActiveAmmo = active == Weapon ? Ammo : _system.StateFor(active, create: true);
             }
             UpdateAim();
@@ -424,11 +443,66 @@ namespace RavenfieldVR.Weapons
         /// Boneworks-style grips: the gun hand's glove takes the weapon's own hand pose on its grip, the support hand the
         /// weapon's support pose on the handguard (slid to wherever you hold it) or on the pistol grip it cups.
         /// </summary>
+        private GunVolume _volume;
+        private bool _volumeTried;
+        private float _heldSince = -1f;
+        private System.Func<Vector3, bool> _solid;
+
+        /// <summary>
+        /// The model's solid for the hands to close on, measured a moment after the weapon is in hand (its idle pose, every
+        /// part in place) and kept per weapon type. Null until measured or when it cannot be.
+        /// </summary>
+        private System.Func<Vector3, bool> HandSolid()
+        {
+            if (_heldSince < 0f)
+            {
+                _heldSince = Time.unscaledTime;
+            }
+            Quaternion frame = OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up);
+            if (_volume == null && !_volumeTried && Time.unscaledTime - _heldSince > 0.25f && Rig.Data.Action != ActionType.NoAmmo)
+            {
+                _volumeTried = true;
+                _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
+            }
+            if (_volume == null || !_volume.Ready || Rig.GunBody == null)
+            {
+                return null;
+            }
+            _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
+            return _solid ?? (_solid = _volume.Solid);
+        }
+
+        /// <summary>Self-test: the measured solid (null until measured).</summary>
+        internal GunVolume Volume => _volume;
+
+        /// <summary>Self-test: how much of a hand on this weapon is buried in its model, and how many fingers touch it.</summary>
+        internal string HandClipping(VRHand hand)
+        {
+            if (_volume == null || !_volume.Ready || hand.Model == null)
+            {
+                return "not measured";
+            }
+            hand.Model.Measure(_volume.InsideModel, _volume.Solid, out int buried, out int samples, out int touching);
+            return $"{buried}/{samples} points inside the gun, {touching}/4 fingers on it";
+        }
+
         private void SnapHands(VRHand main, VRHand off)
         {
+            System.Func<Vector3, bool> solid = HandSolid();
             if (main.Model != null)
             {
+                main.Model.Solid = main.Role == HandRole.Weapon || main.Role == HandRole.Throwable ? solid : null;
+            }
+            if (off.Model != null)
+            {
+                off.Model.Solid = off.Role == HandRole.Foregrip ? solid : null;
+            }
+            if (main.Model != null)
+            {
+                // Only while the weapon's own hand is on its grip: an animation that takes it away (an assisted reload,
+                // an inspect) must not pull the glove off the tracked hand.
                 main.Model.SnapPose = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose grip)
+                                      && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f
                     ? grip
                     : (RigidPose?)null;
             }
@@ -436,7 +510,8 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support))
+            if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
+                && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {
                 if (!Rig.Data.IsPistol)
                 {
@@ -453,6 +528,45 @@ namespace RavenfieldVR.Weapons
             {
                 off.Model.SnapPose = null;
             }
+        }
+
+        /// <summary>Self-test: where the gun hand's glove, its snap pose and the weapon's own hand bones are, in the grip's aim frame (cm).</summary>
+        internal string HandReport(VRHand main)
+        {
+            RigidPose g = GripWorld;
+            Quaternion inv = Quaternion.Inverse(g.rotation);
+            Vector3 F(Vector3 w) => inv * (w - g.position);
+            string P(Vector3 w)
+            {
+                Vector3 v = F(w) * 100f;
+                return $"({v.x:0.0} {v.y:0.0} {v.z:0.0})";
+            }
+            string D(Vector3 d)
+            {
+                Vector3 v = inv * d;
+                return $"({v.x:0.00} {v.y:0.00} {v.z:0.00})";
+            }
+            var sb = new System.Text.StringBuilder();
+            sb.Append("grip point ").Append(P(Rig.ToWorld(Rig.Data.GripPoint)));
+            HandModel model = main.Model;
+            if (model != null)
+            {
+                if (model.SnapPose.HasValue)
+                {
+                    RigidPose s = model.SnapPose.Value;
+                    sb.Append("; snap ").Append(P(s.position)).Append(" fingers ").Append(D(s.Forward)).Append(" thumb ").Append(D(s.rotation * Vector3.up));
+                }
+                else
+                {
+                    sb.Append("; no snap");
+                }
+                Transform r = model.Root;
+                sb.Append("; glove ").Append(P(r.position)).Append(" fingers ").Append(D(r.forward)).Append(" thumb ").Append(D(r.up));
+                sb.Append("; ").Append(model.Describe());
+            }
+            sb.Append(_gripHand != null ? "; weapon's hand: " + _gripHand.Describe(F) : "; no weapon hand");
+            sb.Append(_volume == null ? "; no solid" : $"; solid {(_volume.Ready ? "ready" : "measuring")}, {_volume.Texels} texels, {_volume.RenderMs:0} ms on the main thread, {_volume.BuildMs:0} ms in all");
+            return sb.ToString();
         }
 
         private GameObject[] _debug;
@@ -654,11 +768,13 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Dominant.Model.WeaponGripCurls = null;
                 _system.Rig.Dominant.Model.WeaponIsPistol = false;
                 _system.Rig.Dominant.Model.SnapPose = null;
+                _system.Rig.Dominant.Model.Solid = null;
             }
             if (_system.Rig.Off.Model != null)
             {
                 _system.Rig.Off.Model.WeaponSupportCurls = null;
                 _system.Rig.Off.Model.SnapPose = null;
+                _system.Rig.Off.Model.Solid = null;
             }
             foreach (Renderer r in Rig.ArmRenderers)
             {

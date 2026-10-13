@@ -141,6 +141,32 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Exception("Writing the weapon report failed", e);
             }
+            // Dropped weapons: cost of the first drop of a weapon type (model, shape, cooking) against a drop made from
+            // what the menu warm-up prepares.
+            float coldSum = 0f, coldMax = 0f, warmSum = 0f, warmMax = 0f;
+            int timed = 0;
+            foreach (WeaponManager.WeaponEntry entry in entries.Take(40))
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                WeaponDrops.Prepare(entry);
+                float cold = (float)watch.Elapsed.TotalMilliseconds;
+                float warm = WeaponDrops.TimePreparedDrop(entry);
+                if (warm < 0f)
+                {
+                    continue;
+                }
+                timed++;
+                coldSum += cold;
+                coldMax = Mathf.Max(coldMax, cold);
+                warmSum += warm;
+                warmMax = Mathf.Max(warmMax, warm);
+                yield return null;
+            }
+            if (timed > 0)
+            {
+                _dropTiming = $"  weapon drop cost ............. first drop {coldSum / timed:0.0} ms avg ({coldMax:0.0} max), prepared {warmSum / timed:0.0} ms avg ({warmMax:0.0} max), {timed} weapons";
+                AppendToReport(_dropTiming);
+            }
             string handShot = Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-hands.png");
             string handError = Rig.HandPreview.Capture(handShot);
             Log.Info(handError == null ? "Glove picture: " + handShot : "Glove picture failed: " + handError);
@@ -157,6 +183,20 @@ namespace RavenfieldVR.Weapons
         }
 
         private static string ProgressPath => ReportPath + ".progress";
+
+        private static string _dropTiming;
+
+        private static void AppendToReport(string line)
+        {
+            try
+            {
+                File.AppendAllText(ReportPath, Environment.NewLine + line + Environment.NewLine, new UTF8Encoding(false));
+            }
+            catch (Exception e)
+            {
+                Log.Warn("Appending to the weapon report failed: " + e.Message);
+            }
+        }
 
         private static void TryWriteProgress(string text)
         {
@@ -181,6 +221,8 @@ namespace RavenfieldVR.Weapons
             var magMethods = new Dictionary<string, int>();
             var slideMethods = new Dictionary<string, int>();
             int shapes = 0, shapePieces = 0, readMeshes = 0, outlineMeshes = 0;
+            float shapeMs = 0f, shapeMaxMs = 0f;
+            string shapeMaxName = "";
             int armRig = 0, sights = 0, ownSounds = 0, warned = 0, animated = 0, fingerPoses = 0, handles = 0, fromHand = 0, armChains = 0, kickable = 0, magWeapons2 = 0;
             var magOutFrom = new Dictionary<string, int>();
             var magInFrom = new Dictionary<string, int>();
@@ -194,6 +236,12 @@ namespace RavenfieldVR.Weapons
                     shapePieces += r.ShapePieces;
                     readMeshes += r.ReadableMeshes;
                     outlineMeshes += r.UnreadableMeshes;
+                    shapeMs += r.ShapeMs;
+                    if (r.ShapeMs > shapeMaxMs)
+                    {
+                        shapeMaxMs = r.ShapeMs;
+                        shapeMaxName = d.Key;
+                    }
                 }
                 if (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual)
                 {
@@ -231,6 +279,7 @@ namespace RavenfieldVR.Weapons
             sb.AppendLine($"  magazine in sound ({magWeapons2}) .... {Format(magInFrom)}");
             sb.AppendLine($"  weapons with warnings ........ {warned}/{results.Count}");
             sb.AppendLine($"  physics shape from the model . {shapes} weapons, {(shapes > 0 ? shapePieces / (float)shapes : 0f):0.0} pieces each; meshes read {readMeshes}, outline only {outlineMeshes}");
+            sb.AppendLine($"  shape fitting time ........... {(shapes > 0 ? shapeMs / shapes : 0f):0.0} ms avg, {shapeMaxMs:0.0} ms max ({shapeMaxName})");
             sb.AppendLine($"  magazine found by ({magWeapons} magazine/bolt weapons): {Format(magMethods)}");
             sb.AppendLine($"  slide/bolt found by: {Format(slideMethods)}");
             sb.AppendLine();
@@ -311,7 +360,9 @@ namespace RavenfieldVR.Weapons
                         r.UnreadableMeshes++;
                     }
                 }
+                var watch = System.Diagnostics.Stopwatch.StartNew();
                 r.ShapePieces = GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(d.AimAxis, d.Up), d.GripPoint).Length;
+                r.ShapeMs = (float)watch.Elapsed.TotalMilliseconds;
             }
             catch (Exception e)
             {
@@ -360,6 +411,7 @@ namespace RavenfieldVR.Weapons
             public readonly Weapon Weapon;
             public readonly WeaponRigData Data;
             public int ShapePieces, ReadableMeshes, UnreadableMeshes;
+            public float ShapeMs;
             public string ShapeError;
 
             public Result(WeaponManager.WeaponEntry entry, Weapon weapon, WeaponRigData data)

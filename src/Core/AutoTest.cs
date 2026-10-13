@@ -170,9 +170,134 @@ namespace RavenfieldVR.Core
         /// <summary>Melee: the blade the swing detection uses, measured on the held weapon.</summary>
         private static string MeleeCheck(HeldWeapon held)
         {
-            Bounds b = GunCollider.VisibleBounds(held.Rig, out bool measured);
-            float reach = measured ? Vector3.Dot(b.max - held.Rig.Data.GripPoint, held.Rig.Data.AimAxis) : 0f;
-            return measured ? $"melee: blade reaches {reach * 100f:0} cm past the grip" : "melee: NO MEASURABLE BLADE";
+            MeleeHandler.MeasureBlade(held.Rig, out Vector3 dir, out float length);
+            float offAim = Vector3.Angle(dir, held.Rig.Data.AimAxis);
+            return length > 0.12f ? $"melee: blade {length * 100f:0} cm from the grip, {offAim:0}° off the aim axis" : "melee: NO MEASURABLE BLADE";
+        }
+
+        /// <summary>Close-ups of the support hand on the handguard, and how much of it is buried in the model.</summary>
+        private static void SupportCloseups(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRHand off = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Off : null;
+            if (off == null || off.Model == null)
+            {
+                return;
+            }
+            Runtime.RigidPose g = held.GripWorld;
+            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right, fwd = g.rotation * Vector3.forward;
+            Vector3 c = off.Model.Root.position;
+            void Shot(string side, Vector3 from) => Shots.Capture($"{name}-{side}", from, Quaternion.LookRotation(c - from, up), 40f);
+            Shot("out", c - right * 0.3f + up * 0.05f);
+            Shot("in", c + right * 0.3f + up * 0.05f);
+            Shot("under", c - up * 0.28f - fwd * 0.08f);
+            report($"support hand ({off.Role}): {held.HandClipping(off)}");
+        }
+
+        private static string _clipNow;
+        private static HeldWeapon _clipPending;
+
+        /// <summary>
+        /// The gun hand measured against the model with hands closing on it (taken with the close-ups) and again posed the
+        /// old way, by the weapon's hand pose alone, for comparison.
+        /// </summary>
+        private static IEnumerator ClipCompare(Action<string> report)
+        {
+            HeldWeapon held = _clipPending;
+            _clipPending = null;
+            if (held == null || Rig.VRRig.Instance == null)
+            {
+                yield break;
+            }
+            Rig.HandModel.ClosingDisabled = true;
+            yield return new WaitForSecondsRealtime(0.4f);
+            string before = held.HandClipping(Rig.VRRig.Instance.Dominant);
+            Rig.HandModel.ClosingDisabled = false;
+            yield return new WaitForSecondsRealtime(0.3f);
+            report($"gun hand: {_clipNow} (posed by the weapon's hand alone: {before})");
+        }
+
+        /// <summary>Close-ups of the gun hand on its grip: from the back of the hand, from the fingertips' side and from below.</summary>
+        private static void GripCloseups(HeldWeapon held, string name, Action<string> report)
+        {
+            Runtime.RigidPose g = held.GripWorld;
+            Vector3 fwd = g.rotation * Vector3.forward, up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+            Vector3 c = g.position + fwd * 0.03f - up * 0.02f;
+            void Shot(string side, Vector3 from) => Shots.Capture($"{name}-{side}", from, Quaternion.LookRotation(c - from, up), 40f);
+            Shot("out", c + right * 0.3f + up * 0.05f);
+            Shot("in", c - right * 0.3f + up * 0.05f);
+            Shot("under", c - up * 0.28f + fwd * 0.1f + right * 0.06f);
+            if (Rig.VRRig.Instance != null)
+            {
+                report("hand: " + held.HandReport(Rig.VRRig.Instance.Dominant));
+            }
+            if (Rig.VRRig.Instance != null && held.Volume != null && held.Volume.Ready)
+            {
+                _clipNow = held.HandClipping(Rig.VRRig.Instance.Dominant);
+                _clipPending = held;
+            }
+            // The weapon's own arms where its author animated them, for comparison.
+            Renderer[] arms = held.Rig.ArmRenderers;
+            if (arms.Length > 0)
+            {
+                bool[] was = arms.Select(r => r != null && r.enabled).ToArray();
+                foreach (Renderer r in arms)
+                {
+                    if (r != null)
+                    {
+                        r.enabled = true;
+                    }
+                }
+                Shot("modarms-out", c + right * 0.3f + up * 0.05f);
+                Shot("modarms-in", c - right * 0.3f + up * 0.05f);
+                for (int i = 0; i < arms.Length; i++)
+                {
+                    if (arms[i] != null)
+                    {
+                        arms[i].enabled = was[i];
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Forgiving grab: the off hand squeezes, and a tenth of a second later a dropped weapon is within reach. It must be
+        /// taken (into its slot) as a reaching hand would take it.
+        /// </summary>
+        private static IEnumerator ReachCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = LocalPlayer.actor;
+            Rig.VRHand off = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Off : null;
+            if (sys == null || actor == null || off == null || off.Role != Rig.HandRole.Free)
+            {
+                report($"reaching grab: skipped (off hand {(off != null ? off.Role.ToString() : "missing")})");
+                yield break;
+            }
+            WeaponManager.WeaponEntry entry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.slot == WeaponManager.WeaponSlot.Secondary);
+            if (entry == null)
+            {
+                report("reaching grab: skipped (no secondary weapon installed)");
+                yield break;
+            }
+            Input.VRInput.SimulateGrabPress(off.Side);
+            yield return new WaitForSecondsRealtime(0.1f);
+            DroppedWeapon drop = sys.Drops.Spawn(entry, new Runtime.RigidPose(off.Palm.position + off.Palm.Forward * 0.04f, off.Palm.rotation), Vector3.one, Vector3.zero, -1, -1);
+            if (drop != null && drop.Go != null)
+            {
+                drop.Go.GetComponent<Rigidbody>().isKinematic = true; // hold it in reach for the check
+            }
+            float until = Time.realtimeSinceStartup + 0.4f;
+            while (drop != null && drop.Go != null && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            Input.VRInput.SimulatedGrab[(int)off.Side] = false;
+            bool taken = drop == null || drop.Go == null;
+            report($"reaching grab: {(taken ? "a weapon arriving just after the squeeze was taken" : "NOT TAKEN (the squeeze came a moment early)")}");
+            if (!taken)
+            {
+                UnityEngine.Object.Destroy(drop.Go);
+            }
         }
 
         /// <summary>Lets the held weapon fall as an opened hand would, pictures it, and waits for it to go back to its holster.</summary>
@@ -328,10 +453,21 @@ namespace RavenfieldVR.Core
                         {
                             yield return new WaitForEndOfFrame();
                             Shots.Capture($"weapon-{index:000}-{entry.name}");
+                            GripCloseups(held, $"grip-{index:000}-{entry.name}", lines.Add);
+                            yield return ClipCompare(lines.Add);
                         }
                         if (action == ActionType.Melee)
                         {
                             lines.Add(MeleeCheck(held));
+                        }
+                        if (want && !held.Rig.Data.IsPistol && action == ActionType.SelfLoading)
+                        {
+                            int shotIndex = index;
+                            yield return held.Reload.TwoHandSelfCheck(lines.Add, name =>
+                            {
+                                Shots.Capture($"{name}-{shotIndex:000}-{entry.name}");
+                                SupportCloseups(held, $"support-{shotIndex:000}-{entry.name}", lines.Add);
+                            });
                         }
                         if (!tacticalDone && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
                         {
@@ -342,6 +478,7 @@ namespace RavenfieldVR.Core
                         {
                             dropDone = true;
                             yield return DropCheck(lines.Add);
+                            yield return ReachCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {

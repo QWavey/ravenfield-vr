@@ -51,7 +51,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private const int MaxPointsPerMesh = 30000;
+        private const int MaxPointsPerMesh = 8000;
+        private static readonly List<Vector3> VertexBuffer = new List<Vector3>(8192);
         private const float Cell = 0.01f;
         private const int Directions = 16;
 
@@ -106,6 +107,29 @@ namespace RavenfieldVR.Weapons
             return pieces;
         }
 
+        /// <summary>
+        /// Cooks the hulls now (PhysX keeps the result in each mesh, and every collider made from it later reuses it), so
+        /// creating the colliders in a match costs no cooking. Pieces PhysX cannot cook are marked and become boxes.
+        /// </summary>
+        public static void Bake(Piece[] pieces)
+        {
+            foreach (Piece p in pieces)
+            {
+                if (p.Points.Length < 4 || p.CookFailed)
+                {
+                    continue;
+                }
+                try
+                {
+                    Physics.BakeMesh(p.Mesh.GetInstanceID(), true);
+                }
+                catch (Exception)
+                {
+                    p.CookFailed = true;
+                }
+            }
+        }
+
         /// <summary>How a renderer's shape can be measured: its vertices, or only its bounds (for the self-test).</summary>
         public static bool Readable(Renderer r)
         {
@@ -146,7 +170,9 @@ namespace RavenfieldVR.Weapons
                     }
                     // Baked vertices are in the renderer's space with its scale already applied.
                     Matrix4x4 m = frameFromWorld * Matrix4x4.TRS(smr.transform.position, smr.transform.rotation, Vector3.one);
-                    AddVertices(baked.vertices, m);
+                    baked.GetVertices(VertexBuffer);
+                    AddVertices(VertexBuffer, m);
+                    VertexBuffer.Clear();
                 }
                 catch (Exception)
                 {
@@ -171,7 +197,10 @@ namespace RavenfieldVR.Weapons
             Matrix4x4 local = frameFromWorld * r.transform.localToWorldMatrix;
             if (mesh.isReadable)
             {
-                AddVertices(mesh.vertices, local);
+                // Into one reused buffer: Mesh.vertices would allocate a fresh copy of every vertex.
+                mesh.GetVertices(VertexBuffer);
+                AddVertices(VertexBuffer, local);
+                VertexBuffer.Clear();
             }
             else
             {
@@ -179,10 +208,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static void AddVertices(Vector3[] verts, Matrix4x4 m)
+        private static void AddVertices(List<Vector3> verts, Matrix4x4 m)
         {
-            int step = Mathf.Max(1, verts.Length / MaxPointsPerMesh);
-            for (int i = 0; i < verts.Length; i += step)
+            int step = Mathf.Max(1, verts.Count / MaxPointsPerMesh);
+            for (int i = 0; i < verts.Count; i += step)
             {
                 Points.Add(m.MultiplyPoint3x4(verts[i]));
             }

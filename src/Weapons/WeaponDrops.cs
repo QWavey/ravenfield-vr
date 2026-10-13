@@ -217,6 +217,48 @@ namespace RavenfieldVR.Weapons
         /// The model's shape as boxes in the drop's own space (fitted once per weapon and scale); a single box around its
         /// renderers when nothing could be measured.
         /// </summary>
+        /// <summary>
+        /// Menu warm-up: the world model a fallen soldier drops and its physics shape (hulls cooked), built ahead so a bot
+        /// dying with this weapon in a match costs no model copy, no mesh reading and no cooking.
+        /// </summary>
+        /// <summary>Self-test: what a drop of <paramref name="entry"/> costs once prepared (model copy, cached shape, colliders), in ms.</summary>
+        internal static float TimePreparedDrop(WeaponManager.WeaponEntry entry)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            GameObject model = ModelFor(entry);
+            if (model == null)
+            {
+                return -1f;
+            }
+            var root = new GameObject("RavenfieldVR Drop Timing");
+            model.transform.SetParent(root.transform, false);
+            ShapeFit.AddColliders(root, FitModel(entry, root.transform, Vector3.one));
+            float ms = (float)watch.Elapsed.TotalMilliseconds;
+            UnityEngine.Object.Destroy(root);
+            return ms;
+        }
+
+        internal static void Prepare(WeaponManager.WeaponEntry entry)
+        {
+            GameObject model = ModelFor(entry);
+            if (model == null)
+            {
+                return;
+            }
+            try
+            {
+                var root = new GameObject("RavenfieldVR Drop Warm-up");
+                model.transform.SetParent(root.transform, false);
+                ShapeFit.Bake(FitModel(entry, root.transform, Vector3.one));
+                UnityEngine.Object.Destroy(root);
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Object.Destroy(model);
+                Log.WarnOnce("dropwarm:" + entry.name, $"Preparing the dropped model of {entry.name} failed: {e.Message}");
+            }
+        }
+
         private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale)
         {
             var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
@@ -292,7 +334,7 @@ namespace RavenfieldVR.Weapons
                     hand.Haptic(0.01f, 160f, 0.2f); // "you can grab this"
                 }
                 _hovering[i] = near != null;
-                if (near != null && hand.GrabPressed)
+                if (near != null && (hand.GrabPressed || hand.GrabReaching))
                 {
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     PickUp(near, hand, actor);

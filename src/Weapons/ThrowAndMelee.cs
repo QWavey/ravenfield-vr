@@ -495,6 +495,7 @@ namespace RavenfieldVR.Weapons
         private bool _hasLast;
         private float _lastHit = -10f;
         private float _bladeLength = -1f;
+        private Vector3 _bladeDir = Vector3.forward;
         private Weapon _weapon;
 
         public MeleeHandler(WeaponSystem sys)
@@ -514,12 +515,12 @@ namespace RavenfieldVR.Weapons
             if (_weapon != melee)
             {
                 _weapon = melee;
-                _bladeLength = MeasureLength(held);
+                MeasureBlade(held.Rig, out _bladeDir, out _bladeLength);
                 _hasLast = false;
             }
             WeaponRig rig = held.Rig;
-            Vector3 basePoint = rig.ToWorld(rig.Data.GripPoint + rig.Data.AimAxis * 0.06f);
-            Vector3 tip = rig.ToWorld(rig.Data.GripPoint + rig.Data.AimAxis * _bladeLength);
+            Vector3 basePoint = rig.ToWorld(rig.Data.GripPoint + _bladeDir * Mathf.Min(0.08f, _bladeLength * 0.3f));
+            Vector3 tip = rig.ToWorld(rig.Data.GripPoint + _bladeDir * _bladeLength);
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
             if (_hasLast)
             {
@@ -538,25 +539,34 @@ namespace RavenfieldVR.Weapons
             _hasLast = true;
         }
 
-        private static float MeasureLength(HeldWeapon held)
+        /// <summary>
+        /// The blade (or head) of a melee weapon, from the grip to the farthest point of its own shape. Swords, axes and
+        /// wrenches are rarely built with the blade along the "aim" axis of the rig: a sabre held blade-up would otherwise
+        /// test its hits at a point floating in front of the hand.
+        /// </summary>
+        internal static void MeasureBlade(WeaponRig rig, out Vector3 dirGun, out float length)
         {
-            WeaponRig rig = held.Rig;
-            float max = 0.25f;
-            foreach (MeshFilter mf in held.Weapon.GetComponentsInChildren<MeshFilter>())
+            WeaponRigData d = rig.Data;
+            Quaternion frame = OpenVRMath.SafeLookRotation(d.AimAxis, d.Up);
+            dirGun = d.AimAxis;
+            length = 0.25f;
+            float best = 0f;
+            foreach (ShapeFit.Piece piece in GunCollider.Fit(rig, frame, d.GripPoint))
             {
-                if (mf.sharedMesh == null)
+                foreach (Vector3 p in piece.Points)
                 {
-                    continue;
-                }
-                Bounds b = mf.sharedMesh.bounds;
-                for (int i = 0; i < 8; i++)
-                {
-                    Vector3 c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
-                    Vector3 gun = rig.ToGun(mf.transform.TransformPoint(c));
-                    max = Mathf.Max(max, Vector3.Dot(gun - rig.Data.GripPoint, rig.Data.AimAxis));
+                    float dist = p.magnitude;
+                    if (dist > best)
+                    {
+                        best = dist;
+                        dirGun = frame * (p / Mathf.Max(dist, 1e-5f));
+                    }
                 }
             }
-            return Mathf.Clamp(max, 0.15f, 1.6f);
+            if (best > 0.05f)
+            {
+                length = Mathf.Clamp(best, 0.12f, 1.8f);
+            }
         }
 
         private bool Swing(MeleeWeapon melee, Vector3 fromTip, Vector3 toTip, Vector3 fromBase, Vector3 toBase)

@@ -95,7 +95,7 @@ namespace RavenfieldVR.Weapons
             bool offManaged = Held != null && Held.Rig.Data.Action != ActionType.Throwable;
             foreach (VRHand h in Rig.Hands)
             {
-                if (!h.Tracked || h.Role != HandRole.Free || !h.GrabPressed || offManaged && h == Rig.Off)
+                if (!h.Tracked || h.Role != HandRole.Free || !(h.GrabPressed || h.GrabReaching) || offManaged && h == Rig.Off)
                 {
                     continue;
                 }

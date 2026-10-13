@@ -28,6 +28,11 @@ namespace RavenfieldVR.Rig
         private Quaternion _thumbBase;
         private bool _visible = true;
         private Vector3 _graspOffset;
+        private readonly float[,] _joint = new float[5, 3];
+        private readonly float[] _solved = new float[3];
+        private readonly Vector3[] _chain = new Vector3[4];
+        private float _palmPush;
+        private float _slide, _slideGoal, _nextSlideSearch;
 
         // Knuckle positions (right hand, palm space) and segment lengths in metres; index 0 = thumb.
         private static readonly Vector3[] Knuckles =
@@ -53,6 +58,35 @@ namespace RavenfieldVR.Rig
         /// <summary>The whole glove at real-hand size (about 19 cm from wrist to the tip of the middle finger).</summary>
         private const float HandScale = 0.9f;
         private static readonly float[] MaxCurl = { 55f, 85f, 95f, 70f };
+
+        /// <summary>
+        /// Points just under the palm's skin (right hand, palm space), as deep as the held model's solid is grown: the
+        /// skin touches the model exactly when one of them is in the solid.
+        /// </summary>
+        private static readonly Vector3[] PalmSkin = MakePalmSkin();
+
+        private static Vector3[] MakePalmSkin()
+        {
+            float x = -0.012f + Weapons.GunVolume.Grow / HandScale;
+            float[] zs = { -0.03f, -0.005f, 0.02f, 0.036f };
+            float[] ys = { -0.026f, 0f, 0.026f };
+            var points = new Vector3[zs.Length * ys.Length];
+            int n = 0;
+            foreach (float z in zs)
+            {
+                foreach (float y in ys)
+                {
+                    points[n++] = new Vector3(x, y, z);
+                }
+            }
+            return points;
+        }
+
+        /// <summary>
+        /// The held weapon's solid (grown by a finger's radius, world space) while this hand holds it: the palm rests on it
+        /// and every finger closes until it touches it. Null when the hand holds nothing measured.
+        /// </summary>
+        public System.Func<Vector3, bool> Solid;
 
         /// <summary>Between the thumb and index tips (right hand, palm space): where a pinched bolt handle sits.</summary>
         private static readonly Vector3 PinchPoint = new Vector3(-0.028f, 0.024f, 0.062f);
@@ -126,6 +160,73 @@ namespace RavenfieldVR.Rig
         }
 
         private Vector3 Mirror(Vector3 v) => new Vector3(v.x * _hand.Mirror, v.y, v.z);
+
+        /// <summary>The glove's palm frame (self-test).</summary>
+        internal Transform Root => _root;
+
+        /// <summary>Self-test: the glove posed the way it was before hands closed on the model (by their pose alone).</summary>
+        internal static bool ClosingDisabled;
+
+        /// <summary>
+        /// Self-test: points along the middle of every finger bone and through the middle of the palm that lie inside the
+        /// held model (a finger whose axis is in the gun is buried at least its own thickness), and how many of the four
+        /// fingers touch it (their skin within reach of <paramref name="touching"/>).
+        /// </summary>
+        internal void Measure(System.Func<Vector3, bool> inside, System.Func<Vector3, bool> touching, out int buried, out int samples, out int fingersTouching)
+        {
+            buried = 0;
+            samples = 0;
+            fingersTouching = 0;
+            for (int f = 0; f < 5; f++)
+            {
+                Chain(f, _joint[f, 0], _joint[f, 1], _joint[f, 2]);
+                for (int s = 0; s < 3; s++)
+                {
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        samples++;
+                        if (inside(Vector3.Lerp(_chain[s], _chain[s + 1], i * 0.25f)))
+                        {
+                            buried++;
+                        }
+                    }
+                }
+                // On it: closing the finger a little further (about 3 degrees at the knuckle) meets the model.
+                Chain(f, Mathf.Min(1f, _joint[f, 0] + 0.04f), Mathf.Min(1f, _joint[f, 1] + 0.04f), Mathf.Min(1f, _joint[f, 2] + 0.04f));
+                bool touches = false;
+                for (int s = 0; s < 3 && !touches; s++)
+                {
+                    Vector3 a = _chain[s], b = _chain[s + 1];
+                    touches = touching(Vector3.LerpUnclamped(a, b, 0.4f)) || touching(Vector3.LerpUnclamped(a, b, 0.75f)) || touching(Vector3.LerpUnclamped(a, b, s == 2 ? 1.12f : 1f));
+                }
+                if (f > 0 && touches)
+                {
+                    fingersTouching++;
+                }
+            }
+            Matrix4x4 m = _root.localToWorldMatrix;
+            foreach (Vector3 skin in PalmSkin)
+            {
+                // The palm's middle, half its thickness under the skin points.
+                samples++;
+                if (inside(m.MultiplyPoint3x4(Mirror(new Vector3(0.0015f, skin.y, skin.z)))))
+                {
+                    buried++;
+                }
+            }
+        }
+
+        /// <summary>Self-test: how far the palm was moved onto the held model and each finger's joint curls.</summary>
+        internal string Describe()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"palm moved {_palmPush * 100f:0.0} cm, slid {_slide * 100f:0.0} cm along the grip, joints");
+            for (int f = 0; f < 5; f++)
+            {
+                sb.Append($" [{_joint[f, 0]:0.00} {_joint[f, 1]:0.00} {_joint[f, 2]:0.00}]");
+            }
+            return sb.ToString();
+        }
 
         private static void EnsureMaterial()
         {
@@ -231,22 +332,242 @@ namespace RavenfieldVR.Rig
             }
             _root.SetPositionAndRotation(position, rotation);
 
+            bool closing = Closing;
+            if (closing)
+            {
+                if (_hand.Role == HandRole.Weapon)
+                {
+                    SlideOnGrip(dt);
+                }
+                SettlePalm(dt);
+            }
+            else
+            {
+                _palmPush = 0f;
+                _slide = _slideGoal = 0f;
+                _nextSlideSearch = 0f;
+            }
+
             float[] goal = TargetCurls();
             float k = 1f - Mathf.Exp(-25f * dt);
+            float kJoint = 1f - Mathf.Exp(-40f * dt);
             // The thumb lies along the frame of a held gun (beside the slide, not across it); elsewhere it rests up.
             Quaternion thumbGoal = _hand.Role == HandRole.Weapon ? Quaternion.Euler(-6f, -16f * _hand.Mirror, 0f) : _thumbRest;
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
+            float sign = -_hand.Mirror; // fingers curl toward the palm (-X on the right hand)
             for (int f = 0; f < 5; f++)
             {
                 _curl[f] = Mathf.Lerp(_curl[f], goal[f], k);
-                float sign = -_hand.Mirror; // fingers curl toward the palm (-X on the right hand)
+                if (closing)
+                {
+                    SolveFinger(f, _curl[f]);
+                    if (f == 1 && _hand.Role == HandRole.Weapon)
+                    {
+                        // The trigger finger rests where it touches the frame and curls onto the trigger as it is pulled.
+                        float pull = VRInput.GetTrigger(_hand.Side);
+                        for (int s = 0; s < 3; s++)
+                        {
+                            _solved[s] = Mathf.Lerp(_solved[s], Mathf.Max(_solved[s], _curl[f]), pull);
+                        }
+                    }
+                }
                 for (int s = 0; s < 3; s++)
                 {
-                    float maxAngle = f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
-                    Quaternion rest = f == 0 && s == 0 ? _thumbBase : _restRotations[f][s];
-                    _joints[f][s].localRotation = rest * Quaternion.Euler(0f, sign * maxAngle * _curl[f], 0f);
+                    _joint[f, s] = closing ? Mathf.Lerp(_joint[f, s], _solved[s], kJoint) : _curl[f];
+                    _joints[f][s].localRotation = JointRest(f, s) * Quaternion.Euler(0f, sign * MaxAngle(f, s) * _joint[f, s], 0f);
                 }
             }
+        }
+
+        /// <summary>Holding a measured weapon by its grip or handguard: palm and fingers close on its model.</summary>
+        private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable);
+
+        private static float MaxAngle(int f, int s) => f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
+
+        private Quaternion JointRest(int f, int s) => f == 0 && s == 0 ? _thumbBase : _restRotations[f][s];
+
+        /// <summary>
+        /// Rests the palm on what the hand holds: pushed out along the palm's normal while the skin would sink into the
+        /// model, drawn in (up to 2 cm) while a gap is left, so the grip lies against the palm instead of in it or beside it.
+        /// </summary>
+        private void SettlePalm(float dt)
+        {
+            Vector3 n = PalmNormal;
+            _palmPush = Mathf.Lerp(_palmPush, PalmOffset(n), 1f - Mathf.Exp(-30f * dt));
+            _root.position += n * _palmPush;
+        }
+
+        private Vector3 PalmNormal => _root.rotation * new Vector3(-_hand.Mirror, 0f, 0f);
+
+        /// <summary>How far along the palm's normal the palm has to move to just touch the model (negative: out of it).</summary>
+        private float PalmOffset(Vector3 n)
+        {
+            if (PalmTouches(n, 0f))
+            {
+                for (float o = -0.002f; o >= -0.04f; o -= 0.002f)
+                {
+                    if (!PalmTouches(n, o))
+                    {
+                        return o;
+                    }
+                }
+                return -0.04f;
+            }
+            for (float o = 0.002f; o <= 0.0201f; o += 0.002f)
+            {
+                if (PalmTouches(n, o))
+                {
+                    return o - 0.002f;
+                }
+            }
+            return 0f;
+        }
+
+        /// <summary>Along the grip, toward the little finger (+) or the thumb (-), nearest first.</summary>
+        private static readonly float[] SlideSteps = { 0f, 0.005f, 0.01f, 0.015f, 0.02f, 0.025f, 0.03f, -0.005f, -0.01f };
+
+        /// <summary>
+        /// A weapon's own hand pose can sit a finger higher or lower on the grip than this glove's fingers fit (another hand
+        /// size, a hand that never shows in the flat view): the middle finger then lies in the trigger guard instead of
+        /// under it. A few times a second the nearest position along the grip where the middle finger can close round the
+        /// grip is looked for, and the hand eases there.
+        /// </summary>
+        private void SlideOnGrip(float dt)
+        {
+            Vector3 down = _root.rotation * Vector3.down;
+            if (Time.unscaledTime >= _nextSlideSearch)
+            {
+                _nextSlideSearch = Time.unscaledTime + 0.2f;
+                Vector3 start = _root.position;
+                Vector3 n = PalmNormal;
+                _slideGoal = 0f;
+                foreach (float step in SlideSteps)
+                {
+                    _root.position = start + down * step;
+                    _root.position += n * PalmOffset(n);
+                    SolveFinger(2, 1f);
+                    if (_solved[0] >= 0.2f)
+                    {
+                        _slideGoal = step;
+                        break;
+                    }
+                }
+                _root.position = start;
+            }
+            _slide = Mathf.Lerp(_slide, _slideGoal, 1f - Mathf.Exp(-20f * dt));
+            _root.position += down * _slide;
+        }
+
+        private bool PalmTouches(Vector3 normal, float offset)
+        {
+            Matrix4x4 m = _root.localToWorldMatrix;
+            Vector3 shift = normal * offset;
+            foreach (Vector3 p in PalmSkin)
+            {
+                if (Solid(m.MultiplyPoint3x4(Mirror(p)) + shift))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Closes finger <paramref name="f"/> toward <paramref name="goal"/> one joint after another, as a real finger wraps
+        /// a grip: the joints up to a segment that touches the model stop at the touch (found to a fraction of a degree),
+        /// the joints beyond it keep closing. A segment already in the model with the finger open (the hand overlaps the
+        /// model there anyway) does not stop it. Per-joint curls in <see cref="_solved"/>.
+        /// </summary>
+        private void SolveFinger(int f, float goal)
+        {
+            const int Steps = 10;
+            float c0 = 0f, c1 = 0f, c2 = 0f;
+            bool l0 = false, l1 = false, l2 = false;
+            Chain(f, 0f, 0f, 0f);
+            bool in0 = SegmentTouches(0), in1 = SegmentTouches(1), in2 = SegmentTouches(2);
+            int guard = 0;
+            for (int step = 1; step <= Steps && !l2 && guard++ < Steps + 4; step++)
+            {
+                float t = goal * step / Steps;
+                float n0 = l0 ? c0 : t, n1 = l1 ? c1 : t, n2 = l2 ? c2 : t;
+                if (FirstTouch(f, n0, n1, n2, in0, in1, in2) < 0)
+                {
+                    c0 = n0;
+                    c1 = n1;
+                    c2 = n2;
+                    continue;
+                }
+                // Somewhere in this step a segment touched: find where, and close the moving joints to just before it.
+                float lo = 0f, hi = 1f;
+                for (int i = 0; i < 5; i++)
+                {
+                    float mid = (lo + hi) * 0.5f;
+                    if (FirstTouch(f, c0 + (n0 - c0) * mid, c1 + (n1 - c1) * mid, c2 + (n2 - c2) * mid, in0, in1, in2) < 0)
+                    {
+                        lo = mid;
+                    }
+                    else
+                    {
+                        hi = mid;
+                    }
+                }
+                int hit = FirstTouch(f, c0 + (n0 - c0) * hi, c1 + (n1 - c1) * hi, c2 + (n2 - c2) * hi, in0, in1, in2);
+                c0 += (n0 - c0) * lo;
+                c1 += (n1 - c1) * lo;
+                c2 += (n2 - c2) * lo;
+                // The joints up to the touching segment stay; the ones past it go on closing from here.
+                l0 |= hit >= 0;
+                l1 |= hit >= 1;
+                l2 |= hit >= 2;
+                step--; // the free joints still have this step to close
+            }
+            _solved[0] = c0;
+            _solved[1] = c1;
+            _solved[2] = c2;
+        }
+
+        /// <summary>The first segment (0 = nearest the palm) touching the model with these curls, or -1.</summary>
+        private int FirstTouch(int f, float c0, float c1, float c2, bool in0, bool in1, bool in2)
+        {
+            Chain(f, c0, c1, c2);
+            if (!in0 && SegmentTouches(0))
+            {
+                return 0;
+            }
+            if (!in1 && SegmentTouches(1))
+            {
+                return 1;
+            }
+            if (!in2 && SegmentTouches(2))
+            {
+                return 2;
+            }
+            return -1;
+        }
+
+        /// <summary>Joint and tip positions of finger <paramref name="f"/> (world) for these curls, into <see cref="_chain"/>.</summary>
+        private void Chain(int f, float c0, float c1, float c2)
+        {
+            Matrix4x4 m = _root.localToWorldMatrix;
+            float sign = -_hand.Mirror;
+            Vector3 p = _joints[f][0].localPosition;
+            Quaternion r = Quaternion.identity;
+            _chain[0] = m.MultiplyPoint3x4(p);
+            for (int s = 0; s < 3; s++)
+            {
+                float c = s == 0 ? c0 : s == 1 ? c1 : c2;
+                r = r * JointRest(f, s) * Quaternion.Euler(0f, sign * MaxAngle(f, s) * c, 0f);
+                p += r * new Vector3(0f, 0f, Lengths[f][s]);
+                _chain[s + 1] = m.MultiplyPoint3x4(p);
+            }
+        }
+
+        private bool SegmentTouches(int s)
+        {
+            Vector3 a = _chain[s], b = _chain[s + 1];
+            // The last segment reaches on into the rounded fingertip.
+            float end = s == 2 ? 1.12f : 1f;
+            return Solid(Vector3.LerpUnclamped(a, b, 0.4f)) || Solid(Vector3.LerpUnclamped(a, b, 0.75f)) || Solid(Vector3.LerpUnclamped(a, b, end));
         }
 
         /// <summary>Self-test picture: the glove with these finger curls (thumb..pinky), no tracking needed.</summary>
@@ -359,7 +680,8 @@ namespace RavenfieldVR.Rig
                     break;
                 case HandRole.Magazine:
                 case HandRole.Throwable:
-                    Minimum(0.3f, 0.45f, 0.5f, 0.52f, 0.55f);
+                    // Something held in the fist: the fingers are closed around it whatever the grip trigger reads.
+                    Minimum(0.55f, 0.7f, 0.75f, 0.78f, 0.8f);
                     break;
                 case HandRole.Slide:
                 case HandRole.Hinge:
@@ -375,6 +697,19 @@ namespace RavenfieldVR.Rig
                     break;
             }
 
+            if (Closing)
+            {
+                // The model itself stops each finger where it touches: a held grip is wrapped all the way round.
+                if (_hand.Role == HandRole.Weapon)
+                {
+                    Minimum(WeaponIsPistol ? 0.35f : 0.65f, -1f, 0.95f, 0.95f, 0.95f);
+                }
+                else
+                {
+                    Minimum(0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
+                }
+                return _goal;
+            }
             // Wrapping fingers stop on the held object instead of closing through it: at 0.85 the fist leaves about the
             // 3 cm of a pistol grip, magazine or wheel rim, at 0.75 the 4 cm of a handguard.
             float cap = HoldCap(_hand.Role);

@@ -230,7 +230,7 @@ namespace RavenfieldVR.Input
                         HeldSince[a * 3 + slot] = now;
                         Unclaimed[a, slot] = true;
                     }
-                    else if (!state)
+                    else if (!state && !(a == (int)DigitalAction.Grab && slot < 2 && SimulatedGrab[slot]))
                     {
                         Unclaimed[a, slot] = false;
                     }
@@ -377,7 +377,7 @@ namespace RavenfieldVR.Input
         // ---- digital ------------------------------------------------------------------------------
 
         public static bool GetHeld(DigitalAction a) => Held[(int)a, 2];
-        public static bool GetHeld(DigitalAction a, Hand h) => Held[(int)a, (int)h] || a == DigitalAction.Grab && SimulatedGrab[(int)h];
+        public static bool GetHeld(DigitalAction a, Hand h) => Held[(int)a, (int)h] || a == DigitalAction.Grab && (int)h < 2 && SimulatedGrab[(int)h];
 
         /// <summary>Autotest: a closed grip on a simulated hand (the virtual headset has no controllers to squeeze).</summary>
         internal static readonly bool[] SimulatedGrab = new bool[2];
@@ -397,7 +397,15 @@ namespace RavenfieldVR.Input
         /// reaching hand close a moment early and still catch the bolt or magazine it arrives at.
         /// </summary>
         public static bool GetPressedRecently(DigitalAction a, Hand h, float seconds) =>
-            Held[(int)a, (int)h] && Unclaimed[(int)a, (int)h] && !Consumed[(int)a, (int)h] && Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] <= seconds;
+            GetHeld(a, h) && Unclaimed[(int)a, (int)h] && !Consumed[(int)a, (int)h] && Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] <= seconds;
+
+        /// <summary>Autotest: the grip of a simulated hand closes now (held until <see cref="SimulatedGrab"/> is cleared).</summary>
+        internal static void SimulateGrabPress(Hand h)
+        {
+            SimulatedGrab[(int)h] = true;
+            Unclaimed[(int)DigitalAction.Grab, (int)h] = true;
+            HeldSince[(int)DigitalAction.Grab * 3 + (int)h] = Time.unscaledTime;
+        }
 
         /// <summary>Marks this frame's press as handled so the game bridge does not also act on it.</summary>
         public static void Consume(DigitalAction a, Hand h)

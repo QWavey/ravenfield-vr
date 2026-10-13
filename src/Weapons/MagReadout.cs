@@ -43,7 +43,8 @@ namespace RavenfieldVR.Weapons
             _text = _go.AddComponent<TextMesh>();
             _text.font = _font;
             _text.fontSize = 64;
-            _text.characterSize = 0.0011f;
+            _text.characterSize = 0.0024f; // about 1.5 cm tall digits: readable at arm's length
+            _text.fontStyle = FontStyle.Bold;
             _text.anchor = TextAnchor.LowerCenter;
             _text.alignment = TextAlignment.Center;
             var mr = _go.GetComponent<MeshRenderer>();
@@ -85,7 +86,7 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 tip = _target.TipWorld;
             Vector3 up = _target.InsertDirWorld;
-            Vector3 at = tip + up * 0.012f;
+            Vector3 at = tip + up * 0.015f;
             Vector3 toEye = head.position - at;
             _go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(-toEye.normalized, head.up));
             string label = Label(_target.Rounds);
@@ -94,7 +95,8 @@ namespace RavenfieldVR.Weapons
                 _text.text = label;
                 _shown = label;
             }
-            Color c = _target.Rounds > 0 ? new Color(0.88f, 0.9f, 0.85f) : new Color(0.92f, 0.32f, 0.26f);
+            Log.InfoOnce("readout-shown", $"Magazine readout shown: {label} at {at:F2}, {Vector3.Distance(at, head.position):0.00} m from the eye.");
+            Color c = _target.Rounds > 0 ? new Color(0.95f, 0.96f, 0.9f) : new Color(0.95f, 0.32f, 0.26f);
             c.a = _alpha * 0.95f;
             _text.color = c;
         }
