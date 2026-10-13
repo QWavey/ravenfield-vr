@@ -153,6 +153,13 @@ namespace RavenfieldVR.Weapons
         /// <summary>The weapon's third-person model, copied from the prefab without running any of its scripts.</summary>
         private static GameObject BuildWorldModel(WeaponManager.WeaponEntry entry)
         {
+            // Only the third-person model is needed: copy that part of the prefab, not the whole weapon (first-person
+            // rig, arms, animator, sounds), which cost tens of milliseconds the first time a bot dropped a weapon type.
+            GameObject fast = BuildWorldModelFromSubtree(entry);
+            if (fast != null)
+            {
+                return fast;
+            }
             var holder = new GameObject("RavenfieldVR Drop Build");
             holder.SetActive(false);
             try
@@ -220,6 +227,97 @@ namespace RavenfieldVR.Weapons
             catch (Exception e)
             {
                 Log.WarnOnce("dropbuild:" + entry.name, $"Could not build a dropped model for {entry.name}: {e.Message}");
+                return null;
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(holder);
+            }
+        }
+
+        /// <summary>
+        /// The third-person model copied on its own from the prefab asset (no instance of the whole weapon). Null when it
+        /// cannot stand alone (its skinned parts use bones outside it): the whole-prefab copy is used then.
+        /// </summary>
+        private static GameObject BuildWorldModelFromSubtree(WeaponManager.WeaponEntry entry)
+        {
+            Weapon w = entry.prefab.GetComponent<Weapon>();
+            Transform tpAsset = w != null ? w.thirdPersonTransform : null;
+            if (tpAsset == null || !tpAsset.IsChildOf(entry.prefab.transform) || tpAsset == entry.prefab.transform)
+            {
+                return null;
+            }
+            foreach (SkinnedMeshRenderer smr in tpAsset.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (smr.rootBone != null && !smr.rootBone.IsChildOf(tpAsset))
+                {
+                    return null;
+                }
+                foreach (Transform bone in smr.bones)
+                {
+                    if (bone != null && !bone.IsChildOf(tpAsset))
+                    {
+                        return null;
+                    }
+                }
+            }
+            var holder = new GameObject("RavenfieldVR Drop Build");
+            holder.SetActive(false); // nothing in the copy wakes up
+            try
+            {
+                GameObject copy = UnityEngine.Object.Instantiate(tpAsset.gameObject, holder.transform, false);
+                Transform tp = copy.transform;
+                MonoBehaviour[] scripts = copy.GetComponentsInChildren<MonoBehaviour>(true);
+                for (int i = scripts.Length - 1; i >= 0; i--)
+                {
+                    UnityEngine.Object.DestroyImmediate(scripts[i]);
+                }
+                foreach (AudioSource a in copy.GetComponentsInChildren<AudioSource>(true))
+                {
+                    a.playOnAwake = false;
+                    a.enabled = false;
+                }
+                foreach (Camera c in copy.GetComponentsInChildren<Camera>(true))
+                {
+                    c.enabled = false;
+                }
+                foreach (Light l in copy.GetComponentsInChildren<Light>(true))
+                {
+                    l.enabled = false;
+                }
+                foreach (ParticleSystem ps in copy.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    ParticleSystem.MainModule main = ps.main;
+                    main.playOnAwake = false;
+                    ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+                foreach (Collider c in copy.GetComponentsInChildren<Collider>(true))
+                {
+                    c.enabled = false;
+                }
+                foreach (Rigidbody r in copy.GetComponentsInChildren<Rigidbody>(true))
+                {
+                    UnityEngine.Object.DestroyImmediate(r);
+                }
+                // Same local pose the game gives the third-person model under the weapon root.
+                var pivot = new GameObject(entry.name);
+                pivot.transform.SetParent(holder.transform, false);
+                tp.SetParent(pivot.transform, false);
+                tp.localPosition = w.thirdPersonOffset;
+                tp.localEulerAngles = w.thirdPersonRotation;
+                tp.localScale = Vector3.one * w.thirdPersonScale;
+                copy.SetActive(true);
+                foreach (Renderer r in copy.GetComponentsInChildren<Renderer>(true))
+                {
+                    r.enabled = true;
+                    Util.MaterialFix.Apply(r);
+                }
+                pivot.transform.SetParent(null, false);
+                return pivot;
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("dropbuild-fast:" + entry.name, $"Copying only the third-person model of {entry.name} failed ({e.Message}); copying the whole weapon.");
                 return null;
             }
             finally
@@ -456,9 +554,6 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        // Hitboxes (8), ragdolls (10), seated hitboxes (16) and the soldiers' movement colliders (17).
-        private const int BodyMask = (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17);
-        private static readonly Collider[] BodyScratch = new Collider[64];
 
         /// <summary>
         /// A weapon on the ground does not collide with bodies: one spawned in a dying soldier's hand was shoved out of
@@ -475,26 +570,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 d.NextBodyCheck = now - d.DropTime < 0.5f ? now : now + 0.25f;
-                int n = Physics.OverlapSphereNonAlloc(d.Go.transform.position, 1.5f, BodyScratch, BodyMask, QueryTriggerInteraction.Ignore);
-                for (int i = 0; i < n; i++)
-                {
-                    Collider body = BodyScratch[i];
-                    if (body == null || !d.IgnoredBodies.Add(body))
-                    {
-                        continue;
-                    }
-                    foreach (Collider c in d.Colliders)
-                    {
-                        if (c != null && c.enabled)
-                        {
-                            Physics.IgnoreCollision(c, body, true);
-                        }
-                    }
-                }
-                if (d.IgnoredBodies.Count > 512)
-                {
-                    d.IgnoredBodies.RemoveWhere(c => c == null);
-                }
+                PropPhysics.IgnoreBodiesNear(d.Colliders, d.Go.transform.position, 1.5f, d.IgnoredBodies);
             }
         }
 

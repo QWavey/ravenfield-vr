@@ -57,6 +57,39 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The same for a set of colliders (a model's shape pieces): the player's body is walked once, not per piece.</summary>
+        // Hitboxes (8), ragdolls (10), seated hitboxes (16) and the soldiers' movement colliders (17).
+        internal const int BodyMask = (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17);
+        private static readonly Collider[] BodyScratch = new Collider[64];
+
+        /// <summary>
+        /// Something lying in the world stops colliding with the bodies around it (ragdolls, soldiers walking past), so
+        /// it stays where it fell; <paramref name="done"/> remembers the bodies already ignored.
+        /// </summary>
+        public static void IgnoreBodiesNear(IList<Collider> colliders, Vector3 at, float radius, HashSet<Collider> done)
+        {
+            int n = Physics.OverlapSphereNonAlloc(at, radius, BodyScratch, BodyMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                Collider body = BodyScratch[i];
+                if (body == null || !done.Add(body))
+                {
+                    continue;
+                }
+                for (int j = 0; j < colliders.Count; j++)
+                {
+                    Collider c = colliders[j];
+                    if (c != null && c.enabled)
+                    {
+                        Physics.IgnoreCollision(c, body, true);
+                    }
+                }
+            }
+            if (done.Count > 512)
+            {
+                done.RemoveWhere(c => c == null);
+            }
+        }
+
         public static void IgnorePlayer(IList<Collider> colliders)
         {
             List<Collider> player = CollectPlayerColliders();
@@ -186,6 +219,8 @@ namespace RavenfieldVR.Weapons
         public float ShapeBeforeCovered { get; internal set; } = -1f;
         /// <summary>Self-test: a rendered-model shape that was measured and not kept (it matched the model worse).</summary>
         public string ShapeRejected { get; internal set; }
+        /// <summary>Self-test: what the report's before-comparison cost (it is not made in play).</summary>
+        public float ReportMatchMs { get; private set; } = -1f;
 
         /// <summary>This stand-in is the one of <paramref name="rig"/>'s weapon.</summary>
         internal bool Holds(WeaponRig rig) => _rig == rig;
@@ -205,7 +240,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             float excess = -1f, covered = -1f;
-            ShapeBefore = volume != null ? Match(volume, out excess, out covered) : null;
+            // The before/after comparison is for the self-test report only: in play it would be a hitch on drawing.
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            ShapeBefore = volume != null && Core.AutoTest.Requested ? Match(volume, out excess, out covered) : null;
+            ReportMatchMs = ShapeBefore != null ? (float)watch.Elapsed.TotalMilliseconds : -1f;
             ShapeBeforeExcess = excess;
             ShapeBeforeCovered = covered;
             foreach (Collider c in _boxes)

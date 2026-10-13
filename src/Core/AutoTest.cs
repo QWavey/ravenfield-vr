@@ -44,6 +44,8 @@ namespace RavenfieldVR.Core
                 return;
             }
             PerfProbe.Enabled = true;
+            // From the first frame: a test started minimized (or behind another game) must not pause while loading.
+            Application.runInBackground = true;
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => VRManager.Instance?.StartCoroutine(WaitForMatch());
             // A run cut short (window closed, game quit) still leaves a report.
             Application.quitting += () =>
@@ -303,6 +305,45 @@ namespace RavenfieldVR.Core
             Rig.HandModel.ClosingDisabled = false;
             yield return new WaitForSecondsRealtime(0.3f);
             report($"gun hand: {_clipNow} (posed by the weapon's hand alone: {before})");
+            // How fast the hands' solid answers (every finger and palm test is one query): this way and the earlier way.
+            {
+                GunVolume v = held.Volume;
+                var rng = new System.Random(7);
+                Vector3 c = held.GripWorld.position;
+                var pts = new Vector3[20000];
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    pts[i] = c + new Vector3((float)rng.NextDouble() - 0.5f, (float)rng.NextDouble() - 0.5f, (float)rng.NextDouble() - 0.5f) * 0.3f;
+                }
+                double Time(bool legacy)
+                {
+                    GunVolume.LegacyQueries = legacy;
+                    int solid = 0;
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    for (int r = 0; r < 3; r++)
+                    {
+                        foreach (Vector3 p in pts)
+                        {
+                            solid += v.Solid(p) ? 1 : 0;
+                        }
+                    }
+                    GunVolume.LegacyQueries = false;
+                    return watch.Elapsed.TotalMilliseconds * 1e6 / (3.0 * pts.Length) + solid * 0.0; // ns per query
+                }
+                Time(false); // warm up the JIT
+                double now = Time(false), earlier = Time(true);
+                int agree = 0;
+                foreach (Vector3 p in pts)
+                {
+                    GunVolume.LegacyQueries = true;
+                    bool a = v.Solid(p);
+                    GunVolume.LegacyQueries = false;
+                    agree += a == v.Solid(p) ? 1 : 0;
+                }
+                Metric("hand solid query: ns", now);
+                Metric("hand solid query (earlier way): ns", earlier);
+                Metric("hand solid query: % same answers as the earlier way", 100.0 * agree / pts.Length);
+            }
             // The trigger finger pulled all the way: it must curl onto the trigger, not into the frame.
             Rig.VRHand gunHand = Rig.VRRig.Instance.Dominant;
             Input.VRInput.SimulatedTrigger[(int)gunHand.Side] = 1f;
@@ -330,6 +371,7 @@ namespace RavenfieldVR.Core
                 Metric($"physics shape ({kind}): % of the model covered", covered);
                 if (shape.ShapeBefore != null)
                 {
+                    Metric("physics shape report comparison: ms saved in play", shape.ReportMatchMs);
                     Metric("physics shape (replaced): % outside the model", shape.ShapeBeforeExcess);
                     Metric("physics shape (replaced): % of the model covered", shape.ShapeBeforeCovered);
                 }
@@ -578,6 +620,21 @@ namespace RavenfieldVR.Core
                 walkerBody.position = from;
                 walker.transform.position = from;
                 Vector3 before = at;
+                // A magazine on the ground on the same path.
+                MagazineProp groundMag = null;
+                HeldWeapon heldNow = sys.Held;
+                if (heldNow != null && heldNow.ActiveAmmo != null && heldNow.ActiveAmmo.UsesDetachableMag
+                    && Physics.Raycast(at + across * 0.6f + Vector3.up * 1f, Vector3.down, out RaycastHit magHit, 3f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    groundMag = MagazineProp.Create(heldNow.ActiveRig, PropKind.Magazine, 0);
+                    if (groundMag != null && groundMag.Go != null)
+                    {
+                        groundMag.Go.transform.position = magHit.point + Vector3.up * 0.08f;
+                        groundMag.Drop(Vector3.zero, Vector3.zero);
+                        yield return new WaitForSecondsRealtime(1.5f);
+                    }
+                }
+                Vector3 magBefore = groundMag != null && groundMag.Go != null ? groundMag.Go.transform.position : Vector3.zero;
                 const float WalkTime = 1.2f;
                 for (float t = 0f; t < WalkTime; t += Time.fixedDeltaTime)
                 {
@@ -587,6 +644,13 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.5f);
                 float moved = target.Go != null ? Vector3.Distance(target.Go.transform.position, before) : -1f;
                 UnityEngine.Object.Destroy(walker);
+                if (groundMag != null)
+                {
+                    float magMoved = groundMag.Go != null ? Vector3.Distance(groundMag.Go.transform.position, magBefore) : -1f;
+                    Metric("dropped magazine: cm moved by a body walking through it", magMoved * 100f);
+                    lines.Add($"a soldier walking through a magazine on the ground: {(magMoved < 0f ? "gone" : magMoved > 0.15f ? $"PUSHED {magMoved * 100f:0} cm" : $"stayed ({magMoved * 100f:0.0} cm)")}");
+                    groundMag.Destroy();
+                }
                 Metric("dropped weapon: cm moved by a body walking through it", moved * 100f);
                 lines.Add($"a soldier walking through a lying {target.Entry.name}: {(moved < 0f ? "gone" : moved > 0.15f ? $"PUSHED {moved * 100f:0} cm" : $"stayed ({moved * 100f:0.0} cm)")}");
             }

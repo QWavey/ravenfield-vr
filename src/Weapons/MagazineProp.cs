@@ -48,6 +48,8 @@ namespace RavenfieldVR.Weapons
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private Collider[] _colliders;
+        private readonly HashSet<Collider> _ignoredBodies = new HashSet<Collider>();
+        private float _nextBodyCheck;
         /// <summary>The colliders came from the meshes' boxes (unreadable meshes) and are replaced once the model is measured.</summary>
         private bool _boxShaped;
         /// <summary>Per magazine type: the shape fitted to the rendered model (for every later magazine of the type).</summary>
@@ -896,6 +898,13 @@ namespace RavenfieldVR.Weapons
                 if (expired)
                 {
                     p.Despawn();
+                    continue;
+                }
+                // Lying in the world, bodies do not push it about (a magazine on the ground stays where it fell).
+                if (Time.time >= p._nextBodyCheck)
+                {
+                    p._nextBodyCheck = Time.time + (Time.time - p._dropTime < 0.5f ? 0f : 0.25f);
+                    PropPhysics.IgnoreBodiesNear(p._colliders, p.Go.transform.position, 1f, p._ignoredBodies);
                 }
             }
         }

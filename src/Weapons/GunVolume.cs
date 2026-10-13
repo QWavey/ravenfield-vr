@@ -32,6 +32,8 @@ namespace RavenfieldVR.Weapons
         {
             public Quaternion ToView; // frame -> view: x right, y up, z along the view direction
             public float MinX, MinY, Texel;
+            public float InvTexel;
+            public Quaternion WorldToView; // world -> view at the last SetPose (ToView after the frame's inverse)
             public int W, H;
             public float[] Near, Far; // per texel, along the view's z; empty where Near > Far
             public float[] BareNear, BareFar; // the same before growing: the model itself
@@ -126,10 +128,47 @@ namespace RavenfieldVR.Weapons
         {
             _pos = position;
             _inv = Quaternion.Inverse(rotation);
+            foreach (View v in _views)
+            {
+                v.WorldToView = v.ToView * _inv;
+            }
         }
 
+        /// <summary>Self-test: answer queries the earlier way (frame first, a box test, then each view) to compare speed.</summary>
+        internal static bool LegacyQueries;
+
         /// <summary>Within a finger's radius of the model (world space, at the last <see cref="SetPose"/>).</summary>
-        public bool Solid(Vector3 world) => _ready && SolidLocal(_inv * (world - _pos));
+        public bool Solid(Vector3 world)
+        {
+            if (!_ready)
+            {
+                return false;
+            }
+            if (LegacyQueries)
+            {
+                return SolidLocal(_inv * (world - _pos));
+            }
+            // One rotation per view straight from the world (no frame step, no box test: every view's picture already
+            // rejects points beyond the model), multiplies instead of divides, out at the first view that says no.
+            Vector3 d = world - _pos;
+            View[] views = _views;
+            for (int n = 0; n < views.Length; n++)
+            {
+                View v = views[n];
+                Vector3 q = v.WorldToView * d;
+                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
+                {
+                    return false;
+                }
+                int k = (int)fy * v.W + (int)fx;
+                if (q.z < v.Near[k] || q.z > v.Far[k])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         public bool SolidLocal(Vector3 p) => Test(p, true);
 
@@ -395,6 +434,8 @@ namespace RavenfieldVR.Weapons
                     views[d] = new View
                     {
                         ToView = toView,
+                        WorldToView = toView,
+                        InvTexel = 1f / texel,
                         Texel = texel,
                         W = w,
                         H = h,
