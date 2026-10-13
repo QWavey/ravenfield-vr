@@ -38,6 +38,11 @@ namespace RavenfieldVR.Weapons
         }
 
         private readonly View[] _views;
+
+        private static int _inFlight;
+
+        /// <summary>Measurements rendered and not yet ready (each holds its read-back pictures until it is done).</summary>
+        public static int InFlight => Volatile.Read(ref _inFlight);
         private readonly Bounds _box;
         private volatile bool _ready;
         private Vector3 _pos;
@@ -64,6 +69,8 @@ namespace RavenfieldVR.Weapons
         /// readable); a magazine's does not need one.
         /// </summary>
         public bool WantsHull;
+        /// <summary>Called on the worker thread once the volume (and its hull) is ready: keep only thread-safe work in it.</summary>
+        internal Action<GunVolume> OnReady;
         /// <summary>Slice length and piece count for the hull (a gun's defaults; a magazine uses finer, fewer).</summary>
         public float HullSlice = 0.03f;
         public int HullMaxPieces = 16;
@@ -408,6 +415,7 @@ namespace RavenfieldVR.Weapons
                     targets[2 * d + 1] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, max.z + Gap)), fr * Quaternion.LookRotation(-dirs[d].Item1, dirs[d].Item2), w, h, shader);
                 }
                 volume = new GunVolume(key, views, box) { Texels = texels };
+                Interlocked.Increment(ref _inFlight);
                 foreach (Renderer r in renderers)
                 {
                     volume._wantHull |= !ShapeFit.Readable(r);
@@ -486,6 +494,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (Failed)
                 {
+                    Interlocked.Decrement(ref _inFlight);
                     Volume.Failed = true;
                     Log.WarnOnce("gunvolume-read:" + Volume.Key, $"Reading back the shape of {Volume.Key} failed: hands close on it by their pose alone.");
                     return;
@@ -508,11 +517,16 @@ namespace RavenfieldVR.Weapons
                         }
                         Volume.BuildMs = (float)_since.Elapsed.TotalMilliseconds;
                         Volume._ready = true; // last: everything above is published with it
+                        Volume.OnReady?.Invoke(Volume);
                     }
                     catch (Exception e)
                     {
                         Volume.Failed = true;
                         Log.WarnOnce("gunvolume-grow:" + Volume.Key, $"Measuring {Volume.Key} for the hands failed: {e.Message}");
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref _inFlight);
                     }
                 });
             }

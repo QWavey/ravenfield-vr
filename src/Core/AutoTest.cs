@@ -538,6 +538,7 @@ namespace RavenfieldVR.Core
                 if (d != null)
                 {
                     drops.Add(d);
+                    report($"dropped {e.name}: physics shape from the {(WeaponDrops.UsesRenderedShape(e) ? "rendered model" : "meshes")}, {d.Colliders.Count} pieces");
                 }
                 if (++n >= 3)
                 {

@@ -265,6 +265,7 @@ namespace RavenfieldVR.Weapons
                 var root = new GameObject("RavenfieldVR Drop Warm-up");
                 model.transform.SetParent(root.transform, false);
                 ShapeFit.Bake(FitModel(entry, root.transform, Vector3.one));
+                MeasureRenderedShape(entry, root.transform);
                 UnityEngine.Object.Destroy(root);
             }
             catch (Exception e)
@@ -274,8 +275,104 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Per weapon type whose third-person meshes cannot be read: its shape fitted to the rendered model (scale 1).</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]> RenderedShapes =
+            new System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]>();
+        private static readonly Dictionary<string, ShapeFit.Piece[]> ScaledShapes = new Dictionary<string, ShapeFit.Piece[]>();
+
+        /// <summary>
+        /// A dropped model whose meshes cannot be read only gets boxes from their bounds: during the warm-up its drawn model
+        /// is measured (rendered as depth, the hull fitted on a worker thread) and its drops use that shape from then on.
+        /// Only the fitted pieces are kept.
+        /// </summary>
+        private static void MeasureRenderedShape(WeaponManager.WeaponEntry entry, Transform root)
+        {
+            if (RenderedShapes.ContainsKey(entry))
+            {
+                return;
+            }
+            var renderers = new List<Renderer>();
+            bool unreadable = false;
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                {
+                    renderers.Add(r);
+                    unreadable |= !ShapeFit.Readable(r);
+                }
+            }
+            if (!unreadable || renderers.Count == 0)
+            {
+                return;
+            }
+            GunVolume v = GunVolume.Measure("tp:" + entry.name, renderers, root, 5, 0.04f, 12);
+            if (v == null)
+            {
+                return;
+            }
+            void Keep(GunVolume done)
+            {
+                if (done.HullPieces != null && done.HullPieces.Length > 0)
+                {
+                    RenderedShapes[entry] = done.HullPieces;
+                }
+            }
+            if (v.Ready)
+            {
+                Keep(v);
+            }
+            else
+            {
+                v.OnReady = Keep;
+            }
+        }
+
+        /// <summary>The rendered-model shape of this type at this scale (the pieces were measured at scale 1).</summary>
+        private static ShapeFit.Piece[] ScaledRenderedShape(WeaponManager.WeaponEntry entry, Vector3 scale)
+        {
+            if (!RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces))
+            {
+                return null;
+            }
+            string key = entry.name + "@" + scale.ToString("F3");
+            if (ScaledShapes.TryGetValue(key, out ShapeFit.Piece[] scaled))
+            {
+                return scaled;
+            }
+            scaled = new ShapeFit.Piece[pieces.Length];
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                var pts = new Vector3[pieces[i].Points.Length];
+                var b = new Bounds();
+                for (int j = 0; j < pts.Length; j++)
+                {
+                    pts[j] = Vector3.Scale(pieces[i].Points[j], scale);
+                    if (j == 0)
+                    {
+                        b = new Bounds(pts[0], Vector3.zero);
+                    }
+                    else
+                    {
+                        b.Encapsulate(pts[j]);
+                    }
+                }
+                scaled[i] = new ShapeFit.Piece { Points = pts, Bounds = b };
+            }
+            ShapeFit.Bake(scaled);
+            ScaledShapes[key] = scaled;
+            return scaled;
+        }
+
+        /// <summary>Self-test: drops of this type use the shape fitted to the rendered model.</summary>
+        internal static bool UsesRenderedShape(WeaponManager.WeaponEntry entry) => RenderedShapes.ContainsKey(entry);
+
         private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale)
         {
+            ShapeFit.Piece[] rendered = ScaledRenderedShape(entry, scale);
+            if (rendered != null)
+            {
+                return rendered;
+            }
             var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
             string key = "drop:" + entry.name + "@" + scale.x.ToString("F2");
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);

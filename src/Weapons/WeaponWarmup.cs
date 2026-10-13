@@ -73,6 +73,11 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
+                    // Models being measured hold their read-back pictures until done: a few at a time.
+                    for (float until = Time.realtimeSinceStartup + 2f; GunVolume.InFlight > 4 && Time.realtimeSinceStartup < until;)
+                    {
+                        yield return null; // (never stuck: a read-back that never returns does not hold the warm-up up)
+                    }
                     Weapon weapon = entry.prefab.GetComponent<Weapon>();
                     if (weapon == null || WeaponAnalyzer.IsCached(weapon, entry))
                     {
