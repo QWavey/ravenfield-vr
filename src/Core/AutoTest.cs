@@ -651,6 +651,14 @@ namespace RavenfieldVR.Core
                     Vector3 released = mag.Go != null ? mag.Go.transform.position : Vector3.zero;
                     yield return new WaitForSecondsRealtime(0.5f);
                     flown = mag.Go != null ? Vector3.Distance(mag.Go.transform.position, released) : 0f;
+                    string magShape = mag.ShapeMatch(out float magExcess, out float magCovered);
+                    if (magShape != null)
+                    {
+                        string source = mag.BoxShaped ? "meshes' boxes" : "model";
+                        Metric($"magazine shape ({source}): % outside the model", magExcess);
+                        Metric($"magazine shape ({source}): % of the model covered", magCovered);
+                        report($"thrown magazine's physics shape (from the {source}): {magShape}");
+                    }
                     if (mag.Go != null)
                     {
                         sys.Held.ActiveAmmo.ReturnSpare(mag.Rounds);

@@ -245,9 +245,16 @@ namespace RavenfieldVR.Weapons
         /// <paramref name="grid"/>³ samples per piece and about <paramref name="surfaceSamples"/> points of the model's
         /// surface: fine for the self-test, coarse for the one-off choice made in play (a draw must not hitch).
         /// </summary>
-        public string Match(GunVolume volume, int grid, int surfaceSamples, out float excessPercent, out float coveredPercent)
+        public string Match(GunVolume volume, int grid, int surfaceSamples, out float excessPercent, out float coveredPercent) =>
+            MatchShape(_boxes, _go.transform, volume, grid, surfaceSamples, out excessPercent, out coveredPercent);
+
+        /// <summary>
+        /// How well <paramref name="colliders"/> (in the frame of <paramref name="t"/>, the frame the volume was measured
+        /// in) match the visible model: share of their inside outside the model, share of the model's surface covered.
+        /// </summary>
+        internal static string MatchShape(IList<Collider> colliders, Transform t, GunVolume volume, int grid, int surfaceSamples, out float excessPercent, out float coveredPercent)
         {
-            Transform t = _go.transform;
+            IList<Collider> _boxes = colliders;
             int inside = 0, excess = 0;
             foreach (Collider c in _boxes)
             {

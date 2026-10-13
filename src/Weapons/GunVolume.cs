@@ -64,6 +64,9 @@ namespace RavenfieldVR.Weapons
         /// readable); a magazine's does not need one.
         /// </summary>
         public bool WantsHull;
+        /// <summary>Slice length and piece count for the hull (a gun's defaults; a magazine uses finer, fewer).</summary>
+        public float HullSlice = 0.03f;
+        public int HullMaxPieces = 16;
 
         /// <summary>Inside the model itself, in the frame (self-test).</summary>
         public bool InsideModelLocal(Vector3 p) => _ready && Test(p, false);
@@ -185,13 +188,24 @@ namespace RavenfieldVR.Weapons
         /// The volume of any set of renderers (a magazine on the gun or in the hand), in the frame of <paramref name="frame"/>
         /// as it is now; kept under <paramref name="key"/>.
         /// </summary>
-        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5)
+        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5, float hullSlice = 0f, int hullPieces = 0)
         {
             if (frame == null || renderers.Count == 0)
             {
                 return null;
             }
-            return Cached(key, () => Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views));
+            return Cached(key, () =>
+            {
+                GunVolume v = Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views);
+                if (v != null && hullSlice > 0f)
+                {
+                    // Set before the read-back arrives: the worker fits the hull when it sees it.
+                    v.HullSlice = hullSlice;
+                    v.HullMaxPieces = hullPieces;
+                    v.WantsHull = true;
+                }
+                return v;
+            });
         }
 
         private static GunVolume Cached(string key, Func<GunVolume> build)
@@ -490,7 +504,7 @@ namespace RavenfieldVR.Weapons
                         if (Volume.WantsHull)
                         {
                             // Same slicing as a readable model gets from its vertices, from the rendered surface.
-                            Volume.HullPieces = ShapeFit.FitCloud(Volume.SurfacePoints(2));
+                            Volume.HullPieces = ShapeFit.FitCloud(Volume.SurfacePoints(2), Volume.HullSlice, Volume.HullMaxPieces);
                         }
                         Volume.BuildMs = (float)_since.Elapsed.TotalMilliseconds;
                         Volume._ready = true; // last: everything above is published with it

@@ -47,9 +47,13 @@ namespace RavenfieldVR.Weapons
         private readonly float _sideHalf;
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
-        private readonly Collider[] _colliders;
+        private Collider[] _colliders;
+        /// <summary>The colliders came from the meshes' boxes (unreadable meshes) and are replaced once the model is measured.</summary>
+        private bool _boxShaped;
+        /// <summary>Per magazine type: the shape fitted to the rendered model (for every later magazine of the type).</summary>
+        private static readonly Dictionary<string, ShapeFit.Piece[]> RenderedShapes = new Dictionary<string, ShapeFit.Piece[]>();
         /// <summary>The pieces' bounds in prop space, for distances while the colliders are off (Unity reports an empty box then).</summary>
-        private readonly Bounds[] _pieceBounds;
+        private Bounds[] _pieceBounds;
         private float _dropTime = -1f;
 
         /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
@@ -90,12 +94,25 @@ namespace RavenfieldVR.Weapons
                     break;
             }
 
-            ShapeFit.Piece[] shape = fitKey != null
-                ? ShapeFit.Fit(fitKey, go.GetComponentsInChildren<Renderer>(true), go.transform.worldToLocalMatrix, 0.015f, 8)
-                : new ShapeFit.Piece[0];
+            Renderer[] shown = go.GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer r in shown)
+            {
+                _boxShaped |= !ShapeFit.Readable(r);
+            }
+            ShapeFit.Piece[] shape;
+            if (_boxShaped && kind == PropKind.Magazine && RenderedShapes.TryGetValue(ShapeKey, out ShapeFit.Piece[] rendered))
+            {
+                shape = rendered; // this type was measured already: its real shape from the start
+                _boxShaped = false;
+            }
+            else
+            {
+                shape = fitKey != null ? ShapeFit.Fit(fitKey, shown, go.transform.worldToLocalMatrix, 0.015f, 8) : new ShapeFit.Piece[0];
+            }
             if (shape.Length == 0)
             {
                 shape = new[] { ShapeFit.BoxPiece(bounds.center, Vector3.Max(bounds.size, new Vector3(0.01f, 0.01f, 0.01f))) };
+                _boxShaped = true;
             }
             _colliders = ShapeFit.AddColliders(go, shape).ToArray();
             _pieceBounds = new Bounds[shape.Length];
@@ -528,7 +545,8 @@ namespace RavenfieldVR.Weapons
                     renderers.Add(r);
                 }
             }
-            _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform, 3); // box-like: the three axis views see it whole
+            // Box-like: the three axis views see it whole. With unreadable meshes its physics shape comes from it too.
+            _volume = GunVolume.Measure(ShapeKey, renderers, Go.transform, 3, 0.015f, 8);
         }
 
         /// <summary>
@@ -656,9 +674,61 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private string ShapeKey => "prop:" + WeaponKey + ":" + Kind;
+
+        /// <summary>
+        /// A magazine whose meshes could not be read had box colliders: once its model is measured they become the
+        /// shape fitted to what is drawn (and every later magazine of the type starts with it).
+        /// </summary>
+        private void TakeRenderedShape()
+        {
+            if (!_boxShaped || _volume == null || !_volume.Ready || _volume.HullPieces == null || _volume.HullPieces.Length == 0 || Go == null)
+            {
+                return;
+            }
+            _boxShaped = false;
+            ShapeFit.Piece[] pieces = _volume.HullPieces;
+            RenderedShapes[ShapeKey] = pieces;
+            bool on = _colliders.Length > 0 && _colliders[0] != null && _colliders[0].enabled;
+            foreach (Collider c in _colliders)
+            {
+                if (c != null)
+                {
+                    UnityEngine.Object.Destroy(c);
+                }
+            }
+            ShapeFit.Bake(pieces);
+            _colliders = ShapeFit.AddColliders(Go, pieces).ToArray();
+            _pieceBounds = new Bounds[pieces.Length];
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                _pieceBounds[i] = pieces[i].Bounds;
+            }
+            SetCollidersEnabled(on);
+            if (on)
+            {
+                PropPhysics.IgnorePlayer(_colliders);
+            }
+        }
+
+        /// <summary>Self-test: how this magazine's colliders match its drawn model (null until it is measured).</summary>
+        internal string ShapeMatch(out float excess, out float covered)
+        {
+            excess = covered = -1f;
+            if (_volume == null || !_volume.Ready || Go == null || _colliders.Length == 0 || !_colliders[0].enabled)
+            {
+                return null;
+            }
+            return GunCollider.MatchShape(_colliders, Go.transform, _volume, 6, 300, out excess, out covered);
+        }
+
+        /// <summary>Self-test: the colliders were still the meshes' boxes when matched.</summary>
+        internal bool BoxShaped => _boxShaped;
+
         public void FollowHand()
         {
             ShapeHand();
+            TakeRenderedShape();
             if (HeldBy != null && !OnRail)
             {
                 RigidPose target = HoldPose(HeldBy);
