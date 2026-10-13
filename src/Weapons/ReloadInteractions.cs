@@ -1565,7 +1565,8 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                     int oldRounds = Ammo.MagRounds;
-                    int before = TotalRounds(0);
+                    // Counted without the pouch (a mutator may refill it at any moment): what is loaded, plus the fresh one.
+                    int before = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0);
                     TakeFromPouch(off);
                     if (!(off.Held is MagazineProp fresh))
                     {
@@ -1573,6 +1574,7 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     int freshRounds = fresh.Rounds;
+                    before += freshRounds;
                     yield return null;
                     RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
                     MagazineProp old = null;
@@ -1634,10 +1636,10 @@ namespace RavenfieldVR.Weapons
                             }
                         }
                     }
-                    int after = TotalRounds(inHand) + dropped;
+                    int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + inHand + dropped;
                     yield return new WaitForEndOfFrame();
                     shot(kick ? "mag-kick-seated" : "h3vr-tactical-seated");
-                    string sum = Ammo.InfiniteSpare || after == before ? "rounds add up" : $"ROUNDS DO NOT ADD UP ({before} -> {after})";
+                    string sum = after == before ? "rounds add up" : $"ROUNDS DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, in hand {inHand}, dropped {dropped})";
                     if (kick)
                     {
                         report($"mag kick: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, {sum}");
@@ -1683,6 +1685,20 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForEndOfFrame();
             shot("two-handed");
             bool snapped = off.Model != null && off.Model.SnapPose.HasValue;
+            HandModel gunHand = _sys.Rig.Dominant.Model;
+            if (GripData.IsPistol && off.Model != null && gunHand != null)
+            {
+                // Cupping a pistol: how much of the support hand is inside the gun hand, closing on it and (as before) not.
+                off.Model.Measure(p => gunHand.NearSkin(p, 0f), p => false, out int inside, out _, out _);
+                HeldWeapon.LegacySupportSolid = true;
+                yield return new WaitForSecondsRealtime(0.35f);
+                off.Model.Measure(p => gunHand.NearSkin(p, 0f), p => false, out int before, out _, out _);
+                HeldWeapon.LegacySupportSolid = false;
+                Core.AutoTest.Metric("support hand on a pistol: points inside the gun hand", inside);
+                Core.AutoTest.Metric("support hand on a pistol (closing on the gun only): points inside the gun hand", before);
+                report($"support hand round the gun hand: {inside}/72 points inside it (closing on the gun only: {before})");
+                yield return new WaitForSecondsRealtime(0.2f);
+            }
             VRInput.SimulatedGrab[(int)off.Side] = false;
             yield return null; // the grip opens: the foregrip is let go
             report($"two hands: support hand {(snapped ? "on the weapon's own handguard pose" : "on the tracked hand (no support pose)")}");

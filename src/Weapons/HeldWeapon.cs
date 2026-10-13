@@ -456,6 +456,10 @@ namespace RavenfieldVR.Weapons
         private GunVolume _volume;
         private bool _volumeTried;
         private bool _hullApplied;
+        private System.Func<Vector3, bool> _supportSolid;
+
+        /// <summary>Self-test: the support hand on a pistol closes on the gun only, as before (to compare).</summary>
+        internal static bool LegacySupportSolid;
 
         /// <summary>Self-test: the held gun's physics stand-in.</summary>
         internal GunCollider Collider => _gunCollider;
@@ -664,13 +668,21 @@ namespace RavenfieldVR.Weapons
             }
             if (off.Model != null)
             {
-                if (off.Role == HandRole.Foregrip)
+                if (off.Role == HandRole.Foregrip && solid != null && Rig.Data.IsPistol && main.Model != null)
+                {
+                    // Cupping a pistol: the support hand closes on the gun and on the gun hand's fingers round its grip.
+                    HandModel gunHand = main.Model;
+                    off.Model.Solid = _supportSolid ?? (_supportSolid = p => _solid(p) || !LegacySupportSolid && gunHand.NearSkin(p, GunVolume.Grow));
+                    off.Model.SolidAnchor = Rig.GunBody;
+                    off.Model.SolidVersion = Time.frameCount; // the gun hand's fingers move: no reusing last frame's solve
+                }
+                else if (off.Role == HandRole.Foregrip)
                 {
                     off.Model.Solid = solid;
                     off.Model.SolidAnchor = Rig.GunBody;
                     off.Model.SolidVersion = _magSolidShown ? 1 : 0;
                 }
-                else if (off.Model.Solid == _solid)
+                else if (off.Model.Solid == _solid || off.Model.Solid != null && off.Model.Solid == _supportSolid)
                 {
                     off.Model.Solid = null;
                 }

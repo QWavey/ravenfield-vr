@@ -438,6 +438,57 @@ namespace RavenfieldVR.Rig
                     _joints[f][s].localRotation = JointRest(f, s) * Quaternion.Euler(0f, sign * MaxAngle(f, s) * _joint[f, s], 0f);
                 }
             }
+            UpdateSkin();
+        }
+
+        // The glove's surface as capsules along the finger bones plus the palm's box, for another hand to close on.
+        private readonly Vector3[] _skinA = new Vector3[15], _skinB = new Vector3[15];
+        private readonly float[] _skinR = new float[15];
+        private bool _skinValid;
+
+        private void UpdateSkin()
+        {
+            _skinValid = _visible;
+            if (!_skinValid)
+            {
+                return;
+            }
+            int n = 0;
+            for (int f = 0; f < 5; f++)
+            {
+                for (int s = 0; s < 3; s++)
+                {
+                    _skinA[n] = _joints[f][s].position;
+                    _skinB[n] = s < 2 ? _joints[f][s + 1].position : _joints[f][2].TransformPoint(new Vector3(0f, 0f, Lengths[f][2]));
+                    _skinR[n] = Radii[f] * (1f - 0.12f * s) * HandScale;
+                    n++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Within <paramref name="grow"/> of this glove's skin (as last posed): for a support hand cupping this hand on a
+        /// pistol, so its fingers wrap round these fingers instead of going through them.
+        /// </summary>
+        internal bool NearSkin(Vector3 p, float grow)
+        {
+            if (!_skinValid)
+            {
+                return false;
+            }
+            for (int i = 0; i < _skinA.Length; i++)
+            {
+                Vector3 a = _skinA[i], ab = _skinB[i] - a;
+                float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-8f));
+                float r = _skinR[i] + grow;
+                if ((a + ab * t - p).sqrMagnitude <= r * r)
+                {
+                    return true;
+                }
+            }
+            Vector3 l = _root.InverseTransformPoint(p); // palm space (the glove's scale undone)
+            float g = grow / HandScale;
+            return l.z > -0.06f - g && l.z < 0.05f + g && Mathf.Abs(l.y) < 0.038f + g && Mathf.Abs(l.x - 0.0015f * _hand.Mirror) < 0.0135f + g;
         }
 
         /// <summary>Holding a measured weapon by its grip or handguard: palm and fingers close on its model.</summary>

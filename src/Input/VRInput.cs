@@ -417,6 +417,8 @@ namespace RavenfieldVR.Input
         internal static void SimulateGrabPress(Hand h)
         {
             SimulatedGrab[(int)h] = true;
+            // A real squeeze has a pressed edge too (the pouch only answers squeezes made at it).
+            PressPending[(int)DigitalAction.Grab, (int)h] = true;
             Unclaimed[(int)DigitalAction.Grab, (int)h] = true;
             HeldSince[(int)DigitalAction.Grab * 3 + (int)h] = Time.unscaledTime;
         }

@@ -448,6 +448,12 @@ namespace RavenfieldVR.Weapons
             {
                 yield return null;
             }
+            if (!weapon.unholstered || !weapon.CanFire())
+            {
+                // The game will not let it be thrown now (a call-in on cooldown, none left): nothing to test.
+                report("pin check skipped: the game does not let this one be thrown right now");
+                yield break;
+            }
             VRHand hand = _sys.Rig.Dominant;
             Transform head = _sys.Rig.Head;
             Vector3 lob = (Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized + Vector3.up).normalized * 16f;
@@ -461,6 +467,11 @@ namespace RavenfieldVR.Weapons
             while (!weapon.CanFire() && Time.realtimeSinceStartup < until)
             {
                 yield return null;
+            }
+            if (!weapon.CanFire())
+            {
+                report("pin pulled: skipped (the game does not let another one be thrown yet)");
+                yield break;
             }
             PullPin(null);
             Throw(weapon, hand, lob);

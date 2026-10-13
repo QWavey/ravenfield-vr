@@ -950,11 +950,12 @@ namespace RavenfieldVR.Core
                     bool counts = held != null && held.Weapon == weapon && held.ActiveAmmo != null && held.ActiveAmmo.Participates
                                   && held.Rig.Data.Action != ActionType.Throwable;
                     _shots = 0;
-                    held?.ResetKick();
+                    float shotKick = 0f, shotBack = 0f;
                     Weapon listened = counts ? ready : null;
                     listened?.onSpawnProjectiles.AddListener(CountShot);
                     for (int i = 0; i < 3; i++)
                     {
+                        held?.ResetKick(); // each shot on its own: shots that stack up are not one shot's kick
                         try
                         {
                             Weapon active = weapon.GetActiveSubWeapon();
@@ -966,6 +967,11 @@ namespace RavenfieldVR.Core
                             Problem($"[{entry.name}] fire: {e.GetType().Name}: {e.Message} {FirstFrames(e)}");
                         }
                         yield return new WaitForSecondsRealtime(0.25f);
+                        if (held != null)
+                        {
+                            shotKick = Mathf.Max(shotKick, held.PeakKick);
+                            shotBack = Mathf.Max(shotBack, held.PeakBack);
+                        }
                         if (counts && held.ActiveAmmo.Rig.CyclesByHand)
                         {
                             held.Reload.CycleForTest(); // a bolt or pump needs working between shots
@@ -981,7 +987,7 @@ namespace RavenfieldVR.Core
                         }
                         else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4))
                         {
-                            float oneKick = held.PeakKick, oneBack = held.PeakBack;
+                            float oneKick = shotKick, oneBack = shotBack;
                             string recoilLine = null;
                             yield return TwoHandRecoil(held, weapon, (kick, back) =>
                             {
@@ -1103,9 +1109,10 @@ namespace RavenfieldVR.Core
             off.Role = Rig.HandRole.Foregrip;
             held.SetTwoHanded(true);
             yield return new WaitForSecondsRealtime(0.3f);
-            held.ResetKick();
+            float kick = 0f, back = 0f;
             for (int i = 0; i < 3; i++)
             {
+                held.ResetKick();
                 try
                 {
                     Weapon active = weapon.GetActiveSubWeapon();
@@ -1117,12 +1124,14 @@ namespace RavenfieldVR.Core
                     // reported by the one-handed shots already
                 }
                 yield return new WaitForSecondsRealtime(0.25f);
+                kick = Mathf.Max(kick, held.PeakKick);
+                back = Mathf.Max(back, held.PeakBack);
                 if (held.ActiveAmmo != null && held.ActiveAmmo.Rig.CyclesByHand)
                 {
                     held.Reload.CycleForTest();
                 }
             }
-            result(held.PeakKick, held.PeakBack);
+            result(kick, back);
             Input.VRInput.SimulatedGrab[(int)off.Side] = false;
             yield return null; // the grip opens: the handguard is let go
             yield return null;
@@ -1208,7 +1217,7 @@ namespace RavenfieldVR.Core
         /// <summary>Every measured hand (what, points buried in the model): the worst are listed for the next fixes.</summary>
         private static readonly List<KeyValuePair<string, int>> Worst = new List<KeyValuePair<string, int>>();
 
-        private static void Metric(string name, double value)
+        internal static void Metric(string name, double value)
         {
             if (double.IsNaN(value) || value < 0)
             {
@@ -1277,5 +1286,43 @@ namespace RavenfieldVR.Core
     internal static class AutoTestMutatorsPatch
     {
         private static void Prefix() => AutoTest.EnableAllMutators();
+    }
+
+    /// <summary>
+    /// Autotest: a small match (four soldiers a side), enough for weapons to be dropped by the fallen and few enough that
+    /// the checks are not interrupted by firefights.
+    /// </summary>
+    [HarmonyPatch(typeof(GameManager), nameof(GameManager.StartLevel))]
+    internal static class AutoTestMatchSizePatch
+    {
+        private static void Prefix(GameModeParameters parameters)
+        {
+            if (!AutoTest.Requested)
+            {
+                return;
+            }
+            GameModeParameters p = parameters ?? GameManager.instance?.gameModeParameters;
+            if (p?.configuration == null)
+            {
+                return;
+            }
+            p.configuration.SetInt("countTeam0", 4);
+            p.configuration.SetInt("countTeam1", 4);
+        }
+    }
+
+    /// <summary>Autotest: the player cannot be hurt (being shot dead cut checks short and forced respawns).</summary>
+    [HarmonyPatch(typeof(Actor), nameof(Actor.Damage))]
+    internal static class AutoTestInvulnerablePatch
+    {
+        private static bool Prefix(Actor __instance, ref bool __result)
+        {
+            if (AutoTest.Requested && __instance != null && !__instance.aiControlled)
+            {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
     }
 }
