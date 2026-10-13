@@ -50,7 +50,8 @@ namespace RavenfieldVR.Input
         public static Vector2 MoveStick { get; private set; }
         public static Vector2 TurnStickRaw { get; private set; }
 
-        private static bool _scoreboardOpen;
+        /// <summary>Whether the scoreboard comes up with the map (the scoreboard button switches it); never on its own.</summary>
+        private static bool _scoreboardWithMap = true;
         private static bool _jumpLatch;
         private static bool _downLatch;
         private static float _downSince;
@@ -93,11 +94,13 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause));
             Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout));
             Set(KeyBinds.SquadLeaderKit, VRInput.GetPressed(DigitalAction.Map));
+            // In VR the scoreboard only ever shows together with the map (the wrist look): on its own it covered the
+            // view while aiming. The scoreboard button chooses whether it comes up with the map.
             if (VRInput.GetPressed(DigitalAction.Scoreboard))
             {
-                _scoreboardOpen = !_scoreboardOpen;
+                _scoreboardWithMap = !_scoreboardWithMap;
             }
-            Set(KeyBinds.Scoreboard, _scoreboardOpen);
+            Set(KeyBinds.Scoreboard, _scoreboardWithMap && !menu && WristLookGesture && GameContext.InGame);
             // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
             Set(KeyBinds.Fire, VRInput.GetHeld(DigitalAction.Fire, dom) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
 
@@ -330,9 +333,15 @@ namespace RavenfieldVR.Input
             return Mathf.Clamp(game + v, -1f, 1f);
         }
 
-        public static bool MergeButton(KeyBinds b, bool game) => game || Held[(int)b];
-        public static bool MergeButtonDown(KeyBinds b, bool game) => game || (Held[(int)b] && !WasHeld[(int)b]);
-        public static bool MergeButtonUp(KeyBinds b, bool game) => game || (!Held[(int)b] && WasHeld[(int)b]);
+        public static bool MergeButton(KeyBinds b, bool game) => (game && !VROnly(b)) || Held[(int)b];
+        public static bool MergeButtonDown(KeyBinds b, bool game) => (game && !VROnly(b)) || (Held[(int)b] && !WasHeld[(int)b]);
+        public static bool MergeButtonUp(KeyBinds b, bool game) => (game && !VROnly(b)) || (!Held[(int)b] && WasHeld[(int)b]);
+
+        /// <summary>
+        /// Binds only the VR mapping may press: the scoreboard (and its peek) would otherwise come up from a gamepad or
+        /// Steam Input layout the headset's controllers also feed, right in front of the sights.
+        /// </summary>
+        private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
 
         /// <summary>Resets toggles when the player respawns or leaves a vehicle.</summary>
         public static void ResetToggles()
@@ -340,7 +349,6 @@ namespace RavenfieldVR.Input
             SprintActive = false;
             CrouchToggled = false;
             ProneToggled = false;
-            _scoreboardOpen = false;
         }
     }
 

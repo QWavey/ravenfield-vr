@@ -14,7 +14,8 @@ namespace RavenfieldVR.Weapons
     public sealed class DroppedWeapon
     {
         public GameObject Go;
-        public Collider Collider;
+        /// <summary>The model's own shape (convex pieces: receiver, barrel, stock...), so it lies flat and is grabbed where it is.</summary>
+        public List<Collider> Colliders;
         public WeaponManager.WeaponEntry Entry;
         /// <summary>Rounds loaded (-1 = default) and in reserve (-1 = default) for whoever picks it up.</summary>
         public int Ammo = -1;
@@ -72,7 +73,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<WeaponManager.WeaponEntry, GameObject> Templates = new Dictionary<WeaponManager.WeaponEntry, GameObject>();
         private static GameObject _templateRoot;
 
-        private static GameObject ModelFor(WeaponManager.WeaponEntry entry)
+        internal static GameObject ModelFor(WeaponManager.WeaponEntry entry)
         {
             if (!Templates.TryGetValue(entry, out GameObject template) || template == null)
             {
@@ -111,19 +112,19 @@ namespace RavenfieldVR.Weapons
             model.transform.localScale = scale.sqrMagnitude > 1e-6f ? scale : Vector3.one;
             pose.ApplyTo(root.transform);
 
-            Bounds local = LocalRendererBounds(root.transform);
-            var box = root.AddComponent<BoxCollider>();
-            box.center = local.center;
-            box.size = Vector3.Max(local.size, new Vector3(0.05f, 0.05f, 0.05f));
+            List<Collider> boxes = ShapeFit.AddColliders(root, FitModel(entry, root.transform, model.transform.localScale));
             var body = root.AddComponent<Rigidbody>();
             body.mass = 3f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
-            PropPhysics.IgnorePlayer(box);
+            foreach (Collider box in boxes)
+            {
+                PropPhysics.IgnorePlayer(box);
+            }
 
-            var drop = new DroppedWeapon { Go = root, Collider = box, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
+            var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
             _drops.Add(drop);
             Cull();
             return drop;
@@ -207,12 +208,29 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static Bounds LocalRendererBounds(Transform root)
+        /// <summary>
+        /// The model's shape as boxes in the drop's own space (fitted once per weapon and scale); a single box around its
+        /// renderers when nothing could be measured.
+        /// </summary>
+        private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale)
+        {
+            var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
+            string key = "drop:" + entry.name + "@" + scale.x.ToString("F2");
+            ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
+            if (boxes.Length > 0)
+            {
+                return boxes;
+            }
+            Bounds b = LocalRendererBounds(root, renderers);
+            return new[] { ShapeFit.BoxPiece(b.center, Vector3.Max(b.size, new Vector3(0.05f, 0.05f, 0.05f))) };
+        }
+
+        private static Bounds LocalRendererBounds(Transform root, List<Renderer> renderers)
         {
             bool any = false;
             var b = new Bounds(Vector3.zero, Vector3.zero);
             Matrix4x4 toLocal = root.worldToLocalMatrix;
-            foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+            foreach (Renderer r in renderers)
             {
                 if (r is ParticleSystemRenderer)
                 {
@@ -279,15 +297,18 @@ namespace RavenfieldVR.Weapons
             float bestDist = PickupReach;
             foreach (DroppedWeapon d in _drops)
             {
-                if (d.Go == null || d.Collider == null)
+                if (d.Go == null || d.Colliders == null)
                 {
                     continue;
                 }
-                float dist = Vector3.Distance(d.Collider.ClosestPoint(palm), palm);
-                if (dist < bestDist)
+                foreach (Collider c in d.Colliders)
                 {
-                    bestDist = dist;
-                    best = d;
+                    float dist = c != null ? Vector3.Distance(c.ClosestPoint(palm), palm) : float.MaxValue;
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        best = d;
+                    }
                 }
             }
             return best;

@@ -40,6 +40,19 @@ namespace RavenfieldVR.Weapons
         public Vector3 PalmPoint;
     }
 
+    /// <summary>One of a weapon's sights: where the eye goes and which way it looks (gun-body space).</summary>
+    public sealed class SightLine
+    {
+        public Vector3 EyePoint;
+        public Vector3 EyeDirection = Vector3.forward;
+        /// <summary>The sight was lined up in this mode's own aim pose (else it copies the default line).</summary>
+        public bool Measured;
+        /// <summary>The mode narrows the view (a magnifier or a variable scope setting): it gets a lens of its own.</summary>
+        public bool Magnified;
+        public float Fov;
+        public string Name = "";
+    }
+
     public enum HingeKind
     {
         None,
@@ -96,6 +109,11 @@ namespace RavenfieldVR.Weapons
         public bool HasEyePoint;
         /// <summary>The sight line is right but the eye distance was not measurable, so EyePoint sits on the line behind the gun.</summary>
         public bool EyeFromLine;
+        /// <summary>
+        /// Every sight mode of the weapon (index = the game's sight mode), when it has more than one: a magnifier
+        /// flipped in behind a red dot, a canted or offset sight. Null when the weapon has a single sight.
+        /// </summary>
+        public SightLine[] Sights;
         /// <summary>Scoped weapons whose scope model was measured: the ocular lens centre (gun space) and its radius.</summary>
         public bool HasScopeModel;
         public Vector3 ScopeOcular;

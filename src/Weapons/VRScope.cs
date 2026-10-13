@@ -19,6 +19,11 @@ namespace RavenfieldVR.Weapons
         private readonly VRRig _vrRig;
         private readonly WeaponRig _rig;
         private readonly float _radius;
+        private readonly Vector3 _eyePoint;
+        private readonly Vector3 _eyeDirection;
+        /// <summary>Field of view of this sight (a magnifier's mode); 0 = whatever the weapon aims with now.</summary>
+        private readonly float _fov;
+        private bool _shown = true;
         private readonly Camera _camera;
         private readonly RenderTexture _texture;
         private readonly GameObject _root;
@@ -35,21 +40,36 @@ namespace RavenfieldVR.Weapons
             return w.GetAimFov() < 40f;
         }
 
-        public VRScope(VRRig vrRig, WeaponRig rig)
+        public VRScope(VRRig vrRig, WeaponRig rig) : this(vrRig, rig, rig.Data.EyePoint, rig.Data.EyeDirection,
+            rig.Data.HasScopeModel ? rig.Data.ScopeOcular - rig.Data.EyeDirection * 0.002f : rig.Data.EyePoint + rig.Data.EyeDirection * EyeRelief,
+            rig.Data.HasScopeModel ? rig.Data.ScopeRadius : LensRadius, 0f)
+        {
+        }
+
+        /// <summary>
+        /// A lens for one sight mode (a magnifier flipped in behind a red dot): on that mode's sight line, at eye relief in
+        /// front of its eye point, magnifying by that mode's field of view.
+        /// </summary>
+        public VRScope(VRRig vrRig, WeaponRig rig, SightLine line) : this(vrRig, rig, line.EyePoint, line.EyeDirection,
+            line.EyePoint + line.EyeDirection * EyeRelief, LensRadius * 0.85f, line.Fov)
+        {
+        }
+
+        private VRScope(VRRig vrRig, WeaponRig rig, Vector3 eyePoint, Vector3 eyeDirection, Vector3 lensPos, float radius, float fov)
         {
             _vrRig = vrRig;
             _rig = rig;
+            _eyePoint = eyePoint;
+            _eyeDirection = eyeDirection;
+            _fov = fov;
             int res = VRConfig.ScopeResolution.Value;
             _texture = new RenderTexture(res, res, 24, RenderTextureFormat.Default) { name = "RavenfieldVR Scope", antiAliasing = 2 };
             _texture.Create();
 
             _root = new GameObject("RavenfieldVR Scope");
             // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
-            Vector3 lensPos = rig.Data.HasScopeModel
-                ? rig.Data.ScopeOcular - rig.Data.EyeDirection * 0.002f
-                : rig.Data.EyePoint + rig.Data.EyeDirection * EyeRelief;
-            _radius = rig.Data.HasScopeModel ? rig.Data.ScopeRadius : LensRadius;
-            rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(rig.Data.EyeDirection, rig.Data.Up));
+            _radius = radius;
+            rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(eyeDirection, rig.Data.Up));
 
             var camGo = new GameObject("Scope Camera");
             camGo.transform.SetParent(_root.transform, false);
@@ -130,10 +150,29 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Shows or hides the lens (a magnifier's lens only while its sight mode is selected).</summary>
+        public void SetShown(bool shown)
+        {
+            if (_shown == shown)
+            {
+                return;
+            }
+            _shown = shown;
+            _root.SetActive(shown);
+            if (!shown)
+            {
+                _camera.enabled = false;
+            }
+        }
+
         public void BeforeRender(bool aiming)
         {
+            if (!_shown)
+            {
+                return;
+            }
             Transform head = _vrRig.Head;
-            Vector3 eye = _rig.ToWorld(_rig.Data.EyePoint);
+            Vector3 eye = _rig.ToWorld(_eyePoint);
             float dist = Vector3.Distance(head.position, eye);
             bool active = aiming || dist < 0.22f;
             if (!active)
@@ -144,7 +183,7 @@ namespace RavenfieldVR.Weapons
             }
             Camera vr = _vrRig.Camera;
             float baseFov = 60f;
-            float magnification = Mathf.Max(1.5f, baseFov / Mathf.Max(1f, _rig.Weapon.GetAimFov()));
+            float magnification = Mathf.Max(1.5f, baseFov / Mathf.Max(1f, _fov > 0.5f ? _fov : _rig.Weapon.GetAimFov()));
             float lensAngle = 2f * Mathf.Atan(_radius / EyeRelief) * Mathf.Rad2Deg;
             _camera.fieldOfView = Mathf.Clamp(lensAngle / magnification, 0.5f, 60f);
             _camera.cullingMask = vr.cullingMask & ~IgnoreLayers;
@@ -155,7 +194,7 @@ namespace RavenfieldVR.Weapons
             _camera.depthTextureMode = vr.depthTextureMode;
             _camera.enabled = true;
             // Eye box: the image darkens as your eye drifts off the sight line.
-            float offAxis = Vector3.ProjectOnPlane(head.position - eye, _rig.DirToWorld(_rig.Data.EyeDirection)).magnitude;
+            float offAxis = Vector3.ProjectOnPlane(head.position - eye, _rig.DirToWorld(_eyeDirection)).magnitude;
             float brightness = Mathf.Clamp01(1f - (offAxis - 0.015f) / 0.04f);
             _lensMaterial.color = new Color(brightness, brightness, brightness, 1f);
         }

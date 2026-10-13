@@ -7,8 +7,8 @@ using UnityEngine.Rendering;
 namespace RavenfieldVR.Rig
 {
     /// <summary>
-    /// Procedural articulated glove: palm, cuff and five three-segment fingers built from Unity's primitive
-    /// meshes, posed every frame from SteamVR skeletal curls or role-specific grips.
+    /// Procedural articulated glove: one skinned mesh (<see cref="GloveMesh"/>) over a palm bone and five three-joint
+    /// fingers, posed every frame from SteamVR skeletal curls or role-specific grips.
     /// Built in palm space for a right hand (origin = palm centre, +Z = pointing direction, +Y = top/thumb side,
     /// palm facing -X) and mirrored on X for the left hand.
     /// </summary>
@@ -17,15 +17,17 @@ namespace RavenfieldVR.Rig
         private const int FpLayer = 18;
 
         private static Material _sharedMaterial;
-        private static Mesh _capsule, _cube, _sphere;
 
         private readonly VRHand _hand;
         private readonly Transform _root;
         private readonly Transform[][] _joints = new Transform[5][];
         private readonly Quaternion[][] _restRotations = new Quaternion[5][];
         private readonly float[] _curl = new float[5];
-        private readonly Renderer[] _renderers;
+        private readonly Renderer _renderer;
+        private readonly Quaternion _thumbRest;
+        private Quaternion _thumbBase;
         private bool _visible = true;
+        private Vector3 _graspOffset;
 
         // Knuckle positions (right hand, palm space) and segment lengths in metres; index 0 = thumb.
         private static readonly Vector3[] Knuckles =
@@ -49,18 +51,17 @@ namespace RavenfieldVR.Rig
         private static readonly float[] Radii = { 0.0105f, 0.0090f, 0.0094f, 0.0090f, 0.0080f };
         private static readonly float[] MaxCurl = { 55f, 85f, 95f, 70f };
 
+        /// <summary>Between the thumb and index tips (right hand, palm space): where a pinched bolt handle sits.</summary>
+        private static readonly Vector3 PinchPoint = new Vector3(-0.028f, 0.024f, 0.062f);
+
         public HandModel(VRHand hand)
         {
             _hand = hand;
             _root = new GameObject("Hand Model").transform;
             _root.SetParent(hand.Root, false);
-            EnsureAssets();
+            EnsureMaterial();
 
             float m = hand.Mirror;
-            Part(_root, _cube, new Vector3(-0.002f * m, 0f, 0.002f), Quaternion.identity, new Vector3(0.026f, 0.072f, 0.086f));
-            Part(_root, _sphere, new Vector3(0.006f * m, 0f, -0.004f), Quaternion.identity, new Vector3(0.024f, 0.074f, 0.09f));
-            Part(_root, _capsule, new Vector3(0.002f * m, 0f, -0.07f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.05f, 0.032f, 0.06f));
-
             for (int f = 0; f < 5; f++)
             {
                 _joints[f] = new Transform[3];
@@ -77,66 +78,81 @@ namespace RavenfieldVR.Rig
                     joint.localPosition = local;
                     joint.localRotation = s == 0 ? baseRot : Quaternion.identity;
                     _restRotations[f][s] = joint.localRotation;
-                    float len = Lengths[f][s];
-                    float r = Radii[f] * (1f - 0.12f * s);
-                    Part(joint, _capsule, new Vector3(0f, 0f, len * 0.5f), Quaternion.Euler(90f, 0f, 0f), new Vector3(r * 2f, len * 0.5f + r, r * 2f));
                     _joints[f][s] = joint;
                     parent = joint;
-                    local = new Vector3(0f, 0f, len);
+                    local = new Vector3(0f, 0f, Lengths[f][s]);
                 }
             }
-            _renderers = _root.GetComponentsInChildren<Renderer>(true);
+            _thumbRest = _restRotations[0][0];
+            _thumbBase = _thumbRest;
+
+            // One skinned glove over the bones, built at rest.
+            var bones = new Transform[16];
+            bones[0] = _root;
+            for (int f = 0; f < 5; f++)
+            {
+                for (int s = 0; s < 3; s++)
+                {
+                    bones[1 + f * 3 + s] = _joints[f][s];
+                }
+            }
+            Mesh mesh = GloveMesh.Build(_root, _joints, Lengths, Radii, m);
+            var bind = new Matrix4x4[bones.Length];
+            for (int i = 0; i < bones.Length; i++)
+            {
+                bind[i] = bones[i].worldToLocalMatrix * _root.localToWorldMatrix;
+            }
+            mesh.bindposes = bind;
+            var go = new GameObject("Glove");
+            go.layer = FpLayer;
+            go.transform.SetParent(_root, false);
+            var smr = go.AddComponent<SkinnedMeshRenderer>();
+            smr.sharedMesh = mesh;
+            smr.bones = bones;
+            smr.rootBone = _root;
+            smr.sharedMaterial = _sharedMaterial;
+            smr.quality = SkinQuality.Bone2;
+            smr.updateWhenOffscreen = false;
+            smr.localBounds = new Bounds(new Vector3(0f, 0f, 0.02f), new Vector3(0.2f, 0.2f, 0.32f));
+            smr.shadowCastingMode = ShadowCastingMode.Off;
+            smr.receiveShadows = true;
+            smr.lightProbeUsage = LightProbeUsage.BlendProbes;
+            smr.skinnedMotionVectors = false;
+            _renderer = smr;
         }
 
         private Vector3 Mirror(Vector3 v) => new Vector3(v.x * _hand.Mirror, v.y, v.z);
 
-        private static void Part(Transform parent, Mesh mesh, Vector3 pos, Quaternion rot, Vector3 scale)
+        private static void EnsureMaterial()
         {
-            var go = new GameObject("part");
-            go.layer = FpLayer;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = rot;
-            go.transform.localScale = scale;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = _sharedMaterial;
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.receiveShadows = true;
-            mr.lightProbeUsage = LightProbeUsage.BlendProbes;
-        }
-
-        private static void EnsureAssets()
-        {
-            if (_capsule == null)
+            if (_sharedMaterial != null)
             {
-                _capsule = PrimitiveMesh(PrimitiveType.Capsule);
-                _cube = PrimitiveMesh(PrimitiveType.Cube);
-                _sphere = PrimitiveMesh(PrimitiveType.Sphere);
+                return;
             }
-            if (_sharedMaterial == null)
+            Shader shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Bumped Diffuse") ?? Shader.Find("Legacy Shaders/Diffuse");
+            _sharedMaterial = new Material(shader) { name = "RavenfieldVR Glove", color = new Color(0.16f, 0.15f, 0.13f) };
+            // Matte fabric: barely any gloss, a fine weave in the normals.
+            if (_sharedMaterial.HasProperty("_Glossiness"))
             {
-                Shader shader = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse") ?? Shader.Find("Sprites/Default");
-                _sharedMaterial = new Material(shader) { name = "RavenfieldVR Glove", color = new Color(0.16f, 0.15f, 0.13f) };
-                if (_sharedMaterial.HasProperty("_Glossiness"))
-                {
-                    _sharedMaterial.SetFloat("_Glossiness", 0.18f);
-                }
+                _sharedMaterial.SetFloat("_Glossiness", 0.12f);
             }
-        }
-
-        private static Mesh PrimitiveMesh(PrimitiveType type)
-        {
-            GameObject tmp = GameObject.CreatePrimitive(type);
-            Mesh mesh = tmp.GetComponent<MeshFilter>().sharedMesh;
-            Object.DestroyImmediate(tmp);
-            return mesh;
+            if (_sharedMaterial.HasProperty("_Metallic"))
+            {
+                _sharedMaterial.SetFloat("_Metallic", 0f);
+            }
+            if (_sharedMaterial.HasProperty("_BumpMap"))
+            {
+                _sharedMaterial.SetTexture("_BumpMap", GloveMesh.Weave());
+                _sharedMaterial.SetTextureScale("_BumpMap", new Vector2(6f, 6f));
+                _sharedMaterial.SetFloat("_BumpScale", 0.6f);
+                _sharedMaterial.EnableKeyword("_NORMALMAP");
+            }
         }
 
         /// <summary>Tints all gloves, e.g. to the player's team colour.</summary>
         public static void SetGloveColor(Color c)
         {
-            EnsureAssets();
+            EnsureMaterial();
             _sharedMaterial.color = c;
         }
 
@@ -147,11 +163,20 @@ namespace RavenfieldVR.Rig
                 return;
             }
             _visible = visible;
-            foreach (Renderer r in _renderers)
-            {
-                r.enabled = visible;
-            }
+            _renderer.enabled = visible;
         }
+
+        /// <summary>Renderers and draw calls of one hand (for the measurements in the docs and self-test).</summary>
+        public int RendererCount => 1;
+
+        /// <summary>
+        /// While the hand works a part (racks a bolt, holds a handguard or a cover) the glove settles onto it: the point it
+        /// grips with lands on <see cref="GraspAnchor"/> (within a few centimetres; the tracked hand still decides
+        /// where it is, nothing pins it). Null when the hand holds nothing it should settle on.
+        /// </summary>
+        public Vector3? GraspAnchor;
+        /// <summary>True: the anchor is pinched between thumb and index (a bolt handle); false: it runs through the fist.</summary>
+        public bool GraspPinch;
 
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
         public void Apply()
@@ -167,6 +192,7 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
+            float dt = Time.unscaledDeltaTime;
 
             // The fist closes around the controller's handle (the grip pose), so the palm sits beside it.
             Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
@@ -174,10 +200,23 @@ namespace RavenfieldVR.Rig
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
             // Always the tracked hand: held objects follow the hand, never the reverse.
             RigidPose target = _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
-            _root.SetPositionAndRotation(target.position, target.rotation);
+
+            // Settling onto a held part: a small, smoothed offset, released as soon as the hand lets go.
+            Vector3 want = Vector3.zero;
+            if (GraspAnchor.HasValue)
+            {
+                Vector3 local = GraspPinch ? PinchPoint : new Vector3(VRHand.FistHollow.x, VRHand.FistHollow.y, VRHand.FistHollow.z);
+                local.x *= _hand.Mirror;
+                want = Vector3.ClampMagnitude(GraspAnchor.Value - target.TransformPoint(local), 0.05f);
+            }
+            _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
+            _root.SetPositionAndRotation(target.position + _graspOffset, target.rotation);
 
             float[] goal = TargetCurls();
-            float k = 1f - Mathf.Exp(-25f * Time.unscaledDeltaTime);
+            float k = 1f - Mathf.Exp(-25f * dt);
+            // The thumb lies along the frame of a held gun (beside the slide, not across it); elsewhere it rests up.
+            Quaternion thumbGoal = _hand.Role == HandRole.Weapon ? Quaternion.Euler(-6f, -16f * _hand.Mirror, 0f) : _thumbRest;
+            _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
             for (int f = 0; f < 5; f++)
             {
                 _curl[f] = Mathf.Lerp(_curl[f], goal[f], k);
@@ -185,7 +224,8 @@ namespace RavenfieldVR.Rig
                 for (int s = 0; s < 3; s++)
                 {
                     float maxAngle = f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
-                    _joints[f][s].localRotation = _restRotations[f][s] * Quaternion.Euler(0f, sign * maxAngle * _curl[f], 0f);
+                    Quaternion rest = f == 0 && s == 0 ? _thumbBase : _restRotations[f][s];
+                    _joints[f][s].localRotation = rest * Quaternion.Euler(0f, sign * maxAngle * _curl[f], 0f);
                 }
             }
         }
@@ -198,6 +238,8 @@ namespace RavenfieldVR.Rig
         /// animated it while the tracked fingers keep moving on top.
         /// </summary>
         public float[] WeaponGripCurls;
+        /// <summary>The held weapon has a pistol grip held in one hand (the thumb lies along the frame).</summary>
+        public bool WeaponIsPistol;
         /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
         public bool Suppressed;
         public float[] WeaponSupportCurls;
@@ -231,13 +273,16 @@ namespace RavenfieldVR.Rig
                     {
                         float[] c = WeaponGripCurls;
                         _goal[1] = Mathf.Lerp(Pose(c[1], 0.3f) * 0.85f, 0.85f, trigger);
-                        Minimum(Pose(c[0], 0.35f), -1f, Pose(c[2], 0.7f), Pose(c[3], 0.72f), Pose(c[4], 0.74f));
+                        Minimum(-1f, -1f, Pose(c[2], 0.7f), Pose(c[3], 0.72f), Pose(c[4], 0.74f));
                     }
                     else
                     {
                         _goal[1] = Mathf.Lerp(0.3f, 0.82f, trigger);
-                        Minimum(0.35f, -1f, 0.7f, 0.72f, 0.74f);
+                        Minimum(-1f, -1f, 0.7f, 0.72f, 0.74f);
                     }
+                    // The thumb rides along the frame on a pistol and wraps a rifle's grip only a little; the mod's own
+                    // thumb curl is measured on its own thumb rest pose and would push ours across the slide.
+                    _goal[0] = WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0]) : Mathf.Lerp(0.25f, 0.45f, _goal[0]);
                     break;
                 case HandRole.Foregrip:
                     if (WeaponSupportCurls != null)
@@ -261,7 +306,9 @@ namespace RavenfieldVR.Rig
                 case HandRole.Hinge:
                 case HandRole.Pin:
                 case HandRole.Belt:
-                    Minimum(0.35f, 0.4f, 0.55f, 0.6f, 0.62f);
+                case HandRole.Optic:
+                    // Pinching a bolt or handle: thumb and index close on it, the rest curl out of the way.
+                    Minimum(0.45f, 0.55f, 0.7f, 0.75f, 0.78f);
                     break;
                 case HandRole.Pointer:
                     _goal[1] = Mathf.Min(_goal[1], 0.1f);

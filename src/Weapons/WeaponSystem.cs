@@ -23,6 +23,8 @@ namespace RavenfieldVR.Weapons
         private readonly MeleeHandler _melee;
         public readonly WeaponDrops Drops;
         private readonly PouchDisplay _pouch;
+        private readonly HolsterDisplay _holsters;
+        private readonly MagReadout _readout;
         private readonly Dictionary<Weapon, AmmoState> _ammo = new Dictionary<Weapon, AmmoState>();
         private readonly Dictionary<Weapon, WeaponRig> _rigs = new Dictionary<Weapon, WeaponRig>();
 
@@ -39,6 +41,8 @@ namespace RavenfieldVR.Weapons
             _melee = new MeleeHandler(this);
             Drops = new WeaponDrops(this);
             _pouch = new PouchDisplay(this);
+            _holsters = new HolsterDisplay(this);
+            _readout = new MagReadout(this);
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -152,7 +156,9 @@ namespace RavenfieldVR.Weapons
         public void BeforeRender()
         {
             _throwables.BeforeRender();
+            Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
             _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
+            _holsters.BeforeRender();
             if (Held != null && Held.Weapon != null)
             {
                 Held.BeforeRender();
@@ -172,6 +178,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            _readout.BeforeRender(); // after every magazine has its pose for this frame
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -434,16 +441,36 @@ namespace RavenfieldVR.Weapons
             dom.Haptic(0.05f, 100f, 0.5f);
         }
 
-        /// <summary>GripToHoldWeapon: releasing the grip puts the weapon away.</summary>
+        private float _gripLetGoAt = -1f;
+
+        /// <summary>
+        /// GripToHoldWeapon: letting go of the grip puts the weapon away and frees the hand. A loosened grip has a moment
+        /// to close again before the weapon goes (a shift of the fingers must not drop it mid-fight).
+        /// </summary>
         private void UpdateGripToHold()
         {
             if (!VRConfig.GripToHoldWeapon.Value || Held == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen)
             {
+                _gripLetGoAt = -1f;
                 return;
             }
             VRHand dom = Rig.Dominant;
-            if (dom.Tracked && dom.GrabReleased)
+            if (!dom.Tracked)
             {
+                _gripLetGoAt = -1f; // out of view: never drop on a tracking gap
+                return;
+            }
+            if (dom.GrabReleased)
+            {
+                _gripLetGoAt = Time.unscaledTime;
+            }
+            else if (dom.GrabHeld)
+            {
+                _gripLetGoAt = -1f;
+            }
+            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > 0.18f)
+            {
+                _gripLetGoAt = -1f;
                 Actor actor = GameContext.PlayerActor;
                 if (actor != null)
                 {
@@ -476,6 +503,8 @@ namespace RavenfieldVR.Weapons
             GrenadeDud.DestroyAll();
             Drops.Dispose();
             _pouch.Destroy();
+            _holsters.Destroy();
+            _readout.Destroy();
             FireSelector.Clear();
             Zones.Destroy();
             Sounds.Dispose();

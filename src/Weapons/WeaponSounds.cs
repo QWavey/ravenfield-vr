@@ -150,16 +150,17 @@ namespace RavenfieldVR.Weapons
             {
                 return false; // nothing valid to play: the mod's own event would throw; use a donor sound instead
             }
-            if (cue.Function != "EmitParticles" && (bank.audioSource == null || !bank.audioSource.isActiveAndEnabled))
+            if (cue.Function != "EmitParticles")
             {
-                // The bank's own source is switched off (common on mod rigs): play its clip through ours.
+                // Always the bank's clip through our own source: the mod's source is often switched off, muted or faded
+                // out between its animations, and a message to it would count as played while nothing is heard.
                 AudioClip clip = cue.Function == "PlaySoundBank" ? bank.clips[cue.IntParameter] : bank.clips[UnityEngine.Random.Range(0, bank.clips.Length)];
                 if (clip == null)
                 {
                     return false;
                 }
                 AudioSource src = OneShotSource(_rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio);
-                src.PlayOneShot(clip, bank.clipVolume);
+                src.PlayOneShot(clip, Audible(bank.clipVolume));
                 return true;
             }
             switch (cue.Function)
@@ -186,9 +187,15 @@ namespace RavenfieldVR.Weapons
             }
             AudioSource template = _rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio;
             AudioSource src = OneShotSource(template);
-            src.PlayOneShot(clip, cue.Volume * (template != null ? template.volume : 1f));
+            src.PlayOneShot(clip, cue.Volume * Audible(template != null ? template.volume : 1f));
             return true;
         }
+
+        /// <summary>
+        /// A mod's volume as a level to play at: some rigs keep their reload source at zero and only raise it while
+        /// their own reload animation runs, which would make every manual action silent.
+        /// </summary>
+        private static float Audible(float volume) => volume > 0.05f ? Mathf.Min(volume, 1f) : 1f;
 
         private bool PlayAudioObject(SoundCue cue)
         {
@@ -200,7 +207,7 @@ namespace RavenfieldVR.Weapons
             }
             // The object is normally inactive until the animation enables it, so play its clip through our source.
             AudioSource player = OneShotSource(src);
-            player.PlayOneShot(src.clip, src.volume);
+            player.PlayOneShot(src.clip, Audible(src.volume));
             return true;
         }
 
@@ -215,7 +222,7 @@ namespace RavenfieldVR.Weapons
             src.Stop();
             src.clip = cue.Clip;
             src.time = Mathf.Clamp(cue.Start, 0f, Mathf.Max(0f, cue.Clip.length - 0.01f));
-            _sliceBaseVolume = template != null ? template.volume : 1f;
+            _sliceBaseVolume = Audible(template != null ? template.volume : 1f);
             src.volume = _sliceBaseVolume;
             src.Play();
             _sliceStopDsp = AudioSettings.dspTime + cue.Length;
@@ -252,7 +259,7 @@ namespace RavenfieldVR.Weapons
                 source.maxDistance = template.maxDistance;
                 source.rolloffMode = template.rolloffMode;
                 source.priority = template.priority;
-                source.pitch = template.pitch;
+                source.pitch = Mathf.Abs(template.pitch) > 0.2f ? template.pitch : 1f;
             }
             else if (source.outputAudioMixerGroup == null)
             {

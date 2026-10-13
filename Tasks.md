@@ -57,8 +57,8 @@
 55. [x] Hands close around what they hold: fist on the controller handle, fingers stop on the object
 56. [x] Holsters by weapon type: long guns over the shoulders, handguns on the hips, gear on the chest
 57. [x] Magazines lying on the ground can be picked up
-58. [ ] Headset re-test of 53-57
-59. [ ] Invisible VR body that takes the hits when bots shoot you
+58. [ ] /bug-hunt 2
+59. [ ] Damage feedback in VR: getting hit shows the flat-screen damage overlay instead of VR damage feedback
 60. [ ] Mag kick: knocking a seated magazine out with a fresh one still fails
 61. [ ] Thumb placement on pistols
 62. [ ] Better-looking, cheaper hand model and glove material
@@ -74,7 +74,11 @@
 72. [ ] Bigger, more forgiving grab zones; the hand poses onto the bolt or handle it pulls
 73. [ ] Bolts and handles hard or impossible to pull back with no magazine inserted
 74. [ ] Missing magazine in/out sounds on some guns
-75. [ ] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74)
+75. [ ] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74) USE THE BUG HUNT SKILL (/bug-hunt, and /improve)
+76. [ ] Adjustable scopes: flip a magnifier in front of the red dot (or swap sights) with a hand gesture
+77. [ ] Looking at a magazine shows how many rounds it holds (readout on top of the mag)
+78. [ ] Gun-to-magazine and gun-to-gun collisions off; a visible square touch border shows
+79. [ ] The start-up intro: soldiers walk toward the VR view instead of left to right
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -193,7 +197,7 @@ For 57. A dropped magazine is judged by its own shape (collider), not its transf
 
 For 58. In the Quest: laser straight while looking around, magazines and gun grips inside the closed hand, mag kick, third and later magazines from the pouch, open hand after letting go, holsters on the back and hips, dashboard round trip with sound, and picking a magazine up off the ground with either hand. Done when: the player confirms each in a session.
 
-For 59. Check first what the game already does: the player actor's hitboxes sit where the game puts the actor, which in VR may not match where you physically stand, crouch or lean. Give the player an invisible body that follows the headset (head, torso from the body zones, arms from the hands) and carries the actor's hitboxes, so bots aim at and hit where you really are, and damage, headshots and hit feedback (haptics, screen tint) land on it. Done when: a bot's shot at your real head/torso registers on the player, and leaning out of cover exposes you.
+For 59. The VR body already takes the hits (bots hit where you stand). What is wrong is the feedback: getting damaged shows the game's flat-screen damage overlay (a 2D vignette/blood image stretched over the HUD frame) instead of feedback made for VR. Hide the flat damage overlay in VR and show the hit the VR way: a short red vignette around the edges of the view that follows the head (strength from the damage taken, darker at low health), a haptic pulse on both controllers, and a direction cue toward where the shot came from. Done when: getting shot in VR shows no flat overlay, the edges of the view flash red toward the shooter and both controllers buzz.
 
 For 60. Reported again after the second fix (wider window, speed relative to the gun): bringing a fresh magazine up into the base of the seated one does not knock it out. Log the kick test's numbers (along, lateral, angle, speed, kickable flag) while trying it in the headset, find which condition fails, then fix that one. Done when: a kick ejects the seated magazine on an M4 and an AK in the headset.
 
@@ -226,3 +230,11 @@ For 73. With no magazine inserted, bolts and slides are sometimes hard or imposs
 For 74. Some magazines play no insert or detach sound. Slice the sounds out of the weapon's own reload audio at the mag-out/mag-in moments (the reload timeline knows when), or find good free sounds to ship as donors. Done when: the self-test shows a mag in and mag out sound for every magazine weapon and the reported guns play them in the headset.
 
 For 75. Run /bug-hunt 20 (twenty different areas, verify and fix), then /improve 10 (ten measured rounds, keep only what proves better), after 59-74. Done when: both runs are finished, built, installed, committed and summarised.
+
+For 76. Some weapons carry more than one sight: a magnifier behind a red dot, a flip-up or offset sight, a scope that can be swapped (the game's alt-sight / sight-switch or the mod's own sub-objects). Find these from the weapon (sight objects the mod toggles, scope parts the analysis measures) and let the off hand move them: grabbing the magnifier and swinging it in or out of the sight line, or a flick gesture at the optic, switches which sight is used and moves its model (aim line, lens and zoom follow). Done when: a weapon with a magnifier or second sight can switch between them by hand in VR, and the eye line and scope view follow the chosen sight.
+
+For 77. Looking at a held or loose magazine (its top, where the rounds show) brings up a small readout of its rounds, the way you would look at the follower in real life. Only while it is in view and near (held in a hand or within arm's reach), fading in and out, never in front of the sights. Done when: holding a magazine up to the eye shows its round count, and it hides when looking away.
+
+For 78. Magazines and other weapons collide with the held gun at a box around it (the physics stand-in is a single cube, too big and offset), and a square outline is visible where the hand touches. Shape the gun's physics stand-in from the gun's own meshes (several boxes along receiver, barrel and stock) so props bounce off the gun where it really is, and remove whatever draws the square (grab-zone debug or a collider made visible). Done when: a magazine dropped onto the gun bounces off its real outline and no square shows in normal play.
+
+For 79. The start-up intro (soldiers crossing the screen) plays as the flat version: they walk from left to right across a flat plane in front of you. In VR, place the intro scene so they walk toward the viewer (rotate the intro rig or place the VR view at the end of their path) at a comfortable scale. Done when: in VR the intro soldiers walk toward the headset view.

@@ -25,9 +25,19 @@ namespace RavenfieldVR.Weapons
         // Mod authors name parts in many languages: English, German, French, Spanish, Russian (Cyrillic and
         // transliterated) and Chinese (characters and pinyin abbreviations such as DX = 弹匣, QJ = 枪机).
         private static readonly Regex MagName = new Regex(
-            @"(^|[^a-z])(mag|clip|drum|shell|rocket|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
+            @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
             + @"|магазин|патрон|лента|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳",
             RegexOptions.IgnoreCase);
+        /// <summary>
+        /// Parts named after the magazine that are not the magazine: its release button or catch, the well it sits in, a
+        /// pouch or a spare. Taking one of them for the magazine leaves the real one in the gun when it is ejected.
+        /// </summary>
+        private static readonly Regex NotMagName = new Regex(
+            @"release|catch|button|latch|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋",
+            RegexOptions.IgnoreCase);
+
+        private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
+
         private static readonly Regex SlideName = new Regex(
             @"slide|bolt|charg|handle|carrier|pump|forend|fore-end|lever|breech|chamber|cocking|verschluss|schlitten|culasse|corredera|cerrojo|zatvor"
             + @"|(^|[^a-z])(rama|qj|ljb|taotong|qiangji)($|[^a-z])|затвор|рама|枪机|套筒|拉机柄|机柄|护木",
@@ -397,6 +407,7 @@ namespace RavenfieldVR.Weapons
                 AnalyzeHands(d, handR, handL, sampler, gunIdle, w);
                 AnalyzeSights(d, sampler);
                 AlignEyeToScopeModel(d, root, armRelated, sampler, w, gunIdle);
+                AnalyzeSightModes(d, sampler, w);
                 Transform slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w);
                 MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler);
@@ -527,6 +538,51 @@ namespace RavenfieldVR.Weapons
             d.EyePoint = ocular - d.AimAxis * ScopeEyeRelief;
             d.HasEyePoint = true;
             d.EyeFromLine = false;
+        }
+
+        /// <summary>
+        /// The eye line of each sight mode, from the gun's aim pose in that mode. A mode whose pose does not line its sight
+        /// up keeps the default line (the mod only changes the zoom there); a mode that narrows the view is magnified.
+        /// </summary>
+        private static void AnalyzeSightModes(WeaponRigData d, PoseSampler sampler, Weapon w)
+        {
+            Weapon.SightMode[] modes = w.configuration.sightModes;
+            if (modes == null || modes.Length < 2 || !d.HasEyePoint)
+            {
+                return;
+            }
+            d.Sights = new SightLine[modes.Length];
+            bool haveEye = TryEyeInRoot(out Vector3 eyeInRoot);
+            for (int i = 0; i < modes.Length; i++)
+            {
+                var line = new SightLine
+                {
+                    EyePoint = d.EyePoint,
+                    EyeDirection = d.EyeDirection,
+                    Name = modes[i].name ?? "",
+                    Fov = modes[i].overrideFov ? modes[i].fov : w.configuration.aimFov,
+                    Magnified = (modes[i].overrideFov ? modes[i].fov : w.configuration.aimFov) > 0.5f && (modes[i].overrideFov ? modes[i].fov : w.configuration.aimFov) < 32f
+                };
+                RigidPose? pose = sampler.AimModes != null && i < sampler.AimModes.Length ? sampler.AimModes[i] : null;
+                if (i > 0 && haveEye && pose.HasValue)
+                {
+                    Vector3 eye = pose.Value.InverseTransformPoint(eyeInRoot);
+                    Vector3 dir = pose.Value.InverseTransformDirection(Vector3.forward).normalized;
+                    float behind = Vector3.Dot(eye - d.MuzzlePoint, d.AimAxis);
+                    float lateral = Vector3.ProjectOnPlane(eye - d.MuzzlePoint, d.AimAxis).magnitude;
+                    // A different line than the default one, and still a plausible sight line over this gun.
+                    bool moved = Vector3.Distance(eye, d.EyePoint) > 0.008f || Vector3.Angle(dir, d.EyeDirection) > 1.5f;
+                    if (moved && behind < -0.05f && behind > -1.6f && lateral < 0.25f && Vector3.Dot(dir, d.AimAxis) > 0.85f)
+                    {
+                        line.EyePoint = d.EyeFromLine ? eye + dir * Vector3.Dot(d.EyePoint - eye, dir) : eye;
+                        line.EyeDirection = dir;
+                        line.Measured = true;
+                    }
+                }
+                d.Sights[i] = line;
+            }
+            int measured = d.Sights.Count(s => s.Measured), magnified = d.Sights.Count(s => s.Magnified);
+            d.Notes += $"{modes.Length} sight modes ({measured} with their own line, {magnified} magnified) ";
         }
 
         private static void AnalyzeSights(WeaponRigData d, PoseSampler sampler)
@@ -1312,7 +1368,7 @@ namespace RavenfieldVR.Weapons
                     Vector3 idlePos = sampler.RelIdle[i].position;
                     bool nearGun = Vector3.Distance(idlePos, d.GripPoint) < 0.45f;
                     bool visible = sampler.IdleVisible(t);
-                    float score = Mathf.Min(m, 0.4f) * (MagName.IsMatch(t.name) ? 3f : 1f) * (nearGun ? 1f : 0.2f) * (visible ? 1f : 0.3f);
+                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * (nearGun ? 1f : 0.2f) * (visible ? 1f : 0.3f);
                     if (score > best)
                     {
                         best = score;
@@ -1349,7 +1405,7 @@ namespace RavenfieldVR.Weapons
                             continue;
                         }
                         float hidden = HiddenSeconds(sampler.ReloadVisible[i]);
-                        float score = hidden * (MagName.IsMatch(t.name) ? 3f : 1f);
+                        float score = hidden * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f);
                         if (hidden >= 0.15f && score > bestHidden)
                         {
                             bestHidden = score;
@@ -1374,7 +1430,7 @@ namespace RavenfieldVR.Weapons
             }
             if (mag == null)
             {
-                mag = FindByName(all, MagName, root, gunBody, muzzle, armRelated, gunBones);
+                mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones);
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
                     mag = null;
@@ -1408,6 +1464,7 @@ namespace RavenfieldVR.Weapons
             if (mb.size.sqrMagnitude > 1e-6f)
             {
                 d.MagBounds = mb;
+                MagAxisFromShape(d, mb, eject.sqrMagnitude > 0.5f);
             }
 
             if (sampler.HasReload)
@@ -1415,6 +1472,53 @@ namespace RavenfieldVR.Weapons
                 CollectMagazineParts(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
                 MagKeyframes(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
             }
+        }
+
+        /// <summary>
+        /// A box magazine leaves its well along its own length. The reload animation's first motion is often something
+        /// else (an AK magazine rocked forward off its front lug, a hand that tugs it sideways first), and an insert axis
+        /// taken from that tilts the magazine in the hand and makes it go in crooked. A clearly elongated magazine that
+        /// hangs below the gun uses its own long axis, pointing out of the gun; drums and boxes keep the animated one.
+        /// </summary>
+        private static void MagAxisFromShape(WeaponRigData d, Bounds local, bool animated)
+        {
+            // Out of the gun means away from the bore, toward the side the magazine hangs on (below for almost every gun,
+            // above for a top-fed one). An animation whose first motion nudges the magazine up into the well before pulling
+            // it would otherwise send an ejected magazine up through the grip, where it never comes out.
+            Vector3 centreGun = d.MagSeat.TransformPoint(local.center);
+            Vector3 fromBore = Vector3.ProjectOnPlane(centreGun - d.MuzzlePoint, d.AimAxis);
+            Vector3 outward = fromBore.sqrMagnitude > 1e-4f ? fromBore.normalized : -d.Up;
+            // Only for a magazine that clearly hangs off the bore (shells and rockets load along it) and a pull that clearly
+            // points into the gun.
+            if (fromBore.magnitude > 0.025f && Vector3.Dot(d.MagEjectAxis, outward) < -0.2f)
+            {
+                d.MagEjectAxis = Vector3.Reflect(d.MagEjectAxis, outward).normalized;
+                d.Notes += "magazine pull pointed into the gun (turned around) ";
+            }
+
+            Vector3 s = local.size;
+            int longest = s.x >= s.y && s.x >= s.z ? 0 : s.y >= s.z ? 1 : 2;
+            float second = longest == 0 ? Mathf.Max(s.y, s.z) : longest == 1 ? Mathf.Max(s.x, s.z) : Mathf.Max(s.x, s.y);
+            if (s[longest] < 0.05f || s[longest] < second * 1.5f)
+            {
+                return; // short, a drum or a block: no reliable axis of its own
+            }
+            Vector3 axisLocal = Vector3.zero;
+            axisLocal[longest] = 1f;
+            Vector3 axis = (d.MagSeat.rotation * axisLocal).normalized;
+            if (Vector3.Dot(axis, outward) < 0f)
+            {
+                axis = -axis;
+            }
+            if (Vector3.Angle(axis, outward) > 60f)
+            {
+                return; // lies along the gun rather than hanging off it: trust the animation
+            }
+            if (animated && Vector3.Angle(axis, d.MagEjectAxis) > 8f)
+            {
+                d.Notes += $"magazine axis from its shape ({Vector3.Angle(axis, d.MagEjectAxis):0}° off the animated pull) ";
+            }
+            d.MagEjectAxis = axis;
         }
 
         /// <summary>How much of the seated magazine sticks out of the gun's own meshes along the eject axis.</summary>
@@ -1494,7 +1598,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            bool inGrip = Mathf.Abs(Vector3.Dot(d.MagSeat.position - d.GripPoint, d.AimAxis)) < 0.05f;
+            // Where the magazine is, not where its transform's pivot is (many rigs pivot every part at the gun's origin).
+            Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
+            bool inGrip = Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
             string names = w.name + " " + (w.weaponEntry != null ? w.weaponEntry.name : "");
             d.MagKickable = !d.IsPistol && !inGrip && !DeepWellName.IsMatch(names);
         }
@@ -1950,6 +2056,19 @@ namespace RavenfieldVR.Weapons
             }
             // Either it carries a mesh, or it is a bone that deforms the (skinned) gun mesh.
             return HasRendererInSubtree(t) || gunBones.Contains(t);
+        }
+
+        private static Transform FindMagByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle,
+            HashSet<Transform> armRelated, HashSet<Transform> gunBones)
+        {
+            foreach (Transform t in all)
+            {
+                if (IsMagName(t.name) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    return t;
+                }
+            }
+            return null;
         }
 
         private static Transform FindByName(Transform[] all, Regex rx, Transform root, Transform gunBody, Transform muzzle,

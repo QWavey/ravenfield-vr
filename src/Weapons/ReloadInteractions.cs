@@ -31,6 +31,16 @@ namespace RavenfieldVR.Weapons
         private MagazineProp _ejecting;
         private float _ejectTime;
 
+        /// <summary>
+        /// The magazine taken out during a tactical reload, held in the same hand as the fresh one (H3VR palming): mag
+        /// release with a fresh magazine at the well drops the old one into that hand instead of onto the floor.
+        /// </summary>
+        private MagazineProp _palmed;
+
+        // Mag kick diagnostics and the swept test (the new magazine's tip passing the old one's base between frames).
+        private float _kickPrevAlong = float.NaN;
+        private float _kickLogAt;
+
         private float _openedAt;
         private bool _coverHeld;
         private float _coverGrabAngle;
@@ -62,11 +72,19 @@ namespace RavenfieldVR.Weapons
             VRHand dom = _sys.Rig.Dominant;
             VRHand off = _sys.Rig.Off;
 
+            if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !Manual)
+            {
+                Log.InfoOnce("magrel-off:" + Data.Key, $"Magazine release on {Data.Key}: manual reloading is not active for it (mode {VRConfig.Reload.Value}, action {Data.Action}).");
+            }
             if (Manual)
             {
                 if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side))
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);
+                    if (!Breaks && !(Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked))
+                    {
+                        Log.InfoOnce("magrel-no:" + Data.Key, $"Magazine release on {Data.Key} did nothing: detachable {Ammo.UsesDetachableMag}, inserted {Ammo.MagInserted}, box locked {Ammo.BoxLocked}, action {Data.Action}.");
+                    }
                     if (Breaks)
                     {
                         SetBreakOpen(!Ammo.Open);
@@ -78,7 +96,14 @@ namespace RavenfieldVR.Weapons
                     }
                     else if (Ammo.UsesDetachableMag && Ammo.MagInserted)
                     {
-                        EjectMagazine();
+                        if (CanPalm(off))
+                        {
+                            TacticalEject(off);
+                        }
+                        else
+                        {
+                            EjectMagazine();
+                        }
                     }
                 }
                 // Snap it shut with a flick of the wrist, like the real thing.
@@ -97,8 +122,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab.
-            if (off.GrabPressed && off.Role == HandRole.Free && Data.Action != ActionType.Throwable)
+            // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
+            // moment before the hand reaches the bolt or magazine still takes it (nothing else has claimed the press).
+            if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable)
             {
                 TryGrab(off);
             }
@@ -123,6 +149,9 @@ namespace RavenfieldVR.Weapons
                 case HandRole.Belt:
                     UpdateBelt(off);
                     break;
+                case HandRole.Optic:
+                    UpdateOptic(off);
+                    break;
             }
         }
 
@@ -132,7 +161,7 @@ namespace RavenfieldVR.Weapons
         {
             Vector3 palm = off.Palm.position;
             float radius = VRConfig.GrabRadius.Value;
-            int choice = 0; // 1 catch, 2 rack, 3 pouch, 4 foregrip, 5 feed cover, 6 seated magazine
+            int choice = 0; // 1 catch, 2 rack, 3 pouch, 4 foregrip, 5 feed cover, 6 seated magazine, 7 belt, 8 optic
             float best = float.MaxValue;
             // This weapon's own magazines first, then anything else lying within reach, whatever this gun's reload mode
             // (picking something up is not a reload). A magazine you are reaching for wins over the pouch and the
@@ -146,11 +175,12 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual && Ammo.UsesChamber)
             {
-                float d = Vector3.Distance(palm, RackPointWorld);
-                if (d < radius)
+                float rackRadius = radius * 1.3f;
+                float d = RackZoneDistance(palm);
+                if (d < rackRadius)
                 {
                     // Slight preference: racking is the most precise target.
-                    Consider(2, d / radius * 0.85f, ref choice, ref best);
+                    Consider(2, d / rackRadius * 0.85f, ref choice, ref best);
                 }
             }
             if (Manual && Ammo.UsesDetachableMag && Ammo.MagInserted && _ejecting == null && !Ammo.BoxLocked)
@@ -175,6 +205,14 @@ namespace RavenfieldVR.Weapons
                 if (d < radius)
                 {
                     Consider(7, d / radius * 0.8f, ref choice, ref best); // the belt end is the obvious next step
+                }
+            }
+            if (HasSwitchableSight)
+            {
+                float d = OpticDistance(palm);
+                if (d < 0.06f)
+                {
+                    Consider(8, d / 0.06f * 0.9f, ref choice, ref best);
                 }
             }
             if (Manual && _sys.Zones.InPouch(palm))
@@ -215,6 +253,9 @@ namespace RavenfieldVR.Weapons
                     break;
                 case 7:
                     BeginBelt(off);
+                    break;
+                case 8:
+                    BeginOptic(off);
                     break;
                 case 4:
                     off.Role = HandRole.Foregrip;
@@ -265,11 +306,56 @@ namespace RavenfieldVR.Weapons
             // despawns first).
             int rounds = Ammo.EjectMagazine();
             _ejecting = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            Log.InfoOnce("eject:" + Data.Key, $"Magazine ejected from {Data.Key}: {rounds} rounds, {Rig.MagazineParts.Length} part(s) hidden on the gun, pull axis {Data.MagEjectAxis:F2}, rail {_ejecting.RailLength * 100f:0.0} cm.");
             _ejecting.Owner = Ammo;
             _ejecting.RailDepth = _ejecting.RailLength;
             _ejectTime = 0f;
             _held.Sounds.Play(MechSound.MagOut, _ejecting.Go.transform.position);
             _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
+        }
+
+        /// <summary>The off hand holds a fresh magazine near the well and has room for one more.</summary>
+        private bool CanPalm(VRHand off)
+        {
+            if (!VRConfig.MagazinePalming.Value || !off.Tracked || off.Role != HandRole.Magazine || _palmed != null || _ejecting != null)
+            {
+                return false;
+            }
+            return off.Held is MagazineProp fresh && fresh.Kind == PropKind.Magazine && fresh.Go != null
+                   && fresh.DistanceTo(SeatedMagBaseWorld) < 0.2f;
+        }
+
+        /// <summary>Tactical reload: the released magazine goes into the off hand, beside the fresh one.</summary>
+        private void TacticalEject(VRHand off)
+        {
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp prop = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            prop.Owner = Ammo;
+            prop.AttachPalmed(off);
+            _palmed = prop;
+            _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
+            off.Haptic(0.04f, 120f, 0.55f);
+        }
+
+        /// <summary>The fresh magazine is gone from the hand (seated or dropped): the palmed one becomes the one it holds.</summary>
+        private void PromotePalmed(VRHand off)
+        {
+            MagazineProp palmed = _palmed;
+            _palmed = null;
+            if (palmed == null || palmed.Go == null)
+            {
+                return;
+            }
+            if (off.Held == null && off.GrabHeld)
+            {
+                palmed.Attach(off);
+                palmed.FollowHand();
+            }
+            else
+            {
+                palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
+            }
         }
 
         /// <summary>The ejected magazine leaves the well along its axis, then gravity takes it.</summary>
@@ -449,6 +535,118 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        // ---- switchable sights (a flip magnifier behind a red dot, offset sights) ------------------------
+
+        private bool _opticHeld;
+        private bool _opticSwitched;
+        private float _opticGrabTime;
+        private Vector3 _opticGrabGun;
+
+        /// <summary>The weapon has more than one sight to choose from: the game's sight modes or a mod's magnifier key.</summary>
+        private bool HasSwitchableSight
+        {
+            get
+            {
+                Weapon w = _held.Weapon;
+                return w != null && (w.HasAnyAltSightModes() || Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null);
+            }
+        }
+
+        /// <summary>The optics sit on top of the receiver, from a hand's width ahead of the eye to the front sight.</summary>
+        private float OpticDistance(Vector3 palm)
+        {
+            WeaponRigData d = GripData;
+            Vector3 eye = d.HasEyePoint ? d.EyePoint : d.GripPoint + d.Up * 0.07f;
+            Vector3 dir = d.HasEyePoint ? d.EyeDirection : d.AimAxis;
+            Vector3 a = GripRig.ToWorld(eye + dir * 0.05f);
+            Vector3 b = GripRig.ToWorld(eye + dir * 0.2f);
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+            return Vector3.Distance(palm, a + ab * t);
+        }
+
+        private Vector3 OpticGrabWorld
+        {
+            get
+            {
+                WeaponRigData d = GripData;
+                Vector3 eye = d.HasEyePoint ? d.EyePoint : d.GripPoint + d.Up * 0.07f;
+                return GripRig.ToWorld(eye + (d.HasEyePoint ? d.EyeDirection : d.AimAxis) * 0.1f);
+            }
+        }
+
+        private void BeginOptic(VRHand off)
+        {
+            _opticHeld = true;
+            _opticSwitched = false;
+            _opticGrabTime = Time.unscaledTime;
+            _opticGrabGun = GripRig.ToGun(off.Palm.position);
+            off.Role = HandRole.Optic;
+            off.Haptic(0.015f, 180f, 0.3f);
+        }
+
+        /// <summary>
+        /// Swinging the optic aside (a flip mount turned out or in) switches the sight once per grab; a quick tap on it
+        /// does the same. The game's sight mode then moves the model and the aim line follows.
+        /// </summary>
+        private void UpdateOptic(VRHand off)
+        {
+            if (!_opticHeld)
+            {
+                off.Role = HandRole.Free;
+                return;
+            }
+            Vector3 moved = GripRig.ToGun(off.Palm.position) - _opticGrabGun;
+            float sideways = Vector3.ProjectOnPlane(moved, GripData.AimAxis).magnitude;
+            if (!_opticSwitched && sideways > 0.035f)
+            {
+                _opticSwitched = true;
+                SwitchSight(off);
+            }
+            if (!off.GrabHeld)
+            {
+                if (!_opticSwitched && Time.unscaledTime - _opticGrabTime < 0.45f && moved.magnitude < 0.03f)
+                {
+                    SwitchSight(off); // a tap
+                }
+                EndOptic(off);
+            }
+            else if (moved.magnitude > 0.2f)
+            {
+                EndOptic(off);
+            }
+        }
+
+        private void EndOptic(VRHand off)
+        {
+            _opticHeld = false;
+            if (off.Role == HandRole.Optic)
+            {
+                off.Role = HandRole.Free;
+            }
+        }
+
+        private void SwitchSight(VRHand off)
+        {
+            Weapon w = _held.Weapon;
+            Input.ScriptKey key = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier);
+            if (key != null)
+            {
+                Input.ScriptKeys.Tap(key.Key, key.Script);
+            }
+            else if (!w.NextSightMode())
+            {
+                return;
+            }
+            _held.Sounds.Play(MechSound.DryFire, OpticGrabWorld, 0.5f);
+            off.Haptic(0.03f, 160f, 0.55f);
+            SightLine now = _held.CurrentSight;
+            if (now != null && now.Name.Length > 0)
+            {
+                _held.FlashCounter(now.Name.ToUpperInvariant());
+            }
+        }
+
         // ---- belt (machine guns with a feed cover) ------------------------------------------------------
 
         private bool _beltHeld;
@@ -586,6 +784,10 @@ namespace RavenfieldVR.Weapons
             if (prop == null)
             {
                 off.Role = HandRole.Free;
+                if (_palmed != null)
+                {
+                    PromotePalmed(off);
+                }
                 return;
             }
             if (!off.GrabHeld)
@@ -651,9 +853,10 @@ namespace RavenfieldVR.Weapons
         private bool TryMagKick(VRHand off, MagazineProp prop)
         {
             if (prop.Kind != PropKind.Magazine || prop.WeaponKey != Data.Key || !Manual || !Ammo.UsesDetachableMag || !Ammo.MagInserted
-                || _ejecting != null || prop.Rounds <= 0 || !Data.MagKickable || Ammo.BoxLocked)
+                || _ejecting != null || Ammo.BoxLocked)
             {
-                return false; // deep wells (pistol grips, KRISS Vector) leave nothing to hit
+                _kickPrevAlong = float.NaN;
+                return false;
             }
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
@@ -667,10 +870,31 @@ namespace RavenfieldVR.Weapons
             // The speed that counts is the new magazine's speed relative to the gun: driving it up into the old one
             // and bringing the gun down onto it are the same strike.
             float speed = Vector3.Dot(off.Velocity - _sys.Rig.Dominant.Velocity, insert);
-            if (along < -0.03f || along > 0.06f || lateral > 0.055f || angle > 50f || speed < 0.45f)
+            bool near = along > -0.12f && along < 0.1f && lateral < 0.1f;
+            if (near && Time.unscaledTime - _kickLogAt > 0.3f)
+            {
+                // Numbers for tuning in the headset: which condition holds a kick back.
+                _kickLogAt = Time.unscaledTime;
+                Log.Info($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
+            }
+            // Passing the old magazine's base between two frames counts even when no single frame was inside the window.
+            bool crossed = !float.IsNaN(_kickPrevAlong) && _kickPrevAlong < 0f && along >= 0f;
+            _kickPrevAlong = near ? along : float.NaN;
+            if (!Data.MagKickable || prop.Rounds <= 0)
+            {
+                return false; // deep wells (pistol grips, KRISS Vector) leave nothing to hit
+            }
+            if (lateral > 0.07f || angle > 60f)
             {
                 return false;
             }
+            bool inWindow = along >= -0.04f && along <= 0.08f;
+            if (!(inWindow && speed >= 0.3f || crossed && speed >= 0.15f))
+            {
+                return false;
+            }
+            Log.Info($"Mag kick on {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s");
+            _kickPrevAlong = float.NaN;
             EjectMagazine();
             off.Haptic(0.04f, 80f, 0.8f);
             return true;
@@ -700,10 +924,31 @@ namespace RavenfieldVR.Weapons
             prop.Destroy();
             off.Haptic(0.05f, 110f, 0.8f);
             _sys.Rig.Dominant.Haptic(0.05f, 110f, 0.6f);
+            if (_palmed != null)
+            {
+                PromotePalmed(off); // the old magazine stays in the hand
+            }
         }
 
         private void ReleaseProp(VRHand off, MagazineProp prop)
         {
+            if (_palmed != null)
+            {
+                // Letting go drops (or stows) everything the hand holds.
+                MagazineProp palmed = _palmed;
+                _palmed = null;
+                if (_sys.Zones.InPouch(off.Palm.position))
+                {
+                    AmmoState back = palmed.WeaponKey == Data.Key ? Ammo : palmed.Owner;
+                    back?.ReturnSpare(palmed.Rounds);
+                    palmed.Rounds = 0;
+                    palmed.Destroy();
+                }
+                else
+                {
+                    palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
+                }
+            }
             if (_sys.Zones.InPouch(off.Palm.position))
             {
                 // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
@@ -731,7 +976,32 @@ namespace RavenfieldVR.Weapons
 
         // ---- slide / bolt / pump -----------------------------------------------------------------------
 
-        private Vector3 RackPointWorld => Rig.ToWorld(Data.RackPoint + TravelDir * _held.SlideOffset);
+        /// <summary>
+        /// The stroke the hand works: a separate charging handle's own travel (AR style: the bolt carrier follows it,
+        /// whatever its own travel), else the slide or bolt's.
+        /// </summary>
+        private bool HandleStroke => Data.HandlePath != null && Rig.Handle != null && Data.HandleTravel.sqrMagnitude > 1e-4f;
+        private Vector3 StrokeDir => HandleStroke ? Data.HandleTravel.normalized : TravelDir;
+        private float StrokeLength => HandleStroke ? Mathf.Clamp(Data.HandleTravel.magnitude, 0.03f, 0.14f) : Travel;
+        /// <summary>How far the action is open, 0 closed .. 1 fully back.</summary>
+        private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
+
+        /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
+        private Vector3 RackPointWorld => Rig.ToWorld(Data.RackPoint + StrokeDir * (StrokeLength * Fraction));
+
+        /// <summary>
+        /// Distance to the part you rack: a slide can be taken anywhere along its rear half, a bolt or handle around
+        /// its knob.
+        /// </summary>
+        private float RackZoneDistance(Vector3 palm)
+        {
+            Vector3 a = RackPointWorld;
+            float along = Data.IsPistol && !HandleStroke ? 0.05f : HandleStroke ? 0.012f : 0.03f;
+            Vector3 b = a + Rig.AimWorld * along;
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+            return Vector3.Distance(palm, a + ab * t);
+        }
 
         /// <summary>Bolt, pump and lever actions move only by hand: let go half way and they stay there.</summary>
         private bool HandDriven => Data.CyclesByHand;
@@ -745,9 +1015,9 @@ namespace RavenfieldVR.Weapons
             _racking = true;
             _returning = false;
             _rackStartGun = Rig.ToGun(off.Palm.position);
-            _rackBase = Ammo.SlideLocked ? Travel : _held.SlideOffset;
-            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && _held.SlideOffset >= Travel * 0.85f;
-            _lastTick = _rackBase;
+            _rackBase = Ammo.SlideLocked ? 1f : Fraction;
+            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && Fraction >= 0.8f;
+            _lastTick = _rackBase * StrokeLength;
             off.Role = HandRole.Slide;
             off.Haptic(0.02f, 160f, 0.35f);
             if (IsPump)
@@ -764,16 +1034,19 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 handGun = Rig.ToGun(off.Palm.position);
-            float pull = Vector3.Dot(handGun - _rackStartGun, TravelDir);
-            float offset = Mathf.Clamp(_rackBase + pull, 0f, Travel);
-            _held.SlideOffset = offset;
+            // The hand's pull along the handle's (or slide's) own stroke; the slide or bolt carrier moves the same share
+            // of its travel.
+            float pull = Vector3.Dot(handGun - _rackStartGun, StrokeDir);
+            float fraction = Mathf.Clamp01(_rackBase + pull / StrokeLength);
+            _held.SlideOffset = fraction * Travel;
 
-            if (Mathf.Abs(offset - _lastTick) > 0.01f)
+            float stroke = fraction * StrokeLength;
+            if (Mathf.Abs(stroke - _lastTick) > 0.01f)
             {
-                _lastTick = offset;
+                _lastTick = stroke;
                 off.Haptic(0.006f, 220f, 0.15f);
             }
-            if (!_rackedBack && offset >= Travel * 0.85f)
+            if (!_rackedBack && fraction >= 0.8f)
             {
                 _rackedBack = true;
                 bool ejected = Ammo.RackBack();
@@ -788,7 +1061,7 @@ namespace RavenfieldVR.Weapons
                     Ammo.BoltOpen = true;
                 }
             }
-            else if (HandDriven && _rackedBack && offset <= Travel * 0.08f)
+            else if (HandDriven && _rackedBack && fraction <= 0.1f)
             {
                 // Pushed home by hand: it strips and chambers a round as it closes.
                 _rackedBack = false;
@@ -799,8 +1072,8 @@ namespace RavenfieldVR.Weapons
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
             }
 
-            float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, TravelDir).magnitude;
-            if (!off.GrabHeld || drift > 0.2f)
+            float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
+            if (!off.GrabHeld || drift > 0.25f)
             {
                 EndRack(off, chamber: true);
             }
@@ -913,9 +1186,21 @@ namespace RavenfieldVR.Weapons
 
             UpdateEject(dt);
             VRHand off = _sys.Rig.Off;
+            UpdateGraspAnchor(off);
             if (_beltHeld && _belt != null && Rig.GunBody != null)
             {
                 _belt.Place(BeltStartWorld, off.Palm.position + off.Palm.Forward * 0.02f, Rig.AimWorld);
+            }
+            if (_palmed != null)
+            {
+                if (_palmed.Go == null)
+                {
+                    _palmed = null;
+                }
+                else
+                {
+                    _palmed.PalmedPose(off, off.Held as MagazineProp).ApplyTo(_palmed.Go.transform);
+                }
             }
             if (off.Held is MagazineProp held)
             {
@@ -928,6 +1213,67 @@ namespace RavenfieldVR.Weapons
                     held.FollowHand();
                 }
             }
+        }
+
+        /// <summary>
+        /// The off hand's glove settles onto what it works: thumb and index on the bolt or handle being racked or on a
+        /// feed cover's latch, the fist around the handguard. The tracked hand still decides where it is.
+        /// </summary>
+        private void UpdateGraspAnchor(VRHand off)
+        {
+            if (off.Model == null)
+            {
+                return;
+            }
+            Vector3? anchor = null;
+            bool pinch = false;
+            if (Rig.GunBody != null)
+            {
+                switch (off.Role)
+                {
+                    case HandRole.Slide:
+                        if (_racking)
+                        {
+                            anchor = IsPump ? HandguardPoint(off.Palm.position) : RackPointWorld;
+                            pinch = !IsPump;
+                        }
+                        break;
+                    case HandRole.Hinge:
+                        if (_coverHeld)
+                        {
+                            anchor = CoverGrabWorld;
+                            pinch = true;
+                        }
+                        break;
+                    case HandRole.Optic:
+                        if (_opticHeld)
+                        {
+                            anchor = OpticGrabWorld;
+                            pinch = true;
+                        }
+                        break;
+                    case HandRole.Foregrip:
+                        if (!GripData.IsPistol)
+                        {
+                            anchor = HandguardPoint(off.Palm.position);
+                        }
+                        break;
+                }
+            }
+            off.Model.GraspAnchor = anchor;
+            off.Model.GraspPinch = pinch;
+        }
+
+        /// <summary>The point of the handguard (just under the bore, between the grip and the muzzle) nearest to <paramref name="point"/>.</summary>
+        private Vector3 HandguardPoint(Vector3 point)
+        {
+            WeaponRigData d = GripData;
+            Vector3 a = GripRig.ToWorld(d.GripPoint + d.AimAxis * 0.1f - d.Up * 0.012f);
+            Vector3 b = GripRig.ToWorld(d.MuzzlePoint - d.Up * 0.012f);
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(point - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+            // Under the bore: the handguard's centre line, a hand's half-width below the sight line.
+            return a + ab * t;
         }
 
         /// <summary>
@@ -1067,6 +1413,11 @@ namespace RavenfieldVR.Weapons
             {
                 FinishEject();
             }
+            if (_palmed != null)
+            {
+                _palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
+                _palmed = null;
+            }
             if (_racking)
             {
                 EndRack(off, chamber: _rackedBack);
@@ -1079,8 +1430,16 @@ namespace RavenfieldVR.Weapons
             {
                 EndBelt(off);
             }
+            if (_opticHeld)
+            {
+                EndOptic(off);
+            }
             _belt?.Destroy();
             _belt = null;
+            if (off.Model != null)
+            {
+                off.Model.GraspAnchor = null;
+            }
             if (off.Held is MagazineProp prop)
             {
                 // Switching weapons with a magazine in hand: keep holding it (it can be seated once this weapon is

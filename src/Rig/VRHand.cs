@@ -6,7 +6,7 @@ using UnityEngine;
 namespace RavenfieldVR.Rig
 {
     /// <summary>What a hand is currently doing; drives the hand pose and arbitrates grabs.</summary>
-    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster, Hinge, Pin, Belt }
+    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster, Hinge, Pin, Belt, Optic }
 
     /// <summary>
     /// One tracked hand: world poses (raw controller, palm, pointer), derived gun frame, velocity history,
@@ -222,6 +222,8 @@ namespace RavenfieldVR.Rig
         }
 
         public bool GrabPressed => VRInput.GetPressed(DigitalAction.Grab, Side);
+        /// <summary>The grip closed in the last quarter second and nothing took it yet (a forgiving grab).</summary>
+        public bool GrabReaching => VRInput.GetPressedRecently(DigitalAction.Grab, Side, 0.25f);
         public bool GrabHeld => VRInput.GetHeld(DigitalAction.Grab, Side);
         public bool GrabReleased => VRInput.GetReleased(DigitalAction.Grab, Side);
         public float Trigger => VRInput.GetTrigger(Side);

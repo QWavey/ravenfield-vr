@@ -105,7 +105,9 @@ namespace RavenfieldVR.Weapons
                 }
                 try
                 {
-                    results.Add(new Result(entry, weapon, WeaponAnalyzer.Get(weapon, entry)));
+                    var main = new Result(entry, weapon, WeaponAnalyzer.Get(weapon, entry));
+                    MeasureShape(main);
+                    results.Add(main);
                     foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
                     {
                         if (sub != weapon)
@@ -175,6 +177,7 @@ namespace RavenfieldVR.Weapons
             int magWeapons = 0, slideWeapons = 0;
             var magMethods = new Dictionary<string, int>();
             var slideMethods = new Dictionary<string, int>();
+            int shapes = 0, shapePieces = 0, readMeshes = 0, outlineMeshes = 0;
             int armRig = 0, sights = 0, ownSounds = 0, warned = 0, animated = 0, fingerPoses = 0, handles = 0, fromHand = 0, armChains = 0, kickable = 0, magWeapons2 = 0;
             var magOutFrom = new Dictionary<string, int>();
             var magInFrom = new Dictionary<string, int>();
@@ -182,6 +185,13 @@ namespace RavenfieldVR.Weapons
             {
                 WeaponRigData d = r.Data;
                 animated += d.Animated ? 1 : 0;
+                if (r.ShapePieces > 0)
+                {
+                    shapes++;
+                    shapePieces += r.ShapePieces;
+                    readMeshes += r.ReadableMeshes;
+                    outlineMeshes += r.UnreadableMeshes;
+                }
                 if (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual)
                 {
                     magWeapons++;
@@ -217,6 +227,7 @@ namespace RavenfieldVR.Weapons
             sb.AppendLine($"  magazine out sound ({magWeapons2}) ... {Format(magOutFrom)}");
             sb.AppendLine($"  magazine in sound ({magWeapons2}) .... {Format(magInFrom)}");
             sb.AppendLine($"  weapons with warnings ........ {warned}/{results.Count}");
+            sb.AppendLine($"  physics shape from the model . {shapes} weapons, {(shapes > 0 ? shapePieces / (float)shapes : 0f):0.0} pieces each; meshes read {readMeshes}, outline only {outlineMeshes}");
             sb.AppendLine($"  magazine found by ({magWeapons} magazine/bolt weapons): {Format(magMethods)}");
             sb.AppendLine($"  slide/bolt found by: {Format(slideMethods)}");
             sb.AppendLine();
@@ -242,10 +253,14 @@ namespace RavenfieldVR.Weapons
                     sb.AppendLine($"  {d.Key}");
                     sb.AppendLine($"    action {d.Action}{(d.IsPistol ? ", pistol grip" : "")}{(d.IsMachineGun ? ", machine gun" : "")}{(d.CyclesByHand ? ", cycled by hand" : "")}{(d.LockOnEmpty ? ", locks open on empty" : "")}, rig {(d.Animated ? "animated" : "static")}" +
                                   $"{(d.Hinge != HingeKind.None ? $", hinge {d.Hinge}{PartName(r.Weapon, d.HingePath)} {d.HingeOpenAngle:0}°" : "")}");
-                    sb.AppendLine($"    magazine: {d.MagMethod}{PartName(r.Weapon, d.MagazinePath)}{(d.MagazinePath != null ? $", {d.MagProtrusion * 100f:0}% outside the gun" : "")}{(d.MagazinePartPaths.Count > 0 ? $" + {d.MagazinePartPaths.Count} piece(s)" : "")}{(d.MagazineToggles ? " (swapped by visibility)" : "")}");
+                    sb.AppendLine($"    magazine: {d.MagMethod}{PartName(r.Weapon, d.MagazinePath)}{(d.MagazinePath != null ? $", {d.MagProtrusion * 100f:0}% outside the gun, {(d.MagKickable ? "kickable" : "not kickable")}, {d.MagBounds.size.magnitude * 100f:0} cm" : "")}{(d.MagazinePartPaths.Count > 0 ? $" + {d.MagazinePartPaths.Count} piece(s)" : "")}{(d.MagazineToggles ? " (swapped by visibility)" : "")}");
                     sb.AppendLine($"    slide/bolt: {d.SlideMethod}{PartName(r.Weapon, d.SlidePath)}{(d.HandlePath != null ? ", handle" + PartName(r.Weapon, d.HandlePath) : "")}, travel {d.SlideTravel.magnitude * 100f:0.0} cm");
                     sb.AppendLine($"    hands: {d.HandsMethod}, finger pose {(d.GripCurls != null ? "from the rig " + Curls(d.GripCurls) : "generic")}" +
                                   $"{(d.SupportCurls != null ? " / support " + Curls(d.SupportCurls) : "")}; sights: {(d.HasScopeModel ? $"scope model (ocular measured, lens {d.ScopeRadius * 200f:0.0} cm)" : d.HasEyePoint ? d.EyeFromLine ? "sight line (eye distance estimated)" : "lined up" : "barrel line")}{OverBore(d)}");
+                    if (r.ShapePieces > 0 || r.ShapeError != null)
+                    {
+                        sb.AppendLine("    " + Shape(r));
+                    }
                     sb.AppendLine($"    reload timeline: mag out {T(d.TMagOut)}, mag in {T(d.TMagIn)}, slide back {T(d.TSlideBack)}, slide home {T(d.TSlideForward)}");
                     sb.AppendLine($"    sound sources: mag out {SoundSource(d, MechSound.MagOut)}, mag in {SoundSource(d, MechSound.MagIn)}, slide back {SoundSource(d, MechSound.SlideBack)}, slide home {SoundSource(d, MechSound.SlideForward)}");
                     if (d.Cues.Count > 0 || d.ShotCues.Count > 0)
@@ -261,6 +276,10 @@ namespace RavenfieldVR.Weapons
                     {
                         sb.AppendLine("    sounds: built-in mechanical sounds (the mod has no separable reload sounds)");
                     }
+                    if (d.Notes.Trim().Length > 0)
+                    {
+                        sb.AppendLine("    notes: " + d.Notes.Trim());
+                    }
                     foreach (string w in d.Warnings)
                     {
                         sb.AppendLine("    ! " + w);
@@ -269,6 +288,45 @@ namespace RavenfieldVR.Weapons
                 sb.AppendLine();
             }
             return sb.ToString();
+        }
+
+        /// <summary>The physics shape the held weapon will get (convex pieces of its own meshes), measured on the prefab.</summary>
+        private static void MeasureShape(Result r)
+        {
+            try
+            {
+                var rig = new WeaponRig(r.Weapon, r.Data);
+                WeaponRigData d = r.Data;
+                foreach (Renderer rend in GunCollider.VisibleRenderers(rig))
+                {
+                    if (ShapeFit.Readable(rend))
+                    {
+                        r.ReadableMeshes++;
+                    }
+                    else
+                    {
+                        r.UnreadableMeshes++;
+                    }
+                }
+                r.ShapePieces = GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(d.AimAxis, d.Up), d.GripPoint).Length;
+            }
+            catch (Exception e)
+            {
+                r.ShapeError = e.GetType().Name + ": " + e.Message;
+            }
+        }
+
+        private static string Shape(Result r)
+        {
+            if (r.ShapeError != null)
+            {
+                return "physics shape: FAILED " + r.ShapeError;
+            }
+            if (r.ShapePieces == 0)
+            {
+                return "physics shape: -";
+            }
+            return $"physics shape: {r.ShapePieces} convex piece(s) of the model; meshes read {r.ReadableMeshes}, outline only {r.UnreadableMeshes}";
         }
 
         private static string T(float t) => t >= 0f ? t.ToString("0.00") + "s" : "-";
@@ -298,6 +356,8 @@ namespace RavenfieldVR.Weapons
             public readonly WeaponManager.WeaponEntry Entry;
             public readonly Weapon Weapon;
             public readonly WeaponRigData Data;
+            public int ShapePieces, ReadableMeshes, UnreadableMeshes;
+            public string ShapeError;
 
             public Result(WeaponManager.WeaponEntry entry, Weapon weapon, WeaponRigData data)
             {

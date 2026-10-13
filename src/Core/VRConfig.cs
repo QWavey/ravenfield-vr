@@ -85,6 +85,9 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<int> ScopeResolution;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
+        public static ConfigEntry<bool> MagazinePalming;
+        public static ConfigEntry<bool> ShowHolsters;
+        public static ConfigEntry<bool> MagazineReadout;
         public static ConfigEntry<float> ThrowVelocityMultiplier;
         public static ConfigEntry<bool> GrenadePins;
         public static ConfigEntry<bool> BeltByHand;
@@ -217,8 +220,14 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
             HolsterSwitching = cfg.Bind("Weapons", "HolsterSwitching", true,
                 "Reach over your shoulder / to your hip / chest and grip to draw primary, sidearm or gear. Gripping at the holster of the weapon you hold puts it away and frees your hand.");
-            GripToHoldWeapon = cfg.Bind("Weapons", "GripToHoldWeapon", false,
-                "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty.");
+            GripToHoldWeapon = cfg.Bind("Weapons", "GripToHoldWeapon", true,
+                "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty and free. Off: the weapon stays in your hand until you put it back at its holster.");
+            MagazineReadout = cfg.Bind("UI", "MagazineReadout", true,
+                "Look at the top of a magazine in your hand (or one lying within reach) to see how many rounds it holds.");
+            ShowHolsters = cfg.Bind("Weapons", "ShowHolsters", true,
+                "Show the weapons you carry where they hang on your body: rifles behind the shoulders, pistols on the hips, gear on the chest.");
+            MagazinePalming = cfg.Bind("Weapons", "MagazinePalming", true,
+                "Tactical reloads like H3VR: pressing the magazine release while your other hand holds a fresh magazine at the well puts the old magazine into that hand too. Seat the fresh one and the old one stays in your hand; let go to drop both.");
             ThrowVelocityMultiplier = cfg.Bind("Weapons", "ThrowVelocityMultiplier", 1.4f,
                 new ConfigDescription("Multiplier on hand speed when throwing.", new AcceptableValueRange<float>(0.5f, 4f)));
             GrenadePins = cfg.Bind("Weapons", "GrenadePins", true,
@@ -283,6 +292,12 @@ namespace RavenfieldVR.Core
                     MagPropLifetime.Value = 60f;
                 }
                 revision.Value = 1;
+            }
+            if (revision.Value < 2)
+            {
+                // Hands that hold only while you grip (letting go frees the hand) became the default.
+                GripToHoldWeapon.Value = true;
+                revision.Value = 2;
             }
         }
 

@@ -1,0 +1,187 @@
+using System.Collections.Generic;
+using RavenfieldVR.Core;
+using RavenfieldVR.Rig;
+using RavenfieldVR.Util;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace RavenfieldVR.Weapons
+{
+    /// <summary>
+    /// The weapons you carry, shown where they hang: rifles and launchers slung behind the shoulders (muzzle up), pistols
+    /// muzzle-down on the hips, grenades and gear on the chest. Copies of each weapon's own third-person model (the same
+    /// stripped models dropped weapons use), drawn only for the headset, placed on the holster layout of
+    /// <see cref="BodyZones"/> so you can see what you reach for. The weapon in your hand is not shown, and a copy that
+    /// would come within a few centimetres of the eyes (looking down over a shouldered rifle) is hidden.
+    /// </summary>
+    internal sealed class HolsterDisplay
+    {
+        private const int FpLayer = 18;
+
+        private sealed class Shown
+        {
+            public WeaponManager.WeaponEntry Entry;
+            public GameObject Go;
+            public Vector3 Centre;   // model bounds centre in its own space
+            public float Length;     // along the barrel
+        }
+
+        private readonly WeaponSystem _sys;
+        private readonly Shown[] _shown = new Shown[BodyZones.Spots];
+
+        public HolsterDisplay(WeaponSystem sys)
+        {
+            _sys = sys;
+        }
+
+        public void BeforeRender()
+        {
+            Actor actor = GameContext.PlayerActor;
+            bool show = VRConfig.ShowHolsters.Value && actor != null && !actor.dead && GameContext.PlayerOnFoot && !GameContext.GameMenuOpen
+                        && actor.weapons != null;
+            BodyZones zones = _sys.Zones;
+            Transform head = _sys.Rig.Head;
+            for (int spot = 0; spot < BodyZones.Spots; spot++)
+            {
+                int slot = show ? zones.SlotAtSpot(spot) : -1;
+                Weapon w = slot >= 0 && slot < actor.weapons.Length ? actor.weapons[slot] : null;
+                WeaponManager.WeaponEntry entry = w != null && w != actor.activeWeapon ? w.weaponEntry : null;
+                Shown s = _shown[spot];
+                if (entry == null || entry.prefab == null)
+                {
+                    Hide(s);
+                    continue;
+                }
+                if (s == null || s.Entry != entry || s.Go == null)
+                {
+                    Clear(spot);
+                    s = Build(entry, w);
+                    _shown[spot] = s;
+                    if (s == null)
+                    {
+                        continue;
+                    }
+                }
+                Place(s, zones, spot);
+                // Never in front of the eyes: a copy reaching into the face is hidden until you look away.
+                Vector3 centre = s.Go.transform.TransformPoint(s.Centre);
+                bool visible = Vector3.Distance(centre, head.position) > 0.2f + s.Length * 0.25f
+                               || Vector3.Dot(head.forward, (centre - head.position).normalized) < 0.2f;
+                if (s.Go.activeSelf != visible)
+                {
+                    s.Go.SetActive(visible);
+                }
+            }
+        }
+
+        private static Shown Build(WeaponManager.WeaponEntry entry, Weapon live)
+        {
+            GameObject model = WeaponDrops.ModelFor(entry);
+            if (model == null)
+            {
+                return null;
+            }
+            model.name = "RavenfieldVR Holstered " + entry.name;
+            Object.DontDestroyOnLoad(model);
+            Vector3 scale = live != null && live.thirdPersonTransform != null ? live.thirdPersonTransform.lossyScale : Vector3.one;
+            float uniform = Mathf.Clamp((Mathf.Abs(scale.x) + Mathf.Abs(scale.y) + Mathf.Abs(scale.z)) / 3f, 0.5f, 2f);
+            model.transform.localScale = Vector3.one * uniform;
+            var bounds = new Bounds();
+            bool any = false;
+            foreach (Transform t in model.GetComponentsInChildren<Transform>(true))
+            {
+                t.gameObject.layer = FpLayer;
+            }
+            foreach (Renderer r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                r.shadowCastingMode = ShadowCastingMode.Off;
+                if (r is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+                Bounds wb = r.bounds;
+                Bounds local = new Bounds(model.transform.InverseTransformPoint(wb.center), Vector3.zero);
+                local.Encapsulate(model.transform.InverseTransformPoint(wb.min));
+                local.Encapsulate(model.transform.InverseTransformPoint(wb.max));
+                if (!any)
+                {
+                    bounds = local;
+                    any = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(local);
+                }
+            }
+            return new Shown
+            {
+                Entry = entry,
+                Go = model,
+                Centre = any ? bounds.center : Vector3.zero,
+                Length = any ? Mathf.Clamp(bounds.size.z * uniform, 0.1f, 1.6f) : 0.5f
+            };
+        }
+
+        /// <summary>
+        /// The model's +Z is its barrel and +Y its top (as the game holds it). Long guns hang behind the shoulder, muzzle up
+        /// and a little out, sights to the back; pistols point down with the grip to the rear; gear stands upright.
+        /// </summary>
+        private static void Place(Shown s, BodyZones zones, int spot)
+        {
+            Vector3 fwd = zones.TorsoForward, right = zones.TorsoRight, up = Vector3.up;
+            float side = zones.SideOf(spot);
+            Vector3 at = zones.SpotPosition(spot);
+            Vector3 barrel, top, centre;
+            switch (zones.KindOf(spot))
+            {
+                case BodyZones.SpotKind.Back:
+                    barrel = (up * 0.93f + right * (0.28f * side) - fwd * 0.12f).normalized;
+                    top = -fwd;
+                    // The middle of the gun a hand's length below and behind the shoulder: the stock and grip are where you
+                    // reach over the shoulder, the muzzle sticks up beside the head.
+                    centre = at - up * Mathf.Min(0.22f, s.Length * 0.3f) - fwd * 0.06f + right * (0.04f * side);
+                    break;
+                case BodyZones.SpotKind.Hip:
+                    barrel = (-up + fwd * 0.12f).normalized;
+                    top = fwd;
+                    centre = at + right * (0.05f * side) - up * 0.04f;
+                    break;
+                default:
+                    barrel = up;
+                    top = -fwd;
+                    centre = at + fwd * 0.06f;
+                    break;
+            }
+            Quaternion rot = Quaternion.LookRotation(barrel, top);
+            Transform t = s.Go.transform;
+            t.rotation = rot;
+            t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);
+        }
+
+        private static void Hide(Shown s)
+        {
+            if (s != null && s.Go != null && s.Go.activeSelf)
+            {
+                s.Go.SetActive(false);
+            }
+        }
+
+        private void Clear(int spot)
+        {
+            Shown s = _shown[spot];
+            if (s != null && s.Go != null)
+            {
+                Object.Destroy(s.Go);
+            }
+            _shown[spot] = null;
+        }
+
+        public void Destroy()
+        {
+            for (int i = 0; i < _shown.Length; i++)
+            {
+                Clear(i);
+            }
+        }
+    }
+}

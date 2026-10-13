@@ -19,6 +19,8 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _system;
         public readonly ReloadInteractions Reload;
         private readonly VRScope _scope;
+        /// <summary>Lenses for the magnified sight modes (a flip-in magnifier), by mode; shown while that mode is selected.</summary>
+        private readonly VRScope[] _modeScopes;
         private readonly AmmoCounter _counter;
 
         /// <summary>The weapon's own sounds for manual actions (procedural fallback).</summary>
@@ -81,6 +83,10 @@ namespace RavenfieldVR.Weapons
             if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
             {
                 _scope = new VRScope(system.Rig, rig);
+            }
+            else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
+            {
+                _modeScopes = new VRScope[rig.Data.Sights.Length];
             }
             _counter = new AmmoCounter(rig);
             int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
@@ -156,6 +162,7 @@ namespace RavenfieldVR.Weapons
             if (main.Model != null)
             {
                 main.Model.WeaponGripCurls = Rig.Data.GripCurls;
+                main.Model.WeaponIsPistol = Rig.Data.IsPistol;
             }
             if (_system.Rig.Off.Model != null)
             {
@@ -173,6 +180,21 @@ namespace RavenfieldVR.Weapons
             Reload.Update();
         }
 
+        /// <summary>The sight the weapon uses right now (its selected sight mode), or null for its only sight.</summary>
+        public SightLine CurrentSight
+        {
+            get
+            {
+                SightLine[] sights = Rig.Data.Sights;
+                if (sights == null || Weapon == null)
+                {
+                    return null;
+                }
+                int mode = Weapon.GetSightModeIndex();
+                return mode >= 0 && mode < sights.Length ? sights[mode] : sights[0];
+            }
+        }
+
         private void UpdateAim()
         {
             Transform head = _system.Rig.Head;
@@ -182,9 +204,11 @@ namespace RavenfieldVR.Weapons
             bool aim;
             if (d.HasEyePoint)
             {
-                // Either eye on the sight line, anywhere from a cheek weld to arms-length behind the sights.
-                Vector3 eyePoint = Rig.ToWorld(d.EyePoint);
-                Vector3 dir = Rig.DirToWorld(d.EyeDirection);
+                // Either eye on the sight line, anywhere from a cheek weld to arms-length behind the sights. With several
+                // sights (a magnifier flipped in, a canted dot) the selected one's line.
+                SightLine sight = CurrentSight;
+                Vector3 eyePoint = Rig.ToWorld(sight != null ? sight.EyePoint : d.EyePoint);
+                Vector3 dir = Rig.DirToWorld(sight != null ? sight.EyeDirection : d.EyeDirection);
                 float best = float.MaxValue;
                 foreach (Vector3 e in Eyes(eyeL, eyeR))
                 {
@@ -360,8 +384,35 @@ namespace RavenfieldVR.Weapons
             Reload.BeforeRender();
             Sounds.Update();
             _scope?.BeforeRender(Aiming);
+            UpdateModeScopes();
             _counter.BeforeRender(ActiveAmmo);
             DrawDebugZones();
+        }
+
+        private void UpdateModeScopes()
+        {
+            if (_modeScopes == null)
+            {
+                return;
+            }
+            int mode = Weapon.GetSightModeIndex();
+            for (int i = 0; i < _modeScopes.Length; i++)
+            {
+                SightLine line = Rig.Data.Sights[i];
+                bool wanted = i == mode && line.Magnified;
+                if (wanted && _modeScopes[i] == null)
+                {
+                    _modeScopes[i] = new VRScope(_system.Rig, Rig, line);
+                }
+                if (_modeScopes[i] != null)
+                {
+                    _modeScopes[i].SetShown(wanted);
+                    if (wanted)
+                    {
+                        _modeScopes[i].BeforeRender(Aiming);
+                    }
+                }
+            }
         }
 
         private GameObject[] _debug;
@@ -561,6 +612,7 @@ namespace RavenfieldVR.Weapons
             if (_system.Rig.Dominant.Model != null)
             {
                 _system.Rig.Dominant.Model.WeaponGripCurls = null;
+                _system.Rig.Dominant.Model.WeaponIsPistol = false;
             }
             if (_system.Rig.Off.Model != null)
             {
@@ -574,6 +626,13 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _scope?.Destroy();
+            if (_modeScopes != null)
+            {
+                foreach (VRScope s in _modeScopes)
+                {
+                    s?.Destroy();
+                }
+            }
             _counter.Destroy();
             _gunCollider?.Destroy();
             DestroyDebug();

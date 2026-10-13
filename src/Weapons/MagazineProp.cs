@@ -19,6 +19,9 @@ namespace RavenfieldVR.Weapons
         private const int HeldLayer = 18;
         private const int WorldLayer = 0;
         private static readonly List<MagazineProp> Alive = new List<MagazineProp>();
+
+        /// <summary>Every magazine, shell and rocket prop that exists (held, palmed, sliding or lying around).</summary>
+        public static IReadOnlyList<MagazineProp> All => Alive;
         private static Material _metal, _brass, _olive;
 
         public readonly GameObject Go;
@@ -40,8 +43,11 @@ namespace RavenfieldVR.Weapons
         public readonly Vector3 FrontLocal;
         /// <summary>Bottom end (base plate of a magazine, rim of a shell) in prop space.</summary>
         public readonly Vector3 BaseLocal;
+        /// <summary>Half the magazine's thickness across the hand (side to side), for holding a second one beside it.</summary>
+        private readonly float _sideHalf;
         private readonly Rigidbody _body;
-        private readonly Collider _collider;
+        /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
+        private readonly Collider[] _colliders;
         private float _dropTime = -1f;
 
         /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
@@ -52,7 +58,7 @@ namespace RavenfieldVR.Weapons
         public readonly float RailLength;
         public float LastTick;
 
-        private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front, bool machineGun)
+        private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front, bool machineGun, string fitKey)
         {
             Go = go;
             Kind = kind;
@@ -65,6 +71,8 @@ namespace RavenfieldVR.Weapons
             float extent = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(InsertDirLocal)));
             TipLocal = bounds.center + InsertDirLocal * extent;
             BaseLocal = bounds.center - InsertDirLocal * extent;
+            Vector3 sideLocal = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+            _sideHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), 0.006f, 0.04f);
             switch (kind)
             {
                 case PropKind.Shell:
@@ -80,16 +88,20 @@ namespace RavenfieldVR.Weapons
                     break;
             }
 
-            var box = go.AddComponent<BoxCollider>();
-            box.center = bounds.center;
-            box.size = Vector3.Max(bounds.size, new Vector3(0.01f, 0.01f, 0.01f));
-            _collider = box;
+            ShapeFit.Piece[] shape = fitKey != null
+                ? ShapeFit.Fit(fitKey, go.GetComponentsInChildren<Renderer>(true), go.transform.worldToLocalMatrix, 0.015f, 8)
+                : new ShapeFit.Piece[0];
+            if (shape.Length == 0)
+            {
+                shape = new[] { ShapeFit.BoxPiece(bounds.center, Vector3.Max(bounds.size, new Vector3(0.01f, 0.01f, 0.01f))) };
+            }
+            _colliders = ShapeFit.AddColliders(go, shape).ToArray();
             _body = go.AddComponent<Rigidbody>();
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _body.isKinematic = true;
-            _collider.enabled = false;
+            SetCollidersEnabled(false);
             Alive.Add(this);
         }
 
@@ -106,9 +118,11 @@ namespace RavenfieldVR.Weapons
 
             GameObject go = null;
             Bounds bounds = d.MagBounds;
+            string fitKey = null;
             if (kind == PropKind.Magazine && rig.Magazine != null)
             {
                 go = CopyVisuals(rig);
+                fitKey = go != null ? "mag:" + d.Key : null;
             }
             if (go == null)
             {
@@ -117,7 +131,7 @@ namespace RavenfieldVR.Weapons
             }
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
-            var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun);
+            var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
             Cull();
@@ -186,10 +200,24 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
+            // Only what shows on the gun: a rig's hidden spare magazine (the one its reload animation brings in) must not
+            // turn up in your hand next to the real one.
+            bool anyShown = false;
             foreach (Transform part in rig.MagazineParts)
             {
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
+                    anyShown |= r.enabled && r.gameObject.activeInHierarchy && !(r is ParticleSystemRenderer);
+                }
+            }
+            foreach (Transform part in rig.MagazineParts)
+            {
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy))
+                    {
+                        continue;
+                    }
                     Mesh mesh = null;
                     if (r is MeshRenderer)
                     {
@@ -401,13 +429,27 @@ namespace RavenfieldVR.Weapons
 
         // ---- holding ------------------------------------------------------------------------------
 
+        // A grabbed prop eases into the hand over a few frames instead of jumping there.
+        private RigidPose _attachFrom;
+        private bool _fresh = true;
+        private float _attachAt = -1f;
+        private const float AttachBlend = 0.09f;
+
         public void Attach(VRHand hand)
         {
+            // A prop made for this grab (from the pouch, pulled from the well) starts where it belongs; one picked up,
+            // caught or moved from the other fingers eases in from where it was.
+            if (Go != null && !_fresh)
+            {
+                _attachFrom = RigidPose.Of(Go.transform);
+                _attachAt = Time.unscaledTime;
+            }
+            _fresh = false;
             HeldBy = hand;
             hand.Role = HandRole.Magazine;
             hand.Held = this;
             _body.isKinematic = true;
-            _collider.enabled = false;
+            SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
             SetLayer(Go, HeldLayer);
@@ -428,11 +470,50 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(pos, rot);
         }
 
+        /// <summary>
+        /// Held as a second magazine in a hand that already holds one (H3VR-style palming): no hand role of its own, no
+        /// physics; <see cref="PalmedPose"/> places it beside the first.
+        /// </summary>
+        public void AttachPalmed(VRHand hand)
+        {
+            _fresh = false;
+            HeldBy = hand;
+            _body.isKinematic = true;
+            SetCollidersEnabled(false);
+            _dropTime = -1f;
+            OnRail = false;
+            SetLayer(Go, HeldLayer);
+        }
+
+        /// <summary>
+        /// The palmed magazine's pose: parallel to the one the hand holds, beside it on the finger side of the fist and
+        /// a little lower, the way a second magazine is clamped between the fingers.
+        /// </summary>
+        public RigidPose PalmedPose(VRHand hand, MagazineProp primary)
+        {
+            RigidPose p = HoldPose(hand);
+            Vector3 towardFingers = -hand.Palm.Right * hand.Mirror; // the palm side of the fist
+            float spacing = _sideHalf + (primary != null ? primary._sideHalf : _sideHalf) + 0.004f;
+            Vector3 insert = p.TransformDirection(InsertDirLocal);
+            return new RigidPose(p.position + towardFingers * spacing - insert * 0.025f, p.rotation);
+        }
+
         public void FollowHand()
         {
             if (HeldBy != null && !OnRail)
             {
-                HoldPose(HeldBy).ApplyTo(Go.transform);
+                RigidPose target = HoldPose(HeldBy);
+                float t = _attachAt >= 0f ? (Time.unscaledTime - _attachAt) / AttachBlend : 1f;
+                if (t < 1f)
+                {
+                    float k = t * t * (3f - 2f * t);
+                    target = new RigidPose(Vector3.Lerp(_attachFrom.position, target.position, k), Quaternion.Slerp(_attachFrom.rotation, target.rotation, k));
+                }
+                else
+                {
+                    _attachAt = -1f;
+                }
+                target.ApplyTo(Go.transform);
             }
         }
 
@@ -460,13 +541,24 @@ namespace RavenfieldVR.Weapons
             OnRail = false;
             int layer = PropPhysics.Layer;
             SetLayer(Go, layer >= 0 ? layer : WorldLayer);
-            _collider.enabled = true;
+            SetCollidersEnabled(true);
             _body.isKinematic = false;
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
-            PropPhysics.IgnorePlayer(_collider);
-            GunCollider.Current?.OnPropDropped(_collider);
+            foreach (Collider c in _colliders)
+            {
+                PropPhysics.IgnorePlayer(c);
+                GunCollider.Current?.OnPropDropped(c);
+            }
+        }
+
+        private void SetCollidersEnabled(bool on)
+        {
+            foreach (Collider c in _colliders)
+            {
+                c.enabled = on;
+            }
         }
 
         public bool IsDropped => _dropTime >= 0f;
@@ -477,13 +569,20 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public float DistanceTo(Vector3 point)
         {
-            if (_collider != null && _collider.enabled && _collider.gameObject.activeInHierarchy)
+            if (Go == null || _colliders.Length == 0)
             {
-                return Vector3.Distance(_collider.ClosestPoint(point), point);
+                return float.MaxValue;
             }
-            var box = _collider as BoxCollider;
-            Vector3 center = box != null ? Go.transform.TransformPoint(box.center) : Go.transform.position;
-            return Vector3.Distance(center, point);
+            float best = float.MaxValue;
+            foreach (Collider c in _colliders)
+            {
+                // ClosestPoint needs an enabled collider; while held, the piece's centre is close enough.
+                float d = c.enabled && c.gameObject.activeInHierarchy
+                    ? Vector3.Distance(c.ClosestPoint(point), point)
+                    : Vector3.Distance(c.bounds.center, point);
+                best = Mathf.Min(best, d);
+            }
+            return best;
         }
 
         /// <summary>Removed by the clean-up: rounds still inside go back to the reserve they came from.</summary>

@@ -17,7 +17,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex ArmBone = new Regex(@"hand|arm(?!ature|or)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
 
         private readonly GameObject _go;
-        private readonly Collider _collider;
+        private readonly List<Collider> _colliders;
         private readonly Weapon _source;
         private readonly string _weaponName;
         private readonly float _born;
@@ -31,10 +31,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private GrenadeDud(GameObject go, Collider collider, Weapon source)
+        private GrenadeDud(GameObject go, List<Collider> colliders, Weapon source)
         {
             _go = go;
-            _collider = collider;
+            _colliders = colliders;
             _source = source;
             _weaponName = source != null ? source.name : "";
             _born = Time.time;
@@ -60,19 +60,28 @@ namespace RavenfieldVR.Weapons
             {
                 t.gameObject.layer = layer >= 0 ? layer : 0;
             }
-            var box = root.AddComponent<BoxCollider>();
-            box.center = bounds.center;
-            box.size = Vector3.Max(bounds.size, new Vector3(0.03f, 0.03f, 0.03f));
+            // The grenade's own shape: its body, lever and ring as convex pieces of its mesh.
+            ShapeFit.Piece[] shape = any
+                ? ShapeFit.Fit("dud:" + weapon.name, root.GetComponentsInChildren<Renderer>(true), root.transform.worldToLocalMatrix, 0.012f, 6)
+                : new ShapeFit.Piece[0];
+            if (shape.Length == 0)
+            {
+                shape = new[] { ShapeFit.BoxPiece(bounds.center, Vector3.Max(bounds.size, new Vector3(0.03f, 0.03f, 0.03f))) };
+            }
+            List<Collider> colliders = ShapeFit.AddColliders(root, shape);
             var body = root.AddComponent<Rigidbody>();
             body.mass = 0.45f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
-            PropPhysics.IgnorePlayer(box);
-            GunCollider.Current?.OnPropDropped(box);
+            foreach (Collider c in colliders)
+            {
+                PropPhysics.IgnorePlayer(c);
+                GunCollider.Current?.OnPropDropped(c);
+            }
             Cull();
-            return new GrenadeDud(root, box, weapon);
+            return new GrenadeDud(root, colliders, weapon);
         }
 
         /// <summary>Copies the grenade's visible meshes (arms left out) under <paramref name="root"/>; bounds in root space.</summary>
@@ -175,7 +184,18 @@ namespace RavenfieldVR.Weapons
             return new Bounds(Vector3.zero, new Vector3(0.055f, 0.08f, 0.055f));
         }
 
-        private float DistanceTo(Vector3 point) => _collider != null ? Vector3.Distance(_collider.ClosestPoint(point), point) : float.MaxValue;
+        private float DistanceTo(Vector3 point)
+        {
+            float best = float.MaxValue;
+            foreach (Collider c in _colliders)
+            {
+                if (c != null && c.enabled)
+                {
+                    best = Mathf.Min(best, Vector3.Distance(c.ClosestPoint(point), point));
+                }
+            }
+            return best;
+        }
 
         public static GrenadeDud Nearest(Vector3 point, float radius)
         {

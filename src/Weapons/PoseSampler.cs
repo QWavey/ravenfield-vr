@@ -81,6 +81,11 @@ namespace RavenfieldVR.Weapons
         public bool HasReload;
         public bool HasAim;
         public RigidPose AimGunBody;
+        /// <summary>
+        /// The aim pose for each of the weapon's sight modes (index = mode; null where a mode was not sampled): a flipped-in
+        /// magnifier, a canted or offset sight moves the gun to a different line in front of the eye.
+        /// </summary>
+        public RigidPose?[] AimModes;
 
         public PoseSampler(Weapon weapon, Transform[] live, Dictionary<Transform, int> index, Transform gunBody)
         {
@@ -157,6 +162,7 @@ namespace RavenfieldVR.Weapons
                     Step(1.2f);
                     AimGunBody = RootRelative(_clone[_gunIndex]);
                     HasAim = true;
+                    SampleSightModes(config);
                 }
                 return true;
             }
@@ -164,6 +170,34 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Exception($"Animator sampling failed for {_weapon.name}", e);
                 return false;
+            }
+        }
+
+        /// <summary>Holds the aim and steps through every sight mode the weapon has, recording the gun's aim pose in each.</summary>
+        private void SampleSightModes(Weapon.Configuration config)
+        {
+            int modes = config.sightModes != null ? config.sightModes.Length : 0;
+            if (modes < 2 || !Has(Weapon.SIGHT_MODE_PARAMETER_HASH))
+            {
+                return;
+            }
+            AimModes = new RigidPose?[modes];
+            AimModes[0] = AimGunBody;
+            bool smooth = Has(Weapon.SMOOTH_SIGHT_MODE_PARAMETER_HASH);
+            for (int i = 1; i < modes; i++)
+            {
+                SetInt(Weapon.SIGHT_MODE_PARAMETER_HASH, i);
+                if (smooth)
+                {
+                    _anim.SetFloat(Weapon.SMOOTH_SIGHT_MODE_PARAMETER_HASH, i);
+                }
+                Step(1.0f);
+                AimModes[i] = RootRelative(_clone[_gunIndex]);
+            }
+            SetInt(Weapon.SIGHT_MODE_PARAMETER_HASH, 0);
+            if (smooth)
+            {
+                _anim.SetFloat(Weapon.SMOOTH_SIGHT_MODE_PARAMETER_HASH, 0f);
             }
         }
 
@@ -510,26 +544,33 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Axis-aligned bounds in <paramref name="live"/>'s own (unscaled) space at idle.</summary>
+        /// <summary>
+        /// Bounds of the meshes under <paramref name="live"/> that show at idle, in its own idle space. Rigs often keep a
+        /// second, hidden magazine (the fresh one their reload brings in) parked somewhere under the magazine bone; it is
+        /// not part of the magazine's shape. All meshes count when none is visible at idle.
+        /// </summary>
         public Bounds LocalBounds(Transform live)
         {
             RigidPose selfInv = Idle(live).Inverse();
-            return MeshBounds(live, (t, p) => selfInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale))));
+            Func<Transform, Vector3, Vector3> toSpace = (t, p) => selfInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale)));
+            Bounds shown = MeshBounds(live, toSpace, IdleVisible);
+            return shown.size.sqrMagnitude > 1e-8f ? shown : MeshBounds(live, toSpace);
         }
 
-        private static Bounds MeshBounds(Transform live, Func<Transform, Vector3, Vector3> toSpace)
+        private static Bounds MeshBounds(Transform live, Func<Transform, Vector3, Vector3> toSpace, Func<Transform, bool> include = null)
         {
             bool any = false;
             var b = new Bounds();
             foreach (MeshFilter mf in live.GetComponentsInChildren<MeshFilter>(true))
             {
-                if (mf.sharedMesh != null)
+                if (mf.sharedMesh != null && (include == null || include(mf.transform)))
                 {
                     Encapsulate(ref b, ref any, mf.sharedMesh.bounds, mf.transform, toSpace);
                 }
             }
             foreach (SkinnedMeshRenderer smr in live.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                if (smr.sharedMesh != null)
+                if (smr.sharedMesh != null && (include == null || include(smr.transform)))
                 {
                     Encapsulate(ref b, ref any, smr.sharedMesh.bounds, smr.transform, toSpace);
                 }

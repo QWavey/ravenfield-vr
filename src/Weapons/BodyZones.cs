@@ -56,6 +56,18 @@ namespace RavenfieldVR.Weapons
             }
             _torsoYaw = Mathf.MoveTowardsAngle(_torsoYaw, headYaw, 25f * Time.unscaledDeltaTime);
 
+            ComputeSpots();
+            UpdateGestures();
+            DrawDebug();
+        }
+
+        /// <summary>
+        /// Places every body spot from the head pose of this moment and the current torso yaw. Called again just before
+        /// rendering, so what is drawn at a spot (holstered weapons, the pouch) does not trail the head by a frame.
+        /// </summary>
+        public void ComputeSpots()
+        {
+            Transform head = _rig.Head;
             Quaternion torso = Quaternion.Euler(0f, _torsoYaw, 0f);
             TorsoForward = torso * Vector3.forward;
             TorsoRight = torso * Vector3.right;
@@ -84,9 +96,6 @@ namespace RavenfieldVR.Weapons
                 case PouchLocation.OffHandChest: Pouch = OffChest; break;
                 default: Pouch = OffHip + TorsoForward * 0.05f; break;
             }
-
-            UpdateGestures();
-            DrawDebug();
         }
 
         private void UpdateGestures()
@@ -200,6 +209,56 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool IsChest(Spot s) => s == Spot.Chest || s == Spot.OffChest || s == Spot.DominantChest;
+
+        public enum SpotKind { Back, Hip, Chest }
+
+        public const int Spots = SpotCount;
+
+        /// <summary>Loadout slot carried at <paramref name="spot"/> (-1 empty), from the player's weapons right now.</summary>
+        public int SlotAtSpot(int spot)
+        {
+            if (spot == 0)
+            {
+                AssignHolsters(GameContext.PlayerActor);
+            }
+            return _spotSlot[spot];
+        }
+
+        public Vector3 SpotPosition(int spot) => Position((Spot)spot);
+
+        public SpotKind KindOf(int spot)
+        {
+            switch ((Spot)spot)
+            {
+                case Spot.BackDominant:
+                case Spot.BackOff:
+                    return SpotKind.Back;
+                case Spot.DominantHip:
+                case Spot.OffHip:
+                    return SpotKind.Hip;
+                default:
+                    return SpotKind.Chest;
+            }
+        }
+
+        /// <summary>+1 on the dominant hand's side of the body, -1 on the other, 0 in the middle (in TorsoRight units).</summary>
+        public float SideOf(int spot)
+        {
+            float dom = VRConfig.LeftHanded ? -1f : 1f;
+            switch ((Spot)spot)
+            {
+                case Spot.BackDominant:
+                case Spot.DominantHip:
+                case Spot.DominantChest:
+                    return dom;
+                case Spot.BackOff:
+                case Spot.OffHip:
+                case Spot.OffChest:
+                    return -dom;
+                default:
+                    return 0f;
+            }
+        }
 
         private Vector3 Position(Spot s)
         {

@@ -98,11 +98,13 @@ namespace RavenfieldVR.Weapons
 
     /// <summary>
     /// A physical stand-in for the held gun, so loose magazines bounce off it and the gun can shove props lying
-    /// around. One box in the gun's aim frame, fitted to the weapon's visible meshes (arms and magazine left out) and
-    /// clamped to a sane envelope around the grip. It sits on the prop layer and ignores the player's body, so it never
-    /// blocks a bullet or the player's movement. It is a light dynamic body chasing the gun by velocity, not a kinematic
-    /// one: it pushes a magazine but cannot shove a car or a ragdoll with infinite force, and if something heavy holds
-    /// it back it jumps back to the gun. Props that start inside it (a magazine leaving the well) pass through until clear.
+    /// around. A handful of boxes fitted to the weapon's own meshes (<see cref="ShapeFit"/>: stock, receiver, grip,
+    /// handguard, barrel, sight; arms and magazine left out), in the gun's aim frame and clamped to a sane envelope around
+    /// the grip, so things touch the gun where it is instead of an invisible crate around it. It sits on the prop layer and
+    /// ignores the player's body, so it never blocks a bullet or the player's movement. It is a light dynamic body chasing
+    /// the gun by velocity, not a kinematic one: it pushes a magazine but cannot shove a car or a ragdoll with infinite
+    /// force, and if something heavy holds it back it jumps back to the gun. Props that start inside it (a magazine
+    /// leaving the well) pass through until clear.
     /// </summary>
     internal sealed class GunCollider
     {
@@ -112,22 +114,21 @@ namespace RavenfieldVR.Weapons
         private readonly GameObject _go;
         private readonly Rigidbody _body;
         private readonly GunProxyBody _driver;
-        private readonly BoxCollider _box;
+        private readonly List<Collider> _boxes;
         private readonly Quaternion _frame;
         private readonly Vector3 _origin;
         private readonly List<Collider> _passing = new List<Collider>();
         private bool _placed;
+        private bool _enabled = true;
 
-        private GunCollider(WeaponRig rig, int layer, Quaternion frame, Vector3 origin, Bounds box)
+        private GunCollider(WeaponRig rig, int layer, Quaternion frame, Vector3 origin, ShapeFit.Piece[] boxes)
         {
             _rig = rig;
             _frame = frame;
             _origin = origin;
             _go = new GameObject("RavenfieldVR Gun Collider") { layer = layer };
             Object.DontDestroyOnLoad(_go);
-            _box = _go.AddComponent<BoxCollider>();
-            _box.center = box.center;
-            _box.size = box.size;
+            _boxes = ShapeFit.AddColliders(_go, boxes);
             _body = _go.AddComponent<Rigidbody>();
             _body.mass = 2f;
             _body.useGravity = false;
@@ -137,8 +138,14 @@ namespace RavenfieldVR.Weapons
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             _driver = _go.AddComponent<GunProxyBody>();
             _driver.Body = _body;
-            PropPhysics.IgnorePlayer(_box);
+            foreach (Collider b in _boxes)
+            {
+                PropPhysics.IgnorePlayer(b);
+            }
         }
+
+        /// <summary>How many convex pieces make up the held gun's shape (self-test and logs).</summary>
+        public int BoxCount => _boxes.Count;
 
         public static GunCollider Create(WeaponRig rig)
         {
@@ -150,39 +157,44 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = rig.Data;
             Quaternion frame = OpenVRMath.SafeLookRotation(d.AimAxis, d.Up);
             Vector3 origin = d.GripPoint;
-            Bounds box = Fit(rig, frame, origin);
+            ShapeFit.Piece[] boxes = Fit(rig, frame, origin);
             Current?.Destroy();
-            Current = new GunCollider(rig, layer, frame, origin, box);
+            Current = new GunCollider(rig, layer, frame, origin, boxes);
             return Current;
         }
 
-        /// <summary>The weapon's visible extent in the box frame (origin at the grip, z along the barrel).</summary>
-        private static Bounds Fit(WeaponRig rig, Quaternion frame, Vector3 origin)
+        /// <summary>The weapon's shape in the collider frame (origin at the grip, z along the barrel).</summary>
+        internal static ShapeFit.Piece[] Fit(WeaponRig rig, Quaternion frame, Vector3 origin)
         {
             WeaponRigData d = rig.Data;
             Quaternion inv = Quaternion.Inverse(frame);
             float muzzle = (inv * (d.MuzzlePoint - origin)).z;
-            float halfWidth = d.IsPistol ? 0.03f : 0.06f;
-            var envMin = new Vector3(-halfWidth, -0.22f, d.IsPistol ? -0.06f : -0.42f);
-            var envMax = new Vector3(halfWidth, 0.15f, Mathf.Max(muzzle, 0.1f) + 0.02f);
+            float halfWidth = d.IsPistol ? 0.035f : 0.07f;
+            var envMin = new Vector3(-halfWidth, -0.22f, d.IsPistol ? -0.07f : -0.45f);
+            var envMax = new Vector3(halfWidth, 0.16f, Mathf.Max(muzzle, 0.1f) + 0.03f);
 
-            Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
-            bool any = VisitVisibleCorners(rig, gun =>
+            Matrix4x4 worldFromFrame = Matrix4x4.TRS(rig.ToWorld(origin), rig.GunBody.rotation * frame, Vector3.one);
+            ShapeFit.Piece[] fitted = ShapeFit.Fit("held:" + d.Key, VisibleRenderers(rig), worldFromFrame.inverse);
+            var kept = new List<ShapeFit.Piece>(fitted.Length);
+            foreach (ShapeFit.Piece p in fitted)
             {
-                Vector3 q = inv * (gun - origin);
-                min = Vector3.Min(min, q);
-                max = Vector3.Max(max, q);
-            });
-            if (!any)
+                // Pieces outside a sane envelope around the gun (a stray shadow plane, a far-off lens flare quad) are not
+                // part of what you hold.
+                Bounds b = p.Bounds;
+                if (b.max.x < envMin.x || b.max.y < envMin.y || b.max.z < envMin.z || b.min.x > envMax.x || b.min.y > envMax.y || b.min.z > envMax.z)
+                {
+                    continue;
+                }
+                kept.Add(p);
+            }
+            if (kept.Count == 0)
             {
                 // No measurable mesh: a slim box from just behind the grip to the muzzle.
-                min = new Vector3(-0.025f, -0.1f, d.IsPistol ? -0.04f : -0.25f);
-                max = new Vector3(0.025f, 0.07f, envMax.z);
+                var min = new Vector3(-0.025f, -0.1f, d.IsPistol ? -0.04f : -0.25f);
+                var max = new Vector3(0.025f, 0.07f, envMax.z);
+                kept.Add(ShapeFit.BoxPiece((min + max) * 0.5f, max - min));
             }
-            min = Vector3.Max(min, envMin);
-            max = Vector3.Min(max, envMax);
-            Vector3 size = Vector3.Max(max - min, new Vector3(0.02f, 0.03f, 0.08f));
-            return new Bounds((min + max) * 0.5f, size);
+            return kept.ToArray();
         }
 
         /// <summary>Axis-aligned bounds of the weapon's visible meshes in gun space (arms and magazine left out).</summary>
@@ -197,8 +209,8 @@ namespace RavenfieldVR.Weapons
             return measured ? new Bounds((min + max) * 0.5f, max - min) : new Bounds(rig.Data.GripPoint, Vector3.one * 0.05f);
         }
 
-        /// <summary>Calls <paramref name="visit"/> with the gun-space corners of each visible weapon mesh; false if there were none.</summary>
-        private static bool VisitVisibleCorners(WeaponRig rig, System.Action<Vector3> visit)
+        /// <summary>The weapon's own visible meshes: no arms, no magazine (it is a prop of its own), nothing the mod added.</summary>
+        internal static List<Renderer> VisibleRenderers(WeaponRig rig)
         {
             var skip = new HashSet<Renderer>(rig.ArmRenderers);
             foreach (Transform part in rig.MagazineParts)
@@ -211,13 +223,23 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            bool any = false;
+            var list = new List<Renderer>();
             foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
             {
-                if (!r.enabled || skip.Contains(r))
+                if (r.enabled && !skip.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer) && !r.name.StartsWith("RavenfieldVR", System.StringComparison.Ordinal))
                 {
-                    continue;
+                    list.Add(r);
                 }
+            }
+            return list;
+        }
+
+        /// <summary>Calls <paramref name="visit"/> with the gun-space corners of each visible weapon mesh; false if there were none.</summary>
+        private static bool VisitVisibleCorners(WeaponRig rig, System.Action<Vector3> visit)
+        {
+            bool any = false;
+            foreach (Renderer r in VisibleRenderers(rig))
+            {
                 Bounds local;
                 Transform space;
                 if (r is SkinnedMeshRenderer smr)
@@ -225,7 +247,7 @@ namespace RavenfieldVR.Weapons
                     local = smr.localBounds;
                     space = smr.rootBone != null ? smr.rootBone : smr.transform;
                 }
-                else if (r is MeshRenderer)
+                else
                 {
                     MeshFilter mf = r.GetComponent<MeshFilter>();
                     if (mf == null || mf.sharedMesh == null)
@@ -234,10 +256,6 @@ namespace RavenfieldVR.Weapons
                     }
                     local = mf.sharedMesh.bounds;
                     space = r.transform;
-                }
-                else
-                {
-                    continue; // particles, lines, trails
                 }
                 for (int i = 0; i < 8; i++)
                 {
@@ -260,10 +278,14 @@ namespace RavenfieldVR.Weapons
             // every physics step; there are no loose props to bounce off in there anyway.
             Actor actor = LocalPlayer.actor;
             bool seated = actor != null && actor.IsSeated();
-            if (_box.enabled == seated)
+            if (_enabled == seated)
             {
-                _box.enabled = !seated;
-                _body.detectCollisions = !seated;
+                _enabled = !seated;
+                foreach (Collider b in _boxes)
+                {
+                    b.enabled = _enabled;
+                }
+                _body.detectCollisions = _enabled;
                 _placed = false; // back on foot: jump to the gun instead of sweeping there
             }
             if (seated)
@@ -290,22 +312,41 @@ namespace RavenfieldVR.Weapons
                 {
                     _passing.RemoveAt(i);
                 }
-                else if (!c.bounds.Intersects(_box.bounds))
+                else if (!Touches(c))
                 {
-                    Physics.IgnoreCollision(c, _box, false);
+                    foreach (Collider b in _boxes)
+                    {
+                        Physics.IgnoreCollision(c, b, false);
+                    }
                     _passing.RemoveAt(i);
                 }
             }
         }
 
+        private bool Touches(Collider c)
+        {
+            Bounds cb = c.bounds;
+            foreach (Collider b in _boxes)
+            {
+                if (b != null && b.enabled && cb.Intersects(b.bounds))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>A prop just became physical: if it starts inside the gun it passes through until clear.</summary>
         public void OnPropDropped(Collider c)
         {
-            if (c == null || _box == null || !c.bounds.Intersects(_box.bounds))
+            if (c == null || _boxes.Count == 0 || !Touches(c))
             {
                 return;
             }
-            Physics.IgnoreCollision(c, _box, true);
+            foreach (Collider b in _boxes)
+            {
+                Physics.IgnoreCollision(c, b, true);
+            }
             if (!_passing.Contains(c))
             {
                 _passing.Add(c);

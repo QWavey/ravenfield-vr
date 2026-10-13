@@ -55,6 +55,9 @@ namespace RavenfieldVR.Input
         private static readonly bool[,] Released = new bool[DigitalCount, 3];
         private static readonly bool[,] Consumed = new bool[DigitalCount, 3];
         private static readonly float[] HeldSince = new float[DigitalCount * 3];
+        // A press nothing has taken yet, kept while the button stays down (Consume clears it): a grab pressed a moment
+        // before the hand reaches the part still takes it.
+        private static readonly bool[,] Unclaimed = new bool[DigitalCount, 3];
 
         private static readonly float[] Trigger = new float[2];
         private static readonly float[] Grip = new float[2];
@@ -225,6 +228,11 @@ namespace RavenfieldVR.Input
                     if (Pressed[a, slot])
                     {
                         HeldSince[a * 3 + slot] = now;
+                        Unclaimed[a, slot] = true;
+                    }
+                    else if (!state)
+                    {
+                        Unclaimed[a, slot] = false;
                     }
                 }
             }
@@ -381,11 +389,20 @@ namespace RavenfieldVR.Input
         public static float HeldTime(DigitalAction a, Hand h) =>
             Held[(int)a, (int)h] ? Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] : 0f;
 
+        /// <summary>
+        /// Pressed within the last <paramref name="seconds"/>, still held, and nothing has taken the press yet. Lets a
+        /// reaching hand close a moment early and still catch the bolt or magazine it arrives at.
+        /// </summary>
+        public static bool GetPressedRecently(DigitalAction a, Hand h, float seconds) =>
+            Held[(int)a, (int)h] && Unclaimed[(int)a, (int)h] && !Consumed[(int)a, (int)h] && Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] <= seconds;
+
         /// <summary>Marks this frame's press as handled so the game bridge does not also act on it.</summary>
         public static void Consume(DigitalAction a, Hand h)
         {
             Consumed[(int)a, (int)h] = true;
             Consumed[(int)a, 2] = true;
+            Unclaimed[(int)a, (int)h] = false;
+            Unclaimed[(int)a, 2] = false;
         }
 
         public static void Consume(DigitalAction a)
@@ -393,6 +410,7 @@ namespace RavenfieldVR.Input
             for (int s = 0; s < 3; s++)
             {
                 Consumed[(int)a, s] = true;
+                Unclaimed[(int)a, s] = false;
             }
         }
 
