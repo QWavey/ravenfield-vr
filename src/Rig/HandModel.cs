@@ -345,13 +345,16 @@ namespace RavenfieldVR.Rig
             _root.SetPositionAndRotation(position, rotation);
 
             bool closing = Closing;
+            // Resting on the same spot of the held solid (the usual case once a weapon is held), the palm settle and every
+            // finger solve give the same answer: they are only worked out again when something they depend on changed.
+            bool moved = closing && GripMoved();
             if (closing)
             {
                 if (_hand.Role == HandRole.Weapon)
                 {
-                    SlideOnGrip(dt);
+                    SlideOnGrip(dt, moved);
                 }
-                SettlePalm(dt);
+                SettlePalm(dt, moved);
             }
             else
             {
@@ -362,6 +365,8 @@ namespace RavenfieldVR.Rig
                 _slideGoal = 0f;
                 _nextSlideSearch = 0f;
                 _slideAtSolid = null;
+                _palmTargetValid = false;
+                _settling = false;
                 if (Mathf.Abs(_palmPush) > 1e-4f)
                 {
                     _root.position += PalmNormal * _palmPush;
@@ -382,7 +387,17 @@ namespace RavenfieldVR.Rig
             for (int f = 0; f < 5; f++)
             {
                 _curl[f] = Mathf.Lerp(_curl[f], goal[f], k);
-                if (closing)
+                float pullNow = f == 1 && _hand.Role == HandRole.Weapon ? VRInput.GetTrigger(_hand.Side) : 0f;
+                bool reuse = closing && !moved && _fingerValid[f] && !_settling
+                             && Mathf.Abs(_curl[f] - _fingerGoal[f]) < 0.004f && Mathf.Abs(pullNow - _fingerPull[f]) < 0.01f
+                             && (f != 0 || Quaternion.Angle(_thumbBase, thumbGoal) < 0.5f); // the thumb's base eases in too
+                if (reuse)
+                {
+                    _solved[0] = _fingerSolved[f, 0];
+                    _solved[1] = _fingerSolved[f, 1];
+                    _solved[2] = _fingerSolved[f, 2];
+                }
+                else if (closing)
                 {
                     SolveFinger(f, _curl[f]);
                     if (f == 1 && _hand.Role == HandRole.Weapon)
@@ -406,6 +421,16 @@ namespace RavenfieldVR.Rig
                             _solved[2] = Mathf.Lerp(r2, Mathf.Max(r2, _solved[2]), pull);
                         }
                     }
+                    _fingerValid[f] = true;
+                    _fingerGoal[f] = _curl[f];
+                    _fingerPull[f] = pullNow;
+                    _fingerSolved[f, 0] = _solved[0];
+                    _fingerSolved[f, 1] = _solved[1];
+                    _fingerSolved[f, 2] = _solved[2];
+                }
+                if (!closing)
+                {
+                    _fingerValid[f] = false;
                 }
                 for (int s = 0; s < 3; s++)
                 {
@@ -426,10 +451,26 @@ namespace RavenfieldVR.Rig
         /// Rests the palm on what the hand holds: pushed out along the palm's normal while the skin would sink into the
         /// model, drawn in (up to 2 cm) while a gap is left, so the grip lies against the palm instead of in it or beside it.
         /// </summary>
-        private void SettlePalm(float dt)
+        private readonly bool[] _fingerValid = new bool[5];
+        private readonly float[] _fingerGoal = new float[5];
+        private readonly float[] _fingerPull = new float[5];
+        private readonly float[,] _fingerSolved = new float[5, 3];
+        private float _palmTarget;
+        private bool _palmTargetValid;
+        /// <summary>The palm or the slide along the grip is still easing toward its place: the fingers follow it every frame.</summary>
+        private bool _settling;
+
+        private void SettlePalm(float dt, bool moved)
         {
             Vector3 n = PalmNormal;
-            _palmPush = Mathf.Lerp(_palmPush, PalmOffset(n), 1f - Mathf.Exp(-30f * dt));
+            bool sliding = Mathf.Abs(_slide - _slideGoal) > 0.0005f;
+            if (moved || sliding || !_palmTargetValid)
+            {
+                _palmTarget = PalmOffset(n);
+                _palmTargetValid = true;
+            }
+            _palmPush = Mathf.Lerp(_palmPush, _palmTarget, 1f - Mathf.Exp(-30f * dt));
+            _settling = sliding || Mathf.Abs(_palmPush - _palmTarget) > 0.0005f;
             _root.position += n * _palmPush;
         }
 
@@ -468,11 +509,15 @@ namespace RavenfieldVR.Rig
         /// under it. A few times a second the nearest position along the grip where the middle finger can close round the
         /// grip is looked for, and the hand eases there.
         /// </summary>
-        private void SlideOnGrip(float dt)
+        private bool _searchPending;
+
+        private void SlideOnGrip(float dt, bool moved)
         {
             Vector3 down = _root.rotation * Vector3.down;
-            if (Time.unscaledTime >= _nextSlideSearch && GripMoved())
+            _searchPending |= moved;
+            if (_searchPending && Time.unscaledTime >= _nextSlideSearch)
             {
+                _searchPending = false;
                 _nextSlideSearch = Time.unscaledTime + 0.2f;
                 Vector3 start = _root.position;
                 Vector3 n = PalmNormal;
