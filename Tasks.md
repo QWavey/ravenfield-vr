@@ -86,14 +86,17 @@
 84. [x] Melee weapons swing along their real blade
 85. [x] Pictures of everything from a VR test run (virtual headset at standing height, not under the map)
 86. [x] Hands clip into held guns and do not grab around them (Glock, AK and others)
-87. [ ] Magazines: hands close on the seated magazine too (no fingers through it), and a magazine taken in the hand is held properly, on every gun
-88. [ ] Autotest proves the mag kick-out with a second magazine and the H3VR-style tactical reload
-89. [ ] Recoil: firing with one hand kicks harder than with two hands, and it actually works
-90. [ ] Pouch items and guns: grabbable and throwable; nothing appears just by touching the pouch
-91. [ ] Dropped guns float away on the ground
-92. [ ] Ammo bag and medic bag: the glove disappears while one is held
-93. [ ] /improve 20 (after the fixes)
+87. [x] Magazines: hands close on the seated magazine too (no fingers through it), and a magazine taken in the hand is held properly, on every gun
+88. [x] Autotest proves the mag kick-out with a second magazine and the H3VR-style tactical reload
+89. [x] Recoil: firing with one hand kicks harder than with two hands, and it actually works
+90. [x] Pouch items and guns: grabbable and throwable; nothing appears just by touching the pouch
+91. [x] Dropped guns float away on the ground
+92. [x] Ammo bag and medic bag: the glove disappears while one is held
+93. [x] /improve 20 (after the fixes)
 94. [ ] /documentate (after the improve rounds and bug fixes)
+95. [x] Reloading the akimbo pistols with lasers dropped the pistols (the second pistol was taken for the magazine)
+96. [x] Grips on slides, bolts, charging handles and pumps close on the part being worked
+97. [x] Equipping a weapon showed the flat game's arms holding it for a split second
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -283,3 +286,9 @@ For 92. Kits held like a bag (ammo bag, medic bag) hide the glove instead of a f
 For 93. Run /improve 20: twenty measured rounds, keep only what proves better.
 
 For 94. Run /documentate once 86-93 are done.
+
+For 95. The P220 akimbo weapons' analysis took the part "P220 DUAL" (the second pistol, its laser beam making it 128 cm long and 100% outside the gun) for the magazine, so every reload hid and dropped it. A magazine candidate that is the other gun of a pair (named dual/akimbo/off-hand) or holds parts no magazine has (slide, bolt, barrel, trigger, hammer, laser, muzzle, receiver) is no longer taken; those weapons fall back to a magazine found by name or an invisible one. Done when: the self-test report no longer lists a P220 DUAL magazine.
+
+For 96. While racking a slide, pulling a bolt or charging handle or working a pump, the hand closes on the part it holds: the part is measured on its own (rendered as depth) the first time it is taken and the solid moves with it; palm and fingers settle on it as on a grip. Done when: the rack-grip check (hand put on the rack point by script, taken the real way) reports few points inside the part at rest and pulled half way, and the pictures show the hand on it.
+
+For 97. A weapon drawn after the mod's Update in a frame (the game switches weapons in its own Update or LateUpdate) was drawn once where the flat game holds it, in its own arms, before the mod took it over. The take-over is checked again right before rendering. Done when: the autotest counts no frame drawn with a new weapon not yet in the VR hand and none with the weapon's own arms showing.

@@ -1637,6 +1637,7 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                     int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + inHand + dropped;
+                    knocked |= kick && dropped > 0; // the kick can land a frame after the strike (the hand pose lags a frame)
                     yield return new WaitForEndOfFrame();
                     shot(kick ? "mag-kick-seated" : "h3vr-tactical-seated");
                     string sum = after == before ? "rounds add up" : $"ROUNDS DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, in hand {inHand}, dropped {dropped})";
@@ -1665,6 +1666,57 @@ namespace RavenfieldVR.Weapons
                 VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
                 VRInput.SimulatedGrab[(int)off.Side] = false;
             }
+        }
+
+        /// <summary>
+        /// Autotest: the simulated off hand is put on the rack point (slide, bolt, charging handle or pump) and takes it the
+        /// way a grab there does; pictured and measured on the part at rest and pulled half way, then let go.
+        /// </summary>
+        internal IEnumerator RackGripSelfCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesChamber || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose raw = off.Raw;
+            Vector3 palmFromRaw = raw.InverseTransformPoint(off.Palm.position);
+            RigidPose At(Vector3 palm) => new RigidPose(palm - raw.rotation * palmFromRaw, raw.rotation);
+            VRInput.SimulatedGrab[side] = true;
+            try
+            {
+                VRHand.Scripted[side] = At(RackPointWorld);
+                yield return null;
+                yield return null;
+                BeginRack(off);
+                yield return new WaitForSecondsRealtime(0.5f); // the part is measured, the hand closes on it
+                yield return new WaitForEndOfFrame();
+                shot("rack-grip");
+                string atRest = _held.PartClipping(off, out int restBuried, out int restTouching);
+                // Half way back along the stroke.
+                Vector3 start = RackPointWorld;
+                Vector3 pull = Rig.DirToWorld(StrokeDir) * (StrokeLength * 0.5f);
+                for (int i = 1; i <= 10; i++)
+                {
+                    VRHand.Scripted[side] = At(start + pull * (i / 10f));
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.2f);
+                yield return new WaitForEndOfFrame();
+                shot("rack-grip-pulled");
+                string pulled = _held.PartClipping(off, out int pulledBuried, out _);
+                Core.AutoTest.Metric("rack grip: points inside the part", restBuried);
+                Core.AutoTest.Metric("rack grip: fingers on the part (of 4)", restTouching);
+                Core.AutoTest.Metric("rack grip pulled half way: points inside the part", pulledBuried);
+                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}): {atRest}; pulled half way: {pulled}");
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            yield return new WaitForSecondsRealtime(0.4f); // the grip opens: the part is let go and returns
         }
 
         /// <summary>

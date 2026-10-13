@@ -164,8 +164,35 @@ namespace RavenfieldVR.Weapons
             }
             if (timed > 0)
             {
-                _dropTiming = $"  weapon drop cost ............. first drop {coldSum / timed:0.0} ms avg ({coldMax:0.0} max), prepared {warmSum / timed:0.0} ms avg ({warmMax:0.0} max), {timed} weapons";
+                _dropTiming = $"  weapon drop cost ............. first drop {coldSum / timed:0.0} ms avg ({coldMax:0.0} max, warm-up measuring included), prepared {warmSum / timed:0.0} ms avg ({warmMax:0.0} max), {timed} weapons";
                 AppendToReport(_dropTiming);
+            }
+            // The third-person model copied from its own part of the prefab against the whole prefab, same weapons.
+            float partSum = 0f, partMax = 0f, wholeSum = 0f, wholeMax = 0f;
+            int copies = 0, partFallback = 0;
+            foreach (WeaponManager.WeaponEntry entry in entries.Take(40))
+            {
+                float whole = WeaponDrops.TimeModelCopy(entry, false);
+                float part = WeaponDrops.TimeModelCopy(entry, true);
+                if (whole < 0f)
+                {
+                    continue;
+                }
+                if (part < 0f)
+                {
+                    partFallback++;
+                    part = whole; // that weapon still copies the whole prefab
+                }
+                copies++;
+                partSum += part;
+                partMax = Mathf.Max(partMax, part);
+                wholeSum += whole;
+                wholeMax = Mathf.Max(wholeMax, whole);
+                yield return null;
+            }
+            if (copies > 0)
+            {
+                AppendToReport($"  dropped model copy ........... third-person part {partSum / copies:0.00} ms avg ({partMax:0.0} max), whole prefab {wholeSum / copies:0.00} ms avg ({wholeMax:0.0} max), {copies} weapons, {partFallback} needed the whole prefab");
             }
             string handShot = Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-hands.png");
             string handError = Rig.HandPreview.Capture(handShot);

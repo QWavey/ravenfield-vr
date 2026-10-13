@@ -766,7 +766,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = Mathf.Max(1, entries.Count / 28);
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackChecks = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -884,6 +884,20 @@ namespace RavenfieldVR.Core
                                 continue;
                             }
                         }
+                        if (want && (action == ActionType.SelfLoading || action == ActionType.Manual) && rackChecks++ < 8)
+                        {
+                            int rackIndex = index;
+                            yield return held.Reload.RackGripSelfCheck(lines.Add, name =>
+                            {
+                                Shots.Capture($"{name}-{rackIndex:000}-{entry.name}");
+                                Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
+                                Vector3 c = rackHand.Model.Root.position;
+                                Runtime.RigidPose g = held.GripWorld;
+                                Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+                                Shots.Capture($"{name}-{rackIndex:000}-{entry.name}-left", c - right * 0.25f + up * 0.08f, Quaternion.LookRotation(c - (c - right * 0.25f + up * 0.08f), up), 45f);
+                                Shots.Capture($"{name}-{rackIndex:000}-{entry.name}-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(c - (c + right * 0.25f + up * 0.08f), up), 45f);
+                            });
+                        }
                         if (want && action == ActionType.SelfLoading)
                         {
                             int shotIndex = index;
@@ -950,7 +964,7 @@ namespace RavenfieldVR.Core
                     bool counts = held != null && held.Weapon == weapon && held.ActiveAmmo != null && held.ActiveAmmo.Participates
                                   && held.Rig.Data.Action != ActionType.Throwable;
                     _shots = 0;
-                    float shotKick = 0f, shotBack = 0f;
+                    float shotKick = 0f, shotBack = 0f, shotImpulse = 0f;
                     Weapon listened = counts ? ready : null;
                     listened?.onSpawnProjectiles.AddListener(CountShot);
                     for (int i = 0; i < 3; i++)
@@ -971,6 +985,7 @@ namespace RavenfieldVR.Core
                         {
                             shotKick = Mathf.Max(shotKick, held.PeakKick);
                             shotBack = Mathf.Max(shotBack, held.PeakBack);
+                            shotImpulse = Mathf.Max(shotImpulse, held.PeakShotImpulse);
                         }
                         if (counts && held.ActiveAmmo.Rig.CyclesByHand)
                         {
@@ -987,18 +1002,21 @@ namespace RavenfieldVR.Core
                         }
                         else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4))
                         {
-                            float oneKick = shotKick, oneBack = shotBack;
+                            float oneKick = shotKick, oneBack = shotBack, oneImpulse = shotImpulse;
                             string recoilLine = null;
-                            yield return TwoHandRecoil(held, weapon, (kick, back) =>
+                            yield return TwoHandRecoil(held, weapon, (kick, back, impulse) =>
                             {
                                 recoilLine = $"recoil: one hand {oneKick:0.0} deg climb, {oneBack * 100f:0.0} cm back; two hands {kick:0.0} deg, {back * 100f:0.0} cm";
                                 Metric("recoil one hand: degrees of climb", oneKick);
                                 Metric("recoil two hands: degrees of climb", kick);
-                                if (oneKick < 0.2f)
+                                // Compared by the impulse each shot gave: a shot that lands late (a revolver's hammer) would
+                                // otherwise be measured before its kick.
+                                recoilLine += $"; impulse per shot one hand {oneImpulse:0} deg/s, two hands {impulse:0} deg/s";
+                                if (oneImpulse <= 0f)
                                 {
-                                    recoilLine += " - NO RECOIL one-handed";
+                                    recoilLine += " - NO RECOIL one-handed (shots fired, none reached the recoil)";
                                 }
-                                else if (kick >= oneKick)
+                                else if (oneImpulse > 0f && impulse > 0f && impulse >= oneImpulse)
                                 {
                                     recoilLine += " - TWO HANDS NOT STEADIER";
                                 }
@@ -1098,7 +1116,7 @@ namespace RavenfieldVR.Core
         /// Recoil with the support hand on: the off hand takes the handguard, three more shots, and the kick is measured
         /// for <paramref name="result"/> (muzzle climb in degrees, push back in metres).
         /// </summary>
-        private static IEnumerator TwoHandRecoil(HeldWeapon held, Weapon weapon, Action<float, float> result)
+        private static IEnumerator TwoHandRecoil(HeldWeapon held, Weapon weapon, Action<float, float, float> result)
         {
             Rig.VRHand off = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Off : null;
             if (off == null || off.Role != Rig.HandRole.Free)
@@ -1109,7 +1127,7 @@ namespace RavenfieldVR.Core
             off.Role = Rig.HandRole.Foregrip;
             held.SetTwoHanded(true);
             yield return new WaitForSecondsRealtime(0.3f);
-            float kick = 0f, back = 0f;
+            float kick = 0f, back = 0f, impulse = 0f;
             for (int i = 0; i < 3; i++)
             {
                 held.ResetKick();
@@ -1126,12 +1144,13 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.25f);
                 kick = Mathf.Max(kick, held.PeakKick);
                 back = Mathf.Max(back, held.PeakBack);
+                impulse = Mathf.Max(impulse, held.PeakShotImpulse);
                 if (held.ActiveAmmo != null && held.ActiveAmmo.Rig.CyclesByHand)
                 {
                     held.Reload.CycleForTest();
                 }
             }
-            result(kick, back);
+            result(kick, back, impulse);
             Input.VRInput.SimulatedGrab[(int)off.Side] = false;
             yield return null; // the grip opens: the handguard is let go
             yield return null;
@@ -1243,6 +1262,8 @@ namespace RavenfieldVR.Core
                 sb.AppendLine("  ! " + p);
             }
             sb.AppendLine();
+            // Written as they stand (the report is rewritten as the run goes on).
+            sb.AppendLine($"Frames drawn with a new weapon not yet in the VR hand: {WeaponSystem.UnhandledFrames}; with the weapon's own (flat) arms showing: {WeaponSystem.ArmFrames}");
             if (Metrics.Count > 0)
             {
                 sb.AppendLine("Measurements (total / count / average / max)");

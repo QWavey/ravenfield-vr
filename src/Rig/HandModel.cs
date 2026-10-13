@@ -492,7 +492,8 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>Holding a measured weapon by its grip or handguard: palm and fingers close on its model.</summary>
-        private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable || _hand.Role == HandRole.Magazine);
+        private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable
+                                                                       || _hand.Role == HandRole.Magazine || _hand.Role == HandRole.Slide);
 
         private static float MaxAngle(int f, int s) => f == 0 ? MaxCurl[0] * (s == 0 ? 0.6f : 1f) : MaxCurl[s + 1];
 

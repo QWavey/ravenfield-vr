@@ -304,6 +304,7 @@ namespace RavenfieldVR.Weapons
             // ~150 deg/s per kick unit gives ~3.4 degrees of muzzle climb per shot (before the hand factors).
             _recoilPosVel += new Vector3(0f, 0.08f * kick, -0.6f * kick) * strength;
             _recoilRotVel += new Vector2(-(150f * kick + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
+            PeakShotImpulse = Mathf.Max(PeakShotImpulse, 150f * kick * strength);
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
@@ -331,7 +332,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: the largest muzzle climb (degrees) and push back (metres) since <see cref="ResetKick"/>.</summary>
         internal float PeakKick { get; private set; }
         internal float PeakBack { get; private set; }
-        internal void ResetKick() => PeakKick = PeakBack = 0f;
+        internal void ResetKick() => PeakKick = PeakBack = PeakShotImpulse = 0f;
+
+        /// <summary>Self-test: the strongest muzzle-climb impulse one shot gave (deg/s) since <see cref="ResetKick"/>, whenever it fired.</summary>
+        internal float PeakShotImpulse { get; private set; }
 
         // ---------------------------------------------------------------------------------------------
 
@@ -609,8 +613,62 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: inside the gun or its seated magazine (not grown).</summary>
         private bool InsideModel(Vector3 p) => _volume.InsideModel(p) || _magSolidShown && _magVolume.InsideModel(p);
 
+        /// <summary>The weapon's own arms are shown as the hands (the arm-IK mode), not hidden.</summary>
+        internal bool ArmsShownByMod => _armIK != null && _armIK.Active;
+
         /// <summary>Self-test: the measured solid (null until measured).</summary>
         internal GunVolume Volume => _volume;
+
+        private GunVolume _partVolume;
+        private bool _partTried;
+        private System.Func<Vector3, bool> _partSolid;
+
+        /// <summary>The part a racking hand holds: a separate charging handle, else the slide, bolt or pump.</summary>
+        private Transform WorkedPart => Rig.Data.HandlePath != null && Rig.Handle != null ? Rig.Handle : Rig.Slide;
+
+        /// <summary>
+        /// The hand working the action (racking a slide, pulling a bolt or charging handle, pumping) closes on the part it
+        /// holds, measured on its own the first time it is taken and moving with it.
+        /// </summary>
+        private System.Func<Vector3, bool> PartSolid()
+        {
+            Transform part = WorkedPart;
+            if (part == null)
+            {
+                return null;
+            }
+            if (_partVolume == null && !_partTried)
+            {
+                _partTried = true;
+                var renderers = new List<Renderer>();
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer) && !GunCollider.AddedByMod(r.transform, Rig.Weapon.transform))
+                    {
+                        renderers.Add(r);
+                    }
+                }
+                _partVolume = GunVolume.Measure("part:" + Rig.Data.Key + ":" + part.name, renderers, part, 3);
+            }
+            if (_partVolume == null || !_partVolume.Ready)
+            {
+                return null;
+            }
+            _partVolume.SetPose(part.position, part.rotation);
+            return _partSolid ?? (_partSolid = _partVolume.Solid);
+        }
+
+        /// <summary>Self-test: how much of a hand working the action is buried in the part it holds.</summary>
+        internal string PartClipping(VRHand hand, out int buried, out int touching)
+        {
+            buried = touching = -1;
+            if (_partVolume == null || !_partVolume.Ready || hand.Model == null)
+            {
+                return "not measured (the part's shape is not ready)";
+            }
+            hand.Model.Measure(_partVolume.InsideModel, _partVolume.Solid, out buried, out int samples, out touching);
+            return $"{buried}/{samples} points inside the part, {touching}/4 fingers on it";
+        }
 
         /// <summary>Self-test: how much of a hand on this weapon is buried in its model, and how many fingers touch it.</summary>
         internal string HandClipping(VRHand hand) => HandClipping(hand, out _, out _, out _);
@@ -668,6 +726,17 @@ namespace RavenfieldVR.Weapons
             }
             if (off.Model != null)
             {
+                System.Func<Vector3, bool> part = off.Role == HandRole.Slide ? PartSolid() : null;
+                if (part != null)
+                {
+                    off.Model.Solid = part;
+                    off.Model.SolidAnchor = WorkedPart;
+                    off.Model.SolidVersion = 0;
+                }
+                else if (off.Model.Solid != null && off.Model.Solid == _partSolid)
+                {
+                    off.Model.Solid = null;
+                }
                 if (off.Role == HandRole.Foregrip && solid != null && Rig.Data.IsPistol && main.Model != null)
                 {
                     // Cupping a pistol: the support hand closes on the gun and on the gun hand's fingers round its grip.

@@ -1382,7 +1382,7 @@ namespace RavenfieldVR.Weapons
                     for (Transform p = mag.parent; p != null && p != gunBody && p != root; p = p.parent)
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
-                            || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f)
+                            || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p))
                         {
                             break;
                         }
@@ -1419,7 +1419,7 @@ namespace RavenfieldVR.Weapons
                         // Climb while the parent hides together with it.
                         for (Transform p = mag.parent; p != null && p != gunBody && p != root; p = p.parent)
                         {
-                            if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || HiddenSeconds(sampler.ReloadVisible[pi]) < 0.15f)
+                            if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || HiddenSeconds(sampler.ReloadVisible[pi]) < 0.15f || LooksLikeAWeapon(p))
                             {
                                 break;
                             }
@@ -1436,6 +1436,11 @@ namespace RavenfieldVR.Weapons
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
                     mag = null;
+                }
+                float nameMagSize = mag != null ? sampler.LocalBounds(mag).size.magnitude : 0f;
+                if (nameMagSize > 1e-4f && nameMagSize < 0.05f)
+                {
+                    mag = null; // a shell casing or a screw by its name: no magazine is that small (an invisible well is used)
                 }
                 if (mag != null)
                 {
@@ -1636,7 +1641,49 @@ namespace RavenfieldVR.Weapons
             {
                 return false; // bolts, slides, charging handles
             }
+            if (LooksLikeAWeapon(t))
+            {
+                return false; // akimbo: the second pistol moves in the reload too, but it is no magazine
+            }
+            for (Transform p = t.parent; p != null && p != root; p = p.parent)
+            {
+                if (SecondWeaponName.IsMatch(p.name) && !MagName.IsMatch(p.name))
+                {
+                    return false; // part of the other gun of a pair (even its own magazine is not this gun's)
+                }
+            }
             return slide == null || (t != slide && !t.IsChildOf(slide) && !slide.IsChildOf(t));
+        }
+
+        private static readonly Regex SecondWeaponName = new Regex(@"dual|akimbo|off ?hand|second(ary)? ?(gun|pistol|weapon)", RegexOptions.IgnoreCase);
+        // Parts of a gun a magazine never has. ("Receiver" is left out: exported meshes are often named after the
+        // receiver asset they came from, magazines included.)
+        private static readonly Regex WeaponPartName = new Regex(@"slide|bolt|barrel|trigger|hammer|laser|muzzle", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A whole (second) weapon rather than a magazine: named as the other gun of a pair, or holding parts no magazine
+        /// has (a slide, barrel, trigger, laser...). Taking it for the magazine dropped the second pistol on every reload.
+        /// </summary>
+        private static bool LooksLikeAWeapon(Transform t)
+        {
+            if (SecondWeaponName.IsMatch(t.name) && !MagName.IsMatch(t.name))
+            {
+                return true;
+            }
+            // A whole gun has several such parts; one stray name (a mesh exported under a part's name) is not enough.
+            var kinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Transform c in t.GetComponentsInChildren<Transform>(true))
+            {
+                if (c == t || MagName.IsMatch(c.name))
+                {
+                    continue;
+                }
+                foreach (Match m in WeaponPartName.Matches(c.name))
+                {
+                    kinds.Add(m.Value);
+                }
+            }
+            return kinds.Count >= 2;
         }
 
         private static float HiddenSeconds(bool[] visible)

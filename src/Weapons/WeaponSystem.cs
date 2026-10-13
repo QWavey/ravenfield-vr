@@ -43,6 +43,49 @@ namespace RavenfieldVR.Weapons
             _pouch = new PouchDisplay(this);
             _holsters = new HolsterDisplay(this);
             _readout = new MagReadout(this);
+            if (Core.AutoTest.Requested)
+            {
+                Camera.onPreCull += CountFlatFrames;
+            }
+        }
+
+        /// <summary>
+        /// Self-test: frames the headset drew with the player's weapon not yet handled by the mod (where the flat game
+        /// holds it) or with the weapon's own arms showing (only the gloves should).
+        /// </summary>
+        internal static int UnhandledFrames, ArmFrames;
+
+        private void CountFlatFrames(Camera cam)
+        {
+            if (cam != Rig.Camera)
+            {
+                return;
+            }
+            Weapon w = GameContext.HeldPersonalWeapon;
+            if (w == null || GameContext.GameMenuOpen)
+            {
+                return;
+            }
+            if (Held == null || Held.Weapon != w)
+            {
+                if (!_attachFailed.Contains(w))
+                {
+                    UnhandledFrames++;
+                }
+                return;
+            }
+            if (Held.ArmsShownByMod)
+            {
+                return; // the weapon's own arms are the chosen hands
+            }
+            foreach (Renderer r in Held.Rig.ArmRenderers)
+            {
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy)
+                {
+                    ArmFrames++;
+                    return;
+                }
+            }
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -155,6 +198,19 @@ namespace RavenfieldVR.Weapons
 
         public void BeforeRender()
         {
+            // A weapon drawn after this frame's Update (the game switches weapons in its own Update or LateUpdate) is
+            // taken over now, before it is drawn: otherwise it showed for a frame where the flat game holds it, in the
+            // weapon's own arms.
+            Weapon now = GameContext.HeldPersonalWeapon;
+            if (Held != null && (now != Held.Weapon || Held.Weapon == null))
+            {
+                ReleaseHeld();
+            }
+            if (Held == null && now != null && now.gameObject.activeInHierarchy)
+            {
+                AttachHeld(now);
+                Held?.Update();
+            }
             _throwables.BeforeRender();
             Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
             _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
@@ -553,6 +609,7 @@ namespace RavenfieldVR.Weapons
 
         public void Dispose()
         {
+            Camera.onPreCull -= CountFlatFrames;
             if (Held != null)
             {
                 ReleaseHeld();

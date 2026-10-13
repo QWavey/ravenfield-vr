@@ -156,10 +156,25 @@ namespace RavenfieldVR.Weapons
             // Only the third-person model is needed: copy that part of the prefab, not the whole weapon (first-person
             // rig, arms, animator, sounds), which cost tens of milliseconds the first time a bot dropped a weapon type.
             GameObject fast = BuildWorldModelFromSubtree(entry);
-            if (fast != null)
+            return fast != null ? fast : BuildWorldModelWhole(entry);
+        }
+
+        /// <summary>Self-test: how long copying the third-person model takes, from its part of the prefab or from the whole prefab.</summary>
+        internal static float TimeModelCopy(WeaponManager.WeaponEntry entry, bool partOnly)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            GameObject copy = partOnly ? BuildWorldModelFromSubtree(entry) : BuildWorldModelWhole(entry);
+            float ms = (float)watch.Elapsed.TotalMilliseconds;
+            if (copy == null)
             {
-                return fast;
+                return -1f;
             }
+            UnityEngine.Object.Destroy(copy);
+            return ms;
+        }
+
+        private static GameObject BuildWorldModelWhole(WeaponManager.WeaponEntry entry)
+        {
             var holder = new GameObject("RavenfieldVR Drop Build");
             holder.SetActive(false);
             try
