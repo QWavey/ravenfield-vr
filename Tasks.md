@@ -93,7 +93,7 @@
 91. [x] Dropped guns float away on the ground
 92. [x] Ammo bag and medic bag: the glove disappears while one is held
 93. [x] /improve 20 (after the fixes)
-94. [ ] /documentate (after the improve rounds and bug fixes)
+94. [x] /documentate (after the improve rounds and bug fixes)
 95. [x] Reloading the akimbo pistols with lasers dropped the pistols (the second pistol was taken for the magazine)
 96. [x] Grips on slides, bolts, charging handles and pumps close on the part being worked
 97. [x] Equipping a weapon showed the flat game's arms holding it for a split second
