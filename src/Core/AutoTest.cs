@@ -193,6 +193,7 @@ namespace RavenfieldVR.Core
             string support = held.HandClipping(off, out int sBuried, out _, out int sTouching);
             string what = held.Rig.Data.IsPistol ? "support hand on a pistol" : "support hand on a long gun";
             Metric(what + ": points inside the gun", sBuried);
+            Worst.Add(new KeyValuePair<string, int>($"{held.Rig.Data.Key}: {what}, {sTouching}/4 fingers on it", sBuried));
             Metric(what + ": fingers on the gun (of 4)", sTouching);
             report($"support hand ({off.Role}): {support}");
         }
@@ -213,6 +214,7 @@ namespace RavenfieldVR.Core
             Shot("hand-in", c + right * 0.28f * off.Mirror + up * 0.06f);
             string magHand = MagazineProp.HandClipping(off, out int mBuried, out _, out int mTouching);
             Metric("magazine hand: points inside the magazines", mBuried);
+            Worst.Add(new KeyValuePair<string, int>($"{name}: magazine hand, {mTouching}/4 fingers on them", mBuried));
             Metric("magazine hand: fingers on the magazines (of 4)", mTouching);
             if (off.Held is MagazineProp shown && shown.Volume != null)
             {
@@ -342,6 +344,7 @@ namespace RavenfieldVR.Core
                 _clipNow = held.HandClipping(Rig.VRRig.Instance.Dominant, out int buried, out _, out int touching);
                 _clipPending = held;
                 Metric("gun hand: points inside the gun", buried);
+                Worst.Add(new KeyValuePair<string, int>($"{held.Rig.Data.Key}: gun hand, {touching}/4 fingers on it", buried));
                 Metric("gun hand: fingers on the gun (of 4)", touching);
                 Metric(held.Rig.Data.IsPistol ? "gun hand: pistol thumb on the gun (0/1)" : "gun hand: rifle thumb on the grip (0/1)", Rig.VRRig.Instance.Dominant.Model.ThumbTouching ? 1 : 0);
                 Metric("hand solid: main-thread ms per weapon", held.Volume.RenderMs);
@@ -1074,6 +1077,9 @@ namespace RavenfieldVR.Core
         /// </summary>
         private static readonly SortedDictionary<string, double[]> Metrics = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
 
+        /// <summary>Every measured hand (what, points buried in the model): the worst are listed for the next fixes.</summary>
+        private static readonly List<KeyValuePair<string, int>> Worst = new List<KeyValuePair<string, int>>();
+
         private static void Metric(string name, double value)
         {
             if (double.IsNaN(value) || value < 0)
@@ -1106,6 +1112,14 @@ namespace RavenfieldVR.Core
                 foreach (KeyValuePair<string, double[]> m in Metrics)
                 {
                     sb.AppendLine($"  {m.Key,-44} {m.Value[0],9:0.##} {m.Value[1],5} {m.Value[0] / Math.Max(1, m.Value[1]),9:0.###} {m.Value[2],9:0.##}");
+                }
+                if (Worst.Count > 0)
+                {
+                    sb.AppendLine("  Hands most buried in what they hold (of 72 points):");
+                    foreach (KeyValuePair<string, int> w in Worst.Where(w => w.Value > 0).OrderByDescending(w => w.Value).Take(5))
+                    {
+                        sb.AppendLine($"    {w.Value,3}  {w.Key}");
+                    }
                 }
                 sb.AppendLine();
             }

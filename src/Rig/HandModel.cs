@@ -356,6 +356,7 @@ namespace RavenfieldVR.Rig
                 _slide = Mathf.Lerp(_slide, 0f, back);
                 _slideGoal = 0f;
                 _nextSlideSearch = 0f;
+                _slideAtSolid = null;
                 if (Mathf.Abs(_palmPush) > 1e-4f)
                 {
                     _root.position += PalmNormal * _palmPush;
@@ -458,7 +459,7 @@ namespace RavenfieldVR.Rig
         private void SlideOnGrip(float dt)
         {
             Vector3 down = _root.rotation * Vector3.down;
-            if (Time.unscaledTime >= _nextSlideSearch)
+            if (Time.unscaledTime >= _nextSlideSearch && GripMoved())
             {
                 _nextSlideSearch = Time.unscaledTime + 0.2f;
                 Vector3 start = _root.position;
@@ -479,6 +480,39 @@ namespace RavenfieldVR.Rig
             }
             _slide = Mathf.Lerp(_slide, _slideGoal, 1f - Mathf.Exp(-20f * dt));
             _root.position += down * _slide;
+        }
+
+        /// <summary>
+        /// The transform the held solid moves with (the gun body, the magazine), and a number its owner changes when
+        /// the solid's shape changes (a magazine in or out): the grip is only searched again when the hand moved on it.
+        /// </summary>
+        public Transform SolidAnchor;
+        public int SolidVersion;
+        private Vector3 _slideAtPos;
+        private Quaternion _slideAtRot;
+        private object _slideAtSolid;
+        private int _slideAtVersion = -1;
+
+        /// <summary>The hand sits somewhere else on the held solid than at the last grip search (3 mm, 2 degrees), or the solid changed.</summary>
+        private bool GripMoved()
+        {
+            if (SolidAnchor == null)
+            {
+                return true;
+            }
+            Quaternion inv = Quaternion.Inverse(SolidAnchor.rotation);
+            Vector3 pos = inv * (_root.position - SolidAnchor.position);
+            Quaternion rot = inv * _root.rotation;
+            bool moved = !ReferenceEquals(_slideAtSolid, Solid) || _slideAtVersion != SolidVersion
+                         || (pos - _slideAtPos).sqrMagnitude > 0.003f * 0.003f || Quaternion.Angle(rot, _slideAtRot) > 2f;
+            if (moved)
+            {
+                _slideAtPos = pos;
+                _slideAtRot = rot;
+                _slideAtSolid = Solid;
+                _slideAtVersion = SolidVersion;
+            }
+            return moved;
         }
 
         private bool PalmTouches(Vector3 normal, float offset)

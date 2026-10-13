@@ -651,6 +651,8 @@ namespace RavenfieldVR.Weapons
                 if (main.Role == HandRole.Weapon || main.Role == HandRole.Throwable)
                 {
                     main.Model.Solid = solid;
+                    main.Model.SolidAnchor = Rig.GunBody;
+                    main.Model.SolidVersion = _magSolidShown ? 1 : 0;
                 }
                 else if (main.Model.Solid == _solid)
                 {
@@ -662,6 +664,8 @@ namespace RavenfieldVR.Weapons
                 if (off.Role == HandRole.Foregrip)
                 {
                     off.Model.Solid = solid;
+                    off.Model.SolidAnchor = Rig.GunBody;
+                    off.Model.SolidVersion = _magSolidShown ? 1 : 0;
                 }
                 else if (off.Model.Solid == _solid)
                 {

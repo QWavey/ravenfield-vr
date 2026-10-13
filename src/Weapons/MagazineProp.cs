@@ -561,6 +561,8 @@ namespace RavenfieldVR.Weapons
                 HandSolids[side] = p => HeldSolid(hand, p);
             }
             hand.Model.Solid = HandSolids[side];
+            hand.Model.SolidAnchor = Go.transform;
+            hand.Model.SolidVersion = HeldShapesOf(hand).Count;
         }
 
         /// <summary>One held magazine's shape at its pose this frame (magazines of one type share a volume).</summary>
