@@ -164,6 +164,7 @@ namespace RavenfieldVR.Weapons
             _go = new GameObject("RavenfieldVR Gun Collider") { layer = layer };
             Object.DontDestroyOnLoad(_go);
             _boxes = ShapeFit.AddColliders(_go, boxes);
+            _pieces = boxes;
             _body = _go.AddComponent<Rigidbody>();
             _body.mass = 2f;
             _body.useGravity = false;
@@ -180,7 +181,15 @@ namespace RavenfieldVR.Weapons
         public int BoxCount => _boxes.Count;
 
         /// <summary>Self-test: how the shape matched the model before <see cref="UseShape"/> replaced it.</summary>
-        public string ShapeBefore { get; private set; }
+        public string ShapeBefore { get; internal set; }
+        public float ShapeBeforeExcess { get; internal set; } = -1f;
+        public float ShapeBeforeCovered { get; internal set; } = -1f;
+        /// <summary>Self-test: a rendered-model shape that was measured and not kept (it matched the model worse).</summary>
+        public string ShapeRejected { get; internal set; }
+
+        /// <summary>The pieces the stand-in is made of now.</summary>
+        public ShapeFit.Piece[] Pieces => _pieces;
+        private ShapeFit.Piece[] _pieces;
 
         /// <summary>
         /// Replaces the stand-in's pieces (a weapon whose meshes could only be measured by their bounding boxes gets the
@@ -192,7 +201,10 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            ShapeBefore = volume != null ? Match(volume) : null;
+            float excess = -1f, covered = -1f;
+            ShapeBefore = volume != null ? Match(volume, out excess, out covered) : null;
+            ShapeBeforeExcess = excess;
+            ShapeBeforeCovered = covered;
             foreach (Collider c in _boxes)
             {
                 if (c != null)
@@ -202,6 +214,7 @@ namespace RavenfieldVR.Weapons
             }
             _boxes.Clear();
             ShapeFit.Bake(pieces);
+            _pieces = pieces;
             _boxes.AddRange(ShapeFit.AddColliders(_go, pieces));
             PropPhysics.IgnorePlayer(_boxes);
             foreach (Collider c in _passing)
@@ -221,7 +234,9 @@ namespace RavenfieldVR.Weapons
         /// Self-test: of the stand-in's inside, the share outside the visible model ("excess"), and of the model's surface,
         /// the share within 5 mm of the stand-in ("covered").
         /// </summary>
-        public string Match(GunVolume volume)
+        public string Match(GunVolume volume) => Match(volume, out _, out _);
+
+        public string Match(GunVolume volume, out float excessPercent, out float coveredPercent)
         {
             Transform t = _go.transform;
             int inside = 0, excess = 0;
@@ -268,7 +283,9 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            return $"{_boxes.Count} pieces, {(inside > 0 ? 100f * excess / inside : 0f):0}% of it outside the model, {(tested > 0 ? 100f * covered / tested : 0f):0}% of the model covered";
+            excessPercent = inside > 0 ? 100f * excess / inside : 0f;
+            coveredPercent = tested > 0 ? 100f * covered / tested : 0f;
+            return $"{_boxes.Count} pieces, {excessPercent:0}% of it outside the model, {coveredPercent:0}% of the model covered";
         }
 
         public static GunCollider Create(WeaponRig rig)

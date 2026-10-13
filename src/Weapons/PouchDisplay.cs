@@ -94,7 +94,12 @@ namespace RavenfieldVR.Weapons
                 return spare.ToString();
             }
             int mags = spare / Mathf.Max(1, capacity);
-            return spare - mags * capacity > 0 ? mags + "+" : mags.ToString();
+            int rest = spare - mags * capacity;
+            if (mags == 0 && rest > 0)
+            {
+                return rest + " rds"; // no full magazine left: "0+" read as empty
+            }
+            return rest > 0 ? mags + "+" : mags.ToString();
         }
 
         private static bool GameContextOnFoot() => Util.GameContext.PlayerOnFoot || DrivingWeapons.Armed;
@@ -146,6 +151,8 @@ namespace RavenfieldVR.Weapons
             _root = null;
             _model = null;
             _builtFor = null;
+            _shownSpare = int.MinValue; // a rebuilt label must be written again
+            _shownCapacity = -1;
         }
     }
 }

@@ -81,13 +81,21 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<WeaponManager.WeaponEntry, GameObject> Templates = new Dictionary<WeaponManager.WeaponEntry, GameObject>();
         private static GameObject _templateRoot;
 
+        /// <summary>Weapons that have no third-person model to copy: not tried again (the copy instantiates the whole prefab).</summary>
+        private static readonly HashSet<WeaponManager.WeaponEntry> NoModel = new HashSet<WeaponManager.WeaponEntry>();
+
         internal static GameObject ModelFor(WeaponManager.WeaponEntry entry)
         {
+            if (entry == null || NoModel.Contains(entry))
+            {
+                return null;
+            }
             if (!Templates.TryGetValue(entry, out GameObject template) || template == null)
             {
                 template = BuildWorldModel(entry);
                 if (template == null)
                 {
+                    NoModel.Add(entry);
                     return null;
                 }
                 if (_templateRoot == null)

@@ -203,6 +203,10 @@ namespace RavenfieldVR.Rig
                 {
                     fingersTouching++;
                 }
+                else if (f == 0)
+                {
+                    ThumbTouching = touches;
+                }
             }
             Matrix4x4 m = _root.localToWorldMatrix;
             foreach (Vector3 skin in PalmSkin)
@@ -215,6 +219,9 @@ namespace RavenfieldVR.Rig
                 }
             }
         }
+
+        /// <summary>Self-test: the thumb touched the model at the last <see cref="Measure"/>.</summary>
+        internal bool ThumbTouching { get; private set; }
 
         /// <summary>Self-test: how far the palm was moved onto the held model and each finger's joint curls.</summary>
         internal string Describe()
@@ -704,7 +711,8 @@ namespace RavenfieldVR.Rig
                 // The model itself stops each finger where it touches: a held grip is wrapped all the way round.
                 if (_hand.Role == HandRole.Weapon)
                 {
-                    Minimum(WeaponIsPistol ? 0.35f : 0.65f, -1f, 0.95f, 0.95f, 0.95f);
+                    // A rifle's thumb wraps over the grip until it meets it; a pistol's lies along the frame.
+                    Minimum(WeaponIsPistol ? 0.35f : 0.95f, -1f, 0.95f, 0.95f, 0.95f);
                 }
                 else
                 {

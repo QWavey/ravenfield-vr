@@ -31,6 +31,7 @@ namespace RavenfieldVR.Rig
 
         private float _flash;        // overall red, decays
         private float _flashPeak;
+        private float _flashFrom;
         private float _flashStart = -10f;
         private float _flashDuration = 1.2f;
         private float _hitAngle;     // degrees, 0 = in front (top of the view), 90 = left
@@ -92,6 +93,7 @@ namespace RavenfieldVR.Rig
         public void OnVignette(float intensity, float duration)
         {
             _flashPeak = Mathf.Max(_flash, Mathf.Clamp01(intensity));
+            _flashFrom = _flash;
             _flashStart = Time.unscaledTime;
             _flashDuration = Mathf.Clamp(duration * 0.25f, 0.6f, 1.8f);
         }
@@ -130,7 +132,7 @@ namespace RavenfieldVR.Rig
             float now = Time.unscaledTime;
             float age = now - _flashStart;
             // Snaps in within a few hundredths of a second, fades over the duration.
-            _flash = age < 0.05f ? Mathf.Lerp(0f, _flashPeak, age / 0.05f) : _flashPeak * Mathf.Clamp01(1f - (age - 0.05f) / _flashDuration);
+            _flash = age < 0.05f ? Mathf.Lerp(_flashFrom, _flashPeak, age / 0.05f) : _flashPeak * Mathf.Clamp01(1f - (age - 0.05f) / _flashDuration);
             _direction = Mathf.MoveTowards(_direction, 0f, Time.unscaledDeltaTime / 1.5f);
 
             Actor actor = Util.GameContext.PlayerActor;

@@ -22,6 +22,7 @@ namespace RavenfieldVR.Weapons
         private MagazineProp _target;
         private float _alpha;
         private string _shown;
+        private static bool _loggedShown;
         private static readonly Dictionary<int, string> Labels = new Dictionary<int, string>();
 
         /// <summary>Autotest pictures: shows this magazine's readout whatever the head looks at.</summary>
@@ -95,7 +96,11 @@ namespace RavenfieldVR.Weapons
                 _text.text = label;
                 _shown = label;
             }
-            Log.InfoOnce("readout-shown", $"Magazine readout shown: {label} at {at:F2}, {Vector3.Distance(at, head.position):0.00} m from the eye.");
+            if (!_loggedShown)
+            {
+                _loggedShown = true;
+                Log.Info($"Magazine readout shown: {label} at {at:F2}, {Vector3.Distance(at, head.position):0.00} m from the eye.");
+            }
             Color c = _target.Rounds > 0 ? new Color(0.95f, 0.96f, 0.9f) : new Color(0.95f, 0.32f, 0.26f);
             c.a = _alpha * 0.95f;
             _text.color = c;
@@ -152,6 +157,8 @@ namespace RavenfieldVR.Weapons
             {
                 Object.Destroy(_go);
             }
+            _go = null;
+            _shown = null; // a rebuilt label must be written again
         }
     }
 }

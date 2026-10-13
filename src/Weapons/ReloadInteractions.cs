@@ -1642,7 +1642,7 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator TwoHandSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
-            if (off.Role != HandRole.Free || GripData.IsPistol || !GripData.HasSupportPoint)
+            if (off.Role != HandRole.Free || !GripData.HasSupportPoint)
             {
                 yield break;
             }

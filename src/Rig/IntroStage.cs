@@ -66,13 +66,17 @@ namespace RavenfieldVR.Rig
                 _sceneHandle = scene.handle;
                 Walkers.Clear();
                 PlacedTitles.Clear();
+                TitlesWithoutGround.Clear();
+                _nextTitleScan = 0f;
                 _hasGround = false;
                 _isIntro = scene.buildIndex == 0 && UnityEngine.Object.FindObjectOfType<GotoMenu>() != null;
                 _phase = _isIntro ? Phase.Idle : Phase.Done;
             }
-            if (_isIntro)
+            if (_isIntro && Time.unscaledTime >= _nextTitleScan)
             {
-                PlaceTitleInWorld(); // every frame: text that switches on later in the intro too
+                // Text that switches on later in the intro too; a scene-wide search, so a few times a second.
+                _nextTitleScan = Time.unscaledTime + 0.1f;
+                PlaceTitleInWorld();
             }
             if (!_isIntro || _phase == Phase.Done)
             {
@@ -114,6 +118,17 @@ namespace RavenfieldVR.Rig
                     }
                     _ground = groundSum / Walkers.Count;
                     _hasGround = true;
+                    // Titles placed in the first moments, before the ground was measured, go to eye height now.
+                    foreach (Canvas t in TitlesWithoutGround)
+                    {
+                        if (t != null)
+                        {
+                            Vector3 p = t.transform.position;
+                            p.y = _ground + VRConfig.EyeHeight.Value.ClampEye();
+                            t.transform.position = p;
+                        }
+                    }
+                    TitlesWithoutGround.Clear();
                     _phase = Phase.Measuring;
                     _phaseStart = now;
                     return;
@@ -244,6 +259,8 @@ namespace RavenfieldVR.Rig
         private const float TitleDistance = 12f;
         private const int WorldLayer = 0;
         private static readonly List<Canvas> PlacedTitles = new List<Canvas>();
+        private static readonly List<Canvas> TitlesWithoutGround = new List<Canvas>();
+        private static float _nextTitleScan;
 
         /// <summary>
         /// The intro's title and text are screen canvases. Left to the HUD conversion they would hang head-locked a few
@@ -291,6 +308,10 @@ namespace RavenfieldVR.Rig
                     t.gameObject.layer = WorldLayer;
                 }
                 PlacedTitles.Add(c);
+                if (!_hasGround)
+                {
+                    TitlesWithoutGround.Add(c);
+                }
             }
             // A 3D text drawn on the UI layer would be painted over the walkers the same way.
             foreach (TextMesh tm in UnityEngine.Object.FindObjectsOfType<TextMesh>())

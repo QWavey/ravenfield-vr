@@ -481,14 +481,58 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
-            if (!_hullApplied && _volume.HullPieces != null && _gunCollider != null)
+            if (!_hullApplied && _volume.HullPieces != null && _volume.HullPieces.Length > 0 && _gunCollider != null)
             {
                 _hullApplied = true;
-                _gunCollider.UseShape(_volume.HullPieces, _volume);
+                ChooseShape();
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
             UpdateSeatedMagSolid();
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
+        }
+
+        /// <summary>Per weapon type: the shape fitted to the rendered model matched it better than the one from the meshes.</summary>
+        private static readonly Dictionary<string, bool> RenderedShapeBetter = new Dictionary<string, bool>();
+
+        /// <summary>
+        /// The physics stand-in becomes the shape that matches the visible model best. Unreadable meshes only gave boxes:
+        /// the rendered-model fit replaces them. Readable meshes are compared once per weapon type (share of the model
+        /// covered minus share of the shape outside it) and the better fit is kept.
+        /// </summary>
+        private void ChooseShape()
+        {
+            string key = Rig.Data.Key;
+            if (_volume.Unreadable)
+            {
+                _gunCollider.UseShape(_volume.HullPieces, _volume);
+                return;
+            }
+            if (RenderedShapeBetter.TryGetValue(key, out bool known))
+            {
+                if (known)
+                {
+                    _gunCollider.UseShape(_volume.HullPieces, null);
+                }
+                return;
+            }
+            ShapeFit.Piece[] meshes = _gunCollider.Pieces;
+            string before = _gunCollider.Match(_volume, out float excess0, out float covered0);
+            _gunCollider.UseShape(_volume.HullPieces, null);
+            string after = _gunCollider.Match(_volume, out float excess1, out float covered1);
+            bool better = covered1 - excess1 > covered0 - excess0 + 5f; // a clear margin, not noise
+            RenderedShapeBetter[key] = better;
+            if (better)
+            {
+                _gunCollider.ShapeBefore = before;
+                _gunCollider.ShapeBeforeExcess = excess0;
+                _gunCollider.ShapeBeforeCovered = covered0;
+            }
+            else
+            {
+                _gunCollider.UseShape(meshes, null);
+                _gunCollider.ShapeRejected = after;
+            }
+            Log.Info($"{key}: physics shape from the {(better ? "rendered model" : "meshes")} (meshes: {before}; rendered model: {after}).");
         }
 
         private GunVolume _magVolume;
@@ -554,13 +598,16 @@ namespace RavenfieldVR.Weapons
         internal GunVolume Volume => _volume;
 
         /// <summary>Self-test: how much of a hand on this weapon is buried in its model, and how many fingers touch it.</summary>
-        internal string HandClipping(VRHand hand)
+        internal string HandClipping(VRHand hand) => HandClipping(hand, out _, out _, out _);
+
+        internal string HandClipping(VRHand hand, out int buried, out int samples, out int touching)
         {
+            buried = samples = touching = -1;
             if (_volume == null || !_volume.Ready || hand.Model == null)
             {
                 return "not measured";
             }
-            hand.Model.Measure(InsideModel, _solid ?? _volume.Solid, out int buried, out int samples, out int touching);
+            hand.Model.Measure(InsideModel, _solid ?? _volume.Solid, out buried, out samples, out touching);
             return $"{buried}/{samples} points inside the gun, {touching}/4 fingers on it";
         }
 

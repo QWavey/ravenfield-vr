@@ -56,6 +56,15 @@ namespace RavenfieldVR.Weapons
         public ShapeFit.Piece[] HullPieces { get; private set; }
         private bool _wantHull;
 
+        /// <summary>Some of the weapon's meshes cannot be read: its own physics shape could only be built from boxes.</summary>
+        public bool Unreadable => _wantHull;
+
+        /// <summary>
+        /// A held weapon's volume also fits a physics shape (compared with the one from its meshes when they are
+        /// readable); a magazine's does not need one.
+        /// </summary>
+        public bool WantsHull;
+
         /// <summary>Inside the model itself, in the frame (self-test).</summary>
         public bool InsideModelLocal(Vector3 p) => _ready && Test(p, false);
 
@@ -153,7 +162,15 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             GunCollider.Envelope(rig.Data, frame, origin, out Vector3 envMin, out Vector3 envMax);
-            return Cached(rig.Data.Key, () => Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax));
+            return Cached(rig.Data.Key, () =>
+            {
+                GunVolume v = Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax);
+                if (v != null)
+                {
+                    v.WantsHull = true;
+                }
+                return v;
+            });
         }
 
         /// <summary>
@@ -435,7 +452,7 @@ namespace RavenfieldVR.Weapons
                         }
                         Front = Back = null;
                         Volume._ready = true;
-                        if (Volume._wantHull)
+                        if (Volume.WantsHull)
                         {
                             // Same slicing as a readable model gets from its vertices, from the rendered surface.
                             Volume.HullPieces = ShapeFit.FitCloud(Volume.SurfacePoints(2));

@@ -190,7 +190,11 @@ namespace RavenfieldVR.Core
             Shot("out", c - right * 0.3f + up * 0.05f);
             Shot("in", c + right * 0.3f + up * 0.05f);
             Shot("under", c - up * 0.28f - fwd * 0.08f);
-            report($"support hand ({off.Role}): {held.HandClipping(off)}");
+            string support = held.HandClipping(off, out int sBuried, out _, out int sTouching);
+            string what = held.Rig.Data.IsPistol ? "support hand on a pistol" : "support hand on a long gun";
+            Metric(what + ": points inside the gun", sBuried);
+            Metric(what + ": fingers on the gun (of 4)", sTouching);
+            report($"support hand ({off.Role}): {support}");
         }
 
         /// <summary>Close-ups of the off hand holding magazines, and how much of it is buried in them.</summary>
@@ -207,7 +211,10 @@ namespace RavenfieldVR.Core
             void Shot(string side, Vector3 from) => Shots.Capture($"{name}-{side}", from, Quaternion.LookRotation(c - from, up), 45f);
             Shot("hand-out", c - right * 0.28f * off.Mirror + up * 0.06f);
             Shot("hand-in", c + right * 0.28f * off.Mirror + up * 0.06f);
-            report($"{name}: magazine hand {MagazineProp.HandClipping(off)}");
+            string magHand = MagazineProp.HandClipping(off, out int mBuried, out _, out int mTouching);
+            Metric("magazine hand: points inside the magazines", mBuried);
+            Metric("magazine hand: fingers on the magazines (of 4)", mTouching);
+            report($"{name}: magazine hand {magHand}");
         }
 
         private static string _clipNow;
@@ -227,16 +234,31 @@ namespace RavenfieldVR.Core
             }
             Rig.HandModel.ClosingDisabled = true;
             yield return new WaitForSecondsRealtime(0.4f);
-            string before = held.HandClipping(Rig.VRRig.Instance.Dominant);
+            string before = held.HandClipping(Rig.VRRig.Instance.Dominant, out int oldBuried, out _, out int oldTouching);
+            Metric("gun hand (old posing): points inside the gun", oldBuried);
+            Metric("gun hand (old posing): fingers on the gun (of 4)", oldTouching);
             Rig.HandModel.ClosingDisabled = false;
             yield return new WaitForSecondsRealtime(0.3f);
             report($"gun hand: {_clipNow} (posed by the weapon's hand alone: {before})");
             GunCollider shape = held.Collider;
             if (shape != null && held.Volume != null && held.Volume.Ready)
             {
+                string now = shape.Match(held.Volume, out float excess, out float covered);
+                string kind = shape.ShapeBefore != null ? "rendered model" : "readable meshes";
+                if (shape.ShapeRejected != null)
+                {
+                    report($"physics shape: the rendered-model fit was not kept ({shape.ShapeRejected})");
+                }
+                Metric($"physics shape ({kind}): % outside the model", excess);
+                Metric($"physics shape ({kind}): % of the model covered", covered);
+                if (shape.ShapeBefore != null)
+                {
+                    Metric("physics shape (replaced): % outside the model", shape.ShapeBeforeExcess);
+                    Metric("physics shape (replaced): % of the model covered", shape.ShapeBeforeCovered);
+                }
                 report(shape.ShapeBefore != null
-                    ? $"physics shape from the rendered model: {shape.Match(held.Volume)} (from the meshes' boxes: {shape.ShapeBefore})"
-                    : $"physics shape from the meshes: {shape.Match(held.Volume)}");
+                    ? $"physics shape from the rendered model: {now} (before: {shape.ShapeBefore})"
+                    : $"physics shape from the meshes: {now}");
             }
         }
 
@@ -256,8 +278,13 @@ namespace RavenfieldVR.Core
             }
             if (Rig.VRRig.Instance != null && held.Volume != null && held.Volume.Ready)
             {
-                _clipNow = held.HandClipping(Rig.VRRig.Instance.Dominant);
+                _clipNow = held.HandClipping(Rig.VRRig.Instance.Dominant, out int buried, out _, out int touching);
                 _clipPending = held;
+                Metric("gun hand: points inside the gun", buried);
+                Metric("gun hand: fingers on the gun (of 4)", touching);
+                Metric(held.Rig.Data.IsPistol ? "gun hand: pistol thumb on the gun (0/1)" : "gun hand: rifle thumb on the grip (0/1)", Rig.VRRig.Instance.Dominant.Model.ThumbTouching ? 1 : 0);
+                Metric("hand solid: main-thread ms per weapon", held.Volume.RenderMs);
+                Metric("hand solid: total ms per weapon", held.Volume.BuildMs);
             }
             // The weapon's own arms where its author animated them, for comparison.
             Renderer[] arms = held.Rig.ArmRenderers;
@@ -397,6 +424,7 @@ namespace RavenfieldVR.Core
             }
             Vector3 d = go.transform.position - from;
             DriftFrom.Remove(go);
+            Metric("dropped weapon on the ground: cm moved", d.magnitude * 100f);
             return d.magnitude > 0.15f ? $"MOVED {d.magnitude * 100f:0} cm (up {d.y * 100f:0} cm)" : $"still ({d.magnitude * 100f:0.0} cm)";
         }
 
@@ -658,7 +686,7 @@ namespace RavenfieldVR.Core
                         {
                             lines.Add(MeleeCheck(held));
                         }
-                        if (want && !held.Rig.Data.IsPistol && action == ActionType.SelfLoading)
+                        if (want && action == ActionType.SelfLoading)
                         {
                             int shotIndex = index;
                             yield return held.Reload.TwoHandSelfCheck(lines.Add, name =>
@@ -754,6 +782,8 @@ namespace RavenfieldVR.Core
                             yield return TwoHandRecoil(held, weapon, (kick, back) =>
                             {
                                 recoilLine = $"recoil: one hand {oneKick:0.0} deg climb, {oneBack * 100f:0.0} cm back; two hands {kick:0.0} deg, {back * 100f:0.0} cm";
+                                Metric("recoil one hand: degrees of climb", oneKick);
+                                Metric("recoil two hands: degrees of climb", kick);
                                 if (oneKick < 0.2f)
                                 {
                                     recoilLine += " - NO RECOIL one-handed";
@@ -965,6 +995,27 @@ namespace RavenfieldVR.Core
             return null;
         }
 
+        /// <summary>
+        /// Every measurement the run takes, summed per name, for one block at the top of the report: how improve rounds
+        /// are compared from run to run.
+        /// </summary>
+        private static readonly SortedDictionary<string, double[]> Metrics = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
+
+        private static void Metric(string name, double value)
+        {
+            if (double.IsNaN(value) || value < 0)
+            {
+                return;
+            }
+            if (!Metrics.TryGetValue(name, out double[] m))
+            {
+                Metrics[name] = m = new double[] { 0, 0, double.MinValue };
+            }
+            m[0] += value;
+            m[1]++;
+            m[2] = Math.Max(m[2], value);
+        }
+
         private static void Write(bool final = true)
         {
             _written |= final;
@@ -976,6 +1027,15 @@ namespace RavenfieldVR.Core
                 sb.AppendLine("  ! " + p);
             }
             sb.AppendLine();
+            if (Metrics.Count > 0)
+            {
+                sb.AppendLine("Measurements (total / count / average / max)");
+                foreach (KeyValuePair<string, double[]> m in Metrics)
+                {
+                    sb.AppendLine($"  {m.Key,-44} {m.Value[0],9:0.##} {m.Value[1],5} {m.Value[0] / Math.Max(1, m.Value[1]),9:0.###} {m.Value[2],9:0.##}");
+                }
+                sb.AppendLine();
+            }
             sb.AppendLine("Performance");
             sb.AppendLine(PerfProbe.Report());
             sb.AppendLine("Results");

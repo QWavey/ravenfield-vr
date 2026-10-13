@@ -91,10 +91,11 @@ namespace RavenfieldVR.Weapons
 
             switch (VRConfig.Pouch.Value)
             {
-                case PouchLocation.DominantHip: Pouch = DomHip + TorsoForward * 0.04f; break;
-                case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.06f; break;
-                case PouchLocation.OffHandChest: Pouch = OffChest; break;
-                default: Pouch = OffHip + TorsoForward * 0.05f; break;
+                // Each a hand's width from the nearest holster spot, so the holstered weapon and the pouch never overlap.
+                case PouchLocation.DominantHip: Pouch = waist + TorsoRight * (0.09f * side) + TorsoForward * 0.13f; break;
+                case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
+                case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
+                default: Pouch = waist - TorsoRight * (0.09f * side) + TorsoForward * 0.13f; break; // front of the belt, off-hand side
             }
         }
 

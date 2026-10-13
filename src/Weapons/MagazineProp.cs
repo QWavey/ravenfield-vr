@@ -534,6 +534,10 @@ namespace RavenfieldVR.Weapons
                 }
                 _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform);
             }
+            if (_volume == null || !_volume.Ready)
+            {
+                return; // until it is measured the fingers keep their usual grip instead of closing on nothing
+            }
             int side = (int)hand.Side;
             System.Func<Vector3, bool> solid = HandSolids[side] ?? (HandSolids[side] = p => HeldSolid(hand, p));
             hand.Model.Solid = solid;
@@ -561,8 +565,11 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Self-test: how much of this hand is buried in the magazines it holds.</summary>
-        internal static string HandClipping(VRHand hand)
+        internal static string HandClipping(VRHand hand) => HandClipping(hand, out _, out _, out _);
+
+        internal static string HandClipping(VRHand hand, out int buried, out int samples, out int touching)
         {
+            buried = samples = touching = -1;
             if (hand.Model == null)
             {
                 return "not measured";
@@ -576,7 +583,7 @@ namespace RavenfieldVR.Weapons
             {
                 return "not measured (magazine shape not ready)";
             }
-            hand.Model.Measure(p => InsideHeld(hand, p), p => HeldSolid(hand, p), out int buried, out int samples, out int touching);
+            hand.Model.Measure(p => InsideHeld(hand, p), p => HeldSolid(hand, p), out buried, out samples, out touching);
             return $"{buried}/{samples} points inside the magazines, {touching}/4 fingers on them";
         }
 
