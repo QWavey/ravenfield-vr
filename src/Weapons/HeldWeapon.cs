@@ -628,6 +628,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private readonly bool _isKit;
 
+        /// <summary>Self-test: this weapon is carried like a bag (no glove on it).</summary>
+        internal bool IsKitForTest => _isKit;
+
         private static bool IsKit(Weapon weapon)
         {
             GameObject projectile = weapon.configuration != null ? weapon.configuration.projectilePrefab : null;

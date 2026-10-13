@@ -443,7 +443,10 @@ namespace RavenfieldVR.Input
 
         // ---- analog / skeleton --------------------------------------------------------------------
 
-        public static float GetTrigger(Hand h) => Trigger[(int)h];
+        public static float GetTrigger(Hand h) => Math.Max(Trigger[(int)h], SimulatedTrigger[(int)h]);
+
+        /// <summary>Autotest: how far a simulated hand's trigger finger is pulled (the finger pose only; it does not fire).</summary>
+        internal static readonly float[] SimulatedTrigger = new float[2];
         public static float GetGrip(Hand h) => Grip[(int)h];
         public static bool HasSkeleton(Hand h) => SkeletonValid[(int)h];
 

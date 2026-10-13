@@ -27,6 +27,9 @@ namespace RavenfieldVR.Rig
         private readonly Quaternion _thumbRest;
         private Quaternion _thumbBase;
         private bool _visible = true;
+
+        /// <summary>Self-test: the glove is drawn.</summary>
+        internal bool Visible => _visible;
         private Vector3 _graspOffset;
         private readonly float[,] _joint = new float[5, 3];
         private readonly float[] _solved = new float[3];
@@ -166,6 +169,8 @@ namespace RavenfieldVR.Rig
 
         /// <summary>Self-test: the glove posed the way it was before hands closed on the model (by their pose alone).</summary>
         internal static bool ClosingDisabled;
+        /// <summary>Self-test: the pulled trigger finger the earlier way (all joints to the trigger curl, through what they touch).</summary>
+        internal static bool LegacyTriggerFinger;
 
         /// <summary>
         /// Self-test: points along the middle of every finger bone and through the middle of the palm that lie inside the
@@ -385,7 +390,14 @@ namespace RavenfieldVR.Rig
                         // The trigger finger rests where it touches the frame; pulling, its knuckle stays on the frame and
                         // the two outer joints curl onto the trigger until they touch it.
                         float pull = VRInput.GetTrigger(_hand.Side);
-                        if (pull > 0.02f)
+                        if (pull > 0.02f && LegacyTriggerFinger)
+                        {
+                            for (int s = 0; s < 3; s++)
+                            {
+                                _solved[s] = Mathf.Lerp(_solved[s], Mathf.Max(_solved[s], _curl[f]), pull);
+                            }
+                        }
+                        else if (pull > 0.02f)
                         {
                             float r0 = _solved[0], r1 = _solved[1], r2 = _solved[2];
                             SolveFinger(1, 1f, r0);

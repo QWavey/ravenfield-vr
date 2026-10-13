@@ -303,6 +303,20 @@ namespace RavenfieldVR.Core
             Rig.HandModel.ClosingDisabled = false;
             yield return new WaitForSecondsRealtime(0.3f);
             report($"gun hand: {_clipNow} (posed by the weapon's hand alone: {before})");
+            // The trigger finger pulled all the way: it must curl onto the trigger, not into the frame.
+            Rig.VRHand gunHand = Rig.VRRig.Instance.Dominant;
+            Input.VRInput.SimulatedTrigger[(int)gunHand.Side] = 1f;
+            yield return new WaitForSecondsRealtime(0.35f);
+            string pulled = held.HandClipping(gunHand, out int pulledBuried, out _, out _);
+            Rig.HandModel.LegacyTriggerFinger = true;
+            yield return new WaitForSecondsRealtime(0.35f);
+            held.HandClipping(gunHand, out int legacyBuried, out _, out _);
+            Rig.HandModel.LegacyTriggerFinger = false;
+            Input.VRInput.SimulatedTrigger[(int)gunHand.Side] = 0f;
+            Metric("gun hand, trigger pulled: points inside the gun", pulledBuried);
+            Metric("gun hand, trigger pulled (earlier finger): points inside the gun", legacyBuried);
+            report($"trigger pulled: {pulled} (the earlier trigger finger: {legacyBuried} points inside)");
+            yield return new WaitForSecondsRealtime(0.2f);
             GunCollider shape = held.Collider;
             if (shape != null && held.Volume != null && held.Volume.Ready)
             {
@@ -540,15 +554,50 @@ namespace RavenfieldVR.Core
                 }
             }
             yield return new WaitForSecondsRealtime(5f);
-            for (int i = 0; i < drops.Count; i++)
+            for (int i = 0; i < lines.Count && i < drops.Count; i++)
             {
-                if (i < lines.Count)
+                lines[i] = lines[i].Replace("{to}", Fmt(drops[i].Go));
+            }
+            // A soldier walking through a lying weapon: a body-sized kinematic capsule on the soldiers' movement layer
+            // sweeps through the first one; the weapon must stay where it lies.
+            DroppedWeapon target = drops.Count > 0 && drops[0].Go != null ? drops[0] : null;
+            if (target != null)
+            {
+                Vector3 at = target.Go.transform.position;
+                Vector3 across = Vector3.Cross(Vector3.up, fwd).normalized;
+                var walker = new GameObject("RavenfieldVR Test Walker") { layer = 17 };
+                var capsule = walker.AddComponent<CapsuleCollider>();
+                capsule.radius = 0.3f;
+                capsule.height = 1.8f;
+                capsule.center = Vector3.up * 0.9f;
+                var walkerBody = walker.AddComponent<Rigidbody>();
+                walkerBody.isKinematic = true;
+                walkerBody.interpolation = RigidbodyInterpolation.Interpolate;
+                Vector3 from = at - across * 1.4f - Vector3.up * 0.3f;
+                walkerBody.position = from;
+                walker.transform.position = from;
+                Vector3 before = at;
+                const float WalkTime = 1.2f;
+                for (float t = 0f; t < WalkTime; t += Time.fixedDeltaTime)
                 {
-                    report(lines[i].Replace("{to}", Fmt(drops[i].Go)));
+                    yield return new WaitForFixedUpdate();
+                    walkerBody.MovePosition(from + across * (2.8f * Mathf.Clamp01(t / WalkTime)));
                 }
-                if (drops[i].Go != null)
+                yield return new WaitForSecondsRealtime(0.5f);
+                float moved = target.Go != null ? Vector3.Distance(target.Go.transform.position, before) : -1f;
+                UnityEngine.Object.Destroy(walker);
+                Metric("dropped weapon: cm moved by a body walking through it", moved * 100f);
+                lines.Add($"a soldier walking through a lying {target.Entry.name}: {(moved < 0f ? "gone" : moved > 0.15f ? $"PUSHED {moved * 100f:0} cm" : $"stayed ({moved * 100f:0.0} cm)")}");
+            }
+            foreach (string l in lines)
+            {
+                report(l);
+            }
+            foreach (DroppedWeapon d in drops)
+            {
+                if (d.Go != null)
                 {
-                    UnityEngine.Object.Destroy(drops[i].Go);
+                    UnityEngine.Object.Destroy(d.Go);
                 }
             }
         }
@@ -795,6 +844,12 @@ namespace RavenfieldVR.Core
                                 yield return new WaitForSecondsRealtime(1f);
                             }
                         }
+                    }
+                    if (held != null && held.IsKitForTest && Rig.VRRig.Instance != null && VRManager.Active)
+                    {
+                        bool shown = Rig.VRRig.Instance.Dominant.Model.Visible;
+                        lines.Add(shown ? "bag: glove NOT HIDDEN on it" : "bag: carried without a glove");
+                        Metric("bags carried with the glove hidden (0/1)", shown ? 0 : 1);
                     }
                     if (held.Rig.Data.Action == ActionType.Throwable && weapon is ThrowableWeapon)
                     {
