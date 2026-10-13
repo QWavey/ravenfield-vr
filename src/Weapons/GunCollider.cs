@@ -187,6 +187,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: a rendered-model shape that was measured and not kept (it matched the model worse).</summary>
         public string ShapeRejected { get; internal set; }
 
+        /// <summary>This stand-in is the one of <paramref name="rig"/>'s weapon.</summary>
+        internal bool Holds(WeaponRig rig) => _rig == rig;
+
         /// <summary>The pieces the stand-in is made of now.</summary>
         public ShapeFit.Piece[] Pieces => _pieces;
         private ShapeFit.Piece[] _pieces;

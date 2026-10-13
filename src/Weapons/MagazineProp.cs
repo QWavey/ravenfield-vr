@@ -507,8 +507,26 @@ namespace RavenfieldVR.Weapons
 
         private GunVolume _volume;
         private bool _volumeTried;
-        private int _posedFrame = -1;
         private static readonly System.Func<Vector3, bool>[] HandSolids = new System.Func<Vector3, bool>[2];
+        private static readonly VRHand[] HandSolidOwners = new VRHand[2];
+
+        private void EnsureVolume()
+        {
+            if (_volume != null && !_volume.Failed || _volumeTried && _volume == null || Go == null)
+            {
+                return;
+            }
+            _volumeTried = true;
+            var renderers = new List<Renderer>();
+            foreach (Renderer r in Go.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                {
+                    renderers.Add(r);
+                }
+            }
+            _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform);
+        }
 
         /// <summary>
         /// The fingers of the hand holding magazines close on them: the solid of every magazine that hand holds (the one
@@ -521,42 +539,66 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (_volume == null && !_volumeTried)
+            foreach (MagazineProp m in Alive)
             {
-                _volumeTried = true;
-                var renderers = new List<Renderer>();
-                foreach (Renderer r in Go.GetComponentsInChildren<Renderer>(false))
+                if (m.HeldBy == hand && m.Kind == PropKind.Magazine)
                 {
-                    if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
-                    {
-                        renderers.Add(r);
-                    }
+                    m.EnsureVolume(); // the palmed second magazine too: the fingers must not go through it either
                 }
-                _volume = GunVolume.Measure("prop:" + WeaponKey + ":" + Kind, renderers, Go.transform);
             }
             if (_volume == null || !_volume.Ready)
             {
                 return; // until it is measured the fingers keep their usual grip instead of closing on nothing
             }
             int side = (int)hand.Side;
-            System.Func<Vector3, bool> solid = HandSolids[side] ?? (HandSolids[side] = p => HeldSolid(hand, p));
-            hand.Model.Solid = solid;
+            if (HandSolids[side] == null || !ReferenceEquals(HandSolidOwners[side], hand))
+            {
+                // A new rig (VR restarted) has new hands: the closure must test this one.
+                HandSolidOwners[side] = hand;
+                HandSolids[side] = p => HeldSolid(hand, p);
+            }
+            hand.Model.Solid = HandSolids[side];
+        }
+
+        /// <summary>One held magazine's shape at its pose this frame (magazines of one type share a volume).</summary>
+        private struct HeldShape
+        {
+            public GunVolume Volume;
+            public Vector3 Position;
+            public Quaternion Inverse;
+        }
+
+        /// <summary>Per hand: the measured magazines it holds this frame, gathered once per frame (not per tested point).</summary>
+        private static readonly List<HeldShape>[] HeldShapes = { new List<HeldShape>(2), new List<HeldShape>(2) };
+        private static readonly int[] HeldShapesFrame = { -1, -1 };
+
+        private static List<HeldShape> HeldShapesOf(VRHand hand)
+        {
+            int side = (int)hand.Side;
+            List<HeldShape> list = HeldShapes[side];
+            if (HeldShapesFrame[side] == Time.frameCount)
+            {
+                return list;
+            }
+            HeldShapesFrame[side] = Time.frameCount;
+            list.Clear();
+            foreach (MagazineProp m in Alive)
+            {
+                if (m.HeldBy == hand && m._volume != null && m._volume.Ready && m.Go != null)
+                {
+                    Transform t = m.Go.transform;
+                    list.Add(new HeldShape { Volume = m._volume, Position = t.position, Inverse = Quaternion.Inverse(t.rotation) });
+                }
+            }
+            return list;
         }
 
         private static bool HeldSolid(VRHand hand, Vector3 p)
         {
-            foreach (MagazineProp m in Alive)
+            List<HeldShape> held = HeldShapesOf(hand);
+            for (int i = 0; i < held.Count; i++)
             {
-                if (m.HeldBy != hand || m._volume == null || !m._volume.Ready || m.Go == null)
-                {
-                    continue;
-                }
-                if (m._posedFrame != Time.frameCount)
-                {
-                    m._posedFrame = Time.frameCount;
-                    m._volume.SetPose(m.Go.transform.position, m.Go.transform.rotation);
-                }
-                if (m._volume.Solid(p))
+                if (held[i].Volume.SolidAt(p, held[i].Position, held[i].Inverse))
                 {
                     return true;
                 }
@@ -589,15 +631,12 @@ namespace RavenfieldVR.Weapons
 
         private static bool InsideHeld(VRHand hand, Vector3 p)
         {
-            foreach (MagazineProp m in Alive)
+            List<HeldShape> held = HeldShapesOf(hand);
+            for (int i = 0; i < held.Count; i++)
             {
-                if (m.HeldBy == hand && m._volume != null && m._volume.Ready && m.Go != null)
+                if (held[i].Volume.InsideModelAt(p, held[i].Position, held[i].Inverse))
                 {
-                    m._volume.SetPose(m.Go.transform.position, m.Go.transform.rotation);
-                    if (m._volume.InsideModel(p))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
             return false;

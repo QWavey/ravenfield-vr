@@ -124,6 +124,10 @@ namespace RavenfieldVR.Weapons
             }
             // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
             // moment before the hand reaches the bolt or magazine still takes it (nothing else has claimed the press).
+            if (off.GrabPressed)
+            {
+                _pressPalm = off.Palm.position; // where this squeeze began (the pouch only takes squeezes made at it)
+            }
             if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable)
             {
                 TryGrab(off);
@@ -156,6 +160,9 @@ namespace RavenfieldVR.Weapons
         }
 
         // ---- grabbing ------------------------------------------------------------------------------
+
+        private Vector3 _pressPalm = Vector3.one * 1e4f;
+        private float _seatedAt = -10f;
 
         private void TryGrab(VRHand off)
         {
@@ -215,9 +222,12 @@ namespace RavenfieldVR.Weapons
                     Consider(8, d / 0.06f * 0.9f, ref choice, ref best);
                 }
             }
-            if (Manual && _sys.Zones.InPouch(palm))
+            // The pouch only answers a squeeze made at it: a squeeze that found nothing elsewhere must not pull a magazine
+            // out when the hand passes the hip a moment later. Parts of the gun win when about as close.
+            if (Manual && _sys.Zones.InPouch(palm)
+                && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f))
             {
-                Consider(3, Vector3.Distance(palm, _sys.Zones.Pouch) / BodyZones.PouchRadius, ref choice, ref best);
+                Consider(3, Vector3.Distance(palm, _sys.Zones.Pouch) / BodyZones.PouchRadius + 0.15f, ref choice, ref best);
             }
             if (GripData.HasSupportPoint || GripData.IsPistol)
             {
@@ -881,7 +891,8 @@ namespace RavenfieldVR.Weapons
             float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
             // The speed that counts is the new magazine's speed relative to the gun: driving it up into the old one
             // and bringing the gun down onto it are the same strike.
-            float speed = Vector3.Dot(off.Velocity - _sys.Rig.Dominant.Velocity, insert);
+            // Averaged over the last moment (raw controller speed is noisy around these thresholds).
+            float speed = Vector3.Dot(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), insert);
             bool near = along > -0.12f && along < 0.1f && lateral < 0.1f;
             if (near && Time.unscaledTime - _kickLogAt > 0.3f)
             {
@@ -900,8 +911,21 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
+            if (Time.unscaledTime - _seatedAt < 0.4f)
+            {
+                return false; // the push that just seated a magazine must not knock it straight back out with the next one
+            }
             bool inWindow = along >= -0.04f && along <= 0.08f;
-            if (!(inWindow && speed >= 0.3f || crossed && speed >= 0.15f))
+            if (inWindow && !_kickTicked)
+            {
+                _kickTicked = true;
+                off.Haptic(0.01f, 60f, 0.25f); // you are on the old magazine's base
+            }
+            else if (!inWindow)
+            {
+                _kickTicked = false;
+            }
+            if (!(inWindow && speed >= 0.25f || crossed && speed >= 0.12f))
             {
                 return false;
             }
@@ -912,8 +936,11 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        private bool _kickTicked;
+
         private void SeatProp(VRHand off, MagazineProp prop)
         {
+            _seatedAt = Time.unscaledTime;
             Vector3 at = SeatPose.position;
             switch (prop.Kind)
             {
@@ -942,6 +969,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Let go at the pouch, gently: stowed. Flicked away from the hip it flies.</summary>
+        private bool Stows(VRHand off) => _sys.Zones.InPouch(off.Palm.position) && off.ThrowVelocity().magnitude < 1.2f;
+
         private void ReleaseProp(VRHand off, MagazineProp prop)
         {
             if (_palmed != null)
@@ -949,7 +979,7 @@ namespace RavenfieldVR.Weapons
                 // Letting go drops (or stows) everything the hand holds.
                 MagazineProp palmed = _palmed;
                 _palmed = null;
-                if (_sys.Zones.InPouch(off.Palm.position))
+                if (Stows(off))
                 {
                     AmmoState back = palmed.WeaponKey == Data.Key ? Ammo : palmed.Owner;
                     back?.ReturnSpare(palmed.Rounds);
@@ -961,7 +991,7 @@ namespace RavenfieldVR.Weapons
                     palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
                 }
             }
-            if (_sys.Zones.InPouch(off.Palm.position))
+            if (Stows(off))
             {
                 // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
                 AmmoState into = prop.WeaponKey == Data.Key ? Ammo : prop.Owner;

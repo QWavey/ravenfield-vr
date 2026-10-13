@@ -126,6 +126,14 @@ namespace RavenfieldVR.Weapons
         /// <summary>Inside the model itself, not grown (self-test: how deep a hand sinks into the gun).</summary>
         public bool InsideModel(Vector3 world) => _ready && Test(_inv * (world - _pos), false);
 
+        /// <summary>Like <see cref="Solid"/> for one of several objects sharing this volume, at its own pose.</summary>
+        public bool SolidAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(inverseRotation * (world - position), true);
+
+        public bool InsideModelAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(inverseRotation * (world - position), false);
+
+        /// <summary>Reading back or measuring failed: the volume never becomes ready (the next request measures again).</summary>
+        public bool Failed { get; private set; }
+
         private bool Test(Vector3 p, bool grown)
         {
             if (!_ready || !_box.Contains(p))
@@ -191,8 +199,12 @@ namespace RavenfieldVR.Weapons
             if (Cache.TryGetValue(key, out GunVolume cached))
             {
                 CacheOrder.Remove(key);
-                CacheOrder.Add(key);
-                return cached;
+                if (!cached.Failed)
+                {
+                    CacheOrder.Add(key);
+                    return cached;
+                }
+                Cache.Remove(key); // its read-back or measuring failed: measured again
             }
             GunVolume v = null;
             try
@@ -231,16 +243,36 @@ namespace RavenfieldVR.Weapons
             return _depthShader;
         }
 
+        private static int _layer = -1;
+        private static int _layerScene = -1;
+
+        /// <summary>
+        /// A layer nothing in the scene draws on (unnamed and holding no renderer), so the shape camera sees only the
+        /// renderers moved onto it. Checked once per scene.
+        /// </summary>
         private static int FreeLayer()
         {
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            if (_layer >= 0 && _layerScene == scene)
+            {
+                return _layer;
+            }
+            _layerScene = scene;
+            var used = new bool[32];
+            foreach (Renderer r in UnityEngine.Object.FindObjectsOfType<Renderer>())
+            {
+                used[r.gameObject.layer] = true;
+            }
+            _layer = 31;
             for (int l = 31; l >= 20; l--)
             {
-                if (string.IsNullOrEmpty(LayerMask.LayerToName(l)))
+                if (!used[l] && string.IsNullOrEmpty(LayerMask.LayerToName(l)))
                 {
-                    return l;
+                    _layer = l;
+                    break;
                 }
             }
-            return 31;
+            return _layer;
         }
 
         private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax)
@@ -437,6 +469,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (Failed)
                 {
+                    Volume.Failed = true;
                     Log.WarnOnce("gunvolume-read:" + Volume.Key, $"Reading back the shape of {Volume.Key} failed: hands close on it by their pose alone.");
                     return;
                 }
@@ -451,16 +484,17 @@ namespace RavenfieldVR.Weapons
                             GrowView(Views[d], near, far);
                         }
                         Front = Back = null;
-                        Volume._ready = true;
                         if (Volume.WantsHull)
                         {
                             // Same slicing as a readable model gets from its vertices, from the rendered surface.
                             Volume.HullPieces = ShapeFit.FitCloud(Volume.SurfacePoints(2));
                         }
                         Volume.BuildMs = (float)_since.Elapsed.TotalMilliseconds;
+                        Volume._ready = true; // last: everything above is published with it
                     }
                     catch (Exception e)
                     {
+                        Volume.Failed = true;
                         Log.WarnOnce("gunvolume-grow:" + Volume.Key, $"Measuring {Volume.Key} for the hands failed: {e.Message}");
                     }
                 });

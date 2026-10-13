@@ -307,7 +307,10 @@ namespace RavenfieldVR.Core
             }
         }
 
-        public static bool LeftHanded => DominantHand.Value == Handedness.Left;
+        public static bool LeftHanded => TestLeftHanded ?? DominantHand.Value == Handedness.Left;
+
+        /// <summary>Autotest: handedness for a moment without touching the saved setting.</summary>
+        internal static bool? TestLeftHanded;
 
         private static readonly Dictionary<ConfigEntry<string>, KeyValuePair<string, Vector3>> ParsedVectors =
             new Dictionary<ConfigEntry<string>, KeyValuePair<string, Vector3>>();

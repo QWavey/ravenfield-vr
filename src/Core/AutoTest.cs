@@ -217,6 +217,63 @@ namespace RavenfieldVR.Core
             report($"{name}: magazine hand {magHand}");
         }
 
+        /// <summary>
+        /// The same weapon held left-handed (the setting overridden in memory only): holstered, handedness switched,
+        /// drawn into the left hand, pictured and measured, then back.
+        /// </summary>
+        private static IEnumerator LeftHandCheck(Weapon weapon, string name, Action<string> report)
+        {
+            Actor actor = LocalPlayer.actor;
+            int slot = actor != null && actor.weapons != null ? Array.IndexOf(actor.weapons, weapon) : -1;
+            if (slot < 0 || VRConfig.LeftHanded)
+            {
+                yield break;
+            }
+            try
+            {
+                actor.HolsterActiveWeapon();
+                yield return new WaitForSecondsRealtime(0.4f);
+                VRConfig.TestLeftHanded = true;
+                actor.SwitchWeapon(slot);
+                float until = Time.realtimeSinceStartup + 4f;
+                HeldWeapon held = null;
+                while (Time.realtimeSinceStartup < until)
+                {
+                    held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                    if (held != null && held.Weapon == weapon && held.Volume != null && held.Volume.Ready)
+                    {
+                        break;
+                    }
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.5f);
+                if (held == null || held.Weapon != weapon || Rig.VRRig.Instance == null)
+                {
+                    report("left-handed: the weapon did NOT COME INTO THE LEFT HAND");
+                    yield break;
+                }
+                Rig.VRHand gunHand = Rig.VRRig.Instance.Dominant;
+                yield return new WaitForEndOfFrame();
+                Shots.Capture(name);
+                GripCloseups(held, name, _ => { });
+                string clip = held.HandClipping(gunHand, out int buried, out _, out int touching);
+                Metric("left-handed gun hand: points inside the gun", buried);
+                Metric("left-handed gun hand: fingers on the gun (of 4)", touching);
+                report($"left-handed: held in the {gunHand.Side} hand, {clip}");
+                _clipPending = null;
+            }
+            finally
+            {
+                if (VRConfig.TestLeftHanded.HasValue)
+                {
+                    actor.HolsterActiveWeapon();
+                    VRConfig.TestLeftHanded = null;
+                    actor.SwitchWeapon(slot);
+                }
+            }
+            yield return new WaitForSecondsRealtime(1.5f); // drawn again into the right hand
+        }
+
         private static string _clipNow;
         private static HeldWeapon _clipPending;
 
@@ -579,7 +636,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = Mathf.Max(1, entries.Count / 28);
-            int recoilRifles = 0, recoilPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -685,6 +742,17 @@ namespace RavenfieldVR.Core
                         if (action == ActionType.Melee)
                         {
                             lines.Add(MeleeCheck(held));
+                        }
+                        if (want && action == ActionType.SelfLoading && (held.Rig.Data.IsPistol ? leftPistols++ < 1 : leftRifles++ < 1))
+                        {
+                            int leftIndex = index;
+                            yield return LeftHandCheck(held.Weapon, $"lefthanded-{leftIndex:000}-{entry.name}", lines.Add);
+                            held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                            if (held == null || held.Weapon != weapon)
+                            {
+                                lines.Add("left-handed check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                continue;
+                            }
                         }
                         if (want && action == ActionType.SelfLoading)
                         {

@@ -295,14 +295,15 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                strength *= Rig.Data.IsPistol ? 1f : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value);
+                strength *= Rig.Data.IsPistol ? _oneHandRecoil : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
-            float kick = Mathf.Clamp(c.kickback, 0f, 10f);
+            // Every shot kicks a little, even from weapons whose flat-screen kick is tiny.
+            float kick = Mathf.Max(0.5f, Mathf.Clamp(c.kickback, 0f, 10f));
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
-            // Critically damped spring peak = v0 / (omega * e), omega ~ 16: ~0.44 m/s per kick unit gives ~1 cm back,
-            // ~80 deg/s per kick unit gives ~1.8 degrees of muzzle climb per shot.
-            _recoilPosVel += new Vector3(0f, 0.06f * kick, -0.44f * kick) * strength;
-            _recoilRotVel += new Vector2(-(80f * kick + Random.Range(0f, 30f * random)), Random.Range(-20f, 20f) * random) * strength;
+            // Critically damped spring peak = v0 / (omega * e), omega ~ 16: ~0.6 m/s per kick unit gives ~1.4 cm back,
+            // ~150 deg/s per kick unit gives ~3.4 degrees of muzzle climb per shot (before the hand factors).
+            _recoilPosVel += new Vector3(0f, 0.08f * kick, -0.6f * kick) * strength;
+            _recoilRotVel += new Vector2(-(150f * kick + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
@@ -472,7 +473,11 @@ namespace RavenfieldVR.Weapons
                 _heldSince = Time.unscaledTime;
             }
             Quaternion frame = OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up);
-            if (_volume == null && !_volumeTried && Time.unscaledTime - _heldSince > 0.25f && Rig.Data.Action != ActionType.NoAmmo)
+            // Measured with the weapon at rest (drawn, not reloading, slide home, hinge shut): whatever is displaced then
+            // stays in its shape for the session. A gun that never comes to rest (empty, slide locked) is measured anyway.
+            float held = Time.unscaledTime - _heldSince;
+            bool atRest = Weapon.unholstered && !Weapon.reloading && SlideOffset < 0.002f && HingeOpenness < 0.01f;
+            if (_volume == null && !_volumeTried && held > 0.25f && (atRest || held > 5f) && Rig.Data.Action != ActionType.NoAmmo)
             {
                 _volumeTried = true;
                 _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
@@ -663,7 +668,7 @@ namespace RavenfieldVR.Weapons
                 // an inspect) must not pull the glove off the tracked hand.
                 main.Model.SnapPose = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose grip)
                                       && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f
-                    ? grip
+                    ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand
                     : (RigidPose?)null;
             }
             if (off.Model == null)
@@ -673,6 +678,10 @@ namespace RavenfieldVR.Weapons
             if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
                 && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {
+                if (off.Side == Hand.Right)
+                {
+                    support = MirrorAcrossGun(support); // the rig's support hand is a left hand
+                }
                 if (!Rig.Data.IsPistol)
                 {
                     // Along the handguard to where the hand actually is, within the stretch between grip and muzzle.
@@ -727,6 +736,20 @@ namespace RavenfieldVR.Weapons
             sb.Append(_gripHand != null ? "; weapon's hand: " + _gripHand.Describe(F) : "; no weapon hand");
             sb.Append(_volume == null ? "; no solid" : $"; solid {(_volume.Ready ? "ready" : "measuring")}, {_volume.Texels} texels, {_volume.RenderMs:0} ms on the main thread, {_volume.BuildMs:0} ms in all");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// A hand pose reflected across the gun's vertical middle plane (through the bore): the weapon's right-hand pose
+        /// for a left glove and the other way round.
+        /// </summary>
+        private RigidPose MirrorAcrossGun(RigidPose p)
+        {
+            Vector3 right = Rig.DirToWorld(OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up) * Vector3.right);
+            Vector3 centre = Rig.ToWorld(Rig.Data.MuzzlePoint);
+            Vector3 position = p.position - 2f * Vector3.Dot(p.position - centre, right) * right;
+            Vector3 forward = Vector3.Reflect(p.rotation * Vector3.forward, right);
+            Vector3 up = Vector3.Reflect(p.rotation * Vector3.up, right);
+            return new RigidPose(position, OpenVRMath.SafeLookRotation(forward, up));
         }
 
         private GameObject[] _debug;
@@ -893,6 +916,18 @@ namespace RavenfieldVR.Weapons
         /// <summary>Undo every visual change before the weapon is holstered, dropped or VR stops.</summary>
         public void Release()
         {
+            // The hands first: whatever fails below, no glove may stay closed on a weapon that is gone.
+            if (_system.Rig.Dominant.Model != null)
+            {
+                _system.Rig.Dominant.Model.Solid = null;
+                _system.Rig.Dominant.Model.SnapPose = null;
+                _system.Rig.Dominant.Model.HiddenByHeld = false;
+            }
+            if (_system.Rig.Off.Model != null)
+            {
+                _system.Rig.Off.Model.Solid = null;
+                _system.Rig.Off.Model.SnapPose = null;
+            }
             try
             {
                 Reload.Release();

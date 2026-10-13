@@ -35,7 +35,12 @@ namespace RavenfieldVR.Core
         /// <summary>Logs a message only the first time a given key is seen (per session).</summary>
         public static void WarnOnce(string key, string message)
         {
-            if (Once.Add(key))
+            bool first;
+            lock (Once)
+            {
+                first = Once.Add(key); // also called from worker threads (shape measuring)
+            }
+            if (first)
             {
                 Warn(message);
             }
@@ -43,7 +48,12 @@ namespace RavenfieldVR.Core
 
         public static void InfoOnce(string key, string message)
         {
-            if (Once.Add(key))
+            bool first;
+            lock (Once)
+            {
+                first = Once.Add(key);
+            }
+            if (first)
             {
                 Info(message);
             }

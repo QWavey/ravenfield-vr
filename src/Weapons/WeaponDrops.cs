@@ -29,6 +29,9 @@ namespace RavenfieldVR.Weapons
         public float ReturnAt;
         /// <summary>Meshes baked for this copy (skinned parts), destroyed with it.</summary>
         public List<Mesh> OwnedMeshes;
+        /// <summary>Body colliders (ragdolls, soldiers' hitboxes) this weapon no longer collides with.</summary>
+        public readonly HashSet<Collider> IgnoredBodies = new HashSet<Collider>();
+        public float NextBodyCheck;
     }
 
     /// <summary>
@@ -138,6 +141,7 @@ namespace RavenfieldVR.Weapons
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
+            SetUpBody(body, boxes);
             PropPhysics.IgnorePlayer(boxes);
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
@@ -318,6 +322,7 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             Cull();
+            IgnoreBodies();
             Actor actor = GameContext.PlayerActor;
             if (actor == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || _drops.Count == 0)
             {
@@ -352,6 +357,74 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
+        }
+
+        // Hitboxes (8), ragdolls (10), seated hitboxes (16) and the soldiers' movement colliders (17).
+        private const int BodyMask = (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17);
+        private static readonly Collider[] BodyScratch = new Collider[64];
+
+        /// <summary>
+        /// A weapon on the ground does not collide with bodies: one spawned in a dying soldier's hand was shoved out of
+        /// the ragdoll (or carried along by it) and soldiers walking past kicked lying weapons away, so they drifted off.
+        /// Bodies near a drop are found every frame for its first half second, then four times a second.
+        /// </summary>
+        private void IgnoreBodies()
+        {
+            float now = Time.time;
+            foreach (DroppedWeapon d in _drops)
+            {
+                if (d.Go == null || d.Colliders == null || now < d.NextBodyCheck)
+                {
+                    continue;
+                }
+                d.NextBodyCheck = now - d.DropTime < 0.5f ? now : now + 0.25f;
+                int n = Physics.OverlapSphereNonAlloc(d.Go.transform.position, 1.5f, BodyScratch, BodyMask, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++)
+                {
+                    Collider body = BodyScratch[i];
+                    if (body == null || !d.IgnoredBodies.Add(body))
+                    {
+                        continue;
+                    }
+                    foreach (Collider c in d.Colliders)
+                    {
+                        if (c != null && c.enabled)
+                        {
+                            Physics.IgnoreCollision(c, body, true);
+                        }
+                    }
+                }
+                if (d.IgnoredBodies.Count > 512)
+                {
+                    d.IgnoredBodies.RemoveWhere(c => c == null);
+                }
+            }
+        }
+
+        private static PhysicMaterial _dropMaterial;
+
+        /// <summary>Weapons lie where they fall: grippy, barely bouncing.</summary>
+        private static void SetUpBody(Rigidbody body, List<Collider> colliders)
+        {
+            if (_dropMaterial == null)
+            {
+                _dropMaterial = new PhysicMaterial("RavenfieldVR Dropped Weapon")
+                {
+                    staticFriction = 0.9f,
+                    dynamicFriction = 0.7f,
+                    bounciness = 0.05f,
+                    frictionCombine = PhysicMaterialCombine.Maximum,
+                    bounceCombine = PhysicMaterialCombine.Minimum
+                };
+            }
+            foreach (Collider c in colliders)
+            {
+                if (c != null)
+                {
+                    c.sharedMaterial = _dropMaterial;
+                }
+            }
+            body.angularDrag = 0.5f;
         }
 
         private DroppedWeapon Nearest(Vector3 palm)
@@ -505,14 +578,44 @@ namespace RavenfieldVR.Weapons
             {
                 t.gameObject.layer = layer >= 0 ? layer : 0;
             }
-            // The held gun's own physics shape, which is fitted in exactly this frame.
-            List<Collider> colliders = ShapeFit.AddColliders(root, GunCollider.Fit(rig, frame, d.GripPoint));
+            // The held gun's own physics shape, fitted in exactly this frame (the stand-in's current one: when the
+            // rendered-model fit replaced the meshes' it is the better one), and the magazine when it shows in the gun.
+            GunCollider held_ = GunCollider.Current;
+            ShapeFit.Piece[] pieces = held_ != null && held_.Holds(rig) && held_.Pieces != null ? held_.Pieces : GunCollider.Fit(rig, frame, d.GripPoint);
+            if (magIn && rig.MagazineParts.Length > 0)
+            {
+                var magRenderers = new List<Renderer>();
+                foreach (Transform part in rig.MagazineParts)
+                {
+                    if (part != null)
+                    {
+                        foreach (Renderer r in part.GetComponentsInChildren<Renderer>(false))
+                        {
+                            if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                            {
+                                magRenderers.Add(r);
+                            }
+                        }
+                    }
+                }
+                Matrix4x4 frameFromWorld = Matrix4x4.TRS(rig.ToWorld(d.GripPoint), rig.GunBody.rotation * frame, Vector3.one).inverse;
+                ShapeFit.Piece[] mag = ShapeFit.Fit("heldmag:" + d.Key, magRenderers, frameFromWorld, 0.015f, 8);
+                if (mag.Length > 0)
+                {
+                    var all = new ShapeFit.Piece[pieces.Length + mag.Length];
+                    pieces.CopyTo(all, 0);
+                    mag.CopyTo(all, pieces.Length);
+                    pieces = all;
+                }
+            }
+            List<Collider> colliders = ShapeFit.AddColliders(root, pieces);
             var body = root.AddComponent<Rigidbody>();
             body.mass = 3f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
+            SetUpBody(body, colliders);
             PropPhysics.IgnorePlayer(colliders);
             var drop = new DroppedWeapon
             {

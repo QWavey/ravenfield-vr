@@ -350,9 +350,20 @@ namespace RavenfieldVR.Rig
             }
             else
             {
-                _palmPush = 0f;
-                _slide = _slideGoal = 0f;
+                // Let go: the palm and the slide along the grip ease back to the tracked hand instead of popping.
+                float back = 1f - Mathf.Exp(-20f * dt);
+                _palmPush = Mathf.Lerp(_palmPush, 0f, back);
+                _slide = Mathf.Lerp(_slide, 0f, back);
+                _slideGoal = 0f;
                 _nextSlideSearch = 0f;
+                if (Mathf.Abs(_palmPush) > 1e-4f)
+                {
+                    _root.position += PalmNormal * _palmPush;
+                }
+                if (Mathf.Abs(_slide) > 1e-4f)
+                {
+                    _root.position += _root.rotation * Vector3.down * _slide;
+                }
             }
 
             float[] goal = TargetCurls();
@@ -370,17 +381,22 @@ namespace RavenfieldVR.Rig
                     SolveFinger(f, _curl[f]);
                     if (f == 1 && _hand.Role == HandRole.Weapon)
                     {
-                        // The trigger finger rests where it touches the frame and curls onto the trigger as it is pulled.
+                        // The trigger finger rests where it touches the frame; pulling, its knuckle stays on the frame and
+                        // the two outer joints curl onto the trigger until they touch it.
                         float pull = VRInput.GetTrigger(_hand.Side);
-                        for (int s = 0; s < 3; s++)
+                        if (pull > 0.02f)
                         {
-                            _solved[s] = Mathf.Lerp(_solved[s], Mathf.Max(_solved[s], _curl[f]), pull);
+                            float r0 = _solved[0], r1 = _solved[1], r2 = _solved[2];
+                            SolveFinger(1, 1f, r0);
+                            _solved[0] = r0;
+                            _solved[1] = Mathf.Lerp(r1, Mathf.Max(r1, _solved[1]), pull);
+                            _solved[2] = Mathf.Lerp(r2, Mathf.Max(r2, _solved[2]), pull);
                         }
                     }
                 }
                 for (int s = 0; s < 3; s++)
                 {
-                    _joint[f, s] = closing ? Mathf.Lerp(_joint[f, s], _solved[s], kJoint) : _curl[f];
+                    _joint[f, s] = Mathf.Lerp(_joint[f, s], closing ? _solved[s] : _curl[f], kJoint);
                     _joints[f][s].localRotation = JointRest(f, s) * Quaternion.Euler(0f, sign * MaxAngle(f, s) * _joint[f, s], 0f);
                 }
             }
@@ -485,12 +501,13 @@ namespace RavenfieldVR.Rig
         /// the joints beyond it keep closing. A segment already in the model with the finger open (the hand overlaps the
         /// model there anyway) does not stop it. Per-joint curls in <see cref="_solved"/>.
         /// </summary>
-        private void SolveFinger(int f, float goal)
+        private void SolveFinger(int f, float goal, float lockedKnuckle = -1f)
         {
             const int Steps = 10;
-            float c0 = 0f, c1 = 0f, c2 = 0f;
-            bool l0 = false, l1 = false, l2 = false;
-            Chain(f, 0f, 0f, 0f);
+            // With a locked knuckle only the two outer joints close (a trigger finger whose base lies on the frame).
+            float c0 = lockedKnuckle >= 0f ? lockedKnuckle : 0f, c1 = 0f, c2 = 0f;
+            bool l0 = lockedKnuckle >= 0f, l1 = false, l2 = false;
+            Chain(f, c0, 0f, 0f);
             bool in0 = SegmentTouches(0), in1 = SegmentTouches(1), in2 = SegmentTouches(2);
             int guard = 0;
             for (int step = 1; step <= Steps && !l2 && guard++ < Steps + 4; step++)

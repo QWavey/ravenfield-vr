@@ -442,6 +442,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private float _gripLetGoAt = -1f;
+        private Vector3 _letGoVelocity, _letGoAngular, _letGoPalm;
 
         /// <summary>
         /// GripToHoldWeapon: letting go of the grip puts the weapon away and frees the hand. A loosened grip has a moment
@@ -468,6 +469,10 @@ namespace RavenfieldVR.Weapons
             if (dom.GrabReleased)
             {
                 _gripLetGoAt = Time.unscaledTime;
+                // The swing as the hand opens: 0.12 s later the hand has stopped and a throw would just drop.
+                _letGoVelocity = dom.ThrowVelocity();
+                _letGoAngular = dom.AngularVelocity;
+                _letGoPalm = dom.Palm.position;
             }
             else if (dom.GrabHeld)
             {
@@ -482,9 +487,9 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 // Let go at your body: back in its holster. Anywhere else it falls, like any object you open your hand on.
-                if (VRConfig.ReleaseDropsWeapon.Value && !Zones.AtBody(dom.Palm.position) && Held.Rig.Data.Action != ActionType.Throwable)
+                if (VRConfig.ReleaseDropsWeapon.Value && !Zones.AtBody(_letGoPalm) && Held.Rig.Data.Action != ActionType.Throwable)
                 {
-                    LetFall(actor, dom);
+                    LetFall(actor, dom, _letGoVelocity, _letGoAngular);
                 }
                 else
                 {
@@ -502,12 +507,12 @@ namespace RavenfieldVR.Weapons
                 return -1;
             }
             int slot = Array.IndexOf(actor.weapons, Held.Weapon);
-            LetFall(actor, Rig.Dominant);
+            LetFall(actor, Rig.Dominant, Rig.Dominant.ThrowVelocity(), Rig.Dominant.AngularVelocity);
             return slot;
         }
 
         /// <summary>The weapon leaves the hand as a physical object where it was held; it returns to its holster later.</summary>
-        private void LetFall(Actor actor, VRHand dom)
+        private void LetFall(Actor actor, VRHand dom, Vector3 velocity, Vector3 angularVelocity)
         {
             HeldWeapon held = Held;
             int slot = actor.weapons != null ? Array.IndexOf(actor.weapons, held.Weapon) : -1;
@@ -516,7 +521,7 @@ namespace RavenfieldVR.Weapons
                 HolsterToEmptyHand(actor);
                 return;
             }
-            DroppedWeapon drop = Drops.DropHeld(held, slot, dom.ThrowVelocity(), dom.AngularVelocity);
+            DroppedWeapon drop = Drops.DropHeld(held, slot, velocity, angularVelocity);
             if (drop == null)
             {
                 HolsterToEmptyHand(actor);
