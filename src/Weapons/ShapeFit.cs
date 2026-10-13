@@ -108,6 +108,12 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Convex pieces fitted to a point cloud (already in the fit's frame). Pure arithmetic: safe on a worker thread.
+        /// </summary>
+        public static Piece[] FitCloud(List<Vector3> points, float slice = 0.03f, int maxPieces = 16) =>
+            points.Count >= 8 ? FitPoints(points, slice, maxPieces) : new Piece[0];
+
+        /// <summary>
         /// Cooks the hulls now (PhysX keeps the result in each mesh, and every collider made from it later reuses it), so
         /// creating the colliders in a match costs no cooking. Pieces PhysX cannot cook are marked and become boxes.
         /// </summary>

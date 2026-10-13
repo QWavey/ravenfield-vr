@@ -48,6 +48,50 @@ namespace RavenfieldVR.Weapons
         public string Key { get; }
         public int Texels { get; private set; }
         public float BuildMs { get; private set; }
+        /// <summary>
+        /// For a weapon whose meshes cannot be read (its physics shape could only be built from the meshes' bounding boxes):
+        /// the physics shape fitted to the model's rendered surface instead, made with the volume. Null otherwise or until
+        /// ready.
+        /// </summary>
+        public ShapeFit.Piece[] HullPieces { get; private set; }
+        private bool _wantHull;
+
+        /// <summary>Inside the model itself, in the frame (self-test).</summary>
+        public bool InsideModelLocal(Vector3 p) => _ready && Test(p, false);
+
+        /// <summary>
+        /// Points on the model's surface as the views saw it (frame space): the first and last surface along every
+        /// <paramref name="stride"/>-th texel of every view.
+        /// </summary>
+        public List<Vector3> SurfacePoints(int stride)
+        {
+            var points = new List<Vector3>();
+            foreach (View v in _views)
+            {
+                if (v.BareNear == null)
+                {
+                    continue;
+                }
+                Quaternion toFrame = Quaternion.Inverse(v.ToView);
+                for (int j = 0; j < v.H; j += stride)
+                {
+                    for (int i = 0; i < v.W; i += stride)
+                    {
+                        int k = j * v.W + i;
+                        float a = v.BareNear[k], b = v.BareFar[k];
+                        if (a > b)
+                        {
+                            continue;
+                        }
+                        float x = v.MinX + (i + 0.5f) * v.Texel, y = v.MinY + (j + 0.5f) * v.Texel;
+                        points.Add(toFrame * new Vector3(x, y, a));
+                        points.Add(toFrame * new Vector3(x, y, b));
+                    }
+                }
+            }
+            return points;
+        }
+
         /// <summary>The part spent on the main thread (rendering and reading back the views): a one-off hitch on drawing.</summary>
         public float RenderMs { get; private set; }
 
@@ -278,6 +322,10 @@ namespace RavenfieldVR.Weapons
                     targets[2 * d + 1] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, max.z + Gap)), fr * Quaternion.LookRotation(-dirs[d].Item1, dirs[d].Item2), w, h, shader);
                 }
                 volume = new GunVolume(rig.Data.Key, views, box) { Texels = texels };
+                foreach (Renderer r in renderers)
+                {
+                    volume._wantHull |= !ShapeFit.Readable(r);
+                }
                 job.Volume = volume;
                 job.Left = targets.Length;
             }
@@ -366,8 +414,13 @@ namespace RavenfieldVR.Weapons
                             GrowView(Views[d], near, far);
                         }
                         Front = Back = null;
-                        Volume.BuildMs = (float)_since.Elapsed.TotalMilliseconds;
                         Volume._ready = true;
+                        if (Volume._wantHull)
+                        {
+                            // Same slicing as a readable model gets from its vertices, from the rendered surface.
+                            Volume.HullPieces = ShapeFit.FitCloud(Volume.SurfacePoints(2));
+                        }
+                        Volume.BuildMs = (float)_since.Elapsed.TotalMilliseconds;
                     }
                     catch (Exception e)
                     {

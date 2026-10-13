@@ -214,6 +214,13 @@ namespace RavenfieldVR.Core
             Rig.HandModel.ClosingDisabled = false;
             yield return new WaitForSecondsRealtime(0.3f);
             report($"gun hand: {_clipNow} (posed by the weapon's hand alone: {before})");
+            GunCollider shape = held.Collider;
+            if (shape != null && held.Volume != null && held.Volume.Ready)
+            {
+                report(shape.ShapeBefore != null
+                    ? $"physics shape from the rendered model: {shape.Match(held.Volume)} (from the meshes' boxes: {shape.ShapeBefore})"
+                    : $"physics shape from the meshes: {shape.Match(held.Volume)}");
+            }
         }
 
         /// <summary>Close-ups of the gun hand on its grip: from the back of the hand, from the fingertips' side and from below.</summary>

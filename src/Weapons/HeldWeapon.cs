@@ -445,6 +445,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private GunVolume _volume;
         private bool _volumeTried;
+        private bool _hullApplied;
+
+        /// <summary>Self-test: the held gun's physics stand-in.</summary>
+        internal GunCollider Collider => _gunCollider;
         private float _heldSince = -1f;
         private System.Func<Vector3, bool> _solid;
 
@@ -467,6 +471,11 @@ namespace RavenfieldVR.Weapons
             if (_volume == null || !_volume.Ready || Rig.GunBody == null)
             {
                 return null;
+            }
+            if (!_hullApplied && _volume.HullPieces != null && _gunCollider != null)
+            {
+                _hullApplied = true;
+                _gunCollider.UseShape(_volume.HullPieces, _volume);
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
             return _solid ?? (_solid = _volume.Solid);

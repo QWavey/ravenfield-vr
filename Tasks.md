@@ -74,7 +74,7 @@
 72. [x] Bigger, more forgiving grab zones; the hand poses onto the bolt or handle it pulls
 73. [x] Bolts and handles hard or impossible to pull back with no magazine inserted
 74. [x] Missing magazine in/out sounds on some guns
-75. [ ] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74) USE THE BUG HUNT SKILL (/bug-hunt, and /improve)
+75. [x] Bug hunt, 20 rounds, then improve, 10 rounds (after 59-74) USE THE BUG HUNT SKILL (/bug-hunt, and /improve)
 76. [x] Adjustable scopes: flip a magnifier in front of the red dot (or swap sights) with a hand gesture
 77. [x] Looking at a magazine shows how many rounds it holds (readout on top of the mag)
 78. [x] Gun-to-magazine and gun-to-gun collisions off; a visible square touch border shows
@@ -85,6 +85,15 @@
 83. [x] Glove at real-hand size, fingers joined to the palm, a pistol held like a pistol
 84. [x] Melee weapons swing along their real blade
 85. [x] Pictures of everything from a VR test run (virtual headset at standing height, not under the map)
+86. [x] Hands clip into held guns and do not grab around them (Glock, AK and others)
+87. [ ] Magazines: hands close on the seated magazine too (no fingers through it), and a magazine taken in the hand is held properly, on every gun
+88. [ ] Autotest proves the mag kick-out with a second magazine and the H3VR-style tactical reload
+89. [ ] Recoil: firing with one hand kicks harder than with two hands, and it actually works
+90. [ ] Pouch items and guns: grabbable and throwable; nothing appears just by touching the pouch
+91. [ ] Dropped guns float away on the ground
+92. [ ] Ammo bag and medic bag: the glove disappears while one is held
+93. [ ] /improve 20 (after the fixes)
+94. [ ] /documentate (after the improve rounds and bug fixes)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -256,3 +265,21 @@ For 83. The glove is 0.9 scale with slimmer fingers and palm; each finger is roo
 For 84. The blade or head of a melee weapon is measured from its own physics shape (farthest point from the grip), and swings are tested along it instead of along the rig's aim axis; melee weapons keep their full-size physics shape. Done when: the autotest reports the blade length and direction for each melee weapon.
 
 For 85. The VR autotest takes pictures (body views, holsters, damage, magazine in hand, tactical reload, dropped weapon, a spread of weapons in hand) into BepInEx/RavenfieldVR-shots; -rfvr-quick tests a spread of about 60 weapons; on the virtual headset (head reported on the floor) the view uses the head's own height. Done when: the pictures show the scene from standing height with hands and holsters visible.
+
+For 86. The glove took the weapon's own hand pose rolled 45-90 degrees (its frame came from the thumb root, which sits toward the palm) and closed by fixed curls, so fingers went through the grip or hung beside it. The pose is now read across the knuckles; the visible model is rendered as depth from five directions into a solid (any mesh, readable or not); the palm settles onto it, the hand slides along the grip until the middle finger closes under the trigger guard, and each finger closes joint by joint until it touches. Done when: the grip close-ups show wrapped grips and the autotest's buried-point count drops against the old posing (383 -> 57 over 33 weapons).
+
+For 87. The seated magazine is part of what the support hand often holds (an M3's magazine, a magazine well): it has to be in the solid the hands close on while it is in the gun, and out of it while it is not. A magazine held in the hand closes the fingers on its own shape. Done when: close-ups of a magazine-held gun and of a magazine in the hand show no fingers through it, and the autotest's buried-point count for them is near zero.
+
+For 88. The autotest drives the reloads the way a player does in H3VR: a fresh magazine struck against the seated one knocks it out (mag kick), and the tactical reload holds the old and the new magazine in one hand. Done when: both are reported with their round counts and pass on the test rifle.
+
+For 89. One-handed fire has more recoil than two-handed fire (by weapon class); the autotest fires each way and measures the kick. Done when: the measured kick is larger one-handed than two-handed on a rifle and a pistol.
+
+For 90. Magazines and grenades from the pouch, and dropped or holstered guns, come into the hand only when the grip closes on them, can be thrown with the hand's velocity, and nothing is spawned or shown by merely touching. Done when: the autotest takes one of each, throws it and reports it flying.
+
+For 91. A dropped weapon on the ground stays where it fell (no drifting or floating away). Done when: the autotest drops weapons on flat ground and on a slope and reports how far they moved over several seconds.
+
+For 92. Kits held like a bag (ammo bag, medic bag) hide the glove instead of a fist beside them. Done when: the picture of a held bag shows no glove.
+
+For 93. Run /improve 20: twenty measured rounds, keep only what proves better.
+
+For 94. Run /documentate once 86-93 are done.

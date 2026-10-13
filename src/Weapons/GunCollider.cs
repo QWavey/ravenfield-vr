@@ -179,6 +179,98 @@ namespace RavenfieldVR.Weapons
         /// <summary>How many convex pieces make up the held gun's shape (self-test and logs).</summary>
         public int BoxCount => _boxes.Count;
 
+        /// <summary>Self-test: how the shape matched the model before <see cref="UseShape"/> replaced it.</summary>
+        public string ShapeBefore { get; private set; }
+
+        /// <summary>
+        /// Replaces the stand-in's pieces (a weapon whose meshes could only be measured by their bounding boxes gets the
+        /// shape fitted to its rendered surface once that is measured).
+        /// </summary>
+        public void UseShape(ShapeFit.Piece[] pieces, GunVolume volume)
+        {
+            if (pieces == null || pieces.Length == 0 || _go == null)
+            {
+                return;
+            }
+            ShapeBefore = volume != null ? Match(volume) : null;
+            foreach (Collider c in _boxes)
+            {
+                if (c != null)
+                {
+                    Object.Destroy(c);
+                }
+            }
+            _boxes.Clear();
+            ShapeFit.Bake(pieces);
+            _boxes.AddRange(ShapeFit.AddColliders(_go, pieces));
+            PropPhysics.IgnorePlayer(_boxes);
+            foreach (Collider c in _passing)
+            {
+                foreach (Collider b in _boxes)
+                {
+                    Physics.IgnoreCollision(c, b, true);
+                }
+            }
+            foreach (Collider b in _boxes)
+            {
+                b.enabled = _enabled;
+            }
+        }
+
+        /// <summary>
+        /// Self-test: of the stand-in's inside, the share outside the visible model ("excess"), and of the model's surface,
+        /// the share within 5 mm of the stand-in ("covered").
+        /// </summary>
+        public string Match(GunVolume volume)
+        {
+            Transform t = _go.transform;
+            int inside = 0, excess = 0;
+            foreach (Collider c in _boxes)
+            {
+                if (c == null || !c.enabled)
+                {
+                    continue;
+                }
+                Bounds b = c.bounds;
+                const int N = 7;
+                for (int x = 0; x < N; x++)
+                {
+                    for (int y = 0; y < N; y++)
+                    {
+                        for (int z = 0; z < N; z++)
+                        {
+                            Vector3 p = b.min + Vector3.Scale(b.size, new Vector3((x + 0.5f) / N, (y + 0.5f) / N, (z + 0.5f) / N));
+                            if ((c.ClosestPoint(p) - p).sqrMagnitude > 1e-10f)
+                            {
+                                continue;
+                            }
+                            inside++;
+                            if (!volume.InsideModelLocal(t.InverseTransformPoint(p)))
+                            {
+                                excess++;
+                            }
+                        }
+                    }
+                }
+            }
+            List<Vector3> surface = volume.SurfacePoints(6);
+            int covered = 0, tested = 0;
+            for (int i = 0; i < surface.Count; i += Mathf.Max(1, surface.Count / 400))
+            {
+                Vector3 p = t.TransformPoint(surface[i]);
+                tested++;
+                foreach (Collider c in _boxes)
+                {
+                    if (c != null && c.enabled && (c.ClosestPoint(p) - p).sqrMagnitude <= 0.005f * 0.005f)
+                    {
+                        covered++;
+                        break;
+                    }
+                }
+            }
+            return $"{_boxes.Count} pieces, {(inside > 0 ? 100f * excess / inside : 0f):0}% of it outside the model, {(tested > 0 ? 100f * covered / tested : 0f):0}% of the model covered";
+        }
+
         public static GunCollider Create(WeaponRig rig)
         {
             int layer = PropPhysics.Layer;
