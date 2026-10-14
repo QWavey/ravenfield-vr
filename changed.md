@@ -270,17 +270,20 @@ New `src/Rig/MudSplash.cs`; `src/Rig/VRRig.cs`, `src/Core/VRConfig.cs` (new `Exp
 - Every explosion that goes through the game's damage code (grenades, shells, rockets, call-ins, explosive scripts;
   `ActorManager.OnExplosion`, re-subscribed after each level load because the game clears its listeners then) within
   1.4 x its damage range of your head throws dirt on an invisible visor 25 cm in front of the eyes (drawn like the
-  damage ring, on the UI layer): 2 to 12 splats (a few big ones and droplets), more and bigger the closer and the
-  larger the blast, pushed toward the side it came from (behind you: toward the edges).
-- They cling for a moment, then run down the visor, stretch and fade over 2-4 s (droplets faster).
-- A blast in water (`WaterLevel.IsInWater`) throws grey, see-through water instead, which runs off faster.
+  damage ring, on the UI layer). Following your reference (Call of Duty's lens dirt, but dirt instead of sunlit
+  bokeh): 8 to 48 soft, out-of-focus spots of dirt (brown-grey, see-through, a denser rim like a dried drop, grainy)
+  spread over the whole view, a third of them leaning toward the side the blast came from; more, bigger and denser the
+  closer and the larger the blast.
+- They stay 3-6 s; the big wet ones run slowly down the visor; then they fade.
+- A blast in water (`WaterLevel.IsInWater`) throws grey, clearer drops instead, which run off faster.
 - Nothing for a blast behind a wall or the ground between it and your head (a line cast against the level only), and
   nothing while dead.
-- The splat pictures are drawn by the mod (4 variants: an uneven blob with droplets thrown off it), checked offline.
+- The spot pictures are drawn by the mod (4 variants), checked offline over a backdrop.
 - Vehicle wrecks exploding do not go through that damage code, so they throw no dirt.
 
 Autotest: right after the body pictures, a blast 2 m ahead-left (`mud-0s`, `mud-1-5s`, `mud-4s`) and a water blast
-(`water-splash-0s`); metrics for splats right after and after 4 s (must be 0); a problem is flagged otherwise.
+(`water-splash-0s`); metrics for spots right after and after 4 s. (With the 3-6 s life some spots can still be fading
+at 4 s; the problem flag is only raised when nothing appeared.)
 
 ## Tasks 121 and 122 (new, from your notes): the gun against the ground and the world
 

@@ -282,10 +282,10 @@ namespace RavenfieldVR.Core
                 Shots.Capture("water-splash-0s");
                 Metric("explosion dirt: splats on the view right after a blast 2 m away", first);
                 Metric("explosion dirt: splats left 4 s later", left);
-                Results.Add($"Explosion dirt: {first} splats right after a blast 2 m away, {left} left after 4 s{(first == 0 ? " (NO DIRT)" : "")}{(left > 0 ? " (NOT GONE after 4 s)" : "")}");
-                if (first == 0 || left > 0)
+                Results.Add($"Explosion dirt: {first} spots right after a blast 2 m away, {left} still fading after 4 s{(first == 0 ? " (NO DIRT)" : "")}");
+                if (first == 0)
                 {
-                    Problem($"[explosion dirt] {first} splats right after, {left} after 4 s");
+                    Problem("[explosion dirt] no dirt on the view after a blast 2 m away");
                 }
             }
         }
