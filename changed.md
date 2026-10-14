@@ -1381,3 +1381,19 @@ the "at home" notes in rounds 5, 14 and 19 say what to look at.
 - Also checked: fire suppressed while clicking a menu or panel; sprint toggle ending on an idle stick and cleared in
   seats and on respawn; stick jump (mostly vertical, latched); the crouch/prone flick and hold; the fire-mode button
   (magnifier while aiming, alternate sights, the weapon's own modes, then the mod's selector); seated buttons.
+
+#### Round 8: the cockpit controls (`src/Rig/CockpitControls.cs`)
+
+- **Minor:** with both hands on the steering wheel, each hand pulled the steering half way toward its own idea in turn,
+  so the hand updated second won (the steady state is (left + 2 × right) / 3). Turning with the left hand while the
+  right held still steered a third as much as the other way round:
+
+  | One hand turns to +0.6, the other holds | Before | After |
+  | --- | --- | --- |
+  | Left turns, right holds | 0.20 | 0.30 |
+  | Right turns, left holds | 0.40 | 0.30 |
+
+  Fix: both hands' targets are averaged (one hand alone has the wheel to itself). When one lets go, the other carries
+  on from where the wheel is, so the steering does not jump.
+- Also checked: seat changes and a vehicle destroyed under the hands release everything and clear the wheel and stick
+  inputs; the stick falls back to the seat's hand target; the grab radii.

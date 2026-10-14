@@ -27,6 +27,8 @@ namespace RavenfieldVR.Rig
         private readonly float[] _wheelBase = new float[2];
         /// <summary>How far each hand has turned the rim since taking it (degrees, added up frame by frame: never wraps).</summary>
         private readonly float[] _wheelTurned = new float[2];
+        /// <summary>Where each hand on the rim puts the steering this frame.</summary>
+        private readonly float[] _handSteer = new float[2];
         private float _steer;
 
         private Hand? _stickHand;
@@ -60,6 +62,16 @@ namespace RavenfieldVR.Rig
             foreach (VRHand hand in _rig.Hands)
             {
                 UpdateHand(hand);
+            }
+            // Two hands on the rim share it equally. Pulled half way to each hand in turn, the hand updated second won:
+            // (left + 2 right) / 3, so turning with the left hand while the right held still steered a third as much.
+            if (_onWheel[0] && _onWheel[1])
+            {
+                _steer = (_handSteer[0] + _handSteer[1]) * 0.5f;
+            }
+            else if (_onWheel[0] || _onWheel[1])
+            {
+                _steer = _handSteer[_onWheel[0] ? 0 : 1];
             }
             VehicleInput.WheelSteer = _onWheel[0] || _onWheel[1] ? _steer : (float?)null;
         }
@@ -133,6 +145,14 @@ namespace RavenfieldVR.Rig
                 {
                     _onWheel[i] = false;
                     hand.Role = HandRole.Free;
+                    int other = 1 - i;
+                    if (_onWheel[other])
+                    {
+                        // The other hand carries on from where the wheel is now (it had its own idea while shared).
+                        _wheelBase[other] = _steer;
+                        _wheelTurned[other] = 0f;
+                        _handSteer[other] = _steer;
+                    }
                 }
                 else
                 {
@@ -142,9 +162,7 @@ namespace RavenfieldVR.Rig
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
                     _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, _wheel.transform.forward, _wheelBase[i], maxRot);
                     _wheelStart[i] = now;
-                    float handSteer = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
-                    int holders = (_onWheel[0] ? 1 : 0) + (_onWheel[1] ? 1 : 0);
-                    _steer = holders == 2 ? Mathf.Lerp(_steer, handSteer, 0.5f) : handSteer;
+                    _handSteer[i] = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
                 }
             }
 
