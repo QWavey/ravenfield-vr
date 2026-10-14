@@ -86,6 +86,11 @@ namespace RavenfieldVR.Weapons
         /// magnifier, a canted or offset sight moves the gun to a different line in front of the eye.
         /// </summary>
         public RigidPose?[] AimModes;
+        /// <summary>
+        /// Per sight mode (aiming), every transform's pose relative to the gun body: what a sight mode moves (a flip
+        /// magnifier swung in front of a red dot), for showing it there when not aiming too. Null without sight modes.
+        /// </summary>
+        public RigidPose[][] ModePoses;
 
         public PoseSampler(Weapon weapon, Transform[] live, Dictionary<Transform, int> index, Transform gunBody)
         {
@@ -183,6 +188,8 @@ namespace RavenfieldVR.Weapons
             }
             AimModes = new RigidPose?[modes];
             AimModes[0] = AimGunBody;
+            ModePoses = new RigidPose[modes][];
+            ModePoses[0] = GunRelativeAll();
             bool smooth = Has(Weapon.SMOOTH_SIGHT_MODE_PARAMETER_HASH);
             for (int i = 1; i < modes; i++)
             {
@@ -193,6 +200,7 @@ namespace RavenfieldVR.Weapons
                 }
                 Step(1.0f);
                 AimModes[i] = RootRelative(_clone[_gunIndex]);
+                ModePoses[i] = GunRelativeAll();
             }
             SetInt(Weapon.SIGHT_MODE_PARAMETER_HASH, 0);
             if (smooth)
@@ -409,6 +417,18 @@ namespace RavenfieldVR.Weapons
         }
 
         private void StepOnce(float dt) => _anim.Update(dt);
+
+        /// <summary>Every transform's pose relative to the gun body, as the animator has them now.</summary>
+        private RigidPose[] GunRelativeAll()
+        {
+            RigidPose gunInv = RootRelative(_clone[_gunIndex]).Inverse();
+            var poses = new RigidPose[_clone.Length];
+            for (int i = 0; i < _clone.Length; i++)
+            {
+                poses[i] = gunInv.Multiply(RootRelative(_clone[i]));
+            }
+            return poses;
+        }
 
         private RigidPose RootRelative(Transform t)
         {

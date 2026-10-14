@@ -320,3 +320,21 @@ Autotest: with the first rifle, a wall is put in front of the player and the gun
 `world-wall`, `world-wall-side`), then pushed down into the ground (`world-ground`); report line `gun against the
 world: ...` and metrics `gun pushed into a wall: muzzle inside it (0/1)` (must be 0) and `gun pushed into the ground: cm
 the player moved` (must be about 0).
+
+## Task 117 (new, from your note): flip magnifiers stay where the hand put them
+
+`src/Weapons/PoseSampler.cs` (`ModePoses`), `src/Weapons/WeaponAnalyzer.cs` (`AnalyzeSightParts`),
+`src/Weapons/WeaponRig.cs` (`SightPartPaths`, `SightPartPoses`), `src/Weapons/HeldWeapon.cs` (`ApplySightParts`),
+`src/Core/AutoTest.cs`.
+
+Pulling a magnifier switched the weapon's sight mode, but the weapon's animation only moves a magnifier into its
+place in the aim pose, and in VR the game is told you aim only while your eye is at the sight: the magnifier showed
+while you looked through it and folded away when you lowered the gun. Now the analysis samples every part's pose
+(relative to the gun) in each sight mode while aiming, and keeps the parts that a sight mode moves (up to 8: a flip
+magnifier, a folding sight). While the weapon is held, those parts are put where the selected sight mode puts them,
+every frame and whether you aim or not, swinging over in about a sixth of a second when you switch. They go back to
+the animation when the weapon is put away. Weapons whose magnifier is a script key (a mod's own toggle) are unchanged.
+The weapon report notes `N part(s) moved by the sight mode`.
+
+Autotest: on the first such weapon, the sight mode is switched with the gun held low (picture
+`sight-mode-N-not-aiming-...`), line `sight mode a -> b not aiming: ... where the mode puts them` and a metric (mm off).

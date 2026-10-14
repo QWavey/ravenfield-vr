@@ -439,6 +439,7 @@ namespace RavenfieldVR.Weapons
                 AnalyzeSights(d, sampler);
                 AlignEyeToScopeModel(d, root, armRelated, sampler, w, gunIdle);
                 AnalyzeSightModes(d, sampler, w);
+                AnalyzeSightParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
                 Transform slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w);
                 MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler);
@@ -614,6 +615,77 @@ namespace RavenfieldVR.Weapons
             }
             int measured = d.Sights.Count(s => s.Measured), magnified = d.Sights.Count(s => s.Magnified);
             d.Notes += $"{modes.Length} sight modes ({measured} with their own line, {magnified} magnified) ";
+        }
+
+        /// <summary>
+        /// The parts a sight mode moves relative to the gun (a magnifier flipping in behind a red dot): their pose in every
+        /// mode, so they can stay where the selected mode puts them when the gun is not aimed (the animation only moves them
+        /// in its aim pose, and in VR you aim only while your eye is at the sight).
+        /// </summary>
+        private static void AnalyzeSightParts(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
+        {
+            RigidPose[][] modes = sampler.ModePoses;
+            if (modes == null || modes.Length < 2 || d.Sights == null)
+            {
+                return;
+            }
+            var moving = new List<Transform>();
+            foreach (Transform t in all)
+            {
+                if (!IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !sampler.IdleVisible(t))
+                {
+                    continue;
+                }
+                int i = index[t];
+                float move = 0f, turn = 0f;
+                for (int m = 1; m < modes.Length; m++)
+                {
+                    if (modes[m] == null || modes[0] == null)
+                    {
+                        continue;
+                    }
+                    move = Mathf.Max(move, Vector3.Distance(modes[m][i].position, modes[0][i].position));
+                    turn = Mathf.Max(turn, Quaternion.Angle(modes[m][i].rotation, modes[0][i].rotation));
+                }
+                if (move >= 0.003f && move < 0.3f || turn >= 5f)
+                {
+                    moving.Add(t);
+                }
+            }
+            // Only the top of each moving branch: its children ride along.
+            foreach (Transform t in moving)
+            {
+                bool underAnother = false;
+                for (Transform p = t.parent; p != null && p != root; p = p.parent)
+                {
+                    if (moving.Contains(p))
+                    {
+                        underAnother = true;
+                        break;
+                    }
+                }
+                if (underAnother || d.SightPartPaths.Count >= 8)
+                {
+                    continue;
+                }
+                d.SightPartPaths.Add(WeaponRig.PathOf(root, t));
+            }
+            if (d.SightPartPaths.Count == 0)
+            {
+                return;
+            }
+            d.SightPartPoses = new RigidPose[d.SightPartPaths.Count][];
+            for (int p = 0; p < d.SightPartPaths.Count; p++)
+            {
+                int i = index[WeaponRig.Resolve(root, d.SightPartPaths[p])];
+                d.SightPartPoses[p] = new RigidPose[modes.Length];
+                for (int m = 0; m < modes.Length; m++)
+                {
+                    d.SightPartPoses[p][m] = modes[m] != null ? modes[m][i] : modes[0][i];
+                }
+            }
+            d.Notes += $"{d.SightPartPaths.Count} part(s) moved by the sight mode (kept in place when not aiming) ";
         }
 
         private static void AnalyzeSights(WeaponRigData d, PoseSampler sampler)

@@ -980,7 +980,7 @@ namespace RavenfieldVR.Core
                 every = Mathf.Max(1, entries.Count / 28);
             }
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0;
-            bool tacticalDone = false, dropDone = false, pistolPouchDone = false;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 index++;
@@ -1126,6 +1126,23 @@ namespace RavenfieldVR.Core
                                 Shots.Capture(name);
                                 MagHandCloseups(name, lines.Add);
                             });
+                        }
+                        if (!sightPartsDone && held.Rig.Data.SightPartPaths.Count > 0 && !held.Aiming)
+                        {
+                            // A flip magnifier switched in with the gun held low (not aiming): it must stay flipped in.
+                            sightPartsDone = true;
+                            int before = weapon.GetSightModeIndex();
+                            weapon.NextSightMode();
+                            yield return new WaitForSecondsRealtime(0.4f);
+                            yield return new WaitForEndOfFrame();
+                            Shots.Capture($"sight-mode-{weapon.GetSightModeIndex()}-not-aiming-{index:000}-{entry.name}");
+                            float off = held.SightPartsOffMm();
+                            Metric("sight parts: mm from the selected mode's place when not aiming", off);
+                            lines.Add($"sight mode {before} -> {weapon.GetSightModeIndex()} not aiming: {held.Rig.Data.SightPartPaths.Count} part(s) {(off <= 2f ? "where the mode puts them" : $"NOT IN PLACE ({off:0.0} mm off)")}");
+                            for (int k = 0; k < 6 && weapon.GetSightModeIndex() != before && weapon.NextSightMode(); k++)
+                            {
+                                yield return null;
+                            }
                         }
                         if (!pistolPouchDone && held.Rig.Data.IsPistol && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {

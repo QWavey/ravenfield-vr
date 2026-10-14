@@ -114,6 +114,13 @@ namespace RavenfieldVR.Weapons
         /// flipped in behind a red dot, a canted or offset sight. Null when the weapon has a single sight.
         /// </summary>
         public SightLine[] Sights;
+        /// <summary>
+        /// Parts a sight mode moves (a flip magnifier swung in or out, a folding sight) and their pose in each sight mode
+        /// (gun-body space, [part][mode]). The weapon's animation shows them in place only while aiming; the mod keeps them
+        /// where the selected mode puts them all the time. Empty for weapons without such parts.
+        /// </summary>
+        public readonly List<int[]> SightPartPaths = new List<int[]>();
+        public RigidPose[][] SightPartPoses;
         /// <summary>Scoped weapons whose scope model was measured: the ocular lens centre (gun space) and its radius.</summary>
         public bool HasScopeModel;
         public Vector3 ScopeOcular;

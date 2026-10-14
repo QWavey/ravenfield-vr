@@ -143,6 +143,87 @@ namespace RavenfieldVR.Weapons
 
         public bool IsPistolGrip => Rig.Data.IsPistol;
 
+        /// <summary>Parts a sight mode moves (a flip magnifier), kept where the selected mode puts them, aimed or not.</summary>
+        private Transform[] _sightParts;
+        private RigidPose[] _sightPartsRest;
+        private float _sightMode = -1f;
+
+        private void ApplySightParts()
+        {
+            RigidPose[][] poses = Rig.Data.SightPartPoses;
+            if (poses == null || Weapon == null)
+            {
+                return;
+            }
+            if (_sightParts == null)
+            {
+                _sightParts = new Transform[poses.Length];
+                _sightPartsRest = new RigidPose[poses.Length];
+                for (int p = 0; p < poses.Length; p++)
+                {
+                    _sightParts[p] = WeaponRig.Resolve(Weapon.transform, Rig.Data.SightPartPaths[p]);
+                    if (_sightParts[p] != null)
+                    {
+                        _sightPartsRest[p] = new RigidPose(_sightParts[p].localPosition, _sightParts[p].localRotation);
+                    }
+                }
+            }
+            int modes = poses[0].Length;
+            int target = Mathf.Clamp(Weapon.GetSightModeIndex(), 0, modes - 1);
+            // Swung over in about a sixth of a second, as a hand flips it.
+            _sightMode = _sightMode < 0f ? target : Mathf.MoveTowards(_sightMode, target, Time.unscaledDeltaTime * 6f);
+            int a = Mathf.Clamp(Mathf.FloorToInt(_sightMode), 0, modes - 1), b = Mathf.Min(a + 1, modes - 1);
+            float u = _sightMode - a;
+            RigidPose gun = Rig.GunBodyPose;
+            for (int p = 0; p < _sightParts.Length; p++)
+            {
+                Transform t = _sightParts[p];
+                if (t == null)
+                {
+                    continue;
+                }
+                RigidPose pa = poses[p][a], pb = poses[p][b];
+                var local = new RigidPose(Vector3.Lerp(pa.position, pb.position, u), Quaternion.Slerp(pa.rotation, pb.rotation, u));
+                gun.Multiply(local).ApplyTo(t);
+            }
+        }
+
+        /// <summary>Self-test: how far (mm) the parts a sight mode moves are from where the selected mode puts them; -1 without such parts.</summary>
+        internal float SightPartsOffMm()
+        {
+            RigidPose[][] poses = Rig.Data.SightPartPoses;
+            if (poses == null || _sightParts == null)
+            {
+                return -1f;
+            }
+            int mode = Mathf.Clamp(Weapon.GetSightModeIndex(), 0, poses[0].Length - 1);
+            float worst = 0f;
+            for (int p = 0; p < _sightParts.Length; p++)
+            {
+                if (_sightParts[p] != null)
+                {
+                    worst = Mathf.Max(worst, Vector3.Distance(_sightParts[p].position, Rig.GunBodyPose.TransformPoint(poses[p][mode].position)));
+                }
+            }
+            return worst * 1000f;
+        }
+
+        private void RestoreSightParts()
+        {
+            if (_sightParts == null)
+            {
+                return;
+            }
+            for (int p = 0; p < _sightParts.Length; p++)
+            {
+                if (_sightParts[p] != null)
+                {
+                    _sightParts[p].localPosition = _sightPartsRest[p].position;
+                    _sightParts[p].localRotation = _sightPartsRest[p].rotation;
+                }
+            }
+        }
+
         /// <summary>
         /// The rig the reload works on while a sub weapon is active. A fire-mode variant (semi/auto as a second weapon of
         /// the same model) has no magazine of its own in the analysis: it feeds from the parent's magazine and well, so it
@@ -1053,6 +1134,7 @@ namespace RavenfieldVR.Weapons
             }
             _boltPiece?.SetOffset(Rig, d.SlideTravel * fraction);
             ApplyHinge(d);
+            ApplySightParts();
 
             AmmoState ammo = ActiveAmmo ?? Ammo;
             if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
@@ -1193,6 +1275,7 @@ namespace RavenfieldVR.Weapons
                 _hingeOverridden = false;
             }
             HingeOpenness = 0f;
+            RestoreSightParts();
             foreach (Renderer r in _shadowOnly)
             {
                 if (r != null)
