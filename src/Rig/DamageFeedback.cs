@@ -199,7 +199,14 @@ namespace RavenfieldVR.Rig
         {
             if (VRManager.Active)
             {
-                DamageFeedback.Instance?.OnVignette(intensity, duration);
+                try
+                {
+                    DamageFeedback.Instance?.OnVignette(intensity, duration);
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("DamageUI.ShowVignette (VR)", e);
+                }
             }
         }
     }
@@ -211,7 +218,14 @@ namespace RavenfieldVR.Rig
         {
             if (VRManager.Active)
             {
-                DamageFeedback.Instance?.OnHitDirection(angle, onlyBalanceDamage);
+                try
+                {
+                    DamageFeedback.Instance?.OnHitDirection(angle, onlyBalanceDamage);
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("DamageUI.ShowDamageIndicator (VR)", e);
+                }
             }
         }
     }
@@ -223,7 +237,15 @@ namespace RavenfieldVR.Rig
         {
             if (VRManager.Active)
             {
-                DamageFeedback.Instance?.OnDamage(damage);
+                try
+                {
+                    DamageFeedback.Instance?.OnDamage(damage);
+                }
+                catch (System.Exception e)
+                {
+                    // Inside the game's own damage handling: a feedback error must not cut it short.
+                    Log.ExceptionOnce("FpsActorController.ReceivedDamage (VR)", e);
+                }
             }
         }
     }

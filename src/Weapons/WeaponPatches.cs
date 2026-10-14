@@ -45,13 +45,20 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (anim.isActiveAndEnabled && anim.isInitialized)
+            try
             {
-                Step(anim);
+                if (anim.isActiveAndEnabled && anim.isInitialized)
+                {
+                    Step(anim);
+                }
+                if (VRManager.Instance != null)
+                {
+                    VRManager.Instance.StartCoroutine(StepNextFrame(__instance, anim));
+                }
             }
-            if (VRManager.Instance != null)
+            catch (System.Exception e)
             {
-                VRManager.Instance.StartCoroutine(StepNextFrame(__instance, anim));
+                Log.ExceptionOnce("Weapon.Unholster (VR)", e); // the draw goes on, with its animation
             }
         }
 
@@ -149,7 +156,14 @@ namespace RavenfieldVR.Weapons
         {
             if (WeaponHooks.PlayerWeaponInVR(__instance))
             {
-                WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: false)?.AdoptWeaponAmmo();
+                try
+                {
+                    WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: false)?.AdoptWeaponAmmo();
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("Weapon.ReloadDone (VR)", e);
+                }
             }
         }
     }

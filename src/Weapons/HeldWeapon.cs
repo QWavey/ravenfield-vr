@@ -42,6 +42,8 @@ namespace RavenfieldVR.Weapons
         private readonly float _followRate;
         private Quaternion _carriedRot;
         private bool _carriedInit;
+        /// <summary>How much of the droop and trail applies now (0 supported or shouldered .. 1 held in one hand).</summary>
+        private float _sagWeight = -1f;
 
         /// <summary>
         /// The front of the gun is supported: steering with both hands, or the off hand on the handguard / cupping a
@@ -64,9 +66,14 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                return Vector3.Distance(Rig.ToWorld(_stockButt.Value), _system.Zones.DomShoulder) < 0.12f;
+                // In within 12 cm of the pocket, out past 15: a stock held at the edge does not flick in and out.
+                float distance = Vector3.Distance(Rig.ToWorld(_stockButt.Value), _system.Zones.DomShoulder);
+                _shouldered = distance < (_shouldered ? 0.15f : 0.12f);
+                return _shouldered;
             }
         }
+
+        private bool _shouldered;
 
         // Visual overrides.
         public float SlideOffset;
@@ -656,18 +663,24 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
-            // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly.
-            if (VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f)
+            // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly. The droop
+            // comes and goes over a quarter of a second: switched on and off at once, setting the stock in the shoulder or
+            // taking the handguard snapped the gun up by the whole droop (up to 11 degrees), and a stock held at the edge
+            // of the shoulder pocket made it flick.
+            float sagWant = VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f ? 1f : 0f;
+            _sagWeight = _sagWeight < 0f ? sagWant : Mathf.MoveTowards(_sagWeight, sagWant, dt * 4f); // drawn: as it should be at once
+            if (_sagWeight > 0f)
             {
+                float w = _sagWeight * _sagWeight * (3f - 2f * _sagWeight);
                 Vector3 pitchAxis = gunRot * Vector3.Cross(d.Up, d.AimAxis).normalized;
-                Quaternion target = Quaternion.AngleAxis(_sagDegrees, pitchAxis) * gunRot;
+                Quaternion target = Quaternion.AngleAxis(_sagDegrees * w, pitchAxis) * gunRot;
                 if (!_carriedInit)
                 {
                     _carriedRot = target;
                     _carriedInit = true;
                 }
                 _carriedRot = Quaternion.Slerp(_carriedRot, target, 1f - Mathf.Exp(-_followRate * dt));
-                gunRot = _carriedRot;
+                gunRot = Quaternion.Slerp(target, _carriedRot, w); // the trail fades with the droop
             }
             else
             {

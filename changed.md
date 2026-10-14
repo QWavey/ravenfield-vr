@@ -876,3 +876,33 @@ shared pool of 8. A separate pool of 6 for the tinks cut the tinks about **once 
 - After: both patches catch, log once per kind of error (`Log.ExceptionOnce`, new), and let the game carry on with its
   own result. The autotest still sees every logged exception and lists it as a problem. Unguarded paths: 0.
 - Kept.
+
+### Round 15 (robustness): the remaining event patches on the game's reload, draw and damage paths guarded (`src/Weapons/WeaponPatches.cs`, `src/Rig/DamageFeedback.cs`)
+
+- Before: five more patches ran mod code inside the game's own events with no guard:
+  - the draw-animation skip (`Weapon.Unholster`) and taking over the game's reload result (`Weapon.ReloadDone`);
+  - the damage vignette, the hit direction and the damage haptics (`DamageUI.ShowVignette`,
+    `ShowDamageIndicator`, `FpsActorController.ReceivedDamage`). The last one sits inside the game's damage handling.
+- After: each catches, logs once (`Log.ExceptionOnce`) and lets the game go on. With round 14, every patch on these
+  paths that calls into mod code is guarded (the one on `Actor.Die` already was). Unguarded event patches on the
+  weapon and damage paths: 5 before, 0 after.
+- Kept.
+
+Rejected on analysis before round 16 (not counted): building the holster assignment once per frame instead of per
+lookup. It runs 2-3 times a frame at about 50 cheap steps each, so there is nothing to gain. Also checked: fired cases
+inherit the player's own movement (the hand's velocity includes the rig's), so they do not fly backward while running.
+
+### Round 16 (smoothness): the droop eases in and out, and the shoulder pocket has a margin (`src/Weapons/HeldWeapon.cs`)
+
+- Before: a long gun's droop and wrist trail (3-11°, machine guns 11°) were switched off in a single frame when the
+  stock entered the shoulder pocket (task 109) or the handguard was taken, and back on when it left. A stock held at
+  the pocket's 12 cm edge made the gun flick by the whole droop.
+- After: the droop and trail fade over a quarter of a second, eased in and out. The pocket takes the stock within
+  12 cm and lets it go past 15 cm.
+- Simulated (machine gun, stock wobbling ±1 cm round the edge at 2 Hz for 2 s):
+
+  | | Before | After |
+  | --- | --- | --- |
+  | In and out of the pocket | 7 times | 1 time |
+  | Biggest turn in one frame | 11.0° | 0.73° |
+- Kept.
