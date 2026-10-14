@@ -1335,3 +1335,49 @@ the "at home" notes in rounds 5, 14 and 19 say what to look at.
   is hidden whenever the text has no layout.
 - Also checked: plate behind the text as seen from the eye for all three (each text faces away from the eye), drawn
   first by queue, on the text's own layer; the counter hides cleanly when a message ends on a gun without ammo.
+
+#### Round 3: the menu laser, its hover tick and the VR keyboard (`src/UI/UISystem.cs`, `src/UI/VRInputModule.cs`, `src/UI/VRKeyboard.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the laser filter resets for a new pointing hand, a pause, an untracked hand and a hitch, and stays in rig space;
+  - the drawn laser and the input use the same direction;
+  - the canvas cache null-checks canvases destroyed between refreshes;
+  - the hover tick never fires while dragging;
+  - the SteamVR keyboard's done/closed events act only while it is ours and open, and the text read back allows four
+    times the field's limit.
+
+#### Round 4: grenade pins and rings (`src/Weapons/ThrowAndMelee.cs`)
+
+- Swept, no real bugs found. Checked:
+  - pulling the pin with the other hand (distance measured from the pin, which moves with the grenade) and flicking it
+    one-handed;
+  - letting go of the pin before it comes out, and throwing with the pin in (a dud; the off hand's pin role cleared);
+  - a fresh grenade putting the pin back (the grenade's own pin part shown again), and putting it away with the pin out;
+  - the pin-name match: "spring" does not match "ring", and finger bones under an arm are excluded.
+
+#### Round 5: grenade duds (`src/Weapons/GrenadeDud.cs`, the pickup in `src/Weapons/WeaponSystem.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the refund goes to the dud's own weapon, or one of the same name after a respawn, into the hand or the reserve;
+    "FULL" when neither has room;
+  - an expired dud is refunded if it can be, and the cap loop always removes one (no endless loop);
+  - grabbing prefers whichever of a dud or a magazine is nearer;
+  - scene changes clear duds without refunding.
+
+#### Round 6: the VR rig's update (`src/Rig/VRRig.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the view mode for alive, dead, seated, on a ladder, fallen over and with vehicle-provided cameras;
+  - eye-height calibration (a 160-sample list, the 75th percentile, a plausibility range, giving up after 6 s);
+  - roomscale steps (jitter and tracking jumps ignored, kept out of the game's own smoothing);
+  - physical crouch hysteresis, and snap turning about the head (it never counts as moving).
+
+#### Round 7: the input bridge (`src/Input/GameInputBridge.cs`)
+
+- **Minor:** the night-vision gesture (grip pressed beside the head) is latched by the hand system and was cleared only
+  on frames where you were alive and out of the menus. Made while dead or with a menu open (a hand at the headset,
+  adjusting it), it stayed latched and switched the night vision on or off the moment you respawned or closed the
+  menu. Fix: the press is taken at the start of every frame's input, so one made outside play is dropped.
+- Also checked: fire suppressed while clicking a menu or panel; sprint toggle ending on an idle stick and cleared in
+  seats and on respawn; stick jump (mostly vertical, latched); the crouch/prone flick and hold; the fire-mode button
+  (magnifier while aiming, alternate sights, the weapon's own modes, then the mod's selector); seated buttons.

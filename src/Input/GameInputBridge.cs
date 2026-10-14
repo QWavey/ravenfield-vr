@@ -76,6 +76,10 @@ namespace RavenfieldVR.Input
                 return;
             }
             _computedFrame = Time.frameCount;
+            // Taken every frame: the gesture made while dead or in a menu (a hand at the headset, adjusting it) stayed
+            // latched until the next frame in play and switched the night vision on or off then.
+            bool goggles = GogglesGesturePressed;
+            GogglesGesturePressed = false;
             Array.Copy(Held, WasHeld, BindCount);
             Array.Clear(Held, 0, BindCount);
             Array.Clear(Axis, 0, BindCount);
@@ -119,9 +123,8 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
-            Set(KeyBinds.Goggles, GogglesGesturePressed);
+            Set(KeyBinds.Goggles, goggles);
             Set(KeyBinds.Map, WristLookGesture);
-            GogglesGesturePressed = false;
 
             if (actor.IsSeated())
             {
