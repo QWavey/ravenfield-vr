@@ -120,12 +120,29 @@ namespace RavenfieldVR.Weapons
                 }
                 UpdateSubWeaponReloadTarget();
             }
+            HealHandRoles();
             UpdateLooseProps();
             Drops.Update();
             FireSelector.Update();
             UpdateDrivingWeapons();
             UpdateHolsters();
             UpdateGripToHold();
+        }
+
+        /// <summary>
+        /// Only the dominant hand holds the drawn weapon or grenade. A hand still marked so without one stayed busy for
+        /// good (no magazine, rack or support grip): the dominant side changed while a weapon was held (the left-handed
+        /// setting, the self-test's left-handed pass) and the release freed the new dominant hand, not the one holding it.
+        /// </summary>
+        private void HealHandRoles()
+        {
+            foreach (VRHand h in Rig.Hands)
+            {
+                if ((h.Role == HandRole.Weapon || h.Role == HandRole.Throwable) && (h != Rig.Dominant || Held == null))
+                {
+                    h.Role = HandRole.Free;
+                }
+            }
         }
 
         /// <summary>

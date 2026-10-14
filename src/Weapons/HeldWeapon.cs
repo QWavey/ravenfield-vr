@@ -385,6 +385,18 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            // What is drawn on the lens goes with it (the HK416-B's magnifier: a portal over its picture, black seen off-axis).
+            int lenses = _scopeLenses.Count;
+            for (int i = 0; i < lenses; i++)
+            {
+                foreach (Renderer child in _scopeLenses[i].GetComponentsInChildren<Renderer>(true))
+                {
+                    if (!_scopeLenses.Contains(child) && !(child is ParticleSystemRenderer))
+                    {
+                        _scopeLenses.Add(child);
+                    }
+                }
+            }
             if (_scopeLenses.Count > 0 && Rig.Data.Sights != null && Rig.Data.Sights.Length > 1)
             {
                 Log.InfoOnce("scopelens:" + Rig.Data.Key, $"{Rig.Data.Key}: its scope picture ({_scopeLenses.Count} lens renderer(s)) is shown only in sight modes that look through it.");
@@ -393,8 +405,10 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A magnifier with its own scope camera, flipped out of the line of sight (an HK416's G33 below its EOTech): its
-        /// camera then films the inside of the mount, and its lens showed a black disc right where the eye looks over it.
-        /// Shown only while the selected sight mode's line runs through the camera; otherwise the lens is clear glass.
+        /// lens showed a black disc right where the eye looks over it (a portal drawn on the lens is black seen off-axis,
+        /// and a camera that flips with it films the inside of the mount). Shown only while the selected sight mode's line
+        /// runs through the camera and through the lens itself; otherwise the lens is clear glass. The HK416-B's camera
+        /// does not move with the magnifier, so the camera alone said "in use" in both modes.
         /// </summary>
         private void UpdateScopeLenses()
         {
@@ -404,21 +418,51 @@ namespace RavenfieldVR.Weapons
             }
             Camera cam = Weapon.renderTextureCamera;
             SightLine sight = CurrentSight;
-            bool inUse = true;
-            if (cam != null && sight != null)
-            {
-                Vector3 c = Rig.ToGun(cam.transform.position);
-                Vector3 rel = c - sight.EyePoint;
-                float off = Vector3.ProjectOnPlane(rel, sight.EyeDirection).magnitude;
-                inUse = off < 0.015f;
-            }
+            bool cameraOnLine = cam == null || sight == null || OffSightLine(sight, cam.transform.position) < 0.015f;
             foreach (Renderer r in _scopeLenses)
             {
-                if (r != null && r.enabled != inUse)
+                if (r == null)
+                {
+                    continue;
+                }
+                bool inUse = cameraOnLine && (sight == null || LensOnLine(sight, r));
+                if (r.enabled != inUse)
                 {
                     r.enabled = inUse;
                 }
             }
+        }
+
+        private float OffSightLine(SightLine sight, Vector3 world) =>
+            Vector3.ProjectOnPlane(Rig.ToGun(world) - sight.EyePoint, sight.EyeDirection).magnitude;
+
+        /// <summary>The sight line passes through this lens (its centre within 1.5 cm, or within most of its radius).</summary>
+        private bool LensOnLine(SightLine sight, Renderer lens)
+        {
+            Bounds b = lens.bounds; // a disabled renderer keeps its bounds
+            float radius = Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z));
+            return OffSightLine(sight, b.center) < Mathf.Max(0.015f, radius * 0.6f);
+        }
+
+        /// <summary>Self-test: the scope lenses (shown or hidden) and how far the scope camera is off the selected sight line.</summary>
+        internal string ScopeLensState()
+        {
+            if (_scopeLenses.Count == 0)
+            {
+                return "no lens showing a scope camera";
+            }
+            Camera cam = Weapon != null ? Weapon.renderTextureCamera : null;
+            SightLine sight = CurrentSight;
+            string off = cam != null && sight != null ? $"{OffSightLine(sight, cam.transform.position) * 100f:0.0} cm" : "unknown";
+            string lensOff = sight != null && _scopeLenses.Count > 0 && _scopeLenses[0] != null
+                ? $", lens {OffSightLine(sight, _scopeLenses[0].bounds.center) * 100f:0.0} cm off it"
+                : "";
+            int shown = 0;
+            foreach (Renderer r in _scopeLenses)
+            {
+                shown += r != null && r.enabled ? 1 : 0;
+            }
+            return $"lens {shown}/{_scopeLenses.Count} shown ({string.Join(", ", _scopeLenses.ConvertAll(r => r != null ? r.name : "-"))}), scope camera {off} off the sight line{lensOff}, sights known {(Rig.Data.Sights != null ? Rig.Data.Sights.Length : 0)}";
         }
 
         private Transform[] _spareParts;
@@ -1561,13 +1605,19 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = Rig.Data;
             float fraction = SlideOffset / Mathf.Max(d.SlideTravel.magnitude, 1e-4f);
+            // A charging handle apart from the bolt (a separate part, or one cut out of an AR's receiver) comes back only with
+            // the hand: when the bolt locks open on an empty magazine, the handle stays forward (it showed pulled back).
+            float handle = Reload != null && !Reload.IsRacking && (Rig.Handle != null || d.CarveHandle && d.SlidePath != null) ? 0f : fraction;
             if (SlideOffset > 0.0005f)
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * fraction);
-                // A separate charging handle travels with the bolt (its own stroke length).
-                MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(fraction));
+                MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
             }
-            _boltPiece?.SetOffset(Rig, d.SlideTravel * fraction);
+            else if (Rig.Handle != null)
+            {
+                MovePart(Rig.Handle, d.HandleRestLocal, Vector3.zero);
+            }
+            _boltPiece?.SetOffset(Rig, d.SlideTravel * (d.CarveHandle && d.SlidePath != null ? handle : fraction));
             ApplyHinge(d);
             ApplySightParts();
 

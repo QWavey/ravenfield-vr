@@ -82,12 +82,7 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual)
             {
-                // The trigger on an empty gun (nothing in the magazine or the chamber) drops the empty magazine, as the
-                // magazine release would: after the click, the hand goes straight for a fresh one.
-                bool emptyTrigger = VRConfig.EmptyTriggerDropsMag.Value && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
-                                    && Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked && Ammo.MagRounds == 0
-                                    && !(Ammo.UsesChamber && Ammo.Chambered) && !Breaks && !Util.GameContext.GameMenuOpen;
-                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) || emptyTrigger)
+                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side))
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);
                     if (!Breaks && !(Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked))
@@ -124,6 +119,18 @@ namespace RavenfieldVR.Weapons
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
                     ReleaseSlide();
+                }
+                else if (VRConfig.TriggerReleasesSlide.Value && Ammo.SlideLocked && !_racking && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
+                         && !Util.GameContext.GameMenuOpen)
+                {
+                    // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it
+                    // chambers a round from a fresh magazine (or closes on an empty one). That pull does not also fire.
+                    ReleaseSlide();
+                    Ammo.HoldFireUntilTriggerUp = true;
+                }
+                if (Ammo.HoldFireUntilTriggerUp && !VRInput.GetHeld(DigitalAction.Fire, dom.Side))
+                {
+                    Ammo.HoldFireUntilTriggerUp = false;
                 }
             }
 
@@ -1232,11 +1239,15 @@ namespace RavenfieldVR.Weapons
         /// Distance to the part you rack: a slide can be taken anywhere along its rear half, a bolt or handle around
         /// its knob.
         /// </summary>
+        /// <summary>A hand is working the slide, bolt or handle right now.</summary>
+        internal bool IsRacking => _racking;
+
         private float RackZoneDistance(Vector3 palm)
         {
             Vector3 a = RackPointWorld;
             float along = Data.IsPistol && !HandleStroke ? 0.05f : HandleStroke ? 0.012f : 0.03f;
-            Vector3 b = a + Rig.AimWorld * along;
+            // A charging handle at the back of the receiver is taken by its T behind the rack point, not inside the gun.
+            Vector3 b = a + Rig.AimWorld * (Data.CarveHandle && !Data.IsPistol ? -0.025f : along);
             Vector3 ab = b - a;
             float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
             return Vector3.Distance(palm, a + ab * t);

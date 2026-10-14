@@ -497,7 +497,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 boreAboveGrip = d.MuzzlePoint + d.AimAxis * Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
-            d.RackPoint = boreAboveGrip - d.AimAxis * 0.035f + d.Up * 0.03f;
+            d.RackPoint = boreAboveGrip - d.AimAxis * 0.05f + d.Up * 0.03f;
             d.RackOnSurface = true; // onto the top of the receiver once the model is measured
             d.CarveHandle = true;
             if (d.SlidePath == null)

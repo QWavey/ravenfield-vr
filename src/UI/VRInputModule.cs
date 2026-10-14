@@ -19,6 +19,9 @@ namespace RavenfieldVR.UI
         /// <summary>Set by the UI system each frame: whether the laser is live and where it comes from.</summary>
         public bool PointerActive;
         public Ray PointerRay;
+
+        /// <summary>Self-test: what the laser is over now (the top-most thing the event system hit).</summary>
+        internal static GameObject Hovered { get; private set; }
         public Hand PointerHand;
         /// <summary>The panels the laser can hit (a list, iterated every frame without allocating).</summary>
         public List<Canvas> Targets;
@@ -123,6 +126,7 @@ namespace RavenfieldVR.UI
                 LastUsed = Time.unscaledTime; // pointing along the menu, clicking, scrolling
             }
             _lastOver = over;
+            Hovered = over;
             HoverTick(over);
             if (press && over != null)
             {
@@ -237,9 +241,18 @@ namespace RavenfieldVR.UI
         /// <summary>Self-test: how often the panels' hierarchies were walked for nested canvases.</summary>
         internal static int Walks { get; private set; }
 
+        /// <summary>Where the laser pointed and when, at the trigger press (for a click that wobbles off its button).</summary>
+        private Vector3 _pressDir;
+        private float _pressTime;
+
+        /// <summary>How far (degrees) the laser may wander during a click before it is a drag or the click is lost.</summary>
+        private const float ClickWobble = 4f;
+
         private void Press(GameObject over)
         {
             _pressed = true;
+            _pressDir = PointerRay.direction;
+            _pressTime = Time.unscaledTime;
             _data.eligibleForClick = true;
             _data.delta = Vector2.zero;
             _data.dragging = false;
@@ -280,7 +293,11 @@ namespace RavenfieldVR.UI
             _pressed = false;
             ExecuteEvents.Execute(_data.pointerPress, _data, ExecuteEvents.pointerUpHandler);
             GameObject clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(over);
-            if (_data.pointerPress != null && _data.pointerPress == clickHandler && _data.eligibleForClick)
+            // Pulling a trigger moves the controller: a laser that slipped just off the button it pressed still clicks it
+            // (a short, steady click), as a finger lifting off a touch screen would. Only one of the pause menu's buttons
+            // took clicks in the headset.
+            bool steady = Vector3.Angle(_pressDir, PointerRay.direction) < ClickWobble && Time.unscaledTime - _pressTime < 0.8f;
+            if (_data.pointerPress != null && _data.eligibleForClick && (_data.pointerPress == clickHandler || steady && !_data.dragging))
             {
                 ExecuteEvents.Execute(_data.pointerPress, _data, ExecuteEvents.pointerClickHandler);
             }
@@ -307,8 +324,11 @@ namespace RavenfieldVR.UI
             }
             if (!_data.dragging)
             {
+                // A drag starts once the laser has really moved (3 degrees), not at the trigger pull's wobble: at a few pixels
+                // a button in a scrolling list lost its click to a drag.
                 float threshold = Mathf.Max(eventSystem.pixelDragThreshold, Screen.height * 0.012f);
-                if ((_data.pressPosition - _data.position).sqrMagnitude >= threshold * threshold)
+                bool moved = Vector3.Angle(_pressDir, PointerRay.direction) >= 3f;
+                if (moved && (_data.pressPosition - _data.position).sqrMagnitude >= threshold * threshold)
                 {
                     ExecuteEvents.Execute(_data.pointerDrag, _data, ExecuteEvents.beginDragHandler);
                     _data.dragging = true;

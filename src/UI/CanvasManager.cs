@@ -224,8 +224,22 @@ namespace RavenfieldVR.UI
         private bool _hadHead;
         private float _menuAwaySince = -1f;
 
+        /// <summary>
+        /// A menu the game just opened gets converted before this frame is drawn, not at the next scan (up to 0.4 s later):
+        /// the loadout's weapon list showed flat in one eye, over an emptied panel, then jumped into place.
+        /// </summary>
+        public static void ScanNow() => _scanNow = true;
+
+        private static bool _scanNow;
+
         public void BeforeRender()
         {
+            if (_scanNow)
+            {
+                _scanNow = false;
+                Scan();
+                Update(); // visible and placed this frame
+            }
             Transform head = _rig.Head;
             FpsActorController player = GameContext.Player;
             RigidPose hud = _rig.HudPose;
@@ -348,9 +362,61 @@ namespace RavenfieldVR.UI
         public void OnSceneChanged()
         {
             _own.RemoveWhere(c => c == null); // the loading scene's canvases are registered on every map load
-            _tracked.Clear();
+            // Only the canvases that went with the old scene are dropped. One that lives on (the game's Options panel)
+            // stays converted: forgotten, it kept the old scene's world position, the scan passes over canvases already
+            // in world space, and in a match the pause menu's Options opened out of sight ("clicking does nothing").
+            _dead.Clear();
+            foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
+            {
+                if (kv.Value.Canvas == null)
+                {
+                    _dead.Add(kv.Key);
+                }
+                else
+                {
+                    kv.Value.Placed = false;
+                    kv.Value.Visible = false;
+                }
+            }
+            foreach (Canvas c in _dead)
+            {
+                _tracked.Remove(c);
+            }
             _menuAnchor = null;
             _nextScan = 0f;
+        }
+
+        /// <summary>Self-test: whether this canvas is converted, its role, and where it is from the head.</summary>
+        internal string Describe(Canvas c)
+        {
+            if (c == null)
+            {
+                return "no canvas";
+            }
+            Canvas root = c.rootCanvas;
+            string where = "";
+            Transform head = _rig.Head;
+            if (head != null)
+            {
+                Vector3 to = c.transform.position - head.position;
+                where = $", {to.magnitude:0.00} m from the head, {Vector3.Angle(head.forward, to):0} deg off the view";
+            }
+            string state = _tracked.TryGetValue(root, out Tracked t)
+                ? $"converted ({t.Role}, {(t.Visible ? "visible" : "hidden")}, {(t.Placed ? "placed" : "not placed")})"
+                : "NOT CONVERTED";
+            return $"'{root.name}' {root.renderMode}, {(c.enabled ? "on" : "off")}, {state}{where}";
+        }
+
+        /// <summary>Self-test: the canvas is drawn within this many degrees of the view, at most this far away.</summary>
+        internal bool InView(Canvas c, float maxAngle, float maxDistance)
+        {
+            Transform head = _rig.Head;
+            if (c == null || head == null || !_tracked.TryGetValue(c.rootCanvas, out Tracked t) || !t.Visible)
+            {
+                return false;
+            }
+            Vector3 to = c.transform.position - head.position;
+            return to.magnitude <= maxDistance && Vector3.Angle(head.forward, to) <= maxAngle;
         }
 
         public void Dispose()
@@ -411,6 +477,19 @@ namespace RavenfieldVR.UI
             if (__instance.eyeLidParent != null && __instance.eyeLidParent.gameObject.activeSelf)
             {
                 __instance.eyeLidParent.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    /// <summary>The loadout's weapon list is a canvas of its own, shown when a slot is clicked: converted at once.</summary>
+    [HarmonyPatch(typeof(WeaponSelectionUi), nameof(WeaponSelectionUi.Show))]
+    internal static class WeaponListShowPatch
+    {
+        private static void Postfix()
+        {
+            if (VRManager.Active)
+            {
+                CanvasManager.ScanNow();
             }
         }
     }

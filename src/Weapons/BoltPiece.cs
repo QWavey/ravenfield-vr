@@ -238,9 +238,20 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = rig.Data;
             Material mat = null;
             float best = 0f;
+            Vector3 gunAt = rig.GunBody.position;
             foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
             {
                 if (r is ParticleSystemRenderer || !r.enabled || r.sharedMaterial == null || System.Array.IndexOf(rig.ArmRenderers, r) >= 0)
+                {
+                    continue;
+                }
+                // The gun's own opaque metal: not a sight's reticle (a 4 m additive quad was the biggest renderer of an M4's
+                // holo sight, and the handle came out a red square), glass, or anything hanging far off the gun.
+                Material m = r.sharedMaterial;
+                string shader = m.shader != null ? m.shader.name : "";
+                if (m.renderQueue >= 2450 || shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || shader.IndexOf("HUD", System.StringComparison.OrdinalIgnoreCase) >= 0 || shader.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || (r.bounds.center - gunAt).sqrMagnitude > 0.5f * 0.5f || r.bounds.size.sqrMagnitude > 1f)
                 {
                     continue;
                 }
@@ -250,6 +261,11 @@ namespace RavenfieldVR.Weapons
                     best = size;
                     mat = r.sharedMaterial;
                 }
+            }
+            if (mat == null)
+            {
+                // Nothing opaque to borrow: plain dark gun metal.
+                mat = _fallback ?? (_fallback = new Material(Shader.Find("Standard")) { name = "RavenfieldVR handle", color = new Color(0.12f, 0.12f, 0.13f) });
             }
             var go = new GameObject("RavenfieldVR Bolt Handle");
             go.transform.SetParent(rig.GunBody, false);
@@ -265,6 +281,7 @@ namespace RavenfieldVR.Weapons
             SetOffset(rig, Vector3.zero);
         }
 
+        private static Material _fallback;
         private Vector3 _knobBase;
         private Quaternion _knobRotation = Quaternion.identity;
 

@@ -250,6 +250,7 @@ namespace RavenfieldVR.Core
                 {
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
+                    yield return PauseMenuCheck();
                 }
                 PerfProbe.Reset();
                 yield return TestWeapons();
@@ -380,6 +381,176 @@ namespace RavenfieldVR.Core
         /// The same weapon held left-handed (the setting overridden in memory only): holstered, handedness switched,
         /// drawn into the left hand, pictured and measured, then back.
         /// </summary>
+        /// <summary>
+        /// The game's pause menu: the laser aimed at each of its buttons in turn (by the dominant hand), and what it is over
+        /// then. Every button must be what the laser hits (only one of them took clicks in the headset). Nothing is clicked.
+        /// </summary>
+        private static IEnumerator PauseMenuCheck()
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || IngameMenuUi.instance == null)
+            {
+                Results.Add("Pause menu: skipped (no pause menu)");
+                yield break;
+            }
+            IngameMenuUi.Show();
+            yield return new WaitForSecondsRealtime(0.8f);
+            Rig.VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            var lines = new List<string>();
+            int bad = 0;
+            try
+            {
+                foreach (UnityEngine.UI.Button b in IngameMenuUi.instance.GetComponentsInChildren<UnityEngine.UI.Button>(false))
+                {
+                    if (!b.isActiveAndEnabled || !b.interactable)
+                    {
+                        continue;
+                    }
+                    Vector3 target = ((RectTransform)b.transform).position;
+                    for (int k = 0; k < 12; k++)
+                    {
+                        // The pointer turned onto the button from where the hand is (corrected each frame).
+                        Runtime.RigidPose raw = dom.Raw;
+                        Quaternion turn = Quaternion.FromToRotation(dom.Pointer.Forward, (target - dom.Pointer.position).normalized);
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(dom.Pointer.position + turn * (raw.position - dom.Pointer.position), turn * raw.rotation);
+                        yield return null;
+                    }
+                    GameObject over = UI.VRInputModule.Hovered;
+                    bool ok = over != null && (over == b.gameObject || over.transform.IsChildOf(b.transform));
+                    bad += ok ? 0 : 1;
+                    string label = b.GetComponentInChildren<UnityEngine.UI.Text>() != null ? b.GetComponentInChildren<UnityEngine.UI.Text>().text : b.name;
+                    lines.Add($"'{label.Trim()}' {(ok ? "under the laser" : over == null ? "NOTHING UNDER THE LASER" : $"COVERED BY '{over.name}' ({over.GetComponentInParent<Canvas>()?.rootCanvas.name})")}");
+                }
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+            }
+            // Real clicks with the trigger, the hand wobbling a little as a trigger pull does: Resume must close the menu,
+            // Options must open the options.
+            yield return ClickMenuButton(dom, "RESUME", lines);
+            lines.Add($"after Resume: the menu is {(IngameMenuUi.IsOpen() ? "STILL OPEN" : "closed")}");
+            bad += IngameMenuUi.IsOpen() ? 1 : 0;
+            IngameMenuUi.Show();
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return ClickMenuButton(dom, "OPTIONS", lines);
+            yield return new WaitForSecondsRealtime(0.5f);
+            bool options = Options.IsOpen();
+            // Open is not enough: the panel must be drawn in front of you (it once opened where the main menu had put it).
+            UI.CanvasManager canvases = VRManager.Instance != null && VRManager.Instance.UI != null ? VRManager.Instance.UI.Canvases : null;
+            Canvas panel = Options.instance != null ? Options.instance.GetComponent<Canvas>() : null;
+            bool shown = options && canvases != null && canvases.InView(panel, 45f, 4f);
+            lines.Add($"after Options: the options are {(options ? shown ? "open, in front of the eyes" : "open but OUT OF SIGHT" : "NOT OPEN")}"
+                      + (canvases != null ? $" ({canvases.Describe(panel)})" : ""));
+            bad += shown ? 0 : 1;
+            if (options)
+            {
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("pause-menu-options");
+                yield return new WaitForSecondsRealtime(1.5f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("pause-menu-options-2s");
+                lines.Add("options tabs: " + OptionsTabs());
+                Options.SaveAndClose();
+            }
+            IngameMenuUi.Hide();
+            Results.Add("Pause menu: " + string.Join("; ", lines));
+            if (bad > 0)
+            {
+                Problem($"[pause menu] {bad} button(s) the laser cannot reach: {string.Join("; ", lines)}");
+            }
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        /// <summary>
+        /// The options' tab pages (nested canvases): drawn or not, sorting, alpha, size. In the headset the panel came up
+        /// with its tab buttons and Apply but an empty page.
+        /// </summary>
+        private static string OptionsTabs()
+        {
+            Options o = Options.instance;
+            if (o == null)
+            {
+                return "no options";
+            }
+            var parts = new List<string>();
+            foreach (Canvas tab in new[] { o.gameOptions, o.inputOptions, o.videoOptions })
+            {
+                if (tab == null)
+                {
+                    parts.Add("-");
+                    continue;
+                }
+                int drawn = 0, total = 0;
+                foreach (UnityEngine.UI.Graphic g in tab.GetComponentsInChildren<UnityEngine.UI.Graphic>(false))
+                {
+                    total++;
+                    if (g.enabled && g.canvasRenderer != null && !g.canvasRenderer.cull && g.canvasRenderer.GetInheritedAlpha() > 0.01f)
+                    {
+                        drawn++;
+                    }
+                }
+                string groups = "";
+                for (Transform t = tab.transform; t != null; t = t.parent)
+                {
+                    CanvasGroup cg = t.GetComponent<CanvasGroup>();
+                    if (cg != null)
+                    {
+                        groups += $" group '{t.name}' alpha {cg.alpha:0.00}";
+                    }
+                }
+                Rect r = ((RectTransform)tab.transform).rect;
+                parts.Add($"{tab.name}: {(tab.enabled ? "on" : "off")}, {(tab.overrideSorting ? $"own order {tab.sortingOrder}" : "root's order")} (root {tab.rootCanvas.sortingOrder}), "
+                          + $"{drawn}/{total} graphics drawn, rect {r.width:0}x{r.height:0} at {tab.transform.localPosition}, layer {tab.gameObject.layer}{groups}");
+            }
+            if (o.background != null)
+            {
+                parts.Add($"background {(o.background.enabled ? "on" : "off")} {o.background.color} texture {(o.background.texture != null ? o.background.texture.name : "none")}");
+            }
+            return string.Join("; ", parts);
+        }
+
+        /// <summary>Aims the laser at the pause menu's button with this label and clicks it with the trigger, wobbling 1.5 degrees.</summary>
+        private static IEnumerator ClickMenuButton(Rig.VRHand dom, string label, List<string> lines)
+        {
+            int side = (int)dom.Side;
+            UnityEngine.UI.Button button = null;
+            foreach (UnityEngine.UI.Button b in IngameMenuUi.instance.GetComponentsInChildren<UnityEngine.UI.Button>(false))
+            {
+                UnityEngine.UI.Text t = b.GetComponentInChildren<UnityEngine.UI.Text>();
+                if (t != null && t.text.Trim().Equals(label, StringComparison.OrdinalIgnoreCase))
+                {
+                    button = b;
+                }
+            }
+            if (button == null)
+            {
+                lines.Add($"click '{label}': NO SUCH BUTTON");
+                yield break;
+            }
+            Vector3 target = ((RectTransform)button.transform).position;
+            try
+            {
+                for (int k = 0; k < 14; k++)
+                {
+                    float wobble = k >= 9 && k <= 11 ? 1.5f : 0f; // the controller dips while the trigger is pulled
+                    Runtime.RigidPose raw = dom.Raw;
+                    Vector3 want = Quaternion.AngleAxis(wobble, Vector3.right) * (target - dom.Pointer.position).normalized;
+                    Quaternion turn = Quaternion.FromToRotation(dom.Pointer.Forward, want);
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(dom.Pointer.position + turn * (raw.position - dom.Pointer.position), turn * raw.rotation);
+                    Input.VRInput.SimulatedTrigger[side] = k >= 8 && k <= 10 ? 1f : 0f;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                Input.VRInput.SimulatedTrigger[side] = 0f;
+                Rig.VRHand.Scripted[side] = null;
+            }
+            yield return null;
+        }
+
         /// <summary>
         /// The loadout's weapon list (the submenu with every weapon for a slot): pictures over a second and a half after it
         /// opens, and where its panel is (it once turned 3D, then jumped flat to the left with a grey box where the list was).
@@ -524,7 +695,7 @@ namespace RavenfieldVR.Core
                     Camera rt = w.renderTextureCamera;
                     string cam = rt == null ? "no scope camera of its own"
                         : $"its scope camera '{rt.name}' {(rt.enabled && rt.gameObject.activeInHierarchy ? "on" : "OFF")}, drawing into {(rt.targetTexture != null ? $"'{rt.targetTexture.name}'" : "THE SCREEN")}";
-                    report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")}, game aiming {w.GetActiveSubWeapon().aiming}, {cam}");
+                    report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")}, game aiming {w.GetActiveSubWeapon().aiming}, {cam}, {held.ScopeLensState()}");
                     if (!w.HasAnyAltSightModes() || !w.NextSightMode())
                     {
                         break;
@@ -1586,6 +1757,13 @@ namespace RavenfieldVR.Core
                     listened?.onSpawnProjectiles.AddListener(CountShot);
                     for (int i = 0; i < 3; i++)
                     {
+                        // A slow gun (a bolt sniper's 1.5 s) is still cooling down from the check before, or from the last
+                        // shot: waited out, or it "did not fire".
+                        Weapon cooling = weapon.GetActiveSubWeapon();
+                        for (float coolUntil = Time.realtimeSinceStartup + 3f; cooling != null && cooling.CoolingDown() && Time.realtimeSinceStartup < coolUntil;)
+                        {
+                            yield return null;
+                        }
                         held?.ResetKick(); // each shot on its own: shots that stack up are not one shot's kick
                         try
                         {
