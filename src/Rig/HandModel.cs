@@ -186,6 +186,32 @@ namespace RavenfieldVR.Rig
 
         private Vector3 Mirror(Vector3 v) => new Vector3(v.x * _hand.Mirror, v.y, v.z);
 
+        /// <summary>
+        /// From the controller's grip point (the fist hollow, where <see cref="VRHand.Palm"/> lies in the glove) out along the
+        /// palm's normal to the palm's skin, over the part of the palm an object covering <paramref name="zMin"/>..
+        /// <paramref name="zMax"/> (toward the fingers) and <paramref name="yMin"/>..<paramref name="yMax"/> (toward the thumb)
+        /// lies against; palm frame, metres from the palm centre, this glove at its size. The palm is curved (its heel stands
+        /// out most): an object up by the fingers rests on the flatter part there. Something held at the grip point is moved
+        /// out by this plus its own half thickness to rest on the palm instead of half inside it.
+        /// </summary>
+        internal static float PalmSurfaceFromGrip(float zMin, float zMax, float yMin, float yMax)
+        {
+            HandShape shape = HandShape.Current;
+            float scale = shape.Scale, grow = Weapons.GunVolume.Grow;
+            float covered = float.NegativeInfinity, any = 0f;
+            foreach (Vector3 p in shape.PalmSkin)
+            {
+                float outward = -p.x * scale, y = p.y * scale, z = p.z * scale;
+                any = Mathf.Max(any, outward);
+                if (z >= zMin - grow && z <= zMax + grow && y >= yMin - grow && y <= yMax + grow)
+                {
+                    covered = Mathf.Max(covered, outward);
+                }
+            }
+            float skin = float.IsNegativeInfinity(covered) ? any : covered;
+            return Mathf.Max(0f, skin + VRHand.FistHollow.x); // the hollow lies -FistHollow.x out from the palm centre
+        }
+
         /// <summary>The glove's palm frame (self-test).</summary>
         internal Transform Root => _root;
 

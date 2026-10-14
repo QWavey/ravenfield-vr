@@ -1426,3 +1426,47 @@ rig's update, the input bridge, the cockpit controls, the mod-script key bridge,
 (a one-frame dark square on new readouts, a night-vision gesture firing later, lopsided two-hand steering, no pause
 with the headset off). Rounds 1, 3, 4, 5, 6 and 9 were swept clean. Every round passed the compile check with no new
 diagnostics.
+
+---
+
+## Third pass: improve 20 on the hands (Tasks.md 125)
+
+Hands on the weapons: holding rifle and pistol magazines, racking slides and bolts, the support hand, poses and
+gestures, aiming at Boneworks. To measure hands without the game, a new tool, **`tools/hands/grip_check.py`**,
+reproduces `HandModel` from the real glove data (`src/Rig/Glove/glove.bin`, the default size 0.88):
+- the hand placed on the tracked palm, the grasp-anchor shift, the palm settling onto a held solid;
+- every finger closing joint by joint until it touches, exactly as `SolveFinger` does;
+- simple solids placed as the mod places them.
+
+Per scenario it reports:
+- how far the glove had to move off your real hand;
+- which fingers touch (`HandModel.Measure`'s rule);
+- how many finger and palm points are buried in the object;
+- each fingertip's gap to its surface.
+
+Run it with `python tools/hands/grip_check.py`. The baseline for round 1 is `--before`.
+
+Baseline (before round 1), grip squeezed on a controller without finger tracking:
+
+| Held | Glove off your hand | Touching | Buried | Fingertip gaps (mm) |
+| --- | --- | --- | --- | --- |
+| Rifle magazine (STANAG) | 1.8 cm | thumb, 4/4 | 3/72 | T −1, I +1, M +1, R 0, L +4 |
+| Pistol magazine | 1.2 cm | thumb, 4/4 | 0/72 | **T +17**, I +3, M +7, R +1, L +1 |
+| AK magazine | 2.0 cm | thumb, 4/4 | 4/72 | T +2, I +5, M 0, R 0, L +2 |
+| MG box | **4.0 cm** (the cap) | thumb, 4/4 | **12/72** | **T −47** (thumb inside), I +6, M 0, R +8, L +1 |
+
+### Round 1 (correctness): magazines rest on the palm, the glove stays on your hand (`src/Weapons/MagazineProp.cs`, `src/Rig/HandModel.cs`)
+
+- Before: a magazine was held with the point a third of the way up it on the controller's grip point. In the glove,
+  that point (the fist hollow) lies at the palm's skin, so the magazine was half inside the hand. The glove, settling
+  its palm onto it, moved off the real hand by the amounts above, and visibly jumped sideways whenever you took a
+  magazine.
+- After: `HoldPose` moves the magazine (and shells and rockets) out along the palm's normal so its side rests on the
+  palm. The distance is the palm's skin over the part of the palm the magazine covers (the palm is curved, its heel
+  stands out most) plus the magazine's own half thickness. That comes from `HandModel.PalmSurfaceFromGrip`, which
+  reads the glove's palm at its configured size. The palmed second magazine sits the first one's thickness further
+  out, as before.
+- Measured (grip_check.py): the glove moves **1.8 → 0.2 cm** (rifle), **1.2 → 0.0 cm** (pistol), **2.0 → 0.2 cm**
+  (AK) and **4.0 → 0.2 cm** (MG box). 0.2 cm is the settle's 2 mm step, i.e. just touching.
+- Kept. Still open from the baseline: the pistol magazine's thumb ends 18 mm off it, and the MG box's thumb lies
+  inside it.

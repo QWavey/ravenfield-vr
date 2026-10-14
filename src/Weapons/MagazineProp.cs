@@ -45,6 +45,8 @@ namespace RavenfieldVR.Weapons
         public readonly Vector3 BaseLocal;
         /// <summary>Half the magazine's thickness across the hand (side to side), for holding a second one beside it.</summary>
         private readonly float _sideHalf;
+        /// <summary>Half the magazine's size front to back (along the hand's pointing direction when held).</summary>
+        private readonly float _frontHalf;
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
         public readonly float CrossHalf;
         private readonly Rigidbody _body;
@@ -124,6 +126,7 @@ namespace RavenfieldVR.Weapons
             BaseLocal = bounds.center - InsertDirLocal * extent;
             Vector3 sideLocal = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             _sideHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), 0.006f, 0.04f);
+            _frontHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal))), 0.006f, 0.1f);
             CrossHalf = Mathf.Clamp(Mathf.Max(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal))), Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal)))), 0.006f, 0.1f);
             switch (kind)
             {
@@ -592,6 +595,14 @@ namespace RavenfieldVR.Weapons
             float gripAt = Kind == PropKind.Magazine ? 0.33f : 0.5f; // shells and rockets are pinched in the middle
             Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
             Vector3 pos = palm.position - rot * held;
+            // Resting against the palm, not half inside it. The grip point (the fist hollow) lies at the palm's skin, so a
+            // prop centred on it was half in the hand, and the glove, settling onto it, left the real hand: 1.8 cm for a
+            // rifle magazine, 2.0 for an AK's, the full 4 cm for a machine gun's box (tools/hands/grip_check.py). Out along
+            // the palm's normal by the palm's skin over the part it covers, plus its own half thickness.
+            float length = Vector3.Distance(BaseLocal, TipLocal);
+            float zHold = VRHand.FistHollow.z, yHold = VRHand.FistHollow.y;
+            float rest = Rig.HandModel.PalmSurfaceFromGrip(zHold - _frontHalf, zHold + _frontHalf, yHold - gripAt * length, yHold + (1f - gripAt) * length) + _sideHalf;
+            pos += palm.rotation * new Vector3(-hand.Mirror, 0f, 0f) * rest;
             return new RigidPose(pos, rot);
         }
 
@@ -618,7 +629,8 @@ namespace RavenfieldVR.Weapons
         {
             RigidPose p = HoldPose(hand);
             Vector3 towardFingers = -hand.Palm.Right * hand.Mirror; // the palm side of the fist
-            float spacing = _sideHalf + (primary != null ? primary._sideHalf : _sideHalf) + 0.004f;
+            // Both rest on the palm in HoldPose: this one goes the first one's whole thickness further out, and 4 mm.
+            float spacing = 2f * (primary != null ? primary._sideHalf : _sideHalf) + 0.004f;
             Vector3 insert = p.TransformDirection(InsertDirLocal);
             return new RigidPose(p.position + towardFingers * spacing - insert * 0.025f, p.rotation);
         }
