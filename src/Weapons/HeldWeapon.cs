@@ -337,6 +337,22 @@ namespace RavenfieldVR.Weapons
             Reload.OnShot();
         }
 
+        /// <summary>
+        /// A push on the gun from the hands working it (world velocity in m/s, muzzle dip in deg/s): racking tugs it toward
+        /// the pull, a slide slamming home or a magazine seating jolts it. The recoil spring takes it and settles it back.
+        /// Light guns move more than heavy ones.
+        /// </summary>
+        internal void Nudge(Vector3 velocityWorld, float dip = 0f)
+        {
+            float mass = Rig.Data.IsPistol ? 1.3f : Rig.Data.IsMachineGun ? 0.6f : 1f;
+            Vector3 local = Quaternion.Inverse(GripWorld.rotation) * velocityWorld;
+            _recoilPosVel += Vector3.ClampMagnitude(local * mass, 0.5f);
+            _recoilRotVel.x += dip * mass;
+        }
+
+        /// <summary>Self-test: the furthest the gun was moved off the hand (metres) since <see cref="ResetKick"/>.</summary>
+        internal float PeakShift { get; private set; }
+
         private void StepRecoil(float dt)
         {
             // Critically damped springs: snappy kick, quick settle.
@@ -349,12 +365,13 @@ namespace RavenfieldVR.Weapons
             _recoilRot = Vector2.ClampMagnitude(_recoilRot, 25f);
             PeakKick = Mathf.Max(PeakKick, Mathf.Abs(_recoilRot.x));
             PeakBack = Mathf.Max(PeakBack, -_recoilPos.z);
+            PeakShift = Mathf.Max(PeakShift, _recoilPos.magnitude);
         }
 
         /// <summary>Self-test: the largest muzzle climb (degrees) and push back (metres) since <see cref="ResetKick"/>.</summary>
         internal float PeakKick { get; private set; }
         internal float PeakBack { get; private set; }
-        internal void ResetKick() => PeakKick = PeakBack = PeakShotImpulse = 0f;
+        internal void ResetKick() => PeakKick = PeakBack = PeakShotImpulse = PeakShift = 0f;
 
         /// <summary>Self-test: the strongest muzzle-climb impulse one shot gave (deg/s) since <see cref="ResetKick"/>, whenever it fired.</summary>
         internal float PeakShotImpulse { get; private set; }

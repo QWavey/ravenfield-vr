@@ -241,3 +241,23 @@ The glove itself was done last session; these are the points from the notes of i
 
 Check at home: the grip close-ups (`grip-*-out/in/under`, `support-*`), the glove pictures (`-rfvr-handshots`), and the
 JOLT-20 S / PATRIOT GL / QUICKSILVER in the headset.
+
+## Task 108: working the action nudges the gun
+
+`src/Weapons/HeldWeapon.cs` (`Nudge`, `PeakShift`), `src/Weapons/ReloadInteractions.cs`.
+
+Small pushes go into the gun's recoil spring (which settles them back, as it does a shot's kick); light guns move more
+(pistols x1.3, machine guns x0.6):
+- Racking: while the hand pulls the slide, bolt, handle or pump, the gun is tugged toward the pull (2.5 x the stroke the
+  hand moved that frame as velocity, so a full pull moves the gun a few millimetres), and toward the muzzle when pushed
+  forward.
+- A spring-driven slide or bolt slamming home jolts the gun forward (0.22 m/s) and dips the muzzle a little; a bolt or
+  pump pushed home by hand, a little less.
+- A magazine seating pushes the gun along the insertion direction (0.14 m/s, rocket 0.1); pulling a seated magazine out
+  tugs it the other way (0.08); a break-action or cylinder snapping shut flicks it up; a feed cover pressed shut pushes
+  it down a little.
+- Autotest (rack-grip check): the stroke is now pulled all the way and let go; metrics `racking: mm the gun moves with
+  the pull` and `... when the slide goes home`, and the rack-grip report line says both.
+
+Check at home: those two metrics (a few millimetres each), and how it feels in the headset (the numbers are in
+`ReloadInteractions`: `moved * 2.5f`, `0.22f`, `0.14f`).

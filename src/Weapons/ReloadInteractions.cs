@@ -22,6 +22,8 @@ namespace RavenfieldVR.Weapons
         private readonly HeldWeapon _held;
 
         private bool _racking;
+        /// <summary>Where along the stroke the hand was last frame (for the tug the pull gives the gun).</summary>
+        private float _tugStroke;
         private Vector3 _rackStartGun;
         private float _rackBase;
         private bool _rackedBack;
@@ -451,6 +453,7 @@ namespace RavenfieldVR.Weapons
             prop.LastTick = prop.RailDepth;
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _held.Nudge(-SeatPose.TransformDirection(prop.InsertDirLocal) * 0.08f); // the latch gives with a tug
             off.Haptic(0.03f, 120f, 0.5f);
         }
 
@@ -477,6 +480,7 @@ namespace RavenfieldVR.Weapons
             else
             {
                 _held.Sounds.Play(MechSound.SlideForward, SeatPose.position);
+                _held.Nudge(Rig.UpWorld * 0.08f, -8f); // snapped shut with a flick
                 dom.Haptic(0.05f, 110f, 0.75f);
             }
         }
@@ -522,6 +526,7 @@ namespace RavenfieldVR.Weapons
             else if (Ammo.CoverOpen && openness < 0.06f)
             {
                 Ammo.SetCoverOpen(false);
+                _held.Nudge(-Rig.UpWorld * 0.06f, 6f); // the cover pressed shut
                 _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);
                 off.Haptic(0.05f, 110f, 0.75f);
                 _sys.Rig.Dominant.Haptic(0.04f, 110f, 0.5f);
@@ -1014,6 +1019,7 @@ namespace RavenfieldVR.Weapons
                 case PropKind.Magazine:
                     Ammo.InsertMagazine(prop.Rounds);
                     _held.Sounds.Play(MechSound.MagIn, at);
+                    _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
                     break;
                 case PropKind.Shell:
                 {
@@ -1025,6 +1031,7 @@ namespace RavenfieldVR.Weapons
                 case PropKind.Rocket:
                     Ammo.LoadRounds(1);
                     _held.Sounds.Play(MechSound.MagIn, at);
+                    _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.1f);
                     break;
             }
             prop.Destroy();
@@ -1140,6 +1147,7 @@ namespace RavenfieldVR.Weapons
             _rackBase = Ammo.SlideLocked ? 1f : Fraction;
             _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && Fraction >= 0.8f;
             _lastTick = _rackBase * StrokeLength;
+            _tugStroke = _lastTick;
             off.Role = HandRole.Slide;
             off.Haptic(0.02f, 160f, 0.35f);
             if (IsPump)
@@ -1163,6 +1171,13 @@ namespace RavenfieldVR.Weapons
             _held.SlideOffset = fraction * Travel;
 
             float stroke = fraction * StrokeLength;
+            // The pull tugs the gun toward the hand (and a push home toward the muzzle), a few millimetres, as in Boneworks.
+            float moved = stroke - _tugStroke;
+            _tugStroke = stroke;
+            if (Mathf.Abs(moved) > 1e-5f)
+            {
+                _held.Nudge(Rig.DirToWorld(StrokeDir) * Mathf.Clamp(moved * 2.5f, -0.05f, 0.05f));
+            }
             if (Mathf.Abs(stroke - _lastTick) > 0.01f)
             {
                 _lastTick = stroke;
@@ -1189,6 +1204,7 @@ namespace RavenfieldVR.Weapons
                 _rackedBack = false;
                 Ammo.BoltOpen = false;
                 Ammo.RackForward();
+                _held.Nudge(Rig.AimWorld * 0.1f, 10f); // the bolt or pump closing jolts the gun
                 _held.Sounds.Play(MechSound.SlideForward, RackPointWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -1286,11 +1302,12 @@ namespace RavenfieldVR.Weapons
             }
             else if (_returning)
             {
-                // Spring-driven slides slam home in a few hundredths of a second.
+                // Spring-driven slides slam home in a few hundredths of a second, jolting the gun forward and down.
                 _held.SlideOffset = Mathf.MoveTowards(_held.SlideOffset, 0f, 6f * dt);
                 if (_held.SlideOffset <= 0f)
                 {
                     _returning = false;
+                    _held.Nudge(Rig.AimWorld * 0.22f, 25f);
                 }
             }
             else if (!_racking)
@@ -1835,21 +1852,39 @@ namespace RavenfieldVR.Weapons
                 // Half way back along the stroke.
                 Vector3 start = RackPointWorld;
                 Vector3 pull = Rig.DirToWorld(StrokeDir) * (StrokeLength * 0.5f);
+                _held.ResetKick();
                 for (int i = 1; i <= 10; i++)
                 {
                     VRHand.Scripted[side] = At(start + pull * (i / 10f));
                     yield return null;
                 }
+                float tug = _held.PeakShift;
                 yield return new WaitForSecondsRealtime(0.2f);
                 yield return new WaitForEndOfFrame();
                 shot("rack-grip-pulled");
                 string pulled = _held.PartClipping(off, out int pulledBuried, out _);
+                // All the way back, then let go: a spring-driven slide or bolt slams home and jolts the gun.
+                for (int i = 11; i <= 20; i++)
+                {
+                    VRHand.Scripted[side] = At(start + pull * (i / 10f));
+                    yield return null;
+                }
+                _held.ResetKick();
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.35f);
+                float jolt = _held.PeakShift;
+                Core.AutoTest.Metric("racking: mm the gun moves with the pull", tug * 1000f);
+                if (!HandDriven)
+                {
+                    Core.AutoTest.Metric("racking: mm the gun moves when the slide goes home", jolt * 1000f);
+                }
                 Core.AutoTest.Metric("rack grip: points inside the part", restBuried);
                 Core.AutoTest.Metric("rack grip: fingers on the part (of 4)", restTouching);
                 Core.AutoTest.Metric("rack grip pulled half way: points inside the part", pulledBuried);
                 string moves = _held.VisibleHandle;
                 Core.AutoTest.Metric("rack grip: something visible moves with the pull (0/1)", moves.StartsWith("NOTHING", System.StringComparison.Ordinal) ? 0 : 1);
-                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}, {Data.SlideMethod}): {atRest}; pulled half way: {pulled}; moving with the hand: {moves}");
+                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}, {Data.SlideMethod}): {atRest}; pulled half way: {pulled}; moving with the hand: {moves}; "
+                       + $"the gun moved {tug * 1000f:0.0} mm with the pull{(HandDriven ? " (hand-driven: stays open)" : $", {jolt * 1000f:0.0} mm when it went home")}"); 
             }
             finally
             {
