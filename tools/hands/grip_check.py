@@ -734,7 +734,8 @@ AR_RACK = np.array([0.0, 0.006, -0.095])
 RIFLE_RACKS = {
     # name: part, gun, rack point, pose, (fingers, thumb) in gun space
     "AK knob from the right": (AK_PART, AK_RECEIVER, AK_RACK, "BoltHandle", ([0.0, 0.3, 1.0], [0.0, 1.0, -0.3])),
-    "AK knob over the top": (AK_PART, AK_RECEIVER, AK_RACK, "BoltHandle", ([1.0, -0.6, 0.0], [0.0, 0.0, -1.0])),
+    # palm = fingers x thumb (the glove's frame): palm down on the receiver, fingers out over the knob's side, thumb forward
+    "AK knob over the top": (AK_PART, AK_RECEIVER, AK_RACK, "BoltHandle", ([1.0, -0.6, 0.0], [0.0, 0.0, 1.0])),
     "AR handle from behind": (AR_PART, AR_RECEIVER, AR_RACK, "ChargingHandle", ([0.0, -0.4, 1.0], [-1.0, 0.0, 0.0])),
     "AR handle from above": (AR_PART, AR_RECEIVER, AR_RACK, "ChargingHandle", ([0.0, -1.0, 0.3], [-1.0, 0.0, 0.0])),
 }

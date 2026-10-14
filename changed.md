@@ -1569,9 +1569,8 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
 ### Round 6 (correctness): a racking hand stops on the gun, not only on the part it pulls (`src/Weapons/HeldWeapon.cs`)
 
 - Before: a hand working the action closed only on the moving part's own solid: the slide, bolt carrier or charging
-  handle. Everything else on the gun was air to it. A hand reaching over an AK's top to its bolt knob had its palm
-  1.3 cm inside the receiver, and a hand taking an AR's charging handle from above curled its fingers into the
-  upper receiver.
+  handle. Everything else on the gun was air to it. A hand taking an AR's charging handle from above curled its
+  fingers into the upper receiver.
 - After (`HeldWeapon.RackSolid`): the hand closes on three things:
   - the part where it is now;
   - the rest of the gun, using the gun's measured solid. That solid includes the part at rest, so the part's rest
@@ -1585,14 +1584,15 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
 
   | rack | before | after |
   |---|---|---|
-  | AK knob, over the top | 16 (palm 13 mm into the receiver) | **7** (palm gap +2 mm) |
   | AR handle, from above | 15 | **1** |
+  | AK knob over the top | 1 | 1 |
   | AK knob from the right, AR handle from behind | 0 | 0 |
 
   The pistol slide grips from round 5 are unchanged.
-- The 7 left over the AK are all the thumb. The pinch drags the thumb–index point onto the knob on the far side of
-  the receiver, so the thumb goes through the receiver to reach it. That hand should hook the knob with its fingers
-  instead (next round).
+- Correction: a first version of this entry reported the AK over the top going from 16 to 7. That scene had the
+  thumb pointing back, which for a right hand turns the palm up. With the palm really on the receiver, it is 1
+  buried point before and after. Its real problem is that the palm floats 35 mm above the receiver, because the pinch
+  reaches down for the knob (round 7).
 - The harness's racking scenarios now open only the thumb out of the solid before closing, as HandModel does for a
   racking hand. The numbers are the same either way.
 - Kept.
