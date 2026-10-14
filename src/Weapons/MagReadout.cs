@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
+using RavenfieldVR.UI;
 using UnityEngine;
 
 namespace RavenfieldVR.Weapons
@@ -19,6 +20,7 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _sys;
         private GameObject _go;
         private TextMesh _text;
+        private TextPlate _plate;
         private MagazineProp _target;
         private float _alpha;
         private string _shown;
@@ -52,6 +54,8 @@ namespace RavenfieldVR.Weapons
             mr.sharedMaterial = _font.material;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
+            // The same dark backing as the wrist display and the gun's counter: the count reads against the ground and sky.
+            _plate = new TextPlate(_text, _font.material, 0.8f, 0.006f);
         }
 
         public void BeforeRender()
@@ -101,9 +105,11 @@ namespace RavenfieldVR.Weapons
                 _loggedShown = true;
                 Log.Info($"Magazine readout shown: {label} at {at:F2}, {Vector3.Distance(at, head.position):0.00} m from the eye.");
             }
-            Color c = _target.Rounds > 0 ? new Color(0.95f, 0.96f, 0.9f) : new Color(0.95f, 0.32f, 0.26f);
+            Color c = _target.Rounds > 0 ? new Color(0.95f, 0.96f, 0.9f) : new Color(1f, 0.42f, 0.36f);
             c.a = _alpha * 0.95f;
             _text.color = c;
+            _plate.Fit();
+            _plate.SetAlpha(_alpha);
         }
 
         /// <summary>The magazine you are looking at: near, in the middle of the view, its top turned toward you.</summary>
@@ -153,6 +159,8 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy()
         {
+            _plate?.Destroy();
+            _plate = null;
             if (_go != null)
             {
                 Object.Destroy(_go);

@@ -122,7 +122,7 @@
 120. [x] Machine gun belt: the laid belt does not show on the gun
 121. [x] A long gun touching the ground pushes the player around: only the hand and gun may be pushed
 122. [x] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
-123. [ ] /improve 20 again: push toward an AAA-quality VR mod, make everything better and smoother
+123. [x] /improve 20 again: push toward an AAA-quality VR mod, make everything better and smoother
 124. [ ] /bug-hunt 10 (after 123)
 ---
 

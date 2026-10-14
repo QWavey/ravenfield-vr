@@ -1283,3 +1283,35 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
 - At home: this assumes the gunner seat's camera turns with its turret, which is how Ravenfield's turret seats are
   built. In a tank gunner seat, look away from the turret: the reticle should follow the barrel round, not your eyes.
 - Kept.
+
+### Round 20 (readability, consistency): the magazine round count on a plate too (`src/Weapons/MagReadout.cs`)
+
+- Before: the round count that appears over a magazine you look at was bare bold text.
+- After: the same `TextPlate` as the wrist display and the gun's counter, and the same brighter red for an empty
+  magazine. All three floating readouts now read alike.
+- Worst contrast over a white sky, a pale sky and sand:
+
+  | Count | Before | After |
+  | --- | --- | --- |
+  | Rounds left | 1.11:1 | 9.82:1 |
+  | Empty | 1.59:1 | 3.89:1 |
+- Kept.
+
+### Roll-up of the second pass
+
+20 rounds, all kept; three more candidates were dropped on analysis or measurement and not counted (scope mipmaps,
+the finger solver, rerouting the voices). By kind:
+
+| Kind | Rounds | Measured change |
+| --- | --- | --- |
+| Correctness | 4, 9, 10, 13, 14, 19 | scope 57% → 100% bright when aimed; melee false swings while sprinting gone; stowing and grip throws judged against the body; wheel flip at 180° gone; hand flight stick drift (full throw within 0.1 s at 5 m/s+) gone; vehicle reticle error while the turret swings 90° → 0° |
+| Feel and smoothness | 5, 8, 15, 16, 18 | scope shadow crescent; magazine rail snap 3.5 cm / 35° → 0.7 cm / 7° a frame; turret turn input at 178° 0.17 → 10; stick tremor input 3.4% → 0.02%; menu hover tick |
+| Visual quality and readability | 2, 6, 7, 20 | reticle shimmer 0.65 → 0.07; text contrast over a white sky 1.1-1.7:1 → 3.9-9.8:1 on the wrist, the counter and the magazine count |
+| UI precision and usability | 3, 11 | menu laser jitter at 2 m 4.7 → 1.1 mm; 9 more settings in the headset (32 in 25 rows) |
+| Audio | 12 | case landing on earth: 9 kHz ringing tink → 0.96 kHz tap |
+| Robustness and memory | 1 | leaked materials per scoped draw 2 → 0 (and per plain dud 1 → 0) |
+| Test coverage | 17 | self-test check for the cockpit fixes (0 → 1) |
+
+Two of the correctness rounds fix things already on `main`: round 14 (the hand flight stick could not fly anything
+moving) and round 13 (the wheel). Every round passed the compile check (no new diagnostics). None ran in the game;
+the "at home" notes in rounds 5, 14 and 19 say what to look at.
