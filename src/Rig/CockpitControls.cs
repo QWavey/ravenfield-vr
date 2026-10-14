@@ -14,6 +14,8 @@ namespace RavenfieldVR.Rig
     public sealed class CockpitControls
     {
         private const float StickThrow = 0.08f;
+        /// <summary>The stick's centre zone, as a share of its throw (6 mm of 8 cm).</summary>
+        private const float StickDeadzone = 0.075f;
 
         private readonly VRRig _rig;
         private Seat _seat;
@@ -158,7 +160,10 @@ namespace RavenfieldVR.Rig
                 else
                 {
                     Vector3 local = InSeat(palm) - _stickStartLocal;
-                    VehicleInput.FlightStick = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
+                    var throw01 = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
+                    // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
+                    // (2-3 mm) was a steady 2-4% of stick and the aircraft drifted.
+                    VehicleInput.FlightStick = Input.VRGameInput.ApplyDeadzone(throw01, StickDeadzone);
                 }
             }
         }

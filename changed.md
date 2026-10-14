@@ -1225,3 +1225,21 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   | 150° | 2.50 | 10.00 |
   | 178° | 0.17 | 10.00 |
 - Kept.
+
+### Round 16 (feel): the hand flight stick has a small centre zone (`src/Rig/CockpitControls.cs`)
+
+- Before: the hand stick (8 cm throw) passed every millimetre on. The hand's own tremor (2-3 mm) was a steady 2-3%
+  of stick, so a helicopter held "still" drifted.
+- After: a 6 mm centre zone, rescaled with the same helper the thumbsticks use, so the input still starts from nothing
+  just past it and full throw is still full.
+- Simulated (random tremor, 2000 frames):
+
+  | Hand | Mean stick input before | After |
+  | --- | --- | --- |
+  | Tremor of 2 mm | 2.2% | 0.00% |
+  | Tremor of 3 mm | 3.4% | 0.02% |
+  | Moved half the throw | 0.50 | 0.46 |
+  | Moved the full throw | 1.00 | 1.00 |
+- The rest of the vehicle input was checked too: the wheel and stick values reach the car, helicopter and plane
+  inputs, which add to the game's own.
+- Kept.
