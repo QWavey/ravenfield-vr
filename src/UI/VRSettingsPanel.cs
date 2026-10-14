@@ -67,29 +67,33 @@ namespace RavenfieldVR.UI
             Stepper("Smooth turn speed", () => $"{VRConfig.SmoothTurnSpeed.Value:0}°/s", d => VRConfig.SmoothTurnSpeed.Value = Mathf.Clamp(VRConfig.SmoothTurnSpeed.Value + d * 30f, 30f, 360f));
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
             Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01(Mathf.Round((VRConfig.Vignette.Value + d * 0.1f) * 10f) / 10f));
-            Toggle("Physical crouch", VRConfig.PhysicalCrouch);
-            Toggle("Seated play", VRConfig.SeatedMode);
+            TogglePair("Physical crouch", VRConfig.PhysicalCrouch, "Seated play", VRConfig.SeatedMode);
             ActionRow("Eye height", () => VRConfig.EyeHeight.Value > 0.3f ? $"{VRConfig.EyeHeight.Value:0.00} m" : "auto", "Calibrate now", () => _rig.CalibrateHeightNow());
 
             Section("Weapons");
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
-            Toggle("Two-handed aiming", VRConfig.TwoHandedAiming);
             Choice("Hands", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
-            Toggle("Holster switching", VRConfig.HolsterSwitching);
             Choice("Holsters", VRConfig.Holsters, new[] { HolsterLayout.Boneworks, HolsterLayout.Classic }, new[] { "Boneworks", "Classic" });
             Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
-            Toggle("Grenade pins", VRConfig.GrenadePins);
-            Toggle("Lay MG belts by hand", VRConfig.BeltByHand);
+            TogglePair("Two-handed aiming", VRConfig.TwoHandedAiming, "Holster switching", VRConfig.HolsterSwitching);
+            TogglePair("Grenade pins", VRConfig.GrenadePins, "MG belts by hand", VRConfig.BeltByHand);
+            TogglePair("Gun stops at walls", VRConfig.WorldCollision, "Weapon weight", VRConfig.WeaponWeight);
+            TogglePair("Magazine palming", VRConfig.MagazinePalming, "Show pouch", VRConfig.ShowPouch);
             Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0;-0;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
             Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
+            Stepper("Throw strength", () => $"{VRConfig.ThrowVelocityMultiplier.Value:0.0}×",
+                d => VRConfig.ThrowVelocityMultiplier.Value = Mathf.Clamp(Mathf.Round((VRConfig.ThrowVelocityMultiplier.Value + d * 0.1f) * 10f) / 10f, 0.5f, 4f));
 
             Section("Display");
             Choice("Graphics", VRConfig.Graphics, new[] { GraphicsPreset.Low, GraphicsPreset.Medium, GraphicsPreset.High, GraphicsPreset.Ultra, GraphicsPreset.Game },
                 new[] { "Low", "Medium", "High", "Ultra", "Game" });
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
             Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
-            Toggle("Ammo counter on gun", VRConfig.GunAmmoCounter);
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
+            TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Wrist display", VRConfig.WristHud);
+            TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
+            Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",
+                d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 
             _height += 18f;
             Footer();
@@ -176,8 +180,40 @@ namespace RavenfieldVR.UI
             });
         }
 
-        private void Toggle(string label, ConfigEntry<bool> entry) =>
-            Choice(label, entry, new[] { true, false }, new[] { "On", "Off" });
+        /// <summary>Two on/off settings side by side in one row (the panel was already about 1.5 m tall).</summary>
+        private void TogglePair(string left, ConfigEntry<bool> leftEntry, string right, ConfigEntry<bool> rightEntry)
+        {
+            RectTransform row = Row(RowHeight);
+            ToggleHalf(row, left, leftEntry, CanvasWidth * 0.5f);
+            ToggleHalf(row, right, rightEntry, 0f);
+        }
+
+        /// <summary>One on/off setting in half a row; <paramref name="fromRight"/> is where its half ends, from the row's right edge.</summary>
+        private void ToggleHalf(RectTransform row, string label, ConfigEntry<bool> entry, float fromRight)
+        {
+            const float button = 64f, gap = 8f;
+            float offX = fromRight + (fromRight > 0f ? 12f : 34f);
+            float onX = offX + button + gap;
+            Text t = MakeText(row, label, 22, FontStyle.Normal, TextColor, TextAnchor.MiddleLeft);
+            Stretch(t.rectTransform, CanvasWidth - fromRight - CanvasWidth * 0.5f + 34f, onX + button + 10f);
+            var buttons = new Button[2];
+            var texts = new Text[2];
+            buttons[0] = MakeButton(row, "On", onX, button, () => entry.Value = true, out texts[0]);
+            buttons[1] = MakeButton(row, "Off", offX, button, () => entry.Value = false, out texts[1]);
+            _refreshers.Add(() =>
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    bool on = entry.Value == (i == 0);
+                    ColorBlock c = buttons[i].colors;
+                    c.normalColor = on ? Accent : ButtonColor;
+                    c.highlightedColor = on ? Accent : ButtonHover;
+                    c.selectedColor = c.normalColor;
+                    buttons[i].colors = c;
+                    texts[i].color = on ? AccentText : TextColor;
+                }
+            });
+        }
 
         private void Stepper(string label, Func<string> value, Action<int> step)
         {

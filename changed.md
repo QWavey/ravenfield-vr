@@ -1144,3 +1144,14 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   | Grenade grip opened gently while sprinting | thrown | back on the chest |
   | Grenade thrown (4 m/s) while sprinting | thrown | thrown, at the full world speed |
 - Kept.
+
+### Round 11 (usability): nine more settings in the headset, the panel barely taller (`src/UI/VRSettingsPanel.cs`)
+
+- Before: the VR settings panel had 23 settings, one per row (the panel is about 1.5 m tall in the headset). Several
+  settings added since were only in the config file: the gun stopping at walls, weapon weight, magazine palming, the
+  pouch display, the wrist display, the holstered weapons display, the explosion dirt, throw strength and the scope's
+  picture size.
+- After: on/off settings sit two to a row (`TogglePair`), including the old ones, and the nine are added (throw
+  strength in 0.1 steps, the scope picture in 256-pixel steps for the next scope drawn). **32 settings in 25 rows,
+  instead of 23 in 23**: 9 more settings for 2 more rows (about 11 cm). The unused one-per-row toggle helper is gone.
+- Kept.
