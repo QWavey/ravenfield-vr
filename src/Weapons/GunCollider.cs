@@ -138,16 +138,34 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>One of the local player's own colliders (body, controller, hitboxes, ragdoll).</summary>
-        public static bool IsPlayerCollider(Collider c) => c != null && CollectPlayerColliders().Contains(c);
+        public static bool IsPlayerCollider(Collider c)
+        {
+            if (c == null)
+            {
+                return false;
+            }
+            CollectPlayerColliders();
+            return PlayerColliderSet.Contains(c);
+        }
 
-        /// <summary>The player's controller, hitbox and ragdoll colliders, gathered once per frame.</summary>
+        private static readonly HashSet<Collider> PlayerColliderSet = new HashSet<Collider>();
+        private static int _playerCollidersGeneration = -1;
+        private static float _playerCollidersUntil;
+
+        /// <summary>
+        /// The player's controller, hitbox and ragdoll colliders: gathered again when the player changed (respawn, seat, ladder)
+        /// and at most once a second otherwise (it walks the player's whole hierarchy; it was done every frame).
+        /// </summary>
         private static List<Collider> CollectPlayerColliders()
         {
-            if (_playerCollidersFrame == Time.frameCount)
+            if (_playerCollidersFrame == Time.frameCount
+                || _playerCollidersGeneration == PlayerGeneration && Time.unscaledTime < _playerCollidersUntil)
             {
                 return PlayerColliders;
             }
             _playerCollidersFrame = Time.frameCount;
+            _playerCollidersGeneration = PlayerGeneration;
+            _playerCollidersUntil = Time.unscaledTime + 1f;
             PlayerColliders.Clear();
             FpsActorController controller = LocalPlayer.controller;
             if (controller != null)
@@ -175,6 +193,14 @@ namespace RavenfieldVR.Weapons
                     {
                         AddAll(ragdoll.ragdollObject);
                     }
+                }
+            }
+            PlayerColliderSet.Clear();
+            foreach (Collider c in PlayerColliders)
+            {
+                if (c != null)
+                {
+                    PlayerColliderSet.Add(c);
                 }
             }
             return PlayerColliders;
@@ -641,16 +667,20 @@ namespace RavenfieldVR.Weapons
             WeaponDrops drops = WeaponDrops.Instance;
             if (drops != null)
             {
-                foreach (DroppedWeapon d in drops.All)
+                IReadOnlyList<DroppedWeapon> all = drops.All;
+                for (int i = 0; i < all.Count; i++)
                 {
+                    DroppedWeapon d = all[i];
                     if (d.Go != null)
                     {
-                        SetRestIgnored(d.Go.GetComponent<Rigidbody>(), d.Colliders, Time.time - d.DropTime);
+                        SetRestIgnored(d.Body, d.Colliders, Time.time - d.DropTime);
                     }
                 }
             }
-            foreach (MagazineProp m in MagazineProp.All)
+            IReadOnlyList<MagazineProp> mags = MagazineProp.All;
+            for (int i = 0; i < mags.Count; i++)
             {
+                MagazineProp m = mags[i];
                 if (m.IsDropped && m.Go != null)
                 {
                     SetRestIgnored(m.Body, m.Colliders, m.DroppedFor);

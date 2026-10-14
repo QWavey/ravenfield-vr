@@ -441,3 +441,36 @@ the task still asked for, now added:
   controller` (problem above 2 cm), metrics.
 
 Known limit (unchanged): for left-handed play the gun arm is still the model's right arm (meshes are not mirrored).
+
+## Task 33: performance pass (code part; the measurement needs the game)
+
+`src/UI/CanvasManager.cs`, `src/UI/UISystem.cs`, `src/UI/VRInputModule.cs`, `src/Rig/VRRig.cs`,
+`src/Weapons/GunCollider.cs`, `src/Weapons/WeaponDrops.cs`.
+
+The instrumentation the task asks for already existed (`-rfvr-perf`: every per-frame section's time, allocations and
+the share of calls that allocated; frame-time percentiles; gen-0 collections). Per-frame allocations and repeated
+searches found by reading the hot paths and removed:
+- The laser's list of panels was rebuilt every frame from an iterator (a new enumerator object per frame, plus
+  `AddRange` copying through an array), and the menu check iterated it once more: the canvas manager now fills the
+  list directly and keeps an `AnyVisible` flag. The input module holds the panels as a `List` (iterated without a
+  boxed enumerator).
+- In menus and death cams the rig's camera fallback read `Camera.allCameras` (a new array every call, every frame):
+  now a reused buffer with `Camera.GetAllCameras`.
+- A menu canvas's role check allocated an array of its buttons twice a second: now a reused list.
+- The new resting-props check (task 114) walked read-only list interfaces (boxed enumerators): index loops, and a
+  dropped weapon's rigidbody is looked up once.
+- The player's colliders were gathered by walking the player's whole hierarchy every frame they were needed (every
+  physics contact of the held gun now asks): gathered when the player changes (respawn, seat, ladder) and at most once a
+  second, with a set for the lookups.
+
+To fill in at home: run the same short VR session (or the quick VR autotest) with `-rfvr-perf` on `main` and on this
+branch, and compare the "Mod sections" block (`% of calls that allocated` should be 0 for UI.Update, Rig.Update,
+Rig.BeforeRender and Input in steady play) and the frame-time line:
+
+| Section | main avg ms / % allocating | branch avg ms / % allocating |
+| --- | --- | --- |
+| UI.Update | | |
+| Rig.Update | | |
+| Weapons.BeforeRender | | |
+| HandModel | | |
+| frame time median / 95th | | |

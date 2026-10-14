@@ -70,19 +70,20 @@ namespace RavenfieldVR.UI
         /// <summary>Canvases created by the mod itself; they place themselves.</summary>
         public void RegisterOwn(Canvas c) => _own.Add(c);
 
-        public IEnumerable<Canvas> VisibleCanvases
+        /// <summary>Adds every visible converted canvas to <paramref name="into"/> (per frame, without allocating).</summary>
+        public void CollectVisible(List<Canvas> into)
         {
-            get
+            foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
             {
-                foreach (Tracked t in _tracked.Values)
+                if (kv.Value.Visible && kv.Value.Canvas != null)
                 {
-                    if (t.Visible && t.Canvas != null)
-                    {
-                        yield return t.Canvas;
-                    }
+                    into.Add(kv.Value.Canvas);
                 }
             }
         }
+
+        /// <summary>Any converted canvas is visible (as of the last <see cref="Update"/>).</summary>
+        public bool AnyVisible { get; private set; }
 
         public void Update()
         {
@@ -91,7 +92,7 @@ namespace RavenfieldVR.UI
                 _nextScan = Time.unscaledTime + 0.4f;
                 Scan();
             }
-            bool menu = false;
+            bool menu = false, anyVisible = false;
             bool gameplay = GameContext.InGame && !GameContext.GameMenuOpen;
             bool gameplayChanged = gameplay != _wasGameplay;
             _wasGameplay = gameplay;
@@ -120,7 +121,9 @@ namespace RavenfieldVR.UI
                 }
                 t.Visible = visible;
                 menu |= visible && t.Role == CanvasRole.Menu;
+                anyVisible |= visible;
             }
+            AnyVisible = anyVisible;
             foreach (Canvas c in dead)
             {
                 _tracked.Remove(c);
@@ -199,9 +202,12 @@ namespace RavenfieldVR.UI
         }
 
         /// <summary>Menus are canvases with something to click; everything else is HUD.</summary>
+        private static readonly List<Selectable> SelectableBuffer = new List<Selectable>();
+
         private static CanvasRole Classify(Canvas c)
         {
-            foreach (Selectable s in c.GetComponentsInChildren<Selectable>(false))
+            c.GetComponentsInChildren(false, SelectableBuffer);
+            foreach (Selectable s in SelectableBuffer)
             {
                 if (s.isActiveAndEnabled && s.interactable)
                 {

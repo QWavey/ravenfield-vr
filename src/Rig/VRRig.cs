@@ -303,6 +303,8 @@ namespace RavenfieldVR.Rig
             key = cam;
         }
 
+        private static Camera[] CameraBuffer = new Camera[16];
+
         private static Camera FollowTarget()
         {
             Camera cam = LocalPlayer.GetCurrentCameraIncludeSpectator();
@@ -315,11 +317,18 @@ namespace RavenfieldVR.Rig
             {
                 return cam;
             }
-            // Fall back to the highest-depth screen camera.
-            Camera best = null;
-            foreach (Camera c in Camera.allCameras)
+            // Fall back to the highest-depth screen camera (a reused buffer: Camera.allCameras makes a new array per call).
+            int count = Camera.allCamerasCount;
+            if (CameraBuffer.Length < count)
             {
-                if (!IsOwnCamera(c) && c.targetTexture == null && (best == null || c.depth > best.depth))
+                CameraBuffer = new Camera[count * 2];
+            }
+            count = Camera.GetAllCameras(CameraBuffer);
+            Camera best = null;
+            for (int i = 0; i < count; i++)
+            {
+                Camera c = CameraBuffer[i];
+                if (c != null && !IsOwnCamera(c) && c.targetTexture == null && (best == null || c.depth > best.depth))
                 {
                     best = c;
                 }

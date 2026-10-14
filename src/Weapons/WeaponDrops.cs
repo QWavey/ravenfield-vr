@@ -14,6 +14,9 @@ namespace RavenfieldVR.Weapons
     public sealed class DroppedWeapon
     {
         public GameObject Go;
+        private Rigidbody _body;
+        /// <summary>Its rigidbody (looked up once).</summary>
+        public Rigidbody Body => _body != null ? _body : Go != null ? _body = Go.GetComponent<Rigidbody>() : null;
         /// <summary>The model's own shape (convex pieces: receiver, barrel, stock...), so it lies flat and is grabbed where it is.</summary>
         public List<Collider> Colliders;
         public WeaponManager.WeaponEntry Entry;

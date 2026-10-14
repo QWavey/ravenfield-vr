@@ -103,7 +103,7 @@ namespace RavenfieldVR.UI
             }
             ModKeys.Update();
 
-            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || (!GameContext.InGame && HasAnyVisibleCanvas());
+            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || (!GameContext.InGame && Canvases.AnyVisible);
             VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen;
 
             // Whichever hand pulls its trigger becomes the pointer.
@@ -136,7 +136,7 @@ namespace RavenfieldVR.UI
             if (_module != null)
             {
                 _targets.Clear();
-                _targets.AddRange(Canvases.VisibleCanvases);
+                Canvases.CollectVisible(_targets);
                 if (Settings.IsOpen)
                 {
                     _targets.Add(Settings.Canvas);
@@ -154,15 +154,6 @@ namespace RavenfieldVR.UI
             {
                 VRGameInput.PointerOverUI = false;
             }
-        }
-
-        private bool HasAnyVisibleCanvas()
-        {
-            foreach (Canvas _ in Canvases.VisibleCanvases)
-            {
-                return true;
-            }
-            return false;
         }
 
         /// <summary>Attaches the laser module to whichever EventSystem the current scene uses.</summary>

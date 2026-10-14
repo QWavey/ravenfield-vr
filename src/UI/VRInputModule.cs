@@ -20,7 +20,8 @@ namespace RavenfieldVR.UI
         public bool PointerActive;
         public Ray PointerRay;
         public Hand PointerHand;
-        public IEnumerable<Canvas> Targets;
+        /// <summary>The panels the laser can hit (a list, iterated every frame without allocating).</summary>
+        public List<Canvas> Targets;
 
         public bool HasHit { get; private set; }
         public Vector3 HitPoint { get; private set; }
