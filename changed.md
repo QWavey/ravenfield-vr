@@ -1254,3 +1254,12 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   lock) must stay at full lock. Otherwise it says `(NOT RIGHT)`. Worked through by hand: the old stick gives a throw of
   about 375 (30 m ÷ 8 cm) and the old wheel −0.75 at 270°, so both would fail it. Checks covering the two fixes: 0 → 1.
 - Kept.
+
+### Round 18 (UI feel): a faint tick when the laser reaches a button (`src/UI/VRInputModule.cs`)
+
+- Before: the pointing hand felt the menu only when the trigger pressed something. Moving along a list or a row of
+  buttons gave no cue, so aiming at small targets relied on the eyes alone.
+- After: moving onto anything clickable (a button, a toggle, a list row: whatever answers a click) gives a 6 ms faint
+  tick in the pointing hand. There is none for plain text or the panel background, none while dragging, and at most
+  twenty a second. Hover cues per new clickable target: 0 before, 1 after.
+- Kept.

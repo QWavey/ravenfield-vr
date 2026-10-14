@@ -123,6 +123,7 @@ namespace RavenfieldVR.UI
                 LastUsed = Time.unscaledTime; // pointing along the menu, clicking, scrolling
             }
             _lastOver = over;
+            HoverTick(over);
             if (press && over != null)
             {
                 Press(over);
@@ -136,6 +137,32 @@ namespace RavenfieldVR.UI
             ProcessDrag();
             ProcessScroll(over);
         }
+
+        private GameObject _hoveredTarget;
+        private float _tickAt = -1f;
+
+        /// <summary>
+        /// A faint tick in the pointing hand when the laser moves onto something that can be clicked (a button, a toggle, a
+        /// list row), at most twenty a second: targets are felt, not only seen.
+        /// </summary>
+        private void HoverTick(GameObject over)
+        {
+            GameObject target = over != null ? ExecuteEvents.GetEventHandler<IPointerClickHandler>(over) : null;
+            if (target == _hoveredTarget)
+            {
+                return;
+            }
+            _hoveredTarget = target;
+            if (target != null && !_pressed && Time.unscaledTime - _tickAt > 0.05f)
+            {
+                _tickAt = Time.unscaledTime;
+                VRInput.Haptic(PointerHand, 0.006f, 180f, 0.12f);
+                HoverTicks++;
+            }
+        }
+
+        /// <summary>Self-test: hover ticks given.</summary>
+        internal static int HoverTicks { get; private set; }
 
         /// <summary>Where a ray meets the visible panels right now (for drawing the laser from the current hand pose).</summary>
         public bool TryHit(Ray ray, out Vector3 hit) => IntersectCanvases(ray, out hit);
