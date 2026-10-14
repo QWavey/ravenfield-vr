@@ -296,8 +296,9 @@ namespace RavenfieldVR.Weapons
                 for (int k = 0; k < sides; k++)
                 {
                     int a = i * (sides + 1) + k, b = (i + 1) * (sides + 1) + k;
-                    tris.Add(a); tris.Add(b); tris.Add(a + 1);
-                    tris.Add(b); tris.Add(b + 1); tris.Add(a + 1);
+                    // Clockwise seen from outside (Unity's front face), so the outside is drawn.
+                    tris.Add(a); tris.Add(a + 1); tris.Add(b);
+                    tris.Add(b); tris.Add(a + 1); tris.Add(b + 1);
                 }
             }
             if (head > 0f)
@@ -316,8 +317,8 @@ namespace RavenfieldVR.Weapons
                 for (int k = 0; k < sides; k++)
                 {
                     int a = start + k * 2;
-                    second.Add(a); second.Add(a + 1); second.Add(a + 2);
-                    second.Add(a + 1); second.Add(a + 3); second.Add(a + 2);
+                    second.Add(a); second.Add(a + 2); second.Add(a + 1);
+                    second.Add(a + 1); second.Add(a + 2); second.Add(a + 3);
                 }
             }
             var mesh = new Mesh { name = "RavenfieldVR case" };

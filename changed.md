@@ -474,3 +474,50 @@ Rig.BeforeRender and Input in steady play) and the frame-time line:
 | Weapons.BeforeRender | | |
 | HandModel | | |
 | frame time median / 95th | | |
+
+---
+
+## Task 112: bug hunt, 20 rounds
+
+Each round swept one area: read the code, traced what breaks it, fixed only what could be shown to happen, and ran
+the compile check again (no new diagnostics after any round). Severity: Major = wrong under common conditions, Minor =
+edge case or rare, Tiny = defensive gap. None of this has been run in the game.
+
+### Round 1: the loading view (`src/UI/LoadingView.cs`, `src/UI/CanvasManager.cs`)
+
+- **Minor:** the loading scene's cameras were switched to draw into the picture during `Update`, before the camera
+  suppressor runs in `LateUpdate`. The suppressor skips render-texture cameras, so they kept their headset eye setting
+  and Unity's automatic head tracking, which can move a camera with the headset or draw it as an eye. Fix: a captured
+  camera gets `stereoTargetEye = None` and its automatic XR tracking switched off, as the suppressor does for screen cameras.
+- **Minor:** if the loading scene had no camera up yet on its first frame, its canvases were not registered. The canvas
+  manager scans right after the loading view, so it could turn "LOADING ..." into a world-space panel that the loading
+  view then skipped (the UI camera draws only the screen while loading). The loading text would then be missing. Fix:
+  the canvases are registered every frame, and drawn into the picture once a camera exists.
+- **Tiny:** every map load added the loading scene's canvases to the canvas manager's own-canvas set and never removed
+  them. Fix: destroyed canvases are dropped from it on each scene change.
+
+### Round 2: fired cases, the belt rounds, explosion dirt (`src/Weapons/Casings.cs`, `src/Weapons/BeltStrip.cs`, `src/Rig/MudSplash.cs`)
+
+- **Major:** the turned meshes of the fired cases, live rounds and shotgun shells, and of the MG belt's rounds and
+  links, were wound inside out. Unity draws triangles that are clockwise as seen from the camera, and every triangle
+  here faced inward (checked numerically: 120 of 120 faces against the outward normals). With the Standard shader's
+  back-face culling you saw only the far inner wall of each case, lit from the wrong side (dark and hollow-looking).
+  Fix: the winding is reversed in both builders, so the outside is drawn (checked again: every curved face points out).
+- The dirt on the view was checked: layer, draw order, near clip, pool reuse, resubscribing per level, the
+  wall check. Nothing to fix.
+
+### Round 3: the gun in your hand against the world (`src/Weapons/GunCollider.cs`)
+
+- **Minor:** a magazine you picked up had its colliders switched off, and Unity then forgets its ignored pairs with
+  the gun. If it had lain still before, it stayed marked "ignored" with no real ignore behind it. Set down gently
+  (never faster than 0.8 m/s), the gun shoved it again: the "things on the ground float away" bug for magazines you
+  put down. Fix: a prop that becomes physical again is judged from scratch.
+- **Minor:** the same after leaving a vehicle: the gun's pieces were switched off while seated, so every "lying still,
+  ignored" mark was stale. Fix: the marks and the pass-through list are cleared when the pieces come back on.
+- **Minor:** "the gun is held back by the world" was a real-time window of 0.12 s refreshed by physics contacts. In the
+  game's slow motion (it has `TriggerSlowmotion` / `SetTimeScale`) the physics steps come further apart in real time,
+  so the gun could flicker between held back and inside the wall. Fix: the window is in game time and at least three
+  physics steps long.
+- **Minor:** only static and kinematic things held the gun back, so it went into vehicles (non-kinematic, heavy) even
+  though the code comment said vehicles count. Fix: a moving body of 30 kg or more holds it back like the level. Loose
+  props and ragdoll limbs are still pushed.

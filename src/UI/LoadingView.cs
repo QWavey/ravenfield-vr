@@ -5,6 +5,7 @@ using RavenfieldVR.Rig;
 using RavenfieldVR.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.XR;
 
 namespace RavenfieldVR.UI
 {
@@ -167,6 +168,10 @@ namespace RavenfieldVR.UI
                 if (c.targetTexture == null)
                 {
                     c.targetTexture = _texture;
+                    // Drawn flat into the picture, not as a headset eye and not moved by the head: the camera suppressor
+                    // leaves render-texture cameras alone, and this one was captured before it ran.
+                    c.stereoTargetEye = StereoTargetEyeMask.None;
+                    XRDevice.DisableAutoXRCameraTracking(c, true);
                     _captured.Add(c);
                 }
                 if (c.targetTexture == _texture && (top == null || c.depth >= top.depth))
@@ -174,18 +179,20 @@ namespace RavenfieldVR.UI
                     top = c;
                 }
             }
-            if (top == null)
-            {
-                return;
-            }
             foreach (Canvas canvas in UnityEngine.Object.FindObjectsOfType<Canvas>())
             {
                 if (canvas == null || !canvas.isRootCanvas || canvas.gameObject.scene != scene || _canvases.Contains(canvas))
                 {
                     continue;
                 }
+                // Never turned into a world-space panel, even while the scene's camera is not up yet (the canvas
+                // manager scans right after this and would otherwise take it).
+                _canvasManager.RegisterOwn(canvas);
+                if (top == null)
+                {
+                    continue; // drawn into the picture once there is a camera
+                }
                 _canvases.Add(canvas);
-                _canvasManager.RegisterOwn(canvas); // never turned into a world-space panel
                 if (canvas.renderMode == RenderMode.WorldSpace)
                 {
                     continue; // part of the 3D scene: the camera films it anyway

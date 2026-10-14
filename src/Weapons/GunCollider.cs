@@ -597,6 +597,10 @@ namespace RavenfieldVR.Weapons
                 }
                 _body.detectCollisions = _enabled;
                 _placed = false; // back on foot: jump to the gun instead of sweeping there
+                // Switching the pieces off made Unity forget every ignored pair: resting props are judged again from scratch
+                // (they were still marked ignored and got shoved), and nothing is passing through any more.
+                _restIgnored.Clear();
+                _passing.Clear();
             }
             if (seated)
             {
@@ -754,6 +758,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>A prop just became physical: if it starts inside the gun it passes through until clear.</summary>
         public void OnPropDropped(Collider c)
         {
+            if (c != null && c.attachedRigidbody != null)
+            {
+                // Picked up, its colliders were switched off and Unity forgot its ignored pairs with the gun: a magazine
+                // that lay still before was still marked ignored, so one set down gently was shoved by the gun again.
+                _restIgnored.Remove(c.attachedRigidbody);
+            }
             if (c == null || _boxes.Count == 0 || !Touches(c))
             {
                 return;
@@ -794,8 +804,10 @@ namespace RavenfieldVR.Weapons
         public bool HasTarget;
 
         /// <summary>Touching something solid that does not give way (the level, a vehicle, a body) in the last moment.</summary>
-        public bool TouchingWorld => Time.unscaledTime < _worldContactUntil;
+        public bool TouchingWorld => Time.time < _worldContactUntil;
         private float _worldContactUntil;
+        /// <summary>A moving body this heavy (a vehicle) holds the gun back like the level; lighter ones are pushed.</summary>
+        private const float HeavyMass = 30f;
 
         private void OnCollisionEnter(Collision c) => Touch(c);
         private void OnCollisionStay(Collision c) => Touch(c);
@@ -803,15 +815,17 @@ namespace RavenfieldVR.Weapons
         private void Touch(Collision c)
         {
             Rigidbody other = c.rigidbody;
-            if (other != null && !other.isKinematic)
+            if (other != null && !other.isKinematic && other.mass < HeavyMass)
             {
-                return; // loose props are pushed: they do not hold the gun back
+                return; // loose props and ragdoll limbs are pushed: they do not hold the gun back
             }
             if (PropPhysics.IsPlayerCollider(c.collider))
             {
                 return; // never the player's own body
             }
-            _worldContactUntil = Time.unscaledTime + 0.12f;
+            // In game time, a few physics steps long: in the game's slow motion the steps come further apart in real time,
+            // and a real-time window flickered between held back and free.
+            _worldContactUntil = Time.time + Mathf.Max(0.12f, Time.fixedDeltaTime * 3f);
         }
 
         private void FixedUpdate()

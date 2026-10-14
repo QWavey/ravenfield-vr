@@ -343,6 +343,7 @@ namespace RavenfieldVR.UI
 
         public void OnSceneChanged()
         {
+            _own.RemoveWhere(c => c == null); // the loading scene's canvases are registered on every map load
             _tracked.Clear();
             _menuAnchor = null;
             _nextScan = 0f;

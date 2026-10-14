@@ -120,8 +120,9 @@ namespace RavenfieldVR.Weapons
                 for (int k = 0; k < sides; k++)
                 {
                     int a = i * (sides + 1) + k, b = (i + 1) * (sides + 1) + k;
-                    round.Add(a); round.Add(b); round.Add(a + 1);
-                    round.Add(b); round.Add(b + 1); round.Add(a + 1);
+                    // Clockwise seen from outside (Unity's front face), so the outside is drawn.
+                    round.Add(a); round.Add(a + 1); round.Add(b);
+                    round.Add(b); round.Add(a + 1); round.Add(b + 1);
                 }
             }
             // Link: a flat band round the case, open toward the next round.
@@ -140,8 +141,8 @@ namespace RavenfieldVR.Weapons
             for (int k = 0; k < sides; k++)
             {
                 int a = linkStart + k * 2;
-                link.Add(a); link.Add(a + 1); link.Add(a + 2);
-                link.Add(a + 1); link.Add(a + 3); link.Add(a + 2);
+                link.Add(a); link.Add(a + 2); link.Add(a + 1);
+                link.Add(a + 1); link.Add(a + 2); link.Add(a + 3);
             }
             var mesh = new Mesh { name = "RavenfieldVR belt round" };
             mesh.SetVertices(verts);
