@@ -38,6 +38,9 @@ namespace RavenfieldVR.UI
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
             _plate = plate.transform;
+            // No size until the text has been laid out: a new object's scale is 1, a one-metre dark square for the frame
+            // before the first fit.
+            _plate.localScale = Vector3.zero;
             SetAlpha(1f);
         }
 
@@ -52,7 +55,8 @@ namespace RavenfieldVR.UI
             _text.rotation = rot;
             if (b.size.sqrMagnitude < 1e-10f)
             {
-                return; // nothing laid out yet
+                _plate.localScale = Vector3.zero; // nothing laid out (yet): no plate
+                return;
             }
             Vector3 centre = b.center - position;
             float sx = Mathf.Max(1e-5f, Mathf.Abs(scale.x)), sy = Mathf.Max(1e-5f, Mathf.Abs(scale.y)), sz = Mathf.Max(1e-5f, Mathf.Abs(scale.z));

@@ -1315,3 +1315,23 @@ the finger solver, rerouting the voices). By kind:
 Two of the correctness rounds fix things already on `main`: round 14 (the hand flight stick could not fly anything
 moving) and round 13 (the wheel). Every round passed the compile check (no new diagnostics). None ran in the game;
 the "at home" notes in rounds 5, 14 and 19 say what to look at.
+
+### Bug hunt (task 124), 10 rounds
+
+#### Round 1: the scope (new code of the second pass, `src/Weapons/VRScope.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the shadow disc (its own mesh copy, texture coordinates rewritten only when the eye moves, destroyed with the lens);
+  - draw order (lens, reticle, shadow), and other scopes' cameras skipping the lens layer;
+  - the eye distance: Unity's built-in default of 22 mm is outside the accepted 40-90 mm, so it falls back to 64 mm
+    rather than using a wrong value;
+  - the dark lens while not aiming, and the reticle's coverage edges.
+
+#### Round 2: the readout plates (`src/UI/TextPlate.cs`, its three users)
+
+- **Minor:** a new plate had Unity's default scale of 1, and `Fit` left it alone while the text had no layout yet
+  (TextMesh can lay its text out only when it is first drawn). On the first frame a readout appeared, the wrist display,
+  the gun's counter or the magazine count could show a one-metre dark square. Fix: the plate starts at zero size and
+  is hidden whenever the text has no layout.
+- Also checked: plate behind the text as seen from the eye for all three (each text faces away from the eye), drawn
+  first by queue, on the text's own layer; the counter hides cleanly when a message ends on a gun without ammo.
