@@ -1187,3 +1187,23 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   | 240° | **−1.00** | +1.00 |
   | 270° | **−0.75** | +1.00 |
 - Kept.
+
+### Round 14 (correctness, already on `main` since the first commit): the hand flight stick works in flight (`src/Rig/CockpitControls.cs`)
+
+- Before: taking a helicopter's or plane's stick with your hand, the input was the palm's world position turned into
+  the seat's frame, minus where it was when taken. The seat's position was never taken off, so the aircraft's own
+  travel counted as moving the hand. With the stick's 8 cm throw, the stick was at full throw within 3 ms at 30 m/s,
+  in the direction of travel. The hand stick could not fly anything that was moving.
+- After: the palm is taken into the seat's frame properly (`InSeat`: position off, then the turn), so only your hand
+  moves the stick.
+- Worked out, hand held still after taking the stick:
+
+  | Aircraft speed | Stick throw after 0.01 s, before | after 0.1 s, before | After the fix |
+  | --- | --- | --- | --- |
+  | 0 m/s | 0 | 0 | 0 |
+  | 5 m/s | 0.62 | 1.00 (full) | 0 |
+  | 30 m/s | 1.00 | 1.00 | 0 |
+  | 60 m/s | 1.00 | 1.00 | 0 |
+- At home: fly a helicopter with the hand on the stick (not the thumbsticks). It should now hold level with the hand
+  still.
+- Kept.

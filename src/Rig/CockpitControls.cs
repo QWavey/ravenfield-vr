@@ -117,7 +117,7 @@ namespace RavenfieldVR.Rig
                 else if (_stick != null && _stickHand == null && Vector3.Distance(palm, _stick.position) < 0.16f)
                 {
                     _stickHand = hand.Side;
-                    _stickStartLocal = Quaternion.Inverse(_seat.transform.rotation) * palm;
+                    _stickStartLocal = InSeat(palm);
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
@@ -157,7 +157,7 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
-                    Vector3 local = Quaternion.Inverse(_seat.transform.rotation) * palm - _stickStartLocal;
+                    Vector3 local = InSeat(palm) - _stickStartLocal;
                     VehicleInput.FlightStick = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
                 }
             }
@@ -175,6 +175,12 @@ namespace RavenfieldVR.Rig
             euler.z = _steer * _wheel.maxRotation;
             _wheel.transform.localEulerAngles = euler;
         }
+
+        /// <summary>
+        /// A point in the seat's own frame (its position taken off, then its turn). Only the turn was taken off before, so the
+        /// aircraft's own travel counted as moving the hand: at 30 m/s the 8 cm stick was at full throw within 3 ms.
+        /// </summary>
+        private Vector3 InSeat(Vector3 world) => Quaternion.Inverse(_seat.transform.rotation) * (world - _seat.transform.position);
 
         private bool NearWheel(Vector3 palm)
         {
