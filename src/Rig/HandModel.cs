@@ -377,8 +377,9 @@ namespace RavenfieldVR.Rig
             float[] goal = TargetCurls();
             float k = 1f - Mathf.Exp(-25f * dt);
             float kJoint = 1f - Mathf.Exp(-40f * dt);
-            // The thumb lies along the frame of a held gun (beside the slide, not across it); elsewhere it rests up.
-            Quaternion thumbGoal = _hand.Role == HandRole.Weapon ? _thumbWeapon : _thumbRest;
+            // The thumb lies along the frame of a held gun (beside the slide, not across it) and along the side of a
+            // handguard the other hand holds (Valve's relaxed thumb stood up through it); elsewhere it rests up.
+            Quaternion thumbGoal = _hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip ? _thumbWeapon : _thumbRest;
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
             for (int f = 0; f < 5; f++)
             {
@@ -548,8 +549,11 @@ namespace RavenfieldVR.Rig
             return 0f;
         }
 
-        /// <summary>Along the grip, toward the little finger (+) or the thumb (-), nearest first.</summary>
-        private static readonly float[] SlideSteps = { 0f, 0.005f, 0.01f, 0.015f, 0.02f, 0.025f, 0.03f, -0.005f, -0.01f };
+        /// <summary>
+        /// Along the grip, toward the little finger (+) or the thumb (-), nearest first; the far steps toward the thumb are
+        /// for a weapon's own hand pose that hangs under its grip (the fingers then closed on air).
+        /// </summary>
+        private static readonly float[] SlideSteps = { 0f, 0.005f, 0.01f, 0.015f, 0.02f, 0.025f, 0.03f, -0.005f, -0.01f, -0.015f, -0.02f, -0.03f, -0.04f };
 
         /// <summary>
         /// A weapon's own hand pose can sit a finger higher or lower on the grip than this glove's fingers fit (another hand
@@ -575,7 +579,8 @@ namespace RavenfieldVR.Rig
                     _root.position = start + down * step;
                     _root.position += n * PalmOffset(n);
                     SolveFinger(2, 1f);
-                    if (_solved[0] >= 0.2f)
+                    // The middle finger has to close round the grip: touching it, not closing on air beside or under it.
+                    if (_touched && _solved[0] >= 0.2f)
                     {
                         _slideGoal = step;
                         break;
@@ -643,15 +648,35 @@ namespace RavenfieldVR.Rig
         private void SolveFinger(int f, float goal, float lockedKnuckle = -1f)
         {
             const int Steps = 10;
+            // A thumb (or a support hand's finger) that starts inside what the hand holds is first opened out of it, a
+            // little past straight, and closes from there: otherwise it stayed inside (the support thumb stood up through a
+            // handguard) because segments that start inside never stop a finger.
+            float start = 0f;
+            if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip))
+            {
+                Chain(f, 0f, 0f, 0f);
+                if (SegmentTouches(0) || SegmentTouches(1))
+                {
+                    for (float c = -0.05f; c >= -0.351f; c -= 0.05f)
+                    {
+                        Chain(f, c, c, c);
+                        if (!SegmentTouches(0) && !SegmentTouches(1))
+                        {
+                            start = c;
+                            break;
+                        }
+                    }
+                }
+            }
             // With a locked knuckle only the two outer joints close (a trigger finger whose base lies on the frame).
-            float c0 = lockedKnuckle >= 0f ? lockedKnuckle : 0f, c1 = 0f, c2 = 0f;
+            float c0 = lockedKnuckle >= 0f ? lockedKnuckle : start, c1 = start, c2 = start;
             bool l0 = lockedKnuckle >= 0f, l1 = false, l2 = false;
-            Chain(f, c0, 0f, 0f);
+            Chain(f, c0, c1, c2);
             bool in0 = SegmentTouches(0), in1 = SegmentTouches(1), in2 = SegmentTouches(2);
             int guard = 0;
             for (int step = 1; step <= Steps && !l2 && guard++ < Steps + 4; step++)
             {
-                float t = goal * step / Steps;
+                float t = start + (goal - start) * step / Steps;
                 float n0 = l0 ? c0 : t, n1 = l1 ? c1 : t, n2 = l2 ? c2 : t;
                 if (FirstTouch(f, n0, n1, n2, in0, in1, in2) < 0)
                 {
@@ -687,7 +712,11 @@ namespace RavenfieldVR.Rig
             _solved[0] = c0;
             _solved[1] = c1;
             _solved[2] = c2;
+            _touched = l0 && lockedKnuckle < 0f || l1 || l2;
         }
+
+        /// <summary>The last <see cref="SolveFinger"/> stopped a joint on the model (the finger met it before closing all the way).</summary>
+        private bool _touched;
 
         /// <summary>The first segment (0 = nearest the palm) touching the model with these curls, or -1.</summary>
         private int FirstTouch(int f, float c0, float c1, float c2, bool in0, bool in1, bool in2)

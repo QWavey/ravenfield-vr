@@ -216,3 +216,28 @@ a pump; in the headset, whether the bolt handle is where you reach for it and mo
 The placement fix from 2026-10-13 is unchanged (it now applies at the new pouch spot of the Boneworks layout too). The
 autotest now also takes a magazine from the pouch with the first pistol (`pouch: ...` line for a pistol and for a
 rifle), as the task's check asks.
+
+## Task 107: the tactical glove, after its first in-game check
+
+`src/Rig/HandShape.cs`, `src/Rig/HandModel.cs`, `src/Core/VRConfig.cs` (new `GloveSize`).
+
+The glove itself was done last session; these are the points from the notes of its first in-game check:
+- **Hand at rest:** curl 0 was Valve's open hand, fingers spread wide. It is now Valve's relaxed hand with its curl taken
+  out: each joint's open-to-relaxed rotation is split into the curl about the joint's own curl axis and the rest (the
+  sideways set, 10-15 degrees at the index, ring and little knuckles), and only the sideways set is kept. Curling still
+  turns about the same axes, so fists and grips close as before. Checked offline with the repo's glove renderer
+  (`tools/hands/preview_glove.py` driven by a scratch script): at rest the fingers lie together, slightly curled; the
+  fist and a 0.7 grip look as before.
+- **Support hand on a handguard** (thumb standing up through it, fingers flat under it): the support hand's thumb now
+  takes the grip thumb pose (along the side, as on a pistol frame) instead of the relaxed one, and a thumb (any hand) or
+  a support hand's finger that starts inside what the hand holds is first opened out of it (up to 0.35 past straight)
+  and closes from there. Before, segments that started inside never stopped the finger, so it stayed inside.
+- **Gun hand hanging under the grip with the fingers closed on air** (QUICKSILVER): the search along the grip accepted a
+  spot where the middle finger closed fully on nothing. It now needs the middle finger to touch the grip, and searches up
+  to 4 cm toward the thumb (before 1 cm).
+- **Rack grip beside the scope** (JOLT-20 S): see task 105 (rack points where the reload hand takes the handle, on the
+  model's surface).
+- **Size:** new setting `GloveSize` (default 0.88 as before; 0.8 to try the smaller one), applies at the next start.
+
+Check at home: the grip close-ups (`grip-*-out/in/under`, `support-*`), the glove pictures (`-rfvr-handshots`), and the
+JOLT-20 S / PATRIOT GL / QUICKSILVER in the headset.

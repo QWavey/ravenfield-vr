@@ -242,7 +242,8 @@ namespace RavenfieldVR.Rig
                 triangles[i] = r.ReadUInt16();
             }
 
-            var h = new HandShape { Name = "tactical (SteamVR glove)", Scale = GloveScale, Quality = SkinQuality.Bone4 };
+            float size = VRConfig.GloveSize != null ? Mathf.Clamp(VRConfig.GloveSize.Value, 0.7f, 1.1f) : GloveScale;
+            var h = new HandShape { Name = "tactical (SteamVR glove)", Scale = size, Quality = SkinQuality.Bone4 };
             var relaxed = new Quaternion[5, 3];
             var fist = new Quaternion[5, 3];
             for (int f = 0; f < 5; f++)
@@ -282,6 +283,17 @@ namespace RavenfieldVR.Rig
             // third of the way to the fist, along the frame, and closes from there until it touches.
             h.ThumbRest = relaxed[0, 0];
             h.ThumbWeapon = Quaternion.Slerp(relaxed[0, 0], fist[0, 0], 0.35f);
+            // Curl 0 is Valve's relaxed hand with its curl taken out, not the open hand: the open hand spreads the fingers
+            // wide (index, ring and little finger 10-15 degrees out at the knuckle), which read as a stiff hand at rest.
+            // Each joint keeps the relaxed pose's sideways set (the swing) and curls about the same axis as before, so a
+            // fist and a grip close as they did. The thumb's base has its own rest and grip poses (above).
+            for (int f = 0; f < 5; f++)
+            {
+                for (int s = f == 0 ? 1 : 0; s < 3; s++)
+                {
+                    h.Open[f, s] = WithoutCurl(h.Open[f, s], relaxed[f, s], h.CurlAxis[f, s]);
+                }
+            }
 
             h.BuildMesh = (root, joints, mirror) =>
             {
@@ -349,6 +361,24 @@ namespace RavenfieldVR.Rig
                 m.SetFloat("_Metallic", 0f);
             }
             return m;
+        }
+
+        /// <summary>
+        /// <paramref name="pose"/> with its curl about <paramref name="axis"/> (joint frame) relative to <paramref name="open"/>
+        /// taken out: the swing-twist split of open⁻¹·pose, keeping the swing.
+        /// </summary>
+        private static Quaternion WithoutCurl(Quaternion open, Quaternion pose, Vector3 axis)
+        {
+            Quaternion q = Quaternion.Inverse(open) * pose;
+            float along = q.x * axis.x + q.y * axis.y + q.z * axis.z;
+            var twist = new Quaternion(axis.x * along, axis.y * along, axis.z * along, q.w);
+            float len = Mathf.Sqrt(twist.x * twist.x + twist.y * twist.y + twist.z * twist.z + twist.w * twist.w);
+            if (len < 1e-6f)
+            {
+                return open; // a half turn about another axis: keep the open pose
+            }
+            twist = new Quaternion(twist.x / len, twist.y / len, twist.z / len, twist.w / len);
+            return pose * Quaternion.Inverse(twist);
         }
 
         private static Vector3 ReadVector(BinaryReader r) => new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
