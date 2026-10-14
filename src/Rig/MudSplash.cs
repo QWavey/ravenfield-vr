@@ -11,7 +11,8 @@ namespace RavenfieldVR.Rig
     /// hand's width in front of the eyes, more, bigger and denser the closer and larger the blast, leaning a little toward
     /// the side it came from. They stay a few seconds, the big ones run down slowly, and fade. Water drops (grey, clearer)
     /// for a blast in water. Nothing for a blast behind a wall, and nothing while dead. Listens to the game's explosion
-    /// event (ActorManager.OnExplosion), so every explosion that deals damage counts.
+    /// event (ActorManager.OnExplosion), so every explosion that deals damage counts. All spots are one mesh with one
+    /// material (the four spot shapes side by side in one texture): one draw call however many there are.
     /// </summary>
     public sealed class MudSplash
     {
@@ -25,9 +26,8 @@ namespace RavenfieldVR.Rig
 
         private sealed class Splat
         {
-            public GameObject Go;
-            public Material Material;
-            public float Born, Life, Size, Fall, Stretch;
+            public float Born, Life, Size, Fall, Stretch, Angle;
+            public int Variant;
             public Vector2 Position;
             public Color Color;
             public bool Live;
@@ -36,7 +36,14 @@ namespace RavenfieldVR.Rig
         private readonly Transform _head;
         private readonly GameObject _root;
         private readonly Splat[] _splats = new Splat[Pool];
-        private readonly Texture2D[] _textures = new Texture2D[Variants];
+        private readonly Texture2D _atlas;
+        private readonly Material _material;
+        private readonly Mesh _mesh;
+        // Four corners per spot, rewritten in place each frame (no new arrays).
+        private readonly Vector3[] _verts = new Vector3[Pool * 4];
+        private readonly Color32[] _colors = new Color32[Pool * 4];
+        private readonly Vector2[] _uvs = new Vector2[Pool * 4];
+        private bool _shown;
         private ActorManager _subscribedTo;
         private int _subscribedScene = -1;
 
@@ -46,26 +53,31 @@ namespace RavenfieldVR.Rig
             _head = head;
             _root = new GameObject("Mud Splash") { layer = 5 };
             _root.transform.SetParent(head, false);
-            for (int i = 0; i < Variants; i++)
-            {
-                _textures[i] = MakeTexture(1234 + i * 77);
-            }
-            Shader shader = Shader.Find("Sprites/Default");
+            _atlas = MakeAtlas();
+            _material = new Material(Shader.Find("Sprites/Default")) { renderQueue = 4000, mainTexture = _atlas };
+            var tris = new int[Pool * 6];
             for (int i = 0; i < Pool; i++)
             {
-                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                quad.name = "Splat";
-                Object.Destroy(quad.GetComponent<Collider>());
-                quad.layer = 5;
-                quad.transform.SetParent(_root.transform, false);
-                var mat = new Material(shader) { renderQueue = 4000, mainTexture = _textures[i % Variants] };
-                MeshRenderer r = quad.GetComponent<MeshRenderer>();
-                r.sharedMaterial = mat;
-                r.shadowCastingMode = ShadowCastingMode.Off;
-                r.receiveShadows = false;
-                quad.SetActive(false);
-                _splats[i] = new Splat { Go = quad, Material = mat };
+                _splats[i] = new Splat();
+                int v = i * 4, t = i * 6;
+                // Corners as Unity's quad: (-,-) (+,-) (-,+) (+,+).
+                tris[t] = v; tris[t + 1] = v + 3; tris[t + 2] = v + 1;
+                tris[t + 3] = v + 3; tris[t + 4] = v; tris[t + 5] = v + 2;
             }
+            _mesh = new Mesh { name = "RavenfieldVR Mud" };
+            _mesh.MarkDynamic();
+            _mesh.vertices = _verts;
+            _mesh.colors32 = _colors;
+            _mesh.uv = _uvs;
+            _mesh.triangles = tris;
+            // In front of the eyes, wherever the spots are: never culled.
+            _mesh.bounds = new Bounds(new Vector3(0f, 0f, Distance), new Vector3(2f, 2f, 1f));
+            _root.AddComponent<MeshFilter>().sharedMesh = _mesh;
+            MeshRenderer r = _root.AddComponent<MeshRenderer>();
+            r.sharedMaterial = _material;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            _root.SetActive(false);
         }
 
         /// <summary>How many splats are on the view now (self-test).</summary>
@@ -87,29 +99,50 @@ namespace RavenfieldVR.Rig
             Subscribe();
             float now = Time.unscaledTime;
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
-            foreach (Splat s in _splats)
+            bool any = false;
+            for (int i = 0; i < Pool; i++)
             {
-                if (!s.Live)
-                {
-                    continue;
-                }
+                Splat s = _splats[i];
+                int v = i * 4;
                 float age = now - s.Born;
-                if (age >= s.Life || dead)
+                if (s.Live && (age >= s.Life || dead))
                 {
                     s.Live = false;
-                    s.Go.SetActive(false);
+                }
+                if (!s.Live)
+                {
+                    // Folded to a point: nothing drawn.
+                    _verts[v] = _verts[v + 1] = _verts[v + 2] = _verts[v + 3] = new Vector3(0f, 0f, Distance);
                     continue;
                 }
+                any = true;
                 float u = age / s.Life;
-                // Wet dirt clings a moment, then runs down the visor, stretching as it goes, and fades.
+                // Wet dirt clings a moment, then runs down the visor, stretching downward as it goes, and fades.
                 float fall = s.Fall * Mathf.Max(0f, age - 0.3f) * Mathf.Max(0f, age - 0.3f);
                 float alpha = u < 0.45f ? 1f : 1f - (u - 0.45f) / 0.55f;
                 Color c = s.Color;
                 c.a *= alpha * alpha;
-                s.Material.color = c;
-                Transform t = s.Go.transform;
-                t.localPosition = new Vector3(s.Position.x, s.Position.y - fall, Distance);
-                t.localScale = new Vector3(s.Size, s.Size * (1f + s.Stretch * u), 1f);
+                Color32 c32 = c;
+                float half = s.Size * 0.5f, stretch = 1f + s.Stretch * u;
+                float cos = Mathf.Cos(s.Angle), sin = Mathf.Sin(s.Angle);
+                var centre = new Vector2(s.Position.x, s.Position.y - fall);
+                for (int k = 0; k < 4; k++)
+                {
+                    float cx = (k & 1) == 0 ? -half : half, cy = (k & 2) == 0 ? -half : half;
+                    // Turned, then drawn out down the visor (it used to stretch along its own turned axis).
+                    _verts[v + k] = new Vector3(centre.x + cx * cos - cy * sin, centre.y + (cx * sin + cy * cos) * stretch, Distance);
+                    _colors[v + k] = c32;
+                }
+            }
+            if (any || _shown)
+            {
+                _mesh.vertices = _verts;
+                _mesh.colors32 = _colors;
+            }
+            if (any != _shown)
+            {
+                _shown = any;
+                _root.SetActive(any);
             }
         }
 
@@ -201,11 +234,24 @@ namespace RavenfieldVR.Rig
                 // Dirt: brown-grey and see-through (small specks denser), not a glow.
                 float alpha = Mathf.Lerp(0.75f, 0.4f, Mathf.Clamp01(size / 0.11f)) * Mathf.Lerp(0.7f, 1f, strength);
                 s.Color = water ? new Color(0.72f, 0.78f, 0.84f, alpha * 0.55f) : new Color(0.33f * shade, 0.27f * shade, 0.2f * shade, alpha);
-                s.Material.mainTexture = _textures[rng.Next(Variants)];
-                s.Go.transform.localRotation = Quaternion.Euler(0f, 0f, R() * 360f);
+                s.Variant = rng.Next(Variants);
+                s.Angle = R() * Mathf.PI * 2f;
                 s.Live = true;
-                s.Go.SetActive(true);
+                SetUvs(System.Array.IndexOf(_splats, s), s.Variant);
             }
+            _mesh.uv = _uvs;
+        }
+
+        /// <summary>The spot's shape: one quarter of the texture (a small margin in, so neighbours never bleed in).</summary>
+        private void SetUvs(int index, int variant)
+        {
+            const float margin = 0.004f;
+            float x0 = (variant & 1) * 0.5f + margin, y0 = (variant >> 1) * 0.5f + margin, x1 = x0 + 0.5f - 2f * margin, y1 = y0 + 0.5f - 2f * margin;
+            int v = index * 4;
+            _uvs[v] = new Vector2(x0, y0);
+            _uvs[v + 1] = new Vector2(x1, y0);
+            _uvs[v + 2] = new Vector2(x0, y1);
+            _uvs[v + 3] = new Vector2(x1, y1);
         }
 
         private Splat Free()
@@ -239,15 +285,29 @@ namespace RavenfieldVR.Rig
             return Physics.Linecast(eyes, target, out RaycastHit hit, mask, QueryTriggerInteraction.Ignore) && hit.distance < distance - 0.8f;
         }
 
-        /// <summary>
-        /// A spot of dirt on the visor, out of focus this close to the eye: a soft-edged, slightly irregular disc, denser at
-        /// its rim like a dried drop, grainy inside (alpha; the colour comes from the material). One per variant.
-        /// </summary>
-        private static Texture2D MakeTexture(int seed)
+        /// <summary>The four spot shapes in the quarters of one texture.</summary>
+        private static Texture2D MakeAtlas()
         {
             const int N = 128;
+            var pixels = new Color32[4 * N * N];
+            for (int i = 0; i < Variants; i++)
+            {
+                DrawSpot(pixels, 2 * N, (i & 1) * N, (i >> 1) * N, N, 1234 + i * 77);
+            }
+            var tex = new Texture2D(2 * N, 2 * N, TextureFormat.RGBA32, true) { name = "RavenfieldVR Mud", wrapMode = TextureWrapMode.Clamp };
+            tex.SetPixels32(pixels);
+            tex.Apply(true, true);
+            return tex;
+        }
+
+        /// <summary>
+        /// A spot of dirt on the visor, out of focus this close to the eye: a soft-edged, slightly irregular disc, denser at
+        /// its rim like a dried drop, grainy inside (alpha; the colour comes from the vertex colour), drawn into an N x N
+        /// block of <paramref name="pixels"/> (rows <paramref name="stride"/> wide) at (<paramref name="ox"/>, <paramref name="oy"/>).
+        /// </summary>
+        private static void DrawSpot(Color32[] pixels, int stride, int ox, int oy, int N, int seed)
+        {
             var rng = new System.Random(seed);
-            var pixels = new Color32[N * N];
             var freq = new float[4];
             var phase = new float[4];
             for (int k = 0; k < 4; k++)
@@ -273,13 +333,9 @@ namespace RavenfieldVR.Rig
                     float rim = 1f - rimStrength + rimStrength * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((r - (edge - 0.4f)) / 0.3f));
                     float grain = 0.72f + 0.28f * Mathf.PerlinNoise(px * 7f + seed * 0.37f, py * 7f + seed * 0.11f);
                     byte v = (byte)(255 * Mathf.Lerp(0.85f, 1f, grain));
-                    pixels[y * N + x] = new Color32(v, v, v, (byte)(255 * Mathf.Clamp01(body * rim * grain)));
+                    pixels[(oy + y) * stride + ox + x] = new Color32(v, v, v, (byte)(255 * Mathf.Clamp01(body * rim * grain)));
                 }
             }
-            var tex = new Texture2D(N, N, TextureFormat.RGBA32, true) { name = "RavenfieldVR Mud", wrapMode = TextureWrapMode.Clamp };
-            tex.SetPixels32(pixels);
-            tex.Apply(true, true);
-            return tex;
         }
 
         public void Destroy()
@@ -292,19 +348,17 @@ namespace RavenfieldVR.Rig
             {
                 Object.Destroy(_root);
             }
-            foreach (Splat s in _splats)
+            if (_mesh != null)
             {
-                if (s?.Material != null)
-                {
-                    Object.Destroy(s.Material);
-                }
+                Object.Destroy(_mesh);
             }
-            foreach (Texture2D t in _textures)
+            if (_material != null)
             {
-                if (t != null)
-                {
-                    Object.Destroy(t);
-                }
+                Object.Destroy(_material);
+            }
+            if (_atlas != null)
+            {
+                Object.Destroy(_atlas);
             }
             if (Instance == this)
             {

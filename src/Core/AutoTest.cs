@@ -1542,7 +1542,7 @@ namespace RavenfieldVR.Core
             }
             int fired = _shots, used = before - w.ammo;
             Metric("assisted reloading: rounds used per shot (bolt and pump guns)", fired > 0 ? (double)used / fired : 0);
-            report($"assisted reloading: {fired} shot(s), {used} round(s) used{(fired == 0 ? " (DID NOT FIRE)" : used < fired ? " (ENDLESS AMMO)" : "")}");
+            report($"assisted reloading: {fired} shot(s), {used} round(s) used{(fired == 0 ? " (DID NOT FIRE)" : used < fired ? " (NOT ONE ROUND PER SHOT: endless ammo)" : "")}");
             w.ammo = before; // filled again for the checks that follow
             ammo?.AdoptWeaponAmmo();
         }

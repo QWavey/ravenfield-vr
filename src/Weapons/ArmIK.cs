@@ -95,7 +95,8 @@ namespace RavenfieldVR.Weapons
                 // Taking hold of the handguard or letting go eases over a tenth of a second instead of snapping.
                 float want = onGun ? 1f : 0f;
                 _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, Time.unscaledDeltaTime * 10f);
-                RigidPose target = new RigidPose(Vector3.Lerp(free.position, grip.position, _onGunBlend), Quaternion.Slerp(free.rotation, grip.rotation, _onGunBlend));
+                float e = _onGunBlend * _onGunBlend * (3f - 2f * _onGunBlend); // eased in and out
+                RigidPose target = new RigidPose(Vector3.Lerp(free.position, grip.position, e), Quaternion.Slerp(free.rotation, grip.rotation, e));
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);
                 OffHandError = Vector3.Distance(_left.Hand.position, target.position);

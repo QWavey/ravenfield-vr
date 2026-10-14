@@ -796,3 +796,44 @@ shared pool of 8. A separate pool of 6 for the tinks cut the tinks about **once 
   with assisted reloading and reports `assisted reloading: 3 shot(s), 3 round(s) used`, or `(ENDLESS AMMO)`, plus a
   metric. Then it fills the gun again for the checks that follow. Checks covering the fix: 0 before, 1 after.
 - Kept.
+
+### Round 8 (test coverage): an autotest check for the break-action case count (`src/Weapons/ReloadInteractions.cs` self-check)
+
+- Before: nothing checked the round-11 fix (opening a break-action again dropped cases out of nothing).
+- After: the reload self-check of every break-action weapon fires one round (in the ammo state), opens, closes and
+  opens again. It reports `break-open: opened after a shot, 1 case(s) fell out; opened again, 0`, or
+  `(NOT ONLY ONCE: ...)`, which the autotest counts as a problem. The old code would have reported 1 again on the
+  second opening.
+- The assisted-reloading check of round 7 was reworded the same way (`(NOT ONE ROUND PER SHOT: ...)`), so it lands in
+  the problem list too (the autotest picks up failures by "NOT"/"NO" followed by a capital).
+- Kept.
+
+### Round 9 (smoothness): taking and letting go of the handguard eased (`src/Weapons/HeldWeapon.cs`, `src/Weapons/ArmIK.cs`)
+
+- Before: the gun's turn to the two-handed aim (and the weapon arms' off hand moving to the grip) blended linearly
+  over a tenth of a second. It jumped to full speed in the first frame and stopped dead in the last.
+- After: the same tenth of a second, eased in and out.
+- Measured with the formulas at 90 Hz (fractions of the blend a second):
+
+  | | Linear (before) | Eased (after) |
+  | --- | --- | --- |
+  | First frame | 10.0 | 3.1 |
+  | Last frame | 10.0 | 3.1 |
+  | Peak (mid-blend) | 10.0 | 14.9 |
+
+  The ends are gentler and the middle is a little faster, in the same 9 frames.
+- Kept (to judge in the headset: if taking the handguard now feels too quick in the middle, slow the blend from 10/s
+  to 7/s).
+
+### Round 10 (performance): the explosion dirt is one mesh, one draw call (`src/Rig/MudSplash.cs`)
+
+- Before: 48 quads, each with its own material (one of four spot textures), so after a close blast up to **48 draw
+  calls** (twice in VR) for the 3-6 s the dirt stays, in the middle of a fight.
+- After: one mesh with four corners per spot, rewritten in place each frame (no new arrays). One material, and the
+  four spot shapes side by side in one texture (a small margin so they never bleed into each other): **1 draw call**
+  for any number of spots. Spots not on the view are folded to a point, and nothing is uploaded or drawn while the
+  view is clean.
+- One look change on the way: a big wet spot now runs downward on the visor. The old quad stretched along its own
+  random turn, so some ran sideways.
+- The autotest's dirt pictures (`mud-0s`, `mud-1-5s`, `mud-4s`, `water-splash-0s`) and counts work as before.
+- Kept.

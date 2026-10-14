@@ -650,7 +650,9 @@ namespace RavenfieldVR.Weapons
                     Quaternion gunFrameBase = Quaternion.LookRotation(dirGun, d.Up);
                     Quaternion worldFrame = OpenVRMath.SafeLookRotation(dirWorld.normalized, hand.Up);
                     Quaternion twoHand = worldFrame * Quaternion.Inverse(gunFrameBase);
-                    gunRot = Quaternion.Slerp(gunRot, twoHand, _twoHandBlend);
+                    // Eased in and out: taking or letting go of the handguard no longer starts and stops the turn at full speed.
+                    float e = _twoHandBlend * _twoHandBlend * (3f - 2f * _twoHandBlend);
+                    gunRot = Quaternion.Slerp(gunRot, twoHand, e);
                 }
             }
 

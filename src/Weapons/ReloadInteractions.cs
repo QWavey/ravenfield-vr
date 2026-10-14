@@ -1524,7 +1524,21 @@ namespace RavenfieldVR.Weapons
             VRHand off = _sys.Rig.Off;
             if (Breaks)
             {
+                // A shot, then opened twice: the fired case falls out the first time only (every opening dropped
+                // "capacity minus loaded" cases once, out of nothing).
+                if (Ammo.MagRounds > 0)
+                {
+                    Ammo.OnShot();
+                }
+                int cases = Casings.Spawned;
                 SetBreakOpen(true);
+                int first = Casings.Spawned - cases;
+                SetBreakOpen(false);
+                yield return new UnityEngine.WaitForSecondsRealtime(0.2f);
+                cases = Casings.Spawned;
+                SetBreakOpen(true);
+                int again = Casings.Spawned - cases;
+                report($"break-open: opened after a shot, {first} case(s) fell out; opened again, {again}{(again > 0 ? " (NOT ONLY ONCE: cases out of nothing)" : "")}");
                 yield return new UnityEngine.WaitForSecondsRealtime(0.2f);
                 TakeFromPouch(off);
                 if (off.Held is MagazineProp shells && AcceptsNow(shells))
