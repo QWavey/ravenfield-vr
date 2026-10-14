@@ -37,8 +37,12 @@ namespace RavenfieldVR.Input
             {
                 return true;
             }
-            Vector3 local = reference.worldToLocalMatrix.MultiplyVector(dir.Value);
-            result = new Vector2(Mathf.Clamp(local.x * gain, -clamp, clamp), Mathf.Clamp(local.y * gain, -clamp, clamp));
+            Vector3 local = reference.worldToLocalMatrix.MultiplyVector(dir.Value).normalized;
+            // Steered by the angle still to turn (radians), not its sine: the same close to the target, but the sine falls
+            // back to nothing as the target goes behind, so a turret asked to look round hardly turned.
+            float yaw = Mathf.Atan2(local.x, local.z);
+            float pitch = Mathf.Atan2(local.y, new Vector2(local.x, local.z).magnitude);
+            result = new Vector2(Mathf.Clamp(yaw * gain, -clamp, clamp), Mathf.Clamp(pitch * gain, -clamp, clamp));
             return false;
         }
     }

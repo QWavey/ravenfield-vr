@@ -1207,3 +1207,21 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
 - At home: fly a helicopter with the hand on the stick (not the thumbsticks). It should now hold level with the hand
   still.
 - Kept.
+
+### Round 15 (feel): turrets turn round to a target behind you (`src/Input/TurretAim.cs`)
+
+- Before: mounted guns and tank turrets turn toward where you look (or point), steered by the sine of the angle still
+  to go. The sine peaks at 90° and falls back to nothing behind you, so looking round at an enemy behind the turret
+  hardly turned it (178°: 2% of the input it got at 90°).
+- After: steered by the angle itself (radians), from the direction in the turret's frame, now normalized. Close to the
+  target it is the same as before (sin x ≈ x), and far off it turns as fast as the game allows.
+- Turn input for a mounted gun (gain 5, the game clamps at 10):
+
+  | Target off to the side | Before | After |
+  | --- | --- | --- |
+  | 2° | 0.17 | 0.17 |
+  | 30° | 2.50 | 2.62 |
+  | 90° | 5.00 | 7.85 |
+  | 150° | 2.50 | 10.00 |
+  | 178° | 0.17 | 10.00 |
+- Kept.
