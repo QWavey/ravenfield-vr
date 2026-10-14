@@ -613,3 +613,45 @@ edge case or rare, Tiny = defensive gap. None of this has been run in the game.
   the thumb at its relaxed rest, sticking up beside the curled fingers. Empty hands keep the rest so the tracked thumb
   can move from there, but this fist has no tracked thumb. Fix: that fist turns the thumb's base over the fingers as
   its pose says.
+
+### Round 13: the held weapon's shot, renderers and stock (`src/Weapons/AmmoState.cs`, `src/Weapons/HeldWeapon.cs`)
+
+- **Major (already on `main`):** with Reloading set to **Assisted**, bolt-action and pump guns had endless ammo.
+  Nothing racks them by hand in that mode (their fire animation works the action), but the mod's ammo state still
+  emptied the chamber on each shot and never filled it again. From the second shot on, keeping the game's ammo equal to
+  "magazine + chamber" put every fired round back. Fix: with assisted reloading every action chambers its next round
+  after a shot (`AmmoState.CyclesItself`), as a self-loading one does.
+- **Minor:** every held gun's flat casing particles are hidden in favour of real cases, but the real ones were only
+  thrown for self-loading guns. Guns with no ammo count (an infinite-ammo gatling) and, with assisted reloading, bolt
+  and pump guns threw no cases at all. Fix: those throw a case with each shot too.
+- Also checked: shadow-only renderers and hidden casing particles are restored when the weapon is let go; the stock
+  pocket only counts for guns whose drawn model reaches 12 cm or more behind the grip.
+
+### Round 14: the weapon's own arms (`src/Weapons/ArmIK.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the easing between the controller and the support grip (it starts at the right end, and untracked counts as on the gun);
+  - the grasp anchor, capped at 5 cm;
+  - the shoulder sliding to reach (no drift, it is re-rooted each frame);
+  - the two-bone solve at full stretch, fully folded and straight down (the pole falls back);
+  - the error numbers for the self-test.
+
+### Round 15: sight modes and flip magnifiers (`src/Weapons/HeldWeapon.cs`, `src/Weapons/PoseSampler.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the mode poses are sampled in the aim state relative to the gun body, and the sampler's mode is reset afterwards;
+  - only parts that differ between modes are moved;
+  - parts are resolved on the live weapon by index path and put back to their own rest when the weapon is let go;
+  - the swing is applied after the gun is placed, so it rides along when the world holds the gun back.
+- Noted, not changed: on a gun with three or more sight modes, going from the last mode back to the first swings
+  the parts through the middle mode's pose for a sixth of a second. Two-mode guns (flip magnifiers) are not affected.
+
+### Round 16: settings (`src/Core/VRConfig.cs`, `src/UI/VRSettingsPanel.cs`, `src/Rig/HandShape.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the new entries' defaults and ranges (the glove size is clamped again where it is used);
+  - the layout switch applies live, to the spots and the shown weapons;
+  - the autotest's hands override is never saved;
+  - the world-collision switch eases the gun back to the hand;
+  - the glove's relaxed-hand rest takes only the curl out (swing-twist: the result is open × swing, with the
+    degenerate half turn guarded).

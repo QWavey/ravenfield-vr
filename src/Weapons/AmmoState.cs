@@ -46,6 +46,11 @@ namespace RavenfieldVR.Weapons
         public bool UsesChamber => Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.Manual || Rig.Action == ActionType.ShellFed;
         /// <summary>The action cycles itself after a shot (feeds the next round).</summary>
         public bool SelfLoading => (Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.ShellFed) && !Rig.CyclesByHand;
+        /// <summary>
+        /// The next round is chambered without the hand after a shot: a self-loading action, or any action with assisted
+        /// reloading (the game's own fire animation works a bolt or pump then; nothing racks it by hand).
+        /// </summary>
+        public bool CyclesItself => SelfLoading || VRConfig.Reload.Value != ReloadMode.Manual;
         public bool HasCover => Rig.Hinge == HingeKind.FeedCover;
         /// <summary>Rounds can reach the chamber: a magazine is seated (or internal) and, on a belt-fed gun, the belt is laid.</summary>
         public bool FeedReady => (MagInserted || !UsesDetachableMag) && (!HasCover || BeltLaid && !CoverOpen);
@@ -167,8 +172,11 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Chambered = false;
-            SpentInChamber = !SelfLoading;
-            if (SelfLoading)
+            // A bolt or pump left for the hand to work keeps its case. With assisted reloading a bolt gun is cycled by its
+            // fire animation: it was never chambered again here, so from the second shot on every shot's round was put
+            // back (endless ammo).
+            SpentInChamber = !CyclesItself;
+            if (CyclesItself)
             {
                 if (FeedReady && MagRounds > 0)
                 {

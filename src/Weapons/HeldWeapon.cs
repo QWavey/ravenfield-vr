@@ -548,9 +548,12 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);
             }
             Reload.OnShot();
-            if (ActiveAmmo != null && ActiveAmmo.Participates && ActiveAmmo.SelfLoading)
+            // The action throws the case out with the shot: a self-loading gun (or any gun with assisted reloading, whose
+            // fire animation works the bolt), or one with no ammo to count (an infinite-ammo gatling still throws cases;
+            // its flat casing particles are hidden like every other gun's).
+            if (ActiveAmmo != null && ActiveAmmo.Participates ? ActiveAmmo.CyclesItself : ActiveRig.Data.Action == ActionType.NoAmmo)
             {
-                Casings.Eject(this); // the action throws the case out with the shot
+                Casings.Eject(this);
             }
         }
 
