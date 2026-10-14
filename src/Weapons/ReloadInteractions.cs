@@ -872,7 +872,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Tactical reload with one hand: driving a fresh magazine into the base of the seated one knocks the old
-        /// one out of the well; the new one then slides in on the rail.
+        /// one out of the well; the new one then slides in on the rail. Any magazine of the gun does it (an empty one
+        /// too), struck fast or pushed slowly and firmly past the old one's base, held straight or tilted; the window is
+        /// as big as the magazine. A magazine moving past beside the gun, clear of the base, does nothing.
         /// </summary>
         private bool TryMagKick(VRHand off, MagazineProp prop)
         {
@@ -880,6 +882,7 @@ namespace RavenfieldVR.Weapons
                 || _ejecting != null || Ammo.BoxLocked)
             {
                 _kickPrevAlong = float.NaN;
+                _kickPushSince = -1f;
                 return false;
             }
             RigidPose seat = SeatPose;
@@ -895,29 +898,36 @@ namespace RavenfieldVR.Weapons
             // and bringing the gun down onto it are the same strike.
             // Averaged over the last moment (raw controller speed is noisy around these thresholds).
             float speed = Vector3.Dot(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), insert);
-            bool near = along > -0.12f && along < 0.1f && lateral < 0.1f;
+            // Sized by the magazine: a strike lands anywhere on the old base plate (as wide as the magazine) with any part
+            // of the fresh one's top; a slow push has to be on the base itself.
+            float strikeReach = Mathf.Clamp(prop.CrossHalf * 2f + 0.025f, 0.06f, 0.13f);
+            float pushReach = Mathf.Clamp(prop.CrossHalf + 0.025f, 0.035f, 0.08f);
+            float below = Mathf.Clamp(length * 0.25f, 0.04f, 0.08f);
+            float into = Mathf.Clamp(length * 0.45f, 0.06f, 0.12f);
+            bool near = along > -0.12f && along < into + 0.04f && lateral < strikeReach + 0.04f;
             if (near && Time.unscaledTime - _kickLogAt > 0.3f)
             {
                 // Numbers for tuning in the headset: which condition holds a kick back.
                 _kickLogAt = Time.unscaledTime;
-                Log.Info($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
+                Log.Info($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm (reach {strikeReach * 100f:0.0}), angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
             }
             // Passing the old magazine's base between two frames counts even when no single frame was inside the window.
             bool crossed = !float.IsNaN(_kickPrevAlong) && _kickPrevAlong < 0f && along >= 0f;
             _kickPrevAlong = near ? along : float.NaN;
-            if (!Data.MagKickable || prop.Rounds <= 0)
+            if (!Data.MagKickable)
             {
                 return false; // deep wells (pistol grips, KRISS Vector) leave nothing to hit
             }
-            if (lateral > 0.07f || angle > 60f)
+            if (lateral > strikeReach || angle > MaxKickAngle)
             {
+                _kickPushSince = -1f;
                 return false;
             }
             if (Time.unscaledTime - _seatedAt < 0.4f)
             {
                 return false; // the push that just seated a magazine must not knock it straight back out with the next one
             }
-            bool inWindow = along >= -0.04f && along <= 0.08f;
+            bool inWindow = along >= -below && along <= into;
             if (inWindow && !_kickTicked)
             {
                 _kickTicked = true;
@@ -927,18 +937,37 @@ namespace RavenfieldVR.Weapons
             {
                 _kickTicked = false;
             }
-            if (!(inWindow && speed >= 0.25f || crossed && speed >= 0.12f))
+            // A slow, firm push: the fresh magazine's top pressed past the old one's base (where the old one would have to
+            // give way), held there a moment or pushed on, and not being pulled back out.
+            bool pressing = lateral <= pushReach && along >= 0.012f && along <= into && speed > -0.05f;
+            if (!pressing)
+            {
+                _kickPushSince = -1f;
+            }
+            else if (_kickPushSince < 0f)
+            {
+                _kickPushSince = Time.unscaledTime;
+            }
+            bool push = pressing && (along >= 0.03f || Time.unscaledTime - _kickPushSince >= 0.12f);
+            bool strike = inWindow && speed >= 0.2f || crossed && speed >= 0.08f;
+            if (!strike && !push)
             {
                 return false;
             }
-            Log.Info($"Mag kick on {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s");
+            Log.Info($"Mag kick on {Data.Key} ({(strike ? "strike" : "push")}): along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s");
             _kickPrevAlong = float.NaN;
+            _kickPushSince = -1f;
             EjectMagazine();
             off.Haptic(0.04f, 80f, 0.8f);
             return true;
         }
 
+        /// <summary>How far (degrees) a fresh magazine may be tilted off the well's axis and still knock the old one out.</summary>
+        private const float MaxKickAngle = 75f;
+
         private bool _kickTicked;
+        /// <summary>When the fresh magazine started pressing past the old one's base (-1: not pressing).</summary>
+        private float _kickPushSince = -1f;
 
         private void SeatProp(VRHand off, MagazineProp prop)
         {
@@ -1521,16 +1550,45 @@ namespace RavenfieldVR.Weapons
         /// <paramref name="below"/> under the seated magazine's base (sideways by <paramref name="aside"/>), moving at
         /// <paramref name="speed"/> into the well.
         /// </summary>
-        private void PlaceFreshMag(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float below, float aside, float speed)
+        private void PlaceFreshMag(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float below, float aside, float speed, float tilt = 0f)
         {
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(fresh.InsertDirLocal);
             Vector3 side = seat.TransformDirection(Vector3.Cross(fresh.InsertDirLocal, fresh.FrontLocal).normalized);
             float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
             var hold = new RigidPose(seat.position - insert * (length + below) + side * aside, seat.rotation);
+            if (tilt != 0f)
+            {
+                // Tipped forward or back about its own top, which stays where the straight magazine's would be.
+                Vector3 tip = hold.TransformPoint(fresh.TipLocal);
+                Quaternion q = Quaternion.AngleAxis(tilt, side);
+                hold = new RigidPose(tip + q * (hold.position - tip), q * hold.rotation);
+            }
             VRHand.Scripted[(int)off.Side] = hold.Multiply(holdInRaw.Inverse());
             VRHand.ScriptedVelocity[(int)off.Side] = insert * speed;
         }
+
+        /// <summary>Autotest: one way of driving a fresh magazine at the seated one.</summary>
+        private sealed class KickPass
+        {
+            public string Name;
+            public float Speed;
+            public float Tilt;
+            public float Aside;
+            public bool Knocks = true;
+        }
+
+        /// <summary>
+        /// The mag kick must work struck fast, pushed slowly and tilted, and must not fire for a magazine that only passes
+        /// beside the gun.
+        /// </summary>
+        private static readonly KickPass[] KickPasses =
+        {
+            new KickPass { Name = "fast strike", Speed = 0.9f },
+            new KickPass { Name = "slow push", Speed = 0.08f },
+            new KickPass { Name = "tilted 45 deg", Speed = 0.6f, Tilt = 45f },
+            new KickPass { Name = "passing beside the gun", Speed = 0.9f, Aside = 0.2f, Knocks = false }
+        };
 
         /// <summary>
         /// Autotest: the two H3VR reloads through the real hand path, the simulated off hand moved by script. Mag kick: a
@@ -1550,12 +1608,16 @@ namespace RavenfieldVR.Weapons
             VRInput.SimulatedGrab[(int)off.Side] = true;
             try
             {
-                for (int pass = 0; pass < 2; pass++)
+                for (int pass = 0; pass <= KickPasses.Length; pass++)
                 {
-                    bool kick = pass == 0;
+                    bool kick = pass < KickPasses.Length;
+                    KickPass how = kick ? KickPasses[pass] : null;
                     if (kick && !Data.MagKickable)
                     {
-                        report("mag kick: this magazine sits too deep in the gun to be knocked out (not kickable)");
+                        if (pass == 0)
+                        {
+                            report("mag kick: this magazine sits too deep in the gun to be knocked out (not kickable)");
+                        }
                         continue;
                     }
                     if (!Ammo.MagInserted)
@@ -1581,13 +1643,22 @@ namespace RavenfieldVR.Weapons
                     RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
                     MagazineProp old = null;
                     bool knocked = false, palmed = false;
+                    // Magazines lying around before this pass (earlier passes' knocked-out ones) are not this pass's.
+                    var lyingBefore = new System.Collections.Generic.HashSet<MagazineProp>();
+                    foreach (MagazineProp m in MagazineProp.All)
+                    {
+                        if (m.IsDropped)
+                        {
+                            lyingBefore.Add(m);
+                        }
+                    }
                     if (kick)
                     {
-                        // From 8 cm below, up into the old magazine at 0.9 m/s.
-                        const float Speed = 0.9f;
-                        for (float below = 0.08f; below > -0.02f; below -= Speed * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
+                        // From 8 cm below, up into (or past) the old magazine at this pass's speed and angle.
+                        _seatedAt = -10f; // the seat just above is the test's set-up, not a push the kick must wait out
+                        for (float below = 0.08f; below > -0.06f; below -= how.Speed * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
                         {
-                            PlaceFreshMag(off, fresh, holdInRaw, below, 0f, Speed);
+                            PlaceFreshMag(off, fresh, holdInRaw, below, how.Aside, how.Speed, how.Tilt);
                             yield return null;
                             if (!Ammo.MagInserted)
                             {
@@ -1596,7 +1667,22 @@ namespace RavenfieldVR.Weapons
                             }
                         }
                         yield return new WaitForEndOfFrame();
-                        shot("mag-kick");
+                        shot(pass == 0 ? "mag-kick" : "mag-kick-" + pass);
+                        if (!how.Knocks)
+                        {
+                            // Only passing by: nothing may have come out. The fresh magazine goes back into the pouch.
+                            VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                            report($"mag kick, {how.Name}: {(knocked ? "old magazine NOT LEFT IN THE GUN (knocked out by a magazine that missed its base)" : "nothing knocked out")}");
+                            if (off.Held is MagazineProp passed)
+                            {
+                                Ammo.ReturnSpare(passed.Rounds);
+                                passed.Rounds = 0;
+                                passed.Destroy();
+                            }
+                            VRHand.Scripted[(int)off.Side] = null;
+                            yield return null;
+                            continue;
+                        }
                     }
                     else
                     {
@@ -1631,7 +1717,7 @@ namespace RavenfieldVR.Weapons
                     {
                         foreach (MagazineProp m in MagazineProp.All)
                         {
-                            if (m.IsDropped && m.WeaponKey == Data.Key && m.Rounds == oldRounds)
+                            if (m.IsDropped && m.WeaponKey == Data.Key && m.Rounds == oldRounds && !lyingBefore.Contains(m))
                             {
                                 dropped = m.Rounds;
                                 break;
@@ -1641,11 +1727,12 @@ namespace RavenfieldVR.Weapons
                     int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + inHand + dropped;
                     knocked |= kick && dropped > 0; // the kick can land a frame after the strike (the hand pose lags a frame)
                     yield return new WaitForEndOfFrame();
-                    shot(kick ? "mag-kick-seated" : "h3vr-tactical-seated");
+                    shot(kick ? (pass == 0 ? "mag-kick-seated" : $"mag-kick-{pass}-seated") : "h3vr-tactical-seated");
                     string sum = after == before ? "rounds add up" : $"ROUNDS DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, in hand {inHand}, dropped {dropped})";
                     if (kick)
                     {
-                        report($"mag kick: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, {sum}");
+                        Core.AutoTest.Metric($"mag kick ({how.Name}): knocked out (0/1)", knocked ? 1 : 0);
+                        report($"mag kick, {how.Name}: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, {sum}");
                     }
                     else
                     {

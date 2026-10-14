@@ -1,7 +1,7 @@
 {
   "controller_type": "hpmotioncontroller",
   "name": "Ravenfield VR default (HP Reverb G2)",
-  "description": "Same layout as Touch. Left menu button opens the pause menu.",
+  "description": "Same layout as Touch. Y: map (hold: pause, double: loadout). The menu buttons stay SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there).",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -28,9 +28,7 @@
         { "path": "/user/hand/left/input/x", "mode": "button",
           "inputs": { "click": { "output": "/actions/main/in/Squad" } } },
         { "path": "/user/hand/left/input/y", "mode": "complex_button",
-          "inputs": { "single": { "output": "/actions/main/in/Map" }, "double": { "output": "/actions/main/in/Loadout" }, "long": { "output": "/actions/main/in/ModKeys" } } },
-        { "path": "/user/hand/left/input/application_menu", "mode": "button",
-          "inputs": { "click": { "output": "/actions/main/in/Pause" } } }
+          "inputs": { "single": { "output": "/actions/main/in/Map" }, "long": { "output": "/actions/main/in/Pause" }, "double": { "output": "/actions/main/in/Loadout" } } }
       ],
       "poses": [
         { "output": "/actions/main/in/Pose", "path": "/user/hand/left/pose/raw" },

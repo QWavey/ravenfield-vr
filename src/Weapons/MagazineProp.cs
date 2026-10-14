@@ -45,6 +45,8 @@ namespace RavenfieldVR.Weapons
         public readonly Vector3 BaseLocal;
         /// <summary>Half the magazine's thickness across the hand (side to side), for holding a second one beside it.</summary>
         private readonly float _sideHalf;
+        /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
+        public readonly float CrossHalf;
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private Collider[] _colliders;
@@ -81,6 +83,7 @@ namespace RavenfieldVR.Weapons
             BaseLocal = bounds.center - InsertDirLocal * extent;
             Vector3 sideLocal = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             _sideHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), 0.006f, 0.04f);
+            CrossHalf = Mathf.Clamp(Mathf.Max(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal))), Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal)))), 0.006f, 0.1f);
             switch (kind)
             {
                 case PropKind.Shell:
