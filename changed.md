@@ -1263,3 +1263,23 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   tick in the pointing hand. There is none for plain text or the panel background, none while dragging, and at most
   twenty a second. Hover cues per new clickable target: 0 before, 1 after.
 - Kept.
+
+### Round 19 (correctness): vehicle gun sights show where the gun points (`src/UI/SeatSights.cs`)
+
+- Before: a gunner seat's 3D reticle (tank sights, range scales) was shown as a collimated sight turned with your
+  head. In VR the turret follows your head with a lag, so while it was still swinging round the reticle already sat
+  on what you looked at, and firing then missed.
+- After: the sight is still seen from your eye (collimated, 80 m out) but turned with the seat's own camera. That
+  camera turns with the gun it sights for, so the reticle sweeps with the turret and lands on the target when the
+  gun does, as it looks in the flat game.
+- Worked out (the turret swinging 90° to where you look at 30°/s):
+
+  | Time | Gun points at | Reticle before | Reticle after |
+  | --- | --- | --- | --- |
+  | 0 s | 0° | 90° (90° off) | 0° |
+  | 1 s | 30° | 90° (60° off) | 30° |
+  | 2 s | 60° | 90° (30° off) | 60° |
+  | 3 s | 90° | 90° | 90° |
+- At home: this assumes the gunner seat's camera turns with its turret, which is how Ravenfield's turret seats are
+  built. In a tank gunner seat, look away from the turret: the reticle should follow the barrel round, not your eyes.
+- Kept.

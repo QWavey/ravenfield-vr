@@ -29,6 +29,8 @@ namespace RavenfieldVR.UI
 
         private readonly List<Sight> _sights = new List<Sight>();
         private Seat _seat;
+        /// <summary>The seat's own camera, which turns with the gun it sights for.</summary>
+        private Transform _camera;
 
         public void BeforeRender(Transform head)
         {
@@ -40,13 +42,16 @@ namespace RavenfieldVR.UI
                 _seat = seat;
                 Capture();
             }
+            // Seen from the eye but turned with the seat's camera (the gun): turned with the head, the reticle sat where you
+            // looked while the turret was still swinging round to follow, and showed it on target before it was.
+            Quaternion basis = _camera != null ? _camera.rotation : head.rotation;
             foreach (Sight s in _sights)
             {
                 if (s.T == null)
                 {
                     continue;
                 }
-                s.T.SetPositionAndRotation(head.position + head.rotation * (s.Direction * Distance), head.rotation * s.Rotation);
+                s.T.SetPositionAndRotation(head.position + basis * (s.Direction * Distance), basis * s.Rotation);
                 s.T.localScale = s.LocalScale * (Distance / s.Range);
             }
         }
@@ -58,6 +63,7 @@ namespace RavenfieldVR.UI
                 return;
             }
             Transform cam = _seat.camera.transform;
+            _camera = cam;
             foreach (Renderer r in _seat.vehicle.GetComponentsInChildren<Renderer>(true))
             {
                 if (r.gameObject.layer != Seat.LAYER_HUD || r is ParticleSystemRenderer || r.GetComponentInParent<Canvas>() != null)
@@ -115,6 +121,7 @@ namespace RavenfieldVR.UI
             }
             _sights.Clear();
             _seat = null;
+            _camera = null;
         }
     }
 }
