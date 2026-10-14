@@ -194,19 +194,25 @@ namespace RavenfieldVR.Weapons
             GameObject go = null;
             Bounds bounds = d.MagBounds;
             string fitKey = null;
-            if (kind == PropKind.Magazine && rig.Magazine != null)
+            if (CopiesModel(rig, kind))
             {
                 go = CopyVisuals(rig);
                 fitKey = go != null ? "mag:" + d.Key : null;
                 if (go != null)
                 {
                     bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                    if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
+                    {
+                        Object.Destroy(go); // not a rocket (a fuse, a cap): the made one instead
+                        go = null;
+                        fitKey = null;
+                    }
                 }
             }
             if (go == null)
             {
                 go = new GameObject("RavenfieldVR " + kind);
-                bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds);
+                bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds, ShotgunShells(rig));
             }
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
@@ -226,18 +232,23 @@ namespace RavenfieldVR.Weapons
             frontLocal = seatInv * d.AimAxis;
             GameObject go = null;
             bounds = d.MagBounds;
-            if (kind == PropKind.Magazine && rig.Magazine != null)
+            if (CopiesModel(rig, kind))
             {
                 go = CopyVisuals(rig);
                 if (go != null)
                 {
                     bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                    if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
+                    {
+                        Object.Destroy(go);
+                        go = null;
+                    }
                 }
             }
             if (go == null)
             {
                 go = new GameObject("RavenfieldVR Pouch " + kind);
-                bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds);
+                bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds, ShotgunShells(rig));
             }
             go.name = "RavenfieldVR Pouch " + kind;
             SetLayer(go, HeldLayer);
@@ -502,9 +513,44 @@ namespace RavenfieldVR.Weapons
             return share >= 0.5f;
         }
 
-        private static Bounds BuildProcedural(GameObject go, PropKind kind, Vector3 insertLocal, Vector3 frontLocal, Bounds magBounds)
+        /// <summary>
+        /// A magazine, and a launcher's rocket, are copied from the weapon's own model. The rocket only when the analysis
+        /// found one of a rocket's size (a launcher showed a made-up capsule instead of its rocket).
+        /// </summary>
+        private static bool CopiesModel(WeaponRig rig, PropKind kind)
+        {
+            if (rig.Magazine == null)
+            {
+                return false;
+            }
+            if (kind == PropKind.Magazine)
+            {
+                return true;
+            }
+            float length = Longest(rig.Data.MagBounds);
+            return kind == PropKind.Rocket && length > 0.15f && length < 1.4f;
+        }
+
+        private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+
+        /// <summary>A shotgun's rounds are shells; any other gun loaded round by round takes rifle rounds.</summary>
+        private static bool ShotgunShells(WeaponRig rig) =>
+            rig.Weapon == null || rig.Weapon.configuration == null || rig.Weapon.configuration.projectilesPerShot > 1 || rig.Data.Action == ActionType.BreakOpen;
+
+        private static Bounds BuildProcedural(GameObject go, PropKind kind, Vector3 insertLocal, Vector3 frontLocal, Bounds magBounds, bool shotgunShell)
         {
             EnsureMaterials();
+            if (kind == PropKind.Shell)
+            {
+                // The round itself (a shell with its brass head, or a live rifle round), tip first into the gun. It was a
+                // brass capsule: "a yellow thing" instead of a shell.
+                GameObject round = Casings.MakeRound(shotgunShell, go.transform, out float length, out float radius);
+                Vector3 up = Mathf.Abs(Vector3.Dot(insertLocal.normalized, frontLocal.normalized)) > 0.95f ? Vector3.up : frontLocal;
+                Quaternion along = Quaternion.LookRotation(insertLocal, up);
+                round.transform.localRotation = along;
+                round.transform.localPosition = -(along * new Vector3(0f, 0f, length * 0.5f));
+                return new Bounds(Vector3.zero, Abs(along * new Vector3(radius * 2f, radius * 2f, length)));
+            }
             Vector3 size;
             Material mat;
             PrimitiveType shape;
@@ -1140,7 +1186,9 @@ namespace RavenfieldVR.Weapons
                 MagazineProp p = Alive[i];
                 if (p.Go == null)
                 {
-                    Alive.RemoveAt(i);
+                    // Its object went with the scene: the hand holding it is freed too (it kept pointing at the dead prop,
+                    // threw every frame and held nothing else again).
+                    p.Destroy();
                     continue;
                 }
                 if (!p.IsDropped)

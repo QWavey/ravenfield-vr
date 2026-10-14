@@ -381,36 +381,36 @@ namespace RavenfieldVR.Input
 
         // ---- digital ------------------------------------------------------------------------------
 
-        public static bool GetHeld(DigitalAction a) => Held[(int)a, 2];
-        public static bool GetHeld(DigitalAction a, Hand h) => Held[(int)a, (int)h] || a == DigitalAction.Grab && (int)h < 2 && SimulatedGrab[(int)h];
+        public static bool GetHeld(DigitalAction a) => Held[Slot(a), 2];
+        public static bool GetHeld(DigitalAction a, Hand h) => Held[Slot(a), (int)h] || a == DigitalAction.Grab && (int)h < 2 && SimulatedGrab[(int)h];
 
         /// <summary>Autotest: a closed grip on a simulated hand (the virtual headset has no controllers to squeeze).</summary>
         internal static readonly bool[] SimulatedGrab = new bool[2];
 
-        public static bool GetPressed(DigitalAction a) => Pressed[(int)a, 2] && !Consumed[(int)a, 2];
-        public static bool GetPressed(DigitalAction a, Hand h) => Pressed[(int)a, (int)h] && !Consumed[(int)a, (int)h];
+        public static bool GetPressed(DigitalAction a) => Pressed[Slot(a), 2] && !Consumed[Slot(a), 2];
+        public static bool GetPressed(DigitalAction a, Hand h) => Pressed[Slot(a), (int)h] && !Consumed[Slot(a), (int)h];
 
-        public static bool GetReleased(DigitalAction a) => Released[(int)a, 2];
-        public static bool GetReleased(DigitalAction a, Hand h) => Released[(int)a, (int)h];
+        public static bool GetReleased(DigitalAction a) => Released[Slot(a), 2];
+        public static bool GetReleased(DigitalAction a, Hand h) => Released[Slot(a), (int)h];
 
         /// <summary>Seconds the action has been held (0 when not held).</summary>
         public static float HeldTime(DigitalAction a, Hand h) =>
-            Held[(int)a, (int)h] ? Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] : 0f;
+            Held[Slot(a), (int)h] ? Time.unscaledTime - HeldSince[Slot(a) * 3 + (int)h] : 0f;
 
         /// <summary>
         /// Pressed within the last <paramref name="seconds"/>, still held, and nothing has taken the press yet. Lets a
         /// reaching hand close a moment early and still catch the bolt or magazine it arrives at.
         /// </summary>
         public static bool GetPressedRecently(DigitalAction a, Hand h, float seconds) =>
-            GetHeld(a, h) && Unclaimed[(int)a, (int)h] && !Consumed[(int)a, (int)h] && Time.unscaledTime - HeldSince[(int)a * 3 + (int)h] <= seconds;
+            GetHeld(a, h) && Unclaimed[Slot(a), (int)h] && !Consumed[Slot(a), (int)h] && Time.unscaledTime - HeldSince[Slot(a) * 3 + (int)h] <= seconds;
 
         private static readonly bool[,] PressPending = new bool[DigitalCount, 3];
 
         /// <summary>Autotest: a button press on a simulated hand, seen as pressed on the next input update.</summary>
         internal static void SimulatePress(DigitalAction a, Hand h)
         {
-            PressPending[(int)a, (int)h] = true;
-            PressPending[(int)a, 2] = true;
+            PressPending[Slot(a), (int)h] = true;
+            PressPending[Slot(a), 2] = true;
         }
 
         /// <summary>Autotest: the grip of a simulated hand closes now (held until <see cref="SimulatedGrab"/> is cleared).</summary>
@@ -426,22 +426,24 @@ namespace RavenfieldVR.Input
         /// <summary>Marks this frame's press as handled so the game bridge does not also act on it.</summary>
         public static void Consume(DigitalAction a, Hand h)
         {
-            Consumed[(int)a, (int)h] = true;
-            Consumed[(int)a, 2] = true;
-            Unclaimed[(int)a, (int)h] = false;
-            Unclaimed[(int)a, 2] = false;
+            int i = Slot(a);
+            Consumed[i, (int)h] = true;
+            Consumed[i, 2] = true;
+            Unclaimed[i, (int)h] = false;
+            Unclaimed[i, 2] = false;
         }
 
         public static void Consume(DigitalAction a)
         {
+            int i = Slot(a);
             for (int s = 0; s < 3; s++)
             {
-                Consumed[(int)a, s] = true;
-                Unclaimed[(int)a, s] = false;
+                Consumed[i, s] = true;
+                Unclaimed[i, s] = false;
             }
         }
 
-        public static bool IsConsumed(DigitalAction a) => Consumed[(int)a, 2];
+        public static bool IsConsumed(DigitalAction a) => Consumed[Slot(a), 2];
 
         // ---- analog / skeleton --------------------------------------------------------------------
 
@@ -557,8 +559,66 @@ namespace RavenfieldVR.Input
             }
         }
 
+        /// <summary>The hand set as dominant in the settings (where the weapon goes by default; movement and menus stay with it).</summary>
         public static Hand Dominant => VRConfig.LeftHanded ? Hand.Left : Hand.Right;
         public static Hand OffHand => VRConfig.LeftHanded ? Hand.Right : Hand.Left;
         public static Hand Other(Hand h) => h == Hand.Left ? Hand.Right : Hand.Left;
+
+        private static Hand _gunHand = Hand.Right;
+        private static Hand _gunHandSetFor = Hand.Right;
+
+        /// <summary>
+        /// The hand that holds the drawn weapon: the dominant hand, unless the weapon was passed to the other hand or drawn
+        /// with it. Changing the handedness setting starts over from the new dominant hand.
+        /// </summary>
+        public static Hand GunHand
+        {
+            get
+            {
+                Hand dominant = Dominant;
+                if (_gunHandSetFor != dominant)
+                {
+                    _gunHandSetFor = dominant;
+                    _gunHand = dominant;
+                }
+                return _gunHand;
+            }
+        }
+
+        /// <summary>The hand that does not hold the weapon (support grip, magazines, use, squad orders, map).</summary>
+        public static Hand FreeHand => Other(GunHand);
+
+        public static void SetGunHand(Hand h)
+        {
+            _ = GunHand; // settle the handedness first
+            _gunHand = h;
+        }
+
+        /// <summary>The weapon is in the hand that is not the dominant one: its buttons trade places (see <see cref="Slot"/>).</summary>
+        public static bool GunHandSwapped => GunHand != Dominant;
+
+        /// <summary>
+        /// The input slot an action is read from. With the weapon in the other hand, the weapon's buttons and that hand's own
+        /// buttons trade places on both controllers (trigger: fire / use; lower face button: slide release / squad; upper face
+        /// button: magazine release / map), so the hand holding the weapon fires and releases it and the free hand uses,
+        /// orders and opens the map. Sticks, grips, pause and menus stay where they are.
+        /// </summary>
+        private static int Slot(DigitalAction a)
+        {
+            if (!GunHandSwapped)
+            {
+                return (int)a;
+            }
+            switch (a)
+            {
+                case DigitalAction.Fire: return (int)DigitalAction.Use;
+                case DigitalAction.Use: return (int)DigitalAction.Fire;
+                case DigitalAction.SlideRelease: return (int)DigitalAction.Squad;
+                case DigitalAction.Squad: return (int)DigitalAction.SlideRelease;
+                case DigitalAction.MagRelease: return (int)DigitalAction.Map;
+                case DigitalAction.Map: return (int)DigitalAction.MagRelease;
+                default: return (int)a;
+            }
+        }
     }
 }

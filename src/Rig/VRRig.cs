@@ -53,8 +53,14 @@ namespace RavenfieldVR.Rig
         public RigidPose HeadPose => RigidPose.Of(Camera.transform);
         public Vector3 HeadLocal => Camera.transform.localPosition;
 
-        public VRHand Dominant => Hands[(int)VRInput.Dominant];
-        public VRHand Off => Hands[(int)VRInput.OffHand];
+        /// <summary>The hand holding the drawn weapon (<see cref="VRInput.GunHand"/>): the dominant hand unless the weapon was passed over.</summary>
+        public VRHand Dominant => Hands[(int)VRInput.GunHand];
+        /// <summary>The other hand: support grip, magazines, racking.</summary>
+        public VRHand Off => Hands[(int)VRInput.FreeHand];
+        /// <summary>The off hand as set in the settings (the wrist display stays on its wrist wherever the weapon is).</summary>
+        public VRHand SetOff => Hands[(int)VRInput.OffHand];
+        /// <summary>The dominant hand as set in the settings (turret aiming).</summary>
+        public VRHand SetDominant => Hands[(int)VRInput.Dominant];
         public VRHand Hand(Hand side) => Hands[(int)side];
 
         /// <summary>World yaw of the tracking space while on foot (degrees).</summary>
@@ -315,7 +321,16 @@ namespace RavenfieldVR.Rig
 
         private static Camera FollowTarget()
         {
-            Camera cam = LocalPlayer.GetCurrentCameraIncludeSpectator();
+            Camera cam = null;
+            try
+            {
+                cam = LocalPlayer.GetCurrentCameraIncludeSpectator();
+            }
+            catch (Exception e) when (e is NullReferenceException || e is MissingReferenceException)
+            {
+                // "Quit to menu": the game still points at the destroyed player and throws reading its camera, every
+                // frame. The view mode then never left OnFoot and the hands froze; the cameras below take over.
+            }
             if (cam != null && cam.isActiveAndEnabled && !IsOwnCamera(cam))
             {
                 return cam;
@@ -469,6 +484,13 @@ namespace RavenfieldVR.Rig
                 if (sq > 1e-7f && sq < 0.1225f && player.controller != null && player.IsMovementEnabled())
                 {
                     Vector3 before = player.transform.position;
+                    // Pressed into the ground while on it: a move along the floor alone broke the ground contact, the
+                    // next physics step landed the player again, and every landing plays a footstep: steps all the time
+                    // while standing still (the head never stops moving a little).
+                    if (player.controller.OnGround())
+                    {
+                        d.y = -0.01f;
+                    }
                     player.controller.Move(d);
                     Vector3 actual = player.transform.position - before;
                     // Keep these steps out of the game's fixed-step smoothing so head motion stays 1:1.
@@ -636,7 +658,17 @@ namespace RavenfieldVR.Rig
                 Recenter();
             }
             FpsActorController player = GameContext.Player;
-            Camera reference = PlaceOrigin(player);
+            Camera reference = null;
+            try
+            {
+                reference = PlaceOrigin(player);
+            }
+            catch (Exception e)
+            {
+                // Whatever goes wrong placing the play space, the hands keep following the controllers: one exception
+                // here every frame froze both hands in the main menu after "Quit to menu".
+                Log.ExceptionOnce("Rig.PlaceOrigin", e);
+            }
 
             foreach (VRHand h in Hands)
             {
@@ -683,6 +715,10 @@ namespace RavenfieldVR.Rig
             {
                 case RigMode.OnFoot:
                 {
+                    if (player == null)
+                    {
+                        return null; // destroyed with its map; the mode changes next Update
+                    }
                     Transform anchorT = player.fpParent != null ? player.fpParent.fpCameraParent : player.fpCameraRoot;
                     Vector3 anchor = anchorT.position;
                     Quaternion r = Quaternion.Euler(0f, Yaw, 0f);

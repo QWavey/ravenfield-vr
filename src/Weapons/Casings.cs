@@ -363,6 +363,25 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// A round to hold (from the pouch, loaded by hand) along +Z with its base at 0: a 12 gauge shell (red hull, brass
+        /// head) or a live rifle round (brass case, copper bullet). Shared mesh and materials; the caller owns the object.
+        /// </summary>
+        internal static GameObject MakeRound(bool shotgunShell, Transform parent, out float length, out float radius)
+        {
+            EnsureAssets();
+            Mesh mesh = _liveMeshes[shotgunShell ? 3 : 1];
+            var go = new GameObject(shotgunShell ? "shell" : "round");
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = shotgunShell ? _shellMats : _liveMats;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            length = mesh.bounds.max.z;
+            radius = Mathf.Max(mesh.bounds.extents.x, mesh.bounds.extents.y);
+            return go;
+        }
+
+        /// <summary>
         /// A turned case along +Z. Shells: the brass head (submesh 1) up to <paramref name="head"/>, the hull above (submesh
         /// 0). Live rounds: a bullet of <paramref name="bullet"/> length on the mouth (submesh 1).
         /// </summary>

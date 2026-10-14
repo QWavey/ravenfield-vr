@@ -620,6 +620,12 @@ namespace RavenfieldVR.Weapons
         {
             _gunCollider?.Update();
             VRHand main = _system.Rig.Dominant;
+            if (main.Held is MagazineProp inHand && inHand.HeldBy == main)
+            {
+                // The game drew a weapon into a hand holding a magazine (a seat left, a respawn, the weapon button): the
+                // magazine is let go. Taking the hand over left it hanging in the air for the rest of the map.
+                inHand.Drop(main.ThrowVelocity(), main.AngularVelocity);
+            }
             main.Role = HandRole.Weapon;
             if (main.Model != null)
             {
@@ -642,6 +648,28 @@ namespace RavenfieldVR.Weapons
             }
             UpdateAim();
             Reload.Update();
+            HoldSlideLockPose();
+        }
+
+        /// <summary>
+        /// Many pistols show the slide locked back from the animator's "loaded ammo" being 0. A fresh magazine in a gun with
+        /// its slide locked made the game count the rounds as loaded, and the animator ran the slide forward while the gun
+        /// still said RACK (and needed racking). Held at 0 until the slide is released or racked; every frame, because the
+        /// release does not always change the round count (and so never told the animator).
+        /// </summary>
+        private void HoldSlideLockPose()
+        {
+            Weapon w = ActiveWeapon;
+            AmmoState ammo = ActiveAmmo;
+            if (w == null || ammo == null || !ammo.Participates || !w.notifyAnimatorAmmo || !w.HasActiveAnimator())
+            {
+                return;
+            }
+            int shown = ammo.SlideLocked ? 0 : w.ammo;
+            if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)
+            {
+                w.animator.SetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH, shown);
+            }
         }
 
         /// <summary>The sight the weapon uses right now (its selected sight mode), or null for its only sight.</summary>

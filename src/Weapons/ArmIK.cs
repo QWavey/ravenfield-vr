@@ -65,7 +65,7 @@ namespace RavenfieldVR.Weapons
         {
             BodyZones zones = _sys.Zones;
             Vector3 neck = _sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
-            float side = VRConfig.LeftHanded ? -1f : 1f; // the gun arm's shoulder is on the dominant side
+            float side = Input.VRInput.GunHand == Input.Hand.Left ? -1f : 1f; // the gun arm's shoulder is on the gun hand's side
             Vector3 gunShoulder = neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side);
             Vector3 offShoulder = neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side);
             Vector3 down = Vector3.down;

@@ -142,6 +142,17 @@ namespace RavenfieldVR.Weapons
                 {
                     h.Role = HandRole.Free;
                 }
+                // On the handguard, a bolt, a hinge, a belt or an optic, with no weapon drawn: left over from a release that
+                // did not finish (an exception part way), and the hand took nothing again.
+                else if (Held == null && (h.Role == HandRole.Foregrip || h.Role == HandRole.Slide || h.Role == HandRole.Hinge
+                                          || h.Role == HandRole.Belt || h.Role == HandRole.Optic))
+                {
+                    h.Role = HandRole.Free;
+                    if (!(h.Held is MagazineProp))
+                    {
+                        h.Held = null;
+                    }
+                }
             }
         }
 
@@ -248,6 +259,11 @@ namespace RavenfieldVR.Weapons
             {
                 if (h.Held is MagazineProp prop && (Held == null || h != Rig.Off))
                 {
+                    if (prop.Go == null)
+                    {
+                        prop.Destroy(); // gone with its scene: free the hand
+                        continue;
+                    }
                     prop.FollowHand();
                     if (!h.GrabHeld)
                     {
@@ -458,48 +474,71 @@ namespace RavenfieldVR.Weapons
             dom.Haptic(0.05f, 100f, 0.6f);
         }
 
-        private int _hoveredHolster = -1;
+        /// <summary>The holster each hand is over (a tick when it arrives at one with a weapon in it).</summary>
+        private readonly int[] _hoveredHolster = { -1, -1 };
 
+        /// <summary>
+        /// Either hand draws from the body: the weapon comes out in the hand that took it. The hand holding the drawn
+        /// weapon puts it back at its own holster or swaps it for another; the free hand takes another weapon into itself
+        /// (the drawn one goes to its holster).
+        /// </summary>
         private void UpdateHolsters()
         {
             if (!VRConfig.HolsterSwitching.Value || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen)
             {
                 return;
             }
-            VRHand dom = Rig.Dominant;
-            if (!dom.Tracked || dom.Role == HandRole.Magazine)
-            {
-                _hoveredHolster = -1; // a hand holding a magazine has no room for a weapon
-                return;
-            }
             Actor actor = GameContext.PlayerActor;
-            int slot = Zones.HolsterAt(dom.Palm.position, includeChest: Held == null || !Held.Aiming);
+            foreach (VRHand hand in Rig.Hands)
+            {
+                UpdateHolster(actor, hand);
+            }
+        }
+
+        private void UpdateHolster(Actor actor, VRHand hand)
+        {
+            int i = (int)hand.Side;
+            bool gunHand = hand == Rig.Dominant;
+            // The gun hand may hold its weapon; the free hand only draws while it holds nothing (not the handguard, a bolt,
+            // a magazine).
+            bool canDraw = gunHand ? hand.Role != HandRole.Magazine : hand.Role == HandRole.Free && hand.Held == null;
+            if (!hand.Tracked || !canDraw)
+            {
+                _hoveredHolster[i] = -1; // a hand holding a magazine has no room for a weapon
+                return;
+            }
+            int slot = Zones.HolsterAt(hand.Palm.position, includeChest: Held == null || !Held.Aiming);
             // A short tick when the hand reaches a holster with something in it: holsters are found by feel.
-            bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null;
-            if (usable && slot != _hoveredHolster)
+            bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null
+                          && (gunHand || actor.weapons[slot] != actor.activeWeapon);
+            if (usable && slot != _hoveredHolster[i])
             {
-                dom.Haptic(0.012f, 220f, 0.35f);
+                hand.Haptic(0.012f, 220f, 0.35f);
             }
-            _hoveredHolster = usable ? slot : -1;
-            if (!dom.GrabPressed || slot < 0)
+            _hoveredHolster[i] = usable ? slot : -1;
+            if (!hand.GrabPressed || slot < 0)
             {
                 return;
             }
-            if (actor == null || actor.weapons == null || slot >= actor.weapons.Length || actor.weapons[slot] == null)
+            if (!usable)
             {
-                dom.Haptic(0.05f, 40f, 0.3f);
+                if (gunHand)
+                {
+                    hand.Haptic(0.05f, 40f, 0.3f); // nothing there
+                }
                 return;
             }
-            VRInput.Consume(DigitalAction.Grab, dom.Side);
-            if (actor.activeWeapon == actor.weapons[slot])
+            VRInput.Consume(DigitalAction.Grab, hand.Side);
+            if (gunHand && actor.activeWeapon == actor.weapons[slot])
             {
                 // Putting the weapon back where it lives: holster it and free the hand.
                 HolsterToEmptyHand(actor);
                 return;
             }
+            TakeIntoHand(hand); // the free hand takes it: the drawn weapon goes to its holster
             actor.SwitchWeapon(slot);
-            Sounds.Play(MechSound.Holster, dom.Palm.position, 0.7f);
-            dom.Haptic(0.05f, 100f, 0.6f);
+            Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
+            hand.Haptic(0.05f, 100f, 0.6f);
         }
 
         /// <summary>A grenade thrown by letting go of the grip: the throwable goes back to its holster and the hand is empty.</summary>
@@ -579,6 +618,10 @@ namespace RavenfieldVR.Weapons
                 {
                     return;
                 }
+                if (PassToOtherHand())
+                {
+                    return;
+                }
                 // Let go at your body: back in its holster. Anywhere else it falls, like any object you open your hand on.
                 if (VRConfig.ReleaseDropsWeapon.Value && !Zones.AtBody(_letGoPalm) && Held.Rig.Data.Action != ActionType.Throwable)
                 {
@@ -590,6 +633,52 @@ namespace RavenfieldVR.Weapons
                 }
             }
         }
+
+        /// <summary>
+        /// The next weapon the game draws goes into <paramref name="hand"/>: it becomes the gun hand (the weapon drawn now,
+        /// in the other hand, is let go of here and holstered by the game's switch).
+        /// </summary>
+        internal void TakeIntoHand(VRHand hand)
+        {
+            if (hand == Rig.Dominant)
+            {
+                return;
+            }
+            if (Held != null)
+            {
+                ReleaseHeld();
+            }
+            VRHand old = Rig.Dominant;
+            if (old.Role == HandRole.Weapon || old.Role == HandRole.Throwable)
+            {
+                old.Role = HandRole.Free;
+            }
+            VRInput.SetGunHand(hand.Side);
+        }
+
+        /// <summary>
+        /// The gun hand let go while the other hand still holds the weapon (on its handguard or round the grip): the weapon
+        /// stays in that hand, which becomes the gun hand and takes it by the grip. It used to go to its holster.
+        /// </summary>
+        private bool PassToOtherHand()
+        {
+            VRHand from = Rig.Dominant, to = Rig.Off;
+            if (Held == null || Held.Rig.Data.Action == ActionType.Throwable || !to.Tracked || to.Role != HandRole.Foregrip || !to.GrabHeld)
+            {
+                return false;
+            }
+            ReleaseHeld(); // the support grip and reload state go with it; the weapon is taken up again next frame
+            from.Role = HandRole.Free;
+            to.Role = HandRole.Free;
+            to.Held = null;
+            VRInput.SetGunHand(to.Side);
+            to.Haptic(0.04f, 140f, 0.5f);
+            Log.InfoOnce("passhand", $"Weapon passed to the {to.Side} hand.");
+            return true;
+        }
+
+        /// <summary>Autotest: passes the held weapon to the other hand as letting go while it holds the handguard does.</summary>
+        internal bool TestPassToOtherHand() => PassToOtherHand();
 
         /// <summary>Autotest: lets the held weapon fall as a released grip would; the slot it came from, or -1.</summary>
         internal int TestLetFall()

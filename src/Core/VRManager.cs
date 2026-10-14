@@ -197,7 +197,7 @@ namespace RavenfieldVR.Core
             Log.Guard("Weapons.BeforeRender", _weaponsRender);
             Log.Guard("UI.BeforeRender", _uiRender);
             // The gun hand first: a support hand cupping it closes on where it is this frame.
-            int first = (int)Input.VRInput.Dominant;
+            int first = (int)Input.VRInput.GunHand;
             Log.Guard("HandModel", _handApply[first]);
             for (int i = 0; i < _handApply.Length; i++)
             {

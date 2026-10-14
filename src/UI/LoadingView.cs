@@ -102,7 +102,7 @@ namespace RavenfieldVR.UI
                     {
                         _levelSince = now;
                     }
-                    bool ready = GameContext.Player != null || GameContext.GameMenuOpen || LoadoutOpen() || GameManager.IsSpectating();
+                    bool ready = GameContext.Player != null || GameContext.GameMenuOpen || LoadoutOpen() || Spectating();
                     if (!ready)
                     {
                         _readySince = -1f;
@@ -140,6 +140,18 @@ namespace RavenfieldVR.UI
             }
             _rig.FadeCut();
             _endAt = now + 0.06f;
+        }
+
+        private static bool Spectating()
+        {
+            try
+            {
+                return GameManager.IsSpectating();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         private static bool LoadoutOpen()

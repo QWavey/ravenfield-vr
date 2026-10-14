@@ -672,6 +672,8 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             int slot = drop.OwnerSlot >= 0 && drop.OwnerSlot < actor.weapons.Length ? drop.OwnerSlot : SlotFor(drop.Entry, actor);
+            // Into the hand that picked it up: taken with the free hand, it went into the other one.
+            _sys.TakeIntoHand(hand);
             Weapon current = actor.weapons[slot];
             if (current != null && current.weaponEntry != null && current.weaponEntry.prefab != null)
             {

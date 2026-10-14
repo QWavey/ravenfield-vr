@@ -154,9 +154,9 @@ namespace RavenfieldVR.Rig
             Vector3 headLocal = rigRoot.InverseTransformPoint(head.position);
             float yaw = (Quaternion.Inverse(rigRoot.rotation) * head.rotation).eulerAngles.y;
             Quaternion facing = Quaternion.Euler(0f, yaw, 0f);
-            bool gunHand = Side == VRInput.Dominant;
-            var offset = gunHand ? new Vector3(0.16f, -0.26f, 0.40f) : new Vector3(-0.08f, -0.29f, 0.62f);
-            offset.x *= VRConfig.LeftHanded ? -1f : 1f;
+            bool gunHand = Side == VRInput.GunHand;
+            var offset = gunHand ? new Vector3(0.16f, -0.26f, 0.40f) : new Vector3(0.08f, -0.29f, 0.62f);
+            offset.x *= Side == Hand.Right ? 1f : -1f; // each hand on its own side of the body
             Quaternion pointer = facing * Quaternion.Euler(gunHand ? 4f : 10f, 0f, 0f);
             Quaternion laser = Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))));
             local = new RigidPose(headLocal + facing * offset, pointer * Quaternion.Inverse(laser));

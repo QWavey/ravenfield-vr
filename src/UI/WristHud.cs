@@ -42,7 +42,7 @@ namespace RavenfieldVR.UI
 
         public void BeforeRender()
         {
-            VRHand off = _rig.Off;
+            VRHand off = _rig.SetOff; // stays on its wrist when the weapon is passed to the other hand
             Actor actor = GameContext.PlayerActor;
             bool want = VRConfig.WristHud.Value && off.Tracked && actor != null && !actor.dead && VRGameInput.WristLookGesture;
             _alpha = Mathf.MoveTowards(_alpha, want ? 1f : 0f, Time.unscaledDeltaTime * 6f);

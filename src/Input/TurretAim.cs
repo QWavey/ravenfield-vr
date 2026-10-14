@@ -19,9 +19,9 @@ namespace RavenfieldVR.Input
                 return null;
             }
             VRRig rig = VRRig.Instance;
-            if (VRConfig.TurretAim.Value == TurretAimMode.Hand && rig.Dominant.Tracked)
+            if (VRConfig.TurretAim.Value == TurretAimMode.Hand && rig.SetDominant.Tracked)
             {
-                return rig.Dominant.Pointer.Forward;
+                return rig.SetDominant.Pointer.Forward;
             }
             return rig.Head.forward;
         }

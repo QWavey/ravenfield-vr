@@ -123,7 +123,17 @@ namespace RavenfieldVR.UI
                 return;
             }
             Quaternion along = Quaternion.LookRotation(Line.direction, Vector3.up);
-            foreach (Camera c in new[] { GameManager.GetMainCamera(), LocalPlayer.controller != null ? LocalPlayer.controller.GetActiveCamera() : null })
+            Camera main = null, active = null;
+            try
+            {
+                main = GameManager.GetMainCamera();
+                active = LocalPlayer.controller != null ? LocalPlayer.controller.GetActiveCamera() : null;
+            }
+            catch (System.Exception e) when (e is System.NullReferenceException || e is MissingReferenceException)
+            {
+                // the player or its cameras are going with the scene
+            }
+            foreach (Camera c in new[] { main, active })
             {
                 if (c == null || _turned >= Turned.Length || (_turned == 1 && Turned[0] == c.transform))
                 {

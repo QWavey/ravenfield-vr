@@ -90,8 +90,10 @@ namespace RavenfieldVR.Input
             MoveStick = scrollingPanel ? Vector2.zero : ApplyDeadzone(VRInput.Move, dz);
             TurnStickRaw = scrollingPanel ? Vector2.zero : VRInput.TurnStick;
 
-            Hand dom = VRInput.Dominant;
-            Hand off = VRInput.OffHand;
+            // The hand holding the weapon fires it; the other uses (with the weapon passed to the other hand, VRInput has the
+            // two hands' buttons trade places).
+            Hand dom = VRInput.GunHand;
+            Hand off = VRInput.FreeHand;
             bool menu = GameContext.GameMenuOpen || !GameContext.InGame;
 
             // Always available: menus and respawn.
@@ -119,7 +121,7 @@ namespace RavenfieldVR.Input
                 return;
             }
 
-            Set(KeyBinds.Use, VRInput.GetHeld(DigitalAction.Use, off));
+            Set(KeyBinds.Use, actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
@@ -132,6 +134,44 @@ namespace RavenfieldVR.Input
                 return;
             }
             ComputeOnFoot(actor);
+        }
+
+        /// <summary>How long the Use trigger is held in a seat before the player gets out.</summary>
+        private const float LeaveSeatHold = 1f;
+        private static float _leaveHeldSince = -1f;
+        private static int _leaveTicks;
+
+        /// <summary>
+        /// In a seat, Use (the off hand's trigger) gets you out only when held for a second, with ticks building up in
+        /// the hand: a fist closed on the wheel squeezes the trigger too, and a single click threw the driver out of the
+        /// car. A hand on the wheel or the flight stick never counts.
+        /// </summary>
+        private static bool HeldToLeaveSeat(Hand off)
+        {
+            Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(off) : null;
+            bool held = VRInput.GetHeld(DigitalAction.Use, off) && (hand == null || hand.Role != Rig.HandRole.Cockpit);
+            if (!held)
+            {
+                _leaveHeldSince = -1f;
+                return false;
+            }
+            if (_leaveHeldSince < 0f)
+            {
+                _leaveHeldSince = Time.unscaledTime;
+                _leaveTicks = 0;
+            }
+            float t = (Time.unscaledTime - _leaveHeldSince) / LeaveSeatHold;
+            if (t >= 1f)
+            {
+                return true; // stays held: the game sees one press, and nothing more on foot until the trigger is let go
+            }
+            int tick = Mathf.FloorToInt(t * 5f);
+            if (tick > _leaveTicks)
+            {
+                _leaveTicks = tick;
+                hand?.Haptic(0.02f, 120f + 60f * tick, 0.15f + 0.15f * tick);
+            }
+            return false;
         }
 
         private static void ComputeOnFoot(Actor actor)
@@ -171,7 +211,7 @@ namespace RavenfieldVR.Input
                     Set(KeyBinds.FireMode, true);
                 }
             }
-            if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
+            if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.GunHand))
             {
                 Set(KeyBinds.Reload, true);
             }
@@ -190,12 +230,12 @@ namespace RavenfieldVR.Input
                 return;
             }
             // Vehicle axes are produced by the CarInput/HelicopterInput/AirplaneInput patches; here only buttons.
-            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.Dominant))
+            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand))
             {
                 Set(KeyBinds.Countermeasures, true);
             }
             // B reloads a mounted gun (a car's LMG, a turret), as R does on the keyboard.
-            if (VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
+            if (VRInput.GetPressed(DigitalAction.MagRelease, VRInput.GunHand))
             {
                 Set(KeyBinds.Reload, true);
             }
@@ -360,10 +400,26 @@ namespace RavenfieldVR.Input
     {
         private static void Prefix()
         {
-            if (VRGameInput.Enabled)
+            if (!VRGameInput.Enabled)
+            {
+                return;
+            }
+            // Thrown out of here, the exception would stop the game's own input update too: every button dead for good.
+            try
             {
                 VRInput.Update();
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("VRInput.Update", e);
+            }
+            try
+            {
                 VRGameInput.Compute();
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("VRGameInput.Compute", e);
             }
         }
     }

@@ -385,7 +385,7 @@ namespace RavenfieldVR.Weapons
         {
             Transform head = _rig.Head;
             Vector3 local = head.InverseTransformPoint(point);
-            float side = VRConfig.LeftHanded ? 1f : -1f; // the off hand's side of the head
+            float side = Input.VRInput.FreeHand == Input.Hand.Left ? -1f : 1f; // the free hand's side of the head
             return local.x * side > 0.06f && local.y > -0.04f && local.z < 0.08f;
         }
 
@@ -406,6 +406,18 @@ namespace RavenfieldVR.Weapons
             }
             // Holsters in use (blue), then the pouch (amber) and the night-vision point.
             AssignHolsters(GameContext.PlayerActor);
+            if (_debug != null && System.Array.Exists(_debug, g => g == null))
+            {
+                // The spheres went with the last scene (they are not kept across loads): made again below.
+                foreach (GameObject g in _debug)
+                {
+                    if (g != null)
+                    {
+                        Object.Destroy(g);
+                    }
+                }
+                _debug = null;
+            }
             if (_debug == null)
             {
                 _debug = new GameObject[SpotCount + 2];
