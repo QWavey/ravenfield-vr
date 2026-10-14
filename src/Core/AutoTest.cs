@@ -257,6 +257,36 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.08f);
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("damage-from-front-left");
+                yield return new WaitForSecondsRealtime(2.5f); // the ring fades
+            }
+            Rig.MudSplash mud = Rig.MudSplash.Instance;
+            if (mud != null)
+            {
+                // A grenade going off two metres ahead and to the left: dirt on the view, gone four seconds later.
+                Vector3 blast = head.position + (flat * 1.7f - Vector3.Cross(Vector3.up, flat) * 0.8f) - Vector3.up * 1.3f;
+                mud.Splash(blast, 6f, false);
+                yield return new WaitForSecondsRealtime(0.15f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("mud-0s");
+                int first = mud.VisibleCount;
+                yield return new WaitForSecondsRealtime(1.5f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("mud-1-5s");
+                yield return new WaitForSecondsRealtime(2.6f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("mud-4s");
+                int left = mud.VisibleCount;
+                mud.Splash(blast, 6f, true);
+                yield return new WaitForSecondsRealtime(0.15f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("water-splash-0s");
+                Metric("explosion dirt: splats on the view right after a blast 2 m away", first);
+                Metric("explosion dirt: splats left 4 s later", left);
+                Results.Add($"Explosion dirt: {first} splats right after a blast 2 m away, {left} left after 4 s{(first == 0 ? " (NO DIRT)" : "")}{(left > 0 ? " (NOT GONE after 4 s)" : "")}");
+                if (first == 0 || left > 0)
+                {
+                    Problem($"[explosion dirt] {first} splats right after, {left} after 4 s");
+                }
             }
         }
 

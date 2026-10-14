@@ -261,3 +261,23 @@ Small pushes go into the gun's recoil spring (which settles them back, as it doe
 
 Check at home: those two metrics (a few millimetres each), and how it feels in the headset (the numbers are in
 `ReloadInteractions`: `moved * 2.5f`, `0.22f`, `0.14f`).
+
+## Task 110: dirt on the view from close explosions
+
+New `src/Rig/MudSplash.cs`; `src/Rig/VRRig.cs`, `src/Core/VRConfig.cs` (new `ExplosionDirt`, on by default),
+`src/Core/AutoTest.cs`.
+
+- Every explosion that goes through the game's damage code (grenades, shells, rockets, call-ins, explosive scripts;
+  `ActorManager.OnExplosion`, re-subscribed after each level load because the game clears its listeners then) within
+  1.4 x its damage range of your head throws dirt on an invisible visor 25 cm in front of the eyes (drawn like the
+  damage ring, on the UI layer): 2 to 12 splats (a few big ones and droplets), more and bigger the closer and the
+  larger the blast, pushed toward the side it came from (behind you: toward the edges).
+- They cling for a moment, then run down the visor, stretch and fade over 2-4 s (droplets faster).
+- A blast in water (`WaterLevel.IsInWater`) throws grey, see-through water instead, which runs off faster.
+- Nothing for a blast behind a wall or the ground between it and your head (a line cast against the level only), and
+  nothing while dead.
+- The splat pictures are drawn by the mod (4 variants: an uneven blob with droplets thrown off it), checked offline.
+- Vehicle wrecks exploding do not go through that damage code, so they throw no dirt.
+
+Autotest: right after the body pictures, a blast 2 m ahead-left (`mud-0s`, `mud-1-5s`, `mud-4s`) and a water blast
+(`water-splash-0s`); metrics for splats right after and after 4 s (must be 0); a problem is flagged otherwise.

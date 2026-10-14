@@ -45,6 +45,7 @@ namespace RavenfieldVR.Rig
         public readonly CameraSuppressor Suppressor;
         private readonly ComfortVignette _vignette;
         private readonly DamageFeedback _damage;
+        private readonly MudSplash _mud;
         private readonly CockpitControls _cockpit;
 
         public RigMode Mode { get; private set; } = RigMode.None;
@@ -100,6 +101,7 @@ namespace RavenfieldVR.Rig
             Hands[1] = new VRHand(Input.Hand.Right, Root);
             _vignette = new ComfortVignette(Camera.transform);
             _damage = new DamageFeedback(Camera.transform);
+            _mud = new MudSplash(Camera.transform);
             _cockpit = new CockpitControls(this);
         }
 
@@ -239,6 +241,7 @@ namespace RavenfieldVR.Rig
             float moving = Mode == RigMode.OnFoot ? VRGameInput.MoveStick.magnitude : 0f;
             _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value);
             _damage.Update();
+            _mud.Update();
         }
 
         private void DetermineMode(FpsActorController player, out RigMode mode, out object key)
@@ -888,6 +891,7 @@ namespace RavenfieldVR.Rig
             Suppressor.Dispose();
             _vignette.Destroy();
             _damage.Destroy();
+            _mud.Destroy();
             foreach (VRHand h in Hands)
             {
                 h.Destroy();
