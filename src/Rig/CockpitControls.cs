@@ -23,6 +23,8 @@ namespace RavenfieldVR.Rig
         private readonly bool[] _onWheel = new bool[2];
         private readonly Vector3[] _wheelStart = new Vector3[2];
         private readonly float[] _wheelBase = new float[2];
+        /// <summary>How far each hand has turned the rim since taking it (degrees, added up frame by frame: never wraps).</summary>
+        private readonly float[] _wheelTurned = new float[2];
         private float _steer;
 
         private Hand? _stickHand;
@@ -106,6 +108,7 @@ namespace RavenfieldVR.Rig
                     _onWheel[i] = true;
                     _wheelStart[i] = OnWheelPlane(palm);
                     _wheelBase[i] = _steer;
+                    _wheelTurned[i] = 0f;
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = false;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
@@ -131,10 +134,14 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
+                    // Added up from the last frame's hand position: one angle from where the hand took the rim wrapped at
+                    // half a turn, and turning past it (hand over hand) threw the steering to full opposite lock.
                     Vector3 now = OnWheelPlane(palm);
-                    float angle = Vector3.SignedAngle(_wheelStart[i], now, _wheel.transform.forward);
+                    _wheelTurned[i] += Vector3.SignedAngle(_wheelStart[i], now, _wheel.transform.forward);
+                    _wheelStart[i] = now;
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
-                    float handSteer = Mathf.Clamp(_wheelBase[i] + angle / maxRot, -1f, 1f);
+                    _wheelTurned[i] = Mathf.Clamp(_wheelTurned[i], (-1f - _wheelBase[i]) * maxRot, (1f - _wheelBase[i]) * maxRot);
+                    float handSteer = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
                     int holders = (_onWheel[0] ? 1 : 0) + (_onWheel[1] ? 1 : 0);
                     _steer = holders == 2 ? Mathf.Lerp(_steer, handSteer, 0.5f) : handSteer;
                 }

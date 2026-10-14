@@ -1170,3 +1170,20 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   | Brass tink | 9.0 kHz | 27% (it rings) |
   | Ground tap (kept) | 0.96 kHz | about 1% |
 - Kept.
+
+### Round 13 (correctness): the steering wheel never flips to the opposite lock (`src/Rig/CockpitControls.cs`)
+
+- Before: the wheel's turn was one signed angle from where the hand took the rim to where it is now. That angle wraps
+  at half a turn, so turning the rim past 180° (a big turn, hand over hand) threw the steering to full opposite lock.
+- After: each hand's turn is added up frame by frame (it never wraps) and held at the wheel's stops. Turning back
+  past a stop answers at once, like a real wheel at its lock.
+- Simulated (a wheel with 120° to full lock, the hand turning clockwise):
+
+  | Hand turned | Steering before | After |
+  | --- | --- | --- |
+  | 90° | +0.75 | +0.75 |
+  | 120° | +1.00 | +1.00 |
+  | 180° | **−1.00** | +1.00 |
+  | 240° | **−1.00** | +1.00 |
+  | 270° | **−0.75** | +1.00 |
+- Kept.
