@@ -134,6 +134,99 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>
+        /// Every pose of the pose library (<see cref="HandPoses"/>), one right glove each with its name under it, seen from
+        /// the palm side at three quarters: a sheet of 6 x 5 tiles in one picture.
+        /// </summary>
+        public static string CapturePoseSheet(string path)
+        {
+            var root = new GameObject("RavenfieldVR Hand Pose Sheet");
+            root.transform.position = new Vector3(0f, 2100f, 0f);
+            RenderTexture rt = null;
+            Texture2D sheet = null;
+            try
+            {
+                GripPose[] poses = HandPoses.Library;
+                var hands = new VRHand[poses.Length];
+                Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                for (int p = 0; p < poses.Length; p++)
+                {
+                    hands[p] = new VRHand(Input.Hand.Right, root.transform);
+                    hands[p].Root.localPosition = new Vector3(0f, 0f, p * 1f);
+                    hands[p].Root.localRotation = Quaternion.identity;
+                    hands[p].Model.PreviewPose(poses[p].Curls, poses[p].Thumb);
+                    var label = new GameObject("label") { layer = 18 };
+                    label.transform.SetParent(hands[p].Root, false);
+                    label.transform.localPosition = new Vector3(-0.02f, -0.075f, 0.03f);
+                    var text = label.AddComponent<TextMesh>();
+                    text.font = font;
+                    label.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                    text.text = poses[p].Id.ToString();
+                    text.fontSize = 48;
+                    text.characterSize = 0.0022f;
+                    text.anchor = TextAnchor.MiddleCenter;
+                    text.color = Color.black;
+                }
+                var light = new GameObject("light").AddComponent<Light>();
+                light.transform.SetParent(root.transform, false);
+                light.type = LightType.Directional;
+                light.transform.rotation = Quaternion.Euler(40f, 60f, 0f);
+                light.intensity = 1.15f;
+                var camGo = new GameObject("cam");
+                camGo.transform.SetParent(root.transform, false);
+                Camera cam = camGo.AddComponent<Camera>();
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0.62f, 0.66f, 0.7f);
+                cam.fieldOfView = 36f;
+                cam.nearClipPlane = 0.01f;
+                cam.farClipPlane = 5f;
+                cam.cullingMask = 1 << 18;
+                cam.enabled = false;
+                const int Tile = 300, Columns = 6;
+                int rows = (poses.Length + Columns - 1) / Columns;
+                rt = new RenderTexture(Tile, Tile, 24);
+                cam.targetTexture = rt;
+                sheet = new Texture2D(Tile * Columns, Tile * rows, TextureFormat.RGB24, false);
+                for (int p = 0; p < poses.Length; p++)
+                {
+                    // From the palm side and a little below the thumb, where a held grip shows best.
+                    Vector3 eye = hands[p].Root.TransformPoint(new Vector3(-0.3f, 0.12f, 0.09f));
+                    Vector3 at = hands[p].Root.TransformPoint(new Vector3(0f, -0.01f, 0.035f));
+                    camGo.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(at - eye, Vector3.forward));
+                    cam.Render();
+                    RenderTexture prev = RenderTexture.active;
+                    RenderTexture.active = rt;
+                    sheet.ReadPixels(new Rect(0, 0, Tile, Tile), p % Columns * Tile, (rows - 1 - p / Columns) * Tile);
+                    RenderTexture.active = prev;
+                }
+                sheet.Apply();
+                File.WriteAllBytes(path, sheet.EncodeToPNG());
+                foreach (VRHand h in hands)
+                {
+                    h.Destroy();
+                }
+                return null;
+            }
+            catch (Exception e)
+            {
+                Log.Exception("Hand pose sheet", e);
+                return e.Message;
+            }
+            finally
+            {
+                if (rt != null)
+                {
+                    rt.Release();
+                    UnityEngine.Object.Destroy(rt);
+                }
+                if (sheet != null)
+                {
+                    UnityEngine.Object.Destroy(sheet);
+                }
+                UnityEngine.Object.Destroy(root);
+            }
+        }
+
         public static string Capture(string path)
         {
             var root = new GameObject("RavenfieldVR Hand Preview");

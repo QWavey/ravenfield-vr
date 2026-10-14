@@ -37,6 +37,8 @@ namespace RavenfieldVR.Rig
         public readonly Vector3[,] PadDir = new Vector3[5, 3];
         /// <summary>The thumb's first joint at rest and while holding a weapon's grip.</summary>
         public Quaternion ThumbRest, ThumbWeapon;
+        /// <summary>The thumb's first joint in a fist (poses turn the thumb base between the rest and this).</summary>
+        public Quaternion ThumbFist;
         /// <summary>Points on the palm's skin (palm side).</summary>
         public Vector3[] PalmSkin;
         /// <summary>The palm and back of the hand as a box (the thumb and fingers excluded).</summary>
@@ -121,6 +123,7 @@ namespace RavenfieldVR.Rig
             }
             h.ThumbRest = h.Open[0, 0];
             h.ThumbWeapon = Quaternion.Euler(-6f, -16f, 0f); // along the frame of a held gun, beside the slide
+            h.ThumbFist = Quaternion.SlerpUnclamped(h.ThumbRest, h.ThumbWeapon, 1f / 0.35f);
             var skin = new Vector3[12];
             int n = 0;
             foreach (float z in new[] { -0.03f, -0.005f, 0.02f, 0.036f })
@@ -283,6 +286,7 @@ namespace RavenfieldVR.Rig
             // third of the way to the fist, along the frame, and closes from there until it touches.
             h.ThumbRest = relaxed[0, 0];
             h.ThumbWeapon = Quaternion.Slerp(relaxed[0, 0], fist[0, 0], 0.35f);
+            h.ThumbFist = fist[0, 0];
             // Curl 0 is Valve's relaxed hand with its curl taken out, not the open hand: the open hand spreads the fingers
             // wide (index, ring and little finger 10-15 degrees out at the knuckle), which read as a stiff hand at rest.
             // Each joint keeps the relaxed pose's sideways set (the swing) and curls about the same axis as before, so a

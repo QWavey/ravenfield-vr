@@ -33,7 +33,7 @@ namespace RavenfieldVR.Rig
         private readonly Quaternion[][] _restRotations = new Quaternion[5][];
         private readonly float[] _curl = new float[5];
         private readonly Renderer _renderer;
-        private readonly Quaternion _thumbRest, _thumbWeapon;
+        private readonly Quaternion _thumbRest, _thumbWeapon, _thumbFist;
         private Quaternion _thumbBase;
         private bool _visible = true;
 
@@ -153,6 +153,7 @@ namespace RavenfieldVR.Rig
             }
             _thumbRest = HandShape.MirrorRotation(_shape.ThumbRest, m);
             _thumbWeapon = HandShape.MirrorRotation(_shape.ThumbWeapon, m);
+            _thumbFist = HandShape.MirrorRotation(_shape.ThumbFist, m);
             _thumbBase = _thumbRest;
             _pinchPoint = PinchFromShape();
         }
@@ -377,9 +378,9 @@ namespace RavenfieldVR.Rig
             float[] goal = TargetCurls();
             float k = 1f - Mathf.Exp(-25f * dt);
             float kJoint = 1f - Mathf.Exp(-40f * dt);
-            // The thumb lies along the frame of a held gun (beside the slide, not across it) and along the side of a
-            // handguard the other hand holds (Valve's relaxed thumb stood up through it); elsewhere it rests up.
-            Quaternion thumbGoal = _hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip ? _thumbWeapon : _thumbRest;
+            // The pose turns the thumb's base between its rest and the fist: along the frame of a held gun or the side of a
+            // handguard (Valve's relaxed thumb stood up through it), wrapped round a knife's handle, up beside a pinch.
+            Quaternion thumbGoal = _hand.Role == HandRole.Free ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
             for (int f = 0; f < 5; f++)
             {
@@ -763,18 +764,35 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>Self-test picture: the glove with these finger curls (thumb..pinky), no tracking needed.</summary>
-        internal void PreviewPose(float[] curls, bool weaponThumb = false)
+        internal void PreviewPose(float[] curls, bool weaponThumb = false) => PreviewPose(curls, weaponThumb ? 0.35f : 0f);
+
+        /// <summary>Self-test picture: these curls and the thumb's base turned <paramref name="thumbBase"/> of the way to the fist.</summary>
+        internal void PreviewPose(float[] curls, float thumbBase)
         {
             SetVisible(true);
+            Quaternion thumb = Quaternion.Slerp(_thumbRest, _thumbFist, thumbBase);
             for (int f = 0; f < 5; f++)
             {
                 for (int s = 0; s < 3; s++)
                 {
-                    Quaternion rest = f == 0 && s == 0 ? (weaponThumb ? _thumbWeapon : _thumbRest) : _restRotations[f][s];
+                    Quaternion rest = f == 0 && s == 0 ? thumb : _restRotations[f][s];
                     _joints[f][s].localRotation = rest * Quaternion.AngleAxis(_shape.CurlAngle[f, s] * curls[f], _axis[f, s]);
                 }
             }
         }
+
+        /// <summary>What the hand holds, for its pose (set by whoever gives the hand its role).</summary>
+        public WeaponClass WeaponClass;
+        public WorkedPart WorkedPart;
+        /// <summary>The hand holds a second magazine beside the first (H3VR palming).</summary>
+        public bool Palming;
+        /// <summary>The cockpit control in the hand is a flight stick (else a wheel).</summary>
+        public bool CockpitStick;
+
+        private GripPose _pose = HandPoses.Get(HandPoseId.Relaxed);
+
+        /// <summary>The pose the hand takes now (self-test and logs).</summary>
+        public HandPoseId CurrentPose => _pose.Id;
 
         private readonly float[] _goal = new float[5];
 
@@ -822,6 +840,12 @@ namespace RavenfieldVR.Rig
             }
             // A hand at rest is never ruler-straight: a slight natural curl, more toward the little finger.
             Minimum(0.1f, 0.12f, 0.16f, 0.2f, 0.24f);
+            _pose = HandPoses.Get(HandPoses.For(_hand.Role, WeaponClass, WorkedPart, _hand.Held as Weapons.MagazineProp, Palming, CockpitStick));
+            if (_hand.Role == HandRole.Free && !VRInput.HasSkeleton(side) && grip > 0.9f && trigger > 0.9f)
+            {
+                _pose = HandPoses.Get(HandPoseId.Fist);
+            }
+            float[] p = _pose.Curls;
 
             switch (_hand.Role)
             {
@@ -845,12 +869,15 @@ namespace RavenfieldVR.Rig
                     }
                     else
                     {
-                        _goal[1] = Mathf.Lerp(0.3f, 0.82f, trigger);
-                        Minimum(-1f, -1f, 0.7f, 0.72f, 0.74f);
+                        _goal[1] = Mathf.Lerp(p[1], 0.82f, trigger);
+                        Minimum(-1f, -1f, p[2], p[3], p[4]);
                     }
                     // The thumb rides along the frame on a pistol and wraps a rifle's grip only a little; the mod's own
-                    // thumb curl is measured on its own thumb rest pose and would push ours across the slide.
-                    _goal[0] = WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0]) : Mathf.Lerp(0.25f, 0.45f, _goal[0]);
+                    // thumb curl is measured on its own thumb rest pose and would push ours across the slide. Other grips
+                    // (a launcher, a knife, a tool) by their pose.
+                    _goal[0] = WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0])
+                        : _pose.Id == HandPoseId.RifleGrip ? Mathf.Lerp(0.25f, 0.45f, _goal[0])
+                        : Mathf.Lerp(p[0], Mathf.Min(1f, p[0] + 0.2f), _goal[0]);
                     break;
                 case HandRole.Foregrip:
                     if (WeaponSupportCurls != null && SnapPose.HasValue)
@@ -865,28 +892,30 @@ namespace RavenfieldVR.Rig
                     }
                     else
                     {
-                        Minimum(0.3f, 0.55f, 0.6f, 0.62f, 0.65f);
+                        Minimum(p[0], p[1], p[2], p[3], p[4]);
                     }
                     break;
-                case HandRole.Cockpit:
-                    Minimum(0.3f, 0.55f, 0.6f, 0.62f, 0.65f);
-                    break;
-                case HandRole.Magazine:
-                case HandRole.Throwable:
-                    // Something held in the fist: the fingers are closed around it whatever the grip trigger reads.
-                    Minimum(0.55f, 0.7f, 0.75f, 0.78f, 0.8f);
-                    break;
-                case HandRole.Slide:
-                case HandRole.Hinge:
-                case HandRole.Pin:
-                case HandRole.Belt:
-                case HandRole.Optic:
-                    // Pinching a bolt or handle: thumb and index close on it, the rest curl out of the way.
-                    Minimum(0.45f, 0.55f, 0.7f, 0.75f, 0.78f);
-                    break;
                 case HandRole.Pointer:
-                    _goal[1] = Mathf.Min(_goal[1], 0.1f);
-                    Minimum(-1f, -1f, 0.8f, 0.82f, 0.84f);
+                    _goal[1] = Mathf.Min(_goal[1], p[1] + 0.05f);
+                    Minimum(-1f, -1f, p[2], p[3], p[4]);
+                    break;
+                case HandRole.Free:
+                    if (_pose.Id == HandPoseId.Fist)
+                    {
+                        Minimum(p[0], p[1], p[2], p[3], p[4]);
+                    }
+                    break;
+                default:
+                    // Holding or working something (a magazine, a grenade, a bolt, a pin, a wheel...): the fingers close at
+                    // least as far as the pose, whatever the grip trigger reads; a firm pose is taken as it is.
+                    if (_pose.Exact)
+                    {
+                        Fill(p[0], p[1], p[2], p[3], p[4]);
+                    }
+                    else
+                    {
+                        Minimum(p[0], p[1], p[2], p[3], p[4]);
+                    }
                     break;
             }
 

@@ -153,6 +153,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+            _weaponClass = ClassOf(rig, weapon);
             if (!rig.Data.IsPistol && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
             {
                 // The rearmost part of the drawn gun, 12 cm or more behind the grip, is a stock's butt.
@@ -194,6 +195,31 @@ namespace RavenfieldVR.Weapons
         }
 
         public bool IsPistolGrip => Rig.Data.IsPistol;
+
+        /// <summary>What kind of weapon this is, for the hands' poses.</summary>
+        private readonly WeaponClass _weaponClass;
+
+        private static WeaponClass ClassOf(WeaponRig rig, Weapon weapon)
+        {
+            WeaponRigData d = rig.Data;
+            switch (d.Action)
+            {
+                case ActionType.Throwable:
+                    return WeaponClass.Throwable;
+                case ActionType.Melee:
+                    return GunCollider.VisibleBounds(rig, out _).size.magnitude > 0.55f ? WeaponClass.LongMelee : WeaponClass.Knife;
+            }
+            if (d.IsPistol)
+            {
+                return WeaponClass.Pistol;
+            }
+            if (d.IsMachineGun)
+            {
+                return WeaponClass.MachineGun;
+            }
+            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
+            return d.Action == ActionType.SingleShot && weapon.configuration.ammo <= 1 && length > 0.4f ? WeaponClass.Launcher : WeaponClass.Rifle;
+        }
 
         /// <summary>Parts a sight mode moves (a flip magnifier), kept where the selected mode puts them, aimed or not.</summary>
         private Transform[] _sightParts;
@@ -391,10 +417,12 @@ namespace RavenfieldVR.Weapons
             {
                 main.Model.WeaponGripCurls = Rig.Data.GripCurls;
                 main.Model.WeaponIsPistol = Rig.Data.IsPistol;
+                main.Model.WeaponClass = _weaponClass;
             }
             if (_system.Rig.Off.Model != null)
             {
                 _system.Rig.Off.Model.WeaponSupportCurls = Rig.Data.SupportCurls;
+                _system.Rig.Off.Model.WeaponClass = _weaponClass;
             }
             Weapon active = Weapon.GetActiveSubWeapon() ?? Weapon;
             if (active != ActiveWeapon)
@@ -1412,6 +1440,7 @@ namespace RavenfieldVR.Weapons
             {
                 _system.Rig.Dominant.Model.WeaponGripCurls = null;
                 _system.Rig.Dominant.Model.WeaponIsPistol = false;
+                _system.Rig.Dominant.Model.WeaponClass = WeaponClass.None;
                 _system.Rig.Dominant.Model.SnapPose = null;
                 _system.Rig.Dominant.Model.Solid = null;
                 _system.Rig.Dominant.Model.HiddenByHeld = false;
@@ -1421,6 +1450,7 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Model.WeaponSupportCurls = null;
                 _system.Rig.Off.Model.SnapPose = null;
                 _system.Rig.Off.Model.Solid = null;
+                _system.Rig.Off.Model.WeaponClass = WeaponClass.None;
             }
             foreach (Renderer r in Rig.ArmRenderers)
             {

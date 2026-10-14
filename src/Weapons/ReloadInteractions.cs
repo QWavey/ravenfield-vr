@@ -1433,6 +1433,9 @@ namespace RavenfieldVR.Weapons
             }
             Vector3? anchor = null;
             bool pinch = false;
+            // Which pose the off hand takes: the part it works, two magazines in one hand.
+            off.Model.WorkedPart = IsPump ? WorkedPart.Pump : HandleStroke ? WorkedPart.ChargingHandle : Data.IsPistol ? WorkedPart.Slide : WorkedPart.Bolt;
+            off.Model.Palming = _palmed != null;
             if (Rig.GunBody != null)
             {
                 switch (off.Role)

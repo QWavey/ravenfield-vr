@@ -107,6 +107,7 @@ namespace RavenfieldVR.Rig
                     _wheelStart[i] = OnWheelPlane(palm);
                     _wheelBase[i] = _steer;
                     hand.Role = HandRole.Cockpit;
+                    hand.Model.CockpitStick = false;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
                 }
@@ -115,6 +116,7 @@ namespace RavenfieldVR.Rig
                     _stickHand = hand.Side;
                     _stickStartLocal = Quaternion.Inverse(_seat.transform.rotation) * palm;
                     hand.Role = HandRole.Cockpit;
+                    hand.Model.CockpitStick = true;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
                 }

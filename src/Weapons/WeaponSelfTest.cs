@@ -197,6 +197,9 @@ namespace RavenfieldVR.Weapons
             string handShot = Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-hands.png");
             string handError = Rig.HandPreview.Capture(handShot);
             Log.Info(handError == null ? "Glove picture: " + handShot : "Glove picture failed: " + handError);
+            string poseShot = Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-hand-poses.png");
+            string poseError = Rig.HandPreview.CapturePoseSheet(poseShot);
+            AppendToReport($"  hand poses ................... {Rig.HandPoses.Count} ({(poseError == null ? "RavenfieldVR-hand-poses.png" : "picture failed: " + poseError)})");
             Application.runInBackground = runInBackground;
             try
             {
@@ -496,7 +499,8 @@ namespace RavenfieldVR.Weapons
             yield return null;
             string dir = BepInEx.Paths.BepInExRootPath;
             string error = Rig.HandPreview.Capture(System.IO.Path.Combine(dir, "RavenfieldVR-hands.png"))
-                           ?? Rig.HandPreview.CaptureCloseups(System.IO.Path.Combine(dir, "RavenfieldVR-hand-closeups.png"));
+                           ?? Rig.HandPreview.CaptureCloseups(System.IO.Path.Combine(dir, "RavenfieldVR-hand-closeups.png"))
+                           ?? Rig.HandPreview.CapturePoseSheet(System.IO.Path.Combine(dir, "RavenfieldVR-hand-poses.png"));
             Log.Info(error == null ? "Hand pictures written." : "Hand pictures failed: " + error);
             yield return null;
             Application.Quit();

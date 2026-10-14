@@ -394,3 +394,30 @@ New:
 - **Shouldered stock:** a long gun whose stock butt (its rearmost part, 12 cm or more behind the grip) is within 12 cm of
   your weapon-side shoulder pocket kicks 25% less and does not droop, held in one hand or two.
 - Autotest: `cases thrown: N` per fired weapon that ejects, metric `cases thrown per shot`.
+
+## Task 111: hand poses (at least as many as Boneworks)
+
+New `src/Rig/HandPoses.cs`; `src/Rig/HandModel.cs`, `src/Rig/HandShape.cs` (`ThumbFist`), `src/Rig/HandPreview.cs`
+(`CapturePoseSheet`), `src/Weapons/HeldWeapon.cs`, `src/Weapons/ReloadInteractions.cs`, `src/Rig/CockpitControls.cs`,
+`src/Weapons/WeaponSelfTest.cs`.
+
+Boneworks' pose library, as extracted by its modding community, has 30 hand poses (shape grips such as cylinder, box,
+sphere and pinch, plus gun poses such as Glock, slide, magazine, charging handle and foregrip). The mod had per-role
+finger targets (gun hand, support hand, magazine, pinch, pointer) on top of closing every finger on the measured shape
+of what it holds. It now has a named library of **30 poses**, each with how far each finger closes and where the thumb's
+base turns (from its rest to the fist), chosen from what the hand is doing and holding:
+
+- Free hand: Relaxed (tracked), Fist (controllers without finger tracking, grip and trigger pressed), LaserPoint (menus).
+- Gun hand, by weapon class: PistolGrip, RifleGrip, MachineGunGrip, LauncherGrip, KnifeGrip, ToolGrip (long melee),
+  Grenade.
+- Support hand: PistolCup, Handguard, LauncherTube, TwoHandedMelee.
+- Working the action: PistolSlide (overhand claw), BoltHandle (pinch), ChargingHandle (two-finger hook), Pump.
+- Magazines, by size and kind: RifleMagazine, PistolMagazine, BoxMagazine (machine gun box or drum), TwoMagazines
+  (H3VR palming), Shell (pinched), Rocket.
+- Other: CoverLift, PinPull (index hooked through the ring), BeltPinch, OpticFlip (thumb pushing), SteeringWheel,
+  FlightStick (index on the trigger).
+
+The tracked fingers still close further than a pose, contact closing still shapes the hand onto measured models, and
+weapons with their own authored hand pose still use it for the gun hand and the support hand (the library is what they
+fall back to, and what everything else uses). The flat self-test now also writes `BepInEx/RavenfieldVR-hand-poses.png`
+(every pose on a right glove with its name) and the report line `hand poses ... 30`; `-rfvr-handshots` writes it too.
