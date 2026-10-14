@@ -1414,7 +1414,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (held.OnRail)
                 {
-                    held.RailPose(SeatPose).ApplyTo(held.Go.transform);
+                    held.ShowAt(held.RailPose(SeatPose));
                 }
                 else
                 {

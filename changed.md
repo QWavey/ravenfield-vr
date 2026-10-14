@@ -1091,3 +1091,35 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
 - Fixed on the way: when a flashed message ("NO AMMO", a sight name) ended on a gun without ammo of its own, the
   counter read a missing ammo state. The exception stopped the rest of that frame's weapon update. Now it just hides.
 - Kept.
+
+### Round 8 (smoothness): a magazine eases onto the rail and off it (`src/Weapons/MagazineProp.cs`, `src/Weapons/ReloadInteractions.cs`)
+
+- Before: a magazine already eased into the hand when grabbed, but lining it up with the well jumped it onto the
+  insertion axis in one frame. At the edge of the line-up window that is up to 3.5 cm and 35°. Pulled off the rail it
+  jumped back to the hand the same way.
+- After: going onto or off the rail starts an 80 ms eased blend from where the magazine is drawn. It is drawn through
+  `MagazineProp.ShowAt`, for both the rail pose and the hand pose. The rail logic (depth, seating) is unchanged; only
+  the drawing eases.
+- Measured with the formula (90 Hz): the jump is spread over 8 frames, at most 21% of it in one frame. At the edge of
+  the window that is **0.7 cm and 7° a frame instead of 3.5 cm and 35° at once**.
+- Kept.
+
+### Round 9 (correctness, feel): melee swings are judged against your own body (`src/Weapons/ThrowAndMelee.cs`)
+
+- Before: a melee hit needed the blade to move at 2.6 m/s, measured in the world. Sprinting with a knife held still
+  (about 6 m/s) counted as swinging every frame, so anything you ran into was cut. And a frame where the player was
+  moved (a ladder, a seat, a teleport) swept the hit test across the whole jump.
+- After: the blade's speed is taken against the player's body: where the tip would be had it only moved with the
+  rig, compared with where it is. Running, riding and turning with the stick drop out; swinging your arm does not.
+  A blade that moved more than 1.5 m in a frame was carried, not swung, and is not tested.
+- Worked out for the 2.6 m/s threshold:
+
+  | Case | Before | After |
+  | --- | --- | --- |
+  | Sprinting at 6 m/s, knife held still | 6.0 m/s, a swing | 0, no swing |
+  | Turning 120°/s with the stick, tip 0.7 m out | 1.5 m/s, no swing | 0, no swing |
+  | A real 4 m/s swing, standing | swing | swing |
+  | A real 4 m/s swing while sprinting | 7.2 m/s, swing | 4.0 m/s, swing |
+
+  The hit test itself still sweeps the blade's real path in the world.
+- Kept.

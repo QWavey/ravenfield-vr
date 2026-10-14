@@ -63,7 +63,46 @@ namespace RavenfieldVR.Weapons
         private float _dropTime = -1f;
 
         /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
-        public bool OnRail;
+        public bool OnRail
+        {
+            get => _onRail;
+            set
+            {
+                if (_onRail != value && Go != null)
+                {
+                    // Onto the rail or off it again: eased over a moment from where it is drawn. Lining up at the edge of the
+                    // window it jumped up to 3.5 cm and 35 degrees in one frame (and back to the hand when pulled off).
+                    _switchFrom = RigidPose.Of(Go.transform);
+                    _switchAt = Time.unscaledTime;
+                }
+                _onRail = value;
+            }
+        }
+
+        private bool _onRail;
+        private RigidPose _switchFrom;
+        private float _switchAt = -1f;
+        private const float SwitchBlend = 0.08f;
+
+        /// <summary>Draws the prop at <paramref name="target"/>, eased from where it was when it went onto or off the rail.</summary>
+        public void ShowAt(RigidPose target)
+        {
+            if (Go == null)
+            {
+                return;
+            }
+            float t = _switchAt >= 0f ? (Time.unscaledTime - _switchAt) / SwitchBlend : 1f;
+            if (t < 1f)
+            {
+                float k = t * t * (3f - 2f * t);
+                target = new RigidPose(Vector3.Lerp(_switchFrom.position, target.position, k), Quaternion.Slerp(_switchFrom.rotation, target.rotation, k));
+            }
+            else
+            {
+                _switchAt = -1f;
+            }
+            target.ApplyTo(Go.transform);
+        }
         /// <summary>How far along the rail (0 = at the well entry, RailLength = seated).</summary>
         public float RailDepth;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
@@ -804,7 +843,7 @@ namespace RavenfieldVR.Weapons
                 {
                     _attachAt = -1f;
                 }
-                target.ApplyTo(Go.transform);
+                ShowAt(target);
             }
         }
 

@@ -503,7 +503,11 @@ namespace RavenfieldVR.Weapons
     {
         private readonly WeaponSystem _sys;
         private Vector3 _lastTip, _lastBase;
+        /// <summary>The last tip in the rig's own frame: where it would be now had it only moved with the player.</summary>
+        private Vector3 _lastTipInRig;
         private bool _hasLast;
+        /// <summary>A blade that moved this far in one frame was carried (a teleport, a ladder, a seat), not swung.</summary>
+        private const float MaxSweep = 1.5f;
         private float _lastHit = -10f;
         private float _bladeLength = -1f;
         private Vector3 _bladeDir = Vector3.forward;
@@ -533,11 +537,15 @@ namespace RavenfieldVR.Weapons
             Vector3 basePoint = rig.ToWorld(rig.Data.GripPoint + _bladeDir * Mathf.Min(0.08f, _bladeLength * 0.3f));
             Vector3 tip = rig.ToWorld(rig.Data.GripPoint + _bladeDir * _bladeLength);
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            Transform body = _sys.Rig.Root;
             if (_hasLast)
             {
-                float speed = (tip - _lastTip).magnitude / dt;
+                // The swing is the blade's speed against the player's own body: running (about 6 m/s) or turning with the
+                // stick with a knife held still counted as swinging it (2.6 m/s needed) and cut whatever you ran into.
+                float speed = (tip - body.TransformPoint(_lastTipInRig)).magnitude / dt;
                 float cooldown = Mathf.Max(0.28f, melee.configuration.cooldown * 0.8f);
-                if (speed > VRConfig.MeleeSwingSpeed.Value && Time.time - _lastHit > cooldown && !Util.GameContext.GameMenuOpen)
+                bool carried = (tip - _lastTip).sqrMagnitude > MaxSweep * MaxSweep; // the hit test would span the whole jump
+                if (!carried && speed > VRConfig.MeleeSwingSpeed.Value && Time.time - _lastHit > cooldown && !Util.GameContext.GameMenuOpen)
                 {
                     if (Swing(melee, _lastTip, tip, _lastBase, basePoint))
                     {
@@ -546,6 +554,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _lastTip = tip;
+            _lastTipInRig = body.InverseTransformPoint(tip);
             _lastBase = basePoint;
             _hasLast = true;
         }
