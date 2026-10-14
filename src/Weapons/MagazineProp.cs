@@ -52,6 +52,8 @@ namespace RavenfieldVR.Weapons
         private Collider[] _colliders;
         private readonly HashSet<Collider> _ignoredBodies = new HashSet<Collider>();
         private float _nextBodyCheck;
+        private float _bodiesForgottenAt;
+        private int _playerGeneration = -1;
         /// <summary>The colliders came from the meshes' boxes (unreadable meshes) and are replaced once the model is measured.</summary>
         private bool _boxShaped;
         /// <summary>Per magazine type: the shape fitted to the rendered model (for every later magazine of the type).</summary>
@@ -970,7 +972,17 @@ namespace RavenfieldVR.Weapons
                 if (Time.time >= p._nextBodyCheck)
                 {
                     p._nextBodyCheck = Time.time + (Time.time - p._dropTime < 0.5f ? 0f : 0.25f);
+                    if (Time.time - p._bodiesForgottenAt > 2f)
+                    {
+                        p._bodiesForgottenAt = Time.time; // bodies switched off and on collide again: ignore them afresh
+                        p._ignoredBodies.Clear();
+                    }
                     PropPhysics.IgnoreBodiesNear(p._colliders, p.Go.transform.position, 1f, p._ignoredBodies);
+                    if (p._playerGeneration != PropPhysics.PlayerGeneration)
+                    {
+                        p._playerGeneration = PropPhysics.PlayerGeneration;
+                        PropPhysics.IgnorePlayer(p._colliders);
+                    }
                 }
             }
         }

@@ -120,6 +120,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> GunAmmoCounter;
         public static ConfigEntry<string> LaserColor;
         public static ConfigEntry<bool> ExplosionDirt;
+        public static ConfigEntry<bool> WorldCollision;
 
         // Debug
         public static ConfigEntry<bool> DebugLogging;
@@ -290,6 +291,9 @@ namespace RavenfieldVR.Core
             WristHud = cfg.Bind("UI", "WristHud", true, "Health and reserve ammo on your off-hand wrist.");
             GunAmmoCounter = cfg.Bind("UI", "GunAmmoCounter", true, "Small round counter on the side of the held weapon.");
             LaserColor = cfg.Bind("UI", "LaserColor", "#E8B44A", "Menu laser colour (hex).");
+            WorldCollision = cfg.Bind("Weapons", "WeaponWorldCollision", true,
+                "The gun in your hand is stopped by the world (walls, crates, sandbags, the ground) instead of passing through it, and can be rested " +
+                "on cover; it comes back to your hand when you pull it free. Off: the gun always follows your hand.");
             ExplosionDirt = cfg.Bind("UI", "ExplosionDirt", true,
                 "A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds.");
 

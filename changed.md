@@ -281,3 +281,39 @@ New `src/Rig/MudSplash.cs`; `src/Rig/VRRig.cs`, `src/Core/VRConfig.cs` (new `Exp
 
 Autotest: right after the body pictures, a blast 2 m ahead-left (`mud-0s`, `mud-1-5s`, `mud-4s`) and a water blast
 (`water-splash-0s`); metrics for splats right after and after 4 s (must be 0); a problem is flagged otherwise.
+
+## Tasks 121 and 122 (new, from your notes): the gun against the ground and the world
+
+`src/Weapons/GunCollider.cs` (`PropPhysics.TrackPlayer` / `PlayerGeneration` / `IsPlayerCollider`,
+`GunCollider.SetHandPose` / `TryBlockedPose`, `GunProxyBody` contacts), `src/Weapons/HeldWeapon.cs`,
+`src/Weapons/WeaponDrops.cs`, `src/Weapons/MagazineProp.cs`, `src/Core/VRConfig.cs` (new `WeaponWorldCollision`, on),
+`src/Core/AutoTest.cs` (`WorldCollisionCheck`).
+
+**121, a long gun against the ground pushed the player.** The held gun's physics stand-in is set to ignore the player's
+colliders when it is made. Unity forgets an ignored pair whenever a collider is switched off and on, which the game does
+with the player's colliders on respawn, in vehicles and on ladders. From then on the stand-in collided with the
+player's own character controller, and a character controller pushes itself out of anything overlapping it: a long gun
+held down against the ground (or held against your legs) pushed you around. Now a "player generation" counter changes
+whenever the player's state that switches colliders changes (respawn, death, seat, ladder, falling over, controller
+on/off, and once more 0.3 s later), and the stand-in, every lying weapon and every lying magazine ignore the player's
+colliders again when it does. Contacts with the player's own colliders never count as the world holding the gun.
+
+**122, guns passed through walls like ghosts.** The stand-in already collided with the level (it is on a layer that
+collides with the level's layers), but the gun you see followed the hand regardless. Now:
+- The stand-in chases where the hand wants the gun (not where the gun was drawn last frame) and is interpolated.
+- While it touches something solid that does not give way (the level, a vehicle, a body; loose props are pushed instead),
+  the gun is drawn where the stand-in is stopped, blended in within a few hundredths of a second: pushed into a wall it
+  stays at the wall, lowered onto a sandbag or a crate it rests on it, pushed into the ground it stays on top. The
+  glove on the weapon's own grip pose and the support hand on its handguard stay on the gun; shots go where the drawn
+  gun points.
+- Free again (no contact for 0.12 s), it eases back to the hand in 0.1 s. The stand-in jumps back to the hand if the
+  hand goes more than 45 cm through something (before 30 cm).
+- `WeaponWorldCollision = false` gives the old behaviour.
+
+Also for task 114: lying weapons and magazines ignore the bodies around them afresh every 2 s (a ragdoll switched off
+and on collided with them again and pushed them).
+
+Autotest: with the first rifle, a wall is put in front of the player and the gun hand pushed 50 cm into it (pictures
+`world-wall`, `world-wall-side`), then pushed down into the ground (`world-ground`); report line `gun against the
+world: ...` and metrics `gun pushed into a wall: muzzle inside it (0/1)` (must be 0) and `gun pushed into the ground: cm
+the player moved` (must be about 0).

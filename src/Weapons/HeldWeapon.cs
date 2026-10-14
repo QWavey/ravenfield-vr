@@ -198,6 +198,12 @@ namespace RavenfieldVR.Weapons
         // ---------------------------------------------------------------------------------------------
 
         private readonly GunCollider _gunCollider;
+        /// <summary>How far the drawn gun has gone over to where the world holds it (0 at the hand .. 1 at the stand-in).</summary>
+        private float _blockBlend;
+        private RigidPose _blockedPose;
+
+        /// <summary>Self-test: the drawn gun is held back by the world this frame.</summary>
+        internal bool HeldBackByWorld => _blockBlend > 0.5f;
         /// <summary>Shadow-only renderers switched off while the weapon is held (given back on release).</summary>
         private readonly List<Renderer> _shadowOnly = new List<Renderer>();
 
@@ -438,6 +444,29 @@ namespace RavenfieldVR.Weapons
             gunRot = aimFrame * Quaternion.Inverse(gripInGun.rotation);
             Vector3 gripWorld = hand.position + aimFrame * _recoilPos;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
+
+            // The world holds the gun back (a wall, a crate, the ground, a sandbag it rests on): it is drawn where its physics
+            // stand-in is stopped, not inside the obstacle where the hand is; the glove on the weapon's own grip pose stays
+            // on it. The stand-in always chases the hand, so the gun comes back to the hand as soon as it is free.
+            if (_gunCollider != null)
+            {
+                _gunCollider.SetHandPose(desiredGunBody);
+                RigidPose held = default;
+                bool blocked = VRConfig.WorldCollision.Value && _gunCollider.TryBlockedPose(out held);
+                if (blocked)
+                {
+                    _blockedPose = held;
+                }
+                _blockBlend = Mathf.MoveTowards(_blockBlend, blocked ? 1f : 0f, dt * (blocked ? 25f : 10f));
+                if (_blockBlend > 0f)
+                {
+                    float e = _blockBlend * _blockBlend * (3f - 2f * _blockBlend);
+                    desiredGunBody = new RigidPose(Vector3.Lerp(desiredGunBody.position, _blockedPose.position, e),
+                        Quaternion.Slerp(desiredGunBody.rotation, _blockedPose.rotation, e));
+                    gripWorld = desiredGunBody.TransformPoint(d.GripPoint);
+                    aimFrame = desiredGunBody.rotation * gripInGun.rotation;
+                }
+            }
             GripWorld = new RigidPose(gripWorld, aimFrame);
 
             // Anchor: put the root where it has to be for the (animated) gun body to land on desiredGunBody.

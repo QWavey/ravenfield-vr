@@ -32,6 +32,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Body colliders (ragdolls, soldiers' hitboxes) this weapon no longer collides with.</summary>
         public readonly HashSet<Collider> IgnoredBodies = new HashSet<Collider>();
         public float NextBodyCheck;
+        /// <summary>When <see cref="IgnoredBodies"/> was last forgotten (bodies switched off and on collide again: redone).</summary>
+        public float BodiesForgottenAt;
+        /// <summary>The <see cref="PropPhysics.PlayerGeneration"/> the player's colliders were last ignored for.</summary>
+        public int PlayerGeneration = -1;
     }
 
     /// <summary>
@@ -538,6 +542,7 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             Cull();
+            PropPhysics.TrackPlayer();
             IgnoreBodies();
             Actor actor = GameContext.PlayerActor;
             if (actor == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || _drops.Count == 0)
@@ -591,7 +596,19 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 d.NextBodyCheck = now - d.DropTime < 0.5f ? now : now + 0.25f;
+                // A ragdoll or a soldier whose colliders were switched off and on collides again (Unity forgets ignored
+                // pairs then): every two seconds the bodies around are ignored afresh.
+                if (now - d.BodiesForgottenAt > 2f)
+                {
+                    d.BodiesForgottenAt = now;
+                    d.IgnoredBodies.Clear();
+                }
                 PropPhysics.IgnoreBodiesNear(d.Colliders, d.Go.transform.position, 1.5f, d.IgnoredBodies);
+                if (d.PlayerGeneration != PropPhysics.PlayerGeneration)
+                {
+                    d.PlayerGeneration = PropPhysics.PlayerGeneration;
+                    PropPhysics.IgnorePlayer(d.Colliders);
+                }
             }
         }
 

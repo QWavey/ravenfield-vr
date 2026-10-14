@@ -106,6 +106,40 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Changes whenever the player's colliders may have been switched off and on (a respawn, a vehicle or ladder, falling
+        /// over): Unity forgets an ignored collision pair then, so everything that ignores the player does it again.
+        /// </summary>
+        public static int PlayerGeneration { get; private set; }
+        private static Actor _trackedActor;
+        private static int _trackedState = -1;
+        private static float _bumpAgainAt = -1f;
+
+        /// <summary>Per frame: notices when the player's colliders were (or are about to be) switched off and on.</summary>
+        public static void TrackPlayer()
+        {
+            Actor actor = LocalPlayer.actor;
+            FpsActorController controller = LocalPlayer.controller;
+            int state = actor == null ? 0
+                : 1 | (actor.dead ? 2 : 0) | (actor.IsSeated() ? 4 : 0) | (actor.IsOnLadder() ? 8 : 0) | (actor.fallenOver ? 16 : 0)
+                  | (controller != null && controller.controller != null && controller.controller.enabled ? 32 : 0);
+            if (!ReferenceEquals(actor, _trackedActor) || state != _trackedState)
+            {
+                _trackedActor = actor;
+                _trackedState = state;
+                PlayerGeneration++;
+                _bumpAgainAt = Time.unscaledTime + 0.3f; // colliders the game switches back on a moment later
+            }
+            else if (_bumpAgainAt > 0f && Time.unscaledTime >= _bumpAgainAt)
+            {
+                _bumpAgainAt = -1f;
+                PlayerGeneration++;
+            }
+        }
+
+        /// <summary>One of the local player's own colliders (body, controller, hitboxes, ragdoll).</summary>
+        public static bool IsPlayerCollider(Collider c) => c != null && CollectPlayerColliders().Contains(c);
+
         /// <summary>The player's controller, hitbox and ragdoll colliders, gathered once per frame.</summary>
         private static List<Collider> CollectPlayerColliders()
         {
@@ -205,9 +239,35 @@ namespace RavenfieldVR.Weapons
             _body.angularDrag = 0f;
             _body.maxAngularVelocity = 50f;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            _body.interpolation = RigidbodyInterpolation.Interpolate; // drawn where it is when the world holds the gun back
             _driver = _go.AddComponent<GunProxyBody>();
             _driver.Body = _body;
             PropPhysics.IgnorePlayer(_boxes);
+            _playerGeneration = PropPhysics.PlayerGeneration;
+        }
+
+        private int _playerGeneration;
+        /// <summary>Where the hand wants the gun body this frame (set before rendering); the stand-in chases it.</summary>
+        private RigidPose? _handPose;
+
+        /// <summary>The gun-body pose the hand wants (not where the gun is drawn, which may be held back by the world).</summary>
+        public void SetHandPose(RigidPose gunBody) => _handPose = gunBody;
+
+        /// <summary>
+        /// The world holds the stand-in back (it touches something solid that does not give way): the gun-body pose it is
+        /// stopped at, to draw the gun there.
+        /// </summary>
+        public bool TryBlockedPose(out RigidPose gunBody)
+        {
+            gunBody = default;
+            if (!_enabled || !_placed || _go == null || !_driver.TouchingWorld)
+            {
+                return false;
+            }
+            Transform t = _go.transform;
+            Quaternion rot = t.rotation * Quaternion.Inverse(_frame);
+            gunBody = new RigidPose(t.position - rot * _origin, rot);
+            return true;
         }
 
         /// <summary>How many convex pieces make up the held gun's shape (self-test and logs).</summary>
@@ -516,8 +576,17 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Vector3 pos = _rig.ToWorld(_origin);
-            Quaternion rot = _rig.GunBody.rotation * _frame;
+            PropPhysics.TrackPlayer();
+            if (_playerGeneration != PropPhysics.PlayerGeneration)
+            {
+                // The player's colliders were switched off and on: Unity forgot the ignored pairs, and the stand-in pressed
+                // against the player's own controller (which pushes itself out of whatever overlaps it: a long gun held
+                // down against the ground pushed the player around).
+                _playerGeneration = PropPhysics.PlayerGeneration;
+                PropPhysics.IgnorePlayer(_boxes);
+            }
+            Vector3 pos = _handPose.HasValue ? _handPose.Value.TransformPoint(_origin) : _rig.ToWorld(_origin);
+            Quaternion rot = (_handPose.HasValue ? _handPose.Value.rotation : _rig.GunBody.rotation) * _frame;
             if (!_placed)
             {
                 // First frame: start on the gun instead of sweeping there through the world.
@@ -686,13 +755,34 @@ namespace RavenfieldVR.Weapons
     /// <summary>Drives the gun's stand-in toward its target pose each physics step by setting its velocity.</summary>
     internal sealed class GunProxyBody : MonoBehaviour
     {
-        private const float SnapDistanceSq = 0.09f; // held back 30 cm (wedged against a vehicle): jump back
+        private const float SnapDistanceSq = 0.45f * 0.45f; // held back 45 cm (the hand pushed through a wall): jump back to it
         private const float MaxSpeed = 25f;
 
         public Rigidbody Body;
         public Vector3 TargetPos;
         public Quaternion TargetRot = Quaternion.identity;
         public bool HasTarget;
+
+        /// <summary>Touching something solid that does not give way (the level, a vehicle, a body) in the last moment.</summary>
+        public bool TouchingWorld => Time.unscaledTime < _worldContactUntil;
+        private float _worldContactUntil;
+
+        private void OnCollisionEnter(Collision c) => Touch(c);
+        private void OnCollisionStay(Collision c) => Touch(c);
+
+        private void Touch(Collision c)
+        {
+            Rigidbody other = c.rigidbody;
+            if (other != null && !other.isKinematic)
+            {
+                return; // loose props are pushed: they do not hold the gun back
+            }
+            if (PropPhysics.IsPlayerCollider(c.collider))
+            {
+                return; // never the player's own body
+            }
+            _worldContactUntil = Time.unscaledTime + 0.12f;
+        }
 
         private void FixedUpdate()
         {

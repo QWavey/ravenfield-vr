@@ -593,6 +593,76 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>
+        /// The gun against the world: a wall put in front of the player and the gun hand pushed 50 cm into it (the gun must
+        /// stop at the wall, its muzzle outside), then the hand pushed down into the ground (the gun stops on it and the
+        /// player must not be moved).
+        /// </summary>
+        private static IEnumerator WorldCollisionCheck(HeldWeapon held, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Actor actor = LocalPlayer.actor;
+            if (rig == null || actor == null || held == null || held.Collider == null)
+            {
+                report("gun against the world: skipped (no physics stand-in)");
+                yield break;
+            }
+            Rig.VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            Transform head = rig.Head;
+            Vector3 flat = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.name = "RavenfieldVR Test Wall";
+            wall.transform.SetPositionAndRotation(head.position + flat * 0.75f - Vector3.up * 0.3f, Quaternion.LookRotation(flat));
+            wall.transform.localScale = new Vector3(1.2f, 1.2f, 0.15f);
+            Collider wallCollider = wall.GetComponent<Collider>();
+            Runtime.RigidPose start = dom.Raw;
+            Vector3 before = actor.Position();
+            bool heldBack = false, muzzleIn = false;
+            try
+            {
+                for (int i = 0; i <= 30; i++)
+                {
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + flat * (0.5f * i / 30f), start.rotation);
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForEndOfFrame();
+                heldBack = held.HeldBackByWorld;
+                Vector3 muzzle = held.Rig.ToWorld(held.Rig.Data.MuzzlePoint);
+                muzzleIn = wallCollider.bounds.Contains(muzzle) && (wallCollider.ClosestPoint(muzzle) - muzzle).sqrMagnitude < 1e-6f;
+                Shots.Capture("world-wall");
+                Shots.Capture("world-wall-side", head.position + Vector3.Cross(Vector3.up, flat) * 0.9f, Quaternion.LookRotation(-Vector3.Cross(Vector3.up, flat)), 70f);
+                // Down into the ground, the muzzle first.
+                UnityEngine.Object.Destroy(wall);
+                wall = null;
+                Quaternion down = Quaternion.LookRotation(Vector3.down * 0.8f + flat * 0.2f, flat) * Quaternion.Inverse(Quaternion.LookRotation(dom.GunFrame.Forward, dom.GunFrame.Up)) * start.rotation;
+                for (int i = 0; i <= 40; i++)
+                {
+                    float u = i / 40f;
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position - Vector3.up * (0.9f * u), Quaternion.Slerp(start.rotation, down, u));
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.6f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("world-ground");
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                if (wall != null)
+                {
+                    UnityEngine.Object.Destroy(wall);
+                }
+            }
+            float moved = Vector3.ProjectOnPlane(actor.Position() - before, Vector3.up).magnitude;
+            Metric("gun pushed into a wall: muzzle inside it (0/1)", muzzleIn ? 1 : 0);
+            Metric("gun pushed into the ground: cm the player moved", moved * 100f);
+            report($"gun against the world: pushed into a wall it {(heldBack ? "stopped at the wall" : "was NOT HELD BACK")}{(muzzleIn ? " (MUZZLE INSIDE THE WALL)" : "")}; "
+                   + $"pushed into the ground the player moved {moved * 100f:0.0} cm{(moved > 0.05f ? " (NOT STILL)" : "")}");
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
         /// <summary>Lets the held weapon fall as an opened hand would, pictures it, and waits for it to go back to its holster.</summary>
         private static IEnumerator DropCheck(Action<string> report)
         {
@@ -1066,6 +1136,7 @@ namespace RavenfieldVR.Core
                         if (!dropDone && tacticalDone && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol)
                         {
                             dropDone = true;
+                            yield return WorldCollisionCheck(held, lines.Add);
                             yield return PouchThrowCheck(lines.Add);
                             yield return DropCheck(lines.Add);
                             yield return ReachCheck(lines.Add);
