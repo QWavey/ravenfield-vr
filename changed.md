@@ -837,3 +837,42 @@ shared pool of 8. A separate pool of 6 for the tinks cut the tinks about **once 
   random turn, so some ran sideways.
 - The autotest's dirt pictures (`mud-0s`, `mud-1-5s`, `mud-4s`, `water-splash-0s`) and counts work as before.
 - Kept.
+
+### Round 11 (performance): the machine-gun belt strip is one mesh (`src/Weapons/BeltStrip.cs`)
+
+- Before: 32 round objects, each with two materials (case and link), so up to **64 draw calls** while a belt is
+  pulled out or shown laid on the tray, and 32 objects switched on and off and moved each frame.
+- After: one mesh with both parts as two materials: **2 draw calls** for the whole strip. The rounds are written into
+  it each frame around the box mouth, so the numbers stay small anywhere on the map. Rounds not on the belt are folded
+  to a point. That costs one pass over at most about 3,200 corners a frame while the strip shows; it is not shown
+  otherwise.
+- Kept.
+
+### Round 12 (test coverage): the "handle moves with the pull" check looks at what is really drawn (`src/Weapons/BoltPiece.cs`, `src/Weapons/HeldWeapon.cs`)
+
+- Before: the rack-grip check reported "a piece cut out of the receiver" from a flag set when the carve ran. That is
+  how the round-17 bug hid: carved, but the pieces were gone with an object destroyed at the end of the frame.
+- After: it counts the handle's pieces that are alive, switched on, with a mesh and an enabled renderer. With none,
+  it reports `NOTHING VISIBLE (the handle's pieces are gone)` (or `THE HANDLE IS NOT SHOWN` when only an inner
+  carrier moves), and the "something visible moves" metric drops to 0. The round-17 situation would now fail the
+  check instead of passing it.
+- Kept.
+
+### Round 13 (robustness): VR starts even if the explosion dirt cannot be set up (`src/Rig/VRRig.cs`)
+
+- Before: the dirt was built inside the VR rig's constructor. Anything throwing there (a shader missing from a build,
+  say) would have stopped the rig, and with it VR, over a cosmetic effect. Ways this feature could keep VR from
+  starting: 1.
+- After: built under a try/catch that logs the error and goes on without it, and updated and destroyed only if it
+  exists. Ways: 0.
+- Kept.
+
+### Round 14 (robustness): a mod error never breaks the game's own shot (`src/Weapons/WeaponPatches.cs`, `src/Core/Log.cs`)
+
+- Before: the mod's work after each shot (ammo state, recoil, fire selector, cases) and before each trigger pull (the
+  chamber check, the dry-fire click) ran in Harmony patches on the game's `Weapon.Shoot` and `Weapon.CanFire` with
+  no guard. An exception there went straight into the game's own shooting code and could skip what the game does
+  after a shot. Unguarded paths from the mod into the game's shot: 2.
+- After: both patches catch, log once per kind of error (`Log.ExceptionOnce`, new), and let the game carry on with its
+  own result. The autotest still sees every logged exception and lists it as a problem. Unguarded paths: 0.
+- Kept.

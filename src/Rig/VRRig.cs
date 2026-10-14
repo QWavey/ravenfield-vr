@@ -101,7 +101,15 @@ namespace RavenfieldVR.Rig
             Hands[1] = new VRHand(Input.Hand.Right, Root);
             _vignette = new ComfortVignette(Camera.transform);
             _damage = new DamageFeedback(Camera.transform);
-            _mud = new MudSplash(Camera.transform);
+            try
+            {
+                _mud = new MudSplash(Camera.transform);
+            }
+            catch (System.Exception e)
+            {
+                // A look, not a function: VR starts without it rather than not at all.
+                Log.Exception("Explosion dirt could not be set up; playing without it", e);
+            }
             _cockpit = new CockpitControls(this);
         }
 
@@ -241,7 +249,7 @@ namespace RavenfieldVR.Rig
             float moving = Mode == RigMode.OnFoot ? VRGameInput.MoveStick.magnitude : 0f;
             _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value);
             _damage.Update();
-            _mud.Update();
+            _mud?.Update();
         }
 
         private void DetermineMode(FpsActorController player, out RigMode mode, out object key)
@@ -900,7 +908,7 @@ namespace RavenfieldVR.Rig
             Suppressor.Dispose();
             _vignette.Destroy();
             _damage.Destroy();
-            _mud.Destroy();
+            _mud?.Destroy();
             foreach (VRHand h in Hands)
             {
                 h.Destroy();

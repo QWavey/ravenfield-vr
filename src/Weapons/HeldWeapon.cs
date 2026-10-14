@@ -880,6 +880,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: what the hand sees move when it works the action.</summary>
         internal string VisibleHandle =>
             Rig.Handle != null ? "the charging handle"
+            : _boltPiece != null && _boltPiece.ShownPieces == 0 ? (Rig.Slide != null ? "the carrier inside only (THE HANDLE IS NOT SHOWN)" : "NOTHING VISIBLE (the handle's pieces are gone)")
             : _boltPiece != null && _boltPiece.Carved ? "a piece cut out of the receiver" + (Rig.Slide != null ? " (and the carrier inside)" : "")
             : _boltPiece != null ? "an added handle" + (Rig.Slide != null ? " (and the carrier inside)" : "")
             : Rig.Slide != null ? "the slide / bolt"

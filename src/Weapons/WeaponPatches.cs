@@ -91,11 +91,18 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            AmmoState state = WeaponSystem.Instance.StateFor(__instance, create: false);
-            if (state != null && !state.CanFire)
+            try
             {
-                __result = false;
-                WeaponSystem.Instance.OnDryFire(__instance);
+                AmmoState state = WeaponSystem.Instance.StateFor(__instance, create: false);
+                if (state != null && !state.CanFire)
+                {
+                    __result = false;
+                    WeaponSystem.Instance.OnDryFire(__instance);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Weapon.CanFire (VR)", e); // never into the game's own trigger code
             }
         }
     }
@@ -107,7 +114,15 @@ namespace RavenfieldVR.Weapons
         {
             if (__result && WeaponHooks.PlayerWeaponInVR(__instance))
             {
-                WeaponSystem.Instance.OnPlayerShot(__instance);
+                try
+                {
+                    WeaponSystem.Instance.OnPlayerShot(__instance);
+                }
+                catch (System.Exception e)
+                {
+                    // Recoil, ammo, cases: a mod error is logged once and the game's own shot goes on.
+                    Log.ExceptionOnce("Weapon.Shoot (VR)", e);
+                }
             }
         }
     }

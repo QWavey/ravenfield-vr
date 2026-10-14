@@ -5,7 +5,8 @@ namespace RavenfieldVR.Weapons
 {
     /// <summary>
     /// The loose end of a machine-gun belt while it is being laid: rounds side by side, pointing down the barrel,
-    /// running from the mouth of the box to the hand that pulls it, sagging a little in between.
+    /// running from the mouth of the box to the hand that pulls it, sagging a little in between. One mesh (two materials):
+    /// two draw calls for the whole strip, not two per round.
     /// </summary>
     internal sealed class BeltStrip
     {
@@ -14,24 +15,45 @@ namespace RavenfieldVR.Weapons
 
         private static Mesh _round;
         private static Material _brass, _link;
+        // The single round the strip is made of: corners, normals and the two parts' triangles.
+        private static Vector3[] _roundVerts, _roundNormals;
+        private static int[] _roundTris, _linkTris;
 
         private readonly GameObject _root;
-        private readonly Transform[] _rounds = new Transform[MaxRounds];
+        private readonly Mesh _mesh;
+        private readonly Vector3[] _verts, _normals;
 
         public BeltStrip()
         {
             EnsureAssets();
-            _root = new GameObject("RavenfieldVR Belt");
+            _root = new GameObject("RavenfieldVR Belt") { layer = MagazineProp.DisplayLayer };
+            int n = _roundVerts.Length;
+            _verts = new Vector3[n * MaxRounds];
+            _normals = new Vector3[n * MaxRounds];
+            var round = new int[_roundTris.Length * MaxRounds];
+            var link = new int[_linkTris.Length * MaxRounds];
             for (int i = 0; i < MaxRounds; i++)
             {
-                var round = new GameObject("round") { layer = MagazineProp.DisplayLayer };
-                round.transform.SetParent(_root.transform, false);
-                round.AddComponent<MeshFilter>().sharedMesh = _round;
-                var mr = round.AddComponent<MeshRenderer>();
-                mr.sharedMaterials = new[] { _brass, _link };
-                mr.shadowCastingMode = ShadowCastingMode.Off;
-                _rounds[i] = round.transform;
+                for (int k = 0; k < _roundTris.Length; k++)
+                {
+                    round[i * _roundTris.Length + k] = _roundTris[k] + i * n;
+                }
+                for (int k = 0; k < _linkTris.Length; k++)
+                {
+                    link[i * _linkTris.Length + k] = _linkTris[k] + i * n;
+                }
             }
+            _mesh = new Mesh { name = "RavenfieldVR belt strip" };
+            _mesh.MarkDynamic();
+            _mesh.vertices = _verts;
+            _mesh.normals = _normals;
+            _mesh.subMeshCount = 2;
+            _mesh.SetTriangles(round, 0);
+            _mesh.SetTriangles(link, 1);
+            _root.AddComponent<MeshFilter>().sharedMesh = _mesh;
+            var mr = _root.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = new[] { _brass, _link };
+            mr.shadowCastingMode = ShadowCastingMode.Off;
             _root.SetActive(false);
         }
 
@@ -54,20 +76,34 @@ namespace RavenfieldVR.Weapons
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
             Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
             Vector3 forward = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : barrel;
+            Quaternion rot = Quaternion.LookRotation(forward, Vector3.Cross(forward, span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up));
+            // Built round the box mouth (small numbers anywhere on the map), in world directions.
+            _root.transform.SetPositionAndRotation(from, Quaternion.identity);
+            int n = _roundVerts.Length;
             for (int i = 0; i < MaxRounds; i++)
             {
-                Transform r = _rounds[i];
+                int b = i * n;
                 if (i >= count)
                 {
-                    r.gameObject.SetActive(false);
+                    // Not on the belt: folded to a point, nothing drawn.
+                    for (int k = 0; k < n; k++)
+                    {
+                        _verts[b + k] = Vector3.zero;
+                    }
                     continue;
                 }
                 // Count from the hand back toward the box, so the end in the hand is always a whole round.
                 float t = 1f - i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
-                Vector3 p = Vector3.Lerp(from, to, t) + sag * (4f * t * (1f - t));
-                r.gameObject.SetActive(true);
-                r.SetPositionAndRotation(p, Quaternion.LookRotation(forward, Vector3.Cross(forward, span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up)));
+                Vector3 p = span * t + sag * (4f * t * (1f - t));
+                for (int k = 0; k < n; k++)
+                {
+                    _verts[b + k] = rot * _roundVerts[k] + p;
+                    _normals[b + k] = rot * _roundNormals[k];
+                }
             }
+            _mesh.vertices = _verts;
+            _mesh.normals = _normals;
+            _mesh.RecalculateBounds();
         }
 
         /// <summary>Self-test: the belt round's side faces drawn from outside (see <see cref="Casings.CountFacingOut"/>).</summary>
@@ -82,6 +118,10 @@ namespace RavenfieldVR.Weapons
             if (_root != null)
             {
                 Object.Destroy(_root);
+            }
+            if (_mesh != null)
+            {
+                Object.Destroy(_mesh);
             }
         }
 
@@ -102,6 +142,10 @@ namespace RavenfieldVR.Weapons
                 _link.SetFloat("_Glossiness", 0.35f);
             }
             _round = BuildRound();
+            _roundVerts = _round.vertices;
+            _roundNormals = _round.normals;
+            _roundTris = _round.GetTriangles(0);
+            _linkTris = _round.GetTriangles(1);
         }
 
         /// <summary>A 7.62-ish cartridge along +Z (case and pointed bullet, submesh 0) and its link clip (submesh 1).</summary>

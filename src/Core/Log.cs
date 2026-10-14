@@ -32,6 +32,20 @@ namespace RavenfieldVR.Core
             ExceptionLogged?.Invoke(context, e);
         }
 
+        /// <summary>Logs an exception the first time it is seen in <paramref name="context"/> (same type and message).</summary>
+        public static void ExceptionOnce(string context, Exception e)
+        {
+            bool first;
+            lock (Once)
+            {
+                first = Once.Add("guard:" + context + ":" + e.GetType().Name + ":" + e.Message);
+            }
+            if (first)
+            {
+                Exception(context, e);
+            }
+        }
+
         /// <summary>Logs a message only the first time a given key is seen (per session).</summary>
         public static void WarnOnce(string key, string message)
         {

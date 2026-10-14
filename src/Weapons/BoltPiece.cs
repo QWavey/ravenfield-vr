@@ -33,6 +33,32 @@ namespace RavenfieldVR.Weapons
         private readonly List<Piece> _pieces = new List<Piece>();
         public bool Carved { get; private set; }
 
+        /// <summary>
+        /// Self-test: pieces that are really drawn now (alive, switched on, with a mesh and an enabled renderer). A handle
+        /// once counted as made while its pieces had gone with an object destroyed at the end of the frame.
+        /// </summary>
+        internal int ShownPieces
+        {
+            get
+            {
+                int n = 0;
+                foreach (Piece p in _pieces)
+                {
+                    if (p.T == null || !p.T.gameObject.activeInHierarchy)
+                    {
+                        continue;
+                    }
+                    MeshFilter mf = p.T.GetComponent<MeshFilter>();
+                    MeshRenderer mr = p.T.GetComponent<MeshRenderer>();
+                    if (mf != null && mf.sharedMesh != null && mf.sharedMesh.vertexCount > 0 && mr != null && mr.enabled)
+                    {
+                        n++;
+                    }
+                }
+                return n;
+            }
+        }
+
         public static BoltPiece Create(WeaponRig rig) => Create(rig, rig.Data.RackPoint);
 
         /// <param name="rackGun">Where the handle is (gun-body space).</param>
