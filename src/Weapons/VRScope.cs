@@ -8,7 +8,8 @@ namespace RavenfieldVR.Weapons
     /// <summary>
     /// Picture-in-picture lens for scoped weapons that only had a 2D scope overlay in flat mode. A camera
     /// on the sight line renders the magnified view into a texture shown on a disc at the ocular lens, with a
-    /// procedural duplex reticle. It only renders while your eye is near the sight.
+    /// procedural duplex reticle. It only renders while your eye is near the sight. An eye off the sight line sees a dark
+    /// crescent come in from its own side (the scope's shadow, as in a real scope), and the picture dims further out.
     /// </summary>
     public sealed class VRScope
     {
@@ -27,9 +28,15 @@ namespace RavenfieldVR.Weapons
         private readonly Camera _camera;
         private readonly RenderTexture _texture;
         private readonly GameObject _root;
-        private readonly Material _lensMaterial, _reticleMaterial;
-        private static Texture2D _reticle;
+        private readonly Material _lensMaterial, _reticleMaterial, _shadowMaterial;
+        private static Texture2D _reticle, _shadow;
         private static Mesh _disc;
+        /// <summary>The disc's corners in the lens's own frame (x right, y up, in lens radii), read once.</summary>
+        private static Vector2[] _discLocal;
+        // The shadow disc: the lens's shape, its texture coordinates moved with the eye (it cannot spill past the lens).
+        private readonly Mesh _shadowMesh;
+        private readonly Vector2[] _shadowUv;
+        private Vector2 _shadowShift = new Vector2(float.NaN, 0f);
 
         public static bool Wanted(Weapon w, WeaponRig rig)
         {
@@ -86,9 +93,34 @@ namespace RavenfieldVR.Weapons
             CreateDisc("Lens", _lensMaterial, 0f);
             _reticleMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _reticle, renderQueue = 3001 };
             CreateDisc("Reticle", _reticleMaterial, -0.0008f);
+            _shadowMesh = Object.Instantiate(_disc);
+            _shadowMesh.name = "ScopeShadow";
+            _shadowMesh.MarkDynamic();
+            _shadowUv = _shadowMesh.uv;
+            _shadowMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _shadow, renderQueue = 3002 };
+            CreateDisc("Shadow", _shadowMaterial, -0.0012f, _shadowMesh);
+            SetShadow(Vector2.zero);
         }
 
-        private void CreateDisc(string name, Material mat, float z)
+        /// <summary>
+        /// Puts the clear part of the view <paramref name="shift"/> lens radii off the middle (opposite the eye's offset,
+        /// as through a tube): the dark rest comes in from the eye's side.
+        /// </summary>
+        private void SetShadow(Vector2 shift)
+        {
+            if ((shift - _shadowShift).sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            _shadowShift = shift;
+            for (int i = 0; i < _shadowUv.Length; i++)
+            {
+                _shadowUv[i] = new Vector2(0.5f, 0.5f) + 0.5f * (_discLocal[i] - shift);
+            }
+            _shadowMesh.uv = _shadowUv;
+        }
+
+        private void CreateDisc(string name, Material mat, float z, Mesh mesh = null)
         {
             var go = new GameObject(name);
             go.layer = 18;
@@ -97,7 +129,7 @@ namespace RavenfieldVR.Weapons
             // The disc faces back toward the eye (-Z of the sight line).
             go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             go.transform.localScale = Vector3.one * _radius;
-            go.AddComponent<MeshFilter>().sharedMesh = _disc;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh ?? _disc;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = ShadowCastingMode.Off;
@@ -126,6 +158,12 @@ namespace RavenfieldVR.Weapons
                 }
                 _disc = new Mesh { name = "ScopeDisc", vertices = verts, uv = uv, triangles = tris };
                 _disc.RecalculateBounds();
+                // The disc is turned to face the eye: its local x runs the other way to the lens's.
+                _discLocal = new Vector2[verts.Length];
+                for (int i = 0; i < verts.Length; i++)
+                {
+                    _discLocal[i] = new Vector2(-verts[i].x, verts[i].y);
+                }
             }
             if (_reticle == null)
             {
@@ -156,6 +194,25 @@ namespace RavenfieldVR.Weapons
                 }
                 _reticle.SetPixels32(px);
                 _reticle.Apply(true, true);
+            }
+            if (_shadow == null)
+            {
+                // Clear in the middle, a soft dark rim (the outer twentieth of the ocular), dark all round outside: moved off the
+                // middle, the rim becomes a crescent, and past the texture's edge it stays dark.
+                const int size = 128;
+                _shadow = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "ScopeShadow" };
+                var px = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        float u = (x + 0.5f) / size - 0.5f, v = (y + 0.5f) / size - 0.5f;
+                        float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.455f, 0.49f, Mathf.Sqrt(u * u + v * v)));
+                        px[y * size + x] = new Color32(0, 0, 0, (byte)(255f * a));
+                    }
+                }
+                _shadow.SetPixels32(px);
+                _shadow.Apply(false, true);
             }
         }
 
@@ -205,10 +262,28 @@ namespace RavenfieldVR.Weapons
             _camera.allowHDR = vr.allowHDR;
             _camera.depthTextureMode = vr.depthTextureMode;
             _camera.enabled = true;
-            // Eye box: the image darkens as your eye drifts off the sight line.
-            float offAxis = Vector3.ProjectOnPlane(head.position - eye, _rig.DirToWorld(_eyeDirection)).magnitude;
-            float brightness = Mathf.Clamp01(1f - (offAxis - 0.015f) / 0.04f);
+            // Eye box. The eye is the aiming one, the one nearer the line: measured from the middle of the head, a scope you
+            // looked through perfectly with one eye was already 3.2 cm "off" and showed only 57% bright. Off the line, the
+            // scope's shadow comes in from the eye's side (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
+            // picture dims as well past 3 cm.
+            Vector3 axis = _rig.DirToWorld(_eyeDirection);
+            Vector3 lateral = Vector3.ProjectOnPlane(AimingEye(head, eye, axis, vr) - eye, axis);
+            float offAxis = lateral.magnitude;
+            Transform lens = _root.transform;
+            var side = new Vector2(Vector3.Dot(lateral, lens.right), Vector3.Dot(lateral, lens.up));
+            float push = Mathf.Max(0f, offAxis - 0.008f) / 0.03f;
+            SetShadow(offAxis > 1e-5f ? -side / offAxis * push : Vector2.zero);
+            float brightness = Mathf.Clamp01(1f - (offAxis - 0.03f) / 0.04f);
             _lensMaterial.color = new Color(brightness, brightness, brightness, 1f);
+        }
+
+        /// <summary>The eye nearer the sight line through <paramref name="eyePoint"/> (the headset's own eye distance, 64 mm if unknown).</summary>
+        internal static Vector3 AimingEye(Transform head, Vector3 eyePoint, Vector3 axis, Camera vr)
+        {
+            float ipd = vr != null && vr.stereoSeparation > 0.04f && vr.stereoSeparation < 0.09f ? vr.stereoSeparation : 0.064f;
+            Vector3 side = head.right * (ipd * 0.5f);
+            Vector3 left = head.position - side, right = head.position + side;
+            return Vector3.ProjectOnPlane(left - eyePoint, axis).sqrMagnitude <= Vector3.ProjectOnPlane(right - eyePoint, axis).sqrMagnitude ? left : right;
         }
 
         public void Destroy()
@@ -230,6 +305,14 @@ namespace RavenfieldVR.Weapons
             if (_reticleMaterial != null)
             {
                 Object.Destroy(_reticleMaterial);
+            }
+            if (_shadowMaterial != null)
+            {
+                Object.Destroy(_shadowMaterial);
+            }
+            if (_shadowMesh != null)
+            {
+                Object.Destroy(_shadowMesh);
             }
         }
     }

@@ -1019,3 +1019,40 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   | Jitter while pointing at a button (mm, RMS) | 4.7 | 1.1 |
   | Behind while sweeping across at 60°/s (mm) | 3.8 | 5.4 |
 - Kept.
+
+### Round 4 (correctness): the scope is judged from the aiming eye (`src/Weapons/VRScope.cs`)
+
+- Before: the scope picture's brightness (its "eye box") came from how far the middle of the head was from the sight
+  line. You look through a scope with one eye, which sits 3.2 cm to one side of the middle, so a perfectly aligned eye
+  still counted as 3.2 cm off and the picture showed **57% bright**. Aim detection already used both eyes; the scope
+  did not.
+- After: the eye nearer the sight line counts, at the headset's own eye distance (64 mm if the headset does not
+  report one). Eye exactly on the line: **100% bright**. 1 cm off: 100% (was 33%). 2.5 cm off: 75%.
+- Kept.
+
+### Round 5 (feel): the scope's shadow (`src/Weapons/VRScope.cs`)
+
+- Before: an eye off the sight line only dimmed the whole picture evenly. Real scopes, and the scopes in the AAA VR
+  shooters, show misalignment as a dark crescent coming in from the side the eye has moved to (the scope's shadow),
+  which tells you which way to move your head.
+- After: a third disc over the lens, the same shape (so it never spills past the glass), with a soft dark rim at the
+  outer twentieth of the ocular. Its texture slides with the aiming eye's offset, so the clear part moves away from
+  the eye's side and a crescent comes in. There is a sliver from about 1.5 cm off the line, half the view at about
+  4 cm, and all of it by about 6.5 cm. The picture also dims past 3 cm.
+- The disc's texture coordinates are rewritten only when the eye moves (no new arrays). Its mesh and material are
+  destroyed with the lens.
+- Simulated: light through the lens (area clear of the shadow × brightness) against the aiming eye's distance from
+  the line. "Before" is the scope before round 4, judged from the middle of the head.
+
+  | Eye off the line | Before | After |
+  | --- | --- | --- |
+  | 0 cm | 0.57 | 0.89 |
+  | 1 cm | 0.54 | 0.89 |
+  | 2 cm | 0.43 | 0.70 |
+  | 3 cm | 0.28 | 0.50 |
+  | 4 cm | 0.09 | 0.24 |
+  | 5 cm | 0.00 | 0.08 |
+
+  After round 5 the dark part is one-sided (a crescent on the eye's side) instead of even.
+- Kept (to judge in the headset: whether the eye box should be wider or tighter; it is the 0.008/0.03 in
+  `BeforeRender`).
