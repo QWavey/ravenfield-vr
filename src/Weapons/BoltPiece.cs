@@ -51,6 +51,12 @@ namespace RavenfieldVR.Weapons
                 {
                     continue; // the parts that move by themselves already (a carrier inside, a handle) are not cut again
                 }
+                if (mf.name.StartsWith("RavenfieldVR ", System.StringComparison.Ordinal))
+                {
+                    // The mod's own pieces: a handle cut or added just before (destroyed only at the end of the frame) was
+                    // cut again, under itself, and went with it; the new handle was then missing.
+                    continue;
+                }
                 if (!mf.sharedMesh.isReadable)
                 {
                     continue;

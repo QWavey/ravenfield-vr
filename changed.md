@@ -655,3 +655,55 @@ edge case or rare, Tiny = defensive gap. None of this has been run in the game.
   - the world-collision switch eases the gun back to the hand;
   - the glove's relaxed-hand rest takes only the curl out (swing-twist: the result is open × swing, with the
     degenerate half turn guarded).
+
+### Round 17: the handle you rack (`src/Weapons/BoltPiece.cs`, `src/Weapons/HeldWeapon.cs` `SnapRackPoint`)
+
+- **Minor:** when the rack point is moved onto the drawn model's surface (task 105), the handle made at the old point
+  is destroyed and a new one made at once. Unity destroys objects only at the end of the frame, so the new carve
+  still found the old piece (an added knob, or a cut-out piece) and cut it again, under the old piece. If the old
+  one was an added knob, the new handle counted as "carved", added no knob, and lost its cut part with the old object:
+  the gun had no visible handle (and the self-test still reported one). Fix: the carve never cuts the mod's own objects.
+- Also checked: the snap runs once per draw, walks out of the receiver at most 8 cm (or onto it from at most 6 cm), and
+  ignores moves under 3 mm; the cut meshes go back to the originals when the handle is destroyed.
+
+### Round 18: what happens between maps (`src/Weapons/WeaponSystem.cs`, `src/Weapons/WeaponDrops.cs`, statics)
+
+- Swept, no real bugs found. Checked:
+  - on a scene change the held weapon is let go, and loose magazines, duds, cases and drops are cleared, with the ammo
+    and rig caches;
+  - objects kept across scenes (holster copies, the chambered round, the gun's physics stand-in) are rebuilt or destroyed;
+  - the player-collider cache and the tracked player start over with the new player;
+  - the explosion listener is added again per level;
+  - your own dropped weapon only returns to an empty slot of a living player (otherwise it becomes an ordinary drop).
+
+### Round 19: the laser pointer and panels (`src/UI/UISystem.cs`, `src/UI/CanvasManager.cs`, `src/UI/VRInputModule.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the per-frame target list (cleared and refilled in one pass, the module reads the same list);
+  - "any canvas visible" now comes from the canvas update itself;
+  - menu mode while a map loads: the loading scene's canvases are the loading view's own, and the laser is not drawn
+    while only the loading screen is;
+  - when "the menu was last used" is counted (pointing at a new item, clicking, scrolling, holding the trigger).
+
+### Round 20: sounds and the self-test pictures (`src/Weapons/ProceduralSounds.cs`, `src/Rig/HandPreview.cs`)
+
+- The case tink: built at 44.1 kHz (its rings are far below the limit), silent before each click, played on the
+  shared pool of eight sources at most twice per case. Nothing to fix.
+- **Tiny:** the hand-pose sheet (self-test) adds a directional light for its pictures. Its objects are destroyed only
+  at the end of the frame, so the light also lit the game's own view for that frame (a flash in the run's pictures).
+  Fix: the light only lights the preview layer.
+
+### Roll-up
+
+20 rounds over 20 areas. Fixed: **2 Major, 14 Minor, 5 Tiny** (21). Clean rounds: holsters and poses (6), weapon
+analysis (7), arms (14), sight modes (15), settings (16), between maps (18), the laser pointer (19). Noted, not changed:
+a 3+ mode sight swings through the middle mode on wrap-around (15).
+
+The two Major ones to look at first at home:
+
+1. **Cases and belt rounds inside out** (round 2): fire any rifle and look at a case on the ground. It should look
+   like a solid brass case, not a dark hollow one.
+2. **Assisted reloading** (round 13): set Reloading to Assisted, take a bolt-action or pump gun and fire the
+   magazine dry. It must run out (it never did before) and throw a case with each shot.
+
+Every round ended with the compile check: the whole `src/` against the game's 1.08.26 assemblies, no new diagnostics.

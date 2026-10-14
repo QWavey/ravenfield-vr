@@ -111,7 +111,7 @@
 109. [x] Weapon features Boneworks has that we do not: check and implement
 110. [x] A realistic mud splash on the view when a grenade or explosion goes off close by (Call of Duty style)
 111. [x] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
-112. [ ] /bug-hunt 20 (after 98-111)
+112. [x] /bug-hunt 20 (after 98-111)
 113. [ ] /improve 20 (after the bug hunt); make everything smooth
 114. [x] Weapons and magazines lying on the ground sometimes float away
 115. [x] Pistol magazines do not go all the way in: the two controllers meet under the grip
@@ -355,7 +355,7 @@ For 110. A grenade or explosion close to the player throws mud on the view: dark
 
 For 111. Boneworks poses each hand for what it holds (grip-specific hand poses). Count the poses it has (per object type and grip) and make sure the mod has at least as many distinct, good-looking poses (pistol grip, rifle grip, handguard, pump, bolt, charging handle, magazine, magazine pinch, grenade, pin, knife, two-handed melee, launcher, ladder, steering wheel, flight stick, pointing, relaxed, fist). Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 112. Bug hunt, 20 rounds, a different area each round, after 98-111.
+For 112. Bug hunt, 20 rounds, a different area each round, after 98-111. Done 2026-10-14 on branch tasks-98-113: 21 bugs fixed (2 major), each round listed in changed.md (not yet run in the game).
 
 For 113. Improve, 20 measured rounds, after the bug hunt.
 

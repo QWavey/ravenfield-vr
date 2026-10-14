@@ -172,6 +172,7 @@ namespace RavenfieldVR.Rig
                 light.type = LightType.Directional;
                 light.transform.rotation = Quaternion.Euler(40f, 60f, 0f);
                 light.intensity = 1.15f;
+                light.cullingMask = 1 << 18; // it lives until the end of the frame: the game's own view must not be lit by it
                 var camGo = new GameObject("cam");
                 camGo.transform.SetParent(root.transform, false);
                 Camera cam = camGo.AddComponent<Camera>();
