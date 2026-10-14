@@ -201,6 +201,7 @@ namespace RavenfieldVR.Weapons
             string poseError = Rig.HandPreview.CapturePoseSheet(poseShot);
             AppendToReport($"  hand poses ................... {Rig.HandPoses.Count} ({(poseError == null ? "RavenfieldVR-hand-poses.png" : "picture failed: " + poseError)})");
             AppendToReport($"  case and belt round meshes ... {Casings.MeshCheck()}");
+            AppendToReport($"  cockpit controls ............. {Rig.CockpitControls.SelfCheck()}");
             Application.runInBackground = runInBackground;
             try
             {

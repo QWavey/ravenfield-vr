@@ -1243,3 +1243,14 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
 - The rest of the vehicle input was checked too: the wheel and stick values reach the car, helicopter and plane
   inputs, which add to the game's own.
 - Kept.
+
+### Round 17 (test coverage): a self-test check for the cockpit fixes (`src/Rig/CockpitControls.cs`, `src/Weapons/WeaponSelfTest.cs`)
+
+- Before: nothing checked rounds 13 and 14 (the wheel flipping at half a turn, the stick drifting with the aircraft),
+  and no autotest drives vehicles.
+- After: the math moved into two small static functions (`InFrame`, `AddTurn`) that the cockpit code and a check
+  share. The flat self-test's report gets a `cockpit controls ...` line. It is built from real transforms: a seat that
+  flies 30 m and turns with the hand moving along must give no stick, and a rim turned 270° in 10° steps (120° to the
+  lock) must stay at full lock. Otherwise it says `(NOT RIGHT)`. Worked through by hand: the old stick gives a throw of
+  about 375 (30 m ÷ 8 cm) and the old wheel −0.75 at 270°, so both would fail it. Checks covering the two fixes: 0 → 1.
+- Kept.

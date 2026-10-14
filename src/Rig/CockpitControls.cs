@@ -139,10 +139,9 @@ namespace RavenfieldVR.Rig
                     // Added up from the last frame's hand position: one angle from where the hand took the rim wrapped at
                     // half a turn, and turning past it (hand over hand) threw the steering to full opposite lock.
                     Vector3 now = OnWheelPlane(palm);
-                    _wheelTurned[i] += Vector3.SignedAngle(_wheelStart[i], now, _wheel.transform.forward);
-                    _wheelStart[i] = now;
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
-                    _wheelTurned[i] = Mathf.Clamp(_wheelTurned[i], (-1f - _wheelBase[i]) * maxRot, (1f - _wheelBase[i]) * maxRot);
+                    _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, _wheel.transform.forward, _wheelBase[i], maxRot);
+                    _wheelStart[i] = now;
                     float handSteer = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
                     int holders = (_onWheel[0] ? 1 : 0) + (_onWheel[1] ? 1 : 0);
                     _steer = holders == 2 ? Mathf.Lerp(_steer, handSteer, 0.5f) : handSteer;
@@ -185,7 +184,51 @@ namespace RavenfieldVR.Rig
         /// A point in the seat's own frame (its position taken off, then its turn). Only the turn was taken off before, so the
         /// aircraft's own travel counted as moving the hand: at 30 m/s the 8 cm stick was at full throw within 3 ms.
         /// </summary>
-        private Vector3 InSeat(Vector3 world) => Quaternion.Inverse(_seat.transform.rotation) * (world - _seat.transform.position);
+        private Vector3 InSeat(Vector3 world) => InFrame(_seat.transform, world);
+
+        /// <summary>A world point in <paramref name="frame"/>'s position and turn (its scale left out).</summary>
+        internal static Vector3 InFrame(Transform frame, Vector3 world) => Quaternion.Inverse(frame.rotation) * (world - frame.position);
+
+        /// <summary>A hand's turn of the rim so far, plus this frame's (from <paramref name="from"/> to <paramref name="to"/>), held at the stops.</summary>
+        internal static float AddTurn(float turned, Vector3 from, Vector3 to, Vector3 axis, float steerAtTake, float maxRotation)
+        {
+            turned += Vector3.SignedAngle(from, to, axis);
+            return Mathf.Clamp(turned, (-1f - steerAtTake) * maxRotation, (1f - steerAtTake) * maxRotation);
+        }
+
+        /// <summary>
+        /// Self-test: a hand held still in a seat that flies 30 m in a frame and turns must give no stick, and a rim turned
+        /// 270 degrees clockwise in 10-degree steps (120 degrees to the lock) must stay at full right lock.
+        /// </summary>
+        internal static string SelfCheck()
+        {
+            var seat = new GameObject("RavenfieldVR stick check");
+            try
+            {
+                Transform t = seat.transform;
+                t.SetPositionAndRotation(new Vector3(100f, 50f, -20f), Quaternion.Euler(5f, 30f, 0f));
+                Vector3 hand = t.TransformPoint(new Vector3(0.2f, -0.3f, 0.4f));
+                Vector3 start = InFrame(t, hand);
+                t.SetPositionAndRotation(t.position + t.forward * 30f, t.rotation * Quaternion.Euler(0f, 15f, 3f));
+                hand = t.TransformPoint(new Vector3(0.2f, -0.3f, 0.4f)); // the hand moved with the seat
+                float stick = (InFrame(t, hand) - start).magnitude / StickThrow;
+                float turned = 0f, steer = 0f;
+                for (int a = 10; a <= 270; a += 10)
+                {
+                    // Clockwise seen from the driver (the wheel faces down -forward): about -forward.
+                    Vector3 from = Quaternion.AngleAxis(-(a - 10), Vector3.forward) * Vector3.up;
+                    Vector3 to = Quaternion.AngleAxis(-a, Vector3.forward) * Vector3.up;
+                    turned = AddTurn(turned, from, to, Vector3.forward, 0f, 120f);
+                    steer = Mathf.Clamp(turned / 120f, -1f, 1f);
+                }
+                bool ok = stick < 0.01f && Mathf.Abs(Mathf.Abs(steer) - 1f) < 0.01f;
+                return $"hand still in a moving seat: stick {stick:0.000}; rim turned 270 deg: steering {steer:+0.00;-0.00}{(ok ? "" : " (NOT RIGHT)")}";
+            }
+            finally
+            {
+                Object.Destroy(seat);
+            }
+        }
 
         private bool NearWheel(Vector3 palm)
         {
