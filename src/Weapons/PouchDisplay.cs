@@ -142,6 +142,11 @@ namespace RavenfieldVR.Weapons
             }
             _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal);
             _model.transform.SetParent(_root.transform, true);
+            // A picture of what you can take, not a thing in the world: it casts no shadow on the ground under you.
+            foreach (Renderer r in _root.GetComponentsInChildren<Renderer>(true))
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
             float size = _bounds.size.magnitude;
             _scale = size > MaxSize ? MaxSize / size : 1f; // a rocket shows smaller than life
         }

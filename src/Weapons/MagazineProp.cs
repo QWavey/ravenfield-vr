@@ -837,6 +837,9 @@ namespace RavenfieldVR.Weapons
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
             PropPhysics.IgnorePlayer(_colliders);
+            // Bodies around it from the first physics step on (not from the next clean-up pass): a magazine falling next to
+            // a soldier or into a ragdoll is not shoved away.
+            PropPhysics.IgnoreBodiesNear(_colliders, Go.transform.position, 1f, _ignoredBodies);
             foreach (Collider c in _colliders)
             {
                 GunCollider.Current?.OnPropDropped(c);
@@ -852,6 +855,11 @@ namespace RavenfieldVR.Weapons
         }
 
         public bool IsDropped => _dropTime >= 0f;
+
+        /// <summary>Seconds since it was let go (-1 while held).</summary>
+        internal float DroppedFor => _dropTime >= 0f ? Time.time - _dropTime : -1f;
+        internal Collider[] Colliders => _colliders;
+        internal Rigidbody Body => _body;
 
         /// <summary>
         /// Distance from a point to the prop's own shape. Its transform pivot can sit far from the mesh (many mods

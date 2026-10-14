@@ -782,12 +782,13 @@ namespace RavenfieldVR.Core
                 {
                     n++;
                     Weapon w = e.prefab.GetComponent<Weapon>();
-                    return n % every == 0 || w is MeleeWeapon || w is ThrowableWeapon || e.slot == WeaponManager.WeaponSlot.Primary && n < 40;
-                }).Take(60).ToList();
+                    return n % every == 0 || w is MeleeWeapon || w is ThrowableWeapon || e.slot == WeaponManager.WeaponSlot.Primary && n < 40
+                           || w != null && !(w is ThrowableWeapon) && w.configuration.ammo == 1; // launchers: pictured for what hangs under them
+                }).Take(70).ToList();
                 Results.Add($"Quick run: {entries.Count} weapons");
                 every = Mathf.Max(1, entries.Count / 28);
             }
-            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0;
+            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0;
             bool tacticalDone = false, dropDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
@@ -867,11 +868,20 @@ namespace RavenfieldVR.Core
                         bool want = index % every == 0
                                     || action == ActionType.Melee && meleeShots++ < 4
                                     || action == ActionType.Throwable && throwShots++ < 3
-                                    || held.Rig.Data.IsPistol && action == ActionType.SelfLoading && pistolShots++ < 4;
+                                    || held.Rig.Data.IsPistol && action == ActionType.SelfLoading && pistolShots++ < 4
+                                    || action == ActionType.SingleShot && launcherShots++ < 8;
                         if (want)
                         {
                             yield return new WaitForEndOfFrame();
                             Shots.Capture($"weapon-{index:000}-{entry.name}");
+                            if (action == ActionType.SingleShot && Rig.VRRig.Instance != null)
+                            {
+                                // Under a launcher: nothing (no box, no shadow of one) may show on the ground or at the pouch.
+                                Transform head = Rig.VRRig.Instance.Head;
+                                Vector3 flat = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+                                Shots.Capture($"weapon-{index:000}-{entry.name}-looking-down", head.position, Quaternion.LookRotation(flat * 0.3f + Vector3.down, flat), 100f);
+                                lines.Add($"launcher: rocket from {held.Rig.Data.MagMethod}, {held.Rig.Data.MagBounds.size.magnitude * 100f:0} cm");
+                            }
                             GripCloseups(held, $"grip-{index:000}-{entry.name}", lines.Add);
                             yield return ClipCompare(lines.Add);
                         }

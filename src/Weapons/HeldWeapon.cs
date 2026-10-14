@@ -98,6 +98,16 @@ namespace RavenfieldVR.Weapons
                 Log.InfoOnce("matfix:" + rig.Data.Key, $"{weapon.name}: repaired {repaired} renderer(s) with shaders this graphics API cannot draw.");
             }
             _gunCollider = GunCollider.Create(rig);
+            // Renderers that draw only a shadow (helper boxes a mod's reload animation uses, shadow proxies of a flat
+            // view model) put a dark blob on the ground under the player in VR, where the weapon is drawn in the world.
+            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
+                {
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    _shadowOnly.Add(r);
+                }
+            }
             Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
             if (VRConfig.Hands.Value == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
             {
@@ -178,6 +188,8 @@ namespace RavenfieldVR.Weapons
         // ---------------------------------------------------------------------------------------------
 
         private readonly GunCollider _gunCollider;
+        /// <summary>Shadow-only renderers switched off while the weapon is held (given back on release).</summary>
+        private readonly List<Renderer> _shadowOnly = new List<Renderer>();
 
         public void Update()
         {
@@ -1050,6 +1062,14 @@ namespace RavenfieldVR.Weapons
                 _hingeOverridden = false;
             }
             HingeOpenness = 0f;
+            foreach (Renderer r in _shadowOnly)
+            {
+                if (r != null)
+                {
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                }
+            }
+            _shadowOnly.Clear();
             _boltPiece?.Destroy();
             SetHandModelsSuppressed(false);
             if (_system.Rig.Dominant.Model != null)

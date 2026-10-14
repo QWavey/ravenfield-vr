@@ -254,6 +254,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _boxes.Clear();
+            _restIgnored.Clear(); // the new pieces start colliding with everything: resting props are ignored again below
             ShapeFit.Bake(pieces);
             _pieces = pieces;
             _boxes.AddRange(ShapeFit.AddColliders(_go, pieces));
@@ -537,11 +538,103 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (!Touches(c))
                 {
-                    foreach (Collider b in _boxes)
+                    bool resting = c.attachedRigidbody != null && _restIgnored.TryGetValue(c.attachedRigidbody, out bool r) && r;
+                    if (!resting)
                     {
-                        Physics.IgnoreCollision(c, b, false);
+                        foreach (Collider b in _boxes)
+                        {
+                            Physics.IgnoreCollision(c, b, false);
+                        }
                     }
                     _passing.RemoveAt(i);
+                }
+            }
+            UpdateRestingProps();
+        }
+
+        /// <summary>Loose things in the world and whether the stand-in currently ignores them because they lie still.</summary>
+        private readonly Dictionary<Rigidbody, bool> _restIgnored = new Dictionary<Rigidbody, bool>();
+        private readonly List<Rigidbody> _restScratch = new List<Rigidbody>();
+        private float _nextRestCheck;
+
+        /// <summary>
+        /// Weapons and magazines lying still on the ground are not shoved by the gun in your hand: reaching down with the gun
+        /// held low (or the stand-in jumping back to the gun) pushed them away, so things you wanted to pick up floated off.
+        /// Something falling or flying still bounces off the gun; one lying still is ignored until it moves again.
+        /// </summary>
+        private void UpdateRestingProps()
+        {
+            if (Time.unscaledTime < _nextRestCheck)
+            {
+                return;
+            }
+            _nextRestCheck = Time.unscaledTime + 0.1f;
+            WeaponDrops drops = WeaponDrops.Instance;
+            if (drops != null)
+            {
+                foreach (DroppedWeapon d in drops.All)
+                {
+                    if (d.Go != null)
+                    {
+                        SetRestIgnored(d.Go.GetComponent<Rigidbody>(), d.Colliders, Time.time - d.DropTime);
+                    }
+                }
+            }
+            foreach (MagazineProp m in MagazineProp.All)
+            {
+                if (m.IsDropped && m.Go != null)
+                {
+                    SetRestIgnored(m.Body, m.Colliders, m.DroppedFor);
+                }
+            }
+            if (_restIgnored.Count > 64)
+            {
+                _restScratch.Clear();
+                foreach (KeyValuePair<Rigidbody, bool> kv in _restIgnored)
+                {
+                    if (kv.Key == null)
+                    {
+                        _restScratch.Add(kv.Key);
+                    }
+                }
+                foreach (Rigidbody gone in _restScratch)
+                {
+                    _restIgnored.Remove(gone);
+                }
+            }
+        }
+
+        private void SetRestIgnored(Rigidbody body, IList<Collider> colliders, float lyingFor)
+        {
+            if (body == null || colliders == null || body.isKinematic)
+            {
+                return;
+            }
+            bool known = _restIgnored.TryGetValue(body, out bool ignored);
+            float speedSq = body.velocity.sqrMagnitude;
+            // Settled for a moment and slow; once ignored, only a real push or fall (above 0.8 m/s) makes it collide again.
+            bool want = ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (body.IsSleeping() || speedSq < 0.25f * 0.25f && body.angularVelocity.sqrMagnitude < 1f);
+            if (known && want == ignored)
+            {
+                return;
+            }
+            _restIgnored[body] = want;
+            if (!known && !want)
+            {
+                return; // never ignored: nothing to undo
+            }
+            foreach (Collider c in colliders)
+            {
+                if (c == null || !c.enabled || !want && _passing.Contains(c))
+                {
+                    continue;
+                }
+                foreach (Collider b in _boxes)
+                {
+                    if (b != null && b.enabled)
+                    {
+                        Physics.IgnoreCollision(c, b, want);
+                    }
                 }
             }
         }

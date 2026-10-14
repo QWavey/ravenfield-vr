@@ -55,6 +55,9 @@ namespace RavenfieldVR.Weapons
         }
 
         public int Count => _drops.Count;
+
+        /// <summary>Every weapon lying in the world now.</summary>
+        internal IReadOnlyList<DroppedWeapon> All => _drops;
         private readonly VRHand[] _handPair = new VRHand[2];
 
         // ---- spawning ---------------------------------------------------------------------------------
@@ -145,6 +148,9 @@ namespace RavenfieldVR.Weapons
             PropPhysics.IgnorePlayer(boxes);
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
+            // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
+            // step, or that step pushes the weapon out of them and it skids or floats away.
+            PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);
             Cull();
             return drop;
@@ -817,6 +823,7 @@ namespace RavenfieldVR.Weapons
                 ReturnAt = Time.time + Mathf.Max(1f, VRConfig.WeaponReturnSeconds.Value),
                 OwnedMeshes = baked
             };
+            PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);
             return drop;
         }

@@ -826,6 +826,10 @@ namespace RavenfieldVR.Weapons
             if (!AcceptsNow(prop))
             {
                 prop.OnRail = false;
+                if (_pullingIn == prop)
+                {
+                    _pullingIn = null;
+                }
                 return;
             }
 
@@ -852,6 +856,17 @@ namespace RavenfieldVR.Weapons
                 return;
             }
 
+            if (_pullingIn == prop)
+            {
+                // Started straight into a well inside the grip: the rail takes it home (see below), whatever the hand does.
+                prop.RailDepth = Mathf.MoveTowards(prop.RailDepth, prop.RailLength, 0.9f * Mathf.Min(Time.unscaledDeltaTime, 0.05f));
+                if (prop.RailDepth >= prop.RailLength * 0.999f)
+                {
+                    _pullingIn = null;
+                    SeatProp(off, prop);
+                }
+                return;
+            }
             // On the rail: the hand pushes the prop along the axis only.
             if (along < -0.03f || lateral > 0.07f)
             {
@@ -867,6 +882,27 @@ namespace RavenfieldVR.Weapons
             if (prop.RailDepth >= prop.RailLength * 0.96f)
             {
                 SeatProp(off, prop);
+            }
+            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.45f)
+            {
+                // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
+                // the way in. Half way in and straight, it is drawn home the rest of the way.
+                _pullingIn = prop;
+                off.Haptic(0.012f, 160f, 0.35f);
+            }
+        }
+
+        /// <summary>A magazine that is being drawn the last part of the way into a well inside the grip.</summary>
+        private MagazineProp _pullingIn;
+
+        /// <summary>The magazine well is inside the gun hand's grip (pistols, magazine-in-grip designs).</summary>
+        private bool WellInGrip
+        {
+            get
+            {
+                WeaponRigData d = Data;
+                Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
+                return d.IsPistol || Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
             }
         }
 
@@ -1005,6 +1041,16 @@ namespace RavenfieldVR.Weapons
 
         private void ReleaseProp(VRHand off, MagazineProp prop)
         {
+            if (_pullingIn == prop)
+            {
+                // Let go while it was being drawn in: it finishes going in rather than falling out of the grip.
+                _pullingIn = null;
+                if (AcceptsNow(prop))
+                {
+                    SeatProp(off, prop);
+                    return;
+                }
+            }
             if (_palmed != null)
             {
                 // Letting go drops (or stows) everything the hand holds.
@@ -1861,6 +1907,7 @@ namespace RavenfieldVR.Weapons
         public void Release()
         {
             VRHand off = _sys.Rig.Off;
+            _pullingIn = null;
             if (_ejecting != null)
             {
                 FinishEject();

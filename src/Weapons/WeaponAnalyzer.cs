@@ -40,6 +40,35 @@ namespace RavenfieldVR.Weapons
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
+        private static readonly Regex OpticName = new Regex(
+            @"glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z])(clu|cmd ?unit|command ?unit)($|[^a-z])|倍镜|瞄", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Shows at rest: the part itself is active and not scaled away, and (when it carries meshes) at least one of them is.
+        /// Reload helpers that only appear during the reload animation are not.
+        /// </summary>
+        private static bool ShownAtIdle(Transform t, PoseSampler sampler)
+        {
+            if (!sampler.IdleVisible(t))
+            {
+                return false;
+            }
+            bool anyRenderer = false;
+            foreach (Renderer r in t.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer)
+                {
+                    continue;
+                }
+                anyRenderer = true;
+                if (r.enabled && r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly && sampler.IdleVisible(r.transform))
+                {
+                    return true;
+                }
+            }
+            return !anyRenderer; // a bone of the skinned gun mesh
+        }
+
         private static readonly Regex SlideName = new Regex(
             @"slide|bolt|charg|handle|carrier|pump|forend|fore-end|lever|breech|chamber|cocking|verschluss|schlitten|culasse|corredera|cerrojo|zatvor"
             + @"|(^|[^a-z])(rama|qj|ljb|taotong|qiangji)($|[^a-z])|затвор|рама|枪机|套筒|拉机柄|机柄|护木",
@@ -1355,6 +1384,7 @@ namespace RavenfieldVR.Weapons
             {
                 // 1. Parts that travel during the reload.
                 float best = 0f;
+                Transform skippedHelper = null;
                 foreach (Transform t in all)
                 {
                     if (!MagCandidate(t, root, gunBody, muzzle, slide, armRelated, gunBones))
@@ -1367,15 +1397,30 @@ namespace RavenfieldVR.Weapons
                     {
                         continue; // still, or parked far away while hidden (belt links, spare rounds)
                     }
+                    if (!ShownAtIdle(t, sampler))
+                    {
+                        // A reload helper the animation only shows while reloading (the RPG-7's "Reload_Cube": an 80 cm box
+                        // around the tube). Taken for the rocket it was copied at full size into the pouch and the hand,
+                        // where the gun's own animation no longer hid it.
+                        skippedHelper = skippedHelper ?? t;
+                        continue;
+                    }
+                    if (OpticName.IsMatch(t.name) && !MagName.IsMatch(t.name) || sampler.LocalBounds(t).size.magnitude > 1.6f)
+                    {
+                        continue; // a sight that comes off in the reload (a Javelin's command unit), or nothing a hand could hold
+                    }
                     Vector3 idlePos = sampler.RelIdle[i].position;
                     bool nearGun = Vector3.Distance(idlePos, d.GripPoint) < 0.45f;
-                    bool visible = sampler.IdleVisible(t);
-                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * (nearGun ? 1f : 0.2f) * (visible ? 1f : 0.3f);
+                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * (nearGun ? 1f : 0.2f);
                     if (score > best)
                     {
                         best = score;
                         mag = t;
                     }
+                }
+                if (skippedHelper != null)
+                {
+                    d.Notes += $"'{skippedHelper.name}' moves in the reload but is hidden at rest (helper, not the magazine) ";
                 }
                 if (mag != null)
                 {
@@ -1435,6 +1480,11 @@ namespace RavenfieldVR.Weapons
                 mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones);
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
+                    mag = null;
+                }
+                if (mag != null && !ShownAtIdle(mag, sampler))
+                {
+                    d.Notes += $"'{mag.name}' is named like a magazine but hidden at rest (not used) ";
                     mag = null;
                 }
                 float nameMagSize = mag != null ? sampler.LocalBounds(mag).size.magnitude : 0f;
@@ -1607,9 +1657,20 @@ namespace RavenfieldVR.Weapons
             }
             // Where the magazine is, not where its transform's pivot is (many rigs pivot every part at the gun's origin).
             Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
-            bool inGrip = Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
+            // Only a grip the weapon's own hand measured can say the magazine is in it: an estimated grip on a long rifle can
+            // land on the magazine well and wrongly made M4s "not kickable".
+            bool gripMeasured = d.HandsMethod != "estimated";
+            bool inGrip = gripMeasured && Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
+            // A handgun by its slot. A rifle whose support hand holds the magazine well is marked "pistol" (no handguard to
+            // steer by), but its magazine still hangs out of the well in front of the grip.
+            bool handgun = w.slot == 1 || d.IsPistol && w.slot != 0 && w.slot != 3;
             string names = w.name + " " + (w.weaponEntry != null ? w.weaponEntry.name : "");
-            d.MagKickable = !d.IsPistol && !inGrip && !DeepWellName.IsMatch(names);
+            bool deepWell = DeepWellName.IsMatch(names);
+            d.MagKickable = !handgun && !inGrip && !deepWell;
+            if (!d.MagKickable)
+            {
+                d.Notes += $"mag kick off ({(handgun ? "handgun" : inGrip ? "magazine in the grip" : "deep well")}) ";
+            }
         }
 
         private static IEnumerable<Vector3> Corners(Bounds b)
