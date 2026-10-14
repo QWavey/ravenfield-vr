@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
-    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon }
+    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon, Casing }
 
     /// <summary>
     /// Mechanical weapon sounds synthesised at start-up (filtered noise bursts and damped metallic partials),
@@ -43,6 +43,10 @@ namespace RavenfieldVR.Weapons
                 Scrape(t, n, 0.035f) * 0.18f + Click(t, n, 0.035f, 0.45f) + Ring(t - 0.035f, 3400f, 0.035f) * 0.22f);
             _clips[(int)MechSound.Spoon] = Build("spoon", 0.16f, rng, (t, n) =>
                 Click(t, n, 0f, 0.35f) + Ring(t, 2650f, 0.09f) * 0.28f + Ring(t, 4100f, 0.05f) * 0.12f);
+            // A spent brass case landing: a bright tink and a smaller bounce.
+            _clips[(int)MechSound.Casing] = Build("casing", 0.14f, rng, (t, n) =>
+                Click(t, n, 0f, 0.3f) + Ring(t, 4300f, 0.045f) * 0.4f + Ring(t, 6150f, 0.025f) * 0.25f
+                + Click(t, n, 0.065f, 0.15f) + Ring(t - 0.065f, 4450f, 0.025f) * 0.15f);
 
             _host = new GameObject("RavenfieldVR Sounds");
             UnityEngine.Object.DontDestroyOnLoad(_host);

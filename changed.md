@@ -359,3 +359,38 @@ Autotest: on the first such weapon, the sight mode is switched with the gun held
 
 Autotest (machine guns): `belt pulled too far: slipped from the hand and hangs from the box` and `belt laid: the
 model's own belt (...) shows / the strip stays on the feed tray`.
+
+## Task 109: Boneworks gun features
+
+Compared with what Boneworks has (researched from reviews, the Boneworks/Bonelab modding sources and player guides):
+
+| Boneworks | This mod |
+| --- | --- |
+| Weight and inertia, harder one-handed | had it (droop, trailing wrist, one-hand recoil by class) |
+| Second hand steadies recoil and aim | had it |
+| Gun collides with the world | **new** (task 122) |
+| Chambered round; racking ejects a live round | had it (now also visible, see below) |
+| Physical spent cases | **new** |
+| Slide locks back empty, slide release | had it |
+| Mag eject, pulling the mag, tap reload | had it (mag kick, H3VR palming) |
+| Ammo pouch matching the held gun | had it |
+| Body slots (shoulders, under the arms, back) | **changed** to the Boneworks layout (task 116) |
+| Ammo count | had it (gun counter, looking at the magazine) |
+| Attachments (laser, light) | had it (mod keys) |
+| Stock bearing on the body | **new** (shouldered stock) |
+| Press check (looking into the chamber) | **new** |
+| Grabbing the gun anywhere | the support hand anywhere on the handguard and the action; the gun hand on the grip (not added) |
+
+New:
+- **Spent cases** (`src/Weapons/Casings.cs`, new): a self-loading gun throws a brass case out of its ejection port
+  (where the game's casing particles are) with every shot, to the right, up and a little back, with the hand's speed;
+  a bolt or pump gun throws the fired case (or a live round) when the action is worked; a revolver or a break-action
+  drops its fired cases when opened. Four sizes (9 mm, 5.56, 7.62, 12-gauge shell with a red hull) chosen from the
+  weapon class; they tumble, bounce with a synthesised brass tink (new `MechSound.Casing`) and lie for 25 s (40 at
+  most, oldest first), on the prop layer (bullets pass, the player never touches them). Only weapons that have casing
+  particles in the flat game throw cases; the held weapon's casing particles are hidden instead.
+- **Press check:** with the slide or bolt eased back between 12% and 80% of its stroke (not far enough to eject), the
+  chambered round (or a bolt gun's fired case) shows in the ejection port.
+- **Shouldered stock:** a long gun whose stock butt (its rearmost part, 12 cm or more behind the grip) is within 12 cm of
+  your weapon-side shoulder pocket kicks 25% less and does not droop, held in one hand or two.
+- Autotest: `cases thrown: N` per fired weapon that ejects, metric `cases thrown per shot`.

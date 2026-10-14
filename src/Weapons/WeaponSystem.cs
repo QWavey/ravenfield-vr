@@ -97,6 +97,7 @@ namespace RavenfieldVR.Weapons
         {
             Zones.Update();
             MagazineProp.Cull();
+            Casings.Cull();
             GrenadeDud.Cull();
             VRGameInput.SuppressFire = false;
 
@@ -604,6 +605,7 @@ namespace RavenfieldVR.Weapons
             }
             MagazineProp.DestroyAll();
             GrenadeDud.DestroyAll();
+            Casings.DestroyAll();
             Drops.Clear();
             FireSelector.Clear();
             _ammo.Clear();
@@ -619,6 +621,7 @@ namespace RavenfieldVR.Weapons
             }
             MagazineProp.DestroyAll();
             GrenadeDud.DestroyAll();
+            Casings.DestroyAll();
             Drops.Dispose();
             _pouch.Destroy();
             _holsters.Destroy();

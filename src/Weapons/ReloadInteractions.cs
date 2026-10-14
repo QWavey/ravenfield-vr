@@ -480,7 +480,7 @@ namespace RavenfieldVR.Weapons
                 _held.Sounds.Play(MechSound.SlideBack, SeatPose.position);
                 if (Ammo.MagRounds < Ammo.Capacity)
                 {
-                    PlayCasingEject(); // the fired cases come out, live rounds stay
+                    Casings.Drop(_held, Ammo.Capacity - Ammo.MagRounds, SeatPose.position); // the fired cases fall out, live rounds stay
                 }
                 dom.Haptic(0.04f, 90f, 0.6f);
             }
@@ -1261,12 +1261,13 @@ namespace RavenfieldVR.Weapons
             if (!_rackedBack && fraction >= 0.8f)
             {
                 _rackedBack = true;
+                bool spent = Ammo.SpentInChamber;
                 bool ejected = Ammo.RackBack();
                 _held.Sounds.Play(MechSound.SlideBack, RackPointWorld);
                 off.Haptic(0.03f, 140f, 0.6f);
-                if (ejected)
+                if (ejected || spent)
                 {
-                    PlayCasingEject();
+                    Casings.Eject(_held, live: ejected); // a live round flies out, or the fired case a bolt or pump held
                 }
                 if (HandDriven)
                 {
@@ -1340,15 +1341,6 @@ namespace RavenfieldVR.Weapons
             _sys.Rig.Dominant.Haptic(0.04f, 120f, 0.6f);
         }
 
-        private void PlayCasingEject()
-        {
-            ParticleSystem[] casings = _held.ActiveWeapon.configuration.casingParticles;
-            if (casings != null && casings.Length > 0 && casings[0] != null)
-            {
-                casings[0].Play(false);
-            }
-        }
-
         public void OnShot()
         {
             if (Ammo != null && Ammo.SlideLocked)
@@ -1399,6 +1391,9 @@ namespace RavenfieldVR.Weapons
             }
 
             UpdateEject(dt);
+            // Press check: eased back part way (not far enough to throw it out), the chambered round shows in the port.
+            float open = Ammo != null && Ammo.UsesChamber ? Fraction : 0f;
+            Casings.ShowChamber(_held, open > 0.12f && open < 0.8f && (Ammo.Chambered || Ammo.SpentInChamber), Ammo != null && Ammo.Chambered);
             VRHand off = _sys.Rig.Off;
             UpdateGraspAnchor(off);
             UpdateBeltStrip(off);
@@ -2024,7 +2019,12 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Ammo.BoltOpen = false;
-            Ammo.RackBack();
+            bool spent = Ammo.SpentInChamber;
+            bool live = Ammo.RackBack();
+            if (spent || live)
+            {
+                Casings.Eject(_held, live);
+            }
             Ammo.RackForward();
         }
 
@@ -2033,6 +2033,7 @@ namespace RavenfieldVR.Weapons
         {
             VRHand off = _sys.Rig.Off;
             _pullingIn = null;
+            Casings.ShowChamber(_held, false, false);
             if (_ejecting != null)
             {
                 FinishEject();

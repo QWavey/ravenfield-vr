@@ -23,6 +23,8 @@ namespace RavenfieldVR.Weapons
         public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide, Belt;
         /// <summary>Boneworks layout: under each arm (pistols), the small of the back and the belt's front (gear).</summary>
         public Vector3 DomUnderarm, OffUnderarm, LowerBack, DomBeltFront, OffBeltFront;
+        /// <summary>The shoulder pocket on the weapon-hand side, where a rifle's stock is set.</summary>
+        public Vector3 DomShoulder;
 
         internal static bool Boneworks => VRConfig.Holsters == null || VRConfig.Holsters.Value == HolsterLayout.Boneworks;
         public Vector3 TorsoForward, TorsoRight;
@@ -103,6 +105,7 @@ namespace RavenfieldVR.Weapons
             // back and at the front of the belt.
             Vector3 underarm = neck - Vector3.up * 0.28f + TorsoForward * 0.02f;
             DomUnderarm = underarm + TorsoRight * (0.17f * side);
+            DomShoulder = neck - Vector3.up * 0.06f + TorsoForward * 0.05f + TorsoRight * (0.15f * side);
             OffUnderarm = underarm - TorsoRight * (0.17f * side);
             LowerBack = belt - TorsoForward * 0.29f;
             DomBeltFront = belt + TorsoRight * (0.09f * side);

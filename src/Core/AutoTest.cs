@@ -1198,6 +1198,7 @@ namespace RavenfieldVR.Core
                     bool counts = held != null && held.Weapon == weapon && held.ActiveAmmo != null && held.ActiveAmmo.Participates
                                   && held.Rig.Data.Action != ActionType.Throwable;
                     _shots = 0;
+                    int casesBefore = Casings.Spawned;
                     float shotKick = 0f, shotBack = 0f, shotImpulse = 0f;
                     Weapon listened = counts ? ready : null;
                     listened?.onSpawnProjectiles.AddListener(CountShot);
@@ -1230,6 +1231,12 @@ namespace RavenfieldVR.Core
                     if (counts)
                     {
                         lines.Add($"fired {Mathf.Min(_shots, 3)}/3");
+                        if (VRManager.Active && Casings.Ejects(held))
+                        {
+                            int cases = Casings.Spawned - casesBefore;
+                            Metric("cases thrown per shot", _shots > 0 ? (double)cases / Mathf.Min(_shots, 3) : 0);
+                            lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}");
+                        }
                         if (_shots == 0)
                         {
                             Problem($"[{entry.name}] DID NOT FIRE (counter {held.ActiveAmmo.CounterText()})");

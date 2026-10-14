@@ -49,6 +49,25 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public bool Supported => TwoHanded || _system.Rig.Off.Role == HandRole.Foregrip;
 
+        /// <summary>The butt of the stock (gun-body space), or null for a gun without a stock behind the grip.</summary>
+        private readonly Vector3? _stockButt;
+
+        /// <summary>
+        /// The stock is set in the shoulder pocket (Boneworks lets the stock bear on the body): the shoulder takes part of the
+        /// kick and holds the gun up.
+        /// </summary>
+        public bool Shouldered
+        {
+            get
+            {
+                if (!_stockButt.HasValue || Rig.GunBody == null)
+                {
+                    return false;
+                }
+                return Vector3.Distance(Rig.ToWorld(_stockButt.Value), _system.Zones.DomShoulder) < 0.12f;
+            }
+        }
+
         // Visual overrides.
         public float SlideOffset;
         /// <summary>0 closed .. 1 fully open, for break-open barrels, a revolver crane or a feed cover.</summary>
@@ -115,7 +134,40 @@ namespace RavenfieldVR.Weapons
                     _shadowOnly.Add(r);
                 }
             }
+            // The flat game's casing particles give way to real cases (Casings), here and on its sub weapons.
+            foreach (Weapon w in weapon.GetComponentsInChildren<Weapon>(true))
+            {
+                ParticleSystem[] casings = w.configuration != null ? w.configuration.casingParticles : null;
+                if (casings == null)
+                {
+                    continue;
+                }
+                foreach (ParticleSystem p in casings)
+                {
+                    ParticleSystemRenderer pr = p != null ? p.GetComponent<ParticleSystemRenderer>() : null;
+                    if (pr != null && pr.enabled)
+                    {
+                        pr.enabled = false;
+                        _hiddenCasings.Add(pr);
+                    }
+                }
+            }
             Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+            if (!rig.Data.IsPistol && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
+            {
+                // The rearmost part of the drawn gun, 12 cm or more behind the grip, is a stock's butt.
+                Bounds b = GunCollider.VisibleBounds(rig, out bool measured);
+                float rear = float.MaxValue;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    rear = Mathf.Min(rear, Vector3.Dot(c - rig.Data.GripPoint, rig.Data.AimAxis));
+                }
+                if (measured && rear < -0.12f)
+                {
+                    _stockButt = rig.Data.GripPoint + rig.Data.AimAxis * rear + rig.Data.Up * 0.03f;
+                }
+            }
             if (VRConfig.Hands.Value == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
             {
                 _armIK = new ArmIK(system, this);
@@ -327,6 +379,8 @@ namespace RavenfieldVR.Weapons
         internal bool HeldBackByWorld => _blockBlend > 0.5f;
         /// <summary>Shadow-only renderers switched off while the weapon is held (given back on release).</summary>
         private readonly List<Renderer> _shadowOnly = new List<Renderer>();
+        /// <summary>The weapon's casing particles, hidden while held (real cases fly instead).</summary>
+        private readonly List<ParticleSystemRenderer> _hiddenCasings = new List<ParticleSystemRenderer>();
 
         public void Update()
         {
@@ -437,6 +491,10 @@ namespace RavenfieldVR.Weapons
         {
             Weapon.Configuration c = (fired != null ? fired : Weapon).configuration;
             float strength = VRConfig.RecoilStrength.Value;
+            if (Shouldered)
+            {
+                strength *= 0.75f; // the shoulder takes part of it
+            }
             if (Supported)
             {
                 // Long guns: the support hand takes most of it; a pistol cupped in two hands a little.
@@ -462,6 +520,10 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);
             }
             Reload.OnShot();
+            if (ActiveAmmo != null && ActiveAmmo.Participates && ActiveAmmo.SelfLoading)
+            {
+                Casings.Eject(this); // the action throws the case out with the shot
+            }
         }
 
         /// <summary>
@@ -540,7 +602,7 @@ namespace RavenfieldVR.Weapons
             }
 
             // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly.
-            if (VRConfig.WeaponWeight.Value && !Supported && _sagDegrees > 0f)
+            if (VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f)
             {
                 Vector3 pitchAxis = gunRot * Vector3.Cross(d.Up, d.AimAxis).normalized;
                 Quaternion target = Quaternion.AngleAxis(_sagDegrees, pitchAxis) * gunRot;
@@ -1336,6 +1398,14 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _shadowOnly.Clear();
+            foreach (ParticleSystemRenderer pr in _hiddenCasings)
+            {
+                if (pr != null)
+                {
+                    pr.enabled = true;
+                }
+            }
+            _hiddenCasings.Clear();
             _boltPiece?.Destroy();
             SetHandModelsSuppressed(false);
             if (_system.Rig.Dominant.Model != null)

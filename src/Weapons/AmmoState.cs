@@ -25,6 +25,8 @@ namespace RavenfieldVR.Weapons
         public bool CoverOpen;
         /// <summary>Machine gun: the belt of the seated box lies on the feed tray (the cover was closed over it).</summary>
         public bool BeltLaid = true;
+        /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
+        public bool SpentInChamber;
 
         private int _expectedAmmo;
 
@@ -157,6 +159,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Chambered = false;
+            SpentInChamber = !SelfLoading;
             if (SelfLoading)
             {
                 if (FeedReady && MagRounds > 0)
@@ -243,6 +246,7 @@ namespace RavenfieldVR.Weapons
         /// <returns>True if a live round was ejected.</returns>
         public bool RackBack()
         {
+            SpentInChamber = false;
             bool ejected = Chambered;
             if (ejected)
             {
