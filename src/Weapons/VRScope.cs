@@ -27,7 +27,7 @@ namespace RavenfieldVR.Weapons
         private readonly Camera _camera;
         private readonly RenderTexture _texture;
         private readonly GameObject _root;
-        private readonly Material _lensMaterial;
+        private readonly Material _lensMaterial, _reticleMaterial;
         private static Texture2D _reticle;
         private static Mesh _disc;
 
@@ -84,7 +84,8 @@ namespace RavenfieldVR.Weapons
             EnsureAssets();
             _lensMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _texture, renderQueue = 3000 };
             CreateDisc("Lens", _lensMaterial, 0f);
-            CreateDisc("Reticle", new Material(Shader.Find("Sprites/Default")) { mainTexture = _reticle, renderQueue = 3001 }, -0.0008f);
+            _reticleMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _reticle, renderQueue = 3001 };
+            CreateDisc("Reticle", _reticleMaterial, -0.0008f);
         }
 
         private void CreateDisc(string name, Material mat, float z)
@@ -128,27 +129,38 @@ namespace RavenfieldVR.Weapons
             }
             if (_reticle == null)
             {
+                // Duplex: thick posts from the edge, a thin cross in the middle, a dark ring at the rim. Drawn with soft
+                // (coverage) edges and mipmapped: the lens shows it about 1.5x smaller than drawn, and hard one-texel lines
+                // without mipmaps flickered between faint and dark as the gun moved (simulated: 0.65 of full brightness
+                // at 1.5x; now 0.07).
                 const int size = 256;
-                _reticle = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "Reticle" };
+                _reticle = new Texture2D(size, size, TextureFormat.RGBA32, true)
+                {
+                    wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Trilinear, name = "Reticle"
+                };
                 var px = new Color32[size * size];
-                int c = size / 2;
+                float c = size * 0.5f;
                 for (int y = 0; y < size; y++)
                 {
                     for (int x = 0; x < size; x++)
                     {
-                        int dx = Mathf.Abs(x - c), dy = Mathf.Abs(y - c);
-                        float r = Mathf.Sqrt(dx * dx + dy * dy) / c;
-                        bool thick = (dx <= 3 && dy > 48) || (dy <= 3 && dx > 48);
-                        bool thin = (dx <= 0 && dy <= 48) || (dy <= 0 && dx <= 48);
-                        bool ring = r > 0.96f;
-                        byte a = (byte)(thick || thin ? 235 : ring ? 255 : 0);
-                        px[y * size + x] = new Color32(8, 8, 8, a);
+                        float ax = Mathf.Abs(x + 0.5f - c), ay = Mathf.Abs(y + 0.5f - c);
+                        float r = Mathf.Sqrt(ax * ax + ay * ay);
+                        float inner = 48f;
+                        float posts = Mathf.Max(Cover(ax, 3.5f) * Mathf.Clamp01(ay - inner + 0.5f), Cover(ay, 3.5f) * Mathf.Clamp01(ax - inner + 0.5f));
+                        float cross = Mathf.Max(Cover(ax, 0.8f) * Mathf.Clamp01(inner + 0.5f - ay), Cover(ay, 0.8f) * Mathf.Clamp01(inner + 0.5f - ax));
+                        float ring = Mathf.Clamp01(r - 0.96f * c + 0.5f);
+                        float a = Mathf.Max(Mathf.Max(posts, cross) * 0.92f, ring);
+                        px[y * size + x] = new Color32(8, 8, 8, (byte)(255f * a));
                     }
                 }
                 _reticle.SetPixels32(px);
-                _reticle.Apply(false, true);
+                _reticle.Apply(true, true);
             }
         }
+
+        /// <summary>How much of a texel a line of half-width <paramref name="half"/> covers at <paramref name="dist"/> texels from its middle.</summary>
+        private static float Cover(float dist, float half) => Mathf.Clamp01(half + 0.5f - dist);
 
         /// <summary>Shows or hides the lens (a magnifier's lens only while its sight mode is selected).</summary>
         public void SetShown(bool shown)
@@ -209,6 +221,15 @@ namespace RavenfieldVR.Weapons
             {
                 _texture.Release();
                 Object.Destroy(_texture);
+            }
+            // Made for this lens: they went on living after it (two per draw of a scoped gun, and per magnifier lens).
+            if (_lensMaterial != null)
+            {
+                Object.Destroy(_lensMaterial);
+            }
+            if (_reticleMaterial != null)
+            {
+                Object.Destroy(_reticleMaterial);
             }
         }
     }

@@ -961,3 +961,61 @@ the case tinks, holster assignment once per frame, cases while running). By kind
 Every round passed the compile check (whole `src/` against the game's assemblies, no new diagnostics). None was
 run in the game: the frame-time and allocation measurement under task 33, the self-test and the VR autotest are the
 real verification, and the new report lines say what to look for.
+
+---
+
+## Second pass: improve 20 (toward an AAA-quality mod), then bug hunt 10
+
+Asked for after tasks 112 and 113 (Tasks.md 123 and 124). Same rules as before: each round names the number it
+changes. Nothing can run in the game here, so the numbers are counts, simulations from the C# formulas, or the
+compile check. Baseline: commit a5b3596; the compile check at the 5 known API errors and 0 warnings (`-warn:4`);
+the per-frame allocation sweep of the runtime code finds no allocating calls on per-frame paths (the earlier
+performance pass got them).
+
+### Round 1 (robustness, memory): materials that outlived their objects (`src/Weapons/VRScope.cs`, `src/Weapons/GrenadeDud.cs`)
+
+- Before: every scope lens built a lens and a reticle material and never destroyed them, so 2 leaked per draw of a
+  scoped gun (and per magnifier lens shown). A grenade without a model of its own got a new material per dud thrown,
+  also never freed. A scan of every `new Material` in the runtime code found no others.
+- After: the scope destroys both with its lens, and the plain dud shares one material. Materials left behind:
+  2 per scoped draw and 1 per such dud, now 0.
+- Kept.
+
+### Round 2 (visual quality): the scope reticle no longer shimmers (`src/Weapons/VRScope.cs`)
+
+- Before: the duplex reticle had hard one-texel lines and no mipmaps. The lens shows it about 1.5 times smaller than
+  it is drawn, so as the gun moved the thin cross flickered between faint and dark.
+- After: the lines are drawn with soft (coverage) edges, the texture has mipmaps and trilinear filtering, and the
+  design is unchanged.
+- Simulated (`reticlesim.py`: a cross-section through the thin line as the screen samples it at 20 sub-pixel
+  positions):
+
+  | Shown smaller by | Brightness changes, before | After |
+  | --- | --- | --- |
+  | 1.3× | 0.59 | 0.06 |
+  | 1.5× | 0.65 | 0.07 |
+  | 1.8× | 0.79 | 0.04 |
+
+  Brightness is a fraction of full brightness. The average darkness stays about the same.
+- Kept.
+
+Rejected on analysis (not counted): mipmaps on the scope picture. Simulated (`scopesim.py`), they cut its shimmer by
+28-57% (the lens shows the 768-pixel picture about 1.5 times smaller). But Unity's documentation allows mipmaps only
+on power-of-two render textures, and 768 is not one. Changing the size changes the GPU cost in a way that cannot be
+measured here, so it is left as an idea for the headset (`ScopeResolution = 512` matches the lens about 1:1).
+
+### Round 3 (UI precision): the menu laser holds steady (`src/UI/UISystem.cs`)
+
+- Before: the laser followed the controller exactly. Natural hand tremor and tracking noise moved its point on a
+  panel 2 m away by about 5 mm, so small buttons, sliders and list rows were fiddly, and pulling the trigger nudged it.
+- After: the pointing direction goes through a One-Euro filter. It holds firm while the hand is still and lets go at
+  once when the hand moves. It works in rig space (turning does not drag it), and starts fresh for a new pointing hand
+  or after a pause. The drawn laser and the clicks use the same direction.
+- Simulated (`lasersim.py`: tremor at 8-12 Hz plus tracking noise, 90 Hz, panel at 2 m). Parameters were picked from
+  seven settings:
+
+  | | Unfiltered | Steadied (1 Hz, 1.0) |
+  | --- | --- | --- |
+  | Jitter while pointing at a button (mm, RMS) | 4.7 | 1.1 |
+  | Behind while sweeping across at 60°/s (mm) | 3.8 | 5.4 |
+- Kept.

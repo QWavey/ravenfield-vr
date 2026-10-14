@@ -179,10 +179,16 @@ namespace RavenfieldVR.Weapons
             Object.DestroyImmediate(body.GetComponent<Collider>());
             body.transform.SetParent(root, false);
             body.transform.localScale = new Vector3(0.055f, 0.04f, 0.055f);
-            Shader s = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
-            body.GetComponent<Renderer>().sharedMaterial = new Material(s) { color = new Color(0.27f, 0.3f, 0.21f) };
+            if (_procedural == null)
+            {
+                Shader s = Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse");
+                _procedural = new Material(s) { name = "RavenfieldVR dud", color = new Color(0.27f, 0.3f, 0.21f) };
+            }
+            body.GetComponent<Renderer>().sharedMaterial = _procedural; // one for all (a new one per dud was never freed)
             return new Bounds(Vector3.zero, new Vector3(0.055f, 0.08f, 0.055f));
         }
+
+        private static Material _procedural;
 
         private float DistanceTo(Vector3 point)
         {
