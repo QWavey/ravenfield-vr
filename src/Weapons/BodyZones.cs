@@ -7,10 +7,11 @@ using UnityEngine;
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
-    /// Body-relative interaction points derived from the head pose and calibrated height: holsters
-    /// (long guns over the shoulders, handguns on the hips, gear on the chest, by what each weapon is rather than
-    /// which loadout slot it came in), the magazine pouch, the night-vision touch point beside the head and the
-    /// look-at-your-wrist gesture.
+    /// Body-relative interaction points derived from the head pose and calibrated height: holsters (by what each weapon is
+    /// rather than which loadout slot it came in), the magazine pouch, the night-vision touch point beside the head and the
+    /// look-at-your-wrist gesture. Two layouts (<see cref="HolsterLayout"/>): the Boneworks one (long guns behind the
+    /// shoulders, pistols under the arms, gear at the small of the back and on the belt, the pouch on the side of the hip)
+    /// and the mod's earlier one (pistols on the hips, gear on the chest, the pouch at the front of the belt).
     /// The torso yaw lags the head so glancing sideways doesn't swing the holsters away.
     /// </summary>
     public sealed class BodyZones
@@ -20,6 +21,10 @@ namespace RavenfieldVR.Weapons
         private bool _hasYaw;
 
         public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide, Belt;
+        /// <summary>Boneworks layout: under each arm (pistols), the small of the back and the belt's front (gear).</summary>
+        public Vector3 DomUnderarm, OffUnderarm, LowerBack, DomBeltFront, OffBeltFront;
+
+        internal static bool Boneworks => VRConfig.Holsters == null || VRConfig.Holsters.Value == HolsterLayout.Boneworks;
         public Vector3 TorsoForward, TorsoRight;
 
         public const float HolsterRadius = 0.2f;
@@ -94,14 +99,24 @@ namespace RavenfieldVR.Weapons
             DomChest = Chest + TorsoRight * (0.13f * side) - Vector3.up * 0.08f;
             HeadSide = head.position - head.right * (0.11f * side) + head.up * 0.02f;
             Belt = belt;
+            // Boneworks: pistols high under the arms (against the ribs, just below the armpit), gear at the small of the
+            // back and at the front of the belt.
+            Vector3 underarm = neck - Vector3.up * 0.28f + TorsoForward * 0.02f;
+            DomUnderarm = underarm + TorsoRight * (0.17f * side);
+            OffUnderarm = underarm - TorsoRight * (0.17f * side);
+            LowerBack = belt - TorsoForward * 0.29f;
+            DomBeltFront = belt + TorsoRight * (0.09f * side);
+            OffBeltFront = belt - TorsoRight * (0.09f * side);
+            // The side of the hip at belt height (the Boneworks belt pouch), a little ahead of the hip bone.
+            Vector3 hipSide = belt - TorsoForward * 0.1f;
 
             switch (VRConfig.Pouch.Value)
             {
                 // Each a hand's width from the nearest holster spot, so the holstered weapon and the pouch never overlap.
-                case PouchLocation.DominantHip: Pouch = belt + TorsoRight * (0.1f * side); break;
+                case PouchLocation.DominantHip: Pouch = Boneworks ? hipSide + TorsoRight * (0.17f * side) : belt + TorsoRight * (0.1f * side); break;
                 case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
                 case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
-                default: Pouch = belt - TorsoRight * (0.1f * side); break; // front of the belt, off-hand side
+                default: Pouch = Boneworks ? hipSide - TorsoRight * (0.17f * side) : belt - TorsoRight * (0.1f * side); break; // off-hand side
             }
         }
 
@@ -131,23 +146,31 @@ namespace RavenfieldVR.Weapons
 
         // ---- holsters ---------------------------------------------------------------------------------
 
-        private enum Spot { BackDominant, BackOff, DominantHip, OffHip, Chest, OffChest, DominantChest }
+        /// <summary>
+        /// Holster spots. Classic layout: the two shoulders, the two hips (handguns), the middle and sides of the chest
+        /// (gear). Boneworks layout: the two shoulders, under the two arms (handguns), the small of the back and the two
+        /// sides of the belt's front (gear).
+        /// </summary>
+        private enum Spot { BackDominant, BackOff, HandgunDominant, HandgunOff, Gear, GearOff, GearDominant }
 
         private enum Carry { Long, Hand, Gear }
 
         private const int SpotCount = 7;
 
         // Where each kind of weapon is carried, best place first; a full place passes it on to the next.
-        private static readonly Spot[] LongSpots = { Spot.BackDominant, Spot.BackOff, Spot.Chest, Spot.OffChest, Spot.DominantChest, Spot.DominantHip, Spot.OffHip };
-        private static readonly Spot[] HandSpots = { Spot.DominantHip, Spot.OffHip, Spot.DominantChest, Spot.OffChest, Spot.Chest, Spot.BackOff, Spot.BackDominant };
-        private static readonly Spot[] GearSpots = { Spot.Chest, Spot.OffChest, Spot.DominantChest, Spot.OffHip, Spot.DominantHip, Spot.BackOff, Spot.BackDominant };
+        private static readonly Spot[] LongSpots = { Spot.BackDominant, Spot.BackOff, Spot.Gear, Spot.GearOff, Spot.GearDominant, Spot.HandgunDominant, Spot.HandgunOff };
+        private static readonly Spot[] HandSpots = { Spot.HandgunDominant, Spot.HandgunOff, Spot.GearDominant, Spot.GearOff, Spot.Gear, Spot.BackOff, Spot.BackDominant };
+        private static readonly Spot[] GearSpots = { Spot.Gear, Spot.GearOff, Spot.GearDominant, Spot.HandgunOff, Spot.HandgunDominant, Spot.BackOff, Spot.BackDominant };
+        // Boneworks: a second gear item goes on the belt at the weapon-hand side, away from the pouch on the other hip.
+        private static readonly Spot[] GearSpotsBoneworks = { Spot.Gear, Spot.GearDominant, Spot.GearOff, Spot.HandgunOff, Spot.HandgunDominant, Spot.BackOff, Spot.BackDominant };
 
         // Loadout slot carried at each spot (-1 = empty), rebuilt from the player's weapons when asked.
         private readonly int[] _spotSlot = new int[SpotCount];
 
         /// <summary>
         /// Loadout slot whose holster is under <paramref name="point"/>, or -1. Rifles, launchers and other long weapons
-        /// hang over the shoulders (dominant side first), handguns sit on the hips, grenades and gear on the chest.
+        /// hang behind the shoulders (dominant side first); handguns sit under the arms (Boneworks layout) or on the hips;
+        /// grenades and gear at the small of the back and on the belt, or on the chest.
         /// </summary>
         public int HolsterAt(Vector3 point, bool includeChest = true)
         {
@@ -183,7 +206,8 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                Spot[] order = CarryOf(w) == Carry.Long ? LongSpots : CarryOf(w) == Carry.Hand ? HandSpots : GearSpots;
+                Carry carry = CarryOf(w);
+                Spot[] order = carry == Carry.Long ? LongSpots : carry == Carry.Hand ? HandSpots : Boneworks ? GearSpotsBoneworks : GearSpots;
                 foreach (Spot s in order)
                 {
                     if (_spotSlot[(int)s] < 0)
@@ -215,9 +239,13 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static bool IsChest(Spot s) => s == Spot.Chest || s == Spot.OffChest || s == Spot.DominantChest;
+        /// <summary>
+        /// In front of the chest, where a shouldered rifle's grip hand is (the classic layout's gear spots): left out while
+        /// aiming. The Boneworks layout has nothing there.
+        /// </summary>
+        private static bool IsChest(Spot s) => !Boneworks && (s == Spot.Gear || s == Spot.GearOff || s == Spot.GearDominant);
 
-        public enum SpotKind { Back, Hip, Chest }
+        public enum SpotKind { Back, Hip, Chest, Underarm, LowerBack, Belt }
 
         public const int Spots = SpotCount;
 
@@ -240,11 +268,13 @@ namespace RavenfieldVR.Weapons
                 case Spot.BackDominant:
                 case Spot.BackOff:
                     return SpotKind.Back;
-                case Spot.DominantHip:
-                case Spot.OffHip:
-                    return SpotKind.Hip;
+                case Spot.HandgunDominant:
+                case Spot.HandgunOff:
+                    return Boneworks ? SpotKind.Underarm : SpotKind.Hip;
+                case Spot.Gear:
+                    return Boneworks ? SpotKind.LowerBack : SpotKind.Chest;
                 default:
-                    return SpotKind.Chest;
+                    return Boneworks ? SpotKind.Belt : SpotKind.Chest;
             }
         }
 
@@ -255,12 +285,12 @@ namespace RavenfieldVR.Weapons
             switch ((Spot)spot)
             {
                 case Spot.BackDominant:
-                case Spot.DominantHip:
-                case Spot.DominantChest:
+                case Spot.HandgunDominant:
+                case Spot.GearDominant:
                     return dom;
                 case Spot.BackOff:
-                case Spot.OffHip:
-                case Spot.OffChest:
+                case Spot.HandgunOff:
+                case Spot.GearOff:
                     return -dom;
                 default:
                     return 0f;
@@ -269,14 +299,27 @@ namespace RavenfieldVR.Weapons
 
         private Vector3 Position(Spot s)
         {
+            if (Boneworks)
+            {
+                switch (s)
+                {
+                    case Spot.BackDominant: return BackShoulder;
+                    case Spot.BackOff: return OffBackShoulder;
+                    case Spot.HandgunDominant: return DomUnderarm;
+                    case Spot.HandgunOff: return OffUnderarm;
+                    case Spot.Gear: return LowerBack;
+                    case Spot.GearOff: return OffBeltFront;
+                    default: return DomBeltFront;
+                }
+            }
             switch (s)
             {
                 case Spot.BackDominant: return BackShoulder;
                 case Spot.BackOff: return OffBackShoulder;
-                case Spot.DominantHip: return DomHip;
-                case Spot.OffHip: return OffHip + TorsoForward * 0.06f; // cross-draw, ahead of the hip
-                case Spot.Chest: return Chest;
-                case Spot.OffChest: return OffChest;
+                case Spot.HandgunDominant: return DomHip;
+                case Spot.HandgunOff: return OffHip + TorsoForward * 0.06f; // cross-draw, ahead of the hip
+                case Spot.Gear: return Chest;
+                case Spot.GearOff: return OffChest;
                 default: return DomChest;
             }
         }

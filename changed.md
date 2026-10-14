@@ -55,3 +55,87 @@ this pass's.
 
 Check at home: report lines `mag kick, fast strike / slow push / tilted 45 deg: old magazine knocked out ... seated`
 and `mag kick, passing beside the gun: nothing knocked out`; in the headset, kicks on the M4 and AK slow and fast.
+
+Follow-up from your note (M4s): the kick rule (`WeaponAnalyzer.MagKickRule`) could switch the kick off on rifles. A
+weapon whose grip position was only estimated (no right-hand bone) could have its "grip" land on the magazine well,
+which read as "magazine in the grip"; and a rifle whose support hand holds the magazine well is marked as held like a
+pistol, which also switched the kick off. Now only a measured grip can say "magazine in the grip", and handguns are
+decided by their slot (secondaries), not by where the support hand sits. The reason is written to the weapon report
+(`mag kick off (handgun / magazine in the grip / deep well)`).
+
+## Task 99: black box / shadow under RPGs
+
+`src/Weapons/WeaponAnalyzer.cs`, `src/Weapons/PouchDisplay.cs`, `src/Weapons/HeldWeapon.cs`, `src/Core/AutoTest.cs`.
+
+The analysis took the RPG-7's `Reload_Cube` (80 cm) for the rocket: a helper the mod's reload animation only shows
+while reloading. The pouch shows a copy of "what the gun feeds from" at your belt, so a full-size copy of that cube hung
+there, casting a dark square shadow on the ground under you (your description: a black cube shadow under yourself).
+- Magazine/rocket search: a part that is hidden at rest (inactive, scaled to nothing, or only shadow-casting renderers)
+  is never taken, nor are sights that come off in the reload (the Javelin's command unit "Javelin Scope", 240 cm) or
+  anything over 1.6 m. A part named like a magazine but hidden at rest is not used either. The report notes
+  `'...' moves in the reload but is hidden at rest (helper, not the magazine)`.
+- The pouch display casts no shadow at all (it is a picture of what you can take, not an object).
+- Renderers of the held weapon that only cast a shadow (`ShadowsOnly`) are switched off while it is held (given back
+  when it is put away).
+- Autotest: every launcher is in the quick run and pictured, plus a picture looking down at the ground and the pouch
+  (`weapon-NNN-<name>-looking-down`), and the report line `launcher: rocket from <method>, <size> cm`.
+
+Check at home: the self-test report for RPG-7 / RPG-7V, SMAW, Javelin, Carl Gustav, Panzerfaust (which part is the
+rocket now), and the looking-down pictures; in the headset, no shadow under you with the RPG.
+
+## Task 100: the wrench (and tools) too close to the face, holsters laid out like Boneworks (new task 116)
+
+You clarified that the wrench is too near the face while it is holstered, not in the hand. Tools were carried upright
+in the middle of the chest, about 34 cm under the eyes, so a 30-40 cm tool stood up into view. Following your request,
+the holsters now copy Boneworks (researched from Boneworks/Bonelab mod sources and player guides: long guns behind the
+shoulders, pistols high under the arms, small items at the small of the back, the ammo pouch on the belt at the side of
+the off-hand hip, slots following the torso rather than head pitch).
+
+`src/Core/VRConfig.cs` (new `HolsterLayout`, default `Boneworks`), `src/Weapons/BodyZones.cs`,
+`src/Weapons/HolsterDisplay.cs`, `src/UI/VRSettingsPanel.cs` ("Holsters: Boneworks / Classic" on the panel).
+
+Boneworks layout (new default):
+- Rifles, launchers, long melee: behind the shoulders (weapon-hand side first), shown hanging down the back with the
+  grip at the shoulder and the muzzle low (before: muzzle up beside the head).
+- Pistols and small guns: under the arms, just below the armpit against the ribs (weapon-hand side first), shown
+  muzzle-down along the ribs with the grip forward.
+- Gear (grenades, tools, kits): the first at the small of the back (lying across it, handle toward the weapon hand),
+  the next on the belt's front at the weapon-hand side, then the other side, hanging handle-up.
+- Ammo pouch ("Hip"): on the belt at the side of the off-hand hip ("Other hip": the weapon-hand side).
+- Nothing is carried in front of the chest any more, so re-gripping a shouldered rifle never touches a holster.
+
+Classic layout (the earlier one, still selectable): unchanged, except that gear on the chest now lies diagonally
+across it (head toward the weapon-hand shoulder) and 7 cm lower, so no tool stands up into view.
+
+Holsters are still taken with the weapon hand and the pouch with the other hand, as before.
+
+Check at home: the body pictures of the autotest (`body-looking-down`, `body-from-behind`, `body-from-the-side`), and
+in the headset whether the spots are easy to reach. The spot offsets are in `BodyZones.ComputeSpots` if something
+needs moving (underarm: 28 cm under the neck pivot, 17 cm to the side).
+
+## Task 114 (new, from your note): things lying on the ground float away
+
+`src/Weapons/GunCollider.cs`, `src/Weapons/WeaponDrops.cs`, `src/Weapons/MagazineProp.cs`.
+
+Two causes found in the code:
+- The physics stand-in of the gun in your hand chases the hand by velocity and collides with loose props (on purpose:
+  dropped magazines bounce off the gun). It shoved anything it touched with effectively unlimited force: bending down
+  with the gun low next to a weapon or magazine you wanted to pick up pushed it away, and when the stand-in jumped back
+  to the gun (held back 30 cm) it could land inside a lying item and pop it out. Now weapons and magazines that have
+  been lying still for a moment are ignored by the stand-in; anything falling or flying (faster than 0.8 m/s) still
+  bounces off the gun.
+- A soldier's weapon is created inside his dying ragdoll; the bodies around it were only ignored from the next frame,
+  after a physics step had already pushed it out of them (it skidded or floated off). Drops and dropped magazines now
+  ignore the bodies around them before their first physics step.
+
+Check at home: the autotest's ground checks (`... on the ground: still`, walker checks); in the headset, pick up
+weapons and magazines near your feet with the gun held low.
+
+## Task 115 (new, from your note): pistol magazines blocked by the controllers
+
+`src/Weapons/ReloadInteractions.cs` (`UpdateHeldProp`, `WellInGrip`).
+
+A pistol's magazine well is in its grip, where your gun hand's controller is, so the two controllers meet before the
+magazine is all the way in. For wells inside the grip (pistols, magazine-in-grip designs) a magazine that is lined up
+on the rail and at least 45% in is now drawn home the rest of the way (about 0.06 s, a light click in the hand) and
+seats, even if you let go at that moment. Rifle magazines still need the full push.

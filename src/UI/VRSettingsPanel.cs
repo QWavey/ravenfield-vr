@@ -76,6 +76,7 @@ namespace RavenfieldVR.UI
             Toggle("Two-handed aiming", VRConfig.TwoHandedAiming);
             Choice("Hands", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
             Toggle("Holster switching", VRConfig.HolsterSwitching);
+            Choice("Holsters", VRConfig.Holsters, new[] { HolsterLayout.Boneworks, HolsterLayout.Classic }, new[] { "Boneworks", "Classic" });
             Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
             Toggle("Grenade pins", VRConfig.GrenadePins);
             Toggle("Lay MG belts by hand", VRConfig.BeltByHand);

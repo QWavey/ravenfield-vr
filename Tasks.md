@@ -113,6 +113,9 @@
 111. [ ] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
 112. [ ] /bug-hunt 20 (after 98-111)
 113. [ ] /improve 20 (after the bug hunt); make everything smooth
+114. [ ] Weapons and magazines lying on the ground sometimes float away
+115. [ ] Pistol magazines do not go all the way in: the two controllers meet under the grip
+116. [ ] Holsters and the ammo pouch where Boneworks has them (long guns behind the shoulders, pistols under the arms, pouch on the hip)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -349,3 +352,9 @@ For 111. Boneworks poses each hand for what it holds (grip-specific hand poses).
 For 112. Bug hunt, 20 rounds, a different area each round, after 98-111.
 
 For 113. Improve, 20 measured rounds, after the bug hunt.
+
+For 114. Reported 2026-10-14: pickupable things on the ground (dropped weapons, magazines) sometimes float or slide away. The held gun's physics stand-in shoves whatever it touches, and a bot's weapon starts inside its ragdoll. Done when: lying weapons and magazines stay put with the gun held low beside them in the headset, and the autotest's ground and walker checks report them still.
+
+For 115. Reported 2026-10-14: a pistol magazine often cannot be pushed all the way in, because the off hand's controller meets the gun hand's controller under the grip. Done when: pistol magazines seat in the headset without the controllers having to touch.
+
+For 116. Reported 2026-10-14 (with 100: the holstered wrench and other tools stood up in front of the face): carry weapons where Boneworks does: long guns behind the shoulders, pistols under the arms, small items at the small of the back and on the belt, the ammo pouch on the belt at the side of the hip, keeping the earlier layout as an option. Done when: the body pictures show the new layout and every holster and the pouch are easy to reach in the headset.

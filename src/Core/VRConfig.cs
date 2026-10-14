@@ -24,6 +24,8 @@ namespace RavenfieldVR.Core
     /// </summary>
     public enum HandsMode { VRHands, WeaponArms }
     public enum GloveStyle { Tactical, Simple }
+    /// <summary>Where weapons are carried on the body.</summary>
+    public enum HolsterLayout { Boneworks, Classic }
 
     public static class VRConfig
     {
@@ -91,6 +93,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> ReleaseDropsWeapon;
         public static ConfigEntry<float> WeaponReturnSeconds;
         public static ConfigEntry<bool> ShowHolsters;
+        public static ConfigEntry<HolsterLayout> Holsters;
         public static ConfigEntry<bool> MagazineReadout;
         public static ConfigEntry<float> ThrowVelocityMultiplier;
         public static ConfigEntry<bool> GrenadePins;
@@ -232,7 +235,11 @@ namespace RavenfieldVR.Core
             MagazineReadout = cfg.Bind("UI", "MagazineReadout", true,
                 "Look at the top of a magazine in your hand (or one lying within reach) to see how many rounds it holds.");
             ShowHolsters = cfg.Bind("Weapons", "ShowHolsters", true,
-                "Show the weapons you carry where they hang on your body: rifles behind the shoulders, pistols on the hips, gear on the chest.");
+                "Show the weapons you carry where they hang on your body (see HolsterLayout).");
+            Holsters = cfg.Bind("Weapons", "HolsterLayout", HolsterLayout.Boneworks,
+                "Boneworks: long guns behind the shoulders (grip up, muzzle down the back), pistols under the arms, gear at the small " +
+                "of the back and on the belt, the ammo pouch on the side of the hip. Classic: long guns muzzle up behind the shoulders, " +
+                "pistols on the hips, gear on the chest, the pouch at the front of the belt.");
             ReleaseDropsWeapon = cfg.Bind("Weapons", "ReleaseDropsWeapon", true,
                 "With GripToHoldWeapon: letting go of a weapon away from your body drops it where you are (pick it up again with either hand); letting go at your body or a holster puts it away.");
             WeaponReturnSeconds = cfg.Bind("Weapons", "WeaponReturnSeconds", 8f,

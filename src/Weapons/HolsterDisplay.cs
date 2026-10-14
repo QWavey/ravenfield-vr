@@ -145,17 +145,26 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Long guns hang behind the shoulder, muzzle up and a little out, sights to the back; pistols point down with the
-        /// grip to the rear; gear stands upright (barrel and top from the model's measured frame).
+        /// Boneworks layout: long guns hang down the back from the shoulder (grip up where the hand reaches over, muzzle
+        /// low), pistols sit muzzle-down along the ribs under the arm with the grip forward, gear lies across the small of
+        /// the back or hangs head-down from the belt. Classic layout: long guns muzzle up behind the shoulder, pistols
+        /// muzzle-down on the hips, gear across the chest. Barrel and top come from the model's measured frame.
         /// </summary>
         private static void Place(Shown s, BodyZones zones, int spot)
         {
             Vector3 fwd = zones.TorsoForward, right = zones.TorsoRight, up = Vector3.up;
             float side = zones.SideOf(spot);
+            float dom = VRConfig.LeftHanded ? -1f : 1f;
             Vector3 at = zones.SpotPosition(spot);
             Vector3 barrel, top, centre;
             switch (zones.KindOf(spot))
             {
+                case BodyZones.SpotKind.Back when BodyZones.Boneworks:
+                    barrel = (-up * 0.93f + right * (0.22f * side) - fwd * 0.12f).normalized;
+                    top = fwd; // sights against the back, the grip sticking out behind the shoulder for the hand reaching over
+                    // The grip at the shoulder, the rest of the gun hanging down the back.
+                    centre = at + barrel * Mathf.Min(0.2f, s.Length * 0.22f) - fwd * 0.04f;
+                    break;
                 case BodyZones.SpotKind.Back:
                     barrel = (up * 0.93f + right * (0.28f * side) - fwd * 0.12f).normalized;
                     top = -fwd;
@@ -168,10 +177,30 @@ namespace RavenfieldVR.Weapons
                     top = fwd;
                     centre = at + right * (0.05f * side) - up * 0.04f;
                     break;
+                case BodyZones.SpotKind.Underarm:
+                    // A shoulder holster: muzzle down and back along the ribs, grip forward under the arm.
+                    barrel = (-up * 0.8f - fwd * 0.6f).normalized;
+                    top = (up * 0.6f - fwd * 0.8f).normalized;
+                    centre = at + right * (0.035f * side);
+                    break;
+                case BodyZones.SpotKind.LowerBack:
+                    // Across the small of the back, the handle toward the weapon hand.
+                    barrel = -right * dom;
+                    top = up;
+                    centre = at - fwd * 0.02f;
+                    break;
+                case BodyZones.SpotKind.Belt:
+                    // Hanging from the belt, handle up, head (or the grenade's body) down.
+                    barrel = (-up + fwd * 0.15f).normalized;
+                    top = fwd;
+                    centre = at - up * Mathf.Min(0.12f, s.Length * 0.3f) + fwd * 0.03f;
+                    break;
                 default:
-                    barrel = up;
+                    // Across the chest (classic layout), head toward the weapon-hand shoulder, kept low: a tool standing
+                    // upright there reached up into the line of sight.
+                    barrel = (up * 0.45f + right * (0.89f * (side != 0f ? side : dom))).normalized;
                     top = -fwd;
-                    centre = at + fwd * 0.06f;
+                    centre = at + fwd * 0.06f - up * 0.07f;
                     break;
             }
             Quaternion rot = Quaternion.LookRotation(barrel, top) * Quaternion.Inverse(s.Frame);
