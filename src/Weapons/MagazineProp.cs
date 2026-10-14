@@ -592,7 +592,10 @@ namespace RavenfieldVR.Weapons
             RigidPose palm = hand.Palm;
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
-            float gripAt = Kind == PropKind.Magazine ? 0.33f : 0.5f; // shells and rockets are pinched in the middle
+            // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
+            // pinky, which lay flat along it and stuck out straight (the "pinky bug"); now the pinky curls toward the base
+            // plate in line with the others (tools/hands/grip_check.py). Shells and rockets are pinched in the middle.
+            float gripAt = Kind == PropKind.Magazine ? 0.15f : 0.5f;
             Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
             Vector3 pos = palm.position - rot * held;
             // Resting against the palm, not half inside it. The grip point (the fist hollow) lies at the palm's skin, so a

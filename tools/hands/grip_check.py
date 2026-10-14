@@ -374,11 +374,12 @@ def measure(hand, obj):
 
 def report(name, hand, push, obj):
     buried, samples, touching, tips = measure(hand, obj)
+    pinky = float(np.mean(hand.joint[4]))
     fingers = sum(touching[1:])
     names = "TIMRL"
     gaps = " ".join(f"{names[f]}{tips[f] * 1000:+.0f}" for f in range(5))
     print(f"{name:34s} glove moved {abs(push) * 100:4.1f} cm | touching: thumb {'yes' if touching[0] else 'no '}, fingers {fingers}/4 "
-          f"| buried {buried}/{samples} | tip gaps mm {gaps}")
+          f"| buried {buried}/{samples} | pinky curl {pinky:.2f} | tip gaps mm {gaps}")
     return dict(push=push, buried=buried, samples=samples, fingers=fingers, thumb=touching[0], tips=tips)
 
 
@@ -644,10 +645,11 @@ def main():
         picture(name, hand, obj)
         return report(name, hand, push, obj)
 
-    run("rifle magazine (STANAG)", lambda: mag("rifle magazine (STANAG)", "RifleMagazine", 0.064, 0.023, 0.18, 0.33))
-    run("pistol magazine", lambda: mag("pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.33))
-    run("AK magazine", lambda: mag("AK magazine", "RifleMagazine", 0.07, 0.026, 0.2, 0.33))
-    run("MG box", lambda: mag("MG box", "BoxMagazine", 0.1, 0.08, 0.12, 0.33))
+    grip_at = 0.33 if "--before" in sys.argv else 0.15
+    run("rifle magazine (STANAG)", lambda: mag("rifle magazine (STANAG)", "RifleMagazine", 0.064, 0.023, 0.18, grip_at))
+    run("pistol magazine", lambda: mag("pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, grip_at))
+    run("AK magazine", lambda: mag("AK magazine", "RifleMagazine", 0.07, 0.026, 0.2, grip_at))
+    run("MG box", lambda: mag("MG box", "BoxMagazine", 0.1, 0.08, 0.12, grip_at))
     save_pictures()
     return results
 

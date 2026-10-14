@@ -1489,3 +1489,17 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
   nobody grabs one with the full hand.
 - Kept. Still open: the MG box (the thumb lies inside it: the box is wider than the hand's grasp), and the pinky
   (round 3).
+
+### Round 3 (feel, your report): the pinky curls instead of sticking out (`src/Weapons/MagazineProp.cs`)
+
+- Before: a magazine was held a third of the way up from its base plate, so its side ran down past the pinky. Curling
+  would have pushed the pinky into that side, so it stopped almost straight (0.04 curl) and stuck out, angled away from
+  the ring finger.
+- Tried and dropped (not counted): arching a finger stopped this way (knuckle back, middle and tip in). It turned the
+  pinky into a hook that looked broken.
+- After: a magazine is held by its lower end, 15% up from the base plate. The pinky curls toward the base plate, in
+  line with the ring finger. A sweep of hold heights (0.33, 0.25, 0.2, 0.15, 0.1) showed the pinky curling more the
+  lower the hold, with nothing buried and every finger touching at each step.
+- Measured (grip_check.py), pinky curl: **STANAG 0.04 → 0.31, AK 0.04 → 0.28**; buried points still 0, all fingers
+  and the thumb touching.
+- Kept.
