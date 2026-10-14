@@ -421,3 +421,23 @@ The tracked fingers still close further than a pose, contact closing still shape
 weapons with their own authored hand pose still use it for the gun hand and the support hand (the library is what they
 fall back to, and what everything else uses). The flat self-test now also writes `BepInEx/RavenfieldVR-hand-poses.png`
 (every pose on a right glove with its name) and the report line `hand poses ... 30`; `-rfvr-handshots` writes it too.
+
+## Task 37: the weapon's own arms (option next to the VR hands)
+
+`src/Weapons/ArmIK.cs`, `src/Core/VRConfig.cs` (`HandsNow`, `TestHands`), `src/Weapons/HeldWeapon.cs`,
+`src/Core/AutoTest.cs` (`WeaponArmsCheck`).
+
+`Hands = WeaponArms` (settings panel "Hands: Weapon's arms") already re-rooted both of the weapon's arms at shoulders on
+your body, kept the gun hand on its authored grip, put the off hand on the authored support grip while it holds the
+gun and on the controller otherwise, with two-bone IK, elbow poles and a shoulder that slides when out of reach. What
+the task still asked for, now added:
+- The off arm eases between the support grip and the controller over a tenth of a second (it snapped).
+- Working a bolt, handle or cover with the off hand, the weapon's own hand settles onto it as the VR glove does (the
+  grasp anchor, up to 5 cm).
+- The solve reports how far each hand bone ended from its target and whether a shoulder had to slide.
+- Autotest: on the first rifle with both arm chains, the arms mode is switched on in memory only (never saved), the
+  weapon drawn again, the off hand put on the handguard and then let go; pictures `weapon-arms-*-on-the-handguard` /
+  `-free-hand`; line `weapon's arms: gun hand x cm off its grip, off hand y cm off the handguard and z cm off the
+  controller` (problem above 2 cm), metrics.
+
+Known limit (unchanged): for left-handed play the gun arm is still the model's right arm (meshes are not mirrored).

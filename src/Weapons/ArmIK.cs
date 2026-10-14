@@ -8,8 +8,9 @@ namespace RavenfieldVR.Weapons
     /// <summary>
     /// The weapon's own first-person arms (its gloves, sleeves and authored finger poses) driven by the VR hands:
     /// both arms are re-rooted at shoulders on the player's body; the gun hand keeps its authored grip on the weapon;
-    /// the off hand takes the authored foregrip pose while it holds the gun and follows the controller otherwise.
-    /// Two-bone IK per arm, elbow bent toward a natural pole; an out-of-reach target slides the shoulder toward it.
+    /// the off hand takes the authored foregrip pose while it holds the gun and follows the controller otherwise (settled
+    /// onto a bolt, handle or cover it works, as the VR glove is), easing between the two. Two-bone IK per arm, elbow
+    /// bent toward a natural pole; an out-of-reach target slides the shoulder toward it.
     /// </summary>
     internal sealed class ArmIK
     {
@@ -23,6 +24,13 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _sys;
         private readonly HeldWeapon _held;
         private readonly Arm _right, _left;
+        /// <summary>How far the off arm has gone over to the weapon's support grip (0: the controller, 1: the grip).</summary>
+        private float _onGunBlend = -1f;
+
+        /// <summary>Self-test: after the last solve, how far (m) each hand bone ended from its target, and whether a shoulder had to slide.</summary>
+        internal float GunHandError { get; private set; } = -1f;
+        internal float OffHandError { get; private set; } = -1f;
+        internal bool Stretched { get; private set; }
 
         public bool Active => _right.Valid || _left.Valid;
 
@@ -59,36 +67,42 @@ namespace RavenfieldVR.Weapons
             Vector3 offShoulder = neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side);
             Vector3 down = Vector3.down;
 
+            Stretched = false;
             if (_right.Valid)
             {
                 // Gun hand: exactly where its animation holds the grip.
                 RigidPose target = RigidPose.Of(_right.Hand);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
+                GunHandError = Vector3.Distance(_right.Hand.position, target.position);
             }
             if (_left.Valid)
             {
                 VRHand off = _sys.Rig.Off;
-                RigidPose target;
-                bool onGun = off.Role == HandRole.Foregrip || _held.TwoHanded;
-                if (onGun || !off.Tracked)
+                bool onGun = off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked;
+                RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip
+                // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
+                ArmChain c = _left.Chain;
+                RigidPose palm = off.Palm;
+                Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
+                Vector3 palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
+                Vector3 at = off.PalmCentre;
+                if (off.Model != null && off.Model.GraspAnchor.HasValue)
                 {
-                    target = RigidPose.Of(_left.Hand); // the authored support grip
+                    at += Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - at, 0.05f);
                 }
-                else
-                {
-                    // Free: the grasp follows the controller palm.
-                    ArmChain c = _left.Chain;
-                    RigidPose palm = off.Palm;
-                    Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
-                    target = new RigidPose(off.PalmCentre - rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale), rot);
-                }
+                var free = new RigidPose(at - palmPoint, rot);
+                // Taking hold of the handguard or letting go eases over a tenth of a second instead of snapping.
+                float want = onGun ? 1f : 0f;
+                _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, Time.unscaledDeltaTime * 10f);
+                RigidPose target = new RigidPose(Vector3.Lerp(free.position, grip.position, _onGunBlend), Quaternion.Slerp(free.rotation, grip.rotation, _onGunBlend));
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);
+                OffHandError = Vector3.Distance(_left.Hand.position, target.position);
             }
         }
 
-        private static void SolveArm(Arm arm, Vector3 shoulder, RigidPose target, Vector3 pole)
+        private void SolveArm(Arm arm, Vector3 shoulder, RigidPose target, Vector3 pole)
         {
             float a = Vector3.Distance(arm.Upper.position, arm.Lower.position);
             float b = Vector3.Distance(arm.Lower.position, arm.Hand.position);
@@ -102,6 +116,7 @@ namespace RavenfieldVR.Weapons
             if (toTarget.magnitude > reach)
             {
                 shoulder = target.position - toTarget.normalized * reach; // stretch: the shoulder follows the hand
+                Stretched = true;
             }
             arm.Root.position += shoulder - arm.Upper.position;
 

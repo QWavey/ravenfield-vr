@@ -403,6 +403,74 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(1.5f); // drawn again into the right hand
         }
 
+        /// <summary>
+        /// The weapon's own arms instead of the VR hands (the setting overridden in memory only): holstered, drawn again with
+        /// the arms, pictured; the gun arm must hold the authored grip and the off arm reach the handguard and then the
+        /// controller without tearing (each hand bone on its target).
+        /// </summary>
+        private static IEnumerator WeaponArmsCheck(Weapon weapon, string name, Action<string> report)
+        {
+            Actor actor = LocalPlayer.actor;
+            int slot = actor != null && actor.weapons != null ? Array.IndexOf(actor.weapons, weapon) : -1;
+            if (slot < 0 || VRConfig.Hands.Value == HandsMode.WeaponArms)
+            {
+                yield break;
+            }
+            try
+            {
+                actor.HolsterActiveWeapon();
+                yield return new WaitForSecondsRealtime(0.4f);
+                VRConfig.TestHands = HandsMode.WeaponArms;
+                actor.SwitchWeapon(slot);
+                HeldWeapon held = null;
+                for (float until = Time.realtimeSinceStartup + 4f; Time.realtimeSinceStartup < until; )
+                {
+                    held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                    if (held != null && held.Weapon == weapon)
+                    {
+                        break;
+                    }
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.6f);
+                ArmIK arms = held != null && held.Weapon == weapon ? held.Arms : null;
+                if (arms == null || !arms.Active)
+                {
+                    report("weapon's arms: NOT SHOWN (no arm chain found for this weapon)");
+                    yield break;
+                }
+                Rig.VRHand off = Rig.VRRig.Instance.Off;
+                Input.VRInput.SimulatedGrab[(int)off.Side] = true;
+                off.Role = Rig.HandRole.Foregrip;
+                held.SetTwoHanded(true);
+                yield return new WaitForSecondsRealtime(0.4f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture(name + "-on-the-handguard");
+                float gunErr = arms.GunHandError, gripErr = arms.OffHandError;
+                Input.VRInput.SimulatedGrab[(int)off.Side] = false;
+                yield return null;
+                yield return new WaitForSecondsRealtime(0.4f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture(name + "-free-hand");
+                float freeErr = arms.OffHandError;
+                Metric("weapon's arms: cm the gun hand is off its grip", gunErr * 100f);
+                Metric("weapon's arms: cm the off hand is off its target", Mathf.Max(gripErr, freeErr) * 100f);
+                bool torn = gunErr > 0.02f || gripErr > 0.02f || freeErr > 0.02f;
+                report($"weapon's arms: gun hand {gunErr * 100f:0.0} cm off its grip, off hand {gripErr * 100f:0.0} cm off the handguard and {freeErr * 100f:0.0} cm off the controller"
+                       + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{(torn ? " (NOT ON TARGET)" : "")}");
+            }
+            finally
+            {
+                if (VRConfig.TestHands.HasValue)
+                {
+                    actor.HolsterActiveWeapon();
+                    VRConfig.TestHands = null;
+                    actor.SwitchWeapon(slot);
+                }
+            }
+            yield return new WaitForSecondsRealtime(1.5f); // drawn again with the VR hands
+        }
+
         private static string _clipNow;
         private static HeldWeapon _clipPending;
 
@@ -980,7 +1048,7 @@ namespace RavenfieldVR.Core
                 every = Mathf.Max(1, entries.Count / 28);
             }
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0;
-            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 index++;
@@ -1126,6 +1194,18 @@ namespace RavenfieldVR.Core
                                 Shots.Capture(name);
                                 MagHandCloseups(name, lines.Add);
                             });
+                        }
+                        if (!armsDone && want && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol
+                            && held.Rig.Data.ArmRight != null && held.Rig.Data.ArmLeft != null && held.Rig.ArmRenderers.Length > 0)
+                        {
+                            armsDone = true;
+                            yield return WeaponArmsCheck(held.Weapon, $"weapon-arms-{index:000}-{entry.name}", lines.Add);
+                            held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                            if (held == null || held.Weapon != weapon)
+                            {
+                                lines.Add("weapon's arms check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                continue;
+                            }
                         }
                         if (!sightPartsDone && held.Rig.Data.SightPartPaths.Count > 0 && !held.Aiming)
                         {

@@ -332,6 +332,12 @@ namespace RavenfieldVR.Core
 
         public static bool LeftHanded => TestLeftHanded ?? DominantHand.Value == Handedness.Left;
 
+        /// <summary>The hands to show now: the setting, or the autotest's choice for a moment (never saved).</summary>
+        public static HandsMode HandsNow => TestHands ?? Hands.Value;
+
+        /// <summary>Autotest: the weapon's own arms for a moment without touching the saved setting.</summary>
+        internal static HandsMode? TestHands;
+
         /// <summary>Autotest: handedness for a moment without touching the saved setting.</summary>
         internal static bool? TestLeftHanded;
 

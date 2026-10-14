@@ -169,7 +169,7 @@ namespace RavenfieldVR.Weapons
                     _stockButt = rig.Data.GripPoint + rig.Data.AimAxis * rear + rig.Data.Up * 0.03f;
                 }
             }
-            if (VRConfig.Hands.Value == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
+            if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
             {
                 _armIK = new ArmIK(system, this);
             }
@@ -966,6 +966,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Self-test: inside the gun or its seated magazine (not grown).</summary>
         private bool InsideModel(Vector3 p) => _volume.InsideModel(p) || _magSolidShown && _magVolume.InsideModel(p);
+
+        /// <summary>Self-test: the weapon's own arms (arm-IK mode), or null.</summary>
+        internal ArmIK Arms => _armIK;
 
         /// <summary>The weapon's own arms are shown as the hands (the arm-IK mode), not hidden.</summary>
         internal bool ArmsShownByMod => _armIK != null && _armIK.Active;
