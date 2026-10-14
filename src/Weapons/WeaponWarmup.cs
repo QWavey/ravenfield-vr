@@ -48,6 +48,8 @@ namespace RavenfieldVR.Weapons
 
         private static int _fitted;
 
+        private static bool InMatch() => GameManager.IsIngame(out bool noGameplay) && !noGameplay;
+
         private static IEnumerator Run()
         {
             _running = true;
@@ -64,16 +66,13 @@ namespace RavenfieldVR.Weapons
                 }
                 foreach (WeaponManager.WeaponEntry entry in entries)
                 {
-                    // Only in menus: in a match the frame rate matters more than the cache.
-                    while (GameManager.IsIngame(out bool noGameplay) && !noGameplay)
+                    // Only in menus: in a match the frame rate matters more than the cache. While the menu is in use
+                    // (pointing along it, clicking, scrolling) it gets every frame: the warm-up goes on once it has been left
+                    // alone for a moment (picking a map or a setting lagged otherwise). Both are checked together: a map that
+                    // loads within that moment must not get an analysis at the start of the match.
+                    while (InMatch() || Time.unscaledTime - UI.VRInputModule.LastUsed < 1.5f && VRManager.Active)
                     {
-                        yield return new WaitForSecondsRealtime(1f);
-                    }
-                    // While the menu is in use (pointing along it, clicking, scrolling) it gets every frame: the warm-up
-                    // goes on once it has been left alone for a moment (picking a map or a setting lagged otherwise).
-                    while (Time.unscaledTime - UI.VRInputModule.LastUsed < 1.5f && VRManager.Active)
-                    {
-                        yield return null;
+                        yield return InMatch() ? new WaitForSecondsRealtime(1f) : null;
                     }
                     if (entry == null || entry.prefab == null)
                     {

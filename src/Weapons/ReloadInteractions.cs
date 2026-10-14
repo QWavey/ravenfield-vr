@@ -478,9 +478,11 @@ namespace RavenfieldVR.Weapons
             if (open)
             {
                 _held.Sounds.Play(MechSound.SlideBack, SeatPose.position);
-                if (Ammo.MagRounds < Ammo.Capacity)
+                // The cases fired since it was last opened fall out, live rounds stay (opened again, nothing more falls).
+                int spent = Ammo.TakeSpentCases();
+                if (spent > 0)
                 {
-                    Casings.Drop(_held, Ammo.Capacity - Ammo.MagRounds, SeatPose.position); // the fired cases fall out, live rounds stay
+                    Casings.Drop(_held, spent, SeatPose.position);
                 }
                 dom.Haptic(0.04f, 90f, 0.6f);
             }

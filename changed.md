@@ -581,3 +581,35 @@ edge case or rare, Tiny = defensive gap. None of this has been run in the game.
 - Also checked: the re-ignore of bodies every two seconds and of the player on every respawn, seat or ladder change;
   picking up and swapping a weapon (ammo carried both ways); expiry and the cap (your own weapon waiting to return
   is never culled).
+
+### Round 10: input and the menu warm-up (`src/Input/SteamVR/*.json`, `src/UI/VRInputModule.cs`, `src/Weapons/WeaponWarmup.cs`)
+
+- All five binding files parse, and every action they bind exists in `actions.json`. The HP G2 layout matches Touch
+  (Y: map, hold: pause, double: loadout; left stick double-click: VR settings, with mod keys inside).
+- **Minor:** the weapon warm-up checked "a match is running" first and then waited until the menu had been left alone
+  for 1.5 s. A map that loaded within those 1.5 s (Start clicked, then hands off) got one weapon analysis (tens of ms)
+  at the start of the match. Fix: both conditions are checked together on every pass.
+
+### Round 11: ammunition accounting (`src/Weapons/AmmoState.cs`, `src/Weapons/ReloadInteractions.cs`)
+
+- **Minor:** opening a break-action or a revolver dropped "capacity minus loaded" fired cases every time it was
+  opened. Open, close and open again on an empty double-barrel: two more cases fell out each time, out of nothing (and
+  a gun spawned part-loaded dropped cases it never fired). Fix: the weapon's ammo state counts the cases fired since it
+  was last opened, and opening drops exactly those.
+- **Tiny:** taking over the game's ammo (spawn, the game's own reload) left a bolt gun's "spent case in the chamber"
+  mark set while the chamber was given a live round. Fix: cleared there, together with the new count.
+- Also checked (they balance): firing, the magazine out and in (overflow back to the reserve), racking with and without
+  losing the round, loading single rounds, outside refills and drains, and the pouch's fresh magazine with and
+  without chamber +1.
+
+### Round 12: the rig in the main menu and the glove's fingers (`src/Rig/VRRig.cs`, `src/Rig/HandModel.cs`)
+
+- Main menu: the view stays where the menu camera first was, a jump of 2 m or more is a cut through a fade, and
+  leaving and coming back re-anchors. During loading the rig keeps its place and only the screen is drawn. Nothing to
+  fix.
+- Fingers: opening a thumb (or a support finger) out of the solid first, the slide search that now needs a touch, and
+  the pose minimums per role. All bounded, no new loops.
+- **Tiny:** the fist a controller without finger tracking makes (grip and trigger squeezed with an empty hand) kept
+  the thumb at its relaxed rest, sticking up beside the curled fingers. Empty hands keep the rest so the tracked thumb
+  can move from there, but this fist has no tracked thumb. Fix: that fist turns the thumb's base over the fingers as
+  its pose says.

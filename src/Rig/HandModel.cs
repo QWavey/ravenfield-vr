@@ -380,7 +380,10 @@ namespace RavenfieldVR.Rig
             float kJoint = 1f - Mathf.Exp(-40f * dt);
             // The pose turns the thumb's base between its rest and the fist: along the frame of a held gun or the side of a
             // handguard (Valve's relaxed thumb stood up through it), wrapped round a knife's handle, up beside a pinch.
-            Quaternion thumbGoal = _hand.Role == HandRole.Free ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
+            // An empty hand keeps the rest (its tracked thumb moves from there), except the fist a controller without finger
+            // tracking makes from grip and trigger: its thumb has nothing tracked and wraps over the fingers.
+            bool restThumb = _hand.Role == HandRole.Free && _pose.Id != HandPoseId.Fist;
+            Quaternion thumbGoal = restThumb ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
             for (int f = 0; f < 5; f++)
             {

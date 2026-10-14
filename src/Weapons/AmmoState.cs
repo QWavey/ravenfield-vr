@@ -27,6 +27,8 @@ namespace RavenfieldVR.Weapons
         public bool BeltLaid = true;
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
         public bool SpentInChamber;
+        /// <summary>Break-action / revolver: fired cases still in the chambers (they fall out when it is opened).</summary>
+        public int SpentCases;
 
         private int _expectedAmmo;
 
@@ -91,6 +93,8 @@ namespace RavenfieldVR.Weapons
             }
             MagInserted = true;
             SlideLocked = false;
+            SpentInChamber = false;
+            SpentCases = 0;
             Open = false;
             CoverOpen = false;
             BeltLaid = true;
@@ -154,6 +158,10 @@ namespace RavenfieldVR.Weapons
             }
             if (LoadsDirectly)
             {
+                if (MagRounds > 0)
+                {
+                    SpentCases = Mathf.Min(SpentCases + 1, Capacity);
+                }
                 MagRounds = Mathf.Max(0, MagRounds - 1);
                 Sync();
                 return;
@@ -173,6 +181,14 @@ namespace RavenfieldVR.Weapons
                 }
             }
             Sync();
+        }
+
+        /// <summary>Opened: the fired cases fall out of the chambers (how many there were; none the next time).</summary>
+        public int TakeSpentCases()
+        {
+            int spent = SpentCases;
+            SpentCases = 0;
+            return spent;
         }
 
         /// <returns>Rounds that were in the magazine.</returns>
