@@ -31,6 +31,9 @@ namespace RavenfieldVR.UI
         private readonly List<RaycastResult> _results = new List<RaycastResult>();
         private readonly List<Canvas> _nested = new List<Canvas>();
         private readonly List<Canvas> _candidates = new List<Canvas>();
+        /// <summary>The panels <see cref="_candidates"/> was gathered from, and until when it stands.</summary>
+        private readonly List<Canvas> _candidatesFrom = new List<Canvas>();
+        private float _candidatesUntil = -1f;
         private bool _pressed;
         private readonly bool[] _triggerDown = new bool[2];
         private readonly bool[] _triggerPressed = new bool[2];
@@ -147,17 +150,7 @@ namespace RavenfieldVR.UI
             {
                 return false;
             }
-            _candidates.Clear();
-            foreach (Canvas root in Targets)
-            {
-                if (root == null || !root.isActiveAndEnabled)
-                {
-                    continue;
-                }
-                // Nested canvases (dropdown lists, popups) can extend past their root's rectangle.
-                root.GetComponentsInChildren(false, _nested);
-                _candidates.AddRange(_nested);
-            }
+            RefreshCandidates();
             foreach (Canvas c in _candidates)
             {
                 if (c == null || !c.isActiveAndEnabled)
@@ -181,6 +174,41 @@ namespace RavenfieldVR.UI
             }
             return any;
         }
+
+        /// <summary>
+        /// The canvases the laser can hit: the panels and the canvases nested in them (dropdown lists, popups), which can
+        /// reach past their panel's rectangle. Finding the nested ones walks each panel's whole hierarchy; that was done twice
+        /// a frame (input, then the drawn laser). Now ten times a second, and at once when the set of panels changes.
+        /// </summary>
+        private void RefreshCandidates()
+        {
+            bool same = Time.unscaledTime < _candidatesUntil && _candidatesFrom.Count == Targets.Count;
+            for (int i = 0; same && i < Targets.Count; i++)
+            {
+                same = ReferenceEquals(_candidatesFrom[i], Targets[i]);
+            }
+            if (same)
+            {
+                return;
+            }
+            _candidatesUntil = Time.unscaledTime + 0.1f;
+            _candidatesFrom.Clear();
+            _candidatesFrom.AddRange(Targets);
+            _candidates.Clear();
+            foreach (Canvas root in Targets)
+            {
+                if (root == null || !root.isActiveAndEnabled)
+                {
+                    continue;
+                }
+                root.GetComponentsInChildren(false, _nested);
+                _candidates.AddRange(_nested);
+            }
+            Walks++;
+        }
+
+        /// <summary>Self-test: how often the panels' hierarchies were walked for nested canvases.</summary>
+        internal static int Walks { get; private set; }
 
         private void Press(GameObject over)
         {

@@ -121,6 +121,7 @@ namespace RavenfieldVR.Core
             Vector3 firstPos = rig != null ? rig.Root.position : Vector3.zero;
             Quaternion firstRot = rig != null ? rig.Root.rotation : Quaternion.identity;
             float drift = 0f, turn = 0f;
+            int walksBefore = UI.VRInputModule.Walks;
             bool afterShot = false;
             while (Time.realtimeSinceStartup - start < 10f)
             {
@@ -151,6 +152,7 @@ namespace RavenfieldVR.Core
             sb.AppendLine($"View moved: {drift * 100f:0.0} cm, turned {turn:0.0} deg over 10 s (should be 0: the menu's background camera is not followed)");
             sb.AppendLine($"Frames: {frames.Count}, ms p50 {P(0.5f):0.0}, p95 {P(0.95f):0.0}, p99 {P(0.99f):0.0}, max {P(1f):0.0}; over the 90 Hz budget: {over}");
             sb.AppendLine($"Pictures: {shot} (BepInEx/RavenfieldVR-shots/menu-*.png)");
+            sb.AppendLine($"Laser: the panels' hierarchies walked {(UI.VRInputModule.Walks - walksBefore) / 10f:0.0} times a second (at most 10, plus panel changes; it was twice a frame)");
             try
             {
                 File.WriteAllText(Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-menutest.txt"), sb.ToString(), new UTF8Encoding(false));
@@ -1323,7 +1325,7 @@ namespace RavenfieldVR.Core
                         {
                             int cases = Casings.Spawned - casesBefore;
                             Metric("cases thrown per shot", _shots > 0 ? (double)cases / Mathf.Min(_shots, 3) : 0);
-                            lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}");
+                            lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}, case objects made so far {Casings.Built} for {Casings.Spawned} thrown{(Casings.Built > 40 ? " (POOL NOT REUSED)" : "")}");
                         }
                         if (_shots == 0)
                         {

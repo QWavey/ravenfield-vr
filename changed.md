@@ -707,3 +707,48 @@ The two Major ones to look at first at home:
    magazine dry. It must run out (it never did before) and throw a case with each shot.
 
 Every round ended with the compile check: the whole `src/` against the game's 1.08.26 assemblies, no new diagnostics.
+
+---
+
+## Task 113: improve, 20 rounds ("make everything smooth")
+
+The game cannot run on this PC, so no round here was measured in frames. Each round names the number it changes:
+objects or allocations per shot or per frame, hierarchy walks per second, or a simulation of the math (Python, from
+the C# formulas). It is kept only if that number gets better without breaking anything the compile check sees.
+Baseline before round 1: the compile check's 5 known API errors, 0 warnings at `-warn:4`, and the 20 bug-hunt
+rounds above clean. The frame-time table under task 33 is still the measurement to fill in at home.
+
+### Round 1 (performance): fired cases come from a pool (`src/Weapons/Casings.cs`)
+
+- Before: every shot built a GameObject with a mesh filter, renderer, capsule, rigidbody and sound component, plus a
+  new material list (8 new objects), and each case was destroyed 25 s later. On full auto (13 shots/s) that is a
+  steady stream of object creation and garbage.
+- After: up to 40 case objects are built once and reused; a case past its time is switched off and waits. The
+  material lists are shared. Per shot after the first 40: **0 new objects** (was 8). A reused case is placed while
+  switched off, so it never interpolates from where it lay. It is told to ignore the player and the gun again (switching
+  a collider off makes Unity forget those pairs), and it may tink again.
+- At home: the autotest's "cases thrown" line now says how many case objects were made; it must stay at 40 or less.
+- Kept.
+
+### Round 2 (menu smoothness, task 103): the laser finds nested canvases ten times a second (`src/UI/VRInputModule.cs`)
+
+- Before: to find nested canvases (dropdown lists, popups that reach past their panel), the laser walked every visible
+  panel's whole hierarchy twice a frame (input, then the drawn laser). With 3 panels at 90 Hz that is 540 walks a second.
+- After: the set is gathered at most ten times a second, and at once when the list of panels changes. That is **30
+  walks a second** for 3 panels (18 times fewer). An opened dropdown is hittable within 0.1 s.
+- At home: the menu test's report has a "Laser: ... walked N times a second" line.
+- Kept.
+
+Tried and dropped before round 3 (not counted as a round, the change was never made): giving the case tinks their
+own voices. A simulation of the voice pool (2000 bursts of 3 s full auto at 12.5 shots/s, each case tinking on landing
+and 70 % on a bounce, then a full reload) found reload sounds moved mid-play only **0.003 times per burst** with the
+shared pool of 8. A separate pool of 6 for the tinks cut the tinks about **once per burst**. The shared pool is better.
+
+### Round 3 (comfort): into and out of the loading screen through black (`src/UI/LoadingView.cs`)
+
+- Before: the world was switched off (dark room with the screen) and back on (the map) in a single frame each time:
+  **2 hard cuts** per map load.
+- After: the loading screen comes up out of a short fade to black, and at the end the headset fades to black first.
+  The dark room gives way to the map 0.06 s later, while it is black, and the view fades back up (VRRig.FadeCut:
+  0.05 s down, 0.25 s up). **0 hard cuts.** A new load starting before a pending end cancels the end.
+- Kept.

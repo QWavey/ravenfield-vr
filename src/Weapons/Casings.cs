@@ -19,16 +19,28 @@ namespace RavenfieldVR.Weapons
 
         private enum Kind { Pistol, Rifle, Heavy, Shell }
 
+        /// <summary>One case object, made once and used again (a shot used to build and later destroy six objects).</summary>
         private sealed class Case
         {
             public GameObject Go;
             public float Born;
+            public MeshFilter Filter;
+            public MeshRenderer Renderer;
+            public CapsuleCollider Collider;
+            public Rigidbody Body;
+            public CaseSound Sound;
         }
 
         private static readonly List<Case> Alive = new List<Case>();
+        /// <summary>Cases put away (switched off), ready for the next shot.</summary>
+        private static readonly List<Case> Idle = new List<Case>();
         private static Mesh[] _meshes, _liveMeshes;
         private static Material _brass, _copper, _hull;
+        // The renderer copies the list it is given: one shared list per look, not a new one per shot.
+        private static Material[] _caseMats, _liveMats, _shellMats;
         private static PhysicMaterial _bounce;
+
+        private static Material[] MaterialsFor(Kind kind, bool live) => kind == Kind.Shell ? _shellMats : live ? _liveMats : _caseMats;
 
         /// <summary>The weapon throws cases in the flat game (and so in VR).</summary>
         public static bool Ejects(HeldWeapon held)
@@ -92,55 +104,86 @@ namespace RavenfieldVR.Weapons
         {
             EnsureAssets();
             Cull();
+            Case c;
             if (Alive.Count >= Max)
             {
-                Object.Destroy(Alive[0].Go);
+                c = Alive[0]; // the oldest one lying around is taken
                 Alive.RemoveAt(0);
             }
-            var go = new GameObject(live ? "RavenfieldVR Round" : "RavenfieldVR Case");
+            else if (Idle.Count > 0)
+            {
+                c = Idle[Idle.Count - 1];
+                Idle.RemoveAt(Idle.Count - 1);
+            }
+            else
+            {
+                c = Build();
+            }
+            GameObject go = c.Go;
+            // Placed while switched off: switched on again it starts here, with no interpolation from where it lay.
+            go.SetActive(false);
+            go.name = live ? "RavenfieldVR Round" : "RavenfieldVR Case";
             int layer = PropPhysics.Layer;
             go.layer = layer >= 0 ? layer : 0; // bullets pass through it
             go.transform.SetPositionAndRotation(position, rotation);
             Mesh mesh = live ? _liveMeshes[(int)kind] : _meshes[(int)kind];
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterials = kind == Kind.Shell ? new[] { _hull, _brass } : live ? new[] { _brass, _copper } : new[] { _brass };
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            var col = go.AddComponent<CapsuleCollider>();
-            col.direction = 2;
-            col.center = mesh.bounds.center;
-            col.radius = Mathf.Max(mesh.bounds.extents.x, 0.003f);
-            col.height = mesh.bounds.size.z;
-            col.sharedMaterial = _bounce;
-            var body = go.AddComponent<Rigidbody>();
-            body.mass = kind == Kind.Shell ? 0.03f : 0.012f;
-            body.drag = 0.1f;
-            body.angularDrag = 0.2f;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-            body.interpolation = RigidbodyInterpolation.Interpolate;
-            body.velocity = velocity;
-            body.angularVelocity = spin;
-            PropPhysics.IgnorePlayer(col);
-            GunCollider.Current?.OnPropDropped(col); // out of the port it passes through the gun
-            go.AddComponent<CaseSound>();
-            Alive.Add(new Case { Go = go, Born = Time.time });
+            c.Filter.sharedMesh = mesh;
+            c.Renderer.sharedMaterials = MaterialsFor(kind, live);
+            Bounds b = mesh.bounds;
+            c.Collider.center = b.center;
+            c.Collider.radius = Mathf.Max(b.extents.x, 0.003f);
+            c.Collider.height = b.size.z;
+            c.Body.mass = kind == Kind.Shell ? 0.03f : 0.012f;
+            c.Sound.Rearm();
+            go.SetActive(true);
+            c.Body.velocity = velocity;
+            c.Body.angularVelocity = spin;
+            // Switching the collider off and on made Unity forget its ignored pairs: the player and the gun again.
+            PropPhysics.IgnorePlayer(c.Collider);
+            GunCollider.Current?.OnPropDropped(c.Collider); // out of the port it passes through the gun
+            c.Born = Time.time;
+            Alive.Add(c);
             Spawned++;
         }
 
-        /// <summary>Clears cases past their time (also called per frame by the weapon system).</summary>
+        /// <summary>A new case object (made only until the pool holds <see cref="Max"/>).</summary>
+        private static Case Build()
+        {
+            var go = new GameObject("RavenfieldVR Case");
+            go.SetActive(false);
+            var c = new Case { Go = go };
+            c.Filter = go.AddComponent<MeshFilter>();
+            c.Renderer = go.AddComponent<MeshRenderer>();
+            c.Renderer.shadowCastingMode = ShadowCastingMode.Off;
+            c.Collider = go.AddComponent<CapsuleCollider>();
+            c.Collider.direction = 2;
+            c.Collider.sharedMaterial = _bounce;
+            c.Body = go.AddComponent<Rigidbody>();
+            c.Body.drag = 0.1f;
+            c.Body.angularDrag = 0.2f;
+            c.Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            c.Body.interpolation = RigidbodyInterpolation.Interpolate;
+            c.Sound = go.AddComponent<CaseSound>();
+            Built++;
+            return c;
+        }
+
+        /// <summary>Puts away cases past their time (also called per frame by the weapon system).</summary>
         public static void Cull()
         {
             float now = Time.time;
             for (int i = Alive.Count - 1; i >= 0; i--)
             {
                 Case c = Alive[i];
-                if (c.Go == null || now - c.Born > Lifetime || c.Go.transform.position.y < -500f)
+                if (c.Go == null)
                 {
-                    if (c.Go != null)
-                    {
-                        Object.Destroy(c.Go);
-                    }
+                    Alive.RemoveAt(i); // gone with its scene
+                }
+                else if (now - c.Born > Lifetime || c.Go.transform.position.y < -500f)
+                {
+                    c.Go.SetActive(false);
                     Alive.RemoveAt(i);
+                    Idle.Add(c);
                 }
             }
         }
@@ -179,7 +222,7 @@ namespace RavenfieldVR.Weapons
             {
                 mf.sharedMesh = mesh;
                 _chamberLive = live;
-                _chamber.GetComponent<MeshRenderer>().sharedMaterials = kind == Kind.Shell ? new[] { _hull, _brass } : live ? new[] { _brass, _copper } : new[] { _brass };
+                _chamber.GetComponent<MeshRenderer>().sharedMaterials = MaterialsFor(kind, live);
             }
             WeaponRig rig = held.ActiveRig;
             Transform port = held.ActiveWeapon.configuration.casingParticles[0].transform;
@@ -199,6 +242,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>How many cases lie around (self-test).</summary>
         internal static int Count => Alive.Count;
 
+        /// <summary>Case objects made since start (self-test: stays at the pool size however long you shoot).</summary>
+        internal static int Built { get; private set; }
+
         public static void DestroyAll()
         {
             if (_chamber != null)
@@ -212,7 +258,15 @@ namespace RavenfieldVR.Weapons
                     Object.Destroy(c.Go);
                 }
             }
+            foreach (Case c in Idle)
+            {
+                if (c.Go != null)
+                {
+                    Object.Destroy(c.Go);
+                }
+            }
             Alive.Clear();
+            Idle.Clear();
         }
 
         private static void EnsureAssets()
@@ -225,6 +279,9 @@ namespace RavenfieldVR.Weapons
             _brass = new Material(s) { name = "RavenfieldVR case brass", color = new Color(0.78f, 0.6f, 0.27f) };
             _copper = new Material(s) { name = "RavenfieldVR bullet", color = new Color(0.66f, 0.38f, 0.22f) };
             _hull = new Material(s) { name = "RavenfieldVR shell hull", color = new Color(0.55f, 0.08f, 0.06f) };
+            _caseMats = new[] { _brass };
+            _liveMats = new[] { _brass, _copper };
+            _shellMats = new[] { _hull, _brass };
             if (_brass.HasProperty("_Metallic"))
             {
                 _brass.SetFloat("_Metallic", 0.9f);
@@ -339,6 +396,9 @@ namespace RavenfieldVR.Weapons
     internal sealed class CaseSound : MonoBehaviour
     {
         private int _tinks;
+
+        /// <summary>Thrown again (the case object is used again): it may tink again.</summary>
+        public void Rearm() => _tinks = 0; // not "Reset": Unity calls that one itself (in the editor)
 
         private void OnCollisionEnter(Collision c)
         {

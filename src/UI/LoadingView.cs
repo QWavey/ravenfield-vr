@@ -41,6 +41,8 @@ namespace RavenfieldVR.UI
         private int _uiMask;
         private bool _placed;
         private float _levelSince = -1f, _readySince = -1f;
+        /// <summary>When the view ends: a moment after the fade to black has started, so the switch to the map is not seen.</summary>
+        private float _endAt = -1f;
         private int _sceneHandle = -1;
 
         public LoadingView(VRRig rig, Camera uiCamera, CanvasManager canvases)
@@ -69,12 +71,13 @@ namespace RavenfieldVR.UI
                 Capture(scene);
                 _levelSince = -1f;
                 _readySince = -1f;
+                _endAt = -1f; // loading again before a pending end came: stay
             }
             else if (Active)
             {
                 if (scene.buildIndex == MainMenuIndex || scene.buildIndex == 0)
                 {
-                    End(); // back to the menu (loading was cancelled or failed)
+                    FadeThenEnd(now); // back to the menu (loading was cancelled or failed)
                 }
                 else
                 {
@@ -95,14 +98,32 @@ namespace RavenfieldVR.UI
                     // A few frames more: the first frames of a scene often still draw from where its camera started.
                     if (ready && now - _readySince > 0.4f || now - _levelSince > 20f)
                     {
-                        End();
+                        FadeThenEnd(now);
                     }
                 }
+            }
+            if (Active && _endAt >= 0f && now >= _endAt)
+            {
+                End();
             }
             if (Active)
             {
                 Place();
             }
+        }
+
+        /// <summary>
+        /// The headset fades to black (VRRig.FadeCut: 0.05 s down, back up after 0.12 s), and the dark room gives way to
+        /// the map while it is black: the switch was a hard cut.
+        /// </summary>
+        private void FadeThenEnd(float now)
+        {
+            if (_endAt >= 0f)
+            {
+                return;
+            }
+            _rig.FadeCut();
+            _endAt = now + 0.06f;
         }
 
         private static bool LoadoutOpen()
@@ -121,6 +142,8 @@ namespace RavenfieldVR.UI
         {
             Active = true;
             _placed = false;
+            _endAt = -1f;
+            _rig.FadeCut(); // the loading screen comes up out of black instead of popping in
             if (_texture == null)
             {
                 _texture = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32) { name = "RavenfieldVR Loading Screen", antiAliasing = 2 };
@@ -238,6 +261,7 @@ namespace RavenfieldVR.UI
         private void End()
         {
             Active = false;
+            _endAt = -1f;
             VRRig.Blackout = false;
             if (_uiCamera != null)
             {
