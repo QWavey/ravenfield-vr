@@ -636,7 +636,25 @@ namespace RavenfieldVR.Rig
             {
                 CopyCameraSettings(reference, player);
             }
+            if (Blackout)
+            {
+                // Loading: a dark room around the loading screen (whatever the scenes' cameras clear to stays unseen).
+                Camera.cullingMask = 0;
+                Camera.clearFlags = CameraClearFlags.SolidColor;
+                Camera.backgroundColor = Color.black;
+            }
         }
+
+        /// <summary>Draw nothing of the world (set while a map loads; see UI.LoadingView).</summary>
+        public static bool Blackout;
+
+        /// <summary>The main menu (build index 1), whose background camera drifts and turns over a map.</summary>
+        private static bool InMainMenu => UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex == 1;
+
+        // Where the view stays in the main menu, and for which camera it was taken.
+        private Camera _stillFor;
+        private RigidPose _stillAnchor;
+        private Vector3 _stillLastSeen;
 
         private Camera PlaceOrigin(FpsActorController player)
         {
@@ -675,6 +693,28 @@ namespace RavenfieldVR.Rig
                     if (!IntroStage.TryGetAnchor(cam, out RigidPose anchor))
                     {
                         anchor = new RigidPose(cam.transform.position, Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f));
+                        if (InMainMenu)
+                        {
+                            // The menu's background camera drifts and turns over the map: following it turned the world
+                            // around you while you read the menu. You stay where it first was; only a real cut (the camera
+                            // put somewhere else, two metres or more in one frame) moves you, through a fade.
+                            bool cutHere = ReferenceEquals(_stillFor, cam) && Vector3.Distance(anchor.position, _stillLastSeen) > 2f;
+                            if (!ReferenceEquals(_stillFor, cam) || cutHere)
+                            {
+                                if (cutHere)
+                                {
+                                    FadeCut();
+                                }
+                                _stillFor = cam;
+                                _stillAnchor = anchor;
+                            }
+                            _stillLastSeen = anchor.position;
+                            anchor = _stillAnchor;
+                        }
+                        else
+                        {
+                            _stillFor = null;
+                        }
                     }
                     anchor.Multiply(_neutralHead.Inverse()).ApplyTo(Root);
                     return cam;

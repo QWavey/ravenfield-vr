@@ -37,8 +37,22 @@ namespace RavenfieldVR.Core
         private static readonly List<string> Results = new List<string>();
         private static readonly HashSet<string> Seen = new HashSet<string>();
 
+        private static readonly bool MenuTestRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-menutest", StringComparison.OrdinalIgnoreCase));
+
         public static void Install()
         {
+            if (MenuTestRequested)
+            {
+                Application.runInBackground = true;
+                UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
+                {
+                    if (scene.buildIndex == 1 && !_menuTested)
+                    {
+                        _menuTested = true;
+                        VRManager.Instance?.StartCoroutine(MenuTest());
+                    }
+                };
+            }
             if (!Requested)
             {
                 return;
@@ -47,6 +61,13 @@ namespace RavenfieldVR.Core
             // From the first frame: a test started minimized (or behind another game) must not pause while loading.
             Application.runInBackground = true;
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => VRManager.Instance?.StartCoroutine(WaitForMatch());
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
+            {
+                if (scene.buildIndex == 2)
+                {
+                    VRManager.Instance?.StartCoroutine(LoadShots());
+                }
+            };
             // A run cut short (window closed, game quit) still leaves a report.
             Application.quitting += () =>
             {
@@ -64,6 +85,76 @@ namespace RavenfieldVR.Core
                     Problem($"[{_context}] {type}: {condition}\n      {FirstFrames(stack)}");
                 }
             };
+        }
+
+        /// <summary>
+        /// Pictures every half second from the loading screen to the first moment of the match (no sky-coloured or empty
+        /// frame may show while the map loads; the loading screen stands in front of you in the dark).
+        /// </summary>
+        private static IEnumerator LoadShots()
+        {
+            for (int i = 0; i < 90 && !GameContext.InGame; i++)
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+                yield return new WaitForEndOfFrame();
+                if (VRManager.Active)
+                {
+                    Shots.Capture($"load-{i:00}{(UI.LoadingView.Active ? "-loading" : "")}");
+                }
+            }
+        }
+
+        private static bool _menuTested;
+
+        /// <summary>
+        /// -rfvr-menutest (with VR): ten seconds in the main menu while the weapon warm-up runs. A picture every second (the
+        /// view must stay still: the menu's background camera drifts and turns), how far the view moved, and the frame
+        /// times, written to BepInEx/RavenfieldVR-menutest.txt; then the game quits.
+        /// </summary>
+        private static IEnumerator MenuTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            var frames = new List<float>();
+            float start = Time.realtimeSinceStartup, nextShot = start;
+            int shot = 0;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Vector3 firstPos = rig != null ? rig.Root.position : Vector3.zero;
+            Quaternion firstRot = rig != null ? rig.Root.rotation : Quaternion.identity;
+            float drift = 0f, turn = 0f;
+            while (Time.realtimeSinceStartup - start < 10f)
+            {
+                frames.Add(Time.unscaledDeltaTime * 1000f);
+                if (rig != null)
+                {
+                    drift = Mathf.Max(drift, Vector3.Distance(rig.Root.position, firstPos));
+                    turn = Mathf.Max(turn, Quaternion.Angle(rig.Root.rotation, firstRot));
+                }
+                if (Time.realtimeSinceStartup >= nextShot && VRManager.Active)
+                {
+                    nextShot += 1f;
+                    yield return new WaitForEndOfFrame();
+                    Shots.Capture($"menu-{shot++:00}");
+                }
+                yield return null;
+            }
+            frames.Sort();
+            float P(float q) => frames.Count > 0 ? frames[Mathf.Clamp((int)(frames.Count * q), 0, frames.Count - 1)] : 0f;
+            int over = frames.Count(f => f > 1000f / 90f + 1f);
+            var sb = new StringBuilder();
+            sb.AppendLine($"Ravenfield VR {PluginInfo.Version} menu test, {DateTime.Now:yyyy-MM-dd HH:mm}, VR {(VRManager.Active ? "on" : "off")}");
+            sb.AppendLine($"View moved: {drift * 100f:0.0} cm, turned {turn:0.0} deg over 10 s (should be 0: the menu's background camera is not followed)");
+            sb.AppendLine($"Frames: {frames.Count}, ms p50 {P(0.5f):0.0}, p95 {P(0.95f):0.0}, p99 {P(0.99f):0.0}, max {P(1f):0.0}; over the 90 Hz budget: {over}");
+            sb.AppendLine($"Pictures: {shot} (BepInEx/RavenfieldVR-shots/menu-*.png)");
+            try
+            {
+                File.WriteAllText(Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-menutest.txt"), sb.ToString(), new UTF8Encoding(false));
+            }
+            catch (Exception e)
+            {
+                Log.Exception("Writing the menu test report failed", e);
+            }
+            Log.Info("Menu test: " + sb.ToString().Replace(Environment.NewLine, " | "));
+            Application.Quit();
         }
 
         private static string FirstFrames(string stack) =>

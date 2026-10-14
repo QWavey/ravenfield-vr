@@ -68,6 +68,10 @@ namespace RavenfieldVR.UI
 
         public bool TriggerPressed(Hand h) => _triggerPressed[(int)h];
 
+        /// <summary>When the laser was last used on a menu (moved over its items, clicked, scrolled); unscaled time.</summary>
+        public static float LastUsed { get; private set; } = -100f;
+        private GameObject _lastOver;
+
         public override void Process()
         {
             if (_data == null)
@@ -110,6 +114,11 @@ namespace RavenfieldVR.UI
 
             bool press = _triggerPressed[(int)PointerHand];
             bool release = _triggerReleased[(int)PointerHand];
+            if (press || _pressed || over != _lastOver && over != null || over != null && Mathf.Abs(VRInput.TurnStick.y + VRInput.Move.y) >= 0.25f)
+            {
+                LastUsed = Time.unscaledTime; // pointing along the menu, clicking, scrolling
+            }
+            _lastOver = over;
             if (press && over != null)
             {
                 Press(over);

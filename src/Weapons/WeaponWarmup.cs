@@ -9,8 +9,8 @@ namespace RavenfieldVR.Weapons
     /// <summary>
     /// Analysing a weapon rig samples its animations on a copy of the weapon and takes tens of milliseconds, which is
     /// a visible hitch in a headset the first time a weapon type is drawn in a match. In VR every installed weapon is
-    /// analysed ahead of time while the main menu is up (one per frame; the menu tolerates it), so drawing, picking up
-    /// and switching weapons in a match never waits for it. Pauses while a match runs.
+    /// analysed ahead of time while the main menu is up, so drawing, picking up and switching weapons in a match never
+    /// waits for it. Paced to about 6 ms per frame on average, paused while the menu is being used and while a match runs.
     /// </summary>
     internal static class WeaponWarmup
     {
@@ -69,6 +69,12 @@ namespace RavenfieldVR.Weapons
                     {
                         yield return new WaitForSecondsRealtime(1f);
                     }
+                    // While the menu is in use (pointing along it, clicking, scrolling) it gets every frame: the warm-up
+                    // goes on once it has been left alone for a moment (picking a map or a setting lagged otherwise).
+                    while (Time.unscaledTime - UI.VRInputModule.LastUsed < 1.5f && VRManager.Active)
+                    {
+                        yield return null;
+                    }
                     if (entry == null || entry.prefab == null)
                     {
                         continue;
@@ -83,6 +89,7 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
                     try
                     {
                         WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
@@ -104,7 +111,13 @@ namespace RavenfieldVR.Weapons
                     {
                         Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {e.Message}");
                     }
-                    yield return null;
+                    // One analysis is a long frame (tens of milliseconds); the frames after it are left alone so the
+                    // menu averages about 6 ms of warm-up per frame instead of one hitch after another.
+                    int rest = Mathf.Clamp(Mathf.CeilToInt((float)watch.Elapsed.TotalMilliseconds / 6f), 1, 45);
+                    for (int i = 0; i < rest; i++)
+                    {
+                        yield return null;
+                    }
                 }
             }
             while (_rescan && VRManager.Active);

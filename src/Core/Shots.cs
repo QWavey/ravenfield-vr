@@ -54,7 +54,9 @@ namespace RavenfieldVR.Core
                 rig?.Suppressor.Ignore(cam);
                 cam.CopyFrom(source);
                 cam.stereoTargetEye = StereoTargetEyeMask.None;
-                cam.cullingMask = source.cullingMask | (1 << 5);
+                // What the headset shows: the world camera's layers and the UI camera's (the UI, or the loading screen).
+                Camera ui = UI.UISystem.Instance != null ? UI.UISystem.Instance.UiCamera : null;
+                cam.cullingMask = source.cullingMask | (ui != null ? ui.cullingMask : 1 << 5);
                 cam.fieldOfView = fov;
                 cam.nearClipPlane = Mathf.Min(source.nearClipPlane, 0.02f);
                 go.transform.SetPositionAndRotation(position ?? source.transform.position, rotation ?? source.transform.rotation);

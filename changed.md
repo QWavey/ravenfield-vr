@@ -1,9 +1,14 @@
 # Changes on branch `tasks-98-113`
 
-Work on the open items of `Tasks.md` (98-113, plus 33 and 37), done on 2026-10-14 on a PC **without Ravenfield or
-Steam installed**. Nothing here has been run in the game yet: every change was compile-checked against Unity 2020.3.49,
-BepInEx and Harmony (the game's own `Assembly-CSharp` was not available, so lines that touch game types were checked by
-reading only) and needs the build, self-test, VR autotest and a headset session at home.
+Work on the open items of `Tasks.md` (98-113, plus 33 and 37, and the new items 114-122 from your notes during the
+session), done on 2026-10-14 on a PC **without Ravenfield or Steam installed**. Nothing here has been run in the game
+yet. Every change was compile-checked: the whole `src/` against Unity 2020.3.49's modules, BepInEx, Harmony and the
+game's own `Assembly-CSharp` / `-firstpass` / `UnityEngine.UI` / TextMeshPro of version 1.08.26 (the reference DLLs the
+other Ravenfield VR mod keeps in its repository; publicized with this repo's Publicizer, kept outside the repo), with a
+stub only for the post-processing package. Your installed game is newer than 1.08.26: 5 members the mod already used
+before this branch (`SoundBank.clipVolume`, `Actor.PlaySwingAnimation`, `LocalPlayer.GetCurrentCameraIncludeSpectator`,
+an 8-argument `MeleeWeapon.SphereCast`) do not exist in that DLL; the check compared against `main` and this branch adds
+no compile error of its own. It still needs the real build, the self-test, the VR autotest and a headset session.
 
 `main` is untouched; this branch holds everything below.
 
@@ -139,3 +144,45 @@ A pistol's magazine well is in its grip, where your gun hand's controller is, so
 magazine is all the way in. For wells inside the grip (pistols, magazine-in-grip designs) a magazine that is lined up
 on the rail and at least 45% in is now drawn home the rest of the way (about 0.06 s, a light click in the hand) and
 seats, even if you let go at that moment. Rifle magazines still need the full push.
+
+## Tasks 101 and 102: map loading (cyan-blue picture, loading screen far away)
+
+New `src/UI/LoadingView.cs`; `src/UI/UISystem.cs`, `src/Rig/VRRig.cs` (`Blackout`), `src/Core/Shots.cs`,
+`src/Core/AutoTest.cs`.
+
+What the game does (from its code, via public mod sources): `GameManager.StartLevel` loads the loading scene (build
+index 2). `LoadingScreen` puts a random 3D decoration in front of `LoadingScreenCamera`, which sits 10 m back
+(`staticOffset (0, 1.6, -10)`) and sways a few degrees; a canvas says "LOADING <map>". Then the map's scene is loaded
+asynchronously and set up over a few more frames. In VR the rig followed the loading camera (decoration 10 m away,
+swaying), the "LOADING" canvas became a HUD frame 4 m out, and once the map's scene took over the headset showed
+whatever that scene's first camera cleared to until the level was ready (the cyan-blue for 2-3 seconds).
+
+Now, from the moment the loading scene is active:
+- The loading scene's cameras draw into a 1600x900 picture (with its canvases, which are no longer turned into a world
+  panel), shown on a 2.4 m wide screen 2.5 m in front of you at eye height, in a dark room: the world camera draws
+  nothing and clears to black, the UI camera draws only the screen. The screen comes back in front of you if you turn
+  away for 1.5 s. The camera's sway shows on the screen only, never moves you.
+- When the map's scene takes over, the last loading picture stays up until the game shows something (you are deployed,
+  the loadout or a menu is open, or you spectate), plus 0.4 s; at most 20 s. Going back to the main menu ends it.
+
+Autotest: pictures every half second from the loading screen to the start of the match (`load-NN[-loading].png`).
+Check at home: those pictures (no sky-coloured frame), and in the headset the loading screen at a comfortable distance.
+
+## Task 103: main menu turning, flickering and lagging
+
+`src/Rig/VRRig.cs` (Follow mode in the main menu), `src/Weapons/WeaponWarmup.cs`, `src/UI/VRInputModule.cs`
+(`LastUsed`), `src/Core/AutoTest.cs` (`-rfvr-menutest`).
+
+- The menu's background camera drifts and turns over the map, and the rig followed it (position and heading), so the
+  world turned around you while you read the menu. In the main menu you now stay where that camera first was; only a
+  real cut (the camera put somewhere else, 2 m or more in one frame) moves you, through a fade.
+- The weapon warm-up analysed one weapon every frame; one analysis takes tens of milliseconds, so the menu ran as a
+  string of long frames (lag, reprojection flicker). Now: after each weapon the warm-up rests a frame per 6 ms it took
+  (about 6 ms of warm-up per frame on average), and it pauses while you use the menu (pointing along it, clicking,
+  scrolling; it goes on 1.5 s after you stop). The whole warm-up takes longer (it still finishes in the menu).
+- New `-rfvr-menutest` (with VR): ten seconds in the main menu during the warm-up; a picture every second
+  (`menu-NN.png`), how far the view moved (should be 0), frame-time percentiles and frames over the 90 Hz budget, in
+  `BepInEx/RavenfieldVR-menutest.txt`; then the game quits.
+
+Check at home: `ravenfield.exe -vr -rfvr-menutest` and read the report; in the headset, a still menu that keeps up while
+picking a map.

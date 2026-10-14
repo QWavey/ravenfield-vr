@@ -25,6 +25,7 @@ namespace RavenfieldVR.UI
         public readonly CanvasManager Canvases;
         public readonly VRSettingsPanel Settings;
         public readonly ModKeysPanel ModKeys;
+        public readonly LoadingView Loading;
         private readonly VRKeyboard _keyboard;
         private readonly LaserPointer _laser;
         private readonly WristHud _wrist;
@@ -69,6 +70,7 @@ namespace RavenfieldVR.UI
             rig.Suppressor.Ignore(EventCamera);
 
             Canvases = new CanvasManager(rig, EventCamera);
+            Loading = new LoadingView(rig, UiCamera, Canvases);
             Settings = new VRSettingsPanel(rig, EventCamera);
             Canvases.RegisterOwn(Settings.Canvas);
             ModKeys = new ModKeysPanel(rig, EventCamera);
@@ -81,6 +83,7 @@ namespace RavenfieldVR.UI
         public void Update()
         {
             EnsureModule();
+            Loading.Update(); // first: the loading screen's canvases are drawn into its picture, not converted
             Canvases.Update();
             _keyboard.Update();
 
@@ -242,6 +245,7 @@ namespace RavenfieldVR.UI
         public void Dispose()
         {
             RestoreModules();
+            Loading.Dispose();
             Canvases.Dispose();
             Settings.Dispose();
             _sights.Restore();
