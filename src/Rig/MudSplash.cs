@@ -167,6 +167,20 @@ namespace RavenfieldVR.Rig
 
         private void OnExplosion(ExplosionInfo info)
         {
+            try
+            {
+                Dirty(info);
+            }
+            catch (System.Exception e)
+            {
+                // The game raises this event before it deals the explosion's damage, inside a catch that skips the rest:
+                // a dirt error must never cost an explosion its damage.
+                Log.ExceptionOnce("MudSplash.OnExplosion", e);
+            }
+        }
+
+        private void Dirty(ExplosionInfo info)
+        {
             if (!VRConfig.ExplosionDirt.Value)
             {
                 return;

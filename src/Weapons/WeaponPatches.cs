@@ -21,6 +21,69 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
+    /// In VR you spawn with empty hands (SpawnEmptyHanded): the game draws your first weapon as you spawn, and the hand
+    /// took it at once, so you started every life holding the primary whether you reached for it or not. It goes back to
+    /// its holster before the hand takes it; reach for a holster to draw.
+    /// </summary>
+    [HarmonyPatch(typeof(Actor), nameof(Actor.SpawnAt))]
+    internal static class ActorSpawnEmptyHandedPatch
+    {
+        private static void Postfix(Actor __instance)
+        {
+            if (!VRManager.Active || __instance == null || __instance.aiControlled || !VRConfig.SpawnEmptyHanded.Value
+                || !VRConfig.HolsterSwitching.Value || !ReferenceEquals(__instance, LocalPlayer.actor))
+            {
+                return;
+            }
+            try
+            {
+                if (__instance.activeWeapon != null && !__instance.IsSeated())
+                {
+                    __instance.HolsterActiveWeapon();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Actor.SpawnAt (VR, empty hands)", e); // the spawn goes on, weapon in hand
+            }
+        }
+    }
+
+    /// <summary>
+    /// In VR you aim by bringing an eye to the sights, not with a button: the game's own aiming follows that (on foot).
+    /// Nothing told the game before, so a weapon whose aim animation switches on its scope camera, its magnifier's
+    /// picture or its reticle stayed dark in VR (an EOTech's magnifier showed black until it was flipped away), sprint
+    /// was not stopped by aiming and the tighter aimed spread never applied. The game's aim zoom stays off in VR
+    /// (FpFovPatch keeps the HUD-matched field of view).
+    /// </summary>
+    [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.Aiming))]
+    internal static class PlayerAimsAtTheSightsPatch
+    {
+        private static void Postfix(FpsActorController __instance, ref bool __result)
+        {
+            if (__result || !VRManager.Active)
+            {
+                return; // an aim input of the game's own still counts
+            }
+            try
+            {
+                HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                Actor actor = __instance.actor;
+                if (held == null || !held.Aiming || actor == null || actor.IsSeated() || !ReferenceEquals(actor.activeWeapon, held.Weapon))
+                {
+                    return;
+                }
+                __result = __instance.inputEnabled && !__instance.IsCursorFree() && !__instance.IsKicking() && !actor.IsSwimming()
+                           && !actor.parachuteDeployed && !GameManager.gameOver;
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("FpsActorController.Aiming (VR)", e);
+            }
+        }
+    }
+
+    /// <summary>
     /// In VR the weapon is drawn by your hand, not by an animation: the draw clip (raising the gun, often working the
     /// bolt or slide on the way) is skipped by stepping the animator past it with its events muted. The game's own
     /// draw delay before the weapon can fire runs on a separate timer and stays as it is.

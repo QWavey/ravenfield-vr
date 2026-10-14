@@ -921,6 +921,13 @@ namespace RavenfieldVR.Weapons
                         : $", mesh '{mesh.name}' {Vector3.Scale(mesh.bounds.size, t.lossyScale).magnitude / Mathf.Max(1e-6f, root.lossyScale.x) * 100f:0.0} cm";
                     drawn = $" | {own.GetType().Name}{(own.enabled ? "" : " off")}, shadows {own.shadowCastingMode}, {look}{shape}";
                 }
+                Camera cam = t.GetComponent<Camera>();
+                if (cam != null)
+                {
+                    RenderTexture rt = cam.targetTexture;
+                    drawn += $" | CAMERA{(cam.enabled ? "" : " off")}{(t.gameObject.activeSelf ? "" : " (object inactive)")}, fov {cam.fieldOfView:0.#}, depth {cam.depth:0}, mask 0x{cam.cullingMask:X8}, "
+                             + $"near {cam.nearClipPlane:0.###}, target {(rt == null ? "screen" : $"'{rt.name}' {rt.width}x{rt.height}")}";
+                }
                 sb.AppendLine($"{new string(' ', 2 + depth * 2)}{t.name} [{flags}]{fire}{reload}{drawn}");
             }
             return sb.ToString();

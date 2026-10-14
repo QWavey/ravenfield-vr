@@ -39,6 +39,8 @@ namespace RavenfieldVR.Weapons
         private Vector3 _pinAxisLocal;
         private GameObject _ring;
         private VRHand _ringHand;
+        /// <summary>Grenades put away with their pin pulled: drawn again, the pin is still out (it does not grow back).</summary>
+        private readonly HashSet<ThrowableWeapon> _pulledPutAway = new HashSet<ThrowableWeapon>();
 
         /// <summary>Live projectiles the last throw spawned (the autotest checks a pinned throw spawns none).</summary>
         internal int LastLiveCount { get; private set; }
@@ -94,26 +96,37 @@ namespace RavenfieldVR.Weapons
                 if (hand.BodyThrowVelocity().magnitude * VRConfig.ThrowVelocityMultiplier.Value > 1.6f)
                 {
                     _armed = false;
-                    GripThrowAt = Time.unscaledTime;
-                    Throw(weapon, hand, v);
+                    if (Throw(weapon, hand, v))
+                    {
+                        // The hand that let go is empty, as in Boneworks: the next grenade waits in its holster. It stayed
+                        // "held" in the open hand before (the let-go was spent on the throw), and could not be thrown or
+                        // put away without gripping again. A throw the game refused is an ordinary let-go (it goes back).
+                        GripThrowAt = Time.unscaledTime;
+                        _sys.PutAwayAfterThrow();
+                    }
                 }
             }
         }
 
         private static bool GameContextBlocksThrow() => Util.GameContext.GameMenuOpen || VRGameInput.PanelOpen && VRGameInput.PointerOverUI;
 
-        private void Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
+        /// <returns>Something left the hand (a live grenade or a dud).</returns>
+        private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
         {
             LastLiveCount = 0;
+            // The flat game's throw animation states never apply to a throw by hand (the game's own throw, started by a
+            // stray fire input, waits for an animation event that may never come and blocked every throw after it).
+            weapon.isPreparingToThrowProjectile = false;
+            weapon.hasFiredSingleRoundThisTrigger = false;
             if (!weapon.CanFire() || !weapon.unholstered)
             {
                 hand.Haptic(0.08f, 40f, 0.4f);
-                return;
+                return false;
             }
             if (_usesPin && !_pinPulled)
             {
                 ThrowDud(weapon, hand, velocity);
-                return;
+                return true;
             }
             if (_listening != weapon)
             {
@@ -152,6 +165,7 @@ namespace RavenfieldVR.Weapons
             }
             hand.Haptic(0.04f, 90f, 0.6f);
             ResetPin(); // the next grenade comes out of the pouch with its pin in
+            return LastLiveCount > 0;
         }
 
         /// <summary>Pin still in: the grenade leaves the hand as an inert, physical object.</summary>
@@ -199,6 +213,8 @@ namespace RavenfieldVR.Weapons
             _pinPulled = false;
             _holdingPin = false;
             _modPin = null;
+            _pulledPutAway.RemoveWhere(w => w == null);
+            bool alreadyPulled = _pulledPutAway.Remove(weapon);
             if (!_usesPin)
             {
                 return;
@@ -217,9 +233,21 @@ namespace RavenfieldVR.Weapons
                 float up = measured ? Mathf.Abs(Vector3.Dot(b.extents, Abs(d.Up))) : 0.05f;
                 Vector3 side = Vector3.Cross(d.Up, d.AimAxis).normalized;
                 _pinLocal = (measured ? b.center : d.GripPoint) + d.Up * (up * 0.85f) + side * 0.018f;
-                _ring = PinRing.Create();
+                if (!alreadyPulled)
+                {
+                    _ring = PinRing.Create();
+                }
             }
             _pinAxisLocal = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            if (alreadyPulled)
+            {
+                // Put away with the pin out: it is still out (pulling it again for a fresh pin was a free reset).
+                _pinPulled = true;
+                if (_modPin != null)
+                {
+                    _modPin.localScale = Vector3.one * 1e-4f;
+                }
+            }
         }
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
@@ -488,7 +516,11 @@ namespace RavenfieldVR.Weapons
                 _listening.onSpawnProjectiles.RemoveListener(OnSpawned);
                 _listening = null;
             }
-            // Put away with the pin out: it goes back in (no surprises in the pouch).
+            // Put away with the pin out: it stays out, and is still out when the grenade is drawn again.
+            if (_pinPulled && _usesPin && _pinFor != null)
+            {
+                _pulledPutAway.Add(_pinFor);
+            }
             ResetVisuals();
             _pinFor = null;
             _pinRig = null;

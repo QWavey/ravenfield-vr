@@ -627,6 +627,20 @@ namespace RavenfieldVR.Weapons
         /// <summary>Follows the gun through the physics engine so props it touches are pushed, not teleported through.</summary>
         public void Update()
         {
+            if (_go != null && _go.layer != _layer)
+            {
+                // A move of the player threw before its postfix put the stand-in back (Harmony skips postfixes then). Here,
+                // outside any move, it is solid again: never a ghost the gun passes through walls and props with.
+                _hiddenDepth = 0;
+                _go.layer = _layer;
+                foreach (Collider b in _boxes)
+                {
+                    if (b != null)
+                    {
+                        b.isTrigger = false;
+                    }
+                }
+            }
             if (_rig.GunBody == null)
             {
                 return;

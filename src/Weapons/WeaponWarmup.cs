@@ -48,6 +48,50 @@ namespace RavenfieldVR.Weapons
 
         private static int _fitted;
 
+        private static readonly string[] LoadoutKeys = { "primary", "secondary", "gear1", "gear2", "gear3" };
+
+        /// <summary>
+        /// The weapons of the saved loadout go first: with hundreds of mod weapons the warm-up takes a while, and a match
+        /// started soon after the game came up drew them before it got there (every first draw hitched).
+        /// </summary>
+        private static void PutLoadoutFirst(List<WeaponManager.WeaponEntry> entries)
+        {
+            var wanted = new HashSet<int>();
+            foreach (string key in LoadoutKeys)
+            {
+                if (PlayerPrefs.HasKey(key))
+                {
+                    wanted.Add(PlayerPrefs.GetInt(key));
+                }
+            }
+            if (LoadoutUi.instance != null && LoadoutUi.instance.loadout != null)
+            {
+                WeaponManager.LoadoutSet l = LoadoutUi.instance.loadout;
+                foreach (WeaponManager.WeaponEntry e in new[] { l.primary, l.secondary, l.gear1, l.gear2, l.gear3 })
+                {
+                    if (e != null)
+                    {
+                        wanted.Add(e.nameHash);
+                    }
+                }
+            }
+            wanted.Remove(-1);
+            if (wanted.Count == 0)
+            {
+                return;
+            }
+            var first = new List<WeaponManager.WeaponEntry>();
+            for (int i = entries.Count - 1; i >= 0; i--)
+            {
+                if (entries[i] != null && wanted.Contains(entries[i].nameHash))
+                {
+                    first.Insert(0, entries[i]);
+                    entries.RemoveAt(i);
+                }
+            }
+            entries.InsertRange(0, first);
+        }
+
         private static bool InMatch() => GameManager.IsIngame(out bool noGameplay) && !noGameplay;
 
         private static IEnumerator Run()
@@ -64,6 +108,7 @@ namespace RavenfieldVR.Weapons
                 {
                     entries.AddRange(WeaponManager.instance.allWeapons);
                 }
+                PutLoadoutFirst(entries);
                 foreach (WeaponManager.WeaponEntry entry in entries)
                 {
                     // Only in menus: in a match the frame rate matters more than the cache. While the menu is in use
@@ -120,7 +165,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             while (_rescan && VRManager.Active);
-            Log.Info($"Pre-analysed {analysed} weapon rigs and {_fitted} physics shapes in {Time.realtimeSinceStartup - started:0.0} s.");
+            Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted} physics shapes in {Time.realtimeSinceStartup - started:0.0} s.");
             _running = false;
         }
     }

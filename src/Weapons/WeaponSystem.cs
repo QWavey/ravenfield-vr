@@ -485,6 +485,22 @@ namespace RavenfieldVR.Weapons
             dom.Haptic(0.05f, 100f, 0.6f);
         }
 
+        /// <summary>A grenade thrown by letting go of the grip: the throwable goes back to its holster and the hand is empty.</summary>
+        internal void PutAwayAfterThrow()
+        {
+            Actor actor = GameContext.PlayerActor;
+            if (actor == null || actor.activeWeapon == null || actor.IsSeated())
+            {
+                return;
+            }
+            actor.HolsterActiveWeapon();
+            VRHand dom = Rig.Dominant;
+            if (dom.Role == HandRole.Weapon || dom.Role == HandRole.Throwable)
+            {
+                dom.Role = HandRole.Free;
+            }
+        }
+
         private void HolsterToEmptyHand(Actor actor)
         {
             if (actor.activeWeapon == null || actor.IsSeated())

@@ -566,14 +566,14 @@ namespace RavenfieldVR.Weapons
             {
                 strength *= Rig.Data.IsPistol ? _oneHandRecoil : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
-            // Every shot kicks a little, even from weapons whose flat-screen kick is tiny.
-            float kick = Mathf.Max(0.5f, Mathf.Clamp(c.kickback, 0f, 10f));
+            float kick = ShotKick(c, Rig.Data, _weaponClass, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
             // Critically damped spring peak = v0 / (omega * e), omega ~ 16: ~0.6 m/s per kick unit gives ~1.4 cm back,
-            // ~150 deg/s per kick unit gives ~3.4 degrees of muzzle climb per shot (before the hand factors).
-            _recoilPosVel += new Vector3(0f, 0.08f * kick, -0.6f * kick) * strength;
-            _recoilRotVel += new Vector2(-(150f * kick + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
-            PeakShotImpulse = Mathf.Max(PeakShotImpulse, 150f * kick * strength);
+            // ~150 deg/s per kick unit gives ~3.4 degrees of muzzle climb per shot (before the hand factors). A pistol's
+            // kick is more flip than push, a heavy rifle's more push than flip.
+            _recoilPosVel += new Vector3(0f, 0.08f * kick, -0.6f * kick * (2f - climbShare)) * strength;
+            _recoilRotVel += new Vector2(-(150f * kick * climbShare + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
+            PeakShotImpulse = Mathf.Max(PeakShotImpulse, 150f * kick * climbShare * strength);
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
@@ -589,6 +589,40 @@ namespace RavenfieldVR.Weapons
             {
                 Casings.Eject(this);
             }
+        }
+
+        /// <summary>
+        /// How hard one shot kicks, in kick units (1: about 1.4 cm back and 3.4 degrees of climb before the hand factors):
+        /// the most of the flat game's kick, the round's own push (its damage, muzzle speed and pellets stand in for calibre
+        /// and load) and a floor for the kind of gun. Many mods leave the flat kick near nothing and shake the view with the
+        /// fire animation instead, which VR does not play: their pistols and sniper rifles hardly moved in the hand.
+        /// <paramref name="climbShare"/>: how much of it is muzzle flip (1 as before; a pistol more, a bolt rifle less).
+        /// </summary>
+        internal static float ShotKick(Weapon.Configuration c, WeaponRigData d, WeaponClass kind, out float climbShare)
+        {
+            float flat = Mathf.Clamp(c.kickback, 0f, 10f);
+            float round = 0f;
+            Projectile p = c.projectilePrefab != null ? c.projectilePrefab.GetComponent<Projectile>() : null;
+            if (p != null && p.configuration != null)
+            {
+                float pellets = Mathf.Pow(Mathf.Max(1, c.projectilesPerShot), 0.7f);
+                float power = Mathf.Clamp(p.configuration.damage * pellets / 60f, 0.25f, 3.5f);
+                round = power * Mathf.Clamp(Mathf.Sqrt(Mathf.Max(p.configuration.speed, 1f) / 500f), 0.6f, 1.5f);
+            }
+            bool shotgun = c.projectilesPerShot > 1 && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual);
+            bool boltRifle = d.CyclesByHand && !shotgun && kind == WeaponClass.Rifle;
+            float floor;
+            switch (kind)
+            {
+                case WeaponClass.Pistol: floor = 0.9f; climbShare = 1.35f; break;
+                case WeaponClass.MachineGun: floor = 0.7f; climbShare = 0.9f; break;
+                case WeaponClass.Launcher: floor = 1.2f; climbShare = 0.8f; break;
+                default:
+                    floor = shotgun ? 1.6f : boltRifle ? 1.5f : 0.7f;
+                    climbShare = boltRifle ? 0.85f : 1f;
+                    break;
+            }
+            return Mathf.Clamp(Mathf.Max(flat, round, floor), 0.5f, 10f);
         }
 
         /// <summary>

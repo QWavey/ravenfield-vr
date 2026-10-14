@@ -123,6 +123,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Since when the wrist look has wanted to change state (-1: it agrees with what is shown).</summary>
+        private float _wristChangeSince = -1f;
+
         private void UpdateGestures()
         {
             VRHand off = _rig.Off;
@@ -131,13 +134,30 @@ namespace RavenfieldVR.Weapons
                 VRGameInput.WristLookGesture = false;
                 return;
             }
-            // Wrist watch: back of the off hand turned toward the face, raised in front of the chest.
+            // Wrist watch: back of the off hand turned toward the face, raised in front of the chest. It comes on after a
+            // steady moment and goes off only once the wrist is clearly turned away: on hard thresholds a hand held near them
+            // flipped the game's map and scoreboard (both follow this gesture) on and off every frame.
+            bool on = VRGameInput.WristLookGesture;
             Vector3 toHead = (_rig.Head.position - off.Raw.position);
             float dist = toHead.magnitude;
             Vector3 backOfHand = off.Palm.rotation * (off.IsLeft ? Vector3.left : Vector3.right);
-            bool facing = dist < 0.55f && Vector3.Dot(backOfHand, toHead / Mathf.Max(dist, 1e-3f)) > 0.6f;
-            bool inView = Vector3.Dot(_rig.Head.forward, -toHead.normalized) > 0.75f;
-            VRGameInput.WristLookGesture = facing && inView && off.Role == HandRole.Free;
+            bool facing = dist < (on ? 0.62f : 0.55f) && Vector3.Dot(backOfHand, toHead / Mathf.Max(dist, 1e-3f)) > (on ? 0.45f : 0.6f);
+            bool inView = Vector3.Dot(_rig.Head.forward, -toHead.normalized) > (on ? 0.6f : 0.75f);
+            bool want = facing && inView && off.Role == HandRole.Free;
+            float now = Time.unscaledTime;
+            if (want == on)
+            {
+                _wristChangeSince = -1f;
+            }
+            else if (_wristChangeSince < 0f)
+            {
+                _wristChangeSince = now;
+            }
+            else if (now - _wristChangeSince >= (want ? 0.1f : 0.2f))
+            {
+                VRGameInput.WristLookGesture = want;
+                _wristChangeSince = -1f;
+            }
 
             if (off.GrabPressed && off.Role == HandRole.Free && Vector3.Distance(off.Palm.position, HeadSide) < 0.13f && BesideHead(off.Palm.position))
             {
