@@ -573,9 +573,20 @@ namespace RavenfieldVR.Weapons
         {
             RigidPose selfInv = Idle(live).Inverse();
             Func<Transform, Vector3, Vector3> toSpace = (t, p) => selfInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale)));
-            Bounds shown = MeshBounds(live, toSpace, IdleVisible);
-            return shown.size.sqrMagnitude > 1e-8f ? shown : MeshBounds(live, toSpace);
+            // Pieces a mod parks far away at rest to hide them (the PKM/PKP box's belt links wait 25 m off until the
+            // reload brings them in) are not part of what is there: they made the box measure 25 m.
+            Func<Transform, bool> near = t => selfInv.TransformPoint(Idle(t).position).sqrMagnitude < ParkedAway * ParkedAway;
+            Bounds shown = MeshBounds(live, toSpace, t => IdleVisible(t) && near(t));
+            if (shown.size.sqrMagnitude > 1e-8f)
+            {
+                return shown;
+            }
+            Bounds nearby = MeshBounds(live, toSpace, near);
+            return nearby.size.sqrMagnitude > 1e-8f ? nearby : MeshBounds(live, toSpace);
         }
+
+        /// <summary>A piece further than this from its part at rest is parked out of sight, not part of the part.</summary>
+        private const float ParkedAway = 1.5f;
 
         private static Bounds MeshBounds(Transform live, Func<Transform, Vector3, Vector3> toSpace, Func<Transform, bool> include = null)
         {

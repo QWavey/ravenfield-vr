@@ -39,6 +39,12 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// A layer the first-person controller's ground sphere cast (FirstPersonController.FixedUpdate: mask -12945153) and
+        /// the game's bullets leave out, nothing in the level uses: where the held gun's stand-in waits while the player moves.
+        /// </summary>
+        public const int HiddenFromPlayerLayer = 22;
+
         private static readonly List<Collider> Scratch = new List<Collider>();
         private static readonly List<Collider> PlayerColliders = new List<Collider>();
         private static int _playerCollidersFrame = -1;
@@ -261,6 +267,7 @@ namespace RavenfieldVR.Weapons
             _rig = rig;
             _frame = frame;
             _origin = origin;
+            _layer = layer;
             _go = new GameObject("RavenfieldVR Gun Collider") { layer = layer };
             Object.DontDestroyOnLoad(_go);
             _boxes = ShapeFit.AddColliders(_go, boxes);
@@ -280,8 +287,41 @@ namespace RavenfieldVR.Weapons
         }
 
         private int _playerGeneration;
+        private readonly int _layer;
         /// <summary>Where the hand wants the gun body this frame (set before rendering); the stand-in chases it.</summary>
         private RigidPose? _handPose;
+
+        /// <summary>
+        /// While the game moves the player (the first-person controller's physics step, any move of its character controller),
+        /// the held gun's stand-in is out of the player's way: on a layer the controller's ground sphere cast leaves out, and a
+        /// trigger. The cast took a gun held down by the feet for a moving platform (it carried the player along with the hand)
+        /// and for a steep slope (the player slid), and a character controller pushes itself out of whatever it overlaps
+        /// without honouring ignored pairs: 9-12 cm in a second in the autotest. Solid again before the physics step runs.
+        /// </summary>
+        internal static void HideFromPlayer(bool hide)
+        {
+            GunCollider g = Current;
+            if (g == null || g._go == null || !g._enabled)
+            {
+                _hiddenDepth = 0;
+                return;
+            }
+            if (hide ? _hiddenDepth++ > 0 : --_hiddenDepth > 0)
+            {
+                return; // nested (a move inside the controller's step): only the outermost call switches
+            }
+            _hiddenDepth = Mathf.Max(0, _hiddenDepth);
+            g._go.layer = hide ? PropPhysics.HiddenFromPlayerLayer : g._layer;
+            foreach (Collider b in g._boxes)
+            {
+                if (b != null && b.isTrigger != hide)
+                {
+                    b.isTrigger = hide;
+                }
+            }
+        }
+
+        private static int _hiddenDepth;
 
         /// <summary>The gun-body pose the hand wants (not where the gun is drawn, which may be held back by the world).</summary>
         public void SetHandPose(RigidPose gunBody) => _handPose = gunBody;
@@ -861,6 +901,53 @@ namespace RavenfieldVR.Weapons
             Body.angularVelocity = Mathf.Abs(angle) > 0.01f && !float.IsNaN(axis.x) && !float.IsInfinity(axis.x)
                 ? axis * (angle * Mathf.Deg2Rad / dt)
                 : Vector3.zero;
+        }
+    }
+
+    /// <summary>The player's own physics step never meets the held gun's stand-in (see <see cref="GunCollider.HideFromPlayer"/>).</summary>
+    [HarmonyLib.HarmonyPatch(typeof(UnityStandardAssets.Characters.FirstPerson.FirstPersonController), "FixedUpdate")]
+    internal static class PlayerStepPastGunPatch
+    {
+        private static void Prefix(UnityStandardAssets.Characters.FirstPerson.FirstPersonController __instance, out bool __state)
+        {
+            FpsActorController player = LocalPlayer.controller;
+            __state = Core.VRManager.Active && player != null && ReferenceEquals(player.controller, __instance);
+            if (__state)
+            {
+                GunCollider.HideFromPlayer(true);
+            }
+        }
+
+        private static void Postfix(bool __state)
+        {
+            if (__state)
+            {
+                GunCollider.HideFromPlayer(false);
+            }
+        }
+    }
+
+    /// <summary>Any other move of the player's character controller (real steps in the room) past the held gun's stand-in.</summary>
+    [HarmonyLib.HarmonyPatch(typeof(CharacterController), nameof(CharacterController.Move))]
+    internal static class PlayerMovePastGunPatch
+    {
+        private static void Prefix(CharacterController __instance, out bool __state)
+        {
+            FpsActorController player = LocalPlayer.controller;
+            __state = Core.VRManager.Active && GunCollider.Current != null && player != null && player.controller != null
+                      && player.controller.gameObject == __instance.gameObject;
+            if (__state)
+            {
+                GunCollider.HideFromPlayer(true);
+            }
+        }
+
+        private static void Postfix(bool __state)
+        {
+            if (__state)
+            {
+                GunCollider.HideFromPlayer(false);
+            }
         }
     }
 }

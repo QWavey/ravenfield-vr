@@ -315,6 +315,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>A piece further than this from the magazine is parked out of sight, not part of it.</summary>
+        private const float ParkedAway = 1.5f;
+
         private static GameObject CopyVisualsShown(WeaponRig rig)
         {
             Transform source = rig.Magazine;
@@ -347,6 +350,10 @@ namespace RavenfieldVR.Weapons
                     if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy))
                     {
                         continue;
+                    }
+                    if ((r.transform.position - source.position).sqrMagnitude > ParkedAway * ParkedAway)
+                    {
+                        continue; // parked out of sight by the mod (a PKM box's belt links wait 25 m away): not on the magazine
                     }
                     Mesh mesh = null;
                     if (r is MeshRenderer)

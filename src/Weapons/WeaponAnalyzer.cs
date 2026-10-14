@@ -909,7 +909,19 @@ namespace RavenfieldVR.Weapons
                     }
                     reload += $" back {back * 100f:0.0} side {side * 100f:0.0} end {(tr[tr.Length - 1] - rest).magnitude * 100f:0.0} grip {Vector3.Distance(rest, d.GripPoint) * 100f:0}";
                 }
-                sb.AppendLine($"{new string(' ', 2 + depth * 2)}{t.name} [{flags}]{fire}{reload}");
+                string drawn = "";
+                Renderer own = t.GetComponent<Renderer>();
+                if (own != null && !(own is ParticleSystemRenderer))
+                {
+                    Material mat = own.sharedMaterial;
+                    string look = mat == null ? "no material"
+                        : $"{mat.shader.name}, queue {mat.renderQueue}{(mat.HasProperty("_Color") ? $", alpha {mat.color.a:0.00}" : "")}{(mat.HasProperty("_Mode") ? $", mode {mat.GetFloat("_Mode"):0}" : "")}";
+                    Mesh mesh = own is SkinnedMeshRenderer skin ? skin.sharedMesh : t.GetComponent<MeshFilter>()?.sharedMesh;
+                    string shape = mesh == null ? ""
+                        : $", mesh '{mesh.name}' {Vector3.Scale(mesh.bounds.size, t.lossyScale).magnitude / Mathf.Max(1e-6f, root.lossyScale.x) * 100f:0.0} cm";
+                    drawn = $" | {own.GetType().Name}{(own.enabled ? "" : " off")}, shadows {own.shadowCastingMode}, {look}{shape}";
+                }
+                sb.AppendLine($"{new string(' ', 2 + depth * 2)}{t.name} [{flags}]{fire}{reload}{drawn}");
             }
             return sb.ToString();
         }
@@ -1565,9 +1577,11 @@ namespace RavenfieldVR.Weapons
                         skippedHelper = skippedHelper ?? t;
                         continue;
                     }
-                    if (OpticName.IsMatch(t.name) && !MagName.IsMatch(t.name) || sampler.LocalBounds(t).size.magnitude > 1.6f)
+                    if (OpticName.IsMatch(t.name) && !MagName.IsMatch(t.name) || sampler.LocalBounds(t).size.magnitude > 2.2f)
                     {
-                        continue; // a sight that comes off in the reload (a Javelin's command unit), or nothing a hand could hold
+                        // A sight that comes off in the reload (a Javelin's command unit), or nothing a hand could hold. Not
+                        // tighter: an RPG-7V's rocket holder with its rocket measures 1.7 m (it fell to a piece of the scope).
+                        continue;
                     }
                     Vector3 idlePos = sampler.RelIdle[i].position;
                     bool nearGun = Vector3.Distance(idlePos, d.GripPoint) < 0.45f;
@@ -1587,9 +1601,10 @@ namespace RavenfieldVR.Weapons
                     for (Transform p = mag.parent; p != null && p != gunBody && p != root; p = p.parent)
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
-                            || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p))
+                            || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p)
+                            || OpticName.IsMatch(p.name) && !MagName.IsMatch(p.name))
                         {
-                            break;
+                            break; // never up into a sight the reload moves along (an RPG-7V's "shmelscope")
                         }
                         mag = p;
                     }

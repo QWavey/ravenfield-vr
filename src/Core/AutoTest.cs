@@ -694,6 +694,7 @@ namespace RavenfieldVR.Core
             Collider wallCollider = wall.GetComponent<Collider>();
             Runtime.RigidPose start = dom.Raw;
             Vector3 before = actor.Position();
+            Vector3 afterWall = before, beforeGround = before;
             bool heldBack = false, muzzleIn = false;
             int knocksBefore = HeldWeapon.ContactKnocks, knocks = 0;
             try
@@ -705,6 +706,7 @@ namespace RavenfieldVR.Core
                 }
                 yield return new WaitForSecondsRealtime(0.3f);
                 yield return new WaitForEndOfFrame();
+                afterWall = actor.Position();
                 heldBack = held.HeldBackByWorld;
                 knocks = HeldWeapon.ContactKnocks - knocksBefore;
                 Vector3 muzzle = held.Rig.ToWorld(held.Rig.Data.MuzzlePoint);
@@ -714,6 +716,8 @@ namespace RavenfieldVR.Core
                 // Down into the ground, the muzzle first.
                 UnityEngine.Object.Destroy(wall);
                 wall = null;
+                yield return new WaitForSecondsRealtime(0.3f);
+                beforeGround = actor.Position();
                 Quaternion down = Quaternion.LookRotation(Vector3.down * 0.8f + flat * 0.2f, flat) * Quaternion.Inverse(Quaternion.LookRotation(dom.GunFrame.Forward, dom.GunFrame.Up)) * start.rotation;
                 for (int i = 0; i <= 40; i++)
                 {
@@ -733,7 +737,9 @@ namespace RavenfieldVR.Core
                     UnityEngine.Object.Destroy(wall);
                 }
             }
-            float moved = Vector3.ProjectOnPlane(actor.Position() - before, Vector3.up).magnitude;
+            float moved = Vector3.ProjectOnPlane(actor.Position() - beforeGround, Vector3.up).magnitude;
+            float movedByWall = Vector3.ProjectOnPlane(afterWall - before, Vector3.up).magnitude;
+            Log.Info($"World collision check: player moved {movedByWall * 100f:0.0} cm during the wall push, {Vector3.ProjectOnPlane(beforeGround - afterWall, Vector3.up).magnitude * 100f:0.0} cm after it, {moved * 100f:0.0} cm during the ground push");
             Metric("gun pushed into a wall: muzzle inside it (0/1)", muzzleIn ? 1 : 0);
             Metric("gun pushed into the ground: cm the player moved", moved * 100f);
             report($"gun against the world: pushed into a wall it {(heldBack ? "stopped at the wall" : "was NOT HELD BACK")}{(muzzleIn ? " (MUZZLE INSIDE THE WALL)" : "")}"
@@ -1107,13 +1113,13 @@ namespace RavenfieldVR.Core
 
         private static IEnumerator TestWeapons()
         {
-            List<WeaponManager.WeaponEntry> entries = WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null).ToList();
-            Results.Add($"Weapons to test: {entries.Count} (VR {(VRManager.Active ? "on" : "off")})");
+            List<WeaponManager.WeaponEntry> entries = WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null && WeaponSelfTest.Allows(e)).ToList();
+            Results.Add($"Weapons to test: {entries.Count} (VR {(VRManager.Active ? "on" : "off")}{(WeaponSelfTest.Only.Length > 0 ? ", only " + string.Join(", ", WeaponSelfTest.Only) : "")})");
             if (VRManager.Active)
             {
                 yield return BodyShots();
             }
-            int every = Mathf.Max(1, entries.Count / 28);
+            int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
             int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {

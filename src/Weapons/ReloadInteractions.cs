@@ -1903,7 +1903,9 @@ namespace RavenfieldVR.Weapons
                     {
                         // From 8 cm below, up into (or past) the old magazine at this pass's speed and angle.
                         _seatedAt = -10f; // the seat just above is the test's set-up, not a push the kick must wait out
-                        for (float below = 0.08f; below > -0.06f; below -= how.Speed * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
+                        // Stepped by at most 20 ms of travel a frame: right after a picture the first frame is long, and the
+                        // hand jumped straight past the well (a player's hand moves continuously).
+                        for (float below = 0.08f; below > -0.06f; below -= how.Speed * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
                         {
                             PlaceFreshMag(off, fresh, holdInRaw, below, how.Aside, how.Speed, how.Tilt);
                             yield return null;
@@ -1950,13 +1952,18 @@ namespace RavenfieldVR.Weapons
                     // Then up the well until it seats.
                     float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
                     float start = kick ? -0.02f : 0.04f;
-                    for (float below = start; below > -length - 0.03f && fresh.Go != null && ReferenceEquals(off.Held, fresh); below -= 0.6f * Mathf.Max(Time.unscaledDeltaTime, 0.005f))
+                    for (float below = start; below > -length - 0.03f && fresh.Go != null && ReferenceEquals(off.Held, fresh); below -= 0.6f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
                     {
                         PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.6f);
                         yield return null;
                     }
                     VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
                     yield return null;
+                    // The knocked-out magazine slides out of the well for a moment before it falls (and counts as dropped).
+                    for (int wait = 0; wait < 30 && _ejecting != null; wait++)
+                    {
+                        yield return null;
+                    }
                     bool seated = Ammo.MagInserted && Ammo.MagRounds == freshRounds;
                     int inHand = off.Held is MagazineProp h ? h.Rounds : 0;
                     int dropped = 0;

@@ -72,6 +72,49 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private static string[] _only;
+
+        /// <summary>
+        /// -rfvr-only=name1,name2: the self-test and the autotest take only the weapons whose name (or prefab name) contains
+        /// one of these, and the self-test quits when done: checking a few weapons takes about a minute instead of the
+        /// whole collection's three or four.
+        /// </summary>
+        internal static string[] Only
+        {
+            get
+            {
+                if (_only == null)
+                {
+                    string arg = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("-rfvr-only=", StringComparison.OrdinalIgnoreCase));
+                    _only = arg == null
+                        ? new string[0]
+                        : arg.Substring("-rfvr-only=".Length).Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
+                }
+                return _only;
+            }
+        }
+
+        /// <summary>Whether -rfvr-only lets this weapon through (always, without the option).</summary>
+        internal static bool Allows(WeaponManager.WeaponEntry entry)
+        {
+            if (Only.Length == 0)
+            {
+                return true;
+            }
+            foreach (string f in Only)
+            {
+                // "=name" takes that weapon only; otherwise any weapon whose name contains it.
+                if (f.StartsWith("=", StringComparison.Ordinal)
+                        ? string.Equals(entry.name, f.Substring(1), StringComparison.OrdinalIgnoreCase)
+                        : entry.name != null && entry.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0
+                          || entry.prefab != null && entry.prefab.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public static bool Requested =>
             VRConfig.WeaponSelfTest.Value || Environment.GetCommandLineArgs().Any(a => string.Equals(a, "-rfvr-selftest", StringComparison.OrdinalIgnoreCase));
 
@@ -87,8 +130,12 @@ namespace RavenfieldVR.Weapons
             Application.runInBackground = true;
             Log.Info("Weapon self-test started.");
             List<WeaponManager.WeaponEntry> entries = WeaponManager.instance != null && WeaponManager.instance.allWeapons != null
-                ? WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null).ToList()
+                ? WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null && Allows(e)).ToList()
                 : new List<WeaponManager.WeaponEntry>();
+            if (Only.Length > 0)
+            {
+                Log.Info($"Weapon self-test: only {entries.Count} weapon(s) matching {string.Join(", ", Only)}.");
+            }
 
             var results = new List<Result>();
             var failures = new List<string>();
@@ -212,6 +259,11 @@ namespace RavenfieldVR.Weapons
                 // Only a diagnostics file.
             }
             Running = false;
+            if (Only.Length > 0 && !AutoTest.Requested)
+            {
+                Log.Info("Weapon self-test (filtered) done; quitting.");
+                Application.Quit();
+            }
         }
 
         private static string ProgressPath => ReportPath + ".progress";
