@@ -88,8 +88,10 @@ namespace RavenfieldVR.Weapons
             // release puts it back on the chest instead).
             if (VRConfig.GripToHoldWeapon.Value && hand.GrabReleased && !GameContextBlocksThrow())
             {
+                // A throwing motion against the body (opening the hand while running is not a throw); the grenade then
+                // leaves with the hand's full speed, running included.
                 Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-                if (v.magnitude > 1.6f)
+                if (hand.BodyThrowVelocity().magnitude * VRConfig.ThrowVelocityMultiplier.Value > 1.6f)
                 {
                     _armed = false;
                     GripThrowAt = Time.unscaledTime;

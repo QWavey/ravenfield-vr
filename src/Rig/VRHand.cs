@@ -40,6 +40,8 @@ namespace RavenfieldVR.Rig
 
         private const int HistoryLength = 10;
         private readonly Vector3[] _velHistory = new Vector3[HistoryLength];
+        /// <summary>The same, without the player's own movement (walking, riding, the rig being carried).</summary>
+        private readonly Vector3[] _bodyVelHistory = new Vector3[HistoryLength];
         private readonly float[] _timeHistory = new float[HistoryLength];
         private int _historyIndex;
         private bool _hasTip, _hasGrip;
@@ -122,6 +124,7 @@ namespace RavenfieldVR.Rig
             Velocity = (raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero) + rigVelocity;
             AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             _velHistory[_historyIndex] = Velocity;
+            _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;
             _timeHistory[_historyIndex] = Time.unscaledTime;
             _historyIndex = (_historyIndex + 1) % HistoryLength;
         }
@@ -202,7 +205,15 @@ namespace RavenfieldVR.Rig
         public Vector3 MirrorEuler(Vector3 euler) => IsLeft ? new Vector3(euler.x, -euler.y, -euler.z) : euler;
 
         /// <summary>Peak-weighted average velocity over the last ~0.1 s, used for throws.</summary>
-        public Vector3 ThrowVelocity()
+        public Vector3 ThrowVelocity() => WeightedVelocity(_velHistory);
+
+        /// <summary>
+        /// The same against the player's own body: for deciding what a motion was (a gentle placing or a throw), which must
+        /// not change because the player is running. What leaves the hand still takes <see cref="ThrowVelocity"/>.
+        /// </summary>
+        public Vector3 BodyThrowVelocity() => WeightedVelocity(_bodyVelHistory);
+
+        private Vector3 WeightedVelocity(Vector3[] history)
         {
             float now = Time.unscaledTime;
             Vector3 sum = Vector3.zero;
@@ -214,16 +225,16 @@ namespace RavenfieldVR.Rig
                 {
                     continue;
                 }
-                sum += _velHistory[i];
-                if (_velHistory[i].sqrMagnitude > peak.sqrMagnitude)
+                sum += history[i];
+                if (history[i].sqrMagnitude > peak.sqrMagnitude)
                 {
-                    peak = _velHistory[i];
+                    peak = history[i];
                 }
                 n++;
             }
             if (n == 0)
             {
-                return Velocity;
+                return history[(_historyIndex + HistoryLength - 1) % HistoryLength];
             }
             Vector3 avg = sum / n;
             // Blend toward the peak: releases happen slightly after the fastest point of the swing.

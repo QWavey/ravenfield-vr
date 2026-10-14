@@ -1121,7 +1121,9 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Let go at the pouch, gently: stowed. Flicked away from the hip it flies.</summary>
-        private bool Stows(VRHand off) => _sys.Zones.InPouch(off.Palm.position) && off.ThrowVelocity().magnitude < 1.2f;
+        // Gentle against the body: running, the hand's world speed is the running speed, and a magazine put back while
+        // moving was thrown off the hip instead of stowed.
+        private bool Stows(VRHand off) => _sys.Zones.InPouch(off.Palm.position) && off.BodyThrowVelocity().magnitude < 1.2f;
 
         private void ReleaseProp(VRHand off, MagazineProp prop)
         {

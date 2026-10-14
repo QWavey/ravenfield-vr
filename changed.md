@@ -1123,3 +1123,24 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
 
   The hit test itself still sweeps the blade's real path in the world.
 - Kept.
+
+### Round 10 (correctness): "gentle" and "a throw" are judged against your body (`src/Rig/VRHand.cs`, `src/Weapons/ReloadInteractions.cs`, `src/Weapons/ThrowAndMelee.cs`)
+
+- Before: two decisions used the hand's world speed, which includes the player's running:
+  - a magazine let go at the pouch is stowed only if the hand is slower than 1.2 m/s, so walking (about 3 m/s) or
+    sprinting it was thrown off the hip instead;
+  - a grenade let go by opening the grip is thrown if the hand is faster than 1.6 m/s (×1.4), otherwise it goes back
+    on the chest, so while moving every release threw it.
+- After: `VRHand.BodyThrowVelocity` (new) gives the same peak-weighted estimate without the rig's own movement, and
+  both decisions use it. What actually leaves the hand still takes the full world velocity, so a throw while running
+  carries the running speed.
+- Worked out (hand moving 0.3 m/s against the body for a gentle placing, 4 m/s for a throw):
+
+  | Case | Before | After |
+  | --- | --- | --- |
+  | Magazine put back at the pouch, standing | stowed | stowed |
+  | ... walking at 3 m/s | thrown (3.3 m/s) | stowed (0.3) |
+  | ... sprinting at 6 m/s | thrown (6.3 m/s) | stowed (0.3) |
+  | Grenade grip opened gently while sprinting | thrown | back on the chest |
+  | Grenade thrown (4 m/s) while sprinting | thrown | thrown, at the full world speed |
+- Kept.
