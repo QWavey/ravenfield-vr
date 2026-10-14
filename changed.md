@@ -1565,3 +1565,34 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
 
   Nothing buried in any of them.
 - Kept.
+
+### Round 6 (correctness): a racking hand stops on the gun, not only on the part it pulls (`src/Weapons/HeldWeapon.cs`)
+
+- Before: a hand working the action closed only on the moving part's own solid: the slide, bolt carrier or charging
+  handle. Everything else on the gun was air to it. A hand reaching over an AK's top to its bolt knob had its palm
+  1.3 cm inside the receiver, and a hand taking an AR's charging handle from above curled its fingers into the
+  upper receiver.
+- After (`HeldWeapon.RackSolid`): the hand closes on three things:
+  - the part where it is now;
+  - the rest of the gun, using the gun's measured solid. That solid includes the part at rest, so the part's rest
+    volume is cut out of it. Otherwise the fingers would stop on a phantom bolt or slide where it was before it moved;
+  - the gun hand's fingers.
+
+  The hand is solved again every 2 mm of travel, because the gun moves against the part as it slides. It falls back
+  to the part alone while the gun is not measured yet.
+- Measured (grip_check.py; AK and AR receivers modelled round their bolt knob and charging handle), buried finger and
+  palm points:
+
+  | rack | before | after |
+  |---|---|---|
+  | AK knob, over the top | 16 (palm 13 mm into the receiver) | **7** (palm gap +2 mm) |
+  | AR handle, from above | 15 | **1** |
+  | AK knob from the right, AR handle from behind | 0 | 0 |
+
+  The pistol slide grips from round 5 are unchanged.
+- The 7 left over the AK are all the thumb. The pinch drags the thumb–index point onto the knob on the far side of
+  the receiver, so the thumb goes through the receiver to reach it. That hand should hook the knob with its fingers
+  instead (next round).
+- The harness's racking scenarios now open only the thumb out of the solid before closing, as HandModel does for a
+  racking hand. The numbers are the same either way.
+- Kept.

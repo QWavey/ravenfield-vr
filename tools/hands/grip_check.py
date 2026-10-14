@@ -715,7 +715,40 @@ def slide_hold(glove, fingers, thumb, before=False):
     goals = goals_for(curls, magazine=False)
     if on is not None:
         goals[0] = max(goals[0], 0.9)
-    return hold(glove, SLIDE, tracked, rot, goals, thumb_base, grasp=grasp), ("palm" if on is not None else "pinch")
+    return hold(glove, SLIDE, tracked, rot, goals, thumb_base, opens_out=(True, False, False, False, False), grasp=grasp), ("palm" if on is not None else "pinch")
+
+
+# ---- racking a rifle ----------------------------------------------------------------------------------------------
+_ID = np.array([0.0, 0.0, 0.0, 1.0])
+# AK: the receiver (top at y=0, right side at x=0.017), the bolt carrier inside it with its knob out of the right side.
+AK_RECEIVER = Box(np.array([0.0, -0.03, 0.0]), _ID, [0.017, 0.03, 0.12])
+AK_PART = Union(Cylinder(np.array([0.0295, -0.01, 0.06]), qaxis(90, [0, 1.0, 0]), 0.008, 0.0125),
+                Box(np.array([0.0, -0.01, 0.04]), _ID, [0.012, 0.012, 0.06]))
+AK_RACK = np.array([0.0295, -0.01, 0.06])
+# AR: the upper receiver and the buffer tube behind it, the charging handle's latch across the rear top.
+AR_RECEIVER = Union(Box(np.array([0.0, -0.025, 0.05]), _ID, [0.0115, 0.025, 0.15]),
+                    Box(np.array([0.0, -0.035, -0.2]), _ID, [0.018, 0.03, 0.1]))
+AR_PART = Union(Box(np.array([0.0, 0.006, -0.095]), _ID, [0.02, 0.005, 0.006]),
+                Box(np.array([0.0, 0.004, -0.06]), _ID, [0.004, 0.004, 0.035]))
+AR_RACK = np.array([0.0, 0.006, -0.095])
+RIFLE_RACKS = {
+    # name: part, gun, rack point, pose, (fingers, thumb) in gun space
+    "AK knob from the right": (AK_PART, AK_RECEIVER, AK_RACK, "BoltHandle", ([0.0, 0.3, 1.0], [0.0, 1.0, -0.3])),
+    "AK knob over the top": (AK_PART, AK_RECEIVER, AK_RACK, "BoltHandle", ([1.0, -0.6, 0.0], [0.0, 0.0, -1.0])),
+    "AR handle from behind": (AR_PART, AR_RECEIVER, AR_RACK, "ChargingHandle", ([0.0, -0.4, 1.0], [-1.0, 0.0, 0.0])),
+    "AR handle from above": (AR_PART, AR_RECEIVER, AR_RACK, "ChargingHandle", ([0.0, -1.0, 0.3], [-1.0, 0.0, 0.0])),
+}
+
+
+def rifle_rack_hold(glove, part, gun, rack, pose, fingers, thumb, before=False):
+    """Pinch on the knob or handle (UpdateGraspAnchor); the hand closes on the part and the gun round it
+    (HeldWeapon.RackSolid), or on the part alone (before)."""
+    rot = look_rotation(np.asarray(fingers, float), np.asarray(thumb, float))
+    pl = pinch_point(glove)
+    tracked = rack - qrot(rot, pl - FIST_HOLLOW) + np.array([0.0, 0.01, 0.0])
+    solid = part if before else Union(part, gun)
+    thumb_base, curls = POSES[pose]
+    return hold(glove, solid, tracked, rot, goals_for(curls, magazine=False), thumb_base, opens_out=(True, False, False, False, False), grasp=(pl, rack))
 
 
 POSES = {
@@ -724,6 +757,8 @@ POSES = {
     "PistolMagazine": (0.5, [0.6, 0.18, 0.75, 0.8, 0.82]),
     "BoxMagazine": (0.35, [0.35, 0.5, 0.55, 0.58, 0.6]),
     "PistolSlide": (0.5, [0.45, 0.65, 0.7, 0.7, 0.7]),
+    "BoltHandle": (0.45, [0.5, 0.6, 0.8, 0.85, 0.85]),
+    "ChargingHandle": (0.2, [0.15, 0.7, 0.72, 0.45, 0.4]),
 }
 
 
@@ -830,6 +865,16 @@ def main():
 
     for grip in SLIDE_GRIPS:
         run(grip, lambda grip=grip: slide(grip))
+
+    def rifle_rack(name):
+        part, gun, rack, pose, (fingers, thumb) = RIFLE_RACKS[name]
+        hand, push = rifle_rack_hold(glove, part, gun, rack, pose, fingers, thumb, before="--before" in sys.argv)
+        whole = Union(part, gun)
+        picture(name, hand, whole)
+        return report(name, hand, push, whole)
+
+    for rr in RIFLE_RACKS:
+        run(rr, lambda rr=rr: rifle_rack(rr))
 
     run("seating rifle magazine", lambda: seating("seating rifle magazine", "RifleMagazine", 0.064, 0.023, 0.18, 0.081, rifle_well))
     run("seating pistol magazine", lambda: seating("seating pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.054, pistol_grip))

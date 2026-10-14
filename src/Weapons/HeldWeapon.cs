@@ -1078,6 +1078,42 @@ namespace RavenfieldVR.Weapons
             return _partSolid ?? (_partSolid = _partVolume.Solid);
         }
 
+        private System.Func<Vector3, bool> _rackSolid;
+        private Vector3 _partRestPos;
+        private Quaternion _partRestInv;
+        private HandModel _rackGunHand;
+
+        /// <summary>
+        /// What a hand working the action closes on: the part where it is now, the rest of the gun round it (the receiver
+        /// under a bolt knob, the stock behind a charging handle, the frame under a slide: the gun's solid with the part's
+        /// rest place taken out, since the part has moved), and the gun hand's fingers. On the part alone the fingers went
+        /// on into the receiver: 16 points of a hand over an AK's top, 15 of one on an AR's charging handle from above
+        /// (tools/hands/grip_check.py). The part alone when the gun is not measured.
+        /// </summary>
+        private System.Func<Vector3, bool> RackSolid(VRHand main)
+        {
+            System.Func<Vector3, bool> part = PartSolid();
+            System.Func<Vector3, bool> gun = HandSolid();
+            if (part == null || gun == null)
+            {
+                return part;
+            }
+            WeaponRigData d = Rig.Data;
+            Transform worked = WorkedPart;
+            Vector3 travel = Vector3.zero;
+            if (SlideOffset > 0.0005f)
+            {
+                float fraction = SlideOffset / Mathf.Max(d.SlideTravel.magnitude, 1e-4f);
+                travel = worked == Rig.Handle ? d.HandleTravel * Mathf.Clamp01(fraction) : d.SlideTravel * fraction;
+            }
+            _partRestPos = worked.position - Rig.DirToWorld(travel);
+            _partRestInv = Quaternion.Inverse(worked.rotation);
+            _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
+            return _rackSolid ?? (_rackSolid = p => _partSolid(p)
+                                                     || _solid(p) && !_partVolume.SolidAt(p, _partRestPos, _partRestInv)
+                                                     || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
+        }
+
         /// <summary>Self-test: how much of a hand working the action is buried in the part it holds.</summary>
         internal string PartClipping(VRHand hand, out int buried, out int touching)
         {
@@ -1146,14 +1182,15 @@ namespace RavenfieldVR.Weapons
             }
             if (off.Model != null)
             {
-                System.Func<Vector3, bool> part = off.Role == HandRole.Slide ? PartSolid() : null;
+                System.Func<Vector3, bool> part = off.Role == HandRole.Slide ? RackSolid(main) : null;
                 if (part != null)
                 {
                     off.Model.Solid = part;
                     off.Model.SolidAnchor = WorkedPart;
-                    off.Model.SolidVersion = 0;
+                    // The gun round the part moves against it as it slides: solved again every 2 mm of travel.
+                    off.Model.SolidVersion = Mathf.RoundToInt(SlideOffset * 500f);
                 }
-                else if (off.Model.Solid != null && off.Model.Solid == _partSolid)
+                else if (off.Model.Solid != null && (off.Model.Solid == _partSolid || off.Model.Solid == _rackSolid))
                 {
                     off.Model.Solid = null;
                 }
