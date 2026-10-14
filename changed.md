@@ -521,3 +521,32 @@ edge case or rare, Tiny = defensive gap. None of this has been run in the game.
 - **Minor:** only static and kinematic things held the gun back, so it went into vehicles (non-kinematic, heavy) even
   though the code comment said vehicles count. Fix: a moving body of 30 kg or more holds it back like the level. Loose
   props and ragdoll limbs are still pushed.
+
+### Round 4: the magazine rail, mag kick and pistol pull-in (`src/Weapons/ReloadInteractions.cs`)
+
+- Traced the rail (lining up, pushing along, letting go half way), the kick's windows and timers, the pull-in for
+  wells in the grip (finishing on let-go, cancelled when the gun no longer takes it), seating each kind of prop, the
+  palmed second magazine, and finishing all of it when the weapon goes away. Rounds in and out balance on every path.
+- **Tiny:** the off-hand glove kept its two-magazines pose after the weapon was put away with a magazine palmed (the
+  palmed one is dropped then). The hand still holding the other magazine showed the wrong grip until another gun was
+  drawn. Fix: cleared on release.
+
+### Round 5: the machine-gun belt (`src/Weapons/ReloadInteractions.cs`, `src/Weapons/BeltStrip.cs`, `src/Weapons/HeldWeapon.cs`)
+
+- Traced taking the belt (at the box mouth and along the hanging belt), the pull limit, slipping and hanging, laying it
+  on the tray, closing the cover over it, letting go, switching weapons mid-pull, and the model's own belt hidden
+  until laid and restored on release. All consistent.
+- **Minor:** the belt drawn from the box always showed up to 28 rounds, even from a box with 3 rounds left (or none).
+  Fix: the strip shows at most the rounds left in the box, counted from the hand (or tray) end, so a short belt ends
+  short of the box.
+
+### Round 6: holsters and hand poses (`src/Weapons/BodyZones.cs`, `src/Weapons/HolsterDisplay.cs`, `src/Rig/HandPoses.cs`)
+
+- Swept, no real bugs found. Checked:
+  - which hand reaches which spot (holsters only take the weapon hand, the pouch the off hand, so the pouch and the
+    off-side belt gear 13 cm apart never compete);
+  - the order spots fill in for each kind of weapon in both layouts;
+  - the shouldered-rifle grip hand against the underarm spots (more than the holster radius away);
+  - each display orientation (barrel and top are orthogonal or projected);
+  - the hide-near-the-eyes rule;
+  - the pose library (30 poses, one per id, the index built after the list) and the pose chosen for every hand role.

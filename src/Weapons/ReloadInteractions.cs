@@ -822,7 +822,7 @@ namespace RavenfieldVR.Weapons
             {
                 to = FeedTrayWorld;
             }
-            _belt.Place(from, to, Rig.AimWorld);
+            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds); // a nearly empty box has only a few rounds of belt
         }
 
         // ---- pouch -----------------------------------------------------------------------------------
@@ -2069,6 +2069,7 @@ namespace RavenfieldVR.Weapons
             if (off.Model != null)
             {
                 off.Model.GraspAnchor = null;
+                off.Model.Palming = false; // the palmed magazine was dropped above; a kept one is held alone
             }
             if (off.Held is MagazineProp prop)
             {

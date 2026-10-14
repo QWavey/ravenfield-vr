@@ -43,12 +43,15 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Lays the rounds along a slightly sagging curve from <paramref name="from"/> to <paramref name="to"/>.</summary>
-        public void Place(Vector3 from, Vector3 to, Vector3 barrel)
+        /// <summary>
+        /// Lays the rounds along a slightly sagging curve from <paramref name="from"/> to <paramref name="to"/>, at most
+        /// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box.
+        /// </summary>
+        public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds)
         {
             Vector3 span = to - from;
             float length = span.magnitude;
-            int count = Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds);
+            int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
             Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
             Vector3 forward = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : barrel;
             for (int i = 0; i < MaxRounds; i++)
