@@ -123,7 +123,7 @@
 121. [x] A long gun touching the ground pushes the player around: only the hand and gun may be pushed
 122. [x] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
 123. [x] /improve 20 again: push toward an AAA-quality VR mod, make everything better and smoother
-124. [ ] /bug-hunt 10 (after 123)
+124. [x] /bug-hunt 10 (after 123)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.

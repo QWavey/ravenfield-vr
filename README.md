@@ -93,6 +93,10 @@ The gun in your hand is stopped by the world: pushed into a wall it stays at the
 
 A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds (`ExplosionDirt`).
 
+A scope shows its shadow when your eye is off the sight line: a dark crescent comes in from the side your eye has moved to, so you know which way to move your head.
+
+Taking the headset off pauses the match (on headsets with a wear sensor), as opening the SteamVR dashboard does; putting it back on carries on.
+
 Holding a long gun with one hand works, but it kicks harder, droops a little and trails your wrist; rest your other hand on the handguard to steady it. Pistols are made for one hand.
 
 Prefer the game's normal reloads? Set "Reloading: Assisted" and B plays the standard reload.

@@ -77,6 +77,7 @@ namespace RavenfieldVR.Core
             Application.onBeforeRender += OnBeforeRender;
             SceneManager.activeSceneChanged += OnSceneChanged;
             OpenVRRuntime.DashboardChanged += OnDashboard;
+            OpenVRRuntime.HeadsetWornChanged += OnHeadsetWorn;
             VRConfig.RenderScale.SettingChanged += OnRenderSettingChanged;
             VRConfig.Mirror.SettingChanged += OnRenderSettingChanged;
             VRConfig.Graphics.SettingChanged += OnGraphicsPresetChanged;
@@ -234,11 +235,40 @@ namespace RavenfieldVR.Core
                 return;
             }
             bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
-            if (_pausedForDashboard && GameManager.instance != null && GameManager.IsPaused() && !menuOpen)
+            if (_pausedForDashboard && !_pausedForHeadset && GameManager.instance != null && GameManager.IsPaused() && !menuOpen)
             {
                 GameManager.UnpauseGame();
             }
             _pausedForDashboard = false;
+        }
+
+        private bool _pausedForHeadset;
+
+        /// <summary>
+        /// Taking the headset off in a match pauses it, as the SteamVR dashboard does (the match went on and you were shot
+        /// while it was off); putting it back on carries on, unless a menu was opened in the meantime.
+        /// </summary>
+        private void OnHeadsetWorn(bool worn)
+        {
+            if (!worn)
+            {
+                if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
+                {
+                    GameManager.PauseGame();
+                    _pausedForHeadset = true;
+                }
+                else if (_pausedForDashboard)
+                {
+                    _pausedForHeadset = true; // closing the dashboard must not carry on while the headset is off
+                }
+                return;
+            }
+            bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
+            if (_pausedForHeadset && !_pausedForDashboard && GameManager.instance != null && GameManager.IsPaused() && !menuOpen)
+            {
+                GameManager.UnpauseGame();
+            }
+            _pausedForHeadset = false;
         }
 
         private void OnRenderSettingChanged(object sender, EventArgs e) => OpenVRRuntime.ApplyLiveSettings();
@@ -252,6 +282,7 @@ namespace RavenfieldVR.Core
                 Application.onBeforeRender -= OnBeforeRender;
                 SceneManager.activeSceneChanged -= OnSceneChanged;
                 OpenVRRuntime.DashboardChanged -= OnDashboard;
+                OpenVRRuntime.HeadsetWornChanged -= OnHeadsetWorn;
                 VRConfig.RenderScale.SettingChanged -= OnRenderSettingChanged;
                 VRConfig.Graphics.SettingChanged -= OnGraphicsPresetChanged;
                 VRConfig.Mirror.SettingChanged -= OnRenderSettingChanged;

@@ -1397,3 +1397,32 @@ the "at home" notes in rounds 5, 14 and 19 say what to look at.
   on from where the wheel is, so the steering does not jump.
 - Also checked: seat changes and a vehicle destroyed under the hands release everything and clear the wheel and stick
   inputs; the stick falls back to the seat's hand target; the grab radii.
+
+#### Round 9: the key bridge for mod scripts and the Mod keys panel (`src/Input/ScriptKeys.cs`, `src/UI/ModKeysPanel.cs`)
+
+- Swept, no real bugs found. Checked:
+  - a pressed or released edge reaches each script once within three frames, and stays true for every check that
+    script makes in that frame;
+  - a tap meant for one script reaches only it, and a tap in flight is not cut short by a held key;
+  - the sprint Shift is held only while on foot;
+  - scripts that are gone are pruned and never pressed from the panel;
+  - the panel rebuilds only when what it lists changes.
+
+#### Round 10: the OpenVR runtime and its events (`src/Runtime/OpenVRRuntime.cs`, `src/Core/VRManager.cs`)
+
+- **Minor:** taking the headset off in a match did nothing, so the match went on and you could be shot while it was
+  off. Opening the SteamVR dashboard already paused it for that reason. Fix: SteamVR's "the user stopped (started)
+  interacting with the headset" events (from headsets with a wear sensor) now pause the match when it is taken off
+  and carry on when it is put back. They never unpause a menu opened in the meantime, never during the autotest, and
+  cooperate with the dashboard pause in both orders: dashboard then headset off, closing the dashboard, still holds
+  the pause until the headset is back on.
+- Also checked: SteamVR quitting (acknowledged, the game exits; ignored during the autotest); at most 64 events a
+  frame; an exception in one event handler does not stop the others.
+
+#### Roll-up
+
+10 rounds over 10 areas: the scope, the readout plates, the menu laser and keyboard, grenade pins, grenade duds, the
+rig's update, the input bridge, the cockpit controls, the mod-script key bridge, the OpenVR events. Fixed: **4 Minor**
+(a one-frame dark square on new readouts, a night-vision gesture firing later, lopsided two-hand steering, no pause
+with the headset off). Rounds 1, 3, 4, 5, 6 and 9 were swept clean. Every round passed the compile check with no new
+diagnostics.

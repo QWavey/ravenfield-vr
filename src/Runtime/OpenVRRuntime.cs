@@ -22,6 +22,8 @@ namespace RavenfieldVR.Runtime
         public static XRInputSubsystem InputSubsystem { get; private set; }
 
         public static event Action<bool> DashboardChanged;
+        /// <summary>The headset was taken off (false) or put back on (true), for headsets with a sensor for it.</summary>
+        public static event Action<bool> HeadsetWornChanged;
         public static event Action<VREvent_t> EventReceived;
 
         public static bool DashboardOpen { get; private set; }
@@ -209,6 +211,15 @@ namespace RavenfieldVR.Runtime
                         break;
                     case EVREventType.VREvent_DashboardDeactivated:
                         SetDashboard(false);
+                        break;
+                    case EVREventType.VREvent_TrackedDeviceUserInteractionEnded:
+                    case EVREventType.VREvent_TrackedDeviceUserInteractionStarted:
+                        if (_event.trackedDeviceIndex == OpenVR.k_unTrackedDeviceIndex_Hmd && !Core.AutoTest.Requested)
+                        {
+                            bool worn = (EVREventType)_event.eventType == EVREventType.VREvent_TrackedDeviceUserInteractionStarted;
+                            Log.Info(worn ? "Headset put back on." : "Headset taken off.");
+                            HeadsetWornChanged?.Invoke(worn);
+                        }
                         break;
                 }
                 try
