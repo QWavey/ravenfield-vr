@@ -134,27 +134,34 @@
 132. [ ] Optional: hook a bolt knob or charging handle with the fingers when the hand reaches over the gun (now always a thumb-and-index pinch)
 133. [ ] /bug-hunt 10 over the hand work (125-132)
 134. [ ] Test the hand work in the headset (checklist under "For 134")
-135. [ ] Spawning puts the primary in your hand: spawn with empty hands, weapons in their holsters (code done 2026-10-14: SpawnEmptyHanded; verify in game)
-136. [ ] EOTech with a magnifier in front (BF HK mods, e.g. HK416-B): the sight view is black until the magnifier is flipped with the sight gesture; an EOTech alone must stay clear too
-137. [ ] Some pistols (P320?) and snipers (MRAD?) have no recoil
-138. [ ] Grenades stick in the hand after a throw by letting go of the grip; a pulled pin was back after putting the grenade away (code done 2026-10-14; verify in game)
-139. [ ] Racking: the bolt, charging handle or slide does not visibly move for many weapons: check every weapon one by one, with pictures
-140. [ ] MK18 RIII (mk18riii#mk18risiii): the magazine does not eject (the analysis took 'mag_001', the advanced reload's second magazine: "magazine sits far from the grip")
-141. [ ] Loadout weapon-pick submenu (the list of every weapon for a slot): the panel turns 3D, then jumps flat a little to the left, an almost invisible grey box where the list should be
+135. [x] Spawning puts the primary in your hand: spawn with empty hands, weapons in their holsters (done 2026-10-14: SpawnEmptyHanded; autotest "Spawned with empty hands: yes")
+136. [ ] EOTech with a magnifier in front (BF HK mods, e.g. HK416-B): the sight view is black until the magnifier is flipped with the sight gesture; an EOTech alone must stay clear too (code done 2026-10-14: a scope lens whose camera is off the selected sight line is hidden (the HK416-B G33 filmed its mount); verify in the headset)
+137. [ ] Some pistols (P320?) and snipers (MRAD?) have no recoil (code done 2026-10-14: kick from the round and a floor per kind of gun; a mod gun without muzzles (MRAD No script) now gets one; verify)
+138. [ ] Grenades stick in the hand after a throw by letting go of the grip; a pulled pin was back after putting the grenade away (code done 2026-10-14: grip throw empties the hand, refused throw is a let-go, pulled pin stays pulled; pin/dud autotest passes; verify)
+139. [ ] Racking: the bolt, charging handle or slide does not visibly move for many weapons: check every weapon one by one, with pictures (deep autotest 2026-10-14: the part under the hand moves on every weapon tested (0.0-1.3 cm); AR-pattern rifles get the charging handle at the back of the receiver; check the rest in the full run)
+140. [x] MK18 RIII (mk18riii#mk18risiii): the magazine does not eject (the analysis took 'mag_001', the advanced reload's second magazine: "magazine sits far from the grip") (done 2026-10-14: the real magazine is picked (one thrown 1.6 m in the reload was skipped), the spare mag_001 is hidden)
+141. [ ] Loadout weapon-pick submenu (the list of every weapon for a slot): the panel turns 3D, then jumps flat a little to the left, an almost invisible grey box where the list should be (autotest picture step added (LoadoutPickerCheck); not yet looked at)
 142. [ ] BF pistols: check how each one is held (some look wrong in the hand)
-143. [ ] NVO-228E (#ACE 32): the magazine is not held in the hand (it hovers) and the mag kick never fires (pull axis (-0.31, 0.33, -0.89), kicks measured 14-15 cm off its axis)
+143. [x] NVO-228E (#ACE 32): the magazine is not held in the hand (it hovers) and the mag kick never fires (pull axis (-0.31, 0.33, -0.89), kicks measured 14-15 cm off its axis) (done 2026-10-14: the floating magazine was the reload's spare (Mag.001, 62 cm out), hidden while held; axis from its vertices)
 144. [ ] Mag kick: verify it on every kickable gun
-145. [ ] Colt M1911 (and pistols in general): seating a magazine is hard, the controllers meet and the pistol is small; check every pistol
+145. [ ] Colt M1911 (and pistols in general): seating a magazine is hard, the controllers meet and the pistol is small; check every pistol (code done 2026-10-14: pistol rail taken more loosely (4.5 cm, 40 deg) and drawn home from a quarter in; verify)
 146. [ ] Looking at the HP on the left wrist (and the scoreboard) makes the map flicker very fast (code done 2026-10-14: the wrist look had no hysteresis; verify)
-147. [ ] A magazine slides in in front of the grip instead of up into the magwell (which guns: check all)
-148. [ ] The warm-up analysed 0 weapons at start ("Pre-analysed 0 weapon rigs and 0 physics shapes in 0,0 s"): every first draw in a match hitches
+147. [x] A magazine slides in in front of the grip instead of up into the magwell (which guns: check all) (done 2026-10-14: magazine axis from its vertices (raked pistol magazines), the seated magazine pinned to its seat; deep autotest 0.0 cm off the magwell on every pistol)
+148. [ ] The warm-up analysed 0 weapons at start ("Pre-analysed 0 weapon rigs and 0 physics shapes in 0,0 s"): every first draw in a match hitches (code done 2026-10-14: the saved loadout is analysed first)
 149. [ ] /bug-hunt 40 (rounds 1-6 done 2026-10-14: stand-in self-heal, explosion listener guard)
 150. [ ] /improve 25, toward AAA
 151. [ ] Full VR test run of every weapon (autotest and self-test) once everything above is done
 152. [ ] Weapons in either hand: pass the main weapon or a pistol to the other hand, and hold a second weapon in the free hand (draw, shoot and pick up the pistol while the main weapon is held)
 153. [ ] Last, after the bug hunt and the improve rounds: more Boneworks gun logic (the user has Boneworks' code on disk: learn how its mechanics work from it, do not copy it)
-154. [ ] P220 GR (and maybe other pistols): the counter says RACK but the slide cannot be grabbed and racked; its magazine also seats a little in front of the magwell, floating, not up in the grip (see 147)
-155. [ ] A magazine in the hand passes through the gun: it must collide with the gun and only go in through the magwell
+154. [x] P220 GR (and maybe other pistols): the counter says RACK but the slide cannot be grabbed and racked; its magazine also seats a little in front of the magwell, floating, not up in the grip (see 147) (done 2026-10-14: a 6 m reticle quad on the RMR stretched the slide's bounds (rack point a metre off); spare P220 MAG.001 hidden; magwell 0.0 cm)
+155. [ ] A magazine in the hand passes through the gun: it must collide with the gun and only go in through the magwell (code done 2026-10-14: a held magazine is drawn out of the gun's solid (its well stays open); verify)
+156. [ ] On an empty gun the trigger releases the magazine (the same as the magazine release button) (code done 2026-10-14: EmptyTriggerDropsMag; verify)
+157. [ ] AR-style rifles: racking moves only the bolt inside, the charging handle stays put (looks broken): the charging handle must come back with the hand and the bolt with it (part of 139) (code done 2026-10-14: see 139)
+158. [x] MWII-G17: the magazine does not come out (release, tactical reload, pulling it); a held magazine floats in the air beside the hand instead of in it (NVO-228E too: check every gun) (done 2026-10-14: as 140 (the real mag was skipped for flying 1.6 m in the reload; the spare 58 cm out floated in the air))
+159. [ ] Double-barrel shotguns: open the barrels by hand (they only open with the button) (code done 2026-10-14: break actions found by their barrels (the M1878 was taken for a pump with its trigger as the slide); barrels swing open and shut by hand; autotest break-open passes; verify by hand)
+160. [ ] The game's own menu on A and X pressed together (code done 2026-10-14: double-press A or X opens the menu (Touch, Index, HP bindings); verify)
+161. [ ] Squad orders (Go to and the other flags): an arrow on the hand pointing at the flag; the Go to message not in the middle of the view (code done 2026-10-14: the order is written on the pointing hand with an arrow to its target; the game's middle text is hidden; verify)
+162. [ ] Squad orders with either hand, taken only while the hand points straight (the button still has to be pressed) (code done 2026-10-14: either hand held out straight points (autotest: straight counts, at the chest does not); verify)
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.

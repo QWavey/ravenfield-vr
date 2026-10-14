@@ -82,7 +82,12 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual)
             {
-                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side))
+                // The trigger on an empty gun (nothing in the magazine or the chamber) drops the empty magazine, as the
+                // magazine release would: after the click, the hand goes straight for a fresh one.
+                bool emptyTrigger = VRConfig.EmptyTriggerDropsMag.Value && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
+                                    && Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked && Ammo.MagRounds == 0
+                                    && !(Ammo.UsesChamber && Ammo.Chambered) && !Breaks && !Util.GameContext.GameMenuOpen;
+                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) || emptyTrigger)
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);
                     if (!Breaks && !(Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked))
@@ -202,7 +207,7 @@ namespace RavenfieldVR.Weapons
                     Consider(6, d / (radius * 1.1f), ref choice, ref best);
                 }
             }
-            if (Manual && Data.Hinge == HingeKind.FeedCover)
+            if (Manual && (Data.Hinge == HingeKind.FeedCover || Data.Hinge == HingeKind.BreakAction && Breaks))
             {
                 float d = Vector3.Distance(palm, CoverGrabWorld);
                 if (d < radius)
@@ -528,6 +533,23 @@ namespace RavenfieldVR.Weapons
             float delta = Mathf.DeltaAngle(_coverGrabAngle, CoverAngle(off.Palm.position));
             float openness = Mathf.Clamp01(_coverGrabOpenness + delta / Mathf.Max(10f, Data.HingeOpenAngle));
             _held.HingeOpenness = openness;
+            if (Breaks)
+            {
+                // Barrels: pushed down open (the spent cases drop), lifted shut.
+                if (!Ammo.Open && openness > 0.8f)
+                {
+                    SetBreakOpen(true);
+                }
+                else if (Ammo.Open && openness < 0.06f)
+                {
+                    SetBreakOpen(false);
+                }
+                if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.25f)
+                {
+                    EndCover(off);
+                }
+                return;
+            }
             if (!Ammo.CoverOpen && openness > 0.85f)
             {
                 Ammo.SetCoverOpen(true);
@@ -556,6 +578,10 @@ namespace RavenfieldVR.Weapons
                 off.Role = HandRole.Free;
             }
             // Let go part way: it falls open or drops shut.
+            if (Breaks)
+            {
+                return; // barrels settle where they were left: open if opened, shut otherwise
+            }
             if (Ammo.CoverOpen && _held.HingeOpenness < 0.4f)
             {
                 Ammo.SetCoverOpen(false);
@@ -929,7 +955,10 @@ namespace RavenfieldVR.Weapons
             if (!prop.OnRail)
             {
                 float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
-                bool lined = lateral < 0.035f && along > -0.03f && along < prop.RailLength && angle < 35f;
+                // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
+                // it is taken a little more loosely there.
+                bool grip = prop.Kind == PropKind.Magazine && WellInGrip;
+                bool lined = lateral < (grip ? 0.045f : 0.035f) && along > -0.03f && along < prop.RailLength && angle < (grip ? 40f : 35f);
                 if (lined)
                 {
                     prop.OnRail = true;
@@ -967,10 +996,10 @@ namespace RavenfieldVR.Weapons
             {
                 SeatProp(off, prop);
             }
-            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.45f)
+            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
             {
                 // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
-                // the way in. Half way in and straight, it is drawn home the rest of the way.
+                // the way in. A quarter of the way in and straight, it is drawn home the rest of the way.
                 _pullingIn = prop;
                 off.Haptic(0.012f, 160f, 0.35f);
             }
@@ -1736,6 +1765,180 @@ namespace RavenfieldVR.Weapons
         /// the release pressed (the old one goes into the same hand), the fresh one seated, the old one still held, then
         /// both let go. Pictures at each step; rounds must add up.
         /// </summary>
+        /// <summary>The world bounds of what is drawn under <paramref name="t"/> (enabled meshes not scaled away); false if nothing.</summary>
+        internal static bool DrawnBounds(Transform t, out Bounds bounds)
+        {
+            bounds = default;
+            bool any = false;
+            if (t == null)
+            {
+                return false;
+            }
+            foreach (Renderer r in t.GetComponentsInChildren<Renderer>(false))
+            {
+                if (!r.enabled || !(r is MeshRenderer || r is SkinnedMeshRenderer) || r.transform.lossyScale.sqrMagnitude < 1e-6f)
+                {
+                    continue;
+                }
+                if (!any)
+                {
+                    bounds = r.bounds;
+                    any = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(r.bounds);
+                }
+            }
+            return any;
+        }
+
+        /// <summary>
+        /// Autotest (-rfvr-deep): one magazine all the way round, with pictures from the gun's side and numbers. Dropped: does
+        /// the copy that leaves the well start where the gun's own magazine was, and is the gun's own one hidden? Taken from
+        /// the pouch: is it in the hand or floating beside it? Slid in: does it travel up the magwell or in front of it?
+        /// Seated: does the gun's magazine show where it was?
+        /// </summary>
+        internal IEnumerator MagazineDeepCheck(System.Action<string> report, System.Action<string, Vector3> sideShot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null || Rig.Magazine == null)
+            {
+                report("magazine (deep): skipped (no detachable magazine, or the hand is busy)");
+                yield break;
+            }
+            if (!Ammo.MagInserted)
+            {
+                TakeFromPouch(off);
+                if (off.Held is MagazineProp first && AcceptsNow(first))
+                {
+                    SeatProp(off, first);
+                }
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(0.5f); // the gun settles in the hand (the check before may have moved it)
+            if (!DrawnBounds(Rig.Magazine, out Bounds own))
+            {
+                report("magazine (deep): the gun's magazine draws nothing of its own (a bone of the gun's skinned mesh): not measured");
+                yield break;
+            }
+            // Measured in gun space: the gun may move in the hand during the check.
+            Vector3 ownGun = Rig.ToGun(own.center);
+            Vector3 outGun = Data.MagEjectAxis.normalized;
+            Vector3 outWorld = Rig.DirToWorld(outGun);
+            var lines = new System.Collections.Generic.List<string>();
+            sideShot("mag-1-seated", Rig.ToWorld(ownGun));
+
+            // 1. Dropped.
+            EjectMagazine();
+            MagazineProp leaving = _ejecting;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            if (leaving != null && leaving.Go != null && DrawnBounds(leaving.Go.transform, out Bounds copy))
+            {
+                Vector3 delta = Rig.ToGun(copy.center) - ownGun;
+                float across = Vector3.ProjectOnPlane(delta, outGun).magnitude;
+                float size = copy.size.magnitude / Mathf.Max(own.size.magnitude, 1e-4f);
+                Core.AutoTest.Metric("magazine (deep): cm the dropped copy starts across the pull from the gun's magazine", across * 100f);
+                lines.Add($"dropped copy {across * 100f:0.0} cm across the pull from the gun's magazine, {Vector3.Dot(delta, outGun) * 100f:0.0} cm out, size x{size:0.00}"
+                          + (across > 0.015f || size > 1.5f || size < 0.67f ? " (THE DROPPED MAGAZINE IS NOT THE ONE IN THE GUN)" : ""));
+            }
+            else
+            {
+                lines.Add("dropped copy: DRAWS NOTHING");
+            }
+            bool ownShows = DrawnBounds(Rig.Magazine, out _);
+            if (ownShows)
+            {
+                lines.Add("the gun's own magazine STILL SHOWS after the drop");
+            }
+            sideShot("mag-2-leaving", Rig.ToWorld(ownGun));
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return new WaitForEndOfFrame();
+            sideShot("mag-3-out", Rig.ToWorld(ownGun));
+
+            // 2. A fresh one from the pouch, in the hand.
+            VRInput.SimulatedGrab[(int)off.Side] = true;
+            try
+            {
+                TakeFromPouch(off);
+                if (!(off.Held is MagazineProp fresh))
+                {
+                    lines.Add("NO FRESH MAGAZINE from the pouch");
+                    report("magazine (deep): " + string.Join("; ", lines));
+                    yield break;
+                }
+                yield return null;
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                if (DrawnBounds(fresh.Go.transform, out Bounds inHand))
+                {
+                    float gap = Mathf.Sqrt(inHand.SqrDistance(off.PalmCentre));
+                    Core.AutoTest.Metric("magazine (deep): cm from the palm to the magazine in the hand", gap * 100f);
+                    lines.Add($"in the hand: {gap * 100f:0.0} cm from the palm{(gap > 0.04f ? " (FLOATS BESIDE THE HAND)" : "")}");
+                }
+                sideShot("mag-4-in-hand", off.PalmCentre);
+
+                // 3. Lined up under the well, half way in on the rail, home.
+                RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
+                float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
+                PlaceFreshMag(off, fresh, holdInRaw, 0.03f, 0f, 0.1f);
+                yield return null;
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                sideShot("mag-5-lined-up", Rig.ToWorld(ownGun + outGun * 0.05f));
+                // In until it is half way along its rail (a long magazine only meets the rail near the well).
+                float halfIn = 0.03f;
+                for (float below = 0.03f; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && !Ammo.MagInserted
+                                          && !(fresh.OnRail && fresh.RailDepth >= fresh.RailLength * 0.5f); below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+                {
+                    PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.3f);
+                    halfIn = below;
+                    yield return null;
+                }
+                yield return new WaitForEndOfFrame();
+                if (fresh.Go != null && !Ammo.MagInserted && DrawnBounds(fresh.Go.transform, out Bounds half))
+                {
+                    // Where the gun's own magazine would be, slid out by what is left of the rail.
+                    Vector3 halfGun = Rig.ToGun(half.center);
+                    float left = fresh.OnRail ? fresh.RailLength - fresh.RailDepth : Vector3.Dot(halfGun - ownGun, outGun);
+                    Vector3 expected = ownGun + outGun * left;
+                    float off1 = Vector3.ProjectOnPlane(halfGun - expected, outGun).magnitude;
+                    Core.AutoTest.Metric("magazine (deep): cm off the magwell line half way in", off1 * 100f);
+                    lines.Add($"half way in ({(fresh.OnRail ? "on the rail" : "NOT ON THE RAIL")}): {off1 * 100f:0.0} cm off the magwell line{(off1 > 0.012f ? " (SLIDES IN BESIDE THE WELL)" : "")}");
+                }
+                sideShot("mag-6-half-in", Rig.ToWorld(ownGun));
+                for (float below = halfIn; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && fresh.Go != null && !Ammo.MagInserted; below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+                {
+                    PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.3f);
+                    yield return null;
+                }
+                for (int wait = 0; wait < 30 && !Ammo.MagInserted; wait++)
+                {
+                    yield return null;
+                }
+                yield return new WaitForEndOfFrame();
+                bool seated = Ammo.MagInserted;
+                string back = seated && DrawnBounds(Rig.Magazine, out Bounds again) ? $"{(Rig.ToGun(again.center) - ownGun).magnitude * 100f:0.0} cm from where it was" : "NOT SHOWN";
+                lines.Add(seated ? $"seated: the gun's magazine shows {back}" : "NOT SEATED");
+                sideShot("mag-7-seated-again", Rig.ToWorld(ownGun));
+            }
+            finally
+            {
+                VRHand.Scripted[(int)off.Side] = null;
+                VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                VRInput.SimulatedGrab[(int)off.Side] = false;
+                if (off.Held is MagazineProp leftover)
+                {
+                    Ammo.ReturnSpare(leftover.Rounds);
+                    leftover.Rounds = 0;
+                    leftover.Destroy();
+                }
+            }
+            report("magazine (deep): " + string.Join("; ", lines));
+            yield return new WaitForSecondsRealtime(0.2f);
+        }
+
         internal IEnumerator TacticalSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
@@ -2037,6 +2240,7 @@ namespace RavenfieldVR.Weapons
                 yield return new WaitForEndOfFrame();
                 shot("rack-grip");
                 string atRest = _held.PartClipping(off, out int restBuried, out int restTouching);
+                var layoutRest = _held.DrawnLayout();
                 // Half way back along the stroke.
                 Vector3 start = RackPointWorld;
                 Vector3 pull = Rig.DirToWorld(StrokeDir) * (StrokeLength * 0.5f);
@@ -2051,6 +2255,34 @@ namespace RavenfieldVR.Weapons
                 yield return new WaitForEndOfFrame();
                 shot("rack-grip-pulled");
                 string pulled = _held.PartClipping(off, out int pulledBuried, out _);
+                // What visibly moved with the half pull (in gun space), and whether the part under the hand is among it.
+                var layoutPulled = _held.DrawnLayout();
+                float most = 0f, nearestMoving = float.MaxValue, halfStroke = StrokeLength * 0.5f;
+                int movedCount = 0;
+                foreach (var kv in layoutRest)
+                {
+                    if (!layoutPulled.TryGetValue(kv.Key, out Vector3 now))
+                    {
+                        continue;
+                    }
+                    float moved = Vector3.Distance(kv.Value, now);
+                    most = Mathf.Max(most, moved);
+                    if (moved >= Mathf.Max(0.004f, halfStroke * 0.4f))
+                    {
+                        // How far it is from the hand now (to a mesh's surface, a bone's point): a part that came back
+                        // with the hand is still right there.
+                        movedCount++;
+                        Vector3 handAt = RackPointWorld;
+                        float gap = kv.Key is Renderer r ? Mathf.Sqrt(r.bounds.SqrDistance(handAt))
+                            : kv.Key is Transform b ? Vector3.Distance(b.position, handAt) : float.MaxValue;
+                        nearestMoving = Mathf.Min(nearestMoving, gap);
+                    }
+                }
+                Core.AutoTest.Metric("rack: mm the drawn gun moves at half pull (most)", most * 1000f);
+                string drawnMoves = movedCount == 0
+                    ? $"NOTHING DRAWN MOVES (most {most * 1000f:0} mm for a {halfStroke * 1000f:0} mm half pull)"
+                    : $"{movedCount} drawn part(s) move, most {most * 1000f:0} mm; the nearest is {nearestMoving * 100f:0.0} cm from the hand"
+                      + (nearestMoving > 0.03f ? " (THE PART UNDER THE HAND DOES NOT MOVE)" : "");
                 // All the way back, then let go: a spring-driven slide or bolt slams home and jolts the gun.
                 for (int i = 11; i <= 20; i++)
                 {
@@ -2071,7 +2303,7 @@ namespace RavenfieldVR.Weapons
                 Core.AutoTest.Metric("rack grip pulled half way: points inside the part", pulledBuried);
                 string moves = _held.VisibleHandle;
                 Core.AutoTest.Metric("rack grip: something visible moves with the pull (0/1)", moves.StartsWith("NOTHING", System.StringComparison.Ordinal) ? 0 : 1);
-                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}, {Data.SlideMethod}): {atRest}; pulled half way: {pulled}; moving with the hand: {moves}; "
+                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}, {Data.SlideMethod}): {atRest}; pulled half way: {pulled}; moving with the hand: {moves}; drawn: {drawnMoves}; "
                        + $"the gun moved {tug * 1000f:0.0} mm with the pull{(HandDriven ? " (hand-driven: stays open)" : $", {jolt * 1000f:0.0} mm when it went home")}"); 
             }
             finally
@@ -2080,6 +2312,15 @@ namespace RavenfieldVR.Weapons
                 VRInput.SimulatedGrab[side] = false;
             }
             yield return new WaitForSecondsRealtime(0.4f); // the grip opens: the part is let go and returns
+            if (HandDriven && Ammo.BoltOpen)
+            {
+                // A bolt or pump stays open where the hand left it: closed again as a hand pushing it home would, or the
+                // shots after this check met an open bolt (an MRAD "did not fire").
+                _rackedBack = false;
+                _held.SlideOffset = 0f;
+                Ammo.BoltOpen = false;
+                Ammo.RackForward();
+            }
         }
 
         /// <summary>

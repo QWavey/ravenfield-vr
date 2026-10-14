@@ -29,6 +29,7 @@ namespace RavenfieldVR.UI
         private readonly VRKeyboard _keyboard;
         private readonly LaserPointer _laser;
         private readonly WristHud _wrist;
+        private readonly SquadPointing _squad;
         private readonly SeatSights _sights = new SeatSights();
         private VRInputModule _module;
         private EventSystem _eventSystem;
@@ -109,6 +110,7 @@ namespace RavenfieldVR.UI
             _keyboard = new VRKeyboard();
             _laser = new LaserPointer();
             _wrist = new WristHud(rig);
+            _squad = new SquadPointing(rig);
         }
 
         public void Update()
@@ -257,6 +259,7 @@ namespace RavenfieldVR.UI
             }
             _laser.Update(show, pointer.Pointer.position, end, hit, _module != null && _module.HoveredObject != null);
             _wrist.BeforeRender();
+            _squad.BeforeRender();
         }
 
         public void OnSceneChanged()
@@ -276,6 +279,7 @@ namespace RavenfieldVR.UI
             _keyboard.Dispose();
             _laser.Destroy();
             _wrist.Destroy();
+            _squad.Destroy();
             if (UiCamera != null)
             {
                 UnityEngine.Object.Destroy(UiCamera.gameObject);

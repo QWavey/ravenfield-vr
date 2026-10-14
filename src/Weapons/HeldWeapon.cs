@@ -125,6 +125,8 @@ namespace RavenfieldVR.Weapons
                 _modeScopes = new VRScope[rig.Data.Sights.Length];
             }
             _counter = new AmmoCounter(rig);
+            FindScopeLenses(weapon);
+            GiveMuzzle(weapon, rig);
             int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
             if (repaired > 0)
             {
@@ -333,6 +335,134 @@ namespace RavenfieldVR.Weapons
                     _beltParts[i].localScale = hide ? Vector3.one * 1e-4f : _beltScales[i];
                 }
             }
+        }
+
+        /// <summary>
+        /// A weapon whose mod left its muzzle list empty used up the round and played the shot, but nothing left the barrel
+        /// (the game only fires from listed muzzles): it gets one at the muzzle the analysis found.
+        /// </summary>
+        private static void GiveMuzzle(Weapon weapon, WeaponRig rig)
+        {
+            Weapon.Configuration c = weapon.configuration;
+            if (c == null || c.muzzles != null && c.muzzles.Length > 0 && c.muzzles[0] != null || rig.GunBody == null
+                || rig.Data.Action == ActionType.Melee || rig.Data.Action == ActionType.Throwable)
+            {
+                return;
+            }
+            var muzzle = new GameObject("RavenfieldVR Muzzle").transform;
+            rig.AttachInGunSpace(muzzle, rig.Data.MuzzlePoint, Quaternion.LookRotation(rig.Data.AimAxis, rig.Data.Up));
+            c.muzzles = new[] { muzzle };
+            Log.InfoOnce("muzzle:" + rig.Data.Key, $"{rig.Data.Key}: its mod lists no muzzle, so it shot nothing: given one at the analysed muzzle.");
+        }
+
+        /// <summary>Renderers that show the weapon's own scope camera's picture (the lens of a magnifier or scope).</summary>
+        private readonly List<Renderer> _scopeLenses = new List<Renderer>();
+
+        private void FindScopeLenses(Weapon weapon)
+        {
+            Camera cam = weapon.renderTextureCamera;
+            RenderTexture rt = cam != null ? cam.targetTexture : null;
+            if (rt == null)
+            {
+                return;
+            }
+            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+            {
+                foreach (Material m in r.sharedMaterials)
+                {
+                    if (m == null)
+                    {
+                        continue;
+                    }
+                    bool shows = false;
+                    foreach (string prop in m.GetTexturePropertyNames())
+                    {
+                        shows |= m.GetTexture(prop) == rt;
+                    }
+                    if (shows && !_scopeLenses.Contains(r))
+                    {
+                        _scopeLenses.Add(r);
+                    }
+                }
+            }
+            if (_scopeLenses.Count > 0 && Rig.Data.Sights != null && Rig.Data.Sights.Length > 1)
+            {
+                Log.InfoOnce("scopelens:" + Rig.Data.Key, $"{Rig.Data.Key}: its scope picture ({_scopeLenses.Count} lens renderer(s)) is shown only in sight modes that look through it.");
+            }
+        }
+
+        /// <summary>
+        /// A magnifier with its own scope camera, flipped out of the line of sight (an HK416's G33 below its EOTech): its
+        /// camera then films the inside of the mount, and its lens showed a black disc right where the eye looks over it.
+        /// Shown only while the selected sight mode's line runs through the camera; otherwise the lens is clear glass.
+        /// </summary>
+        private void UpdateScopeLenses()
+        {
+            if (_scopeLenses.Count == 0 || Rig.Data.Sights == null || Rig.Data.Sights.Length < 2 || Weapon == null)
+            {
+                return;
+            }
+            Camera cam = Weapon.renderTextureCamera;
+            SightLine sight = CurrentSight;
+            bool inUse = true;
+            if (cam != null && sight != null)
+            {
+                Vector3 c = Rig.ToGun(cam.transform.position);
+                Vector3 rel = c - sight.EyePoint;
+                float off = Vector3.ProjectOnPlane(rel, sight.EyeDirection).magnitude;
+                inUse = off < 0.015f;
+            }
+            foreach (Renderer r in _scopeLenses)
+            {
+                if (r != null && r.enabled != inUse)
+                {
+                    r.enabled = inUse;
+                }
+            }
+        }
+
+        private Transform[] _spareParts;
+        private Vector3[] _spareScales;
+
+        /// <summary>The flat reload's spare magazines are not drawn while the weapon is held (see WeaponRigData.SparePartPaths).</summary>
+        private void HideSpareParts()
+        {
+            List<int[]> paths = Rig.Data.SparePartPaths;
+            if (paths.Count == 0 || Weapon == null)
+            {
+                return;
+            }
+            if (_spareParts == null)
+            {
+                _spareParts = new Transform[paths.Count];
+                _spareScales = new Vector3[paths.Count];
+                for (int i = 0; i < paths.Count; i++)
+                {
+                    _spareParts[i] = WeaponRig.Resolve(Weapon.transform, paths[i]);
+                    _spareScales[i] = _spareParts[i] != null ? _spareParts[i].localScale : Vector3.one;
+                }
+            }
+            foreach (Transform t in _spareParts)
+            {
+                if (t != null)
+                {
+                    t.localScale = Vector3.one * 1e-4f; // every frame: an animation that scales it would bring it back
+                }
+            }
+        }
+
+        /// <summary>Self-test: how many of the flat reload's spare magazines are drawn now (0 while held).</summary>
+        internal int SparePartsShown()
+        {
+            int n = 0;
+            if (_spareParts != null)
+            {
+                foreach (Transform t in _spareParts)
+                {
+                    n += t != null && t.lossyScale.sqrMagnitude > 1e-6f ? 1 : 0;
+                }
+            }
+            return n;
         }
 
         /// <summary>Self-test: how far (mm) the parts a sight mode moves are from where the selected mode puts them; -1 without such parts.</summary>
@@ -794,6 +924,7 @@ namespace RavenfieldVR.Weapons
             Reload.BeforeRender();
             Sounds.Update();
             _scope?.BeforeRender(Aiming);
+            UpdateScopeLenses();
             UpdateModeScopes();
             _counter.BeforeRender(ActiveAmmo);
             DrawDebugZones();
@@ -944,6 +1075,43 @@ namespace RavenfieldVR.Weapons
                     Log.WarnOnce("boltpiece2:" + d.Key, $"Could not build a moving handle for {d.Key}: {e.Message}");
                 }
             }
+        }
+
+        /// <summary>
+        /// Self-test: where everything drawn on the weapon is, in gun space: the middle of each mesh drawn (not the
+        /// weapon's own arms) and each bone a drawn skinned mesh hangs on. Two of these, before and after a pull, show
+        /// what visibly moved.
+        /// </summary>
+        internal Dictionary<Object, Vector3> DrawnLayout()
+        {
+            var at = new Dictionary<Object, Vector3>();
+            if (Rig.GunBody == null || Weapon == null)
+            {
+                return at;
+            }
+            var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+            foreach (Renderer r in Weapon.GetComponentsInChildren<Renderer>(false))
+            {
+                if (!r.enabled || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f)
+                {
+                    continue;
+                }
+                if (r is MeshRenderer)
+                {
+                    at[r] = Rig.ToGun(r.bounds.center);
+                }
+                else if (r is SkinnedMeshRenderer smr && smr.bones != null)
+                {
+                    foreach (Transform b in smr.bones)
+                    {
+                        if (b != null && !at.ContainsKey(b))
+                        {
+                            at[b] = Rig.ToGun(b.position);
+                        }
+                    }
+                }
+            }
+            return at;
         }
 
         /// <summary>Self-test: what the hand sees move when it works the action.</summary>
@@ -1405,6 +1573,7 @@ namespace RavenfieldVR.Weapons
 
             AmmoState ammo = ActiveAmmo ?? Ammo;
             ApplyBeltParts(ammo);
+            HideSpareParts();
             if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
             {
                 // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
@@ -1425,6 +1594,14 @@ namespace RavenfieldVR.Weapons
                 {
                     RestoreMagazine();
                 }
+            }
+            if (Rig.Magazine != null && ammo != null && ammo.Participates && ammo.UsesDetachableMag && ammo.MagInserted && !d.SeatOnHinge
+                && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading))
+            {
+                // The seated magazine sits on its seat on the gun body, where a fresh one slides in. On many models it hangs
+                // off the armature, not the gun body, and the flat animation's poses (loaded, empty, slide locked) moved it a
+                // few centimetres against the gun: a fresh magazine went in beside the well (an M1911's 4 cm, a P220's 4.4).
+                Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
         }
 
@@ -1544,6 +1721,24 @@ namespace RavenfieldVR.Weapons
             }
             HingeOpenness = 0f;
             RestoreSightParts();
+            foreach (Renderer r in _scopeLenses)
+            {
+                if (r != null)
+                {
+                    r.enabled = true;
+                }
+            }
+            _scopeLenses.Clear();
+            if (_spareParts != null)
+            {
+                for (int i = 0; i < _spareParts.Length; i++)
+                {
+                    if (_spareParts[i] != null)
+                    {
+                        _spareParts[i].localScale = _spareScales[i];
+                    }
+                }
+            }
             if (_beltHidden && _beltParts != null)
             {
                 for (int i = 0; i < _beltParts.Length; i++)

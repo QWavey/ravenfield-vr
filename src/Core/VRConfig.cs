@@ -91,6 +91,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
+        public static ConfigEntry<bool> EmptyTriggerDropsMag;
         public static ConfigEntry<bool> MagazinePalming;
         public static ConfigEntry<bool> ReleaseDropsWeapon;
         public static ConfigEntry<float> WeaponReturnSeconds;
@@ -241,6 +242,8 @@ namespace RavenfieldVR.Core
                 "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty and free. Off: the weapon stays in your hand until you put it back at its holster.");
             SpawnEmptyHanded = cfg.Bind("Weapons", "SpawnEmptyHanded", true,
                 "You spawn with empty hands, every weapon in its holster: reach for one to draw it (needs HolsterSwitching). Off: you spawn holding your first weapon, as in the flat game.");
+            EmptyTriggerDropsMag = cfg.Bind("Weapons", "EmptyTriggerDropsMag", true,
+                "Pulling the trigger on an empty gun (nothing in the magazine or the chamber) drops the empty magazine, like the magazine release button.");
             MagazineReadout = cfg.Bind("UI", "MagazineReadout", true,
                 "Look at the top of a magazine in your hand (or one lying within reach) to see how many rounds it holds.");
             ShowHolsters = cfg.Bind("Weapons", "ShowHolsters", true,

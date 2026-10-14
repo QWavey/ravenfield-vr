@@ -50,36 +50,29 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
-    /// In VR you aim by bringing an eye to the sights, not with a button: the game's own aiming follows that (on foot).
-    /// Nothing told the game before, so a weapon whose aim animation switches on its scope camera, its magnifier's
-    /// picture or its reticle stayed dark in VR (an EOTech's magnifier showed black until it was flipped away), sprint
-    /// was not stopped by aiming and the tighter aimed spread never applied. The game's aim zoom stays off in VR
-    /// (FpFovPatch keeps the HUD-matched field of view).
+    /// The game's laser sight, switched on for good (forceOn), reads its weapon's user without checking there is one: on a
+    /// weapon without a user (a copy being measured, a weapon put down) it threw every frame (an MK18 RIII's). Such a
+    /// laser stays off; so does one whose mod left out its beam or dot.
     /// </summary>
-    [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.Aiming))]
-    internal static class PlayerAimsAtTheSightsPatch
+    [HarmonyPatch(typeof(LaserSight), "LateUpdate")]
+    internal static class LaserSightWithoutUserPatch
     {
-        private static void Postfix(FpsActorController __instance, ref bool __result)
+        private static bool Prefix(LaserSight __instance)
         {
-            if (__result || !VRManager.Active)
+            bool broken = __instance.beamTransform == null || __instance.dotObject == null;
+            if (!broken && !(__instance.forceOn && __instance.weapon != null && __instance.weapon.user == null))
             {
-                return; // an aim input of the game's own still counts
+                return true;
             }
-            try
+            if (__instance.beamTransform != null)
             {
-                HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
-                Actor actor = __instance.actor;
-                if (held == null || !held.Aiming || actor == null || actor.IsSeated() || !ReferenceEquals(actor.activeWeapon, held.Weapon))
-                {
-                    return;
-                }
-                __result = __instance.inputEnabled && !__instance.IsCursorFree() && !__instance.IsKicking() && !actor.IsSwimming()
-                           && !actor.parachuteDeployed && !GameManager.gameOver;
+                __instance.beamTransform.localScale = new Vector3(1f, 1f, 0f);
             }
-            catch (System.Exception e)
+            if (__instance.dotObject != null && __instance.dotObject.activeSelf)
             {
-                Log.ExceptionOnce("FpsActorController.Aiming (VR)", e);
+                __instance.dotObject.SetActive(false);
             }
+            return false;
         }
     }
 

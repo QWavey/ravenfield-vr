@@ -539,6 +539,17 @@ namespace RavenfieldVR.Weapons
             return MeshBounds(live, (t, p) => gunInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale))));
         }
 
+        /// <summary>
+        /// Gun-space bounds of the meshes on <paramref name="live"/> within <paramref name="radius"/> of it (at idle): a sight's
+        /// reticle quad that hangs metres out in front (a collimated dot: 6 m off on a P220's RMR) is not part of the slide.
+        /// </summary>
+        public Bounds GunSpaceBoundsNear(Transform live, RigidPose gunIdle, float radius)
+        {
+            Vector3 centre = Idle(live).position;
+            Bounds near = GunSpaceBoundsWhere(live, gunIdle, t => (Idle(t).position - centre).sqrMagnitude > radius * radius);
+            return near.size.sqrMagnitude > 1e-8f ? near : GunSpaceBounds(live, gunIdle);
+        }
+
         /// <summary>Gun-space bounds of the meshes under <paramref name="root"/> that <paramref name="skip"/> does not exclude.</summary>
         public Bounds GunSpaceBoundsWhere(Transform root, RigidPose gunIdle, Func<Transform, bool> skip)
         {

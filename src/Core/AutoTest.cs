@@ -37,6 +37,12 @@ namespace RavenfieldVR.Core
         private static readonly List<string> Results = new List<string>();
         private static readonly HashSet<string> Seen = new HashSet<string>();
 
+        /// <summary>
+        /// -rfvr-deep (with -rfvr-only): every check on every weapon, not a few of each kind: rack grips, mag kicks and
+        /// tactical reloads, pistol pouches, recoil, and a magazine taken all the way round with side pictures.
+        /// </summary>
+        internal static readonly bool Deep = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-deep", StringComparison.OrdinalIgnoreCase));
+
         private static readonly bool MenuTestRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-menutest", StringComparison.OrdinalIgnoreCase));
 
         public static void Install()
@@ -229,6 +235,22 @@ namespace RavenfieldVR.Core
             }
             else
             {
+                if (VRManager.Active && VRConfig.SpawnEmptyHanded.Value && VRConfig.HolsterSwitching.Value)
+                {
+                    // A moment after the spawn: the hands must be empty, every weapon in its holster.
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    Weapon inHand = LocalPlayer.actor != null ? LocalPlayer.actor.activeWeapon : null;
+                    Results.Add($"Spawned with empty hands: {(inHand == null ? "yes" : $"NO, holding {inHand.name}")}");
+                    if (inHand != null)
+                    {
+                        Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
+                    }
+                }
+                if (VRManager.Active)
+                {
+                    yield return SquadPointingCheck();
+                    yield return LoadoutPickerCheck();
+                }
                 PerfProbe.Reset();
                 yield return TestWeapons();
                 _context = "idle";
@@ -358,6 +380,172 @@ namespace RavenfieldVR.Core
         /// The same weapon held left-handed (the setting overridden in memory only): holstered, handedness switched,
         /// drawn into the left hand, pictured and measured, then back.
         /// </summary>
+        /// <summary>
+        /// The loadout's weapon list (the submenu with every weapon for a slot): pictures over a second and a half after it
+        /// opens, and where its panel is (it once turned 3D, then jumped flat to the left with a grey box where the list was).
+        /// </summary>
+        private static IEnumerator LoadoutPickerCheck()
+        {
+            if (LoadoutUi.instance == null)
+            {
+                Results.Add("Loadout weapon list: skipped (no loadout screen)");
+                yield break;
+            }
+            LoadoutUi.Show(false);
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return new WaitForEndOfFrame();
+            Shots.Capture("loadout-0-open");
+            LoadoutUi.instance.OpenWeaponSelector(0);
+            var where = new List<string>();
+            foreach (float t in new[] { 0.1f, 0.5f, 1.5f })
+            {
+                yield return new WaitForSecondsRealtime(t);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture($"loadout-weapon-list-{t:0.0}s");
+                WeaponSelectionUi list = LoadoutUi.instance.primaryWeaponSelection;
+                Canvas c = list != null ? list.GetComponentInParent<Canvas>() : null;
+                Canvas root = c != null ? c.rootCanvas : null;
+                where.Add(root == null ? "no canvas"
+                    : $"{t:0.0}s: '{root.name}' {root.renderMode}, {(root.enabled ? "on" : "OFF")}, list {(list.gameObject.activeInHierarchy ? "shown" : "HIDDEN")} at {root.transform.position}");
+            }
+            LoadoutUi.instance.CancelWeaponSelection();
+            LoadoutUi.Hide();
+            Results.Add("Loadout weapon list: " + string.Join("; ", where));
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        /// <summary>
+        /// Squad orders by pointing: the squad order screen up, the off hand held out straight (it must count as pointing,
+        /// the order written on it), then at the chest (it must not; "point with a hand" on it). A picture of each.
+        /// </summary>
+        private static IEnumerator SquadPointingCheck()
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || SquadPointUi.instance == null)
+            {
+                Results.Add("Squad pointing: skipped (no squad order screen)");
+                yield break;
+            }
+            Rig.VRHand off = rig.Off;
+            int side = (int)off.Side;
+            Runtime.RigidPose raw = off.Raw;
+            Vector3 palmFromRaw = raw.InverseTransformPoint(off.PalmCentre);
+            Quaternion pointerInRaw = Quaternion.Inverse(raw.rotation) * off.Pointer.rotation;
+            Transform head = rig.Head;
+            Vector3 flat = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            Runtime.RigidPose HandAt(Vector3 palm, Vector3 pointing)
+            {
+                Quaternion rawRot = Quaternion.LookRotation(pointing, Vector3.up) * Quaternion.Inverse(pointerInRaw);
+                return new Runtime.RigidPose(palm - rawRot * palmFromRaw, rawRot);
+            }
+            SquadPointUi.Show(SquadPointUi.SquadPointOrderBaseType.PointOrder);
+            string straight, chest;
+            try
+            {
+                Vector3 outThere = head.position + (flat * 0.9f + Vector3.down * 0.25f).normalized * 0.58f;
+                Rig.VRHand.Scripted[side] = HandAt(outThere, (outThere - head.position).normalized);
+                for (int i = 0; i < 20; i++)
+                {
+                    yield return null;
+                }
+                UI.SquadPointing.Compute();
+                bool pointing = UI.SquadPointing.Pointing;
+                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("squad-pointing-straight");
+                straight = pointing ? "counts as pointing" : "DOES NOT COUNT AS POINTING";
+
+                Vector3 atChest = head.position + flat * 0.22f + Vector3.down * 0.35f;
+                Rig.VRHand.Scripted[side] = HandAt(atChest, flat);
+                for (int i = 0; i < 20; i++)
+                {
+                    yield return null;
+                }
+                UI.SquadPointing.Compute();
+                bool still = UI.SquadPointing.Pointing;
+                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("squad-pointing-at-chest");
+                chest = still ? "STILL COUNTS AS POINTING" : "does not count";
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                SquadPointUi.Hide(false);
+            }
+            Results.Add($"Squad pointing: hand held out straight {straight}; hand at the chest {chest}");
+            if (straight.StartsWith("DOES") || chest.StartsWith("STILL"))
+            {
+                Problem($"[squad] pointing: held out straight {straight}, at the chest {chest}");
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
+        /// <summary>
+        /// Deep run: the gun raised until its sight line lies before the right eye, a picture through it for each sight mode
+        /// (a magnifier flipped in or out), and what the mod and the game make of it: aiming or not, and the weapon's own
+        /// scope camera (on or off, what it draws into).
+        /// </summary>
+        private static IEnumerator SightCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || held == null || !held.Rig.Data.HasEyePoint || held.Rig.GunBody == null)
+            {
+                yield break;
+            }
+            Rig.VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            Weapon w = held.Weapon;
+            int start = w.GetSightModeIndex();
+            try
+            {
+                for (int m = 0; m < 4; m++)
+                {
+                    Weapons.SightLine sight = held.CurrentSight;
+                    Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
+                    Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
+                    for (int k = 0; k < 30; k++)
+                    {
+                        // Turned about the sight's eye point onto the eye's line of sight, then moved so the eye point is 7 cm
+                        // in front of the right eye (the gun follows the hand with a little lag: corrected every frame).
+                        Transform head = rig.Head;
+                        Vector3 eye = head.position + head.right * 0.032f;
+                        Runtime.RigidPose raw = dom.Raw;
+                        Vector3 eyeW = held.Rig.ToWorld(eyeGun);
+                        Quaternion fix = Quaternion.FromToRotation(held.Rig.DirToWorld(dirGun), head.forward);
+                        Vector3 target = eye + head.forward * 0.07f;
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(target + fix * (raw.position - eyeW), fix * raw.rotation);
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    yield return new WaitForEndOfFrame();
+                    Transform h = rig.Head;
+                    Shots.Capture($"{name}-mode{w.GetSightModeIndex()}", h.position + h.right * 0.032f, h.rotation, 50f);
+                    Camera rt = w.renderTextureCamera;
+                    string cam = rt == null ? "no scope camera of its own"
+                        : $"its scope camera '{rt.name}' {(rt.enabled && rt.gameObject.activeInHierarchy ? "on" : "OFF")}, drawing into {(rt.targetTexture != null ? $"'{rt.targetTexture.name}'" : "THE SCREEN")}";
+                    report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")}, game aiming {w.GetActiveSubWeapon().aiming}, {cam}");
+                    if (!w.HasAnyAltSightModes() || !w.NextSightMode())
+                    {
+                        break;
+                    }
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    if (w.GetSightModeIndex() == start)
+                    {
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+            }
+            for (int k = 0; k < 6 && w.GetSightModeIndex() != start && w.NextSightMode(); k++)
+            {
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
         private static IEnumerator LeftHandCheck(Weapon weapon, string name, Action<string> report)
         {
             Actor actor = LocalPlayer.actor;
@@ -1251,7 +1439,8 @@ namespace RavenfieldVR.Core
                             }
                         }
                         // Rack grips on rifles, pistols and pump / bolt guns (a few of each), not only the first rifles.
-                        if (want && (action == ActionType.Manual ? rackManual++ < 3
+                        if (want && (Deep ? action == ActionType.Manual || action == ActionType.SelfLoading
+                                : action == ActionType.Manual ? rackManual++ < 3
                                 : action == ActionType.SelfLoading && (held.Rig.Data.IsPistol ? rackPistols++ < 3 : rackRifles++ < 4)))
                         {
                             int rackIndex = index;
@@ -1275,7 +1464,23 @@ namespace RavenfieldVR.Core
                                 SupportCloseups(held, $"support-{shotIndex:000}-{entry.name}", lines.Add);
                             });
                         }
-                        if (!tacticalDone && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
+                        if (Deep && want && held.Rig.Data.HasEyePoint && action != ActionType.Melee && action != ActionType.Throwable)
+                        {
+                            yield return SightCheck(held, $"sight-{index:000}-{entry.name}", lines.Add);
+                        }
+                        if (Deep && want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                        {
+                            int magIndex = index;
+                            HeldWeapon magHeld = held;
+                            yield return held.Reload.MagazineDeepCheck(lines.Add, (name, at) =>
+                            {
+                                Runtime.RigidPose g = magHeld.GripWorld;
+                                Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+                                Vector3 from = at - right * 0.32f + up * 0.03f;
+                                Shots.Capture($"{name}-{magIndex:000}-{entry.name}", from, Quaternion.LookRotation(at - from, up), 45f);
+                            });
+                        }
+                        if ((Deep || !tacticalDone) && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
                         {
                             tacticalDone = true;
                             yield return held.Reload.TacticalSelfCheck(lines.Add, name => Shots.Capture(name));
@@ -1315,7 +1520,7 @@ namespace RavenfieldVR.Core
                                 yield return null;
                             }
                         }
-                        if (!pistolPouchDone && held.Rig.Data.IsPistol && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                        if ((Deep || !pistolPouchDone) && held.Rig.Data.IsPistol && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {
                             // A pistol's magazine from the pouch too (pistol magazines were shown low and hard to take).
                             pistolPouchDone = true;
@@ -1408,7 +1613,7 @@ namespace RavenfieldVR.Core
                     if (counts)
                     {
                         lines.Add($"fired {Mathf.Min(_shots, 3)}/3");
-                        if (VRManager.Active && Casings.Ejects(held))
+                        if (VRManager.Active && Casings.Ejects(held) && held.Rig.Data.Action != ActionType.BreakOpen) // a break action drops them when opened
                         {
                             int cases = Casings.Spawned - casesBefore;
                             Metric("cases thrown per shot", _shots > 0 ? (double)cases / Mathf.Min(_shots, 3) : 0);
@@ -1416,9 +1621,15 @@ namespace RavenfieldVR.Core
                         }
                         if (_shots == 0)
                         {
-                            Problem($"[{entry.name}] DID NOT FIRE (counter {held.ActiveAmmo.CounterText()})");
+                            Weapon w0 = weapon.GetActiveSubWeapon();
+                            AmmoState a0 = held.ActiveAmmo;
+                            Problem($"[{entry.name}] DID NOT FIRE (counter {a0.CounterText()}; game: can fire {w0.CanFire()}, ammo {w0.ammo}, reloading {w0.reloading}, "
+                                    + $"locked {w0.isLocked}, fired this pull {w0.hasFiredSingleRoundThisTrigger}, cooling down {w0.CoolingDown()} (cooldown {w0.configuration.cooldown:0.00} s), "
+                                    + $"charge {w0.configuration.useChargeTime}, auto {w0.configuration.auto}, muzzles {(w0.configuration.muzzles != null ? w0.configuration.muzzles.Length : 0)}, "
+                                    + $"projectile {(w0.configuration.projectilePrefab != null ? w0.configuration.projectilePrefab.name : "NONE")}; mod: can fire {a0.CanFire}, chambered {a0.Chambered}, bolt open {a0.BoltOpen}, "
+                                    + $"slide locked {a0.SlideLocked}, magazine {a0.MagRounds})");
                         }
-                        else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4))
+                        else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (Deep || (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4)))
                         {
                             float oneKick = shotKick, oneBack = shotBack, oneImpulse = shotImpulse;
                             string recoilLine = null;

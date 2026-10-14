@@ -909,8 +909,89 @@ namespace RavenfieldVR.Weapons
                 {
                     _attachAt = -1f;
                 }
-                ShowAt(target);
+                ShowAt(KeepOffGun(target));
             }
+        }
+
+        /// <summary>How far the magazine in the hand is drawn out of the gun now (eased in and out).</summary>
+        private Vector3 _keptOut;
+        private static readonly Vector3[] Samples = new Vector3[25];
+
+        /// <summary>
+        /// A magazine in the hand does not pass through the gun: where it would go into the gun's body it is drawn pushed
+        /// out of it the shortest way, the glove holding it with it. Its own magwell stays open to it (the rail takes it
+        /// from there, and a fresh one pushed into the seated one kicks it out: those go by the hand, not the drawing).
+        /// </summary>
+        private RigidPose KeepOffGun(RigidPose target)
+        {
+            HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
+            Vector3 want = Vector3.zero;
+            if (solid != null && HeldBy != null && Kind == PropKind.Magazine && gun.Rig.GunBody != null
+                && (target.position - gun.GripWorld.position).sqrMagnitude < 0.7f * 0.7f)
+            {
+                WeaponRigData d = gun.Rig.Data;
+                RigidPose seat = gun.Rig.GunBodyPose.Multiply(d.MagSeat);
+                Bounds well = d.MagBounds;
+                well.Expand(0.03f);
+                // Points over the magazine: five along it, each at its middle and four edges.
+                Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+                int n = 0;
+                for (int a = 0; a < 5; a++)
+                {
+                    Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / 4f);
+                    Samples[n++] = c;
+                    Samples[n++] = c + FrontLocal * (_frontHalf * 0.8f);
+                    Samples[n++] = c - FrontLocal * (_frontHalf * 0.8f);
+                    Samples[n++] = c + side * (_sideHalf * 0.8f);
+                    Samples[n++] = c - side * (_sideHalf * 0.8f);
+                }
+                bool Blocked(Vector3 offset)
+                {
+                    for (int i = 0; i < Samples.Length; i++)
+                    {
+                        Vector3 p = target.TransformPoint(Samples[i]) + offset;
+                        if (solid(p) && !well.Contains(seat.InverseTransformPoint(p)))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                if (Blocked(Vector3.zero))
+                {
+                    // Out from the bore first (the way off the gun's body), then up, down and to either side.
+                    Vector3 bore = gun.Rig.ToWorld(d.MuzzlePoint);
+                    Vector3 away = Vector3.ProjectOnPlane(target.position - bore, gun.Rig.AimWorld);
+                    Vector3 up = gun.Rig.UpWorld, right = Vector3.Cross(up, gun.Rig.AimWorld).normalized;
+                    Vector3[] dirs = { away.sqrMagnitude > 1e-6f ? away.normalized : -up, -up, up, right, -right, -gun.Rig.AimWorld, gun.Rig.AimWorld };
+                    float best = float.MaxValue;
+                    foreach (Vector3 dir in dirs)
+                    {
+                        for (float step = 0.005f; step <= 0.12f && step < best; step += 0.005f)
+                        {
+                            if (!Blocked(dir * step))
+                            {
+                                best = step;
+                                want = dir * step;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // Eased, so it slides along the gun instead of jumping between ways out.
+            _keptOut = Vector3.MoveTowards(_keptOut, want, Time.unscaledDeltaTime * 1.5f);
+            if (_keptOut.sqrMagnitude < 1e-8f)
+            {
+                return target;
+            }
+            if (HeldBy != null && HeldBy.Model != null)
+            {
+                HeldBy.Model.KeepOut = _keptOut;
+                HeldBy.Model.KeepOutFrame = Time.frameCount;
+            }
+            return new RigidPose(target.position + _keptOut, target.rotation);
         }
 
         /// <summary>World pose at the current rail depth, given the seated pose of the magazine/shell/rocket.</summary>

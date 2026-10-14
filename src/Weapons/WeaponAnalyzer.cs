@@ -40,6 +40,9 @@ namespace RavenfieldVR.Weapons
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
+        private static readonly Regex TriggerName = new Regex(@"trigger|abzug|g[aâ]chette|gatillo|спуск|扳机", RegexOptions.IgnoreCase);
+        private static readonly Regex BarrelName = new Regex(@"barrel|lauf|canon|ca[nñ]on|ствол|枪管", RegexOptions.IgnoreCase);
+
         private static readonly Regex OpticName = new Regex(
             @"glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z])(clu|cmd ?unit|command ?unit)($|[^a-z])|倍镜|瞄", RegexOptions.IgnoreCase);
 
@@ -469,8 +472,40 @@ namespace RavenfieldVR.Weapons
             }
 
             FinishVirtualParts(d);
+            ArChargingHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
             return d;
+        }
+
+        /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
+        private static readonly Regex ArPattern = new Regex(
+            // Not inside a word ("19m4mwii holo", "mk18riii" count, "gram4" does not), not a longer number ("m40", "m45").
+            @"(?<![a-z])(m4|m4a1|m16|ar-?15|ar-?10|hk ?416|hk ?417|mk ?18|mk ?12|m733|m727|xm177|car-?15|cqbr|urgi|sr-?25|m110|mcx|honey ?badger|ddm4|m27|g28|lvoa)(?!\d)",
+            RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// An AR-pattern rifle is racked by its charging handle, at the top of the back of the upper receiver, pulled
+        /// straight back. Without a part of its own that moves, the rack point came from where the reload animation's hand
+        /// went, and many reloads slap the bolt catch on the side instead: the hand took the gun at the ejection port and
+        /// only the bolt slid in it, the charging handle never moved. Here the handle is cut out of the receiver at its
+        /// place and comes back with the hand (the bolt, if the model has one, moves with it).
+        /// </summary>
+        private static void ArChargingHandle(WeaponRigData d)
+        {
+            if (d.IsPistol || d.Action != ActionType.SelfLoading || d.HandlePath != null || d.IsMachineGun || !ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Vector3 boreAboveGrip = d.MuzzlePoint + d.AimAxis * Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
+            d.RackPoint = boreAboveGrip - d.AimAxis * 0.035f + d.Up * 0.03f;
+            d.RackOnSurface = true; // onto the top of the receiver once the model is measured
+            d.CarveHandle = true;
+            if (d.SlidePath == null)
+            {
+                d.RackFromHand = true;
+                d.SlideTravel = -d.AimAxis * 0.075f;
+            }
+            d.SlideMethod += " (AR-pattern: the charging handle at the back of the receiver)";
         }
 
         // ---- hands & sights ---------------------------------------------------------------------------
@@ -750,6 +785,10 @@ namespace RavenfieldVR.Weapons
                     {
                         continue; // still, or a casing / flash that flies off when firing
                     }
+                    if (TriggerName.IsMatch(t.name))
+                    {
+                        continue; // a trigger moves along the bore when it fires, and is not something to rack (an M1878's)
+                    }
                     Vector3 v = sampler.FireVec[i];
                     float along = Mathf.Abs(Vector3.Dot(v.normalized, d.AimAxis));
                     if (along < 0.6f)
@@ -826,7 +865,7 @@ namespace RavenfieldVR.Weapons
                 dir = -d.AimAxis; // keep racking straight back even if the fire clip arcs
             }
             d.SlideTravel = dir * travel;
-            Bounds b = sampler.GunSpaceBounds(slide, gunIdle);
+            Bounds b = sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f);
             if (b.size.sqrMagnitude > 1e-6f)
             {
                 float along = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z))));
@@ -850,7 +889,7 @@ namespace RavenfieldVR.Weapons
                     d.HandlePath = WeaponRig.PathOf(root, handle);
                     d.HandleRestLocal = sampler.IdleLocalPosition(handle);
                     d.HandleTravel = handleVec;
-                    Bounds hb = sampler.GunSpaceBounds(handle, gunIdle);
+                    Bounds hb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
                     d.RackPoint = hb.size.sqrMagnitude > 1e-6f ? hb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
                     d.SlideMethod += " + handle";
                 }
@@ -1006,7 +1045,7 @@ namespace RavenfieldVR.Weapons
                 // The rack point sits on the part that moves when firing; the reload hand takes hold somewhere else: the
                 // part is a carrier inside the receiver, the handle you see is elsewhere (beside or above it).
                 Transform slide = WeaponRig.Resolve(root, d.SlidePath);
-                Bounds sb = slide != null ? sampler.GunSpaceBounds(slide, gunIdle) : new Bounds();
+                Bounds sb = slide != null ? sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f) : new Bounds();
                 bool onPart = sb.size.sqrMagnitude > 1e-6f && sb.SqrDistance(bestStart) < 0.015f * 0.015f;
                 d.RackPoint = bestStart;
                 d.RackOnSurface = true;
@@ -1236,7 +1275,11 @@ namespace RavenfieldVR.Weapons
                 float alongBore = Mathf.Abs(Vector3.Dot(axis, d.AimAxis));
                 bool carriesMuzzle = muzzle != null && muzzle != root && muzzle.IsChildOf(t);
                 float aboveBore = Vector3.Dot(sampler.RelIdle[i].position - d.MuzzlePoint, d.Up);
-                if (carriesMuzzle && acrossBore > 0.75f && breakCandidate)
+                // The barrels of a break action: carrying the muzzle, or named so, or reaching it (an M1878's muzzle flash
+                // hangs off the gun body, not off the barrels that tip open).
+                bool barrels = carriesMuzzle || breakCandidate && acrossBore > 0.75f
+                               && (BarrelName.IsMatch(t.name) || sampler.GunSpaceBoundsNear(t, gunIdle, 0.8f).SqrDistance(d.MuzzlePoint) < 0.06f * 0.06f);
+                if (barrels && acrossBore > 0.75f && breakCandidate)
                 {
                     if (rot > breakRot)
                     {
@@ -1297,6 +1340,14 @@ namespace RavenfieldVR.Weapons
             {
                 d.Action = ActionType.BreakOpen;
                 d.Notes += d.Hinge == HingeKind.BreakAction ? "break action " : "revolver ";
+                if (d.Hinge == HingeKind.BreakAction && d.SlidePath != null)
+                {
+                    // Nothing to rack on a break action: what was taken for its slide moved in the fire animation for
+                    // another reason (a hammer falling, the trigger).
+                    d.SlidePath = null;
+                    d.HandlePath = null;
+                    d.SlideMethod = "none (break action)";
+                }
             }
             d.IsMachineGun = d.Hinge == HingeKind.FeedCover || c.auto && c.ammo >= 60 && !d.IsPistol;
 
@@ -1310,10 +1361,12 @@ namespace RavenfieldVR.Weapons
             d.HingeAxis = sampler.ReloadRotAxis[hi].normalized;
             d.HingePivot = sampler.RelIdle[hi].position;
             d.HingeOpenAngle = Mathf.Min(sampler.ReloadRotMax[hi], d.Hinge == HingeKind.Cylinder ? 100f : d.Hinge == HingeKind.BreakAction ? 70f : 110f);
-            Bounds b = sampler.GunSpaceBounds(hinge, gunIdle);
+            Bounds b = sampler.GunSpaceBoundsNear(hinge, gunIdle, 0.8f);
             Vector3 center = b.size.sqrMagnitude > 1e-6f ? b.center : d.HingePivot;
-            // A cover is lifted at its rear latch.
-            d.HingeGrabPoint = center - d.AimAxis * Mathf.Abs(Vector3.Dot(b.extents, Abs(d.AimAxis))) * 0.6f + d.Up * 0.01f;
+            // A cover is lifted at its rear latch; barrels are pushed down from underneath, half way along.
+            d.HingeGrabPoint = d.Hinge == HingeKind.BreakAction
+                ? center - d.Up * Mathf.Abs(Vector3.Dot(b.extents, Abs(d.Up))) * 0.8f
+                : center - d.AimAxis * Mathf.Abs(Vector3.Dot(b.extents, Abs(d.AimAxis))) * 0.6f + d.Up * 0.01f;
 
             // When it opens and closes in the mod's reload: these carry the open / close sounds.
             float[] angle = sampler.ReloadAngle[hi];
@@ -1572,9 +1625,12 @@ namespace RavenfieldVR.Weapons
                     }
                     int i = index[t];
                     float m = sampler.ReloadMax[i];
-                    if (m < 0.03f || m > 1.5f)
+                    float fromGrip = Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint);
+                    if (m < 0.03f || m > 1.5f && fromGrip > 0.3f)
                     {
-                        continue; // still, or parked far away while hidden (belt links, spare rounds)
+                        // Still, or parked far away (belt links, spare rounds). A magazine sitting in the gun may well fly
+                        // far in the reload: a G17's is thrown 1.6 m, and the spare one in the other hand was taken instead.
+                        continue;
                     }
                     if (!ShownAtIdle(t, sampler))
                     {
@@ -1590,9 +1646,10 @@ namespace RavenfieldVR.Weapons
                         // tighter: an RPG-7V's rocket holder with its rocket measures 1.7 m (it fell to a piece of the scope).
                         continue;
                     }
-                    Vector3 idlePos = sampler.RelIdle[i].position;
-                    bool nearGun = Vector3.Distance(idlePos, d.GripPoint) < 0.45f;
-                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * (nearGun ? 1f : 0.2f);
+                    // In the gun at rest: a reload with two magazines (the old one out, a fresh one in) keeps the fresh one
+                    // where the flat view's other hand waits, a few tens of centimetres off.
+                    float inGun = Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
+                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * inGun;
                     if (score > best)
                     {
                         best = score;
@@ -1690,6 +1747,7 @@ namespace RavenfieldVR.Weapons
 
             int mi = index[mag];
             d.MagazinePath = WeaponRig.PathOf(root, mag);
+            CollectSpareMagazines(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler);
             d.MagazineToggles = toggles;
             d.MagazineIsSkinned = !HasRendererInSubtree(mag) && gunBones.Contains(mag);
             if (d.MagMethod == "reload motion" && d.MagazineIsSkinned)
@@ -1703,7 +1761,7 @@ namespace RavenfieldVR.Weapons
             if (mb.size.sqrMagnitude > 1e-6f)
             {
                 d.MagBounds = mb;
-                MagAxisFromShape(d, mb, eject.sqrMagnitude > 0.5f);
+                MagAxisFromShape(d, mb, eject.sqrMagnitude > 0.5f, mag);
             }
 
             if (sampler.HasReload)
@@ -1714,12 +1772,61 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Spare magazines of the flat reload animation: drawn at rest where its other hand waits, a few tens of centimetres
+        /// from the gun (out of the flat view), moved in by the reload. Magazine-like (by name, or the chosen magazine's
+        /// size), not part of the chosen one. In VR they hung in the air by the gun.
+        /// </summary>
+        private static void CollectSpareMagazines(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, Transform slide, Transform mag, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
+        {
+            float magSize = sampler.LocalBounds(mag).size.magnitude;
+            var found = new List<Transform>();
+            foreach (Transform t in all)
+            {
+                if (t == mag || t.IsChildOf(mag) || mag.IsChildOf(t) || !index.TryGetValue(t, out int i)
+                    || !MagCandidate(t, root, gunBody, muzzle, slide, armRelated, gunBones) || !ShownAtIdle(t, sampler)
+                    || sampler.ReloadMax[i] < 0.03f || Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint) < 0.28f)
+                {
+                    continue;
+                }
+                float size = sampler.LocalBounds(t).size.magnitude;
+                if (size > 0.6f || !IsMagName(t.name) && (magSize < 0.01f || Mathf.Abs(size - magSize) > magSize * 0.4f)
+                    || NotMagName.IsMatch(t.name) || OpticName.IsMatch(t.name))
+                {
+                    continue;
+                }
+                // Nothing on the bore line: a suppressor on the muzzle moves in some reloads too (an HK416-B/S's), and is
+                // the size of a magazine.
+                Vector3 at = sampler.RelIdle[i].position;
+                if (Vector3.ProjectOnPlane(at - d.MuzzlePoint, d.AimAxis).magnitude < 0.06f || Regex.IsMatch(t.name, @"suppress|silenc|muzzle|消音|枪口", RegexOptions.IgnoreCase))
+                {
+                    continue;
+                }
+                found.Add(t);
+            }
+            foreach (Transform t in found)
+            {
+                bool underAnother = false;
+                foreach (Transform o in found)
+                {
+                    underAnother |= o != t && t.IsChildOf(o);
+                }
+                if (underAnother || d.SparePartPaths.Count >= 4)
+                {
+                    continue;
+                }
+                d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
+                d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
+            }
+        }
+
+        /// <summary>
         /// A box magazine leaves its well along its own length. The reload animation's first motion is often something
         /// else (an AK magazine rocked forward off its front lug, a hand that tugs it sideways first), and an insert axis
         /// taken from that tilts the magazine in the hand and makes it go in crooked. A clearly elongated magazine that
         /// hangs below the gun uses its own long axis, pointing out of the gun; drums and boxes keep the animated one.
         /// </summary>
-        private static void MagAxisFromShape(WeaponRigData d, Bounds local, bool animated)
+        private static void MagAxisFromShape(WeaponRigData d, Bounds local, bool animated, Transform magPart = null)
         {
             // Out of the gun means away from the bore, toward the side the magazine hangs on (below for almost every gun,
             // above for a top-fed one). An animation whose first motion nudges the magazine up into the well before pulling
@@ -1738,12 +1845,24 @@ namespace RavenfieldVR.Weapons
             Vector3 s = local.size;
             int longest = s.x >= s.y && s.x >= s.z ? 0 : s.y >= s.z ? 1 : 2;
             float second = longest == 0 ? Mathf.Max(s.y, s.z) : longest == 1 ? Mathf.Max(s.x, s.z) : Mathf.Max(s.x, s.y);
-            if (s[longest] < 0.05f || s[longest] < second * 1.5f)
+            Vector3 axisLocal = Vector3.zero;
+            axisLocal[longest] = 1f;
+            if (magPart != null && PrincipalAxis(magPart, out Vector3 principal, out float elongation) && elongation >= 1.5f && s[longest] >= 0.05f)
+            {
+                // The magazine's own long axis from its vertices: a pistol magazine (or a raked one) modelled in place, in a
+                // frame lined up with the gun, has its bounding box upright, and the box's longest side pointed straight
+                // down from the bore instead of along the rake. Slid in on that line, it travelled in front of the grip
+                // and seemed to float there (M1911, P220).
+                if (Vector3.Angle(principal, axisLocal) > 4f)
+                {
+                    d.Notes += $"magazine axis from its vertices ({Vector3.Angle(principal, axisLocal) % 180f:0}° off its box) ";
+                }
+                axisLocal = principal;
+            }
+            else if (s[longest] < 0.05f || s[longest] < second * 1.5f)
             {
                 return; // short, a drum or a block: no reliable axis of its own
             }
-            Vector3 axisLocal = Vector3.zero;
-            axisLocal[longest] = 1f;
             Vector3 axis = (d.MagSeat.rotation * axisLocal).normalized;
             if (Vector3.Dot(axis, outward) < 0f)
             {
@@ -1758,6 +1877,81 @@ namespace RavenfieldVR.Weapons
                 d.Notes += $"magazine axis from its shape ({Vector3.Angle(axis, d.MagEjectAxis):0}° off the animated pull) ";
             }
             d.MagEjectAxis = axis;
+        }
+
+        /// <summary>
+        /// The long axis of a part's own meshes (in its frame), from their vertices: the direction they spread along most.
+        /// <paramref name="elongation"/>: how much longer than wide (ratio of the spreads). False when no mesh can be read.
+        /// </summary>
+        internal static bool PrincipalAxis(Transform part, out Vector3 axisLocal, out float elongation)
+        {
+            axisLocal = Vector3.up;
+            elongation = 0f;
+            var points = new List<Vector3>();
+            foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable || m.vertexCount == 0)
+                {
+                    continue;
+                }
+                Vector3[] v = m.vertices;
+                int step = Mathf.Max(1, v.Length / 4000); // a few thousand points describe the shape well enough
+                for (int i = 0; i < v.Length; i += step)
+                {
+                    points.Add(part.InverseTransformPoint(mf.transform.TransformPoint(v[i])));
+                }
+            }
+            if (points.Count < 8)
+            {
+                return false;
+            }
+            Vector3 mean = Vector3.zero;
+            foreach (Vector3 p in points)
+            {
+                mean += p;
+            }
+            mean /= points.Count;
+            // Covariance (symmetric 3x3).
+            float xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+            foreach (Vector3 p in points)
+            {
+                Vector3 q = p - mean;
+                xx += q.x * q.x; xy += q.x * q.y; xz += q.x * q.z;
+                yy += q.y * q.y; yz += q.y * q.z; zz += q.z * q.z;
+            }
+            Vector3 Mul(Vector3 a) => new Vector3(xx * a.x + xy * a.y + xz * a.z, xy * a.x + yy * a.y + yz * a.z, xz * a.x + yz * a.y + zz * a.z);
+            // Power iteration from the box's longest side.
+            Vector3 v1 = xx >= yy && xx >= zz ? Vector3.right : yy >= zz ? Vector3.up : Vector3.forward;
+            for (int i = 0; i < 40; i++)
+            {
+                Vector3 n = Mul(v1);
+                if (n.sqrMagnitude < 1e-20f)
+                {
+                    return false;
+                }
+                v1 = n.normalized;
+            }
+            float l1 = Vector3.Dot(v1, Mul(v1));
+            // The largest spread across it: the same on the plane at right angles to the first axis.
+            Vector3 v2 = Vector3.Cross(v1, Mathf.Abs(v1.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+            for (int i = 0; i < 40; i++)
+            {
+                Vector3 n = Vector3.ProjectOnPlane(Mul(v2), v1);
+                if (n.sqrMagnitude < 1e-20f)
+                {
+                    break;
+                }
+                v2 = n.normalized;
+            }
+            float l2 = Vector3.Dot(v2, Mul(v2));
+            if (l1 <= 0f)
+            {
+                return false;
+            }
+            axisLocal = v1;
+            elongation = l2 > 1e-12f ? Mathf.Sqrt(l1 / l2) : 100f;
+            return true;
         }
 
         /// <summary>How much of the seated magazine sticks out of the gun's own meshes along the eject axis.</summary>
@@ -1804,7 +1998,7 @@ namespace RavenfieldVR.Weapons
             }
             Bounds gun = sampler.GunSpaceBoundsWhere(root, gunIdle, t => !GunMesh(t));
             // The magazine in gun space: its own meshes, or its measured bounds at the seat for skinned magazines.
-            Bounds mb = sampler.GunSpaceBounds(mag, gunIdle);
+            Bounds mb = sampler.GunSpaceBoundsNear(mag, gunIdle, 0.5f);
             if (mb.size.sqrMagnitude < 1e-6f)
             {
                 mb = new Bounds(d.MagSeat.TransformPoint(d.MagBounds.center), Vector3.zero);
