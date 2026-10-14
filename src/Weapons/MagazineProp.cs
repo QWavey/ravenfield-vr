@@ -603,6 +603,12 @@ namespace RavenfieldVR.Weapons
             float zHold = VRHand.FistHollow.z, yHold = VRHand.FistHollow.y;
             float rest = Rig.HandModel.PalmSurfaceFromGrip(zHold - _frontHalf, zHold + _frontHalf, yHold - gripAt * length, yHold + (1f - gripAt) * length) + _sideHalf;
             pos += palm.rotation * new Vector3(-hand.Mirror, 0f, 0f) * rest;
+            if (Kind == PropKind.Magazine)
+            {
+                // A centimetre toward the fingers: further back its back edge lay in the root of the thumb, which went
+                // through it (rifle and AK magazines, grip_check.py); here the thumb wraps it and nothing is buried.
+                pos += palm.rotation * Vector3.forward * 0.01f;
+            }
             return new RigidPose(pos, rot);
         }
 

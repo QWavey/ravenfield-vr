@@ -682,7 +682,9 @@ namespace RavenfieldVR.Rig
             // little past straight, and closes from there: otherwise it stayed inside (the support thumb stood up through a
             // handguard) because segments that start inside never stop a finger.
             float start = 0f;
-            if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip))
+            // On a held magazine every finger does: a curved one (an AK's) can start inside a finger, which then passed
+            // straight through it.
+            if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Magazine))
             {
                 Chain(f, 0f, 0f, 0f);
                 if (SegmentTouches(0) || SegmentTouches(1))
@@ -958,7 +960,8 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
-                    Minimum(0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
+                    // A magazine's thumb closes on round it too (it stopped half way, short of a slim magazine).
+                    Minimum(_hand.Role == HandRole.Magazine ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
                 }
                 return _goal;
             }

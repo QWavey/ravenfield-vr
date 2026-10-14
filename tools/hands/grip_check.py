@@ -322,7 +322,7 @@ class Union:
 
 # ---- a hold -------------------------------------------------------------------------------------------------------
 
-def hold(glove, obj, palm_pos, palm_rot, goals, thumb_base, opens_out=(True, False, False, False, False), settle=True, grasp=None):
+def hold(glove, obj, palm_pos, palm_rot, goals, thumb_base, opens_out=(True, True, True, True, True), settle=True, grasp=None):
     """The hand on obj as HandModel.Apply leaves it: grasp-anchor shift, palm settled, fingers closed to goals."""
     root = palm_pos + qrot(palm_rot, -FIST_HOLLOW)
     hand = Hand(glove, root, palm_rot, thumb_base)
@@ -382,6 +382,187 @@ def report(name, hand, push, obj):
     return dict(push=push, buried=buried, samples=samples, fingers=fingers, thumb=touching[0], tips=tips)
 
 
+# ---- pictures -----------------------------------------------------------------------------------------------------
+
+_MESH = None
+
+
+def _glove_mesh():
+    """The glove's vertices, skin weights and texture (via preview_glove.py), loaded once."""
+    global _MESH
+    if _MESH is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("preview_glove", os.path.join(ROOT, "tools", "hands", "preview_glove.py"))
+        pg = importlib.util.module_from_spec(spec)
+        argv = sys.argv
+        sys.argv = [argv[0], ROOT, os.devnull]
+        try:
+            spec.loader.exec_module(pg)
+        finally:
+            sys.argv = argv
+        pos, nrm, uv, bi, bw, tri, joints = pg.load()
+        from PIL import Image
+        tex = np.asarray(Image.open(os.path.join(ROOT, "src", "Rig", "Glove", "glove_color.jpg")).convert("RGB"), np.float32) / 255.0
+        _MESH = (pg, pos, nrm, uv, bi, bw, tri, joints, tex)
+    return _MESH
+
+
+def _mat(q):
+    x, y, z, w = q
+    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+
+
+def glove_world(hand):
+    """The glove mesh skinned to the hand's solved joints, in world metres (vertices, normals)."""
+    pg, pos, nrm, uv, bi, bw, tri, joints, tex = _glove_mesh()
+    g = hand.g
+    bind = [np.eye(4)]
+    posed = [np.eye(4)]
+    for f in range(5):
+        pb = np.eye(4)
+        pp = np.eye(4)
+        for s in range(3):
+            j = joints[f][s]
+            lb = np.eye(4)
+            lb[:3, :3] = _mat(qn(j["bind"]))
+            rest = hand.thumb_base if f == 0 and s == 0 else g.rest[f, s]
+            lp = np.eye(4)
+            lp[:3, :3] = _mat(qmul(rest, qaxis(g.angle[f, s] * hand.joint[f][s], g.axis[f, s])))
+            t = j["pos"] if s == 0 else joints[f][s - 1]["child"]
+            lb[:3, 3] = t
+            lp[:3, 3] = t
+            pb = pb @ lb if s else lb
+            pp = pp @ lp if s else lp
+            bind.append(pb.copy())
+            posed.append(pp.copy())
+    sp, sn = pg.skin(pos, nrm, bi, bw, bind, posed)
+    r = _mat(hand.rot)
+    return hand.pos + (sp * SCALE) @ r.T, sn @ r.T
+
+
+def object_mesh(obj):
+    """Triangles of a box or cylinder (world), flat normals."""
+    parts = obj.parts if isinstance(obj, Union) else (obj,)
+    verts, norms, tris = [], [], []
+    for o in parts:
+        if isinstance(o, Box):
+            h = o.h
+            for axis in range(3):
+                for sign in (-1, 1):
+                    n = np.zeros(3)
+                    n[axis] = sign
+                    u, v = [a for a in range(3) if a != axis]
+                    base = len(verts)
+                    for du, dv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                        p = np.zeros(3)
+                        p[axis] = sign * h[axis]
+                        p[u] = du * h[u]
+                        p[v] = dv * h[v]
+                        verts.append(o.c + qrot(o.rot, p))
+                        norms.append(qrot(o.rot, n))
+                    tris += [(base, base + 1, base + 2), (base, base + 2, base + 3)]
+        else:
+            seg = 24
+            for i in range(seg):
+                a0, a1 = 2 * math.pi * i / seg, 2 * math.pi * (i + 1) / seg
+                base = len(verts)
+                for a, z in ((a0, -o.hl), (a1, -o.hl), (a1, o.hl), (a0, o.hl)):
+                    p = np.array([math.cos(a) * o.r, math.sin(a) * o.r, z])
+                    verts.append(o.c + qrot(o.rot, p))
+                    norms.append(qrot(o.rot, np.array([math.cos(a), math.sin(a), 0.0])))
+                tris += [(base, base + 1, base + 2), (base, base + 2, base + 3)]
+    return np.array(verts), np.array(norms), np.array(tris)
+
+
+def render_scene(meshes, view, centre, size=300, scale=1500.0):
+    """Orthographic, looking along view[2]; meshes are (verts, normals, uv or None, tris, texture or rgb)."""
+    img = np.zeros((size, size, 3), np.float32) + np.array([0.55, 0.6, 0.66])
+    zbuf = np.full((size, size), np.inf)
+    light = np.array([-0.4, 0.5, -0.75])
+    light /= np.linalg.norm(light)
+    for verts, nrms, uv, tri, tex in meshes:
+        p = (verts - centre) @ view.T
+        n = nrms @ view.T
+        sx = p[:, 0] * scale + size / 2
+        sy = size / 2 - p[:, 1] * scale
+        for a, b, c in tri:
+            xs = np.array([sx[a], sx[b], sx[c]])
+            ys = np.array([sy[a], sy[b], sy[c]])
+            x0, x1 = max(0, int(xs.min())), min(size - 1, int(xs.max()) + 1)
+            y0, y1 = max(0, int(ys.min())), min(size - 1, int(ys.max()) + 1)
+            if x1 < x0 or y1 < y0:
+                continue
+            den = (ys[1] - ys[2]) * (xs[0] - xs[2]) + (xs[2] - xs[1]) * (ys[0] - ys[2])
+            if abs(den) < 1e-9:
+                continue
+            gx, gy = np.meshgrid(np.arange(x0, x1 + 1) + 0.5, np.arange(y0, y1 + 1) + 0.5)
+            w0 = ((ys[1] - ys[2]) * (gx - xs[2]) + (xs[2] - xs[1]) * (gy - ys[2])) / den
+            w1 = ((ys[2] - ys[0]) * (gx - xs[2]) + (xs[0] - xs[2]) * (gy - ys[2])) / den
+            w2 = 1 - w0 - w1
+            inside = (w0 >= 0) & (w1 >= 0) & (w2 >= 0)
+            if not inside.any():
+                continue
+            z = w0 * p[a, 2] + w1 * p[b, 2] + w2 * p[c, 2]
+            zb = zbuf[y0:y1 + 1, x0:x1 + 1]
+            draw = inside & (z < zb)
+            if not draw.any():
+                continue
+            nn = w0[..., None] * n[a] + w1[..., None] * n[b] + w2[..., None] * n[c]
+            nn /= np.linalg.norm(nn, axis=-1, keepdims=True)
+            shade = 0.35 + 0.75 * np.abs(nn @ light)
+            if uv is not None:
+                th, tw = tex.shape[:2]
+                u = w0 * uv[a, 0] + w1 * uv[b, 0] + w2 * uv[c, 0]
+                v = w0 * uv[a, 1] + w1 * uv[b, 1] + w2 * uv[c, 1]
+                tu = np.clip((u % 1.0) * tw, 0, tw - 1).astype(int)
+                tv = np.clip((1 - (v % 1.0)) * th, 0, th - 1).astype(int)
+                col = tex[tv, tu] * shade[..., None]
+            else:
+                col = np.asarray(tex, np.float32)[None, None, :] * shade[..., None]
+            zb[draw] = z[draw]
+            img[y0:y1 + 1, x0:x1 + 1][draw] = col[draw]
+    return np.clip(img * 255, 0, 255).astype(np.uint8)
+
+
+VIEWS = {
+    # rows: right, up, forward (the camera looks along forward), in the scenario's palm frame.
+    "thumb side": np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], float),
+    "back of hand": np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]], float),
+    "from the fingers": np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], float),
+}
+
+PICTURES = []
+
+
+def picture(name, hand, obj, views=("thumb side", "back of hand", "from the fingers")):
+    """Adds a row of pictures of this hold to the sheet (with --pictures <file>)."""
+    if "--pictures" not in sys.argv:
+        return
+    from PIL import Image, ImageDraw
+    pg, pos, nrm, uv, bi, bw, tri, joints, tex = _glove_mesh()
+    gv, gn = glove_world(hand)
+    ov, on, ot = object_mesh(obj)
+    centre = (gv.mean(axis=0) + ov.mean(axis=0)) * 0.5
+    tiles = []
+    for v in views:
+        im = Image.fromarray(render_scene([(gv, gn, uv, tri, tex), (ov, on, None, ot, (0.42, 0.44, 0.40))], VIEWS[v], centre))
+        ImageDraw.Draw(im).text((4, 3), name + " - " + v, fill=(0, 0, 0))
+        tiles.append(np.asarray(im))
+    PICTURES.append(np.concatenate(tiles, axis=1))
+
+
+def save_pictures():
+    if "--pictures" not in sys.argv or not PICTURES:
+        return
+    from PIL import Image
+    i = sys.argv.index("--pictures")
+    out = sys.argv[i + 1] if i + 1 < len(sys.argv) and not sys.argv[i + 1].startswith("--") else "grip_check.png"
+    Image.fromarray(np.concatenate(PICTURES, axis=0)).save(out)
+    print("pictures:", out)
+
+
 # ---- scenarios ----------------------------------------------------------------------------------------------------
 
 def palm_surface_from_grip(glove, z_lo=-1.0, z_hi=1.0, y_lo=-1.0, y_hi=1.0):
@@ -413,34 +594,40 @@ def magazine_hold(glove, depth, thick, length, grip_at, goals, thumb_base, palm_
         lo_z, hi_z = centre[2] - depth / 2, centre[2] + depth / 2
         lo_y, hi_y = centre[1] - length / 2, centre[1] + length / 2
         centre = centre + qrot(palm_rot, [-1.0, 0, 0]) * (palm_surface_from_grip(glove, lo_z, hi_z, lo_y, hi_y) + thick / 2)
+        centre = centre + qrot(palm_rot, [0, 0, 1.0]) * 0.01  # a centimetre toward the fingers (clear of the thumb's root)
     obj = Box(centre, rot, [thick / 2, length / 2, depth / 2])
     return obj, palm_pos, palm_rot
 
 
-def goals_for(pose_curls, trigger=0.0, grip=1.0):
+def goals_for(pose_curls, trigger=0.0, grip=1.0, magazine=True):
     """TargetCurls for a held-object role on a controller without finger tracking, grip squeezed: input fill, the rest
-    minimum, the pose's minimum, then the closing minimum (0.55, 0.9, 0.95, 0.95, 0.95)."""
+    minimum, the pose's minimum, then the closing minimum (a magazine's thumb 0.9, else 0.55; 0.9, 0.95, 0.95, 0.95)."""
     g = [grip * 0.6, trigger, grip, grip, grip]
     for f, m in enumerate([0.1, 0.12, 0.16, 0.2, 0.24]):
         g[f] = max(g[f], m)
     for f in range(5):
         g[f] = max(g[f], pose_curls[f])
-    for f, m in enumerate([0.55, 0.9, 0.95, 0.95, 0.95]):
+    for f, m in enumerate([0.9 if magazine else 0.55, 0.9, 0.95, 0.95, 0.95]):
         g[f] = max(g[f], m)
     return g
 
 
 POSES = {
     # From HandPoses.cs (thumb base, curls).
-    "RifleMagazine": (0.55, [0.55, 0.7, 0.75, 0.78, 0.8]),
-    "PistolMagazine": (0.6, [0.6, 0.45, 0.75, 0.8, 0.82]),
+    "RifleMagazine": (0.3, [0.55, 0.7, 0.75, 0.78, 0.8]),
+    "PistolMagazine": (0.8, [0.6, 0.45, 0.75, 0.8, 0.82]),
     "BoxMagazine": (0.35, [0.35, 0.5, 0.55, 0.58, 0.6]),
 }
 
 
 def main():
     glove = Glove(os.path.join(ROOT, "src", "Rig", "Glove", "glove.bin"))
-    want = set(a for a in sys.argv[1:] if not os.path.isdir(a) and not a.startswith("--"))
+    skip = set()
+    if "--pictures" in sys.argv:
+        i = sys.argv.index("--pictures")
+        if i + 1 < len(sys.argv):
+            skip.add(sys.argv[i + 1])
+    want = set(a for a in sys.argv[1:] if not os.path.isdir(a) and not a.startswith("--") and a not in skip)
     results = {}
 
     def run(name, fn):
@@ -454,12 +641,14 @@ def main():
         thumb, curls = POSES[pose]
         obj, pp, pr = magazine_hold(glove, depth, thick, length, grip_at, None, thumb, on_palm=on_palm)
         hand, push = hold(glove, obj, pp, pr, goals_for(curls), thumb)
+        picture(name, hand, obj)
         return report(name, hand, push, obj)
 
     run("rifle magazine (STANAG)", lambda: mag("rifle magazine (STANAG)", "RifleMagazine", 0.064, 0.023, 0.18, 0.33))
     run("pistol magazine", lambda: mag("pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.33))
     run("AK magazine", lambda: mag("AK magazine", "RifleMagazine", 0.07, 0.026, 0.2, 0.33))
     run("MG box", lambda: mag("MG box", "BoxMagazine", 0.1, 0.08, 0.12, 0.33))
+    save_pictures()
     return results
 
 

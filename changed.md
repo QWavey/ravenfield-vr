@@ -1470,3 +1470,22 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
   (AK) and **4.0 → 0.2 cm** (MG box). 0.2 cm is the settle's 2 mm step, i.e. just touching.
 - Kept. Still open from the baseline: the pistol magazine's thumb ends 18 mm off it, and the MG box's thumb lies
   inside it.
+
+### Round 2 (correctness, your report): no finger through the AK magazine (`src/Weapons/MagazineProp.cs`, `src/Rig/HandModel.cs`, `src/Rig/HandPoses.cs`)
+
+- Before: holding a rifle or AK magazine, the thumb's root lay inside the magazine's back edge and came out of its
+  far side (in the pictures, the thumb passes through the magazine). Finger segments that start inside what the hand
+  holds are not stopped by it (only the thumb and a support hand's fingers were first opened out of it), so on the
+  game's curved AK magazine another finger can pass straight through the same way.
+- After (from a sweep over where the magazine sits and how far the thumb's base turns in, scored on buried points,
+  contact, gaps and the glove's offset):
+  - the magazine sits a centimetre further toward the fingers;
+  - the rifle-magazine pose turns the thumb's base in less (0.55 → 0.3), so it lies along the magazine's side;
+  - every finger on a held magazine is first opened out of it before closing, as the thumb already was.
+- Measured (grip_check.py), buried finger and palm points: **STANAG 3/72 → 0/72, AK 4/72 → 0/72**, all four fingers
+  and the thumb still touching.
+- On the way: the pistol magazine's thumb pose was turned further in (its pad now lands on the magazine, 18 → −3 mm),
+  and a magazine's thumb now closes up to 0.9. The pistol magazine hold is redone in round 4 after your note that
+  nobody grabs one with the full hand.
+- Kept. Still open: the MG box (the thumb lies inside it: the box is wider than the hand's grasp), and the pinky
+  (round 3).
