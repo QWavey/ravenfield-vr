@@ -24,6 +24,9 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _sys;
         private readonly HeldWeapon _held;
         private readonly Arm _right, _left;
+        /// <summary>The eased shift of the off hand onto the part it works (see <see cref="HandModel.GraspAnchor"/>).</summary>
+        private Vector3 _anchorOffset;
+
         /// <summary>How far the off arm has gone over to the weapon's support grip (0: the controller, 1: the grip).</summary>
         private float _onGunBlend = -1f;
 
@@ -87,10 +90,12 @@ namespace RavenfieldVR.Weapons
                 Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
                 Vector3 palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
                 Vector3 at = off.PalmCentre;
-                if (off.Model != null && off.Model.GraspAnchor.HasValue)
-                {
-                    at += Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - at, 0.05f);
-                }
+                // Settled onto the part it works the way the VR glove is: eased (it jumped up to 5 cm when racking began
+                // and ended).
+                bool anchored = off.Model != null && off.Model.GraspAnchor.HasValue;
+                Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - at, 0.05f) : Vector3.zero;
+                _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * Mathf.Min(Time.unscaledDeltaTime, 0.05f)));
+                at += _anchorOffset;
                 var free = new RigidPose(at - palmPoint, rot);
                 // Taking hold of the handguard or letting go eases over a tenth of a second instead of snapping.
                 float want = onGun ? 1f : 0f;

@@ -906,3 +906,22 @@ inherit the player's own movement (the hand's velocity includes the rig's), so t
   | In and out of the pocket | 7 times | 1 time |
   | Biggest turn in one frame | 11.0° | 0.73° |
 - Kept.
+
+### Round 17 (smoothness): the weapon's own arms settle onto a bolt the way the glove does (`src/Weapons/ArmIK.cs`)
+
+- Before: with the weapon's own arms shown instead of the VR hands, the off hand's shift onto the part it works (up to
+  5 cm, task 37) was applied at once. The hand jumped when racking or lifting a cover began and ended. The VR glove
+  already eased the same shift.
+- After: the same easing as the glove (30/s onto the part, 18/s back). Biggest move in one frame when racking begins:
+  **5.0 cm before, 1.4 cm after**, then smaller each frame.
+- Kept.
+
+### Round 18 (test coverage): an autotest check for a magazine set down gently (`src/Core/AutoTest.cs`)
+
+- Before: nothing checked the bug hunt's round-3 fix (a magazine picked up and set down gently was shoved by the gun,
+  because picking it up made Unity forget that the gun ignores it). Checks covering it: 0.
+- After: right after the ground-drift check, the VR autotest drops a magazine in front of you and lets it settle. The
+  off hand picks it up with the grip held, then it is set down exactly where it lay without a toss, and the gun is
+  swept sideways through it. Report: `magazine picked up, set down gently and the gun swept through it: stayed
+  (x cm)`, or `NOT LEFT ALONE (pushed x cm)` (a problem), plus a metric. Checks covering it: 1.
+- Kept.

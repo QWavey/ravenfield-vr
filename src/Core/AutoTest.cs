@@ -935,6 +935,78 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// A magazine lying in front of you is picked up, set down again where it lay without a toss, and the gun is swept
+        /// through it: it must stay put. Picking it up switches its colliders off, and Unity forgets that the gun ignores
+        /// it; it was once still marked "lying still, ignored" and the gun shoved it away.
+        /// </summary>
+        private static IEnumerator GentleMagazineCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            Rig.VRHand off = rig != null ? rig.Off : null, dom = rig != null ? rig.Dominant : null;
+            if (held == null || held.Collider == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag
+                || off == null || off.Held != null || off.Role != Rig.HandRole.Free)
+            {
+                report("magazine set down gently: skipped (no magazine-fed weapon in hand or the off hand is busy)");
+                yield break;
+            }
+            Transform head = rig.Head;
+            Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            if (!Physics.Raycast(head.position + fwd * 0.6f, Vector3.down, out RaycastHit ground, 3f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                report("magazine set down gently: skipped (no ground in front)");
+                yield break;
+            }
+            MagazineProp mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+            if (mag == null || mag.Go == null)
+            {
+                yield break;
+            }
+            int side = (int)dom.Side, offSide = (int)off.Side;
+            try
+            {
+                mag.Go.transform.position = ground.point + Vector3.up * 0.06f;
+                mag.Drop(Vector3.zero, Vector3.zero);
+                yield return new WaitForSecondsRealtime(1.5f); // it settles, and the gun ignores it from now on
+                Vector3 spot = mag.Go.transform.position;
+                Quaternion lie = mag.Go.transform.rotation;
+                // Picked up (the grip held, so the reload logic keeps it in the hand) ...
+                Input.VRInput.SimulatedGrab[offSide] = true;
+                mag.Attach(off);
+                yield return new WaitForSecondsRealtime(0.3f);
+                // ... and set down where it lay, without a toss.
+                mag.Go.transform.SetPositionAndRotation(spot, lie);
+                mag.Drop(Vector3.zero, Vector3.zero);
+                Input.VRInput.SimulatedGrab[offSide] = false;
+                yield return new WaitForSecondsRealtime(1.2f);
+                Vector3 before = mag.Go.transform.position;
+                // The gun swept sideways through it, the middle of the receiver passing where it lies.
+                Runtime.RigidPose start = dom.Raw;
+                WeaponRigData d = held.Rig.Data;
+                Vector3 handToGun = held.Rig.ToWorld(d.GripPoint + d.AimAxis * 0.15f) - start.position;
+                Vector3 across = Vector3.Cross(Vector3.up, fwd);
+                for (int i = 0; i <= 40; i++)
+                {
+                    Vector3 gunAt = before + Vector3.up * 0.03f + across * Mathf.Lerp(-0.35f, 0.35f, i / 40f);
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(gunAt - handToGun, start.rotation);
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.3f);
+                float moved = mag.Go != null ? Vector3.Distance(mag.Go.transform.position, before) : -1f;
+                Metric("magazine set down gently: cm the gun pushed it", moved * 100f);
+                report("magazine picked up, set down gently and the gun swept through it: "
+                       + (moved < 0f ? "gone" : moved > 0.05f ? $"NOT LEFT ALONE (pushed {moved * 100f:0} cm)" : $"stayed ({moved * 100f:0.0} cm)"));
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                Input.VRInput.SimulatedGrab[offSide] = false;
+                mag.Destroy();
+            }
+        }
+
+        /// <summary>
         /// The pouch through the hand path: the off hand in the pouch with the grip open takes nothing; squeezing takes a
         /// magazine; swinging and opening the hand throws it.
         /// </summary>
@@ -1253,6 +1325,7 @@ namespace RavenfieldVR.Core
                             yield return DropCheck(lines.Add);
                             yield return ReachCheck(lines.Add);
                             yield return GroundDriftCheck(lines.Add);
+                            yield return GentleMagazineCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {
