@@ -121,9 +121,14 @@ namespace RavenfieldVR.Core
             Vector3 firstPos = rig != null ? rig.Root.position : Vector3.zero;
             Quaternion firstRot = rig != null ? rig.Root.rotation : Quaternion.identity;
             float drift = 0f, turn = 0f;
+            bool afterShot = false;
             while (Time.realtimeSinceStartup - start < 10f)
             {
-                frames.Add(Time.unscaledDeltaTime * 1000f);
+                if (!afterShot)
+                {
+                    frames.Add(Time.unscaledDeltaTime * 1000f);
+                }
+                afterShot = false; // the frame a picture was taken in carries its cost (rendering and saving): not the menu's
                 if (rig != null)
                 {
                     drift = Mathf.Max(drift, Vector3.Distance(rig.Root.position, firstPos));
@@ -134,6 +139,7 @@ namespace RavenfieldVR.Core
                     nextShot += 1f;
                     yield return new WaitForEndOfFrame();
                     Shots.Capture($"menu-{shot++:00}");
+                    afterShot = true;
                 }
                 yield return null;
             }
@@ -1157,6 +1163,7 @@ namespace RavenfieldVR.Core
                             if (held == null || held.Weapon != weapon)
                             {
                                 lines.Add("left-handed check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                ReportWeapon(entry.name, weapon, lines);
                                 continue;
                             }
                         }
@@ -1204,6 +1211,7 @@ namespace RavenfieldVR.Core
                             if (held == null || held.Weapon != weapon)
                             {
                                 lines.Add("weapon's arms check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                ReportWeapon(entry.name, weapon, lines);
                                 continue;
                             }
                         }
@@ -1358,18 +1366,27 @@ namespace RavenfieldVR.Core
                         FireSelector.Toggle(weapon);
                     }
                 }
-                foreach (string l in lines)
+                ReportWeapon(entry.name, weapon, lines);
+            }
+        }
+
+        /// <summary>
+        /// One weapon's lines into the results, failures also into the problems. Also called before a check gives up on the
+        /// weapon early (it is no longer in the hand): those lines, the failure first of all, were lost.
+        /// </summary>
+        private static void ReportWeapon(string name, Weapon weapon, List<string> lines)
+        {
+            foreach (string l in lines)
+            {
+                if (Failure.IsMatch(l) && !l.Contains("LIVE GRENADE WITH") && !l.Contains("NOT REFUNDED") && !l.Contains("NO GRENADE"))
                 {
-                    if (Failure.IsMatch(l) && !l.Contains("LIVE GRENADE WITH") && !l.Contains("NOT REFUNDED") && !l.Contains("NO GRENADE"))
-                    {
-                        Problem($"[{entry.name}] {l}");
-                    }
+                    Problem($"[{name}] {l}");
                 }
-                Results.Add($"{entry.name}: {(weapon != null ? "equipped" : "NOT EQUIPPED")}{(lines.Count > 0 ? "; " + string.Join("; ", lines.ToArray()) : "")}");
-                if (++_tested % 25 == 0)
-                {
-                    Write(final: false); // progress on disk in case the run is cut short
-                }
+            }
+            Results.Add($"{name}: {(weapon != null ? "equipped" : "NOT EQUIPPED")}{(lines.Count > 0 ? "; " + string.Join("; ", lines.ToArray()) : "")}");
+            if (++_tested % 25 == 0)
+            {
+                Write(final: false); // progress on disk in case the run is cut short
             }
         }
 

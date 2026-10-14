@@ -59,7 +59,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The same for a set of colliders (a model's shape pieces): the player's body is walked once, not per piece.</summary>
         // Hitboxes (8), ragdolls (10), seated hitboxes (16) and the soldiers' movement colliders (17).
         internal const int BodyMask = (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17);
-        private static readonly Collider[] BodyScratch = new Collider[64];
+        private static Collider[] _bodyScratch = new Collider[64];
 
         /// <summary>
         /// Something lying in the world stops colliding with the bodies around it (ragdolls, soldiers walking past), so
@@ -67,10 +67,17 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static void IgnoreBodiesNear(IList<Collider> colliders, Vector3 at, float radius, HashSet<Collider> done)
         {
-            int n = Physics.OverlapSphereNonAlloc(at, radius, BodyScratch, BodyMask, QueryTriggerInteraction.Ignore);
+            // A full buffer means more bodies than it holds (a squad around a soldier who fell: about 20 colliders each),
+            // and the same first ones come back every time: the rest kept shoving the drop. Grown until all fit.
+            int n;
+            while ((n = Physics.OverlapSphereNonAlloc(at, radius, _bodyScratch, BodyMask, QueryTriggerInteraction.Ignore)) == _bodyScratch.Length
+                   && _bodyScratch.Length < 1024)
+            {
+                _bodyScratch = new Collider[_bodyScratch.Length * 2];
+            }
             for (int i = 0; i < n; i++)
             {
-                Collider body = BodyScratch[i];
+                Collider body = _bodyScratch[i];
                 if (body == null || !done.Add(body))
                 {
                     continue;

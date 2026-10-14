@@ -550,3 +550,34 @@ edge case or rare, Tiny = defensive gap. None of this has been run in the game.
   - each display orientation (barrel and top are orthogonal or projected);
   - the hide-near-the-eyes rule;
   - the pose library (30 poses, one per id, the index built after the list) and the pose chosen for every hand role.
+
+### Round 7: weapon analysis (`src/Weapons/WeaponAnalyzer.cs`)
+
+- Swept, no real bugs found. Checked:
+  - the parts a sight mode moves (index paths survive duplicate names, missing modes fall back to mode 0, at most 8 parts);
+  - the belt-part search (box, slide and cover excluded, near the tray or box, outermost part only);
+  - the reload-motion magazine search with the hidden-helper and optic filters, and the parent climb;
+  - the mag-kick rule by slot and measured grip;
+  - the reload-hand rack stroke and when it replaces a found moving part.
+
+### Round 8: the autotest harness (`src/Core/AutoTest.cs`)
+
+- **Minor:** when the left-handed check or the weapon's-arms check found the weapon no longer in the hand afterwards,
+  it wrote the failure into the weapon's lines and skipped to the next weapon. The lines are only reported at the end
+  of the loop body, so the failure, and everything else measured for that weapon, never reached the report. Fix: the
+  reporting moved into `ReportWeapon`, which also runs before those early exits.
+- **Minor:** the menu test (task 103's measurement) counted the frame each picture was taken in. Rendering and
+  saving a picture is a hitch of its own, and with 10 pictures in ~900 frames those are exactly the p99 and max
+  frame times. Fix: the frame after each picture is left out of the frame times.
+- Also checked: the wall test (wall removed in `finally`, scripted hand cleared), the load pictures, the sight-mode,
+  pouch and arms checks (test overrides restored in `finally`).
+
+### Round 9: dropped weapons and magazines (`src/Weapons/GunCollider.cs` `PropPhysics`, `src/Weapons/WeaponDrops.cs`, `src/Weapons/MagazineProp.cs`)
+
+- **Minor:** the bodies around a dropped weapon or magazine were found with a fixed buffer of 64 colliders. A soldier
+  has about 20 (ragdoll and hitboxes), so a weapon dropped by a soldier who fell inside his squad filled it. The query
+  then returned the same first 64 every pass, and the soldiers beyond them kept shoving the drop (task 114's "floating
+  away"). Fix: the buffer grows (up to 1024) until every body fits.
+- Also checked: the re-ignore of bodies every two seconds and of the player on every respawn, seat or ladder change;
+  picking up and swapping a weapon (ammo carried both ways); expiry and the cap (your own weapon waiting to return
+  is never culled).
