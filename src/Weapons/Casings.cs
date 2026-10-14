@@ -438,7 +438,10 @@ namespace RavenfieldVR.Weapons
         }
     }
 
-    /// <summary>A case's tink when it lands (twice at most, softer for a slow touch).</summary>
+    /// <summary>
+    /// A case's tink when it lands (twice at most, softer for a slow touch); on earth, grass or sand a dull tap instead (a
+    /// bright metal ring on the ground of every map sounded wrong).
+    /// </summary>
     internal sealed class CaseSound : MonoBehaviour
     {
         private int _tinks;
@@ -454,7 +457,31 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             _tinks++;
-            WeaponSystem.Instance.Sounds.Play(MechSound.Casing, transform.position, Mathf.Clamp01(speed / 4f) * (_tinks == 1 ? 0.55f : 0.3f));
+            bool soft = IsSoft(c.collider);
+            float volume = Mathf.Clamp01(speed / 4f) * (_tinks == 1 ? 0.55f : 0.3f) * (soft ? 0.6f : 1f);
+            WeaponSystem.Instance.Sounds.Play(soft ? MechSound.CasingSoft : MechSound.Casing, transform.position, volume);
+        }
+
+        /// <summary>The ground of a map (terrain), or anything whose physics material is named like earth.</summary>
+        internal static bool IsSoft(Collider c)
+        {
+            if (c == null)
+            {
+                return false;
+            }
+            if (c is TerrainCollider)
+            {
+                return true;
+            }
+            PhysicMaterial m = c.sharedMaterial;
+            if (m == null)
+            {
+                return false;
+            }
+            string name = m.name;
+            return name.IndexOf("dirt", System.StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("grass", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || name.IndexOf("sand", System.StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("mud", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || name.IndexOf("soil", System.StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("earth", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

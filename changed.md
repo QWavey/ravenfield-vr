@@ -1155,3 +1155,18 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   strength in 0.1 steps, the scope picture in 256-pixel steps for the next scope drawn). **32 settings in 25 rows,
   instead of 23 in 23**: 9 more settings for 2 more rows (about 11 cm). The unused one-per-row toggle helper is gone.
 - Kept.
+
+### Round 12 (audio): fired cases tap on the ground instead of ringing (`src/Weapons/Casings.cs`, `src/Weapons/ProceduralSounds.cs`)
+
+- Before: every case landing made the same bright brass tink. Most of what cases land on in Ravenfield is the map's
+  terrain (earth, grass, sand), where a metallic ring sounds wrong.
+- After: a case landing on terrain, or on anything whose physics material is named like earth (dirt, grass, sand,
+  mud, soil, earth), makes a dull tap instead, a little quieter. On metal, concrete and vehicles it still tinks.
+- Measured on the synthesized clips (the same formulas in Python). The first draft of the tap was rejected by this
+  measurement: its noise was too bright (spectral centre 11 kHz, brighter than the tink).
+
+  | Clip | Spectral centre | Energy after 30 ms |
+  | --- | --- | --- |
+  | Brass tink | 9.0 kHz | 27% (it rings) |
+  | Ground tap (kept) | 0.96 kHz | about 1% |
+- Kept.
