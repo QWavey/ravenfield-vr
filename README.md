@@ -52,7 +52,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 
 Other gestures:
 
-- **Holsters:** weapons are carried by what they are. Rifles, launchers and other long weapons hang over your shoulders (weapon side first, then the other shoulder), pistols sit on your hips (weapon side, then a cross-draw on the other hip), and grenades and kits on your chest. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. The chest holsters are ignored while you aim, so re-gripping a shouldered rifle never switches weapons.
+- **Holsters** (laid out like Boneworks): weapons are carried by what they are. Rifles, launchers and other long weapons hang down your back from the shoulders, grip up (weapon side first, then the other shoulder); pistols sit under your arms; grenades, kits and tools at the small of your back, then on the front of your belt. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. `HolsterLayout = Classic` (or "Holsters: Classic" on the panel) brings back the earlier layout: pistols on the hips, gear on the chest.
 - **Night vision:** grip with your off hand at the side of your head.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
@@ -65,7 +65,7 @@ The counter on the side of your gun shows its state: `28+1` (28 in the magazine 
 **Magazine-fed weapons**
 
 1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a minute (`DroppedMagLifetime`); rounds still in them then go back to your reserve, so nothing is lost.
-2. Grip at your pouch (off-hand hip by default): a fresh magazine is in your hand.
+2. Grip at your pouch (on your belt at the side of the off-hand hip by default): a fresh magazine is in your hand.
 3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it.
 4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go.
 
@@ -83,7 +83,15 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 
 **Grenades:** pull the pin with your other hand (grip the ring at the top and pull it away), or press A to flick it out one-handed. Nothing happens while you keep holding the grenade; hold the trigger, throw with your arm and let go of the trigger at the end of the throw, and the fuse starts as it leaves your hand. Thrown with the pin still in, it is a dud: it bounces and lies there, and picking it up puts it back in your pouch. Put the grenade away with the pin out and the pin goes back in. Smoke grenades work the same; ammo bags, medic bags and charges have no pin. **Melee weapons** hit what you swing them through.
 
-Loose magazines, shells and duds are physical: they bounce off your gun, your gun can push them around, and they never catch on your own body. Bullets pass through them.
+Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Fired cases fly out of the ejection port and lie on the ground for a while.
+
+Pistol magazines go in the grip, where your gun hand is: once a magazine is lined up and half way in, it is drawn home the rest of the way, so the two controllers never have to touch.
+
+Easing a slide or bolt back part way (a press check) shows the round in the chamber; pulled all the way it comes out.
+
+The gun in your hand is stopped by the world: pushed into a wall it stays at the wall, and it can rest on a sandbag or a crate. A stock set in your shoulder takes part of the kick and holds the gun up.
+
+A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds (`ExplosionDirt`).
 
 Holding a long gun with one hand works, but it kicks harder, droops a little and trails your wrist; rest your other hand on the handguard to steady it. Pistols are made for one hand.
 
@@ -117,7 +125,7 @@ If a mod still behaves strangely, add an entry to `BepInEx/config/RavenfieldVR.w
 
 **Checking every installed weapon:** start the game with `-rfvr-selftest` (works flat, from the main menu). `BepInEx/RavenfieldVR-weapon-report.txt` then lists for every weapon how each part was found, the sounds bound to each action and where each reload sound comes from (the mod, a vanilla weapon, or synthesised), and anything suspicious. `-rfvr-dumprig=name` adds the full transform tree of matching weapons (`RavenfieldVR-rig-dump.txt`).
 
-**Automated test:** `ravenfield.exe -map island2023 -nointro -rfvr-autotest [-vr]` plays a match by itself with every installed mutator on, equips and fires every weapon and (in VR, holding it in simulated hands when no controllers are connected) checks that its draw animation is skipped and its model is visible, runs its reload and throws each grenade with and without its pin, then writes `BepInEx/RavenfieldVR-autotest.txt` and quits. `-rfvr-perf` measures the mod's per-frame cost in any session.
+**Automated test:** `ravenfield.exe -map island2023 -nointro -rfvr-autotest [-vr]` plays a match by itself with every installed mutator on, equips and fires every weapon and (in VR, holding it in simulated hands when no controllers are connected) checks that its draw animation is skipped and its model is visible, runs its reload and throws each grenade with and without its pin, then writes `BepInEx/RavenfieldVR-autotest.txt` and quits. `-rfvr-perf` measures the mod's per-frame cost in any session. `-vr -rfvr-menutest` records ten seconds of the main menu (pictures, how far the view moved, frame times) into `BepInEx/RavenfieldVR-menutest.txt` and quits.
 
 ## Settings
 
@@ -131,8 +139,12 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
 | `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms |
 | `TurnMode` / `SnapTurnAngle` | Snap / 30 | |
+| `HolsterLayout` | Boneworks | Boneworks, or Classic (pistols on the hips, gear on the chest) |
 | `MagazinePouch` | OffHandHip | Also Chest, DominantHip, OffHandChest |
 | `ShowPouch` | on | Show the gun's ammo at the pouch |
+| `WeaponWorldCollision` | on | The gun in your hand is stopped by walls, crates and the ground |
+| `GloveSize` | 0.88 | Size of the tactical glove (applies at the next start) |
+| `ExplosionDirt` | on | Dirt on your view from close explosions |
 | `TwoHandRecoilReduction` | 0.6 | How much a second hand on the gun tames recoil |
 | `WeaponWeight` | on | Long guns held in one hand droop and trail the wrist |
 | `FireSelector` | on | Semi/auto switching on automatic weapons |

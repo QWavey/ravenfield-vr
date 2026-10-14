@@ -32,11 +32,11 @@
 30. [x] Quest 3 (Touch Plus) controller support
 31. [x] Graphics presets applied in game
 32. [x] Launcher with VR/flat choice and graphics preset, opened from Steam's Play button
-33. [ ] Measured performance pass over the mod's per-frame work
+33. [x] Measured performance pass over the mod's per-frame work
 34. [x] Automated in-game smoke test (match with every mutator, every weapon equipped)
 35. [x] Mutator compatibility
 36. [x] Gun feel pass and VR UI de-slop
-37. [ ] Weapon's own arms with IK (option next to the VR hands)
+37. [x] Weapon's own arms with IK (option next to the VR hands)
 38. [x] Controllers satisfy "press any key"; gunner sights and HUD reticles collimated at infinity
 39. [x] Physical steering wheel in cars and Humvees, weapons usable while driving
 40. [x] Magazine and slide controls: B ejects, A releases slide/bolt, pull a seated magazine by hand, no mag kick on deep-well guns
@@ -97,31 +97,31 @@
 95. [x] Reloading the akimbo pistols with lasers dropped the pistols (the second pistol was taken for the magazine)
 96. [x] Grips on slides, bolts, charging handles and pumps close on the part being worked
 97. [x] Equipping a weapon showed the flat game's arms holding it for a split second
-98. [ ] Mag kick (knocking the seated magazine out with a fresh one) sometimes does not work
-99. [ ] RPGs show something black under them
-100. [ ] The wrench is held too close to the face (it stands up into the line of sight)
-101. [ ] Cyan-blue picture for 2-3 seconds when loading into a map
-102. [ ] Map loading screens are far away from the player
-103. [ ] Main menu: something flickers / the map turns and the menu lags while picking a map or changing settings
-104. [ ] The Steam (menu) button also opened Ravenfield's pause menu
-105. [ ] Bolts do not move back on many weapons, and the hand has to reach inside the gun to work them
-106. [ ] Pouch: some pistol magazines cannot be taken; the magazine shows too low and drifts; every magazine in the same place
-107. [ ] A better hand: the procedural glove's fingers stuck out of the palm (now Valve's SteamVR tactical glove)
-108. [ ] Working a slide, bolt or pump nudges the gun a little (it reacts to the pull and the snap home)
-109. [ ] Weapon features Boneworks has that we do not: check and implement
-110. [ ] A realistic mud splash on the view when a grenade or explosion goes off close by (Call of Duty style)
-111. [ ] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
+98. [x] Mag kick (knocking the seated magazine out with a fresh one) sometimes does not work
+99. [x] RPGs show something black under them
+100. [x] The wrench is held too close to the face (it stands up into the line of sight)
+101. [x] Cyan-blue picture for 2-3 seconds when loading into a map
+102. [x] Map loading screens are far away from the player
+103. [x] Main menu: something flickers / the map turns and the menu lags while picking a map or changing settings
+104. [x] The Steam (menu) button also opened Ravenfield's pause menu
+105. [x] Bolts do not move back on many weapons, and the hand has to reach inside the gun to work them
+106. [x] Pouch: some pistol magazines cannot be taken; the magazine shows too low and drifts; every magazine in the same place
+107. [x] A better hand: the procedural glove's fingers stuck out of the palm (now Valve's SteamVR tactical glove)
+108. [x] Working a slide, bolt or pump nudges the gun a little (it reacts to the pull and the snap home)
+109. [x] Weapon features Boneworks has that we do not: check and implement
+110. [x] A realistic mud splash on the view when a grenade or explosion goes off close by (Call of Duty style)
+111. [x] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
 112. [ ] /bug-hunt 20 (after 98-111)
 113. [ ] /improve 20 (after the bug hunt); make everything smooth
-114. [ ] Weapons and magazines lying on the ground sometimes float away
-115. [ ] Pistol magazines do not go all the way in: the two controllers meet under the grip
-116. [ ] Holsters and the ammo pouch where Boneworks has them (long guns behind the shoulders, pistols under the arms, pouch on the hip)
-117. [ ] Flip magnifiers and other switchable sights stay where the hand put them (they only showed while aiming through them)
-118. [ ] Machine gun belt: it can be pulled out far too long, and pulled too far it disappears and is lost
-119. [ ] Machine gun belt: one belt from the box stays on the gun model and never disappears
-120. [ ] Machine gun belt: the laid belt does not show on the gun
-121. [ ] A long gun touching the ground pushes the player around: only the hand and gun may be pushed
-122. [ ] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
+114. [x] Weapons and magazines lying on the ground sometimes float away
+115. [x] Pistol magazines do not go all the way in: the two controllers meet under the grip
+116. [x] Holsters and the ammo pouch where Boneworks has them (long guns behind the shoulders, pistols under the arms, pouch on the hip)
+117. [x] Flip magnifiers and other switchable sights stay where the hand put them (they only showed while aiming through them)
+118. [x] Machine gun belt: it can be pulled out far too long, and pulled too far it disappears and is lost
+119. [x] Machine gun belt: one belt from the box stays on the gun model and never disappears
+120. [x] Machine gun belt: the laid belt does not show on the gun
+121. [x] A long gun touching the ground pushes the player around: only the hand and gun may be pushed
+122. [x] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -188,7 +188,7 @@ For 31. A Graphics preset (Low, Medium, High, Ultra) applied at startup and live
 
 For 32. RavenfieldVR-Launcher.exe (WinForms) asks Play in VR / Play flat and the graphics preset, remembers the choice (hold Shift to show it again), and starts the game with the matching arguments while keeping Steam's playing state; Setup.exe sets Ravenfield's Steam launch option to run the launcher (with Steam closed, backed up, removed again on uninstall). Done when: pressing Play in Steam opens the launcher and both buttons start the game in the chosen mode.
 
-For 33. Instrument the mod's per-frame work (Update/LateUpdate/BeforeRender) with timers and GC-allocation counters behind -rfvr-perf; measure a baseline; remove per-frame allocations and repeated searches in the hot paths; re-measure and keep only measured wins. Done when: a before/after table exists and the mod allocates nothing per frame in steady state.
+For 33. Instrument the mod's per-frame work (Update/LateUpdate/BeforeRender) with timers and GC-allocation counters behind -rfvr-perf; measure a baseline; remove per-frame allocations and repeated searches in the hot paths; re-measure and keep only measured wins. Done when: a before/after table exists and the mod allocates nothing per frame in steady state. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
 For 34. -rfvr-autotest starts an instant-action match in flat or null-driver VR, enables every installed mutator, spawns the player, equips every weapon in turn and runs the manual reload steps programmatically (eject, insert, rack, shells), logs exceptions and perf, then quits. Done when: an autotest run completes and its log shows no exceptions from the mod.
 
@@ -196,7 +196,7 @@ For 35. Review every installed mutator (scripts, keybinds, weapon and ammo chang
 
 For 36. Weight and inertia by weapon size, recoil by class (pistol, rifle, shotgun, sniper, MG), two-hand stabilisation, haptics on every mechanical event, slide-lock feel; run /unvibe over the VR UI (settings panel, counters, pouch, launcher, Setup.exe). Done when: weapon classes feel distinct and the UI has no generic tells.
 
-For 37. Option "Hands: VR hands / weapon's own arms": the mod's first-person arms stay visible; two-bone IK (shoulder/elbow/hand found from the arm chain, twist helpers skipped) re-roots both arms at body-relative shoulders, the gun hand keeps its authored grip on the weapon, the off hand follows the controller (or the foregrip / slide / magazine it holds), elbows bend toward a natural pole, out-of-reach shoulders slide toward the hand. Idea from github.com/GDani31/ravenfield-vr-mod (no license, so own implementation). Done when: with the option on, the mod's gloves hold each gun as authored and the off arm reaches the off controller without tearing.
+For 37. Option "Hands: VR hands / weapon's own arms": the mod's first-person arms stay visible; two-bone IK (shoulder/elbow/hand found from the arm chain, twist helpers skipped) re-roots both arms at body-relative shoulders, the gun hand keeps its authored grip on the weapon, the off hand follows the controller (or the foregrip / slide / magazine it holds), elbows bend toward a natural pole, out-of-reach shoulders slide toward the hand. Idea from github.com/GDani31/ravenfield-vr-mod (no license, so own implementation). Done when: with the option on, the mod's gloves hold each gun as authored and the off arm reaches the off controller without tearing. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
 For 38. Controller buttons count for Input.anyKeyDown (and the Lua proxy) so "press any key" screens continue; vehicle seat HUDs (gunner reticles, near 3D sight renderers) are head-locked at a large distance with their angular size kept, drawn by an overlay camera so the barrel never covers them. Done when: a press-any-key prompt continues from the controller and a tank gunner reticle shows single in stereo.
 
@@ -318,25 +318,25 @@ For 96. While racking a slide, pulling a bolt or charging handle or working a pu
 
 For 97. A weapon drawn after the mod's Update in a frame (the game switches weapons in its own Update or LateUpdate) was drawn once where the flat game holds it, in its own arms, before the mod took it over. The take-over is checked again right before rendering. Done when: the autotest counts no frame drawn with a new weapon not yet in the VR hand and none with the weapon's own arms showing.
 
-For 98. From the Quest session of 2026-10-13: driving a fresh magazine into the seated one's base sometimes does nothing. The log of that session shows kicks working (e.g. M4A1 at 0.26 m/s) and attempts held back by the angle (61-126 deg) and lateral offset (9-10 cm) limits. Make it forgiving: any magazine of the gun (empty ones too) kicks, a slow firm push past the base knocks it out as well as a fast strike, the window scales with the magazine's size, and the angle limit is wider. Done when: the H3VR kick check passes at slow and fast speeds and with the magazine tilted 45 deg, and a fresh magazine passing beside the gun (not at the base) kicks nothing.
+For 98. From the Quest session of 2026-10-13: driving a fresh magazine into the seated one's base sometimes does nothing. The log of that session shows kicks working (e.g. M4A1 at 0.26 m/s) and attempts held back by the angle (61-126 deg) and lateral offset (9-10 cm) limits. Make it forgiving: any magazine of the gun (empty ones too) kicks, a slow firm push past the base knocks it out as well as a fast strike, the window scales with the magazine's size, and the angle limit is wider. Done when: the H3VR kick check passes at slow and fast speeds and with the magazine tilted 45 deg, and a fresh magazine passing beside the gun (not at the base) kicks nothing. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 99. The RPG-7 (and RPG-7V) analysis takes the part "RPG-7_Reload_Cube" (80 cm, 0% outside the gun) for the rocket: probably a hidden helper box of the mod's reload animation that the mod's magazine overrides make visible. Check the SMAW ("Smaw Rocket Container", 88% outside), Javelin ("Javelin Scope" taken as magazine, 240 cm), Carl Gustav and Panzerfaust too. Done when: pictures of every launcher in the VR autotest show no black box, and a helper part that is never visible in the idle pose is not shown by the mod.
+For 99. The RPG-7 (and RPG-7V) analysis takes the part "RPG-7_Reload_Cube" (80 cm, 0% outside the gun) for the rocket: probably a hidden helper box of the mod's reload animation that the mod's magazine overrides make visible. Check the SMAW ("Smaw Rocket Container", 88% outside), Javelin ("Javelin Scope" taken as magazine, 240 cm), Carl Gustav and Panzerfaust too. Done when: pictures of every launcher in the VR autotest show no black box, and a helper part that is never visible in the idle pose is not shown by the mod. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 100. The wrench (and other melee weapons held by a handle) stands straight up out of the fist, into the view. Hold melee tools along the fist's real axis (the controller handle tilts forward about 40-50 deg from the pointing direction), so the head points forward and up, away from the face. Done when: the wrench picture from the VR autotest shows its head forward of the hand, below eye height, and the melee hit test still sweeps the real blade.
+For 100. The wrench (and other melee weapons held by a handle) stands straight up out of the fist, into the view. Hold melee tools along the fist's real axis (the controller handle tilts forward about 40-50 deg from the pointing direction), so the head points forward and up, away from the face. Done when: the wrench picture from the VR autotest shows its head forward of the hand, below eye height, and the melee hit test still sweeps the real blade. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 101. Some 2-3 seconds of cyan-blue picture while a map loads. Find out what draws it (the rig following a camera that clears to a solid colour, the minimap camera, or SteamVR showing its own frame while the game stalls) with pictures taken through the load in the VR autotest, then show something calm instead (black or the loading screen). Done when: pictures every half second from the loading screen to the first gameplay frame show no cyan-blue frame.
+For 101. Some 2-3 seconds of cyan-blue picture while a map loads. Find out what draws it (the rig following a camera that clears to a solid colour, the minimap camera, or SteamVR showing its own frame while the game stalls) with pictures taken through the load in the VR autotest, then show something calm instead (black or the loading screen). Done when: pictures every half second from the loading screen to the first gameplay frame show no cyan-blue frame. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 102. The loading screen (its 3D decoration and the "LOADING ..." canvas) is drawn far away. Show it at a comfortable distance in front of the player (about 2-3 m, a fixed size, like a screen in a dark room). Done when: the load pictures show the loading screen filling a comfortable part of the view.
+For 102. The loading screen (its 3D decoration and the "LOADING ..." canvas) is drawn far away. Show it at a comfortable distance in front of the player (about 2-3 m, a fixed size, like a screen in a dark room). Done when: the load pictures show the loading screen filling a comfortable part of the view. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 103. In the main menu something flickers or turns (the menu background camera moving the rig, or the weapon warm-up's measuring) and the menu lags while picking a map or changing settings. Find it with menu pictures and frame times (-rfvr-perf) in the menu, and keep the menu's world still and its frame rate steady. Done when: menu pictures over 10 seconds show no moving background and the menu holds the headset's frame rate during warm-up.
+For 103. In the main menu something flickers or turns (the menu background camera moving the rig, or the weapon warm-up's measuring) and the menu lags while picking a map or changing settings. Find it with menu pictures and frame times (-rfvr-perf) in the menu, and keep the menu's world still and its frame rate steady. Done when: menu pictures over 10 seconds show no moving background and the menu holds the headset's frame rate during warm-up. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 104. On the Quest the left menu button is SteamVR's dashboard button; the mod also bound it to Ravenfield's pause menu (and opened the pause menu when the dashboard opened), so one press opened both. Implemented 2026-10-13: the button is no longer bound (pause stays on holding Y; mod keys are on the settings panel), and the dashboard pauses the match without the game's menu, resuming when it closes. Done when: on the Quest, pressing the menu button opens only the SteamVR dashboard and closing it resumes the match.
+For 104. On the Quest the left menu button is SteamVR's dashboard button; the mod also bound it to Ravenfield's pause menu (and opened the pause menu when the dashboard opened), so one press opened both. Implemented 2026-10-13: the button is no longer bound (pause stays on holding Y; mod keys are on the settings panel), and the dashboard pauses the match without the game's menu, resuming when it closes. Done when: on the Quest, pressing the menu button opens only the SteamVR dashboard and closing it resumes the match. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 105. Many rifles' moving part is the bolt carrier inside the receiver (found by its motion when firing), so the rack point sits inside the gun: the hand has to reach into the receiver, the inside moves and the bolt handle you see stays put. 72 weapons have no moving part at all (a virtual handle). Grab the handle where it is (the part's visible surface outside the receiver, or the point the mod's own reload hand takes), and move the visible handle with the pull. Done when: the rack-grip pictures for rifles, pistols and pumps show the hand on the outside handle or slide, and it moves back with the hand.
+For 105. Many rifles' moving part is the bolt carrier inside the receiver (found by its motion when firing), so the rack point sits inside the gun: the hand has to reach into the receiver, the inside moves and the bolt handle you see stays put. 72 weapons have no moving part at all (a virtual handle). Grab the handle where it is (the part's visible surface outside the receiver, or the point the mod's own reload hand takes), and move the visible handle with the pull. Done when: the rack-grip pictures for rifles, pistols and pumps show the hand on the outside handle or slide, and it moves back with the hand. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 106. The pouch magazine was placed by the analysis box of the magazine, which on some (pistol) magazines is not where the copied model is: it showed low and away from where the grab answers. Implemented 2026-10-13 (to verify): the copy's own rendered bounds place it, its top always stands just above the pouch point (any magazine), the pouch hangs from the neck pivot (looking down no longer moves it) at belt height, and a squeeze at the pouch beats a nearby pistol's slide or cupping zone. Done when: the autotest reaches for the shown magazine and takes one with a pistol and a rifle, and the shown magazine is inside the grab zone.
+For 106. The pouch magazine was placed by the analysis box of the magazine, which on some (pistol) magazines is not where the copied model is: it showed low and away from where the grab answers. Implemented 2026-10-13 (to verify): the copy's own rendered bounds place it, its top always stands just above the pouch point (any magazine), the pouch hangs from the neck pivot (looking down no longer moves it) at belt height, and a squeeze at the pouch beats a nearby pistol's slide or cupping zone. Done when: the autotest reaches for the shown magazine and takes one with a pistol and a rifle, and the shown magazine is inside the grab zone. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 107. The user found the procedural glove bad (fingers stuck out of the palm like sausages) and asked for a downloaded model. Sketchfab needs a login, so free models without one were compared; Valve's SteamVR glove (BSD-3, steamvr_unity_plugin) was taken: a textured tactical glove rigged to SteamVR's hand skeleton. tools/hands/convert_glove.py converts it (re-skinned onto the mod's palm + 5x3 joints), each joint curls the way Valve's open-hand-to-fist poses move it, contact is tested at the finger pads (the glove is padded: pads reach 9-17 mm from the bones) and on the glove's real palm surface. The old glove is backed up (tag procedural-glove-backup, backup/procedural-glove) and selectable with Glove = Simple. Done when: grip close-ups show the glove wrapping pistol grips, rifle grips, handguards, magazines and bolts without clipping, at a size that suits the guns (see the notes below).
+For 107. The user found the procedural glove bad (fingers stuck out of the palm like sausages) and asked for a downloaded model. Sketchfab needs a login, so free models without one were compared; Valve's SteamVR glove (BSD-3, steamvr_unity_plugin) was taken: a textured tactical glove rigged to SteamVR's hand skeleton. tools/hands/convert_glove.py converts it (re-skinned onto the mod's palm + 5x3 joints), each joint curls the way Valve's open-hand-to-fist poses move it, contact is tested at the finger pads (the glove is padded: pads reach 9-17 mm from the bones) and on the glove's real palm surface. The old glove is backed up (tag procedural-glove-backup, backup/procedural-glove) and selectable with Glove = Simple. Done when: grip close-ups show the glove wrapping pistol grips, rifle grips, handguards, magazines and bolts without clipping, at a size that suits the guns (see the notes below). Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
 Notes 107, first in-game check (VR autotest on the virtual headset, 2026-10-13 night, only the first rifles: JOLT-20 S, PATRIOT GL, QUICKSILVER; stopped early on request):
 - The glove shows in the game with its textures and moves; it sits where each weapon's own hand sits (same place as the weapon's arms in the comparison pictures).
@@ -347,32 +347,33 @@ Notes 107, first in-game check (VR autotest on the virtual headset, 2026-10-13 n
 - The open hand at rest is Valve's open hand (fingers spread wide): use the relaxed pose as the resting look.
 - Pistols and magazines were not reached in this short run.
 
-For 108. In Boneworks the gun moves a little when you rack it: pulling the slide tugs the gun toward the pull, letting it snap home jolts it. Add small impulses to the held gun's recoil spring from the worked part's pull speed and its snap home, a magazine seating and a magazine pulled out. Done when: the rack check measures the gun moving a few millimetres with the pull and a jolt when the slide returns.
+For 108. In Boneworks the gun moves a little when you rack it: pulling the slide tugs the gun toward the pull, letting it snap home jolts it. Add small impulses to the held gun's recoil spring from the worked part's pull speed and its snap home, a magazine seating and a magazine pulled out. Done when: the rack check measures the gun moving a few millimetres with the pull and a jolt when the slide returns. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 109. Compare with Boneworks' gun handling (chamber check, ejected casings that stay, weight and inertia, stock against the shoulder, re-grabbing anywhere on the gun, magazine count by looking, etc.), list what is missing and implement the most valuable parts.
+For 109. Compare with Boneworks' gun handling (chamber check, ejected casings that stay, weight and inertia, stock against the shoulder, re-grabbing anywhere on the gun, magazine count by looking, etc.), list what is missing and implement the most valuable parts. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 110. A grenade or explosion close to the player throws mud on the view: dark brown splats and droplets head-locked in front of the eyes that slide down and fade over 2-4 seconds, more and bigger the closer and larger the blast, from the side it came from, none through walls; water splashes for blasts in water. Done when: an autotest explosion next to the player shows splats in the pictures and they are gone 4 seconds later.
+For 110. A grenade or explosion close to the player throws mud on the view: dark brown splats and droplets head-locked in front of the eyes that slide down and fade over 2-4 seconds, more and bigger the closer and larger the blast, from the side it came from, none through walls; water splashes for blasts in water. Done when: an autotest explosion next to the player shows splats in the pictures and they are gone 4 seconds later. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 111. Boneworks poses each hand for what it holds (grip-specific hand poses). Count the poses it has (per object type and grip) and make sure the mod has at least as many distinct, good-looking poses (pistol grip, rifle grip, handguard, pump, bolt, charging handle, magazine, magazine pinch, grenade, pin, knife, two-handed melee, launcher, ladder, steering wheel, flight stick, pointing, relaxed, fist).
+For 111. Boneworks poses each hand for what it holds (grip-specific hand poses). Count the poses it has (per object type and grip) and make sure the mod has at least as many distinct, good-looking poses (pistol grip, rifle grip, handguard, pump, bolt, charging handle, magazine, magazine pinch, grenade, pin, knife, two-handed melee, launcher, ladder, steering wheel, flight stick, pointing, relaxed, fist). Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
 For 112. Bug hunt, 20 rounds, a different area each round, after 98-111.
 
 For 113. Improve, 20 measured rounds, after the bug hunt.
 
-For 114. Reported 2026-10-14: pickupable things on the ground (dropped weapons, magazines) sometimes float or slide away. The held gun's physics stand-in shoves whatever it touches, and a bot's weapon starts inside its ragdoll. Done when: lying weapons and magazines stay put with the gun held low beside them in the headset, and the autotest's ground and walker checks report them still.
+For 114. Reported 2026-10-14: pickupable things on the ground (dropped weapons, magazines) sometimes float or slide away. The held gun's physics stand-in shoves whatever it touches, and a bot's weapon starts inside its ragdoll. Done when: lying weapons and magazines stay put with the gun held low beside them in the headset, and the autotest's ground and walker checks report them still. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 115. Reported 2026-10-14: a pistol magazine often cannot be pushed all the way in, because the off hand's controller meets the gun hand's controller under the grip. Done when: pistol magazines seat in the headset without the controllers having to touch.
+For 115. Reported 2026-10-14: a pistol magazine often cannot be pushed all the way in, because the off hand's controller meets the gun hand's controller under the grip. Done when: pistol magazines seat in the headset without the controllers having to touch. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 116. Reported 2026-10-14 (with 100: the holstered wrench and other tools stood up in front of the face): carry weapons where Boneworks does: long guns behind the shoulders, pistols under the arms, small items at the small of the back and on the belt, the ammo pouch on the belt at the side of the hip, keeping the earlier layout as an option. Done when: the body pictures show the new layout and every holster and the pouch are easy to reach in the headset.
+For 116. Reported 2026-10-14 (with 100: the holstered wrench and other tools stood up in front of the face): carry weapons where Boneworks does: long guns behind the shoulders, pistols under the arms, small items at the small of the back and on the belt, the ammo pouch on the belt at the side of the hip, keeping the earlier layout as an option. Done when: the body pictures show the new layout and every holster and the pouch are easy to reach in the headset. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 117. Reported 2026-10-14: pulling a flip magnifier (behind an EOTech, for example) switches the sight, but the magnifier only appears in front of the sight while the eye looks through it and folds away when you stop aiming, because the weapon's own animation only shows the sight mode in its aim pose. The part the hand moved has to stay up or down as it was left, whether aiming or not. Done when: a flipped-in magnifier stays in front of the red dot with the gun lowered, and flipped out stays out while aiming.
+For 117. Reported 2026-10-14: pulling a flip magnifier (behind an EOTech, for example) switches the sight, but the magnifier only appears in front of the sight while the eye looks through it and folds away when you stop aiming, because the weapon's own animation only shows the sight mode in its aim pose. The part the hand moved has to stay up or down as it was left, whether aiming or not. Done when: a flipped-in magnifier stays in front of the red dot with the gun lowered, and flipped out stays out while aiming. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 118. Reported 2026-10-14: the belt end taken from the box mouth follows the hand without limit and, pulled too far, vanishes (the belt is let go and has to be taken again). The strip should stop at its real length and slip from the hand without disappearing. Done when: pulling the belt far keeps it at most its length out of the box, and letting go leaves it hanging from the box.
+For 118. Reported 2026-10-14: the belt end taken from the box mouth follows the hand without limit and, pulled too far, vanishes (the belt is let go and has to be taken again). The strip should stop at its real length and slip from the hand without disappearing. Done when: pulling the belt far keeps it at most its length out of the box, and letting go leaves it hanging from the box. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 119. Reported 2026-10-14: one belt of the gun's own model (the links between the box and the feed) stays on the gun when the box is out and never disappears. Done when: with the box out the gun shows no belt; with a box in and the belt laid, it shows.
+For 119. Reported 2026-10-14: one belt of the gun's own model (the links between the box and the feed) stays on the gun when the box is out and never disappears. Done when: with the box out the gun shows no belt; with a box in and the belt laid, it shows. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 120. Reported 2026-10-14: after laying the belt on the feed tray the belt does not show on the gun. Done when: a laid belt runs from the box mouth onto the feed tray (the gun's own belt or the mod's strip) until the box comes out.
+For 120. Reported 2026-10-14: after laying the belt on the feed tray the belt does not show on the gun. Done when: a laid belt runs from the box mouth onto the feed tray (the gun's own belt or the mod's strip) until the box comes out. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
-For 121. Reported 2026-10-14: holding a long gun so it touches the ground moves the player. The ground must only push the gun (and the hand on it), never the player. Done when: pressing a rifle's muzzle into the ground in the headset never moves the player.
+For 121. Reported 2026-10-14: holding a long gun so it touches the ground moves the player. The ground must only push the gun (and the hand on it), never the player. Done when: pressing a rifle's muzzle into the ground in the headset never moves the player. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 
 For 122. Reported 2026-10-14: held weapons pass through walls, sandbags and crates (they only collide with the ground, players and soldiers). The gun should be stopped by the world, Boneworks style: pushed into a wall it stays at the wall, and it can be rested on a sandbag or a crate while crouching. Done when: in the headset a rifle pushed into a wall stops at its surface and lies on a sandbag when lowered onto it.
+ Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
