@@ -110,18 +110,75 @@ namespace RavenfieldVR.UI
                 var field = _target.GetComponent<InputField>();
                 if (field != null)
                 {
-                    field.text = text;
-                    field.onEndEdit?.Invoke(text);
+                    string valid = Filter(text, field.characterValidation == InputField.CharacterValidation.Integer,
+                        field.characterValidation == InputField.CharacterValidation.Decimal,
+                        field.characterValidation == InputField.CharacterValidation.Alphanumeric, field.characterLimit);
+                    if (valid != null)
+                    {
+                        field.text = valid;
+                        field.onEndEdit?.Invoke(valid);
+                    }
                 }
                 var tmp = _target.GetComponent<TMP_InputField>();
                 if (tmp != null)
                 {
-                    tmp.text = text;
-                    tmp.onEndEdit?.Invoke(text);
-                    tmp.onSubmit?.Invoke(text);
+                    string valid = Filter(text, tmp.characterValidation == TMP_InputField.CharacterValidation.Integer || tmp.characterValidation == TMP_InputField.CharacterValidation.Digit,
+                        tmp.characterValidation == TMP_InputField.CharacterValidation.Decimal,
+                        tmp.characterValidation == TMP_InputField.CharacterValidation.Alphanumeric, tmp.characterLimit);
+                    if (valid != null)
+                    {
+                        tmp.text = valid;
+                        tmp.onEndEdit?.Invoke(valid);
+                        tmp.onSubmit?.Invoke(valid);
+                    }
                 }
             }
             Deselect();
+        }
+
+        /// <summary>
+        /// The typed text as the field itself would have taken it (digits only in a number field, and so on): the SteamVR
+        /// keyboard types anything, and the game's own handler threw on a bot count that was not a number. Null: nothing
+        /// usable, the field keeps what it had.
+        /// </summary>
+        private static string Filter(string text, bool integer, bool decimalNumber, bool alphanumeric, int limit)
+        {
+            if (text == null)
+            {
+                return null;
+            }
+            var sb = new StringBuilder(text.Length);
+            bool point = false;
+            foreach (char ch in text.Trim())
+            {
+                if (char.IsDigit(ch))
+                {
+                    sb.Append(ch);
+                }
+                else if ((integer || decimalNumber) && ch == '-' && sb.Length == 0)
+                {
+                    sb.Append(ch);
+                }
+                else if (decimalNumber && (ch == '.' || ch == ',') && !point)
+                {
+                    point = true;
+                    sb.Append('.');
+                }
+                else if (!integer && !decimalNumber && (!alphanumeric || char.IsLetter(ch)))
+                {
+                    sb.Append(ch);
+                }
+            }
+            string result = sb.ToString();
+            if (limit > 0 && result.Length > limit)
+            {
+                result = result.Substring(0, limit);
+            }
+            if ((integer || decimalNumber) && (result.Length == 0 || result == "-" || result == "." || result == "-."))
+            {
+                return null; // no number in it
+            }
+            return result;
         }
 
         private void Deselect()

@@ -136,7 +136,7 @@ namespace RavenfieldVR.Weapons
                     RailLength = Mathf.Clamp(extent * 1.4f, 0.025f, 0.06f);
                     break;
                 case PropKind.Rocket:
-                    RailLength = Mathf.Clamp(extent * 1.0f, 0.12f, 0.5f);
+                    RailLength = Mathf.Clamp(extent * 0.6f, 0.1f, 0.3f); // started into the tube, it slides home itself
                     break;
                 default:
                     // Magazines slide in for roughly half their length before they latch; a machine gun's box or

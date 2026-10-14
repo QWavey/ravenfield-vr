@@ -27,6 +27,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Where along the stroke the hand was last frame (for the tug the pull gives the gun).</summary>
         private float _tugStroke;
         private Vector3 _rackStartGun;
+        /// <summary>Where the hand took the pump (gun space, the pump forward): the hand stays there as the pump moves.</summary>
+        private Vector3 _pumpGraspRestGun;
         private float _rackBase;
         private bool _rackedBack;
         private bool _returning;
@@ -114,6 +116,18 @@ namespace RavenfieldVR.Weapons
                 if (Breaks && Ammo.Open && Time.unscaledTime - _openedAt > 0.35f && dom.AngularVelocity.magnitude > 9f)
                 {
                     SetBreakOpen(false);
+                }
+                // A machine gun's feed cover slapped shut with the open hand, as it is closed in a hurry: a quick downward hit
+                // on it (it had to be taken and pushed down all the way).
+                if (Ammo.HasCover && Ammo.CoverOpen && !_coverHeld && off.Tracked && off.Role == HandRole.Free && !off.GrabHeld
+                    && Vector3.Distance(off.Palm.position, CoverGrabWorld) < 0.1f
+                    && Vector3.Dot(off.Velocity - dom.Velocity, -Rig.UpWorld) > 0.8f)
+                {
+                    Ammo.SetCoverOpen(false);
+                    _held.Nudge(-Rig.UpWorld * 0.08f, 8f);
+                    _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);
+                    off.Haptic(0.05f, 110f, 0.8f);
+                    dom.Haptic(0.04f, 110f, 0.5f);
                 }
                 if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked)
                 {
@@ -262,6 +276,13 @@ namespace RavenfieldVR.Weapons
                 {
                     Consider(4, d / r, ref choice, ref best);
                 }
+            }
+
+            // A pump gun's support hand is on the pump: a grab there works the pump (the gun is held two-handed while it
+            // does). Taken as the foregrip instead, pulling it back did nothing ("the pump does not move at all").
+            if (choice == 4 && IsPump && Manual && Ammo.UsesChamber && Vector3.Distance(palm, RackPointWorld) < 0.15f)
+            {
+                choice = 2;
             }
 
             switch (choice)
@@ -786,11 +807,25 @@ namespace RavenfieldVR.Weapons
                 off.Haptic(0.03f, 90f, 0.4f);
                 return;
             }
-            if (Vector3.Distance(off.Palm.position, FeedTrayWorld) < 0.045f)
+            // The belt's end (just ahead of the fingers) onto the feed tray, taken from 7 cm (the palm within 4.5 cm of one
+            // point was fiddly with the gun in the other hand); a tick as the end comes near, so the tray is found by feel.
+            float toTray = Vector3.Distance(off.Palm.position + off.Palm.Forward * 0.02f, FeedTrayWorld);
+            if (toTray < 0.07f)
             {
                 CompleteBelt(off);
             }
+            else if (toTray < 0.12f && !_beltNearTicked)
+            {
+                _beltNearTicked = true;
+                off.Haptic(0.015f, 200f, 0.3f);
+            }
+            else if (toTray > 0.16f)
+            {
+                _beltNearTicked = false;
+            }
         }
+
+        private bool _beltNearTicked;
 
         private void CompleteBelt(VRHand off)
         {
@@ -965,7 +1000,11 @@ namespace RavenfieldVR.Weapons
                 // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
                 // it is taken a little more loosely there.
                 bool grip = prop.Kind == PropKind.Magazine && WellInGrip;
-                bool lined = lateral < (grip ? 0.045f : 0.035f) && along > -0.03f && along < prop.RailLength && angle < (grip ? 40f : 35f);
+                // A rocket is lined up at the launcher's mouth, an arm's length out on a shouldered launcher: taken more
+                // loosely too (it was close to impossible to start).
+                bool rocket = prop.Kind == PropKind.Rocket;
+                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f && along < prop.RailLength
+                             && angle < (grip || rocket ? 40f : 35f);
                 if (lined)
                 {
                     prop.OnRail = true;
@@ -1003,8 +1042,11 @@ namespace RavenfieldVR.Weapons
             {
                 SeatProp(off, prop);
             }
-            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
+            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f
+                     || prop.Kind == PropKind.Rocket && prop.RailDepth >= prop.RailLength * 0.15f)
             {
+                // (A rocket started into the tube slides home the same way: pushing it the whole way in front of a
+                // shouldered launcher was out of reach.)
                 // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
                 // the way in. A quarter of the way in and straight, it is drawn home the rest of the way.
                 _pullingIn = prop;
@@ -1281,6 +1323,7 @@ namespace RavenfieldVR.Weapons
             if (IsPump)
             {
                 _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                _pumpGraspRestGun = Rig.ToGun(HandguardPoint(off.Palm.position)) - Data.SlideTravel.normalized * _held.SlideOffset;
             }
         }
 
@@ -1499,7 +1542,9 @@ namespace RavenfieldVR.Weapons
                             Vector3? palmOn = _rackPalm && off.Model.Solid != null
                                 ? PalmOnPart(off.Model.Solid, RackPointWorld, off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f))
                                 : null;
-                            anchor = IsPump ? HandguardPoint(off.Palm.position) : palmOn ?? RackPointWorld;
+                            // On a pump the hand rides on it, from where it took hold: it slid on along the handguard
+                            // past the pump's travel before.
+                            anchor = IsPump ? Rig.ToWorld(_pumpGraspRestGun + Data.SlideTravel.normalized * _held.SlideOffset) : palmOn ?? RackPointWorld;
                             pinch = !IsPump && !palmOn.HasValue;
                         }
                         break;

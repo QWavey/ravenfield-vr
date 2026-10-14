@@ -489,8 +489,11 @@ namespace RavenfieldVR.Core
             yield return null;
             yield return null;
             int shown = w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH);
-            report($"slide locked with a magazine in ({ammo.MagRounds} rounds): the animator shows {shown} loaded ({(shown == 0 ? "slide held back" : "THE SLIDE RUNS FORWARD")})");
-            if (shown != 0)
+            // Where the mod moves the slide part itself it stays back whatever the animator shows (the ARS Glock 19's
+            // animator is driven by a script of its own).
+            bool modSlide = held.ActiveRig.Data.SlidePath != null && held.SlideOffset > 0.0005f;
+            report($"slide locked with a magazine in ({ammo.MagRounds} rounds): the animator shows {shown} loaded ({(shown == 0 ? "slide held back" : modSlide ? "the mod holds the slide part back" : "THE SLIDE RUNS FORWARD")})");
+            if (shown != 0 && !modSlide)
             {
                 Problem($"[{w.name}] with the slide locked and a magazine in, the animator shows {shown} rounds loaded");
             }
