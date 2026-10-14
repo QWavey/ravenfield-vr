@@ -89,10 +89,9 @@ namespace RavenfieldVR.Core
             }
             catch (Exception e)
             {
-                if (Once.Add("guard:" + context + ":" + e.GetType().Name + ":" + e.Message))
-                {
-                    Exception(context, e);
-                }
+                // Under the lock like every other use of the once-set: worker threads (shape measuring) add to it too, and
+                // an unlocked add here could meet one of theirs and break the set.
+                ExceptionOnce(context, e);
             }
             finally
             {

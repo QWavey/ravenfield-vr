@@ -432,6 +432,11 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Self-test: the drawn gun is held back by the world this frame.</summary>
         internal bool HeldBackByWorld => _blockBlend > 0.5f;
+
+        private bool _wasBlocked;
+        private float _contactKnockAt = -1f;
+        /// <summary>Self-test: knocks felt when the held gun met the world.</summary>
+        internal static int ContactKnocks { get; private set; }
         /// <summary>Shadow-only renderers switched off while the weapon is held (given back on release).</summary>
         private readonly List<Renderer> _shadowOnly = new List<Renderer>();
         /// <summary>The weapon's casing particles, hidden while held (real cases fly instead).</summary>
@@ -708,6 +713,20 @@ namespace RavenfieldVR.Weapons
                 {
                     _blockedPose = held;
                 }
+                if (blocked && !_wasBlocked && Time.unscaledTime - _contactKnockAt > 0.25f)
+                {
+                    // The gun meeting a wall, a crate or the ground is felt, not only seen: a short knock, harder the faster
+                    // the hand came in (at most four a second).
+                    _contactKnockAt = Time.unscaledTime;
+                    float amp = Mathf.Clamp01(0.2f + main.Velocity.magnitude * 0.35f);
+                    main.Haptic(0.02f, 90f, amp);
+                    if (TwoHanded)
+                    {
+                        off.Haptic(0.02f, 90f, amp * 0.6f);
+                    }
+                    ContactKnocks++;
+                }
+                _wasBlocked = blocked;
                 _blockBlend = Mathf.MoveTowards(_blockBlend, blocked ? 1f : 0f, dt * (blocked ? 25f : 10f));
                 if (_blockBlend > 0f)
                 {

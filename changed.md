@@ -925,3 +925,39 @@ inherit the player's own movement (the hand's velocity includes the rig's), so t
   swept sideways through it. Report: `magazine picked up, set down gently and the gun swept through it: stayed
   (x cm)`, or `NOT LEFT ALONE (pushed x cm)` (a problem), plus a metric. Checks covering it: 1.
 - Kept.
+
+### Round 19 (robustness, structure): the log's "only once" set is always used under its lock (`src/Core/Log.cs`)
+
+- Before: `WarnOnce`, `InfoOnce` and `ExceptionOnce` add to the shared "only once" set under a lock, because the shape
+  measuring calls them from worker threads (`GunVolume`). `Log.Guard`, which wraps every per-frame call on the main
+  thread, added to the same set without the lock. An error caught there at the moment a worker logged could corrupt
+  the set (a .NET `HashSet` is not safe for that). Unlocked writers: 1.
+- After: `Log.Guard` goes through `ExceptionOnce` (the same key, under the lock), which also removes the duplicated
+  key code. Unlocked writers: 0.
+- Kept.
+
+### Round 20 (feel): the gun meeting the world is felt (`src/Weapons/HeldWeapon.cs`, `src/Core/AutoTest.cs`)
+
+- Before: since tasks 121/122 the gun stops at walls, crates and the ground, but you only saw it. No cue in the hand
+  (Boneworks gives one).
+- After: a short knock in the gun hand the moment the gun starts being held back (and a lighter one in the support
+  hand when two-handed). It is harder the faster the hand came in, at most four a second, so a gun resting on cover
+  does not buzz. Cues per new contact: 0 before, 1 after. The autotest's wall check now says
+  `a knock felt (n)`, or `NO KNOCK felt` (a problem).
+- Kept. To judge in the headset: whether the strength suits you (amplitude 0.2 + 0.35 × hand speed in m/s).
+
+### Roll-up
+
+20 rounds, all kept; 3 more candidates were dropped on analysis or measurement and did not count (separate voices for
+the case tinks, holster assignment once per frame, cases while running). By kind:
+
+| Kind | Rounds | Measured change |
+| --- | --- | --- |
+| Performance | 1, 2, 4, 10, 11 | new objects per shot 8 → 0 (after 40), nested-canvas walks 540/s → 30/s, loading searches 180/s → 8/s, dirt draw calls up to 48 → 1, belt strip draw calls up to 64 → 2 |
+| Smoothness, comfort, feel | 3, 5, 9, 16, 17, 20 | hard cuts per map load 2 → 0, sight swing off its path 1.00 → 0, handguard blend ends 10/s → 3.1/s, droop flick 11° → 0.73° a frame, arms' anchor jump 5.0 → 1.4 cm, contact cue 0 → 1 |
+| Robustness | 13, 14, 15, 19 | ways a cosmetic failure stops VR 1 → 0, unguarded patches on the game's shot, reload, draw and damage paths 7 → 0, unlocked writers of the log set 1 → 0 |
+| Test coverage | 6, 7, 8, 12, 18 | checks covering the bug hunt's fixes: inside-out meshes, assisted endless ammo, break-action cases, the vanished handle, the gently set-down magazine (0 → 5) |
+
+Every round passed the compile check (whole `src/` against the game's assemblies, no new diagnostics). None was
+run in the game: the frame-time and allocation measurement under task 33, the self-test and the VR autotest are the
+real verification, and the new report lines say what to look for.

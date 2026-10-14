@@ -695,6 +695,7 @@ namespace RavenfieldVR.Core
             Runtime.RigidPose start = dom.Raw;
             Vector3 before = actor.Position();
             bool heldBack = false, muzzleIn = false;
+            int knocksBefore = HeldWeapon.ContactKnocks, knocks = 0;
             try
             {
                 for (int i = 0; i <= 30; i++)
@@ -705,6 +706,7 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.3f);
                 yield return new WaitForEndOfFrame();
                 heldBack = held.HeldBackByWorld;
+                knocks = HeldWeapon.ContactKnocks - knocksBefore;
                 Vector3 muzzle = held.Rig.ToWorld(held.Rig.Data.MuzzlePoint);
                 muzzleIn = wallCollider.bounds.Contains(muzzle) && (wallCollider.ClosestPoint(muzzle) - muzzle).sqrMagnitude < 1e-6f;
                 Shots.Capture("world-wall");
@@ -734,7 +736,8 @@ namespace RavenfieldVR.Core
             float moved = Vector3.ProjectOnPlane(actor.Position() - before, Vector3.up).magnitude;
             Metric("gun pushed into a wall: muzzle inside it (0/1)", muzzleIn ? 1 : 0);
             Metric("gun pushed into the ground: cm the player moved", moved * 100f);
-            report($"gun against the world: pushed into a wall it {(heldBack ? "stopped at the wall" : "was NOT HELD BACK")}{(muzzleIn ? " (MUZZLE INSIDE THE WALL)" : "")}; "
+            report($"gun against the world: pushed into a wall it {(heldBack ? "stopped at the wall" : "was NOT HELD BACK")}{(muzzleIn ? " (MUZZLE INSIDE THE WALL)" : "")}"
+                   + $"{(heldBack ? knocks > 0 ? $", a knock felt ({knocks})" : ", NO KNOCK felt" : "")}; "
                    + $"pushed into the ground the player moved {moved * 100f:0.0} cm{(moved > 0.05f ? " (NOT STILL)" : "")}");
             yield return new WaitForSecondsRealtime(0.5f);
         }

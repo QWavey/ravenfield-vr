@@ -112,7 +112,7 @@
 110. [x] A realistic mud splash on the view when a grenade or explosion goes off close by (Call of Duty style)
 111. [x] Hand poses: count how many poses Boneworks has and have at least that many (Boneworks did it right)
 112. [x] /bug-hunt 20 (after 98-111)
-113. [ ] /improve 20 (after the bug hunt); make everything smooth
+113. [x] /improve 20 (after the bug hunt); make everything smooth
 114. [x] Weapons and magazines lying on the ground sometimes float away
 115. [x] Pistol magazines do not go all the way in: the two controllers meet under the grip
 116. [x] Holsters and the ammo pouch where Boneworks has them (long guns behind the shoulders, pistols under the arms, pouch on the hip)
@@ -357,7 +357,7 @@ For 111. Boneworks poses each hand for what it holds (grip-specific hand poses).
 
 For 112. Bug hunt, 20 rounds, a different area each round, after 98-111. Done 2026-10-14 on branch tasks-98-113: 21 bugs fixed (2 major), each round listed in changed.md (not yet run in the game).
 
-For 113. Improve, 20 measured rounds, after the bug hunt.
+For 113. Improve, 20 measured rounds, after the bug hunt. Done 2026-10-14 on branch tasks-98-113: 20 rounds kept (performance, smoothness, robustness, test coverage), each with its before/after number in changed.md. Measured here offline (counts, simulations, the compile check), not yet in the game: the frame-time table under task 33 is to fill in at home.
 
 For 114. Reported 2026-10-14: pickupable things on the ground (dropped weapons, magazines) sometimes float or slide away. The held gun's physics stand-in shoves whatever it touches, and a bot's weapon starts inside its ragdoll. Done when: lying weapons and magazines stay put with the gun held low beside them in the headset, and the autotest's ground and walker checks report them still. Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
 

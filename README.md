@@ -89,7 +89,7 @@ Pistol magazines go in the grip, where your gun hand is: once a magazine is line
 
 Easing a slide or bolt back part way (a press check) shows the round in the chamber; pulled all the way it comes out.
 
-The gun in your hand is stopped by the world: pushed into a wall it stays at the wall, and it can rest on a sandbag or a crate. A stock set in your shoulder takes part of the kick and holds the gun up.
+The gun in your hand is stopped by the world: pushed into a wall it stays at the wall (you feel a knock when it meets something), and it can rest on a sandbag or a crate. A stock set in your shoulder takes part of the kick and holds the gun up.
 
 A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds (`ExplosionDirt`).
 
