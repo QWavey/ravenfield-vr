@@ -448,7 +448,10 @@ def glove_world(hand):
 
 def object_mesh(obj):
     """Triangles of a box or cylinder (world), flat normals."""
-    parts = obj.parts if isinstance(obj, Union) else (obj,)
+    def flat(o):
+        return [q for part in o.parts for q in flat(part)] if isinstance(o, Union) else [o]
+
+    parts = flat(obj)
     verts, norms, tris = [], [], []
     for o in parts:
         if isinstance(o, Box):

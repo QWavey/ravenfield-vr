@@ -124,7 +124,16 @@
 122. [x] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
 123. [x] /improve 20 again: push toward an AAA-quality VR mod, make everything better and smoother
 124. [x] /bug-hunt 10 (after 123)
-125. [ ] /improve 20 on the hands: holding magazines (rifle, pistol), chambering rifles and pistols, hand poses and gestures on the weapons, up to Boneworks
+125. [ ] /improve 20 on the hands: holding magazines (rifle, pistol), chambering rifles and pistols, hand poses and gestures on the weapons, up to Boneworks (rounds 1-6 done, 14 to go)
+126. [ ] Seating a pistol magazine: keep the hand out of the grip for the whole way in, not only on the rail, and push the base plate home with a closed hand
+127. [ ] Machine gun box magazine: the thumb lies inside the box when it is held
+128. [ ] Shotgun shells: hold a shell between thumb and fingers to load it, not in the fist
+129. [ ] Free-hand gestures: pointing, fist, open hand and thumbs-up with Valve's own pointing pose
+130. [ ] Check the support hand on the handguard and the pistol cup in grip_check.py and fix what it shows
+131. [ ] Gun-hand gestures: the thumb goes to the magazine release when a magazine is dropped, and to the slide or bolt release when the action is sent home
+132. [ ] Optional: hook a bolt knob or charging handle with the fingers when the hand reaches over the gun (now always a thumb-and-index pinch)
+133. [ ] /bug-hunt 10 over the hand work (125-132)
+134. [ ] Test the hand work in the headset (checklist under "For 134")
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -380,3 +389,41 @@ For 121. Reported 2026-10-14: holding a long gun so it touches the ground moves 
 
 For 122. Reported 2026-10-14: held weapons pass through walls, sandbags and crates (they only collide with the ground, players and soldiers). The gun should be stopped by the world, Boneworks style: pushed into a wall it stays at the wall, and it can be rested on a sandbag or a crate while crouching. Done when: in the headset a rifle pushed into a wall stops at its surface and lies on a sandbag when lowered onto it.
  Done 2026-10-14 on branch tasks-98-113 (not yet run in the game; see changed.md).
+
+For 125. Improve, 20 measured rounds on the hands: holding magazines (rifle, pistol), chambering rifles and pistols, hand poses and gestures on the weapons, up to Boneworks. Measured offline with tools/hands/grip_check.py (the glove's real joints against boxes and cylinders shaped like the parts; numbers and pictures). Rounds 1-6 done 2026-10-14 on branch tasks-98-113 (each in changed.md under "Third pass"; not yet run in the game):
+1. magazines rest on the palm instead of half inside it;
+2. no finger or thumb through the rifle or AK magazine;
+3. the pinky curls in line instead of sticking out;
+4. a pistol magazine is held index-point (index along its front, not the full fist), and a magazine being seated slides through the hand instead of taking it into the gun;
+5. racking a pistol, the palm goes on the slide (over the top or on its side) instead of floating above a pinch;
+6. a racking hand closes on the gun around the part too (receiver, stock, frame, gun hand), not only on the moving part.
+Still to do: 14 more rounds. Use 126-132 first, then whatever grip_check.py shows next. Every round needs a before/after number, a log entry in changed.md, the compile check and a commit. When all 20 are done, add a roll-up to changed.md and tick this task.
+
+For 126. Found in hands round 7 (started and reverted on 2026-10-14, not committed). Two problems. First, a pistol's rail covers only the last 45% of a magazine: 5.4 of 12 cm, from RailLength = extent x 0.9. A flush pistol magazine is therefore about 3.6 cm inside the grip before it lines up. The glove keep-out from round 4 (ReloadInteractions.KeepOutOfGun) only runs while the magazine is on the rail, so the index-point hand is already in the grip before it starts. Second, HandModel.ClearanceAlong returns 0 when no 5 mm step up to its limit is clear, so fully seated the glove snapped back into the grip (36 points inside it in the model). And once the glove has slid past the base plate, the index still points at the plate and the finger solver stops it there, so it pokes the plate instead of the hand pushing it. To do:
+- run the keep-out while the magazine is lined up under the well (within about 6 cm sideways and 40 degrees), not only on the rail;
+- when nothing is clear, keep the largest clear shift (or the last frame's) instead of 0;
+- past the base plate (ReloadInteractions can tell from the base plate's height over the grip point), let the index close without solving it against the magazine.
+grip_check.py's seating check has to model the whole way in: the gun's opening at the seated magazine's base for a flush pistol, the line-up 3 cm before the rail, and the pose and keep-out settling on each other over a few frames. The reverted draft did this. Done when: the seating check shows no glove points in a flush pistol grip at every depth, and the hand ends closed under the base plate.
+
+For 127. Open since the hands baseline: holding a machine gun's box (10 x 8 x 12 cm in grip_check.py), 10 of 72 hand points are inside it, mostly the thumb, because the box is wider than the hand can grasp. Options: hold a box by its side with the thumb on top, the way a box is carried, or open the thumb out over it. Done when: grip_check.py's "MG box" shows 0 buried with the thumb touching.
+
+For 128. Shells (PropKind.Shell) are held at their middle in the Shell pose, which closes the whole fist on them. Loading a tube, you pinch the shell between the thumb and the index and middle fingers at its rim end. Add a shell scenario to grip_check.py (a cylinder of about 2 x 7 cm), find a pinch placement the way round 4 found the pistol magazine's, and use it in MagazineProp.HoldPose for shells. Check rockets the same way. Done when: the shell is held by three fingers and nothing is buried.
+
+For 129. The free hand on a controller without finger tracking: grip alone points, both grip and trigger make a fist (HandModel.TargetCurls). glove.bin has Valve's own "point" pose for each joint, unused so far; HandPoseId.LaserPoint uses plain curls. Use Valve's point pose for pointing and for the laser pointer, and check fist, open hand and thumbs-up (thumb up when the thumb is off the touchpad or stick) in pictures. Done when: grip_check.py pictures of each gesture look right and the thumb no longer sticks out when pointing.
+
+For 130. The support hand on a rifle's handguard (the fist hollow on the handguard's centre line, HandguardPoint) and the pistol cup (closing on the gun and the gun hand's skin) have not been measured in grip_check.py. Add a handguard cylinder and, for the cup, a pistol grip with the gun hand's fingers as capsules. Measure palm gap, buried points and fingers touching, then fix what is off. Done when: both scenarios show nothing buried and the palm on the handguard.
+
+For 131. Boneworks-style touches on the gun hand. The thumb moves to the magazine release for a moment when the magazine is dropped, and the support thumb (or the gun hand's thumb on a pistol) moves to the slide or bolt release when the action is sent home with the button. These are short pose blends on the existing HandModel goals. Done when: the self-test pictures show the thumb on the release during the drop and the release.
+
+For 132. Optional. Racking a rifle's bolt knob or charging handle always pinches it between thumb and index (UpdateGraspAnchor). Reaching over the receiver, the fingers would hook it more naturally. A first try (2026-10-14) put the hook point on the knob and pulled the palm 4 cm into the receiver, so this needs the gun-aware solid from round 6 and a better anchor. Only do it if the pinch looks wrong in the headset.
+
+For 133. Bug hunt, 10 rounds, a different area each round, over the hand work (125-132): HandModel (keep-out, pistol magazine index, palm grips), MagazineProp.HoldPose and PalmedPose (left hand, palming two pistol magazines), ReloadInteractions (grip choice when racking starts, PalmOnPart, KeepOutOfGun), HeldWeapon.RackSolid (the part's rest volume cut out, solid version per 2 mm), and grip_check.py itself. Same rules as 112 and 124: verify each catch, fix it, log it in changed.md.
+
+For 134. In the headset, with the hand work (125-132):
+- pistol magazine from the pouch: index along its front, held diagonally, not in the fist; left hand too;
+- seating a pistol magazine and an M4 magazine: the hand stops at the grip or magwell, and the magazine slides on through the fingers;
+- racking a pistol over the top, from the side and slingshot: palm on the slide for the first two, pinch for the slingshot; no fingers in the frame;
+- racking an AK knob and an AR charging handle: no fingers in the receiver;
+- rifle and AK magazines: no finger through them, pinky curled;
+- palming two pistol magazines (H3VR style) still works and the second one sits beside the first.
+Note anything that looks wrong, with the weapon's name.
