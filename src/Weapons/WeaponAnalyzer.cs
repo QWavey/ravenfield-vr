@@ -40,6 +40,10 @@ namespace RavenfieldVR.Weapons
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
+        /// <summary>A single round, case or shell (never a slide, bolt or handle).</summary>
+        private static readonly Regex RoundName = new Regex(
+            @"(^|[^a-z])(bullets?|rounds?|cartridges?|casings?|shells?|zidan)($|[^a-z])|子弹|弹壳|弹头", RegexOptions.IgnoreCase);
+
         private static readonly Regex TriggerName = new Regex(@"trigger|abzug|g[aâ]chette|gatillo|спуск|扳机", RegexOptions.IgnoreCase);
         private static readonly Regex BarrelName = new Regex(@"barrel|lauf|canon|ca[nñ]on|ствол|枪管", RegexOptions.IgnoreCase);
 
@@ -167,6 +171,29 @@ namespace RavenfieldVR.Weapons
         /// visibly swaps a magazine and loads at least half its capacity per motion is magazine-fed (HK416, 1911,
         /// PPSh...), not a tube that takes rounds one by one.
         /// </summary>
+        /// <summary>
+        /// Reloaded a magazine's worth at a time: self-loading, or an advanced reload that loads half the capacity or more
+        /// per motion (still classed as shell-fed while the magazine is analysed; see ReclassifyAdvancedReload).
+        /// </summary>
+        private static bool MagazineSizedReload(WeaponRigData d, Weapon w)
+        {
+            if (d.Action == ActionType.SelfLoading)
+            {
+                return true;
+            }
+            Weapon.Configuration c = w.configuration;
+            if (d.Action != ActionType.ShellFed || c.projectilesPerShot > 1 || c.allowedReloads == null)
+            {
+                return false;
+            }
+            int chunk = 0;
+            foreach (int r in c.allowedReloads)
+            {
+                chunk = Mathf.Max(chunk, r);
+            }
+            return chunk >= 3 && chunk * 2 >= c.ammo;
+        }
+
         private static void ReclassifyAdvancedReload(WeaponRigData d, Weapon w)
         {
             Weapon.Configuration c = w.configuration;
@@ -474,6 +501,7 @@ namespace RavenfieldVR.Weapons
 
             FinishVirtualParts(d);
             ArChargingHandle(d);
+            BoltInsideOnSurface(d);
             CheckSanity(d, root, gunBody, armRelated);
             return d;
         }
@@ -541,6 +569,21 @@ namespace RavenfieldVR.Weapons
                 d.SlideTravel = d.HandleTravel;
             }
             d.SlideMethod += $" + handle by name '{best.name}'";
+        }
+
+        /// <summary>
+        /// A rifle racked by its bolt alone (no charging handle of its own in the model): the grab zone was the bolt's centre,
+        /// inside the receiver (a CZ Bren 2's: "racking works, but the hitbox is inside the gun"). It goes out onto the
+        /// receiver's surface over the bolt once the model is measured, where a hand closes on something.
+        /// </summary>
+        private static void BoltInsideOnSurface(WeaponRigData d)
+        {
+            if (d.IsPistol || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null || d.CarveHandle
+                || d.RackFromHand || d.SlideMethod == null || !d.SlideMethod.StartsWith("fire motion", StringComparison.Ordinal))
+            {
+                return;
+            }
+            d.RackOnSurface = true;
         }
 
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
@@ -854,6 +897,10 @@ namespace RavenfieldVR.Weapons
                     if (TriggerName.IsMatch(t.name))
                     {
                         continue; // a trigger moves along the bore when it fires, and is not something to rack (an M1878's)
+                    }
+                    if (RoundName.IsMatch(t.name))
+                    {
+                        continue; // a round the fire animation feeds or throws (the MP9's loose 单独子弹) is not the bolt
                     }
                     Vector3 v = sampler.FireVec[i];
                     float along = Mathf.Abs(Vector3.Dot(v.normalized, d.AimAxis));
@@ -1726,9 +1773,27 @@ namespace RavenfieldVR.Weapons
                 {
                     d.Notes += $"'{skippedHelper.name}' moves in the reload but is hidden at rest (helper, not the magazine) ";
                 }
+                bool roundsMagazine = false;
+                if (mag != null && MagazineSizedReload(d, w) && RoundName.IsMatch(mag.name))
+                {
+                    // The round on top of the magazine moved (an ARS Glock 19's "Bullet" bone, stripped as it chambers) and
+                    // the magazine itself did not: the magazine holding it is the magazine. Taken for the round, a single
+                    // cartridge came out of the pouch and the real magazine never left the gun.
+                    for (Transform p = mag.parent; p != null && p != gunBody && p != root; p = p.parent)
+                    {
+                        if (IsMagName(p.name) && !RoundName.IsMatch(p.name) && !armRelated.Contains(p))
+                        {
+                            d.Notes += $"magazine '{p.name}' holds the round '{mag.name}' the reload moved ";
+                            mag = p;
+                            roundsMagazine = true;
+                            break;
+                        }
+                    }
+                }
                 if (mag != null)
                 {
-                    for (Transform p = mag.parent; p != null && p != gunBody && p != root; p = p.parent)
+                    // (Not up from a magazine taken for its round: it did not move, and every parent would pass.)
+                    for (Transform p = mag.parent; !roundsMagazine && p != null && p != gunBody && p != root; p = p.parent)
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
                             || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p)
