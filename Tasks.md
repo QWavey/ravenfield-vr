@@ -116,6 +116,12 @@
 114. [ ] Weapons and magazines lying on the ground sometimes float away
 115. [ ] Pistol magazines do not go all the way in: the two controllers meet under the grip
 116. [ ] Holsters and the ammo pouch where Boneworks has them (long guns behind the shoulders, pistols under the arms, pouch on the hip)
+117. [ ] Flip magnifiers and other switchable sights stay where the hand put them (they only showed while aiming through them)
+118. [ ] Machine gun belt: it can be pulled out far too long, and pulled too far it disappears and is lost
+119. [ ] Machine gun belt: one belt from the box stays on the gun model and never disappears
+120. [ ] Machine gun belt: the laid belt does not show on the gun
+121. [ ] A long gun touching the ground pushes the player around: only the hand and gun may be pushed
+122. [ ] Held weapons collide with the world (walls, sandbags, boxes) instead of passing through like ghosts; a gun can rest on cover
 ---
 
 For 1. Write `tools/Publicizer` (Mono.Cecil from BepInEx core) that makes Assembly-CSharp and firstpass members public for compile-time access, and `build.ps1` that runs Roslyn `csc.dll` on the .NET runtime with `-nostdlib` against the game's Managed folder, BepInEx and Harmony. Done when: `build.ps1` produces `RavenfieldVR.dll` from a trivial source file without errors.
@@ -358,3 +364,15 @@ For 114. Reported 2026-10-14: pickupable things on the ground (dropped weapons, 
 For 115. Reported 2026-10-14: a pistol magazine often cannot be pushed all the way in, because the off hand's controller meets the gun hand's controller under the grip. Done when: pistol magazines seat in the headset without the controllers having to touch.
 
 For 116. Reported 2026-10-14 (with 100: the holstered wrench and other tools stood up in front of the face): carry weapons where Boneworks does: long guns behind the shoulders, pistols under the arms, small items at the small of the back and on the belt, the ammo pouch on the belt at the side of the hip, keeping the earlier layout as an option. Done when: the body pictures show the new layout and every holster and the pouch are easy to reach in the headset.
+
+For 117. Reported 2026-10-14: pulling a flip magnifier (behind an EOTech, for example) switches the sight, but the magnifier only appears in front of the sight while the eye looks through it and folds away when you stop aiming, because the weapon's own animation only shows the sight mode in its aim pose. The part the hand moved has to stay up or down as it was left, whether aiming or not. Done when: a flipped-in magnifier stays in front of the red dot with the gun lowered, and flipped out stays out while aiming.
+
+For 118. Reported 2026-10-14: the belt end taken from the box mouth follows the hand without limit and, pulled too far, vanishes (the belt is let go and has to be taken again). The strip should stop at its real length and slip from the hand without disappearing. Done when: pulling the belt far keeps it at most its length out of the box, and letting go leaves it hanging from the box.
+
+For 119. Reported 2026-10-14: one belt of the gun's own model (the links between the box and the feed) stays on the gun when the box is out and never disappears. Done when: with the box out the gun shows no belt; with a box in and the belt laid, it shows.
+
+For 120. Reported 2026-10-14: after laying the belt on the feed tray the belt does not show on the gun. Done when: a laid belt runs from the box mouth onto the feed tray (the gun's own belt or the mod's strip) until the box comes out.
+
+For 121. Reported 2026-10-14: holding a long gun so it touches the ground moves the player. The ground must only push the gun (and the hand on it), never the player. Done when: pressing a rifle's muzzle into the ground in the headset never moves the player.
+
+For 122. Reported 2026-10-14: held weapons pass through walls, sandbags and crates (they only collide with the ground, players and soldiers). The gun should be stopped by the world, Boneworks style: pushed into a wall it stays at the wall, and it can be rested on a sandbag or a crate while crouching. Done when: in the headset a rifle pushed into a wall stops at its surface and lies on a sandbag when lowered onto it.
