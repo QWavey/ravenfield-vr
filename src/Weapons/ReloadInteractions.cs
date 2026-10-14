@@ -1471,10 +1471,44 @@ namespace RavenfieldVR.Weapons
                             anchor = HandguardPoint(off.Palm.position);
                         }
                         break;
+                    case HandRole.Magazine:
+                        if (off.Held is MagazineProp seating && seating.OnRail)
+                        {
+                            KeepOutOfGun(off, seating);
+                        }
+                        break;
                 }
             }
             off.Model.GraspAnchor = anchor;
             off.Model.GraspPinch = pinch;
+        }
+
+        private System.Func<Vector3, bool> _keepOutGun, _keepOutBlocked;
+        private HandModel _keepOutHand;
+
+        /// <summary>
+        /// A magazine sliding into the well slides through the hand that holds it: the glove stops where it would go into
+        /// the gun (the well and the receiver round it, a pistol's grip and the gun hand on it) and the magazine goes on
+        /// through the fingers, so the hand ends on its lower end. The glove followed it into the gun before (a pistol
+        /// magazine, held by most of its length, took the hand up into the grip).
+        /// </summary>
+        private void KeepOutOfGun(VRHand off, MagazineProp prop)
+        {
+            _keepOutGun = _held.HandsSolid;
+            _keepOutHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
+            if (_keepOutGun == null && _keepOutHand == null)
+            {
+                return;
+            }
+            if (_keepOutBlocked == null)
+            {
+                _keepOutBlocked = p => _keepOutGun != null && _keepOutGun(p) || _keepOutHand != null && _keepOutHand.NearSkin(p, GunVolume.Grow);
+            }
+            Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
+            float length = Vector3.Distance(prop.BaseLocal, prop.TipLocal);
+            float back = off.Model.ClearanceAlong(insert, _keepOutBlocked, Mathf.Min(0.12f, length));
+            off.Model.KeepOut = -insert * back;
+            off.Model.KeepOutFrame = Time.frameCount;
         }
 
         /// <summary>The point of the handguard (just under the bore, between the grip and the muzzle) nearest to <paramref name="point"/>.</summary>

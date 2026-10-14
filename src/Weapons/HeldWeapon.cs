@@ -808,6 +808,9 @@ namespace RavenfieldVR.Weapons
         private float _heldSince = -1f;
         private System.Func<Vector3, bool> _solid;
 
+        /// <summary>The gun's solid the hands close on, as posed this frame (grown by a finger's radius); null until measured.</summary>
+        internal System.Func<Vector3, bool> HandsSolid => _solid;
+
         /// <summary>
         /// The model's solid for the hands to close on, measured a moment after the weapon is in hand (its idle pose, every
         /// part in place) and kept per weapon type. Null until measured or when it cannot be.

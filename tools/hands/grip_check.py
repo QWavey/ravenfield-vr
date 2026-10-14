@@ -378,8 +378,9 @@ def report(name, hand, push, obj):
     fingers = sum(touching[1:])
     names = "TIMRL"
     gaps = " ".join(f"{names[f]}{tips[f] * 1000:+.0f}" for f in range(5))
+    index = float(np.mean(hand.joint[1]))
     print(f"{name:34s} glove moved {abs(push) * 100:4.1f} cm | touching: thumb {'yes' if touching[0] else 'no '}, fingers {fingers}/4 "
-          f"| buried {buried}/{samples} | pinky curl {pinky:.2f} | tip gaps mm {gaps}")
+          f"| buried {buried}/{samples} | index curl {index:.2f} | pinky curl {pinky:.2f} | tip gaps mm {gaps}")
     return dict(push=push, buried=buried, samples=samples, fingers=fingers, thumb=touching[0], tips=tips)
 
 
@@ -528,16 +529,18 @@ def render_scene(meshes, view, centre, size=300, scale=1500.0):
 
 
 VIEWS = {
-    # rows: right, up, forward (the camera looks along forward), in the scenario's palm frame.
-    "thumb side": np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], float),
-    "back of hand": np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]], float),
-    "from the fingers": np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], float),
+    # rows: right, up, forward (the camera looks along forward; right x up = forward, else the picture is mirrored), in
+    # the scenario's palm frame (+Z fingers, +Y thumb, palm facing -X).
+    "palm side": np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]], float),
+    "back of hand": np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], float),
+    "thumb side": np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]], float),
+    "from the fingers": np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]], float),
 }
 
 PICTURES = []
 
 
-def picture(name, hand, obj, views=("thumb side", "back of hand", "from the fingers")):
+def picture(name, hand, obj, views=("palm side", "back of hand", "thumb side", "from the fingers")):
     """Adds a row of pictures of this hold to the sheet (with --pictures <file>)."""
     if "--pictures" not in sys.argv:
         return
@@ -600,6 +603,36 @@ def magazine_hold(glove, depth, thick, length, grip_at, goals, thumb_base, palm_
     return obj, palm_pos, palm_rot
 
 
+INDEX_POINT_AXIS = np.array([0.0, 0.5592, 0.8290])  # MagazineProp.IndexPointAxis
+INDEX_POINT_FRONT = qrot(qaxis(-20.0, INDEX_POINT_AXIS), [1.0, 0, 0])
+INDEX_POINT_CURL, INDEX_POINT_SIDE = 0.1, -0.004
+
+
+def index_finger(glove, curl):
+    """HandModel.IndexFinger: the index with every joint at curl, palm frame (root frame here, the root at the origin):
+    the skin of its middle segment's pad and its tip."""
+    p = glove.knuckle[1].copy()
+    r = np.array([0.0, 0.0, 0.0, 1.0])
+    pad = p
+    for s_ in range(3):
+        r = qmul(qmul(r, glove.rest[1, s_]), qaxis(glove.angle[1, s_] * curl, glove.axis[1, s_]))
+        nxt = p + qrot(r, glove.child[1, s_])
+        if s_ == 1:
+            pad = (p + nxt) * 0.5 + qrot(r, glove.pad_dir[1, s_]) * glove.pad[1, s_]
+        p = nxt
+    return pad * SCALE, p * SCALE
+
+
+def pistol_magazine_hold(glove, depth, thick, length):
+    """MagazineProp.IndexPointPose: diagonally across the palm, the index along the front, the top at the fingertip."""
+    pad, tip = index_finger(glove, INDEX_POINT_CURL)
+    axis, front = INDEX_POINT_AXIS, INDEX_POINT_FRONT
+    side = np.cross(axis, front)
+    centre = pad - front * (depth / 2) + side * INDEX_POINT_SIDE
+    centre = centre + axis * (np.dot(tip - centre, axis) - length / 2)
+    return Box(centre, look_rotation(front, axis), [thick / 2, length / 2, depth / 2]), FIST_HOLLOW.copy(), np.array([0.0, 0.0, 0.0, 1.0])
+
+
 def goals_for(pose_curls, trigger=0.0, grip=1.0, magazine=True):
     """TargetCurls for a held-object role on a controller without finger tracking, grip squeezed: input fill, the rest
     minimum, the pose's minimum, then the closing minimum (a magazine's thumb 0.9, else 0.55; 0.9, 0.95, 0.95, 0.95)."""
@@ -613,10 +646,17 @@ def goals_for(pose_curls, trigger=0.0, grip=1.0, magazine=True):
     return g
 
 
+def pistol_goals(pose_curls):
+    """As goals_for, then HandModel.IndexAlongPistolMagazine: the index keeps its pose curl (along the front)."""
+    g = goals_for(pose_curls)
+    g[1] = pose_curls[1]
+    return g
+
+
 POSES = {
     # From HandPoses.cs (thumb base, curls).
     "RifleMagazine": (0.3, [0.55, 0.7, 0.75, 0.78, 0.8]),
-    "PistolMagazine": (0.8, [0.6, 0.45, 0.75, 0.8, 0.82]),
+    "PistolMagazine": (0.5, [0.6, 0.18, 0.75, 0.8, 0.82]),
     "BoxMagazine": (0.35, [0.35, 0.5, 0.55, 0.58, 0.6]),
 }
 
@@ -640,16 +680,84 @@ def main():
 
     def mag(name, pose, depth, thick, length, grip_at):
         thumb, curls = POSES[pose]
-        obj, pp, pr = magazine_hold(glove, depth, thick, length, grip_at, None, thumb, on_palm=on_palm)
-        hand, push = hold(glove, obj, pp, pr, goals_for(curls), thumb)
+        if pose == "PistolMagazine" and "--before" not in sys.argv:
+            obj, pp, pr = pistol_magazine_hold(glove, depth, thick, length)
+            hand, push = hold(glove, obj, pp, pr, pistol_goals(curls), thumb)
+        else:
+            if "--before" in sys.argv and pose == "PistolMagazine":
+                thumb, curls = 0.8, [0.6, 0.45, 0.75, 0.8, 0.82]  # the fist hold before round 4
+            obj, pp, pr = magazine_hold(glove, depth, thick, length, grip_at, None, thumb, on_palm=on_palm)
+            hand, push = hold(glove, obj, pp, pr, goals_for(curls), thumb)
         picture(name, hand, obj)
         return report(name, hand, push, obj)
+
+    def seating(name, pose, depth, thick, length, rail, gun):
+        """A magazine sliding into the gun with the hand that holds it (ReloadInteractions.KeepOutOfGun): at each depth
+        the glove stays back along the insert axis until its bones and palm are out of the gun (HandModel.ClearanceAlong).
+        gun(u, local): inside the gun, u the height along the magazine from its base with the gun moved down by the depth."""
+        thumb, curls = POSES[pose]
+        if pose == "PistolMagazine":
+            obj, pp, pr = pistol_magazine_hold(glove, depth, thick, length)
+            hand, push = hold(glove, obj, pp, pr, pistol_goals(curls), thumb)
+        else:
+            obj, pp, pr = magazine_hold(glove, depth, thick, length, grip_at, None, thumb, on_palm=on_palm)
+            hand, push = hold(glove, obj, pp, pr, goals_for(curls), thumb)
+        hand.pos = hand.pos + hand.palm_normal * push
+        insert = qrot(obj.rot, [0, 1.0, 0])
+        pts = []
+        for f in range(5):
+            ch, _ = hand.chain(f, hand.joint[f])
+            for s_ in range(3):
+                pts += [(ch[s_] + ch[s_ + 1]) * 0.5, ch[s_ + 1]]
+        pts += [hand.world(q) for q in glove.palm_skin_in]
+        pts = np.array(pts)
+        out = []
+        for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
+            d = rail * frac
+            def blocked(q):
+                loc = obj.local(q)
+                u = loc[1] + length / 2  # height above the base plate
+                return gun(u + d - length, loc)  # height above the well's opening, magazine-local across
+            back = 0.0
+            for i in range(0, 25):
+                sb = i * 0.005
+                if not any(blocked(q - insert * sb) for q in pts):
+                    back = sb
+                    break
+            else:
+                back = float("nan")
+            # where the fist hollow ends on the magazine: height above its base plate
+            hollow_u = obj.local(hand.world(FIST_HOLLOW / SCALE) - insert * back)[1] + length / 2
+            out.append(f"{frac * 100:3.0f}% in: back {back * 100:4.1f} cm, hollow {hollow_u * 100:4.1f} cm up the magazine")
+        print(f"{name:34s} " + " | ".join(out))
+        return out
 
     grip_at = 0.33 if "--before" in sys.argv else 0.15
     run("rifle magazine (STANAG)", lambda: mag("rifle magazine (STANAG)", "RifleMagazine", 0.064, 0.023, 0.18, grip_at))
     run("pistol magazine", lambda: mag("pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, grip_at))
     run("AK magazine", lambda: mag("AK magazine", "RifleMagazine", 0.07, 0.026, 0.2, grip_at))
     run("MG box", lambda: mag("MG box", "BoxMagazine", 0.1, 0.08, 0.12, grip_at))
+
+    # Seating: a rifle's well (the receiver from the opening up, 3 mm walls round the magazine, 4 cm round it) and a
+    # pistol's grip (the grip from the opening up, 5 mm walls, the gun hand's fist round it from its bottom edge up).
+    def rifle_well(h, loc):
+        if h < 0.0:
+            return False
+        a = np.abs(loc)
+        in_mag = a[0] <= 0.023 / 2 + 0.003 - GROW and a[2] <= 0.064 / 2 + 0.003 - GROW
+        return not in_mag and a[0] <= 0.04 and a[2] <= 0.06
+
+    def pistol_grip(h, loc):
+        if h < 0.0:
+            return False
+        a = np.abs(loc)
+        wall = 0.005 + GROW
+        hand = 0.03 + GROW  # the gun hand's fingers and palm round the grip
+        in_mag = a[0] <= 0.022 / 2 - GROW and a[2] <= 0.032 / 2 - GROW
+        return not in_mag and a[0] <= 0.022 / 2 + wall + hand and a[2] <= 0.032 / 2 + wall + hand
+
+    run("seating rifle magazine", lambda: seating("seating rifle magazine", "RifleMagazine", 0.064, 0.023, 0.18, 0.081, rifle_well))
+    run("seating pistol magazine", lambda: seating("seating pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.054, pistol_grip))
     save_pictures()
     return results
 

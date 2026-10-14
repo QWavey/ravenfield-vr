@@ -212,6 +212,31 @@ namespace RavenfieldVR.Rig
             return Mathf.Max(0f, skin + VRHand.FistHollow.x); // the hollow lies -FistHollow.x out from the palm centre
         }
 
+        /// <summary>
+        /// The index finger with every joint at <paramref name="curl"/>, palm frame (right hand, metres from the controller's
+        /// grip point, this glove at its size): the skin of its middle segment's pad, where it lies along something it points
+        /// along (a pistol magazine's front), and its tip.
+        /// </summary>
+        internal static void IndexFinger(float curl, out Vector3 pad, out Vector3 tip)
+        {
+            HandShape shape = HandShape.Current;
+            Vector3 p = shape.Knuckle[1];
+            Quaternion r = Quaternion.identity;
+            pad = p;
+            for (int s = 0; s < 3; s++)
+            {
+                r = r * shape.Open[1, s] * Quaternion.AngleAxis(shape.CurlAngle[1, s] * curl, shape.CurlAxis[1, s]);
+                Vector3 next = p + r * shape.Child[1, s];
+                if (s == 1)
+                {
+                    pad = (p + next) * 0.5f + r * shape.PadDir[1, s].normalized * shape.Pad[1, s];
+                }
+                p = next;
+            }
+            pad = pad * shape.Scale - VRHand.FistHollow;
+            tip = p * shape.Scale - VRHand.FistHollow;
+        }
+
         /// <summary>The glove's palm frame (self-test).</summary>
         internal Transform Root => _root;
 
@@ -320,6 +345,59 @@ namespace RavenfieldVR.Rig
         /// <summary>True: the anchor is pinched between thumb and index (a bolt handle); false: it runs through the fist.</summary>
         public bool GraspPinch;
 
+        /// <summary>
+        /// Holding a magazine that slides into the well: how far (world) the glove stays back from the tracked hand to keep
+        /// out of the gun, so the magazine slides through the fingers instead of taking the hand into the gun with it. Set
+        /// with <see cref="KeepOutFrame"/> every frame it applies.
+        /// </summary>
+        public Vector3 KeepOut;
+        public int KeepOutFrame = -10;
+        private Vector3 _keepOut;
+
+        /// <summary>
+        /// How far the glove, where the tracked hand alone puts it, has to move back against <paramref name="dir"/> to keep
+        /// its bones and palm out of <paramref name="blocked"/>: in 5 mm steps up to <paramref name="max"/>. The glove as last
+        /// posed (its fingers round what it holds); 0 while it is not shown, and 0 when no step is clear (then it is not
+        /// in the way along <paramref name="dir"/> but stuck in something beside it, which moving back does not cure).
+        /// </summary>
+        internal float ClearanceAlong(Vector3 dir, System.Func<Vector3, bool> blocked, float max)
+        {
+            if (!_skinValid)
+            {
+                return 0f;
+            }
+            Vector3 tracked = -_graspOffset - _keepOut;
+            for (float s = 0f; s <= max + 1e-4f; s += 0.005f)
+            {
+                if (!GloveIn(blocked, tracked - dir * s))
+                {
+                    return s;
+                }
+            }
+            return 0f;
+        }
+
+        private bool GloveIn(System.Func<Vector3, bool> blocked, Vector3 shift)
+        {
+            for (int i = 0; i < _skinA.Length; i++)
+            {
+                Vector3 a = _skinA[i] + shift, b = _skinB[i] + shift;
+                if (blocked((a + b) * 0.5f) || blocked(b))
+                {
+                    return true;
+                }
+            }
+            Matrix4x4 m = _root.localToWorldMatrix;
+            foreach (Vector3 p in PalmSkin)
+            {
+                if (blocked(m.MultiplyPoint3x4(p) + shift))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
         public void Apply()
         {
@@ -351,6 +429,10 @@ namespace RavenfieldVR.Rig
                 want = Vector3.ClampMagnitude(GraspAnchor.Value - target.TransformPoint(local), 0.05f);
             }
             _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
+            // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
+            // the reload while it does; a stale value from a frame that did not set it counts as none).
+            bool keepOut = _hand.Role == HandRole.Magazine && Time.frameCount - KeepOutFrame <= 1;
+            _keepOut = Vector3.Lerp(_keepOut, keepOut ? KeepOut : Vector3.zero, 1f - Mathf.Exp(-(keepOut ? 30f : 18f) * dt));
             // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
             // easing in when the grip is taken and back out to the tracked hand when it is let go.
             _snapBlend = Mathf.MoveTowards(_snapBlend, SnapPose.HasValue ? 1f : 0f, dt / 0.08f);
@@ -358,7 +440,7 @@ namespace RavenfieldVR.Rig
             {
                 _lastSnap = SnapPose.Value;
             }
-            Vector3 position = target.position + _graspOffset;
+            Vector3 position = target.position + _graspOffset + _keepOut;
             Quaternion rotation = target.rotation;
             if (_snapBlend > 0f)
             {
@@ -963,8 +1045,10 @@ namespace RavenfieldVR.Rig
                     // A magazine's thumb closes on round it too (it stopped half way, short of a slim magazine).
                     Minimum(_hand.Role == HandRole.Magazine ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
                 }
+                IndexAlongPistolMagazine(p);
                 return _goal;
             }
+            IndexAlongPistolMagazine(p);
             // Wrapping fingers stop on the held object instead of closing through it: at 0.85 the fist leaves about the
             // 3 cm of a pistol grip, magazine or wheel rim, at 0.75 the 4 cm of a handguard.
             float cap = HoldCap(_hand.Role);
@@ -973,6 +1057,18 @@ namespace RavenfieldVR.Rig
                 _goal[f] = Mathf.Min(_goal[f], cap);
             }
             return _goal;
+        }
+
+        /// <summary>
+        /// A pistol magazine is held index-point: the index lies straight along its front whatever the trigger or the
+        /// tracked finger does (closed round it, the hand was the full fist nobody holds one with).
+        /// </summary>
+        private void IndexAlongPistolMagazine(float[] p)
+        {
+            if (_pose.Id == HandPoseId.PistolMagazine)
+            {
+                _goal[1] = p[1];
+            }
         }
 
         private static float HoldCap(HandRole role)

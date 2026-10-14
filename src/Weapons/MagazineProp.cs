@@ -49,6 +49,8 @@ namespace RavenfieldVR.Weapons
         private readonly float _frontHalf;
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
         public readonly float CrossHalf;
+        /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held index-point instead of in the fist.</summary>
+        public bool PistolSized => Kind == PropKind.Magazine && CrossHalf < 0.022f;
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private Collider[] _colliders;
@@ -590,6 +592,10 @@ namespace RavenfieldVR.Weapons
         public RigidPose HoldPose(VRHand hand)
         {
             RigidPose palm = hand.Palm;
+            if (PistolSized)
+            {
+                return IndexPointPose(hand, palm);
+            }
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
@@ -615,6 +621,34 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(pos, rot);
         }
 
+        // Index-point (tools/hands/grip_check.py, "pistol magazine"): the magazine's axis turned 34 degrees from the fingers
+        // toward the thumb, its front facing the back of the hand turned 20 degrees round that axis, the index (at curl 0.1)
+        // lying on the front 4 mm toward the palm side of its middle, the top level with the fingertip.
+        private static readonly Vector3 IndexPointAxis = new Vector3(0f, 0.5592f, 0.8290f);
+        private static readonly Vector3 IndexPointFront = Quaternion.AngleAxis(-20f, IndexPointAxis) * Vector3.right;
+        private const float IndexPointCurl = 0.1f, IndexPointSide = -0.004f;
+
+        /// <summary>
+        /// A pistol magazine the way it is drawn from the pouch to be seated: diagonally across the palm, the index straight
+        /// along its front with the fingertip at its top, middle, ring and little finger round its back, the thumb on its
+        /// side. Not the full fist a rifle magazine takes (nobody holds a pistol magazine like that).
+        /// </summary>
+        private RigidPose IndexPointPose(VRHand hand, RigidPose palm)
+        {
+            Rig.HandModel.IndexFinger(IndexPointCurl, out Vector3 pad, out Vector3 tip);
+            Vector3 axis = IndexPointAxis, front = IndexPointFront, side = Vector3.Cross(axis, front);
+            float length = Vector3.Distance(BaseLocal, TipLocal);
+            // Right hand, palm frame: the front face on the index's pad, the top level with its tip.
+            Vector3 centre = pad - front * _frontHalf + side * IndexPointSide;
+            centre += axis * (Vector3.Dot(tip - centre, axis) - length * 0.5f);
+            float m = hand.Mirror;
+            centre.x *= m;
+            Quaternion inPalm = Quaternion.LookRotation(new Vector3(front.x * m, front.y, front.z), new Vector3(axis.x * m, axis.y, axis.z));
+            Quaternion rot = palm.rotation * inPalm * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
+            Vector3 middle = (BaseLocal + TipLocal) * 0.5f;
+            return new RigidPose(palm.TransformPoint(centre) - rot * middle, rot);
+        }
+
         /// <summary>
         /// Held as a second magazine in a hand that already holds one (H3VR-style palming): no hand role of its own, no
         /// physics; <see cref="PalmedPose"/> places it beside the first.
@@ -638,8 +672,12 @@ namespace RavenfieldVR.Weapons
         {
             RigidPose p = HoldPose(hand);
             Vector3 towardFingers = -hand.Palm.Right * hand.Mirror; // the palm side of the fist
-            // Both rest on the palm in HoldPose: this one goes the first one's whole thickness further out, and 4 mm.
-            float spacing = 2f * (primary != null ? primary._sideHalf : _sideHalf) + 0.004f;
+            // Both rest on the palm in HoldPose: this one goes the first one's whole thickness further out, and 4 mm. Its
+            // thickness that way: side to side in the fist, mostly front to back held index-point (a pistol magazine).
+            MagazineProp first = primary ?? this;
+            Vector3 frontW = p.rotation * FrontLocal, sideW = p.rotation * Vector3.Cross(InsertDirLocal, FrontLocal);
+            float half = Mathf.Abs(Vector3.Dot(towardFingers, sideW)) * first._sideHalf + Mathf.Abs(Vector3.Dot(towardFingers, frontW)) * first._frontHalf;
+            float spacing = 2f * half + 0.004f;
             Vector3 insert = p.TransformDirection(InsertDirLocal);
             return new RigidPose(p.position + towardFingers * spacing - insert * 0.025f, p.rotation);
         }

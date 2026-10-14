@@ -1503,3 +1503,42 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
 - Measured (grip_check.py), pinky curl: **STANAG 0.04 → 0.31, AK 0.04 → 0.28**; buried points still 0, all fingers
   and the thumb touching.
 - Kept.
+
+### Round 4 (feel, your report): a pistol magazine is held index-point, not in the fist; a magazine being seated slides through the hand (`src/Weapons/MagazineProp.cs`, `src/Rig/HandModel.cs`, `src/Rig/HandPoses.cs`, `src/Weapons/ReloadInteractions.cs`, `src/Weapons/HeldWeapon.cs`)
+
+- Before: a pistol magazine was held like a rifle magazine. All four fingers wrapped it in the fist and its top stuck
+  out of the top of the fist. While it was pushed into the well, the hand stayed where it held the magazine, so the
+  glove followed the magazine up into the pistol's grip and the gun hand around it. A rifle magazine's hand did the
+  same at the magwell.
+- Tried and dropped (not counted): the magazine along the fingers with its front against the palm (it lay on the
+  curled fingers like a stick in a fist), and along a straight index finger (the palm pushed the glove 2.6 to 3 cm
+  off the hand).
+- After:
+  - **Index-point hold**, the way a pistol magazine comes out of the pouch. The magazine lies diagonally across the
+    palm, turned 34° from the fingers toward the thumb. The index finger lies straight along its front with the
+    fingertip level with its top. Middle, ring and little finger go round its back, and the thumb rests on its side.
+    The pose was found by a sweep over 2,880 placements (axis, roll, index curl, sideways offset, overhang, thumb), then
+    refined over five magazine sizes from 10.5 to 17 cm. It is built from the glove's own index finger
+    (`HandModel.IndexFinger`), so it follows the glove size. The index keeps its pose curl whatever the trigger does
+    (`HandModel.IndexAlongPistolMagazine`). A palmed second magazine is spaced by the first one's real thickness
+    toward the palm, which for this hold is front to back.
+  - **The magazine slides through the hand while it is seated.** While a held magazine is on the rail, the glove stays
+    back along the insert axis just far enough to keep its bones and palm out of the gun's measured solid and out of
+    the gun hand (`HandModel.ClearanceAlong`, `ReloadInteractions.KeepOutOfGun`). It checks in 5 mm steps, up to the
+    magazine's length or 12 cm, and eases in and back out. The magazine goes on into the well through the fingers, and
+    the hand ends at its base plate instead of inside the grip or the magwell. This uses the real gun's shape, so a
+    deep pistol grip, an M4's magwell or a gun hand that sits low all count.
+- Measured (grip_check.py):
+  - Pistol magazine, index-point: index curl **0.06** (straight along the front; it was wrapped round before), thumb
+    and all four fingers touching, **0/72** buried, glove moved **0.0 cm**. The same holds at 10.5, 13, 17 cm and for a
+    wider 2.6 cm magazine.
+  - Seating into a model pistol grip (5 mm walls, the gun hand's fist round it): the glove stays back **0.5 / 2.0 /
+    3.5 / 4.5 / 6.0 cm** at 0 / 25 / 50 / 75 / 100 % of the way in. The fist hollow ends 2.8 cm under the base plate
+    instead of 5.4 cm up inside the grip.
+  - Seating a STANAG into a model rifle well: **0 cm** at every depth. With the hand held low (round 3), the modelled
+    well never reaches it. If the game's M4 reaches further down than this model, the in-game check (which uses the
+    real gun's solid) moves the glove by that much.
+- `grip_check.py` gains the index-point scenario and the seating check, prints the index curl, and its picture views
+  are fixed: "thumb side" showed the back of the hand, "back of hand" showed the palm, and "from the fingers" was
+  mirrored.
+- Kept.
