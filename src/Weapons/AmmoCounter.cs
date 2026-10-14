@@ -1,4 +1,5 @@
 using RavenfieldVR.Core;
+using RavenfieldVR.UI;
 using UnityEngine;
 
 namespace RavenfieldVR.Weapons
@@ -13,12 +14,13 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponRig _rig;
         private readonly GameObject _go;
         private readonly TextMesh _text;
+        private readonly TextPlate _plate;
         private string _flash;
         private float _flashUntil;
 
         private static readonly Color Normal = new Color(0.86f, 0.88f, 0.84f, 0.95f);
         private static readonly Color Warn = new Color(0.95f, 0.72f, 0.25f, 0.95f);
-        private static readonly Color Empty = new Color(0.92f, 0.32f, 0.26f, 0.95f);
+        private static readonly Color Empty = new Color(1f, 0.42f, 0.36f, 0.95f); // brightened to read on its plate
 
         public AmmoCounter(WeaponRig rig)
         {
@@ -43,6 +45,8 @@ namespace RavenfieldVR.Weapons
             mr.sharedMaterial = _font.material;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
+            // A small dark backing like a digital readout: it reads against the gun, the sky and the ground alike.
+            _plate = new TextPlate(_text, _font.material, 0.8f, 0.004f);
         }
 
         public void Flash(string message)
@@ -66,11 +70,20 @@ namespace RavenfieldVR.Weapons
             {
                 Show(_flash);
                 _text.color = Empty;
+                _plate.Fit();
                 return;
             }
             _flash = null;
+            if (ammo == null || !ammo.Participates)
+            {
+                // A message shown on a gun without ammo of its own has ended: nothing to count (this read a missing
+                // ammo state and stopped the rest of the frame's weapon update).
+                _go.SetActive(false);
+                return;
+            }
             Show(ammo.CounterText());
             _text.color = ammo.Loaded == 0 ? Empty : (ammo.SlideLocked || !ammo.CanFire) ? Warn : Normal;
+            _plate.Fit();
         }
 
         // TextMesh.text's getter builds a new string on every read, so the last value set is remembered instead.
@@ -87,6 +100,7 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy()
         {
+            _plate.Destroy();
             if (_go != null)
             {
                 Object.Destroy(_go);

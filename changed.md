@@ -1056,3 +1056,38 @@ measured here, so it is left as an idea for the headset (`ScopeResolution = 512`
   After round 5 the dark part is one-sided (a crescent on the eye's side) instead of even.
 - Kept (to judge in the headset: whether the eye box should be wider or tighter; it is the 0.008/0.03 in
   `BeforeRender`).
+
+### Round 6 (readability): the wrist display sits on a dark plate (`src/UI/WristHud.cs`)
+
+- Before: health and ammo on the wrist were bare text. Against a bright sky or sand it all but vanished.
+- After: a soft-edged dark rounded plate (80% opaque) sits just behind the text. It is fitted to the text's size each
+  frame it shows, fades with it, and is drawn just before it. The "critical" red is a little brighter so it reads on
+  the plate.
+- Measured: WCAG contrast of each text colour against the worst of a white sky, a pale sky and sand.
+
+  | Text | Before (no plate) | After (on the plate) |
+  | --- | --- | --- |
+  | Healthy (grey-white) | 1.16:1 | 8.09:1 |
+  | Hurt (orange) | 1.15:1 | 6.05:1 |
+  | Critical (red) | 1.66:1 | 3.89:1 |
+
+  3:1 is the usual floor for large text.
+- Kept.
+
+### Round 7 (readability, structure): the gun's ammo counter on a plate too, one shared plate (`src/UI/TextPlate.cs` new, `src/Weapons/AmmoCounter.cs`, `src/UI/WristHud.cs`)
+
+- Before: the counter on the receiver ("28+1", "RACK", "NO MAG") was bare text, as unreadable against the sky as the
+  wrist was. Round 6's plate code lived inside the wrist display only.
+- After: `TextPlate` (new) puts a fitted dark plate behind any TextMesh, on the text's own layer, drawn just before it
+  and scale-safe on a gun bone. The wrist display and the counter both use it, both at 80%; the counter has a tighter
+  margin, like a digital readout. The counter's "empty" red is the brighter one too.
+- Worst contrast over a white sky, a pale sky and sand:
+
+  | Counter text | Before | After |
+  | --- | --- | --- |
+  | Normal | 1.16:1 | 8.13:1 |
+  | Warning | 1.15:1 | 6.05:1 |
+  | Empty | 1.66:1 | 3.89:1 |
+- Fixed on the way: when a flashed message ("NO AMMO", a sight name) ended on a gun without ammo of its own, the
+  counter read a missing ammo state. The exception stopped the rest of that frame's weapon update. Now it just hides.
+- Kept.
