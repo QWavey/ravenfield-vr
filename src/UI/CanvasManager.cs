@@ -37,6 +37,8 @@ namespace RavenfieldVR.UI
             public bool Placed;
             public RigidPose LocalPose; // relative to the rig root
             public float NextRoleCheck;
+            /// <summary>Parts of an open menu kept at no depth inside it every frame (its nested pages, anything set deep).</summary>
+            public readonly List<Transform> Flat = new List<Transform>();
             public int Order;
             /// <summary>A vehicle seat's sight (gunner reticle): shown at optical infinity, not at HUD distance.</summary>
             public bool Collimated;
@@ -121,7 +123,7 @@ namespace RavenfieldVR.UI
                 if (visible && !t.Visible && t.Role == CanvasRole.Menu)
                 {
                     t.Placed = false; // re-place menus each time they open
-                    FlattenDepth(t.Rect); // again as it opens: the game sets its pages up after the canvas was converted
+                    CollectFlat(t); // its pages kept flat while it is open: something puts them back deep every frame
                 }
                 t.Visible = visible;
                 menu |= visible && t.Role == CanvasRole.Menu;
@@ -149,7 +151,7 @@ namespace RavenfieldVR.UI
         {
             foreach (Canvas c in UnityEngine.Object.FindObjectsOfType<Canvas>())
             {
-                if (c == null || !c.isRootCanvas || _own.Contains(c) || _tracked.ContainsKey(c))
+                if (c == null || !c.isRootCanvas || _own.Contains(c) || _tracked.ContainsKey(c) || InsideAnotherCanvas(c))
                 {
                     continue;
                 }
@@ -163,6 +165,17 @@ namespace RavenfieldVR.UI
                 }
                 Convert(c);
             }
+        }
+
+        /// <summary>
+        /// A page of a menu (the options' Game, Input and Video pages) switched off reports itself as a root canvas: it was
+        /// converted as a panel of its own, scaled down to panel size (0.0008) and moved, and once switched on inside its
+        /// menu it showed at 0.0008 of its size: the options' tab buttons over an empty page. It goes with its menu.
+        /// </summary>
+        private static bool InsideAnotherCanvas(Canvas c)
+        {
+            Transform parent = c.transform.parent;
+            return parent != null && parent.GetComponentInParent<Canvas>() != null;
         }
 
         private void Convert(Canvas c)
@@ -199,6 +212,81 @@ namespace RavenfieldVR.UI
             FlattenDepth(c.transform);
             _tracked[c] = t;
             Log.Debug($"Canvas '{c.name}' -> world ({t.Role}, {t.Size.x:0}x{t.Size.y:0})");
+        }
+
+        /// <summary>
+        /// The nested canvases of a menu (its pages) and every part found deep inside it as it opens. The options' Game page
+        /// sat 150 units deep and went back there every frame (flattened once, it was deep again), behind the panel's dark
+        /// background: the options showed their tab buttons over an empty page.
+        /// </summary>
+        private static readonly List<Canvas> NestedBuffer = new List<Canvas>();
+
+        private static void CollectFlat(Tracked t)
+        {
+            ClipWithoutStencil(t.Rect);
+            t.Flat.Clear();
+            t.Rect.GetComponentsInChildren(true, NestedBuffer);
+            foreach (Canvas c in NestedBuffer)
+            {
+                if (c != null && c.transform != t.Rect)
+                {
+                    t.Flat.Add(c.transform);
+                }
+            }
+            NestedBuffer.Clear();
+            foreach (RectTransform r in t.Rect.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (r != t.Rect && Mathf.Abs(r.localPosition.z) > 0.5f && !t.Flat.Contains(r))
+                {
+                    t.Flat.Add(r);
+                }
+            }
+            KeepFlat(t);
+        }
+
+        /// <summary>
+        /// Stencil masks (a scroll list's viewport) clip by a stencil the headset's picture may not keep: everything in the
+        /// list vanished (the options' pages showed nothing under their tabs). Each becomes a rectangle clip, which needs
+        /// no stencil; the mask's own image, drawn only as the stencil before, stays unseen (it still takes the laser).
+        /// </summary>
+        private static void ClipWithoutStencil(Transform root)
+        {
+            foreach (Mask m in root.GetComponentsInChildren<Mask>(true))
+            {
+                if (m == null || !m.enabled)
+                {
+                    continue;
+                }
+                if (m.GetComponent<RectMask2D>() == null)
+                {
+                    m.gameObject.AddComponent<RectMask2D>();
+                }
+                Graphic g = m.graphic;
+                bool showGraphic = m.showMaskGraphic;
+                m.enabled = false;
+                if (g != null && !showGraphic)
+                {
+                    Color c = g.color;
+                    g.color = new Color(c.r, c.g, c.b, 0f);
+                }
+            }
+        }
+
+        /// <summary>Right before drawing (after the game's animation has run): no depth inside the menu.</summary>
+        private static void KeepFlat(Tracked t)
+        {
+            foreach (Transform f in t.Flat)
+            {
+                if (f == null)
+                {
+                    continue;
+                }
+                Vector3 p = f.localPosition;
+                if (Mathf.Abs(p.z) > 0.01f)
+                {
+                    f.localPosition = new Vector3(p.x, p.y, 0f);
+                }
+            }
         }
 
         /// <summary>
@@ -345,6 +433,7 @@ namespace RavenfieldVR.UI
                 }
                 else
                 {
+                    KeepFlat(t);
                     if (!t.Placed)
                     {
                         PlaceMenu(t);

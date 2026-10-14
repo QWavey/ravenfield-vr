@@ -620,7 +620,32 @@ namespace RavenfieldVR.Core
             }
             if (o.background != null)
             {
-                parts.Add($"background {(o.background.enabled ? "on" : "off")} {o.background.color} texture {(o.background.texture != null ? o.background.texture.name : "none")}");
+                parts.Add($"background {(o.background.enabled ? "on" : "off")} {o.background.color} texture {(o.background.texture != null ? o.background.texture.name : "none")}, sibling {o.background.transform.GetSiblingIndex()}");
+            }
+            // The Game page in detail: masks, scale, where its graphics are drawn against the panel, their shaders.
+            if (o.gameOptions != null)
+            {
+                Canvas tab = o.gameOptions;
+                Transform panel = tab.rootCanvas.transform;
+                var masks = tab.GetComponentsInChildren<UnityEngine.UI.Mask>(true);
+                var rects = tab.GetComponentsInChildren<UnityEngine.UI.RectMask2D>(true);
+                int enabledMasks = 0;
+                foreach (var m in masks)
+                {
+                    enabledMasks += m.enabled ? 1 : 0;
+                }
+                string detail = $"Game page: scale {tab.transform.localScale}, sibling {tab.transform.GetSiblingIndex()}, masks {masks.Length} ({enabledMasks} on), rect clips {rects.Length}";
+                int shown = 0;
+                foreach (UnityEngine.UI.Graphic g in tab.GetComponentsInChildren<UnityEngine.UI.Graphic>(false))
+                {
+                    if (shown++ >= 4)
+                    {
+                        break;
+                    }
+                    Vector3 local = panel.InverseTransformPoint(g.transform.position);
+                    detail += $"; '{g.name}' at ({local.x:0},{local.y:0},{local.z:0}) shader {(g.materialForRendering != null ? g.materialForRendering.shader.name : "none")} alpha {g.canvasRenderer.GetInheritedAlpha():0.00} stencil {(g.materialForRendering != null && g.materialForRendering.HasProperty("_Stencil") ? g.materialForRendering.GetFloat("_Stencil") : -1f):0}";
+                }
+                parts.Add(detail);
             }
             return string.Join("; ", parts);
         }
