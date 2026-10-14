@@ -32,6 +32,12 @@ namespace RavenfieldVR.Input
         /// <summary>Set by the hand system: off-hand wrist turned towards the face (enlarges the minimap).</summary>
         public static bool WristLookGesture { get; set; }
 
+        /// <summary>The wrist is turned toward the eyes right now (before the hold that opens the wrist view).</summary>
+        public static bool WristLooking { get; set; }
+
+        /// <summary>How far the hold at the wrist has gone toward opening the wrist view (0..1; the ring on the wrist).</summary>
+        public static float WristLookProgress { get; set; }
+
         /// <summary>Set by the hand system: grip pressed with the off hand at the side of the head (night vision).</summary>
         public static bool GogglesGesturePressed { get; set; }
 
@@ -97,7 +103,7 @@ namespace RavenfieldVR.Input
             bool menu = GameContext.GameMenuOpen || !GameContext.InGame;
 
             // Always available: menus and respawn.
-            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause));
+            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause) || LowerButtonDoublePressed());
             Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout));
             Set(KeyBinds.SquadLeaderKit, VRInput.GetPressed(DigitalAction.Map));
             // In VR the scoreboard only ever shows together with the map (the wrist look): on its own it covered the
@@ -121,7 +127,9 @@ namespace RavenfieldVR.Input
                 return;
             }
 
-            Set(KeyBinds.Use, actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off));
+            // Not while a panel of the mod is under the laser: that trigger clicks the panel (and entered or left vehicles).
+            bool onPanel = PanelOpen && PointerOverUI;
+            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off)));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
@@ -134,6 +142,40 @@ namespace RavenfieldVR.Input
                 return;
             }
             ComputeOnFoot(actor);
+        }
+
+        private static readonly float[] LowerPressedAt = { -1f, -1f };
+
+        /// <summary>
+        /// The lower face button (A or X) pressed twice quickly opens the game's menu. Done here rather than as a SteamVR
+        /// double click: as a binding, every slide release waited out the double-click window and the squad button lost its
+        /// hold (squad orders need it held). The first press still does its job; the second is taken.
+        /// </summary>
+        private static bool LowerButtonDoublePressed()
+        {
+            bool open = false;
+            for (int h = 0; h < 2; h++)
+            {
+                var hand = (Hand)h;
+                // Whichever the weapon's hand: the lower button is slide release on one controller and squad on the other.
+                if (!VRInput.GetPressed(DigitalAction.SlideRelease, hand) && !VRInput.GetPressed(DigitalAction.Squad, hand))
+                {
+                    continue;
+                }
+                float now = Time.unscaledTime;
+                if (LowerPressedAt[h] >= 0f && now - LowerPressedAt[h] < 0.4f)
+                {
+                    LowerPressedAt[h] = -1f;
+                    VRInput.Consume(DigitalAction.SlideRelease, hand);
+                    VRInput.Consume(DigitalAction.Squad, hand);
+                    open = true;
+                }
+                else
+                {
+                    LowerPressedAt[h] = now;
+                }
+            }
+            return open;
         }
 
         /// <summary>How long the Use trigger is held in a seat before the player gets out.</summary>

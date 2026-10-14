@@ -248,6 +248,7 @@ namespace RavenfieldVR.Core
                 }
                 if (VRManager.Active)
                 {
+                    yield return StandingStillCheck();
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
@@ -385,6 +386,119 @@ namespace RavenfieldVR.Core
         /// The game's pause menu: the laser aimed at each of its buttons in turn (by the dominant hand), and what it is over
         /// then. Every button must be what the laser hits (only one of them took clicks in the headset). Nothing is clicked.
         /// </summary>
+        /// <summary>Footsteps and landings the game played (counted by <see cref="CountFootstepsPatch"/>).</summary>
+        internal static int Footsteps;
+
+        /// <summary>
+        /// Standing still with the head swaying a millimetre or two, as it does in a headset: no footsteps. The room-scale
+        /// step moved the body along the floor only, which lost the ground contact, and every landing played a step.
+        /// </summary>
+        private static IEnumerator StandingStillCheck()
+        {
+            if (GameContext.Player == null)
+            {
+                Results.Add("Standing still: skipped (no player)");
+                yield break;
+            }
+            yield return new WaitForSecondsRealtime(0.5f);
+            Footsteps = 0;
+            float until = Time.realtimeSinceStartup + 4f;
+            int frame = 0;
+            try
+            {
+                while (Time.realtimeSinceStartup < until)
+                {
+                    frame++;
+                    Rig.VRRig.TestHeadOffset = new Vector3(Mathf.Sin(frame * 0.7f), 0f, Mathf.Cos(frame * 0.45f)) * 0.0015f;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                Rig.VRRig.TestHeadOffset = Vector3.zero;
+            }
+            Results.Add($"Standing still with the head swaying 1.5 mm for 4 s: {Footsteps} footstep(s)");
+            if (Footsteps > 0)
+            {
+                Problem($"[footsteps] {Footsteps} footstep(s) while standing still");
+            }
+        }
+
+        /// <summary>
+        /// The gun hand lets go while the other hand holds the handguard: the weapon stays drawn, in the other hand, taken
+        /// by its grip, and that hand is the gun hand. Then given back.
+        /// </summary>
+        private static IEnumerator PassHandCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (sys == null || rig == null || !held.Rig.Data.HasSupportPoint)
+            {
+                yield break;
+            }
+            Weapon weapon = held.Weapon;
+            Rig.VRHand from = rig.Dominant, to = rig.Off;
+            int toSide = (int)to.Side;
+            bool passed;
+            Input.VRInput.SimulatedGrab[toSide] = true; // the other hand's grip closed on the handguard
+            to.Role = Rig.HandRole.Foregrip;
+            passed = sys.TestPassToOtherHand();
+            yield return null;
+            yield return null;
+            yield return new WaitForSecondsRealtime(0.3f);
+            HeldWeapon now = sys.Held;
+            bool same = now != null && now.Weapon == weapon;
+            bool roles = rig.Dominant == to && to.Role == Rig.HandRole.Weapon && from.Role == Rig.HandRole.Free;
+            float gap = same ? Vector3.Distance(now.GripWorld.position, to.PalmCentre) : -1f;
+            yield return new WaitForEndOfFrame();
+            Shots.Capture($"pass-{name}");
+            report($"passed to the other hand: {(passed ? "yes" : "NO")}, {(same ? "the weapon still drawn" : "THE WEAPON WAS PUT AWAY")}, "
+                   + $"{(roles ? "that hand holds it" : $"HANDS WRONG (gun hand {rig.Dominant.Side} {rig.Dominant.Role}, other {rig.Off.Role})")}, grip {gap * 100f:0.0} cm from its palm");
+            Metric("weapon passed to the other hand: grip cm from the palm", gap * 100f);
+            if (!passed || !same || !roles || gap > 0.06f)
+            {
+                Problem($"[{name}] passing the weapon to the other hand failed (passed {passed}, still drawn {same}, hands right {roles}, grip {gap * 100f:0.0} cm)");
+            }
+            // Given back: the first hand takes it again.
+            Input.VRInput.SimulatedGrab[toSide] = false;
+            sys.TakeIntoHand(from);
+            yield return null;
+            yield return new WaitForSecondsRealtime(0.3f);
+            if (sys.Held == null || sys.Held.Weapon != weapon || rig.Dominant != from)
+            {
+                report("passed back: THE WEAPON DID NOT COME BACK to the first hand");
+            }
+        }
+
+        /// <summary>
+        /// A pistol's slide locked back with a magazine in: its animator must show no round loaded, or the slide runs
+        /// forward while the gun still says RACK.
+        /// </summary>
+        private static IEnumerator SlideLockPoseCheck(HeldWeapon held, Action<string> report)
+        {
+            Weapon w = held.ActiveWeapon;
+            AmmoState ammo = held.ActiveAmmo;
+            if (w == null || ammo == null || !ammo.UsesDetachableMag || !w.notifyAnimatorAmmo || !w.HasActiveAnimator())
+            {
+                yield break;
+            }
+            bool locked = ammo.SlideLocked, chambered = ammo.Chambered;
+            ammo.SlideLocked = true;
+            ammo.Chambered = false;
+            ammo.Sync();
+            yield return null;
+            yield return null;
+            int shown = w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH);
+            report($"slide locked with a magazine in ({ammo.MagRounds} rounds): the animator shows {shown} loaded ({(shown == 0 ? "slide held back" : "THE SLIDE RUNS FORWARD")})");
+            if (shown != 0)
+            {
+                Problem($"[{w.name}] with the slide locked and a magazine in, the animator shows {shown} rounds loaded");
+            }
+            ammo.SlideLocked = locked;
+            ammo.Chambered = chambered;
+            ammo.Sync();
+        }
+
         private static IEnumerator PauseMenuCheck()
         {
             Rig.VRRig rig = Rig.VRRig.Instance;
@@ -1479,7 +1593,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -1609,6 +1723,17 @@ namespace RavenfieldVR.Core
                                 continue;
                             }
                         }
+                        if (want && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol && passChecks++ < (Deep ? 3 : 1))
+                        {
+                            yield return PassHandCheck(held, $"{index:000}-{entry.name}", lines.Add);
+                            held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                            if (held == null || held.Weapon != weapon)
+                            {
+                                lines.Add("pass check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                ReportWeapon(entry.name, weapon, lines);
+                                continue;
+                            }
+                        }
                         // Rack grips on rifles, pistols and pump / bolt guns (a few of each), not only the first rifles.
                         if (want && (Deep ? action == ActionType.Manual || action == ActionType.SelfLoading
                                 : action == ActionType.Manual ? rackManual++ < 3
@@ -1638,6 +1763,12 @@ namespace RavenfieldVR.Core
                         if (Deep && want && held.Rig.Data.HasEyePoint && action != ActionType.Melee && action != ActionType.Throwable)
                         {
                             yield return SightCheck(held, $"sight-{index:000}-{entry.name}", lines.Add);
+                        }
+                        // After the rack and two-hand checks: it locks the slide and lets it go again, which must not shape
+                        // what they measure.
+                        if (want && held.Rig.Data.IsPistol && slideLockChecks++ < (Deep ? 6 : 2))
+                        {
+                            yield return SlideLockPoseCheck(held, lines.Add);
                         }
                         if (Deep && want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {
@@ -2204,5 +2335,16 @@ namespace RavenfieldVR.Core
             }
             return true;
         }
+    }
+
+    /// <summary>Self-test: counts the game's footsteps and landings for the player (nothing else).</summary>
+    [HarmonyPatch(typeof(UnityStandardAssets.Characters.FirstPerson.FirstPersonController))]
+    internal static class CountFootstepsPatch
+    {
+        [HarmonyPrefix, HarmonyPatch("PlayFootStepAudio")]
+        private static void Step() => AutoTest.Footsteps++;
+
+        [HarmonyPrefix, HarmonyPatch("PlayLandingSound")]
+        private static void Landing() => AutoTest.Footsteps++;
     }
 }

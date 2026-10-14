@@ -121,6 +121,10 @@ namespace RavenfieldVR.Weapons
                 UpdateSubWeaponReloadTarget();
             }
             HealHandRoles();
+            if (GameContext.PlayerActor == null || GameContext.PlayerActor.dead)
+            {
+                _throwables.ForgetPulledPins(); // a new life's grenades come with their pins in
+            }
             UpdateLooseProps();
             Drops.Update();
             FireSelector.Update();
@@ -378,7 +382,7 @@ namespace RavenfieldVR.Weapons
         public void OnDryFire(Weapon weapon)
         {
             // CanFire is polled every frame while the trigger is held; click once per trigger pull.
-            if (VRInput.GetPressed(DigitalAction.Fire, VRInput.Dominant) && Time.unscaledTime - _lastDryFire > 0.15f)
+            if (VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) && Time.unscaledTime - _lastDryFire > 0.15f)
             {
                 _lastDryFire = Time.unscaledTime;
                 Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f);
@@ -444,7 +448,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             VRHand dom = Rig.Dominant;
-            if (!dom.Tracked || !dom.GrabPressed || dom.Role != HandRole.Free && dom.Role != HandRole.Weapon || GameContext.GameMenuOpen)
+            // A grenade drawn in the seat is put back the same way (the hand holding it is "Throwable").
+            if (!dom.Tracked || !dom.GrabPressed || dom.Role != HandRole.Free && dom.Role != HandRole.Weapon && dom.Role != HandRole.Throwable
+                || GameContext.GameMenuOpen)
             {
                 return;
             }
@@ -507,7 +513,10 @@ namespace RavenfieldVR.Weapons
                 _hoveredHolster[i] = -1; // a hand holding a magazine has no room for a weapon
                 return;
             }
-            int slot = Zones.HolsterAt(hand.Palm.position, includeChest: Held == null || !Held.Aiming);
+            // The free hand passes over the drawn weapon's own holster (empty: the weapon is in the other hand) to the
+            // nearest one with something in it; it found that spot first and grabbed nothing.
+            int skip = !gunHand && actor != null && actor.activeWeapon != null && actor.weapons != null ? Array.IndexOf(actor.weapons, actor.activeWeapon) : -1;
+            int slot = Zones.HolsterAt(hand.Palm.position, includeChest: Held == null || !Held.Aiming, skipSlot: skip);
             // A short tick when the hand reaches a holster with something in it: holsters are found by feel.
             bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null
                           && (gunHand || actor.weapons[slot] != actor.activeWeapon);

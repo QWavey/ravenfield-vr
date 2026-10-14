@@ -92,7 +92,7 @@ namespace RavenfieldVR.UI
                 VRGameInput.PointerOverUI = false;
                 if (_pressed)
                 {
-                    Release(null);
+                    Release(null, cancel: true); // the pointer went away (tracking, menu closed): no click
                 }
                 HandlePointerExitAndEnter(_data, null);
                 return;
@@ -132,7 +132,7 @@ namespace RavenfieldVR.UI
             {
                 Press(over);
             }
-            if (_pressed && (release || !_triggerDown[(int)PointerHand]))
+            if (_pressed && (_triggerReleased[(int)_pressHand] || !_triggerDown[(int)_pressHand]))
             {
                 Release(over);
             }
@@ -248,8 +248,16 @@ namespace RavenfieldVR.UI
         /// <summary>How far (degrees) the laser may wander during a click before it is a drag or the click is lost.</summary>
         private const float ClickWobble = 4f;
 
+        /// <summary>The hand whose trigger made the current press (the laser may move to the other hand meanwhile).</summary>
+        private Hand _pressHand;
+
         private void Press(GameObject over)
         {
+            if (_pressed)
+            {
+                Release(null, cancel: true); // the other hand's trigger: the first press ends without a click
+            }
+            _pressHand = PointerHand;
             _pressed = true;
             _pressDir = PointerRay.direction;
             _pressTime = Time.unscaledTime;
@@ -288,10 +296,15 @@ namespace RavenfieldVR.UI
             VRInput.Haptic(PointerHand, 0.01f, 200f, 0.25f);
         }
 
-        private void Release(GameObject over)
+        private void Release(GameObject over, bool cancel = false)
         {
             _pressed = false;
             ExecuteEvents.Execute(_data.pointerPress, _data, ExecuteEvents.pointerUpHandler);
+            if (cancel)
+            {
+                over = null;
+                _data.eligibleForClick = false;
+            }
             GameObject clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(over);
             // Pulling a trigger moves the controller: a laser that slipped just off the button it pressed still clicks it
             // (a short, steady click), as a finger lifting off a touch screen would. Only one of the pause menu's buttons

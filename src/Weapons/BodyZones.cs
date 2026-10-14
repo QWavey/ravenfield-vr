@@ -79,6 +79,9 @@ namespace RavenfieldVR.Weapons
             TorsoForward = torso * Vector3.forward;
             TorsoRight = torso * Vector3.right;
             float side = VRConfig.LeftHanded ? -1f : 1f;
+            // Holsters stay where they were set; the stock's pocket goes with the weapon's hand and the pouch with the hand
+            // that reaches for it (the weapon may have been passed to the other hand).
+            float gunSide = VRInput.GunHand == Hand.Left ? -1f : 1f;
             float height = VRConfig.EyeHeight.Value > 0.3f ? VRConfig.EyeHeight.Value : 1.65f;
             if (VRConfig.SeatedMode.Value)
             {
@@ -105,7 +108,7 @@ namespace RavenfieldVR.Weapons
             // back and at the front of the belt.
             Vector3 underarm = neck - Vector3.up * 0.28f + TorsoForward * 0.02f;
             DomUnderarm = underarm + TorsoRight * (0.17f * side);
-            DomShoulder = neck - Vector3.up * 0.06f + TorsoForward * 0.05f + TorsoRight * (0.15f * side);
+            DomShoulder = neck - Vector3.up * 0.06f + TorsoForward * 0.05f + TorsoRight * (0.15f * gunSide);
             OffUnderarm = underarm - TorsoRight * (0.17f * side);
             LowerBack = belt - TorsoForward * 0.29f;
             DomBeltFront = belt + TorsoRight * (0.09f * side);
@@ -116,28 +119,44 @@ namespace RavenfieldVR.Weapons
             switch (VRConfig.Pouch.Value)
             {
                 // Each a hand's width from the nearest holster spot, so the holstered weapon and the pouch never overlap.
-                case PouchLocation.DominantHip: Pouch = Boneworks ? hipSide + TorsoRight * (0.17f * side) : belt + TorsoRight * (0.1f * side); break;
+                case PouchLocation.DominantHip: Pouch = Boneworks ? hipSide + TorsoRight * (0.17f * gunSide) : belt + TorsoRight * (0.1f * gunSide); break;
                 case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
                 case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
-                default: Pouch = Boneworks ? hipSide - TorsoRight * (0.17f * side) : belt - TorsoRight * (0.1f * side); break; // off-hand side
+                default: Pouch = Boneworks ? hipSide - TorsoRight * (0.17f * gunSide) : belt - TorsoRight * (0.1f * gunSide); break; // free hand's side
             }
         }
 
         /// <summary>Since when the wrist look has wanted to change state (-1: it agrees with what is shown).</summary>
         private float _wristChangeSince = -1f;
 
+        /// <summary>How long the look at the wrist is held before the wrist view (map, scoreboard, match bar) opens.</summary>
+        public const float WristViewHold = 2f;
+
+        /// <summary>Since when the wrist has been looked at (-1: it is not).</summary>
+        private float _wristLookSince = -1f;
+
+        private static void CloseWristView()
+        {
+            VRGameInput.WristLooking = false;
+            VRGameInput.WristLookGesture = false;
+            VRGameInput.WristLookProgress = 0f;
+        }
+
         private void UpdateGestures()
         {
+            // The free hand's wrist: with the weapon passed to the other hand, that one holds it and its wrist is no watch.
             VRHand off = _rig.Off;
             if (!off.Tracked)
             {
-                VRGameInput.WristLookGesture = false;
+                CloseWristView();
+                _wristChangeSince = -1f;
+                _wristLookSince = -1f;
                 return;
             }
             // Wrist watch: back of the off hand turned toward the face, raised in front of the chest. It comes on after a
             // steady moment and goes off only once the wrist is clearly turned away: on hard thresholds a hand held near them
             // flipped the game's map and scoreboard (both follow this gesture) on and off every frame.
-            bool on = VRGameInput.WristLookGesture;
+            bool on = VRGameInput.WristLooking;
             Vector3 toHead = (_rig.Head.position - off.Raw.position);
             float dist = toHead.magnitude;
             Vector3 backOfHand = off.Palm.rotation * (off.IsLeft ? Vector3.left : Vector3.right);
@@ -155,8 +174,31 @@ namespace RavenfieldVR.Weapons
             }
             else if (now - _wristChangeSince >= (want ? 0.1f : 0.2f))
             {
-                VRGameInput.WristLookGesture = want;
+                VRGameInput.WristLooking = want;
                 _wristChangeSince = -1f;
+            }
+            // The wrist view (the map, the scoreboard and the match bar) opens only after the look is held for two seconds,
+            // a ring filling on the wrist meanwhile, and closes as soon as the wrist is turned away: nothing of it shows
+            // in the middle of a fight because the hand passed the face.
+            if (!VRGameInput.WristLooking)
+            {
+                _wristLookSince = -1f;
+                VRGameInput.WristLookProgress = 0f;
+                VRGameInput.WristLookGesture = false;
+            }
+            else
+            {
+                if (_wristLookSince < 0f)
+                {
+                    _wristLookSince = now;
+                }
+                float progress = Mathf.Clamp01((now - _wristLookSince) / WristViewHold);
+                VRGameInput.WristLookProgress = progress;
+                if (progress >= 1f && !VRGameInput.WristLookGesture)
+                {
+                    VRGameInput.WristLookGesture = true;
+                    off.Haptic(0.03f, 160f, 0.45f);
+                }
             }
 
             if (off.GrabPressed && off.Role == HandRole.Free && Vector3.Distance(off.Palm.position, HeadSide) < 0.13f && BesideHead(off.Palm.position))
@@ -195,14 +237,14 @@ namespace RavenfieldVR.Weapons
         /// hang behind the shoulders (dominant side first); handguns sit under the arms (Boneworks layout) or on the hips;
         /// grenades and gear at the small of the back and on the belt, or on the chest.
         /// </summary>
-        public int HolsterAt(Vector3 point, bool includeChest = true)
+        public int HolsterAt(Vector3 point, bool includeChest = true, int skipSlot = -1)
         {
             AssignHolsters(GameContext.PlayerActor);
             float best = HolsterRadius;
             int slot = -1;
             for (int i = 0; i < SpotCount; i++)
             {
-                if (_spotSlot[i] < 0 || !includeChest && IsChest((Spot)i))
+                if (_spotSlot[i] < 0 || _spotSlot[i] == skipSlot || !includeChest && IsChest((Spot)i))
                 {
                     // The chest sits where a shouldered rifle's grip hand is: callers leave it out while aiming.
                     continue;

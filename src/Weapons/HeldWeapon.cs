@@ -657,8 +657,15 @@ namespace RavenfieldVR.Weapons
         /// still said RACK (and needed racking). Held at 0 until the slide is released or racked; every frame, because the
         /// release does not always change the round count (and so never told the animator).
         /// </summary>
+        /// <summary>Self-test experiment: -rfvr-noslidepose leaves the animator's "loaded ammo" to the game.</summary>
+        private static readonly bool NoSlidePose = System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a.Equals("-rfvr-noslidepose", System.StringComparison.OrdinalIgnoreCase));
+
         private void HoldSlideLockPose()
         {
+            if (NoSlidePose)
+            {
+                return;
+            }
             Weapon w = ActiveWeapon;
             AmmoState ammo = ActiveAmmo;
             if (w == null || ammo == null || !ammo.Participates || !w.notifyAnimatorAmmo || !w.HasActiveAnimator())

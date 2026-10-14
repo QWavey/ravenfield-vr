@@ -324,7 +324,17 @@ namespace RavenfieldVR.Rig
             Camera cam = null;
             try
             {
-                cam = LocalPlayer.GetCurrentCameraIncludeSpectator();
+                // The game's getter tests the player with ?. (a destroyed one passes and throws): Unity's own test here,
+                // so the main menu after "Quit to menu" does not throw every frame.
+                SpectatorCamera spectator = SpectatorCamera.instance;
+                if (spectator != null && spectator.camera != null && spectator.camera.isActiveAndEnabled)
+                {
+                    cam = spectator.camera;
+                }
+                else if (LocalPlayer.controller != null)
+                {
+                    cam = LocalPlayer.controller.GetActiveCamera();
+                }
             }
             catch (Exception e) when (e is NullReferenceException || e is MissingReferenceException)
             {
@@ -379,6 +389,10 @@ namespace RavenfieldVR.Rig
                 Log.Info($"View: {from} -> {to} ({key}) [{_modeChanges}]");
             }
             Input.VRInput.DiagnoseFor(10f);
+            foreach (VRHand h in Hands)
+            {
+                h.ForgetMotion();
+            }
             bool cut = from != RigMode.None;
             Mode = to;
             _anchorKey = key;
@@ -465,9 +479,12 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>Self-test: added to the head's position for room-scale walking (the virtual headset never sways).</summary>
+        internal static Vector3 TestHeadOffset;
+
         private void RoomscaleFollow(FpsActorController player)
         {
-            Vector3 hl = HeadLocal;
+            Vector3 hl = HeadLocal + TestHeadOffset;
             if (!VRConfig.RoomscaleMovement.Value || VRConfig.SeatedMode.Value)
             {
                 _lastHeadLocal = hl;
@@ -622,9 +639,9 @@ namespace RavenfieldVR.Rig
         private void AlignMovementReference(FpsActorController player)
         {
             float yaw;
-            if (VRConfig.MoveDirection.Value == MoveReference.OffHand && Off.Tracked)
+            if (VRConfig.MoveDirection.Value == MoveReference.OffHand && SetOff.Tracked)
             {
-                Vector3 f = Off.Pointer.Forward;
+                Vector3 f = SetOff.Pointer.Forward; // the hand with the move stick, wherever the weapon is
                 f.y = 0f;
                 yaw = f.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(f).eulerAngles.y : Head.eulerAngles.y;
             }

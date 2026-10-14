@@ -285,7 +285,14 @@ namespace RavenfieldVR.UI
         {
             if (VRManager.Active && ReferenceEquals(__instance, LocalPlayer.controller))
             {
-                SquadPointing.Compute();
+                try
+                {
+                    SquadPointing.Compute();
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("SquadPointing.Compute", e); // never in the way of the game's player update
+                }
             }
         }
     }

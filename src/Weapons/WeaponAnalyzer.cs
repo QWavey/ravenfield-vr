@@ -456,6 +456,7 @@ namespace RavenfieldVR.Weapons
                 {
                     RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
                 }
+                NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
                 d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
@@ -475,6 +476,71 @@ namespace RavenfieldVR.Weapons
             ArChargingHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
             return d;
+        }
+
+        /// <summary>A charging handle by its name (an AR's T-handle, a side cocking handle); never a magazine ("chargeur").</summary>
+        private static readonly Regex ChargingName = new Regex(@"charg|cocking ?handle|拉机柄|拉柄|上膛", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A charging handle the animations never move, found by its name: the M733's "mk18_拉机柄" sat still while its
+        /// reload slid the bolt, so the hand was given a piece cut out of the receiver at a guessed place (it landed on the
+        /// buffer tube, with a dark knob behind the bolt) and the real handle never moved. The named part is taken as the
+        /// handle: where the hand grabs (its back end, the T), and it comes straight back with the hand, the bolt with it.
+        /// </summary>
+        private static void NamedChargingHandle(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
+            Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.IsPistol || d.HandlePath != null || d.IsMachineGun || d.Action != ActionType.SelfLoading)
+            {
+                return;
+            }
+            Transform slide = d.SlidePath != null ? WeaponRig.Resolve(root, d.SlidePath) : null;
+            Transform best = null;
+            Bounds bestBounds = default;
+            foreach (Transform t in all)
+            {
+                if (!ChargingName.IsMatch(t.name) || MagName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    continue;
+                }
+                // A handle on the bolt carrier already moves with the bolt (an AK's): nothing to add.
+                if (slide != null && (t == slide || t.IsChildOf(slide) || slide.IsChildOf(t)))
+                {
+                    continue;
+                }
+                // The topmost named part: its children (the handle's mesh) go with it.
+                if (best != null && t.IsChildOf(best))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBoundsNear(t, gunIdle, 0.5f);
+                float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                if (length < 0.02f || length > 0.3f || Vector3.Distance(b.center, d.GripPoint) > 0.35f)
+                {
+                    continue; // no model of its own, the whole receiver, or far from the hands
+                }
+                if (best == null || best.IsChildOf(t))
+                {
+                    best = t;
+                    bestBounds = b;
+                }
+            }
+            if (best == null)
+            {
+                return;
+            }
+            d.HandlePath = WeaponRig.PathOf(root, best);
+            d.HandleRestLocal = sampler.IdleLocalPosition(best);
+            d.HandleTravel = -d.AimAxis * 0.075f;
+            // The grip of the handle is its back end (an AR's T sits at the rear of the upper receiver).
+            float half = Mathf.Abs(Vector3.Dot(bestBounds.extents, new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z))));
+            d.RackPoint = bestBounds.center - d.AimAxis * half * 0.8f;
+            if (d.SlidePath == null)
+            {
+                d.RackFromHand = true;
+                d.SlideTravel = d.HandleTravel;
+            }
+            d.SlideMethod += $" + handle by name '{best.name}'";
         }
 
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>

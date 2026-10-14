@@ -629,6 +629,7 @@ namespace RavenfieldVR.Weapons
             }
             _fresh = false;
             HeldBy = hand;
+            _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
             hand.Role = HandRole.Magazine;
             hand.Held = this;
             _body.isKinematic = true;

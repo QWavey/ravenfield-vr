@@ -18,7 +18,8 @@ namespace RavenfieldVR.Rig
     internal static class GroundCheckIgnoresPropsPatch
     {
         private const float LightBody = 30f;
-        private static readonly RaycastHit[] Hits = new RaycastHit[24];
+        // Unsorted: over a pile of loose bodies (cases, limbs) a small buffer could fill before the ground was in it.
+        private static readonly RaycastHit[] Hits = new RaycastHit[64];
 
         private static readonly MethodInfo SphereCast = AccessTools.Method(typeof(Physics), nameof(Physics.SphereCast),
             new[] { typeof(Ray), typeof(float), typeof(RaycastHit).MakeByRefType(), typeof(float), typeof(int) });

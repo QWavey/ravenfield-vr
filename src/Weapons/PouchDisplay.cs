@@ -36,7 +36,7 @@ namespace RavenfieldVR.Weapons
         {
             AmmoState ammo = held != null ? held.ActiveAmmo : null;
             bool show = VRConfig.ShowPouch.Value && VRConfig.ReloadNow == ReloadMode.Manual && held != null && ammo != null && ammo.Participates
-                        && held.ActiveRig.Data.Action != ActionType.Throwable && GameContextOnFoot();
+                        && held.ActiveRig.Data.Action != ActionType.Throwable && GameContextOnFoot() && !Util.GameContext.GameMenuOpen;
             if (!show)
             {
                 SetVisible(false);

@@ -81,19 +81,25 @@ namespace RavenfieldVR.Weapons
             {
                 _armed = false;
                 Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-                if (v.magnitude > 1.1f)
+                if (v.magnitude > 1.1f && Throw(weapon, hand, v))
                 {
-                    Throw(weapon, hand, v);
+                    GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
                 }
             }
             // Holding by the grip: opening the hand in a throwing motion lets the grenade go, as in other VR games (a slow
             // release puts it back on the chest instead).
-            if (VRConfig.GripToHoldWeapon.Value && hand.GrabReleased && !GameContextBlocksThrow())
+            if (VRConfig.GripToHoldWeapon.Value && hand.GrabReleased && !GameContextBlocksThrow() && Time.unscaledTime - GripThrowAt > 0.5f)
             {
                 // A throwing motion against the body (opening the hand while running is not a throw); the grenade then
-                // leaves with the hand's full speed, running included.
+                // leaves with the hand's full speed, running included. Backing away as you throw, that speed could cancel
+                // out: the grenade then fell at your feet with its pin out, so it never leaves slower than the swing itself.
+                Vector3 body = hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
                 Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-                if (hand.BodyThrowVelocity().magnitude * VRConfig.ThrowVelocityMultiplier.Value > 1.6f)
+                if (v.magnitude < body.magnitude * 0.7f)
+                {
+                    v = body;
+                }
+                if (body.magnitude > 1.6f)
                 {
                     _armed = false;
                     if (Throw(weapon, hand, v))
@@ -507,6 +513,9 @@ namespace RavenfieldVR.Weapons
             Throw(weapon, hand, lob);
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
         }
+
+        /// <summary>Death or a new map: the grenades drawn next are fresh ones, pins in.</summary>
+        public void ForgetPulledPins() => _pulledPutAway.Clear();
 
         public void Release()
         {

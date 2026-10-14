@@ -70,12 +70,15 @@ namespace RavenfieldVR.UI
         /// <summary>Canvases created by the mod itself; they place themselves.</summary>
         public void RegisterOwn(Canvas c) => _own.Add(c);
 
-        /// <summary>Adds every visible converted canvas to <paramref name="into"/> (per frame, without allocating).</summary>
-        public void CollectVisible(List<Canvas> into)
+        /// <summary>
+        /// Adds every visible converted canvas to <paramref name="into"/> (per frame, without allocating); only menus when
+        /// <paramref name="menusOnly"/>: the laser hitting a HUD frame counted as pointing at a menu and held the gun's fire.
+        /// </summary>
+        public void CollectVisible(List<Canvas> into, bool menusOnly = false)
         {
             foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
             {
-                if (kv.Value.Visible && kv.Value.Canvas != null)
+                if (kv.Value.Visible && kv.Value.Canvas != null && (!menusOnly || kv.Value.Role == CanvasRole.Menu))
                 {
                     into.Add(kv.Value.Canvas);
                 }
@@ -113,11 +116,12 @@ namespace RavenfieldVR.UI
                     t.Collimated = t.Canvas.GetComponentInParent<Vehicle>() != null;
                     // During gameplay with no game menu open everything is HUD, even canvases that happen to
                     // hold a clickable element; menus only exist while the game shows its cursor (or outside a match).
-                    t.Role = gameplay ? CanvasRole.Hud : Classify(t.Canvas);
+                    t.Role = gameplay ? CanvasRole.Hud : RoleOutsidePlay(t.Canvas);
                 }
                 if (visible && !t.Visible && t.Role == CanvasRole.Menu)
                 {
                     t.Placed = false; // re-place menus each time they open
+                    FlattenDepth(t.Rect); // again as it opens: the game sets its pages up after the canvas was converted
                 }
                 t.Visible = visible;
                 menu |= visible && t.Role == CanvasRole.Menu;
@@ -180,7 +184,7 @@ namespace RavenfieldVR.UI
                 t.Size = new Vector2(Screen.width, Screen.height) / Mathf.Max(0.01f, c.scaleFactor);
             }
             t.ScalerWasEnabled = t.Scaler != null && t.Scaler.enabled;
-            t.Role = Classify(c);
+            t.Role = RoleOutsidePlay(c);
 
             c.renderMode = RenderMode.WorldSpace;
             c.worldCamera = _eventCamera;
@@ -192,8 +196,30 @@ namespace RavenfieldVR.UI
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = t.Size;
             SetLayerRecursive(c.transform, 5);
+            FlattenDepth(c.transform);
             _tracked[c] = t;
             Log.Debug($"Canvas '{c.name}' -> world ({t.Role}, {t.Size.x:0}x{t.Size.y:0})");
+        }
+
+        /// <summary>
+        /// Parts of a screen canvas set at a depth inside it (the options' Game page sat 150 units deep) are drawn as they
+        /// were on the flat screen, where depth never showed: in the world that page stood 15 cm behind the panel's dark
+        /// background and the options came up empty.
+        /// </summary>
+        private static void FlattenDepth(Transform root)
+        {
+            foreach (RectTransform r in root.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (r == root)
+                {
+                    continue;
+                }
+                Vector3 p = r.localPosition;
+                if (Mathf.Abs(p.z) > 0.5f)
+                {
+                    r.localPosition = new Vector3(p.x, p.y, 0f);
+                }
+            }
         }
 
         private static void SetLayerRecursive(Transform t, int layer)
@@ -204,6 +230,50 @@ namespace RavenfieldVR.UI
                 SetLayerRecursive(child, layer);
             }
         }
+
+        /// <summary>
+        /// Before a match (the start-up and the main menu) every screen is a panel standing in front of you: the game's
+        /// "loading mods" page has nothing to click and was taken for HUD, locked to the view and following every turn of
+        /// the head. In a match, menus are the canvases with something to click.
+        /// </summary>
+        private static CanvasRole RoleOutsidePlay(Canvas c) =>
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex <= 1 ? CanvasRole.Menu : Classify(c);
+
+        /// <summary>
+        /// The match bar (the game mode's own canvas: battalions, tickets and flags across the top) shows only in the wrist
+        /// view. Faded with a canvas group of the mod's own; the game switches the canvas itself on and off for its "hide
+        /// UI" option, so that is left alone.
+        /// </summary>
+        public void UpdateMatchBar()
+        {
+            GameModeBase mode = GameModeBase.activeGameMode;
+            Canvas c = mode != null ? mode.canvas : null;
+            if (c == null)
+            {
+                _matchBar = null;
+                return;
+            }
+            if (!ReferenceEquals(_matchBarFor, c))
+            {
+                _matchBarFor = c;
+                CanvasGroup existing = c.GetComponent<CanvasGroup>();
+                _matchBar = existing == null ? c.gameObject.AddComponent<CanvasGroup>() : null; // someone else's group: left alone
+                if (_matchBar != null)
+                {
+                    _matchBar.alpha = 0f;
+                }
+            }
+            if (_matchBar == null)
+            {
+                return;
+            }
+            float want = Input.VRGameInput.WristLookGesture ? 1f : 0f;
+            _matchBar.alpha = Mathf.MoveTowards(_matchBar.alpha, want, Time.unscaledDeltaTime * 8f);
+            _matchBar.blocksRaycasts = want > 0f;
+        }
+
+        private CanvasGroup _matchBar;
+        private Canvas _matchBarFor;
 
         /// <summary>Menus are canvases with something to click; everything else is HUD.</summary>
         private static readonly List<Selectable> SelectableBuffer = new List<Selectable>();

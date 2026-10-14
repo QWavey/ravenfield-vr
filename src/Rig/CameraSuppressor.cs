@@ -69,6 +69,7 @@ namespace RavenfieldVR.Rig
                 }
             }
             _suppressed.RemoveWhere(c => c == null);
+            _ignored.RemoveWhere(c => c == null); // a scope camera per draw of a scoped weapon, destroyed with it
         }
 
         private void OnPreCull(Camera c)

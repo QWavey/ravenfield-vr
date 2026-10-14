@@ -118,6 +118,7 @@ namespace RavenfieldVR.UI
             EnsureModule();
             Loading.Update(); // first: the loading screen's canvases are drawn into its picture, not converted
             Canvases.Update();
+            Canvases.UpdateMatchBar();
             _keyboard.Update();
 
             if (VRInput.GetPressed(DigitalAction.VRMenu))
@@ -169,7 +170,7 @@ namespace RavenfieldVR.UI
             if (_module != null)
             {
                 _targets.Clear();
-                Canvases.CollectVisible(_targets);
+                Canvases.CollectVisible(_targets, menusOnly: true);
                 if (Settings.IsOpen)
                 {
                     _targets.Add(Settings.Canvas);

@@ -208,6 +208,21 @@ namespace RavenfieldVR.Rig
         public Vector3 ThrowVelocity() => WeightedVelocity(_velHistory);
 
         /// <summary>
+        /// Forgets the hand's recent motion (getting into or out of a seat): a weapon let go just after leaving a moving car
+        /// flew off with the car's speed.
+        /// </summary>
+        public void ForgetMotion()
+        {
+            for (int i = 0; i < HistoryLength; i++)
+            {
+                _velHistory[i] = Vector3.zero;
+                _bodyVelHistory[i] = Vector3.zero;
+                _timeHistory[i] = float.NegativeInfinity;
+            }
+            _hasLastRig = false;
+        }
+
+        /// <summary>
         /// The same against the player's own body: for deciding what a motion was (a gentle placing or a throw), which must
         /// not change because the player is running. What leaves the hand still takes <see cref="ThrowVelocity"/>.
         /// </summary>

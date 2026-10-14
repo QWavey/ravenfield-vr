@@ -724,7 +724,21 @@ namespace RavenfieldVR.Weapons
             for (int i = _drops.Count - 1; i >= 0; i--)
             {
                 DroppedWeapon d = _drops[i];
-                if (d.Go == null || Time.time - d.DropTime > lifetime || d.Go.transform.position.y < -500f)
+                if (d.Go == null)
+                {
+                    Remove(d);
+                    continue;
+                }
+                bool expired = Time.time - d.DropTime > lifetime || d.Go.transform.position.y < -500f;
+                if (expired && d.OwnerSlot >= 0)
+                {
+                    // Your own weapon is the only copy of it (its slot was emptied when it left the hand): it goes back to
+                    // its holster, never away. Deleted after 90 s (in a vehicle, where it is not returned) or after falling
+                    // out of the world, it was gone from the loadout for good.
+                    d.ReturnAt = 0f;
+                    continue;
+                }
+                if (expired)
                 {
                     Remove(d);
                 }

@@ -19,6 +19,13 @@ namespace RavenfieldVR.UI
         private readonly TextPlate _plate;
         private float _alpha;
 
+        /// <summary>The ring on the wrist that fills while the look is held (see BodyZones.WristViewHold).</summary>
+        private readonly LineRenderer _ring;
+        private const int RingSegments = 48;
+        private const float RingRadius = 0.022f;
+        private readonly Vector3[] _ringPoints = new Vector3[RingSegments + 1];
+        private float _ringShown = -1f;
+
         public WristHud(VRRig rig)
         {
             _rig = rig;
@@ -38,13 +45,73 @@ namespace RavenfieldVR.UI
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _plate = new TextPlate(_text, font.material, 0.8f, 0.012f);
             _go.SetActive(false);
+
+            var ringGo = new GameObject("RavenfieldVR Wrist Ring");
+            Object.DontDestroyOnLoad(ringGo);
+            ringGo.layer = 5;
+            _ring = ringGo.AddComponent<LineRenderer>();
+            _ring.useWorldSpace = false;
+            _ring.loop = false;
+            _ring.widthMultiplier = 0.0035f;
+            _ring.numCapVertices = 3;
+            _ring.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _ring.receiveShadows = false;
+            _ring.material = new Material(Shader.Find("Sprites/Default"));
+            _ring.startColor = _ring.endColor = new Color(0.86f, 0.9f, 0.84f, 0.9f);
+            ringGo.SetActive(false);
+        }
+
+        /// <summary>The ring at the wrist, filled to <paramref name="progress"/> (clockwise from the top).</summary>
+        private void UpdateRing(bool show, float progress, Vector3 pos, Quaternion rot)
+        {
+            GameObject g = _ring.gameObject;
+            if (!show || progress <= 0.001f)
+            {
+                if (g.activeSelf)
+                {
+                    g.SetActive(false);
+                }
+                _ringShown = -1f;
+                return;
+            }
+            if (!g.activeSelf)
+            {
+                g.SetActive(true);
+            }
+            g.transform.SetPositionAndRotation(pos, rot);
+            if (Mathf.Abs(progress - _ringShown) < 0.004f)
+            {
+                return;
+            }
+            _ringShown = progress;
+            int n = Mathf.Max(2, Mathf.CeilToInt(RingSegments * progress) + 1);
+            for (int i = 0; i < n; i++)
+            {
+                float a = Mathf.PI * 0.5f - Mathf.PI * 2f * progress * i / (n - 1);
+                _ringPoints[i] = new Vector3(Mathf.Cos(a) * RingRadius, Mathf.Sin(a) * RingRadius, 0f);
+            }
+            _ring.positionCount = n;
+            _ring.SetPositions(_ringPoints);
         }
 
         public void BeforeRender()
         {
-            VRHand off = _rig.SetOff; // stays on its wrist when the weapon is passed to the other hand
+            VRHand off = _rig.Off; // the free hand's wrist (the gesture's hand)
             Actor actor = GameContext.PlayerActor;
-            bool want = VRConfig.WristHud.Value && off.Tracked && actor != null && !actor.dead && VRGameInput.WristLookGesture;
+            bool alive = off.Tracked && actor != null && !actor.dead && !GameContext.GameMenuOpen;
+            if (alive)
+            {
+                // The ring fills where the display will appear, facing the eyes.
+                Vector3 back0 = off.Palm.rotation * (off.IsLeft ? Vector3.left : Vector3.right);
+                Vector3 at = off.PalmCentre + back0 * 0.035f - off.Palm.Forward * 0.07f;
+                Vector3 eye = (_rig.Head.position - at).normalized;
+                UpdateRing(VRGameInput.WristLooking && !VRGameInput.WristLookGesture, VRGameInput.WristLookProgress, at - eye * 0.002f, Quaternion.LookRotation(-eye, off.Palm.Forward));
+            }
+            else
+            {
+                UpdateRing(false, 0f, Vector3.zero, Quaternion.identity);
+            }
+            bool want = VRConfig.WristHud.Value && alive && VRGameInput.WristLookGesture;
             _alpha = Mathf.MoveTowards(_alpha, want ? 1f : 0f, Time.unscaledDeltaTime * 6f);
             bool visible = _alpha > 0.01f;
             if (_go.activeSelf != visible)
@@ -92,6 +159,11 @@ namespace RavenfieldVR.UI
             if (_go != null)
             {
                 Object.Destroy(_go);
+            }
+            if (_ring != null)
+            {
+                Object.Destroy(_ring.material);
+                Object.Destroy(_ring.gameObject);
             }
             _plate.Destroy();
         }
