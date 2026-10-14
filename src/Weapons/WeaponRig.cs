@@ -135,6 +135,16 @@ namespace RavenfieldVR.Weapons
         /// travel come from where the mod's own hand racks in its reload animation.
         /// </summary>
         public bool RackFromHand;
+        /// <summary>
+        /// The rack point is estimated (from the reload hand, or virtual), not on a part: once the drawn model is measured it
+        /// is put on the model's surface, where a hand can take it.
+        /// </summary>
+        public bool RackOnSurface;
+        /// <summary>
+        /// The part that moves when firing is inside the receiver (a bolt carrier) and the handle the reload hand takes is part
+        /// of the receiver's mesh: that piece is cut out and moves with the pull.
+        /// </summary>
+        public bool CarveHandle;
         /// <summary>A part the reload swings open: break-action barrels, a cylinder crane or a feed cover.</summary>
         public HingeKind Hinge;
         public int[] HingePath;

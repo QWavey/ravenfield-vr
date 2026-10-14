@@ -57,7 +57,14 @@ namespace RavenfieldVR.Weapons
         private bool _hingeOverridden;
         private Vector3[] _magOriginalScales;
         private bool _magHidden;
-        private readonly BoltPiece _boltPiece;
+        private BoltPiece _boltPiece;
+
+        /// <summary>
+        /// Where the hand takes the slide, bolt or handle (gun-body space): the analysis' rack point, put on the drawn
+        /// model's surface once it is measured when that point was only estimated.
+        /// </summary>
+        public Vector3 RackPointGun { get; private set; }
+        private bool _rackSnapped;
         private readonly ArmIK _armIK;
         /// <summary>The weapon's own right and left hands (bones still animated under the hidden arm meshes).</summary>
         private readonly ModHand _gripHand, _supportHand;
@@ -117,9 +124,12 @@ namespace RavenfieldVR.Weapons
             _isKit = IsKit(weapon);
             _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
             ActionType action = rig.Data.Action;
-            if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed))
+            RackPointGun = rig.Data.RackPoint;
+            if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
+                || rig.Data.CarveHandle)
             {
-                // No part of this model moves when the action is worked: give it a handle that does.
+                // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
+                // it a handle that does.
                 try
                 {
                     _boltPiece = BoltPiece.Create(rig);
@@ -512,9 +522,84 @@ namespace RavenfieldVR.Weapons
                 ChooseShape();
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
+            if (!_rackSnapped)
+            {
+                _rackSnapped = true;
+                SnapRackPoint();
+            }
             UpdateSeatedMagSolid();
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
         }
+
+        /// <summary>
+        /// An estimated rack point (from the reload hand, or virtual) can lie inside the receiver or float beside it: it is
+        /// moved straight out from the bore onto the drawn model's surface, where a hand can take it and a handle can be cut
+        /// out or added. A handle cut at the old point is cut again at the new one.
+        /// </summary>
+        private void SnapRackPoint()
+        {
+            WeaponRigData d = Rig.Data;
+            if (!d.RackOnSurface || _volume == null || !_volume.Ready)
+            {
+                return;
+            }
+            Vector3 p = d.RackPoint;
+            Vector3 bore = d.MuzzlePoint + d.AimAxis * Vector3.Dot(p - d.MuzzlePoint, d.AimAxis);
+            Vector3 outward = p - bore;
+            outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : d.Up;
+            bool Inside(Vector3 gun) => _volume.InsideModel(Rig.ToWorld(gun));
+            Vector3 snapped = p;
+            if (Inside(p))
+            {
+                for (float s = 0.002f; s <= 0.08f; s += 0.002f)
+                {
+                    if (!Inside(p + outward * s))
+                    {
+                        snapped = p + outward * s;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for (float s = 0.002f; s <= 0.06f; s += 0.002f)
+                {
+                    if (Inside(p - outward * s))
+                    {
+                        snapped = p - outward * (s - 0.002f);
+                        break;
+                    }
+                }
+            }
+            float moved = Vector3.Distance(snapped, p);
+            if (moved < 0.003f)
+            {
+                return;
+            }
+            RackPointGun = snapped;
+            Log.InfoOnce("racksnap:" + d.Key, $"{d.Key}: rack point put on the model's surface ({moved * 100f:0.0} cm {(Inside(p) ? "out of the receiver" : "onto the receiver")}).");
+            if (_boltPiece != null && moved > 0.01f)
+            {
+                _boltPiece.Destroy();
+                try
+                {
+                    _boltPiece = BoltPiece.Create(Rig, RackPointGun);
+                }
+                catch (System.Exception e)
+                {
+                    _boltPiece = null;
+                    Log.WarnOnce("boltpiece2:" + d.Key, $"Could not build a moving handle for {d.Key}: {e.Message}");
+                }
+            }
+        }
+
+        /// <summary>Self-test: what the hand sees move when it works the action.</summary>
+        internal string VisibleHandle =>
+            Rig.Handle != null ? "the charging handle"
+            : _boltPiece != null && _boltPiece.Carved ? "a piece cut out of the receiver" + (Rig.Slide != null ? " (and the carrier inside)" : "")
+            : _boltPiece != null ? "an added handle" + (Rig.Slide != null ? " (and the carrier inside)" : "")
+            : Rig.Slide != null ? "the slide / bolt"
+            : "NOTHING VISIBLE";
 
         /// <summary>Self-test: how long choosing the physics shape took on the main thread (-1 when no choice was made).</summary>
         internal float ShapeChoiceMs { get; private set; } = -1f;
@@ -874,7 +959,7 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.ToWorld(d.GripPoint),
                 Rig.ToWorld(d.SupportPoint),
-                ActiveRig.ToWorld(a.RackPoint + a.SlideTravel.normalized * SlideOffset),
+                ActiveRig.ToWorld((ReferenceEquals(ActiveRig, Rig) ? RackPointGun : a.RackPoint) + a.SlideTravel.normalized * SlideOffset),
                 ActiveRig.ToWorld(a.MagSeat.position),
                 d.HasEyePoint ? Rig.ToWorld(d.EyePoint) : Rig.ToWorld(d.MuzzlePoint)
             };

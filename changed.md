@@ -186,3 +186,33 @@ Check at home: those pictures (no sky-coloured frame), and in the headset the lo
 
 Check at home: `ravenfield.exe -vr -rfvr-menutest` and read the report; in the headset, a still menu that keeps up while
 picking a map.
+
+## Task 105: bolts that do not move, rack point inside the gun
+
+`src/Weapons/WeaponAnalyzer.cs` (`RackStrokeFromHands`, `FinishVirtualParts`), `src/Weapons/WeaponRig.cs`
+(`RackOnSurface`, `CarveHandle`), `src/Weapons/HeldWeapon.cs` (`RackPointGun`, `SnapRackPoint`, `VisibleHandle`),
+`src/Weapons/BoltPiece.cs`, `src/Weapons/ReloadInteractions.cs`, `src/Core/AutoTest.cs`.
+
+- Where the weapon's own reload animation racks (a hand near the receiver moving straight back) is now looked for on
+  every animated self-loading or manual weapon, not only on those with no moving part. On a rifle whose part that moves
+  when firing is a carrier inside the receiver (its rack point more than 3 cm from where the reload hand takes hold, no
+  separate charging handle) the hand now takes the handle where the reload hand does. If that spot is not on the moving
+  part, the handle there is baked into the receiver's mesh: it is cut out (as for weapons with no moving part) and moves
+  back with the pull, together with the carrier inside. Pistol slides and separate charging handles are unchanged.
+- Estimated rack points (from the reload hand, or the virtual one above the grip on the 72 weapons with no moving part)
+  are put on the drawn model's surface once it is measured: moved straight out from the bore until they leave the
+  model (out of the receiver), or in until they meet it (onto the receiver). An added or cut handle follows the new
+  point. The log says `rack point put on the model's surface (...)`.
+- Autotest: rack grips are now checked on up to 4 rifles, 3 pistols and 3 pump / bolt guns (before: the first 8
+  pictured weapons, all rifles), and report what moves with the hand (`the charging handle`, `the slide / bolt`,
+  `a piece cut out of the receiver (and the carrier inside)`, `an added handle`, or `NOTHING VISIBLE`, which counts as
+  a problem), with the metric `rack grip: something visible moves with the pull (0/1)`.
+
+Check at home: the rack-grip pictures (`rack-grip-*`, `rack-grip-pulled-*`) of the JOLT-20 S, M4s and AKs, a pistol and
+a pump; in the headset, whether the bolt handle is where you reach for it and moves back.
+
+## Task 106: pouch magazines (implemented in the last session, check added)
+
+The placement fix from 2026-10-13 is unchanged (it now applies at the new pouch spot of the Boneworks layout too). The
+autotest now also takes a magazine from the pouch with the first pistol (`pouch: ...` line for a pistol and for a
+rifle), as the task's check asks.

@@ -33,19 +33,23 @@ namespace RavenfieldVR.Weapons
         private readonly List<Piece> _pieces = new List<Piece>();
         public bool Carved { get; private set; }
 
-        public static BoltPiece Create(WeaponRig rig)
+        public static BoltPiece Create(WeaponRig rig) => Create(rig, rig.Data.RackPoint);
+
+        /// <param name="rackGun">Where the handle is (gun-body space).</param>
+        public static BoltPiece Create(WeaponRig rig, Vector3 rackGun)
         {
             var piece = new BoltPiece();
             WeaponRigData d = rig.Data;
             float radius = d.IsPistol ? 0.022f : 0.03f;
-            Vector3 rackWorld = rig.ToWorld(d.RackPoint);
+            Vector3 rackWorld = rig.ToWorld(rackGun);
             var skip = new HashSet<Renderer>(rig.ArmRenderers);
             foreach (MeshFilter mf in rig.Weapon.GetComponentsInChildren<MeshFilter>(false))
             {
                 MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                if (mf.sharedMesh == null || mr == null || !mr.enabled || skip.Contains(mr) || IsMagazine(rig, mf.transform))
+                if (mf.sharedMesh == null || mr == null || !mr.enabled || skip.Contains(mr) || IsMagazine(rig, mf.transform)
+                    || rig.Slide != null && mf.transform.IsChildOf(rig.Slide) || rig.Handle != null && mf.transform.IsChildOf(rig.Handle))
                 {
-                    continue;
+                    continue; // the parts that move by themselves already (a carrier inside, a handle) are not cut again
                 }
                 if (!mf.sharedMesh.isReadable)
                 {
@@ -87,7 +91,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!piece.Carved)
             {
-                piece.AddKnob(rig, rackWorld);
+                piece.AddKnob(rig, rackGun);
             }
             return piece;
         }
@@ -197,7 +201,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A small handle in the gun's own material, standing off the receiver at the rack point.</summary>
-        private void AddKnob(WeaponRig rig, Vector3 rackWorld)
+        private void AddKnob(WeaponRig rig, Vector3 rackGun)
         {
             WeaponRigData d = rig.Data;
             Material mat = null;
@@ -218,9 +222,9 @@ namespace RavenfieldVR.Weapons
             var go = new GameObject("RavenfieldVR Bolt Handle");
             go.transform.SetParent(rig.GunBody, false);
             // Out from the bore toward the side the hand reaches from.
-            Vector3 fromBore = Vector3.ProjectOnPlane(d.RackPoint - d.MuzzlePoint, d.AimAxis);
+            Vector3 fromBore = Vector3.ProjectOnPlane(rackGun - d.MuzzlePoint, d.AimAxis);
             Vector3 outward = fromBore.sqrMagnitude > 1e-6f ? fromBore.normalized : d.Up;
-            _knobBase = d.RackPoint + outward * 0.004f;
+            _knobBase = rackGun + outward * 0.004f;
             _knobRotation = Quaternion.LookRotation(d.AimAxis, outward);
             go.AddComponent<MeshFilter>().sharedMesh = KnobMesh(d.IsPistol);
             MeshRenderer mr = go.AddComponent<MeshRenderer>();

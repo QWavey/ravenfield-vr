@@ -447,9 +447,9 @@ namespace RavenfieldVR.Weapons
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
-                if (d.SlidePath == null && d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
+                if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
                 {
-                    RackStrokeFromHands(d, handR, handL, sampler, index);
+                    RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
                 }
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
@@ -842,11 +842,13 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// The bolt is baked into the receiver, but the mod's reload still shows a hand racking it: a stretch of the
-        /// reload where a hand near the receiver moves straight back along the bore. Its start is the handle, its
-        /// length the travel.
+        /// Where the mod's own reload racks: a stretch of the reload where a hand near the receiver moves straight back along
+        /// the bore. Its start is the handle, its length the travel. Used when the bolt is baked into the receiver (no part
+        /// moves), and when the part that moves when firing is a carrier inside the receiver: the hand then has to take the
+        /// handle where the reload hand takes it, not reach into the gun.
         /// </summary>
-        private static void RackStrokeFromHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, Dictionary<Transform, int> index)
+        private static void RackStrokeFromHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, Dictionary<Transform, int> index,
+            Transform root, RigidPose gunIdle)
         {
             float bestLen = 0f;
             Vector3 bestStart = Vector3.zero;
@@ -902,7 +904,26 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (d.SlidePath != null)
+            {
+                // A moving part was found. A separate charging handle, or a pistol's slide, is where the hand takes it.
+                if (d.HandlePath != null || d.IsPistol || Vector3.Distance(bestStart, d.RackPoint) < 0.03f)
+                {
+                    return;
+                }
+                // The rack point sits on the part that moves when firing; the reload hand takes hold somewhere else: the
+                // part is a carrier inside the receiver, the handle you see is elsewhere (beside or above it).
+                Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+                Bounds sb = slide != null ? sampler.GunSpaceBounds(slide, gunIdle) : new Bounds();
+                bool onPart = sb.size.sqrMagnitude > 1e-6f && sb.SqrDistance(bestStart) < 0.015f * 0.015f;
+                d.RackPoint = bestStart;
+                d.RackOnSurface = true;
+                d.CarveHandle = !onPart;
+                d.SlideMethod += onPart ? " (taken where the reload hand takes it)" : " (inside the receiver: the handle the reload hand takes is cut out and moves)";
+                return;
+            }
             d.RackFromHand = true;
+            d.RackOnSurface = true;
             d.RackPoint = bestStart;
             // A hand keeps moving a little after the bolt stops: cap at real bolt travel.
             d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.IsPistol ? 0.02f : 0.03f, d.IsPistol ? 0.045f : 0.11f);
@@ -2102,10 +2123,12 @@ namespace RavenfieldVR.Weapons
         {
             if (d.SlidePath == null && !d.RackFromHand)
             {
-                d.RackPoint = d.Action == ActionType.Manual && d.HasSupportPoint && !d.IsPistol
+                bool pump = d.Action == ActionType.Manual && d.HasSupportPoint && !d.IsPistol;
+                d.RackPoint = pump
                     ? d.SupportPoint
                     : d.GripPoint + d.Up * (d.IsPistol ? 0.07f : 0.08f) + d.AimAxis * (d.IsPistol ? -0.02f : 0.03f);
                 d.SlideTravel = -d.AimAxis * (d.IsPistol ? 0.035f : 0.07f);
+                d.RackOnSurface = !pump; // an estimate above the grip: put on top of the receiver once the model is measured
             }
             if (d.MagazinePath == null)
             {

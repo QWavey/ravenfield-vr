@@ -1106,7 +1106,10 @@ namespace RavenfieldVR.Weapons
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
         /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
-        private Vector3 RackPointWorld => Rig.ToWorld(Data.RackPoint + StrokeDir * (StrokeLength * Fraction));
+        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * Fraction));
+
+        /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
+        private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
 
         /// <summary>
         /// Distance to the part you rack: a slide can be taken anywhere along its rear half, a bolt or handle around
@@ -1844,7 +1847,9 @@ namespace RavenfieldVR.Weapons
                 Core.AutoTest.Metric("rack grip: points inside the part", restBuried);
                 Core.AutoTest.Metric("rack grip: fingers on the part (of 4)", restTouching);
                 Core.AutoTest.Metric("rack grip pulled half way: points inside the part", pulledBuried);
-                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}): {atRest}; pulled half way: {pulled}");
+                string moves = _held.VisibleHandle;
+                Core.AutoTest.Metric("rack grip: something visible moves with the pull (0/1)", moves.StartsWith("NOTHING", System.StringComparison.Ordinal) ? 0 : 1);
+                report($"rack grip ({(IsPump ? "pump" : HandleStroke ? "charging handle" : "slide/bolt")}, {Data.SlideMethod}): {atRest}; pulled half way: {pulled}; moving with the hand: {moves}");
             }
             finally
             {

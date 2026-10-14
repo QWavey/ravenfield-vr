@@ -863,7 +863,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = Mathf.Max(1, entries.Count / 28);
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackChecks = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -879,8 +879,8 @@ namespace RavenfieldVR.Core
                 Results.Add($"Quick run: {entries.Count} weapons");
                 every = Mathf.Max(1, entries.Count / 28);
             }
-            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0;
-            bool tacticalDone = false, dropDone = false;
+            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 index++;
@@ -960,7 +960,8 @@ namespace RavenfieldVR.Core
                                     || action == ActionType.Melee && meleeShots++ < 4
                                     || action == ActionType.Throwable && throwShots++ < 3
                                     || held.Rig.Data.IsPistol && action == ActionType.SelfLoading && pistolShots++ < 4
-                                    || action == ActionType.SingleShot && launcherShots++ < 8;
+                                    || action == ActionType.SingleShot && launcherShots++ < 8
+                                    || action == ActionType.Manual && manualShots++ < 3; // pump and bolt guns: their rack grip too
                         if (want)
                         {
                             yield return new WaitForEndOfFrame();
@@ -991,7 +992,9 @@ namespace RavenfieldVR.Core
                                 continue;
                             }
                         }
-                        if (want && (action == ActionType.SelfLoading || action == ActionType.Manual) && rackChecks++ < 8)
+                        // Rack grips on rifles, pistols and pump / bolt guns (a few of each), not only the first rifles.
+                        if (want && (action == ActionType.Manual ? rackManual++ < 3
+                                : action == ActionType.SelfLoading && (held.Rig.Data.IsPistol ? rackPistols++ < 3 : rackRifles++ < 4)))
                         {
                             int rackIndex = index;
                             yield return held.Reload.RackGripSelfCheck(lines.Add, name =>
@@ -1023,6 +1026,12 @@ namespace RavenfieldVR.Core
                                 Shots.Capture(name);
                                 MagHandCloseups(name, lines.Add);
                             });
+                        }
+                        if (!pistolPouchDone && held.Rig.Data.IsPistol && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                        {
+                            // A pistol's magazine from the pouch too (pistol magazines were shown low and hard to take).
+                            pistolPouchDone = true;
+                            yield return PouchThrowCheck(lines.Add);
                         }
                         if (!dropDone && tacticalDone && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol)
                         {
