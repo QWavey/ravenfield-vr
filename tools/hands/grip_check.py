@@ -379,9 +379,11 @@ def report(name, hand, push, obj):
     names = "TIMRL"
     gaps = " ".join(f"{names[f]}{tips[f] * 1000:+.0f}" for f in range(5))
     index = float(np.mean(hand.joint[1]))
-    print(f"{name:34s} glove moved {abs(push) * 100:4.1f} cm | touching: thumb {'yes' if touching[0] else 'no '}, fingers {fingers}/4 "
+    # The palm's skin to the object (its nearest point; negative inside): a palm floating off what it holds shows here.
+    palm_gap = min(obj.distance(hand.world(p)) for p in hand.g.palm_skin)
+    print(f"{name:34s} glove moved {abs(push) * 100:4.1f} cm | palm gap {palm_gap * 1000:+3.0f} mm | touching: thumb {'yes' if touching[0] else 'no '}, fingers {fingers}/4 "
           f"| buried {buried}/{samples} | index curl {index:.2f} | pinky curl {pinky:.2f} | tip gaps mm {gaps}")
-    return dict(push=push, buried=buried, samples=samples, fingers=fingers, thumb=touching[0], tips=tips)
+    return dict(push=push, buried=buried, samples=samples, fingers=fingers, thumb=touching[0], tips=tips, palm_gap=palm_gap)
 
 
 # ---- pictures -----------------------------------------------------------------------------------------------------
@@ -653,11 +655,75 @@ def pistol_goals(pose_curls):
     return g
 
 
+# ---- racking a pistol's slide ------------------------------------------------------------------------------------
+# Gun frame: +Z muzzle, +Y up, +X right. A Glock-sized slide; the rack point as WeaponAnalyzer puts it (on the slide's
+# centre line, 60% of its half length back from the middle).
+SLIDE = Box(np.zeros(3), np.array([0.0, 0.0, 0.0, 1.0]), [0.0128, 0.014, 0.093])
+RACK_POINT = np.array([0.0, 0.0, -0.093 * 0.6])
+SLIDE_GRIPS = {
+    # name: fingers, thumb (palm frame +Z, +Y in gun space)
+    "slide overhand": ([-1.0, -0.5, 0.0], [0.0, 0.0, -1.0]),   # palm on top, fingers down the far side
+    "slide side": ([0.0, 1.0, 0.0], [0.0, 0.0, -1.0]),         # palm on its side, fingers up and over
+    "slide side pinch": ([0.0, 0.4, 1.0], [0.0, 1.0, -0.3]),   # beside it, fingers forward
+    "slide slingshot": ([1.0, 0.3, 0.0], [0.0, 1.0, 0.0]),     # behind it, palm toward the muzzle
+}
+
+
+def pinch_point(glove):
+    """HandModel.PinchFromShape: between the thumb (0.45, its rest base) and index (0.55) tips, scaled root frame."""
+    h = Hand(glove, np.zeros(3), np.array([0.0, 0.0, 0.0, 1.0]), 0.0)
+    t, _ = h.chain(0, [0.45] * 3)
+    i, _ = h.chain(1, [0.55] * 3)
+    return (t[3] + i[3]) * 0.5
+
+
+def palm_on_part(solid, rack, normal):
+    """ReloadInteractions.PalmOnPart: along the palm's normal through the rack point, the grown solid's near surface."""
+    step = 0.002
+    inside = None
+    for i in range(51):
+        if solid(rack + normal * (i * step)):
+            inside = i * step
+            break
+        if i > 0 and solid(rack - normal * (i * step)):
+            inside = -i * step
+            break
+    if inside is None:
+        return None
+    t = inside
+    while t >= inside - 0.12:
+        if not solid(rack + normal * t):
+            return rack + normal * t
+        t -= step
+    return None
+
+
+def slide_hold(glove, fingers, thumb, before=False):
+    """ReloadInteractions.BeginRack/UpdateGraspAnchor on a pistol slide: the palm on it when the palm faces it across,
+    else the thumb-index pinch on the rack point; the hand closes with the PistolSlide pose (a palm grip's thumb to 0.9)."""
+    rot = look_rotation(np.asarray(fingers, float), np.asarray(thumb, float))
+    normal = qrot(rot, [-1.0, 0, 0])
+    tracked = RACK_POINT - normal * 0.02 + np.array([0.0, 0.01, 0.0])  # the controller's grip point, near the slide
+    palm = not before and abs(normal[2]) < 0.6 and np.dot(normal, RACK_POINT - tracked) > -0.01
+    grown = lambda q: SLIDE.inside(q, GROW)
+    on = palm_on_part(grown, RACK_POINT, normal) if palm else None
+    if on is not None:
+        grasp = (FIST_HOLLOW.copy(), on)
+    else:
+        grasp = (pinch_point(glove), RACK_POINT)
+    thumb_base, curls = POSES["PistolSlide"]
+    goals = goals_for(curls, magazine=False)
+    if on is not None:
+        goals[0] = max(goals[0], 0.9)
+    return hold(glove, SLIDE, tracked, rot, goals, thumb_base, grasp=grasp), ("palm" if on is not None else "pinch")
+
+
 POSES = {
     # From HandPoses.cs (thumb base, curls).
     "RifleMagazine": (0.3, [0.55, 0.7, 0.75, 0.78, 0.8]),
     "PistolMagazine": (0.5, [0.6, 0.18, 0.75, 0.8, 0.82]),
     "BoxMagazine": (0.35, [0.35, 0.5, 0.55, 0.58, 0.6]),
+    "PistolSlide": (0.5, [0.45, 0.65, 0.7, 0.7, 0.7]),
 }
 
 
@@ -755,6 +821,15 @@ def main():
         hand = 0.03 + GROW  # the gun hand's fingers and palm round the grip
         in_mag = a[0] <= 0.022 / 2 - GROW and a[2] <= 0.032 / 2 - GROW
         return not in_mag and a[0] <= 0.022 / 2 + wall + hand and a[2] <= 0.032 / 2 + wall + hand
+
+    def slide(name):
+        fingers, thumb = SLIDE_GRIPS[name]
+        (hand, push), how = slide_hold(glove, fingers, thumb, before="--before" in sys.argv)
+        picture(name + " (" + how + ")", hand, SLIDE)
+        return report(name + " (" + how + ")", hand, push, SLIDE)
+
+    for grip in SLIDE_GRIPS:
+        run(grip, lambda grip=grip: slide(grip))
 
     run("seating rifle magazine", lambda: seating("seating rifle magazine", "RifleMagazine", 0.064, 0.023, 0.18, 0.081, rifle_well))
     run("seating pistol magazine", lambda: seating("seating pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.054, pistol_grip))

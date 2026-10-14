@@ -1542,3 +1542,26 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
   are fixed: "thumb side" showed the back of the hand, "back of hand" showed the palm, and "from the fingers" was
   mirrored.
 - Kept.
+
+### Round 5 (correctness): racking a pistol, the palm goes on the slide (`src/Weapons/ReloadInteractions.cs`, `src/Rig/HandModel.cs`)
+
+- Before: racking always pulled the glove so that the point between the thumb and index tips landed on the rack
+  point, which is on the slide's centre line. Taken over the top or from the side, that held the palm about 3 cm off
+  the slide, with only the fingertips reaching it. A slide grabbed from beside it was touched by two fingers.
+- After: the grip is chosen when the stroke starts and kept for the whole stroke.
+  - **Palm grip** when the palm faces the slide across it (not along the bore). The glove's palm settles on the
+    slide's measured surface on the line through the rack point along the palm's normal (`PalmOnPart`), the fingers
+    close round it, and the thumb closes up to 0.9 (it stopped 13 mm off at 0.55).
+  - **Pinch** otherwise (a slingshot from behind the slide), as before.
+  - Pumps, bolts and charging handles are unchanged.
+- Measured (grip_check.py, a Glock-sized slide; the report gains a palm-gap column):
+
+  | grip | palm gap | fingers on the slide |
+  |---|---|---|
+  | overhand | 29 → **2 mm** | 4/4 → 4/4 |
+  | side | 29 → **1 mm** | 3/4 → **4/4** |
+  | beside it, fingers forward | 27 → **2 mm** | 2/4 → **4/4** |
+  | slingshot (pinch both times) | 1 mm | 2/4 (the other fingers curl in, as in a real slingshot) |
+
+  Nothing buried in any of them.
+- Kept.

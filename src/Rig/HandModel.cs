@@ -1042,8 +1042,11 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
-                    // A magazine's thumb closes on round it too (it stopped half way, short of a slim magazine).
-                    Minimum(_hand.Role == HandRole.Magazine ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
+                    // A magazine's thumb closes on round it too (it stopped half way, short of a slim magazine), and so does
+                    // the thumb of a hand with its palm on a slide (it stopped 13 mm off; grip_check.py).
+                    bool wraps = _hand.Role == HandRole.Magazine
+                                 || _hand.Role == HandRole.Slide && WorkedPart == WorkedPart.Slide && GraspAnchor.HasValue && !GraspPinch;
+                    Minimum(wraps ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
                 }
                 IndexAlongPistolMagazine(p);
                 return _goal;

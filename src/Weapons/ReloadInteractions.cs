@@ -22,6 +22,8 @@ namespace RavenfieldVR.Weapons
         private readonly HeldWeapon _held;
 
         private bool _racking;
+        /// <summary>This stroke's slide is held with the palm on it (else pinched).</summary>
+        private bool _rackPalm;
         /// <summary>Where along the stroke the hand was last frame (for the tug the pull gives the gun).</summary>
         private float _tugStroke;
         private Vector3 _rackStartGun;
@@ -1223,6 +1225,11 @@ namespace RavenfieldVR.Weapons
             _racking = true;
             _returning = false;
             _rackStartGun = Rig.ToGun(off.Palm.position);
+            // How the hand takes a pistol's slide, for the whole stroke: the palm on it (over the top or on its side, the
+            // fingers round it) when the palm faces the slide across it, else pinched (a slingshot from behind).
+            Vector3 palmNormal = off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f);
+            _rackPalm = Data.IsPistol && !HandleStroke && !IsPump && Mathf.Abs(Vector3.Dot(palmNormal, Rig.AimWorld)) < 0.6f
+                        && Vector3.Dot(palmNormal, RackPointWorld - off.Palm.position) > -0.01f;
             _rackBase = Ammo.SlideLocked ? 1f : Fraction;
             _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && Fraction >= 0.8f;
             _lastTick = _rackBase * StrokeLength;
@@ -1447,8 +1454,11 @@ namespace RavenfieldVR.Weapons
                     case HandRole.Slide:
                         if (_racking)
                         {
-                            anchor = IsPump ? HandguardPoint(off.Palm.position) : RackPointWorld;
-                            pinch = !IsPump;
+                            Vector3? palmOn = _rackPalm && off.Model.Solid != null
+                                ? PalmOnPart(off.Model.Solid, RackPointWorld, off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f))
+                                : null;
+                            anchor = IsPump ? HandguardPoint(off.Palm.position) : palmOn ?? RackPointWorld;
+                            pinch = !IsPump && !palmOn.HasValue;
                         }
                         break;
                     case HandRole.Hinge:
@@ -1481,6 +1491,42 @@ namespace RavenfieldVR.Weapons
             }
             off.Model.GraspAnchor = anchor;
             off.Model.GraspPinch = pinch;
+        }
+
+        /// <summary>
+        /// Where the palm lies on the part for a palm grip: on the line through the rack point along the palm's normal
+        /// (<paramref name="normal"/>, out of the palm), the part's surface on the palm's side (its measured solid, grown by
+        /// a finger's thickness, so the palm's skin rests on it). The pinch put the point between thumb and index there,
+        /// which held the palm 3 cm off a slide taken over the top, only the fingertips on it (tools/hands/grip_check.py).
+        /// Null when the line misses the part.
+        /// </summary>
+        private static Vector3? PalmOnPart(System.Func<Vector3, bool> solid, Vector3 rack, Vector3 normal)
+        {
+            const float Step = 0.002f;
+            float inside = float.NaN;
+            for (int i = 0; i <= 50 && float.IsNaN(inside); i++)
+            {
+                if (solid(rack + normal * (i * Step)))
+                {
+                    inside = i * Step;
+                }
+                else if (i > 0 && solid(rack - normal * (i * Step)))
+                {
+                    inside = -i * Step;
+                }
+            }
+            if (float.IsNaN(inside))
+            {
+                return null;
+            }
+            for (float t = inside; t >= inside - 0.12f; t -= Step)
+            {
+                if (!solid(rack + normal * t))
+                {
+                    return rack + normal * t;
+                }
+            }
+            return null;
         }
 
         private System.Func<Vector3, bool> _keepOutGun, _keepOutBlocked;
