@@ -50,7 +50,7 @@ namespace RavenfieldVR.Weapons
         /// The next round is chambered without the hand after a shot: a self-loading action, or any action with assisted
         /// reloading (the game's own fire animation works a bolt or pump then; nothing racks it by hand).
         /// </summary>
-        public bool CyclesItself => SelfLoading || VRConfig.Reload.Value != ReloadMode.Manual;
+        public bool CyclesItself => SelfLoading || VRConfig.ReloadNow != ReloadMode.Manual;
         public bool HasCover => Rig.Hinge == HingeKind.FeedCover;
         /// <summary>Rounds can reach the chamber: a magazine is seated (or internal) and, on a belt-fed gun, the belt is laid.</summary>
         public bool FeedReady => (MagInserted || !UsesDetachableMag) && (!HasCover || BeltLaid && !CoverOpen);

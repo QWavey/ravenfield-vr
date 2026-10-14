@@ -87,7 +87,7 @@ namespace RavenfieldVR.Weapons
     {
         private static void Postfix(Weapon __instance, ref bool __result)
         {
-            if (!__result || !WeaponHooks.PlayerWeaponInVR(__instance) || VRConfig.Reload.Value != ReloadMode.Manual)
+            if (!__result || !WeaponHooks.PlayerWeaponInVR(__instance) || VRConfig.ReloadNow != ReloadMode.Manual)
             {
                 return;
             }
@@ -117,7 +117,7 @@ namespace RavenfieldVR.Weapons
     {
         private static bool Prefix(Weapon __instance)
         {
-            if (!WeaponHooks.PlayerWeaponInVR(__instance) || WeaponHooks.AllowGameReload || VRConfig.Reload.Value != ReloadMode.Manual)
+            if (!WeaponHooks.PlayerWeaponInVR(__instance) || WeaponHooks.AllowGameReload || VRConfig.ReloadNow != ReloadMode.Manual)
             {
                 return true;
             }

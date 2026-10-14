@@ -149,6 +149,10 @@ namespace RavenfieldVR.UI
                 {
                     continue;
                 }
+                if (LoadingView.Active && LoadingView.IsLoadingScene(c.gameObject.scene))
+                {
+                    continue; // the loading view draws it into its picture (it looks for new ones four times a second)
+                }
                 if (c.renderMode == RenderMode.WorldSpace)
                 {
                     continue; // already in the world (game nameplates etc.)

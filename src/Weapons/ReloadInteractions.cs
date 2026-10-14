@@ -63,7 +63,7 @@ namespace RavenfieldVR.Weapons
         private WeaponRig GripRig => _held.Rig;
         private WeaponRigData GripData => _held.Rig.Data;
 
-        private bool Manual => VRConfig.Reload.Value == ReloadMode.Manual && Ammo != null && Ammo.Participates;
+        private bool Manual => VRConfig.ReloadNow == ReloadMode.Manual && Ammo != null && Ammo.Participates;
         /// <summary>Break-action or revolver: opens to load, no slide.</summary>
         private bool Breaks => Data.Action == ActionType.BreakOpen;
         private float Travel => Mathf.Max(0.005f, Data.SlideTravel.magnitude);
@@ -76,7 +76,7 @@ namespace RavenfieldVR.Weapons
 
             if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !Manual)
             {
-                Log.InfoOnce("magrel-off:" + Data.Key, $"Magazine release on {Data.Key}: manual reloading is not active for it (mode {VRConfig.Reload.Value}, action {Data.Action}).");
+                Log.InfoOnce("magrel-off:" + Data.Key, $"Magazine release on {Data.Key}: manual reloading is not active for it (mode {VRConfig.ReloadNow}, action {Data.Action}).");
             }
             if (Manual)
             {

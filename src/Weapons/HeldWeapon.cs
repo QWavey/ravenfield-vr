@@ -224,7 +224,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Parts a sight mode moves (a flip magnifier), kept where the selected mode puts them, aimed or not.</summary>
         private Transform[] _sightParts;
         private RigidPose[] _sightPartsRest;
-        private float _sightMode = -1f;
+        /// <summary>The mode the parts swing to, how far the swing is (0..1), where each part started it and where it is drawn now (gun space).</summary>
+        private int _sightTarget = -1;
+        private float _sightSwing = 1f;
+        private RigidPose[] _sightFrom, _sightNow;
 
         private void ApplySightParts()
         {
@@ -237,6 +240,8 @@ namespace RavenfieldVR.Weapons
             {
                 _sightParts = new Transform[poses.Length];
                 _sightPartsRest = new RigidPose[poses.Length];
+                _sightFrom = new RigidPose[poses.Length];
+                _sightNow = new RigidPose[poses.Length];
                 for (int p = 0; p < poses.Length; p++)
                 {
                     _sightParts[p] = WeaponRig.Resolve(Weapon.transform, Rig.Data.SightPartPaths[p]);
@@ -248,10 +253,25 @@ namespace RavenfieldVR.Weapons
             }
             int modes = poses[0].Length;
             int target = Mathf.Clamp(Weapon.GetSightModeIndex(), 0, modes - 1);
-            // Swung over in about a sixth of a second, as a hand flips it.
-            _sightMode = _sightMode < 0f ? target : Mathf.MoveTowards(_sightMode, target, Time.unscaledDeltaTime * 6f);
-            int a = Mathf.Clamp(Mathf.FloorToInt(_sightMode), 0, modes - 1), b = Mathf.Min(a + 1, modes - 1);
-            float u = _sightMode - a;
+            if (_sightTarget < 0)
+            {
+                _sightTarget = target;
+                _sightSwing = 1f;
+            }
+            else if (target != _sightTarget)
+            {
+                // Swung straight from where each part is drawn now (even mid-swing) to the new mode's place: stepping
+                // through the modes in between swung a three-mode sight through its middle mode on the way back to the first.
+                for (int p = 0; p < _sightParts.Length; p++)
+                {
+                    _sightFrom[p] = _sightNow[p];
+                }
+                _sightTarget = target;
+                _sightSwing = 0f;
+            }
+            // Over about a sixth of a second, as a hand flips it, easing in and out (it started and stopped at full speed).
+            _sightSwing = Mathf.MoveTowards(_sightSwing, 1f, Time.unscaledDeltaTime * 6f);
+            float e = _sightSwing * _sightSwing * (3f - 2f * _sightSwing);
             RigidPose gun = Rig.GunBodyPose;
             for (int p = 0; p < _sightParts.Length; p++)
             {
@@ -260,8 +280,10 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                RigidPose pa = poses[p][a], pb = poses[p][b];
-                var local = new RigidPose(Vector3.Lerp(pa.position, pb.position, u), Quaternion.Slerp(pa.rotation, pb.rotation, u));
+                RigidPose to = poses[p][_sightTarget];
+                RigidPose local = e >= 1f ? to
+                    : new RigidPose(Vector3.Lerp(_sightFrom[p].position, to.position, e), Quaternion.Slerp(_sightFrom[p].rotation, to.rotation, e));
+                _sightNow[p] = local;
                 gun.Multiply(local).ApplyTo(t);
             }
         }

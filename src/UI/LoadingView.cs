@@ -30,6 +30,12 @@ namespace RavenfieldVR.UI
         /// <summary>The world is blacked out and only the loading screen is drawn.</summary>
         public static bool Active { get; private set; }
 
+        /// <summary>The game's loading scene (its canvases belong to the loading view while it runs).</summary>
+        public static bool IsLoadingScene(Scene scene) => scene.buildIndex == LoadingSceneIndex;
+
+        /// <summary>Self-test: searches for the loading scene's cameras and canvases since start.</summary>
+        internal static int Captures { get; private set; }
+
         private readonly VRRig _rig;
         private readonly Camera _uiCamera;
         private readonly List<Camera> _captured = new List<Camera>();
@@ -44,6 +50,8 @@ namespace RavenfieldVR.UI
         /// <summary>When the view ends: a moment after the fade to black has started, so the switch to the map is not seen.</summary>
         private float _endAt = -1f;
         private int _sceneHandle = -1;
+        /// <summary>When the loading scene's cameras and canvases are looked for again (each search makes two new arrays).</summary>
+        private float _nextCapture;
 
         public LoadingView(VRRig rig, Camera uiCamera, CanvasManager canvases)
         {
@@ -67,8 +75,16 @@ namespace RavenfieldVR.UI
                 {
                     _sceneHandle = scene.handle;
                     _canvases.Clear();
+                    _nextCapture = 0f;
                 }
-                Capture(scene);
+                // Four times a second, not every frame: the canvas manager leaves this scene's canvases alone while the
+                // loading view runs, so a canvas that appears in between is not taken from it.
+                if (now >= _nextCapture)
+                {
+                    _nextCapture = now + 0.25f;
+                    Capture(scene);
+                    Captures++;
+                }
                 _levelSince = -1f;
                 _readySince = -1f;
                 _endAt = -1f; // loading again before a pending end came: stay
@@ -143,6 +159,7 @@ namespace RavenfieldVR.UI
             Active = true;
             _placed = false;
             _endAt = -1f;
+            _nextCapture = 0f;
             _rig.FadeCut(); // the loading screen comes up out of black instead of popping in
             if (_texture == null)
             {

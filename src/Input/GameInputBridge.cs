@@ -168,7 +168,7 @@ namespace RavenfieldVR.Input
                     Set(KeyBinds.FireMode, true);
                 }
             }
-            if (VRConfig.Reload.Value == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
+            if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.Dominant))
             {
                 Set(KeyBinds.Reload, true);
             }

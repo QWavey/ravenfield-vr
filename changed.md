@@ -752,3 +752,47 @@ shared pool of 8. A separate pool of 6 for the tinks cut the tinks about **once 
   The dark room gives way to the map 0.06 s later, while it is black, and the view fades back up (VRRig.FadeCut:
   0.05 s down, 0.25 s up). **0 hard cuts.** A new load starting before a pending end cancels the end.
 - Kept.
+
+### Round 4 (performance while loading): the loading scene is searched four times a second (`src/UI/LoadingView.cs`, `src/UI/CanvasManager.cs`)
+
+- Before: every frame of a map load searched all canvases (`FindObjectsOfType`) and all cameras
+  (`Camera.allCameras`), each a new array: **180 arrays a second** at 90 Hz, for the whole load.
+- After: four times a second, so **8 a second**. To make that safe, the canvas manager now leaves the loading scene's
+  canvases alone while the loading view runs. A canvas appearing between two searches can no longer be taken from it.
+  A camera appearing in between draws nothing in the headset meanwhile (the camera suppressor covers screen cameras).
+- Kept.
+
+### Round 5 (smoothness): flip magnifiers and sight parts swing eased and straight (`src/Weapons/HeldWeapon.cs`)
+
+- Before: the parts stepped through the modes at a constant rate. They started and stopped at full speed, and a
+  three-mode sight going back from the last mode to the first swung through the middle mode's place.
+- After: each swing goes straight from where the part is drawn now (mid-swing too) to the new mode's place, eased in
+  and out over a sixth of a second.
+- Measured with the two formulas (3 modes, 90 Hz, last mode back to the first):
+
+  | | Before | After |
+  | --- | --- | --- |
+  | Frames | 31 | 16 |
+  | Furthest off the straight path (fraction of the move) | 1.00 | 0.00 |
+  | Speed in the first frame (moves a second) | 8.5 | 1.1 |
+  | Speed in the last frame (moves a second) | 8.5 | 0 |
+- Kept.
+
+### Round 6 (test coverage): a self-test check that the case and belt meshes face out (`src/Weapons/Casings.cs`, `src/Weapons/BeltStrip.cs`, `src/Weapons/WeaponSelfTest.cs`)
+
+- Before: nothing checked the bug hunt's first Major fix (inside-out cases). Checks covering it: 0.
+- After: the flat self-test's report has a line `case and belt round meshes ... N/N side faces drawn from outside`,
+  or `(INSIDE OUT)`. It counts the side faces of every case, round and shell mesh (and the belt round) whose winding
+  faces away from the axis. The same rule in Python on the same profiles gives **400/400 with the fixed winding and
+  0/400 with the old one**, so the check tells them apart. It needs no headset.
+- Kept.
+
+### Round 7 (test coverage and structure): an autotest check for assisted reloading (`src/Core/VRConfig.cs`, `src/Core/AutoTest.cs`, reload-mode readers)
+
+- Before: nothing checked the bug hunt's second Major fix (bolt and pump guns with endless ammo under assisted
+  reloading), and the autotest could not switch the reload mode without writing your config file.
+- After: the reload mode is read through `VRConfig.ReloadNow` everywhere (9 places), which the autotest can override
+  in memory, the way `HandsNow` works for the hands. The VR autotest fires three shots from the first bolt or pump gun
+  with assisted reloading and reports `assisted reloading: 3 shot(s), 3 round(s) used`, or `(ENDLESS AMMO)`, plus a
+  metric. Then it fills the gun again for the checks that follow. Checks covering the fix: 0 before, 1 after.
+- Kept.

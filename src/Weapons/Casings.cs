@@ -242,6 +242,52 @@ namespace RavenfieldVR.Weapons
         /// <summary>How many cases lie around (self-test).</summary>
         internal static int Count => Alive.Count;
 
+        /// <summary>
+        /// Self-test: of a turned mesh's side faces (about +Z), how many face away from the axis, so they are drawn from
+        /// outside (Unity draws a triangle whose corners run clockwise as seen; these were all wound the other way once).
+        /// </summary>
+        internal static void CountFacingOut(Mesh mesh, ref int outward, ref int total)
+        {
+            Vector3[] v = mesh.vertices;
+            for (int sm = 0; sm < mesh.subMeshCount; sm++)
+            {
+                int[] t = mesh.GetTriangles(sm);
+                for (int i = 0; i + 2 < t.Length; i += 3)
+                {
+                    Vector3 a = v[t[i]], b = v[t[i + 1]], c = v[t[i + 2]];
+                    Vector3 n = Vector3.Cross(b - a, c - a);
+                    Vector3 centre = (a + b + c) / 3f;
+                    var radial = new Vector3(centre.x, centre.y, 0f);
+                    if (n.sqrMagnitude < 1e-20f || radial.sqrMagnitude < 1e-12f || Mathf.Abs(n.z) > new Vector2(n.x, n.y).magnitude)
+                    {
+                        continue; // degenerate, on the axis, or an end face
+                    }
+                    total++;
+                    if (Vector3.Dot(n, radial) > 0f)
+                    {
+                        outward++;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Self-test line: the cases', rounds' and shells' meshes and the belt's round are drawn from outside.</summary>
+        internal static string MeshCheck()
+        {
+            EnsureAssets();
+            int outward = 0, total = 0;
+            for (int k = 0; k < _meshes.Length; k++)
+            {
+                CountFacingOut(_meshes[k], ref outward, ref total);
+                if (_liveMeshes[k] != _meshes[k])
+                {
+                    CountFacingOut(_liveMeshes[k], ref outward, ref total);
+                }
+            }
+            BeltStrip.CountFacingOut(ref outward, ref total);
+            return $"{outward}/{total} side faces drawn from outside{(outward < total ? " (INSIDE OUT)" : "")}";
+        }
+
         /// <summary>Case objects made since start (self-test: stays at the pool size however long you shoot).</summary>
         internal static int Built { get; private set; }
 

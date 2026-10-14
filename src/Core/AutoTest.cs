@@ -1056,7 +1056,7 @@ namespace RavenfieldVR.Core
                 every = Mathf.Max(1, entries.Count / 28);
             }
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0;
-            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 index++;
@@ -1239,6 +1239,11 @@ namespace RavenfieldVR.Core
                             // A pistol's magazine from the pouch too (pistol magazines were shown low and hard to take).
                             pistolPouchDone = true;
                             yield return PouchThrowCheck(lines.Add);
+                        }
+                        if (!assistedDone && held.Rig.Data.CyclesByHand && held.ActiveAmmo != null && held.ActiveAmmo.Participates)
+                        {
+                            assistedDone = true;
+                            yield return AssistedAmmoCheck(held, lines.Add);
                         }
                         if (!dropDone && tacticalDone && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol)
                         {
@@ -1498,6 +1503,49 @@ namespace RavenfieldVR.Core
 
         private static int _shots;
         private static void CountShot(Projectile[] projectiles) => _shots++;
+
+        /// <summary>
+        /// A bolt or pump gun with assisted reloading (the setting overridden in memory only): its fire animation works the
+        /// action, so every shot must use a round. The mod once never chambered again in that mode and put every shot after
+        /// the first back (endless ammo). The gun is filled again afterwards.
+        /// </summary>
+        private static IEnumerator AssistedAmmoCheck(HeldWeapon held, Action<string> report)
+        {
+            Weapon w = held.Weapon.GetActiveSubWeapon() ?? held.Weapon;
+            AmmoState ammo = held.ActiveAmmo;
+            int before = w.ammo;
+            if (before < 3)
+            {
+                yield break;
+            }
+            VRConfig.TestReload = ReloadMode.Assisted;
+            _shots = 0;
+            w.onSpawnProjectiles.AddListener(CountShot);
+            try
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    // The game's own cooldown (the bolt or pump cycling by itself) between shots.
+                    for (float until = Time.realtimeSinceStartup + 2.5f; !w.CanFire() && Time.realtimeSinceStartup < until; )
+                    {
+                        yield return null;
+                    }
+                    w.Fire(w.CurrentMuzzle().forward, true);
+                    w.StopFire();
+                    yield return new WaitForSecondsRealtime(0.15f);
+                }
+            }
+            finally
+            {
+                w.onSpawnProjectiles.RemoveListener(CountShot);
+                VRConfig.TestReload = null;
+            }
+            int fired = _shots, used = before - w.ammo;
+            Metric("assisted reloading: rounds used per shot (bolt and pump guns)", fired > 0 ? (double)used / fired : 0);
+            report($"assisted reloading: {fired} shot(s), {used} round(s) used{(fired == 0 ? " (DID NOT FIRE)" : used < fired ? " (ENDLESS AMMO)" : "")}");
+            w.ammo = before; // filled again for the checks that follow
+            ammo?.AdoptWeaponAmmo();
+        }
 
         /// <summary>Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, DROPPED MAGAZINE NOT GRABBABLE...</summary>
         private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO) [A-Z]");

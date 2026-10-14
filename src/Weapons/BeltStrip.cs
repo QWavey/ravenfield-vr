@@ -70,6 +70,13 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Self-test: the belt round's side faces drawn from outside (see <see cref="Casings.CountFacingOut"/>).</summary>
+        internal static void CountFacingOut(ref int outward, ref int total)
+        {
+            EnsureAssets();
+            Casings.CountFacingOut(_round, ref outward, ref total);
+        }
+
         public void Destroy()
         {
             if (_root != null)

@@ -338,6 +338,12 @@ namespace RavenfieldVR.Core
         /// <summary>Autotest: the weapon's own arms for a moment without touching the saved setting.</summary>
         internal static HandsMode? TestHands;
 
+        /// <summary>The reloading mode now: the setting, or the autotest's choice for a moment (never saved).</summary>
+        public static ReloadMode ReloadNow => TestReload ?? Reload.Value;
+
+        /// <summary>Autotest: a reloading mode for a moment without touching the saved setting.</summary>
+        internal static ReloadMode? TestReload;
+
         /// <summary>Autotest: handedness for a moment without touching the saved setting.</summary>
         internal static bool? TestLeftHanded;
 

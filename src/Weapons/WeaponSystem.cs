@@ -324,7 +324,7 @@ namespace RavenfieldVR.Weapons
             state?.OnShot();
             FireSelector.OnShot(weapon);
             bool held = Held != null && (weapon == Held.Weapon || weapon.parentWeapon == Held.Weapon);
-            if (held && state != null && state.Rig.CyclesByHand && VRConfig.Reload.Value == ReloadMode.Manual)
+            if (held && state != null && state.Rig.CyclesByHand && VRConfig.ReloadNow == ReloadMode.Manual)
             {
                 // Bolt / pump / lever: the fire animation would cycle the action (and play its sounds) by itself.
                 // Cancel it so the action only moves, and only sounds, when the player works it; keep the
