@@ -210,7 +210,14 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual && VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid)
             {
+                // At the box mouth, or anywhere along the belt hanging from it (it slipped from the hand).
                 float d = Vector3.Distance(palm, BeltStartWorld);
+                if (_beltHanging)
+                {
+                    Vector3 a = BeltStartWorld, b = BeltHangEnd, ab = b - a;
+                    float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+                    d = Mathf.Min(d, Vector3.Distance(palm, a + ab * t));
+                }
                 if (d < radius)
                 {
                     Consider(7, d / radius * 0.8f, ref choice, ref best); // the belt end is the obvious next step
@@ -680,6 +687,15 @@ namespace RavenfieldVR.Weapons
 
         private bool _beltHeld;
         private BeltStrip _belt;
+        /// <summary>The belt slipped from the hand (pulled out to its length): it hangs from the box mouth until taken again.</summary>
+        private bool _beltHanging;
+        /// <summary>The belt was laid by hand on a gun that has no belt of its own in its model: the strip stays on the tray.</summary>
+        private bool _beltShownLaid;
+        /// <summary>How far the belt end comes out of the box (about 28 rounds).</summary>
+        private const float BeltReach = 0.32f;
+
+        /// <summary>Where the end of a belt hanging from the box mouth is.</summary>
+        private Vector3 BeltHangEnd => BeltStartWorld + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
 
         /// <summary>Where the belt leaves the seated box: the top of the box, on its centre line.</summary>
         private Vector3 BeltStartWorld
@@ -700,6 +716,7 @@ namespace RavenfieldVR.Weapons
         private void BeginBelt(VRHand off)
         {
             _beltHeld = true;
+            _beltHanging = false;
             off.Role = HandRole.Belt;
             if (_belt == null)
             {
@@ -718,9 +735,18 @@ namespace RavenfieldVR.Weapons
                 EndBelt(off);
                 return;
             }
-            if (!off.GrabHeld || Vector3.Distance(off.Palm.position, BeltStartWorld) > 0.45f)
+            if (!off.GrabHeld)
             {
                 EndBelt(off); // let go: it falls back into the box
+                return;
+            }
+            if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)
+            {
+                // Pulled out to its length: it slips from the fingers and hangs from the box, still there to take again.
+                EndBelt(off);
+                _beltHanging = true;
+                _belt?.Show(true);
+                off.Haptic(0.03f, 90f, 0.4f);
                 return;
             }
             if (Vector3.Distance(off.Palm.position, FeedTrayWorld) < 0.045f)
@@ -733,6 +759,8 @@ namespace RavenfieldVR.Weapons
         {
             if (Ammo.LayBelt())
             {
+                // On a gun whose model has no belt of its own, the laid strip stays to be seen on the tray.
+                _beltShownLaid = _held.BeltPartCount == 0;
                 _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -748,6 +776,53 @@ namespace RavenfieldVR.Weapons
                 off.Role = HandRole.Free;
             }
             _belt?.Show(false);
+        }
+
+        /// <summary>
+        /// The belt strip: from the box mouth to the hand that pulls it (never longer than the belt comes out), hanging from
+        /// the box after it slipped from the hand, or lying on the feed tray once laid on a gun without a belt in its model.
+        /// </summary>
+        private void UpdateBeltStrip(VRHand off)
+        {
+            if (!Ammo.MagInserted || !Ammo.HasCover)
+            {
+                _beltHanging = false;
+                _beltShownLaid = false;
+            }
+            else if (Ammo.BeltLaid)
+            {
+                _beltHanging = false;
+            }
+            else
+            {
+                _beltShownLaid = false;
+            }
+            bool show = _beltHeld || _beltHanging || _beltShownLaid;
+            if (_belt == null || Rig.GunBody == null)
+            {
+                return;
+            }
+            _belt.Show(show);
+            if (!show)
+            {
+                return;
+            }
+            Vector3 from = BeltStartWorld;
+            Vector3 to;
+            if (_beltHeld)
+            {
+                to = off.Palm.position + off.Palm.Forward * 0.02f;
+                to = from + Vector3.ClampMagnitude(to - from, BeltReach);
+            }
+            else if (_beltHanging)
+            {
+                to = BeltHangEnd;
+            }
+            else
+            {
+                to = FeedTrayWorld;
+            }
+            _belt.Place(from, to, Rig.AimWorld);
         }
 
         // ---- pouch -----------------------------------------------------------------------------------
@@ -1326,10 +1401,7 @@ namespace RavenfieldVR.Weapons
             UpdateEject(dt);
             VRHand off = _sys.Rig.Off;
             UpdateGraspAnchor(off);
-            if (_beltHeld && _belt != null && Rig.GunBody != null)
-            {
-                _belt.Place(BeltStartWorld, off.Palm.position + off.Palm.Forward * 0.02f, Rig.AimWorld);
-            }
+            UpdateBeltStrip(off);
             if (_palmed != null)
             {
                 if (_palmed.Go == null)
@@ -1516,9 +1588,22 @@ namespace RavenfieldVR.Weapons
                 {
                     if (VRConfig.BeltByHand.Value && Ammo.MagInserted && !Ammo.BeltLaid)
                     {
+                        // Pulled far past its length the belt slips from the hand and hangs from the box (it used to vanish).
+                        BeginBelt(off);
+                        RigidPose raw = off.Raw;
+                        Vector3 palmFromRaw = raw.InverseTransformPoint(off.Palm.position);
+                        Vector3 far = BeltStartWorld + Vector3.down * 0.25f - Rig.AimWorld * 0.55f;
+                        VRHand.Scripted[(int)off.Side] = new RigidPose(far - raw.rotation * palmFromRaw, raw.rotation);
+                        yield return null;
+                        yield return null;
+                        bool hanging = _beltHanging && !_beltHeld;
+                        VRHand.Scripted[(int)off.Side] = null;
+                        yield return null;
+                        report($"belt pulled too far: {(hanging ? "slipped from the hand and hangs from the box" : "NOT HANGING from the box")}");
                         BeginBelt(off);
                         yield return null;
                         CompleteBelt(off);
+                        report($"belt laid: {(_held.BeltPartCount > 0 ? $"the model's own belt ({_held.BeltPartCount} part(s)) shows" : _beltShownLaid ? "the strip stays on the feed tray" : "NOTHING SHOWS on the tray")}");
                     }
                     Ammo.SetCoverOpen(false);
                 }
@@ -1975,6 +2060,8 @@ namespace RavenfieldVR.Weapons
             }
             _belt?.Destroy();
             _belt = null;
+            _beltHanging = false;
+            _beltShownLaid = false;
             if (off.Model != null)
             {
                 off.Model.GraspAnchor = null;

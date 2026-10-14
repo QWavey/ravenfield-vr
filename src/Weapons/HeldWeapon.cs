@@ -188,6 +188,46 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The gun model's own belt (see <see cref="WeaponRigData.BeltPartPaths"/>), with the scales it had.</summary>
+        private Transform[] _beltParts;
+        private Vector3[] _beltScales;
+        private bool _beltHidden;
+
+        /// <summary>How many belt parts the model has (0: the mod's own strip shows a laid belt).</summary>
+        internal int BeltPartCount => Rig.Data.BeltPartPaths.Count;
+
+        /// <summary>The model's belt shows only while a box is in and its belt lies on the feed tray.</summary>
+        private void ApplyBeltParts(AmmoState ammo)
+        {
+            if (Rig.Data.BeltPartPaths.Count == 0 || ammo == null || !ammo.HasCover)
+            {
+                return;
+            }
+            if (_beltParts == null)
+            {
+                _beltParts = new Transform[Rig.Data.BeltPartPaths.Count];
+                _beltScales = new Vector3[_beltParts.Length];
+                for (int i = 0; i < _beltParts.Length; i++)
+                {
+                    _beltParts[i] = WeaponRig.Resolve(Weapon.transform, Rig.Data.BeltPartPaths[i]);
+                    _beltScales[i] = _beltParts[i] != null ? _beltParts[i].localScale : Vector3.one;
+                }
+            }
+            bool hide = !ammo.MagInserted || !ammo.BeltLaid;
+            if (hide == _beltHidden)
+            {
+                return;
+            }
+            _beltHidden = hide;
+            for (int i = 0; i < _beltParts.Length; i++)
+            {
+                if (_beltParts[i] != null)
+                {
+                    _beltParts[i].localScale = hide ? Vector3.one * 1e-4f : _beltScales[i];
+                }
+            }
+        }
+
         /// <summary>Self-test: how far (mm) the parts a sight mode moves are from where the selected mode puts them; -1 without such parts.</summary>
         internal float SightPartsOffMm()
         {
@@ -1137,6 +1177,7 @@ namespace RavenfieldVR.Weapons
             ApplySightParts();
 
             AmmoState ammo = ActiveAmmo ?? Ammo;
+            ApplyBeltParts(ammo);
             if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
             {
                 // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
@@ -1276,6 +1317,17 @@ namespace RavenfieldVR.Weapons
             }
             HingeOpenness = 0f;
             RestoreSightParts();
+            if (_beltHidden && _beltParts != null)
+            {
+                for (int i = 0; i < _beltParts.Length; i++)
+                {
+                    if (_beltParts[i] != null)
+                    {
+                        _beltParts[i].localScale = _beltScales[i];
+                    }
+                }
+                _beltHidden = false;
+            }
             foreach (Renderer r in _shadowOnly)
             {
                 if (r != null)

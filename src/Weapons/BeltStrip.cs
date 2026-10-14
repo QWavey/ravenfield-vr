@@ -9,7 +9,7 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal sealed class BeltStrip
     {
-        private const int MaxRounds = 24;
+        private const int MaxRounds = 32; // enough for the whole length the belt comes out of the box
         private const float Pitch = 0.0115f; // link spacing of a rifle-calibre belt
 
         private static Mesh _round;

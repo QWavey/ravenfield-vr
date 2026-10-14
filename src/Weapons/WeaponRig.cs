@@ -120,6 +120,11 @@ namespace RavenfieldVR.Weapons
         /// where the selected mode puts them all the time. Empty for weapons without such parts.
         /// </summary>
         public readonly List<int[]> SightPartPaths = new List<int[]>();
+        /// <summary>
+        /// A belt-fed gun's own belt in its model (links and rounds between the box and the feed, not part of the box): shown
+        /// only while a box is in and its belt lies on the feed tray.
+        /// </summary>
+        public readonly List<int[]> BeltPartPaths = new List<int[]>();
         public RigidPose[][] SightPartPoses;
         /// <summary>Scoped weapons whose scope model was measured: the ocular lens centre (gun space) and its radius.</summary>
         public bool HasScopeModel;

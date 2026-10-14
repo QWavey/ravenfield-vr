@@ -446,6 +446,7 @@ namespace RavenfieldVR.Weapons
                 MagKickRule(d, w);
                 ReclassifyAdvancedReload(d, w);
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
+                FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
@@ -1088,6 +1089,72 @@ namespace RavenfieldVR.Weapons
                 if (curls[3] < 0f) curls[3] = Mathf.Lerp(curls[1], curls[4], 0.85f);
             }
             return curls;
+        }
+
+        private static readonly Regex BeltName = new Regex(@"belt|(^|[^a-z])links?($|[^a-z])|lenta|лента|弹链|chain|ammo ?strip", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A belt-fed gun (a feed cover) often models the belt between the box and the feed as its own mesh, apart from the
+        /// box: it stayed on the gun when the box came out. Belt-named visible parts near the feed tray or the box, not part
+        /// of the box, the slide or the cover itself.
+        /// </summary>
+        private static void FindBeltParts(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
+        {
+            if (d.Hinge != HingeKind.FeedCover || d.MagazinePath == null)
+            {
+                return;
+            }
+            var box = new List<Transform>();
+            Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
+            if (mag != null)
+            {
+                box.Add(mag);
+            }
+            foreach (int[] p in d.MagazinePartPaths)
+            {
+                Transform t = WeaponRig.Resolve(root, p);
+                if (t != null)
+                {
+                    box.Add(t);
+                }
+            }
+            Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+            Transform hinge = WeaponRig.Resolve(root, d.HingePath);
+            Vector3 tray = Vector3.Lerp(d.HingePivot, d.HingeGrabPoint, 0.5f);
+            Vector3 boxCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
+            var found = new List<Transform>();
+            foreach (Transform t in all)
+            {
+                if (!BeltName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !ShownAtIdle(t, sampler))
+                {
+                    continue;
+                }
+                if (box.Any(b => Related(t, b)) || Related(t, slide) || hinge != null && t == hinge)
+                {
+                    continue;
+                }
+                Vector3 at = sampler.RelIdle[index[t]].position;
+                Bounds b = sampler.LocalBounds(t);
+                if (Mathf.Min(Vector3.Distance(at, tray), Vector3.Distance(at, boxCentre)) > 0.35f || b.size.magnitude > 0.6f)
+                {
+                    continue;
+                }
+                if (found.Any(f => t.IsChildOf(f)))
+                {
+                    continue;
+                }
+                found.RemoveAll(f => f.IsChildOf(t));
+                found.Add(t);
+            }
+            foreach (Transform t in found)
+            {
+                d.BeltPartPaths.Add(WeaponRig.PathOf(root, t));
+            }
+            if (found.Count > 0)
+            {
+                d.Notes += $"belt in the model: {string.Join(", ", found.Select(f => f.name).ToArray())} (hidden while no belt is laid) ";
+            }
         }
 
         private static readonly Regex CoverName = new Regex(@"cover|lid|tray|feed|deckel|couvercle|tapa|крышк|盖", RegexOptions.IgnoreCase);

@@ -338,3 +338,24 @@ The weapon report notes `N part(s) moved by the sight mode`.
 
 Autotest: on the first such weapon, the sight mode is switched with the gun held low (picture
 `sight-mode-N-not-aiming-...`), line `sight mode a -> b not aiming: ... where the mode puts them` and a metric (mm off).
+
+## Tasks 118, 119, 120 (new, from your notes): the machine-gun belt
+
+`src/Weapons/ReloadInteractions.cs` (belt states, `UpdateBeltStrip`), `src/Weapons/BeltStrip.cs`,
+`src/Weapons/WeaponAnalyzer.cs` (`FindBeltParts`), `src/Weapons/WeaponRig.cs` (`BeltPartPaths`),
+`src/Weapons/HeldWeapon.cs` (`ApplyBeltParts`).
+
+- **118, pulled out too far, the belt vanished:** the strip drew at most 24 rounds back from the hand (28 cm) while the
+  hand could go 45 cm before the belt was let go and hidden. Now the belt comes out of the box at most 32 cm (the strip
+  stops there even if the hand goes on); pulled 6 cm further it slips from the fingers and hangs from the box mouth,
+  where it can be taken again (anywhere along it). It never disappears while the box is in and the belt not laid.
+- **119, a belt stayed on the gun:** the gun model's own belt (links and rounds between the box and the feed, a mesh of
+  its own apart from the box) never hid. The analysis now finds such parts (belt-named, visible at rest, near the feed
+  tray or the box, not part of the box, the slide or the cover) on guns with a feed cover; they are hidden while no
+  box is in or its belt is not laid, and shown when it is. The report notes `belt in the model: ...`.
+- **120, the laid belt did not show:** with the model's belt shown once laid (119) it does; on a gun whose model has no
+  belt of its own, the strip now stays draped from the box mouth onto the feed tray after you laid it, until the box
+  comes out.
+
+Autotest (machine guns): `belt pulled too far: slipped from the hand and hangs from the box` and `belt laid: the
+model's own belt (...) shows / the strip stays on the feed tray`.
