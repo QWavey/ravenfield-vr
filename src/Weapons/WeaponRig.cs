@@ -102,6 +102,8 @@ namespace RavenfieldVR.Weapons
         public Vector3 AimAxis = Vector3.forward;
         public Vector3 Up = Vector3.up;
         public Vector3 GripPoint;
+        /// <summary>Down the grip along its rake (gun-body space), from the weapon's own hand: index knuckle to little finger's. Zero if unknown.</summary>
+        public Vector3 GripDown;
         public Vector3 SupportPoint;
         public bool HasSupportPoint;
         public Vector3 EyePoint;

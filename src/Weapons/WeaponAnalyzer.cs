@@ -707,6 +707,7 @@ namespace RavenfieldVR.Weapons
             if (handR != null)
             {
                 d.GripPoint = gunIdle.InverseTransformPoint(PalmOf(handR, sampler));
+                d.GripDown = GripDownOf(handR, sampler, gunIdle, d);
             }
             else
             {
@@ -2087,6 +2088,15 @@ namespace RavenfieldVR.Weapons
             {
                 return; // lies along the gun rather than hanging off it: trust the animation
             }
+            if (!fromVertices && d.IsPistol && d.GripDown.sqrMagnitude > 0.5f && Vector3.Angle(axis, d.GripDown) < 45f)
+            {
+                // A pistol whose magazine cannot be read: it runs up the grip, along the line of the gun hand's knuckles
+                // (its box stands upright: a dropped GLOCK 43X or P320s magazine slid straight down, out through the front
+                // of the raked grip, and a fresh one came in on that line beside the well).
+                d.MagEjectAxis = d.GripDown;
+                d.Notes += $"magazine axis along the grip (the gun hand's knuckles; its box was {Vector3.Angle(axis, d.GripDown):0}° off) ";
+                return;
+            }
             if (!fromVertices && animated && Vector3.Angle(axis, d.MagEjectAxis) < 20f)
             {
                 // Its vertices could not be read, so this is only its bounding box, which stands upright, straight down
@@ -3171,6 +3181,44 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Palm centre ≈ halfway between the hand bone and its finger roots.</summary>
+        /// <summary>
+        /// Down the grip as the weapon's own hand holds it: from the index finger's knuckle to the little finger's, in the
+        /// gun's upright plane, pointing away from the bore. Zero without both fingers or when the line lies along the gun.
+        /// </summary>
+        private static Vector3 GripDownOf(Transform hand, PoseSampler sampler, RigidPose gunIdle, WeaponRigData d)
+        {
+            Transform index = null, little = null;
+            foreach (Transform c in hand)
+            {
+                string n = c.name.ToLowerInvariant();
+                if (index == null && n.Contains("index"))
+                {
+                    index = c;
+                }
+                else if (little == null && (n.Contains("pinky") || n.Contains("pinkie") || n.Contains("little")))
+                {
+                    little = c;
+                }
+            }
+            if (index == null || little == null)
+            {
+                return Vector3.zero;
+            }
+            Vector3 down = gunIdle.InverseTransformDirection(sampler.Idle(little).position - sampler.Idle(index).position);
+            Vector3 side = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            down = Vector3.ProjectOnPlane(down, side);
+            if (down.sqrMagnitude < 1e-6f)
+            {
+                return Vector3.zero;
+            }
+            down.Normalize();
+            if (Vector3.Dot(down, -d.Up) < 0.5f)
+            {
+                return Vector3.zero; // more along the gun than down it: not a grip's line
+            }
+            return down;
+        }
+
         private static Vector3 PalmOf(Transform hand, PoseSampler sampler)
         {
             Vector3 handPos = sampler.Idle(hand).position;
