@@ -110,12 +110,11 @@ namespace RavenfieldVR.Rig
         private void UpdateHand(VRHand hand)
         {
             int i = (int)hand.Side;
-            if (!hand.Tracked)
-            {
-                return;
-            }
+            // A hand that loses tracking lets go: the last steering or stick deflection stayed in, and the vehicle kept
+            // turning (or the aircraft kept rolling) until the controller came back.
+            bool holding = hand.Tracked && hand.GrabHeld;
             Vector3 palm = hand.Palm.position;
-            if (hand.GrabPressed && hand.Role == HandRole.Free)
+            if (hand.Tracked && hand.GrabPressed && hand.Role == HandRole.Free)
             {
                 if (_wheel != null && NearWheel(palm))
                 {
@@ -141,7 +140,7 @@ namespace RavenfieldVR.Rig
 
             if (_onWheel[i])
             {
-                if (!hand.GrabHeld)
+                if (!holding)
                 {
                     _onWheel[i] = false;
                     hand.Role = HandRole.Free;
@@ -168,7 +167,7 @@ namespace RavenfieldVR.Rig
 
             if (_stickHand == hand.Side)
             {
-                if (!hand.GrabHeld)
+                if (!holding)
                 {
                     _stickHand = null;
                     hand.Role = HandRole.Free;

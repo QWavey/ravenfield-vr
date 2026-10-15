@@ -96,7 +96,8 @@ namespace RavenfieldVR.Weapons
             }
             float refinedEnd = endFrame > 0 ? windowStart + endFrame * FrameSeconds + 0.03f : end;
             start = Mathf.Max(0f, refinedStart);
-            end = Mathf.Clamp(refinedEnd, start + 0.08f, end);
+            // At least 80 ms, never past the window (a short window stays short, and the caller drops it).
+            end = Mathf.Min(Mathf.Max(refinedEnd, start + 0.08f), end);
         }
     }
 }

@@ -262,7 +262,8 @@ namespace RavenfieldVR.Weapons
             // The pouch only answers a squeeze made at it: a squeeze that found nothing elsewhere must not pull a magazine
             // out when the hand passes the hip a moment later. Parts of the gun win when about as close.
             if (Manual && _sys.Zones.InPouch(palm)
-                && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f))
+                && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f)
+                && !_sys.Zones.HolsterNearerThanPouch(palm, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1))
             {
                 // A pistol held low beside the hip puts its slide and its cupping zone within reach of the pouch: a
                 // squeeze in the pouch takes a magazine unless a part of the gun is clearly closer.

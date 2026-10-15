@@ -92,6 +92,7 @@ namespace RavenfieldVR.Core
                 FarClipCap = float.PositiveInfinity;
                 ForceMsaa = null;
                 RestoreTerrains();
+                RestoreGameQuality(); // switched to Game while running: the last preset's quality settings stayed
                 return;
             }
             ApplyProfile(p);
@@ -125,8 +126,42 @@ namespace RavenfieldVR.Core
                    + $"reflections {(p.RealtimeReflections ? "on" : "off")}, pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}";
         }
 
+        /// <summary>The game's own quality settings, from before the first preset was applied.</summary>
+        private static Profile _gameQuality;
+
+        private static void RestoreGameQuality()
+        {
+            Profile g = _gameQuality;
+            if (g == null)
+            {
+                return;
+            }
+            QualitySettings.antiAliasing = g.Msaa;
+            QualitySettings.shadows = g.Shadows;
+            QualitySettings.shadowDistance = g.ShadowDistance;
+            QualitySettings.shadowCascades = g.Cascades;
+            QualitySettings.shadowResolution = g.ShadowResolution;
+            QualitySettings.lodBias = g.LodBias;
+            QualitySettings.pixelLightCount = g.PixelLights;
+            QualitySettings.masterTextureLimit = g.TextureLimit;
+            QualitySettings.anisotropicFiltering = g.Anisotropic;
+            QualitySettings.softParticles = g.SoftParticles;
+            QualitySettings.realtimeReflectionProbes = g.RealtimeReflections;
+        }
+
         private static void ApplyProfile(Profile p)
         {
+            if (_gameQuality == null)
+            {
+                _gameQuality = new Profile
+                {
+                    Msaa = QualitySettings.antiAliasing, Shadows = QualitySettings.shadows, ShadowDistance = QualitySettings.shadowDistance,
+                    Cascades = QualitySettings.shadowCascades, ShadowResolution = QualitySettings.shadowResolution, LodBias = QualitySettings.lodBias,
+                    PixelLights = QualitySettings.pixelLightCount, TextureLimit = QualitySettings.masterTextureLimit,
+                    Anisotropic = QualitySettings.anisotropicFiltering, SoftParticles = QualitySettings.softParticles,
+                    RealtimeReflections = QualitySettings.realtimeReflectionProbes
+                };
+            }
             // Only what differs: this runs several times at start-up and again at every level start, and some of
             // these setters are not free (MSAA touches the headset's eye targets, the texture limit reloads textures).
             if (QualitySettings.antiAliasing != p.Msaa) QualitySettings.antiAliasing = p.Msaa;

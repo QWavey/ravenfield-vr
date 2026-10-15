@@ -170,7 +170,12 @@ namespace RavenfieldVR.Weapons
                 _sys.Sounds.Play(MechSound.Spoon, hand.Palm.position, 0.8f);
             }
             hand.Haptic(0.04f, 90f, 0.6f);
-            ResetPin(); // the next grenade comes out of the pouch with its pin in
+            if (LastLiveCount > 0)
+            {
+                ResetPin(); // the next grenade comes out of the pouch with its pin in
+            }
+            // (Nothing thrown, a script took the throw: the grenade is still in the hand, its pin still pulled. Put back,
+            // the next throw of that live grenade came out a dud.)
             return LastLiveCount > 0;
         }
 

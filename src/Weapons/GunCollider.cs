@@ -71,6 +71,8 @@ namespace RavenfieldVR.Weapons
         /// Something lying in the world stops colliding with the bodies around it (ragdolls, soldiers walking past), so
         /// it stays where it fell; <paramref name="done"/> remembers the bodies already ignored.
         /// </summary>
+        private static readonly System.Predicate<Collider> IsGoneCollider = c => c == null;
+
         public static void IgnoreBodiesNear(IList<Collider> colliders, Vector3 at, float radius, HashSet<Collider> done)
         {
             // A full buffer means more bodies than it holds (a squad around a soldier who fell: about 20 colliders each),
@@ -97,9 +99,11 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            if (done.Count > 512)
+            // Dead bodies forgotten when it grows past 512 (pruned on every call, it was
+            // rescanned each time once a lot of bodies were alive): at most once every 64 frames.
+            if (done.Count > 512 && (Time.frameCount & 63) == 0)
             {
-                done.RemoveWhere(c => c == null);
+                done.RemoveWhere(IsGoneCollider);
             }
         }
 

@@ -63,6 +63,7 @@ namespace RavenfieldVR.Input
         private static float _downSince;
         private static bool _proneTriggeredThisHold;
         private static float _idleSince;
+        private static bool _sprintClearsStance;
         private static int _computedFrame = -1;
 
         private static int MaxBind()
@@ -304,8 +305,10 @@ namespace RavenfieldVR.Input
                 SprintActive = !SprintActive;
                 if (SprintActive)
                 {
-                    CrouchToggled = false;
-                    ProneToggled = false;
+                    // Pressed standing still: a moment to push the stick (it was switched off again in the same frame), and
+                    // the crouch or prone stays until the sprint really starts.
+                    _idleSince = Time.unscaledTime + 0.25f;
+                    _sprintClearsStance = true;
                 }
             }
             // Toggle sprint ends once the stick has been released for a moment, like most VR shooters.
@@ -314,11 +317,18 @@ namespace RavenfieldVR.Input
                 if (Time.unscaledTime - _idleSince > 0.35f)
                 {
                     SprintActive = false;
+                    _sprintClearsStance = false;
                 }
             }
             else
             {
-                _idleSince = Time.unscaledTime;
+                _idleSince = Mathf.Max(_idleSince, Time.unscaledTime);
+                if (SprintActive && _sprintClearsStance)
+                {
+                    _sprintClearsStance = false;
+                    CrouchToggled = false;
+                    ProneToggled = false;
+                }
             }
         }
 

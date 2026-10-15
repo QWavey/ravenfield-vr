@@ -73,10 +73,11 @@ namespace RavenfieldVR.Weapons
             GrabPoint = top - Vector3.up * Mathf.Min(0.03f, along * scale);
 
             int spare = ammo.InfiniteSpare ? -1 : ammo.SpareAmmo;
-            if (spare != _shownSpare || ammo.Capacity != _shownCapacity)
+            if (spare != _shownSpare || ammo.Capacity != _shownCapacity || kind != _shownKind)
             {
                 _shownSpare = spare;
                 _shownCapacity = ammo.Capacity;
+                _shownKind = kind; // a magazine at 30/30 reads "1", a shell gun at 30/30 "30"
                 _label.text = PouchText(spare, ammo.Capacity, kind);
             }
             _label.color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
@@ -89,6 +90,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private int _shownSpare = int.MinValue, _shownCapacity = -1;
+        private PropKind _shownKind;
 
         /// <summary>Where a hand takes the shown magazine: just under its top (world, last frame drawn).</summary>
         internal Vector3 GrabPoint { get; private set; }

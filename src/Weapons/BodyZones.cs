@@ -416,6 +416,25 @@ namespace RavenfieldVR.Weapons
         public bool InPouch(Vector3 point) => Vector3.Distance(point, Pouch) < PouchRadius;
 
         /// <summary>
+        /// A holster with a weapon in it (not <paramref name="skipSlot"/>) is nearer <paramref name="point"/> than the pouch's
+        /// middle: a squeeze there draws that weapon. The pouch (17 cm round) took in the off-hip holster, which then could
+        /// not be drawn while a gun was held.
+        /// </summary>
+        public bool HolsterNearerThanPouch(Vector3 point, int skipSlot)
+        {
+            AssignHolsters(GameContext.PlayerActor);
+            float pouch = Vector3.Distance(point, Pouch);
+            for (int i = 0; i < SpotCount; i++)
+            {
+                if (_spotSlot[i] >= 0 && _spotSlot[i] != skipSlot && Vector3.Distance(point, Position((Spot)i)) < Mathf.Min(pouch, HolsterRadius))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// At the body: on a holster, or against the torso (within a forearm of the line from the neck to the hips). Letting
         /// go of a weapon here puts it away instead of dropping it.
         /// </summary>
@@ -498,10 +517,17 @@ namespace RavenfieldVR.Weapons
             Object.Destroy(g.GetComponent<Collider>());
             g.layer = 5;
             g.transform.localScale = Vector3.one * radius * 2f;
-            var mat = new Material(Shader.Find("Sprites/Default")) { color = c };
+            // One material per colour, kept: a new one per sphere stayed behind each time the spheres were made again.
+            if (!DebugMaterials.TryGetValue(c, out Material mat) || mat == null)
+            {
+                mat = new Material(Shader.Find("Sprites/Default")) { color = c };
+                DebugMaterials[c] = mat;
+            }
             g.GetComponent<Renderer>().sharedMaterial = mat;
             return g;
         }
+
+        private static readonly System.Collections.Generic.Dictionary<Color, Material> DebugMaterials = new System.Collections.Generic.Dictionary<Color, Material>();
 
         public void Destroy()
         {

@@ -270,6 +270,15 @@ namespace RavenfieldVR.UI
 
         public void OnSceneChanged()
         {
+            // A panel opened in the menu or while loading does not stay up in the match (its laser and pointer hand with it).
+            if (Settings.IsOpen)
+            {
+                Settings.Close();
+            }
+            if (ModKeys.IsOpen)
+            {
+                ModKeys.Close();
+            }
             Canvases.OnSceneChanged();
             _eventSystem = null;
         }

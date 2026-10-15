@@ -1002,7 +1002,17 @@ namespace RavenfieldVR.Weapons
 
             Reload.BeforeRender();
             Sounds.Update();
-            _scope?.BeforeRender(Aiming);
+            if (_scope != null)
+            {
+                // With several sight modes the lens shows only in a magnified one: switched to the red dot or the irons, its
+                // dark disc stayed over them for as long as the weapon was held.
+                bool magnified = Rig.Data.Sights == null || Rig.Data.Sights.Length < 2 || Weapon.GetAimFov() < 40f;
+                _scope.SetShown(magnified);
+                if (magnified)
+                {
+                    _scope.BeforeRender(Aiming);
+                }
+            }
             UpdateScopeLenses();
             UpdateModeScopes();
             _counter.BeforeRender(ActiveAmmo);

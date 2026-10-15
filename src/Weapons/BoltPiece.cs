@@ -265,7 +265,7 @@ namespace RavenfieldVR.Weapons
             if (mat == null)
             {
                 // Nothing opaque to borrow: plain dark gun metal.
-                mat = _fallback ?? (_fallback = new Material(Shader.Find("Standard")) { name = "RavenfieldVR handle", color = new Color(0.12f, 0.12f, 0.13f) });
+                mat = _fallback ?? (_fallback = new Material(Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse")) { name = "RavenfieldVR handle", color = new Color(0.12f, 0.12f, 0.13f) });
             }
             var go = new GameObject("RavenfieldVR Bolt Handle");
             go.transform.SetParent(rig.GunBody, false);

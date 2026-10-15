@@ -248,7 +248,11 @@ namespace RavenfieldVR.UI
             RectTransform row = Row(RowHeight + 10f);
             MakeButton(row, "Close", 34f, 140f, Close, out _);
             MakeButton(row, "SteamVR bindings", 186f, 230f, VRInput.OpenBindingUI, out _);
-            MakeButton(row, "Mod keys", 428f, 150f, () => UISystem.Instance?.ModKeys.Open(), out _);
+            MakeButton(row, "Mod keys", 428f, 150f, () =>
+            {
+                Close(); // in its place, not half over it
+                UISystem.Instance?.ModKeys.Open();
+            }, out _);
             MakeButton(row, "Recenter", 590f, 150f, () =>
             {
                 _rig.Recenter();

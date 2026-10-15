@@ -14,6 +14,9 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal static class WeaponWarmup
     {
+        /// <summary>Weapons fully prepared here (analysis, shape fit, dropped model), by rig key.</summary>
+        private static readonly HashSet<string> Warmed = new HashSet<string>();
+
         private static bool _running;
         private static bool _rescan;
 
@@ -129,7 +132,9 @@ namespace RavenfieldVR.Weapons
                         yield return null; // (never stuck: a read-back that never returns does not hold the warm-up up)
                     }
                     Weapon weapon = entry.prefab.GetComponent<Weapon>();
-                    if (weapon == null || WeaponAnalyzer.IsCached(weapon, entry))
+                    // Skipped only once all of it was done here: analysed elsewhere first (a sound donor, a draw), its shape fit and
+                    // the dropped model were never prepared, and the first draw in the match did them (the hitch this avoids).
+                    if (weapon == null || Warmed.Contains(WeaponAnalyzer.KeyOf(weapon, entry)))
                     {
                         continue;
                     }
@@ -150,9 +155,11 @@ namespace RavenfieldVR.Weapons
                             }
                         }
                         analysed++;
+                        Warmed.Add(WeaponAnalyzer.KeyOf(weapon, entry));
                     }
                     catch (System.Exception e)
                     {
+                        Warmed.Add(WeaponAnalyzer.KeyOf(weapon, entry)); // not tried again every pass
                         Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {e.Message}");
                     }
                     // One analysis is a long frame (tens of milliseconds); the frames after it are left alone so the

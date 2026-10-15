@@ -34,6 +34,9 @@ namespace RavenfieldVR.Core
             }
             GameObject go = null;
             RenderTexture rt = null;
+            Texture2D tex = null;
+            RenderTexture prev = null;
+            bool swapped = false;
             try
             {
                 if (!_cleared)
@@ -63,15 +66,16 @@ namespace RavenfieldVR.Core
                 rt = new RenderTexture(1280, 800, 24);
                 cam.targetTexture = rt;
                 cam.Render();
-                RenderTexture prev = RenderTexture.active;
+                prev = RenderTexture.active;
                 RenderTexture.active = rt;
-                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                swapped = true;
+                tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
                 tex.Apply();
                 RenderTexture.active = prev;
+                swapped = false;
                 string file = Path.Combine(Dir, Regex.Replace(name, @"[^A-Za-z0-9_.\-]+", "_") + ".png");
                 File.WriteAllBytes(file, tex.EncodeToPNG());
-                UnityEngine.Object.Destroy(tex);
                 Log.Info("Shot: " + file);
             }
             catch (Exception e)
@@ -80,6 +84,15 @@ namespace RavenfieldVR.Core
             }
             finally
             {
+                // Also when a shot failed half way (a full disk): the picture and the active target were left behind.
+                if (swapped)
+                {
+                    RenderTexture.active = prev;
+                }
+                if (tex != null)
+                {
+                    UnityEngine.Object.Destroy(tex);
+                }
                 if (rt != null)
                 {
                     rt.Release();

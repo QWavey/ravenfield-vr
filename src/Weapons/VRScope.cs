@@ -38,6 +38,10 @@ namespace RavenfieldVR.Weapons
         private readonly Vector2[] _shadowUv;
         private Vector2 _shadowShift = new Vector2(float.NaN, 0f);
 
+        /// <summary>Looked up once: three searches by name on every draw of a scoped weapon.</summary>
+        private static Shader _spriteShader;
+        private static Shader SpriteShader => _spriteShader != null ? _spriteShader : _spriteShader = Shader.Find("Sprites/Default");
+
         public static bool Wanted(Weapon w, WeaponRig rig)
         {
             if (!rig.Data.HasEyePoint || rig.Data.EyeFromLine || w.renderTextureCamera != null || w.configuration.scopeAimObject == null)
@@ -89,15 +93,15 @@ namespace RavenfieldVR.Weapons
             vrRig.Suppressor.Ignore(_camera);
 
             EnsureAssets();
-            _lensMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _texture, renderQueue = 3000 };
+            _lensMaterial = new Material(SpriteShader) { mainTexture = _texture, renderQueue = 3000 };
             CreateDisc("Lens", _lensMaterial, 0f);
-            _reticleMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _reticle, renderQueue = 3001 };
+            _reticleMaterial = new Material(SpriteShader) { mainTexture = _reticle, renderQueue = 3001 };
             CreateDisc("Reticle", _reticleMaterial, -0.0008f);
             _shadowMesh = Object.Instantiate(_disc);
             _shadowMesh.name = "ScopeShadow";
             _shadowMesh.MarkDynamic();
             _shadowUv = _shadowMesh.uv;
-            _shadowMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = _shadow, renderQueue = 3002 };
+            _shadowMaterial = new Material(SpriteShader) { mainTexture = _shadow, renderQueue = 3002 };
             CreateDisc("Shadow", _shadowMaterial, -0.0012f, _shadowMesh);
             SetShadow(Vector2.zero);
         }

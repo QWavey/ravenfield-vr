@@ -31,7 +31,8 @@ namespace RavenfieldVR.Input
         public static Vector4 Helicopter()
         {
             Vector2 left = VRGameInput.MoveStick;
-            Vector2 right = VRGameInput.ApplyDeadzone(VRInput.TurnStick, VRConfig.StickDeadzone.Value);
+            // The raw stick, zeroed while it scrolls one of the mod's panels (it pitched and rolled the aircraft meanwhile).
+            Vector2 right = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value);
             Vector2 cyclic = FlightStick ?? right;
             return new Vector4(left.x, left.y, cyclic.x, cyclic.y);
         }
@@ -39,7 +40,8 @@ namespace RavenfieldVR.Input
         public static Vector4 Airplane()
         {
             Vector2 left = VRGameInput.MoveStick;
-            Vector2 right = VRGameInput.ApplyDeadzone(VRInput.TurnStick, VRConfig.StickDeadzone.Value);
+            // The raw stick, zeroed while it scrolls one of the mod's panels (it pitched and rolled the aircraft meanwhile).
+            Vector2 right = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value);
             Vector2 stick = FlightStick ?? right;
             return new Vector4(left.x, left.y, stick.x, stick.y);
         }

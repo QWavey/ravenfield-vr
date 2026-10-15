@@ -165,8 +165,11 @@ namespace RavenfieldVR.Weapons
             }
             switch (cue.Function)
             {
-                case "PlaySoundBank":
                 case "EmitParticles":
+                    // Particles (a casing puff) make no sound: not counted as played, so the action still sounds.
+                    target.SendMessage(cue.Function, cue.IntParameter, SendMessageOptions.DontRequireReceiver);
+                    return false;
+                case "PlaySoundBank":
                     target.SendMessage(cue.Function, cue.IntParameter, SendMessageOptions.DontRequireReceiver);
                     return true;
                 case "PlayRandom":

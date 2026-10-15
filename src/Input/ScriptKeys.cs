@@ -104,9 +104,11 @@ namespace RavenfieldVR.Input
             {
                 return;
             }
-            if (!held && v.ReleaseAt != float.MaxValue)
+            if (v.ReleaseAt != float.MaxValue)
             {
-                return; // a tap is in flight; let it run out instead of cutting it short
+                // A tap is in flight: let it run out, for the one script it was meant for. Taken over by a hold (sprinting),
+                // it went to every script and stayed down for the whole sprint. The hold takes over once it has run out.
+                return;
             }
             v.Down = held;
             v.WasDown |= held;

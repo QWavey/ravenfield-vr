@@ -2595,6 +2595,10 @@ namespace RavenfieldVR.Weapons
             {
                 for (int c = 0; c < cues.Count; c++)
                 {
+                    if (cues[c].Function == "EmitParticles")
+                    {
+                        continue; // a particle burst is no sound: bound to a magazine or slide sound it left the action silent
+                    }
                     float early = keyframes[k].Value - cues[c].Time;
                     if (early > lead || early < -lag)
                     {

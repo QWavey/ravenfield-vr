@@ -25,11 +25,16 @@ namespace RavenfieldVR.UI
             OpenVRRuntime.EventReceived += OnEvent;
         }
 
+        /// <summary>When the selected field may be tried again (see <see cref="Update"/>).</summary>
+        private float _retryAt;
+
         public void Update()
         {
             EventSystem es = EventSystem.current;
             GameObject selected = es != null ? es.currentSelectedGameObject : null;
-            if (_open || selected == null || selected == _target)
+            // The same field again only after a retry time: a field not yet editable, or a keyboard SteamVR could not show,
+            // stayed latched and never got one (a shown keyboard latches for good, so closing it does not reopen it).
+            if (_open || selected == null || selected == _target && Time.unscaledTime < _retryAt)
             {
                 if (selected == null && !_open)
                 {
@@ -42,9 +47,11 @@ namespace RavenfieldVR.UI
             if ((field == null || !field.interactable) && (tmp == null || !tmp.interactable))
             {
                 _target = selected;
+                _retryAt = Time.unscaledTime + 0.5f;
                 return;
             }
             _target = selected;
+            _retryAt = Time.unscaledTime + 1f;
             string existing = field != null ? field.text : tmp.text;
             bool multiLine = field != null ? field.multiLine : tmp.multiLine;
             int limit = field != null ? field.characterLimit : tmp.characterLimit;
@@ -59,7 +66,11 @@ namespace RavenfieldVR.UI
                 multiLine ? (int)EGamepadTextInputLineMode.k_EGamepadTextInputLineModeMultipleLines : (int)EGamepadTextInputLineMode.k_EGamepadTextInputLineModeSingleLine,
                 0u, description, (uint)(limit > 0 ? limit : 256), existing ?? "", UserValue);
             _open = err == EVROverlayError.None;
-            if (!_open)
+            if (_open)
+            {
+                _retryAt = float.MaxValue;
+            }
+            else
             {
                 Log.WarnOnce("kbd:" + err, "SteamVR keyboard unavailable: " + err);
             }

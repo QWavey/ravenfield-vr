@@ -124,6 +124,10 @@ namespace RavenfieldVR.Weapons
                 part.transform.localRotation = Quaternion.Inverse(root.rotation) * r.transform.rotation;
                 part.transform.localScale = scale;
                 part.AddComponent<MeshFilter>().sharedMesh = mesh;
+                if (r is SkinnedMeshRenderer)
+                {
+                    part.AddComponent<OwnedMesh>().Mesh = mesh; // baked for this dud: it goes with it (one leaked per throw)
+                }
                 var mr = part.AddComponent<MeshRenderer>();
                 mr.sharedMaterials = Util.MaterialFix.Fix(r.sharedMaterials);
                 mr.shadowCastingMode = ShadowCastingMode.On;
