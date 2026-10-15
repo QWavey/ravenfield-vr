@@ -8,7 +8,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - Done: 145
 - Code done, to check in the headset: 53
 - In progress: 10
-- Still to do: 29
+- Still to do: 31
 
 ### Still to do
 
@@ -41,6 +41,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 235. CZ Bren 2 BR: the bolt pull is still wrong
 - 236. Some M4s: the charging handle / bolt pull is still wrong
 - 237. The muzzle flash renders through the gun (aimed): hide what the gun covers
+- 238. Guns have almost no noticeable recoil
+- 239. A camera flash when firing, sometimes
 
 ### In progress
 
@@ -393,6 +395,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 235. [ ] CZ Bren 2 BR (and its variants): pulling the bolt / charging handle is still wrong (user, 2026-10-15 night, in the Quest 3; see 186 and 214)
 236. [ ] Some M4s: pulling the charging handle / bolt is still wrong (user, 2026-10-15 night; which M4s to find out: the mwii M4s, the M4A1 family, the custom AR-15s; see 157, 167, 168, 170)
 237. [ ] The muzzle lens flash renders through the weapon model: aimed, it is drawn over the gun and its sights (the user's screenshot 2026-10-15 night, an aimed machine gun). Make it realistic: the flash's source (core and fireball) in the world in front of the muzzle, so the gun and its sights hide what they cover; the eye's own effects (starburst, haze) weaker when the source is hidden from that eye; the light on the face (the wash) stays
+238. [ ] Guns have almost no noticeable recoil (user, Quest 3, 2026-10-15 night): make it felt, by gun (see 137 and 208)
+239. [ ] No camera flash when firing: sometimes (not on every shot) the view should flash for a moment when a gun fires (user, 2026-10-15 night)
 
 ## Notes
 
