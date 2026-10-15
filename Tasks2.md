@@ -54,6 +54,9 @@ Started 2026-10-15. Tasks.md is left as it is. This file has:
 210. [ ] More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
 211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash)
 212. [ ] The lens muzzle flash only where the weapon really has a muzzle flash: check every weapon
+218. [ ] (low priority) M1 Garand (vanilla): make it work like a real Garand
+219. [ ] (low priority, at the end) A fast, smooth montage GIF of every picture and gun the tests took
+220. [x] A picture tool kept for testing: tools/vrshots.py (--weapons, --weapon NAME|ID|mod:TEXT, --ui, --hands, --bench, --autotest, --list)
 
 For 200. Reported 2026-10-15: a magazine touching or hitting a gun makes no sound. Checked in the code: the sound set (`MechSound` in src/Weapons/ProceduralSounds.cs) has no knock or scrape, and MagazineProp plays no sound. A held magazine is only drawn out of the gun's solid (`MagazineProp.KeepOffGun`), silently. To do: a short metal knock when a held magazine first meets the gun, louder the faster it came in, and a softer scrape while it slides along. Add a click at the magwell lip when it goes onto the rail. Use the existing procedural sound pool, rate-limited like the gun's contact knock (at most 4 a second). Done when: knocking a magazine against the receiver, the handguard and the magwell lip each sounds and buzzes the hand, and resting a magazine against the gun does not machine-gun knocks.
 
@@ -219,3 +222,10 @@ How 209 A-C should be built at home (from the simulation; animations in `assets/
   - after that, a soft flash (strength about 0.22-0.34, lower the more glow) and a steady glow during sustained fire.
 - Settings: on/off, strength, reduce flashing.
 - Done when: autotest pictures show it, and in the headset there are no more than 3 visible flashes a second on full auto.
+
+For 218. Asked 2026-10-15 (lowest priority): the vanilla M1 Garand should behave like the real rifle. To do: the en-bloc clip of eight goes in from the top through the open action (pushed down with the thumb), the bolt slams home on its own when the clip is seated (the "M1 thumb"), the empty clip is thrown out with its ping after the last shot and the bolt stays open, no detachable magazine below, a partly fired clip can be ejected by pulling the operating rod back and pressing the clip latch. Check how the mod treats it now (its magazine analysis, the autotest's M1 GARRET lines) first.
+
+For 219. Asked 2026-10-15 (low priority, at the end): one fast montage GIF (or video) of all the pictures the tests took, weapon by weapon, smooth enough to watch: built from reports/shots by a small script (tools/), a few frames per weapon, cross-faded.
+
+For 220. Done 2026-10-15: `python tools/vrshots.py` runs the game in a virtual headset (SteamVR's null driver; the user's SteamVR settings backed up and restored with a hash check; never while Ravenfield is open) and collects the pictures into reports/shots/<mode>. `--weapon` takes a name (any part), `=exact name`, an id (the number on the weapon's sheet: its place in the game's weapon list, the same in every run) or `mod:text` (every weapon of a mod by title or folder). Weapon runs make one labelled sheet per weapon (reports/shots/weapons/sheets, index.json). `--list` prints the ids.
+
