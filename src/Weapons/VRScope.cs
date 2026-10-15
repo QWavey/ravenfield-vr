@@ -79,7 +79,9 @@ namespace RavenfieldVR.Weapons
 
             _root = new GameObject("RavenfieldVR Scope");
             // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
-            _radius = radius;
+            // An ocular is 1-2.5 cm across the glass: a measured "lens" much bigger (a K13 ACOG's took the whole housing) was
+            // a dark disc as wide as the receiver beside the sight.
+            _radius = Mathf.Clamp(radius, 0.008f, 0.025f);
             rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(eyeDirection, rig.Data.Up));
 
             var camGo = new GameObject("Scope Camera");
