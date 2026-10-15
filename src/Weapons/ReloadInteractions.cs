@@ -2033,10 +2033,16 @@ namespace RavenfieldVR.Weapons
                     SeatProp(off, first);
                 }
             }
-            int before = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo);
+            // Counted without the reserve: the game tops it up near a supply crate at any moment (the test stands at the
+            // spawn's crate; an M1's "40 -> 48" was one refill of 8). What was loaded, plus the fresh magazine.
+            int before = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0);
             // The simulated hand keeps its grip closed for the whole check, as a player holding the magazines would.
             VRInput.SimulatedGrab[(int)off.Side] = true;
             TakeFromPouch(off);
+            if (off.Held is MagazineProp taken)
+            {
+                before += taken.Rounds;
+            }
             if (!(off.Held is MagazineProp fresh))
             {
                 VRInput.SimulatedGrab[(int)off.Side] = false;
@@ -2060,7 +2066,7 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForEndOfFrame();
             shot("tactical-old-magazine-kept");
             int inHand = off.Held is MagazineProp held ? held.Rounds : 0;
-            int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
+            int after = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + inHand;
             MagReadout.TestTarget = null;
             if (off.Held is MagazineProp leftover)
             {
