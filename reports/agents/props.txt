@@ -1,0 +1,88 @@
+AREA: Throwing, melee, casings, sounds, holsters, pouch
+FILES READ: src/Weapons/ThrowAndMelee.cs, GrenadeDud.cs, Casings.cs, ProceduralSounds.cs, WeaponSounds.cs, AudioSlicing.cs, SoundDonors.cs, BeltStrip.cs, BoltPiece.cs, HolsterDisplay.cs, PouchDisplay.cs, BodyZones.cs, ShapeFit.cs, MagReadout.cs, AmmoCounter.cs, DrivingWeapons.cs, WeaponWarmup.cs (all read in full). Followed hops (read only, nothing reported inside locked files): WeaponSystem.cs, HeldWeapon.cs (ctor and Release), ReloadInteractions.cs (pouch consider, consume), WeaponAnalyzer.cs (cue build and match), PoseSampler.cs (cue whitelist), VRInput.cs, VRRig.cs, WeaponDrops.cs (ModelFor), MagazineProp.cs (BuildDisplay, OwnedMesh use), MaterialFix.cs, GunCollider.cs (Create and Fit), WeaponRig.cs (ctor). Decompiled: MeleeWeapon.cs (SphereCast, ShootMeleeRay), ThrowableWeapon.cs, Weapon.cs (Shoot, ReloadDone, InstantlyReload), GameManager.cs (SetOutputAudioMixer), AnimationParticleEmitter.cs, LoadoutUi.cs (PlayerPrefs nameHash).
+FINDINGS: 9
+
+#1 [major] [medium] Reload EmitParticles events count as "played", so a manual action can be silent and skip the donor and synth fallback
+   where: src/Weapons/WeaponSounds.cs:77-87 (Play), :118-121 (PlayCue Event branch), :166-171 (SendEvent)
+   trigger: A weapon's reload animation has an EmitParticles animation event (casing emitter, typically at slide back) that falls in the matching window of a MagOut/MagIn/SlideBack/SlideForward keyframe, and no sound-bank clip or slice was bound to that same keyframe. The player performs that manual action.
+   effect: Play() gets played=true from PlayCue(), returns early, and no audio is played. SoundDonors.Find (line 90) and the ProceduralSounds fallback (line 96) are never reached. The action is silent. The particle emit only happens if the emitter sits on the animator object, because SendMessage uses DontRequireReceiver.
+   evidence: WeaponSounds.cs:79-84 loops the cues with played |= PlayCue(cue) and returns when played. :121 sends Event cues without Clips to SendEvent. :170-171 case "EmitParticles" calls target.SendMessage and returns true unconditionally. Trace hop (locked file, read only, not reported): PoseSampler.cs:37 whitelists EmitParticles; WeaponAnalyzer MatchCues binds every reload event to the nearest keyframe in [-0.15, +0.6] s, so a particle event can become that keyframe's only cue.
+   fix idea: Return false from SendEvent for EmitParticles (or count only sound-producing cues as played) so the donor and synth still play for that action. Do not bind EmitParticles to MechSound kinds.
+   confidence note: medium. The code path is certain; whether a real asset has such an event near these keyframes cannot be checked from the repo.
+
+#2 [minor] [medium] Default pouch zone contains the centre of the off-hip gear/handgun holster
+   where: src/Weapons/BodyZones.cs:125 (default pouch point), :115 (OffBeltFront = Spot.GearOff), :32-33 (HolsterRadius, PouchRadius), :405 (InPouch), :121 (comment "never overlap")
+   trigger: Default settings (Boneworks layout, pouch on off hip). The GearOff spot is filled (three gear items), or in the classic layout a second hand weapon sits in HandgunOff (:388). The player holds a gun in the dominant hand in Manual reload mode and squeezes the free hand at that holster.
+   effect: Computed from the formulas: pouch = belt - 0.10*fwd - 0.17*right; OffBeltFront = belt - 0.09*right. Distance 0.128 m, which is inside PouchRadius 0.17 m, so the holster centre counts as "in the pouch". Classic HandgunOff is 0.141 m away, also inside. The squeeze is answered by the pouch consider (ReloadInteractions.cs:264-269), which consumes the grab (ReloadInteractions.cs:324). The holster draw in WeaponSystem.UpdateHolster therefore never gets the press, and that holster can't be used to swap weapons while a gun is held. Reload modes other than Manual do not use this path.
+   evidence: BodyZones.cs:98-125 and Position() at :368-393; HolsterAt uses HolsterRadius 0.2 (:246, :255). The contradiction with the comment at :121 is direct.
+   fix idea: Move the default pouch point at least HolsterRadius from the off-hip spots, or make PouchRadius plus HolsterRadius smaller than the centre distance so the zones are disjoint.
+   confidence note: medium.
+
+#3 [minor] [medium] Each skinned-model dud leaks a baked Mesh that nothing destroys
+   where: src/Weapons/GrenadeDud.cs:113-115 (new Mesh + BakeMesh), :126-127 (assigned to MeshFilter), :271-278 (Destroy)
+   trigger: A grenade is thrown with its pin still in and its model has a SkinnedMeshRenderer that is not arm-bound (SkinnedToArms false, :111).
+   effect: The baked Mesh is owned by nothing. Destroy() and Expire()/DestroyAll() only destroy the GameObject, so each dud leaves one Mesh object in memory for the session. The same area already uses OwnedMesh for exactly this (Casings.cs:468-479), and MagazineProp.cs:433 uses it for its baked meshes.
+   evidence: GrenadeDud.cs:113-115 creates and bakes the mesh; :271-278 never destroys it.
+   fix idea: Attach an OwnedMesh (Casings.cs) holding the baked mesh, or keep the mesh on the GrenadeDud and Object.Destroy it in Destroy().
+   confidence note: medium.
+
+#4 [minor] [low] Warm-up skips a weapon whose rig analysis is cached, even when its shape and drop-model prep never ran
+   where: src/Weapons/WeaponWarmup.cs:132-135 (skip), :140 (PrefitShape), :143 (WeaponDrops.Prepare)
+   trigger: A weapon's rig is analysed before the warm-up reaches it: a sound-donor lookup during a match (SoundDonors.cs:73), the live draw path (WeaponSystem.cs:333), or the self-test (WeaponSelfTest.cs:155). IsCached is then true.
+   effect: PrefitShape and WeaponDrops.Prepare are skipped for that weapon, so its first draw or holster display in the match builds the physics shape and drop model, which is the hitch the warm-up exists to avoid.
+   evidence: WeaponWarmup.cs:132 `if (weapon == null || WeaponAnalyzer.IsCached(weapon, entry)) continue;`. Checked and fine: the prefit's shape frame and origin (WeaponWarmup.cs:45) match GunCollider.Create (GunCollider.cs:487-489), so the cache key "held:"+Key is consistent.
+   fix idea: Check the shape cache and the drop-model cache separately instead of skipping the whole body.
+   confidence note: low.
+
+#5 [minor] [low] A throw that spawns no projectile still resets the pin, so a pulled pin goes back in while the grenade is still in hand
+   where: src/Weapons/ThrowAndMelee.cs:150 (Shoot return ignored), :168-174 (LastLiveCount check, unconditional ResetPin at :173)
+   trigger: Throw() runs with CanFire and unholstered true, but Weapon.Shoot returns without spawning, for example because onFireScriptable is consumed (decompiled Weapon.Shoot returns false before any spawn). LastLiveCount stays 0.
+   effect: ResetPin() still runs: _pinPulled becomes false and the pin scale is restored although the grenade stays in hand. The next throw is then a dud and the spent pull is lost.
+   evidence: ThrowAndMelee.cs:150 ignores the return value; :168 plays the spoon only when LastLiveCount > 0; :173 resets unconditionally; :174 returns LastLiveCount > 0.
+   fix idea: Call ResetPin only when LastLiveCount > 0. Otherwise leave the pin state as it was.
+   confidence note: low.
+
+#6 [tiny] [low] Pouch count label not refreshed when the magazine kind changes but the numbers stay the same
+   where: src/Weapons/PouchDisplay.cs:47-52 (Build does not reset the cache), :76-81 (cache keyed only on spare and capacity)
+   trigger: Switching from a magazine-fed weapon to a shell- or rocket-fed weapon with the same spare count and capacity (for example 30 and 30).
+   effect: PouchText formats a magazine as "1" but a shell as "30". The cache keeps the old text until the count changes.
+   fix idea: Include kind in the cache check, or reset _shownSpare in Build.
+   confidence note: low.
+
+#7 [tiny] [low] Grab-zone debug spheres leak a material on each scene change
+   where: src/Weapons/BodyZones.cs:484-493 (DebugSphere creates a Material per sphere), :454-465 (rebuild), :495-505 (Destroy)
+   trigger: ShowGrabZones is on. Each scene change destroys the spheres (comment at :456), and DrawDebug rebuilds them, creating nine new materials.
+   effect: The materials are never destroyed (Destroy only destroys the GameObjects), so nine materials leak per scene change while the debug option is on.
+   fix idea: Share one static material per colour, or destroy the material with its sphere.
+   confidence note: high on the mechanics; debug option only.
+
+#8 [tiny] [low] AudioSlicing clamp can stretch a short slice past its window
+   where: src/Weapons/AudioSlicing.cs:99
+   trigger: A reload slice whose window ends less than 0.08 s after its start (next keyframe close), and Refine succeeds on a decompressed clip.
+   effect: Mathf.Clamp(refinedEnd, start+0.08, end) returns start+0.08 when that is above end (Unity's Clamp returns min when min > max). The slice then runs up to 0.08 s past its window and into the next action's sound. The caller only checks the length after the clamp (locked file WeaponAnalyzer, read only, not reported).
+   fix idea: Use Mathf.Min(Mathf.Max(refinedEnd, start + 0.08f), end) so the slice never passes its window; the caller then rejects it.
+   confidence note: low.
+
+#9 [tiny] [low] Bolt handle fallback material has no shader fallback
+   where: src/Weapons/BoltPiece.cs:268
+   trigger: Shader.Find("Standard") returns null (shader stripped from the build) and no opaque renderer exists to borrow (the mat == null path at :265-269).
+   effect: new Material(Shader.Find("Standard")) throws ArgumentNullException, so BoltPiece.Create fails for that weapon. Every similar site in this area falls back to "Legacy Shaders/Diffuse" (Casings.cs:324, GrenadeDud.cs:184, GrenadeDud.cs:401).
+   fix idea: Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse").
+   confidence note: low.
+
+CHECKED AND CLEAN (no bug found):
+- Casings: pooled and bounded (Spawn/Build/Cull/DestroyAll, Casings.cs:103-189, 294-316). Cull runs per frame (WeaponSystem.cs:100).
+- GrenadeDud lifetime: Cull runs per frame (WeaponSystem.cs:101), so duds expire and refund.
+- Sound objects: WeaponSoundPlayer sources are destroyed on Release (HeldWeapon.cs:1793); ProceduralSounds is disposed at shutdown (WeaponSystem.cs:808).
+- BeltStrip is destroyed on Reload.Release (ReloadInteractions.cs:2459-2484).
+- Holster/pouch/readout/counter objects are destroyed on release (HeldWeapon.cs:1887) and on dispose (WeaponSystem.cs:800-808).
+- Melee: the hit cooldown and the sweep logic match the game's own ShootMeleeRay (MeleeWeapon.cs decompiled 184-200), including the vehicle-before-wall order. Not a mod-specific bug.
+- Throw capture: Weapon.Shoot spawns projectiles synchronously through onSpawnProjectiles (decompiled Weapon.cs ~1520-1580), so the velocity override works.
+- ThrowDud ammo math: InstantlyReload restores -1 for infinite ammo (decompiled Weapon.ReloadDone), so no leak.
+- Dominant hand: VRRig.Dominant = VRInput.GunHand (VRRig.cs:57), so throws and holster grabs follow the weapon's hand.
+- Holster slot assignment is consistent between HolsterAt (WeaponSystem.cs:565) and HolsterDisplay via SlotAtSpot.
+- Loadout PlayerPrefs store nameHash (LoadoutUi.cs:423), which matches the warm-up's comparison.
+- WeaponDrops.ModelFor caches failures (WeaponDrops.cs:109-116), so the holster rebuild does not retry per frame.
+- MaterialFix caches repaired materials (MaterialFix.cs), so there is no per-copy material leak.
+- BuildDisplay never returns null (MagazineProp.cs:233-266).
+- DrivingWeapons.PutAway's seat branch (DrivingWeapons.cs:53-56) is unreachable from WeaponSystem.cs:518 because CanDraw rejects seats with mounted weapons. Dead code, not reported.

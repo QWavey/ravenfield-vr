@@ -1,0 +1,34 @@
+AREA: Held weapon and gun physics
+FILES READ: src/Weapons/HeldWeapon.cs (whole file), WeaponPatches.cs, WeaponOverrides.cs, FireSelector.cs, ModHand.cs, VRScope.cs, WeaponRig.cs, GunCollider.cs, GunVolume.cs (whole files). Context only: WeaponSystem.cs (AttachHeld/ReleaseHeld, OnPlayerShot, OnDryFire, StateFor), ReloadInteractions.cs (SlideOffset writes, BeginRack/EndRack, IsRacking), AmmoState.cs (CanFire, Participates, HasCover), WeaponAnalyzer.cs (override call site), decompiled Weapon.cs (Fire, CanFire, Shoot, Reload, SetAutoFire/SetSingleFire, GetAimFov, GetActiveSubWeapon).
+FINDINGS: 3
+
+#1 [major] [confidence medium] Main scope lens is never hidden by sight mode, and per-mode lenses are disabled for that weapon
+     where: src/Weapons/HeldWeapon.cs:119-126 and :1005 (VRScope.cs:237-278)
+     trigger: A scoped weapon with several sight modes (Sights.Length > 1) is drawn while its selected mode is magnified (GetAimFov() < 40 at construction). The player then switches to an unmagnified mode (red dot or iron).
+     effect: The scope lens (dark ocular disc, plus the magnified picture when aiming) is drawn in every sight mode and covers the red dot or iron sight. UpdateModeScopes (HeldWeapon.cs:1012-1036) never runs for that weapon, because _modeScopes is created only in the else branch (123-126), so the mode lenses are never created or hidden. The only SetShown call is on _modeScopes (line 1029); _scope is never hidden (_scope is referenced only at 121, 1005 and 1879).
+     evidence: Constructor line 119 calls VRScope.Wanted(weapon, rig), which reads w.GetAimFov() (VRScope.cs:47). GetAimFov depends on the active sight mode (decompiled Weapon.cs:2446-2456), so the branch depends on the mode at draw time. VRScope._shown defaults to true (VRScope.cs:27) and BeforeRender draws the disc even when not aiming (VRScope.cs:246-250). UpdateScopeLenses (HeldWeapon.cs:413-434) does handle modes for renderer lenses, so the omission is specific to _scope.
+     fix idea: Create _modeScopes for any weapon with Sights.Length > 1 and gate the main _scope by the selected mode's Magnified flag (SetShown). Alternatively, choose the lens per mode instead of at draw time.
+
+#2 [minor] [confidence medium] An exception inside the HeldWeapon constructor leaves a physics stand-in and a scope lens behind
+     where: src/Weapons/HeldWeapon.cs:121 and :135 (later throw sites :164-165, :183, :185-187); WeaponSystem.cs:296-305
+     trigger: Any exception after line 121 or 135 in the constructor. Handling (line 582) and ClassOf (line 230) dereference weapon.configuration without a null check, and GiveMuzzle (line 347) shows configuration can be null.
+     effect: AttachHeld catches the exception and sets Held = null without calling Release(). The GunCollider (GunCollider.cs:271-272, DontDestroyOnLoad, Rigidbody with gravity off) stays alive at the world origin. Nothing drives it: only HeldWeapon.Update (line 621) calls GunCollider.Update, so it is never placed and can bump props at the origin. GunCollider.Current keeps pointing at it until the next draw (GunCollider.cs:490). The VRScope root stays parented to the flat-game weapon (VRScope.cs:79) with its discs visible, and its RenderTexture and camera leak (VRScope.cs:73, 81-84).
+     evidence: WeaponSystem.cs:296 "Held = new HeldWeapon(...)" is followed by the catch at 299-305, which sets Held = null and adds the weapon to _attachFailed. HeldWeapon.Release (line 1766) is never reached.
+     fix idea: Wrap the constructor body after line 119 in try/catch that runs cleanup (GunCollider.Destroy, _scope.Destroy). Or move GunCollider.Create and the VRScope creation to the end of the constructor.
+
+#3 [minor] [confidence low] Slide is not returned to rest when its offset drops to zero (only the handle is reset)
+     where: src/Weapons/HeldWeapon.cs:1646-1654 (driven by ReloadInteractions.cs:1484-1493, 2393, 2503)
+     trigger: The bolt or slide is pulled back, and SlideOffset then drops to 0 in one step. ReloadInteractions.cs:1484-1493 uses MoveTowards with 6*dt, which can cross the full travel in one frame, and lines 2393 and 2503 assign 0 outright.
+     effect: ApplyPartOverrides moves Rig.Slide only while SlideOffset > 0.0005. In the else branch only Rig.Handle is reset, so Rig.Slide keeps its last written (pulled-back) position unless something else writes its transform later in the frame, such as the game's animator. This is visible only if the slide is not driven by the animator.
+     evidence: HeldWeapon.cs:1646 "if (SlideOffset > 0.0005f) { MovePart(Rig.Slide, ...) } else if (Rig.Handle != null) { MovePart(Rig.Handle, ..., Vector3.zero) }". Release() (lines 1794-1797) resets the slide only when the weapon is let go, so the offset persists while the weapon is held.
+     fix idea: Move the slide to its rest position in the else branch too: MovePart(Rig.Slide, d.SlideRestLocal, Vector3.zero), the same as the handle.
+
+CHECKED AND NOT REPORTED (no defect traced):
+- WeaponPatches: Shoot, CanFire, Reload, Unholster, Update, Aiming, SwimInput and LaserSight patches. CanFire is reached through Weapon.Fire, which forwards to the active sub-weapon (Weapon.cs:1035-1045). Dry-fire is throttled to 0.15 s (WeaponSystem.cs:428-437). AmmoState.CanFire returns true for non-participating weapons (AmmoState.cs:76).
+- FireSelector: Configuration is a serializable class per instance (Weapon.cs:87, 328), so SetSingleFire/SetAutoFire do not leak to other weapons.
+- Recoil spring, sag/droop, two-hand frame, world-block blend and anchor math (HeldWeapon.cs:853-1010): checked, no defect.
+- BeginRack sets the Slide role and _racking together (ReloadInteractions.cs:1326, 1340), so the handle-travel branch in RackSolid is consistent with ApplyPartOverrides.
+- GunVolume cache keys are unique per object (seated:, part:, prop:, tp:), so no volume is shared between two live objects with conflicting SetPose.
+- GunCollider HideFromPlayer nesting (GunCollider.cs:301-322) is correct, including the Update() reset path.
+- WeaponOverrides applies the pitch override to AimAxis and Up after analysis (WeaponAnalyzer.cs:122), but not to the sight lines. Intent is unclear, so not reported.
+- ModHand numbered-finger fallback overwrites a name-based index (ModHand.cs:43-64). No concrete failing case, so not reported.

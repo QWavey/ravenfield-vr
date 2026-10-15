@@ -1,0 +1,39 @@
+AREA: UI
+FILES READ: src/UI/VRInputModule.cs, UISystem.cs, VRSettingsPanel.cs, ModKeysPanel.cs, UiKit.cs, VRKeyboard.cs, AnyKeyPrompts.cs, TextPlate.cs, WristHud.cs, SeatSights.cs, SquadPointing.cs, LoadingView.cs; also read (not reported on) CanvasManager.cs, src/Input/ScriptKeys.cs, src/Input/VRInput.cs (GetPressed/Consume), src/Core/VRManager.cs (OnSceneChanged), src/Weapons/AmmoState.cs (CounterText caching), and the decompiled Seat.cs and SquadPointUi.cs.
+FINDINGS: 4
+
+#1 [major] [confidence high] Settings and mod-keys panels stay open across a scene change
+where: src/UI/UISystem.cs:266-270 (OnSceneChanged); src/UI/UiKit.cs:124 (DontDestroyOnLoad root); src/UI/UISystem.cs:134-141 (open panel forces MenuMode)
+trigger: player opens the VR settings (VRMenu) or mod keys in the main menu or loading screen, then a map starts (or any scene change happens).
+effect: the panel stays open into gameplay. While open, MenuMode is true, so the laser is drawn and a free hand is switched to HandRole.Pointer (UISystem.cs:159-167), and VRGameInput.PanelOpen is true (UISystem.cs:141), which changes fire, stick and throw gating (GameInputBridge.cs:120,134; ThrowAndMelee.cs:117). Only the VRMenu toggle or the Close button removes it.
+evidence: VRManager.cs:211-215 calls only Weapons?.OnSceneChanged() and UI?.OnSceneChanged(). UISystem.OnSceneChanged (UISystem.cs:266-270) forwards to Canvases.OnSceneChanged (CanvasManager.cs:528, which deliberately keeps converted canvases) and clears _eventSystem. Settings.Close and ModKeys.Close are called only from their own Toggle/Close handlers.
+fix idea: close Settings and ModKeys in UISystem.OnSceneChanged (or when GameContext.InGame changes), so a panel never carries into a new scene unannounced.
+
+#2 [major] [confidence high] The trigger pull that hands the pointer to the other hand never clicks
+where: src/UI/UISystem.cs:146-149 (switch on TriggerPressed(other)); src/UI/VRInputModule.cs:122 (press checked against PointerHand), :63-74 (UpdateTriggers edge), :183-184 (PointerHand set from UISystem each frame)
+trigger: the laser is on one hand over a button; the player pulls the other hand's trigger to take the pointer and click with it.
+effect: the pointer switches hands, but the same trigger edge is never turned into a press. The button under the new laser is not pressed, and the player must pull again.
+evidence: UpdateTriggers sets _triggerPressed[h] only on the frame the trigger crosses 0.7 (VRInputModule.cs:69-72). UISystem reads that flag (UISystem.cs:147) and sets _pointerHand. Process calls UpdateTriggers again, so the edge is already consumed, and checks press = _triggerPressed[PointerHand] (VRInputModule.cs:122) with the old hand. If Process runs before UISystem.Update in the frame, the edge is checked against the old hand and is gone next frame; if after, the switch consumes it and it is gone next frame. In neither order does Press(over) run for the new hand.
+fix idea: let the module decide the pointer hand inside Process before computing press, or have the switch carry the edge over so Press uses the hand that actually pulled.
+
+#3 [minor] [confidence medium] Mod keys opened from Settings stacks on the still-open Settings panel
+where: src/UI/VRSettingsPanel.cs:251 (Mod keys button opens without closing Settings); src/UI/ModKeysPanel.cs:205 and src/UI/VRSettingsPanel.cs:291 (placement)
+trigger: player opens Settings, then presses Mod keys.
+effect: the two panels are placed about 0.38 m apart sideways (Settings at +0.18 m right, ModKeys at -0.2 m) at nearly the same distance (1.275 m vs 1.2 m). Their widths are 0.95 m and 0.8 m, so they overlap by roughly half a metre. Both stay open, and the nearer ModKeys panel covers the middle of Settings.
+fix idea: close Settings when ModKeys opens, or place ModKeys beside Settings instead of over it.
+
+#4 [minor] [confidence medium] VRKeyboard latches its target when the keyboard cannot be shown and never retries
+where: src/UI/VRKeyboard.cs:47 (_target set before the checks), :53-56 (overlay null returns with _target set), :61-65 (error leaves _target set), :32 (early return when selected == _target)
+trigger: SteamVR returns an error from ShowKeyboard, or OpenVR.Overlay is null at the moment the field is selected. Also: the field is non-interactable when selected and becomes interactable while still selected.
+effect: the keyboard does not open for that field. Because _target still equals the selection, Update returns at line 32 on every frame, and re-tapping the same field changes nothing (VRInputModule.cs:272 only clears selection when the new object differs). The user has to select something else first, such as an empty spot or a non-input button, to clear _target.
+fix idea: reset _target (or _open state) when ShowKeyboard fails or the overlay is missing, so the next frame or the next tap retries.
+
+Checked and ruled out:
+- SquadPointUi.instance becoming a destroyed object on scene change: field reads on a destroyed MonoBehaviour do not throw, so SquadPointing.cs:189 and :198 do not raise an NRE; the label just fades out.
+- ExecuteEvents on a destroyed pressed row (ModKeysPanel.cs:82-85 rebuild while pressed): I believe the call is guarded for null or inactive targets, so it is a lost click rather than an exception. Not verified in the game's Unity build.
+- WristHud CounterText reference comparison (WristHud.cs:140): AmmoState.cs:377-383 caches the string, so there is no per-frame rebuild.
+- Seat camera assignment (SeatSights.cs:61): Seat.camera is a serialized field, so the capture order is not a bug.
+- LoadingView end conditions: the 20 s timeout and the ready check cover every path I traced; no stuck state found.
+- VRSettingsPanel setting consumers: all 33 entries have runtime consumers (Reload is read via ReloadNow, DominantHand via LeftHanded).
+
+Report path: not written (read-only run). The reports/agents/ui.txt file was not created.

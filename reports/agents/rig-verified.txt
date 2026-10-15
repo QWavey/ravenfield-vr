@@ -1,0 +1,24 @@
+NOT WRITTEN TO DISK: my role here is read-only, so I did not create reports/agents/rig-verified.txt. The full verified text is below for the lead to save to C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\reports\agents\rig-verified.txt.
+
+CONFIRMED 1, REFUTED 1, UNSURE 1
+
+#1 Hidden glove keeps its last visible skin, so NearSkin and ClearanceAlong test against a frozen hand (minor)
+VERDICT: REFUTED
+Reason: The stale skin is only read by solid predicates that run inside a hand's visible Apply path. That path never runs while the hand is suppressed: HandModel.cs:413-417 returns before the finger solve (:515) and before SlideOnGrip/SettlePalm (:465-467). Arm IK suppresses every hand together (HeldWeapon.cs:993-996, :1743-1751), so the support hand never solves while the gun hand is frozen. HandsSolid (HeldWeapon.cs:1056) is the gun volume only and does not call NearSkin.
+The only other NearSkin readers are self-test measurements (ReloadInteractions.cs:2426-2429, HeldWeapon.cs:1398-1406). The ClearanceAlong contract mismatch (HandModel.cs:368 returns stale data where the doc at :363 says 0 while not shown) is inert, because KeepOut is applied only on the visible path (:447).
+Correction to the original text: NearSkin's palm box reads _root (HandModel.cs:602), and _root is also frozen while hidden (set at :455, after the early return), so the palm box is not live.
+
+#2 Steering wheel or flight stick stays locked when the grabbing hand loses tracking mid-grip (major)
+VERDICT: CONFIRMED
+Reason: CockpitControls.cs:113-116 returns before the release checks at :144-147 and :171-176, so a release during untracked time is never processed. VRHand.cs:85 sets Tracked=false on the last-pose path, while VRInput.cs:221-224 keeps refreshing Held from the digital action state, so the release is only seen after tracking returns. Nothing else clears the vehicle inputs per frame: VehicleInput.WheelSteer and FlightStick are written only by CockpitControls.cs:76, :175, :183, :281-282 and read at VehicleInput.cs:27, :35, :43.
+Trigger: the player grips the wheel or stick, then the controller loses tracking (battery, power, out of view), and the grip is released or the controller simply stays untracked.
+Effect: the last steering value (CockpitControls.cs:76) or stick deflection (:183) persists, so the vehicle keeps steering or pitching and rolling until the controller reports tracked again.
+Fix idea: process the release before the Tracked check (GrabHeld needs no pose), or on tracking loss clear _onWheel[i] / _stickHand and ease steering and deflection to zero.
+Line references in the original report are accurate.
+
+#3 Ground check sphere cast holds only 64 hits, so a pile of loose bodies can hide the ground (minor, low confidence)
+VERDICT: UNSURE
+Reason: The mechanism is real. The NonAlloc buffer drops hits past 64 in unspecified order (GroundCheck.cs:22, :55, :59-77), while the replaced ray-form Physics.SphereCast returns only the nearest hit. The decompiled game call (.ref/decompiled/firstpass/UnityStandardAssets.Characters.FirstPerson/FirstPersonController.cs:360) uses the same overload with a 0.6 m distance and mask -12945153, confirming the patch target.
+Reachability is not established: the sweep is a short column under the feet, so it would need 64 distinct colliders in it. Casings cap at 40 live (Casings.cs:17), so casings alone cannot reach 64. Other loose-body sources were not bounded, so this stays unsure.
+
+Checked, no change needed to the original report: OpenVRMath, OpenVRRuntime, VRHand tracking-loss path, HandPoses, HandShape, GloveMesh, HandModel (SolveFinger, SlideOnGrip, SettlePalm), CameraSuppressor, ComfortVignette, DamageFeedback, MudSplash, IntroStage, HandPreview. None of the files on the do-not-report list were reported on.

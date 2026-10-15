@@ -1,0 +1,51 @@
+NOT WRITTEN TO DISK: this agent is read-only (no Bash writes, no heredocs), so reports/agents/lifecycle-verified.txt was not created. The verdicts are below so the lead can save them. Source report: C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\reports\agents\lifecycle.txt
+
+SUMMARY: CONFIRMED 5, REFUTED 0, UNSURE 3
+
+#1 Evicted gun volumes leave hull Meshes alive (minor)
+VERDICT: CONFIRMED
+- GunVolume.cs:282-288 removes evicted entries from Cache/CacheOrder and destroys nothing. Hull Pieces come from ShapeFit.FitCloud (GunVolume.cs:557); Piece.Mesh creates a `new Mesh` lazily (ShapeFit.cs:34-36), used by AddColliders (ShapeFit.cs:605). GunCollider.Destroy (GunCollider.cs:842-853) only destroys _go. Nothing calls ShapeFit.ClearCache (ShapeFit.cs:648).
+- Trigger is reachable: CacheSize = 12 (GunVolume.cs:24), and the HeldWeapon path (HeldWeapon.cs:1076 -> GunVolume.For, GunVolume.cs:227 sets WantsHull) feeds hull pieces into colliders (HeldWeapon.cs:1221/1228/1236/1249).
+- Caveat on severity: a runtime `new Mesh` is native memory that Unity frees on Resources.UnloadUnusedAssets. Unity runs that on scene loads, so the leak may last only until the next level load, not "the rest of the session". Severity should be tiny to minor.
+- Fix idea: destroy HullPieces[i].Mesh when the volume leaves the cache, or cache hull meshes by weapon key.
+
+#2 Grab-zone debug spheres leak five Materials per draw with the option on (minor)
+VERDICT: CONFIRMED
+- BodyZones.cs:490 creates `new Material` per DebugSphere call and assigns it only to sharedMaterial (491). HeldWeapon.cs:1617 creates the spheres once per HeldWeapon; DestroyDebug (HeldWeapon.cs:1632-1634) destroys only the GameObjects. Release calls DestroyDebug at HeldWeapon.cs:1889, and the option-off path at 1594.
+- Trigger is real: VRConfig.cs:307 ShowGrabZones, default false, debug only. Each new HeldWeapon (WeaponSystem.cs:296) that draws with the option on creates five new Materials.
+- Fix idea: one static debug Material, or destroy each sphere's sharedMaterial in DestroyDebug.
+
+#3 Grenade dud baked Mesh leaks on every throw (minor, low confidence)
+VERDICT: UNSURE
+- Confirmed mechanism: GrenadeDud.cs:113-114 creates a baked `new Mesh` for a SkinnedMeshRenderer not skinned to arms, assigned at line 126. GrenadeDud.Destroy (271-278) destroys only _go. The oversize branch (146-154) destroys child GameObjects but not the baked meshes. Casings.cs:468-479 (OwnedMesh) is the existing pattern and is not used here.
+- Unverified: whether any shipped grenade model has a skinned, non-arm renderer. The asset data is not in the repo, so this cannot be confirmed or refuted from code.
+
+#4 Fallback box shape allocates a new hull Mesh per draw (tiny, low confidence)
+VERDICT: UNSURE
+- Confirmed mechanism: GunCollider.cs:534-540 builds a new BoxPiece whenever kept is empty (not cached). GunCollider.Create (489-491) and the constructor's AddColliders call (273) then create a fresh Mesh (ShapeFit.cs:36, 603-605). ShapeFit.Fit caches the empty result (ShapeFit.cs:92, 103-106), so the empty case recurs. GrenadeDud.cs:66-70 has the same pattern.
+- Unverified: whether any shipped weapon reaches an empty fit (no enabled renderer with a mesh, or every piece outside the envelope). Reachability is not established.
+
+#5 One-time Unity assets never destroyed at VR shutdown (tiny, no practical effect)
+VERDICT: CONFIRMED (as a fact; impact negligible)
+- UISystem.cs:314 LaserPointer material is not destroyed (Destroy at 362-368 handles only _go).
+- SquadPointing.cs:254 arrow Mesh is not destroyed (Destroy at 261-277 destroys _arrow, _arrowMaterial and _label, but not the mesh). The arrow material IS destroyed at 272-274.
+- ComfortVignette.cs:27, 35, 46 (mesh, material, mask Texture2D) and Destroy at 83-89 handles only _quad.
+- DamageFeedback.cs:80, 84 (mesh, material) and Destroy at 161-170 handles only _go.
+- Shutdown is only from OnApplicationQuit/OnDestroy/failed init (VRManager.cs:70, 304, 308); process exit frees all of it. Nothing grows, so this is cosmetic.
+
+#6 CameraSuppressor keeps dead Camera and PostProcessLayer keys (tiny)
+VERDICT: CONFIRMED
+- CameraSuppressor.cs:21 (_originalEye) and 22 (_ppLayers) are added to at lines 54 and 64-66. Pruning at line 71 covers only _suppressed. _ignored is pruned at 72. Dispose (94-128) does not clear _originalEye (only _ppLayers at 126).
+- Effect: dead keys accumulate per level load for the session. Managed memory only, so tiny.
+
+#7 PerfProbe FrameTimes grows without bound under -rfvr-perf (tiny)
+VERDICT: CONFIRMED (line numbers corrected)
+- FrameTimes is declared at PerfProbe.cs:24. Frame() is at lines 61-73 (not 57-68), and the unbounded add is at line 71. Reset() is at lines 110-117 (not 70-75).
+- The same unbounded growth also affects GpuTimes (line 26, added at line 98, cleared in Reset at 114). The report omits it.
+- Trigger: VRPlugin.cs:58 sets Enabled from -rfvr-perf. VRManager.cs:139 calls Frame each frame. Reset is called only from AutoTest.cs:257.
+
+#8 Temporary render targets leak if a measurement throws mid-loop (low confidence)
+VERDICT: UNSURE
+- Confirmed mechanism: GunVolume.cs:408 allocates targets. Render (455-456) takes RenderTextures via GetTemporary (618). The finally at 467-477 does not release targets. The releases at 491 and 498 run only on the success path.
+- Trigger not concrete: an exception from RenderWithShader or GetTemporary inside the loop. Build failures are caught in Cached (GunVolume.cs:270-277), so the leak would occur only on an exception the report does not identify. Upstream guards (depth shader check at 297-301, the box check at 370-373) do not prevent it, and the trigger is not established.
+- Fix idea: in the finally, release every non-null targets entry when the volume was not handed to the job.

@@ -1,0 +1,40 @@
+AREA: Rig, hands and glove
+FILES READ: src/Runtime/OpenVRRuntime.cs, src/Runtime/OpenVRMath.cs, src/Rig/VRHand.cs, src/Rig/HandModel.cs, src/Rig/HandPoses.cs, src/Rig/HandShape.cs, src/Rig/GloveMesh.cs, src/Rig/CameraSuppressor.cs, src/Rig/GroundCheck.cs, src/Rig/ComfortVignette.cs, src/Rig/DamageFeedback.cs, src/Rig/MudSplash.cs, src/Rig/CockpitControls.cs, src/Rig/IntroStage.cs, src/Rig/HandPreview.cs
+  Followed into (read only, for call tracing): src/Weapons/HeldWeapon.cs (SnapHands, SetHandModelsSuppressed, arm IK branch), src/Input/VRInput.cs (Held, GetPose), src/Rig/VRRig.cs (call sites and Dispose only), src/Core/VRManager.cs (start and stop), tools/hands/convert_glove.py (glove.bin writer vs HandShape.LoadGlove reader), .ref/decompiled/Assembly-CSharp (SphereCast overloads). src/Rig/Glove/ holds only resources (glove.bin, glove.json, two jpg), no .cs.
+FINDINGS: 3
+
+#1 [minor] [confidence medium] Hidden glove keeps its last visible skin, so NearSkin and ClearanceAlong test against a frozen hand
+   where: src/Rig/HandModel.cs:406-414 (Apply returns while hidden, before UpdateSkin), src/Rig/HandModel.cs:560 (_skinValid = _visible, set only in UpdateSkin), src/Rig/HandModel.cs:365 and :584 (consumers check _skinValid)
+   trigger: The weapon's own arms are shown (arm IK active). HeldWeapon sets Suppressed on every hand each frame. The hand was visible on the frame before it was suppressed, e.g. a weapon drawn while the gloves were visible, or a pistol whose support hand is cupping the grip.
+   effect: While the glove is hidden _skinValid stays true, so NearSkin (the pistol support-hand solid, HeldWeapon.cs:1482) and ClearanceAlong still use the capsules from the last visible frame (_skinA/_skinB never update), mixed with the live palm box and palm skin. Support-hand fingers close on or stop short of an invisible, frozen glove position, and the hidden hand contact state is wrong for as long as suppression lasts.
+   evidence: HeldWeapon.cs:993-996 (if _armIK.Active then _armIK.Solve(); SetHandModelsSuppressed(true)); HeldWeapon.cs:1743-1751 (h.Model.Suppressed = suppressed for all hands); HandModel.cs:410-414 (SetVisible(false) then return, UpdateSkin skipped); HandModel.cs:558-562 (UpdateSkin sets _skinValid = _visible, not reached while hidden); HandModel.cs:584-597 (NearSkin: capsule loop uses the stale _skinA/_skinB; the palm box test at 598-602 runs on the live _root).
+   fix idea: On the hidden branch of Apply, set _skinValid = false before returning (or route it through a helper that does), so NearSkin and ClearanceAlong report no contact while the glove is not shown.
+
+#2 [major] [confidence medium] Steering wheel or flight stick stays locked when the grabbing hand loses tracking mid-grip
+   where: src/Rig/CockpitControls.cs:113-116 (UpdateHand returns when !hand.Tracked, before the release checks at :142-147 and :169-176); steering published at :76; stick deflection published at :183
+   trigger: The player grips the wheel or stick, then that controller goes untracked: powered off, battery dead, or dropped out of the headset view. The grip is released while untracked, or the controller simply stays untracked.
+   effect: UpdateHand never runs for that hand while it is untracked, so _onWheel[i] or _stickHand stays set and hand.Role stays HandRole.Cockpit. VehicleInput.WheelSteer keeps the last steering value and VehicleInput.FlightStick the last deflection, so the vehicle keeps turning or pitching and rolling until the controller reports tracked again. The release is only processed on the first tracked frame; only ReleaseAll (seat change, menu, vehicle gone) clears it earlier.
+   evidence: VRHand.Tracked = raw.valid (VRHand.cs:69-75, :84-85), so an untracked controller sets Tracked false while Held is still refreshed from bState (VRInput.cs:221-226). CockpitControls never reads GrabHeld on that frame because of the early return. Holding the lock while the grip stays closed is intended; the bug is that a release during the untracked period is never acted on.
+   fix idea: Process the release before the Tracked check (GrabHeld does not need a pose), or on tracking loss run the same release path for that hand (clear _onWheel/_stickHand and ease steering or deflection to zero).
+
+#3 [minor] [confidence low] Ground check sphere cast holds only 64 hits, so a pile of loose bodies can hide the ground
+   where: src/Rig/GroundCheck.cs:22 (Hits = new RaycastHit[64]), :55 (SphereCastNonAlloc), :59-77 (loop over the buffer)
+   trigger: 64 or more colliders overlap the hips sweep, e.g. a pile of light dynamic bodies (cases, dropped props, ragdoll limbs) under the feet. Unverified in practice; it depends on how many such bodies accumulate.
+   effect: SphereCastNonAlloc fills the buffer in unspecified order and discards the rest. If the ground is among the discarded hits, Cast returns false and FirstPersonController treats the player as airborne until the pile shrinks.
+   evidence: GroundCheck.cs:21 comment acknowledges the hits are unsorted; the NonAlloc buffer limit is documented Unity behaviour. The replaced call matches the decompiled game's Ray-based SphereCast form used by the patch, so the patch itself is correctly targeted.
+   fix idea: Use a larger buffer, or a second cast masked to ground layers so light loose bodies never take slots from the ground.
+
+Checked, no finding:
+- OpenVRMath: ToUnity, ToUnityVector and ToUnityAngular conventions are correct (axial vector sign flip for angular velocity); SafeLookRotation guards zero and parallel vectors.
+- OpenVRRuntime: Start, Stop, PumpEvents, quit and dashboard handling. A partial start that leaves Display running needs an exception after Display.Start() with no concrete trigger, so not reported.
+- VRHand: tracking-loss path holds the last tracked pose; velocity history, ForgetMotion and WeightedVelocity are consistent; the rig-velocity clamp is guarded by Time.unscaledDeltaTime.
+- HandPoses: enum and table order match (30 entries); Get falls back to Relaxed; For covers every HandRole.
+- HandShape: WithoutCurl swing-twist math is correct; the glove.bin reader matches the converter writer field for field (version 2, palm box order x,y,z min/max, joint record, 12 palm skin points).
+- GloveMesh: procedural glove winding for the left hand is correct, because the ring parameterisation reverses order under reflection (the tactical glove explicit triangle swap is not needed there).
+- HandModel: SolveFinger bisection and locking terminate (guard counter); SlideOnGrip restores root position; PalmOffset and skin capsules use consistent scale; snap blend never reads an unset _lastSnap; the ClearanceAlong shift is consistent with the posed skin.
+- CameraSuppressor: Refresh, OnPreCull, OnPostRender and Dispose restore stereoTargetEye, culling masks, post-process layers and XR tracking. Dictionary entries for destroyed cameras are a negligible leak, not reported.
+- ComfortVignette: fade and quad geometry are correct; Destroy does not free the mesh, material or texture (one instance per session, not reported).
+- DamageFeedback: flash, hit-direction and low-health logic; haptics; the Harmony patches are guarded by VRManager.Active.
+- MudSplash: splats expire by Life and fold when dead; Blocked and Splash guard zero-length vectors; Subscribe handles scene reloads; VRRig calls Update and Destroy through null-conditionals.
+- IntroStage: static state resets on scene change; the Verifying pass reverts walkers that do not follow their facing; no leaked objects.
+- HandPreview: self-test pictures only, no gameplay effect; not reported.

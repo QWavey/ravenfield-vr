@@ -1,0 +1,44 @@
+SUMMARY: CONFIRMED 3, REFUTED 0, UNSURE 2
+
+#1 Switching the graphics preset live to Game keeps the previous preset's QualitySettings
+VERDICT: CONFIRMED
+Reason: GraphicsPresets.cs:88-93 returns for the Game preset before the QualitySettings writes at 97-107, so only FarClipCap, ForceMsaa and terrains are reset. The decompiled Options.cs writes QualitySettings only at line 298 (SetQualityLevel, run on Save when the quality dropdown changed). Options.Apply (349+) does not touch QualitySettings. VRManager.cs:276 routes the live change to GraphicsPresets.OnPresetChanged (116-123), which calls Apply.
+Trigger: in a running session, change the preset from Low/Medium/High/Ultra to Game (VR panel, or a config file reload).
+Effect: MSAA, shadow distance/cascades/resolution, LOD bias, pixel lights, texture limit, anisotropy, soft particles and reflection probes keep the old preset's values until restart or a quality-dropdown Save. The header (GraphicsPresets.cs:13) says Game leaves everything to the game.
+Fix: snapshot the QualitySettings fields once before the first preset Apply (as Originals does for terrains) and restore them in the Game branch.
+Severity: minor, as reported.
+
+#2 Exception outside any try in WeaponSelfTest.Run leaves Running and runInBackground set
+VERDICT: UNSURE
+Reason: The mechanism is real. Running=true at WeaponSelfTest.cs:127, runInBackground is changed at 129-130, and the restore (252) and Running=false (261) run only on normal completion. WeaponWarmup.cs:22 returns early while WeaponSelfTest.Running is true.
+Several cited calls cannot throw out of the coroutine: TimeModelCopy (WeaponDrops.cs:185-196) calls BuildWorldModelWhole/FromSubtree, which catch internally (WeaponDrops.cs:264, 355) and return null, giving -1. HandPreview.Capture and CapturePoseSheet (HandPreview.cs) have their own try/catch/finally, so 245 and 248 are not throw sources. The stated justification also fails: WeaponDrops.Prepare (391-411) wraps its body in try/catch (398-410), so the warm-up's try is not evidence that Prepare throws; only ModelFor (393) sits outside it.
+The genuinely unprotected calls are TimePreparedDrop (WeaponDrops.cs:375-389, called at WeaponSelfTest.cs:200; it runs FitModel with no try), Casings.MeshCheck (Casings.cs:275, no try) and CockpitControls.SelfCheck (CockpitControls.cs:221, try/finally with no catch, called at 251). No concrete throw was traced in any of them.
+Trigger: Debug.WeaponSelfTest or -rfvr-selftest is on, and an exception escapes one of those unprotected calls (for example FitModel for a weapon whose Prepare already swallowed the same error).
+Effect if triggered, as reported: the coroutine dies, Running stays true (weapon pre-analysis is disabled for the session), and runInBackground stays true.
+Fix: try/finally around the whole Run body that restores runInBackground and clears Running, plus try/catch around the TimePreparedDrop and check calls.
+Severity: lower than reported (debug-only path, trigger not shown).
+
+#3 Revision-2 migration overwrites an explicit GripToHoldWeapon=false
+VERDICT: CONFIRMED
+Reason: VRConfig.cs:333-335 sets GripToHoldWeapon.Value = true unconditionally when ConfigRevision < 2. The Migrate doc (315-318) says only settings still at an old default move, and the revision-1 branch (324-325) checks its old default first. git show ffbe7ca:src/Core/VRConfig.cs:218 confirms the old default was false. BepInEx writes every entry, so a stored false cannot be told apart from a deliberate choice, and the code converts every false.
+Trigger: a file at ConfigRevision 0 or 1 with GripToHoldWeapon=false, started on the current version.
+Effect: the value becomes true and is saved as revision 2, so the change is permanent. This contradicts the comment's promise that player choices are kept.
+Fix: either document that false counts as the old default, or migrate only when the key was present in the file before Bind (check the file contents before binding).
+Severity: minor, as reported.
+
+#4 A failed OpenVR start after Display.Start leaves the XR display running
+VERDICT: UNSURE
+Reason: The code path is real. OpenVRRuntime.cs:100 (Display.Start) and 101 (InputSubsystem.Start) run before Running=true at 112. The catch at 122-125 calls Fail with Running still false, and VRManager.cs:53-57 falls back to flat mode. Stop() (159-163) returns early when !Running, so Display and InputSubsystem (set at 85 and 99) are never stopped or destroyed, including at quit via VRManager.Shutdown (301).
+No concrete exception between 102 and 111 was traced: TrySetTrackingOriginMode (103), SetTrackingSpace (109) and ApplyLiveSettings (111, which only catches EntryPointNotFoundException at 136) are the candidates, and none has a known throw. The report itself says the trigger is "most likely" without a traced source. The claim that the game runs flat with an active XR display was not verified.
+Trigger: any exception from lines 101-111 (the generic catch at 122 takes all of them).
+Effect if triggered: as reported.
+Fix: in the catch, stop and destroy Display and InputSubsystem if they are non-null, regardless of Running.
+Severity: minor if reachable; trigger not shown.
+
+#5 Shots leaks a Texture2D and can leave RenderTexture.active set when a shot fails
+VERDICT: CONFIRMED
+Reason: Shots.cs:67 sets RenderTexture.active = rt, 68 creates tex, 69-70 call ReadPixels and Apply, 71 restores active, 73 calls WriteAllBytes, and 74 destroys tex. None of this is in a finally. The catch (77-80) only logs, and the finally (81-92) releases rt and destroys go, but not tex and not the active target. The size (1280x800 RGB24, about 3.07 MB) matches the report.
+Trigger: WriteAllBytes throws (unwritable folder, disk full) during -rfvr-shots or the autotest, or ReadPixels/Apply throws between 67 and 71.
+Effect: each failed shot leaks tex; a throw before 71 leaves RenderTexture.active pointing at rt, which the finally then releases and destroys.
+Fix: move the tex destroy and the RenderTexture.active restore into a finally block.
+Severity: tiny, development-tool path only.

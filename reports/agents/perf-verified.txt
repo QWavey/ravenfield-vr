@@ -1,0 +1,114 @@
+=== perf-verified.txt (verification of reports/agents/perf.txt) ===
+SUMMARY: CONFIRMED 14, REFUTED 0, UNSURE 8 (7 of the 8 cite only files on the excluded list and were not assessed; #16 is partly excluded).
+
+#1 Aimed magnified scope re-renders the whole world a second time every frame
+VERDICT: CONFIRMED
+Reason: VRScope.cs:246 sets active = aiming || eye within 0.22 m; VRScope.cs:264 sets _camera.enabled = true every active frame. The camera copies culling mask, clear flags and depth mode from the VR camera (258-263), so it draws the full scene. HeldWeapon.cs:1005 calls _scope.BeforeRender(Aiming) every frame; mode scopes at HeldWeapon.cs:1032. RT is ScopeResolution (default 768, VRConfig.cs:237) with antiAliasing 2 (VRScope.cs:73). No throttle.
+Trigger: player aims down a magnified scope. Effect: one extra world pass on GPU while aimed.
+Fix idea: render at half rate, antiAliasing 0 on the RT, lower default resolution.
+
+#2 VR camera far plane floored at 1500 m
+VERDICT: UNSURE (not assessed)
+Reason: cited lines are in VRRig.cs, which is on the excluded list.
+
+#3 Ultra and High presets stack multipliers on eye buffers
+VERDICT: CONFIRMED (severity lowered to minor for default play)
+Reason: GraphicsPresets.cs:59-64 values match. OpenVRRuntime.cs:131 applies RenderScale to XRSettings.eyeTextureResolutionScale. GraphicsPresets.cs:97 applies MSAA to QualitySettings.antiAliasing.
+Corrections: the default preset is Medium (VRConfig.cs:144), so Ultra and High are opt-in. RenderScale is written only in OnPresetChanged (GraphicsPresets.cs:120), not per frame. Apply (97-110) runs at start, level start and options apply, not per frame. The "45-90 fps on Quest 3" claim has no support in the code. The VRRig.cs:907 citation is excluded and was not assessed.
+Trigger: user selects High or Ultra. Effect: about 2x eye pixels and 4x MSAA on top of SteamVR render scale, 150 m shadows with 4 cascades, reflections on.
+Fix idea: a single supersampling control, MSAA cap of 2x, reflections and 4-cascade shadows off in VR presets.
+
+#4 Grab search measures every collider of every drop per free hand
+VERDICT: UNSURE (not assessed)
+Reason: cited code is in WeaponDrops.cs, which is on the excluded list.
+
+#5 Every local-player move toggles the held gun stand-in layer and isTrigger
+VERDICT: CONFIRMED
+Reason: GunCollider.cs:301-322. Each HideFromPlayer call writes g._go.layer (314) and each box isTrigger (317-319) when it differs. The depth guard (309) suppresses only nested calls. Harmony prefix and postfix on FirstPersonController.FixedUpdate (922-942) and CharacterController.Move (945-966) call it on every move. Only a null or disabled GunCollider short-circuits (304), so the toggle runs even with no nearby prop.
+Trigger: any local CharacterController move while a weapon is held. Effect: collider flag and layer churn at physics rate. Cost not measured.
+Fix idea: decide once per physics step, and hide only when a loose body overlaps the sweep.
+
+#6 Intro title scan runs 10 times a second after placement is done
+VERDICT: CONFIRMED
+Reason: IntroStage.cs:75-79 calls PlaceTitleInWorld every 0.1 s while _isIntro. The _phase == Done early return is at 81, after the scan. PlaceTitleInWorld calls GameCamera() (273, which does Camera.allCameras at 330), FindObjectsOfType<Canvas> (278), and FindObjectsOfType<TextMesh> (317).
+Trigger: intro scene (buildIndex 0) until the scene changes. Effect: scene-wide scans and an array allocation every 0.1 s after placement.
+Fix idea: move the Done check above the scan.
+
+#7 Canvas manager scans the scene every 0.4 s
+VERDICT: UNSURE (not assessed)
+Reason: cited code is in CanvasManager.cs, which is on the excluded list.
+
+#8 CameraSuppressor.Refresh does per-frame lookups and never prunes two dictionaries
+VERDICT: CONFIRMED
+Reason: Refresh runs every frame (VRManager.cs:168 via Guard at 186). CameraSuppressor.cs:61 calls GetComponent<PostProcessLayer> for each non-RT, non-ignored camera every frame. _originalEye (54) and _ppLayers (66) get entries that are never removed; the RemoveWhere passes at 71-72 prune only _suppressed and _ignored. Dispose (111, 117) only reads.
+Effect: a GetComponent per camera per frame, and dictionaries that grow with each map load (small, unbounded).
+Fix idea: cache the PostProcessLayer, prune the two dictionaries in the same pass, and refresh every few frames.
+
+#9 UI camera is an always-on second stereo pass
+VERDICT: CONFIRMED (cost low confidence, unmeasured)
+Reason: UISystem.cs:79-89 creates UiCamera with stereoTargetEye Both (82), clearFlags Depth (83), cullingMask 1<<5 (84), allowMSAA (89). A grep of src finds no write that disables UiCamera (the only camera disable is EventCamera at 96). An enabled camera renders each frame, so the pass runs every frame. The content on layer 5 comes from CanvasManager (excluded, not assessed).
+Fix idea: draw the HUD in the head camera's pass, or disable UiCamera when no canvas is visible.
+
+#10 Settings panel rebuilds row strings each frame while open
+VERDICT: CONFIRMED
+Reason: UISystem.cs:134-137 calls Settings.Refresh() each frame while IsOpen. VRSettingsPanel.cs:306-312 runs every refresher; 230 and 243 call value() and assign v.text each time. Unity's Text.text setter ignores identical strings, so the cost is allocation only.
+Fix idea: refresh on config change events or every 0.25 s.
+
+#11 EventSystem lookup each frame while EventSystem.current is null
+VERDICT: CONFIRMED (low cost)
+Reason: UISystem.cs:118 calls EnsureModule every frame. Lines 196-199 call FindObjectOfType<EventSystem>() when EventSystem.current is null, before the early return at 201. The search repeats each frame while no active EventSystem exists.
+Fix idea: throttle the lookup to about 0.5 s.
+
+#12 Finger solver re-runs during trigger pulls and curl easing; grip search bursts every 0.2 s
+VERDICT: CONFIRMED (narrowed; one part refuted)
+Reason: the reuse test (HandModel.cs:503-506) caches the solve when pull is steady within 0.01 and the curl is settled. So a steady partial trigger pull does not re-solve every frame; the claim "continuously while the trigger is partly pulled" is refuted. Re-solves happen on transitions: closing, pull changing by more than 0.01, settling, and grip moves.
+Corrections: the second solve during a pull is at HandModel.cs:531, not 520-521 (520-521 only reads the pull). SlideOnGrip (682-705) searches at most every 0.2 s (689) and only when GripMoved (460, 723-742) is true. SolveFinger uses Steps = 10 with a guard up to 14 (764-795) and 5 bisection passes (808). SlideSteps has 13 entries (672).
+Fix idea: quantise the pull in the reuse test, and run the grip search at 0.5 s.
+
+#13 Input layer makes about 60 OpenVR calls per frame plus pose calls
+VERDICT: CONFIRMED (cost unmeasured, tiny)
+Reason: VRInput.cs:216-221 makes 3 x DigitalCount GetDigitalActionData calls per frame (slot 2 is the any-hand query). Lines 248-254 make 4 trigger and grip reads and 2 move and turn reads. UpdateSkeletons is at 256. Update is guarded once per frame (189). The debug loop (265) is gated. VRHand.cs:67, 100, 106 make three GetPose calls per hand per UpdatePose.
+Fix idea: derive the any-hand state from the two per-hand reads (valid, since slot 2 is an OR of the hands).
+
+#14 Guard section that throws every frame pays an exception, string and lock each frame
+VERDICT: CONFIRMED (conditional; a symptom of a fault in the guarded section)
+Reason: Log.cs:80-95 catches the exception. ExceptionOnce (36-47) builds the key string and takes the lock on every call, not only the first. Call sites are VRManager.cs:142-206.
+Trigger: a guarded section throws on every frame. Effect: one managed throw, a string build and a lock per frame.
+Fix idea: cache the last key, or disable a section after repeated faults.
+
+#15 Each draw of a scoped weapon allocates and frees a 768 px MSAA render texture
+VERDICT: CONFIRMED
+Reason: HeldWeapon.cs:119-125 constructs VRScope in the HeldWeapon constructor. VRScope.cs:72-74 allocates the RT with antiAliasing 2. Lines 92, 94, 100 each call Shader.Find. Line 96 Object.Instantiate copies the disc. HeldWeapon.cs:1879 destroys it on release. Mode scopes are created lazily at HeldWeapon.cs:1025. The HeldWeapon construction call site is in an excluded file and was not assessed.
+Fix idea: cache one VRScope per weapon type and reuse its RT, materials and mesh.
+
+#16 Dropped props run overlap checks every frame for 0.5 s; ignored-body set rescanned
+VERDICT: UNSURE (partly assessed)
+Reason: the GunCollider part is confirmed: GunCollider.cs:100-102 runs RemoveWhere on every call while done.Count > 512 (IgnoreBodiesNear, 74-104). The MagazineProp.cs and WeaponDrops.cs halves are on the excluded list and were not assessed. Cost is tiny.
+
+#17 Head pose read twice per frame; post-process lookup every frame
+VERDICT: UNSURE (not assessed)
+Reason: cited code is in VRRig.cs, which is on the excluded list.
+
+#18 Game-state getters recomputed several times per frame
+VERDICT: UNSURE (not assessed)
+Reason: cites WeaponSystem.cs, which is on the excluded list.
+
+#19 Holster table rebuilt on every holster query
+VERDICT: CONFIRMED (tiny)
+Reason: AssignHolsters (BodyZones.cs:260-288) resets the table and iterates the weapons. HolsterAt (243-245) and SlotAtSpot(0) (321-326) call it. HolsterDisplay.cs:46-48 calls SlotAtSpot for each spot in BeforeRender when show is true, so spot 0 rebuilds about once per frame. Also BodyZones.cs:413 (AtBody) calls HolsterAt.
+Fix idea: cache the table per frame (Time.frameCount) or on loadout change.
+
+#20 Closure allocated on each weapon release
+VERDICT: UNSURE (not assessed)
+Reason: cited code is in WeaponSystem.cs, which is on the excluded list.
+
+#21 Menu camera lookup may throw every frame
+VERDICT: UNSURE (not assessed)
+Reason: cited code is in VRRig.cs (FollowTarget), which is on the excluded list.
+
+#22 Menu laser computes the canvas hit twice a frame
+VERDICT: CONFIRMED (the fix idea should be rejected)
+Reason: the duplicate test is real: VRInputModule.cs:101 (IntersectCanvases in Process) and UISystem.cs:255 (TryHit in BeforeRender). The candidate set is refreshed at 10 Hz (VRInputModule.cs:214-225), so only the plane test runs per frame. HoverTick calls ExecuteEvents.GetEventHandler each frame while hovering (VRInputModule.cs:154).
+Do NOT apply the fix as written: reusing the Process hit in BeforeRender reverses a deliberate change. UISystem.cs:251-253 says the previous frame's pose bent the drawn laser. Keep the duplicate test.
+
+NOTE: findings #2, #4, #7, #17, #18, #20 and #21 cite excluded files (VRRig, WeaponDrops, CanvasManager, WeaponSystem). Per the rules, nothing inside those files was reported on, so they are UNSURE here.

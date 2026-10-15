@@ -1,0 +1,65 @@
+Haiku read-only bug hunt, 2026-10-15 (8 areas, each report checked by a Haiku skeptic)
+==================================================================================
+
+Reports: <area>.txt (the hunter's findings), <area>-verified.txt (the skeptic's verdicts).
+Counts after the skeptics: perf 14 confirmed, props 8, input 5, lifecycle 5, ui 4, core 3, rig 1, held 1.
+Fixes: commits 3eac51b and 1831507 on tasks-98-113 (Tasks.md 149, rounds 26-33).
+
+perf
+  #1  scope camera renders the world while aiming ............ kept (the zoomed view needs it); shader lookups cached (#15)
+  #3  Ultra/High stack render scale, 4x MSAA, 4 cascades ..... to be decided from the graphics bench (-rfvr-perfbench)
+  #5  gun stand-in toggles layer/trigger around every move ... kept for now: needed so the player never stands on the
+                                                                held gun; to be measured
+  #6  intro title scan after staging ........................ FIXED
+  #8  camera suppressor lookups, dead keys ................... FIXED
+  #9  UI camera always on .................................... measured in the bench ("no UI camera" run)
+  #10 settings panel refresh every frame ..................... FIXED (5 times a second)
+  #11 EventSystem search every frame ......................... FIXED (twice a second)
+  #12 finger solver re-solves on transitions ................. kept (it already reuses a settled solve)
+  #13 input calls per frame .................................. kept (tiny)
+  #14 a throwing guarded section ............................. kept (only while something is already broken)
+  #15 scoped weapon draw: shader lookups ..................... FIXED (looked up once)
+  #19 holster table rebuilt per query ........................ FIXED (once a frame)
+  #22 laser hit computed twice ............................... kept on purpose (the skeptic agrees)
+
+props
+  #1  particle cues counted as a played sound ................ FIXED
+  #2  pouch zone covers the off-hip holster .................. FIXED (a nearer holster wins)
+  #3  grenade dud baked mesh ................................. FIXED (OwnedMesh)
+  #4  warm-up skips weapons analysed elsewhere ............... FIXED
+  #5  pin reset without a throw .............................. FIXED
+  #6  pouch label ignores the kind ........................... FIXED
+  #7  debug sphere materials ................................. FIXED (shared per colour)
+  #8  audio slice past its window ............................ FIXED
+  #9  bolt handle shader fallback ............................ FIXED
+
+input
+  #1  right stick flies aircraft while scrolling a panel ..... FIXED
+  #2  sprint toggle pressed standing still ................... FIXED
+  #3  targeted tap broadcast while sprinting ................. FIXED
+  #4  complex-button outputs under the hand swap ............. unsure: to check in a headset (Vive/HP only)
+  #5  Vive: no scoreboard toggle ............................. not fixed (no free Vive button; scoreboard comes with the map)
+  #6  Vive/HP: no grip pose bound ............................ not fixed (pose paths unverified; Quest 3 unaffected)
+
+ui
+  #1  panels survive a scene change .......................... FIXED
+  #2  pointer hand switch eats the click ..................... kept on purpose (the first pull picks the hand)
+  #3  Mod keys opens over Settings ........................... FIXED (replaces it)
+  #4  keyboard latches a field ............................... FIXED (retries)
+
+core
+  #1  live switch to the Game preset ......................... FIXED (the game's quality restored)
+  #3  revision-2 migration ................................... kept (a stored false is the old default)
+  #5  Shots leak on failure .................................. FIXED
+
+held
+  #1  scope lens shown in unmagnified modes .................. FIXED (only in a magnified mode)
+
+rig
+  #2  wheel/stick stays held when tracking is lost ........... FIXED
+
+lifecycle
+  #1  evicted gun volume hull meshes ......................... kept (still used by live colliders; freed on map load)
+  #2  debug sphere materials ................................. FIXED (= props #7)
+  #6  camera suppressor dead keys ............................ FIXED (= perf #8)
+  #7  perf probe list grows under -rfvr-perf ................. kept (test runs only)

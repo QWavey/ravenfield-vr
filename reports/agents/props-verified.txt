@@ -1,0 +1,56 @@
+SUMMARY: CONFIRMED 8, REFUTED 0, UNSURE 1
+
+#1 Reload EmitParticles events count as "played", so a manual action can be silent and skip the donor and synth fallback
+VERDICT: CONFIRMED (major; medium confidence)
+Reason: WeaponSounds.cs:79-87 returns as soon as any cue reports played. An Event cue with no Clips goes to SendEvent (:121), which skips the bank check for EmitParticles (:148) and returns true after SendMessage (:169-171). PoseSampler.cs:37 whitelists EmitParticles. MatchCues (WeaponAnalyzer.cs:2590-2618) binds it to a keyframe, and the reload ClipSlice is only added for keyframes with no cue (WeaponAnalyzer.cs:2561-2562). The window is cue time from 0.6 s before to 0.15 s after the keyframe (:2598-2600), not [-0.15, +0.6] as the report words it.
+Trigger: a reload EmitParticles event (casing emitter) falls in that window of a MagOut/MagIn/SlideBack/SlideForward keyframe. Whether real assets contain it cannot be checked from the repo.
+Effect: the manual action is silent; the donor (WeaponSounds.cs:90) and synth (:96) never run.
+Fix: make SendEvent return false for EmitParticles (or do not count it as played), and do not let MatchCues bind EmitParticles to MechSound kinds.
+
+#2 Default pouch zone contains the centre of the off-hip gear/handgun holster
+VERDICT: CONFIRMED (minor; medium confidence)
+Reason: Defaults are Boneworks (VRConfig.cs:251) and pouch OffHandHip (VRConfig.cs:212), which falls to the default branch at BodyZones.cs:125. With the gun in the right hand, Pouch = belt - 0.10*fwd - 0.17*right; OffBeltFront = belt - 0.09*right (BodyZones.cs:115, Boneworks GearOff at :379). Distance 0.128 m, inside PouchRadius 0.17 (:33). Classic HandgunOff (:388) is 0.141 m from the classic pouch, also inside. This contradicts the comment at :121.
+Path: ReloadInteractions.cs:264-270 considers the pouch when Manual and InPouch(palm); the default ReloadNow is Manual (VRConfig.cs:204). Case 3 (:301-303) then consumes the press (:324). Held.Update runs at WeaponSystem.cs:116, before UpdateHolsters at :132, so UpdateHolster (:574) no longer sees GrabPressed. TakeFromPouch (ReloadInteractions.cs:931-934) returns early when there are no rounds, but the press is still consumed.
+Trigger: gun in the dominant hand, Manual mode, GearOff filled (Boneworks fills Gear, GearDominant, then GearOff for gear items: GearSpotsBoneworks at BodyZones.cs:233), and the free hand squeezes at that holster.
+Effect: that holster cannot be drawn while a gun is held; the player gets "NO AMMO" or "FULL" instead.
+Fix: move the default pouch point at least HolsterRadius from OffBeltFront, or make PouchRadius + HolsterRadius smaller than the centre distance.
+
+#3 Each skinned-model dud leaks a baked Mesh that nothing destroys
+VERDICT: CONFIRMED (minor; medium confidence)
+Reason: GrenadeDud.cs:113-115 creates a new Mesh and bakes into it; :126 assigns it to a MeshFilter. Destroy() (:271-278) only destroys the GameObject, and nothing in the class destroys the Mesh. The oversize branch (:146-154) destroys child GameObjects but also leaves the Mesh. Line correction: the OwnedMesh precedent is MagazineProp.cs:438, not :433.
+Trigger: a pinned grenade thrown with a non-arm-bound SkinnedMeshRenderer model (:111).
+Effect: one unreferenced Mesh per dud stays in memory for the session.
+Fix: keep the baked Mesh on the GrenadeDud (or in an OwnedMesh component) and Object.Destroy it in Destroy().
+
+#4 Warm-up skips a weapon whose rig analysis is cached, even when its shape and drop-model prep never ran
+VERDICT: CONFIRMED (minor; low confidence on frequency)
+Reason: WeaponWarmup.cs:132 continues when WeaponAnalyzer.IsCached is true. IsCached (WeaponAnalyzer.cs:100) checks only the analysis cache. The analysis cache can be filled earlier by SoundDonors.cs:73, WeaponSystem.cs:333, or WeaponSelfTest. PrefitShape (:140) and WeaponDrops.Prepare (:143) are then skipped. The shape fit is cached under "held:"+Key (GunCollider.cs:521, ShapeFit.cs:105), so the prefit is what primes it. The warm-up pauses during matches (WeaponWarmup.cs:95, :118), so the sound-donor path is the realistic trigger.
+Effect: the first in-match draw of that weapon does the shape fit (the hitch the warm-up exists to avoid).
+Fix: check the shape cache and the drop-model cache separately instead of skipping the whole body.
+
+#5 A throw that spawns no projectile still resets the pin
+VERDICT: CONFIRMED (tiny to minor; low likelihood)
+Reason: ThrowAndMelee.cs:150 ignores Shoot's result; :173 calls ResetPin unconditionally; :174 returns LastLiveCount > 0. The decompiled Weapon.Shoot (Weapon.cs:1436-1441) returns false before any spawn when onFireScriptable.isConsumed. ThrowableWeapon.Shoot (ThrowableWeapon.cs:67-82) still calls InstantlyReload and the emote, so the grenade stays in hand with the pin reset.
+Trigger: CanFire and unholstered are true, and a Ravenscript callback has consumed the onFire event (ScriptEvent.cs:87). The no-muzzle route was not checked.
+Effect: the pulled pin goes back in while the grenade is still in hand; the next throw is a dud (ThrowAndMelee.cs:132-135).
+Fix: call ResetPin only when LastLiveCount > 0.
+
+#6 Pouch count label not refreshed when the magazine kind changes but the numbers stay the same
+VERDICT: CONFIRMED (tiny; low likelihood)
+Reason: PouchDisplay.cs:76-81 caches only spare and capacity. Build() (:121-152) does not reset _shownSpare. The cache is reset only in Destroy() (:171-172), which WeaponSystem.Dispose calls (WeaponSystem.cs:803). It is not called on a weapon switch, since ReleaseHeld (:308-314) does not touch the pouch. PouchText (:98-115) returns "1" for a magazine at 30/30 and "30" for a shell at 30/30.
+Fix: include the kind in the cache check, or reset _shownSpare in Build().
+
+#7 Grab-zone debug spheres leak a material on each scene change
+VERDICT: CONFIRMED (tiny; debug option only)
+Reason: DebugSphere (BodyZones.cs:484-493) creates a new Material per sphere. DrawDebug (:454-474) rebuilds all nine spheres when any was destroyed by a scene change. Destroy (:495-505) destroys only the GameObjects, so the nine materials stay.
+Fix: use one static material per colour, or destroy the material with its sphere.
+
+#8 AudioSlicing clamp can stretch a short slice past its window
+VERDICT: CONFIRMED (tiny; low likelihood), with a corrected mechanism
+Reason: AudioSlicing.cs:99 is Mathf.Clamp(refinedEnd, start+0.08, end). Unity's Clamp returns min when value < min, and max otherwise. So the result is start+0.08 only when refinedEnd < start+0.08 and the original end is below that too. The caller (WeaponAnalyzer.cs:2566-2570) checks end - start >= 0.08 after Refine (:2569), so the padded 0.08 s slice is accepted and runs past the original window. This needs two keyframes within about 0.1 s of each other (:2566-2568).
+Fix: end = Mathf.Min(Mathf.Max(refinedEnd, start + 0.08f), end); the caller then rejects windows shorter than 0.08 s.
+
+#9 Bolt handle fallback material has no shader fallback
+VERDICT: UNSURE
+Reason: BoltPiece.cs:268 has new Material(Shader.Find("Standard")) with no fallback. A null shader throws, but only when Standard is absent from the build and no opaque renderer exists (:265-269). The throw is caught in both callers: HeldWeapon.cs:195-202 and HeldWeapon.cs:1147-1155 (WarnOnce, no handle). So the effect is a missing moving handle with one warning, not a failed weapon. Whether Standard is in the build cannot be verified from the repo.
+Fix: Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse"), as the other sites do (Casings.cs:324, GrenadeDud.cs:184, GrenadeDud.cs:401).

@@ -1,0 +1,45 @@
+SUMMARY: CONFIRMED 5, REFUTED 0, UNSURE 1
+
+#1 Right stick still flies helicopters and airplanes while a mod panel is being scrolled
+VERDICT: CONFIRMED
+Reason: VehicleInput.cs:33-35 (Helicopter) and :41-43 (Airplane) read VRInput.TurnStick directly, not VRGameInput.TurnStickRaw. GameInputBridge.cs:96-97 zeroes only MoveStick and TurnStickRaw when scrollingPanel, so the raw right stick is never zeroed. The guard in ShouldDrive (VehicleInput.cs:47-48) checks GameMenuOpen, which is c.IsCursorFree() (GameContext.cs:59-68). The mod never frees the cursor for its panels (grep of src finds no Cursor or lockState use), so the guard does not trip. UISystem.cs:124-128 opens Settings with no seat check. VRRig.cs:435 already blocks snap turn on SticksOnPanel, so only the aircraft path is missing the check.
+Trigger: seated as pilot of a helicopter or airplane; open the VR settings (or Mod keys) panel; point the laser at it so SticksOnPanel is true; push the right stick to scroll.
+Effect: FlightStick ?? right feeds cyclic/roll (VehicleInput.cs:35, :43), and HelicopterInputPatch / AirplaneInputPatch add it to the game's input (:72, :84), so the aircraft pitches and rolls while the panel is scrolled.
+Fix: use VRGameInput.TurnStickRaw in Helicopter() and Airplane(), or return zero for the right stick when VRGameInput.SticksOnPanel is true (same guard VRRig.cs:435 uses).
+
+#2 Sprint toggle pressed while standing still cancels itself in the same frame and clears crouch/prone
+VERDICT: CONFIRMED
+Reason: GameInputBridge.cs:302-309: the press sets SprintActive = true and clears CrouchToggled and ProneToggled. Lines 312-316 then set SprintActive = false in the same call when MoveStick.sqrMagnitude < 0.04 and Time.unscaledTime - _idleSince > 0.35. _idleSince only moves while the stick is pushed (:319-322), so a stationary press is cancelled at once. Nothing between these lines reads SprintActive; HoldingSprintPatch (:544-553) reads it later and sees false. No guard found.
+Trigger: SprintMode Toggle (the default, VRConfig.cs:184); stick idle for more than 0.35 s; press Sprint.
+Effect: the press does nothing, and the crouch/prone toggles are cleared for nothing.
+Fix: reset _idleSince = Time.unscaledTime when sprint is switched on, and clear the stance toggles only once sprint is actually moving.
+
+#3 A targeted tap on left shift becomes a broadcast hold while sprinting
+VERDICT: CONFIRMED
+Reason: VRManager.cs:159 calls ScriptKeys.SetHeld("left shift", SprintActive && PlayerOnFoot) every frame. ModKeysPanel.cs:193 calls Tap(key, target), which sets Target and ReleaseAt = now + 0.08 (ScriptKeys.cs:80-90). With a tap in flight, SetHeld(true) gets past both early returns (ScriptKeys.cs:103-106 needs ReleaseAt == MaxValue; 107-110 only guards held == false), so lines 111-117 run: Down stays true, ReleaseAt = MaxValue, Target = null, ChangeFrame refreshed, delivery maps cleared. Query (:184-186) then answers every script. The override happens on the next frame, so any tap while sprinting is broadcast and held until sprint ends (SetHeld(false) then releases normally).
+Trigger: sprinting on foot; tap a Mod keys entry for a script that polls left shift.
+Effect: the tap reaches every script, not just its target, and stays held for the whole sprint, which defeats the single-target design in ScriptKeys.cs:33-35.
+Fix: in SetHeld, when held is true and a tap is in flight (ReleaseAt != MaxValue), leave Target and ReleaseAt alone; or give the sprint hold its own VirtualKey name.
+
+#4 Hand swap moves hold gestures onto complex_button outputs (Vive; Squad on Touch/Knuckles/HP)
+VERDICT: UNSURE
+Reason: The swap mapping is as described (VRInput.cs:614-619). The any-hand GetHeld is at VRInput.cs:384, not :385 as cited (:385 is the per-hand overload). Under swap, Squad reads the right menu "double" output on Vive (bindings_vive_controller.json:26-27) and the right A "single" output on Touch, Knuckles and HP (bindings_oculus_touch.json:24-25; knuckles and hpmotion the same lines). The Touch part of the finding is partly wrong: under swap Fire reads the left trigger click in trigger mode (bindings_oculus_touch.json:10-11), which is a plain click, so only Squad on Touch/Knuckles/HP and Fire on Vive (left trigger "single", bindings_vive_controller.json:12-13) are affected. GameInputBridge.cs:152-156 records that a double-press output on the lower button made squad orders lose their hold, which supports the concern for Vive squad under swap. The repo does not show whether single or double are momentary, so the auto-fire and squad-hold effect cannot be confirmed from source.
+Trigger: weapon passed to the left hand (GunHand != Dominant) on Vive; on Touch/Knuckles/HP, squad under the same swap.
+Effect if confirmed: auto fire stops, squad hold cancels, and a Vive player may be unable to leave a seat (GameInputBridge.cs:135-136, :197).
+Fix idea: test in headset (Vive, weapon in left hand, auto fire; Touch, squad hold under swap). If the complex outputs are not held, bind the held actions (Squad, Use) to plain click outputs on both sides, or keep hold gestures on the same mode in both layouts.
+
+#5 vive_controller binds no Scoreboard, so the scoreboard-with-map toggle can never fire on Vive
+VERDICT: CONFIRMED
+Reason: bindings_vive_controller.json has no Scoreboard output (lines 8-29). Touch and HP bind it on the left stick long press (oculus_touch.json:19, hpmotioncontroller.json:19) and Knuckles on the left trackpad click (knuckles.json:32-33). The only toggle is GameInputBridge.cs:111-114, and _scoreboardWithMap starts true (GameInputBridge.cs:60). Nothing else sets Scoreboard, and the Vive description (line 4) does not mention the gap.
+Trigger: any Vive wand session.
+Effect: the scoreboard always comes up with the map (PeekScoreboard at GameInputBridge.cs:118 is set whenever the wrist look is active) and cannot be changed.
+Fix: bind Scoreboard to a free Vive input, or document that Vive cannot toggle it.
+
+#6 PoseGrip is not bound for vive_controller or hpmotioncontroller; the palm uses a fixed offset
+VERDICT: CONFIRMED (severity tiny, as reported)
+Reason: PoseGrip is bound only in bindings_oculus_touch.json:36-37 and bindings_knuckles.json:40-41. bindings_vive_controller.json (lines 31-36) and bindings_hpmotioncontroller.json (lines 33-38) bind only Pose and PoseTip. VRHand.cs:106-108 takes the grip pose when valid, otherwise Raw + (0, -0.025, -0.055). An unbound action returns no valid pose, so the fallback runs. The HP description (hpmotioncontroller.json:4, "Same layout as Touch") is inaccurate for poses.
+Trigger: any Vive or HP session.
+Effect: palm position uses the fixed offset instead of the controller grip pose, so palm placement differs by controller. The effect on holds is unverified.
+Fix: bind the grip pose for both profiles (confirm the SteamVR path for each), or correct the HP description.
+
+Line-number corrections for the report: #3 the early returns are at ScriptKeys.cs:103-110 (103-106 no-change, 107-110 tap-in-flight release guard); #4 any-hand GetHeld is VRInput.cs:384; #4 GameInputBridge.cs:152-156 holds the double-press comment.

@@ -1,0 +1,41 @@
+AREA: Core, lifecycle and scene changes
+FILES READ: src/Core/VRManager.cs, VRPlugin.cs, VRConfig.cs, GraphicsPresets.cs, InstallCheck.cs, Log.cs, PerfProbe.cs, Shots.cs; src/Util/GameContext.cs, MaterialFix.cs; src/Weapons/WeaponSelfTest.cs. Followed into (read only): src/Runtime/OpenVRRuntime.cs, src/Rig/CameraSuppressor.cs, src/Rig/VRRig.cs (ctor, Dispose, CopyCameraSettings), src/Rig/VRHand.cs, src/UI/UISystem.cs (OnSceneChanged, Dispose), src/Weapons/WeaponSystem.cs (OnSceneChanged, Dispose), src/Weapons/WeaponWarmup.cs, src/Weapons/WeaponDrops.cs (call sites only); .ref/decompiled Options.cs (Apply, Save, ApplyAtStartup), GameManager.cs (PauseGame, UnpauseGame, IsPaused, GetMainCamera, OnAllContentLoaded, UpdateIngameTargetFrameRate, level-start call at 1856), Actor.cs (IsSeated), LocalPlayer.cs; git show of src/Core/VRConfig.cs at ffbe7ca.
+FINDINGS: 5
+
+#1 [minor] [high] Switching the graphics preset live to Game keeps the previous preset's QualitySettings
+   where: src/Core/GraphicsPresets.cs:86-94
+   trigger: In a running session the preset is changed from Low/Medium/High/Ultra to Game (VR settings panel or config file).
+   effect: The Game branch only restores terrains and resets FarClipCap and ForceMsaa. MSAA, shadow distance, cascades, resolution and quality, LOD bias, pixel light count, texture limit, anisotropic filtering, soft particles and realtime reflections keep the old preset's values until the game restarts or an Options save changes the quality dropdown (Options.cs:297-298 calls SetQualityLevel). The file header says Game leaves everything to the game's own options.
+   evidence: VRManager.cs:276 -> GraphicsPresets.OnPresetChanged (116-123) -> Apply (81) -> Profiles.TryGetValue fails -> FarClipCap, ForceMsaa, RestoreTerrains, return (88-93). The QualitySettings writes at 97-107 are never reached for Game, and the game's own values are never captured. Options.Save (Options.cs:300) calls Apply(false) and the level-start path (OptionsApplyPatch -> OnLevelOptionsApplied) does not touch QualitySettings, so nothing resets them.
+   fix idea: Snapshot the QualitySettings fields once before the first preset Apply (as Originals does for terrains) and write them back in the Game branch.
+
+#2 [minor] [medium] Exception outside any try in WeaponSelfTest.Run leaves Running and runInBackground set for the session
+   where: src/Weapons/WeaponSelfTest.cs:198 (also 200, 222-223, 245, 248, 250, 251)
+   trigger: Debug.WeaponSelfTest is on (or -rfvr-selftest), and either WeaponDrops.Prepare or TimePreparedDrop (198-200) or TimeModelCopy (222-223) throws for an installed weapon, or one of the hand, casing or cockpit checks (245-251) throws.
+   effect: The coroutine dies before the restore at 252 and before Running=false at 261. Running stays true, so WeaponWarmup.Start returns at its first check (src/Weapons/WeaponWarmup.cs:22) and weapon pre-analysis never runs again this session. Application.runInBackground also stays true. The warm-up calls the same WeaponDrops.Prepare inside try/catch (WeaponWarmup.cs:137-157), so the call is known to be able to throw.
+   evidence: 127 Running=true; 129-130 save and set runInBackground; the per-weapon try covers only 153-169; 191-211, 220-239 and 244-251 have no try; the restore at 252 and Running=false at 261 run only on normal completion.
+   fix idea: Wrap the timing and self-check section in try/finally that restores runInBackground and clears Running, or catch and record each call's failure in the report.
+
+#3 [minor] [medium] Revision-2 migration overwrites an explicit GripToHoldWeapon=false, contrary to the Migrate comment
+   where: src/Core/VRConfig.cs:331-336 (rule stated at 319-321)
+   trigger: A player whose file is at ConfigRevision 0 or 1 and who set GripToHoldWeapon = false (the old default, git ffbe7ca VRConfig.cs:218) starts the new version.
+   effect: The value becomes true once and the revision is saved as 2, so the change is permanent. The comment says a value the player chose is kept. Revision 1 checks the old default first (line 325); revision 2 does not.
+   evidence: Lines 333-335 set GripToHoldWeapon.Value = true unconditionally. BepInEx writes every entry, so a stored false cannot be told apart from the old default; the code, not the comment, decides the outcome.
+   fix idea: Either document that false counts as the old default, or migrate only when the key was absent from the file before Bind.
+
+#4 [minor] [low] A failed OpenVR start after Display.Start leaves the XR display running
+   where: src/Core/VRManager.cs:53-57 (caller). Cause is in src/Runtime/OpenVRRuntime.cs:100-125, outside this agent's area, found while following the call.
+   trigger: An exception after Display.Start() (OpenVRRuntime.cs:100) and before Running=true (112), most likely from ApplyLiveSettings (111) or the tracking-origin calls (103-109), that is not EntryPointNotFoundException.
+   effect: The catch at 122-125 returns Fail() with Running still false, and VRManager logs "Continuing in flat mode". Display and InputSubsystem stay started. Stop() returns early at 161-163 because Running is false, so they are never stopped, not even at quit. The game runs flat with an active XR display.
+   evidence: OpenVRRuntime.cs:159-163 early return; VRManager.cs:53-57 relies on Start() to clean up after itself.
+   fix idea: In the catch, stop and destroy whatever was created (Display and InputSubsystem) regardless of Running, or set Running before the risky calls.
+
+#5 [tiny] [medium] Shots leaks a Texture2D and can leave RenderTexture.active set when a shot fails
+   where: src/Core/Shots.cs:66-74
+   trigger: File.WriteAllBytes (73) throws during a -rfvr-shots or autotest capture (disk full, folder not writable), or ReadPixels or Apply throws between 67 and 71.
+   effect: tex (1280x800 RGB24, about 3 MB native) is destroyed only at line 74, so a throw leaks it. A throw before line 71 leaves RenderTexture.active pointing at a released render texture.
+   evidence: 68 new Texture2D; 71 restores active; 73 write; 74 destroy; catch 77-80; finally 81-92 releases only rt and go.
+   fix idea: Destroy tex and restore RenderTexture.active in a finally block.
+
+CHECKED, NO FINDING: dashboard and headset pause state machine (VRManager.cs:226-272; all orders traced: dashboard then headset, headset then dashboard, game menu open, scene change while paused); event subscriptions (VRManager 77-83 against 282-288, CameraSuppressor, WeaponSystem, VRKeyboard, AutoTest) all paired; Shutdown is safe when run twice (OnApplicationQuit then OnDestroy); GameContext null handling (LocalPlayer.controller is static and never cleared, but the Unity null check covers destroyed objects); GraphicsPresets terrain Originals (the game's Apply(true) runs via GameManager.cs:1856, so the level-start capture is correct); VRConfig live versus restart settings (Mirror, RenderScale and Graphics are live; Stereo and NearClip are read at VRRig.cs:100 and 905); game vSync is overridden every frame against GameManager.cs:1783-1794; MaterialFix's Fixed map is never pruned but only grows per distinct broken material, so no finding; InstallCheck; Log.Guard and PerfProbe; ParseVector cache; the game never sets runInBackground or handles focus, so no alt-tab bug could be traced.
+Not reported as findings (no concrete throw traced): unguarded PumpEvents and handler calls in VRManager.Update (139-141), and unguarded Weapons.OnSceneChanged in VRManager.OnSceneChanged (214-215).

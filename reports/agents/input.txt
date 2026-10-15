@@ -1,0 +1,45 @@
+AREA: Input
+FILES READ: src/Input/VRInput.cs, src/Input/GameInputBridge.cs, src/Input/ScriptKeys.cs, src/Input/VehicleInput.cs, src/Input/TurretAim.cs, src/Input/BindingsWriter.cs, src/Input/SteamVR/actions.json, src/Input/SteamVR/bindings_oculus_touch.json, bindings_knuckles.json, bindings_hpmotioncontroller.json, bindings_vive_controller.json, bindings_rift.json, src/Core/VRManager.cs, src/Core/VRConfig.cs (grep), src/Rig/VRHand.cs, src/UI/UISystem.cs, src/UI/ModKeysPanel.cs (grep), src/UI/VRInputModule.cs (grep), src/Util/GameContext.cs, src/Weapons/ThrowAndMelee.cs, src/Rig/VRRig.cs and src/Weapons/WeaponSystem.cs (grep/context only, nothing reported inside them), build.ps1 (resource names), decompiled FpsActorController.cs (UpdateUse, UseButtonHeld, Countermeasures, squad order), decompiled MountedTurret.cs, TankTurret.cs.
+FINDINGS: 6
+
+#1 [major] [confidence high] Right stick still flies helicopters and airplanes while a mod panel is being scrolled
+   where: src/Input/VehicleInput.cs:34 and :42 (cyclic/stick used at :35 and :43)
+   trigger: seated in a helicopter or plane; open the VR settings panel (VRMenu, double-click left stick, UISystem.cs:124-128); aim the laser at the panel so SticksOnPanel is true; push the right stick to scroll.
+   effect: the right stick feeds FlightStick ?? right into cyclic/roll, so the aircraft pitches and rolls while the player scrolls the panel.
+   evidence: GameInputBridge.cs:95-97 zeroes MoveStick and TurnStickRaw when scrollingPanel. VRRig.cs:435 respects SticksOnPanel for snap turn. VehicleInput.Helicopter() and Airplane() read VRInput.TurnStick directly, not TurnStickRaw. HelicopterInputPatch/AirplaneInputPatch (VehicleInput.cs:63-86) add the result to the game's input. UISystem.cs:124-141 opens Settings from VRMenu with no seat check. VRInputModule.cs:124 and :369 scroll the panel with TurnStick.y, so the same stick does both.
+   fix idea: use VRGameInput.TurnStickRaw in Helicopter() and Airplane(), or return zero when VRGameInput.SticksOnPanel is true.
+
+#2 [minor] [confidence high] Sprint toggle pressed while standing still cancels itself in the same frame and clears crouch/prone
+   where: src/Input/GameInputBridge.cs:302-316 (clears at 307-308, cancel at 312-316)
+   trigger: default SprintMode.Toggle (VRConfig.cs:184); the stick has been idle for more than 0.35 s; the player presses Sprint.
+   effect: SprintActive goes true then false in the same frame, so the press does nothing. CrouchToggled and ProneToggled are cleared on the way, so a crouched player stands up for nothing.
+   evidence: 304-308 toggle sprint on and clear the stance toggles. 312-316 cancel sprint when _idleSince is older than 0.35 s. _idleSince only moves while the stick is pushed (320-322), so a stationary press is cancelled at once.
+   fix idea: reset _idleSince when the toggle turns sprint on, and clear the stance toggles only once sprint is actually moving.
+
+#3 [minor] [confidence medium] A targeted tap on left shift becomes a broadcast hold while sprinting
+   where: src/Input/ScriptKeys.cs:93-118 (SetHeld; the reset at 111-117 and Target=null at 115); src/Core/VRManager.cs:159; src/UI/ModKeysPanel.cs:193
+   trigger: sprinting on foot in toggle mode; the player taps a Mod keys panel entry for a script that polls left shift (ScriptKeys.Tap with a target).
+   effect: VRManager calls SetHeld("left shift", true) every frame while sprinting. With a tap in flight, SetHeld does not return early (ReleaseAt != float.MaxValue), so it clears Target, refreshes ChangeFrame and resets the delivery maps. The tap is then delivered to every script and held until sprint ends, which defeats the single-target design described at ScriptKeys.cs:33-35.
+   evidence: SetHeld lines 103-110 return early only when no tap is in flight; lines 111-117 unconditionally reset Target and ChangeFrame.
+   fix idea: in SetHeld, when a tap is in flight, leave Target and ReleaseAt alone; or give the sprint hold its own VirtualKey so it cannot overwrite a tap.
+
+#4 [minor] [confidence low] Hand swap moves hold gestures onto complex_button outputs (Vive; Squad on Touch/Knuckles/HP)
+   where: src/Input/VRInput.cs:606-622 (Slot) and :385 (any-hand GetHeld); src/Input/GameInputBridge.cs:120, :136, :278; src/Input/SteamVR/bindings_vive_controller.json:11-13 and :26-27; src/Input/SteamVR/bindings_oculus_touch.json:24-25
+   trigger: weapon passed to the left hand (GunHand != Dominant) on Vive wands; on Touch, the same swap.
+   effect: under the swap, Fire reads the left trigger's complex "single" output (Use slot); SlideRelease reads the trigger's "long" output (Squad slot); Squad (hold to point, FpsActorController.cs:1653-1672) reads the right menu's "double" output (SlideRelease slot). Unswapped, Fire is a plain click and Squad on Touch is a plain X click. Auto fire, hold-to-point and hold-to-leave-seat (GameInputBridge.cs:197) depend on SteamVR keeping these outputs active while held. If single/double are momentary, auto fire stops, squad orders cancel and a Vive player may be unable to leave a seat. The repo does not show SteamVR's complex_button output semantics, so confidence is low.
+   evidence: Slot swaps Fire<->Use and SlideRelease<->Squad, MagRelease<->Map (VRInput.cs:614-619) regardless of binding mode; Squad's any-hand read goes through Slot (VRInput.cs:385).
+   fix idea: confirm complex_button single/double/long semantics in SteamVR; if they are momentary, bind the held actions (Squad, Use) as plain click outputs on both sides, or keep hold gestures on the same mode in both layouts.
+
+#5 [minor] [confidence high] vive_controller binds no Scoreboard, so the scoreboard-with-map toggle can never fire on Vive
+   where: src/Input/SteamVR/bindings_vive_controller.json:8-29 (no Scoreboard output); src/Input/GameInputBridge.cs:111-114
+   trigger: any Vive wand player (there is no Vive input for Scoreboard).
+   effect: _scoreboardWithMap stays true, so on Vive the scoreboard always comes up with the map and cannot be changed. Touch and HP toggle it on the left stick long press (oculus_touch.json:19, hpmotioncontroller.json:19); Knuckles on the left trackpad click (knuckles.json:32-33). The Vive description does not mention the omission.
+   fix idea: bind Scoreboard to a free Vive input or document that Vive cannot toggle it.
+
+#6 [tiny] [confidence low] PoseGrip is not bound for vive_controller or hpmotioncontroller; the palm uses a fixed offset
+   where: src/Rig/VRHand.cs:106-108 (fallback at 108); src/Input/SteamVR/bindings_vive_controller.json:31-36; src/Input/SteamVR/bindings_hpmotioncontroller.json:33-38 (HP description at line 4 says "Same layout as Touch")
+   trigger: any Vive or HP session.
+   effect: VRHand.UpdatePose falls back to a fixed local offset (0, -0.025, -0.055) when the PoseGrip action returns nothing. Touch (oculus_touch.json:36-37) and Knuckles (knuckles.json:40-41) bind the grip pose, so palm placement differs by controller. Impact on holds is unverified.
+   fix idea: bind the grip pose for both profiles (confirm the SteamVR path for each), or correct the HP description.
+
+Checked and found consistent (no finding): Consume() timing and reset order (VRManager.cs:153-160 runs VRInput.Update once per frame before weapon systems); SuppressFire is cleared every frame by WeaponSystem.cs:102 before ThrowAndMelee sets it, so no stuck trigger; hand swap Slot mapping is consistent for Fire/Use, SlideRelease/Squad and MagRelease/Map across both hands; BindingsWriter mirror logic (letter flip only for oculus_touch and hpmotioncontroller) gives a symmetric layout; LowerButtonDoublePressed maps each hand's lower button correctly under swap; turret aim signs match MountedTurret.cs:101-110, 131-132 and TankTurret.cs:32-51; ScriptKeys edge delivery (Deliver/fresh window) works as documented; HeldToLeaveSeat's stale timer after an exit is absorbed by the game's useConsumed guard (FpsActorController.cs:1821-1848, 1873-1876), so it is not reported; cockpit WheelSteer/FlightStick are cleared on release (CockpitControls.cs:175, 281-282); manifest action names match actions.json; build.ps1:107-108 resource names match ExtractManifests.
