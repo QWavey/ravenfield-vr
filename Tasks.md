@@ -8,7 +8,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - Done: 145
 - Code done, to check in the headset: 53
 - In progress: 10
-- Still to do: 26
+- Still to do: 29
 
 ### Still to do
 
@@ -38,6 +38,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 232. ARS HK416 / MP9: the gun still draws its magazine while it is out
 - 233. Vector family: a fingertip in the ejection port when racking
 - 234. Fix what the per-gun review found (gun by gun at the end); 69 guns not reviewed
+- 235. CZ Bren 2 BR: the bolt pull is still wrong
+- 236. Some M4s: the charging handle / bolt pull is still wrong
+- 237. The muzzle flash renders through the gun (aimed): hide what the gun covers
 
 ### In progress
 
@@ -387,6 +390,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 232. [ ] (per-gun review) ARS HK416 / ARS MP9: with the magazine out, the gun still draws its own magazine (it is part of one mesh on these models: no separate magazine part to hide); cut it out like the bolt piece, or hide it another way
 233. [ ] (per-gun review) Vector family (vector, mw-vector, mw-vector rds): racking, a fingertip goes into the ejection port (the port is open space in the measured shape); keep the fingers on the receiver's surface there
 234. [ ] Fix what the per-gun review found, gun by gun (list under "For 226 / 234" at the end); review the 69 guns no agent reached on the fresh pictures
+235. [ ] CZ Bren 2 BR (and its variants): pulling the bolt / charging handle is still wrong (user, 2026-10-15 night, in the Quest 3; see 186 and 214)
+236. [ ] Some M4s: pulling the charging handle / bolt is still wrong (user, 2026-10-15 night; which M4s to find out: the mwii M4s, the M4A1 family, the custom AR-15s; see 157, 167, 168, 170)
+237. [ ] The muzzle lens flash renders through the weapon model: aimed, it is drawn over the gun and its sights (the user's screenshot 2026-10-15 night, an aimed machine gun). Make it realistic: the flash's source (core and fireball) in the world in front of the muzzle, so the gun and its sights hide what they cover; the eye's own effects (starburst, haze) weaker when the source is hidden from that eye; the light on the face (the wash) stays
 
 ## Notes
 
