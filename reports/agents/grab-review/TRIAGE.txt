@@ -45,11 +45,13 @@ ROOT CAUSES FOUND
 8. MW M870 (No script): two shotgun shells hanging in the air beside the gun                         1 finding
    Cause: the mod's reload animation keeps its two shells ("zidan") beside the gun at rest, out of the flat view.
    Fix: small parts the reload carries far that wait outside the gun at rest are not drawn while held (like the
-   spare magazines). To check in the next run (one shell was still drawn with a 4 cm margin; margin now 1 cm).
+   spare magazines). One of the two was gone in the check run; the other waited within the 4 cm margin given to the
+   gun's box, now 1 cm: to check in the next run.
 
 9. RPG-7V variants and Panzerfaust 3: "did not fire" although the game says it can                   (autotest)
-   Not yet found. The game reports can fire / unholstered / no script; the next run records the state the moment
-   Weapon.Fire returns false (before StopFire clears it).
+   Cause: their draw time (the game's unholster time) is longer than the 3 s the test waited, and CanFire() does not
+   look at it; the game's draw delay is right, the test was not. Fix: the test waits out the draw time. Checked: both
+   fire now (no longer listed).
 
 NOT BUGS (reviewer misreads or scene)
 -------------------------------------
