@@ -572,14 +572,36 @@ namespace RavenfieldVR.Weapons
                 }
             }
             var list = new List<Renderer>();
+            var solid = new List<Renderer>();
             foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
             {
                 if (r.enabled && !skip.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer) && !AddedByMod(r.transform, rig.Weapon.transform))
                 {
                     list.Add(r);
+                    if (!SeeThrough(r))
+                    {
+                        solid.Add(r);
+                    }
                 }
             }
-            return list;
+            // Without a sight's reticle quad or glow (an M4 holo sight's additive quad is 4 m across): magazines bounced off
+            // an invisible plane and the hand closed on air above the receiver. All of them for a gun drawn see-through.
+            return solid.Count > 0 ? solid : list;
+        }
+
+        /// <summary>A reticle, glow or glass: transparent, additive, a HUD or particle shader, or larger than a gun could be.</summary>
+        internal static bool SeeThrough(Renderer r)
+        {
+            Material m = r.sharedMaterial;
+            if (m == null)
+            {
+                return false;
+            }
+            string shader = m.shader != null ? m.shader.name : "";
+            return m.renderQueue > 2500 || shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || shader.IndexOf("HUD", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || shader.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || r.bounds.size.sqrMagnitude > 1.5f * 1.5f;
         }
 
         /// <summary>The renderer belongs to something the mod attached to the weapon (its objects are all named "RavenfieldVR ...").</summary>

@@ -73,6 +73,10 @@ namespace RavenfieldVR.Rig
             {
                 _steer = _handSteer[_onWheel[0] ? 0 : 1];
             }
+            else
+            {
+                _steer = 0f; // let go: the next grab starts from the centre, not the old turn (the car jerked to it)
+            }
             VehicleInput.WheelSteer = _onWheel[0] || _onWheel[1] ? _steer : (float?)null;
         }
 

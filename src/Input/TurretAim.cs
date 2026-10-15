@@ -37,6 +37,10 @@ namespace RavenfieldVR.Input
             {
                 return true;
             }
+            if (reference == null)
+            {
+                reference = turret.transform; // an empty muzzle slot: the game fires from the turret itself then too
+            }
             Vector3 local = reference.worldToLocalMatrix.MultiplyVector(dir.Value).normalized;
             // Steered by the angle still to turn (radians), not its sine: the same close to the target, but the sine falls
             // back to nothing as the target goes behind, so a turret asked to look round hardly turned.

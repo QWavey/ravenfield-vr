@@ -29,6 +29,10 @@ namespace RavenfieldVR.Weapons
         private Weapon _pendingWeapon;
         private HeldWeapon _pendingHeld;
         private int _pendingFrame = -1;
+        // The fired gun's muzzle particle systems and how many particles each had at the shot: only particles this shot
+        // put out count as its flash (not an earlier shot's still in the air, or another barrel's).
+        private ParticleSystem[] _pendingSystems = new ParticleSystem[0];
+        private int[] _pendingCounts = new int[0];
         // The gun now (for the glow of sustained fire).
         private readonly List<float> _shots = new List<float>();
         private Weapon _gun;
@@ -62,6 +66,13 @@ namespace RavenfieldVR.Weapons
             _pendingHeld = held;
             _pendingWeapon = weapon;
             _pendingFrame = Time.frameCount;
+            // Read now, before the shot's particles are simulated (the game has only asked them to play).
+            _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
+            _pendingCounts = new int[_pendingSystems.Length];
+            for (int i = 0; i < _pendingSystems.Length; i++)
+            {
+                _pendingCounts[i] = _pendingSystems[i] != null ? _pendingSystems[i].particleCount : 0;
+            }
         }
 
         public void BeforeRender()
@@ -69,6 +80,12 @@ namespace RavenfieldVR.Weapons
             float now = Time.unscaledTime;
             if (_pendingWeapon != null && Time.frameCount - _pendingFrame <= 1)
             {
+                // A shot fired after this frame's particle update shows its particles next frame: decided then.
+                if (Time.frameCount == _pendingFrame && MuzzleFlashInfo.Of(_pendingWeapon).Particles && !ParticlesOut())
+                {
+                    UpdateGlow(now, Time.unscaledDeltaTime);
+                    return;
+                }
                 TryFlash(_pendingHeld, _pendingWeapon, now);
                 _pendingWeapon = null;
                 _pendingHeld = null;
@@ -91,7 +108,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             // The gun's own flash size places the plume; the player's strength setting only scales how bright it is.
-            float size = FlashSize(held, w);
+            float size = FlashSize(held, w, ParticlesOut());
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
             _gunSize = size * strength;
@@ -131,25 +148,12 @@ namespace RavenfieldVR.Weapons
         /// The gun's flash size on this shot, as flash_sim.py's guns (pistol 1.0, SMG 1.1, rifle 1.7, machine gun 2.0,
         /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot.
         /// </summary>
-        private static float FlashSize(HeldWeapon held, Weapon w)
+        private static float FlashSize(HeldWeapon held, Weapon w, bool particlesOut)
         {
             MuzzleFlashInfo info = MuzzleFlashInfo.Of(w);
-            // Did the game's own flash play on this shot? Its particles are out by now (a burst with a chance may skip).
-            bool particlesOut = false;
-            if (info.Particles)
-            {
-                foreach (Transform m in w.configuration.muzzles)
-                {
-                    ParticleSystem ps = m != null ? m.GetComponent<ParticleSystem>() ?? m.GetComponentInChildren<ParticleSystem>() : null;
-                    if (ps != null && ps.particleCount > 0)
-                    {
-                        particlesOut = true;
-                        break;
-                    }
-                }
-            }
             float size;
-            WeaponRigData d = held.Rig.Data;
+            // The gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.
+            WeaponRigData d = (w == held.Weapon ? held.Rig : held.ActiveRig ?? held.Rig).Data;
             if (particlesOut)
             {
                 // A short automatic that is no pistol nor machine gun is an SMG (a gun under 45 cm from grip to muzzle).
@@ -168,6 +172,22 @@ namespace RavenfieldVR.Weapons
                 return 0f;
             }
             return size;
+        }
+
+        /// <summary>
+        /// Did the game's own flash play on this shot? This shot's particles are out once simulated (a burst with a chance
+        /// may emit nothing): more particles than at the shot on one of the fired gun's muzzles.
+        /// </summary>
+        private bool ParticlesOut()
+        {
+            for (int i = 0; i < _pendingSystems.Length; i++)
+            {
+                if (_pendingSystems[i] != null && _pendingSystems[i].particleCount > _pendingCounts[i])
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -206,7 +226,9 @@ namespace RavenfieldVR.Weapons
             Transform head = _rig.Camera.transform;
             Vector3 m = muzzle != null ? head.InverseTransformPoint(muzzle.position) : Vector3.forward;
             Vector3 dir = muzzle != null ? head.InverseTransformDirection(muzzle.forward) : Vector3.forward;
-            float rate = _gunAuto ? _shots.Count / 0.5f : 0f;
+            // Only while the trigger is held on an automatic (flash_sim.py: full auto): taps of an automatic left a faint glow
+            // sitting at the muzzle between the shots.
+            float rate = _gunAuto && _gun != null && _gun.holdingFire ? _shots.Count / 0.5f : 0f;
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);

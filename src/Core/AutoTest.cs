@@ -58,6 +58,12 @@ namespace RavenfieldVR.Core
         /// </summary>
         private static readonly bool UiShots = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-uishots", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// -rfvr-flashfilm (with -rfvr-autotest -vr, and -rfvr-only= for the guns): films what each eye gets while each gun
+        /// shoots (its own muzzle flash and the lens flash on the view), frame by frame, into RavenfieldVR-shots/film-*.
+        /// </summary>
+        private static readonly bool FlashFilmRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-flashfilm", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
         private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
 
@@ -277,6 +283,13 @@ namespace RavenfieldVR.Core
                 {
                     PerfProbe.Reset();
                     yield return TestWeapons();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (VRManager.Active && FlashFilmRequested)
+                {
+                    yield return FlashFilm();
                     Write();
                     Application.Quit();
                     yield break;
@@ -551,15 +564,11 @@ namespace RavenfieldVR.Core
             ActionType action = held.Rig.Data.Action;
             if (action == ActionType.Manual || action == ActionType.SelfLoading || action == ActionType.ShellFed)
             {
+                Vector3? rackCam = null;
                 yield return held.Reload.RackGripSelfCheck(lines.Add, shot =>
                 {
                     Shots.Capture($"{shot}-{index:000}-{name}");
-                    Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
-                    Vector3 c = rackHand.Model.Root.position;
-                    Runtime.RigidPose g = held.GripWorld;
-                    Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-                    Shots.Capture($"{shot}-{index:000}-{name}-left", c - right * 0.25f + up * 0.08f, Quaternion.LookRotation(right * 0.25f - up * 0.08f, up), 45f);
-                    Shots.Capture($"{shot}-{index:000}-{name}-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(-right * 0.25f - up * 0.08f, up), 45f);
+                    RackCloseUps($"{shot}-{index:000}-{name}", held, ref rackCam);
                 });
             }
             if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
@@ -569,10 +578,232 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// The rack grip's close-ups from the gun's left and right. Aimed at the hand on the part at rest, and from the same
+        /// place on the gun for the half pull: aimed at the moving hand, the hand stayed put in the picture and the whole gun
+        /// seemed to slide forward (the picture reviews read it as the wrong part moving).
+        /// </summary>
+        private static void RackCloseUps(string file, HeldWeapon held, ref Vector3? onGun)
+        {
+            Transform body = held.Rig.GunBody;
+            Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
+            Vector3 c = onGun.HasValue && body != null ? body.TransformPoint(onGun.Value) : rackHand.Model.Root.position;
+            if (!onGun.HasValue && body != null)
+            {
+                onGun = body.InverseTransformPoint(c);
+            }
+            Runtime.RigidPose g = held.GripWorld;
+            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+            Shots.Capture(file + "-left", c - right * 0.25f + up * 0.08f, Quaternion.LookRotation(right * 0.25f - up * 0.08f, up), 45f);
+            Shots.Capture(file + "-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(-right * 0.25f - up * 0.08f, up), 45f);
+        }
+
+        /// <summary>
         /// An automatic held on the trigger for 1.6 s (Tasks2 209 A-C): the lens flash limiter must keep each eye within
         /// six counted steps (three flashes) in any 1.1 s, as flash_sim.py's photosensitivity test, the rest soft flashes
         /// and the glow; the glow pictured a second in.
         /// </summary>
+        /// <summary>
+        /// The flash film (-rfvr-flashfilm): for each gun, what the two eyes get frame by frame: standing still (both eyes
+        /// should be equally bright), three shots from the hip, three aimed through the sight, and on an automatic the
+        /// trigger held for 1.2 s. Without -rfvr-only: a pistol, a rifle, a shotgun and a machine gun from the list.
+        /// </summary>
+        private static IEnumerator FlashFilm()
+        {
+            List<WeaponManager.WeaponEntry> entries = WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null && WeaponSelfTest.Allows(e)).ToList();
+            if (WeaponSelfTest.Only.Length == 0)
+            {
+                Weapon W(WeaponManager.WeaponEntry e) => e.prefab.GetComponent<Weapon>();
+                var pick = new List<WeaponManager.WeaponEntry>();
+                void Add(Func<Weapon, WeaponManager.WeaponEntry, bool> want)
+                {
+                    WeaponManager.WeaponEntry e = entries.FirstOrDefault(x => W(x) != null && W(x).configuration != null && !(W(x) is MeleeWeapon)
+                                                                             && !(W(x) is ThrowableWeapon) && want(W(x), x) && !pick.Contains(x));
+                    if (e != null)
+                    {
+                        pick.Add(e);
+                    }
+                }
+                Add((w, e) => e.slot == WeaponManager.WeaponSlot.Secondary && !w.configuration.auto && w.configuration.projectilesPerShot <= 1);
+                Add((w, e) => e.slot == WeaponManager.WeaponSlot.Primary && w.configuration.auto && w.configuration.projectilesPerShot <= 1);
+                Add((w, e) => w.configuration.projectilesPerShot > 1);
+                Add((w, e) => w.configuration.auto && w.configuration.ammo >= 80);
+                entries = pick;
+            }
+            Results.Add($"Flash film: {entries.Count} gun(s), colour space {QualitySettings.activeColorSpace}, stereo {UnityEngine.XR.XRSettings.stereoRenderingMode}");
+            if (Rig.VRRig.Instance != null)
+            {
+                // Facing the most open way (the spawn can face a tank's side): the flash is seen against the scene.
+                Transform h0 = Rig.VRRig.Instance.Head;
+                float bestYaw = 0f, bestFree = -1f;
+                for (int k = 0; k < 12; k++)
+                {
+                    Vector3 dir = Quaternion.Euler(0f, k * 30f, 0f) * Vector3.ProjectOnPlane(h0.forward, Vector3.up).normalized;
+                    float free = Physics.Raycast(h0.position, dir, out RaycastHit hit, 60f, ~0, QueryTriggerInteraction.Ignore) ? hit.distance : 60f;
+                    if (free > bestFree + 0.5f)
+                    {
+                        bestFree = free;
+                        bestYaw = k * 30f;
+                    }
+                }
+                Rig.VRRig.Instance.AddYaw(bestYaw);
+                Results.Add($"film: turned {bestYaw:0} degrees to face {bestFree:0} m of open view");
+                yield return new WaitForSecondsRealtime(0.3f);
+            }
+            foreach (WeaponManager.WeaponEntry entry in entries)
+            {
+                int index = WeaponSelfTest.IdOf(entry);
+                _context = "film " + entry.name;
+                Actor actor = LocalPlayer.actor;
+                if (actor == null || actor.dead)
+                {
+                    yield return Deploy();
+                    actor = LocalPlayer.actor;
+                    if (actor == null || actor.dead)
+                    {
+                        Results.Add($"film {entry.name}: the player could not respawn, stopping");
+                        yield break;
+                    }
+                }
+                Weapon weapon = null;
+                try
+                {
+                    weapon = actor.EquipNewWeaponEntry(entry, Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1), true);
+                }
+                catch (Exception e)
+                {
+                    Problem($"[{entry.name}] film equip: {e.GetType().Name}: {e.Message}");
+                }
+                for (float until = Time.realtimeSinceStartup + 4f; weapon != null && !weapon.unholstered && Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.6f);
+                HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                Rig.VRRig rig = Rig.VRRig.Instance;
+                if (weapon == null || held == null || held.Weapon != weapon || rig == null)
+                {
+                    Results.Add($"film {entry.name}: not held, skipped");
+                    continue;
+                }
+                string dir = Path.Combine(Shots.Dir, $"film-{index:000}-{Regex.Replace(entry.name, "[^A-Za-z0-9_.-]+", "_")}");
+                // After the UI camera, the last to draw each eye (the on-screen effects are on its layer).
+                Camera last = UI.UISystem.Instance != null && UI.UISystem.Instance.UiCamera != null ? UI.UISystem.Instance.UiCamera : rig.Camera;
+                EyeFilm film = EyeFilm.Begin(last, dir);
+                Rig.VRHand dom = rig.Dominant;
+                int side = (int)dom.Side;
+                int shown = LensFlash.Instance != null ? LensFlash.Instance.Shown : 0;
+                int fired = 0;
+                bool aimed = false, hip = true;
+                // Each frame: the gun held pointing straight ahead, from the hip (low right) or aimed through its sight (the
+                // sight 7 cm in front of the right eye); the gun follows the hand with a little lag, so it is set every frame.
+                IEnumerator Frames(float seconds)
+                {
+                    float until = Time.realtimeSinceStartup + seconds;
+                    do
+                    {
+                        if (aimed || hip)
+                        {
+                            Weapons.SightLine sight = held.CurrentSight;
+                            Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
+                            Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
+                            Transform head = rig.Head;
+                            Runtime.RigidPose raw = dom.Raw;
+                            Quaternion fix = Quaternion.FromToRotation(held.Rig.DirToWorld(dirGun), head.forward);
+                            Vector3 target = aimed ? head.position + head.right * 0.032f + head.forward * 0.07f
+                                : head.position + head.right * 0.2f - head.up * 0.28f + head.forward * 0.3f;
+                            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(target + fix * (raw.position - held.Rig.ToWorld(eyeGun)), fix * raw.rotation);
+                        }
+                        yield return null;
+                    }
+                    while (Time.realtimeSinceStartup < until);
+                }
+                void Shoot()
+                {
+                    Weapon active = weapon.GetActiveSubWeapon();
+                    if (active == null || active.ammo == 0)
+                    {
+                        return;
+                    }
+                    try
+                    {
+                        if (active.Fire(active.CurrentMuzzle().forward, true))
+                        {
+                            fired++;
+                        }
+                        active.StopFire();
+                    }
+                    catch (Exception e)
+                    {
+                        Problem($"[{entry.name}] film fire: {e.GetType().Name}: {e.Message}");
+                    }
+                }
+                void Cycle()
+                {
+                    if (held.ActiveAmmo != null && held.ActiveAmmo.Rig.CyclesByHand)
+                    {
+                        held.Reload.CycleForTest(); // a bolt or pump between shots
+                    }
+                }
+                try
+                {
+                    film.Note("still");
+                    yield return Frames(0.5f);
+                    for (int k = 1; k <= 3; k++)
+                    {
+                        film.Note($"hip shot {k}");
+                        Shoot();
+                        yield return Frames(0.12f);
+                        film.Note("hip");
+                        yield return Frames(0.33f);
+                        Cycle();
+                    }
+                    if (held.Rig.Data.HasEyePoint)
+                    {
+                        aimed = true;
+                        hip = false;
+                        film.Note("aiming");
+                        yield return Frames(0.6f);
+                        for (int k = 1; k <= 3; k++)
+                        {
+                            film.Note($"aimed shot {k}");
+                            Shoot();
+                            yield return Frames(0.12f);
+                            film.Note("aimed");
+                            yield return Frames(0.33f);
+                            Cycle();
+                        }
+                    }
+                    Weapon auto = weapon.GetActiveSubWeapon();
+                    if (auto != null && auto.configuration != null && auto.configuration.auto)
+                    {
+                        film.Note("burst");
+                        for (float until = Time.realtimeSinceStartup + 1.2f; Time.realtimeSinceStartup < until && auto.ammo != 0;)
+                        {
+                            auto.Fire(auto.CurrentMuzzle().forward, true); // the trigger held: it fires at its own rate
+                            yield return Frames(0f);
+                        }
+                        auto.StopFire();
+                        film.Note("after burst");
+                        yield return Frames(0.4f);
+                    }
+                }
+                finally
+                {
+                    Rig.VRHand.Scripted[side] = null;
+                }
+                yield return film.Finish();
+                Rig.LensEffects lens = Rig.LensEffects.Instance;
+                int flashes = (LensFlash.Instance != null ? LensFlash.Instance.Shown : 0) - shown;
+                Results.Add($"film {entry.name}: {film.Frames} frames per eye in {dir}, {fired} single shot(s) fired, {flashes} lens flash(es) "
+                            + $"(muzzle flash: {MuzzleFlashInfo.Of(weapon.GetActiveSubWeapon()).Describe()}), lens worker {(lens != null ? lens.WorkMs : 0f):0.0} ms a frame (most {(lens != null ? lens.WorkMsMax : 0f):0.0})");
+                if (flashes == 0 && fired > 0)
+                {
+                    Problem($"[{entry.name}] film: {fired} shots, no lens flash");
+                }
+                yield return new WaitForSecondsRealtime(0.3f);
+            }
+        }
+
         private static IEnumerator LensBurstCheck(Weapon w, int index, string name, List<string> lines)
         {
             LensFlash lf = LensFlash.Instance;
@@ -2296,15 +2527,11 @@ namespace RavenfieldVR.Core
                                 : action == ActionType.SelfLoading && (held.Rig.Data.IsPistol ? rackPistols++ < 3 : rackRifles++ < 4)))
                         {
                             int rackIndex = index;
+                            Vector3? rackCam = null;
                             yield return held.Reload.RackGripSelfCheck(lines.Add, name =>
                             {
                                 Shots.Capture($"{name}-{rackIndex:000}-{entry.name}");
-                                Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
-                                Vector3 c = rackHand.Model.Root.position;
-                                Runtime.RigidPose g = held.GripWorld;
-                                Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-                                Shots.Capture($"{name}-{rackIndex:000}-{entry.name}-left", c - right * 0.25f + up * 0.08f, Quaternion.LookRotation(c - (c - right * 0.25f + up * 0.08f), up), 45f);
-                                Shots.Capture($"{name}-{rackIndex:000}-{entry.name}-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(c - (c + right * 0.25f + up * 0.08f), up), 45f);
+                                RackCloseUps($"{name}-{rackIndex:000}-{entry.name}", held, ref rackCam);
                             });
                         }
                         if (want && action == ActionType.SelfLoading)

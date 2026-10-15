@@ -258,7 +258,15 @@ namespace RavenfieldVR.Input
                 if (!string.IsNullOrEmpty(source))
                 {
                     string code = CodeNameOf(k.Key);
-                    int at = code != null ? source.IndexOf("KeyCode." + code, StringComparison.OrdinalIgnoreCase) : -1;
+                    // The whole name ("KeyCode.E" is not "KeyCode.Escape"), else the key named in quotes (GetKeyDown("x")):
+                    // a prefix match read the purpose from unrelated code, and a quoted key from the top of the file.
+                    int at = -1;
+                    Match m = code != null ? Regex.Match(source, @"KeyCode\." + Regex.Escape(code) + @"\b", RegexOptions.IgnoreCase) : Match.Empty;
+                    if (!m.Success)
+                    {
+                        m = Regex.Match(source, "[\"']" + Regex.Escape(k.Key) + "[\"']", RegexOptions.IgnoreCase);
+                    }
+                    at = m.Success ? m.Index : -1;
                     context += " " + (at >= 0 ? source.Substring(at, Math.Min(500, source.Length - at)) : source.Substring(0, Math.Min(1500, source.Length)));
                 }
             }

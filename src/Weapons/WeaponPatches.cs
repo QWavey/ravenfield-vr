@@ -175,7 +175,8 @@ namespace RavenfieldVR.Weapons
     {
         private static void Postfix(Weapon __instance, bool __result)
         {
-            if (__result && WeaponHooks.PlayerWeaponInVR(__instance))
+            // Not a grenade let go or a melee swing (both run Shoot too): they got a gunshot's kick, view jolt and buzz.
+            if (__result && !(__instance is ThrowableWeapon) && !(__instance is MeleeWeapon) && WeaponHooks.PlayerWeaponInVR(__instance))
             {
                 try
                 {

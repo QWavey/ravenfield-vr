@@ -98,7 +98,7 @@ namespace RavenfieldVR.UI
             Choice("Wrist display", VRConfig.WristHud, new[] { true, false }, new[] { "On", "Off" });
             TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
             Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
-                d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
+                d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
             Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",
                 d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 

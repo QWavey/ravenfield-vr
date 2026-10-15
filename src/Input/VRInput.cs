@@ -211,6 +211,7 @@ namespace RavenfieldVR.Input
                 return;
             }
 
+            _noDataSince = -1f;
             float now = Time.unscaledTime;
             var data = new InputDigitalActionData_t();
             for (int a = 0; a < DigitalCount; a++)
@@ -324,12 +325,30 @@ namespace RavenfieldVR.Input
             Log.Info(sb.ToString());
         }
 
-        /// <summary>A frame without fresh action data has no presses or releases (last frame's must not repeat).</summary>
+        /// <summary>
+        /// A frame without fresh action data has no presses or releases (last frame's must not repeat). Held buttons and the
+        /// sticks keep their last state through a short gap (a hiccup must not drop the gun from a hand that holds it by the
+        /// grip), but not longer: after half a second without data they count as let go (a stick kept walking the player).
+        /// </summary>
         private static void ClearEdges()
         {
             Array.Clear(Pressed, 0, Pressed.Length);
             Array.Clear(Released, 0, Released.Length);
+            if (_noDataSince < 0f)
+            {
+                _noDataSince = Time.unscaledTime;
+            }
+            else if (Time.unscaledTime - _noDataSince > 0.5f)
+            {
+                Array.Clear(Held, 0, Held.Length);
+                Array.Clear(Trigger, 0, Trigger.Length);
+                Array.Clear(Grip, 0, Grip.Length);
+                Move = Vector2.zero;
+                TurnStick = Vector2.zero;
+            }
         }
+
+        private static float _noDataSince = -1f;
 
         private static void UpdateSkeletons(CVRInput input)
         {

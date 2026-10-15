@@ -35,7 +35,8 @@ namespace RavenfieldVR.Rig
             _veil.layer = 5;
             _veil.transform.SetParent(head, false);
             _veil.transform.localPosition = new Vector3(0f, 0f, Distance + 0.01f);
-            _veil.transform.localScale = new Vector3(2.4f, 2.4f, 1f) * Distance;
+            // To 60 degrees out from the middle, so both eyes are covered to the view's edge (2.4 stopped at 46-52 degrees).
+            _veil.transform.localScale = new Vector3(3.6f, 3.6f, 1f) * Distance;
             _veilMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 4000, color = new Color(0.32f, 0.32f, 0.33f, 0f) };
             var vr = _veil.GetComponent<MeshRenderer>();
             vr.sharedMaterial = _veilMaterial;

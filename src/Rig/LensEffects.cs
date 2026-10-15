@@ -48,6 +48,15 @@ namespace RavenfieldVR.Rig
         internal struct Flash
         {
             public float X, Y, Power, Phase, Born;
+            /// <summary>
+            /// When its first picture was shown (-1 before): its 60 ms run from there, so the first picture shown is the
+            /// flash at full strength and the next ones fade from it, however late the worker was. Counted from the shot, a
+            /// worker that took 80 ms (it can, while the game's own threads are busy) showed nothing at all.
+            /// </summary>
+            public float Drawn;
+            /// <summary>Its age in the picture being made (set when handed to the worker).</summary>
+            public float Age;
+            public int Serial;
         }
 
         /// <summary>One frame's inputs, copied for the worker (only while it is idle).</summary>
@@ -80,11 +89,30 @@ namespace RavenfieldVR.Rig
         private int _dropsSeed;
 
         // The worker.
+        // Four bands drawn at once (each eye's top and bottom half): band 0 on the worker itself, 1-3 on threads of their own.
+        private const int Bands = 4;
         private readonly Thread _thread;
+        private readonly Thread[] _bandThreads = new Thread[Bands];
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
+        private readonly AutoResetEvent[] _bandWake = new AutoResetEvent[Bands], _bandDone = new AutoResetEvent[Bands];
+        private readonly Exception[] _bandError = new Exception[Bands];
+        // Flashes are numbered: the ones up to _jobSerial were in the picture being made, and are shown from when it is.
+        private int _nextSerial, _jobSerial;
+        private float _frameDt = 1f / 72f;
         private readonly Job _job = new Job();
         private volatile bool _busy, _done, _stop, _failed;
         private bool _resultAny, _shownAny, _resultFlash, _resultHit;
+        // The flash and glow strength in each eye's finished picture, and in the one shown now (the film's frame log).
+        private readonly float[] _resultPower = new float[2], _resultGlow = new float[2], _shownPower = new float[2], _shownGlow = new float[2];
+        private volatile float _workMs, _workMsMax;
+
+        /// <summary>Autotest film: this eye's shown flash and glow strength and the worker's time for a frame.</summary>
+        internal string FilmState(int eye) =>
+            $"flash {_shownPower[eye]:0.00} glow {_shownGlow[eye]:0.00} worker {_workMs:0.0} ms (most {_workMsMax:0.0})";
+
+        /// <summary>The worker's time for the last frame and the most so far (ms): it must stay under a frame.</summary>
+        internal float WorkMs => _workMs;
+        internal float WorkMsMax => _workMsMax;
 
         /// <summary>Autotest: the pictures shown now hold a muzzle flash (they come a frame after the shot).</summary>
         internal bool ShowsFlash { get; private set; }
@@ -111,7 +139,7 @@ namespace RavenfieldVR.Rig
         // of the water made the garbage collector pause the game).
         private float[] _dropField, _dropShade;
         private int _dropsMadeFor;
-        private readonly float[] _washX = new float[CW], _washY = new float[CH];
+        private readonly float[][] _washX = { new float[CW], new float[CW], new float[CW], new float[CW] }, _washY = { new float[CH], new float[CH], new float[CH], new float[CH] };
 
         public LensEffects(VRRig rig)
         {
@@ -154,8 +182,18 @@ namespace RavenfieldVR.Rig
                 go.SetActive(false);
                 _quads[q] = go;
             }
-            Log.Info($"On-screen effects drawn with '{additive.name}'.");
-            _thread = new Thread(WorkerLoop) { IsBackground = true, Name = "RavenfieldVR lens effects" };
+            Log.Info($"On-screen effects drawn with '{additive.name}' (colour space {QualitySettings.activeColorSpace}).");
+            // Above the game's own threads, and in four bands at once: a flash's picture took 30-80 ms on one thread in the
+            // game's runtime, and came after the flash was over.
+            _thread = new Thread(WorkerLoop) { IsBackground = true, Name = "RavenfieldVR lens effects", Priority = System.Threading.ThreadPriority.AboveNormal };
+            for (int b = 1; b < Bands; b++)
+            {
+                int band = b;
+                _bandWake[b] = new AutoResetEvent(false);
+                _bandDone[b] = new AutoResetEvent(false);
+                _bandThreads[b] = new Thread(() => BandLoop(band)) { IsBackground = true, Name = "RavenfieldVR lens effects " + b, Priority = System.Threading.ThreadPriority.AboveNormal };
+                _bandThreads[b].Start();
+            }
             _thread.Start();
             _ok = true;
         }
@@ -187,7 +225,8 @@ namespace RavenfieldVR.Rig
         // ---- inputs (main thread) ---------------------------------------------------------------------------------
 
         /// <summary>The eye's centre, sideways from the head (metres; left negative).</summary>
-        internal float EyeX(int eye) => (eye == 0 ? -0.5f : 0.5f) * Ipd;
+        /// <remarks>Single-pass stereo shows one picture to both eyes, made for the point between them.</remarks>
+        internal float EyeX(int eye) => LensEye.SinglePass ? 0f : (eye == 0 ? -0.5f : 0.5f) * Ipd;
 
         internal float Ipd
         {
@@ -204,6 +243,8 @@ namespace RavenfieldVR.Rig
 
         internal void AddFlash(int eye, Flash f)
         {
+            f.Drawn = -1f;
+            f.Serial = ++_nextSerial;
             _flashes[eye].Add(f);
         }
 
@@ -267,13 +308,16 @@ namespace RavenfieldVR.Rig
                 _workerError = null;
             }
             float now = Time.unscaledTime;
+            _frameDt = Mathf.Lerp(_frameDt, Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.05f), 0.1f);
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
             for (int e = 0; e < 2; e++)
             {
                 List<Flash> list = _flashes[e];
                 for (int i = list.Count - 1; i >= 0; i--)
                 {
-                    if (now - list[i].Born > Life)
+                    // Gone 60 ms after its first picture was shown (one never shown, a quarter second after the shot).
+                    float since = list[i].Drawn >= 0f ? now - list[i].Drawn : now - list[i].Born - 0.25f;
+                    if (since > Life)
                     {
                         list.RemoveAt(i);
                     }
@@ -287,6 +331,19 @@ namespace RavenfieldVR.Rig
                     {
                         _tex[e].SetPixels32(_out[e]);
                         _tex[e].Apply(false, false);
+                        _shownPower[e] = _resultPower[e];
+                        _shownGlow[e] = _resultGlow[e];
+                        // The flashes in this picture are shown from now: their fade runs from this frame.
+                        List<Flash> list = _flashes[e];
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            if (list[i].Drawn < 0f && list[i].Serial <= _jobSerial)
+                            {
+                                Flash f = list[i];
+                                f.Drawn = now;
+                                list[i] = f;
+                            }
+                        }
                     }
                     _shownAny = _resultAny;
                     ShowsFlash = _resultFlash;
@@ -305,7 +362,15 @@ namespace RavenfieldVR.Rig
                     j.Flashes[e].Clear();
                     if (!dead)
                     {
-                        j.Flashes[e].AddRange(_flashes[e]);
+                        // Each flash as it will be when this picture is shown, a frame from now: one not shown yet at full
+                        // strength (its first picture), the others faded by the time since their first.
+                        List<Flash> list = _flashes[e];
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            Flash f = list[i];
+                            f.Age = f.Drawn < 0f ? 0f : now + _frameDt - f.Drawn;
+                            j.Flashes[e].Add(f);
+                        }
                     }
                     j.Glow[e] = dead ? 0f : _glow[e];
                     j.GlowX[e] = _glowX[e];
@@ -335,6 +400,7 @@ namespace RavenfieldVR.Rig
                 any |= j.Hit > 0.001f || j.LowHealth > 0.001f || j.Drops > 0.001f;
                 if (any || _shownAny)
                 {
+                    _jobSerial = _nextSerial;
                     _resultAny = any;
                     _resultFlash = j.Flashes[0].Count + j.Flashes[1].Count > 0;
                     _resultHit = j.Hit > 0.001f;
@@ -352,14 +418,16 @@ namespace RavenfieldVR.Rig
             }
             if (_shownAny)
             {
-                float d = Distance, ipd = Ipd;
-                var scale = new Vector3(CW / Focal * d, CH / Focal * d, 1f);
+                float ipd = Ipd;
                 for (int q = 0; q < 3; q++)
                 {
+                    // Single-pass stereo draws the one centred quad for both eyes: far off (20 m, the same size in view), so
+                    // each eye sees it straight ahead of itself. At a hand's width it sat about 7 degrees off in each eye.
+                    float d = q == 2 && LensEye.SinglePass ? 20f : Distance;
                     Transform t = _quads[q].transform;
                     t.localPosition = new Vector3(q == 0 ? -ipd / 2f : q == 1 ? ipd / 2f : 0f, 0f, d);
                     t.localRotation = Quaternion.identity;
-                    t.localScale = scale;
+                    t.localScale = new Vector3(CW / Focal * d, CH / Focal * d, 1f);
                 }
             }
         }
@@ -417,6 +485,10 @@ namespace RavenfieldVR.Rig
         {
             _stop = true;
             _wake.Set();
+            for (int b = 1; b < Bands; b++)
+            {
+                _bandWake[b]?.Set();
+            }
             foreach (GameObject q in _quads)
             {
                 if (q != null)
@@ -458,16 +530,38 @@ namespace RavenfieldVR.Rig
                 {
                     return;
                 }
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                bool madeDrops = false;
                 try
                 {
                     if (_job.Drops > 0f && _job.DropsSeed != _dropsMadeFor)
                     {
+                        madeDrops = true; // once, on surfacing: not counted in the frame's time
                         MakeDrops(_job.DropsSeed);
                         _dropsMadeFor = _job.DropsSeed;
                     }
-                    for (int e = 0; e < 2; e++)
+                    for (int b = 1; b < Bands; b++)
                     {
-                        RenderEye(e, _job);
+                        _bandError[b] = null;
+                        _bandWake[b].Set();
+                    }
+                    try
+                    {
+                        RenderBand(0, _job);
+                    }
+                    finally
+                    {
+                        for (int b = 1; b < Bands; b++)
+                        {
+                            _bandDone[b].WaitOne(); // the other bands, made at the same time
+                        }
+                    }
+                    for (int b = 1; b < Bands; b++)
+                    {
+                        if (_bandError[b] != null)
+                        {
+                            throw _bandError[b];
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -475,30 +569,64 @@ namespace RavenfieldVR.Rig
                     _workerError = ex;
                     _failed = true; // half drawn: not shown
                 }
+                float ms = (float)watch.Elapsed.TotalMilliseconds;
+                _workMs = ms;
+                if (ms > _workMsMax && !madeDrops)
+                {
+                    _workMsMax = ms;
+                }
                 _done = true;
             }
         }
 
-        private void RenderEye(int eye, Job j)
+        private void BandLoop(int band)
         {
+            while (true)
+            {
+                _bandWake[band].WaitOne();
+                if (_stop)
+                {
+                    return;
+                }
+                try
+                {
+                    RenderBand(band, _job);
+                }
+                catch (Exception ex)
+                {
+                    _bandError[band] = ex;
+                }
+                _bandDone[band].Set();
+            }
+        }
+
+        /// <summary>One band of one eye's picture: band 0 / 1 the left eye's top / bottom half, 2 / 3 the right eye's.</summary>
+        private void RenderBand(int band, Job j)
+        {
+            int eye = band >> 1;
+            int y0 = (band & 1) == 0 ? 0 : CH / 2, y1 = (band & 1) == 0 ? CH / 2 : CH;
             float[] acc = _acc[eye];
-            Array.Clear(acc, 0, acc.Length);
+            Array.Clear(acc, y0 * CW * 3, (y1 - y0) * CW * 3);
             bool flash = false;
-            float side = j.Side[eye];
+            float side = j.Side[eye], strongest = 0f;
             if (j.Glow[eye] > 1e-3f)
             {
-                LensFlash(acc, j.GlowX[eye], j.GlowY[eye], j.Glow[eye], 0f, side, false);
+                LensFlash(band, y0, y1, acc, j.GlowX[eye], j.GlowY[eye], j.Glow[eye], 0f, side, false);
                 flash = true;
             }
             foreach (Flash f in j.Flashes[eye])
             {
-                float age = j.Now - f.Born;
+                float age = f.Age;
                 if (age >= 0f && age <= Life)
                 {
-                    LensFlash(acc, f.X, f.Y, f.Power * Mathf.Exp(-age / Decay), f.Phase, side, true);
+                    float p = f.Power * Mathf.Exp(-age / Decay);
+                    LensFlash(band, y0, y1, acc, f.X, f.Y, p, f.Phase, side, true);
+                    strongest = Mathf.Max(strongest, p);
                     flash = true;
                 }
             }
+            _resultPower[eye] = strongest;
+            _resultGlow[eye] = j.Glow[eye];
             float hit = j.Hit * j.HitEye[eye];
             float cx = 0f, cy = 0f, dx = j.HitDirX, dy = j.HitDirY;
             if (hit > 0.001f)
@@ -520,7 +648,7 @@ namespace RavenfieldVR.Rig
                 c1r = 1.05f; c1g = 0.6f; c1b = 0.05f; c2r = 0.5f; c2g = 0.4f; c2b = 0.1f;
             }
             const float inv70 = 1f / (2f * 70f * 70f), inv25 = 1f / (2f * 25f * 25f);
-            for (int y = 0; y < CH; y++)
+            for (int y = y0; y < y1; y++)
             {
                 int rowOut = (CH - 1 - y) * CW; // the texture's first row is the picture's bottom
                 int vy = y - MY;
@@ -566,8 +694,9 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>flash_sim.py lens_flash: one flash added at (mx, my) with strength p (0..1.6).</summary>
-        private void LensFlash(float[] acc, float mx, float my, float p, float phase, float side, bool extras)
+        private void LensFlash(int band, int y0, int y1, float[] acc, float mx, float my, float p, float phase, float side, bool extras)
         {
+            float[] washX = _washX[band], washY = _washY[band];
             if (p <= 1e-4f)
             {
                 return;
@@ -575,7 +704,9 @@ namespace RavenfieldVR.Rig
             float sCore = 2.5f + 3.5f * p, sFire = 8f + 15f * p, sEmber = 16f + 26f * p, sTail = 35f + 45f * p, sStar = 9f + 22f * p;
             float ringR = 55f + 30f * p;
             float invCore = 1f / (sCore * sCore), invFire = 1f / (sFire * sFire), invEmber = 1f / (sEmber * sEmber), invTail = 1f / (sTail * sTail);
-            float bloom2 = 2.7f * sEmber * 2.7f * sEmber, star2 = extras ? 6.5f * sStar * 6.5f * sStar : 0f;
+            // The starburst out to 4.5 of its widths (6.5 before): further out it adds under one step in 255, and it was
+            // most of the area drawn.
+            float bloom2 = 2.7f * sEmber * 2.7f * sEmber, star2 = extras ? 4.5f * sStar * 4.5f * sStar : 0f;
             float near2 = Mathf.Max(bloom2, star2);
             float ringLo = Mathf.Max(0f, ringR - 13f), ringHi = ringR + 13f;
             float ringLo2 = extras ? ringLo * ringLo : 0f, ringHi2 = extras ? ringHi * ringHi : -1f;
@@ -590,20 +721,20 @@ namespace RavenfieldVR.Rig
                 for (int x = 0; x < CW; x++)
                 {
                     float u = (x - MX - wcx) / 1.05f;
-                    _washX[x] = ExpNeg(u * u * invWash);
+                    washX[x] = ExpNeg(u * u * invWash);
                 }
                 for (int y = 0; y < CH; y++)
                 {
                     float v = (y - MY - wcy) / 1.25f;
-                    _washY[y] = ExpNeg(v * v * invWash);
+                    washY[y] = ExpNeg(v * v * invWash);
                 }
             }
             float phaseSteps = phase / (2f * Mathf.PI) * AngleSteps;
-            for (int y = 0; y < CH; y++)
+            for (int y = y0; y < y1; y++)
             {
                 float dy = y - MY - my;
                 float dy2 = dy * dy;
-                float wy = washA * (extras ? _washY[y] : 0f);
+                float wy = washA * (extras ? washY[y] : 0f);
                 int row = y * CW * 3;
                 for (int x = 0; x < CW; x++)
                 {
@@ -614,7 +745,7 @@ namespace RavenfieldVR.Rig
                     float ar = tail * Ember[0], ag = tail * Ember[1], ab = tail * Ember[2];
                     if (extras)
                     {
-                        float wsh = wy * _washX[x];
+                        float wsh = wy * washX[x];
                         ar += wsh + veil;
                         ag += wsh * 0.7f + veil * 0.75f;
                         ab += wsh * 0.38f + veil * 0.45f;
@@ -667,8 +798,8 @@ namespace RavenfieldVR.Rig
                 float t = Ghosts[gi, 0], rad = Ghosts[gi, 1], a = Ghosts[gi, 5] * p * 3f;
                 float gx = mx + vx * t + MX, gy = my + vy * t + MY; // in the picture drawn
                 int x0 = Mathf.Max(0, Mathf.FloorToInt(gx - rad - 1f)), x1 = Mathf.Min(CW - 1, Mathf.CeilToInt(gx + rad + 1f));
-                int y0 = Mathf.Max(0, Mathf.FloorToInt(gy - rad - 1f)), y1 = Mathf.Min(CH - 1, Mathf.CeilToInt(gy + rad + 1f));
-                for (int y = y0; y <= y1; y++)
+                int gy0 = Mathf.Max(y0, Mathf.FloorToInt(gy - rad - 1f)), gy1 = Mathf.Min(y1 - 1, Mathf.CeilToInt(gy + rad + 1f));
+                for (int y = gy0; y <= gy1; y++)
                 {
                     for (int x = x0; x <= x1; x++)
                     {
@@ -979,7 +1110,7 @@ namespace RavenfieldVR.Rig
         public Camera Head;
         public Texture Picture;
         private MaterialPropertyBlock _block;
-        private static readonly bool SinglePass = UnityEngine.XR.XRSettings.stereoRenderingMode != UnityEngine.XR.XRSettings.StereoRenderingMode.MultiPass;
+        internal static readonly bool SinglePass = UnityEngine.XR.XRSettings.stereoRenderingMode != UnityEngine.XR.XRSettings.StereoRenderingMode.MultiPass;
 
         private void OnWillRenderObject()
         {
@@ -990,12 +1121,16 @@ namespace RavenfieldVR.Rig
             }
             bool show;
             Camera.MonoOrStereoscopicEye e = cam.stereoActiveEye;
-            if (cam == Head && SinglePass)
+            // The headset's cameras: the head's, and the UI camera that draws layer 5 (where these quads are) over it in
+            // both eyes. Only the head's was recognised, and the head's skips layer 5: every eye got black, and nothing of
+            // the effects (flash, hit, low health, drops) ever reached the headset.
+            bool headset = cam == Head || cam.stereoEnabled && cam.stereoTargetEye != StereoTargetEyeMask.None;
+            if (headset && SinglePass)
             {
                 // Single-pass stereo draws each quad once for both eyes: the centred one only (one picture for both).
                 show = Eye == 2;
             }
-            else if (cam == Head)
+            else if (headset)
             {
                 show = Eye == 0 ? e == Camera.MonoOrStereoscopicEye.Left : Eye == 1 ? e == Camera.MonoOrStereoscopicEye.Right : e == Camera.MonoOrStereoscopicEye.Mono;
             }

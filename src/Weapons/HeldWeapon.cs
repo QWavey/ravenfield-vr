@@ -655,7 +655,9 @@ namespace RavenfieldVR.Weapons
                 _lagVel += a * h;
                 _lagPos += _lagVel * h;
                 float wr = omega * 1.2f;
-                float ap = -wr * wr * _lagPitch - 2f * zeta * wr * _lagPitchVel + _inertiaLever * (supported ? 0.3f : 1f) * Vector3.Dot(_handAcc, Vector3.up);
+                // The forcing times the spring's stiffness, so the dip settles at the lever's degrees per m/s^2 (without it
+                // the dip was a few thousandths of a degree: the muzzle never lagged a quick lift).
+                float ap = -wr * wr * _lagPitch - 2f * zeta * wr * _lagPitchVel + wr * wr * _inertiaLever * (supported ? 0.3f : 1f) * Vector3.Dot(_handAcc, Vector3.up);
                 _lagPitchVel += ap * h;
                 _lagPitch += _lagPitchVel * h;
             }
@@ -1613,6 +1615,12 @@ namespace RavenfieldVR.Weapons
             {
                 return true;
             }
+            // The name only for something that fires no bullets: a gun named 'Medic SMG' or 'AK kit' lost its glove (hidden
+            // and frozen for the whole hold).
+            if (projectile != null && projectile.GetComponentInChildren<Projectile>(true) != null && weapon.configuration.ammo > 1)
+            {
+                return false;
+            }
             return System.Text.RegularExpressions.Regex.IsMatch(weapon.name, @"\b(bag|kit|medkit|medic|ammo ?box|first ?aid)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
@@ -1823,10 +1831,22 @@ namespace RavenfieldVR.Weapons
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * fraction);
                 MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
+                _slideMoved = true;
             }
-            else if (Rig.Handle != null)
+            else
             {
-                MovePart(Rig.Handle, d.HandleRestLocal, Vector3.zero);
+                if (_slideMoved)
+                {
+                    // Home once when the offset drops to nothing in one step (a bolt let go near the front, a sub weapon
+                    // switched mid-slam): the slide kept its last drawn place, up to 1.5 cm back. Only once: after that the
+                    // gun's own animation moves it again (its shots).
+                    MovePart(Rig.Slide, d.SlideRestLocal, Vector3.zero);
+                    _slideMoved = false;
+                }
+                if (Rig.Handle != null)
+                {
+                    MovePart(Rig.Handle, d.HandleRestLocal, Vector3.zero);
+                }
             }
             _boltPiece?.SetOffset(Rig, d.SlideTravel * (d.CarveHandle && d.SlidePath != null ? handle : fraction));
             ApplyHinge(d);
@@ -1865,6 +1885,8 @@ namespace RavenfieldVR.Weapons
                 Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
         }
+
+        private bool _slideMoved;
 
         /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
         private void ApplyHinge(WeaponRigData d)

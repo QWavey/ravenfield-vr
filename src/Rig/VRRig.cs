@@ -521,7 +521,7 @@ namespace RavenfieldVR.Rig
                 if (Mathf.Abs(x) > dz)
                 {
                     float scaled = Mathf.Sign(x) * (Mathf.Abs(x) - dz) / (1f - dz);
-                    delta = scaled * VRConfig.SmoothTurnSpeed.Value * Time.unscaledDeltaTime;
+                    delta = scaled * VRConfig.SmoothTurnSpeed.Value * Mathf.Min(Time.unscaledDeltaTime, 0.1f); // a stalled frame is no big turn
                     TurnInputThisFrame = Mathf.Abs(scaled);
                 }
             }

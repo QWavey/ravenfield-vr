@@ -122,17 +122,23 @@ namespace RavenfieldVR.Input
 
             if (menu)
             {
+                _leaveHeldSince = -1f; // the hold to leave a seat starts again after the menu, not counting the time in it
                 return;
             }
 
             Actor actor = GameContext.PlayerActor;
             if (actor == null || actor.dead)
             {
+                _leaveHeldSince = -1f;
                 return;
             }
 
             // Not while a panel of the mod is under the laser: that trigger clicks the panel (and entered or left vehicles).
             bool onPanel = PanelOpen && PointerOverUI;
+            if (onPanel || !actor.IsSeated())
+            {
+                _leaveHeldSince = -1f;
+            }
             Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off)));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
@@ -252,7 +258,7 @@ namespace RavenfieldVR.Input
                 {
                     Set(KeyBinds.NextScope, true);
                 }
-                else if (system == null || VRConfig.FireSelector.Value == false || !system.HandleFireModePress(weapon))
+                else if (system == null || !system.HandleFireModePress(weapon)) // the weapon's own fire-mode key works with the selector off too
                 {
                     Set(KeyBinds.FireMode, true);
                 }

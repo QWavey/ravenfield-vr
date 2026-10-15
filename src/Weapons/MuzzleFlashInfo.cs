@@ -37,7 +37,9 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                ParticleSystem ps = m.GetComponent<ParticleSystem>() ?? m.GetComponentInChildren<ParticleSystem>(true);
+                // Only systems the game can play (Weapon.FindMuzzleFlashParticles looks among the active ones): a switched-off
+                // child counted as a flash, and a loud weapon's light-only flash was skipped for it.
+                ParticleSystem ps = Playable(m.GetComponent<ParticleSystem>(), w) ?? FirstPlayable(m, w);
                 if (ps == null)
                 {
                     continue;
@@ -46,6 +48,10 @@ namespace RavenfieldVR.Weapons
                 info.Name = info.Name ?? ps.name;
                 foreach (ParticleSystem p in ps.GetComponentsInChildren<ParticleSystem>(true))
                 {
+                    if (Playable(p, w) == null)
+                    {
+                        continue;
+                    }
                     ParticleSystem.MainModule main = p.main;
                     Vector3 s = p.transform.lossyScale;
                     float scale = Mathf.Max(Mathf.Abs(s.x), Mathf.Max(Mathf.Abs(s.y), Mathf.Abs(s.z)));
@@ -59,6 +65,44 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return info;
+        }
+
+        /// <summary>
+        /// The muzzle's particle systems the game plays on a shot (the first active one on it or under it), as the game
+        /// finds them; active counted up to the weapon, so a weapon outside a scene reads the same.
+        /// </summary>
+        internal static ParticleSystem[] MuzzleSystems(Weapon w)
+        {
+            Transform[] muzzles = w != null && w.configuration != null ? w.configuration.muzzles : null;
+            if (muzzles == null)
+            {
+                return new ParticleSystem[0];
+            }
+            var list = new System.Collections.Generic.List<ParticleSystem>();
+            foreach (Transform m in muzzles)
+            {
+                ParticleSystem ps = m == null ? null : Playable(m.GetComponent<ParticleSystem>(), w) ?? FirstPlayable(m, w);
+                if (ps != null && !list.Contains(ps))
+                {
+                    list.Add(ps);
+                }
+            }
+            return list.ToArray();
+        }
+
+        private static ParticleSystem Playable(ParticleSystem p, Weapon w) =>
+            p != null && WeaponAnalyzer.ActiveUpTo(p.transform, w.transform.parent) ? p : null;
+
+        private static ParticleSystem FirstPlayable(Transform m, Weapon w)
+        {
+            foreach (ParticleSystem p in m.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                if (Playable(p, w) != null)
+                {
+                    return p;
+                }
+            }
+            return null;
         }
 
         /// <summary>The share of plays on which the system emits at all.</summary>

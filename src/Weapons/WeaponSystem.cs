@@ -479,6 +479,10 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
+            if (!VRConfig.FireSelector.Value)
+            {
+                return false; // the semi / auto selector is off: the game's own fire-mode bind
+            }
             string mode = FireSelector.Toggle(weapon);
             if (mode == null)
             {

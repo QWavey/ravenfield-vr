@@ -377,6 +377,10 @@ namespace RavenfieldVR.Rig
 
         public void SetVisible(bool visible)
         {
+            if (!visible)
+            {
+                _skinValid = false; // a hidden glove is no solid: nothing is pushed out of a glove nobody sees
+            }
             if (_visible == visible)
             {
                 return;
@@ -509,10 +513,6 @@ namespace RavenfieldVR.Rig
                 return;
             }
             SetVisible(!Suppressed && !HiddenByHeld);
-            if (Suppressed || HiddenByHeld)
-            {
-                return;
-            }
             float dt = Time.unscaledDeltaTime;
 
             // The fist closes around the controller's handle (the grip pose), so the palm sits beside it.
@@ -531,6 +531,13 @@ namespace RavenfieldVR.Rig
             Vector3 want = Vector3.zero;
             Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
             GraspPointWorld = target.TransformPoint(graspLocal);
+            if (Suppressed || HiddenByHeld)
+            {
+                // Not drawn, but its grip point kept live: the arm's IK settles on it (a stale one pulled the weapon's own
+                // arm up to 5 cm toward where the hand had been before the weapon was taken).
+                _graspOffset = Vector3.zero;
+                return;
+            }
             if (GraspAnchor.HasValue)
             {
                 want = Vector3.ClampMagnitude(GraspAnchor.Value - GraspPointWorld, GraspReach);

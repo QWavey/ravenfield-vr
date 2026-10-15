@@ -17,6 +17,9 @@ Examples
   python tools/vrshots.py --autotest                    the whole autotest (every check, a sample of weapons)
   python tools/vrshots.py --list                        the weapon ids and names from the last weapons run
   python tools/vrshots.py --weapon MK46 --dumprig MK46  also the weapon's whole rig with what each part does
+  python tools/vrshots.py --film                        film what each eye gets while guns shoot (a pistol, a rifle, a
+                                                        shotgun, a machine gun): their muzzle flash + the lens flash
+  python tools/vrshots.py --film "GLOCK 43X" --film 54  the same for these guns (name, id, mod:TEXT, =NAME)
 
 Options
   --no-build          use the DLL already built (default: build.ps1 first, then install it)
@@ -246,6 +249,9 @@ def collect(game, mode, since):
     os.makedirs(dest, exist_ok=True)
     for f in glob.glob(os.path.join(src, '*.png')):
         shutil.copy2(f, dest)
+    for f in glob.glob(os.path.join(src, 'film-*')):  # the eye films (--film): a folder of frames per gun
+        if os.path.isdir(f):
+            shutil.copytree(f, os.path.join(dest, os.path.basename(f)))
     for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),
                      ('RavenfieldVR-hand-poses.png', 'hand-poses.png'), ('RavenfieldVR-hands.png', 'hands.png'),
                      ('RavenfieldVR-hands-back.png', 'hands-back.png'), ('LogOutput.log', 'game-log.txt'),
@@ -276,6 +282,8 @@ def main():
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
+    ap.add_argument('--film', action='append', nargs='?', const='', metavar='NAME|ID',
+                    help='film both eyes while guns shoot (repeatable; alone: four sample guns)')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--no-build', action='store_true')
     ap.add_argument('--res', default='1440x1584')
@@ -289,7 +297,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest)) if on]
+                             ('autotest', a.autotest), ('film', a.film is not None)) if on]
     if not modes:
         ap.print_help()
         return
@@ -312,6 +320,9 @@ def main():
             timeout = a.timeout or (240 if not a.weapon else 30)
         elif mode == 'ui':
             args, timeout = base + ['-rfvr-uishots'], a.timeout or 20
+        elif mode == 'film':
+            only = ','.join(x.replace(',', ' ') for x in a.film if x)
+            args, timeout = base + ['-rfvr-flashfilm', f'-rfvr-only={only}'], a.timeout or 20
         elif mode == 'bench':
             args, timeout = base + ['-rfvr-perfbench'], a.timeout or 20
         elif mode == 'autotest':
@@ -334,6 +345,8 @@ def main():
             log(f'{len(index)} weapon sheet(s) in {os.path.relpath(os.path.join(dest, "sheets"), REPO)}')
             for e in index[:40]:
                 print(f'    {e["id"]:4d}  {e["name"]:40s} {e["sheet"]}')
+        if mode == 'film':
+            subprocess.run([sys.executable, '-I', os.path.join(REPO, 'tools', 'flashfilm.py'), dest])
         summary(dest)
     if failed:
         sys.exit(1)

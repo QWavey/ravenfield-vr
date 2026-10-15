@@ -153,6 +153,12 @@ namespace RavenfieldVR.Weapons
 
         public void Sync()
         {
+            if (!Participates)
+            {
+                // Not the mod's to count (no ammo of its own, thrown, melee): an infinite magazine's -1 was written as 0,
+                // and a charge-time weapon with one never charged (the game starts the charge only with ammo -1 or above 0).
+                return;
+            }
             int loaded = Loaded;
             if (Weapon.ammo != loaded)
             {
@@ -287,7 +293,7 @@ namespace RavenfieldVR.Weapons
                 Chambered = false;
                 if (!VRConfig.LoseRoundOnRack.Value && !InfiniteSpare)
                 {
-                    SpareAmmo++;
+                    ReturnSpareCapped(1); // capped like every other return: a full reserve grew by one per rack
                 }
             }
             Sync();
