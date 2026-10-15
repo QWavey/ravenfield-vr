@@ -2071,6 +2071,103 @@ namespace RavenfieldVR.Weapons
             report($"tactical reload: {(palmable ? "fresh magazine at the well" : "fresh magazine away from the well (simulated hand)")}, old magazine {(kept ? "kept in the hand" : "NOT KEPT")}, rounds {(Ammo.InfiniteSpare || after == before ? "add up" : $"DO NOT ADD UP ({before} -> {after}: magazine {Ammo.MagRounds}, chamber {(Ammo.Chambered ? 1 : 0)}, spare {Ammo.SpareAmmo}, in hand {inHand}; weapon ammo {Ammo.Weapon.ammo})")}");
         }
 
+        /// <summary>
+        /// Autotest (task 165): a magazine in the hand swept through the receiver above its well, sideways and from above,
+        /// slowly and fast (2.5 m/s, a hard shove). Where it is drawn it must stay out of the gun's body the whole way
+        /// (only the magwell is open to it), and end on the side it came from.
+        /// </summary>
+        internal IEnumerator MagazineKeepOutCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesDetachableMag || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
+            {
+                report("magazine keep-out: skipped (no detachable magazine, or the hand is busy)");
+                yield break;
+            }
+            float until = Time.unscaledTime + 4f;
+            while (_held.HandsSolid == null && Time.unscaledTime < until)
+            {
+                yield return null;
+            }
+            if (_held.HandsSolid == null)
+            {
+                report("magazine keep-out: the gun's body was not measured: not checked");
+                yield break;
+            }
+            int side = (int)off.Side;
+            VRInput.SimulatedGrab[side] = true;
+            var lines = new System.Collections.Generic.List<string>();
+            try
+            {
+                TakeFromPouch(off);
+                if (!(off.Held is MagazineProp mag))
+                {
+                    report("magazine keep-out: NO MAGAZINE from the pouch");
+                    yield break;
+                }
+                yield return null;
+                yield return null;
+                RigidPose holdInRaw = off.Raw.Inverse().Multiply(mag.HoldPose(off));
+                Vector3 aim = Data.AimAxis.normalized, up = Data.Up.normalized, right = Vector3.Cross(up, aim).normalized;
+                Vector3 seatGun = Rig.ToGun(SeatPose.position);
+                // In the receiver over the well: the bore's line, a little ahead of the magazine's middle.
+                Vector3 centre = Data.MuzzlePoint + aim * (Vector3.Dot(seatGun - Data.MuzzlePoint, aim) + 0.03f);
+                var passes = new[] { ("sideways slowly", right, 0.5f), ("sideways hard", right, 2.5f), ("from above hard", -up, 2.5f) };
+                int worstFrames = 0, worstPoints = 0;
+                foreach (var (name, dirGun, speed) in passes)
+                {
+                    int frames = 0, maxPoints = 0;
+                    float travel = 0f;
+                    while (travel <= 0.5f && ReferenceEquals(off.Held, mag) && mag.Go != null && !mag.OnRail)
+                    {
+                        Vector3 at = Rig.ToWorld(centre + dirGun * (travel - 0.25f));
+                        RigidPose hold = new RigidPose(at, SeatPose.rotation);
+                        VRHand.Scripted[side] = hold.Multiply(holdInRaw.Inverse());
+                        VRHand.ScriptedVelocity[side] = Rig.DirToWorld(dirGun) * speed;
+                        yield return null;
+                        int inside = mag.PointsInsideGun(_held);
+                        if (inside > 0)
+                        {
+                            frames++;
+                            maxPoints = Mathf.Max(maxPoints, inside);
+                        }
+                        if (Mathf.Abs(travel - 0.25f) < speed * 0.012f)
+                        {
+                            yield return new WaitForEndOfFrame();
+                            shot($"keepout-{name.Replace(' ', '-')}");
+                        }
+                        travel += speed * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.03f);
+                    }
+                    float endSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
+                    Core.AutoTest.Metric($"magazine keep-out ({name}): frames with the magazine drawn inside the gun", frames);
+                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/25 points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}");
+                    worstFrames = Mathf.Max(worstFrames, frames);
+                    worstPoints = Mathf.Max(worstPoints, maxPoints);
+                    // Back out the way it came before the next pass.
+                    VRHand.Scripted[side] = new RigidPose(Rig.ToWorld(centre - dirGun * 0.3f), SeatPose.rotation).Multiply(holdInRaw.Inverse());
+                    yield return null;
+                    yield return null;
+                }
+                report("magazine keep-out: " + string.Join("; ", lines));
+                if (worstFrames > 2 || worstPoints > 3)
+                {
+                    report("magazine keep-out: THE MAGAZINE WENT INTO THE GUN");
+                }
+                if (off.Held is MagazineProp leftover)
+                {
+                    Ammo.ReturnSpare(leftover.Rounds);
+                    leftover.Rounds = 0;
+                    leftover.Destroy();
+                }
+            }
+            finally
+            {
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.Scripted[side] = null;
+                VRHand.ScriptedVelocity[side] = Vector3.zero;
+            }
+        }
+
         private int TotalRounds(int inHand) => Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
 
         /// <summary>

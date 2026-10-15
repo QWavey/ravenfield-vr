@@ -1709,7 +1709,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -1897,6 +1897,11 @@ namespace RavenfieldVR.Core
                                 Vector3 from = at - right * 0.32f + up * 0.03f;
                                 Shots.Capture($"{name}-{magIndex:000}-{entry.name}", from, Quaternion.LookRotation(at - from, up), 45f);
                             });
+                        }
+                        if (want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && (Deep || keepOutChecks++ < 4))
+                        {
+                            int koIndex = index;
+                            yield return held.Reload.MagazineKeepOutCheck(lines.Add, name => Shots.Capture($"{name}-{koIndex:000}-{entry.name}"));
                         }
                         if ((Deep || !tacticalDone) && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
                         {

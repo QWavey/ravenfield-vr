@@ -641,6 +641,7 @@ namespace RavenfieldVR.Weapons
             _fresh = false;
             HeldBy = hand;
             _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
+            _drawnFor = null;
             hand.Role = HandRole.Magazine;
             hand.Held = this;
             _body.isKinematic = true;
@@ -971,20 +972,25 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>How far the magazine in the hand is drawn out of the gun now (eased in and out).</summary>
+        /// <summary>How far the magazine in the hand is drawn away from the hand to stay out of the gun now.</summary>
         private Vector3 _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
+        /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
+        private Vector3 _drawnInGun;
+        private HeldWeapon _drawnFor;
 
         /// <summary>
-        /// A magazine in the hand does not pass through the gun: where it would go into the gun's body it is drawn pushed
-        /// out of it the shortest way, the glove holding it with it. Its own magwell stays open to it (the rail takes it
-        /// from there, and a fresh one pushed into the seated one kicks it out: those go by the hand, not the drawing).
+        /// A magazine in the hand does not pass through the gun. It goes from where it was drawn toward the hand, stops
+        /// where it meets the gun's body and slides along it (the glove holding it stays with it); its own magwell stays
+        /// open to it (the rail takes it from there, and a fresh one pushed into the seated one kicks it out: those go by
+        /// the hand). Only checking where the hand is now let a hard or fast push through: a magazine past the middle of
+        /// the receiver came out the far side, and one buried deeper than the search reached went straight through.
         /// </summary>
         private RigidPose KeepOffGun(RigidPose target)
         {
             HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
-            Vector3 want = Vector3.zero;
+            Vector3 drawn = target.position;
             if (solid != null && HeldBy != null && Kind == PropKind.Magazine && gun.Rig.GunBody != null
                 && (target.position - gun.GripWorld.position).sqrMagnitude < 0.7f * 0.7f)
             {
@@ -1004,11 +1010,12 @@ namespace RavenfieldVR.Weapons
                     Samples[n++] = c + side * (_sideHalf * 0.8f);
                     Samples[n++] = c - side * (_sideHalf * 0.8f);
                 }
-                bool Blocked(Vector3 offset)
+                Quaternion rot = target.rotation;
+                bool BlockedAt(Vector3 at)
                 {
                     for (int i = 0; i < Samples.Length; i++)
                     {
-                        Vector3 p = target.TransformPoint(Samples[i]) + offset;
+                        Vector3 p = at + rot * Samples[i];
                         if (solid(p) && !well.Contains(seat.InverseTransformPoint(p)))
                         {
                             return true;
@@ -1016,30 +1023,75 @@ namespace RavenfieldVR.Weapons
                     }
                     return false;
                 }
-                if (Blocked(Vector3.zero))
+                // From where it is toward where it is going, in steps of half a centimetre: the last free step.
+                Vector3 Advance(Vector3 from, Vector3 delta)
                 {
-                    // Out from the bore first (the way off the gun's body), then up, down and to either side.
+                    int steps = Mathf.Clamp(Mathf.CeilToInt(delta.magnitude / 0.005f), 1, 80);
+                    Vector3 last = from;
+                    for (int i = 1; i <= steps; i++)
+                    {
+                        Vector3 p = from + delta * ((float)i / steps);
+                        if (BlockedAt(p))
+                        {
+                            return last;
+                        }
+                        last = p;
+                    }
+                    return last;
+                }
+
+                Vector3 from = ReferenceEquals(_drawnFor, gun) ? gun.Rig.ToWorld(_drawnInGun) : target.position;
+                if (BlockedAt(from))
+                {
+                    // Already in the gun (taken out of the pouch inside it, the gun swung onto it): out the shortest way,
+                    // from the bore outward first, then up, down and to either side.
                     Vector3 bore = gun.Rig.ToWorld(d.MuzzlePoint);
-                    Vector3 away = Vector3.ProjectOnPlane(target.position - bore, gun.Rig.AimWorld);
+                    Vector3 away = Vector3.ProjectOnPlane(from - bore, gun.Rig.AimWorld);
                     Vector3 up = gun.Rig.UpWorld, right = Vector3.Cross(up, gun.Rig.AimWorld).normalized;
                     Vector3[] dirs = { away.sqrMagnitude > 1e-6f ? away.normalized : -up, -up, up, right, -right, -gun.Rig.AimWorld, gun.Rig.AimWorld };
                     float best = float.MaxValue;
+                    Vector3 freed = target.position;
                     foreach (Vector3 dir in dirs)
                     {
-                        for (float step = 0.005f; step <= 0.12f && step < best; step += 0.005f)
+                        for (float step = 0.005f; step <= 0.25f && step < best; step += 0.005f)
                         {
-                            if (!Blocked(dir * step))
+                            if (!BlockedAt(from + dir * step))
                             {
                                 best = step;
-                                want = dir * step;
+                                freed = from + dir * step;
                                 break;
                             }
                         }
                     }
+                    from = freed;
                 }
+                drawn = Advance(from, target.position - from);
+                Vector3 left = target.position - drawn;
+                if (left.sqrMagnitude > 1e-6f)
+                {
+                    // Met the gun: what is left of the move slides along it, one of the gun's axes at a time.
+                    Vector3 upW = gun.Rig.UpWorld, aimW = gun.Rig.AimWorld, rightW = Vector3.Cross(upW, aimW).normalized;
+                    foreach (Vector3 axis in new[] { aimW, upW, rightW })
+                    {
+                        Vector3 part = axis * Vector3.Dot(target.position - drawn, axis);
+                        if (part.sqrMagnitude > 1e-8f)
+                        {
+                            drawn = Advance(drawn, part);
+                        }
+                    }
+                }
+                if ((drawn - target.position).sqrMagnitude > 0.3f * 0.3f)
+                {
+                    drawn = target.position; // the hand is far through the gun: the magazine goes with it, not left behind
+                }
+                _drawnInGun = gun.Rig.ToGun(drawn);
+                _drawnFor = gun;
             }
-            // Eased, so it slides along the gun instead of jumping between ways out.
-            _keptOut = Vector3.MoveTowards(_keptOut, want, Time.unscaledDeltaTime * 1.5f);
+            else
+            {
+                _drawnFor = null;
+            }
+            _keptOut = drawn - target.position;
             if (_keptOut.sqrMagnitude < 1e-8f)
             {
                 return target;
@@ -1049,7 +1101,39 @@ namespace RavenfieldVR.Weapons
                 HeldBy.Model.KeepOut = _keptOut;
                 HeldBy.Model.KeepOutFrame = Time.frameCount;
             }
-            return new RigidPose(target.position + _keptOut, target.rotation);
+            return new RigidPose(drawn, target.rotation);
+        }
+
+        /// <summary>
+        /// Autotest: how many of the magazine's 25 check points are inside <paramref name="gun"/>'s body where it is drawn
+        /// now (its magwell does not count). -1 when the gun's solid is not measured.
+        /// </summary>
+        internal int PointsInsideGun(HeldWeapon gun)
+        {
+            System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
+            if (solid == null || Go == null || gun.Rig.GunBody == null)
+            {
+                return -1;
+            }
+            RigidPose seat = gun.Rig.GunBodyPose.Multiply(gun.Rig.Data.MagSeat);
+            Bounds well = gun.Rig.Data.MagBounds;
+            well.Expand(0.03f);
+            Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+            Transform t = Go.transform;
+            int inside = 0;
+            for (int a = 0; a < 5; a++)
+            {
+                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / 4f);
+                foreach (Vector3 local in new[] { c, c + FrontLocal * (_frontHalf * 0.8f), c - FrontLocal * (_frontHalf * 0.8f), c + side * (_sideHalf * 0.8f), c - side * (_sideHalf * 0.8f) })
+                {
+                    Vector3 p = t.TransformPoint(local);
+                    if (solid(p) && !well.Contains(seat.InverseTransformPoint(p)))
+                    {
+                        inside++;
+                    }
+                }
+            }
+            return inside;
         }
 
         /// <summary>World pose at the current rail depth, given the seated pose of the magazine/shell/rocket.</summary>
