@@ -27,11 +27,12 @@ namespace RavenfieldVR.Rig
         internal static readonly float Focal = W / 2f / Mathf.Tan(52f * Mathf.Deg2Rad);
         private const float CX = W / 2f, CY = H / 2f;
         /// <summary>
-        /// The picture drawn reaches past the tested view (a headset shows up to about 110 degrees): 30 and 25 pixels more
-        /// on each side, fading out at its edge, so no frame of the effect shows in the headset. The view's rounded frame
+        /// The picture drawn reaches past the tested view (a headset shows up to about 110 degrees across, and an Index
+        /// about as much up and down): 40 and 45 pixels more on each side (to 58 and 55 degrees out), fading out over its
+        /// last 24 pixels, so no frame of the effect shows in the headset. The view's rounded frame
         /// (flash_sim.py lens_mask) belongs to the approved sheets and is used for <see cref="SavePictures"/> only.
         /// </summary>
-        private const int MX = 30, MY = 25, CW = W + 2 * MX, CH = H + 2 * MY;
+        private const int MX = 40, MY = 45, CW = W + 2 * MX, CH = H + 2 * MY;
         private const float Distance = 0.26f;
         /// <summary>flash_sim.py: x0.5 a frame at 90 fps, gone after 60 ms.</summary>
         internal const float Decay = 0.016f, Life = 0.06f;
@@ -957,8 +958,9 @@ namespace RavenfieldVR.Rig
                     float r = Mathf.Sqrt(Sq((vx - CX) / (W * 0.5f)) + Sq((vy - CY) / (H * 0.5f)));
                     float lensv = Mathf.Pow(Mathf.Clamp01(1.25f - Mathf.Sqrt(Sq((vx - CX) / (W * 0.56f)) + Sq((vy - CY) / (H * 0.6f)))), 0.6f);
                     LowEdge[y * CW + x] = Mathf.Clamp01(r - 0.55f) * lensv * 0.55f;
-                    // Past the headset's view: faded out over the last 12 pixels, no edge.
-                    EdgeFade[y * CW + x] = Mathf.Clamp01(Mathf.Min(Mathf.Min(x, CW - 1 - x), Mathf.Min(y, CH - 1 - y)) / 12f);
+                    // Past the headset's view: faded out (smoothly) over the last 24 pixels, no edge.
+                    float fade = Mathf.Clamp01(Mathf.Min(Mathf.Min(x, CW - 1 - x), Mathf.Min(y, CH - 1 - y)) / 24f);
+                    EdgeFade[y * CW + x] = fade * fade * (3f - 2f * fade);
                 }
             }
         }
