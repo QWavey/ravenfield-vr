@@ -346,7 +346,10 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Renderer r in clone.GetComponentsInChildren<Renderer>(true))
             {
-                r.enabled = false;
+                // Not drawn, but its own on/off kept: a rig that hides a part by switching its renderer off (a magazine in
+                // the reload, a spare at rest) is read as hiding it.
+                r.forceRenderingOff = true;
+                _renderers[r.transform] = r;
             }
 
             _anim = clone.GetComponent<Animator>();
@@ -438,7 +441,10 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(inv * (t.position - _cloneRoot.position), inv * t.rotation);
         }
 
-        private bool Visible(Transform t) => t.gameObject.activeInHierarchy && t.lossyScale.sqrMagnitude > 1e-6f;
+        private bool Visible(Transform t) => t.gameObject.activeInHierarchy && t.lossyScale.sqrMagnitude > 1e-6f
+                                              && (!_renderers.TryGetValue(t, out Renderer r) || r == null || r.enabled);
+
+        private readonly Dictionary<Transform, Renderer> _renderers = new Dictionary<Transform, Renderer>();
 
         private void CaptureIdle()
         {

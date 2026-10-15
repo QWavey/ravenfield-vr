@@ -1,0 +1,24 @@
+Gun 225: Sam-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-225-Sam-Sentry_Gun.png)
+   seen: No hand is visible anywhere in the frame. The blue gun body sits in the lower centre (about x 540-690, y 530-690) with no fingers or palm around any grip, so it looks like it hangs in the air in front of the camera.
+   expected: The right hand visible at the bottom of the frame, wrapped around the grip of the gun, supporting it so nothing floats.
+
+2. [major] [low] gun_pose_or_aim_wrong  (weapon-225-Sam-Sentry_Gun.png)
+   seen: The dark barrel at lower left (about x 540-620, y 585-690) points down and toward the camera, with its open end facing the viewer, instead of running forward into the scene toward the horizon.
+   expected: The gun held in the right hand with the barrel pointing forward, receding toward the horizon, as a held gun reads in first person.
+
+3. [minor] [low] other  (weapon-225-Sam-Sentry_Gun.png)
+   seen: A large translucent cyan tripod-and-turret shape fills the centre of the view (about x 480-765, y 290-770), standing in front of the landing building and not attached to any hand. It may be the sentry's placement hologram, which would be intended, but here it covers the middle of the screen and is not connected to the held gun.
+   expected: If it is a placement preview, it should show only while placing and sit on the ground at the aim point. If it is meant to be the gun, it should be in the right hand. Either way it should not be a stray object in the middle of the view.
+
+4. [minor] [low] hand_not_on_part  (weapon-225-Sam-Sentry_Gun.png)
+   seen: A large olive-green box with a yellow strap sits in the lower right (about x 640-1020, y 545-800), very close to the camera, with no hand or glove around it. It is probably the bag the test line mentions.
+   expected: If it is the bag, a hand should be holding it, with a glove on the fingers wrapped around it, rather than the box floating in front of the camera.
+
+Test line flags:
+  - 'equipped': the picture shows a blue gun-like object in the view but no hand on it, so this frame does not confirm the gun is held as equipped.
+  - 'manual reload not active for this weapon': no reload, rack-grip or magazine pictures are listed for this gun, so the slide and magazine checks could not be done. Consistent with the test line.
+  - 'bag: carried without a glove': the olive box at bottom right has no hand or glove around it in this frame, which matches the line if that box is the bag. The picture supports the measurement, so this is likely a real bug rather than a wrong reading.
+  - 'throwable without a pin': no throwable is visible in the picture, so this line cannot be confirmed or refuted from it.

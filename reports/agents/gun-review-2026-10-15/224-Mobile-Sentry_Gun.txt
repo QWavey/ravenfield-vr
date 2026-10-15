@@ -1,0 +1,21 @@
+Gun 224: Mobile-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-224-Mobile-Sentry_Gun.png)
+   seen: The right (blue) hand is at lower-left centre, about x 560-680, y 530-690. Its fingers curl around a small grey cylinder with a dark end (about x 540-650, y 580-690), not around the olive box. The olive box with a yellow strap (about x 640-1020, y 550-800) sits just right of the hand, and the hand goes behind its left edge. No fingers are on the box.
+   expected: The right hand wrapped around the carried item (the box's handle or body, or the gun's grip), with the item in the hand and nothing in between.
+
+2. [major] [low] other  (weapon-224-Mobile-Sentry_Gun.png)
+   seen: The only solid object in the hand area is the olive box, which is probably the 'bag' from the test line. The Mobile Sentry Gun appears only as a cyan translucent turret (about x 505-740, y 315-570) in the middle of the view, not in the right hand. The cyan shape may be an intended placement preview, but it is not the gun held in the hand.
+   expected: A Mobile Sentry Gun model in the right hand, pointing forward, with nothing else in front of it.
+
+3. [minor] [low] other  (weapon-224-Mobile-Sentry_Gun.png)
+   seen: Translucent blue-grey puffs hang in the sky and mid-air with no visible source: around x 290-430 y 0-140, x 800-850 y 275-345, x 935-1015 y 90-160, x 1055-1105 y 250-300, and x 1000-1070 y 455-560. A grey foggy patch sits at lower-left (about x 40-300, y 560-730).
+   expected: Clear sky and ground, with no smoke or dust floating in mid-air unless a real effect is playing.
+
+Test line flags:
+  - equipped: not confirmed by the picture. No sentry gun model is clearly in the right hand (see the second bug).
+  - bag: carried without a glove: 'without a glove' fits (the hand is bare, no glove seen), but 'carried' is not confirmed. The bag has no clear hand grip (see the first bug).
+  - throwable without a pin: a small grey cylinder with a dark end is in the hand. No pin is visible at this size, so the picture neither confirms nor contradicts the line.
+  - manual reload not active: not checkable. The brief lists no magazine or reload pictures for gun 224.
+  - No rack-grip, magazine or lens pictures are listed for gun 224, so the slide/bolt, magazine and lens checks could not be done.

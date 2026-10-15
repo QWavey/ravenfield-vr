@@ -1,0 +1,16 @@
+Gun 227: Shield Turret
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] other  (weapon-227-Shield_Turret.png)
+   seen: Lower right: a large olive-green box with a yellow strap (roughly x 640-1010, y 540-800) is the only solid object in the right-hand area, and it runs off the bottom edge of the frame. No fingers or glove are visible on it. Nothing in the frame reads clearly as a turret held in the hand; the only turret-shaped object is a translucent cyan ghost at the centre of the view.
+   expected: The equipped Shield Turret (or its carried model) held in the right hand, with the hand visibly gripping it. If the olive box is the 'bag' the test line mentions, the wrong item is in hand for this gun. The hand may simply sit below the frame, so this is unconfirmed.
+
+2. [minor] [low] part_floating_or_detached  (weapon-227-Shield_Turret.png)
+   seen: The cyan translucent turret (tripod legs reaching down to the grass at about x 455, y 800 and near x 690, y 560; shield box around x 520-735, y 320-445; small red marker near x 645, y 305) stands in the middle of the view with no hand touching it.
+   expected: If this is the placement preview of a deployable, it is fine. If it is meant to be the equipped gun, it should be held in the right hand near the bottom right, not floating mid-screen.
+
+Test line flags:
+  - equipped: the cyan turret-shaped ghost mid-screen is consistent with a turret being equipped or previewed, but the picture does not confirm which item is actually held.
+  - bag: carried without a glove: not verifiable from this picture. The olive box with the yellow strap in the right hand could be the bag; if it is, this measurement is about the item in hand rather than the turret. No glove or hand is visible on the box.
+  - manual reload not active for this weapon: consistent with the picture. No magazine or reload part is in view, and nothing contradicts it.
+  - throwable without a pin: no throwable is visible in this picture, so it can be neither confirmed nor refuted.

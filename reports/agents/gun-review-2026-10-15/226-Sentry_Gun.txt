@@ -1,0 +1,15 @@
+Gun 226: Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-226-Sentry_Gun.png)
+   seen: The right (blue) hand's fingers close around a small dark-grey cylinder at about x 540-615, y 580-690, left of centre. That cylinder is not part of the olive, yellow-strapped box, which fills the bottom-right (about x 640-1020, y 545-800). No finger touches the box or its yellow strap; the hand sits against the box's top-left edge.
+   expected: The right hand closed on the carried item's own handle or strap (the yellow strap is the obvious grip point on this box), with the item resting in the hand and nothing else in the grip.
+
+2. [minor] [low] hand_or_finger_clipping  (weapon-226-Sentry_Gun.png)
+   seen: The forearm runs into the box's left face near x 650-690, y 560-620 and disappears behind that edge, so the arm looks like it passes inside the item.
+   expected: The forearm ends at the hand, which sits on the outside of the item's grip, with no part of the arm hidden inside the box.
+
+3. [minor] [low] gun_pose_or_aim_wrong  (weapon-226-Sentry_Gun.png)
+   seen: The box covers about a quarter of the frame and sits almost against the lens. Its long axis runs diagonally from the lower right toward the upper left rather than forward along the view.
+   expected: The held item sits in front of the chest at normal first-person distance and points forward, without filling a quarter of the screen.
+

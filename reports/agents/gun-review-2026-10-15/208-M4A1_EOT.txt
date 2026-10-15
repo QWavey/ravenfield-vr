@@ -1,0 +1,41 @@
+Gun 208: M4A1 EOT
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-208-M4A1_EOT-right.png)
+   seen: Close-up from the right on a black-speckled background. The left glove rests on top of the upper receiver just behind and below the sight (roughly x 410-660, y 250-310 of the 1280x800 frame). No fingers touch the lever at the front-left of the receiver (roughly x 190-430, y 300-410), which is clear and unobstructed.
+   expected: Fingers wrapped on the charging-handle lever (several fingers on it), with the hand on that part, not resting on the receiver top.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-208-M4A1_EOT-left.png)
+   seen: The thumb rests on the top rail in front of the sight (roughly x 300-430, y 270-330). The fingers curl down and hang in front of the magazine well (roughly x 330-500, y 340-510), in the air beside the receiver. None of them is on a handle, and the charging handle is not visibly held.
+   expected: Fingers pinching the charging handle at the top of the receiver, with the hand on that part.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-208-M4A1_EOT-left.png)
+   seen: The thumb stays on the receiver top, and one finger rises into the air behind the sight (roughly x 520-720, y 130-270), touching no handle. Compared with rack-grip-208-M4A1_EOT-left.png, the sight and magazine sit about 80-110 px further left on screen while the glove stays put. The frames are not registered (the camera framing differs), so this shift cannot be read as gun motion.
+   expected: Fingers stay on the charging handle and pull it back about half way, with the hand moving with it.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-208-M4A1_EOT-right.png)
+   seen: The glove has come off the lever and now sits on top of the receiver and sight base (roughly x 420-860, y 180-310). The lever stays where it was in rack-grip-208-M4A1_EOT-right.png (left tip near x 190, y 350) and does not visibly slide back. The sight and the yellow round in the ejection port shift about 200 px right on screen, but the camera framing is not fixed, so that shift is not proof the receiver moved.
+   expected: Lever slid back about half way with the fingers on it, and the receiver staying fixed.
+
+5. [major] [medium] mag_duplicate_or_missing  (mag-5-lined-up-208-M4A1_EOT.png)
+   seen: The magwell under the receiver rail (rail roughly x 560-820, y 265-320) is empty: sea and grass show where a magazine should hang. The only magazine in view is a black one with a yellow top lying on the grass at the bottom centre (roughly x 510-710, y 670-800), far below the well. Its x position matches the drop line of mag-2-leaving, so it is most likely the dropped copy, and its yellow top does not match the olive magazines in mag-6 and mag-7. No fresh magazine is at the magwell and the hand is out of frame.
+   expected: The fresh magazine (olive, same model as the gun's) right at the magwell on its line, top at the rail near x 550-790, y 280-300, as in mag-7-seated-again.
+
+6. [minor] [medium] mag_wrong_orientation_or_model  (mag-6-half-in-208-M4A1_EOT.png)
+   seen: The magazine top meets the rail (roughly x 555-790, y 290), but its bottom swings about 60 px left (roughly x 500-760 at y 680), so it leans about 9 degrees off the magwell line. The magazine already spans nearly its full seated length (about the same as mag-7), so the half-way state is not clearly shown.
+   expected: Magazine vertical on the magwell line, only partly in (top just entering the well), not swinging out toward the glove.
+
+Test line flags:
+  - 0/4 fingers on the charging handle (rack grip): CONFIRMED. rack-grip-208-M4A1_EOT-right.png shows the lever clear of any fingers, and rack-grip-208-M4A1_EOT-left.png shows the fingers hanging in front of the magazine well.
+  - pulled half way 0/4 fingers: CONFIRMED by rack-grip-pulled-208-M4A1_EOT-right.png and -left.png (the hand sits on the receiver top, not on the lever). The wide pulled shot rack-grip-pulled-208-M4A1_EOT.png has no left hand in frame, so it cannot check the pull.
+  - moving with the hand: the charging handle: CONTRADICTED. In no close-up is the hand on the lever, so the hand cannot be the thing moving it.
+  - drawn: 4 drawn part(s) move, most 93 mm; nearest 0.0 cm from the hand: NOT CONFIRMED. The lever does not visibly slide back between rack-grip-208-M4A1_EOT-right.png and rack-grip-pulled-208-M4A1_EOT-right.png, and the hand is clearly off it in the pulled frames, so a 0.0 cm hand distance looks doubtful.
+  - the gun moved 0.2 mm with the pull, 0.1 mm when it went home: NOT CHECKABLE from stills. Screen positions shift between close-ups, but the framing is not fixed, so nothing reliable can be read from them.
+  - Worth checking, not confirmed: the lever the test calls the charging handle sits forward of the sight, toward the front of the receiver (left in the right-side close-ups). A real M4 charging handle sits at the rear of the upper receiver, so confirm the code is moving the intended part.
+  - magazine (deep): the gun's own magazine STILL SHOWS after the drop: NOT CONFIRMED by mag-3-out-208-M4A1_EOT.png, where the magwell is empty. The falling copy is visible at the rail in mag-2-leaving-208-M4A1_EOT.png (yellow top, on the magwell line).
+  - magazine (deep): dropped copy 0.0 cm across the pull, 7.9 cm out: CONSISTENT with mag-2-leaving (the falling magazine sits on the magwell line).
+  - in the hand: 3.4 cm from the palm: CONSISTENT with mag-4-in-hand (the glove holds the magazine base, feed end toward the gun).
+  - half way in (on the rail): 0.0 cm off the magwell line: CONTRADICTED by mag-6-half-in-208-M4A1_EOT.png (the bottom is about 60 px off the top, a visible lean).
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONSISTENT with mag-7-seated-again (top at the same place as the mag-1 magazine stub under the rail).
+  - racked: chambered: a yellow round is visible in the ejection port in rack-grip-208-M4A1_EOT-right.png, consistent with a chambered round but not proof.
+  - fired 3/3, cases thrown 3, recoil and impulse numbers: NOT CHECKABLE from these stills (no muzzle flash frame for this gun in the set).

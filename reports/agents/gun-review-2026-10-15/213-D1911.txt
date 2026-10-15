@@ -1,0 +1,35 @@
+Gun 213: D1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-213-D1911.png)
+   seen: The fresh magazine stands upright above and left of the left glove (about x 325-505, y 30-420 in the 1280x800 frame). The back edge of the glove crosses its lower end, and the curled fingers sit below it without wrapping it. Nothing holds it. Its feed end points up-left, not at the gun's magwell, which is about 500 px to the right.
+   expected: Fingers wrapped around the fresh magazine and touching it, feed end pointed at the magwell of the gun's grip.
+
+2. [major] [medium] mag_not_into_magwell  (mag-1-seated-213-D1911.png)
+   seen: The olive magazine body hangs about 100 px below the bottom of the grip (grip bottom at about y 510, magazine visible down to about y 610, base plate at the very bottom). Roughly 40% of the magazine's length is still outside the gun. mag-7-seated-again-213-D1911.png shows the same depth, and mag-6-half-in-213-D1911.png looks the same too.
+   expected: Magazine fully inside the grip, with only the base plate showing below it.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-213-D1911-left.png)
+   seen: Nearly identical to rack-grip-213-D1911-left.png. The glove's thumb (x 290-400, y 265-330) and index fingertip (x 240-300, y 400-445) are at the same screen spots, and the small white front-sight dots at the muzzle end of the slide (x 0-55, y 360-380) do not move. No slide travel and no hand travel of about 17 mm is visible.
+   expected: Slide visibly pulled back about half way toward the hand, with the glove moving back with it and the front-sight dots shifted toward the rear.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-213-D1911-right.png)
+   seen: Same glove placement as rack-grip-213-D1911-right.png (thumb on the slide top near x 640-910, index finger along the slide). The slide shows no clear rearward shift. A brass-coloured shape appears at the left end of the pale insert on the slide (x 930-965, y 430-480) that is not in the rack-grip frame.
+   expected: Slide pulled back about 17 mm toward the rear, glove moving with it.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (mag-5-lined-up-213-D1911.png)
+   seen: A bright star-shaped burst (x 750-1110, y 230-470) sits right of the left glove and behind the grip, at the gun's rear. The slide runs off the left edge of the frame, so the muzzle is off-frame left and the burst is about 400 px away from it. mag-7-seated-again-213-D1911.png shows the same burst in the same spot.
+   expected: Muzzle flash starting at the barrel's muzzle (the left end of the slide), not at the rear of the gun beside the hand.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (mag-6-half-in-213-D1911.png)
+   seen: A yellow light cone with a glowing blob (x 0-290, y 210-500) starts under the slide near the trigger guard and lands over the blue body on the left. It does not come from the muzzle (off-frame left), and its source differs from the bursts in mag-5 and mag-7.
+   expected: One muzzle flash at the barrel's muzzle, in the same spot for every shot.
+
+Test line flags:
+  - "in the hand: 4.2 cm from the palm (FLOATS BESIDE THE HAND)": CONFIRMED by mag-4-in-hand-213-D1911.png. The glove does not hold the magazine.
+  - "half way in (on the rail): 0.0 cm off the magwell line": mag-6-half-in-213-D1911.png sits on the grip's axis, so the line is plausible. Its visible depth matches the seated frame, so it does not show a half-way insertion.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": the position matches between mag-1 and mag-7, but both sit about 40% out of the grip (mag-1-seated-213-D1911.png), so seated is not full depth.
+  - "drawn: 5 drawn part(s) move, most 17 mm; the nearest is 0.0 cm from the hand": NOT confirmed. rack-grip-pulled-213-D1911-left.png and -right.png show no visible slide or hand travel.
+  - "rack grip 3/4 fingers" and "pulled half way 2/4 fingers": the left and right close-ups show the thumb on top of the slide and the index finger along it. The pulled frames show the same placement, so the drop from 3 to 2 fingers is not visible.
+  - "fired 3/3": three shot moments appear (mag-5, mag-6, mag-7), but the flash sits in different places (see the flash findings), so the muzzle position looks wrong.
+  - "the gun moved 0.1 mm with the pull": consistent with the pictures, since the gun framing does not change between rack-grip and the pulled frames.

@@ -1,0 +1,39 @@
+Gun 209: M4A1 EOT FT
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-209-M4A1_EOT_FT-right.png)
+   seen: Compared with rack-grip-209-M4A1_EOT_FT-right.png (same camera, the mottled ground spots do not move): the holo sight (its two ring marks go from about x 800 and 970 to about x 1010 and 1180), the flash hider and barrel nut, and the dark block behind the handguard all slide about 190-200 px to the right (rearward), roughly 6-9 cm at this scale. The plate the glove rests on slides with them, and the index finger now touches the sight base. Only the lever at left (x 190-430, y 320-410) stays put.
+   expected: Only the charging handle (bolt carrier) slides back about 3-4 cm. The sight, flash hider, barrel nut and handguard stay fixed, and the fingers stay on the handle.
+
+2. [minor] [low] wrong_part_moves  (rack-grip-pulled-209-M4A1_EOT_FT-left.png)
+   seen: Compared with rack-grip-209-M4A1_EOT_FT-left.png: the thumb and the background are unchanged, but the holo sight, the magazine and the pistol grip sit about 80-110 px further left (toward the muzzle). A second finger now appears on top, behind the sight (x 530-650, y 135-240). The buttstock stays. This shift is the opposite direction to the right close-up, so the gun parts do not move rigidly.
+   expected: The handle moves rearward only. The sight, magazine and pistol grip should not slide forward under the hand.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-209-M4A1_EOT_FT.png)
+   seen: No fresh magazine at the magwell: the area under the receiver (x 700-830, y 150-300) shows sea, grass and a tree, and no left hand is in frame. The only magazine is a black, yellow-topped one lying on the ground at bottom centre (x 510-710, y 670-800), far below the well. This may be the dropped copy, but either way the lined-up step is not visible.
+   expected: The fresh olive magazine held by the left hand, right under the magwell on its line (ahead of the trigger), with the hand visible around it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-209-M4A1_EOT_FT-right.png)
+   seen: The glove's fingers lie flat on top of the receiver (x 410-660, y 255-310) and rest on a plate above the lever. The lever at front-left (x 190-430, y 320-410) has no finger on it, and nothing is closed round a handle.
+   expected: Four fingers closed around the charging handle, pinching the part that racks the gun.
+
+5. [minor] [low] part_floating_or_detached  (rack-grip-209-M4A1_EOT_FT-right.png)
+   seen: A bright yellow-brass cylinder sticks out from the ejection-port area of the receiver (x 880-1280, y 440-520). It looks like a spent case or a bolt face sitting outside the receiver. In rack-grip-pulled-209-M4A1_EOT_FT-right.png it moves along with the receiver.
+   expected: Either a case clear of the gun that is ejecting, or no such object. The receiver should show a normal ejection port.
+
+6. [minor] [low] mag_duplicate_or_missing  (mag-2-leaving-209-M4A1_EOT_FT.png)
+   seen: The magazine on its way out is a black body with a yellow top band, sitting right under the magwell at x 540-745, y 325-355. It is not the olive colour of the gun's magazine in mag-1, and sky shows through the well above it. In mag-3 the well is empty and this object is gone.
+   expected: The same olive magazine dropping straight down out of the well along its line, clearly clear of the receiver. The well should not keep a second copy.
+
+Test line flags:
+  - rack grip 0/72 points inside the part and 0/4 fingers on it: CONFIRMED by rack-grip-209-M4A1_EOT_FT-right.png (fingers rest on top of the receiver, nothing closed round the lever) and rack-grip-209-M4A1_EOT_FT-left.png (palm over the top of the receiver, no finger wrapped round a handle).
+  - pulled half way 0/72 points and 0/4 fingers: CONFIRMED by rack-grip-pulled-209-M4A1_EOT_FT-right.png, where the index finger now rests against the sight base and not on the lever.
+  - moving with the hand: the charging handle: CONTRADICTED by rack-grip-pulled-209-M4A1_EOT_FT-right.png, where the sight, barrel nut and rear block move with the hand, so more than the handle moves.
+  - drawn: 4 drawn part(s) move, most 93 mm: CONFIRMED by rack-grip-pulled-209-M4A1_EOT_FT-right.png, where the sight and barrel shift about 190-200 px (roughly 6-9 cm at this scale).
+  - the gun moved 0.2 mm with the pull: root-level value not checkable from pictures, but it misses the visible sub-part displacement seen in rack-grip-pulled-209-M4A1_EOT_FT-right.png.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 8.7 cm out: NOT CONFIRMED. In mag-2-leaving the dropped object sits right under the magwell, not visibly 8.7 cm out. Low confidence.
+  - the gun's own magazine STILL SHOWS after the drop: PARTLY CONFIRMED. mag-2-leaving still shows an object at the magwell line (different colour from the gun's magazine). mag-3-out shows the well empty.
+  - in the hand: 3.4 cm from the palm: not contradicted by mag-4-in-hand-209-M4A1_EOT_FT.png, where the glove fingers hold the fresh magazine.
+  - half way in (on the rail): 0.0 cm off the magwell line: not contradicted by mag-6-half-in-209-M4A1_EOT_FT.png, where the magazine hangs on the magwell line.
+  - seated: the gun's magazine shows 0.0 cm from where it was: not checkable from mag-7-seated-again-209-M4A1_EOT_FT.png at this angle, since the glove hides the magazine base.
+  - No measurement exists for the lined-up step (mag-5-lined-up-209-M4A1_EOT_FT.png). The picture shows no fresh magazine at the magwell, so this is a test coverage gap.

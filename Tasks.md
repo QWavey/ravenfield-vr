@@ -8,7 +8,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - Done: 145
 - Code done, to check in the headset: 53
 - In progress: 10
-- Still to do: 25
+- Still to do: 26
 
 ### Still to do
 
@@ -37,6 +37,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 231. RPGs with a scope: not reloadable, the rocket in the hand invisible
 - 232. ARS HK416 / MP9: the gun still draws its magazine while it is out
 - 233. Vector family: a fingertip in the ejection port when racking
+- 234. Fix what the per-gun review found (gun by gun at the end); 69 guns not reviewed
 
 ### In progress
 
@@ -371,7 +372,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 223. [x] A faint glow stayed at the muzzle between shots of an automatic fired in taps (user: "visible even when not shot"): the glow only while the trigger is held (d5a1423; film: no overlay between shots on any of 6 guns)
 224. [ ] Pulling a magazine out by hand: the hand is inside the magazine and the hand pose snaps when it comes off the well, on almost every gun (user, 2026-10-15). Cause: on the well's line the magazine follows the line, the glove stayed with the controller. Code done: the glove holds the magazine there as it holds one in the free hand (eased with the magazine, kept out of the gun), the fingers closing on it where it is. To film per gun and check.
 225. [ ] One eye drawn brighter than the other on Island, on some runs (user, 2026-10-15). Not reproduced: the film's standing-still check on Island has both eyes within 0.5% (6 guns, 3 runs). To check in the headset; the film now measures it on every run.
-226. [ ] Per-gun picture review (user: one Haiku agent for every gun, read only): reports/agents/gun-review-2026-10-15/ (a .txt per gun, SUMMARY.txt by kind). First 211 of 290 guns (2026-10-15 23:15), medium/high confidence (numbers below from the first 138):
+226. [ ] Per-gun picture review (user: one Haiku agent for every gun, read only): reports/agents/gun-review-2026-10-15/ (a .txt per gun, SUMMARY.txt by kind). Stopped at the user's request: 221 of 290 guns reviewed (2026-10-15 23:20), medium/high confidence (numbers below from the first 138):
      - the free hand not on the slide / handle in the rack pictures: 87 guns
      - the magazine not in the hand (on the back of the fist, beside it): 37 guns
      - slide / bolt not moving with the hand: 25 guns; "wrong part moves": 43 guns. Most of both come from the rack close-up camera, which followed the hand (the hand stayed put in the picture, the gun seemed to move): pinned to the gun now (d5a1423); to judge again on fresh pictures
@@ -385,6 +386,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 231. [ ] RPGs with a scope: still not reloadable, and the rocket in the hand is still invisible (user, 2026-10-15; see 180 and 205, whose code did not fix it for these)
 232. [ ] (per-gun review) ARS HK416 / ARS MP9: with the magazine out, the gun still draws its own magazine (it is part of one mesh on these models: no separate magazine part to hide); cut it out like the bolt piece, or hide it another way
 233. [ ] (per-gun review) Vector family (vector, mw-vector, mw-vector rds): racking, a fingertip goes into the ejection port (the port is open space in the measured shape); keep the fingers on the receiver's surface there
+234. [ ] Fix what the per-gun review found, gun by gun (list under "For 226 / 234" at the end); review the 69 guns no agent reached on the fresh pictures
 
 ## Notes
 
@@ -894,3 +896,223 @@ For 218. Asked 2026-10-15 (lowest priority): the vanilla M1 Garand should behave
 For 219. Asked 2026-10-15 (low priority, at the end): one fast montage GIF (or video) of all the pictures the tests took, weapon by weapon, smooth enough to watch: built from reports/shots by a small script (tools/), a few frames per weapon, cross-faded.
 
 For 220. Done 2026-10-15: `python tools/vrshots.py` runs the game in a virtual headset (SteamVR's null driver; the user's SteamVR settings backed up and restored with a hash check; never while Ravenfield is open) and collects the pictures into reports/shots/<mode>. `--weapon` takes a name (any part), `=exact name`, an id (the number on the weapon's sheet: its place in the game's weapon list, the same in every run) or `mod:text` (every weapon of a mod by title or folder). Weapon runs make one labelled sheet per weapon (reports/shots/weapons/sheets, index.json). `--list` prints the ids.
+
+### For 226 / 234: the per-gun review, gun by gun
+
+One Haiku agent per gun, read only, looked at every test picture of its gun (runs "weapons" 1-174, "weapons-previous" 175-290). Stopped at the user's request on 2026-10-15 at 23:20 with 221 of 290 guns reviewed. Each gun's full report (what the picture shows, what it should show, the file) is in reports/agents/gun-review-2026-10-15/NNN-name.txt; all of them by kind in SUMMARY.txt there.
+
+Read with care: the agents are often wrong on a single picture (a correct half-in magazine was reported), the rack close-ups of that run followed the hand (so "wrong part moves" and "slide does not move" are mostly that camera, fixed since), and the lens flash pictures are from before it reached the headset. Each kind is checked on the fresh run (reports/shots/weapons-fixed) before fixing.
+
+#### Not reviewed (69 guns): to review on the fresh pictures
+
+- 210 mk18riii, 212 1911 10R, 215 FA1911 20R, 216 FAQ1911, 217 Q1911, 218 SpringField 1911, 219 TTI VIPER, 229 NVO-228E, 230 M417A2, 231 FNX-45, 232 FNX-45 [SUP], 233 FNX-45 [FLASH], 234 FNX-45 [LASER], 235 FNX-45 [FLASH][SUP], 236 FNX-45 [LASER][SUP], 237 FNX-45 [RDS], 238 FNX-45 [RDS][SUP], 239 FNX-45 [RDS][FLASH], 240 FNX-45 [RDS][LASER], 241 FNX-45 [TAC1], 242 FNX-45 [TAC2], 243 CZ Bren 2 BR, 244 CZ Bren 2 BR S, 245 CZ Bren 2 BR Holo, 246 CZ Bren 2 BR Raid, 247 CZ Bren 2 BR Tac, 248 CZ Bren 2 BR Assault, 249 QBZ192, 250 QBZ192 S, 251 QBZ192-A, 252 QBZ192-A/S, 253 QBZ192-B, 254 QBZ192-B/S, 255 QBZ192-C, 256 QBZ192-C/S, 257 QBZ192-D, 258 QBZ192-D/S, 259 QBZU191, 260 QBZU191 S, 261 QBZU191-A, 262 QBZU191-A/S, 263 Colt M1911, 264 Colt M1911A1, 265 AF2011A1, 266 Springfield  1911, 267 Springfield  1911 W, 268 SF 1911 MOD 3, 269 SF 1911 MOD 3 W, 270 HK416, 271 HK416 S, 272 HK416-A, 273 HK416-A/S, 274 HK416-B, 275 HK416-B/S, 276 HK416-C, 277 HK416-C/S, 278 HK416-D, 279 HK416-D/S, 280 HK416-E, 281 HK416-E/S, 282 QJB201 , 283 QJB201 [MG&AR], 284 QJB201 H510, 285 QJB201 H510 [MG&AR], 286 QJB201 Mag, 287 QJB201 Mag H510, 288 QJB201 Mag QMK204, 289 QJB201 QMK204, 290 QJB201 QMK204 [MG&AR]
+
+#### What each reviewed gun needs fixed (medium / high confidence; counts in brackets)
+
+- 1 .357 CONDOR (1, 0 major): lens flash (pictures from before 221-223)
+- 2 76 EAGLE (5, 4 major): free hand not on the slide / handle when racking (3); wrong part moves when racking (often the old hand-following camera); lens flash (pictures from before 221-223)
+- 3 AA-AA (4, 4 major): magazine not in the hand (on the fist, beside it); magazine not going into the well / grip; slide / bolt does not move with the hand (often the old camera); free hand not on the slide / handle when racking
+- 4 AIR HORN (3, 2 major): lens flash (pictures from before 221-223) (3)
+- 5 AMMO BAG (1, 1 major): free hand not on the slide / handle when racking
+- 6 AUTOMATICO (4, 3 major): magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); a part floating or detached
+- 7 AUTOMATICO AKIMBO (7, 7 major): lens flash (pictures from before 221-223) (3); slide / bolt does not move with the hand (often the old camera) (2); magazine not in the hand (on the fist, beside it); magazine not going into the well / grip
+- 8 BUNDLE O' BUSS (3, 3 major): slide / bolt does not move with the hand (often the old camera) (2); free hand not on the slide / handle when racking
+- 9 C4 (2, 2 major): free hand not on the slide / handle when racking; a part floating or detached
+- 10 DAGGER (1, 0 major): other: A vertical blue-white light streak runs down the right screen edge, about x 1200-1265 px,...
+- 12 GREASER (12, 11 major): free hand not on the slide / handle when racking (6); lens flash (pictures from before 221-223) (3); picture unusable (camera inside the gun, blocked); wrong part moves when racking (often the old hand-following camera); other: The magazine has not dropped visibly. The olive column still hangs from the magwell in the...
+- 14 HYDRA (1, 1 major): free hand not on the slide / handle when racking
+- 15 INGRESS 700 (3, 3 major): slide / bolt does not move with the hand (often the old camera); free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it)
+- 16 JOLT-20-S (6, 4 major): free hand not on the slide / handle when racking (3); magazine not in the hand (on the fist, beside it); magazine floating / off its place; other: A brass round is visible through the open port. Its base is at about x 868 and its copper...
+- 17 M1 GARRET (9, 6 major): picture unusable (camera inside the gun, blocked) (5); free hand not on the slide / handle when racking (2); magazine not going into the well / grip; lens flash (pictures from before 221-223)
+- 18 MEDIC BAG (1, 1 major): free hand not on the slide / handle when racking
+- 19 PATRIOT (5, 5 major): lens flash (pictures from before 221-223) (2); free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it)
+- 20 PATRIOT GL (3, 3 major): magazine not in the hand (on the fist, beside it); lens flash (pictures from before 221-223); free hand not on the slide / handle when racking
+- 21 PATRIOT TAC (7, 7 major): free hand not on the slide / handle when racking (2); lens flash (pictures from before 221-223) (2); wrong part moves when racking (often the old hand-following camera); magazine not in the hand (on the fist, beside it); picture unusable (camera inside the gun, blocked)
+- 22 QUICKSILVER (4, 4 major): free hand not on the slide / handle when racking (3); magazine not in the hand (on the fist, beside it)
+- 23 RECON LRR (6, 6 major): lens flash (pictures from before 221-223) (2); free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); a part floating or detached
+- 24 RIPCORD (10, 8 major): free hand not on the slide / handle when racking (3); magazine not going into the well / grip (2); lens flash (pictures from before 221-223) (2); magazine not in the hand (on the fist, beside it); picture unusable (camera inside the gun, blocked); magazine doubled or missing
+- 25 RK-44 (6, 6 major): free hand not on the slide / handle when racking (3); magazine not going into the well / grip; picture unusable (camera inside the gun, blocked); lens flash (pictures from before 221-223)
+- 26 SABRE (1, 1 major): free hand not on the slide / handle when racking
+- 27 SCALPEL (1, 1 major): free hand not on the slide / handle when racking
+- 28 SIGNAL DMR (7, 5 major): lens flash (pictures from before 221-223) (3); wrong part moves when racking (often the old hand-following camera); a part floating or detached; free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it)
+- 29 S-IND7 (7, 7 major): free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); hand pose wrong; magazine not going into the well / grip; magazine not in the hand (on the fist, beside it); wrong part moves when racking (often the old hand-following camera)
+- 30 S-IND7 [SUP] (3, 3 major): magazine not in the hand (on the fist, beside it); wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera)
+- 31 SLAM-R (1, 0 major): lens flash (pictures from before 221-223)
+- 32 SL-DEFENDER (7, 5 major): free hand not on the slide / handle when racking (3); wrong part moves when racking (often the old hand-following camera) (2); slide / bolt does not move with the hand (often the old camera); magazine not going into the well / grip
+- 35 SQUAD LEADER KIT (1, 1 major): a part floating or detached
+- 36 SUPERNOVA (7, 7 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223) (2); magazine not in the hand (on the fist, beside it)
+- 37 THUMPER (1, 0 major): lens flash (pictures from before 221-223)
+- 39 M1014 (2, 2 major): free hand not on the slide / handle when racking (2)
+- 40 M1014 Tactical (1, 0 major): lens flash (pictures from before 221-223)
+- 41 R870 [BUCKSHOT] (5, 5 major): wrong part moves when racking (often the old hand-following camera) (2); picture unusable (camera inside the gun, blocked); lens flash (pictures from before 221-223); slide / bolt does not move with the hand (often the old camera)
+- 42 R870 [SLUG] (3, 3 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking
+- 43 R870 CQC (2, 2 major): wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking
+- 44 DOUBLE-BARREL (1, 1 major): other: Two dark barrel openings with red and gold shell heads seated in them sit at the top of th...
+- 45 SAWED-OFF (1, 1 major): a part floating or detached
+- 46 Zombie AI (2, 1 major): lens flash (pictures from before 221-223) (2)
+- 47 Zombie AI Fast Attack (4, 3 major): lens flash (pictures from before 221-223) (4)
+- 48 asval (8, 8 major): lens flash (pictures from before 221-223) (4); wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking; fingers or hand through the gun
+- 49 asval o (8, 5 major): free hand not on the slide / handle when racking (3); lens flash (pictures from before 221-223) (3); wrong part moves when racking (often the old hand-following camera); magazine not in the hand (on the fist, beside it)
+- 51 Zombie Claw (1, 1 major): a part floating or detached
+- 54 AK-24 (5, 5 major): free hand not on the slide / handle when racking (3); picture unusable (camera inside the gun, blocked); wrong part moves when racking (often the old hand-following camera)
+- 55 AK-24/OKP-7 (5, 5 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); a part floating or detached; magazine floating / off its place
+- 56 light mk18 acog (7, 4 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); lens flash (pictures from before 221-223); other: A small black tag on the pistol grip (about x 1060-1110, y 295-335) shows text: a count su...
+- 57 light mk18 EXPS3 (4, 3 major): slide / bolt does not move with the hand (often the old camera); wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking; lens flash (pictures from before 221-223)
+- 58 P320 (4, 3 major): free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); hand pose wrong
+- 59 P320s (7, 6 major): free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); magazine floating / off its place; magazine not going into the well / grip; slide / bolt does not move with the hand (often the old camera); lens flash (pictures from before 221-223)
+- 60 GLOCK 43X (5, 5 major): free hand not on the slide / handle when racking (2); magazine not going into the well / grip; magazine not in the hand (on the fist, beside it); magazine floating / off its place
+- 61 GLOCK 43X [FA] (4, 4 major): magazine not going into the well / grip (2); free hand not on the slide / handle when racking; a part floating or detached
+- 62 GLOCK 43X-S (4, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); magazine not in the hand (on the fist, beside it)
+- 63 GLOCK 43X-S [FA] (5, 4 major): free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); magazine floating / off its place; other: A translucent dark box with the word DEFEAT covers the centre of the screen (about x 355-9...
+- 64 ak74m Zenit (7, 6 major): free hand not on the slide / handle when racking (3); wrong part moves when racking (often the old hand-following camera); picture unusable (camera inside the gun, blocked); magazine not in the hand (on the fist, beside it); lens flash (pictures from before 221-223)
+- 65 RPG-7V [OG-7V] (1, 1 major): a part floating or detached
+- 66 RPG-7V [PG-7V] (1, 0 major): free hand not on the slide / handle when racking
+- 67 RPG-7V [PG-7VL] (1, 0 major): lens flash (pictures from before 221-223)
+- 68 RPG-7V [PG-7VR] (1, 0 major): lens flash (pictures from before 221-223)
+- 70 92g (2, 2 major): free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it)
+- 71 92gs (1, 1 major): wrong part moves when racking (often the old hand-following camera)
+- 72 f2000 (6, 5 major): lens flash (pictures from before 221-223) (2); picture unusable (camera inside the gun, blocked); free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); magazine floating / off its place
+- 73 f2000 scope (7, 4 major): lens flash (pictures from before 221-223) (2); magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); hand pose wrong; picture unusable (camera inside the gun, blocked)
+- 74 f2000exps3 (4, 4 major): free hand not on the slide / handle when racking (2); picture unusable (camera inside the gun, blocked); lens flash (pictures from before 221-223)
+- 75 vector (6, 6 major): fingers or hand through the gun; picture unusable (camera inside the gun, blocked); free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); lens flash (pictures from before 221-223); a part floating or detached
+- 76 vector rds (5, 4 major): free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); fingers or hand through the gun; lens flash (pictures from before 221-223)
+- 77 m733 (4, 4 major): free hand not on the slide / handle when racking (2); a part floating or detached; picture unusable (camera inside the gun, blocked)
+- 78 m733 barska (7, 6 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking (2); a part floating or detached; lens flash (pictures from before 221-223); picture unusable (camera inside the gun, blocked)
+- 79 m733 pro (8, 6 major): lens flash (pictures from before 221-223) (3); wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it)
+- 80 mwii-g17 (5, 4 major): free hand not on the slide / handle when racking (3); slide / bolt does not move with the hand (often the old camera); magazine floating / off its place
+- 81 mwii-g17 rmr s (1, 1 major): slide / bolt does not move with the hand (often the old camera)
+- 82 mwii-g17 s (3, 3 major): slide / bolt does not move with the hand (often the old camera); free hand not on the slide / handle when racking; magazine floating / off its place
+- 83 [comm]92g s(No script) (5, 3 major): wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223) (2); magazine floating / off its place
+- 84 [comm]92g(No script) (2, 2 major): wrong part moves when racking (often the old hand-following camera) (2)
+- 85 [comm]f2k exps3(No script) (4, 4 major): wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223); free hand not on the slide / handle when racking
+- 86 [comm]f2k scope(No script) (4, 3 major): lens flash (pictures from before 221-223); wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); picture unusable (camera inside the gun, blocked)
+- 87 [comm]f2k(No script) (4, 4 major): free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); lens flash (pictures from before 221-223); picture unusable (camera inside the gun, blocked)
+- 88 mwii-ak105(No script) (7, 5 major): free hand not on the slide / handle when racking (3); picture unusable (camera inside the gun, blocked); slide / bolt does not move with the hand (often the old camera); lens flash (pictures from before 221-223); magazine not going into the well / grip
+- 89 mwii-ak105pkas(No script) (8, 6 major): free hand not on the slide / handle when racking (5); fingers or hand through the gun; lens flash (pictures from before 221-223); magazine not going into the well / grip
+- 90 mwii-g17(No script) (4, 3 major): free hand not on the slide / handle when racking (3); magazine floating / off its place
+- 91 mwii-g17rmr s(No script) (2, 1 major): free hand not on the slide / handle when racking; magazine floating / off its place
+- 92 mwii-m4(No script) (4, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); hand pose wrong
+- 93 mwii-m4acog(No script) (3, 2 major): lens flash (pictures from before 221-223) (2); picture unusable (camera inside the gun, blocked)
+- 94 mwii-m4holo(No script) (2, 2 major): free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera)
+- 95 mwii-mrad(No script) (4, 3 major): free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); magazine not going into the well / grip
+- 96 mw-m870(No script) (3, 2 major): wrong part moves when racking (often the old hand-following camera) (2); a part floating or detached
+- 97 mw-vector rds(No script) (6, 4 major): lens flash (pictures from before 221-223) (2); fingers or hand through the gun; free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); magazine doubled or missing
+- 98 mw-vector(No script) (5, 4 major): fingers or hand through the gun; free hand not on the slide / handle when racking; other: A full cartridge (brass with a pointed orange bullet) pokes out of the solid receiver just...; magazine doubled or missing; lens flash (pictures from before 221-223)
+- 99 mrad (4, 4 major): free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); fingers or hand through the gun
+- 100 M1878 Sawed Off Buck (1, 0 major): lens flash (pictures from before 221-223)
+- 106 apc45 (5, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223)
+- 107 asval (7, 6 major): lens flash (pictures from before 221-223) (4); wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking; magazine turned or the wrong model
+- 108 asvalokp7 (4, 3 major): lens flash (pictures from before 221-223) (2); wrong part moves when racking (often the old hand-following camera); magazine not in the hand (on the fist, beside it)
+- 109 asvalpkas (5, 3 major): lens flash (pictures from before 221-223) (2); magazine not in the hand (on the fist, beside it); magazine turned or the wrong model; magazine floating / off its place
+- 110 asvalpso (6, 5 major): lens flash (pictures from before 221-223) (2); free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); magazine turned or the wrong model
+- 111 ARS Glock 19 (5, 3 major): free hand not on the slide / handle when racking (3); magazine not in the hand (on the fist, beside it); magazine turned or the wrong model
+- 112 ARS HK416 (5, 5 major): wrong part moves when racking (often the old hand-following camera) (2); picture unusable (camera inside the gun, blocked); magazine doubled or missing; magazine not in the hand (on the fist, beside it)
+- 113 ARS M500 (3, 3 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking
+- 114 ARS MP9 (7, 5 major): magazine doubled or missing (3); lens flash (pictures from before 221-223) (2); wrong part moves when racking (often the old hand-following camera); fingers or hand through the gun
+- 115 ARS Glock 19 (Bot Friendly) (7, 7 major): slide / bolt does not move with the hand (often the old camera) (2); free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); other: The weapon hand (right, about x 315-835, y 70-470) curls around nothing. In the close-ups...; magazine doubled or missing
+- 116 ARS HK416 (Bot Friendly) (12, 12 major): wrong part moves when racking (often the old hand-following camera) (3); lens flash (pictures from before 221-223) (2); magazine floating / off its place (2); free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it); other: No gun is drawn in the frame. Only the right hand floats in the sky at upper right, finger...; magazine doubled or missing; magazine not going into the well / grip
+- 117 ARS M500 (Bot Friendly) (2, 2 major): free hand not on the slide / handle when racking (2)
+- 118 ARS MP9 (Bot Friendly) (11, 11 major): lens flash (pictures from before 221-223) (2); free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); magazine not going into the well / grip (2); slide / bolt does not move with the hand (often the old camera); magazine floating / off its place; other: No gun body is visible: the right fist (olive wrist-strap glove, index out to the left) cl...
+- 119 95-1 (5, 4 major): free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); magazine floating / off its place; lens flash (pictures from before 221-223)
+- 120 95-1 holo (5, 5 major): free hand not on the slide / handle when racking (3); magazine floating / off its place (2)
+- 121 95-1 qmk (4, 4 major): magazine floating / off its place (2); free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera)
+- 122 qjb95 (4, 4 major): free hand not on the slide / handle when racking (2); lens flash (pictures from before 221-223); magazine floating / off its place
+- 123 Helo Signal Smoke (All) (1, 0 major): gun pose / aim
+- 124 Helo Signal Smoke (Reinforce) (1, 0 major): a part floating or detached
+- 127 ak12 1p78 squad (9, 7 major): lens flash (pictures from before 221-223) (3); slide / bolt does not move with the hand (often the old camera) (2); free hand not on the slide / handle when racking; fingers or hand through the gun; magazine not in the hand (on the fist, beside it); other: The whole frame has a red / orange wash at top-left fading to green and yellow on the righ...
+- 128 ak12 1p78s squad (11, 11 major): lens flash (pictures from before 221-223) (4); free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); magazine doubled or missing; magazine floating / off its place; magazine not going into the well / grip
+- 129 ak12 1p87 squad (5, 5 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); magazine doubled or missing
+- 130 ak12 1p87s squad (12, 10 major): lens flash (pictures from before 221-223) (4); free hand not on the slide / handle when racking (3); hand pose wrong (2); other: A live cartridge sits in the charging slot at about x 930-1240, y 425-465, brass to the le...; magazine not in the hand (on the fist, beside it); magazine not going into the well / grip
+- 131 ak12h 1p87 squad (4, 3 major): magazine not going into the well / grip; magazine doubled or missing; a part floating or detached; lens flash (pictures from before 221-223)
+- 132 ak12h squad (4, 4 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking; magazine floating / off its place
+- 133 ak12squad (9, 8 major): lens flash (pictures from before 221-223) (3); wrong part moves when racking (often the old hand-following camera) (2); magazine not going into the well / grip; magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking; other: In this wide rack-grip frame no left hand is visible anywhere, so the grip on the handle c...
+- 134 RPG-7 (1, 1 major): lens flash (pictures from before 221-223)
+- 135 RPG-7V (1, 1 major): free hand not on the slide / handle when racking
+- 136 xm8 (4, 2 major): free hand not on the slide / handle when racking (2); lens flash (pictures from before 221-223); magazine floating / off its place
+- 137 xm8mg (7, 7 major): fingers or hand through the gun (2); free hand not on the slide / handle when racking (2); hand pose wrong; magazine floating / off its place; magazine not in the hand (on the fist, beside it)
+- 138 xm8mg scope (7, 7 major): free hand not on the slide / handle when racking (2); fingers or hand through the gun; magazine not going into the well / grip; magazine doubled or missing; magazine floating / off its place; lens flash (pictures from before 221-223)
+- 139 xm8scope (4, 3 major): free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); lens flash (pictures from before 221-223)
+- 140 Minigun (1, 1 major): free hand not on the slide / handle when racking
+- 142 AT-1K (1, 1 major): free hand not on the slide / handle when racking
+- 143 K13 (7, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223) (2); magazine floating / off its place
+- 144 K13 ACOG (3, 3 major): picture unusable (camera inside the gun, blocked) (2); magazine not going into the well / grip
+- 145 K13 ACOG S (7, 6 major): lens flash (pictures from before 221-223) (3); wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking; magazine floating / off its place
+- 146 K13 Eotech+G33 (3, 1 major): magazine floating / off its place; other: A hard-edged, curved, pure-black region fills the lower-left (about x 0-620, y 400-800) wh...; lens flash (pictures from before 221-223)
+- 147 K13 Eotech+G33 S (8, 6 major): lens flash (pictures from before 221-223) (4); free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); other: Right-side close-up. A large black area with a smooth curved edge covers the lower-left of...; magazine not in the hand (on the fist, beside it)
+- 148 K13 Spectre (3, 1 major): picture unusable (camera inside the gun, blocked) (2); free hand not on the slide / handle when racking
+- 149 K13 Spectre S (6, 4 major): lens flash (pictures from before 221-223) (2); free hand not on the slide / handle when racking (2); picture unusable (camera inside the gun, blocked) (2)
+- 150 K400 (2, 0 major): a part floating or detached; other: About 15 translucent blue-grey soft discs (roughly 20-120 px across) hang in the sky, over...
+- 152 Panzerfaust 3 (1, 1 major): free hand not on the slide / handle when racking
+- 153 mg3 (4, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); other: A tall black rectangular block stands upright on top of the receiver at the feed end, abou...
+- 154 mg3-acog (6, 5 major): free hand not on the slide / handle when racking (2); sight / optic; a part floating or detached; wrong part moves when racking (often the old hand-following camera); lens flash (pictures from before 221-223)
+- 155 PKM (3, 3 major): free hand not on the slide / handle when racking (2); lens flash (pictures from before 221-223)
+- 156 PKM Z E (4, 4 major): free hand not on the slide / handle when racking (3); slide / bolt does not move with the hand (often the old camera)
+- 157 PKM Z E S (5, 4 major): free hand not on the slide / handle when racking (2); lens flash (pictures from before 221-223) (2); slide / bolt does not move with the hand (often the old camera)
+- 158 PKM Z SP (5, 2 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); other: First-person view (1280x800). A tall twin-post sight block stands on top of the receiver a...; lens flash (pictures from before 221-223)
+- 159 PKM Z SP S (10, 9 major): free hand not on the slide / handle when racking (4); lens flash (pictures from before 221-223) (4); hand pose wrong; wrong part moves when racking (often the old hand-following camera)
+- 160 PKP (6, 5 major): free hand not on the slide / handle when racking (3); wrong part moves when racking (often the old hand-following camera) (2); lens flash (pictures from before 221-223)
+- 161 PKP 1P78 (6, 5 major): free hand not on the slide / handle when racking (3); slide / bolt does not move with the hand (often the old camera) (2); other: The tall vertical sight post on top of the receiver in front of the scope (about x 710-745...
+- 162 PKP OKP7 (4, 4 major): free hand not on the slide / handle when racking (3); lens flash (pictures from before 221-223)
+- 163 Type 80 (6, 5 major): free hand not on the slide / handle when racking (5); sight / optic
+- 164 PPSh-41 (5, 5 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); magazine floating / off its place
+- 165 PPSh-41 [DRUM] (2, 1 major): free hand not on the slide / handle when racking; lens flash (pictures from before 221-223)
+- 166 [Gear]BRN180 S A S (6, 6 major): lens flash (pictures from before 221-223) (4); other: The magazine already sits right at the magwell rim: its top is hidden under the rim and it...; free hand not on the slide / handle when racking
+- 167 [Gear]BRN180 SS (5, 5 major): lens flash (pictures from before 221-223) (4); free hand not on the slide / handle when racking
+- 168 [Gear]G BRN180 EO SS (5, 4 major): magazine floating / off its place; magazine not in the hand (on the fist, beside it); other: The fresh magazine shows no yellow rounds. It is a grey translucent shell with a dark top...; slide / bolt does not move with the hand (often the old camera); lens flash (pictures from before 221-223)
+- 169 [Sec]BRN180 S A S (4, 3 major): a part floating or detached; magazine floating / off its place; fingers or hand through the gun; lens flash (pictures from before 221-223)
+- 170 [Sec]BRN180 SS (7, 6 major): lens flash (pictures from before 221-223) (3); free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera); wrong part moves when racking (often the old hand-following camera)
+- 171 [Sec]G BRN180 EO SS (3, 3 major): free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); other: In the seated-again picture the magazine's base plate sits where mag-1's base plate sat, b...
+- 172 BRN180 EO L (1, 1 major): slide / bolt does not move with the hand (often the old camera)
+- 173 BRN180 EO S (1, 1 major): lens flash (pictures from before 221-223)
+- 174 BRN180_L (5, 4 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); other: The magazine is seated where mag-1 had it (same visible length, top under the rim, hand be...
+- 175 BRN180 L S (12, 12 major): picture unusable (camera inside the gun, blocked) (6); wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking (2); magazine floating / off its place; fingers or hand through the gun
+- 176 BRN180 S A (7, 7 major): picture unusable (camera inside the gun, blocked) (6); free hand not on the slide / handle when racking
+- 177 BRN180 S A S (6, 6 major): picture unusable (camera inside the gun, blocked) (6)
+- 178 BRN180 SS (8, 8 major): picture unusable (camera inside the gun, blocked) (6); wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking
+- 179 G BRN180 EO S (10, 10 major): picture unusable (camera inside the gun, blocked) (6); wrong part moves when racking (often the old hand-following camera) (2); magazine not in the hand (on the fist, beside it); magazine floating / off its place
+- 180 G BRN180 EO SS (12, 12 major): picture unusable (camera inside the gun, blocked) (6); slide / bolt does not move with the hand (often the old camera) (2); other: First-person view from the front right: gun at bottom centre with the holo sight, black mu... (2); magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking
+- 181 MK46 ET (6, 6 major): free hand not on the slide / handle when racking (3); wrong part moves when racking (often the old hand-following camera) (2); a part floating or detached
+- 182 M4A1 (5, 4 major): free hand not on the slide / handle when racking (2); slide / bolt does not move with the hand (often the old camera) (2); other: The left-hand glove fills the lower left of the frame and covers the area under the receiv...
+- 183 M4A1 acog (9, 6 major): picture unusable (camera inside the gun, blocked) (3); free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera) (2); other: First-person rack-grip view: the left hand is not in the frame at all, so the grip on the...; magazine turned or the wrong model
+- 184 M4A1 reddot (6, 4 major): free hand not on the slide / handle when racking (2); picture unusable (camera inside the gun, blocked) (2); slide / bolt does not move with the hand (often the old camera); magazine floating / off its place
+- 185 <color=Cyan>MP9 H L S</color> (3, 2 major): free hand not on the slide / handle when racking (2); magazine turned or the wrong model
+- 186 <color=Cyan>MP9 H L</color> (4, 4 major): free hand not on the slide / handle when racking (2); magazine not in the hand (on the fist, beside it); slide / bolt does not move with the hand (often the old camera)
+- 187 <color=Cyan>MP9 H S</color> (3, 3 major): slide / bolt does not move with the hand (often the old camera); free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it)
+- 188 <color=Cyan>MP9 H</color> (5, 5 major): free hand not on the slide / handle when racking (2); wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); magazine not in the hand (on the fist, beside it)
+- 189 <color=Cyan>MP9 PDW</color> (2, 2 major): magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking
+- 190 <color=Cyan>MP9 S</color> (7, 7 major): free hand not on the slide / handle when racking (4); wrong part moves when racking (often the old hand-following camera); magazine doubled or missing; magazine not in the hand (on the fist, beside it)
+- 191 <color=Cyan>MP9</color> (5, 5 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking; magazine not in the hand (on the fist, beside it); a part floating or detached
+- 192 P220 (3, 2 major): wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking; magazine turned or the wrong model
+- 193 P220 Devil Eatchel (2, 2 major): wrong part moves when racking (often the old hand-following camera); magazine not in the hand (on the fist, beside it)
+- 194 P220 Double Evil (3, 3 major): slide / bolt does not move with the hand (often the old camera); wrong part moves when racking (often the old hand-following camera); free hand not on the slide / handle when racking
+- 195 P220 Eatchel Gustav (4, 4 major): wrong part moves when racking (often the old hand-following camera) (2); slide / bolt does not move with the hand (often the old camera); magazine not in the hand (on the fist, beside it)
+- 196 P220 G (3, 3 major): wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); magazine not in the hand (on the fist, beside it)
+- 197 P220 G AKIMBO (3, 3 major): free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); a part floating or detached
+- 198 P220 G R (4, 4 major): slide / bolt does not move with the hand (often the old camera); free hand not on the slide / handle when racking; magazine not going into the well / grip; magazine not in the hand (on the fist, beside it)
+- 199 P220 T S (3, 3 major): free hand not on the slide / handle when racking (2); magazine turned or the wrong model
+- 200 P220 T S AKIMBO (1, 0 major): other: Many translucent blue-grey disc and puff shapes float across the whole first-person view:...
+- 201 Suzuya's Custom AR-15 5.56x45MM (11, 9 major): picture unusable (camera inside the gun, blocked) (3); free hand not on the slide / handle when racking (3); other: A yellow block (carrier-like) shows through a dark cut-out in the receiver just left of th... (3); magazine doubled or missing; magazine not in the hand (on the fist, beside it)
+- 202 Suzuya's Custom AR-15 HAMR 5.56x45MM (11, 11 major): free hand not on the slide / handle when racking (3); picture unusable (camera inside the gun, blocked) (3); a part floating or detached (2); magazine floating / off its place; magazine not in the hand (on the fist, beside it); slide / bolt does not move with the hand (often the old camera)
+- 203 Suzuya's PX9105 Springfield .45 ACP (3, 3 major): wrong part moves when racking (often the old hand-following camera); slide / bolt does not move with the hand (often the old camera); magazine doubled or missing
+- 204 M4A1 (4, 3 major): magazine not in the hand (on the fist, beside it); free hand not on the slide / handle when racking; slide / bolt does not move with the hand (often the old camera); other: The left forearm and textured glove cuff (about x 0-1030, y 350-800) fill the lower two th...
+- 205 M4A1 ACOG (3, 3 major): free hand not on the slide / handle when racking; wrong part moves when racking (often the old hand-following camera); magazine floating / off its place
+- 206 M4A1 CCO (3, 3 major): free hand not on the slide / handle when racking (2); magazine floating / off its place
+- 207 M4A1 CCO FT (4, 4 major): wrong part moves when racking (often the old hand-following camera) (2); free hand not on the slide / handle when racking; magazine doubled or missing
+- 208 M4A1 EOT (6, 5 major): free hand not on the slide / handle when racking (3); slide / bolt does not move with the hand (often the old camera); magazine doubled or missing; magazine turned or the wrong model
+- 209 M4A1 EOT FT (3, 3 major): wrong part moves when racking (often the old hand-following camera); magazine floating / off its place; free hand not on the slide / handle when racking
+- 211 1911 (2, 2 major): free hand not on the slide / handle when racking; other: Compared with rack-grip-211-1911-left.png, a silver barrel now shows in front of the black...
+- 213 D1911 (5, 5 major): slide / bolt does not move with the hand (often the old camera) (2); magazine not in the hand (on the fist, beside it); magazine not going into the well / grip; lens flash (pictures from before 221-223)
+- 214 FA1911 10R (5, 5 major): slide / bolt does not move with the hand (often the old camera) (2); magazine not in the hand (on the fist, beside it); a part floating or detached; free hand not on the slide / handle when racking
+- 220 AP-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 221 GL-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 222 HE-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 223 Lite-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 224 Mobile-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 225 Sam-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 226 Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+- 228 Super-Sentry Gun (1, 1 major): free hand not on the slide / handle when racking
+
+#### Reviewed, nothing found (19 guns)
+
+- 11 FRAG, 13 HMG, 33 SMOKE GRENADE, 34 SPEARHEAD, 38 WRENCH, 50 Zombie Bite, 52 Zombie Scrape, 53 Zombie Swipe, 69 RPG-7V [TBG-7V], 101 M1878 Sawed Off Slug, 102 M1878 Shotgun Buck, 103 M1878 Shotgun Buck Gear, 104 M1878 Shotgun Slug, 105 M1878 Shotgun Slug Gear, 125 Helo Signal Smoke (Support), 126 Helo Signal Smoke (Transport), 141 Minigun, 151 K413, 227 Shield Turret
+

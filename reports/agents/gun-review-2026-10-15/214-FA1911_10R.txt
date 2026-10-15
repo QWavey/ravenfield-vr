@@ -1,0 +1,39 @@
+Gun 214: FA1911 10R
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-214-FA1911_10R.png)
+   seen: The fresh tan magazine leans about 10-15 degrees and runs off the top edge of the frame. Its lower end passes behind the back of the left glove (about x 390-510, y 290-390). No finger crosses the magazine: the glove's fingers curl at the left (about x 370-560, y 380-530) around empty air. The magazine floats beside the hand rather than in it, and the gun sits up and to the right (x 570-1080, y 110-390). This matches the test's 4.5 cm FLOATS BESIDE THE HAND.
+   expected: Left fingers close around the magazine body (fingers across its front and back), the magazine moves with the hand, and the feed end points up toward the gun's magwell.
+
+2. [major] [medium] part_floating_or_detached  (weapon-214-FA1911_10R.png)
+   seen: A separate grey cylinder with a dark ring at one end floats in front of the dead blue body, about x 540-650, y 580-690, not attached to the gun. The gun's own front (about x 740-830, y 530-690) shows only an angled slide/frame edge with no rounded cylinder on it. In rack-grip-214-FA1911_10R.png and rack-grip-pulled-214-FA1911_10R.png (same camera position) that rounded cylinder is attached to the gun's front at about x 745-830, y 580-700, and nothing grey sits by the body.
+   expected: One intact gun: the front cylinder stays attached to the gun's front, and nothing grey floats in the scene.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-214-FA1911_10R-left.png)
+   seen: Compared with rack-grip-214-FA1911_10R-left.png, nothing has moved on screen. The rear sight (about x 40-70, y 315-330), the glove's fingertips (about x 240, y 420), the trigger guard and the magazine base all sit in the same spots. The slide does not visibly slide back and the hand does not travel with it, so the hand is effectively pulling air.
+   expected: Slide visibly pulled back about half way, with the rear sight and ejection port shifted back relative to the frame. The free hand's fingers stay on the slide and move with it. Frame, grip and magazine stay put.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-214-FA1911_10R-right.png)
+   seen: Same as the left view. The ejection port (about x 910-1050, y 425-500), the rear sight (about x 640-665, y 405-420), the thumb on the slide and the grip/magazine base are in the same place as in rack-grip-214-FA1911_10R-right.png. The only change is a small brass-coloured rim showing inside the ejection port, which is not a slide movement.
+   expected: Slide pulled back about half way with the thumb riding on it. Ejection port and rear sight shifted back, and the hand moving with the slide.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-214-FA1911_10R-left.png)
+   seen: The free glove lies across the top of the slide with only the index fingertip and thumb touching it. The other fingers hang beside the frame below the slide's bottom edge (about x 330-470, y 440-530), in the air next to the trigger guard. The slide's serrated rear (about x 60-160) is not under the hand. The right-side view (rack-grip-214-FA1911_10R-right.png) shows the same pattern: a thumb laid on the slide, the other fingers in the air over the frame.
+   expected: All four fingers wrap onto the slide's side and top at the serrated rear, in contact with the part.
+
+6. [minor] [low] mag_floating_or_offset  (mag-1-seated-214-FA1911_10R.png)
+   seen: The grip ends at about y 520. The tan magazine body shows below it (y 520-565), with the dark base plate hanging to about y 650, roughly 130 px of magazine out under the grip. mag-7-seated-again-214-FA1911_10R.png shows the same, so the seat is consistent but sits proud of the grip.
+   expected: Fully seated: magazine body inside the grip, with only the base plate (or nothing) showing at the grip bottom.
+
+7. [minor] [low] mag_not_into_magwell  (mag-6-half-in-214-FA1911_10R.png)
+   seen: The tan magazine shows from the grip bottom (y about 530) down to about y 625, then goes under the glove. That is the same visible length as in mag-7-seated-again-214-FA1911_10R.png. Its line matches the grip, but this half-way frame does not look half-way in.
+   expected: Magazine visibly partway up into the grip, roughly half its length out, with the grip edge cutting across the body, on the same line.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 3 drawn part(s) move, most 17 mm' are NOT confirmed by the pictures. In rack-grip-pulled-214-FA1911_10R-left.png and -right.png the rear sight, ejection port, grip and magazine stay at the same screen positions as in the rack-grip frames. A 17 mm slide travel should be clearly visible.
+  - 'rack grip ... 1/4 fingers on it' and 'pulled half way ... 1/4 fingers on it' agree with the pictures: only the thumb or one fingertip touches the slide. This is the hand_not_on_part finding, and the hand does not travel with the pull.
+  - 'in the hand: 4.5 cm from the palm (FLOATS BESIDE THE HAND)' is confirmed by mag-4-in-hand-214-FA1911_10R.png.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is consistent: mag-6 looks aligned with the grip. The depth does not look half-way, though; its visible length matches mag-7 (seated).
+  - 'seated: ... 0.0 cm from where it was' is consistent: mag-1 and mag-7 look identical. Both show tan magazine body below the grip (see the minor mag-1 finding).
+  - 'dropped magazine picked up and seated, 10 rounds kept' followed by 'magazine: seated, 11 rounds' changes the count from 10 to 11. No picture can confirm a round count, so this is unverified. It may be a chambered round, but check it.
+  - 'the gun moved 0.2 mm with the pull, 0.4 mm when it went home' and 'magazine (deep): dropped copy ... 7.2 cm out' are consistent with the pictures: the gun body is static, and the dropped magazine in mag-2 leaves the magwell.

@@ -1,25 +1,25 @@
-Per-gun picture review: one Haiku agent per gun (read only), 211 guns reviewed
-Bugs (medium/high confidence): 871 ({'minor': 117, 'major': 748, 'tiny': 6})
+Per-gun picture review: one Haiku agent per gun (read only), 221 guns reviewed
+Bugs (medium/high confidence): 896 ({'minor': 118, 'major': 772, 'tiny': 6})
 
 By kind:
-   261  hand_not_on_part  (145 guns)
-   150  muzzle_flash_or_lens_flash_issue  (83 guns)
-   105  wrong_part_moves  (72 guns)
+   271  hand_not_on_part  (153 guns)
+   151  muzzle_flash_or_lens_flash_issue  (84 guns)
+   106  wrong_part_moves  (73 guns)
     76  picture_unusable  (32 guns)
-    56  slide_or_bolt_not_moving  (49 guns)
-    54  mag_not_in_hand  (54 guns)
-    38  mag_floating_or_offset  (35 guns)
-    32  other  (29 guns)
-    25  mag_not_into_magwell  (22 guns)
-    24  part_floating_or_detached  (23 guns)
-    17  mag_duplicate_or_missing  (15 guns)
+    61  slide_or_bolt_not_moving  (52 guns)
+    56  mag_not_in_hand  (56 guns)
+    39  mag_floating_or_offset  (36 guns)
+    33  other  (30 guns)
+    26  mag_not_into_magwell  (23 guns)
+    25  part_floating_or_detached  (24 guns)
+    18  mag_duplicate_or_missing  (16 guns)
     14  hand_or_finger_clipping  (13 guns)
+     9  mag_wrong_orientation_or_model  (9 guns)
      8  hand_pose_wrong  (7 guns)
-     8  mag_wrong_orientation_or_model  (8 guns)
      2  optic_or_sight_issue  (2 guns)
      1  gun_pose_or_aim_wrong  (1 guns)
 
-== hand_not_on_part (261)
+== hand_not_on_part (271)
     2 76 EAGLE: [major/high] rack-grip-002-76_EAGLE-left.png: Gloved left hand lies across the side of the receiver (x 255-870, y 235-510 in the 1280x800 frame). The index finger runs out to the left past the receiver's front edge (tip about x 255, y 265) and the other fingers curl
     2 76 EAGLE: [major/high] rack-grip-002-76_EAGLE-right.png: Left index finger comes in from the left edge (y 580-690) and its tip ends near (320, 620), below the lower edge of the receiver (lower edge about y 580). The top of the receiver, the rail and the ejection window (x 495-
     2 76 EAGLE: [major/high] rack-grip-pulled-002-76_EAGLE-left.png: Compared with rack-grip-002-76_EAGLE-left.png, the left hand did not travel back with the pull. The index fingertip sits at about x 230, y 265 (rest: x 255) and the palm stays in the same place against the receiver side.
@@ -277,12 +277,22 @@ By kind:
   206 M4A1 CCO: [major/medium] rack-grip-206-M4A1_CCO-left.png: The left-hand glove lies on top of the upper receiver and rail with the fingers pointing forward over the rail. No finger wraps the black charging-handle lever, which sits clear of the fingertips. The base rack-grip-206-
   206 M4A1 CCO: [major/medium] rack-grip-206-M4A1_CCO-right.png: From the right side the fingertips rest on the rail ahead of the dark lever (lever at roughly x 195-430, y 320-410 of the 1280x800 frame, fingertips at roughly x 430-600, y 255-300). The lever has no finger on it.
   207 M4A1 CCO FT: [major/medium] rack-grip-207-M4A1_CCO_FT-left.png: The left glove lies flat across the top of the upper receiver and handguard (palm over about x 480-880, y 250-530; thumb at x 300-420, y 270-330). The fingers curl down the left side of the receiver at x 330-500, y 340-5
+  208 M4A1 EOT: [major/high] rack-grip-208-M4A1_EOT-right.png: Close-up from the right on a black-speckled background. The left glove rests on top of the upper receiver just behind and below the sight (roughly x 410-660, y 250-310 of the 1280x800 frame). No fingers touch the lever a
+  208 M4A1 EOT: [major/medium] rack-grip-208-M4A1_EOT-left.png: The thumb rests on the top rail in front of the sight (roughly x 300-430, y 270-330). The fingers curl down and hang in front of the magazine well (roughly x 330-500, y 340-510), in the air beside the receiver. None of t
+  208 M4A1 EOT: [major/medium] rack-grip-pulled-208-M4A1_EOT-left.png: The thumb stays on the receiver top, and one finger rises into the air behind the sight (roughly x 520-720, y 130-270), touching no handle. Compared with rack-grip-208-M4A1_EOT-left.png, the sight and magazine sit about 
+  209 M4A1 EOT FT: [major/medium] rack-grip-209-M4A1_EOT_FT-right.png: The glove's fingers lie flat on top of the receiver (x 410-660, y 255-310) and rest on a plate above the lever. The lever at front-left (x 190-430, y 320-410) has no finger on it, and nothing is closed round a handle.
+  211 1911: [major/medium] rack-grip-211-1911-right.png: The left hand comes over the rear of the slide from above. Only the thumb rests on the slide's serrated top (about x 620-880, y 280-500 in the 1280x800 frame). The other fingers and knuckle plates hang in the air behind 
+  214 FA1911 10R: [major/medium] rack-grip-214-FA1911_10R-left.png: The free glove lies across the top of the slide with only the index fingertip and thumb touching it. The other fingers hang beside the frame below the slide's bottom edge (about x 330-470, y 440-530), in the air next to 
   220 AP-Sentry Gun: [major/medium] weapon-220-AP-Sentry_Gun.png: The right hand is a flat blue silhouette at about x 560-680, y 530-660, lower centre. The olive-green bag with a yellow strap fills the lower right (about x 640-1020, y 545-800), roughly a quarter of the view, and its to
   221 GL-Sentry Gun: [major/medium] weapon-221-GL-Sentry_Gun.png: Lower right, a large olive-drab box with a yellow strap fills the bottom-right corner close to the camera. No hand, glove or fingers are visible on it or anywhere else in the frame.
   222 HE-Sentry Gun: [major/medium] weapon-222-HE-Sentry_Gun.png: The held item is an olive-green crate with a yellow strap, sitting in the bottom-right corner (roughly x 640-1020, y 555-800 of the 1280x800 frame) and cut off by the bottom and right edges. No right hand is visible on i
   223 Lite-Sentry Gun: [major/medium] weapon-223-Lite-Sentry_Gun.png: The held item is an olive-green box with a yellow strap. It fills the bottom-right quadrant (about x 640-1020, y 540-800 of 1280x800), is very close to the camera, and is cut off by the bottom edge. No fingers or palm ar
+  224 Mobile-Sentry Gun: [major/medium] weapon-224-Mobile-Sentry_Gun.png: The right (blue) hand is at lower-left centre, about x 560-680, y 530-690. Its fingers curl around a small grey cylinder with a dark end (about x 540-650, y 580-690), not around the olive box. The olive box with a yellow
+  225 Sam-Sentry Gun: [major/medium] weapon-225-Sam-Sentry_Gun.png: No hand is visible anywhere in the frame. The blue gun body sits in the lower centre (about x 540-690, y 530-690) with no fingers or palm around any grip, so it looks like it hangs in the air in front of the camera.
+  226 Sentry Gun: [major/medium] weapon-226-Sentry_Gun.png: The right (blue) hand's fingers close around a small dark-grey cylinder at about x 540-615, y 580-690, left of centre. That cylinder is not part of the olive, yellow-strapped box, which fills the bottom-right (about x 64
+  228 Super-Sentry Gun: [major/medium] weapon-228-Super-Sentry_Gun.png: The olive-green box with a yellow strap (the 'bag') fills the bottom-right corner, roughly x 640-1025, y 540-800, close to the camera. No hand touches it: no fingers, glove or forearm wrap the box or its strap, and no ar
 
-== muzzle_flash_or_lens_flash_issue (150)
+== muzzle_flash_or_lens_flash_issue (151)
     1 .357 CONDOR: [minor/medium] lensflash-001-.357_CONDOR.png: The bright flash core sits around (700, 545) on the 1280x800 frame, about 35-40 px left of and a little below the barrel's muzzle tip at roughly (730, 520). The yellow streak runs up-left from the core along the barrel l
     2 76 EAGLE: [minor/medium] lensflash-002-76_EAGLE.png: The flare hot spot sits on the muzzle at about x 660-720, y 460-530 (muzzle near x 705, y 475-500), so its position is right. But the flash washes the whole frame: wall, grass and gravel are yellow-white. The sky and hor
     4 AIR HORN: [major/high] lensflash-004-AIR_HORN.png: The lens flash is a pale blue translucent disc, about 110 px across, centred near (670, 285) in the 1280x800 frame, in the sky above the distant black smoke. The horn's bell (muzzle) is near (690, 550), about 265 px lowe
@@ -433,8 +443,9 @@ By kind:
   170 [Sec]BRN180 SS: [major/high] lens-eyes-170-[Sec]BRN180 SS.png: Both LEFT and RIGHT panels are almost black. Each has only a small dark-orange speck with faint grey rings, at about 55% across and 57% down (left speck near x 168, right near x 467, y 143). The right eye is a little str
   170 [Sec]BRN180 SS: [minor/medium] lens-eyes-burst-170-[Sec]BRN180 SS.png: The same tiny dark-orange speck and faint rings appear in both panels (left x 168, right x 467, y 143) as in the single shot. Nothing is brighter or more repeated across the burst; the burst flash looks no stronger than 
   173 BRN180 EO S: [major/medium] lensflash-173-BRN180_EO_S.png: First-person shot frame: the barrel tip (front end of the top rail, about x 690-700, y 455-470) shows no bright muzzle flash. The frame is plain rifle, grass and sky, with only a faint grey haze far off on the hill aroun
+  213 D1911: [major/medium] mag-5-lined-up-213-D1911.png: A bright star-shaped burst (x 750-1110, y 230-470) sits right of the left glove and behind the grip, at the gun's rear. The slide runs off the left edge of the frame, so the muzzle is off-frame left and the burst is abou
 
-== wrong_part_moves (105)
+== wrong_part_moves (106)
     2 76 EAGLE: [major/medium] rack-grip-pulled-002-76_EAGLE-left.png: The rear of the gun shifted toward the muzzle (left), not back. Versus rack-grip-002-76_EAGLE-left.png, the rear sight is now at x 710-870 (was 870-1040) and the grip and right thumb are about 100-170 px further left, wh
     6 AUTOMATICO: [major/medium] rack-grip-pulled-006-AUTOMATICO-left.png: Compared with rack-grip-006-AUTOMATICO-left.png, the left glove, its thumb and the slide top at the left edge stay at the same pixels. The trigger guard (about x 250-430 to 150-370), trigger lever, grip, magazine and rig
    12 GREASER: [major/medium] rack-grip-pulled-012-GREASER-left.png: The olive grip / magazine-base block under the hand, and the grey hand holding it, also shift left by about 110-120 px along with the receiver, while the rods and background stay put. This suggests the whole gun body mov
@@ -540,6 +551,7 @@ By kind:
   205 M4A1 ACOG: [major/medium] rack-grip-pulled-205-M4A1_ACOG-right.png: Compared with rack-grip-205-M4A1_ACOG-right.png, the charging lever and the glove fingertip stay in the same place in frame, but the upper receiver moves about 190 px toward the stock (screen right). The start of the top
   207 M4A1 CCO FT: [major/high] rack-grip-pulled-207-M4A1_CCO_FT-right.png: Compared with rack-grip-207-M4A1_CCO_FT-right.png, the pale glove lying on the top rail is in exactly the same screen spot (about x 420-900, y 215-320), but the whole upper receiver moves right by roughly 180 px: the opt
   207 M4A1 CCO FT: [major/medium] rack-grip-pulled-207-M4A1_CCO_FT-left.png: The glove is unchanged compared with rack-grip-207-M4A1_CCO_FT-left.png (thumb tip at x 300, y 300; knuckles at x 520-700, y 165-250). The optic, magazine and pistol grip shift about 90-120 px to the left: the optic's le
+  209 M4A1 EOT FT: [major/medium] rack-grip-pulled-209-M4A1_EOT_FT-right.png: Compared with rack-grip-209-M4A1_EOT_FT-right.png (same camera, the mottled ground spots do not move): the holo sight (its two ring marks go from about x 800 and 970 to about x 1010 and 1180), the flash hider and barrel 
 
 == picture_unusable (76)
    12 GREASER: [major/high] lens-eyes-012-GREASER.png: The whole 606x250 frame is black on both the LEFT and RIGHT eye halves. No star, no rings, no halo anywhere. The test line still says the lens flash was shown at strength 1.02.
@@ -619,7 +631,7 @@ By kind:
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/high] mag-2-leaving-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png: The same glove close-up as mag-1 (mesh with stitched dashes, mirrored readout reading like 1 NO MAG at the right edge). The magazine dropping out of the magwell cannot be seen.
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/high] mag-3-out-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png: The same glove close-up again (mesh with stitched dashes). Whether the magwell is empty cannot be checked; the only hint is the mirrored readout at the right edge.
 
-== slide_or_bolt_not_moving (56)
+== slide_or_bolt_not_moving (61)
     3 AA-AA: [major/medium] rack-grip-pulled-003-AA-AA-right.png: Compared with rack-grip-003-AA-AA-right.png (same camera, same glove and frame), the slide's barrel tip and rear end sit about 50-60 px further right, toward the muzzle. The hand and frame do not move, so the slide shift
     7 AUTOMATICO AKIMBO: [major/medium] rack-grip-pulled-007-AUTOMATICO_AKIMBO-left.png: Compared with rack-grip-007-AUTOMATICO_AKIMBO-left.png, the glove (top edge about y=240, thumb tip about x=215-270, y=420-470) and the gun's slide/rail (about x=0-470, y=330-380) are in the same place. No rearward slide 
     7 AUTOMATICO AKIMBO: [major/medium] rack-grip-pulled-007-AUTOMATICO_AKIMBO-right.png: Slide serrations (about x=690-900, y=415-530) and the dotted-thumb glove are in the same spot as in rack-grip-007-AUTOMATICO_AKIMBO-right.png. The upper gun's muzzle (about x=1060-1140, y=245-300) is also unchanged. No v
@@ -676,8 +688,13 @@ By kind:
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/medium] rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png: Compared with rack-grip-202...png, the left glove has moved down and right along the handguard (about x 760-980, y 640-800). The knob on the receiver top (about x 790-850, y 400-470) is in the same place, so the charging
   203 Suzuya's PX9105 Springfield .45 ACP: [major/medium] rack-grip-pulled-203-Suzuya_s_PX9105_Springfield_.45_ACP-left.png: Same problem from the other side. Compared with rack-grip-203-...-left.png, the slide's top and bottom edges and the glove on the slide are unchanged, but the trigger guard and frame area moves about 100 px to the left (
   204 M4A1: [major/medium] rack-grip-pulled-204-M4A1-left.png: Compared with rack-grip-204-M4A1-left.png, the glove occupies the same screen area (about x 300-870, y 240-530) and the thumb tip is at the same spot; only the index finger rises a little higher. The hand does not travel
+  208 M4A1 EOT: [major/medium] rack-grip-pulled-208-M4A1_EOT-right.png: The glove has come off the lever and now sits on top of the receiver and sight base (roughly x 420-860, y 180-310). The lever stays where it was in rack-grip-208-M4A1_EOT-right.png (left tip near x 190, y 350) and does n
+  213 D1911: [major/medium] rack-grip-pulled-213-D1911-left.png: Nearly identical to rack-grip-213-D1911-left.png. The glove's thumb (x 290-400, y 265-330) and index fingertip (x 240-300, y 400-445) are at the same screen spots, and the small white front-sight dots at the muzzle end o
+  213 D1911: [major/medium] rack-grip-pulled-213-D1911-right.png: Same glove placement as rack-grip-213-D1911-right.png (thumb on the slide top near x 640-910, index finger along the slide). The slide shows no clear rearward shift. A brass-coloured shape appears at the left end of the 
+  214 FA1911 10R: [major/medium] rack-grip-pulled-214-FA1911_10R-left.png: Compared with rack-grip-214-FA1911_10R-left.png, nothing has moved on screen. The rear sight (about x 40-70, y 315-330), the glove's fingertips (about x 240, y 420), the trigger guard and the magazine base all sit in the
+  214 FA1911 10R: [major/medium] rack-grip-pulled-214-FA1911_10R-right.png: Same as the left view. The ejection port (about x 910-1050, y 425-500), the rear sight (about x 640-665, y 405-420), the thumb on the slide and the grip/magazine base are in the same place as in rack-grip-214-FA1911_10R-
 
-== mag_not_in_hand (54)
+== mag_not_in_hand (56)
     3 AA-AA: [major/high] mag-4-in-hand-003-AA-AA.png: The fresh magazine stands upright above the left glove, roughly x 355-500, y 110-400 of the 1280x800 frame. The fingers only touch its lower edge and the palm is well away from it, so it floats beside the hand. Matches t
     6 AUTOMATICO: [major/high] mag-4-in-hand-006-AUTOMATICO.png: The left glove (palm down, fingers stretched flat to the left at about x 355-430, y 380-430) holds nothing. The fresh magazine (dark slab at about x 370-510, y 95-440) stands upright above and behind the palm. The glove'
     7 AUTOMATICO AKIMBO: [major/medium] mag-4-in-hand-007-AUTOMATICO_AKIMBO.png: The fresh magazine (about x=380-560, y=115-300) stands above the left fist. The glove's top edge touches its base, but no fingers wrap around the magazine body; the fingers curl below it, so the magazine rests on or abov
@@ -732,8 +749,10 @@ By kind:
   201 Suzuya's Custom AR-15 5.56x45MM: [major/medium] mag-4-in-hand-201-Suzuya_s_Custom_AR-15_5.56x45MM.png: The fresh yellow magazine stands upright above the left glove, its base resting on the top edge of the back of the hand (around x 330-580, y 280-290). The glove is palm-down with fingers flat and pointing left, and no fi
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/medium] mag-4-in-hand-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png: The left glove is flat, fingers extended to the left, with a yellow magazine above it. The fingers do not wrap the magazine. Its base sits on the top edge of the index finger / back of the hand (about x 340-580, y 0-290)
   204 M4A1: [major/high] mag-5-lined-up-204-M4A1.png: No magazine sits at the magwell: the receiver lip is at top right (about x 570-830, y 100-170) with grass and sea below it. A magazine with a yellow top sits low in the frame at bottom centre (about x 510-710, y 670-800)
+  213 D1911: [major/high] mag-4-in-hand-213-D1911.png: The fresh magazine stands upright above and left of the left glove (about x 325-505, y 30-420 in the 1280x800 frame). The back edge of the glove crosses its lower end, and the curled fingers sit below it without wrapping
+  214 FA1911 10R: [major/high] mag-4-in-hand-214-FA1911_10R.png: The fresh tan magazine leans about 10-15 degrees and runs off the top edge of the frame. Its lower end passes behind the back of the left glove (about x 390-510, y 290-390). No finger crosses the magazine: the glove's fi
 
-== mag_floating_or_offset (38)
+== mag_floating_or_offset (39)
    16 JOLT-20-S: [major/medium] mag-5-lined-up-016-JOLT-20-S.png: The fresh magazine (x about 650-720, y 525-775) sits about 300 px below the magwell (grip bottom at y about 225). It is drawn only about 70 px wide, versus about 115 px for the gun's magazine in mag-1, so it sits at a cl
    55 AK-24/OKP-7: [major/medium] mag-5-lined-up-055-AK-24_OKP-7.png: The fresh magazine is held low in the frame, its top at about y 530 (x 625-765). That is roughly a third of the frame height below the magwell, which sits under the receiver near the trigger guard (about x 760-900, y 100
    59 P320s: [major/medium] mag-2-leaving-059-P320s.png: While the magazine drops, a brown panel (the magazine's front face) shows on the front of the grip from just under the trigger guard (about x 545-610, y 315) down to about y 600. The grip's front wall should hide the mag
@@ -772,8 +791,9 @@ By kind:
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/high] mag-5-lined-up-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png: The fresh yellow magazine stands on the grass at the bottom centre of the frame (about x 475-680, y 680-800), several hundred pixels below the receiver. The gun's receiver and pistol grip are at the top right, with the r
   205 M4A1 ACOG: [major/medium] mag-5-lined-up-205-M4A1_ACOG.png: The fresh magazine (black, yellow follower on top, feed end up) sits low in the frame at about x 510-710, y 665-800, on the grass. It is well below and left of the magwell, which is just in front of the pistol grip under
   206 M4A1 CCO: [major/medium] mag-5-lined-up-206-M4A1_CCO.png: The magwell under the receiver (upper right) is empty and the free hand is not in frame. A black magazine with a yellow top sits on the ground at the bottom centre (roughly x 510-710, y 670-800), far below the receiver a
+  209 M4A1 EOT FT: [major/medium] mag-5-lined-up-209-M4A1_EOT_FT.png: No fresh magazine at the magwell: the area under the receiver (x 700-830, y 150-300) shows sea, grass and a tree, and no left hand is in frame. The only magazine is a black, yellow-topped one lying on the ground at botto
 
-== other (32)
+== other (33)
    10 DAGGER: [minor/medium] lensflash-010-DAGGER.png: A vertical blue-white light streak runs down the right screen edge, about x 1200-1265 px, from the top of the frame to about y 520, fading into the sea. It does not line up with the muzzle flash (centre about x 676, y 46
    12 GREASER: [major/medium] mag-2-leaving-012-GREASER.png: The magazine has not dropped visibly. The olive column still hangs from the magwell in the same place as in mag-1 (top at the receiver's bottom edge, about y 210, x 575-708), with no offset or gap. It then vanishes by ma
    16 JOLT-20-S: [minor/medium] rack-grip-pulled-016-JOLT-20-S-right.png: A brass round is visible through the open port. Its base is at about x 868 and its copper nose points right (about x 1140-1240), toward the rear and the charging-knob side. The base also sits partly outside the port rece
@@ -806,8 +826,9 @@ By kind:
   201 Suzuya's Custom AR-15 5.56x45MM: [minor/medium] rack-grip-201-Suzuya_s_Custom_AR-15_5.56x45MM.png: First-person wide shot with the same framing as weapon-201 and the pulled wide shot: the gun at centre, with the left glove low on the front of the gun at bottom right. The charging handle is too small to see, and no han
   201 Suzuya's Custom AR-15 5.56x45MM: [minor/high] rack-grip-pulled-201-Suzuya_s_Custom_AR-15_5.56x45MM.png: Looks the same as the rack-grip wide shot and weapon-201, with the glove low on the gun at bottom right. No change is visible, so the handle pull cannot be checked from this frame.
   204 M4A1: [tiny/medium] mag-2-leaving-204-M4A1.png: The left forearm and textured glove cuff (about x 0-1030, y 350-800) fill the lower two thirds of the frame, so the magazine's drop path below the lip is mostly hidden. Only a yellow top band (about x 545-760, y 300-318)
+  211 1911: [major/medium] rack-grip-pulled-211-1911-left.png: Compared with rack-grip-211-1911-left.png, a silver barrel now shows in front of the black slide at the far left, so the slide did move back. But the glove's knuckle plates and fingertips sit at the same image position i
 
-== mag_not_into_magwell (25)
+== mag_not_into_magwell (26)
     3 AA-AA: [major/medium] mag-1-seated-003-AA-AA.png: The dark magazine body (x ~525-690, y ~465-590) hangs about 95 px below the bottom of the grip, which ends near y 490-495 at x 530-560. Roughly 3 cm of magazine shows under the handle. mag-7-seated-again-003-AA-AA.png sh
     7 AUTOMATICO AKIMBO: [major/medium] mag-1-seated-007-AUTOMATICO_AKIMBO.png: Magazine body shows about 100 px (roughly 2-3 cm) below the grip's bottom. The small dark grip end at about x=530-560, y=460-490 stays visible in mag-3-out, so it marks the grip bottom, yet the magazine runs down to abou
    17 M1 GARRET: [major/medium] mag-7-seated-again-017-M1_GARRET.png: No gun anywhere in the frame. The left glove is still closed around the fresh 8-round magazine in open air over the beach: the cartridge tips stick out to the left of the fist (about x 530-620, y 325-475) and the gray ma
@@ -833,8 +854,9 @@ By kind:
   138 xm8mg scope: [major/medium] mag-6-half-in-138-xm8mg_scope.png: The fresh magazine's top edge sits right against the underside of the receiver, about 48 px lower on screen than the fully seated magazine in mag-1 and mag-7 (same camera, same XM8 logo position). It is roughly level wit
   144 K13 ACOG: [major/medium] mag-6-half-in-144-K13_ACOG.png: Same camera as mag-1 and mag-7 (foregrip and trigger guard in the same place). The fresh magazine's top edge sits at about trigger-guard height (roughly y 245 in the 1280x800 frame). In mag-1 and mag-7 the seated magazin
   198 P220 G R: [major/medium] mag-7-seated-again-198-P220_G_R.png: Below the grip bottom (about y=520) a tan magazine body strip shows (about x=615-735, y=520-560), above a black base plate (about y=560-600, partly covered by the glove). In mag-1-seated-198-P220_G_R.png only the black b
+  213 D1911: [major/medium] mag-1-seated-213-D1911.png: The olive magazine body hangs about 100 px below the bottom of the grip (grip bottom at about y 510, magazine visible down to about y 610, base plate at the very bottom). Roughly 40% of the magazine's length is still out
 
-== part_floating_or_detached (24)
+== part_floating_or_detached (25)
     6 AUTOMATICO: [minor/medium] rack-grip-pulled-006-AUTOMATICO-left.png: A brass cartridge lies along the top of the slide at about x 290-470, y 232-258, tip pointing left. The same kind of round sits on the slide top in rack-grip-pulled-006-AUTOMATICO-right.png at about x 945-1280, y 355-405
     9 C4: [major/medium] weapon-009-C4.png: The olive box with a red dial, two dark wires and a small grey stub on its right side (roughly x 450-630, y 560-785, centre-left bottom) hangs in mid-air in front of the camera over the grass. No hand is under or around 
    23 RECON LRR: [major/medium] mag-5-lined-up-023-RECON_LRR.png: A separate dark pistol-shaped object floats at the right edge (about x 890-1280, y 240-560; lanyard ring about x 1135-1170, y 240-275; trigger guard about x 1120-1240, y 460-560). No hand holds it. The same object shows 
@@ -859,8 +881,9 @@ By kind:
   197 P220 G AKIMBO: [major/medium] rack-grip-pulled-197-P220_G_AKIMBO-right.png: A second black slide-shaped part appears above the frame at about x 850-1150, y 330-410, where the rest picture shows only grass. It has a rear sight at its right end (around x 1125, y 330) and a silver tip at its left e
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/medium] rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-right.png: Compared with rack-grip-202...-right.png, the yellow handle block with the black slot has moved about 270 px toward the receiver end (from x about 800-1010 to x about 1085-1280). The thumb and fingers stayed on the top o
   202 Suzuya's Custom AR-15 HAMR 5.56x45MM: [major/medium] rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-left.png: A yellow stub stands on top of the green handguard (about x 800-935, y 450-550) with the thumb pressing on it. A separate yellow block with a black slot sits at the receiver end (about x 1090-1280, y 450-740). The handle
+  214 FA1911 10R: [major/medium] weapon-214-FA1911_10R.png: A separate grey cylinder with a dark ring at one end floats in front of the dead blue body, about x 540-650, y 580-690, not attached to the gun. The gun's own front (about x 740-830, y 530-690) shows only an angled slide
 
-== mag_duplicate_or_missing (17)
+== mag_duplicate_or_missing (18)
    24 RIPCORD: [major/medium] mag-7-seated-again-024-RIPCORD.png: Only the grey block remains, with the glove below at bottom right. There is no magazine or base plate below it. mag-1-seated shows a slab under the same block, so the seated magazine does not look the same as in step 1: 
    97 mw-vector rds(No script): [major/medium] mag-2-leaving-097-mw-vector_rds_No_script_.png: The magazine runs from the magwell lip at y about 470 down to its base at y about 770, roughly 75 px longer than the seated magazine in mag-1 (base at y about 695). It attaches straight to the magwell with no gap and no 
    98 mw-vector(No script): [major/medium] mag-2-leaving-098-mw-vector_No_script_.png: The magazine runs from the grip bottom edge down to about y 775. In mag-1-seated it ends near y 700 with its base plate visible. Here the top still meets the grip bottom with no gap, the base plate band is gone, and the 
@@ -878,6 +901,7 @@ By kind:
   201 Suzuya's Custom AR-15 5.56x45MM: [major/high] mag-5-lined-up-201-Suzuya_s_Custom_AR-15_5.56x45MM.png: A yellow magazine lies on the ground at the bottom centre of the frame (about x 475-680, y 680-800) with a dark red stain on its top. Nothing is at the magwell: the underside of the receiver at top centre (x 560-1050, y 
   203 Suzuya's PX9105 Springfield .45 ACP: [major/medium] mag-6-half-in-203-Suzuya_s_PX9105_Springfield_.45_ACP.png: No magazine is visible anywhere in the frame. The grip base is visible at about y 570-630, and directly under it a grey glove (fingers and back of hand, x 580-1130, y 570-800) covers the whole area where the magazine sho
   207 M4A1 CCO FT: [major/medium] mag-5-lined-up-207-M4A1_CCO_FT.png: Nothing sits under the magwell: below the receiver rail at about x 650-800, y 160-400 there is only grass and horizon, and no left hand is in the frame. The only magazine-like object is a dark body with a yellow top lyin
+  208 M4A1 EOT: [major/medium] mag-5-lined-up-208-M4A1_EOT.png: The magwell under the receiver rail (rail roughly x 560-820, y 265-320) is empty: sea and grass show where a magazine should hang. The only magazine in view is a black one with a yellow top lying on the grass at the bott
 
 == hand_or_finger_clipping (14)
    48 asval: [major/medium] rack-grip-048-asval-right.png: One gloved fingertip sits on top of the gas tube / receiver at about x 720-915, y 265-380, its base cut into the top rail, with no hand visibly attached. The rest of the hand is at the bottom left (x 0-510, y 600-800); t
@@ -895,6 +919,17 @@ By kind:
   169 [Sec]BRN180 S A S: [major/medium] rack-grip-pulled-169-_Sec_BRN180_S_A_S-right.png: In the receiver close-up from the right side, a yellow-green fingertip-like shape (the same colour as the glove's stripes) sits in the ejection-port / charging-latch area at about x 745-830, y 435-520, with the bolt piec
   175 BRN180 L S: [major/medium] rack-grip-175-BRN180_L_S-right.png: No glove is visible from this side. Only a pale grey rounded object (looks like a glove fingertip or thumb tip) pokes up through the top rail just ahead of the optic base, at about x 790-880, y 230-340, with its base hid
 
+== mag_wrong_orientation_or_model (9)
+  107 asval: [minor/medium] mag-4-in-hand-107-asval.png: The fresh magazine is near-black. The gun's own magazine in mag-1-seated-107-asval.png, same spot and same lighting, is maroon-brown. The dropped copy in mag-2-leaving, the lined-up one in mag-5 and the half-in one in ma
+  109 asvalpkas: [minor/medium] mag-4-in-hand-109-asvalpkas.png: The fresh magazine renders near-black with few ridges (also black in mag-2, mag-5, mag-6), while the gun's own magazine (mag-1, mag-7, and the first-person views) is maroon-brown with visible ridges. It only turns maroon
+  110 asvalpso: [minor/medium] mag-2-leaving-110-asvalpso.png: The dropped copy is near-black with almost no visible ribs. In mag-1-seated and mag-7-seated-again the gun's own magazine is clearly brown with ribs. The fresh magazine in mag-4 to mag-6 is also black, so the reload maga
+  111 ARS Glock 19: [minor/medium] mag-4-in-hand-111-ARS_Glock_19.png: The magazine leans up-left, roughly 130 degrees away from the direction of the gun's magwell (the gun is up-right, its grip bottom about x 950-1040, y 370-385). Its feed end, marked by the orange cartridge tip at about x
+  183 M4A1 acog: [minor/medium] mag-7-seated-again-183-M4A1_acog.png: Compared with mag-6-half-in-183-M4A1_acog.png, the magazine in mag-7 has extra olive material at its lower-left (about x 515-575, y 470-640) where mag-6 shows grass, and its upper part (y 295-470) looks paler with a dark
+  185 <color=Cyan>MP9 H L S</color>: [minor/medium] mag-4-in-hand-185-_color_Cyan_MP9_H_L_S_color_.png: The fresh magazine is held diagonally, roughly 55-60 degrees off vertical. Its feed end (black lips) is at about x 350-480, y 255-380 pointing up-left toward the suppressor side, and its base plate is at about x 700-910,
+  192 P220: [minor/medium] mag-5-lined-up-192-P220.png: The fresh magazine (orange feed lips at about x 610-640, y 535-565) is tilted about 15-20 degrees: its top leans left and its base swings right (about x 730-760 at the bottom edge). The grip above (about x 510-745, y 90-
+  199 P220 T S: [major/medium] mag-5-lined-up-199-P220_T_S.png: The fresh magazine (tan body, orange feed lips at top around x 620-660, y 560-600) leans about 20-30 degrees: its lower end swings right to about x 750-790 at y 800, while the grip's own axis is near vertical. The feed e
+  208 M4A1 EOT: [minor/medium] mag-6-half-in-208-M4A1_EOT.png: The magazine top meets the rail (roughly x 555-790, y 290), but its bottom swings about 60 px left (roughly x 500-760 at y 680), so it leans about 9 degrees off the magwell line. The magazine already spans nearly its ful
+
 == hand_pose_wrong (8)
    29 S-IND7: [major/high] rack-grip-pulled-029-S-IND7-right.png: The free left glove is in the same place as in rack-grip-029-S-IND7-right.png: cuff at about x=405-500, knuckles at x=405-925, y=255-515, index fingertip at about x=850-895, y=460-510 on the slide top. The same holds in 
    58 P320: [minor/medium] rack-grip-058-P320-left.png: Close-up from the left. The palm rests on top of the rear of the slide and the fingers hang down beside the frame. Only the index fingertip (about x 225-265, y 410-460) reaches the slide-frame junction. The other fingers
@@ -904,16 +939,6 @@ By kind:
   130 ak12 1p87s squad: [major/medium] rack-grip-pulled-130-ak12_1p87s_squad-left.png: Left-side view after the pull. The left hand lies in the same flat pose across the receiver top (about x 230-880, y 230-560), fingers forward, nothing pinched. The right hand is on the pistol grip and the magazine hangs 
   137 xm8mg: [major/medium] rack-grip-pulled-137-xm8mg-left.png: The glove sits further forward than in rack-grip-137-xm8mg-left.png, over the top rail, with fingers stretched straight forward off the receiver into the air (index finger about x 260-430, y 200-300). Nothing is visibly 
   159 PKM Z SP S: [major/medium] rack-grip-pulled-159-PKM_Z_SP_S-left.png: Hand pose is identical to rack-grip-159-PKM_Z_SP_S-left.png: thumb tip at x 220-260 y 200-280, fingertips at x 230-330 y 330-380, same screen spot. The hand did not move back with any part, so it is pulling air.
-
-== mag_wrong_orientation_or_model (8)
-  107 asval: [minor/medium] mag-4-in-hand-107-asval.png: The fresh magazine is near-black. The gun's own magazine in mag-1-seated-107-asval.png, same spot and same lighting, is maroon-brown. The dropped copy in mag-2-leaving, the lined-up one in mag-5 and the half-in one in ma
-  109 asvalpkas: [minor/medium] mag-4-in-hand-109-asvalpkas.png: The fresh magazine renders near-black with few ridges (also black in mag-2, mag-5, mag-6), while the gun's own magazine (mag-1, mag-7, and the first-person views) is maroon-brown with visible ridges. It only turns maroon
-  110 asvalpso: [minor/medium] mag-2-leaving-110-asvalpso.png: The dropped copy is near-black with almost no visible ribs. In mag-1-seated and mag-7-seated-again the gun's own magazine is clearly brown with ribs. The fresh magazine in mag-4 to mag-6 is also black, so the reload maga
-  111 ARS Glock 19: [minor/medium] mag-4-in-hand-111-ARS_Glock_19.png: The magazine leans up-left, roughly 130 degrees away from the direction of the gun's magwell (the gun is up-right, its grip bottom about x 950-1040, y 370-385). Its feed end, marked by the orange cartridge tip at about x
-  183 M4A1 acog: [minor/medium] mag-7-seated-again-183-M4A1_acog.png: Compared with mag-6-half-in-183-M4A1_acog.png, the magazine in mag-7 has extra olive material at its lower-left (about x 515-575, y 470-640) where mag-6 shows grass, and its upper part (y 295-470) looks paler with a dark
-  185 <color=Cyan>MP9 H L S</color>: [minor/medium] mag-4-in-hand-185-_color_Cyan_MP9_H_L_S_color_.png: The fresh magazine is held diagonally, roughly 55-60 degrees off vertical. Its feed end (black lips) is at about x 350-480, y 255-380 pointing up-left toward the suppressor side, and its base plate is at about x 700-910,
-  192 P220: [minor/medium] mag-5-lined-up-192-P220.png: The fresh magazine (orange feed lips at about x 610-640, y 535-565) is tilted about 15-20 degrees: its top leans left and its base swings right (about x 730-760 at the bottom edge). The grip above (about x 510-745, y 90-
-  199 P220 T S: [major/medium] mag-5-lined-up-199-P220_T_S.png: The fresh magazine (tan body, orange feed lips at top around x 620-660, y 560-600) leans about 20-30 degrees: its lower end swings right to about x 750-790 at y 800, while the grip's own axis is near vertical. The feed e
 
 == optic_or_sight_issue (2)
   154 mg3-acog: [major/high] weapon-154-mg3-acog.png: The ACOG is not on the receiver top. Where the scope should sit there is a tall ribbed black block (about x 725-825, y 255-530 in the 1280x800 frame) standing straight up off the receiver, and the red dot is not visible.

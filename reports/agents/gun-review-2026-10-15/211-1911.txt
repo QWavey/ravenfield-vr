@@ -1,0 +1,32 @@
+Gun 211: 1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] hand_not_on_part  (rack-grip-211-1911-right.png)
+   seen: The left hand comes over the rear of the slide from above. Only the thumb rests on the slide's serrated top (about x 620-880, y 280-500 in the 1280x800 frame). The other fingers and knuckle plates hang in the air behind the slide's rear, above the hammer area, and touch nothing. This matches the test's 1/4 fingers reading.
+   expected: Several fingers wrapped over and around the slide's serrated rear section, so the slide sits in the hand (about 3-4 fingers on it).
+
+2. [major] [medium] other  (rack-grip-pulled-211-1911-left.png)
+   seen: Compared with rack-grip-211-1911-left.png, a silver barrel now shows in front of the black slide at the far left, so the slide did move back. But the glove's knuckle plates and fingertips sit at the same image position in both frames (fingertips near x 240, y 420), so the hand does not travel back with the slide. The slide slides out from under fixed fingers. In rack-grip-pulled-211-1911-right.png the serrations and thumb also appear at the same spots as in the unpulled right close-up, so the slide travel is hard to see from that side.
+   expected: The hand moves back with the slide and keeps its fingers on the slide throughout the pull. The slide visibly travels back (about 17 mm) together with the fingers.
+
+3. [minor] [low] mag_not_in_hand  (mag-4-in-hand-211-1911.png)
+   seen: The left glove is held flat with fingers pointing left, and the magazine stands up out of the fist. Its upper part sits well above the hand (about x 405-545, y 105-300), and its lower end disappears behind the fingers. The magazine looks held only at the fingertips rather than gripped by the fingers and palm.
+   expected: Fingers curled around the magazine body with the mag gripped at the palm, feed end (orange cap) pointing up toward the gun.
+
+4. [tiny] [low] other  (mag-6-half-in-211-1911.png)
+   seen: Only a short olive sliver (about 40 px, roughly 2 cm at the scale implied by mag-2) shows below the grip. The dropped magazine in mag-2 shows about 100 px. The fresh magazine looks more than half way in already, so this frame is probably deeper than half way. Its alignment under the grip looks right.
+   expected: About half of the magazine still below the grip, on the magwell line.
+
+5. [minor] [low] hand_or_finger_clipping  (mag-7-seated-again-211-1911.png)
+   seen: The left glove's knuckles and palm overlap the lower grip (about y 470-540, x 560-760), so the hand looks pressed into the grip base. The magazine itself is hidden, which is consistent with seated.
+   expected: Hand clear of the grip after seating, with at most the fingers touching the grip base.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 1/4 fingers on it': confirmed by rack-grip-211-1911-right.png, where only the thumb touches the slide.
+  - pulled half way '0/72 points inside, 1/4 fingers on it': same picture evidence as above (rack-grip-pulled-211-1911-right.png shows only the thumb on the slide); the hand does not visibly move with the slide in rack-grip-pulled-211-1911-left.png, so 'moving with the hand: the slide' is not confirmed by the pictures.
+  - drawn: 3 parts move, most 17 mm: slide travel is visible in the left pulled picture (barrel exposed in front). The size of the move is not measurable by eye.
+  - magazine in the hand: 3.5 cm from the palm: mag-4-in-hand-211-1911.png shows the magazine held at the fingertips and standing well out of the fist. Plausible but not clearly confirmed.
+  - half way in (on the rail): 0.0 cm off the magwell line: the alignment under the grip looks right in mag-6-half-in-211-1911.png, but the depth looks deeper than half, so the 'half way' label is questionable.
+  - magazine (deep) dropped copy 5.2 cm out: mag-2-leaving-211-1911.png shows a magazine about 5 cm below the grip, consistent.
+  - gun moved 0.1 mm with the pull: background and ragdoll are static across the rack frames, consistent.
+  - fired 3/3: no muzzle flash is visible at the gun's end in any picture. The only bright burst is the starburst in rack-grip-211-1911-right.png, which is above and away from the slide's end and may be an impact or explosion effect, not a muzzle flash.

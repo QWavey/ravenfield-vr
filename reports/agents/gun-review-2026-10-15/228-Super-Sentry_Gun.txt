@@ -1,0 +1,20 @@
+Gun 228: Super-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-228-Super-Sentry_Gun.png)
+   seen: The olive-green box with a yellow strap (the 'bag') fills the bottom-right corner, roughly x 640-1025, y 540-800, close to the camera. No hand touches it: no fingers, glove or forearm wrap the box or its strap, and no arm comes in from the bottom-right edge. The box reads as floating in front of the camera.
+   expected: The carried bag should be held by a hand (fingers on its handle or strap) with the arm coming in from the bottom-right, or it should sit on the player's body rather than hang in view with nothing holding it.
+
+2. [major] [low] hand_pose_wrong  (weapon-228-Super-Sentry_Gun.png)
+   seen: The only visible hand is blue and sits at centre-left, around x 560-680, y 530-660. Its fingers curl around the thin grey barrel-like part near the middle of the cyan tripod, and no forearm links it to the bottom-right of the frame. The grip is on the barrel/middle of the sentry, not a handle, so the hand looks detached from the held-item position.
+   expected: The right hand should be wrapped around the sentry's grip or handle with the forearm coming in from the bottom-right, the gun pointing forward, and the hand connected to an arm.
+
+3. [minor] [low] other  (weapon-228-Super-Sentry_Gun.png)
+   seen: A large translucent cyan tripod with a cyan cluster-shaped head covers the centre of the view (x 515-730, y 260-400). It carries a 'LANDING' label and a small red triangle, so it reads as a placement ghost rather than the solid sentry in hand. Its two outer legs end at around (510,690) and (700,560), with the middle leg running into the hand.
+   expected: Either a solid, held Super-Sentry Gun that does not blanket the view, or, if this is the intended placement preview, the ghost should be clearly separate from the held item. It is not clear from the picture which of these is intended.
+
+Test line flags:
+  - bag: carried without a glove -> the picture supports this: the olive bag box at bottom-right has no hand on it, so the bag is carried without being gripped (the bug is the missing hand/hold on the bag, not a measurement error).
+  - throwable without a pin -> not confirmable from this picture; no throwable or pin is clearly visible (the grey barrel-like object in the blue hand could be either the sentry barrel or a throwable).
+  - equipped -> consistent with the picture (the sentry tripod is in view and a hand holds part of it).
+  - manual reload not active for this weapon -> consistent with the picture (no magazine or reload motion visible); nothing contradicts it.
