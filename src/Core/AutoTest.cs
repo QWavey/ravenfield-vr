@@ -506,6 +506,70 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>
+        /// A still hand must hold a still weapon (Tasks2 203: RPGs shook in the hand without firing). Held 1.5 s one-handed,
+        /// then with the support hand on it: the most the gun body turns and moves from one frame to the next.
+        /// </summary>
+        private static IEnumerator SteadyCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || held.Rig.GunBody == null)
+            {
+                yield break;
+            }
+            string Measure(string how, List<float> angles, List<float> moves)
+            {
+                float maxA = angles.Count > 0 ? angles.Max() : 0f, maxM = moves.Count > 0 ? moves.Max() : 0f;
+                float avgA = angles.Count > 0 ? angles.Average() : 0f, avgM = moves.Count > 0 ? moves.Average() : 0f;
+                Metric($"held still ({how}): most turn between frames, degrees", maxA);
+                Metric($"held still ({how}): most move between frames, mm", maxM * 1000f);
+                bool shaky = maxA > 0.2f || maxM > 0.002f;
+                if (shaky)
+                {
+                    Problem($"[{name}] held still ({how}) the weapon shakes: up to {maxA:0.00} deg and {maxM * 1000f:0.0} mm between frames (average {avgA:0.000} deg, {avgM * 1000f:0.00} mm)");
+                }
+                return $"{how}: up to {maxA:0.00} deg / {maxM * 1000f:0.0} mm a frame (average {avgA:0.000} deg / {avgM * 1000f:0.00} mm){(shaky ? " (SHAKES)" : "")}";
+            }
+            IEnumerator Sample(List<float> angles, List<float> moves)
+            {
+                yield return new WaitForSecondsRealtime(0.5f); // settled first
+                Transform body = held.Rig.GunBody;
+                Vector3 lastPos = body.position - rig.Root.position;
+                Quaternion lastRot = body.rotation;
+                for (float until = Time.realtimeSinceStartup + 1.5f; Time.realtimeSinceStartup < until;)
+                {
+                    yield return new WaitForEndOfFrame();
+                    if (body == null)
+                    {
+                        yield break;
+                    }
+                    Vector3 pos = body.position - rig.Root.position; // the rig itself may be carried by the player's body
+                    angles.Add(Quaternion.Angle(lastRot, body.rotation));
+                    moves.Add(Vector3.Distance(lastPos, pos));
+                    lastPos = pos;
+                    lastRot = body.rotation;
+                }
+            }
+            var a1 = new List<float>();
+            var m1 = new List<float>();
+            yield return Sample(a1, m1);
+            string line = "steady: " + Measure("one hand", a1, m1);
+            Rig.VRHand off = rig.Off;
+            if (held.Rig.Data.HasSupportPoint && off.Role == Rig.HandRole.Free)
+            {
+                Input.VRInput.SimulatedGrab[(int)off.Side] = true;
+                off.Role = Rig.HandRole.Foregrip;
+                held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                var a2 = new List<float>();
+                var m2 = new List<float>();
+                yield return Sample(a2, m2);
+                line += "; " + Measure("two hands", a2, m2);
+                Input.VRInput.SimulatedGrab[(int)off.Side] = false;
+                yield return null;
+            }
+            report(line);
+        }
+
         /// <summary>Footsteps and landings the game played (counted by <see cref="CountFootstepsPatch"/>).</summary>
         internal static int Footsteps;
 
@@ -1828,7 +1892,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -1998,6 +2062,12 @@ namespace RavenfieldVR.Core
                                 Shots.Capture($"{name}-{shotIndex:000}-{entry.name}");
                                 SupportCloseups(held, $"support-{shotIndex:000}-{entry.name}", lines.Add);
                             });
+                        }
+                        // Launchers, machine guns and a rifle to compare: held still, the weapon must be still.
+                        if (want && (action == ActionType.SingleShot && held.Rig.Data.HasSupportPoint || held.Rig.Data.IsMachineGun && steadyMgs++ < 2
+                                     || action == ActionType.SelfLoading && !held.Rig.Data.IsPistol && steadyRifles++ < 1))
+                        {
+                            yield return SteadyCheck(held, entry.name, lines.Add);
                         }
                         if (Deep && want && held.Rig.Data.HasEyePoint && action != ActionType.Melee && action != ActionType.Throwable)
                         {
