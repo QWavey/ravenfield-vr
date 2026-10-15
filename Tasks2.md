@@ -50,7 +50,7 @@ Started 2026-10-15. Tasks.md is left as it is. This file has:
 206. [ ] Pulling hard away from a grip makes the hand come off it
 207. [ ] The hands have no collision with weapons
 208. [ ] Weight and force like Boneworks: guns stay rigid in one hand and do not swing when the hand moves up or down; one-handed shots should push the muzzle up more
-209. [ ] On-screen effects: pick from the suggestions (A-G and I, pictures) and build them
+209. [ ] On-screen effects picked by the user: muzzle flash as a see-through lens flash (A-C), hit from the side (F), low health (G), water drops (I)
 210. [ ] More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
 211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash)
 
@@ -89,30 +89,31 @@ For 208. Reported 2026-10-15: all guns are straight in the hand and do not wobbl
 
 Measure it in the autotest: the hand moved up and down at 1 m/s, giving the muzzle's lag and overshoot per class, and the climb per shot one-handed against two-handed. Done when: those numbers rise with weight, and the headset feels like Boneworks without making aiming sloppy.
 
-For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed). v2 shows the effects without the gun or props; v3 shows them alone on black, and its look is the one to build. H (barrel smoke and heat haze) and J (landing vignette) were dropped by the user on 2026-10-15; the letters of the others stay as in the pictures. Pick which to build:
-- **Muzzle flash look (A-C, v3)**, after the user's lens-flare example. There is no big star or white flash in the middle. The flash has two parts:
-  - a small, see-through flame at the muzzle: a hot centre, a yellow body and four uneven orange petals (the flash hider's slots);
-  - a nearly transparent lens flare: a thin horizontal streak, a few faint coloured rays that start away from the flash, a thin halo ring, and soft hexagon and disc ghosts (magenta, orange, cyan, violet) spread along the line from the flash through the middle of the view.
+For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed). The user picked these on 2026-10-15 (the picture "screen_effects_v4.png"; letters as in the pictures). Dropped: D (explosion close by; the mod already throws mud on the view, task 110), E (bullets cracking past), H (barrel smoke and heat haze), J (landing vignette). To build:
+- **A-C. Muzzle flash as a flash on the lens, see-through (additive):**
+  - a white-hot core fading to orange, with a ragged edge (the gas plume seen end-on), not a flat yellow disc;
+  - a short, faint starburst (the eye's own, not a camera's star filter);
+  - soft lens ghosts on the line from the flash through the lens centre, and a thin halo ring;
+  - a light warm wash from the gun's side, shaped like a blast's wash but much lighter.
 
-  It lasts 1-2 frames, and the flare fades within about 80 ms.
-- **A.** muzzle flash at the shoulder: as above, stronger in the eye nearer the muzzle;
-- **B.** pistol close to or turned toward the face: a bigger flame and flare, plus a faint veil over the eye for one frame;
-- **C.** how it scales: flash size x how much the muzzle faces the eyes / distance; suppressed is a faint glint, never full white;
-- **D.** explosion close by: a flash from that side with the same see-through lens flare, dust lit by it, irregular wet mud splats with flecks (task 110), muffled audio and ringing for 1-2 s;
-- **E.** bullets cracking past: darker edges, colour drains, a faint streak;
-- **F.** hit direction: a red glow on that side, both eyes, and a haptic on that hand;
-- **G.** low health: colour drains, a slow red pulse with a heartbeat;
-- **I.** water drops after surfacing or in heavy rain (optional, off by default). They must be realistic drops, not
-  blobs: each drop is a small wide-angle lens that shows the scene upside down and much wider than itself (sky in its
-  lower half, ground in its upper half), with a thin dark lower edge, a bright upper rim, a sharp highlight and light
-  gathered at its bottom. Some drops run down as teardrops, leaving a faint wet trail and a few droplets behind; fine
-  mist between them. They gather toward the edges, not the middle of the view, and dry within about 3 s. They are the
-  same drops in both eyes, shifted as if at one fixed depth, so the eyes never disagree.
-  Lighting (v3): a sharp highlight, a soft window reflection, a bright thin rim (stronger at grazing angles), a cool rim
-  light from below and light focused at the bottom of each drop. Drops never overlap (touching drops merge).
-  Running drops are teardrops that leave a thin wet trail with glints at its edges and a few droplets behind.
+  Its power is flash size x how much the muzzle faces the eyes / distance, per eye from the muzzle's position against
+  that eye's camera, so the eye nearer the muzzle gets more. A suppressed gun gives only a faint glint. A big muzzle
+  device close to the face adds a faint warm veil over the whole lens for one frame. Never full white. One frame,
+  about 50 ms.
+- **F. Hit from the side:** a red glow on the side the hit came from, in both eyes (stronger in the nearer one), for
+  half a second, and a short haptic on that hand.
+- **G. Low health:** as in the earlier picture. Colour drains from the view and a slow red pulse sits at the edges
+  with the heartbeat, gone when healed.
+- **I. Water drops** after surfacing or in heavy rain (optional, off by default), like rain on a window at night:
+  - each drop catches the light as a sharp highlight and a thin bright rim (stronger on top), with light gathered
+    inside at its bottom as a bright crescent;
+  - against the game's scene, each drop also shows the scene upside down and much wider than itself, as a small
+    wide-angle lens;
+  - some run down as teardrops, leaving a thin wet trail and a few droplets behind, with fine mist between them;
+  - they gather toward the edges, not the middle of the view, and dry within about 3 s;
+  - they are the same drops in both eyes, shifted as if at one fixed depth, so the eyes never disagree.
 
-All subtle and short, each with its own setting, with VR comfort first. The flash per eye uses the muzzle's position against each eye's camera. Done when: the chosen effects show in the autotest pictures and the user signs them off in the headset.
+All subtle and short, each with its own setting, with VR comfort first. Done when: each one shows in the autotest pictures and the user signs it off in the headset.
 
 For 210. More hand poses and gestures, suggested 2026-10-15 with pictures. Pick which to build:
 - gun poses:
