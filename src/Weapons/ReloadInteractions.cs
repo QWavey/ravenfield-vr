@@ -172,12 +172,28 @@ namespace RavenfieldVR.Weapons
             switch (off.Role)
             {
                 case HandRole.Foregrip:
-                    if (!off.GrabHeld || Vector3.Distance(off.Palm.position, GripRig.ToWorld(GripData.SupportPoint)) > 0.35f)
+                {
+                    // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
+                    // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
+                    // a clear knock. At 35 cm it slipped off in a hard pull.
+                    float stretch = Vector3.Distance(off.Palm.position, GripRig.ToWorld(GripData.SupportPoint));
+                    if (!off.GrabHeld || stretch > SupportLetGo)
                     {
+                        if (off.GrabHeld)
+                        {
+                            off.Haptic(0.08f, 60f, 1f);
+                        }
                         _held.SetTwoHanded(false);
                         off.Role = HandRole.Free;
                     }
+                    else if (stretch > 0.15f && Time.unscaledTime >= _nextStretchBuzz)
+                    {
+                        float k = Mathf.InverseLerp(0.15f, SupportLetGo, stretch);
+                        off.Haptic(0.02f, 80f + 120f * k, 0.15f + 0.6f * k);
+                        _nextStretchBuzz = Time.unscaledTime + Mathf.Lerp(0.15f, 0.05f, k);
+                    }
                     break;
+                }
                 case HandRole.Slide:
                     UpdateRack(off);
                     break;
@@ -584,7 +600,7 @@ namespace RavenfieldVR.Weapons
                 {
                     SetBreakOpen(false);
                 }
-                if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.25f)
+                if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.35f)
                 {
                     EndCover(off);
                 }
@@ -604,7 +620,7 @@ namespace RavenfieldVR.Weapons
                 off.Haptic(0.05f, 110f, 0.75f);
                 _sys.Rig.Dominant.Haptic(0.04f, 110f, 0.5f);
             }
-            if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.25f)
+            if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.35f)
             {
                 EndCover(off);
             }
@@ -1099,6 +1115,10 @@ namespace RavenfieldVR.Weapons
             return lateral < 0.06f && angle < 40f && along > -0.06f && along < prop.RailLength;
         }
 
+        /// <summary>How far the support hand may be pulled from the handguard with the grip closed before it lets go.</summary>
+        private const float SupportLetGo = 0.6f;
+        private float _nextStretchBuzz;
+
         /// <summary>A magazine that is being drawn the last part of the way into a well inside the grip.</summary>
         private MagazineProp _pullingIn;
 
@@ -1460,7 +1480,7 @@ namespace RavenfieldVR.Weapons
             }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
-            if (!off.GrabHeld || drift > 0.25f)
+            if (!off.GrabHeld || drift > 0.35f)
             {
                 EndRack(off, chamber: true);
             }
@@ -1660,6 +1680,9 @@ namespace RavenfieldVR.Weapons
                 }
             }
             off.Model.GraspAnchor = anchor;
+            // The support hand keeps to the handguard however far the stretch (see the foregrip's let-go); the others settle
+            // a few centimetres at most.
+            off.Model.GraspReach = off.Role == HandRole.Foregrip && !GripData.IsPistol ? SupportLetGo : 0.05f;
             off.Model.GraspPinch = pinch;
         }
 
