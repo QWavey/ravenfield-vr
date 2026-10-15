@@ -89,11 +89,16 @@ For 208. Reported 2026-10-15: all guns are straight in the hand and do not wobbl
 
 Measure it in the autotest: the hand moved up and down at 1 m/s, giving the muzzle's lag and overshoot per class, and the climb per shot one-handed against two-handed. Done when: those numbers rise with weight, and the headset feels like Boneworks without making aiming sloppy.
 
-For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed; v2 shows the effects alone, without the gun or props). H (barrel smoke and heat haze) and J (landing vignette) were dropped by the user on 2026-10-15; the letters of the others stay as in the pictures. Pick which to build:
-- **A.** muzzle flash at the shoulder: a warm wash on the gun side, stronger in the eye nearer the muzzle;
-- **B.** pistol close to or turned toward the face: a hot bloom and a brief lift of the image;
-- **C.** how it scales: flash size x how much the muzzle faces the eyes / distance; suppressed is almost nothing, never full white;
-- **D.** explosion close by: a flash from that side, dust haze, mud (task 110), muffled audio and ringing for 1-2 s;
+For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed). v2 shows the effects without the gun or props; v3 shows them alone on black, and its look is the one to build. H (barrel smoke and heat haze) and J (landing vignette) were dropped by the user on 2026-10-15; the letters of the others stay as in the pictures. Pick which to build:
+- **Muzzle flash look (A-C, v3)**, after the user's lens-flare example. There is no big star or white flash in the middle. The flash has two parts:
+  - a small, see-through flame at the muzzle: a hot centre, a yellow body and four uneven orange petals (the flash hider's slots);
+  - a nearly transparent lens flare: a thin horizontal streak, a few faint coloured rays that start away from the flash, a thin halo ring, and soft hexagon and disc ghosts (magenta, orange, cyan, violet) spread along the line from the flash through the middle of the view.
+
+  It lasts 1-2 frames, and the flare fades within about 80 ms.
+- **A.** muzzle flash at the shoulder: as above, stronger in the eye nearer the muzzle;
+- **B.** pistol close to or turned toward the face: a bigger flame and flare, plus a faint veil over the eye for one frame;
+- **C.** how it scales: flash size x how much the muzzle faces the eyes / distance; suppressed is a faint glint, never full white;
+- **D.** explosion close by: a flash from that side with the same see-through lens flare, dust lit by it, irregular wet mud splats with flecks (task 110), muffled audio and ringing for 1-2 s;
 - **E.** bullets cracking past: darker edges, colour drains, a faint streak;
 - **F.** hit direction: a red glow on that side, both eyes, and a haptic on that hand;
 - **G.** low health: colour drains, a slow red pulse with a heartbeat;
@@ -103,6 +108,9 @@ For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes
   gathered at its bottom. Some drops run down as teardrops, leaving a faint wet trail and a few droplets behind; fine
   mist between them. They gather toward the edges, not the middle of the view, and dry within about 3 s. They are the
   same drops in both eyes, shifted as if at one fixed depth, so the eyes never disagree.
+  Lighting (v3): a sharp highlight, a soft window reflection, a bright thin rim (stronger at grazing angles), a cool rim
+  light from below and light focused at the bottom of each drop. Drops never overlap (touching drops merge).
+  Running drops are teardrops that leave a thin wet trail with glints at its edges and a few droplets behind.
 
 All subtle and short, each with its own setting, with VR comfort first. The flash per eye uses the muzzle's position against each eye's camera. Done when: the chosen effects show in the autotest pictures and the user signs them off in the headset.
 
