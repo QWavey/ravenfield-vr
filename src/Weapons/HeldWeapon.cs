@@ -1482,7 +1482,17 @@ namespace RavenfieldVR.Weapons
             return _partSolid ?? (_partSolid = _partVolume.Solid);
         }
 
-        private System.Func<Vector3, bool> _rackSolid;
+        private System.Func<Vector3, bool> _rackSolid, _drawnHandleSolid;
+        private Vector3 _drawnHandleAt, _drawnHandleAcross;
+
+        /// <summary>On the drawn handle: a bar 4 cm across the gun, 9 mm round (grown by a finger's radius like the solids).</summary>
+        private bool OnDrawnHandle(Vector3 p)
+        {
+            Vector3 v = p - _drawnHandleAt;
+            float t = Mathf.Clamp(Vector3.Dot(v, _drawnHandleAcross), -0.02f, 0.02f);
+            float r = 0.009f + GunVolume.Grow;
+            return (v - _drawnHandleAcross * t).sqrMagnitude < r * r;
+        }
         private Vector3 _partRestPos;
         private Quaternion _partRestInv;
         private HandModel _rackGunHand;
@@ -1498,6 +1508,18 @@ namespace RavenfieldVR.Weapons
         {
             System.Func<Vector3, bool> part = PartSolid();
             System.Func<Vector3, bool> gun = HandSolid();
+            if (part == null && gun != null && _boltPiece != null)
+            {
+                // A handle the mod draws (cut out of the receiver, or a knob added): no part of the model to measure, so
+                // the hand closed on nothing and curled through it. A bar across the gun where the handle is on its stroke.
+                WeaponRigData dh = Rig.Data;
+                Vector3 dir = dh.SlideTravel.sqrMagnitude > 1e-6f ? dh.SlideTravel.normalized : -dh.AimAxis;
+                _drawnHandleAt = Rig.ToWorld(RackPointGun + dir * SlideOffset);
+                _drawnHandleAcross = Rig.DirToWorld(Vector3.Cross(dh.Up, dh.AimAxis).normalized);
+                _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
+                return _drawnHandleSolid ?? (_drawnHandleSolid = p => OnDrawnHandle(p) || _solid(p)
+                                                                     || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
+            }
             if (part == null || gun == null)
             {
                 return part;
