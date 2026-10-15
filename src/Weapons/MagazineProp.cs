@@ -207,17 +207,11 @@ namespace RavenfieldVR.Weapons
             string fitKey = null;
             if (CopiesModel(rig, kind))
             {
-                go = CopyVisuals(rig);
+                go = CheckedCopy(rig, kind, out bounds);
                 fitKey = go != null ? "mag:" + d.Key : null;
-                if (go != null)
+                if (go == null)
                 {
-                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
-                    if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
-                    {
-                        Object.Destroy(go); // not a rocket (a fuse, a cap): the made one instead
-                        go = null;
-                        fitKey = null;
-                    }
+                    bounds = d.MagBounds;
                 }
             }
             if (go == null)
@@ -245,15 +239,10 @@ namespace RavenfieldVR.Weapons
             bounds = d.MagBounds;
             if (CopiesModel(rig, kind))
             {
-                go = CopyVisuals(rig);
-                if (go != null)
+                go = CheckedCopy(rig, kind, out bounds);
+                if (go == null)
                 {
-                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
-                    if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
-                    {
-                        Object.Destroy(go);
-                        go = null;
-                    }
+                    bounds = d.MagBounds;
                 }
             }
             if (go == null)
@@ -278,6 +267,92 @@ namespace RavenfieldVR.Weapons
         /// baked from the gun's mesh, and a magazine held or displayed by the analysis box sat off its real middle (pistol
         /// magazines hung low in the pouch and in the hand). A copy measuring far from the analysis keeps the analysis.
         /// </summary>
+        /// <summary>
+        /// The copy of the gun's own magazine (or rocket), checked against the analysis. A copy taken while the game had
+        /// the part parked and shrunk for its reload (a BRN 180's magazine waits 25 m away at 1%) came out tiny and showed as
+        /// nothing in the hand: scaled back to the analysed size, it is kept if it then sits where the magazine was
+        /// measured; otherwise (or with nothing in it drawn, or a "rocket" too short to be one) the made one is used.
+        /// </summary>
+        private static GameObject CheckedCopy(WeaponRig rig, PropKind kind, out Bounds bounds)
+        {
+            WeaponRigData d = rig.Data;
+            bounds = d.MagBounds;
+            GameObject go = CopyVisuals(rig);
+            if (go == null)
+            {
+                return null;
+            }
+            bool drawn = false;
+            foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                drawn |= r.enabled && r.transform.lossyScale.sqrMagnitude > 1e-8f;
+            }
+            float expected = d.MagBounds.size.magnitude;
+            Bounds raw = MeasureCopy(go, out bool any);
+            if (drawn && any && expected > 0.02f && raw.size.magnitude > 1e-4f
+                && (raw.size.magnitude < expected / 3f || raw.size.magnitude > expected * 3f))
+            {
+                float k = expected / raw.size.magnitude;
+                foreach (Transform child in go.transform)
+                {
+                    child.localPosition *= k;
+                    child.localScale *= k;
+                }
+                raw = MeasureCopy(go, out any);
+                bool placed = (raw.center - d.MagBounds.center).magnitude < 0.03f;
+                Log.InfoOnce("magrescale:" + d.Key, $"Magazine copy of {d.Key} came out x{1f / k:0.###} of the analysed size (the part was parked or shrunk): "
+                                                     + $"scaled back, {(placed ? "kept" : $"but {((raw.center - d.MagBounds.center).magnitude * 100f):0.0} cm off its place: the made one is used")}.");
+                if (!placed)
+                {
+                    drawn = false;
+                }
+            }
+            if (!drawn || !any)
+            {
+                Object.Destroy(go);
+                return null;
+            }
+            bounds = RenderedBounds(go, d.MagBounds, d.Key);
+            if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
+            {
+                Object.Destroy(go); // not a rocket (a fuse, a cap): the made one instead
+                return null;
+            }
+            return go;
+        }
+
+        /// <summary>The copy's meshes' bounds in its own space.</summary>
+        private static Bounds MeasureCopy(GameObject root, out bool any)
+        {
+            Matrix4x4 toRoot = root.transform.worldToLocalMatrix;
+            any = false;
+            var b = new Bounds();
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null)
+                {
+                    continue;
+                }
+                Bounds mb = mf.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    Vector3 p = m.MultiplyPoint3x4(corner);
+                    if (!any)
+                    {
+                        b = new Bounds(p, Vector3.zero);
+                        any = true;
+                    }
+                    else
+                    {
+                        b.Encapsulate(p);
+                    }
+                }
+            }
+            return b;
+        }
+
         private static Bounds RenderedBounds(GameObject root, Bounds analysed, string key)
         {
             Matrix4x4 toRoot = root.transform.worldToLocalMatrix;
