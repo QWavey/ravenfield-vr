@@ -552,6 +552,7 @@ namespace RavenfieldVR.Weapons
             FinishVirtualParts(d);
             ArChargingHandle(d);
             BoltInsideOnSurface(d);
+            ForwardSideHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
             return d;
         }
@@ -634,6 +635,37 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             d.RackOnSurface = true;
+        }
+
+        /// <summary>CZ Bren 2 (805 Bren) by name: its charging handle sits on the left side at the front of the receiver.</summary>
+        private static readonly Regex Bren2Pattern = new Regex(@"(?<![a-z])(cz ?bren|bren ?2|cz ?805)(?![a-z0-9])", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A CZ Bren 2's charging handle is not on its bolt: it sits on the left side of the receiver, at its front, ahead
+        /// of the magazine well. The model has no handle, so the grab zone was on the receiver over the internal bolt
+        /// (further back and on top): "still the wrong bolt pull-back zone". It goes to the handle's place, a little above
+        /// the bore on the left, put on the model's surface once it is measured; the bolt inside still moves with the hand.
+        /// </summary>
+        private static void ForwardSideHandle(WeaponRigData d)
+        {
+            if (d.IsPistol || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null
+                || !Bren2Pattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Vector3 aim = d.AimAxis.normalized;
+            Vector3 up = d.Up.normalized;
+            Vector3 left = -Vector3.Cross(up, aim).normalized;
+            Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
+            float along = Vector3.Dot(magCentre - d.MuzzlePoint, aim) + 0.05f;
+            if (d.HasSupportPoint)
+            {
+                along = Mathf.Min(along, Vector3.Dot(d.SupportPoint - d.MuzzlePoint, aim) - 0.06f);
+            }
+            Vector3 bore = d.MuzzlePoint + aim * along;
+            d.RackPoint = bore + up * 0.015f + left * 0.03f;
+            d.RackOnSurface = true;
+            d.SlideMethod += " + handle at the Bren 2's place (left, front of the receiver)";
         }
 
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
