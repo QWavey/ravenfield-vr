@@ -53,6 +53,7 @@ Started 2026-10-15. Tasks.md is left as it is. This file has:
 209. [ ] On-screen effects picked by the user: muzzle flash as a see-through lens flash (A-C), hit from the side (F), low health (G), water drops (I)
 210. [ ] More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
 211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash)
+212. [ ] The lens muzzle flash only where the weapon really has a muzzle flash: check every weapon
 
 For 200. Reported 2026-10-15: a magazine touching or hitting a gun makes no sound. Checked in the code: the sound set (`MechSound` in src/Weapons/ProceduralSounds.cs) has no knock or scrape, and MagazineProp plays no sound. A held magazine is only drawn out of the gun's solid (`MagazineProp.KeepOffGun`), silently. To do: a short metal knock when a held magazine first meets the gun, louder the faster it came in, and a softer scrape while it slides along. Add a click at the magwell lip when it goes onto the rail. Use the existing procedural sound pool, rate-limited like the gun's contact knock (at most 4 a second). Done when: knocking a magazine against the receiver, the handguard and the magwell lip each sounds and buzzes the hand, and resting a magazine against the gun does not machine-gun knocks.
 
@@ -130,6 +131,40 @@ To build:
 
 All subtle and short, each with its own setting, with VR comfort first. Done when: each one shows in the autotest pictures and the user signs it off in the headset.
 
+Only where the weapon really flashes (added 2026-10-15). Most weapons show no muzzle flash on most shots, and it depends on the weapon (task 212): the lens flash (A-C) appears only when the weapon's own muzzle flash plays on that shot, and its strength follows that flash.
+
+The simulation (added 2026-10-15; the muzzle flash A-C, outside the mod's code, as the user asked): `C:\Users\becker\Downloads\Claude\effects-sim\` (`flash_sim.py`, `README.md`, results in `out\`).
+- It fires 8 guns as a right-handed player at 90 frames a second: pistol, pistol close to the face, rifle (semi and 750 rpm), SMG (900 rpm), shotgun, suppressed rifle, machine gun (600 rpm).
+- It renders the approved lens flash in both eyes. The muzzle moves the whole time:
+  - aiming against the head: about 2.5 degrees with a stock at the shoulder, up to 6 for a pistol or an SMG from the hip;
+  - breathing and tremor;
+  - recoil kicks, and a burst climbs on full auto;
+  - each flash varies in plume position, size and starburst angle.
+
+  So the flash lands somewhere new every shot. It was fixed to one spot in the first version, which the user pointed out.
+- Its tests all pass (2026-10-15):
+
+  | Test | Result |
+  |---|---|
+  | each flash short | longest 44 ms, limit 67 |
+  | never full white | the effect is capped at 94% of white |
+  | the eye nearer the muzzle sees the stronger flash | 100 of 100 shots |
+  | a suppressed rifle is faint | 1% of the rifle |
+  | the flash lands somewhere new each shot | spread 5x4 to 26x17 px, 2.6-7.9 px a shot |
+  | photosensitivity (WCAG 2.3.1 / broadcast flash rule, over a 10-degree field of the headset's view) | at most 3 flashes (6 transitions) in any second |
+
+  Without a limiter, full auto reached 15 flashes a second.
+- The flash limiter to build into the mod with it:
+  - a budget of 6 transitions in any 1.1 s;
+  - a normal flash costs 2 transitions, a very bright one 3 (it fades in two counted steps);
+  - with only 2 left, a flash is capped at the strongest level that fades in one step;
+  - after that, a soft flash below the threshold, and a steady glow for sustained fire instead of a strobe;
+  - the soft and one-step levels depend on the glow under them, because on a lit base the same step in the picture is
+    a bigger change in light.
+- Run it again after changing the effect: `python flash_sim.py` (tests, a GIF and a 90 fps video per gun, a timeline
+  chart, `report.txt`), or `python flash_sim.py --live` to fire it yourself (Space or the mouse, 1-8 the gun, L the
+  limiter).
+
 For 210. More hand poses and gestures, suggested 2026-10-15 with pictures. Pick which to build:
 - gun poses:
   - the C-clamp on the handguard (thumb over the top);
@@ -152,3 +187,10 @@ For 211. Suggested by the user 2026-10-15: the view shakes a little when shootin
 - its own setting (strength, off), off or low by default.
 
 A gentler alternative to test side by side is a brief blur or scale pulse of the image instead of moving it. Done when: the autotest measures the jolt per shot for a pistol, a rifle, a shotgun and a machine gun (it rises with recoil and stays inside the caps), and the user signs it off in the headset as noticeable but not sickening.
+
+For 212. Added 2026-10-15 by the user: normally there is no muzzle flash. Whether a shot flashes depends on the weapon (many guns show none, or only on some shots; suppressors and many mod weapons have none at all), so it has to be checked for every weapon. The lens flash of 209 (A-C) must follow the weapon's own muzzle flash: none when the weapon has none, and on a shot only when the game plays it, scaled by its real size (particles, light). The game's code has names for it (seen in its assembly, not checked yet): a `muzzleFlash` field, `FindMuzzleFlashParticles`, a `MuzzleFlashManager` with `RegisterMuzzleFlash`, and a `MuzzleFlashLight`. Find out what they hold and when they fire. To do:
+- the self-test lists for every weapon (all 308): whether it has a muzzle flash, what it is (particles, light, a mesh under the muzzle), its size, and whether it plays on every shot;
+- the deep autotest fires each weapon and takes a picture of the lens on a shot;
+- weapons where the game shows a flash but the mod finds none (or the reverse) are listed and fixed one by one.
+
+Done when: the list covers every weapon, a weapon without a flash never puts one on the lens, and the user checks a few in the headset (a suppressed rifle, a pistol, a machine gun, a mod weapon).
