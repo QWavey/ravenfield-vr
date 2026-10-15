@@ -66,6 +66,8 @@ namespace RavenfieldVR.UI
             Stepper("Snap angle", () => $"{VRConfig.SnapTurnAngle.Value:0}°", d => VRConfig.SnapTurnAngle.Value = Mathf.Clamp(VRConfig.SnapTurnAngle.Value + d * 15f, 15f, 90f));
             Stepper("Smooth turn speed", () => $"{VRConfig.SmoothTurnSpeed.Value:0}°/s", d => VRConfig.SmoothTurnSpeed.Value = Mathf.Clamp(VRConfig.SmoothTurnSpeed.Value + d * 30f, 30f, 360f));
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
+            Stepper("View shake on shots", () => VRConfig.ViewShake.Value <= 0f ? "off" : $"{VRConfig.ViewShake.Value * 100f:0}%",
+                d => VRConfig.ViewShake.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ViewShake.Value + d * 0.1f) * 10f) / 10f));
             Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01(Mathf.Round((VRConfig.Vignette.Value + d * 0.1f) * 10f) / 10f));
             TogglePair("Physical crouch", VRConfig.PhysicalCrouch, "Seated play", VRConfig.SeatedMode);
             ActionRow("Eye height", () => VRConfig.EyeHeight.Value > 0.3f ? $"{VRConfig.EyeHeight.Value:0.00} m" : "auto", "Calibrate now", () => _rig.CalibrateHeightNow());

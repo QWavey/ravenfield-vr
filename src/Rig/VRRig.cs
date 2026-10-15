@@ -184,6 +184,51 @@ namespace RavenfieldVR.Rig
 
         private bool _neutralPending;
 
+        // ---- view shake when shooting (Tasks2 211) -------------------------------------------------------------
+
+        private float _shakePitch, _shakeYaw, _shakeAt = -10f;
+        private float _shakeBudget;
+
+        /// <summary>Self-test: the shake's largest turn of the view so far (degrees).</summary>
+        internal static float PeakShake;
+
+        /// <summary>
+        /// A shot jolts the view a little (ViewShake): a fraction of a degree, up and a touch sideways, gone in about 60 ms,
+        /// never a movement of the camera, never a sway. Bigger for a harder kick; on full auto it is capped (a budget that
+        /// refills over a second), so a long burst does not become a steady wobble. Moving the view on its own is what makes
+        /// people sick in VR: off at 0, low by default.
+        /// </summary>
+        public void ShakeView(float kick)
+        {
+            float strength = VRConfig.ViewShake.Value;
+            if (strength <= 0f || Mode != RigMode.OnFoot)
+            {
+                return;
+            }
+            float now = Time.unscaledTime;
+            _shakeBudget = Mathf.Min(1f, _shakeBudget + (now - _shakeAt) * 1.2f);
+            float jolt = Mathf.Clamp(0.25f + 0.2f * kick, 0.2f, 0.8f) * strength * Mathf.Clamp01(0.25f + _shakeBudget);
+            _shakeBudget = Mathf.Max(0f, _shakeBudget - 0.35f);
+            _shakePitch = Mathf.Min(0.8f, Mathf.Max(_shakePitch * Mathf.Exp(-(now - _shakeAt) / 0.02f), 0f) + jolt);
+            _shakeYaw = UnityEngine.Random.Range(-0.3f, 0.3f) * jolt;
+            _shakeAt = now;
+            PeakShake = Mathf.Max(PeakShake, _shakePitch);
+        }
+
+        /// <summary>The jolt, fading (a 20 ms time constant: gone within about 60 ms), turned about the eyes.</summary>
+        private void ApplyViewShake()
+        {
+            float age = Time.unscaledTime - _shakeAt;
+            if (age > 0.08f || _shakePitch <= 0f || Camera == null)
+            {
+                return;
+            }
+            float k = Mathf.Exp(-age / 0.02f);
+            Vector3 eyes = Camera.transform.position;
+            Root.RotateAround(eyes, Camera.transform.right, -_shakePitch * k);
+            Root.RotateAround(eyes, Vector3.up, _shakeYaw * k);
+        }
+
         /// <summary>The game's camera is lowered by a physical crouch (still, while it eases back up after it).</summary>
         private bool _crouchLowered;
         private float _crouchReleasedAt = -1f;
@@ -696,6 +741,7 @@ namespace RavenfieldVR.Rig
             try
             {
                 reference = PlaceOrigin(player);
+                ApplyViewShake();
             }
             catch (Exception e)
             {

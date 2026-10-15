@@ -885,6 +885,7 @@ namespace RavenfieldVR.Weapons
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
+            _system.Rig.ShakeView(kick * (c.loud ? 1f : 0.6f)); // a suppressed gun jolts less (Tasks2 211)
             if (TwoHanded)
             {
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);
