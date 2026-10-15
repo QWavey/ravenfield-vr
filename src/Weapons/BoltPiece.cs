@@ -65,6 +65,20 @@ namespace RavenfieldVR.Weapons
         public static BoltPiece Create(WeaponRig rig, Vector3 rackGun)
         {
             var piece = new BoltPiece();
+            try
+            {
+                Build(piece, rig, rackGun);
+            }
+            catch
+            {
+                piece.Destroy(); // what was cut so far goes back into the receiver: a failure half way left a hole in it
+                throw;
+            }
+            return piece;
+        }
+
+        private static void Build(BoltPiece piece, WeaponRig rig, Vector3 rackGun)
+        {
             WeaponRigData d = rig.Data;
             float radius = d.IsPistol ? 0.022f : 0.03f;
             Vector3 rackWorld = rig.ToWorld(rackGun);
@@ -125,7 +139,6 @@ namespace RavenfieldVR.Weapons
             {
                 piece.AddKnob(rig, rackGun);
             }
-            return piece;
         }
 
         private static bool IsMagazine(WeaponRig rig, Transform t)

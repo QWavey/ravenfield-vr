@@ -1239,7 +1239,8 @@ namespace RavenfieldVR.Weapons
             {
                 p = WeaponAnalyzer.RackEstimate(d);
                 ToSurface(p, out snapped);
-                how = $"the reload hand's stroke started {off * 100f:0.0} cm off the model, no handle there: the estimate above the grip instead";
+                how = (float.IsPositiveInfinity(off) ? "the reload hand's stroke started where no model lies toward the bore"
+                          : $"the reload hand's stroke started {off * 100f:0.0} cm off the model") + ", no handle there: the estimate above the grip instead";
             }
             float moved = Vector3.Distance(snapped, d.RackPoint);
             if (moved < 0.003f)
@@ -1265,7 +1266,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// <paramref name="p"/> (gun space) moved straight out from the bore onto the model's surface. Returns how far
-        /// outside the model it was (0 when it was inside and is moved out; the whole way to the bore when nothing is there).
+        /// outside the model it was (0 when it was inside and is moved out; infinity when no model lies between it and the bore).
         /// </summary>
         private float ToSurface(Vector3 p, out Vector3 snapped)
         {
@@ -1298,7 +1299,7 @@ namespace RavenfieldVR.Weapons
                     return s - 0.002f;
                 }
             }
-            return reach;
+            return float.PositiveInfinity; // nothing toward the bore: off the model however near it is
         }
 
         /// <summary>

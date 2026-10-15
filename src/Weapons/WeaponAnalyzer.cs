@@ -527,7 +527,6 @@ namespace RavenfieldVR.Weapons
                 ReclassifyAdvancedReload(d, w);
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
                 FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
-                CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
@@ -535,6 +534,7 @@ namespace RavenfieldVR.Weapons
                     RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
                 d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
@@ -2048,15 +2048,23 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            // The gun at rest without what its reload moves: what the rounds wait outside of.
-            Bounds still = sampler.GunSpaceBoundsWhere(gunBody, gunIdle, t => index.TryGetValue(t, out int k) && sampler.ReloadMax[k] > 0.03f);
+            // The gun at rest without what its reload moves, drawn and not parked away: what the rounds wait outside of.
+            Vector3 bodyAt = sampler.Idle(gunBody).position;
+            Bounds still = sampler.GunSpaceBoundsWhere(gunBody, gunIdle, t => !index.TryGetValue(t, out int k) || sampler.ReloadMax[k] > 0.03f
+                                                                              || !sampler.IdleVisible(t) || (sampler.Idle(t).position - bodyAt).sqrMagnitude > 1.5f * 1.5f);
             if (still.size.sqrMagnitude < 1e-6f)
             {
                 return;
             }
             still.Expand(0.01f); // the M870's second shell waited 3 cm beside the receiver
+            // Everything already chosen: the magazine and what travels with it, the belt, the slide, handle and hinge, the
+            // spare magazines.
+            var paths = new List<int[]> { d.MagazinePath, d.SlidePath, d.HandlePath, d.HingePath };
+            paths.AddRange(d.MagazinePartPaths);
+            paths.AddRange(d.BeltPartPaths);
+            paths.AddRange(d.SparePartPaths);
             var parts = new List<Transform>();
-            foreach (int[] path in new[] { d.MagazinePath, d.SlidePath, d.HandlePath, d.HingePath })
+            foreach (int[] path in paths)
             {
                 Transform part = path != null ? WeaponRig.Resolve(root, path) : null;
                 if (part != null)
@@ -2067,8 +2075,10 @@ namespace RavenfieldVR.Weapons
             var found = new List<Transform>();
             foreach (Transform t in all)
             {
-                if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] < 0.15f || !HasRendererInSubtree(t) || !ShownAtIdle(t, sampler)
-                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || parts.Exists(p => t == p || t.IsChildOf(p) || p.IsChildOf(t)))
+                // Under the gun's body only (a sight or bayonet on the rig's root is no round), and nothing named as a part.
+                if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] < 0.15f || !t.IsChildOf(gunBody) || !HasRendererInSubtree(t) || !ShownAtIdle(t, sampler)
+                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || parts.Exists(p => t == p || t.IsChildOf(p) || p.IsChildOf(t))
+                    || OpticName.IsMatch(t.name) || SlideName.IsMatch(t.name) || ChargingName.IsMatch(t.name))
                 {
                     continue;
                 }
@@ -2082,9 +2092,14 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Transform t in found)
             {
-                if (found.Exists(o => o != t && t.IsChildOf(o)) || d.SparePartPaths.Count >= 8)
+                if (found.Exists(o => o != t && t.IsChildOf(o)))
                 {
                     continue;
+                }
+                if (d.SparePartPaths.Count >= 8)
+                {
+                    d.Warnings.Add($"more reload props than hidden: '{t.name}' and later ones stay drawn");
+                    break;
                 }
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"reload prop '{t.name}' ({sampler.ReloadMax[index[t]] * 100f:0} cm moved by the reload, beside the gun at rest) hidden while held ";

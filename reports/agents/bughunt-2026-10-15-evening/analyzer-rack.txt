@@ -1,0 +1,47 @@
+Haiku read-only bug hunt, 2026-10-15 evening: analyzer and rack changes (CollectReloadRounds, SnapRackPoint/ToSurface, DrawnBounds, MagazineDeepCheck)
+======================================================================================================================================================
+
+Reviewed the committed HEAD (007362d); the working tree is clean. Paths below are relative to C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Weapons\ unless noted.
+
+1. Magazine and belt pieces can be hidden for good. WeaponAnalyzer.cs:2059 builds the `parts` exclusion list from MagazinePath, SlidePath, HandlePath and HingePath only. It does not exclude MagazinePartPaths (set at WeaponAnalyzer.cs:2489) or BeltPartPaths (FindBeltParts, 1356). Those pieces travel with the magazine or belt, so a sibling piece (not under MagazinePath) that moves 15 cm or more in the reload, has a rest centre outside the still box, is 15 cm or less in size and is 3.5 cm or more off the bore gets appended to SparePartPaths (2085-2089). HideSpareParts (HeldWeapon.cs:1836) then sets its scale to 1e-4 every frame. RestoreMagazine (1853-1856, 1906-1916) runs once and clears _magHidden, and ApplyBeltParts (1835) is overridden in the same frame. Result: the piece stays invisible while the magazine is seated or the belt is laid. Trigger needs a magazine that travels 15 cm or more; this is possible, not confirmed. Fix: add resolved MagazinePartPaths and BeltPartPaths to `parts`, or skip them in HideSpareParts.
+
+2. The `still` box is wrong in both directions. PoseSampler.cs:554-575 (GunSpaceBoundsWhere, used at WeaponAnalyzer.cs:2052) includes every MeshFilter and SkinnedMeshRenderer under gunBody, with no visibility or ParkedAway filter (LocalBounds at 583-597 has both). A hidden or far-parked mesh under the gun that does not move in reload (ReloadMax 0.03 or less) stretches the box so that `still.Contains` is true for nearly everything. Nothing is hidden and the floating-rounds bug returns. This is the safe direction but a silent failure. Conversely, `still` covers only gunBody's subtree, so anything parented to root but outside gunBody (sights, launcher pieces, bayonets, mod parts) counts as "outside the gun" and can be hidden if it moves 15 cm or more (possible). Fix: build `still` from root's visible meshes minus the moving parts, using the LocalBounds filter.
+
+3. NamedChargingHandle runs after CollectReloadRounds (WeaponAnalyzer.cs:530 versus 537), so HandlePath is still null when the `parts` list at 2059 is built. A named charging handle (NamedChargingHandle, 570-624, sets HandlePath at 612) whose origin moves 15 cm or more and whose rest centre is outside the still box is added to SparePartPaths. It is then hidden while held, but MovePart (HeldWeapon.cs:1824) still moves it. Possible. Fix: choose the named handle before 530 (check its dependency on RackStrokeFromHands at 535, which also rewrites RackPoint), or exclude ChargingName matches in CollectReloadRounds.
+
+4. CollectReloadRounds lacks the guards CollectSpareMagazines has. There is no OpticName or NotMagName check (2008-2009 in CollectSpareMagazines), so a sight whose origin moves 15 cm or more (folding or flip-up mount) and sits outside gunBody is hidden. There is also no dedupe (2085-2089): a pistol-sized spare magazine already added by CollectSpareMagazines is added again and uses up the shared cap of 8. Once the cap is reached the rest are dropped silently, so further shells stay drawn in the air. Possible. Fix: skip OpticName and muzzle matches and paths already in SparePartPaths, and log when the cap cuts.
+
+5. ToSurface returns the wrong distance in two cases (HeldWeapon.cs:1270-1302). (a) With no model between the point and the bore, it returns `reach` (min(0.2, distance to bore), line 1301), not the distance to the model. SnapRackPoint compares that to 0.05 (1238), so a stroke that starts floating within 5 cm of the bore never falls back and keeps its off-model point. (b) The exit search inside the model is capped at 0.08 m (1280). A point deeper than that returns 0 (1288) with snapped = p, which looks the same as "on the surface". It stays inside with no fallback and no log. Possible. Fix: return a separate not-found flag (or NaN), and measure the true surface distance.
+
+6. Hiding by scale hides descendants too (HeldWeapon.cs:496-501 with WeaponAnalyzer.cs:2070-2089). The only check (2085) rejects descendants of found items. It does not reject a non-candidate visible child of a candidate. A rounds group that also holds a small visible clip or cover (passing 2070-2079) loses that child too. Possible. Fix: hide candidate renderers individually, or require every visible renderer in the subtree to be a candidate.
+
+7. DrawnBounds gives the wrong box for 1-2 renderers or when most are parked (ReloadInteractions.cs:2005-2019). For two renderers the "median" is the upper value on each axis (v[1], line 2013). If the two are more than 1 m apart, the real one is dropped, and the function returns the far piece or false. If parked pieces are the majority, the median lands in the parked cluster and the real magazine is excluded, so the check reports "NOT SHOWN", "DRAWS NOTHING" or a wrong distance. Test-only, reached through MagazineDeepCheck (AutoTest.cs:567, 2264). Fix: keep all renderers for n of 2 or fewer, and apply the ParkedAway rule from PoseSampler.LocalBounds.
+
+8. AnalysedMagWorld uses the wrong box in the cases it exists for (ReloadInteractions.cs:2040-2050). The space itself is correct: SeatPose is the current gun body times MagSeat, which is the gun-relative idle pose of the same magazine, and MagBounds is in the magazine's own idle frame. But MagBounds is only set when the magazine has its own mesh (WeaponAnalyzer.cs:1976-1978). For skinned-bone and made magazines it stays at the hard-coded default (WeaponRig.cs:201, 2.5 x 12 x 6 cm). The analysis measures the skinned case with GunSpaceBoundsNear (WeaponAnalyzer.cs:2291), but AnalysedMagWorld does not, and its log at 2083 still says "analysed box measured". Test-only. Fix: store the measured gun-space box and use it.
+
+9. Small snap bookkeeping errors. On the fallback path, SnapRackPoint computes `moved` and the log from d.RackPoint instead of the estimate p (HeldWeapon.cs:1244-1250). IsPump (ReloadInteractions.cs:1417-1418) still measures against the unsnapped Data.RackPoint, while RackGun (1393) uses RackPointGun. Low. Fix: use p and RackPointGun.
+
+10. A failed BoltPiece.Create can leave the receiver cut (BoltPiece.cs:100-127; HeldWeapon.cs:202-209 and 1256-1262). If an exception is thrown after one mesh has been carved (`mf.sharedMesh = result.Remaining`, line 121), the local piece is dropped without Destroy. The catch sets _boltPiece to null, so nothing restores the mesh. Possible. Fix: catch inside Create, call piece.Destroy(), then rethrow.
+
+11. The gun volume can be measured mid-reload (HeldWeapon.cs:1195-1197). The `|| held > 5f` clause measures even when not at rest, and the condition does not check Weapon.reloading. Displaced parts (magazine out, slide back) would then be baked into the shape that ToSurface and the snap search against. The comment shows this was deliberate for guns that never come to rest, so this is possible only. Fix: wait while reloading, or re-measure at rest.
+
+Checked, no defect found:
+- Waits are all bounded and yield: RackGripSelfCheck 2614 and 2632 (2 s), MagazineKeepOutCheck 2290 (4 s), 30-frame wait at 2185, deep-check loops at 2161 and 2180 (monotonic `below`, step at least 1.5 mm).
+- ToSurface loops terminate (at most about 140 Inside calls per call).
+- Null Rig.Magazine is guarded in MagazineDeepCheck (2079, 2083, 2115, 2192), and DrawnBounds checks null at 1989.
+- The volume is ready before SnapRackPoint runs, and HandsSolid is published after the snap (HandSolid 1212-1218), so the RackGripSelfCheck wait on HandsSolid is correct.
+- BoltPiece rebuild on snap is correct, since Destroy restores the source mesh (BoltPiece.cs:340-354).
+- PartClipping has no defect.
+
+CHECKED AND FIXED (main session)
+- 1, 3, 4: CollectReloadRounds now runs after every part is chosen (named handle included), excludes the magazine's
+  travelling parts, the belt parts and the spare magazines, takes only parts under the gun body, skips sight / slide /
+  handle names, and warns when its cap cuts.
+- 2: the "still" box leaves out pieces hidden or parked over 1.5 m away at rest (it stays the gun body's own: the arms'
+  skinned mesh at the rig's root would have filled it).
+- 5a: ToSurface returns infinity when no model lies toward the bore, so such a stroke falls back to the estimate.
+- 7: DrawnBounds with one or two pieces takes the one nearest the part's origin, not an "upper median".
+- 10: BoltPiece.Create puts back what it cut so far when it fails half way.
+NOT CHANGED
+- 5b (deeper than 8 cm inside: rare), 6 (non-candidate children hidden with a prop: none known), 8 (test only: the box
+  stands in when nothing else is measured), 9 (log text; IsPump within a few cm), 11 (deliberate, see the comment).

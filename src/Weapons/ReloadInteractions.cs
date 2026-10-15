@@ -2013,6 +2013,18 @@ namespace RavenfieldVR.Weapons
                 return v[v.Length / 2];
             }
             var middle = new Vector3(Median(0), Median(1), Median(2));
+            if (parts.Count <= 2)
+            {
+                // Two pieces have no middle: the one nearest the part's own origin is the part.
+                middle = parts[0].center;
+                foreach (Bounds b in parts)
+                {
+                    if ((b.center - t.position).sqrMagnitude < (middle - t.position).sqrMagnitude)
+                    {
+                        middle = b.center;
+                    }
+                }
+            }
             bool any = false;
             foreach (Bounds b in parts)
             {
