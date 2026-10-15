@@ -2045,6 +2045,12 @@ namespace RavenfieldVR.Weapons
             Vector3 outGun = Data.MagEjectAxis.normalized;
             Vector3 outWorld = Rig.DirToWorld(outGun);
             var lines = new System.Collections.Generic.List<string>();
+            // The free hand out of the side camera's way for the first pictures (it stood right in front of it).
+            RigidPose offRaw = off.Raw;
+            VRHand.Scripted[(int)off.Side] = new RigidPose(offRaw.position + Vector3.down * 0.6f - Rig.AimWorld * 0.3f, offRaw.rotation);
+            yield return null;
+            yield return null;
+            yield return new WaitForEndOfFrame();
             sideShot("mag-1-seated", Rig.ToWorld(ownGun));
 
             // 1. Dropped.
@@ -2074,6 +2080,7 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.6f);
             yield return new WaitForEndOfFrame();
             sideShot("mag-3-out", Rig.ToWorld(ownGun));
+            VRHand.Scripted[(int)off.Side] = null;
 
             // 2. A fresh one from the pouch, in the hand.
             VRInput.SimulatedGrab[(int)off.Side] = true;

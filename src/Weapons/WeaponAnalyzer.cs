@@ -671,7 +671,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
         private static readonly Regex ArPattern = new Regex(
             // Not inside a word ("19m4mwii holo", "mk18riii" count, "gram4" does not), not a longer number ("m40", "m45").
-            @"(?<![a-z])(m4|m4a1|m16|ar-?15|ar-?10|hk ?416|hk ?417|mk ?18|mk ?12|m733|m727|xm177|car-?15|cqbr|urgi|sr-?25|m110|mcx|honey ?badger|ddm4|m27|g28|lvoa)(?!\d)",
+            @"(?<![a-z])(m4|m4a1|m16|ar-?15|ar-?10|hk ?416|hk ?417|m ?417|mr ?308|mr ?762|lmt ?308|mk ?18|mk ?12|m733|m727|xm177|car-?15|cqbr|urgi|sr-?25|m110|mcx|honey ?badger|ddm4|m27|g28|lvoa)(?!\d)",
             RegexOptions.IgnoreCase);
 
         /// <summary>
