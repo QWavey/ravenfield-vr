@@ -387,8 +387,8 @@ namespace RavenfieldVR.Core
                 Rig.LensEffects lens = Rig.LensEffects.Instance;
                 if (lens != null)
                 {
-                    bool was = VRConfig.WaterDrops.Value;
-                    VRConfig.WaterDrops.Value = true;
+                    // Shown with the option off without writing the player's setting (BepInEx saves every change).
+                    Rig.LensEffects.TestDrops = true;
                     try
                     {
                         lens.WaterDrops();
@@ -403,7 +403,7 @@ namespace RavenfieldVR.Core
                     }
                     finally
                     {
-                        VRConfig.WaterDrops.Value = was;
+                        Rig.LensEffects.TestDrops = false;
                     }
                 }
                 Metric("explosion dirt: splats on the view right after a blast 2 m away", first);
@@ -576,15 +576,21 @@ namespace RavenfieldVR.Core
         {
             Runtime.RigidPose g = held.GripWorld;
             Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-            Vector3 left = at - right * distance + up * 0.03f, other = at + right * distance + up * 0.03f;
-            if (InsideWeapon(held, left))
+            // Only the sides whose camera is clear of the weapon's meshes, the left first; both taken: the left.
+            var poses = new List<(Vector3?, Quaternion?)>();
+            foreach (Vector3 from in new[] { at - right * distance + up * 0.03f, at + right * distance + up * 0.03f })
             {
-                (left, other) = (other, left);
+                if (!InsideWeapon(held, from))
+                {
+                    poses.Add((from, Quaternion.LookRotation(at - from, up)));
+                }
             }
-            Shots.CaptureFirstClear(file, new (Vector3?, Quaternion?)[]
+            if (poses.Count == 0)
             {
-                (left, Quaternion.LookRotation(at - left, up)), (other, Quaternion.LookRotation(at - other, up))
-            }, 45f);
+                Vector3 from = at - right * distance + up * 0.03f;
+                poses.Add((from, Quaternion.LookRotation(at - from, up)));
+            }
+            Shots.CaptureFirstClear(file, poses.ToArray(), 45f);
         }
 
         /// <summary>

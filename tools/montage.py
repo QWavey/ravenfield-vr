@@ -44,6 +44,9 @@ def collect(shots):
             others.append(os.path.join(shots, f))
             continue
         key = m.group('kind') + ('@' + m.group('side')[1:] if m.group('side') else '')
+        if key not in ORDER:
+            others.append(os.path.join(shots, f))  # a weapon's other pictures (its lens flash...) after the weapons
+            continue
         weapons.setdefault((int(m.group('idx')), m.group('name')), {})[key] = os.path.join(shots, f)
     out = []
     for (idx, name), pics in sorted(weapons.items()):
@@ -63,7 +66,11 @@ def spread(items, n):
 
 
 def card(path, size, caption, sub):
-    im = Image.open(path).convert('RGB')
+    try:
+        im = Image.open(path).convert('RGB')
+    except OSError as e:  # cut short when the game was stopped
+        print(f'skipped {os.path.basename(path)}: {e}')
+        return None
     w, h = size
     # Fill the frame (cropped to its shape), not letterboxed.
     scale = max(w / im.width, h / im.height)
@@ -80,14 +87,17 @@ def card(path, size, caption, sub):
 
 
 def frames(cards, hold, fade):
-    """Each card held, then cross-faded into the next."""
-    for i, c in enumerate(cards):
+    """Each card held, then cross-faded into the next (one card looked ahead: they are made as they are needed)."""
+    prev = None
+    for c in cards:
+        if c is None:
+            continue
+        if prev is not None:
+            for k in range(1, fade + 1):
+                yield Image.blend(prev, c, k / (fade + 1))
         for _ in range(hold):
             yield c
-        if i + 1 < len(cards):
-            nxt = cards[i + 1]
-            for k in range(1, fade + 1):
-                yield Image.blend(c, nxt, k / (fade + 1))
+        prev = c
 
 
 def main():
@@ -135,7 +145,9 @@ def main():
             vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'avc1'), a.fps, size)
             if not vw.isOpened():
                 vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'mp4v'), a.fps, size)
-            for f in frames(list(all_cards(size)), a.hold, a.fade):
+            if not vw.isOpened():
+                sys.exit(f'could not open a video writer for {path}')
+            for f in frames(all_cards(size), a.hold, a.fade):
                 vw.write(cv2.cvtColor(np.asarray(f), cv2.COLOR_RGB2BGR))
                 total += 1
             vw.release()
@@ -143,7 +155,7 @@ def main():
     if not a.no_gif:
         path = os.path.join(a.out, 'montage.gif')
         seq = [f.quantize(colors=128, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
-               for i, f in enumerate(frames(list(all_cards(gif_size)), a.hold, a.fade)) if i % a.gif_every == 0]
+               for i, f in enumerate(frames(all_cards(gif_size), a.hold, a.fade)) if i % a.gif_every == 0]
         if seq:
             seq[0].save(path, save_all=True, append_images=seq[1:], duration=round(1000 * a.gif_every / a.fps), loop=0, optimize=False)
             print(f'{path}: {len(seq)} frames, {os.path.getsize(path) / 1e6:.1f} MB')

@@ -105,7 +105,7 @@ namespace RavenfieldVR.Rig
             // off by default).
             Actor me = Util.GameContext.PlayerActor;
             bool under = me != null && !me.dead && me.immersedInWater;
-            if (_wasUnderwater && !under && VRConfig.WaterDrops.Value)
+            if (_wasUnderwater && !under && !dead && VRConfig.WaterDrops.Value) // dying under water is no surfacing
             {
                 LensEffects.Instance?.WaterDrops();
             }

@@ -82,7 +82,7 @@ namespace RavenfieldVR.Rig
         private readonly Thread _thread;
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private readonly Job _job = new Job();
-        private volatile bool _busy, _done, _stop;
+        private volatile bool _busy, _done, _stop, _failed;
         private bool _resultAny, _shownAny, _resultFlash, _resultHit;
 
         /// <summary>Autotest: the pictures shown now hold a muzzle flash (they come a frame after the shot).</summary>
@@ -105,7 +105,10 @@ namespace RavenfieldVR.Rig
         private const float ExpMax = 24f;
         private static bool _tables;
         // The drops' picture per eye (toned), made on the worker when asked for.
-        private readonly float[][] _drops = { new float[W * H * 3], new float[W * H * 3] };
+        private readonly float[][] _drops = { new float[CW * CH * 3], new float[CW * CH * 3] };
+        // The drops' supersampled height field and picture, made once and reused (15 MB: a new pair each time came up out
+        // of the water made the garbage collector pause the game).
+        private float[] _dropField, _dropShade;
         private int _dropsMadeFor;
         private readonly float[] _washX = new float[CW], _washY = new float[CH];
 
@@ -215,6 +218,10 @@ namespace RavenfieldVR.Rig
         /// <summary>A hit from <paramref name="angle"/> (degrees in the view: 0 in front, 90 left, as the game's arrow).</summary>
         internal void Hit(float angle, bool balanceOnly)
         {
+            if (balanceOnly && !_hitBalance && (_hitNew || Time.unscaledTime - _hitAt < 0.5f))
+            {
+                return; // a red hit's glow is still showing: a small knock does not turn it amber
+            }
             _hitNew = true; // its half second starts when it is first drawn: a slow frame after the hit did not eat it
             _hitAngle = angle;
             _hitBalance = balanceOnly;
@@ -232,6 +239,9 @@ namespace RavenfieldVR.Rig
             _dropsAt = Time.unscaledTime;
             _dropsSeed = _dropsSeed % 100000 + 1 + UnityEngine.Random.Range(0, 1000) * 7;
         }
+
+        /// <summary>Autotest: drops shown with the option off (the player's saved setting is not touched).</summary>
+        internal static bool TestDrops;
 
         /// <summary>Autotest: the drops' strength now (0 when there are none).</summary>
         internal float DropsShown => DropsFade(Time.unscaledTime);
@@ -259,19 +269,30 @@ namespace RavenfieldVR.Rig
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
             for (int e = 0; e < 2; e++)
             {
-                _flashes[e].RemoveAll(f => now - f.Born > Life);
+                List<Flash> list = _flashes[e];
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    if (now - list[i].Born > Life)
+                    {
+                        list.RemoveAt(i);
+                    }
+                }
             }
             if (_busy && _done)
             {
-                for (int e = 0; e < 2; e++)
+                if (!_failed)
                 {
-                    _tex[e].SetPixels32(_out[e]);
-                    _tex[e].Apply(false, false);
+                    for (int e = 0; e < 2; e++)
+                    {
+                        _tex[e].SetPixels32(_out[e]);
+                        _tex[e].Apply(false, false);
+                    }
+                    _shownAny = _resultAny;
+                    ShowsFlash = _resultFlash;
+                    ShowsHit = _resultHit;
                 }
+                _failed = false;
                 _busy = false;
-                _shownAny = _resultAny;
-                ShowsFlash = _resultFlash;
-                ShowsHit = _resultHit;
             }
             if (!_busy)
             {
@@ -308,7 +329,7 @@ namespace RavenfieldVR.Rig
                 j.HitEye[0] = side > 0f ? 1f - 0.45f * side : 1f;
                 j.HitEye[1] = side < 0f ? 1f + 0.45f * side : 1f;
                 j.LowHealth = dead ? 0f : _lowHealth;
-                j.Drops = dead || !VRConfig.WaterDrops.Value ? 0f : DropsFade(now);
+                j.Drops = dead || !(VRConfig.WaterDrops.Value || TestDrops) ? 0f : DropsFade(now);
                 j.DropsSeed = _dropsSeed;
                 any |= j.Hit > 0.001f || j.LowHealth > 0.001f || j.Drops > 0.001f;
                 if (any || _shownAny)
@@ -399,6 +420,16 @@ namespace RavenfieldVR.Rig
             {
                 if (q != null)
                 {
+                    MeshRenderer r = q.GetComponent<MeshRenderer>();
+                    if (r != null && r.sharedMaterial != null)
+                    {
+                        UnityEngine.Object.Destroy(r.sharedMaterial);
+                    }
+                    MeshFilter f = q.GetComponent<MeshFilter>();
+                    if (f != null && f.sharedMesh != null)
+                    {
+                        UnityEngine.Object.Destroy(f.sharedMesh); // one mesh shared by the three: destroyed once, then null
+                    }
                     UnityEngine.Object.Destroy(q);
                 }
             }
@@ -441,6 +472,7 @@ namespace RavenfieldVR.Rig
                 catch (Exception ex)
                 {
                     _workerError = ex;
+                    _failed = true; // half drawn: not shown
                 }
                 _done = true;
             }
@@ -521,12 +553,11 @@ namespace RavenfieldVR.Rig
                     {
                         r += LowEdge[i] * low; // screen_effects.py G: [0.55, 0, 0] shown as it is
                     }
-                    if (drops > 0.001f && vx >= 0 && vx < W && vy >= 0 && vy < H)
+                    if (drops > 0.001f)
                     {
-                        int dk = (vy * W + vx) * 3;
-                        r += dropImg[dk] * drops;
-                        g += dropImg[dk + 1] * drops;
-                        b += dropImg[dk + 2] * drops;
+                        r += dropImg[k] * drops;
+                        g += dropImg[k + 1] * drops;
+                        b += dropImg[k + 2] * drops;
                     }
                     o[rowOut + x] = new Color32(To8(r * m), To8(g * m), To8(b * m), 255);
                 }
@@ -692,21 +723,24 @@ namespace RavenfieldVR.Rig
                 drops.Add(new[] { U(0f, W), U(0f, H), U(0.8f, 2.2f), U(0.9f, 1.1f), 0f, 0f });
             }
             // The same drops in both eyes, shifted as if at one fixed depth, so the eyes never disagree.
+            _dropField = _dropField ?? new float[CW * S * CH * S];
+            _dropShade = _dropShade ?? new float[CW * S * CH * S * 3];
             for (int e = 0; e < 2; e++)
             {
                 float shift = e == 0 ? 2.5f : -2.5f;
-                float[] field = DropField(drops, shift);
-                ShadeDrops(field, _drops[e]);
+                DropField(drops, shift, _dropField);
+                ShadeDrops(_dropField, _dropShade, _drops[e]);
             }
         }
 
-        private static float[] DropField(List<float[]> drops, float shift)
+        /// <summary>The drops' height field over the whole picture drawn (placed in the view; ones over its edge go on past it).</summary>
+        private static void DropField(List<float[]> drops, float shift, float[] hf)
         {
-            int w = W * S, h = H * S;
-            var hf = new float[w * h];
+            int w = CW * S, h = CH * S;
+            Array.Clear(hf, 0, hf.Length);
             foreach (float[] d in drops)
             {
-                float cx = (d[0] + shift) * S, cy = d[1] * S, r = d[2] * S, e = d[3], trail = d[4] * S, wob = d[5];
+                float cx = (d[0] + shift + MX) * S, cy = (d[1] + MY) * S, r = d[2] * S, e = d[3], trail = d[4] * S, wob = d[5];
                 // The drop: a dome.
                 for (int y = Mathf.Max(0, (int)(cy - r * e) - 1); y <= Mathf.Min(h - 1, (int)(cy + r * e) + 1); y++)
                 {
@@ -763,7 +797,6 @@ namespace RavenfieldVR.Rig
                     }
                 }
             }
-            return hf;
         }
 
         /// <summary>
@@ -771,10 +804,10 @@ namespace RavenfieldVR.Rig
         /// highlight and the bright rim), light refracted through each drop gathering at its lower inside edge (the
         /// caustic), and a faint body; toned, then brought down to the eye view.
         /// </summary>
-        private static void ShadeDrops(float[] hf, float[] outRgb)
+        private static void ShadeDrops(float[] hf, float[] big, float[] outRgb)
         {
-            int w = W * S, h = H * S;
-            var big = new float[w * h * 3];
+            int w = CW * S, h = CH * S;
+            Array.Clear(big, 0, big.Length);
             var ld = new Vector3(-0.42f, -0.72f, 0.55f).normalized;
             float wetMin = 0.02f * S;
             for (int y = 0; y < h; y++)
@@ -806,10 +839,10 @@ namespace RavenfieldVR.Rig
                     big[k + 2] = ToneSe(lum * 1.0f);
                 }
             }
-            // Down to the eye view (3 x 3 into 1).
-            for (int y = 0; y < H; y++)
+            // Down to the picture drawn (3 x 3 into 1).
+            for (int y = 0; y < CH; y++)
             {
-                for (int x = 0; x < W; x++)
+                for (int x = 0; x < CW; x++)
                 {
                     float r = 0f, g = 0f, b = 0f;
                     for (int sy = 0; sy < S; sy++)
@@ -823,7 +856,7 @@ namespace RavenfieldVR.Rig
                             b += big[k + 2];
                         }
                     }
-                    int o = (y * W + x) * 3;
+                    int o = (y * CW + x) * 3;
                     outRgb[o] = r / (S * S);
                     outRgb[o + 1] = g / (S * S);
                     outRgb[o + 2] = b / (S * S);
@@ -944,6 +977,7 @@ namespace RavenfieldVR.Rig
         public Camera Head;
         public Texture Picture;
         private MaterialPropertyBlock _block;
+        private static readonly bool SinglePass = UnityEngine.XR.XRSettings.stereoRenderingMode != UnityEngine.XR.XRSettings.StereoRenderingMode.MultiPass;
 
         private void OnWillRenderObject()
         {
@@ -954,7 +988,12 @@ namespace RavenfieldVR.Rig
             }
             bool show;
             Camera.MonoOrStereoscopicEye e = cam.stereoActiveEye;
-            if (cam == Head)
+            if (cam == Head && SinglePass)
+            {
+                // Single-pass stereo draws each quad once for both eyes: the centred one only (one picture for both).
+                show = Eye == 2;
+            }
+            else if (cam == Head)
             {
                 show = Eye == 0 ? e == Camera.MonoOrStereoscopicEye.Left : Eye == 1 ? e == Camera.MonoOrStereoscopicEye.Right : e == Camera.MonoOrStereoscopicEye.Mono;
             }

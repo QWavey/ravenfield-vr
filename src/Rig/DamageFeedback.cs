@@ -47,7 +47,13 @@ namespace RavenfieldVR.Rig
         /// <summary>Autotest: the share of health to show (-1: the player's own).</summary>
         internal static float TestHealthShare = -1f;
 
-        /// <summary>The game's damage vignette (a hit). Without a direction from the game it glows from below.</summary>
+        /// <summary>
+        /// Set while the game handles damage that came from no direction (a damage zone, a script): its arrow then points
+        /// "right" (atan2 of nothing), and the glow and the buzz would go to the right.
+        /// </summary>
+        internal static bool NoDirection;
+
+        /// <summary>The game's damage vignette (a hit).</summary>
         public void OnVignette(float intensity, float duration)
         {
             _vignetteAt = Time.unscaledTime;
@@ -57,6 +63,11 @@ namespace RavenfieldVR.Rig
         public void OnHitDirection(float angle, bool balanceOnly)
         {
             _directionAt = Time.unscaledTime;
+            if (NoDirection)
+            {
+                LensEffects.Instance?.Hit(180f, balanceOnly); // from no side: glows from below, no hand buzzes alone
+                return;
+            }
             LensEffects.Instance?.Hit(angle, balanceOnly);
             // A short buzz in the hand on the side it came from (angle 90 = from the left).
             float side = -Mathf.Sin(angle * Mathf.Deg2Rad);
@@ -87,7 +98,7 @@ namespace RavenfieldVR.Rig
         public void Update()
         {
             float now = Time.unscaledTime;
-            // Damage the game gave no direction for (a fall, a fire): the glow comes from below.
+            // A vignette the game showed without its arrow (none known for the player: Actor.Damage shows both): from below.
             if (now - _vignetteAt > 0.1f && _vignetteAt > _directionAt + 0.25f)
             {
                 _vignetteAt = -10f;
@@ -193,8 +204,14 @@ namespace RavenfieldVR.Rig
     [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.ReceivedDamage))]
     internal static class PlayerDamagePatch
     {
+        private static void Prefix(Vector3 direction)
+        {
+            DamageFeedback.NoDirection = direction.sqrMagnitude < 1e-6f;
+        }
+
         private static void Postfix(float damage)
         {
+            DamageFeedback.NoDirection = false; // the arrow (inside the game's handler) has been shown
             if (VRManager.Active)
             {
                 try

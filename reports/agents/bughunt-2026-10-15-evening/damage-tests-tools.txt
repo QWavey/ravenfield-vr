@@ -1,0 +1,92 @@
+Haiku read-only bug hunt, 2026-10-15 evening: damage feedback, autotest, Shots, vrshots.py, montage.py
+======================================================================================================
+
+Read-only review. I ran nothing and changed nothing. Findings are ranked worst first. Line numbers refer to the current working tree; `.ref/decompiled` is the game source the repo keeps for reference.
+
+1. Hits with no direction glow and buzz on the right, and the "from below" branch never runs for the player (medium).
+Where: src/Rig/DamageFeedback.cs:50 (comment), 90-95 (Update fallback), 57-60 (OnHitDirection), 174-191 (indicator patch). Game side: .ref/decompiled/Assembly-CSharp/FpsActorController.cs:657-658, ActorManager.cs:695-701, Actor.cs:1764, 2178, 2239.
+What: Actor.Damage calls controller.ReceivedDamage (which calls ShowDamageIndicator, Actor.cs:2178) and then ShowVignette (2239) in the same call with no return between them. So the vignette and the direction timestamps always match, and the fallback at DamageFeedback.cs:91 never fires for the player. Damage that really has no direction is a different case: DamageZone hits (ActorManager.cs:695) leave direction at Vector3.zero. FpsActorController then computes atan2(0,0)*57.3-90 = -90, so OnHitDirection(-90) runs and both the glow and the right-hand buzz go to the right. Falls do carry a direction (Actor.cs:1764, -FacingDirection), so they glow in front, not from behind as the comment's example says.
+Trigger: standing in a damage zone, or a scripted damage trigger.
+Fix: decide what a no-direction hit should show. In a Harmony prefix on FpsActorController.ReceivedDamage, read the direction argument, set a static flag when its squared length is under 1e-6, and have the indicator postfix (DamageFeedback.cs:183) take a non-directional path while the flag is set. Clear the flag in the postfix. Remove the dead branch or correct the comments.
+
+2. vrshots can leave SteamVR on the null driver, and Ctrl+C leaves the game running (medium, conditional).
+Where: tools/vrshots.py:100-107 (__exit__), 62-63 (kill), 83-84 (refusal on the next run), 133-168 (run_game), 277-278.
+What: __exit__ runs taskkill and ignores its return code, then sleeps a fixed 3 s and copies the backup. If a VR process is still alive or has been restarted (possible: Steam can start the OpenVR runtime again), shutil.copyfile raises PermissionError. That error replaces the original one, the hash check never runs, and steamvr.vrsettings keeps forcedDriver "null". The next run then refuses. Separately, __exit__ does not stop ravenfield.exe. On Ctrl+C inside run_game's loop the context exits, SteamVR is killed, and the game started at line 140 keeps running with no runtime; the next run then refuses at 277-278.
+Fix: retry the copy in a loop and print a loud warning with the backup path if it still fails. Check the taskkill return codes. Keep the Popen handle and terminate the game the run started in __exit__.
+
+3. vrshots --hands never writes the close-ups or the pose sheet (medium, certain).
+Where: src/Weapons/WeaponSelfTest.cs:606-608 (HandShots), src/Rig/HandPreview.cs:233 and 286 (Capture returns null on success), tools/vrshots.py:231-233 and 302-303.
+What: the three captures are joined with ??. Capture returns null on success, so the chain stops and CaptureCloseups and CapturePoseSheet never run. The run writes RavenfieldVR-hands.png and -hands-back.png to the BepInEx root, and collect() does not copy either file. reports/shots/hands ends up empty and vrshots prints "0 picture(s)".
+Fix: make three separate calls and keep each error string. Add the two hands files to collect().
+
+4. A magazine side picture can end up from a camera inside the weapon (low-medium).
+Where: src/Core/AutoTest.cs:575-587 (MagazineSideShot), src/Core/Shots.cs:87-92.
+What: when the left point is inside the weapon, the points are swapped, so the list becomes [right, inside-left]. CaptureFirstClear saves the last pose whatever it shows. If the right view is also flat, the inside pose is saved, which is the failure this change was meant to prevent. The right point is never tested with InsideWeapon. InsideWeapon also scans only held.Weapon's renderers, so an akimbo partner that is not a child of that Weapon is not seen (possible).
+Fix: build the pose list only from candidates that pass InsideWeapon. If none passes, use the first candidate.
+
+5. vrshots relaunches the game after any early exit, then carries on silently (medium-low).
+Where: tools/vrshots.py:137-165 (retry loop, flat set at 154-155), 305-306 (return value ignored).
+What: the game counts as "flat" whenever its process is gone within 40 s of launch, whether it came up flat, crashed at startup, or was closed. Up to three launches follow, each killed and retried after 8 s. run_game returns False after the third, but the caller ignores that, so the run collects whatever exists and reports no error.
+Fix: treat only the "flat mode" log line as flat. For any other early exit, log the exit and the tail of LogOutput.log and stop. Return the result to main and exit non-zero on failure.
+
+6. vrshots collect() can crash after the restore, and this run's pictures are not copied (low-medium, possible).
+Where: tools/vrshots.py:224-227.
+What: rmtree(prev, ignore_errors=True) can leave a locked file behind (an image open in a viewer, antivirus). On Windows, os.replace(dest, prev) then fails because prev is a non-empty directory. The traceback ends the script before the pictures are copied, and the game's shots are deleted by the next run.
+Fix: rename to a unique timestamped name, or copy into prev and skip the rename. Do not use ignore_errors.
+
+7. The water-drops test rewrites the user's saved option (medium-low).
+Where: src/Core/AutoTest.cs:386-408; src/Core/VRConfig.cs:126; BepInEx.xml:417 (SaveOnConfigSet).
+What: the test sets VRConfig.WaterDrops to true and restores it in finally. BepInEx writes its config file on each set by default, so the user's file is rewritten twice. A finally block does not run when vrshots kills ravenfield.exe (taskkill), so the saved option can stay true. A yield inside try/finally runs the finally only if Unity disposes the enumerator, which is not guaranteed when the owner is destroyed.
+Fix: use a test-only static flag that LensEffects.Present reads in place of the config value. Do not write the config from the test.
+
+8. montage.py silently drops the per-weapon lens pictures (low-medium).
+Where: tools/montage.py:24-25 (ORDER), 36-53 (collect), 14 (docstring).
+What: names such as lens-eyes-003-<weapon>.png and lensflash-003-<weapon>.png match PAT with a three-digit index, so they are filed under the weapon. Their kind is not in ORDER, so the group ends up empty and the picture is dropped with no message. The docstring says lens effects come after the weapons, which is true only for the unindexed names.
+Fix: send pictures whose kind is not in ORDER to others, or add those kinds to ORDER.
+
+9. montage.py reports success for an MP4 that may contain no frames (low-medium).
+Where: tools/montage.py:135-142.
+What: after the mp4v fallback, isOpened() is never checked. If neither codec opens, write() does nothing, but the script still prints "N frames, X s".
+Fix: check vw.isOpened() after the fallback and exit with an error if it is false.
+
+10. montage.py holds every card in memory, and one bad PNG aborts the run (low, possible).
+Where: tools/montage.py:138 and 146 (list(all_cards(...))), 65-66 (Image.open without try). vrshots.py:207 has the same pattern.
+What: all cards are built before any frame is written. At 640x400 RGB each card is about 0.77 MB, and a full run has about 233 weapons at up to four picks each plus the other pictures, which is several hundred MB. A truncated PNG (a picture cut short when the game was killed) raises inside card(), and no montage is written.
+Fix: feed frames() from a generator with one card of look-ahead. Wrap Image.open, skip unreadable files, and report them.
+
+11. A balance-only hit turns a red hit's glow amber and restarts it (low, possible).
+Where: src/Rig/LensEffects.cs:216-221 (Hit), src/Rig/DamageFeedback.cs:57-60.
+What: each Hit call replaces _hitBalance and restarts the half-second timer. FpsActorController.cs:658 passes onlyBalanceDamage = true for small hits that are mostly balance damage. One such hit arriving within 0.5 s of a red hit changes that glow to amber, so the health hit's colour is lost.
+Fix: keep red and amber as separate timers, or ignore a balance-only call while a health hit is still showing.
+
+12. LensEffects lifetime and allocation problems (low).
+Where: src/Rig/LensEffects.cs:262 (closure in Present), 83, 123, 136 (not disposed), 394-416 (Destroy); src/Rig/VRRig.cs:112 (ordering comment); src/Core/VRManager.cs:62-71 and 280-304.
+What: (a) The RemoveAll lambda captures now and allocates every frame, against the no-garbage rule at VRManager.cs:148-150. (b) Destroy does not destroy the three materials, the quad mesh, or the AutoResetEvent, so each rebuild leaks them. (c) If VRRig's constructor throws after line 112, VRManager's catch calls Shutdown while Rig is still null, so Dispose never runs and the worker thread (blocked in WaitOne) and the quads stay alive. (d) The comment at VRRig.cs:112 says DamageFeedback and MudSplash "hand it their effects" during construction. They do not; they call LensEffects.Instance?. at run time, so the order is not required.
+Fix: destroy the materials and mesh and dispose the event in Destroy. Create LensEffects last, or have VRManager dispose a partly built rig. Store now in a field, or use a cached delegate.
+
+Checked and found sound:
+- Order of construction: LensEffects is built first (VRRig.cs:112). Neither DamageFeedback nor MudSplash touches it at construction. If its constructor fails, _ok stays false and Present returns early (LensEffects.cs:249-252).
+- Present runs from Application.onBeforeRender (VRManager.cs:77, 191-200), after Rig, Weapons and UI BeforeRender, and is unsubscribed in Shutdown (284).
+- The worker thread (LensEffects.cs:420-447 and what it calls) uses no Unity API. The hand-over uses volatile _busy and _done, and I found no race on _job, _out or _drops.
+- Destroy paths clear the singletons (LensEffects.cs:412-415, DamageFeedback.cs:127-130, MudSplash.cs:388-390). DamageFeedback.Update runs only while VRManager is active.
+- Shots.CaptureFirstClear releases the texture, render target and camera in finally and restores RenderTexture.active (Shots.cs:102-122).
+- Every while loop in AutoTest is bounded by realtime (lines 148, 241, 761, 880, 1320, 1602, 1739, 2050, 2366). yield return inside try/finally is legal C#.
+- The mod's -rfvr-* flags and the BepInEx output names match vrshots (apart from the hands files in item 3). build.ps1 writes build/RavenfieldVR.dll, which is where vrshots looks.
+- Not counted as findings: Flat() (Shots.cs:126-143) can call a uniform dark view, or an object covering under about 0.2% of the sampled grid, flat. That only changes the pose choice. AutoTest.cs:2429 and 2437-2438 read LensFlash.Instance after a yield without a null check. The wrist-view tolerance grows with the longest frame, so a slow run can hide a regression of that size.
+
+CHECKED AND FIXED (main session)
+- 1: damage with no direction (a damage zone) is marked by a prefix on ReceivedDamage; the arrow it shows then glows
+  from below and buzzes no hand, instead of the right side (atan2 of nothing). The dead fallback's comment corrected.
+- 2: vrshots stops the game it started and retries putting the SteamVR settings back for 15 s, with a loud message
+  if that still fails.
+- 4: the magazine close-up camera is taken only from sides clear of the weapon's meshes.
+- 5 (part): a run whose game never came up in the headset ends with exit code 1 and says so.
+- 6: a previous-run folder that cannot be removed (a file open in a viewer) is kept under another name.
+- 7: the water-drops test shows them through a test flag; the player's saved setting is no longer written.
+- 8, 9, 10: montage.py keeps a weapon's other pictures (lens flash) after the weapons, checks its video writer, makes
+  the cards as they are needed and skips a picture it cannot read.
+- 11: a blow to the balance does not turn a red hit's glow amber while it shows.
+- 12 (part): the quads' materials and mesh are destroyed with the effects.
+NOT A BUG
+- 3 (--hands stops after one picture): a ?? b ?? c goes on to the next capture when the one before returned null,
+  which is success; the pose sheet from that run exists. The hands pictures are now copied to the report too.

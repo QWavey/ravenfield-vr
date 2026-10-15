@@ -98,12 +98,28 @@ class NullHeadset:
         return self
 
     def __exit__(self, *exc):
+        # Also on Ctrl+C or an error: the game this run started (none was running before it) goes too, and SteamVR's
+        # settings come back even while a just-killed SteamVR still holds the file for a moment.
+        kill('ravenfield.exe')
         for p in VR_PROCESSES:
             kill(p)
         time.sleep(3)
-        shutil.copyfile(self.backup, STEAMVR_CFG)
-        ok = sha(STEAMVR_CFG) == self.hash
-        log(f'SteamVR settings restored ({"hash matches" if ok else "HASH DIFFERS: check " + STEAMVR_CFG})')
+        ok, error = False, None
+        for attempt in range(15):
+            try:
+                shutil.copyfile(self.backup, STEAMVR_CFG)
+                ok = sha(STEAMVR_CFG) == self.hash
+                if ok:
+                    break
+            except OSError as e:
+                error = e
+            for p in VR_PROCESSES:
+                kill(p)
+            time.sleep(1)
+        if ok:
+            log('SteamVR settings restored (hash matches)')
+        else:
+            log(f'!!! SteamVR settings NOT restored ({error or "hash differs"}): copy {self.backup} over {STEAMVR_CFG} by hand !!!')
         return False
 
 
@@ -224,12 +240,15 @@ def collect(game, mode, since):
     if os.path.isdir(dest):
         prev = dest + '-previous'
         shutil.rmtree(prev, ignore_errors=True)
+        if os.path.exists(prev):  # a file in it still open (a viewer): keep it under another name
+            prev = dest + '-previous-' + time.strftime('%H%M%S')
         os.replace(dest, prev)
     os.makedirs(dest, exist_ok=True)
     for f in glob.glob(os.path.join(src, '*.png')):
         shutil.copy2(f, dest)
     for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),
-                     ('RavenfieldVR-hand-poses.png', 'hand-poses.png'), ('LogOutput.log', 'game-log.txt'),
+                     ('RavenfieldVR-hand-poses.png', 'hand-poses.png'), ('RavenfieldVR-hands.png', 'hands.png'),
+                     ('RavenfieldVR-hands-back.png', 'hands-back.png'), ('LogOutput.log', 'game-log.txt'),
                      ('RavenfieldVR-weapon-report.txt', 'weapon-report.txt'), ('RavenfieldVR-rig-dump.txt', 'rig-dump.txt')):
         p = os.path.join(game, 'BepInEx', name)
         if os.path.exists(p) and os.path.getmtime(p) >= since:  # made by this run (the game rewrites them)
@@ -276,6 +295,7 @@ def main():
         return
     if running('ravenfield.exe'):
         raise SystemExit('Ravenfield is running (someone is playing?): not starting.')
+    failed = False
     w, h = (int(v) for v in a.res.lower().split('x'))
     if not a.no_build:
         build_and_install(a.game)
@@ -300,10 +320,13 @@ def main():
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'], a.timeout or 10
         since = time.time()
         if mode == 'hands':
-            run_game(a.game, args, timeout, vr=False)
+            ran = run_game(a.game, args, timeout, vr=False)
         else:
             with NullHeadset((w, h)):
-                run_game(a.game, args, timeout, vr=True)
+                ran = run_game(a.game, args, timeout, vr=True)
+        if not ran:
+            failed = True
+            log(f'!!! the game did not come up in the headset after three tries: the {mode} pictures are missing or partial !!!')
         dest = collect(a.game, mode, since)
         log(f'{len(glob.glob(os.path.join(dest, "*.png")))} picture(s) in {os.path.relpath(dest, REPO)}')
         if mode in ('weapons', 'weapon'):
@@ -312,6 +335,8 @@ def main():
             for e in index[:40]:
                 print(f'    {e["id"]:4d}  {e["name"]:40s} {e["sheet"]}')
         summary(dest)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == '__main__':

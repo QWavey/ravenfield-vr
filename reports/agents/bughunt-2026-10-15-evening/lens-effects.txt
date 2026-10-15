@@ -1,0 +1,98 @@
+Haiku read-only bug hunt, 2026-10-15 evening: the screen effects (LensEffects.cs, LensFlash.cs) against flash_sim.py / screen_effects.py
+========================================================================================================================================
+
+Read-only review of the two C# files and the Python formulas. Nothing was run or changed. Twelve findings, worst first. The thread handoff, Unity-API use, indexing and divisions checked out (see the end).
+
+1. Water drops are cut off at the tested view edge, leaving a hard seam inside the headset's visible field.
+Where: C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Rig\LensEffects.cs:524-525 (the clip), with the drop buffers sized to W x H at lines 108, 705 and 776.
+Problem: every other layer is computed over the whole 360 x 300 picture, margins included. The header at lines 30-33 says this is so no edge shows. The drops are added only where vx is in [0, W) and vy is in [0, H). Drops are placed toward the edges (line 677), so bodies and trails often straddle the border. The cut sits at about 52 degrees horizontally and 46.8 degrees vertically (Focal is 117.2 px), inside the roughly 110-degree headset view that the same comment mentions. The one-sided np.gradient at the field border (lines 790-791) also adds a rim on that line.
+Trigger: the WaterDrops option is on (default off, VRConfig.cs:313) and a drop or trail crosses the view edge, for example a running drop's trail near the top.
+Fix: build the drop field and ShadeDrops over CW x CH with MX/MY offsets, read dropImg at the picture index, and remove the bounds test.
+
+2. Eye selection may break under SinglePassInstanced.
+Where: C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Rig\LensEffects.cs:955-964 (LensEye.OnWillRenderObject) and the shader choice at 159-170. The option is in C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Core\VRConfig.cs:10 and 147-148.
+Problem: the left or right picture is chosen from Camera.stereoActiveEye inside OnWillRenderObject, and the quads use the legacy particle additive shader, which I believe is not written for stereo instancing (check this). Under SinglePassInstanced the quad is drawn once for both eyes, and the config's own text says some shaders then render in one eye only. Possible result: the effect shows in one eye only, or one eye's picture appears in both.
+Trigger: StereoMode = SinglePassInstanced. The default is MultiPass, so this is opt-in.
+Fix: verify in the headset with SPI. If it fails, use an instancing-aware shader that picks the picture by unity_StereoEyeIndex, or turn the lens effects off under SPI and say so in the setting text.
+
+3. The first job after a new water-drops seed is long, allocates about 22 MB, and drops flashes.
+Where: LensEffects.cs:262 (flashes older than Life are removed before the busy check), 431-435 (MakeDrops runs in the same job as the flashes), 664-706 and 774-777 (buffers allocated per call), 695-700 (per eye).
+Problem: MakeDrops runs inside the job that also renders flashes and hits. ShadeDrops loops over about 675k pixels per eye with several Pow and Exp calls each. My estimate is tens of ms per eye on Mono (not measured). During that time the picture stays frozen, and Present drops any flash older than 60 ms before it can be submitted. Each new seed allocates about 2.7 MB (DropField) and 8.1 MB (ShadeDrops) per eye, which can trigger a Mono GC pause on the main thread.
+Trigger: surfacing with WaterDrops on, then a shot within about 100 ms.
+Fix: allocate hf and big once in the constructor and reuse them. Compute drops as soon as the seed changes, on their own job or a second worker, rather than inside the job that needs them. Or time flashes against display rather than submission.
+
+4. SavePictures writes the sheets upside down.
+Where: LensEffects.cs:367-374. Autotest calls it at C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Core\AutoTest.cs:346, 355, 398 and 2434.
+Problem: Texture2D.GetPixels32 returns rows bottom-first. RenderEye writes texture row CH-1-y (line 492, with the right comment), but SavePictures reads row MY+row, which is the picture's bottom, and indexes Mask with H-1-row. Each saved eye picture is flipped top to bottom, so it cannot be compared with the approved sheets.
+Trigger: any autotest that calls SavePictures.
+Fix: read view[(CH - 1 - MY - row) * CW + MX + x] and use Mask[row * W + x].
+
+5. Front and back hits glow on the top or bottom edge.
+Where: LensEffects.cs:302-304 and 475-478. Also C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Rig\DamageFeedback.cs:56-60, and line 94 for the fall or fire case.
+Problem: the hit direction becomes a 2D vector (HitDirX = -sin, HitDirY = -cos). A hit from straight ahead (0 degrees) gives (0, -1), so the glow centres on the top edge, since y is down. A hit from behind centres on the bottom. The approved F only defined hits from the right. The eye weights (lines 307-309) give both eyes full strength for front and back hits.
+Trigger: a hit from ahead or behind. The no-direction fall or fire case (DamageFeedback.cs:94) always glows from below.
+Fix: decide the intent. Either spread front and back glows across both edges or keep sides only, and document it in OnHitDirection.
+
+6. Main-thread work every frame while effects show.
+Where: LensEffects.cs:266-270 (two SetPixels32 of 108,000 Color32 plus Apply, about 0.9 MB per frame at 90 Hz), and 262 (a lambda capturing now, allocated each frame). LensFlash.cs:184 and 241 use the same closure pattern.
+Problem: the upload is inherent to the design, but it is paid every frame while any layer is visible. The closures are small per-frame allocations.
+Trigger: any hit, glow, flash or drops active.
+Fix: upload with SetPixelData from a NativeArray, or only the changed rows. Replace the RemoveAll lambdas with index loops.
+
+7. The strength setting also moves the plume offset.
+Where: LensFlash.cs:93 (ahead uses size), 107 (size goes into EyePower) and 156 (size times Max(0.05, LensFlashStrength)). The slider runs 0 to 2 (VRSettingsPanel.cs:101).
+Problem: flash_sim.py fire() sets ahead from sqrt(gun size) only. The port includes the user strength, so at 200 percent the plume centre sits about 41 percent further out, and at 5 percent it hugs the muzzle. Only the brightness should follow the setting.
+Fix: compute ahead from byClass * real without the strength factor, and apply strength to power only.
+
+8. The rounded lens frame is not drawn in the headset.
+Where: LensEffects.cs:26-35 (the comment) and 497-502 and 531 (EdgeFade only). The mask is built at 905-917 and used only by SavePictures. Python: flash_sim.py Sim.render line 378 and lens_mask at 146-149.
+Problem: the approved look multiplies the toned picture by the rounded 46-px mask. The port skips it in the headset, so effect light reaches the four corners the approved sheets cut. This is a documented choice, not an accident, but it changes the look.
+Fix: if the corners should match, multiply by the mask inside the view rectangle only and keep EdgeFade outside it.
+
+9. A worker exception publishes a torn picture.
+Where: LensEffects.cs:441-445.
+Problem: if RenderEye throws part-way, _done is still set and Present uploads whatever is in _out, a mix of new and old rows.
+Trigger: an exception inside RenderEye or MakeDrops. I saw no such path in normal use.
+Fix: on exception, skip the upload for that job (a _failed flag checked in Present), or clear the rows.
+
+10. Overlapping layers can clip hard.
+Where: LensEffects.cs:503-531. The flash term is ToneFlash (506-508), the hit term is ToneSe (516-518), the low edge is at 522, the drops are at 527-529, and To8 clamps at 531.
+Problem: the approved sheets toned each effect on its own, so the sums never met. Here they add after toning, and To8 clamps at 255. Where a flash, a hit glow and drops overlap in the red channel, the sum can exceed 1.
+Trigger: a hit glow near a flash, or the low-health edge over drops.
+Fix: tone the combined sum once, or cap each layer. This changes the approved look slightly.
+
+11. Two shots in one frame collapse into one flash and one count.
+Where: LensFlash.cs:49-54 (OnShot overwrites _pendingWeapon), 86 (the count is added once per frame in TryFlash), and 189 (glow rate).
+Problem: OnShot keeps only the last shot of a frame. A second shot in that frame gets no flash, and the glow rate counts one shot.
+Trigger: a frame long enough that the game fires two shots in it, such as a hitch with a fast gun. Possible; I saw nothing at normal rates on 90 Hz.
+Fix: queue shots in OnShot and count each one into _shots at that moment. Flash the queued shots in BeforeRender.
+
+12. Drops fire on death under water.
+Where: C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Rig\MudSplash.cs:103 (dead is computed) and 106-112 (the trigger at 108 does not use it).
+Problem: if the player dies while submerged, under becomes false (it requires !dead), so _wasUnderwater && !under fires WaterDrops(). If respawn comes within 3 s, drops appear on the new life.
+Trigger: death under water with WaterDrops on and respawn within 3 s.
+Fix: add && !dead to the condition at line 108.
+
+Checked, no issue found (not counted as findings):
+- Threading: Present and the worker hand off through volatile _busy and _done, the AutoResetEvent _wake, and one _out buffer. _job is written only while the worker is idle, _out is read only after _done, and the next submit comes after the upload. No lost wakeup and no deadlock. The worker exits only on _stop (Destroy, lines 394-397), and its try/catch (429-444) keeps it alive.
+- Unity API on the worker: none. It uses Mathf, Vector3.normalized, Color32 and System.Random only.
+- Indexing: acc, o, dropImg, LowEdge, EdgeFade and the ghost boxes are in bounds. AngleIndex is masked with &4095. Canvas and view indexing is consistent apart from SavePictures (finding 4).
+- Division by zero: guarded (EyePower 1e-3, ipd floor 0.04, petals at least 0.44, ExpNeg table range).
+- Formula port: flash core, fire, ember, tail, star, ring, ghosts, wash, veil, the tone constants (1.32 and 1.25), the hit Gaussians (0.8/1.9, 70/25, colours, 1.1 scale), the low edge, the drop field (trail, film, wobble) and ShadeDrops (gradient, Fresnel, light vector, caustic) match the Python. Eye weights 1.0/0.55, limiter cost logic and glow easing also match. The y-down projection and the RenderEye row flip are correct.
+- Not verifiable from the code: the Soft and OneStep tables (calibration output), the MuzzleFlashInfo particle state at BeforeRender, Unity's OnWillRenderObject behaviour under SPI, and the Mono timing estimates.
+
+CHECKED AND FIXED (main session)
+- 1: the water drops are made over the whole picture drawn (no seam at the 104-degree view's edge).
+- 2: under single-pass stereo only the centred quad is drawn (one picture in both eyes) instead of choosing per eye.
+- 3: the drops' 15 MB of working buffers are made once and reused (no garbage-collector pause on every surfacing).
+- 6 (part): no closures every frame (flash and shot lists pruned with loops).
+- 7: the strength setting only scales the brightness; the plume's place comes from the gun's own flash size.
+- 9: a job that failed half way is not shown.
+- 11: every shot counts for the glow's rate (two in one frame too).
+- 12: dying under water does not put drops on the view.
+NOT A BUG
+- 4 (sheets upside down): GetPixels32 starts at the bottom row, and the code reads row MY+row with the mask flipped to
+  match; the saved pictures were the right way up (teardrops' trails above the drops, the wash at the lower right).
+KEPT AS DESIGNED
+- 5 (front/back hits glow at the top/bottom edge: the side the hit came from), 8 (no rounded frame in the headset: it
+  belongs to the sheets), 10 (layers add after their own tone: they rarely meet).

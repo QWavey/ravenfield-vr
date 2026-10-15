@@ -48,6 +48,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The player's weapon fired (Weapon.Shoot): the flash is decided before the frame is drawn.</summary>
         public void OnShot(HeldWeapon held, Weapon weapon)
         {
+            _shots.Add(Time.unscaledTime); // every shot counts for the glow's rate, two in one frame too
             _pendingHeld = held;
             _pendingWeapon = weapon;
             _pendingFrame = Time.frameCount;
@@ -79,11 +80,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // The gun's own flash size places the plume; the player's strength setting only scales how bright it is.
             float size = FlashSize(held, w);
+            float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
-            _gunSize = size;
+            _gunSize = size * strength;
             _gunAuto = w.configuration.auto;
-            _shots.Add(now);
             if (size <= 0f)
             {
                 return; // no flash on this shot (none on this weapon, or its particles skipped this one)
@@ -104,7 +106,7 @@ namespace RavenfieldVR.Weapons
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);
-                float p = _limiters[e].Shot(now, EyePower(size, m, dir, ex, fx.Ipd) * sizeK);
+                float p = _limiters[e].Shot(now, EyePower(size * strength, m, dir, ex, fx.Ipd) * sizeK);
                 Vector2 at = LensEffects.Project(m, ex) + new Vector2(LensEffects.Focal * Mathf.Tan(jx), -LensEffects.Focal * Mathf.Tan(jy));
                 fx.AddFlash(e, new LensEffects.Flash { X = at.x, Y = at.y, Power = p, Phase = phase, Born = now });
                 strongest = Mathf.Max(strongest, p);
@@ -153,7 +155,7 @@ namespace RavenfieldVR.Weapons
             {
                 return 0f;
             }
-            return size * Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
+            return size;
         }
 
         /// <summary>
@@ -181,7 +183,13 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            _shots.RemoveAll(t => now - t > 0.5f);
+            for (int i = _shots.Count - 1; i >= 0; i--)
+            {
+                if (now - _shots[i] > 0.5f)
+                {
+                    _shots.RemoveAt(i);
+                }
+            }
             Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
             Vector3 m = muzzle != null ? head.InverseTransformPoint(muzzle.position) : Vector3.forward;
