@@ -20,7 +20,9 @@ OUT = os.path.join(os.path.dirname(SHEETS), 'categories')
 
 SMG = re.compile(r'(?<![a-z])(mp ?5|mp ?7|mp ?9|mp ?40|ump|vector|kriss|p ?90|uzi|smg|mpx|scorpion|evo|pp-?\d|ppsh|pps|thompson|tommy|mac-?1[01]|'
                  r'tec-?9|vityaz|bizon|aug para|mp ?18|sten|grease|m3a1|cbj|pdw|mp ?1|mp ?2|kp|suomi|tmp|skorpion|ingress)', re.I)
-DMR = re.compile(r'(?<![a-z])(dmr|sr-?25|m110|m14|ebr|svd|dragunov|sks|fal|g3|scar-?h|m1a|mk ?12|mk ?14|vss|m1 ?garand|garand|g28|'
+PISTOL = re.compile(r'(?<![a-z])(glock|1911|p220|p226|p320|92g|g17|g19|fnx|beretta|deagle|desert eagle|usp|m9\b|px9|viper|revolver|magnum|'
+                    r'condor|python|tt-?33|makarov|five-?seven|p250|hk45|cz ?75|pistol|handgun)', re.I)
+DMR = re.compile(r'(?<![a-z])(dmr|sr-?25|m110|m14|ebr|svd|dragunov|sks|fal|g3|scar-?h|m1a|mk ?12|mk ?14|vss|m1 ?garand|garand|garret|g28|'
                  r'm39|psg|hk ?417|ar-?10|ak-?308|svt|mosin.*sv|lr-?300|marksman|br\b)', re.I)
 SNIPER = re.compile(r'(?<![a-z])(sniper|awp|awm|l96|m24|m40|m200|intervention|barrett|m82|m107|mrad|cheytac|kar ?98|mosin|springfield|'
                     r'enfield|trg|ax-?50|lrr|recon|scout|sv-?98|hunting)', re.I)
@@ -58,7 +60,7 @@ def category(name, info):
         return 'launchers'
     if action in ('ShellFed', 'BreakOpen') or SHOTGUN.search(n):
         return 'shotguns'
-    if 'pistol grip' in info and not SMG.search(n):
+    if ('pistol grip' in info or PISTOL.search(n)) and not SMG.search(n):
         return 'pistols'
     if action == 'Manual' or SNIPER.search(n):
         return 'bolt-action-snipers'
