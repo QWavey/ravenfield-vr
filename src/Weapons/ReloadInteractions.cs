@@ -1200,9 +1200,43 @@ namespace RavenfieldVR.Weapons
             Log.Info($"Mag kick on {Data.Key} ({(strike ? "strike" : "push")}): along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s");
             _kickPrevAlong = float.NaN;
             _kickPushSince = -1f;
-            EjectMagazine();
+            KickOut(off, prop);
             off.Haptic(0.04f, 80f, 0.8f);
             return true;
+        }
+
+        /// <summary>
+        /// Knocked out by a fresh magazine: the old one comes off at the well's mouth, set aside by its own width (never out
+        /// of the inside of the gun or through the fresh one coming up), and flies clear with the strike's push, a sideways
+        /// kick away from the gun hand's side, downward, spinning. (It was made at its seat, slid straight out along the
+        /// well through the fresh one, and dropped from inside the gun.) The release button still drops it straight out.
+        /// </summary>
+        private void KickOut(VRHand off, MagazineProp fresh)
+        {
+            if (_ejecting != null)
+            {
+                FinishEject();
+            }
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp old = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            old.Owner = Ammo;
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(old.InsertDirLocal);
+            Vector3 up = Rig.UpWorld, aim = Rig.AimWorld;
+            Vector3 gunRight = Vector3.Cross(up, aim).normalized;
+            // Away from the gun hand: to the left of a right hand's gun, to the right of a left hand's.
+            Vector3 side = _sys.Rig.Dominant.IsLeft ? gunRight : -gunRight;
+            float width = Mathf.Max(0.02f, old.CrossHalf * 2f);
+            old.RailDepth = old.RailLength * 0.15f; // at the mouth
+            RigidPose mouth = old.RailPose(seat);
+            mouth = new RigidPose(mouth.position + side * width - insert * 0.01f, mouth.rotation);
+            mouth.ApplyTo(old.Go.transform);
+            Vector3 push = Vector3.ClampMagnitude(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), 2.5f);
+            Vector3 velocity = _sys.Rig.Dominant.Velocity + push * 0.5f + side * 1.3f - insert * 0.6f + Vector3.down * 0.5f;
+            old.Drop(velocity, aim * Random.Range(4f, 7f) * (Random.value < 0.5f ? -1f : 1f) + Random.insideUnitSphere * 2f);
+            _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f);
+            _held.Nudge(-insert * 0.06f);
         }
 
         /// <summary>How far (degrees) a fresh magazine may be tilted off the well's axis and still knock the old one out.</summary>
