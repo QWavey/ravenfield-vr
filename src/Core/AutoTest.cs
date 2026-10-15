@@ -2172,7 +2172,14 @@ namespace RavenfieldVR.Core
                             Metric("cases thrown per shot", _shots > 0 ? (double)cases / Mathf.Min(_shots, 3) : 0);
                             lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}, case objects made so far {Casings.Built} for {Casings.Spawned} thrown{(Casings.Built > 40 ? " (POOL NOT REUSED)" : "")}");
                         }
-                        if (_shots == 0)
+                        Weapon lockOn = weapon.GetActiveSubWeapon();
+                        if (_shots == 0 && lockOn != null && lockOn.targetTracker != null && !lockOn.targetTracker.CanFire())
+                        {
+                            // A lock-on launcher fires only at a target it has locked (the game's tracker follows the head
+                            // while aiming through the sight); there is none in front of the test.
+                            lines.Add("not fired: needs a lock-on (no target here)");
+                        }
+                        else if (_shots == 0)
                         {
                             Weapon w0 = weapon.GetActiveSubWeapon();
                             AmmoState a0 = held.ActiveAmmo;
@@ -2180,7 +2187,8 @@ namespace RavenfieldVR.Core
                                     + $"locked {w0.isLocked}, fired this pull {w0.hasFiredSingleRoundThisTrigger}, cooling down {w0.CoolingDown()} (cooldown {w0.configuration.cooldown:0.00} s), "
                                     + $"charge {w0.configuration.useChargeTime}, auto {w0.configuration.auto}, muzzles {(w0.configuration.muzzles != null ? w0.configuration.muzzles.Length : 0)}, "
                                     + $"projectile {(w0.configuration.projectilePrefab != null ? w0.configuration.projectilePrefab.name : "NONE")}; mod: can fire {a0.CanFire}, chambered {a0.Chambered}, bolt open {a0.BoltOpen}, "
-                                    + $"slide locked {a0.SlideLocked}, magazine {a0.MagRounds})");
+                                    + $"slide locked {a0.SlideLocked}, magazine {a0.MagRounds}; a script took the shot {(w0.onFireScriptable != null && w0.onFireScriptable.isConsumed)}, "
+                                    + $"unholstered {w0.unholstered}, overheating {w0.isOverheating})");
                         }
                         else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (Deep || (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4)))
                         {
