@@ -1083,6 +1083,18 @@ namespace RavenfieldVR.Weapons
             return Vector3.Dot(rel, insert);
         }
 
+        /// <summary>The held magazine is under its well and roughly lined up (6 cm aside, 40 degrees): about to go in.</summary>
+        private bool LinedUpUnderWell(VRHand off, MagazineProp prop)
+        {
+            if (prop.Kind != PropKind.Magazine || !AcceptsNow(prop))
+            {
+                return false;
+            }
+            float along = HandAlongRail(off, prop, out float lateral);
+            float angle = Vector3.Angle(prop.HoldPose(off).TransformDirection(prop.InsertDirLocal), SeatPose.TransformDirection(prop.InsertDirLocal));
+            return lateral < 0.06f && angle < 40f && along > -0.06f && along < prop.RailLength;
+        }
+
         /// <summary>A magazine that is being drawn the last part of the way into a well inside the grip.</summary>
         private MagazineProp _pullingIn;
 
@@ -1597,7 +1609,9 @@ namespace RavenfieldVR.Weapons
                         }
                         break;
                     case HandRole.Magazine:
-                        if (off.Held is MagazineProp seating && seating.OnRail)
+                        // On the rail, and already while it is lined up under the well: a pistol's rail is only the last
+                        // part of the way, and the hand was in the grip before the keep-out began.
+                        if (off.Held is MagazineProp seating && (seating.OnRail || LinedUpUnderWell(off, seating)))
                         {
                             KeepOutOfGun(off, seating);
                         }

@@ -429,7 +429,9 @@ namespace RavenfieldVR.Rig
                     return s;
                 }
             }
-            return 0f;
+            // Nowhere clear within reach: as far back as it may go. Back at 0, a seated pistol magazine's hand snapped into
+            // the grip (36 points of it inside, tools/hands/grip_check.py).
+            return max;
         }
 
         private bool GloveIn(System.Func<Vector3, bool> blocked, Vector3 shift)
