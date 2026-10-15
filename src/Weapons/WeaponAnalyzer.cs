@@ -489,6 +489,10 @@ namespace RavenfieldVR.Weapons
                     {
                         d.Warnings.Add("no animator: parts found by name only");
                     }
+                    else if (animator.transform != root)
+                    {
+                        d.Warnings.Add("the animator is not on this weapon's root (a sub-weapon on its parent's rig): parts found by name only");
+                    }
                 }
 
                 RigidPose gunIdle = sampler.Idle(gunBody);
@@ -1189,8 +1193,10 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3[] traj = sampler.ReloadTrajectory[hi];
-                // The grasp sits a little ahead of the wrist bone, toward the fingers.
-                Vector3 graspOffset = PalmOf(hand, sampler) - sampler.RelIdle[hi].position;
+                // The grasp sits a little ahead of the wrist bone, toward the fingers. Both in gun space: PalmOf is in the
+                // weapon root's, and taken as it was it shifted every stroke by the gun body's offset from the root (an AS
+                // Val's rack point hung 10 cm over its front sight).
+                Vector3 graspOffset = gunIdle.InverseTransformPoint(PalmOf(hand, sampler)) - sampler.RelIdle[hi].position;
                 for (int a = 0; a < traj.Length; a++)
                 {
                     Vector3 start = traj[a] + graspOffset;
@@ -2190,6 +2196,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool PrincipalAxis(Transform part, out Vector3 axisLocal, out float elongation)
         {
+            // From the meshes shown at rest near the part, as its bounds are (PoseSampler.LocalBounds): a PKM box's belt
+            // links parked 25 m away under it turned the axis toward them. All of them when none is shown.
+            return PrincipalAxis(part, true, out axisLocal, out elongation) || PrincipalAxis(part, false, out axisLocal, out elongation);
+        }
+
+        private static bool PrincipalAxis(Transform part, bool shownNearOnly, out Vector3 axisLocal, out float elongation)
+        {
             axisLocal = Vector3.up;
             elongation = 0f;
             var points = new List<Vector3>();
@@ -2197,6 +2210,10 @@ namespace RavenfieldVR.Weapons
             {
                 Mesh m = mf.sharedMesh;
                 if (m == null || !m.isReadable || m.vertexCount == 0)
+                {
+                    continue;
+                }
+                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f))
                 {
                     continue;
                 }
@@ -3038,6 +3055,19 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Enabled and on an active branch up to the weapon root (works on prefabs outside any scene too).</summary>
+        /// <summary>Active itself and every parent up to (not counting) <paramref name="root"/>: works on prefabs outside any scene.</summary>
+        internal static bool ActiveUpTo(Transform t, Transform root)
+        {
+            for (; t != null && t != root; t = t.parent)
+            {
+                if (!t.gameObject.activeSelf)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private static bool ShownAtRest(Renderer r, Transform root)
         {
             if (!r.enabled)
@@ -3230,8 +3260,10 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                bool isRight = Regex.IsMatch(n, @"(^r\b|\br$|right|\bhand r\b|hand r$|^r hand)") || n.EndsWith(" r");
-                bool isLeft = Regex.IsMatch(n, @"(^l\b|\bl$|left|\bhand l\b|hand l$|^l hand)") || n.EndsWith(" l");
+                // The side as a word of its own anywhere in the name ('Bip01 R Hand', 'ValveBiped.Bip01_R_Hand', 'Hand_R'),
+                // spelt out, or run into the word hand ('RHand', 'HandL'): a 3ds Max biped's hands were missed.
+                bool isRight = Regex.IsMatch(n, @"(\br\b|right|\brhand\b|\bhandr\b)");
+                bool isLeft = Regex.IsMatch(n, @"(\bl\b|left|\blhand\b|\bhandl\b)");
                 if (right ? !isRight : !isLeft)
                 {
                     continue;

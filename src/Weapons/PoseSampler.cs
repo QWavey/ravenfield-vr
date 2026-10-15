@@ -518,7 +518,9 @@ namespace RavenfieldVR.Weapons
                 Transform t = _live[i];
                 _idle[i] = new RigidPose(inv * (t.position - _liveRoot.position), inv * t.rotation);
                 _idleLocalPos[i] = t.localPosition;
-                _idleVisible[i] = t.gameObject.activeInHierarchy;
+                // Not activeInHierarchy: a prefab outside any scene (the warm-up analyses those) reads false everywhere,
+                // and every part counted as hidden at rest for the whole session.
+                _idleVisible[i] = WeaponAnalyzer.ActiveUpTo(t, _liveRoot);
             }
             RigidPose gunInv = _idle[_gunIndex].Inverse();
             for (int i = 0; i < _live.Length; i++)
