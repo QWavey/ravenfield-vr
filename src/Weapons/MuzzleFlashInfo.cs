@@ -3,7 +3,7 @@ using UnityEngine;
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
-    /// What the game shows as a weapon's muzzle flash (Tasks2 212). On every shot the game plays the particle system on the
+    /// What the game shows as a weapon's muzzle flash (Tasks 212). On every shot the game plays the particle system on the
     /// muzzle that fired (on the muzzle itself or the first one under it: Weapon.FindMuzzleFlashParticles), and for a
     /// "loud" weapon it lights the scene for a frame (MuzzleFlashManager). A muzzle without particles shows no flash;
     /// a suppressed weapon is not loud. A mod's particle system may emit on only some shots (a burst with a probability).

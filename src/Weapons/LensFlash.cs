@@ -6,8 +6,8 @@ using UnityEngine;
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
-    /// The muzzle flash on the lens (Tasks2 209 A-C), as approved: on a shot where the weapon's own muzzle flash plays
-    /// (Tasks2 212: none for a weapon without one, a faint glint for a suppressed one), each eye gets the approved lens
+    /// The muzzle flash on the lens (Tasks 209 A-C), as approved: on a shot where the weapon's own muzzle flash plays
+    /// (Tasks 212: none for a weapon without one, a faint glint for a suppressed one), each eye gets the approved lens
     /// flash (<see cref="LensEffects"/> draws it). Everything here follows the approved simulation, flash_sim.py: the flash's
     /// centre a little ahead of the muzzle (the plume) with an uneven spread, a size varying shot to shot and a turning
     /// starburst; each eye's strength from the gun's flash size x how much the muzzle faces that eye x nearness x how much

@@ -1757,7 +1757,7 @@ namespace RavenfieldVR.Weapons
         /// magazine, held by most of its length, took the hand up into the grip).
         /// </summary>
         /// <summary>
-        /// An empty hand does not pass through the held gun or the hand holding it (Tasks2 207): its glove is drawn out of
+        /// An empty hand does not pass through the held gun or the hand holding it (Tasks 207): its glove is drawn out of
         /// them the shortest way (away from the bore first). Only the drawing: the tracked hand, and what it can grab, stay
         /// where they are. Its fingers still move freely.
         /// </summary>
@@ -1813,6 +1813,92 @@ namespace RavenfieldVR.Weapons
             float t = Mathf.Clamp01(Vector3.Dot(point - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
             // Under the bore: the handguard's centre line, a hand's half-width below the sight line.
             return a + ab * t;
+        }
+
+        /// <summary>
+        /// Autotest film (-rfvr-flashfilm): the off hand pulls the seated magazine out of the well by hand, holds it, and
+        /// pushes it back in, the way a player does: the hand a little turned and off the well's line, as a real hand is.
+        /// <paramref name="frame"/> is called on every frame (it films the close-up).
+        /// </summary>
+        internal IEnumerator ReloadFilm(System.Action<string> report, System.Action<string> frame)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
+            {
+                report("reload film: skipped (no detachable magazine by hand, or the hand is busy)");
+                yield break;
+            }
+            if (!Ammo.MagInserted)
+            {
+                TakeFromPouch(off);
+                if (off.Held is MagazineProp m0 && AcceptsNow(m0))
+                {
+                    SeatProp(off, m0);
+                }
+                yield return null;
+            }
+            if (!Ammo.MagInserted || off.Held != null)
+            {
+                report("reload film: no magazine seated");
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose palm0 = off.Palm, raw0 = off.Raw;
+            RigidPose rawFromPalm = palm0.Inverse().Multiply(raw0);
+            // Where a palm holds this magazine seated (as the hand holds one), from a stand-in made like the pulled one.
+            MagazineProp probe = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            probe.RailDepth = probe.RailLength;
+            RigidPose seated = probe.RailPose(SeatPose);
+            RigidPose holding = seated.Multiply(probe.HoldPose(off).Inverse().Multiply(palm0));
+            float railLength = probe.RailLength;
+            Vector3 insert = SeatPose.TransformDirection(probe.InsertDirLocal);
+            probe.Destroy();
+            // A real hand: 18 degrees turned about the well's line and 1.5 cm aside.
+            Vector3 aside = Vector3.Cross(insert, Rig.AimWorld).normalized;
+            RigidPose hand = new RigidPose(holding.position + aside * 0.015f, Quaternion.AngleAxis(18f, insert) * holding.rotation);
+            float outBy = railLength + 0.12f;
+            System.Func<float, RigidPose> along = d => new RigidPose(hand.position - insert * d, hand.rotation);
+            IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note)
+            {
+                float t0 = Time.unscaledTime;
+                for (float k = 0f; k < 1f; k = (Time.unscaledTime - t0) / seconds)
+                {
+                    float s = k * k * (3f - 2f * k);
+                    VRHand.Scripted[side] = pose(s).Multiply(rawFromPalm);
+                    yield return new WaitForEndOfFrame();
+                    frame(note);
+                    yield return null;
+                }
+                VRHand.Scripted[side] = pose(1f).Multiply(rawFromPalm);
+            }
+            bool pulled = false, seatedAgain = false;
+            try
+            {
+                yield return Move(s => along(0.12f * (1f - s)), 0.45f, "reaching");
+                VRInput.SimulatedGrab[side] = true;
+                yield return Move(s => along(0f), 0.15f, "grab");
+                pulled = off.Held is MagazineProp;
+                yield return Move(s => along(outBy * s), 0.8f, "pulling out");
+                yield return Move(s => along(outBy), 0.4f, "held");
+                yield return Move(s => along(outBy * (1f - s)), 0.8f, "pushing in");
+                yield return Move(s => along(-0.005f), 0.3f, "seated");
+                seatedAgain = Ammo.MagInserted;
+                VRInput.SimulatedGrab[side] = false;
+                yield return Move(s => along(0.12f * s), 0.35f, "let go");
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            if (off.Held is MagazineProp left)
+            {
+                // Not seated again: back into the pouch.
+                Ammo.ReturnSpare(left.Rounds);
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            report($"reload film: {(pulled ? "pulled out by hand" : "NOT PULLED OUT (the grab did not take it)")}, {(seatedAgain ? "seated again" : "NOT SEATED AGAIN")}");
         }
 
         /// <summary>

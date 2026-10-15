@@ -34,7 +34,13 @@ namespace RavenfieldVR.Core
         private volatile bool _stop;
 
         /// <summary>Starts filming the eyes <paramref name="last"/> (the last camera to draw them) finishes, into <paramref name="dir"/> (emptied first).</summary>
-        internal static EyeFilm Begin(Camera last, string dir)
+        internal static EyeFilm Begin(Camera last, string dir) => Begin(last, dir, false);
+
+        /// <summary>
+        /// <paramref name="mono"/>: a close-up camera of its own (rendered by the caller with Camera.Render), filmed as one
+        /// picture a frame (C-0000.png).
+        /// </summary>
+        internal static EyeFilm Begin(Camera last, string dir, bool mono)
         {
             if (Directory.Exists(dir))
             {
@@ -43,6 +49,7 @@ namespace RavenfieldVR.Core
             Directory.CreateDirectory(dir);
             EyeFilm f = last.gameObject.AddComponent<EyeFilm>();
             f._cam = last;
+            f._mono = mono;
             f._dir = dir;
             f._recording = true;
             // Below the game's threads: the PNGs take a core of their own, and the frames filmed must not be slowed by them.
@@ -56,6 +63,12 @@ namespace RavenfieldVR.Core
         internal void Note(string note)
         {
             _note = note;
+        }
+
+        /// <summary>No more frames (Finish still waits for the ones being written).</summary>
+        internal void StopRecording()
+        {
+            _recording = false;
         }
 
         /// <summary>Stops filming, waits for the last frames to be read back and written, and writes the frame log.</summary>
@@ -74,9 +87,10 @@ namespace RavenfieldVR.Core
             Destroy(this);
         }
 
-        internal int Frames => Mathf.Min(_count[0], _count[1]);
+        internal int Frames => _mono ? _count[0] : Mathf.Min(_count[0], _count[1]);
 
         private CommandBuffer _copy;
+        private bool _mono;
 
         private void OnPostRender()
         {
@@ -85,11 +99,11 @@ namespace RavenfieldVR.Core
                 return;
             }
             Camera.MonoOrStereoscopicEye e = _cam.stereoActiveEye;
-            if (e == Camera.MonoOrStereoscopicEye.Mono)
+            if (e == Camera.MonoOrStereoscopicEye.Mono != _mono)
             {
                 return;
             }
-            int eye = e == Camera.MonoOrStereoscopicEye.Left ? 0 : 1;
+            int eye = _mono || e == Camera.MonoOrStereoscopicEye.Left ? 0 : 1;
             int sw = Mathf.Max(1, _cam.pixelWidth), sh = Mathf.Max(1, _cam.pixelHeight);
             int w = Width, h = Mathf.Max(2, Mathf.RoundToInt(Width * (float)sh / sw));
             RenderTexture rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -99,9 +113,9 @@ namespace RavenfieldVR.Core
             _copy.Blit(BuiltinRenderTextureType.CurrentActive, rt);
             Graphics.ExecuteCommandBuffer(_copy);
             int n = _count[eye]++;
-            string path = Path.Combine(_dir, (eye == 0 ? "L-" : "R-") + n.ToString("0000") + ".png");
+            string path = Path.Combine(_dir, (_mono ? "C-" : eye == 0 ? "L-" : "R-") + n.ToString("0000") + ".png");
             Rig.LensEffects lens = Rig.LensEffects.Instance;
-            _frames.Append(Time.frameCount).Append('\t').Append(eye == 0 ? 'L' : 'R').Append('\t').Append(Time.unscaledTime.ToString("0.0000"))
+            _frames.Append(Time.frameCount).Append('\t').Append(_mono ? 'C' : eye == 0 ? 'L' : 'R').Append('\t').Append(Time.unscaledTime.ToString("0.0000"))
                    .Append('\t').Append(_note).Append('\t').AppendLine(lens != null ? lens.FilmState(eye) : "-");
             _pending++;
             AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, req =>

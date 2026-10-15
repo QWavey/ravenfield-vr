@@ -396,7 +396,7 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.15f);
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("water-splash-0s");
-                // Coming up out of the water (Tasks2 209 I): the approved drops, shown even with the option off.
+                // Coming up out of the water (Tasks 209 I): the approved drops, shown even with the option off.
                 Rig.LensEffects lens = Rig.LensEffects.Instance;
                 if (lens != null)
                 {
@@ -598,7 +598,7 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// An automatic held on the trigger for 1.6 s (Tasks2 209 A-C): the lens flash limiter must keep each eye within
+        /// An automatic held on the trigger for 1.6 s (Tasks 209 A-C): the lens flash limiter must keep each eye within
         /// six counted steps (three flashes) in any 1.1 s, as flash_sim.py's photosensitivity test, the rest soft flashes
         /// and the glow; the glow pictured a second in.
         /// </summary>
@@ -792,6 +792,7 @@ namespace RavenfieldVR.Core
                     Rig.VRHand.Scripted[side] = null;
                 }
                 yield return film.Finish();
+                yield return ReloadFilm(held, index, entry.name);
                 Rig.LensEffects lens = Rig.LensEffects.Instance;
                 int flashes = (LensFlash.Instance != null ? LensFlash.Instance.Shown : 0) - shown;
                 Results.Add($"film {entry.name}: {film.Frames} frames per eye in {dir}, {fired} single shot(s) fired, {flashes} lens flash(es) "
@@ -802,6 +803,77 @@ namespace RavenfieldVR.Core
                 }
                 yield return new WaitForSecondsRealtime(0.3f);
             }
+        }
+
+        /// <summary>
+        /// The reload film (with the flash film): a close-up from the gun's side at the magazine well, every frame, while the
+        /// off hand pulls the magazine out by hand and pushes it back in (ReloadInteractions.ReloadFilm).
+        /// </summary>
+        private static IEnumerator ReloadFilm(HeldWeapon held, int index, string name)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || held == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag)
+            {
+                yield break;
+            }
+            string dir = Path.Combine(Shots.Dir, $"reload-{index:000}-{Regex.Replace(name, "[^A-Za-z0-9_.-]+", "_")}");
+            var go = new GameObject("RavenfieldVR Film Camera");
+            var rt = new RenderTexture(640, 480, 24);
+            EyeFilm film = null;
+            try
+            {
+                Camera cam = go.AddComponent<Camera>();
+                cam.enabled = false;
+                rig.Suppressor.Ignore(cam);
+                cam.CopyFrom(rig.Camera);
+                cam.stereoTargetEye = StereoTargetEyeMask.None;
+                cam.cullingMask = rig.Camera.cullingMask;
+                cam.fieldOfView = 50f;
+                cam.nearClipPlane = 0.02f;
+                cam.targetTexture = rt;
+                film = EyeFilm.Begin(cam, dir, true);
+                // From the gun's left (or right, when the left is inside one of its meshes), a little below the well: the
+                // same place on the gun every frame.
+                Runtime.RigidPose g = held.GripWorld;
+                Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+                Vector3 well = held.Rig.ToWorld(held.Rig.Data.MagSeat.position);
+                Vector3 from = well - right * 0.42f - up * 0.06f;
+                if (InsideWeapon(held, from))
+                {
+                    from = well + right * 0.42f - up * 0.06f;
+                }
+                Vector3 fromGun = held.Rig.ToGun(from), wellGun = held.Rig.ToGun(well), upGun = Quaternion.Inverse(held.Rig.GunBody.rotation) * up;
+                var lines = new List<string>();
+                yield return held.Reload.ReloadFilm(lines.Add, note =>
+                {
+                    film.Note(note);
+                    Vector3 f = held.Rig.ToWorld(fromGun), w = held.Rig.ToWorld(wellGun);
+                    go.transform.SetPositionAndRotation(f, Quaternion.LookRotation(w - f - held.Rig.DirToWorld(upGun) * 0.05f, held.Rig.DirToWorld(upGun)));
+                    cam.Render();
+                });
+                Results.Add($"film {name}: {string.Join("; ", lines)}, {film.Frames} close-up frames in {dir}");
+                foreach (string l in lines)
+                {
+                    if (l.Contains("NOT"))
+                    {
+                        Problem($"[{name}] {l}");
+                    }
+                }
+            }
+            finally
+            {
+                if (film != null)
+                {
+                    film.StopRecording();
+                }
+            }
+            if (film != null)
+            {
+                yield return film.Finish();
+            }
+            UnityEngine.Object.Destroy(go);
+            rt.Release();
+            UnityEngine.Object.Destroy(rt);
         }
 
         private static IEnumerator LensBurstCheck(Weapon w, int index, string name, List<string> lines)
@@ -936,7 +1008,7 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// A still hand must hold a still weapon (Tasks2 203: RPGs shook in the hand without firing). Held 1.5 s one-handed,
+        /// A still hand must hold a still weapon (Tasks 203: RPGs shook in the hand without firing). Held 1.5 s one-handed,
         /// then with the support hand on it: the most the gun body turns and moves from one frame to the next.
         /// </summary>
         private static IEnumerator SteadyCheck(HeldWeapon held, string name, Action<string> report)
@@ -1000,7 +1072,7 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// Weight (Tasks2 208): the gun hand lifted at 1 m/s for 0.3 s and stopped. A heavier weapon lags the lift more and
+        /// Weight (Tasks 208): the gun hand lifted at 1 m/s for 0.3 s and stopped. A heavier weapon lags the lift more and
         /// swings past more after the stop; a pistol stays in the hand. Measured one-handed.
         /// </summary>
         private static IEnumerator WeightCheck(HeldWeapon held, string name, Action<string> report)

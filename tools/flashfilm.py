@@ -139,11 +139,44 @@ def film(d, summary):
                   duration=durations, loop=0, optimize=False)
 
 
+def reload_film(d, summary):
+    """A reload close-up (C-0000.png ...): a GIF two times slower and an MP4, captioned with what the hand does."""
+    name = os.path.basename(d)
+    rows = [l.split('	') for l in open(os.path.join(d, 'frames.txt'), encoding='utf-8').read().splitlines()[1:]]
+    rows = [r for r in rows if len(r) >= 4 and r[1] == 'C']
+    pics, times = [], []
+    for i, r in enumerate(rows):
+        p = os.path.join(d, f'C-{i:04d}.png')
+        if not os.path.exists(p):
+            continue
+        im = Image.open(p).convert('RGB')
+        im = im.resize((im.width * 3 // 4, im.height * 3 // 4), Image.LANCZOS)
+        out = Image.new('RGB', (im.width, im.height + 18), (20, 20, 20))
+        out.paste(im, (0, 0))
+        ImageDraw.Draw(out).text((4, im.height + 3), f'{name[7:]}   {r[3]}', fill=(255, 230, 120))
+        pics.append(out)
+        times.append(float(r[2]))
+    if len(pics) < 3:
+        summary.append(f'{name}: only {len(pics)} frame(s)')
+        return
+    durations = [max(20, int(round(2000 * (times[j + 1] - times[j])))) for j in range(len(times) - 1)] + [600]
+    pics[0].save(os.path.join(os.path.dirname(d), name + '.gif'), save_all=True, append_images=pics[1:], duration=durations, loop=0)
+    if cv2 is not None:
+        fps = (len(times) - 1) / max(1e-3, times[-1] - times[0])
+        vw = cv2.VideoWriter(os.path.join(os.path.dirname(d), name + '.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (pics[0].width, pics[0].height))
+        for p in pics:
+            vw.write(cv2.cvtColor(np.asarray(p), cv2.COLOR_RGB2BGR))
+        vw.release()
+    summary.append(f'== {name}: {len(pics)} close-up frames over {times[-1] - times[0]:.1f} s -> {name}.gif')
+
+
 def main(root):
     summary = []
     dirs = sorted(d for d in glob.glob(os.path.join(root, 'film-*')) if os.path.isdir(d))
     for d in dirs:
         film(d, summary)
+    for d in sorted(d for d in glob.glob(os.path.join(root, 'reload-*')) if os.path.isdir(d)):
+        reload_film(d, summary)
     text = '\n'.join(summary) + '\n'
     open(os.path.join(root, 'film-summary.txt'), 'w', encoding='utf-8').write(text)
     print(text)

@@ -193,7 +193,7 @@ namespace RavenfieldVR.Rig
 
         private bool _neutralPending;
 
-        // ---- view shake when shooting (Tasks2 211) -------------------------------------------------------------
+        // ---- view shake when shooting (Tasks 211) -------------------------------------------------------------
 
         private float _shakePitch, _shakeYaw, _shakeAt = -10f;
         private float _shakeBudget;

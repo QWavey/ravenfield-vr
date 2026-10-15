@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace RavenfieldVR.Rig
 {
     /// <summary>
-    /// The on-screen effects the user picked and approved (Tasks2 209), built the way the approved pictures were built:
+    /// The on-screen effects the user picked and approved (Tasks 209), built the way the approved pictures were built:
     /// each eye's picture is computed from the approved code (branch effects-source: muzzle-flash-sim/flash_sim.py
     /// <c>lens_flash</c>, <c>tone</c> and the lens mask; screen-effects/screen_effects.py F, G, <c>drop_field</c> and
     /// <c>shade_drops</c>) at the tested eye view, 300 x 250 pixels over 104 degrees, and added (see-through) to that eye on

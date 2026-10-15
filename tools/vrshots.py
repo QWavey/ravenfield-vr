@@ -249,7 +249,7 @@ def collect(game, mode, since):
     os.makedirs(dest, exist_ok=True)
     for f in glob.glob(os.path.join(src, '*.png')):
         shutil.copy2(f, dest)
-    for f in glob.glob(os.path.join(src, 'film-*')):  # the eye films (--film): a folder of frames per gun
+    for f in glob.glob(os.path.join(src, 'film-*')) + glob.glob(os.path.join(src, 'reload-*')):  # the films (--film): a folder of frames per gun
         if os.path.isdir(f):
             shutil.copytree(f, os.path.join(dest, os.path.basename(f)))
     for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),

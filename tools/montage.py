@@ -1,4 +1,4 @@
-"""montage: one fast, smooth montage of the pictures a vrshots run took, weapon by weapon (Tasks2 219).
+"""montage: one fast, smooth montage of the pictures a vrshots run took, weapon by weapon (Tasks 219).
 
   python tools/montage.py                       the full weapons run (reports/shots/weapons) -> reports/shots/montage/
   python tools/montage.py reports/shots/weapon  any other run's folder

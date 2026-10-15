@@ -575,7 +575,7 @@ namespace RavenfieldVR.Weapons
         /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
         /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
         /// </summary>
-        // ---- weight: inertia (Tasks2 208 / 204) -------------------------------------------------------
+        // ---- weight: inertia (Tasks 208 / 204) -------------------------------------------------------
 
         /// <summary>How quickly the weapon follows the hand's accelerations (rad/s; 0: at once). Heavier is slower.</summary>
         private readonly float _inertiaOmega;
@@ -887,7 +887,7 @@ namespace RavenfieldVR.Weapons
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
-            _system.Rig.ShakeView(kick * (c.loud ? 1f : 0.6f)); // a suppressed gun jolts less (Tasks2 211)
+            _system.Rig.ShakeView(kick * (c.loud ? 1f : 0.6f)); // a suppressed gun jolts less (Tasks 211)
             if (TwoHanded)
             {
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);

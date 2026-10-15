@@ -101,7 +101,7 @@ namespace RavenfieldVR.Rig
             Subscribe();
             float now = Time.unscaledTime;
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
-            // Coming up out of the water: drops on the view, as approved (Tasks2 209 I, drawn by LensEffects; optional,
+            // Coming up out of the water: drops on the view, as approved (Tasks 209 I, drawn by LensEffects; optional,
             // off by default).
             Actor me = Util.GameContext.PlayerActor;
             bool under = me != null && !me.dead && me.immersedInWater;

@@ -8,7 +8,7 @@ namespace RavenfieldVR.Rig
     /// <summary>
     /// Getting hit, the VR way. The game shows damage as a flat full-screen vignette and a rotating arrow on a screen
     /// canvas, which in the headset is a red picture hanging in front of you. In VR those are hidden; instead, as approved
-    /// (Tasks2 209 F, G; drawn by <see cref="LensEffects"/>): a red glow on the side the hit came from, in both eyes and
+    /// (Tasks 209 F, G; drawn by <see cref="LensEffects"/>): a red glow on the side the hit came from, in both eyes and
     /// stronger in the nearer one, for half a second, with a short buzz in the hand on that side; and at low health a red
     /// edge pulsing with a heartbeat while the colour drains from the view (a grey veil). All of it gone when healed.
     /// </summary>
@@ -20,7 +20,7 @@ namespace RavenfieldVR.Rig
 
         private float _lowHealth;
         private float _vignetteAt = -10f, _directionAt = -10f;
-        /// <summary>The grey veil that drains the colour from the view at low health (Tasks2 209 G).</summary>
+        /// <summary>The grey veil that drains the colour from the view at low health (Tasks 209 G).</summary>
         private readonly GameObject _veil;
         private readonly Material _veilMaterial;
         private float _beatPhase;
