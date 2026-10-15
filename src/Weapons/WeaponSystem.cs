@@ -422,6 +422,7 @@ namespace RavenfieldVR.Weapons
             if (held)
             {
                 Held.OnShot(weapon);
+                Rig.Dominant.Model?.TriggerShot();
             }
         }
 

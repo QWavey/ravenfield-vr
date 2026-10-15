@@ -1021,10 +1021,23 @@ namespace RavenfieldVR.Rig
         /// Finger targets: the tracked fingers (SteamVR skeletal curls, or trigger/grip/thumb input) always drive the
         /// pose; a held object only sets how far each finger can open, so fingers never freeze around a weapon.
         /// </summary>
+        /// <summary>
+        /// A shot was fired with this hand: the trigger finger presses visibly for a moment (a controller that reports the
+        /// trigger only as a click never moved it, and a held analogue pull showed no shot at all).
+        /// </summary>
+        public void TriggerShot() => _shotAt = Time.unscaledTime;
+
+        private float _shotAt = -1f;
+
         private float[] TargetCurls()
         {
             Hand side = _hand.Side;
             float trigger = VRInput.GetTrigger(side);
+            float sinceShot = Time.unscaledTime - _shotAt;
+            if (_hand.Role == HandRole.Weapon && sinceShot < 0.09f)
+            {
+                trigger = Mathf.Min(1f, Mathf.Max(trigger, 0.85f) + 0.15f * (1f - sinceShot / 0.09f));
+            }
             float grip = VRInput.GetGrip(side);
             if (VRInput.HasSkeleton(side))
             {
