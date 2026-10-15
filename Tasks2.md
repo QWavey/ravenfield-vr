@@ -89,7 +89,22 @@ For 208. Reported 2026-10-15: all guns are straight in the hand and do not wobbl
 
 Measure it in the autotest: the hand moved up and down at 1 m/s, giving the muzzle's lag and overshoot per class, and the climb per shot one-handed against two-handed. Done when: those numbers rise with weight, and the headset feels like Boneworks without making aiming sloppy.
 
-For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed). The user picked these on 2026-10-15 (the picture "screen_effects_v4.png"; letters as in the pictures). Dropped: D (explosion close by; the mod already throws mud on the view, task 110), E (bullets cracking past), H (barrel smoke and heat haze), J (landing vignette). To build:
+For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed, the effects alone on black). The user picked and approved these on 2026-10-15. Dropped: D (explosion close by: the mod already throws mud on the view, task 110, and the user found that near bullet hits trigger it too), E (bullets cracking past), H (barrel smoke and heat haze), J (landing vignette).
+
+Pictures (in the repo; letters as in the pictures):
+- all of them: `assets/suggestions/screen-effects/screen-effects.png` (the user's copy: `C:\Users\becker\Downloads\Claude\showcase\screen_effects_v5.png`);
+- one per effect:
+  - `A-muzzle-flash-rifle.png`;
+  - `B-muzzle-flash-pistol-close.png`;
+  - `C-flash-strength-by-gun.png`;
+  - `F-hit-from-the-right.png`;
+  - `G-low-health.png`;
+  - `I-water-drops.png` and `I-water-drops-close-up.png`;
+  - for comparison, the mud the mod shows now: `mud-on-the-view-in-the-mod-now.png`.
+
+  All of them are in the same folder.
+
+To build:
 - **A-C. Muzzle flash as a flash on the lens, see-through (additive):**
   - a white-hot core fading to orange, with a ragged edge (the gas plume seen end-on), not a flat yellow disc;
   - a short, faint starburst (the eye's own, not a camera's star filter);
@@ -102,8 +117,8 @@ For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes
   about 50 ms.
 - **F. Hit from the side:** a red glow on the side the hit came from, in both eyes (stronger in the nearer one), for
   half a second, and a short haptic on that hand.
-- **G. Low health:** as in the earlier picture. Colour drains from the view and a slow red pulse sits at the edges
-  with the heartbeat, gone when healed.
+- **G. Low health:** as in `G-low-health.png`. A slow red pulse sits at the edges with the heartbeat, and colour
+  drains from the view. All of it is gone when healed.
 - **I. Water drops** after surfacing or in heavy rain (optional, off by default), like rain on a window at night:
   - each drop catches the light as a sharp highlight and a thin bright rim (stronger on top), with light gathered
     inside at its bottom as a bright crescent;
