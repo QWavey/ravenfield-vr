@@ -8,7 +8,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - Done: 145
 - Code done, to check in the headset: 53
 - In progress: 10
-- Still to do: 21
+- Still to do: 23
 
 ### Still to do
 
@@ -33,6 +33,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 225. One eye drawn brighter than the other on Island, on some runs (user, 2026-10-15). Not reproduced: the film's standing-still check on Island has both e...
 - 227. The part under the hand does not move when racking (the test's measurement): BUNDLE O' BUSS, ARS Glock 19 / HK416 / M500 / MP9 (Bot Friendly), K13 ACO...
 - 229. Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit...
+- 230. Stabilisation when aiming through strongly magnifying scopes (snipers, ACOG M4s, scoped RPGs)
+- 231. RPGs with a scope: not reloadable, the rocket in the hand invisible
 
 ### In progress
 
@@ -377,6 +379,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 227. [ ] The part under the hand does not move when racking (the test's measurement): BUNDLE O' BUSS, ARS Glock 19 / HK416 / M500 / MP9 (Bot Friendly), K13 ACOG S
 228. [ ] More GIFs (user, 2026-10-15): the flash film as GIFs per gun (done: reports/shots/film/*-slow.gif, flash-demo.gif), and a reload GIF per gun (a close-up while the magazine is pulled out by hand and seated again; in progress)
 229. [ ] Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit slices stretched by far-off renderers, renderers switched off counted as shown, slice ends dropped by Thin, tapering parts split, fire sampling misses audio objects, override values case-sensitive and not reloaded, ArmIK palm point scaled twice (to test on a scaled rig first)
+230. [ ] Stabilisation when aiming through scopes that magnify a lot (snipers, M4s with an ACOG, RPGs with a scope, others): the magnified picture shakes with every small hand movement; steady it while aiming (user, 2026-10-15)
+231. [ ] RPGs with a scope: still not reloadable, and the rocket in the hand is still invisible (user, 2026-10-15; see 180 and 205, whose code did not fix it for these)
 
 ## Notes
 
