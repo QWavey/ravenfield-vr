@@ -50,8 +50,9 @@ Started 2026-10-15. Tasks.md is left as it is. This file has:
 206. [ ] Pulling hard away from a grip makes the hand come off it
 207. [ ] The hands have no collision with weapons
 208. [ ] Weight and force like Boneworks: guns stay rigid in one hand and do not swing when the hand moves up or down; one-handed shots should push the muzzle up more
-209. [ ] On-screen effects: pick from the suggestions (A-J, pictures) and build them
+209. [ ] On-screen effects: pick from the suggestions (A-G and I, pictures) and build them
 210. [ ] More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
+211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash)
 
 For 200. Reported 2026-10-15: a magazine touching or hitting a gun makes no sound. Checked in the code: the sound set (`MechSound` in src/Weapons/ProceduralSounds.cs) has no knock or scrape, and MagazineProp plays no sound. A held magazine is only drawn out of the gun's solid (`MagazineProp.KeepOffGun`), silently. To do: a short metal knock when a held magazine first meets the gun, louder the faster it came in, and a softer scrape while it slides along. Add a click at the magwell lip when it goes onto the rail. Use the existing procedural sound pool, rate-limited like the gun's contact knock (at most 4 a second). Done when: knocking a magazine against the receiver, the handguard and the magwell lip each sounds and buzzes the hand, and resting a magazine against the gun does not machine-gun knocks.
 
@@ -88,7 +89,7 @@ For 208. Reported 2026-10-15: all guns are straight in the hand and do not wobbl
 
 Measure it in the autotest: the hand moved up and down at 1 m/s, giving the muzzle's lag and overshoot per class, and the climb per shot one-handed against two-handed. Done when: those numbers rise with weight, and the headset feels like Boneworks without making aiming sloppy.
 
-For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed). Pick which to build:
+For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes, right-handed; v2 shows the effects alone, without the gun or props). H (barrel smoke and heat haze) and J (landing vignette) were dropped by the user on 2026-10-15; the letters of the others stay as in the pictures. Pick which to build:
 - **A.** muzzle flash at the shoulder: a warm wash on the gun side, stronger in the eye nearer the muzzle;
 - **B.** pistol close to or turned toward the face: a hot bloom and a brief lift of the image;
 - **C.** how it scales: flash size x how much the muzzle faces the eyes / distance; suppressed is almost nothing, never full white;
@@ -96,9 +97,12 @@ For 209. On-screen effects, suggested 2026-10-15 with mockup pictures (both eyes
 - **E.** bullets cracking past: darker edges, colour drains, a faint streak;
 - **F.** hit direction: a red glow on that side, both eyes, and a haptic on that hand;
 - **G.** low health: colour drains, a slow red pulse with a heartbeat;
-- **H.** barrel smoke and heat haze after long bursts (world effects at the muzzle, not on the lens);
-- **I.** water drops after surfacing or in heavy rain (optional, off by default);
-- **J.** landing hard or knocked down: a short dark vignette, never moving the camera.
+- **I.** water drops after surfacing or in heavy rain (optional, off by default). They must be realistic drops, not
+  blobs: each drop is a small wide-angle lens that shows the scene upside down and much wider than itself (sky in its
+  lower half, ground in its upper half), with a thin dark lower edge, a bright upper rim, a sharp highlight and light
+  gathered at its bottom. Some drops run down as teardrops, leaving a faint wet trail and a few droplets behind; fine
+  mist between them. They gather toward the edges, not the middle of the view, and dry within about 3 s. They are the
+  same drops in both eyes, shifted as if at one fixed depth, so the eyes never disagree.
 
 All subtle and short, each with its own setting, with VR comfort first. The flash per eye uses the muzzle's position against each eye's camera. Done when: the chosen effects show in the autotest pictures and the user signs them off in the headset.
 
@@ -115,3 +119,12 @@ For 210. More hand poses and gestures, suggested 2026-10-15 with pictures. Pick 
   - thumbs up, fist (hold), open palm (halt), two fingers, OK, beckon (follow me), finger gun, rock on.
 
 Boneworks has about 30 hand poses (counted from its modding community's extraction for task 111; no official number is published). The mod also has 30, but on an empty glove most of them look almost alike (a curled fist) and only differ once the fingers close on an object. Distinct authored shapes per grip would read better. Done when: the chosen poses show in the self-test's pose sheet and look right in the headset.
+
+For 211. Suggested by the user 2026-10-15: the view shakes a little when shooting, more or less depending on the gun (its recoil and muzzle flash). In VR, moving the view on its own (not with the head) is the main cause of motion sickness, so this has to stay tiny and short:
+- one jolt per shot, a fraction of a degree, gone within about 60 ms;
+- scaled by the gun's recoil (the same per-round kick that drives the gun's recoil spring) and its muzzle flash;
+- capped for automatic fire, so a long burst does not become a continuous wobble;
+- never a sustained sway, never a camera translation;
+- its own setting (strength, off), off or low by default.
+
+A gentler alternative to test side by side is a brief blur or scale pulse of the image instead of moving it. Done when: the autotest measures the jolt per shot for a pistol, a rifle, a shotgun and a machine gun (it rises with recoil and stays inside the caps), and the user signs it off in the headset as noticeable but not sickening.
