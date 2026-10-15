@@ -1,0 +1,40 @@
+Gun 173: BRN180 EO S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-173-BRN180_EO_S.png)
+   seen: First-person shot frame: the barrel tip (front end of the top rail, about x 690-700, y 455-470) shows no bright muzzle flash. The frame is plain rifle, grass and sky, with only a faint grey haze far off on the hill around x 700, y 320-380. The lens-eyes flare sits at this same spot, so the on-screen flare is placed correctly, but the in-world muzzle flash is not visible in the frame.
+   expected: A bright muzzle flash at the barrel tip in the shot frame (the 'Muzzle (2)' particle, 100 cm), with the lens flare on top of it.
+
+2. [major] [low] muzzle_flash_or_lens_flash_issue  (lensburst-173-BRN180_EO_S.png)
+   seen: Full-auto first-person frame: nothing bright at the barrel tip (x 690-720, y 450-470). Helicopter and dark smoke are at the top of the frame; the rifle and the left hand at lower left look normal.
+   expected: A muzzle flash glow at the barrel tip during the burst, not only the lens flare in the separate lens-eyes picture.
+
+3. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-173-BRN180_EO_S.png)
+   seen: Left and right eye halves on black: each flare is only a few pixels (about x 168 and x 466 in the 606-wide sheet, y about 142), with barely any soft rings. The right eye is only slightly brighter, which matches the 0.08 strength in the test line.
+   expected: A bright star with visible soft rings near the muzzle, the right eye a bit stronger than the left, as in the single-shot lens-eyes picture.
+
+4. [major] [low] hand_not_on_part  (rack-grip-173-BRN180_EO_S.png)
+   seen: First-person rack-grip frame and rack-grip-pulled-173-BRN180_EO_S.png are identical for the gun. The free hand's rest pose at lower left (x 540-630, y 585-690, visible in weapon-173 and lensflash-173) is gone. A grey fist-like shape sits at x 685-745, y 530-625, on the left side of the upper receiver just below the holo, in both frames. The pull is not visible from this view, and the shape cannot be matched to a charging handle.
+   expected: The left hand's fingers pinching the charging handle at the rear of the upper receiver, with the handle visibly pulled back about 52 mm in the pulled frame.
+
+5. [major] [low] hand_not_on_part  (rack-grip-173-BRN180_EO_S-left.png)
+   seen: Left close-up: the glove covers the top of the upper receiver between the holo and the rear sight block (x 445-870, y 190-530). No handle lever is visible under or beside the fingers. The fingers lie along the rail above the trigger guard, not hooked on a handle at the rear of the upper.
+   expected: Fingers clearly on the charging handle lever on the left side at the rear of the upper receiver, with the lever visible next to the fingers.
+
+6. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-173-BRN180_EO_S-right.png)
+   seen: Right close-up after the pull: a pale finger tip appears at x 780-885, y 235-340, on the right end of the black lever under the flip sight. The before frame (rack-grip-173-BRN180_EO_S-right.png) shows no finger there. The lever keeps the same spacing from the spring and receiver edge in both frames (within about 1 cm), so in this view the lever the finger is on does not visibly slide back.
+   expected: The charging handle lever sliding back along the receiver under the finger, about 52 mm, with the gun's other parts (spring, receiver) staying put.
+
+7. [minor] [low] mag_not_in_hand  (mag-4-in-hand-173-BRN180_EO_S.png)
+   seen: The fresh magazine runs off the top edge of the frame at x 290-570 and is mostly behind the palm; only its lower part shows under the fingers (x 365-480, y 430-475). Its feed end points up and to the left, not at the magwell (x 600-740, y 240). A second magazine stands at bottom centre (x 530-740, y 470-720), at the same spot as the dropped copy in mag-3-out, so two magazines are in frame. The second one is probably the dropped copy, which is expected.
+   expected: Fingers clearly wrapped around the fresh magazine body, with the feed end toward the magwell.
+
+Test line flags:
+  - muzzle flash: 'Muzzle (2)', 100 cm, every shot: not confirmed by the picture. No visible muzzle flash at the barrel tip in lensflash-173 or lensburst-173, so either the particle is not drawn at that moment or the frame was taken after it faded.
+  - lens flash shown, strength 0.08 and strongest soft flash 0.08: confirmed in lens-eyes-173 and lens-eyes-burst-173, but very faint (a few-pixel star, soft rings barely visible). The flare position matches the barrel tip.
+  - rack grip ... not measured and pulled half way ... not measured: the pictures cannot confirm finger placement on the handle. The left close-up pair (rack-grip-left vs rack-grip-pulled-left) shows the glove in the same screen spot while the holo, rear sight and right hand shift about 150 px left, which suggests the hand moved about 5 cm back relative to the gun, in line with the 52 mm figure, if the close-up camera follows the hand. The right close-up pair does not show the lever sliding, which conflicts with that.
+  - drawn: 3 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand: the left close-up supports a roughly 5 cm hand movement, but the right close-up suggests the lever under the finger does not move relative to the receiver. Needs a check of which part is the charging handle.
+  - half way in (on the rail): 0.0 cm off the magwell line: the on-line position looks right, but mag-6-half-in looks nearly as deep as the seated mag-1 (the glove hides the base), so half-way depth is not visible in the picture.
+  - in the hand: 3.4 cm from the palm: the magazine in mag-4-in-hand is mostly behind the palm, so the distance cannot be checked from the picture. It is plausible.
+  - dropped copy 0.0 cm across the pull ..., 2.8 cm out: mag-2-leaving and mag-3-out show the dropped magazine falling straight down and standing upright under the magwell. Consistent with the measurement.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7-seated-again sits at the same height and position as mag-1-seated. Consistent.

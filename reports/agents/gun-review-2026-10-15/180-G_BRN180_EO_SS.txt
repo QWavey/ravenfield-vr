@@ -1,0 +1,72 @@
+Gun 180: G BRN180 EO SS
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] mag_not_in_hand  (mag-4-in-hand-180-G_BRN180_EO_SS.png)
+   seen: Left glove is open, palm down, fingers spread flat toward the left (about x 365-830, y 190-530 of the 1280x800 frame). No magazine is closed in the fingers. A translucent magazine-shaped shell with no visible rounds stands above the knuckles (about x 320-575, from the top edge down to about y 440) and overlaps the front of the gun receiver. A thin dark line runs from the top edge down to the fingers.
+   expected: Fingers curled around a fresh magazine of the same model (rounds visible through the shell like the gun's own magazine), feed end toward the gun, held in the hand.
+
+2. [major] [high] picture_unusable  (mag-1-seated-180-G_BRN180_EO_SS.png)
+   seen: Flat olive wall and sloped ceiling with one brown wooden post. The gun, magwell, magazine and hands are not in frame. The camera seems to be inside or pressed against level geometry.
+   expected: The gun in the right hand with the magazine fully seated in the grip (only the base plate showing).
+
+3. [major] [high] picture_unusable  (mag-2-leaving-180-G_BRN180_EO_SS.png)
+   seen: Same flat olive wall, ceiling and wooden post as mag-1. No gun, magwell or magazine in frame.
+   expected: The gun with the magazine dropping straight down out of the magwell along its line.
+
+4. [major] [high] picture_unusable  (mag-3-out-180-G_BRN180_EO_SS.png)
+   seen: Same flat olive wall, ceiling and wooden post. No gun or magwell in frame, so the empty magwell cannot be checked.
+   expected: The gun with an empty magwell and no magazine left in it.
+
+5. [major] [high] picture_unusable  (mag-5-lined-up-180-G_BRN180_EO_SS.png)
+   seen: Wall with a sloped ceiling corner and a wooden post. No gun, magwell or fresh magazine in frame.
+   expected: The fresh magazine right at the magwell, on its line.
+
+6. [major] [high] picture_unusable  (mag-6-half-in-180-G_BRN180_EO_SS.png)
+   seen: Wall with a sloped ceiling corner and a wooden post. No gun, magwell or magazine in frame.
+   expected: The fresh magazine half way into the magwell on its line.
+
+7. [major] [high] picture_unusable  (mag-7-seated-again-180-G_BRN180_EO_SS.png)
+   seen: Wall with a ceiling edge and a wooden post. No gun, magwell, magazine or hand in frame.
+   expected: The fresh magazine fully seated where mag-1 had it, no second magazine, hand not inside the gun.
+
+8. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-180-G_BRN180_EO_SS-left.png)
+   seen: Left close-up with the whole rifle shifted about 150 px to the left in frame compared with rack-grip-180-G_BRN180_EO_SS-left.png (EOTech left edge about 315 to 165, magazine about 350 to 230), while the glove stays at about x 440-870, y 190-530. The black charging latch keeps the same offset from the EOTech (about 350 px) and from the magazine, so it did not visibly slide back along the receiver. The hand appears to move relative to the gun.
+   expected: The charging handle slid back about half way toward the stock (right side of frame) with the fingers on it, and the bolt and spring moving with it. The gun body stays still.
+
+9. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-180-G_BRN180_EO_SS.png)
+   seen: First-person framing with the same gun position as rack-grip-180-G_BRN180_EO_SS.png (muzzle device, sight and blue downed enemy in the same spots). No left hand and no charging handle visible, so nothing shows a pull.
+   expected: The left hand pulling the charging handle about half way back, visibly moved rearward.
+
+10. [major] [high] other  (rack-grip-180-G_BRN180_EO_SS.png)
+   seen: First-person view from the front right: gun at bottom centre with the holo sight, black muzzle device, blue downed enemy at left, smoke puffs in the sky. The left hand is not in frame at all and the charging handle is not visible.
+   expected: The free left hand pinching the charging handle before the pull, with the fingers on the part and visible in frame.
+
+11. [major] [medium] hand_not_on_part  (rack-grip-180-G_BRN180_EO_SS-left.png)
+   seen: Left-side close-up: gloved left hand lies across the top of the upper receiver in front of the charging handle, fingers pointing toward the magazine. The black charging latch (two bolt heads, about x 665-920, y 150-240) sits up and behind the knuckles; only its lower corner touches the glove. No finger visibly wraps the handle.
+   expected: Fingers pinching the charging handle at the rear of the upper receiver, not on the receiver in front of it.
+
+12. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-180-G_BRN180_EO_SS-right.png)
+   seen: Right-side close-up: one tan, glove-like fingertip touches the right end of the black charging latch; the glove is not wrapped around it. Compared with rack-grip-180-G_BRN180_EO_SS-right.png, the latch moved only about 45 px relative to the EOTech and spring, which is far less than a 52 mm pull would show at this scale.
+   expected: The latch and bolt visibly slid back about half way with the fingers wrapped on the handle.
+
+13. [major] [medium] other  (rack-grip-180-G_BRN180_EO_SS-right.png)
+   seen: Lower receiver, magwell area and the magazine render semi-transparent with rainbow fringes. The spring, the magazine rounds and a rod show through the receiver (about x 0-1280, y 560-800 and x 0-690, y 370-800). The upper receiver and EOTech are opaque.
+   expected: Opaque receiver and magazine, not a glass look, unless this is an intentional highlight.
+
+14. [minor] [low] hand_not_on_part  (rack-grip-180-G_BRN180_EO_SS-right.png)
+   seen: Left glove shows only as a small grey patch between the gold-ringed latch and the EOTech base (about x 590-700, y 240-300). No fingers are clearly on the black charging lever beside it.
+   expected: Fingers pinching the charging handle.
+
+15. [minor] [low] hand_not_on_part  (weapon-180-G_BRN180_EO_SS.png)
+   seen: First-person view: gun pointing forward and left at bottom right, holo sight and muzzle device visible. The grip and the right hand are below the bottom edge, and no hand is visible anywhere in frame.
+   expected: Right hand wrapped around the pistol grip, visible or at least the grip shown in frame.
+
+Test line flags:
+  - in the hand: 0.8 cm from the palm - confirmed by mag-4-in-hand: no magazine is closed in the fingers.
+  - magazine (deep): dropped copy 1243.2 cm away at size x0.01 - not confirmed, the mag-2 and mag-3 pictures are wall views with no gun or dropped magazine in frame.
+  - half way in (on the rail): 1242.8 cm off the magwell line - not confirmed, mag-6 is a wall view. The 12 m figure matches the dropped copy, so the half-way check is probably measuring the wrong object.
+  - seated: the gun's magazine shows 0.4 cm from where it was - not confirmed, mag-7 is a wall view. The close-ups show the gun's own magazine in front of the grip, no contradiction.
+  - rack grip and pulled half way both 'not measured' - agreed by the pictures: no frame shows fingers clearly on the charging handle.
+  - drawn: 3 parts move, most 52 mm, nearest 0.0 cm from the hand - not supported. rack-grip-pulled-left shows the charging latch at the same offset from the EOTech and magazine, and rack-grip-pulled-right shows about 45 px of shift.
+  - the gun moved 0.4 mm with the pull - consistent: the gun position in rack-grip-180 and rack-grip-pulled (centre) frames is identical.
+  - fired 3/3, recoil, impulse, cases thrown - not visible in any picture. No muzzle-flash or lens-flash picture is listed for this gun, so the flash is not checked.

@@ -1,0 +1,44 @@
+Gun 177: BRN180 S A S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-177-BRN180_S_A_S.png)
+   seen: The camera is inside a building: olive ceiling across the top, a brown vertical post left of centre, olive walls on both sides. No gun, hand or magazine is in the frame.
+   expected: The gun with the magazine fully seated in the magwell (pistol: inside the grip, only the base plate showing).
+
+2. [major] [high] picture_unusable  (mag-2-leaving-177-BRN180_S_A_S.png)
+   seen: Same wall, ceiling and brown post as mag-1. No gun, hand or magazine in the frame, so the magazine dropping out cannot be seen.
+   expected: The magazine dropping straight down out of the magwell along its line.
+
+3. [major] [high] picture_unusable  (mag-3-out-177-BRN180_S_A_S.png)
+   seen: Same wall, ceiling and brown post. The gun is not in the frame, so the empty magwell cannot be checked.
+   expected: The gun with an empty magwell: no magazine left in the gun and no second magazine.
+
+4. [major] [high] picture_unusable  (mag-5-lined-up-177-BRN180_S_A_S.png)
+   seen: Wall and ceiling again, with the ceiling edge at a different angle. No gun and no fresh magazine in the frame.
+   expected: The fresh magazine right at the magwell, on its line, with the gun visible.
+
+5. [major] [high] picture_unusable  (mag-6-half-in-177-BRN180_S_A_S.png)
+   seen: Wall, ceiling and brown post. No gun and no magazine in the frame, so the half-way insertion cannot be checked.
+   expected: The fresh magazine half way into the magwell on its line (going up into the well).
+
+6. [major] [high] picture_unusable  (mag-7-seated-again-177-BRN180_S_A_S.png)
+   seen: Wall, ceiling and brown post. No gun, hand or magazine in the frame.
+   expected: The fresh magazine fully seated where mag-1 had it, no second magazine anywhere, and the hand not inside the gun.
+
+7. [major] [low] hand_not_on_part  (rack-grip-pulled-177-BRN180_S_A_S-right.png)
+   seen: The glove's fingers stay at the same screen spot on the top rail (about x 790-885, y 235-340) as in rack-grip-177-right. The receiver, scope mount and spring rod shift about 220-270 px to the right between the two frames, but the curved rear lever moves only about 40 px on screen, so it moves relative to the receiver while the fingers stay on the rail.
+   expected: The fingers pinch the charging handle and the handle moves with the hand, with the fingers staying on it.
+
+8. [tiny] [low] other  (weapon-177-BRN180_S_A_S.png)
+   seen: The gun is cut off at the bottom edge. The right hand and the pistol grip are below the frame, so the right-hand hold cannot be checked.
+   expected: The right hand wrapped around the pistol grip, the gun pointing forward and fully in view.
+
+Test line flags:
+  - magazine (deep): dropped copy 1241.5 cm across the pull, 138.7 cm out, size x0.01 is not confirmed by any picture (mag-2 is a wall). mag-4-in-hand shows a full-size magazine in the left hand, which does not look like a 1 percent copy, so the tracked copy and the magazine on screen may be different objects.
+  - half way in (on the rail): 1241.5 cm off the magwell line repeats the dropped copy's 1241.5 cm, so the tracked copy looks stuck about 12 m away. mag-6-half-in is a wall, so no picture confirms or refutes it.
+  - in the hand: 3.4 cm from the palm is partly supported: mag-4-in-hand shows a magazine in the left hand, but its size does not match the x0.01 copy (see first flag).
+  - seated: the gun's magazine shows 0.4 cm from where it was is not checkable: mag-7-seated-again is a wall. The rack close-ups do show a magazine still in the magwell afterwards.
+  - the gun moved 0.4 mm with the pull is supported: in the first-person pair rack-grip-177 and rack-grip-pulled-177 the optic, muzzle and receiver sit at the same screen spot.
+  - nearest is 0.0 cm from the hand (charging handle) is not supported by rack-grip-pulled-177-right: the curved rear lever that shifts relative to the receiver is a few cm from the glove, and the glove stays on the top rail. The 53 mm figure cannot be checked from the pictures.
+  - rack grip and pulled half way are not measured by the test. Both left close-ups show the glove on the top of the receiver near the rear sight block, but the handle sits under the glove, so the pull cannot be read from them.
+  - The close-up frames are not from a fixed camera: in the left pair the scope, magazine and grip shift about 110-155 px while the glove stays at the same screen spot; in the right pair the receiver shifts about 220-270 px. The first-person frames show the gun itself unchanged, so this is camera or hand-relative movement, and the close-ups cannot give mm or cm values.

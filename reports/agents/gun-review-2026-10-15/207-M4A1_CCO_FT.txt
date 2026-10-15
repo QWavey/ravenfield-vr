@@ -1,0 +1,43 @@
+Gun 207: M4A1 CCO FT
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-207-M4A1_CCO_FT-right.png)
+   seen: Compared with rack-grip-207-M4A1_CCO_FT-right.png, the pale glove lying on the top rail is in exactly the same screen spot (about x 420-900, y 215-320), but the whole upper receiver moves right by roughly 180 px: the optic bell's left edge goes from about x 730 to x 910, and the rear block (x 720-860 in the rack-grip frame) moves to about x 910-1060. The background rock and dark spots do not move, so the camera did not move. The gun body slides under a hand that stays put.
+   expected: The left hand stays pinched on the charging handle and only that handle travels back about half way with the hand. The optic, receiver and muzzle stay where they are.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-207-M4A1_CCO_FT-left.png)
+   seen: The glove is unchanged compared with rack-grip-207-M4A1_CCO_FT-left.png (thumb tip at x 300, y 300; knuckles at x 520-700, y 165-250). The optic, magazine and pistol grip shift about 90-120 px to the left: the optic's left edge goes from x 130 to x 10, and the magazine from x 270-490 to x 180-390. The left-side shift is the opposite direction to the right-side shift, so the gun is moving unevenly against a still hand rather than a handle sliding back.
+   expected: Only the charging handle moves back with the hand. The magazine, pistol grip and optic stay fixed, and the glove moves with the handle.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-207-M4A1_CCO_FT-left.png)
+   seen: The left glove lies flat across the top of the upper receiver and handguard (palm over about x 480-880, y 250-530; thumb at x 300-420, y 270-330). The fingers curl down the left side of the receiver at x 330-500, y 340-500 but do not pinch anything. No charging handle is under the fingers, and the rear of the receiver by the stock (x 860-900) is bare. The right-side close-up (rack-grip-207-M4A1_CCO_FT-right.png) shows the same thing: the fingers lie flat across the rail, and the lever-like part at front-left (x 190-430, y 320-410) is not under them. The test's 0/4 fingers on the part matches the pictures.
+   expected: Thumb and fingers pinch the charging handle at the rear top of the upper receiver, not lie flat across the rail or hang in the air.
+
+4. [major] [medium] mag_duplicate_or_missing  (mag-5-lined-up-207-M4A1_CCO_FT.png)
+   seen: Nothing sits under the magwell: below the receiver rail at about x 650-800, y 160-400 there is only grass and horizon, and no left hand is in the frame. The only magazine-like object is a dark body with a yellow top lying on the ground at the bottom edge (about x 510-710, y 670-800). That is the dropped copy, not a fresh magazine lined up. The fresh magazine from mag-4 and the hand from mag-6 are both missing from this frame.
+   expected: The fresh magazine, olive like the gun's own, sits right under the magwell on its line with the left hand holding it.
+
+5. [minor] [low] mag_wrong_orientation_or_model  (mag-2-leaving-207-M4A1_CCO_FT.png)
+   seen: The released magazine is only about 25 px lower than the seated magazine in mag-1 and has moved about 30 px left. It is a dark body with a yellow top, not the olive colour of the gun's magazine in mag-1 and mag-4. Only one magazine-like object is visible, so a second magazine is not confirmed. It may be the dropped copy with a different look, or the gun's own magazine still showing. This object is the same dark, yellow-topped one that lies on the ground in mag-5.
+   expected: The gun's magazine drops straight down along the magwell line and looks like the gun's own magazine (same olive colour), leaving the magwell empty.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-207-M4A1_CCO_FT.png)
+   seen: The fresh magazine hangs from the magwell line at about x 550-790, from y 280 down to about y 700, with the glove holding its lower part. It looks almost identical to mag-7-seated-again-207-M4A1_CCO_FT.png, so I cannot see a half-inserted state. The magazine seems already fully at the magwell in this frame.
+   expected: The magazine is caught partway into the magwell on its line, visibly less far down than the fully seated magazine in mag-7.
+
+7. [tiny] [low] hand_not_on_part  (weapon-207-M4A1_CCO_FT.png)
+   seen: The gun sits at the lower right of the first-person view. The pistol grip area is cut off at the bottom edge. A pale grey shape near x 730-840, y 690-790 may be the right hand, but the wrap around the grip is not clearly visible.
+   expected: The right hand visibly wrapped around the pistol grip, with the gun pointing forward.
+
+Test line flags:
+  - rack grip 0/72 points inside the part, 0/4 fingers on it: confirmed. Both rack-grip-207-M4A1_CCO_FT-left.png and -right.png show the glove lying flat on the top rail, not pinching a handle.
+  - pulled half way 0/72 points, 0/4 fingers on it: confirmed. The glove sits in the same spot in rack-grip and rack-grip-pulled close-ups, so the hand is not on any moving handle.
+  - moving with the hand: the charging handle, and drawn: 4 parts move, most 93 mm, nearest 0.0 cm from the hand: NOT confirmed. In both pulled close-ups the glove stays put while the optic and receiver shift on screen, so the hand does not travel with the part.
+  - the gun moved 0.2 mm with the pull: contradicted (medium confidence). In the close-ups the optic, magazine and grip shift about 90-190 px against a static background and a static hand.
+  - rack-grip-207-M4A1_CCO_FT.png and rack-grip-pulled-207-M4A1_CCO_FT.png (first-person): the two frames look the same; no visible movement of the slide or handle at the top of the gun.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 8.1 cm out: not confirmable. In mag-5 the dropped copy lies on the ground well below the magwell, which looks much further than 8 cm (low confidence).
+  - the gun's own magazine STILL SHOWS after the drop: not clearly confirmed. mag-2 shows one dark, yellow-topped magazine-like object at the magwell line and no olive gun magazine, so a leftover second magazine is not clearly visible.
+  - in the hand: 3.4 cm from the palm: consistent. mag-4 shows the left glove holding a magazine low on its length, feed end up toward the gun.
+  - half way in (on the rail): 0.0 cm off the magwell line: consistent in position (mag-6 is on the magwell line), but a half-inserted state is not visibly distinct from seated.
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. mag-7 magazine spans about x 550-790, matching mag-1.
+  - fired 3/3, racked: chambered, cases thrown, recoil and impulse numbers: no pictures to check.

@@ -1,0 +1,54 @@
+Gun 184: M4A1 reddot
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-184-M4A1_reddot-left.png)
+   seen: The left glove lies flat across the top of the rear receiver and buffer area, just ahead of the stock. Its fingers hang down the side of the gun in the air and do not close on any handle, and no charging handle sits under them. The test line's 0/4 fingers on the part matches this.
+   expected: Thumb and fingers closed on the AR charging handle at the rear of the upper receiver, pinching it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-184-M4A1_reddot-right.png)
+   seen: The glove sits on the top of the upper receiver around the optic mount and the gas-block ring, with fingers spread along the bare top surface. Nothing is pinched. This is forward of the rear charging handle position.
+   expected: Fingers pinching the charging handle at the rear of the receiver.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-184-M4A1_reddot-left.png)
+   seen: Compared with rack-grip-184-M4A1_reddot-left.png (same camera, same background), the glove has not travelled back. Its thumb and fingers are at the same spots, and nothing visible moves back with it.
+   expected: The hand and its handle travel about half way back toward the stock together.
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-184-M4A1_reddot-left.png)
+   seen: The gun around the hand shifts instead. The '29+1' sign on the receiver moved about 170 px to the left, and the stock end cap and sling loop moved about 150 to 170 px toward the receiver. The stock looks shorter at the same height. The right hand on the pistol grip moved with the gun.
+   expected: Receiver, sign, stock and grip stay still; only the charging handle moves back under the fingers.
+
+5. [major] [low] wrong_part_moves  (rack-grip-pulled-184-M4A1_reddot-right.png)
+   seen: Against the unchanged ground decals and the building at top left, the whole gun body (handguard tube, barrel ring, '29+1' sign) sits roughly 250 px further right and about 40 px higher than in rack-grip-184-M4A1_reddot-right.png. The glove moved up about 50 px and does not travel with the gun. A dark ribbed cylinder appears at the far left edge that is not in the before frame and is not attached to the hand.
+   expected: Only the charging handle moves back under the fingers. Receiver and handguard stay where they were.
+
+6. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-184-M4A1_reddot.png)
+   seen: The fresh olive magazine hangs with its top about 450 px below the magwell and trigger guard, roughly 8 cm at this scale or about 2.5 magazine widths. Grass shows through the gap. It is aligned left-right with the magwell but not at it. No left hand is in the frame holding it, so it looks free-floating.
+   expected: Fresh magazine right at the magwell on its line, held by the left hand with its feed end just under the receiver.
+
+7. [minor] [low] mag_not_into_magwell  (mag-6-half-in-184-M4A1_reddot.png)
+   seen: The magazine top already sits at the underside of the receiver, in the same place as in mag-7-seated-again. The visible length below the receiver matches the seated frame. No partial insertion can be seen.
+   expected: Magazine partly up into the magwell, visibly further in than the seated position, on its line.
+
+8. [minor] [medium] picture_unusable  (mag-1-seated-184-M4A1_reddot.png)
+   seen: The player's vest fills the left and centre of the frame and covers the whole area under the magwell, so the seated magazine is not visible at all. Seated cannot be checked from this picture.
+   expected: Magazine visible below the magwell in front of the grip, or a camera angle that shows the magwell.
+
+9. [minor] [medium] picture_unusable  (mag-3-out-184-M4A1_reddot.png)
+   seen: Same framing as mag-1 and mag-2: the vest covers the magwell, so an empty magwell cannot be seen. Only the '1 NO MAG' sign on the receiver confirms the state. The dark blob beside the trunk in mag-2 is gone here.
+   expected: Empty magwell visible from a camera angle that shows it.
+
+10. [tiny] [low] other  (weapon-184-M4A1_reddot.png)
+   seen: First-person frame: the gun sits at the bottom right with its grip and rear cut off by the bottom edge. No right hand is visible on it, so the grip hold cannot be confirmed.
+   expected: Right hand wrapped around the pistol grip, gun pointing forward, nothing floating.
+
+Test line flags:
+  - rack grip '0/4 fingers on the part': confirmed by rack-grip-184-M4A1_reddot-left.png. The fingers rest on the gun body and no handle is inside them.
+  - pulled half way '0/4 fingers': consistent with rack-grip-pulled-184-M4A1_reddot-left.png, where the glove sits where it did before the pull.
+  - 'moving with the hand: an added handle (and the carrier inside)': not confirmed. No added handle is visible at the fingers in any close-up, and in the pulled pairs the gun and the hand move independently.
+  - 'drawn: 2 drawn part(s) move, most 53 mm; the nearest is 0.3 cm from the hand': not confirmed. No moving handle is visible under the hand in any frame.
+  - 'the gun moved 0.2 mm with the pull': contradicted by rack-grip-pulled-184-M4A1_reddot-right.png (gun body about 250 px shifted against a static background) and rack-grip-pulled-184-M4A1_reddot-left.png (receiver sign and stock about 170 px shifted). Recoil from the three shots could explain part of it, so this is worth checking.
+  - 'magazine seated, 30 rounds': not checkable from mag-1 because the vest hides the magwell. The '1 NO MAG' sign in mag-2 and mag-3 does change state as expected.
+  - 'magazine (deep): dropped copy ... 8.0 cm out': the fresh magazine in mag-5-lined-up-184-M4A1_reddot.png sits about 8 cm below the magwell with no hand visible, so the picture supports the offset.
+  - 'in the hand: 3.1 cm from the palm': plausible in mag-4-in-hand-184-M4A1_reddot.png, where the glove holds the magazine base. Not contradicted.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': lateral alignment looks right in mag-6, but that frame is indistinguishable from mag-7 (seated), so the depth of insertion is not confirmed.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': mag-6 and mag-7 match in position, consistent with the claim.

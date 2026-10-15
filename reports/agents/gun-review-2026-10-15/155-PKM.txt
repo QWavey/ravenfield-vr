@@ -1,0 +1,32 @@
+Gun 155: PKM
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-155-PKM.png)
+   seen: Full-auto frame, LEFT | RIGHT on black. Left eye is a faint speck at about x=165, y=155 with almost no halo (ring about 40 px across). Right eye has a bright star with rays at about x=465, y=155, a visible soft ring about 80 px across and a wide faint glow. In this frame the right eye is clearly and much brighter than the left. Matches the user's report of one lens rendered brighter than the other.
+   expected: Both eyes show the same star with soft rings at similar brightness, the right eye only a bit stronger, as in the single shot lens-eyes-155-PKM.png where the two stars look alike.
+
+2. [major] [high] hand_not_on_part  (rack-grip-155-PKM-right.png)
+   seen: Right-side close-up before the pull. The left glove lies flat across the receiver top. The cocking handle (black bar with two knobs) runs off to the left, its knob at about x=330-420, y=330-390, at the left edge of the glove. At most the leftmost fingertip touches the knob's top-right edge; the other fingers rest on the cover to the right (x=850-1045, y=250-380). The hand is not closed around the handle. The left-side close-up rack-grip-155-PKM-left.png shows the same thing: palm flat on the cover, fingers along the side, nothing pinched.
+   expected: Fingers pinch the cocking handle knob, so the handle sits under the fingers, not beside them on the cover.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-155-PKM-right.png)
+   seen: Same right-side view after the pull. The knob now sits under the thumb (x=660-800, y=330-390) and the bar runs under the palm to about x=830. The four fingers still rest on the cover beyond it (x=890-1090). The hand has barely moved on screen (about 40 px) while the handle moved about 330 px across under it, so the handle looks like it slides out from under a hand that is not carrying it. Framing of this pair is not locked to the gun, so the exact travel cannot be read from pixels.
+   expected: Fingers stay on the handle knob and travel back with it (about 67 mm per the test), so the hand drags the handle back instead of the handle sliding under a hand that pulls air.
+
+4. [tiny] [low] hand_not_on_part  (rack-grip-155-PKM.png)
+   seen: First-person frame during the rack grip. No left hand is visible. The free glove sits at about x=540-630, y=590-690 in weapon-155-PKM.png and in the lensburst and lensflash frames, but that area is empty grass here, and nothing shows on the gun top near the handle. It may be hidden behind the receiver from this camera side. rack-grip-pulled-155-PKM.png shows the same absence.
+   expected: The racking hand visible on the cocking handle (or at least still at its free position beside the gun) in the first-person view.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-155-PKM.png)
+   seen: A vertical bright band runs down the right screen edge (about x=1200-1250, y=0-510) and the horizon glows white across x=880-1280, y=380-410. The muzzle flash is at about x=650-700, y=480-540. The ghost rings sit where a mirrored flash would be, which is correct, but the right-edge band lines up with no light source in the frame.
+   expected: Flare and bloom come only from the muzzle flash, or the edge streak is an intended sun glare. Either way it should be deliberate, not a side effect.
+
+Test line flags:
+  - 'rack grip (slide/bolt, fire motion): 0/72 points inside the part, 0/4 fingers on it': confirmed by rack-grip-155-PKM-right.png. The four fingers rest on the cover beside the cocking handle, not on it. This is a real miss, not a bad measurement.
+  - 'pulled half way: 0/72 points inside the part, 0/4 fingers on it': rack-grip-pulled-155-PKM-right.png shows the thumb on the handle knob but the four fingers still beside it. Consistent with the miss, though thumb overlap makes the inside-the-part count borderline.
+  - 'moving with the hand: the slide / bolt': not supported by the pictures. The hand barely moves between the two right close-ups while the handle moves about 330 px across under it.
+  - 'the gun moved 1.0 mm with the pull, 1.5 mm when it went home': cannot be confirmed and the close-ups disagree with it. Between rack-grip-155-PKM-right.png and rack-grip-pulled-155-PKM-right.png the belt, box and orange cap shift 75-410 px on screen; the left pair shifts about 180-200 px. A 1 mm gun move cannot do that, so the close-up camera is not locked to the gun and screen positions cannot show the handle travel.
+  - 'drawn: 1 drawn part(s) move, most 67 mm; the nearest is 0.6 cm from the hand': no picture measures the 67 mm. In rack-grip-pulled-155-PKM-right.png the thumb overlaps the knob, so 0.6 cm looks too large there. Picture suggests the nearest distance is near zero.
+  - 'magazine: seated, 100 rounds, belt laid; dropped magazine picked up and seated, 99 rounds kept; magazine (deep): skipped': no picture covers any reload or belt-box step. The sheet shows 'none' for mag 1-7, so none of these claims can be checked visually.
+  - 'lens flash burst: flashes L 13 / R 13 (full L 4 / R 3)': counts look even, but lens-eyes-burst-155-PKM.png shows the right eye far brighter in that frame. The test counts flashes, not per-eye brightness, so it cannot catch the asymmetry the user reported.
+  - 'muzzle flash: every shot' and 'lens flash shown, strength 0.82': consistent with lensburst-155-PKM.png and lensflash-155-PKM.png, where the flash sits on the muzzle and casings are in flight. lens-eyes-155-PKM.png (single shot) has both eyes close with the right a bit stronger, which matches the spec.

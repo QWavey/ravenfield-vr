@@ -1,0 +1,36 @@
+Gun 204: M4A1
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] mag_not_in_hand  (mag-5-lined-up-204-M4A1.png)
+   seen: No magazine sits at the magwell: the receiver lip is at top right (about x 570-830, y 100-170) with grass and sea below it. A magazine with a yellow top sits low in the frame at bottom centre (about x 510-710, y 670-800), roughly 500 px below the magwell, and no hand is visible anywhere near it. The left hand that held a fresh magazine in mag-4-in-hand-204-M4A1.png is gone from this frame. Its base runs off the bottom edge, so it cannot be told whether it rests on the ground or is held below the frame.
+   expected: The fresh magazine held in the left hand, fingers around it, feed end up, right under the magwell on its line (the state mag-5 is meant to show).
+
+2. [major] [medium] hand_not_on_part  (rack-grip-204-M4A1-left.png)
+   seen: The left glove lies across the top of the upper receiver well forward of the rear: thumb tip at about x 300-430 y 270-330, palm over the rail at about x 330-870 y 240-530, index finger curling up over the carry-handle / rear-sight block at about x 520-640 y 145-250. No finger touches a charging handle at the rear of the upper receiver near the stock. The same finger-over-the-sight-knob placement shows in rack-grip-pulled-204-M4A1-right.png (finger at about x 600-760 y 20-300 resting on the round sight knob at x 600-730 y 210-330).
+   expected: Four fingers and the thumb on the charging handle at the rear of the upper receiver (the small lever near the stock end), not on the carry handle or the front half of the upper.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-204-M4A1-left.png)
+   seen: Compared with rack-grip-204-M4A1-left.png, the glove occupies the same screen area (about x 300-870, y 240-530) and the thumb tip is at the same spot; only the index finger rises a little higher. The hand does not travel back toward the stock (right side of frame), and no part of the upper receiver or handle visibly moves rearward. The test line claims 93 mm of handle travel, which would be obvious here, so nothing in this frame supports it.
+   expected: The glove pulled back toward the stock about half way, with the charging handle displaced rearward under the fingers (handle and hand moving together).
+
+4. [minor] [low] hand_not_on_part  (rack-grip-204-M4A1.png)
+   seen: In this wide frame (and in rack-grip-pulled-204-M4A1.png) the free left hand is not visible anywhere near the upper receiver (about x 690-870, y 440-560), even though the close-ups place the glove on top of it. In the pulled wide frame only a small protrusion near the top-rear of the receiver (about x 750-870, y 520-660) changes shape; it does not read as a handle sliding back.
+   expected: The free hand visible on the top of the upper receiver pinching the charging handle in the rack-grip frame, and the handle visibly displaced rearward in the pulled frame.
+
+5. [minor] [low] mag_not_into_magwell  (mag-6-half-in-204-M4A1.png)
+   seen: The magazine's top already sits right on the magwell lip (about x 550-790, y 290) with the same visible length below the receiver as in mag-7-seated-again-204-M4A1.png. The half-inserted step therefore looks identical to the fully seated state; no part of the magazine appears to be going up into the well.
+   expected: The magazine visibly half way up into the magwell on its line, roughly half its top hidden behind the receiver lip, with the lower body still outside.
+
+6. [tiny] [medium] other  (mag-2-leaving-204-M4A1.png)
+   seen: The left forearm and textured glove cuff (about x 0-1030, y 350-800) fill the lower two thirds of the frame, so the magazine's drop path below the lip is mostly hidden. Only a yellow top band (about x 545-760, y 300-318) and a little dark body show under the magwell.
+   expected: A clear view of the magazine dropping straight down along its line out of the magwell (the glove should not cover the drop path).
+
+Test line flags:
+  - magazine (deep) 'the gun's own magazine STILL SHOWS after the drop': not confirmed by mag-3-out-204-M4A1.png, where the magwell is empty with sea visible behind it. Only mag-2-leaving-204-M4A1.png shows the magazine mid-drop.
+  - magazine (deep) 'dropped copy 7.7 cm out': cannot be checked from these frames. mag-5-lined-up-204-M4A1.png shows a loose magazine far below the magwell, which fits a dropped copy but not a magazine lined up at the well.
+  - 0/72 points and 0/4 fingers on the part (rack grip and pulled half way): confirmed by rack-grip-204-M4A1-left.png and rack-grip-pulled-204-M4A1-left.png. The fingers rest on the top of the upper receiver forward of any charging handle.
+  - drawn: 4 parts move, most 93 mm, 'moving with the hand: the charging handle': not visible in the left close-ups (no handle visibly moves between rack-grip and rack-grip-pulled left). Not confirmed by any frame.
+  - 'the gun moved 0.2 mm with the pull': inconclusive. In rack-grip-pulled-204-M4A1-right.png the sight knob, rail mount, gas block and ejection block sit about 190-210 px further right than in rack-grip-204-M4A1-right.png, while the ground decals barely move. The two wide frames show the gun in the same place. This looks like a framing or pose change of the close-up camera rather than a gun move, but it cannot be settled from the pictures.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' and 'seated: 0.0 cm from where it was': consistent with mag-6-half-in-204-M4A1.png and mag-7-seated-again-204-M4A1.png, where the magazine sits on the same line as mag-1-seated-204-M4A1.png. The half-way frame does not visibly show partial insertion (see bug list).
+  - 'in the hand: 3.4 cm from the palm': mag-4-in-hand-204-M4A1.png shows fingertips on the magazine base; the distance cannot be checked by eye and is not contradicted.
+  - 'fired 3/3', 'cases thrown', 'racked: chambered': no firing, muzzle-flash or lens-flash pictures are listed for this gun, so the flash and chambering could not be checked here.

@@ -1,0 +1,43 @@
+Gun 146: K13 Eotech+G33
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_floating_or_offset  (mag-5-lined-up-146-K13_Eotech_G33.png)
+   seen: The fresh magazine is not at the magwell. Its top end sits at about x 535-670, y 535, while the lower receiver's magwell opening is near x 610-820, y 220-260, so the magazine hangs roughly a well-height below and left of it. It also looks about half the width of the gun's magazine in mag-1 (about 135 px vs 240 px), so it is farther from the camera than the gun and not on the magwell line. The holding glove is cut off at the bottom edge (x 490-710, y 745-800).
+   expected: Feed end right under the magwell, on the magwell line, close enough to start the insertion.
+
+2. [minor] [low] other  (mag-6-half-in-146-K13_Eotech_G33.png)
+   seen: The magazine already looks fully seated. Its top meets the receiver's bottom line at y 320-340 and its exposed body matches mag-1 and mag-7, so no half-way depth is visible. The jump from mag-5 (far below the well) to mag-6 (at the well) is abrupt.
+   expected: Magazine visibly part way up into the magwell on its line, clearly different from the fully seated frame mag-7.
+
+3. [major] [low] hand_not_on_part  (rack-grip-146-K13_Eotech_G33-left.png)
+   seen: The free glove lies flat across the top of the upper receiver. The thumb points forward and the curled fingers hang down the left side near the magwell, while the palm covers the rear of the upper. No finger is clearly wrapped around a handle. The pulled frame rack-grip-pulled-146-K13_Eotech_G33-left.png shows much the same flat pose.
+   expected: Index and middle fingers hooked around the charging handle at the rear of the upper, so the handle moves with the hand when pulled.
+
+4. [minor] [low] hand_or_finger_clipping  (rack-grip-pulled-146-K13_Eotech_G33-right.png)
+   seen: A small dark glove-like piece with yellow flecks, probably a fingertip, sits on the receiver top between the dark lever and the rear block, at about x 720-800, y 385-440. No hand is visible in the frame, so the finger looks detached or pushed into the part.
+   expected: Hand visibly gripping the handle, with no loose glove piece above the receiver.
+
+5. [minor] [medium] other  (rack-grip-146-K13_Eotech_G33-right.png)
+   seen: A hard-edged, curved, pure-black region fills the lower-left (about x 0-620, y 400-800) where the lower receiver and the ground should show. The same black wedge appears in rack-grip-pulled-146-K13_Eotech_G33-right.png. It looks like a near-clip or occluder artifact rather than gun geometry.
+   expected: Lower receiver side and ground visible in the close-up.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-146-K13_Eotech_G33.png)
+   seen: The muzzle star and rings are placed correctly at about x 660-700, y 450-495, but the bloom is far too strong. The sky and horizon wash to near-white, the centre of the frame is covered, and a bright bluish vertical band hugs the right edge (x 1200-1265, y 0-520).
+   expected: A soft star and rings at the muzzle, the scene still readable, and no bright band at the screen edge.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-146-K13 Eotech+G33.png)
+   seen: Each eye panel carries a warm brown haze that fills the panel and stops at a hard rounded-rectangle edge instead of falling off to black. The right (gun-side) flare is a bit larger and brighter, which matches the brief.
+   expected: Flare on black with a soft falloff and no haze reaching the panel edges.
+
+8. [tiny] [low] other  (lensburst-146-K13_Eotech_G33.png)
+   seen: A thin dark line runs from the top edge (x about 630) down to a distant white figure near (600-615, 365-385). A dark blurred ring smudge also sits in the upper sky. It appears in the rack and shot frames but not in weapon-146.png.
+   expected: No stray line or smudge in the first-person view unless it is a deliberate tracer.
+
+Test line flags:
+  - "half way in (on the rail): 0.0 cm off the magwell line" is not confirmed by mag-6-half-in-146-K13_Eotech_G33.png, which looks fully seated with no visible half-way depth. The lined-up step has no measurement in the test line, and mag-5-lined-up-146-K13_Eotech_G33.png shows the magazine far below and left of the well.
+  - "2/4 fingers on it" with "2/72 points inside the part" matches the flat palm in rack-grip-146-K13_Eotech_G33-left.png. The grip looks loose.
+  - "pulled half way: 5/72 points inside the part" (up from 2/72) is consistent with the glove piece sitting in the receiver top in rack-grip-pulled-146-K13_Eotech_G33-right.png.
+  - "drawn: 2 drawn part(s) move, most 60 mm" is neither clearly confirmed nor refuted. The two first-person frames rack-grip-146-K13_Eotech_G33.png and rack-grip-pulled-146-K13_Eotech_G33.png show the free glove only slightly moved, and a 60 mm travel is not clearly visible.
+  - "lens flash shown, strength 1.13" is supported: lensflash-146-K13_Eotech_G33.png is over-bright.
+  - "seated: the gun's magazine shows 0.0 cm from where it was" is confirmed: mag-7-seated-again matches mag-1-seated.
+  - "muzzle flash: particles ... every shot" is consistent: a muzzle puff and star show at the muzzle in lensflash and lensburst frames.

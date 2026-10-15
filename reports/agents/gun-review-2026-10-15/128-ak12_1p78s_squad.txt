@@ -1,0 +1,68 @@
+Gun 128: ak12 1p78s squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-128-ak12_1p78s_squad-left.png)
+   seen: The left glove lies flat over the top-left of the receiver (about x 240-880, y 240-560). The thumb and fingers point forward over the handguard into open space and the palm presses on the receiver side. No finger is wrapped around any handle, and the racking area is bare.
+   expected: Thumb and fingers pinch the racking handle (charging handle or slide), with the fingers on that part and not beside it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-128-ak12_1p78s_squad-right.png)
+   seen: The left glove shows only in the bottom-left corner (about x 0-500, y 680-800), with its fingers lying along the trigger guard. Nothing gripped in the receiver side slot where the racking part sits.
+   expected: Fingers on the racking part, pinching it from outside the receiver.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-128-ak12_1p78s_squad-left.png)
+   seen: The glove is at exactly the same pixels as in rack-grip-left (x 240-880, y 240-560), so the hand did not travel with the pull. The rifle body meanwhile slid about 160-210 px to the left (muzzle side) against the same horizon: the scope (was x 630-1160, now 420-940), the magazine (was x 280-580, now 120-430) and the pistol-grip hand all moved together. The whole rifle moves, not a handle.
+   expected: Only the racking handle moves about half way back (toward the stock). The receiver, scope and magazine stay put, and the free hand moves with the handle.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-128-ak12_1p78s_squad-right.png)
+   seen: Compared with rack-grip-right, the pale gold bar in the ejection slot is gone and a brass round with a copper tip sits in the slot (about x 930-1250, y 420-470). The gold tab at the front of the slot (x 1130-1220, y 440-525) stays where it was. No visible part slides back, and the glove has moved to the trigger guard (fingers across x 640-770, y 680-720).
+   expected: The racking handle visibly slides about half way back with the glove's fingers on it.
+
+5. [minor] [low] hand_or_finger_clipping  (rack-grip-128-ak12_1p78s_squad-right.png)
+   seen: A pale gold bar with a rounded tip (x 790-1220, y 350-525) and a dotted tan piece (x 690-880, y 365-520) sit inside the receiver's ejection-port slot. Their colour and dotted texture match the glove's fingers, so they may be fingers poking into the receiver rather than a handle.
+   expected: Fingers stay outside the receiver, pinching the racking handle from the outside.
+
+6. [major] [high] mag_duplicate_or_missing  (mag-1-seated-128-ak12_1p78s_squad.png)
+   seen: Besides the seated magazine (base at about x 460-650, y 580-690), a second dark magazine-shaped slab stands on the grass in front of it (about x 600-830, y 470-800) with no hand on it. The same slab is still present in mag-2 and in both left rack-grip frames (lower right of the magazine), and it is gone by mag-3.
+   expected: Only the one magazine in the magwell. The test says the dropped copy was already picked up and seated, so no spare magazine should be in the scene.
+
+7. [major] [medium] mag_floating_or_offset  (mag-2-leaving-128-ak12_1p78s_squad.png)
+   seen: The magazine has not dropped out of the magwell. Its top still meets the receiver underside (about x 640-830, y 190), and its base sits lower than in mag-1. The whole magazine is a flat black silhouette with none of the grey lit faces it has in mag-1, merged with the second body at about x 600-830, y 470-800. It reads as a stretched or doubled magazine.
+   expected: The magazine's top edge drops straight out of the magwell along the magazine axis, rendered like mag-1.
+
+8. [major] [medium] mag_not_into_magwell  (mag-6-half-in-128-ak12_1p78s_squad.png)
+   seen: The magazine top (with feed lip) sits at about y 225, and blue sky shows between it and the receiver underside (about y 195-205) at x 640-780. Nothing of the magazine is hidden by the receiver, so it is hanging just below the magwell rather than entering it. In mag-7 the top touches the receiver at about y 190.
+   expected: The top part of the magazine is inside the magwell on its line, about half the insertion depth, so the receiver hides that part.
+
+9. [minor] [low] mag_not_in_hand  (mag-4-in-hand-128-ak12_1p78s_squad.png)
+   seen: The left glove is open, fingers spread and pointing left (about x 300-820, y 280-520). The magazine rises up behind the palm and the fingers (about x 330-600, y 0-480), so it sits behind the hand rather than between the fingers.
+   expected: Fingers curled around the magazine body, feed end pointing up toward the gun, with the magazine clearly held in the hand.
+
+10. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-128-ak12_1p78s_squad.png)
+   seen: On this shot frame the muzzle (front sight at about x 690-720, y 470-500) is dark, with no bright burst or particle flash. The only bright colour is green, red and yellow smoke and impacts on the far wall (about x 160-580, y 370-640).
+   expected: A bright muzzle flash burst at the muzzle (the test reports 'Muzzle Flash Particles', 75 cm, every shot).
+
+11. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-128-ak12_1p78s_squad.png)
+   seen: Same as lensflash: during full-auto fire the muzzle area (about x 690-720, y 465-490) is dark. The colour is only the far smoke and impacts on the wall (about x 100-420, y 450-700).
+   expected: A visible muzzle flash at the muzzle on the burst frame.
+
+12. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-128-ak12 1p78s squad.png)
+   seen: Black with a tiny orange dot in each eye (about 3-5 px at x 166 and x 466, y 147) and rings that are barely visible (about x 110-300 and 400-590). The dot position matches the muzzle (about 55% across, 60% down). Left and right are about equal, so the right eye is not visibly stronger.
+   expected: A bright star with soft rings at the muzzle, with the right eye a bit stronger than the left.
+
+13. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-128-ak12 1p78s squad.png)
+   seen: Practically black: only two specks, at about (168,146) on the left and (468,146) on the right. No visible flash for the full-auto burst.
+   expected: A visible flash star at the muzzle on the burst, matching the test's counted 15 flashes per eye.
+
+Test line flags:
+  - rack grip '0/4 fingers on it': CONFIRMED. rack-grip-left shows the fingers lying over the receiver top, pointing forward into empty space. rack-grip-right shows the glove at the trigger guard.
+  - pulled half way '0/4 fingers on it': CONFIRMED, and the hand did not follow the pull. The glove is at identical pixels in rack-grip-left and rack-grip-pulled-left.
+  - drawn '1 drawn part moves, most 60 mm, nearest 0.0 cm from the hand': NOT CONFIRMED. No dark slide or bolt is visibly displaced by about 6 cm in the pulled frames. The only visible change is the gold bar in the slot disappearing and a brass round appearing in rack-grip-pulled-right.
+  - 'the gun moved 1.4 mm with the pull, 2.5 mm when it went home': CONTRADICTED by rack-grip-left vs rack-grip-pulled-left. The scope, magazine and pistol-grip hand shift about 160-210 px with the same horizon and the same glove position, which is several cm at this close-up scale. Either the whole rifle moves or the close-up camera framing differs between the shots.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine': PARTLY SUPPORTED. A second magazine-shaped slab sits beside the gun's magazine in mag-1, mag-2 and both left rack-grip frames, and it shifts with the rifle. It looks like a stuck extra copy, not a separate dropped magazine.
+  - 'in the hand: 3.4 cm from the palm': NOT CONFIRMED in mag-4. The fingers do not visibly wrap the magazine.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': lateral alignment cannot be judged from the picture, but mag-6 shows the magazine top 1-2 cm below the receiver with sky between, so it is not half way in. The test does not measure insertion depth.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONFIRMED. The mag-7 magazine sits where the mag-1 magazine sat.
+  - 'muzzle flash: particles Muzzle Flash Particles, 75 cm, every shot': CONTRADICTED. No muzzle flash is visible at the muzzle in lensflash or lensburst.
+  - 'lens flash shown, strength 0.06': CONFIRMED as very faint. lens-eyes shows only a tiny dot with barely visible rings.
+  - 'lens flash burst: flashes L 15 / R 15 (full L 4 / R 4)': NOT CONFIRMED. lens-eyes-burst is nearly black with two specks.
+  - 'racked: chambered': cannot be judged from these pictures. A brass round is visible in the slot in rack-grip-pulled-right, which may or may not be the chambered round.

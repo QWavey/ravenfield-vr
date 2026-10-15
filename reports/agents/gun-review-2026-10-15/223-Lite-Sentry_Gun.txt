@@ -1,0 +1,20 @@
+Gun 223: Lite-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-223-Lite-Sentry_Gun.png)
+   seen: The held item is an olive-green box with a yellow strap. It fills the bottom-right quadrant (about x 640-1020, y 540-800 of 1280x800), is very close to the camera, and is cut off by the bottom edge. No fingers or palm are visible wrapped around it. The only visible arm (blue, center-left) does not touch this box.
+   expected: The right hand wrapped around the held gun's grip, with the gun pointing forward at a readable distance and fully inside the frame, so the hand-to-part contact can be seen.
+
+2. [major] [low] hand_pose_wrong  (weapon-223-Lite-Sentry_Gun.png)
+   seen: The only visible hand is a blue arm entering from the center-left (about x 560-690, y 530-665). It grips a dark cylinder that points down-left (about x 540-640, y 580-690), and that cylinder is not attached to the olive box. The center-left side is where the free left hand should be, so either the wrong hand holds an object or the gun model is not the one in the right hand.
+   expected: Only the right hand holds the gun, wrapped around its grip. The left hand is free, as the test line states, and the held object is one single attached model.
+
+3. [minor] [low] other  (weapon-223-Lite-Sentry_Gun.png)
+   seen: The item in hand is not clearly a sentry turret. The olive box with a strap looks more like a bag or crate. The cyan translucent structure with a tripod leg reaching the grass near (410, 720) is a placement preview, not the held item.
+   expected: A Lite-Sentry Gun held in the right hand, with its model recognizable as a sentry in the first-person view.
+
+Test line flags:
+  - 'Lite-Sentry Gun: equipped' is not clearly confirmed. The picture does not show an identifiable sentry in hand, and the hand is not visibly on the olive box. The cyan structure is a placement preview, not the held gun.
+  - 'manual reload not active for this weapon' is consistent with the picture (no magazine visible), but the picture neither confirms nor refutes it.
+  - 'bag: carried without a glove' is not confirmed. The olive box with a strap may be the bag, but the picture does not show the hand on it, so whether a glove is shown cannot be checked.
+  - 'throwable without a pin' is not confirmed or refuted. No grenade is visible in this picture.

@@ -1,0 +1,30 @@
+Gun 205: M4A1 ACOG
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-205-M4A1_ACOG-right.png)
+   seen: The gloved left hand lies on top of the upper receiver rail. The fingertips rest on the rail just above and to the right of the grey charging-handle lever (the lever sits at about x 190-430, y 300-410). The lever is not gripped; no finger wraps it. In rack-grip-205-M4A1_ACOG-left.png the glove also sits forward over the handguard / front of the magwell area, thumb out to the left at about x 300-500, y 270-330, with the fingers over the rail rather than around the handle.
+   expected: Fingers wrapped around the charging handle lever on the receiver's side, so the hand covers the part it racks.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-205-M4A1_ACOG-right.png)
+   seen: Compared with rack-grip-205-M4A1_ACOG-right.png, the charging lever and the glove fingertip stay in the same place in frame, but the upper receiver moves about 190 px toward the stock (screen right). The start of the top rail goes from about x 330 to x 520, the dark rear block from x 740-890 to x 930-1090, the yellow piece from x 900 to x 1100, and the barrel rings shift the same way. The receiver slides back under a still handle, so the wrong part moves.
+   expected: The charging lever slides back about 9 cm with the fingers still on it, while the upper receiver stays fixed.
+
+3. [major] [low] hand_not_on_part  (rack-grip-pulled-205-M4A1_ACOG-left.png)
+   seen: The glove stays in the same frame position as in rack-grip-205-M4A1_ACOG-left.png (thumb tip about x 300, y 300), while the ACOG, magazine and pistol grip sit roughly 70-120 px further left. That is the opposite direction from the right-side shot. Either this close-up is misread or the gun body moved toward the muzzle while the hand stayed still.
+   expected: The hand travels back with the charging handle (screen right, toward the stock) while the receiver stays still. The left and right close-ups should agree on direction.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-205-M4A1_ACOG.png)
+   seen: The fresh magazine (black, yellow follower on top, feed end up) sits low in the frame at about x 510-710, y 665-800, on the grass. It is well below and left of the magwell, which is just in front of the pistol grip under the receiver (about x 830-930, y 150-200). No hand is visible holding it. It looks like it lies on or hangs in the grass, not held under the well. It may be the dropped copy (test: 8.4 cm out), which would mean the fresh magazine is out of frame.
+   expected: The fresh magazine held by the left hand directly under the magwell, on the magwell's vertical line, feed end up, a few cm below the well.
+
+Test line flags:
+  - rack grip 0/4 fingers on the part: CONFIRMED by rack-grip-205-M4A1_ACOG-right.png. The fingertips rest on the rail beside the lever, not on it.
+  - pulled half way 0/4 fingers on the part: consistent with rack-grip-pulled-205-M4A1_ACOG-right.png. The fingertip stays still while the receiver slides under it.
+  - moving with the hand: the charging handle: NOT CONFIRMED, contradicted by rack-grip-pulled-205-M4A1_ACOG-right.png. The lever stays still in frame while the receiver's top parts move, so the moving part is the receiver, not the handle.
+  - drawn: 4 drawn part(s) move, most 93 mm; nearest 0.0 cm from the hand: the picture supports receiver parts moving, with the top rail's start sliding under the fingertip. The moving parts are the wrong ones (see the pulled-right bug).
+  - the gun moved 0.2 mm with the pull: consistent with the first-person frames (weapon-205-M4A1_ACOG.png vs rack-grip-pulled-205-M4A1_ACOG.png), where the gun body and ACOG sit in the same frame place. The movement is inside the gun body, not the gun root.
+  - magazine: the gun's own magazine STILL SHOWS after the drop: NOT CONFIRMED. mag-3-out-205-M4A1_ACOG.png shows the magwell empty. The flag may refer to an earlier frame or be a false alarm.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 8.4 cm out: mag-2-leaving-205-M4A1_ACOG.png shows the dropped copy directly under the magwell and in line. The low magazine in mag-5 could be this same dropped copy still hanging instead of falling away, which the picture cannot settle.
+  - in the hand: 3.4 cm from the palm: mag-4-in-hand-205-M4A1_ACOG.png shows the glove gripping a magazine forward of the magwell. Consistent.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in-205-M4A1_ACOG.png shows the magazine on the magwell line at the opening. Consistent.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7-seated-again-205-M4A1_ACOG.png matches the seated position in mag-1. Consistent.

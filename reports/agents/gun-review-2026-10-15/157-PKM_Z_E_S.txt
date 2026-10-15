@@ -1,0 +1,42 @@
+Gun 157: PKM Z E S
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-157-PKM_Z_E_S-left.png)
+   seen: The gloved left hand lies flat along the top of the receiver, fingers stretched forward over the body (fingertips near x~300, y~490 of 1280x800). The orange handle (x~40-410, y~350-440) is not held: no thumb and finger close around it, the hand just covers its right end. Thumb is tucked under the receiver near (400-560, 500-550). The right-side close-up (rack-grip-157-PKM_Z_E_S-right.png) shows the same thing: fingers resting on the rail and gas block, the striped finger only touching the orange knob at its tip.
+   expected: Thumb and index finger pinch the orange charging handle (the slide/bolt) with fingers on the part, not lying across the receiver body.
+
+2. [major] [high] hand_not_on_part  (rack-grip-157-PKM_Z_E_S.png)
+   seen: First-person view: the free left hand hangs in the grass at lower-left (x~540-630, y~585-690), well below and left of the receiver and sight (receiver around x 690-800, y 500-600). Fingers point up-right but stop short of the gun. The same hand position is in the rack-grip-pulled frame and in the other first-person frames, so in first-person the hand never reaches the charging handle.
+   expected: Before the pull, the left hand reaches up to the slide/charging handle on top of the receiver and pinches it, then follows it back during the pull.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-157-PKM_Z_E_S-left.png)
+   seen: Compared with rack-grip-157-PKM_Z_E_S-left.png, the orange handle keeps the same spacing to the sight (about 65-70 px in both frames) and to the receiver, so it has not travelled rearward. The optic, orange handle, receiver and green ammo box all sit about 230 px further left on screen while the gloved hand stays put, and the fingertips no longer overlap the handle. The first-person pulled frame (rack-grip-pulled-157-PKM_Z_E_S.png) shows no change in the handle either. Caveat: the whole-gun shift does not fit the test's 1.1 mm gun movement, so the close-up camera may have moved between frames.
+   expected: The orange handle slides about 67 mm rearward along the receiver with the hand gripping it; the receiver, sight and ammo box stay still.
+
+4. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-157-PKM Z E S.png)
+   seen: Both eye tiles are essentially black. Only two pinpoint specks are visible, one at about x 163 (left eye) and one at about x 465 (right eye, y ~150 of 250). No bright star, no soft rings, no halo. The frame may be a capture problem as much as a flash problem, but the flash is effectively absent during full auto.
+   expected: A visible bright star with soft rings near the muzzle position on each eye, held through the burst, with the right eye a little stronger.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-157-PKM Z E S.png)
+   seen: Single-shot flash is very dim: a small star about 4 px with a faint halo at roughly 53% across and 62% down on each eye tile (left at x~160, right at x~465). The right eye is a little brighter with a wider halo, which is the intended side bias, but both are hard to read on black.
+   expected: A clearly bright star with soft rings at the muzzle, readable on black, right eye a bit stronger.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-157-PKM_Z_E_S.png)
+   seen: The muzzle flash is a pale grey smoke puff (about x 650-700, y 455-510) with no bright core. It sits above and slightly beyond the dark muzzle end (around x 680-720, y 540-600). The same grey puff appears in lensburst.
+   expected: A bright yellow-white flash burst right at the muzzle end, on the bore line.
+
+7. [minor] [low] optic_or_sight_issue  (weapon-157-PKM_Z_E_S.png)
+   seen: A tall black sight stack stands roughly 130 px above the receiver (x~700-750, y~365-500). In rack-grip-157-PKM_Z_E_S.png and the other first-person frames the same gun shows a short red-dot style optic at y~465-530 with nothing above it. The overview sheet shows the same difference (tile 1 'weapon in hand' vs tile 2 'rack grip'). The sight's shape or height differs between frames.
+   expected: The optic sits on the rail at one consistent height and shape in every frame of this gun.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 0/4 fingers on it -> confirmed. Both left and right close-ups show fingers lying across the receiver top rather than wrapped around the orange handle, and the first-person frame shows the free hand in the grass.
+  - pulled half way: 0/72 points inside the part, 0/4 fingers on it -> confirmed for the same reason (rack-grip-pulled-157-PKM_Z_E_S-left.png and -right.png).
+  - moving with the hand: the slide / bolt -> not confirmed. The orange handle keeps its spacing to the sight and receiver in the pulled left close-up and does not visibly move in the first-person pulled frame.
+  - drawn: 1 drawn part(s) move, most 67 mm -> not confirmed. No picture shows a 67 mm travel of the slide/bolt; the handle does not move relative to the receiver.
+  - the nearest is 1.3 cm from the hand -> not confirmed by the first-person frames, which show the free hand well away from the receiver. The close-ups do show the hand touching the top of the receiver, so the number may refer to a different contact point.
+  - the gun moved 1.1 mm with the pull, 1.5 mm when it went home -> unresolved. The first-person frames show no gun shift (consistent), but the two close-ups shift the whole gun body about 230 px (left cam) and 350 px (right cam) between the rest and pulled frames, which does not fit 1.1 mm. Either the close-up cameras differ between frames or the body moves.
+  - lens flash shown, strength 0.05; strongest soft flash 0.06 -> confirmed faint. The single-shot lens-eyes frame shows only a small dim star on black.
+  - lens flash burst: flashes L 14 / R 14 (full L 4 / R 4), budget 6 -> confirmed. lens-eyes-burst-157-PKM Z E S.png is nearly black with two specks, so most full-auto flashes are not visible on screen.
+  - muzzle flash: particles 'Muzzle Flash Particles', 100 cm, every shot, no flash light -> particles are present (faint grey puff at the muzzle in lensflash and lensburst), but they read as weak smoke, not a flash.
+  - cases thrown: 18 -> lensburst-157-PKM_Z_E_S.png shows two brass cases flying to the right, consistent.

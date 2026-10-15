@@ -1,0 +1,44 @@
+Gun 181: MK46 ET
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-181-MK46_ET-left.png)
+   seen: The gray glove hangs in mid-air over the receiver (roughly x 465-875, y 235-530 in the 1280x800 frame). Its lowest edge is about 40-60 px above the receiver top and roughly 500 px away from the bent charging-handle rod at the right edge (x 1155-1280, y 470-630). No finger touches any gun part.
+   expected: The left fingers pinch the charging handle at the rear right of the receiver, with the fingers on the handle and the glove wrapped around it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-181-MK46_ET-right.png)
+   seen: The glove floats above the receiver: thumb straight out to the right, index and middle fingers curled at roughly x 660-750, y 500-575, about 30-100 px above the top of the sight post (x 590-665, y 590-800). Nothing is gripped and the glove is not on any part.
+   expected: Fingers on the charging handle (or the rear part that racks the gun), gripping it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-181-MK46_ET.png)
+   seen: A dark gray glove-like blob (roughly x 700-740, y 395-440) hangs in the air just above the front sight post, not touching the gun. The rest of the left hand is not visible and no fingers are on any part.
+   expected: The left hand on the charging handle or rear part, with the fingers visible wrapped around it, next to the receiver in this first-person frame.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-181-MK46_ET-left.png)
+   seen: The glove is in the same spot as in rack-grip-181-MK46_ET-left.png, but the bent rod at the right edge has changed. It now runs as a long diagonal from about (980, 540) up to (1280, 400) instead of its short rest position. The sight post has also moved left from x 615-665 to about x 405-460, while the receiver holes stay put. The hand does not move with the part.
+   expected: The part the glove pinches slides back about halfway with the hand, the hand stays on it, and the sight and barrel stay still.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-181-MK46_ET-right.png)
+   seen: The sight post with its round aperture jumps from x 590-665 to about x 800-890, roughly 200 px. The glove stays at the same spot (x 400-850, y 260-575), so the hand pulls nothing. A dark curved lever with a rounded grip appears at the lower left (x 0-200, y 570-690) that is not in the unpulled view.
+   expected: The charging handle moves back with the fingers on it, the sight stays put, and no new part appears.
+
+6. [major] [medium] part_floating_or_detached  (rack-grip-pulled-181-MK46_ET.png)
+   seen: A tall black part rises out of the receiver top at about x 725-805, y 320-520, covering the rear sight area. The unpulled first-person frame (rack-grip-181-MK46_ET.png) shows only sky there. The left glove sits low and to the left at about x 540-610, y 580-700, lying over the blue corpse roughly 200-300 px from this part, not on it.
+   expected: The charging handle slides back along the receiver with the glove on it. No part pops out of the receiver and the rear sight stays attached.
+
+7. [minor] [low] hand_pose_wrong  (rack-grip-181-MK46_ET-left.png)
+   seen: The glove reads as a closed fist or block seen face-on, with no visible thumb or fingers wrapping anything. Its lower edge is ragged (x 465-560, y 470-530), as if cut off.
+   expected: Relaxed fingers curled around the handle, with the glove edge following the fingers.
+
+8. [minor] [low] hand_not_on_part  (weapon-181-MK46_ET.png)
+   seen: No right hand is visible. The pistol grip and stock area is below the frame, so nothing in view shows the gun being held.
+   expected: The right hand wrapped around the grip, visible at the bottom of the frame, with the gun pointing forward.
+
+Test line flags:
+  - 0/72 points and 0/4 fingers on the rack grip, before and pulled: confirmed. In the left and right close-ups and the first-person frame the glove touches no gun part.
+  - THE PART UNDER THE HAND DOES NOT MOVE: consistent. The glove does not move between the before and pulled frames. The parts that do change (the bent rod at the right edge, the sight post, the black part in the first-person shot) are not under the hand.
+  - drawn: 2 drawn parts move, most 62 mm: plausible. About two parts visibly move (rod and sight post), with a shift of roughly 200 px in the close-ups. The mm scale cannot be checked from the pictures.
+  - nearest moved part is 37.3 cm from the hand: cannot confirm. The moved sight post sits within roughly 100-200 px of the glove in the right close-up, which does not obviously look like 37 cm, but depth makes screen distance unreliable.
+  - moving with the hand: a piece cut out of the receiver (and the carrier inside): contradicted. In the pulled first-person shot the part that changes (the black part) rises out of the receiver away from the hand and does not move with it.
+  - the gun moved 0.2 mm with the pull, 0.4 mm when it went home: consistent. In the before and pulled first-person frames the receiver, belt box and red-dot sight stay at the same screen spots. The mm values cannot be checked.
+  - fired 3/3, cases thrown 3: not checkable here. No lensflash or lens-eyes picture is listed for gun 181, so the muzzle flash cannot be seen for this gun.
+  - magazine (deep): skipped: consistent with a belt-fed MK46 (no magazine pictures in the brief).

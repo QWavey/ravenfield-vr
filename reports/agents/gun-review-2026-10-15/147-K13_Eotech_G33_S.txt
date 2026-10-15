@@ -1,0 +1,62 @@
+Gun 147: K13 Eotech+G33 S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-147-K13_Eotech_G33_S.png)
+   seen: First-person view. The free left hand is the same loose glove floating in the grass at about x 540-630, y 580-690, fingertips pointing up-right. Its fingertips stop roughly 60-100 px short of the upper receiver under the sight (around x 690-750, y 560-640). No fingers touch the gun.
+   expected: Left-hand fingers pinched on the charging handle or bolt at the receiver, so the hand reaches the gun.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-147-K13_Eotech_G33_S.png)
+   seen: First-person view, pulled half way. The frame matches the pre-pull rack-grip picture: the glove is at the same spot in the grass, and the sight, receiver and barrel are in the same place. No handle or slide movement and no hand travel is visible.
+   expected: The hand and the charging handle or bolt travel back together about half way, with the hand on the gun.
+
+3. [major] [medium] other  (rack-grip-147-K13_Eotech_G33_S-right.png)
+   seen: Right-side close-up. A large black area with a smooth curved edge covers the lower-left of the frame, roughly x 0-620, y 400-800 (about 40 percent of the picture). It hides the lower receiver and the trigger-side parts. No hand is visible. The same black area appears in the pulled-right picture.
+   expected: The receiver and the rack area visible. The black shape looks like a near-clip occluder or the camera sitting inside body geometry, so this close-up is partly unusable.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-147-K13_Eotech_G33_S.png)
+   seen: The gloved left hand is in front of the lower part of the fresh magazine (fingers across about x 340-560, y 290-520). The magazine runs up past the top edge of the frame and continues behind the back of the glove, so it looks like it hangs behind the hand rather than sitting between the fingers and the palm. Feed end is toward the gun.
+   expected: The magazine held in the palm with the fingers wrapped around it, feed end toward the gun. The test's 3.4 cm palm distance agrees with the picture.
+
+5. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-147-K13 Eotech+G33 S.png)
+   seen: Two panels on black. Left eye: one tiny dim orange dot about 6 px at roughly (170,145) in the 606x250 image, with a faint ring. Right eye: the same at roughly (468,145), very slightly brighter. Everything else is black. The flare is barely visible at normal viewing size.
+   expected: A clearly readable bright star with soft rings, right eye a bit stronger. The flare sits near the centre of each panel; the muzzle is off the bottom-right edge of the first-person shots, so its position cannot be confirmed from these pictures.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-147-K13 Eotech+G33 S.png)
+   seen: Same tiny dim orange star and faint rings at the same spots as the single-shot picture. There is no visible build-up or stronger flash across the burst, even though the test counts 16 flashes per eye in 1.6 s.
+   expected: During full auto the flash should read as a repeated bright star; here every flash looks as faint as one single shot.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-147-K13_Eotech_G33_S.png)
+   seen: First-person shot on a round. The gun looks as in the weapon picture. No bright muzzle flash anywhere on the gun, only a small grey-brown smoke puff at about x 650-720, y 420-500, above-left of the sight. The barrel end is off the bottom-right of the frame.
+   expected: A visible muzzle flash at the end of the barrel. The test line says particles only with no flash light, which fits, but the particles read as a faint grey smudge and not as a flash.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-147-K13_Eotech_G33_S.png)
+   seen: First-person frame on full auto: a faint grey smoke puff at about x 640-720, y 410-490, left of the sight. Brass casings are in the air to the right (around x 900-1260, y 470-640). No bright flash at the muzzle.
+   expected: A muzzle flash visible at the muzzle while firing full auto.
+
+9. [minor] [low] wrong_part_moves  (rack-grip-pulled-147-K13_Eotech_G33_S-left.png)
+   seen: Compared with rack-grip-147-K13_Eotech_G33_S-left.png: the glove stays at the same screen spot on the top rail, but the whole gun (EoTech, G33, magazine, grip) sits about 120-160 px further left. The charging handle cannot be seen moving and the glove does not visibly travel back. This could also be the close-up camera moving.
+   expected: Only the handle and the hand move back about half way; the receiver, sight, magazine and grip stay put relative to the camera.
+
+10. [minor] [low] wrong_part_moves  (rack-grip-pulled-147-K13_Eotech_G33_S-right.png)
+   seen: Compared with rack-grip-147-K13_Eotech_G33_S-right.png: the whole gun shifts about 300 px to the right. The G33, the dark block at about x 900-1020, y 375-490, the bright slot cylinder and the grey plate all move together. No hand is visible, so the moving part cannot be isolated.
+   expected: Only the charging handle or bolt moves; the rest of the receiver stays in the same place in the frame.
+
+11. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-147-K13_Eotech_G33_S.png)
+   seen: Fresh magazine stands upright below the receiver, top at about x 535-665, y 535. It sits roughly half a magazine width toward the muzzle (left) of the magwell line, which is around x 610-790 at the receiver bottom. The only hand visible is a grey glove sliver at the bottom edge (around x 500-700, y 745-800), so the magazine looks unsupported.
+   expected: The magazine straight under the magwell on its line, held by the glove.
+
+12. [minor] [low] mag_not_into_magwell  (mag-6-half-in-147-K13_Eotech_G33_S.png)
+   seen: The magazine top sits at the receiver bottom at the same height as in the fully seated pictures (mag-1 and mag-7). No half-way gap or lower visible length can be seen. The glove is below the magazine.
+   expected: The magazine about half its height inside the magwell, visibly lower than seated, on the magwell line.
+
+Test line flags:
+  - rack grip 2/4 fingers on the part: not supported by the pictures. The first-person rack-grip frame shows the glove off the gun in the grass. The left close-up shows the glove on the top rail, and no charging handle is visible under the fingers.
+  - pulled half way 1/4 fingers and 'moving with the hand: the slide / bolt': the pulled first-person frame matches the pre-pull frame (glove and gun in the same place), so nothing visible moves with the hand. The pictures support the pull failing to show.
+  - 'the gun moved 0.6 mm with the pull': the first-person pre/pulled pair shows no gun shift, but the left and right close-up pairs show the whole gun shifting about 120-160 px (left) and about 300 px (right) on screen, in different directions. The pictures disagree with each other and with 0.6 mm unless the close-up camera moves.
+  - 'drawn: 2 drawn part(s) move, most 60 mm': no picture shows a 60 mm handle or bolt travel. Not confirmed.
+  - 'magazine in the hand: 3.4 cm from the palm': confirmed by mag-4-in-hand. The magazine sits behind the glove, not in the palm.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in cannot show the half-way state (it looks seated). Not confirmed.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent with mag-1-seated versus mag-7-seated-again.
+  - 'muzzle flash: particles, no flash light': consistent. The lensflash and lensburst frames show only a faint grey puff and no bright flash.
+  - 'lens flash shown, strength 0.08' and 'strongest soft flash 0.09': confirmed. The lens-eyes picture is nearly black with a flash only a few px across.
+  - 'cases thrown: 20': consistent. Brass casings are visible in the air in lensburst.

@@ -1,0 +1,37 @@
+Gun 153: mg3
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-153-mg3-left.png)
+   seen: The gloved left hand (grey with yellow stripes) hangs in front of the belt feed and the lower receiver, with fingers curled around nothing at about x 340-460, y 340-530. The ring-shaped charging handle on top of the receiver is at about x 990-1085, y 90-140, roughly 500 px from any finger. No finger touches the handle.
+   expected: The fingers wrap around and pinch the ring-shaped charging handle on top of the receiver, so the hand is on that part before the pull.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-153-mg3-left.png)
+   seen: Compared with rack-grip-153-mg3-left.png, the top cover with the ring handle and the ammo belt have all shifted about 230-250 px to the left, while the wrist and back of the hand stay in the same place. The ring is now at about x 755-825, y 90-135, still far above the fingers. The only contact is the index fingertip touching the belt rounds at about x 195-200, y 270-330. The hand is not carrying the handle back.
+   expected: Only the charging handle slides back, and it has to move with the hand that is pinching it. The ammo belt and the receiver top cover stay where they are.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-153-mg3-right.png)
+   seen: The fingers curl under a curved metal loop at the bottom of the receiver, at about x 820-1060, y 555-700. A metal bracket with a hook (the most likely charging handle) sits about 150-200 px higher, at about x 735-950, y 375-440, and no finger is on it.
+   expected: The fingers pinch the charging handle bracket on the receiver, and that is the part that gets pulled back.
+
+4. [major] [medium] other  (weapon-153-mg3.png)
+   seen: A tall black rectangular block stands upright on top of the receiver at the feed end, about x 720-815, y 255-530. The belt rounds hang from its foot at about x 725-800, y 540-600. The same block is absent from rack-grip-153-mg3.png, rack-grip-pulled-153-mg3.png, lensflash-153-mg3.png and lensburst-153-mg3.png. Those frames share the same camera and background, so the block only shows in this idle frame.
+   expected: The feed tray and belt lie flat on the receiver (or the belt box sits beside it). No tall block should stand up off the receiver, and the gun should look the same in every frame.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-153-mg3.png)
+   seen: The brown glow around each star ends at a sharp rounded-rectangle border: left panel at about x 298 and y 250, right panel at about x 605. The star and rings themselves look fine, and the right eye is a bit stronger as expected.
+   expected: The glow should fade softly to black with no hard edge at the panel border.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-153-mg3.png)
+   seen: A white-blue vertical streak runs down the right edge of the view, about x 1195-1250, y 0-520. It is far from the muzzle, which sits at about x 670, y 450. It may just be sun bloom.
+   expected: The lens flash should sit at the muzzle with its soft rings. A streak at the screen edge is only fine if it comes from the sun, not from the gun.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-153-mg3-left.png. No fingertip touches the ring-shaped handle on the receiver top.
+  - pulled half way '0/72 points inside, 0/4 fingers': CONFIRMED by rack-grip-pulled-153-mg3-left.png. The fingertips rest on the belt rounds and the handle is far above them.
+  - 'moving with the hand: the slide / bolt': NOT CONFIRMED. In rack-grip-pulled-153-mg3-left.png the cover, handle and belt slide while the wrist of the hand stays put, so the moving part is not carried by the hand.
+  - 'drawn: 2 drawn part(s) move, most 75 mm': the close-up shows the top cover, the handle and the belt moving together by roughly 230-250 px, which is plausible for about 75 mm at that range. The two parts cannot be identified from the pictures. The first-person pulled frame (rack-grip-pulled-153-mg3.png) shows almost no change, so the default view does not confirm the motion.
+  - 'the nearest is 0.0 cm from the hand': consistent with the index fingertip touching the belt rounds in rack-grip-pulled-153-mg3-left.png. The nearest moving part is the belt, not the handle.
+  - 'the gun moved 0.6 mm with the pull, 0.7 mm when it went home': not contradicted. The receiver body and the background stay in place across the rack frames.
+  - 'magazine (deep): skipped (no detachable magazine)': consistent. The gun is belt-fed and the overview's magazine cells are empty.
+  - 'lens flash shown, strength 0.80' and 'flashes L 21 / R 21 (full L 4 / R 3)': consistent. lens-eyes-153-mg3.png and lens-eyes-burst-153-mg3.png show a star on both eyes with the right slightly stronger, and no black frame or one-eye-only flash.
+  - 'belt pulled too far ... hangs from the box' and the 'racked: chambered' line: not visible in the pictures, cannot verify.

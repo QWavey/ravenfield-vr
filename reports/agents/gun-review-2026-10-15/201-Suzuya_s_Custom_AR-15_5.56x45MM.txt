@@ -1,0 +1,60 @@
+Gun 201: Suzuya's Custom AR-15 5.56x45MM
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_duplicate_or_missing  (mag-5-lined-up-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: A yellow magazine lies on the ground at the bottom centre of the frame (about x 475-680, y 680-800) with a dark red stain on its top. Nothing is at the magwell: the underside of the receiver at top centre (x 560-1050, y 0-140) shows only sky and tree behind it. No left hand is in frame holding a magazine, and the magazine from mag-4 is not visible. The magazine is far below and in front of the receiver, not lined up under it.
+   expected: Fresh magazine held by the left hand directly under the magwell, on the magwell's line, feed end up.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: The fresh yellow magazine stands upright above the left glove, its base resting on the top edge of the back of the hand (around x 330-580, y 280-290). The glove is palm-down with fingers flat and pointing left, and no finger wraps around the magazine body. The magazine sits left of and in front of the magwell, not on its line.
+   expected: Fingers curled around the magazine body with the magazine gripped low in the hand, feed end toward the gun.
+
+3. [major] [high] picture_unusable  (mag-1-seated-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: Full-frame close-up of the grey glove's back with cream stripes. The camera is pressed against or inside the hand, so no gun, magwell or magazine is visible. Only a small mirrored label at the right edge is other content.
+   expected: Magazine fully seated in the magwell, with only the base showing below the receiver.
+
+4. [major] [high] picture_unusable  (mag-2-leaving-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: Same frame as mag-1: glove close-up with no magwell and no magazine visible, so the magazine dropping out along its line cannot be checked. A small mirrored label at the edge reads as NO MAG.
+   expected: Magazine visibly dropping straight down out of the magwell along its line.
+
+5. [major] [high] picture_unusable  (mag-3-out-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: Identical to mag-1 and mag-2: glove close-up. The empty magwell cannot be seen, so the magazine-out state is not verifiable.
+   expected: Receiver and empty magwell in view, with no magazine in or below the well.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-pulled-201-Suzuya_s_Custom_AR-15_5.56x45MM-right.png)
+   seen: Compared with rack-grip-right (same camera and background), the olive plate with holes and its gold end-piece have moved about 250 px to the right, but the glove stays where it was. The index fingertip now rests on the middle of the plate's top edge instead of beside the gold piece. The black tubes at top right also shift right, and the round scope lens seen in rack-grip-right appears to have left the frame, so more than the handle may be moving.
+   expected: Hand and fingers stay on the handle and move back with it, about half way back, with the hand not sliding off and nothing else moving.
+
+7. [major] [medium] other  (rack-grip-pulled-201-Suzuya_s_Custom_AR-15_5.56x45MM-left.png)
+   seen: A yellow block (carrier-like) shows through a dark cut-out in the receiver just left of the fingers, about x 215-370, y 320-480. In rack-grip-left that area is solid black receiver with no yellow showing, so a piece appears cut out of the receiver as the handle is pulled. The fingers hover above the cut and touch no handle.
+   expected: Receiver closed and intact; the handle moves back with the hand and the carrier moves inside the closed receiver.
+
+8. [major] [medium] hand_not_on_part  (rack-grip-201-Suzuya_s_Custom_AR-15_5.56x45MM-left.png)
+   seen: The left hand (cream-striped glove) is in the air in front of the receiver top. The index and middle fingers point left past the receiver with no contact, and the palm sits over the long black diagonal bar. The olive plate with holes is to the right of the fingertips and is not gripped.
+   expected: Index and middle fingers pinching the charging handle at the back of the receiver.
+
+9. [major] [medium] hand_not_on_part  (rack-grip-201-Suzuya_s_Custom_AR-15_5.56x45MM-right.png)
+   seen: Only the index fingertip touches the top edge of the olive plate next to the gold end-piece (around x 800-900, y 440-510). The other fingers and the palm lie above the plate, and nothing wraps around the handle, so the grip is not a pinch.
+   expected: Thumb and several fingers pinching the handle itself.
+
+10. [minor] [medium] other  (rack-grip-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: First-person wide shot with the same framing as weapon-201 and the pulled wide shot: the gun at centre, with the left glove low on the front of the gun at bottom right. The charging handle is too small to see, and no hand is visible on the rear of the receiver.
+   expected: A view that shows the left hand on the charging handle at the back of the receiver.
+
+11. [minor] [high] other  (rack-grip-pulled-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: Looks the same as the rack-grip wide shot and weapon-201, with the glove low on the gun at bottom right. No change is visible, so the handle pull cannot be checked from this frame.
+   expected: A frame that shows the charging handle pulled about half way back under the hand.
+
+12. [tiny] [low] mag_duplicate_or_missing  (mag-7-seated-again-201-Suzuya_s_Custom_AR-15_5.56x45MM.png)
+   seen: A dark, non-yellow block stands to the left of the yellow magazine's base (about x 490-600, y 490-720), above the glove. It could be the lower receiver or a black base plate, or a second object such as a clip; one frame cannot tell. The yellow magazine itself looks seated under the receiver lip and is held at its base by the glove.
+   expected: Only the one yellow magazine in the magwell, with nothing extra beside it.
+
+Test line flags:
+  - rack grip 0/72 points inside and 0/4 fingers on the part: confirmed by rack-grip-left (fingers in the air) and rack-grip-right (only one fingertip on the top edge).
+  - pulled half way 0/4 fingers on the part: confirmed by rack-grip-pulled-right, where the glove stays still while the plate and gold end-piece slide out from under it.
+  - moving with the hand: a piece cut out of the receiver (and the carrier inside): supported by rack-grip-pulled-left, where a yellow carrier-like block shows through a dark cut-out in the receiver.
+  - drawn: 4 parts move, most 58 mm, nearest 0.9 cm from the hand: consistent with the pictures, since the moving plate is not under the fingers. The count of 4 moving parts cannot be checked from the pictures.
+  - magazine in the hand: 3.3 cm from the palm: confirmed by mag-4-in-hand, where the magazine stands above the glove with no finger wrap.
+  - magazine (deep) dropped copy 0.0 cm across the pull, 6.6 cm out: not supported by mag-5-lined-up, which shows a yellow magazine lying on the ground far from the magwell rather than 6.6 cm out. A second magazine may have been left behind.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in shows the magazine hanging straight under the receiver with no visible sideways offset. Half-in cannot be told apart from seated in that frame.
+  - seated: the gun's magazine shows 0.0 cm from where it was: cannot be checked, because mag-1-seated is unusable (camera against the glove).

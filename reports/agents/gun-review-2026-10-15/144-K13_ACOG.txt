@@ -1,0 +1,32 @@
+Gun 144: K13 ACOG
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] mag_not_into_magwell  (mag-6-half-in-144-K13_ACOG.png)
+   seen: Same camera as mag-1 and mag-7 (foregrip and trigger guard in the same place). The fresh magazine's top edge sits at about trigger-guard height (roughly y 245 in the 1280x800 frame). In mag-1 and mag-7 the seated magazine starts at the lower receiver line (y about 320), so this magazine is about 75 px higher than fully seated. Its top is drawn over the lower receiver wall instead of being hidden by it, so it reads as pushed up in front of the magwell rather than half way in. The gloved hand holds the base low in the frame.
+   expected: Half way in: the magazine top should sit between the lined-up position and the seated line (about y 320), entering the magwell on its line, with the receiver wall hiding the part that is inside.
+
+2. [major] [medium] picture_unusable  (rack-grip-144-K13_ACOG-right.png)
+   seen: Dark close-up. The lower-left third of the frame is solid black with a curved edge, and the receiver, rail and lever are dimly lit, which looks like the camera is inside or behind body or receiver geometry. The lever and the left hand's fingers are only partly visible at the top, so it is not possible to judge whether the fingers are on the charging lever.
+   expected: A lit close-up of the left glove on the charging lever, with no black occluder and the camera outside the gun.
+
+3. [major] [medium] picture_unusable  (rack-grip-pulled-144-K13_ACOG-left.png)
+   seen: Dark close-up with the same solid black lower-left region and curved edge. The rail, the lever block and one finger are visible but dim. The frame is not usable to confirm the lever moving back under the hand.
+   expected: A lit close-up showing the lever and the hand half way back, with the camera outside the gun.
+
+4. [major] [low] hand_not_on_part  (rack-grip-144-K13_ACOG-left.png)
+   seen: Left glove close-up, unpulled, with the magazine at lower left and the right hand on the grip. The index finger runs forward along the top rail ahead of the tan charging lever, and the curled fingers hang over the front of the upper receiver near the magwell. The lever sits behind and above the knuckles, so the frame does not show fingers pinching it. The test claims 2/4 fingers on the part.
+   expected: Index and middle finger closed on the charging lever (the tan block on the rail behind the ACOG mount), with the hand's back under the rail.
+
+5. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-144-K13_ACOG-right.png)
+   seen: Pulled glove close-up, framed like rack-grip-144-K13_ACOG-left.png. The tan lever, the index finger and the magazine keep about the same spacing to the grip and to each other as in the unpulled frame. No clear rearward travel of the lever is visible, and the hand looks unmoved relative to the lever. The test says most 60 mm. Some of the shift could be camera parallax, so this is low confidence.
+   expected: Lever and hand displaced back toward the stock by about half the stroke, with the receiver and magazine fixed.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensburst-144-K13_ACOG.png)
+   seen: A straight, hard-edged pale vertical band runs down the right screen edge (x about 1215 to 1280, full height), and the sky and horizon are washed out. It is not tied to the muzzle and reads as a streak or bloom artifact.
+   expected: A soft flare at the muzzle only, fading out with no straight-edged band at the screen edge.
+
+Test line flags:
+  - "half way in (on the rail): 0.0 cm off the magwell line" is not a height check. mag-6-half-in-144-K13_ACOG.png shows the magazine about 75 px above its seated position, so the picture confirms a vertical overshoot the measurement does not catch.
+  - "rack grip: 0/72 points inside the part, 2/4 fingers on it" and "pulled half way: 2/4 fingers on it": rack-grip-144-K13_ACOG-left.png shows the fingers on the rail ahead of the lever, not pinching it. Not confirmed; the picture suggests fewer fingers on the lever.
+  - "drawn: 2 drawn part(s) move, most 60 mm; the nearest is 0.0 cm from the hand": the glove close-up pair (rack-grip-144-K13_ACOG-left.png vs rack-grip-pulled-144-K13_ACOG-right.png) does not show a 6 cm lever travel. Not confirmed by the pictures; the dark close-ups cannot be used to check it.
+  - Consistent with pictures, no bug: "magazine (deep): dropped copy 0.0 cm across the pull ... 2.8 cm out" (mag-2-leaving), "seated: 0.0 cm from where it was" (mag-7 matches mag-1), and "lens flash shown, strength 1.00" (lensflash shows the flare at the muzzle). The burst flares in lens-eyes-burst are dim and small, which matches "strongest soft flash 0.34" and is not counted as a bug. The left and right lens-eyes flares in lens-eyes-144 differ only slightly, with the gun-side right eye a bit stronger, as the brief expects.

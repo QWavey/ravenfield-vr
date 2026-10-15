@@ -1,0 +1,47 @@
+Gun 149: K13 Spectre S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-149-K13 Spectre S.png)
+   seen: Both eyes on black are almost empty. Only two tiny orange specks show, at about x 173, y 150 (left eye) and x 470, y 150 (right eye) in the 606x250 strip. The soft rings and halo that the single-shot picture shows are gone.
+   expected: A bright star at the muzzle position with soft rings on both eyes, like lens-eyes-149 (right eye a bit stronger), staying visible through the full-auto burst.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-149-K13_Spectre_S-left.png)
+   seen: The left glove rests forward on the top of the receiver. The index finger tip points forward at about x 270-500, y 270-330, and the palm covers the receiver between the scope and the magwell (about x 300-870, y 240-550). The tan charging-handle lever at the rear of the upper receiver, beside the stock (about x 820-930, y 225-270), sits at the back edge of the palm and no finger is on it.
+   expected: Thumb and fingertips pinch the charging-handle lever at the rear of the upper receiver, with the fingers on the handle itself, not on the receiver ahead of it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-149-K13_Spectre_S-left.png)
+   seen: After the pull the glove is in the same place in the frame as in rack-grip-149-left (index tip at about x 260-500, y 270-330, palm over the receiver top at about x 300-870). The fingers are still on the receiver ahead of the handle. The handle is not visibly pinched or shown moving back with the hand.
+   expected: Fingers on the handle lever, which has moved about half way back toward the stock, with the hand having moved back with it.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-149-K13_Spectre_S.png)
+   seen: On the shot frame there is no bright muzzle flash. The front of the gun (dark ring at about x 765, y 515) has only a faint olive-brown smoky smudge at about x 650-720, y 460-540. lensburst-149 shows the same dim haze at about x 690-740, y 440-540. There is no light bloom on the gun or the grass.
+   expected: A bright white-yellow muzzle flash at the gun's front, clearly visible in the first-person view (the particle is 100 cm), with a short light bloom.
+
+5. [minor] [low] mag_floating_or_offset  (mag-6-half-in-149-K13_Spectre_S.png)
+   seen: The fresh magazine is on the magwell line but sits higher than mag-7 seats it. Its top-left corner shows as a dark sliver outside the lower receiver's left edge at about x 543-556, y 240-320. In mag-7 the top meets the lip at about y 320 with no sliver, and the magazine looks tilted differently.
+   expected: The magazine part-way up into the magwell, sitting at or below the seated line, with its top edge hidden inside the lower receiver and no sliver outside the wall.
+
+6. [minor] [medium] picture_unusable  (rack-grip-149-K13_Spectre_S-right.png)
+   seen: The lower-left third of the frame (about x 0-620, y 400-800, with a round edge) is solid black. It hides the front of the receiver and handguard and any left-hand contact. The rest is readable: scope, rail, and a tan lever at about x 60-290, y 290-350.
+   expected: A full view of the receiver and the left hand from the right side. The black region looks like body or arm geometry occluding the camera.
+
+7. [minor] [medium] picture_unusable  (rack-grip-pulled-149-K13_Spectre_S-right.png)
+   seen: The same solid black lower-left region (about x 0-680, y 400-800) hides the front of the receiver where the hand works. Visible: the scope, the rail, and a lever at about x 430-620, y 280-330 with a pale glove fingertip at its left end (about x 400-500, y 255-330).
+   expected: A clear view of the receiver and the hand on the handle from the right side, with no black occluder.
+
+8. [minor] [low] mag_not_in_hand  (mag-5-lined-up-149-K13_Spectre_S.png)
+   seen: No glove is visible holding the fresh magazine, which stands upright in the grass with its yellow-topped feed end at about x 535-670, y 535. That is well below the magwell (about x 610-820, y 215-250) and a few cm to its left. Only a light grey shape at the bottom edge (about x 490-720, y 740-800) could be the glove or a shoe.
+   expected: Glove holding the magazine just under the magwell, feed end up, on the magwell line, with the fingers visible around it.
+
+Test line flags:
+  - rack grip '2/72 points inside the part, 1/4 fingers on it': CONFIRMED by rack-grip-149-K13_Spectre_S-left.png. The glove rests on the receiver ahead of the charging handle, not on it.
+  - pulled half way '4/72 points inside, 1/4 fingers': CONFIRMED by rack-grip-pulled-149-K13_Spectre_S-left.png. The glove stays on the same front area of the receiver.
+  - 'moving with the hand: the slide / bolt' and 'drawn: 2 drawn part(s) move, most 60 mm': NOT CONFIRMED. In the right-side close-ups the lever moves only about 50 px against the scope, far less than a 60 mm pull would show at this scale. Camera parallax may explain part of it.
+  - 'the gun moved 0.4 mm with the pull, 1.8 mm when it went home': consistent. The scope and receiver keep the same spacing across the rack-grip and pulled close-ups.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine, 2.8 cm out': consistent with mag-2-leaving, where the falling copy drops along the magwell line.
+  - 'in the hand: 3.4 cm from the palm': not contradicted. In mag-4 the fingers hold the magazine base with the palm beside it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': partly contradicted. In mag-6 the magazine sits higher than the seated position in mag-7, with a sliver outside the wall, so the frame is not clearly half way.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-1 and mag-7 show the magazine at the same place.
+  - 'muzzle flash ... no flash light (not loud)': CONFIRMED as too weak. lensflash and lensburst show only a dim olive smudge at the gun's front, no bright flash.
+  - 'lens flash shown, strength 0.09': the single-shot lens-eyes flare is present but faint (a small star and soft rings), consistent with the low strength.
+  - 'lens flash burst ... flashes L 13 / R 13 (full L 4 / R 4) ... budget 6, strongest soft flash 0.11': CONFIRMED. lens-eyes-burst is almost black with two pinpoint specks, so most burst shots show no visible flash.

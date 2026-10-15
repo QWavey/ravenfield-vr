@@ -1,0 +1,58 @@
+Gun 183: M4A1 acog
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-183-M4A1_acog-left.png)
+   seen: The gloved left hand lies flat along the top of the upper receiver and handguard, thumb and fingers pointing toward the muzzle (left of frame). No finger curls around any handle. The knuckles cover the rear top of the receiver, where the charging handle sits, but nothing is pinched. Buttstock starts at the right edge of the hand.
+   expected: Thumb and index/middle fingers pinched around the AR charging handle at the rear top of the receiver, fingers on the handle and not on the rail.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-183-M4A1_acog-right.png)
+   seen: The left hand rests on top of the gun with the thumb across the upper receiver near the handguard junction and the fingers lying straight along the top, reaching toward the stock end. None of the fingers is curled around a handle, and no charging handle is visible under the fingertips.
+   expected: Fingers wrapped around the charging handle (the part that racks the bolt), not resting on the top of the upper.
+
+3. [tiny] [medium] other  (rack-grip-183-M4A1_acog.png)
+   seen: First-person rack-grip view: the left hand is not in the frame at all, so the grip on the charging handle cannot be confirmed from this picture.
+   expected: Left hand visible at the rear of the receiver, pinching the charging handle.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-183-M4A1_acog-left.png)
+   seen: Compared with rack-grip-183-M4A1_acog-left.png, the hand and the background stay in the same place, but the buttstock end, the sling loop and the ACOG body are displaced about 150-170 px toward the left of the frame (the muzzle side). The hand holds nothing that moves, and no added handle is visible under the fingers.
+   expected: Only the charging handle moves rearward about half way, with the fingers on it. The stock, sight and receiver stay where they were.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-183-M4A1_acog-right.png)
+   seen: Compared with rack-grip-183-M4A1_acog-right.png, the hand and background are unchanged, but the dark stock / buffer-tube body and the receiver ring have shifted about 250 px to the right on screen. The thumb and fingers still rest on top of the gun and are not on any handle.
+   expected: Charging handle pulled back about half way with the fingers on it. The stock and receiver body do not move.
+
+6. [minor] [low] other  (rack-grip-pulled-183-M4A1_acog.png)
+   seen: First-person pulled view looks essentially identical to the rack-grip first-person view: no visible rearward motion of the receiver, handle or sight, and the left hand is not in frame.
+   expected: Charging handle visibly pulled back about half way, with the hand on it, or at least the hand visible in frame.
+
+7. [major] [high] picture_unusable  (mag-1-seated-183-M4A1_acog.png)
+   seen: The free (left) gloved hand sits right against the lens and fills the lower-left and centre of the frame (roughly x 0-850, y 290-800). The magwell and the magazine below the receiver are behind the glove, so the seated magazine cannot be checked. Only the trigger guard and the right hand on the grip are visible.
+   expected: Magazine fully inside the magwell, visible under the receiver ahead of the trigger, with the free hand moved away from the lens.
+
+8. [major] [high] picture_unusable  (mag-2-leaving-183-M4A1_acog.png)
+   seen: Same framing as mag-1: the glove still covers the magwell and the whole drop path below it. The grip label already reads '1 NO MAG', so the release registered, but no magazine is visible dropping out of the magwell.
+   expected: Magazine visibly dropping straight down out of the magwell along its line, with the glove clear of it.
+
+9. [tiny] [medium] picture_unusable  (mag-3-out-183-M4A1_acog.png)
+   seen: The glove still covers the lower magwell area. The empty magwell can only be confirmed by the grip label reading '1 NO MAG'.
+   expected: Empty magwell fully visible under the receiver, with the free hand clear of it.
+
+10. [tiny] [low] mag_floating_or_offset  (mag-5-lined-up-183-M4A1_acog.png)
+   seen: The fresh magazine sits alone at the bottom centre of the frame (about x 580-770, y 630-800), cut off by the bottom edge, roughly 460 px below the lower receiver. No hand is in view around it, so it looks unheld. Its x-position does line up with the magwell.
+   expected: Fresh magazine held by the left hand in view, feed end right at the magwell on the same vertical line.
+
+11. [minor] [medium] mag_wrong_orientation_or_model  (mag-7-seated-again-183-M4A1_acog.png)
+   seen: Compared with mag-6-half-in-183-M4A1_acog.png, the magazine in mag-7 has extra olive material at its lower-left (about x 515-575, y 470-640) where mag-6 shows grass, and its upper part (y 295-470) looks paler with a dark vertical line near x 640. The magazine looks tilted or doubled rather than one straight magazine in the well.
+   expected: One straight magazine seated in the magwell, same line as in mag-6, no extra olive shape beside it and no tilt.
+
+Test line flags:
+  - rack grip 0/4 fingers and pulled half way 0/4 fingers: CONFIRMED by rack-grip-183-M4A1_acog-left.png and -right.png. The fingers lie on top of the receiver, none curled around a handle.
+  - moving with the hand: an added handle (and the carrier inside): NOT CONFIRMED. No handle is visible under the hand in any pulled close-up. The parts that visibly shift are the stock / sight body (rack-grip-pulled-183-M4A1_acog-left.png and -right.png).
+  - drawn: 2 drawn parts move, most 53 mm, nearest 0.3 cm from the hand: consistent with the body shifts in the pulled close-ups, but the nearest moving part is the stock / receiver, not a handle under the fingers.
+  - the gun moved 0.2 mm with the pull: consistent. The first-person rack-grip and rack-grip-pulled views look the same.
+  - magazine dropped copy 8.4 cm out: NOT CONFIRMED. mag-2-leaving and mag-3-out have the left glove over the magwell and the drop path.
+  - in the hand 3.1 cm from the palm: consistent with mag-4-in-hand-183-M4A1_acog.png. The magazine is held at the fingers' edge, beside the palm.
+  - half way in (on the rail) 0.0 cm off the magwell line: CONFIRMED by mag-6-half-in-183-M4A1_acog.png. The magazine lines up with the magwell opening (about x 575-770).
+  - seated: the gun's magazine 0.0 cm from where it was: consistent with mag-6 and mag-7 (magazine top at the same spot). mag-1 itself is hidden behind the glove. mag-7 shows extra material beside the magazine (see bugs).
+  - seated 30 rounds: the grip label changes from '1 NO MAG' (mag-2 through mag-6) to a round count in mag-7: consistent.
+  - fired 3/3 and cases thrown 3: not checkable in these pictures.

@@ -1,0 +1,29 @@
+Gun 192: P220
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-192-P220-left.png)
+   seen: Compared with rack-grip-192-P220-left.png (same camera: tree, tank, ragdoll and sea sit in the same places), the left glove stays at the same screen spot (palm edge about x 465-870, fingertips about x 215-260, y 420-470). The gun body shifts about 65-70 px to the left (roughly 25-30 mm at the gun's scale): the magazine base moves from about x 565-710 to about x 485-640, and the barrel tip runs off the left edge of the frame. The slide does not come back toward the hand; rearward is to the right in this view.
+   expected: Only the slide moves rearward, about 27 mm (about 65-70 px to the right in this view), with the left hand riding on it. The frame and grip stay put, and the hand moves back with the slide.
+
+2. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-192-P220-right.png)
+   seen: Compared with rack-grip-192-P220-right.png, the slide rear serrations (about x 1130-1260, y 510-545), the rear cap (about x 1010-1060, y 445-500), the thumb on the slide (about x 620-830, y 440-560) and the glove cuff (about x 400-850, y 250-560) are at the same screen spots in both. No rearward slide travel is visible. The only change is a brass casing in the ejection port (about x 925-1000, y 455-510).
+   expected: The slide visibly slides back about 27 mm (about 80 px in this view) with the thumb on it. The frame and barrel stay put, and the hand moves with the slide.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-192-P220-left.png)
+   seen: The left hand is set high over the gun. The palm (about x 465-870, y 240-490) sits above the slide, and the fingers hang down the left side, partly below the slide's lower edge over the frame (about x 340-520, y 480-560). The slide's rear serrations only show below the glove (about x 370-410, y 455-475). Few fingers are clearly closed on the slide.
+   expected: Thumb and fingers closed on the slide's rear serrations and sides, so the fingers are on the slide itself, not on the frame or in the air.
+
+4. [minor] [medium] mag_wrong_orientation_or_model  (mag-5-lined-up-192-P220.png)
+   seen: The fresh magazine (orange feed lips at about x 610-640, y 535-565) is tilted about 15-20 degrees: its top leans left and its base swings right (about x 730-760 at the bottom edge). The grip above (about x 510-745, y 90-420) is close to vertical. The magazine sits about 110 px below the grip's bottom edge and is about 20-30 px right of the grip's centre line at its top. Some of this may be camera angle, but the grip itself is not tilted.
+   expected: The magazine straight on the magwell line, parallel to the grip, feed lips just under the magwell and ready to slide up.
+
+Test line flags:
+  - rack grip '1/4 fingers on it': rack-grip-192-P220-left.png agrees; the fingers lie partly off the slide, over the frame below it.
+  - pulled half way '2/4 fingers on it': rack-grip-pulled-192-P220-left.png shows the same finger placement as the rack-grip picture and no extra fingers on the slide. Not confirmed.
+  - 'moving with the hand: the slide / bolt' and 'drawn: most 27 mm': not confirmed. In the left pulled picture the gun body shifts left while the hand stays put; in the right pulled picture the slide sits at the same screen spots as before.
+  - 'the gun moved 0.2 mm with the pull': contradicted by rack-grip-pulled-192-P220-left.png. Against the same camera, the frame and grip shift about 65-70 px (roughly 25-30 mm at the gun's scale), which does not look like 0.2 mm.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' (mag-7-seated-again-192-P220.png): cannot be confirmed. The left palm covers the bottom of the grip where the base plate shows in mag-1, so the magazine base is not visible.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' (mag-6-half-in-192-P220.png): the magazine looks roughly centred with a slight rightward offset. The bigger misalignment is the tilt in mag-5. Not confirmed to 0.0 cm.
+  - 'in the hand: 3.5 cm from the palm' (mag-4-in-hand-192-P220.png): the magazine stands up out of the top of the fist, which is plausible. The distance cannot be measured from the picture.
+  - 'dropped copy 0.0 cm across the pull ... 5.4 cm out' (mag-2-leaving-192-P220.png): consistent. The dropped magazine sits straight below the grip on its line.
+  - 'racked: chambered' and 'fired 3/3': a brass casing is visible in the ejection port in rack-grip-pulled-192-P220-right.png, which fits a chambered or ejecting round. The shot count itself cannot be checked from pictures.

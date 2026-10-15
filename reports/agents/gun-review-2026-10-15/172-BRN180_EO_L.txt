@@ -1,0 +1,32 @@
+Gun 172: BRN180 EO L
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-172-BRN180_EO_L-left.png (compare rack-grip-172-BRN180_EO_L-left.png))
+   seen: The left glove stays at the same frame spot in both pictures (about x 445-870, y 190-530). The gun body around it shifts about 80-150 px left: optic x 310-610 becomes 160-480, magazine x 345-575 becomes 240-460, trigger guard and grip shift the same way, and the beach edge and the blue body in the background shift too. The charging latch (rest x 665-920, y 150-240) moves to x 515-775, but its gap to the optic only changes from about 55 px to about 35 px. The right close-up pair (rack-grip-172-BRN180_EO_L-right.png vs rack-grip-pulled-172-BRN180_EO_L-right.png) shows the same thing: the latch, spring, rod and optic all shift together by about 210-270 px, so the handle does not separately travel back relative to the receiver. Either the hand moved back without the handle following, or the test camera moved; in both cases the charging handle does not visibly slide back on the receiver.
+   expected: The charging handle slides rearward about half its travel (the test says 52 mm) with the hand, so its spacing from the optic and receiver visibly grows, and the fingers stay pinched on the latch as it moves.
+
+2. [major] [low] hand_not_on_part  (rack-grip-172-BRN180_EO_L-left.png)
+   seen: The left glove (about x 440-870, y 190-530) sits over the front of the upper receiver and handguard. The rear charging latch (about x 665-920, y 150-240) sits above and behind the glove's top edge; only the glove's top ridge touches the latch's lower corner, and the fingers are not closed on the latch.
+   expected: Fingers pinched on the charging latch itself (its top/rear part), not on the receiver and handguard below it.
+
+3. [minor] [low] mag_not_in_hand  (mag-4-in-hand-172-BRN180_EO_L.png)
+   seen: The glove's fingers are spread flat and point down-left (about x 330-820, y 280-530). The magazine body (about x 290-570, running off the top edge) disappears behind the palm, and the fingers do not curl around it, so the magazine looks pinned behind the hand rather than gripped.
+   expected: Fingers wrapped around the magazine body with the feed end pointing up toward the magwell.
+
+4. [tiny] [low] other  (weapon-172-BRN180_EO_L.png)
+   seen: The right hand and the pistol grip sit below the bottom edge of the frame. Only the receiver, the optic and the buttstock corner are visible, so the right-hand wrap on the grip cannot be checked in this first-person view.
+   expected: The right hand visibly wrapped around the grip in the first-person view.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-172-BRN180_EO_L.png)
+   seen: The muzzle glow is at the muzzle as expected. But a large soft ring is centred about 160 px above it (around x 560-900, y 200-400), and a bright vertical streak runs down the right screen edge (about x 1215-1280). The on-screen eye images (lens-eyes-172) put their rings concentric with the star, so these rings do not follow the muzzle flash.
+   expected: Soft rings and ghosts concentric with the muzzle flash, with nothing bright along the screen edge.
+
+Test line flags:
+  - drawn: 3 parts move, most 52 mm: NOT confirmed. In rack-grip-pulled-172-BRN180_EO_L-left.png the charging latch is almost where it was relative to the optic (gap changes about 20 px). A 52 mm pull should show as a clear shift of the latch against the optic and receiver.
+  - the gun moved 0.4 mm with the pull: not confirmable. The rest vs pulled pairs show the gun, optic, background and latch all shifting together by 80-270 px in frame while the glove stays put, so the camera or hand moved rather than the gun. That fits the 0.4 mm gun figure, but the picture cannot verify it.
+  - rack grip (fingers): not measured by the test. The pictures agree the fingers are not clearly on the latch (rack-grip-172-BRN180_EO_L-left.png). The right-side rest picture shows no finger on the latch, and one pale fingertip appears on the latch only in rack-grip-pulled-172-BRN180_EO_L-right.png.
+  - half way in (on the rail): 0.0 cm off the magwell line: consistent, since mag-6 sits on the same x line as the seated magazine. But its depth matches the seated magazine in mag-1 and mag-7 while the HUD still reads NO MAG, so mag-6 does not confirm a half-way depth.
+  - seated: the gun's magazine shows 0.0 cm from where it was: confirmed. The magazine bottoms in mag-1-seated and mag-7-seated-again line up.
+  - magazine (deep): dropped copy 2.8 cm out: consistent. mag-2-leaving shows the dropped magazine straight down its line from the seat.
+  - in the hand: 3.4 cm from the palm: cannot be measured from the picture; see the mag-4 note above.
+  - muzzle flash and lens flash (strength 0.75, burst L 21 / R 21): consistent. The muzzle glow is at the muzzle in lensflash/lensburst, and lens-eyes shows the flare at the muzzle position with rings around it, the right eye equal or slightly stronger.

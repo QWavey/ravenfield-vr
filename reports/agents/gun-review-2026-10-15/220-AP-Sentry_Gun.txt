@@ -1,0 +1,20 @@
+Gun 220: AP-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-220-AP-Sentry_Gun.png)
+   seen: The right hand is a flat blue silhouette at about x 560-680, y 530-660, lower centre. The olive-green bag with a yellow strap fills the lower right (about x 640-1020, y 545-800), roughly a quarter of the view, and its top-left corner sits just right of the fingertips at about x 660-690, y 600-660. No finger wrap, handle or contact point is visible on the bag, so it looks like it hovers in front of the camera rather than being held.
+   expected: The bag held by the right hand: fingers visibly wrapped around its grip or strap, hand on the bag, bag at a normal carry distance in the lower right and not filling a quarter of the frame.
+
+2. [minor] [low] part_floating_or_detached  (weapon-220-AP-Sentry_Gun.png)
+   seen: The cyan translucent sentry ghost sits centre-top (about x 475-660, y 235-440) with its base near (600-640, 440-500). From there a long thin cyan strut runs diagonally down-left to the bottom edge near (340, 790), passing cyan knobs near (540-700, 510-560) by the hand. The strut reaches toward the camera instead of staying with the ghost on the ground.
+   expected: A placement ghost standing on the ground ahead of the player, with short legs planted on the ground and nothing extending from its base down toward the camera.
+
+3. [tiny] [low] part_floating_or_detached  (weapon-220-AP-Sentry_Gun.png)
+   seen: A dark grey cylindrical part at about x 540-605, y 585-690, under the right hand and pointing down-left. It does not clearly attach to the hand's grip or to the bag.
+   expected: Only the hand and the held bag in view, with no loose grey part hanging off the hand, unless it is an intended part of the held item.
+
+Test line flags:
+  - "bag: carried without a glove" cannot be confirmed from this picture. The hand is an untextured blue shape with no visible fingers or glove detail, so glove state cannot be judged. The 'carried' part is also doubtful because no contact between hand and bag is visible (see the hand_not_on_part bug).
+  - "equipped" is consistent with the picture: the bag is in the hand and the sentry placement ghost is shown.
+  - "manual reload not active for this weapon" is consistent: no magazine is visible and nothing in the picture contradicts it.
+  - "throwable without a pin" is not visible in this picture, so it can neither be confirmed nor refuted.

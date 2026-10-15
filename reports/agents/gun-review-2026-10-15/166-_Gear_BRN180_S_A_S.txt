@@ -1,0 +1,43 @@
+Gun 166: [Gear]BRN180 S A S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-166-_Gear_BRN180_S_A_S.png)
+   seen: First-person frame on a shot with no muzzle flash. The front of the gun (sight and handguard, roughly x 690-800, y 440-620) is lit normally, with no burst, glow or smoke at the barrel tip. The only sign of firing is one brass casing near (815-855, 525-535).
+   expected: A bright muzzle flash at the barrel tip (front of the gun, roughly x 690-740, y 440-500) from the 'Muzzle (2)' particles on the shot.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-166-_Gear_BRN180_S_A_S.png)
+   seen: Full-auto first-person frame with no muzzle flash at the barrel tip. Casings fly out to the right (roughly x 895-1220, y 510-535). A faint pale haze sits far off near the horizon (roughly x 630-700, y 260-300), not at the gun.
+   expected: A muzzle flash at the barrel tip for the shots in the burst.
+
+3. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-166-[Gear]BRN180 S A S.png)
+   seen: Both eyes are nearly black. Each shows only a tiny dim orange dot (about 5 px) at roughly x 165-170 on the left eye and x 466-468 on the right eye (606 px wide sheet), with very faint rings around it. The right eye is not clearly stronger. It reads as a faint speck, not a flare.
+   expected: A bright star with soft rings near the muzzle, with the right (gun side) eye a bit stronger.
+
+4. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-166-[Gear]BRN180 S A S.png)
+   seen: Same problem as lens-eyes-166: each eye is a tiny dim dot with faint rings on black. No bright star is visible in either eye during the full-auto burst.
+   expected: A clearly visible flare with soft rings at the muzzle position, repeated per shot, with the right eye a bit stronger.
+
+5. [major] [medium] other  (mag-6-half-in-166-_Gear_BRN180_S_A_S.png)
+   seen: The magazine already sits right at the magwell rim: its top is hidden under the rim and its visible length matches mag-1-seated, with no gap between the rim and the magazine top. Compared with mag-5-lined-up (magazine well below the rim), it jumps straight to the seated depth. The gun's ammo label still reads '1 NO MAG' here, while mag-7 shows a count.
+   expected: Half way: the magazine partway up into the magwell on its line, its top a few cm below the rim with background visible in the gap, and the counter not yet showing a count.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-pulled-166-_Gear_BRN180_S_A_S-right.png)
+   seen: The fingers rest on the top rail beside the black block with the knob. The curved black handle at the right edge of the upper receiver is the part that moves: relative to the receiver it has slid back about 265 px. The fingers shift back with the pull but never touch that handle (in rack-grip-166-...-right.png they sit about 225 px short of it), and the black block under the fingers does not move.
+   expected: The fingers pinch the charging handle and it slides back with them, with no gap between hand and handle, and the part under the hand is the part that moves.
+
+7. [minor] [low] mag_duplicate_or_missing  (mag-2-leaving-166-_Gear_BRN180_S_A_S.png)
+   seen: The magazine top is still at the magwell rim, but the lower end reaches roughly 70 px further down than in mag-1-seated, so the magazine reads as stretched or tilted rather than dropping straight out along the line. It could also be the dropped copy overlapping the gun's own magazine, which would show two magazines.
+   expected: The magazine released and sliding straight down out of the magwell along its line, with only one magazine visible.
+
+Test line flags:
+  - rack grip (charging handle, fire motion + handle): not measured. Pictures: in rack-grip-166-...-left.png the glove covers the upper receiver above the trigger, so the charging handle is hidden and contact cannot be confirmed. In the first-person rack-grip-166.png and rack-grip-pulled-166.png a glove fist shows at the gun's left handguard (roughly x 685-750, y 540-650) that is absent in weapon-166 and lensflash-166, while the free-hand claw at lower left stays in place. Finger contact on the handle is not confirmed.
+  - pulled half way: not measured. Pictures: in the left-side pair the glove stays put on screen while the receiver shifts about 140 px, so the hand moved back relative to the gun, which is consistent with a pull. In the right-side pair the black block under the fingers does not move at all. See bug on rack-grip-pulled-166-...-right.png.
+  - moving with the hand: the charging handle; nearest is 0.0 cm from the hand. Contradicted by rack-grip-166-...-right.png: the nearest moving part, the curved handle at the right edge, is about 225 px from the fingers and not touching them.
+  - drawn: 3 drawn part(s) move, most 52 mm. Plausible: the curved right-edge handle moves about 265 px back relative to the receiver in rack-grip-pulled-166-...-right.png, which is in line with 52 mm at this scale.
+  - half way in (on the rail): 0.0 cm off the magwell line. Alignment looks right in mag-5-lined-up, but mag-6-half-in shows the magazine at the seated depth, so the half-way step is not visible.
+  - magazine (deep): dropped copy 2.8 cm out. Not confirmed: in mag-2-leaving the magazine top stays at the rim and only the lower end sits lower; a clean 2.8 cm straight drop is not visible. Could be two overlapping magazines.
+  - seated: the gun's magazine shows 0.0 cm from where it was. Confirmed: mag-7-seated-again matches mag-1-seated.
+  - muzzle flash: particles 'Muzzle (2)', 100 cm, every shot, no flash light. Confirmed absent on screen: no visible muzzle flash in lensflash-166 or lensburst-166.
+  - lens flash shown, strength 0.07; strongest soft flash 0.09. Confirmed: lens-eyes-166 shows only a tiny, dim flare.
+  - lens flash burst: flashes L 20 / R 20 (full L 4 / R 4). Consistent with lens-eyes-burst-166, where no bright flash is visible.
+  - cases thrown: 24. Consistent: lensburst-166 shows casings flying out.

@@ -1,0 +1,20 @@
+Gun 152: Panzerfaust 3
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapons/weapon-152-Panzerfaust_3.png)
+   seen: No hand or arm appears anywhere in the frame. The launcher tube fills the bottom centre (roughly x 290-950, y 460-800) and runs off the bottom edge, but nothing wraps around it. The same missing hand shows in weapon/weapon-152-Panzerfaust_3.png and weapon/lensflash-152-Panzerfaust_3.png, which are outside the brief's picture list.
+   expected: The right hand wrapped around the tube's grip near the bottom of the frame, fingers on the tube, with the left hand free as the test line says.
+
+2. [minor] [low] other  (weapons/weapon-152-Panzerfaust_3.png)
+   seen: The end cylinder with a black hole (centre, roughly x 487-612, y 365-468) sits at the far end of the tube and its open face points back at the camera, while the tube body recedes away from the camera. In weapon/lensflash-152-Panzerfaust_3.png the same hole glows orange, so the flame comes out of the face that points at the player.
+   expected: On a launcher aimed forward, the camera should see the open rear (backblast) end at the near end of the tube, and the muzzle/front end should face away from the player with the flash coming out ahead of it. Compare against a known-good Panzerfaust model before treating this as certain.
+
+Test line flags:
+  - Brief lists only weapons/weapon-152-Panzerfaust_3.png, which I read. I also opened three pictures from reports/shots/weapon/ (weapon-152, lensflash-152, lens-eyes-152) because the test line mentions lens flash; those are outside the brief and may come from a different run.
+  - 'lens flash none' conflicts with reports/shots/weapon/lensflash-152-Panzerfaust_3.png (a bright muzzle burst beside the tube) and reports/shots/weapon/lens-eyes-152-Panzerfaust 3.png (a flare with soft rings in both eyes). The weapons/ run has no firing frame, so the measurement cannot be confirmed there. Either it comes from another run or the lens flash is missing in the weapons run. Worth checking.
+  - 'loaded to 1/1; fired 1/3' is not confirmable from the picture (no ammo HUD and no shot frame in weapons/). A single-round launcher should read 0/1 after the shot, so the 1/3 could mean two of three trigger presses did nothing. Unverified.
+  - Two-hand recoil of exactly 0.0 deg, 0.0 cm and 0 deg/s looks like recoil switched off rather than reduced. No two-handed picture exists to confirm or refute it.
+  - 'the gun held in the right hand' is not confirmed: no hand is visible in any picture of this gun (see bug 1).
+  - 'muzzle flash particles CB90 Burn, 300 cm, every shot' is consistent with reports/shots/weapon/lensflash-152-Panzerfaust_3.png, where the burst sits at the muzzle. The 300 cm figure cannot be checked from a picture.
+  - reports/shots/weapon/lens-eyes-152-Panzerfaust 3.png: the left and right flares look about equally bright, with no eye hugely brighter than the other. The brief expects the gun-side (right) eye slightly stronger, which I cannot clearly see, but the pair is not broken.
+  - No magazine, reload or rack-grip pictures exist for this gun, and a Panzerfaust has no magazine or slide, so those checks do not apply.

@@ -8,7 +8,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - Done: 145
 - Code done, to check in the headset: 53
 - In progress: 10
-- Still to do: 23
+- Still to do: 25
 
 ### Still to do
 
@@ -35,6 +35,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 229. Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit...
 - 230. Stabilisation when aiming through strongly magnifying scopes (snipers, ACOG M4s, scoped RPGs)
 - 231. RPGs with a scope: not reloadable, the rocket in the hand invisible
+- 232. ARS HK416 / MP9: the gun still draws its magazine while it is out
+- 233. Vector family: a fingertip in the ejection port when racking
 
 ### In progress
 
@@ -369,7 +371,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 223. [x] A faint glow stayed at the muzzle between shots of an automatic fired in taps (user: "visible even when not shot"): the glow only while the trigger is held (d5a1423; film: no overlay between shots on any of 6 guns)
 224. [ ] Pulling a magazine out by hand: the hand is inside the magazine and the hand pose snaps when it comes off the well, on almost every gun (user, 2026-10-15). Cause: on the well's line the magazine follows the line, the glove stayed with the controller. Code done: the glove holds the magazine there as it holds one in the free hand (eased with the magazine, kept out of the gun), the fingers closing on it where it is. To film per gun and check.
 225. [ ] One eye drawn brighter than the other on Island, on some runs (user, 2026-10-15). Not reproduced: the film's standing-still check on Island has both eyes within 0.5% (6 guns, 3 runs). To check in the headset; the film now measures it on every run.
-226. [ ] Per-gun picture review (user: one Haiku agent for every gun, read only): reports/agents/gun-review-2026-10-15/ (a .txt per gun, SUMMARY.txt by kind). First 138 of 290 guns, medium/high confidence:
+226. [ ] Per-gun picture review (user: one Haiku agent for every gun, read only): reports/agents/gun-review-2026-10-15/ (a .txt per gun, SUMMARY.txt by kind). First 211 of 290 guns (2026-10-15 23:15), medium/high confidence (numbers below from the first 138):
      - the free hand not on the slide / handle in the rack pictures: 87 guns
      - the magazine not in the hand (on the back of the fist, beside it): 37 guns
      - slide / bolt not moving with the hand: 25 guns; "wrong part moves": 43 guns. Most of both come from the rack close-up camera, which followed the hand (the hand stayed put in the picture, the gun seemed to move): pinned to the gun now (d5a1423); to judge again on fresh pictures
@@ -381,6 +383,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 229. [ ] Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit slices stretched by far-off renderers, renderers switched off counted as shown, slice ends dropped by Thin, tapering parts split, fire sampling misses audio objects, override values case-sensitive and not reloaded, ArmIK palm point scaled twice (to test on a scaled rig first)
 230. [ ] Stabilisation when aiming through scopes that magnify a lot (snipers, M4s with an ACOG, RPGs with a scope, others): the magnified picture shakes with every small hand movement; steady it while aiming (user, 2026-10-15)
 231. [ ] RPGs with a scope: still not reloadable, and the rocket in the hand is still invisible (user, 2026-10-15; see 180 and 205, whose code did not fix it for these)
+232. [ ] (per-gun review) ARS HK416 / ARS MP9: with the magazine out, the gun still draws its own magazine (it is part of one mesh on these models: no separate magazine part to hide); cut it out like the bolt piece, or hide it another way
+233. [ ] (per-gun review) Vector family (vector, mw-vector, mw-vector rds): racking, a fingertip goes into the ejection port (the port is open space in the measured shape); keep the fingers on the receiver's surface there
 
 ## Notes
 

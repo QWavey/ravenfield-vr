@@ -1,0 +1,47 @@
+Gun 164: PPSh-41
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-164-PPSh-41-right.png)
+   seen: The left glove lies across the top of the receiver's front half (about x 400-890, y 250-360). Its knuckles sit on the top, and its fingertips reach the muzzle-end fins and the area ahead of the rear sight. The cocking handle (the small block in the slot on the receiver's right side, about x 790-860, y 380-450) sits 30-100 px below the glove and no finger touches it.
+   expected: Thumb and fingers pinch the cocking handle on the receiver's right side, with the fingers on that part and none resting on the top of the receiver.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-164-PPSh-41-left.png)
+   seen: The glove lies flat across the top of the receiver (about x 235-880, y 240-520) with the fingers pointing forward over the receiver near the rear sight. No finger wraps around a handle or lever. The hand rests on the top of the gun, not on the charging handle.
+   expected: Fingers curled around the cocking handle on the right side of the receiver, pinching it.
+
+3. [major] [high] wrong_part_moves  (rack-grip-pulled-164-PPSh-41-right.png)
+   seen: Compared with rack-grip-164-PPSh-41-right.png, the receiver body has moved toward the stock end. The rear sight shifted about 140 px right, the black cocking slot starts about 235 px further right, and the stock screw moved about 240 px right. The muzzle-end fins are now hidden under the glove. The cocking handle stayed at the same screen spot (about x 790-858, y 370-435) and the glove did not move, so the handle did not travel back with the hand.
+   expected: Only the cocking handle slides back in its slot with the glove. The receiver, rear sight and stock stay where they are.
+
+4. [major] [high] wrong_part_moves  (rack-grip-pulled-164-PPSh-41-left.png)
+   seen: Compared with rack-grip-164-PPSh-41-left.png, the whole gun body slid about 135-180 px to the left: the rear sight block, the forend, the magazine housing, the trigger guard and the stock plate. The glove, its fingertips and the background stayed at identical screen positions. The hand is pulling air while the gun slides out from under it. This pair moves left while the right-side pair moves right, so the motion is not one consistent pull.
+   expected: The glove moves back with the charging handle. The receiver, magazine and stock stay still.
+
+5. [minor] [low] hand_not_on_part  (rack-grip-164-PPSh-41.png)
+   seen: In this first-person rack frame no left hand is visible anywhere. weapon-164-PPSh-41.png shows the free hand at lower left, and the close-ups show a glove on the receiver, so the hand is either off-screen or hidden inside the gun. The same is true of rack-grip-pulled-164-PPSh-41.png.
+   expected: The free left hand visible at the top of the receiver, gripping the cocking handle.
+
+6. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-164-PPSh-41.png)
+   seen: The fresh magazine stands alone on the grass in the lower middle of the frame, with its housing at about x 540-640, y 540-665. It sits roughly 500 px below and slightly left of the magwell block at the top edge (about x 600-705, y 0-50), a gap of several magazine-housing widths (rough guess 25 cm). The left hand, at top right near the trigger guard (about x 1090-1280, y 60-210), is empty, so the magazine is neither held nor at the magwell.
+   expected: The fresh magazine held by the left hand right at the magwell, on its insertion line, ready to go up. mag-6-half-in shows the next step.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-164-PPSh-41.png)
+   seen: A brighter vertical band fills the far right edge (about x 1215-1280, full height) with a fairly hard left boundary, unlike the soft haze elsewhere in the frame.
+   expected: Soft lens haze that fades out, with no hard-edged band at the screen edge.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-164-PPSh-41.png)
+   seen: Each eye's brown lens tint stops at a visible rounded-rectangle boundary near the outer side of its panel (about x 298 on the left eye, x 605 on the right) instead of fading into the black. The flare itself looks right: a star with soft rings near the centre, the right eye slightly stronger.
+   expected: The tint fades smoothly to black with no visible edge.
+
+Test line flags:
+  - rack grip 0/72 inside, 1/4 fingers on it, and pulled half way 1/4 fingers on it: CONFIRMED by rack-grip-164-PPSh-41-right.png and rack-grip-164-PPSh-41-left.png. The glove lies across the top of the receiver and no finger is on the cocking handle.
+  - moving with the hand: the slide / bolt: CONTRADICTED by rack-grip-pulled-164-PPSh-41-right.png. The cocking handle stays where it was while the receiver body moves, so the part moving is the receiver, not the handle.
+  - drawn: 2 drawn part(s) move, most 46 mm; the nearest is 0.0 cm from the hand: consistent with the receiver body moving under the glove, which means the wrong part is the one moving. The 46 mm figure cannot be checked exactly from a still.
+  - the gun moved 1.3 mm with the pull, 2.8 mm when it went home: NOT matching the pulled close-ups. Both pairs show the gun body (sights, slot, magazine housing, stock plate) shifting 135-240 px while the background does not move, which is far more than 1-3 mm at this framing. The two pairs also shift in opposite screen directions. Either the gun root is not the part that moves, or the number is measured elsewhere.
+  - magazine half way in (on the rail): 0.0 cm off the magwell line: consistent with mag-6-half-in-164-PPSh-41.png. The housing moves down along the magazine's own axis into the well, not sideways.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED. The mag-7 housing sits within a few pixels of the mag-1 housing.
+  - in the hand: 3.4 cm from the palm: consistent with mag-4-in-hand-164-PPSh-41.png. The glove wraps the magazine body, which runs feed end up toward the gun.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 2.8 cm out: consistent with mag-2-leaving-164-PPSh-41.png. The housing drops straight down its own axis.
+  - muzzle flash 'Muzzle Flash Particles (3)', lens flash shown strength 0.63: consistent. The muzzle flash sits at the muzzle in lensflash and lensburst, and the lens-eyes star is present.
+  - lens flash burst: flashes L 17 / R 17: lens-eyes-burst-164-PPSh-41.png shows both eyes flashing, the right slightly brighter. Counts are not checkable from a still.
+  - fired 3/3, racked: chambered, cases thrown 21, recoil figures: not checkable from stills. lensburst-164-PPSh-41.png shows several casings in flight.

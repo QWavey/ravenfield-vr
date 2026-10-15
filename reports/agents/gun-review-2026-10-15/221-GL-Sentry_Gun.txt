@@ -1,0 +1,16 @@
+Gun 221: GL-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-221-GL-Sentry_Gun.png)
+   seen: Lower right, a large olive-drab box with a yellow strap fills the bottom-right corner close to the camera. No hand, glove or fingers are visible on it or anywhere else in the frame.
+   expected: The right hand visibly wrapped around the carried item (the gun's grip or handle), the item pointing forward, nothing floating.
+
+2. [minor] [low] other  (weapon-221-GL-Sentry_Gun.png)
+   seen: Mid-frame, a translucent cyan tripod-and-turret shape stands over the grass. Behind its lower centre, an opaque blue shape is partly hidden by the olive box. It is not clear what the blue shape is.
+   expected: If the cyan shape is a deployment placement preview, the blue opaque shape should not be sticking out behind it. If the blue shape is part of the preview, this is not a bug.
+
+Test line flags:
+  - "bag: carried without a glove": the picture agrees. The olive box at lower right has no glove or hand on it.
+  - "GL-Sentry Gun: equipped": not confirmed by this picture. The held item is an olive box, not a recognisable sentry gun. The only sentry-shaped object is a translucent cyan shape on the grass ahead, which looks like a placement preview.
+  - "manual reload not active for this weapon": no reload picture exists for this gun, so it cannot be confirmed or denied.
+  - "throwable without a pin": not visible in this picture, so it cannot be confirmed or denied.

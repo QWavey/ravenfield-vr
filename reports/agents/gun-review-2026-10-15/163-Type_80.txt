@@ -1,0 +1,45 @@
+Gun 163: Type 80
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-163-Type_80-right.png)
+   seen: Close-up from the right side. The gloved left hand lies flat across the top of the receiver, palm down, with the fingers and thumb resting on bare receiver top stretching away from the handle. The dark charging-handle bar runs in from the left edge (about x 75) and its end/knob sits under the glove's wrist at about x 330-500, y 290-430. No finger touches the bar's grip; the fingertips sit roughly 200-400 px to the right of it.
+   expected: Fingers curled around the charging handle's pull grip (the bar end/knob), hand on the handle, not lying flat on the receiver top beside it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-163-Type_80-left.png)
+   seen: Close-up from the left side. The glove is palm-down across the whole receiver top (x about 300-880, y 210-550) with the fingers spread flat along the receiver side toward the muzzle. Nothing is pinched or hooked: the knuckles sit on the top surface and no finger wraps any handle. The charging handle is not visible as a grip under the fingers.
+   expected: Pinch or hook fingers on the charging handle (the rack part), not a flat hand on the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-163-Type_80-right.png)
+   seen: After the pull the glove is still in the same spot on screen, but the handle bar, the feed box and the belt have all shifted roughly a third of the frame to the right. The glove wrist now lies on top of the bar and the thumb rests on the knob (about x 660-820, y 320-390), while the fingers stay flat on the receiver top at x 870-1090. The hand is not wrapped around the handle; it slides across the top of the receiver and the bar moves under it.
+   expected: Fingers hooked around the handle grip and the hand travelling back with the handle, with the gun body staying still.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-163-Type_80-left.png)
+   seen: The logo on the back of the glove (about x 700-790, y 285-325) is in exactly the same place as in the rest frame, but the orange front cap, the trigger guard, the pistol grip, the stock and the magazine have all moved about 190-250 px to the left. So the hand has moved across the gun while the gun stayed still, and the fingers still lie flat on the receiver top with nothing hooked on a handle.
+   expected: The fingers stay on the charging handle while it is pulled back; the gun body does not move, and the hand does not slide over the top of the receiver.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-163-Type_80.png)
+   seen: First-person rack frame. The free left-hand glove that is clearly visible at about x 540-630, y 585-690 in weapon-163, lensflash and lensburst is gone, and no hand is visible on top of the receiver (about x 690-800, y 500-545) either. The left hand is not visible anywhere in the frame, so the grip cannot be seen from this view.
+   expected: The left hand visibly on the charging handle at the top of the receiver (or at least still visible at its idle spot in front of the magazine).
+
+6. [minor] [low] hand_not_on_part  (rack-grip-pulled-163-Type_80.png)
+   seen: First-person pulled frame: same as the rack frame, the left hand is not visible at all, and the receiver top shows no hand, so the half-way pull cannot be seen from this view.
+   expected: The left hand visible holding the charging handle partway back along the receiver top.
+
+7. [minor] [medium] optic_or_sight_issue  (weapon-163-Type_80.png)
+   seen: A tall black rear-sight post (about x 712-748, y 362-500) with a grey block under it stands on the receiver in this idle frame. It is absent in rack-grip-163-Type_80.png, rack-grip-pulled-163-Type_80.png, lensflash-163-Type_80.png and lensburst-163-Type_80.png, where the receiver top is bare and the gun silhouette is lower. The orange front-sight dot at about (683, 537) stays in the same place in all of them, so the rear part of the gun changes between frames.
+   expected: The same sight geometry on the receiver in every first-person frame of this gun, unless a deliberate sight animation is recorded in the test line.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-163-Type_80.png)
+   seen: A pale vertical blue-white streak runs down the right screen edge (about x 1205-1250, y 0-520), with the horizon washed white beside it. It sits roughly 550 px right of the muzzle flash (about x 680, y 500) and does not line up with the flash or the flare rings. A fainter copy shows at the right edge of lensburst-163-Type_80.png.
+   expected: Any streak or ghost centred on the muzzle flash, not a vertical band at the far screen edge (could be an intended anamorphic streak, so only a low-confidence flag).
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 0/4 fingers on it: CONFIRMED by rack-grip-163-Type_80-right.png and rack-grip-163-Type_80-left.png. The fingers lie flat on the receiver top and touch no handle.
+  - pulled half way: 0/72 points inside the part, 0/4 fingers on it: CONFIRMED by rack-grip-pulled-163-Type_80-right.png and rack-grip-pulled-163-Type_80-left.png. Same flat grip in the pulled frames.
+  - drawn: 1 drawn part moves, most 67 mm; nearest 0.6 cm from the hand: the small gap fits the pictures (hand beside the handle, not on it). The 67 mm travel cannot be read from the stills, and the close-up camera seems to follow the hand, so the travel is not directly measurable.
+  - gun moved 1.0 mm with the pull, 1.5 mm when it went home: not checkable from stills. The gun body shifts about 190-350 px across the close-ups between rest and pulled, but the glove stays put on screen, which points to the camera tracking the hand, not the gun moving. Neither confirmed nor contradicted.
+  - magazine (deep): skipped; 'dropped magazine picked up and seated' and 'magazine: seated, 100 rounds': there are NO reload pictures (sheet tiles mag 1-7 all read 'none'), so the magazine sequence cannot be reviewed at all. This is a missing picture set, not a visual check.
+  - muzzle flash every shot and lens flash strength 0.95: CONFIRMED visually. The flash sits on the muzzle in lensflash and lensburst, and the full-screen flash in lensflash is strong, which fits 0.95.
+  - lens flash burst: 14 shots in 1.6 s, flashes L 12 / R 12 (full L 4 / R 3): the stills cannot count flashes. Note 12 counted flashes per eye for 14 shots means two shots left no counted flash in either eye. The burst eye pictures look dim and matched for both eyes.
+  - lens-eyes (single and burst): the flare sits at about 55% across and 62% down in each eye panel, the same spot as the first-person flash, and the right eye is marginally stronger. Looks consistent; no one-eye imbalance and no flare far from the muzzle.
+  - cases thrown 17, fired 3/3, recoil and impulse numbers: not checkable from stills (lensburst shows a couple of cases in flight, nothing more).

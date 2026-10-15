@@ -1,0 +1,43 @@
+Gun 161: PKP 1P78
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-161-PKP_1P78-left.png)
+   seen: Close-up from the left side. The free glove lies under the receiver's lower edge (glove spans about x 230-880, y 200-520; its top touches the receiver underside around y 240-290). The index finger points forward over the green ammo box. The lever on the receiver side at upper right (about x 870-1000, y 130-210, probably the charging handle) is 60+ px above the knuckles, and no finger touches it.
+   expected: Fingers and thumb closed on the charging-handle lever at the upper right of the receiver, the hand up on the handle and not tucked under the receiver.
+
+2. [major] [high] hand_not_on_part  (rack-grip-161-PKP_1P78-right.png)
+   seen: Close-up from the right side. The glove sits below the receiver's bottom edge (about x 420-720, y 355-560) beside the trigger guard, and its top edge presses up into the receiver underside (possible clipping). The hook-shaped lever on the receiver side (about x 530-680, y 200-290) is 70+ px above the fingers, and none of the fingers touch it.
+   expected: Fingers wrapped around the hook-shaped charging-handle lever (about x 530-680, y 200-290), with the hand above the trigger guard and not beneath the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-161-PKP_1P78.png)
+   seen: First-person view. The free hand is missing from its rest spot at lower left (about x 540-630, y 590-690), where it sits in weapon-161-PKP_1P78.png and the lensflash frames. Instead a grey gloved shape with an extended index finger sits in front of the green ammo box, at about x 700-750, y 610-690. The charging-handle hook (about x 690-720, y 495-525) is roughly 100 px higher, so the hand is hanging at the box instead of on the handle.
+   expected: The left hand's fingers closed on the charging-handle hook at about (690-720, 495-525), with the hand at the receiver and not at the ammo box.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-161-PKP_1P78.png)
+   seen: After the pull, the grey hand shape moves further down and forward, stretching from about (710, 600) to (770, 730) in front of the box, away from the gun. The scope and receiver stay where they were in weapon-161 (scope about x 740-865, y 480-580), and the charging-handle hook at about (690-720, 495-525) does not visibly travel back. The hand moves through air while nothing on the gun slides rearward.
+   expected: The charging handle slides back toward the shooter (the test says about 67 mm) with the fingers on it, and the hand travels back with it.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-161-PKP_1P78-left.png)
+   seen: The receiver, the ammo box and the belt all shift about 150-250 px left in the frame, but the lever keeps the same position relative to the receiver. The lever now sits at about x 630-880, y 130-210, directly above the glove's knuckles (x 640-880). The glove's index fingertip is near x 210 and no finger touches the lever. The charging handle does not slide along the receiver.
+   expected: The lever slides back along the receiver with the fingers closed on it, so its position relative to the receiver changes while the hand pulls.
+
+6. [minor] [low] wrong_part_moves  (rack-grip-pulled-161-PKP_1P78-right.png)
+   seen: Compared with rack-grip-161-PKP_1P78-right.png, the lever has moved about 370 px right in the frame (now about x 900-1100, y 200-270). The receiver's bottom edge stays at the same height, and the lever now sits ahead of and above the glove (the glove's thumb is at about x 650-880, y 340-500). The five-round belt that was visible at x 850-1280 in the base right close-up is not visible here. If the right-side view's front is to the right, the lever appears to move toward the muzzle instead of rearward. The framing may differ, so this is uncertain.
+   expected: The charging handle moves rearward (toward the grip) along the receiver, and the belt stays laid on the feed tray.
+
+7. [minor] [medium] other  (lensflash-161-PKP_1P78.png)
+   seen: The tall vertical sight post on top of the receiver in front of the scope (about x 710-745, y 360-530 in weapon-161-PKP_1P78.png) is absent in this frame: sky and hill show where it should be. It is also absent in the rack-grip and rack-grip-pulled first-person frames and the lensburst frame. Everything else (scope, receiver, box, glove) stays at the same place as in weapon-161, so the post seems to disappear whenever the shot or rack pictures are taken.
+   expected: The post stays on the receiver in every first-person frame, the same as in weapon-161-PKP_1P78.png.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-161-PKP_1P78.png)
+   seen: Besides the muzzle glow (about x 655-700, y 480-530), a hard-edged vertical bright band runs down the right screen edge (about x 1205-1255, from the top of the screen to the horizon at y around 400), with white glare along the horizon on the right (x 880-1280, y 390-410). Neither is at the muzzle, and the band is not in weapon-161-PKP_1P78.png. The lensburst frame has the same band.
+   expected: The flash lights the area around the muzzle with soft rings and no bright column at the screen edge, unless the column is intended sun glare.
+
+Test line flags:
+  - "rack grip ... 0/72 points inside the part, 0/4 fingers on it": confirmed. In rack-grip-161-PKP_1P78-left.png and rack-grip-161-PKP_1P78-right.png no finger touches the charging-handle lever.
+  - "pulled half way: 0/72 points inside the part, 0/4 fingers on it": confirmed. In rack-grip-pulled-161-PKP_1P78-left.png and rack-grip-pulled-161-PKP_1P78-right.png the fingers are under the receiver, not on the lever.
+  - "moving with the hand: the slide / bolt": not supported by the pictures. The hand has no finger on the handle, and in rack-grip-pulled-161-PKP_1P78.png the handle does not visibly travel back while the hand moves down and forward.
+  - "drawn: 1 drawn part(s) move, most 67 mm; the nearest is 0.0 cm from the hand": not confirmed. No picture shows a 67 mm rearward move of the charging handle in the first-person pulled frame. The 0.0 cm contact contradicts the 0/4 fingers and 0/72 points, and the close-ups show the lever clearly separated from the glove.
+  - "the gun moved 1.0 mm with the pull, 1.3 mm when it went home": consistent. The scope and receiver sit at the same screen position in weapon-161, rack-grip and rack-grip-pulled first-person frames.
+  - The sheet's magazine tiles (mag 1 to mag 7) read "none", which matches "magazine (deep): skipped (no detachable magazine)". Not a bug.
+  - "lens flash shown, strength 0.83" and the lens-eyes pictures: left and right eyes both show a soft flare near the muzzle, with the right eye slightly stronger as expected. No one-eye-brighter problem visible in lens-eyes-161-PKP 1P78.png or lens-eyes-burst-161-PKP 1P78.png.

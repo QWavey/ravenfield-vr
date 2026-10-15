@@ -1,0 +1,36 @@
+Gun 132: ak12h squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-132-ak12h_squad-right.png)
+   seen: Compared with rack-grip-132-ak12h_squad-right.png in the same frame, the upper receiver block (rail with two screws), the barrel, and the charging-handle block with its loop have all slid about 300 px sideways together (handle block from about x 770-910 to x 1050-1190; barrel start from x 390 to x 690). The hand (knuckles at x 400-410), the camera and the rock/background did not move. The index finger that rested on the handle now lies on the rail, and only the fingertips reach the handle's edge, so the handle has left the hand. In the left close-up the same parts moved toward the muzzle, so the pull appears to push the upper receiver forward rather than back (direction is medium confidence).
+   expected: Only the charging handle slides back (toward the stock) about half way, with the index and middle fingers still on it. The receiver block, rail and barrel stay still.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-132-ak12h_squad-left.png)
+   seen: Compared with rack-grip-132-ak12h_squad-left.png, the small block under the thumb (about x 495-555, y 185-250) has moved about 190 px left to about x 300-370, with its loop now at x 280-300, y 290-330. The hand stays where it was, so its fingers end up in front of the block rather than around it. The receiver rail's front end also moved left about 90 px (x 800 to 710), so the upper gun slides toward the muzzle instead of back, and the hand pulls air.
+   expected: The handle slides back toward the stock about half way, with the fingers closed around it. Nothing else moves and the hand follows the handle.
+
+3. [major] [high] hand_not_on_part  (rack-grip-132-ak12h_squad-left.png)
+   seen: Before the pull the left hand is not gripping the charging handle. The thumb rests on top of the small square block (x about 495-555, y 140-250). The index finger reaches forward along the gas tube (x 290-400, y 340-420), and the palm hangs below the barrel over the grass (x 400-880, y 400-530) with no part under it. No finger is curled around any handle. This matches the test's 0/4 fingers on the part.
+   expected: Fingers closed around the charging handle on the receiver, palm against the receiver side, nothing floating.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-132-ak12h_squad.png)
+   seen: In this first-person frame the free left hand is missing. It is visible at lower-middle of the screen in weapon-132 (about x 540-630, y 590-690), but here nothing shows a hand at the gun's top or right side where a grip on the charging handle would appear. The hand is either out of view or hidden behind the gun, so the grip cannot be confirmed from this camera.
+   expected: The left hand visible at the receiver's charging handle, fingers closed on it.
+
+5. [major] [high] mag_floating_or_offset  (mag-6-half-in-132-ak12h_squad.png)
+   seen: The fresh magazine's top edge sits about 35-40 px (about 1.5 cm at this scale) below the receiver's underside, with a strip of sea and sky visible between them. In mag-1 and mag-7 the same magazine's top touches the receiver underside at the magwell (top at y about 190-195). The lateral line looks right (top x about 640-830, the same as the magwell), but the magazine is hovering at the mouth of the magwell and not entering it. It is also near the end of its path rather than half way, so the 'half way in' frame does not show the magazine going into the gun.
+   expected: The magazine top pushed up into the magwell with its top part hidden by the receiver underside, on the same insertion line as mag-1 and mag-7.
+
+Test line flags:
+  - '0/72 points inside the part, 0/4 fingers on it' (rack grip): confirmed. In rack-grip-132-ak12h_squad-left.png no finger is wrapped on the handle. In rack-grip-132-ak12h_squad-right.png the index finger only lies across the top of the handle block at its right edge.
+  - 'pulled half way: 0/72 points inside the part, 0/4 fingers on it': confirmed. In rack-grip-pulled-132-ak12h_squad-right.png the fingertips end on the rail, short of the handle, which has moved away from them.
+  - 'drawn: 2 drawn part(s) move, most 60 mm; the nearest is 0.2 cm from the hand': the picture confirms a large move (about 300 px in the right close-up pair, roughly consistent with 60 mm). But the moving set looks bigger than the handle: the receiver block with screws and the barrel move with it. The 0.2 cm claim fits the unpulled frame, where the index finger touches the handle block.
+  - 'the gun moved 1.2 mm with the pull, 2.2 mm when it went home': the grip, magazine and muzzle device show only small changes, so the body figure is plausible. The upper receiver visibly moves, so this figure does not describe the moving upper parts.
+  - 'moving with the hand: an added handle (and the carrier inside)': not confirmed. In both pulled close-ups the hand does not travel with the handle.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ..., 2.6 cm out': no picture shows the dropped copy; mag-3-out-132-ak12h_squad.png shows nothing on the ground in frame. Not checkable from the pictures.
+  - 'in the hand: 3.4 cm from the palm': mag-4-in-hand-132-ak12h_squad.png shows the magazine held in the fingers. Not contradicted.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the lateral alignment looks right in mag-6-half-in-132-ak12h_squad.png, but the magazine stops about 1.5 cm short of the magwell. The 'half way' label does not match the picture.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-7-seated-again-132-ak12h_squad.png has the magazine top where mag-1-seated-132-ak12h_squad.png has it.
+  - 'muzzle flash: particles Muzzle Flash Particles, 70 cm, every shot, the flash light': lensflash-132-ak12h_squad.png shows the flash at the muzzle as described. But a large yellow/green/red cloud around the enemy health bar fills the left of every first-person frame, including weapon-132-ak12h_squad.png, far from the muzzle. A 70 cm muzzle particle would not explain it. Worth checking.
+  - 'lens flash burst: flashes L 14 / R 14 (full L 4 / R 3)': lens-eyes-burst-132-ak12h squad.png shows a flare in both eyes at similar strength, dimmer than the single shot. Consistent, exact counts not checkable.
+  - 'cases thrown: 18': a casing in flight appears in lensburst-132-ak12h_squad.png. Consistent.

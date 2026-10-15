@@ -1,0 +1,23 @@
+Gun 189: <color=Cyan>MP9 PDW</color>
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-189-_color_Cyan_MP9_PDW_color_.png)
+   seen: The left gloved hand is held out with fingers straight and open, lying over the top of a black MP9 magazine. The magazine hangs below and to the left of the gun's grip line, tilted well off vertical (lying diagonally from about x 690, y 450 down to x 910, y 570). No fingers curl around it; it is tucked under the lower edge of the palm, so it reads as floating beside the hand rather than held.
+   expected: Fingers wrapped around the magazine body, magazine upright and the same model as the gun's, feed end pointing up toward the magwell, on the grip's vertical line and a magazine's width from the palm.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-189-_color_Cyan_MP9_PDW_color_-right.png)
+   seen: Compared with rack-grip-189-_color_Cyan_MP9_PDW_color_-right.png, the slide's chamber window and rear sight block have moved right in frame (slide travel), but the gloved hand did not follow. It has turned down so the thumb/index tip rests on the front edge of the window (about x 860, y 460). The serrated top of the slide is visible to the right of the fingers (x 820-1280), so the fingers are no longer on the serrated top.
+   expected: Fingers stay on the serrated top of the slide and travel back with it by about half the 31 mm pull; the hand should not end up over the window.
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-189-_color_Cyan_MP9_PDW_color_-left.png)
+   seen: Nearly identical to rack-grip-189-_color_Cyan_MP9_PDW_color_-left.png: same hand placement over the rail, same palm, trigger guard and grip unchanged. The index fingertip is if anything slightly further toward the muzzle (about x 215 vs 255). No rearward movement of the slide or hand is visible in this view.
+   expected: Hand and slide shifted back toward the shooter (to the right in this view) by about half the 31 mm travel, with the slide edge visibly moved.
+
+4. [minor] [low] other  (mag-6-half-in-189-_color_Cyan_MP9_PDW_color_.png)
+   seen: The magazine's top is at the grip bottom (about y 440) and about 300 px protrudes below (bottom near y 740). That is the same visible protrusion as mag-7-seated-again and mag-1-seated, so no half-way depth is visible; the magazine does not look partway up into the magwell.
+   expected: Magazine visibly partway up the magwell on its line, with more of it sticking out below the grip than in the seated frame, between the lined-up and seated positions.
+
+Test line flags:
+  - in the hand: 2.5 cm from the palm looks wrong: the magazine is not held by the fingers (tilted, hanging under the palm edge). mag-4-in-hand picture confirms.
+  - pulled half way: 1/4 fingers on it (2/4 at rest) looks wrong: the fingertips have come off the serrated top and sit on the window edge. rack-grip-pulled-right picture confirms.
+  - half way in (on the rail): 0.0 cm off the magwell line looks fine for the line, but the half-way depth is not visible: mag-6-half-in shows the same depth as the seated mag-7, so the half-way state is not confirmed by the picture.

@@ -1,0 +1,47 @@
+Gun 176: BRN180 S A
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-176-BRN180_S_A.png)
+   seen: Flat olive-green wall with a dark olive band across the top, a brown vertical post, and a wall corner on the right. No gun, magwell, magazine or hand is visible. The camera looks inside or pressed against scenery.
+   expected: Close view of the gun with the magazine fully seated in the magwell, only the base plate showing, the left hand free.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-176-BRN180_S_A.png)
+   seen: Same flat olive wall, dark ceiling band, brown post and wall corner as mag-1. No magazine, gun or hand visible, so the drop out of the magwell cannot be checked.
+   expected: The magazine dropping straight down out of the magwell along its line, close to the gun.
+
+3. [major] [high] picture_unusable  (mag-3-out-176-BRN180_S_A.png)
+   seen: Same flat olive wall as mag-1. The gun and magwell are not in view, so an empty magwell cannot be confirmed or ruled out.
+   expected: The gun with an empty magwell, no magazine in it and no second magazine nearby.
+
+4. [major] [high] picture_unusable  (mag-5-lined-up-176-BRN180_S_A.png)
+   seen: Flat olive wall, ceiling band at a slightly different angle, brown post at the left-centre. No gun, magwell or fresh magazine visible.
+   expected: The fresh magazine held right under the magwell, on the magwell's line, with the gun in view.
+
+5. [major] [high] picture_unusable  (mag-6-half-in-176-BRN180_S_A.png)
+   seen: Same flat olive wall, dark band, brown post and corner as mag-1. Nothing of the gun or magazine is visible, so the half-way insert cannot be checked.
+   expected: The fresh magazine half way up into the magwell on its line, feed end first, with the gun in view.
+
+6. [major] [high] picture_unusable  (mag-7-seated-again-176-BRN180_S_A.png)
+   seen: Same flat olive wall as mag-1. No gun, magazine or hand is visible.
+   expected: The fresh magazine fully seated where the first magazine was, no second magazine anywhere, the hand away from the gun.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-pulled-176-BRN180_S_A-right.png)
+   seen: Compared with rack-grip-176-BRN180_S_A-right.png, the black block with the slotted knob on the top rail has slid back toward the stock by roughly a quarter of the frame. The gloved fingertip (pale nail at the rear of the top rail) stays at the same screen spot, now underneath the block's rear end. The hand does not travel with the part; it looks like it pulls air or the part slides out from under the finger. The bent lever at the rear right does not move.
+   expected: The gloved fingers hook the charging handle and travel back with it, about half the pull (test says 52 mm for the full pull), the fingertip staying on the part throughout.
+
+8. [major] [low] wrong_part_moves  (rack-grip-pulled-176-BRN180_S_A-right.png)
+   seen: The part that slides back is a flip-up-sight-like block with a slotted screw and round rivets, sitting on the top rail near the rear. The test names the moving part as the charging handle. If this block is the rear sight, the sight is the wrong part moving.
+   expected: Only the charging handle moves back under the hand. The rear sight stays fixed on the top rail.
+
+9. [minor] [low] wrong_part_moves  (rack-grip-pulled-176-BRN180_S_A-left.png)
+   seen: Compared with rack-grip-176-BRN180_S_A-left.png, the whole rifle (red-dot optic, rear block, magazine, pistol grip) sits about 120 px further left on screen. The background (horizon, birch trunk, rock) and the gloved hand stay put. The block keeps the same gap to the optic, so no handle motion relative to the receiver shows in this close-up. This may be framing, but it contradicts the test's 0.3 mm gun movement.
+   expected: The gun body stays still while the charging handle slides back under the hand. Only the handle moves, not the whole receiver.
+
+Test line flags:
+  - magazine (deep): dropped copy 1241.5 cm across the pull, 139.2 cm out, size x0.01 (THE DROPPED MAGAZINE IS NOT THE ONE IN THE GUN): no picture shows a dropped magazine. mag-2-leaving is picture_unusable, so this cannot be confirmed. A 0.01 size at about 12 m would make it invisible anyway.
+  - half way in (on the rail): 1241.5 cm off the magwell line (SLIDES IN BESIDE THE WELL): the value is identical to the dropped copy's distance, which suggests the test measured the far-off dropped copy rather than the magazine being inserted. mag-6-half-in is picture_unusable, so this is not confirmed visually.
+  - seated: the gun's magazine shows 0.4 cm from where it was: mag-7-seated-again is picture_unusable, so this cannot be checked. The rack-grip-left and rack-grip-right pictures do show a magazine in the magwell in front of the trigger guard, so the gun did have a magazine before the reload.
+  - in the hand: 3.4 cm from the palm: mag-4-in-hand shows a fresh magazine in the left hand, feed end up toward the gun. The fingers look loosely around its base, so the 3.4 cm gap is plausible but not clearly visible.
+  - drawn: 3 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand: rack-grip-pulled-right shows the black block sliding back a large distance, which supports a real part motion. The fingertip does not move with it, so the 0.0 cm contact is not held during the pull.
+  - the gun moved 0.3 mm with the pull, 2.6 mm when it went home: rack-grip-pulled-left shows the whole rifle about 120 px further left than rack-grip-left against an unchanged background. This contradicts 0.3 mm unless the close-up framing differs between shots.
+  - rack grip (charging handle...): not measured (the part's shape is not ready) and pulled half way: not measured (the part's shape is not ready): there is no finger-count measurement, so nothing to check. The test itself says the part's collision shape is not ready, which matches the fingertip not tracking the block in the pulled frame.

@@ -1,0 +1,24 @@
+Gun 197: P220 G AKIMBO
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-197-P220_G_AKIMBO-right.png)
+   seen: Only the thumb and index area touch the top of the slide near its middle (about x 720-910, y 440-500 in the 1280x800 frame). The middle, ring and little fingers are stretched straight out to the right and hang in the air over the rear half of the slide (about x 850-1050, y 260-440), with grass visible underneath them, roughly 30-100 px above the slide top. This matches the test's 2/4 fingers on the part.
+   expected: All four fingers curled over or along the serrated top rear of the slide and touching it. No fingers floating in air beside or above the slide.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-197-P220_G_AKIMBO-right.png)
+   seen: The glove sits at exactly the same pixels as in rack-grip-197-P220_G_AKIMBO-right.png: wrist cuff at x 400-530, y 255-510, knuckles at x 620-800, y 260-330, thumb tip near x 905, y 490. The hand has not travelled back at all. The slide the fingers pinch stays at rest: its front sight is still at about x 620-640, y 425-445 and its serrations at y 450-470, identical to the rest picture.
+   expected: The slide slides straight back along the frame by about half its travel, the hand travels back with it, and the fingers stay on the slide.
+
+3. [major] [medium] part_floating_or_detached  (rack-grip-pulled-197-P220_G_AKIMBO-right.png)
+   seen: A second black slide-shaped part appears above the frame at about x 850-1150, y 330-410, where the rest picture shows only grass. It has a rear sight at its right end (around x 1125, y 330) and a silver tip at its left end (around x 850-930, y 335-370). It is displaced about 100 px up and rearward from the real slide, which stays put underneath it, and the fingers rest on its left end. The moving part goes up, not back.
+   expected: One slide only, sliding straight back on the frame at the same height, with the front of the slide and barrel visible ahead of it. Nothing floating above the frame.
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-197-P220_G_AKIMBO-left.png)
+   seen: Compared with rack-grip-197-P220_G_AKIMBO-left.png (same camera; tree, rock and tank in the same place), the flashlight/laser module and the grip sit roughly 50-80 px further left. The green laser visible at the left edge shrinks from about x 0-120 to about x 0-35. The glove does not move. The sheet thumbnails show the same shift. This is a by-eye comparison and the glove covers more of the slide in this frame, so treat it as a lead, not a certainty.
+   expected: Frame, grip and laser module stay at the rest position; only the slide moves rearward.
+
+Test line flags:
+  - pulled half way: 'moving with the hand: the slide / bolt' looks wrong. In rack-grip-pulled-right and rack-grip-pulled-left the hand is at the same place as in the rest pictures, and the slide the fingers hold does not move back. Confirmed by the pictures.
+  - drawn: '2 drawn part(s) move, most 28 mm; the nearest is 0.0 cm from the hand' is partly confirmed. A second part does move in rack-grip-pulled-right (see the floating-part bug), and its size is roughly consistent with 28 mm. But it moves up, not back, and it is the piece the fingers touch.
+  - 'the gun moved 0.2 mm with the pull, 0.1 mm when it went home' looks wrong. rack-grip-pulled-left shows the laser module and grip about 50-80 px further left than rack-grip-left while the glove and background stay put. Only a coarse visual check; the 'went home' state has no picture.
+  - magazine (deep): 'skipped (no detachable magazine ...)' looks wrong. A P220 has a detachable magazine, and the same line reports a dropped magazine picked up and seated, 25 rounds kept. The overview sheet panels 8-14 (mag 1 to mag 7) all say 'none', so no reload pictures exist and the reload cannot be checked from pictures.

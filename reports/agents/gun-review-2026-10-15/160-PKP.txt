@@ -1,0 +1,51 @@
+Gun 160: PKP
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-160-PKP-right.png)
+   seen: The gloved left hand lies flat on top of the receiver. The thumb (about x 590-900, y 260-410) and the fingers (about x 880-1100, y 240-350) rest on the receiver top. No finger curls around the black charging lever and knob, which sits to the left of the thumb (about x 65-500, y 285-420). The hand is beside the handle, not on it.
+   expected: Index finger and thumb pinch the charging handle knob, with the fingers on that part and not on the receiver top next to it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-160-PKP-left.png)
+   seen: The left-hand fingers (about x 230-470, y 330-500) lie across the front of the receiver top, with the palm on the receiver (about x 560-880, y 215-520). The fingertips extend past the receiver front edge near x 230-300. No finger touches the charging handle, and the black hooked lever at the rear (about x 995-1250, y 340-420) is well away from the hand.
+   expected: Thumb and index finger pinch the charging handle, with the fingers on that part.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-160-PKP-right.png)
+   seen: Compared with rack-grip-160-PKP-right.png, the whole receiver, the belt and the charging lever shift together about 340 px (roughly a quarter of the frame) to the right. The hand stays in place horizontally and is only about 60 px higher. The lever keeps the same spot relative to the receiver, so nothing slides back along the top. The thumb now lies over the lever knob (about x 740-830, y 300-390). The distant rock at the left edge moves only a little.
+   expected: The charging handle slides back along a receiver that stays still, with the fingers on the handle. The receiver, belt and grip should not move.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-160-PKP-left.png)
+   seen: Compared with rack-grip-160-PKP-left.png, the grip, trigger guard, ammo box and rear hooked lever all shift about 190-220 px to the left together, while the hand stays put (fingertips still near x 210-230). Relative to the receiver nothing slides. The hand's thumb rises (about x 490-700, y 150-240). The picture looks like the hand moves back through air while the gun moves forward in frame.
+   expected: The charging handle travels back under the fingers while the receiver and grip stay still.
+
+5. [minor] [medium] hand_not_on_part  (rack-grip-160-PKP.png)
+   seen: In this first-person frame the free left hand is not visible. In weapon-160-PKP.png it sits in the grass at about x 540-630, y 590-690, and it is also present at that spot in lensflash-160-PKP.png and lensburst-160-PKP.png. Where the hand should be on the receiver top-left (about x 680-740, y 480-530) there is only a short stub. rack-grip-pulled-160-PKP.png shows the same missing hand.
+   expected: The free hand is on the charging handle at the top of the receiver and visible in the frame, as the close-ups show it.
+
+6. [minor] [low] gun_pose_or_aim_wrong  (rack-grip-160-PKP.png)
+   seen: The tall rear sight post visible in weapon-160-PKP.png (about x 700-745, y 365-520) is missing here; only a short stub remains near x 685-700, y 480-530. The front end (barrel shroud ring, about x 690-750, y 530-610) faces the camera more than in weapon-160-PKP.png. The background did not move, so the gun itself looks re-posed.
+   expected: Same gun pose and sight silhouette as weapon-160-PKP.png, unless the rack animation deliberately tilts the gun.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-160-PKP.png)
+   seen: The two eye panels differ a lot in this frame. The right eye (centre about x 465, y 153) has a bright core with starburst rays and a wide halo. The left eye (centre about x 165, y 153) is a dim dot with a faint ring, roughly 2-3 times weaker at the core.
+   expected: Both eyes show the same flare, with the right eye (the gun side) only a bit stronger, around 1.2-1.3 times the left.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-160-PKP.png)
+   seen: Both eye panels sit on a warm brown rounded rectangle that ends at a fairly hard outline (about x 0-300 and x 306-605), instead of fading into the black background around the flare.
+   expected: A soft falloff to black, with only the star and its soft rings visible.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-160-PKP.png)
+   seen: The flash haze covers the whole frame: grass, sky and sea turn yellow-white. A vertical bright band runs down the right screen edge (about x 1190-1250, y 0-520), far from the muzzle at about x 665, y 505, and off the line through the muzzle and screen centre. The muzzle star itself and its soft ghost rings are present.
+   expected: A star at the muzzle with soft ghost rings along the centre line, without a screen-wide wash or an edge streak.
+
+Test line flags:
+  - drawn: 1 drawn part(s) move, most 67 mm: not confirmed. The visible charging lever keeps its place on the receiver between rack-grip-160-PKP-right.png and rack-grip-pulled-160-PKP-right.png; what shifts is the whole gun in frame. The 67 mm travel is not visible in either picture.
+  - the gun moved 1.1 mm with the pull, 1.7 mm when it went home: contradicted. rack-grip-pulled-160-PKP-right.png and rack-grip-pulled-160-PKP-left.png show the receiver and grip moving about 190-340 px (roughly 15-25 percent of the frame width) while the hand stays put. Either the gun body moves or the close-up camera follows the hand; the test should say which.
+  - moving with the hand: the slide / bolt: not visible. In the pulled close-ups the handle does not travel with the hand; only the whole gun shifts.
+  - rack grip (slide/bolt, fire motion): 0/72 points inside the part, 0/4 fingers on it, and pulled half way: 0/4 fingers on it: confirmed. rack-grip-160-PKP-left.png and rack-grip-160-PKP-right.png show no finger curled around the handle.
+  - the nearest is 0.4 cm from the hand: consistent with the thumb resting beside the handle in rack-grip-160-PKP-right.png. In rack-grip-pulled-160-PKP-right.png the thumb lies over the knob, so the nearest-point distance may have been measured at a different position.
+  - magazine (deep): skipped (no detachable magazine): correct for a belt-fed PKP. No mag-1 to mag-7 pictures exist (the overview sheet shows none), so the reload checks in the brief cannot be made. The belt lines (belt pulled too far: slipped from the hand; belt laid) have no pictures to confirm.
+  - lens flash burst: flashes L 13 / R 13 (full L 4 / R 3): lens-eyes-burst-160-PKP.png shows the right eye much brighter in the captured frame, which does not match near-equal eye counts. Confirm the eye counts against the picture.
+  - lens flash shown, strength 0.87: confirmed. The flash is visible at the muzzle in lensflash-160-PKP.png, but the strength looks heavy because of the screen-wide wash.
+  - muzzle flash: particles 'Muzzle Flash Particles', every shot: consistent. The flash is visible at the barrel tip in lensflash-160-PKP.png and lensburst-160-PKP.png.
+  - cases thrown: 18: consistent. Brass is visible in lensflash-160-PKP.png and lensburst-160-PKP.png.
+  - racked: chambered, fired 3/3, recoil and impulse numbers: cannot be checked from pictures.

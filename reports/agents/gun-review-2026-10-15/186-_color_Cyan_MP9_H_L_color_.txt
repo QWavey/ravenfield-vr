@@ -1,0 +1,42 @@
+Gun 186: <color=Cyan>MP9 H L</color>
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-186-_color_Cyan_MP9_H_L_color_.png)
+   seen: The left glove's fingers curl over the top of a black magazine, but the magazine is not in the palm. It sits beside and below the bottom edge of the palm, at roughly x 690-910, y 450-570 in the 1280x800 frame, angled diagonally away from the vertical line of the magwell. The test line says 2.5 cm from the palm, which matches. A dark wedge also shows behind the hand at upper left (x 345-500, y 255-380). It may be the far end of the same magazine, or a second object; I cannot tell which.
+   expected: The fingers wrap around the magazine body, the magazine sits in the palm, the feed end faces the gun, and the magazine lies on the magwell line (vertical under the grip) with only one magazine in view.
+
+2. [major] [high] hand_not_on_part  (rack-grip-186-_color_Cyan_MP9_H_L_color_-right.png)
+   seen: Close-up from the gun's right side. The left hand's thumb and fingertips rest on the receiver top in front of and above a small dark block (x 750-880, y 380-475), which is presumably the charging handle. The fingertips (x 820-910, y 280-390) hover over the top edge of the block and do not pinch or wrap it. The test says 0/4 fingers on the part, which the picture supports.
+   expected: The index finger and thumb pinch the charging handle block itself, with fingertips touching the handle, not hovering over the receiver above it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-186-_color_Cyan_MP9_H_L_color_-left.png)
+   seen: Close-up from the gun's left side. The hand lies across the top of the receiver with the thumb at x 240-420, y 255-330 and the fingers at x 250-460, y 260-440, below the optic. The fingers sit on the receiver body, not on a handle. The test says 0/72 points and 0/4 fingers on the part.
+   expected: The fingers grip the charging handle at the top rear of the receiver, with fingertips on the handle.
+
+4. [major] [low] hand_not_on_part  (rack-grip-186-_color_Cyan_MP9_H_L_color_.png)
+   seen: First-person view. The left glove sits low on the gun body, under the optic and beside the lower receiver, at roughly x 740-920, y 600-800. It is not on the top of the receiver where the charging handle would be.
+   expected: The left glove is on the charging handle at the top rear of the receiver, with the fingers wrapped on it, so the handle is visibly the thing being held.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-186-_color_Cyan_MP9_H_L_color_-right.png)
+   seen: Compared with rack-grip-186-...-right.png, the hand and the small dark block (charging handle) occupy the same screen spot (about x 400-910, y 250-550 for the hand, x 765-880, y 385-475 for the block). The receiver, sight and barrel line are unchanged. There is no visible rearward travel of about 38 mm, even though the test line says the handle moved with the hand. The same holds for rack-grip-pulled-186-...-left.png, where the upper hand and receiver are essentially in the same place as in the un-pulled -left picture.
+   expected: The charging handle and the hand are visibly pulled about half way back (roughly 38 mm rearward along the receiver), with the receiver and sight staying put.
+
+6. [major] [low] mag_floating_or_offset  (mag-5-lined-up-186-_color_Cyan_MP9_H_L_color_.png)
+   seen: The fresh magazine is held low in the foreground (x 580-700, y 640-800). The magwell at the bottom of the grip is near the top of the frame (y about 300-315), so the magazine sits roughly 330 px below the magwell in the same column. It also looks narrower than the grip, which suggests it is farther from the camera, so the depth is ambiguous. Either way it does not read as right at the magwell.
+   expected: The fresh magazine sits right under the magwell on its line, its feed end just below the grip's bottom edge.
+
+7. [tiny] [low] other  (mag-4-in-hand-186-_color_Cyan_MP9_H_L_color_.png)
+   seen: A thin bright white horizontal line runs across the top left of the frame at about y 85, from x 0 to about x 700, fading out. It is outside the gun and may be a capture or overlay artifact.
+   expected: No line; the frame should show only the scene and the gun.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': confirmed by rack-grip-186-...-right.png (fingertips hover above the charging handle block) and -left.png (fingers rest on the receiver, not on a handle).
+  - pulled half way '0/72 points inside, 0/4 fingers on it': confirmed by the rack-grip-pulled pictures, where the hand is never on the handle.
+  - 'moving with the hand: the charging handle; drawn: 2 drawn part(s) move, most 38 mm': NOT confirmed. rack-grip-pulled-186-...-right.png shows the hand and charging handle at the same screen position as the un-pulled picture, with no visible 38 mm shift. Possible movement along the viewing axis is not ruled out.
+  - 'the nearest is 0.0 cm from the hand': not checkable from the pictures. It conflicts with the fingers being off the part only if the handle is meant to be gripped.
+  - 'in the hand: 2.5 cm from the palm': confirmed by mag-4-in-hand-186-...png, where the magazine sits beside and below the palm rather than in it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in-186-...png looks on the magwell line, so consistent.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7-seated-again shows the magazine at the same bottom edge as mag-1-seated.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ... 8.5 cm out': consistent. mag-2-leaving-186-...png shows the magazine dropping straight down along the magwell line.
+  - 'the gun moved 0.2 mm with the pull, 0.9 mm when it went home': consistent. The gun looks static in all the rack-grip pictures.
+  - 'fired 3/3; cases thrown: 3', 'magazine: seated, 31 rounds': not visible in these pictures.

@@ -1,0 +1,62 @@
+Gun 179: G BRN180 EO S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-179-G_BRN180_EO_S-left.png)
+   seen: Compared with rack-grip-179-G_BRN180_EO_S-left.png, the whole rifle has slid toward the muzzle (screen left) by about 105-155 px: the optic, the black block behind the optic (charging-handle area, moved about 150 px), the magazine, the pistol grip and the buffer tube all shifted together. The glove stays at the same screen place (about x 445-880, y 190-530) and is no longer on any moved part. Background (sea horizon, rock at right) did not move, so the camera did not move.
+   expected: Only the charging handle (the block behind the optic, toward the stock end) slides back toward the buffer about half way, with the hand moving with it. Optic, magazine and grip stay where they were.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-179-G_BRN180_EO_S-right.png)
+   seen: Compared with rack-grip-179-G_BRN180_EO_S-right.png: the black block with the gold dial (charging-handle area, upper left) moved about 265 px to the right, i.e. toward the optic and forward, not back toward the buffer end at left. The optic itself moved about 290 px right. The coil spring at left shifted right and looks compressed. The glove stays at about x 440-700, y 330-560. The dark receiver block with the hole barely moved (hole about x 905 to 865).
+   expected: The charging handle block slides back (away from the optic, toward the buffer end at left) about half way with the glove moving with it. The optic and receiver stay still.
+
+3. [major] [high] mag_not_in_hand  (mag-4-in-hand-179-G_BRN180_EO_S.png)
+   seen: The left glove is open with the fingers splayed flat to the left (thumb at top, about x 330-400, y 290-340). Nothing is wrapped in the fingers or palm. The fingers pass in front of a see-through magazine-shaped block, so the hand is empty. The right hand on the pistol grip (about x 860-1075, y 220-420) looks fine.
+   expected: The left hand curled around the fresh magazine: fingers wrapped round it, feed end toward the gun, magazine about at the palm (test says 3.4 cm from the palm).
+
+4. [major] [medium] mag_floating_or_offset  (mag-4-in-hand-179-G_BRN180_EO_S.png)
+   seen: The fresh magazine (a clear block, no rounds readable) hovers up and to the left of the hand at about x 290-575, y 0-390, running up out of frame and overlapping the handguard line. It is well forward of the magwell under the receiver (about x 700-800, y 230-280, which shows no magazine). It is not attached to the fingers.
+   expected: Magazine held in the hand at the palm, next to the magwell under the receiver, on its line, ahead of the pistol grip.
+
+5. [major] [high] picture_unusable  (mag-1-seated-179-G_BRN180_EO_S.png)
+   seen: Flat olive ceiling and wall close-up with a brown wooden post. No gun, no magazine, no hand in view. The camera appears to be inside or against scenery geometry.
+   expected: Close-up of the rifle's lower receiver showing the magazine fully seated in the magwell, only the base plate visible.
+
+6. [major] [high] picture_unusable  (mag-2-leaving-179-G_BRN180_EO_S.png)
+   seen: Same flat olive wall and wooden post as mag-1. No gun, no magazine, no hand. Nothing can be checked about the drop.
+   expected: Magazine visibly dropping straight down out of the magwell along its line, hand releasing it.
+
+7. [major] [high] picture_unusable  (mag-3-out-179-G_BRN180_EO_S.png)
+   seen: Same flat olive wall and wooden post. No gun, no magwell, no magazine on the ground visible.
+   expected: Rifle lower receiver with an empty magwell, no magazine in the gun and none on the ground near it.
+
+8. [major] [high] picture_unusable  (mag-5-lined-up-179-G_BRN180_EO_S.png)
+   seen: Olive wall and ceiling corner (ceiling edge runs diagonally top right) with a wooden post. No gun, no magazine, no hand.
+   expected: Fresh magazine lined up right at the magwell on its line, feed end toward the gun.
+
+9. [major] [high] picture_unusable  (mag-6-half-in-179-G_BRN180_EO_S.png)
+   seen: Same olive wall and wooden post. No gun, no magazine, no hand. The half-in position cannot be checked.
+   expected: Fresh magazine half way up into the magwell on its line.
+
+10. [major] [high] picture_unusable  (mag-7-seated-again-179-G_BRN180_EO_S.png)
+   seen: Same olive wall and wooden post. No gun, no magazine, no hand.
+   expected: Fresh magazine fully seated where mag-1 had it, hand away from the gun, no second magazine.
+
+11. [minor] [low] hand_not_on_part  (rack-grip-179-G_BRN180_EO_S-right.png)
+   seen: The olive glove sits under the upper receiver at about x 440-700, y 330-560, and its fingers appear to sit inside the see-through receiver shell rather than wrapped around the charging-handle block, which is up and to the left at about x 130-600, y 195-330. Only the block's lower right corner touches the glove.
+   expected: Fingertips pinching the charging-handle block itself, not buried in the receiver.
+
+12. [minor] [low] other  (rack-grip-179-G_BRN180_EO_S-right.png)
+   seen: The receiver is see-through with rainbow fringes: the blue enemy body (about x 290-560, y 490-640) and the grass show through the middle of the receiver, and the spring and magazine show through a glass shell. In mag-4 the tree behind the upper receiver also shows through it. A steel receiver should be solid. This may be an intended ghost or skin effect.
+   expected: Opaque receiver and upper, with the blue body and grass hidden behind the gun.
+
+Test line flags:
+  - "moving with the hand: the charging handle" is contradicted by the pictures: in rack-grip-pulled-179-G_BRN180_EO_S-left.png and -right.png the glove stays at the same screen spot as in the rack-grip close-ups while the handle and rifle slide forward. The hand does not move with the handle. Picture confirms.
+  - "the gun moved 0.5 mm with the pull, 6.3 mm when it went home" looks wrong: between rack-grip-179-G_BRN180_EO_S-left.png and rack-grip-pulled-179-G_BRN180_EO_S-left.png the rifle body shifts about 105-155 px relative to the glove and background, far more than 0.5 mm. The gun does visibly move; the number likely measures the wrong transform. Picture confirms the movement.
+  - "drawn: 3 drawn part(s) move, most 52 mm" includes a part that should not move: the optic (holo) shifts about 290 px in rack-grip-pulled-179-G_BRN180_EO_S-right.png. Picture confirms the wrong part moves.
+  - "nearest is 0.0 cm from the hand": the glove does not follow the charging handle in the pulled pictures, so 0.0 cm at the start is plausible but the hand does not stay on the part through the pull. Picture suggests this is not true during the pull.
+  - "magazine (deep): dropped copy 1242.7 cm across the pull ... size x0.01": no picture shows the dropped magazine (mag-2-leaving is a flat wall). Cannot confirm. 1242.7 cm and a size of x0.01 are not plausible for a magazine dropped near the gun, so this looks like a measurement error.
+  - "in the hand: 3.4 cm from the palm": mag-4-in-hand-179-G_BRN180_EO_S.png shows the open left hand with no magazine wrapped in the fingers. Picture confirms the magazine is not held in the hand.
+  - "half way in (on the rail): 1242.7 cm off the magwell line (SLIDES IN BESIDE THE WELL)": mag-6-half-in is a flat wall, so cannot confirm. The 1242.7 cm value is implausible.
+  - "seated: the gun's magazine shows 0.4 cm from where it was": mag-1-seated is a flat wall, so cannot confirm. rack-grip-179-G_BRN180_EO_S-left.png shows the magazine seated in the magwell, which is consistent with the test but does not confirm 0.4 cm.
+  - "rack grip ... not measured (the part's shape is not ready)" and "pulled half way: not measured": the pulled close-ups do show the visible movement described above, so the bug is visible even though the test has no number for it.
+  - The first-person pictures (weapon-179-G_BRN180_EO_S.png, rack-grip-179-G_BRN180_EO_S.png, rack-grip-pulled-179-G_BRN180_EO_S.png) show no free hand and no pistol grip (the gun runs off the bottom edge), and the three look identical. They cannot confirm the rack or the grip. This is a limit of the framing, not a gun bug.

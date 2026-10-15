@@ -1,0 +1,40 @@
+Gun 198: P220 G R
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-198-P220_G_R-right.png)
+   seen: Close-up from the gun's right side. Camera and background match rack-grip-198-P220_G_R-right.png (same smoke blobs), but the slide is in the same place: slide top edge still about y=430, rear end still about x=620, light rear piece still at x=915-1040. No rearward travel toward the shooter (which would be roughly 100+ px left in this frame). The only change is a brass cartridge at about x=910-1000, y=435-485. The centre first-person pair (rack-grip-198-P220_G_R.png vs rack-grip-pulled-198-P220_G_R.png) also looks unchanged.
+   expected: Slide visibly slides back toward the shooter (left in this frame) with the hand, its rear end and the light rear piece moving left, the front of the slide showing in front of it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-198-P220_G_R-right.png)
+   seen: Left hand's thumb/index tip comes down to about (790, 560), below the slide's lower edge (about y=530), on the frame/receiver. Upper fingers hover above the slide top (about y=300-420, slide top about y=430). Fingers are not clearly on the slide's serrated rear. Left-side view (rack-grip-198-P220_G_R-left.png) is similar: fingertips at about y=440-560, below the slide (about y=345-470).
+   expected: Fingers pinched on the slide's serrated rear, pads on the slide itself, not inside the frame and not in the air. The test line's 0/4 fingers on the part is supported by this picture.
+
+3. [minor] [low] hand_pose_wrong  (rack-grip-pulled-198-P220_G_R-left.png)
+   seen: Compared with rack-grip-198-P220_G_R-left.png, the glove (fingers and back of hand) has moved about 70 px toward the muzzle (glove left edge about x=390 before, x=320 after). Gun body and front sight stay at the same place (sight at about x=0-40, y=345-365 in both). The hand moves forward instead of back with the slide.
+   expected: Hand moves back toward the shooter (right in this frame) with the slide, and the slide slides back under the fingers.
+
+4. [major] [medium] mag_not_into_magwell  (mag-7-seated-again-198-P220_G_R.png)
+   seen: Below the grip bottom (about y=520) a tan magazine body strip shows (about x=615-735, y=520-560), above a black base plate (about y=560-600, partly covered by the glove). In mag-1-seated-198-P220_G_R.png only the black base plate shows under the grip, with no tan body, so the reinserted magazine sits about 40 px lower than the original seat. mag-6-half-in-198-P220_G_R.png looks the same as mag-7, so the half-way frame is already near full seat depth.
+   expected: Magazine fully inside the grip, only the base plate showing, exactly where mag-1 has it. The test line's 0.0 cm from where it was is not supported by the picture.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-198-P220_G_R.png)
+   seen: Fresh tan magazine (orange feed lip at top, about x=400-420, y=75-100) stands up from behind the left hand's knuckles. Its lower end ends at about y=290, resting on the top of the hand (about x=410-545). Fingers are not visibly wrapped around the magazine body; the hand is a loose fist below it, and the magazine looks like it hovers at the hand's top edge rather than being gripped. Consistent with the test's 3.5 cm from the palm.
+   expected: Left-hand fingers closed around the magazine body, feed end toward the gun (up and right in this frame), magazine held in the hand.
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-198-P220_G_R.png)
+   seen: Fresh magazine (orange feed lip at about x=620-650, y=565-600) sits well below the grip (grip bottom about y=380), with its top roughly under the grip centre. Its body leans right going down (bottom edge near x=770 at y=800), more steeply than the grip line (grip leans about 6-10 degrees). Part of this may be perspective, since the magazine is closer to the camera.
+   expected: Magazine on the grip's own line (same tilt as the grip), centred directly under the magwell, ready to move up.
+
+7. [minor] [low] other  (rack-grip-pulled-198-P220_G_R-right.png)
+   seen: A brass cartridge (brass body about x=910-1000, y=435-485, silver tip about x=995-1030) sits on the slide's top surface at the ejection port. It is not in rack-grip-198-P220_G_R-right.png, where only the silver part shows. It may be the chambered round displayed after racking (the test line says racked: chambered), but it reads as sitting on the slide surface rather than inside the port.
+   expected: After racking, the chambered round is visible only inside the ejection port, with no cartridge sitting on the slide surface.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-198-P220_G_R-right.png (fingers on the frame below the slide and hovering above it, none on the serrated rear) and rack-grip-198-P220_G_R-left.png.
+  - pulled half way '1/4 fingers on it': DOUBTFUL. rack-grip-pulled-198-P220_G_R-right.png shows the fingers in the same places as before the pull (on the frame, hovering above the slide).
+  - 'moving with the hand: the slide / bolt; drawn: 6 drawn part(s) move, most 27 mm': NOT CONFIRMED. The slide sits at the same screen position in rack-grip-198-P220_G_R-right.png and rack-grip-pulled-198-P220_G_R-right.png; no ~27 mm rearward travel is visible.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONTRADICTED. mag-7-seated-again-198-P220_G_R.png shows a tan magazine body under the grip; mag-1-seated-198-P220_G_R.png shows only the base plate.
+  - 'in the hand: 3.5 cm from the palm': CONSISTENT with mag-4-in-hand-198-P220_G_R.png (magazine stands above the knuckles, not enclosed by the fingers).
+  - 'the gun moved 0.3 mm with the pull': CONSISTENT. Gun and sight occupy the same screen position in the rack-grip and rack-grip-pulled frames.
+  - 'dropped copy 0.0 cm across the pull ... 6.0 cm out': CONSISTENT with mag-2-leaving-198-P220_G_R.png (magazine drops straight down the grip line).
+  - 'half way in (on the rail): 0.0 cm off the magwell line': CONSISTENT in mag-6-half-in-198-P220_G_R.png (magazine centred under the grip), but the 'half way' frame already looks near full seat depth (see mag-7 bug).

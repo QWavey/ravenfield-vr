@@ -1,0 +1,36 @@
+Gun 165: PPSh-41 [DRUM]
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-165-PPSh-41_DRUM_-right.png)
+   seen: The left glove lies on top of the receiver at the front. Only the index fingertip (about x 650-870, y 240-350 px) touches the rounded knurled part on the receiver top; the rest of the hand hangs over the receiver in the air. The grey cocking box below the receiver line (about x 780-850, y 355-425 px) is not touched by any finger.
+   expected: Thumb and fingers closed around the part the test racks (bolt cap / charging handle), with the handle between them. The test line also says only 1 of 4 fingers is on the part.
+
+2. [minor] [low] hand_not_on_part  (rack-grip-165-PPSh-41_DRUM_-left.png)
+   seen: The left glove lies flat across the top of the receiver, with the index finger reaching forward over the wooden fore-end (about x 225-460, y 330-400 px). No finger is visibly closed on a knob, and the part being racked is hidden under the palm, so the grab cannot be confirmed.
+   expected: Fingers pinching the charging handle / bolt knob itself, with the part visible between thumb and fingers.
+
+3. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-165-PPSh-41 [DRUM].png)
+   seen: During the full-auto burst the left eye's flare is a small, dim star with almost no soft ring (roughly half the right eye's brightness). The right (gun-side) eye has a clearly brighter star and a wide soft ring, about twice the radius. In the single-shot pair lens-eyes-165 the two eyes are close, with the right only slightly stronger.
+   expected: Both eyes showing a similar flare, with the gun-side (right) eye only a bit stronger. A large one-sided gap is the lens brightness asymmetry the user described.
+
+4. [minor] [low] mag_not_in_hand  (mag-4-in-hand-165-PPSh-41_DRUM_.png)
+   seen: The fresh dark drum (about x 360-555 px, cut off at the top edge) rests against the back of the glove. The fingers reach forward to the left past it and do not curl around the drum, so it looks propped on the hand. The test line says 1.9 cm from the palm.
+   expected: Fingers wrapped around the drum body, with the feed end toward the gun.
+
+5. [tiny] [low] mag_wrong_orientation_or_model  (mag-2-leaving-165-PPSh-41_DRUM_.png)
+   seen: The dropping drum is rendered dark grey, while the gun's own drum at the same spot in mag-1 is silver. A dark blue-grey cap also sits inside the magwell above it (about x 565-720, y 160-215 px). The fresh drum in mag-4, mag-5 and mag-6 shows the same dark shading.
+   expected: The same silver drum model as mag-1. The magwell should show only the dropping drum, which is what mag-3 shows once it is empty.
+
+6. [minor] [low] other  (rack-grip-pulled-165-PPSh-41_DRUM_-left.png)
+   seen: Compared with rack-grip-165-PPSh-41_DRUM_-left.png, the drum and the stock plate sit about 120-140 px further left, while the glove stays in the same place on screen. That is a large image shift for a gun that the test says moved 0.7 mm.
+   expected: With only the bolt pulled, the gun body (drum, stock plate) should stay where it is in the frame. The camera or the whole gun must have moved if this shift is real, and the test line does not report that.
+
+Test line flags:
+  - rack grip (slide/bolt, fire motion): 0/72 points inside the part, 1/4 fingers on it -- CONFIRMED by rack-grip-165-PPSh-41_DRUM_-right.png: only the index fingertip touches the knurled part on the receiver top.
+  - the gun moved 0.7 mm with the pull -- NOT CONFIRMED: rack-grip-165-PPSh-41_DRUM_-left.png vs rack-grip-pulled-165-PPSh-41_DRUM_-left.png show the drum and stock plate about 120-140 px apart while the glove stays put, far more than 0.7 mm at this close range unless the camera moved.
+  - lens flash burst: flashes L 17 / R 17 (full L 4 / R 4) -- counts are equal, but lens-eyes-burst-165-PPSh-41 [DRUM].png shows the left eye much dimmer than the right, so the counts do not show the brightness gap.
+  - drawn: 2 drawn part(s) move, most 46 mm; the nearest is 0.0 cm from the hand -- CONSISTENT: rack-grip-pulled-165-PPSh-41_DRUM_-right.png shows the knurled end under the glove has changed and the ejection slot now starts further right, while the cocking box stays put.
+  - magazine (deep): dropped copy 1.0 cm out -- CONSISTENT: the drum in mag-2-leaving-165-PPSh-41_DRUM_.png sits about 25-35 px lower than in mag-1, roughly 1 cm at this scale.
+  - half way in (on the rail): 0.0 cm off the magwell line -- CONSISTENT: the drum in mag-6-half-in-165-PPSh-41_DRUM_.png is centred within about 10 px of the seated line.
+  - seated: the gun's magazine shows 0.0 cm from where it was -- CONFIRMED: mag-7-seated-again-165-PPSh-41_DRUM_.png matches the outline of mag-1 exactly.
+  - muzzle flash: 'Muzzle Flash Particles (3)', every shot -- CONSISTENT: flash at the muzzle in lensburst-165-PPSh-41_DRUM_.png and lensflash-165-PPSh-41_DRUM_.png, with spent casings visible in lensburst.

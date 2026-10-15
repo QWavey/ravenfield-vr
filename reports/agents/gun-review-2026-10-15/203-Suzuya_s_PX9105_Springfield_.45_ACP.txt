@@ -1,0 +1,24 @@
+Gun 203: Suzuya's PX9105 Springfield .45 ACP
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-203-Suzuya_s_PX9105_Springfield_.45_ACP-right.png)
+   seen: Compared with rack-grip-203-...-right.png, the slide does not travel with the hand. The rear sight block, the slide serrations and the left-hand glove on the slide top stay at exactly the same screen spot. The frame parts move instead: the gold heart decal, the trigger guard and the grey glove at the bottom (right hand) all shift about 150-170 px to the right, roughly 3-3.5 cm at this scale. The background is unchanged, so the camera did not move.
+   expected: The slide should slide back about 3.5 cm together with the glove (sight and serrations move with the fingers, barrel showing in front of the slide). The frame and the right hand should stay where they were.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-203-Suzuya_s_PX9105_Springfield_.45_ACP-left.png)
+   seen: Same problem from the other side. Compared with rack-grip-203-...-left.png, the slide's top and bottom edges and the glove on the slide are unchanged, but the trigger guard and frame area moves about 100 px to the left (roughly 2 cm). The slide is not drawn back with the hand; the lower gun shifts instead.
+   expected: The slide edges should move back with the glove by about the same amount (about half the rack), and the trigger guard should stay put relative to the frame.
+
+3. [major] [medium] mag_duplicate_or_missing  (mag-6-half-in-203-Suzuya_s_PX9105_Springfield_.45_ACP.png)
+   seen: No magazine is visible anywhere in the frame. The grip base is visible at about y 570-630, and directly under it a grey glove (fingers and back of hand, x 580-1130, y 570-800) covers the whole area where the magazine should stick out. No olive magazine body or orange-tipped top shows at all, so the magazine is either vanished or hidden inside the hand.
+   expected: The fresh magazine (olive body, orange-tipped top round) should be visible half way up into the magwell on the grip's axis, with its lower half hanging below the grip base, and the glove not covering it.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-pulled-203-Suzuya_s_PX9105_Springfield_.45_ACP.png)
+   seen: Wide first-person view: the grey left glove sits to the left of the blue ragdoll, about 70-100 px left of the slide's front end (x 540-640 vs slide x 715+). Its fingers do not wrap the slide. In the matching rack-grip wide shot no hand is visible on the slide at all, so the racking hand is not clearly seen pinching the slide here.
+   expected: The left fingers should be pinched on the slide top, and the slide should visibly sit half way back under them.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" is contradicted by rack-grip-pulled-203-...-right.png: the slide (sight, serrations, glove on it) does not move, while the frame and right-hand grip shift about 3-3.5 cm. The slide is not moving with the hand.
+  - "drawn: 1 drawn part(s) move, most 35 mm; the nearest is 0.0 cm from the hand": the visible shift in rack-grip-pulled-203-...-right.png is about 3-3.5 cm and belongs to the frame/receiver, not the slide. This confirms the 35 mm figure but says the moving part is the wrong one.
+  - "the gun moved 0.4 mm with the pull" cannot be squared with the pictures: the frame and the right-hand glove shift several cm on screen in both pulled images. Either the offset is between child parts of the gun (slide vs frame) or the measurement samples the wrong node. Not consistent with what the picture shows.
+  - "half way in (on the rail): 0.0 cm off the magwell line" cannot be confirmed: mag-6-half-in-203-...png shows no magazine at all, only the glove under the grip base. The measured half-in position is contradicted by the picture (magazine missing or hidden).

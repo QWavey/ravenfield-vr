@@ -1,0 +1,15 @@
+Gun 151: K413
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+1. [minor] [low] part_floating_or_detached  (weapon-151-K413.png)
+   seen: Bottom edge, just left of the gun body (about x 715-790, y 728-800 of the 1280x800 frame): a tan/olive block that looks separate from the dark gray gun, sitting in front of its lower-left end. It could be a magazine, foregrip or stock seen at an angle, or a detached part. The picture is small and cut off at the bottom, so I cannot tell which.
+   expected: Any part of the gun in view attached to the body in its normal place (a magazine seated in the magwell, a stock or foregrip touching the receiver). Nothing hanging beside the gun.
+
+2. [tiny] [low] hand_not_on_part  (weapon-151-K413.png)
+   seen: The gun sits in the bottom-right corner and is cut off by the bottom edge. The right hand on the grip (about x 800-870, y 720-800) is not clearly readable, so I cannot confirm fingers wrapped around the pistol grip.
+   expected: The right hand visibly wrapped around the grip, with the gun pointed forward.
+
+Test line flags:
+  - Muzzle flash is recorded as 'Casing Particles' at 100 cm with no flash light and 'lens flash none'. The muzzle effect looks like ejected casings rather than a muzzle flash, so the gun may show no real flash when it fires. weapon-151-K413.png is a non-firing frame, so it neither confirms nor refutes this, and the 100 cm distance cannot be checked from it. No lensflash or lensburst picture is listed for gun 151, so 'lens flash none' cannot be checked against a picture.
+  - The pin-in and pin-pulled grenade results ('dud', 'refunded', 'live grenade thrown') are on a gun's line. The picture shows a gun, not a grenade, so these grenade measurements look misattributed or leaked from another test. The picture does not confirm or refute them.
+  - 'manual reload not active for this weapon' is consistent with the picture: no magazine or charging-part pictures are listed for gun 151, so there is nothing to check for a reload bug.

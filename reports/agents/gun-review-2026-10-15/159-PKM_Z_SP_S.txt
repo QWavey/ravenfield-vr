@@ -1,0 +1,57 @@
+Gun 159: PKM Z SP S
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-159-PKM_Z_SP_S-left.png)
+   seen: Left hand lies flat across the receiver's left side: thumb on the top edge (about x 220-400, y 200-280), fingers spread flat (x 230-470, y 330-400), palm over the side plate (x 470-880, y 240-520). No finger wraps any handle. The orange piece at top-left (x 0-390, y 80-200) is above the hand and untouched; the knob and plate on the top-rear of the receiver (about x 700-830, y 40-135) are not touched either.
+   expected: Left index finger and thumb pinch the top-rear charging handle, fingers on that part, not on the side plate.
+
+2. [major] [high] hand_not_on_part  (rack-grip-159-PKM_Z_SP_S-right.png)
+   seen: Only one gloved finger shows, hanging below the receiver at bottom-left (x 0-280, y 620-800) in the air, its tip beside the trigger guard plate (x 180-470, y 640-760). Nothing on the top of the receiver is touched.
+   expected: Left fingers on the charging handle at the top-rear, pinching it.
+
+3. [major] [medium] hand_pose_wrong  (rack-grip-pulled-159-PKM_Z_SP_S-left.png)
+   seen: Hand pose is identical to rack-grip-159-PKM_Z_SP_S-left.png: thumb tip at x 220-260 y 200-280, fingertips at x 230-330 y 330-380, same screen spot. The hand did not move back with any part, so it is pulling air.
+   expected: The hand travels back with the charging handle about half way, keeping its fingers on that handle.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-159-PKM_Z_SP_S-left.png)
+   seen: Compared with rack-grip-159-PKM_Z_SP_S-left.png the whole receiver body is shifted about 200-280 px to the left: top rail holes, long top slot, orange piece and right-hand grip all move together while the left hand stays put. The background horizon also changes, so the camera may have moved too. What moves is the receiver body under the palm, not a handle sliding back on top.
+   expected: Only the top-rear charging handle (or bolt) slides back about 67 mm; the receiver body stays fixed.
+
+5. [major] [high] hand_not_on_part  (rack-grip-pulled-159-PKM_Z_SP_S-right.png)
+   seen: Single finger still under the trigger guard at the bottom (x 400-620, y 620-800), in the same finger-to-trigger-guard relation as in rack-grip-159-PKM_Z_SP_S-right.png. Nothing at the top-rear of the receiver is pulled back by this hand.
+   expected: Finger pulling the top-rear charging handle back about half way, fingers on the handle.
+
+6. [minor] [medium] hand_not_on_part  (rack-grip-159-PKM_Z_SP_S.png and rack-grip-pulled-159-PKM_Z_SP_S.png (first-person))
+   seen: The free left hand that floats at about x 540-630, y 585-690 in weapon-159, lensflash and lensburst is absent in both racking first-person frames. No hand is visible on the rear-top of the gun, so the racking grip cannot be seen from this view.
+   expected: Free hand visible on the charging handle while racking, pulling it back in the pulled frame.
+
+7. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-159-PKM Z SP S.png)
+   seen: Both halves are nearly black. Each eye shows only a tiny dim orange speck at about 54% across and 61% down, with very faint dark rings around it. The right eye is marginally stronger, which is correct, but the flare is barely visible.
+   expected: A bright star near the muzzle with soft rings, clearly visible on black, right eye a bit stronger.
+
+8. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-159-PKM Z SP S.png)
+   seen: Essentially all black. Two pinpoint specks (left at about x 163, y 150; right at about x 465, y 150 of the 606x250 image) and no visible soft rings. The full-auto flash reads as no flash.
+   expected: A bright star with soft rings at the muzzle on each eye, visible through the burst.
+
+9. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-159-PKM_Z_SP_S.png)
+   seen: The muzzle is a dark ring at about x 735-780, y 475-510 with no bright flash, glow or particle on it. No muzzle flash is visible in this shot.
+   expected: The gun's own muzzle flash (bright burst) at the muzzle.
+
+10. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-159-PKM_Z_SP_S.png)
+   seen: A faint grey puff sits at about x 640-670, y 455-500, roughly 90 px left of and slightly below the dark muzzle ring (x 735-780, y 475-510). No bright flash at the muzzle itself. The puff is offset from the muzzle, which may be the 100 cm offset the test line reports.
+   expected: Flash burst at the muzzle, not a grey puff floating in front of it.
+
+11. [minor] [low] other  (weapon-159-PKM_Z_SP_S.png)
+   seen: A tall dark sight block rises above the receiver at about x 700-750, y 360-500, and no round muzzle ring shows at that spot. The other first-person frames (rack-grip, lensflash, lensburst) show a round muzzle ring at about x 745, y 490 and no tall block. The gun silhouette changes between frames; cause not clear from the pictures.
+   expected: The same sight and muzzle silhouette in every first-person frame of this gun.
+
+Test line flags:
+  - rack grip '5/72 points inside, 0/4 fingers on it': CONFIRMED by rack-grip-159-PKM_Z_SP_S-left.png and -right.png. No finger wraps a handle; the hand rests on the side plate, and a finger hangs under the receiver by the trigger guard.
+  - pulled half way '6/72 points inside, 0/4 fingers': CONFIRMED by rack-grip-pulled-159-PKM_Z_SP_S-left.png (same hand pose as before the pull) and -right.png (finger still at the trigger guard).
+  - drawn '1 drawn part(s) move, most 67 mm; nearest 0.0 cm from the hand': CONSISTENT with rack-grip-pulled-159-PKM_Z_SP_S-left.png, where the receiver body shifts about 200-280 px while the hand stays. That fits the part under the palm moving instead of the top-rear charging handle. Camera motion is not excluded because the background also shifts.
+  - 'the gun moved 1.0 mm with the pull, 1.6 mm when it went home': NOT CONFIRMABLE. The close-up camera position differs between the rack-grip and pulled shots, and the roughly 200 px on-screen shift looks far larger than 1 mm unless the camera moved.
+  - lens flash 'strength 0.05', burst 'strongest soft flash 0.06': CONFIRMED visually. lens-eyes and lens-eyes-burst are nearly black with only specks.
+  - muzzle flash 'particles, 100 cm, every shot': CONSISTENT with lensburst-159-PKM_Z_SP_S.png, where the grey puff sits about 90 px from the muzzle, and with lensflash-159-PKM_Z_SP_S.png, which shows no flash at the muzzle.
+  - 'belt pulled too far: slipped from the hand and hangs from the box' and 'pulled out by hand: stays in the hand': NOT CONFIRMABLE. No picture shows a belt hanging or being pulled.
+  - 'magazine (deep): skipped (no detachable magazine)': consistent. No magazine pictures are listed for this belt-fed gun, so no magazine review was possible.
+  - 'fired 3/3; cases thrown: 18': consistent. Two casings are in flight to the right in lensburst-159-PKM_Z_SP_S.png.

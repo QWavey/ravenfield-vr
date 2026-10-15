@@ -1,0 +1,48 @@
+Gun 190: <color=Cyan>MP9 S</color>
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-190-_color_Cyan_MP9_S_color_-right.png)
+   seen: The free hand is frozen in exactly the same pose as in rack-grip-190-_color_Cyan_MP9_S_color_-right.png (thumb tip about x 830-910 y 300-390, wrist strap window about x 400-500 y 260-480). Meanwhile the rear block with the rear sight and the bracket with two holes has slid about 180 px back to the right under it (the barrel now shows about 180 px more in front of the bracket). The hand does not travel with the part, so it is pulling air.
+   expected: The hand stays wrapped on the charging handle and moves back with it by about 38 mm (about 180 px at this distance).
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-190-_color_Cyan_MP9_S_color_-right.png)
+   seen: The black charging-handle box directly under the thumb (about x 765-880, y 385-475) stays at essentially the same screen position as in rack-grip-190-_color_Cyan_MP9_S_color_-right.png (where it is at about x 750-880, y 380-470). Only the slide, rear sight and bracket travel back.
+   expected: The charging handle is part of the moving slide/carrier and should travel back with it, not stay fixed while the slide slides out from under it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-190-_color_Cyan_MP9_S_color_-right.png)
+   seen: The glove with the wrist strap lies across the top of the receiver. The thumb tip rests on top of the charging-handle box (about x 750-880, y 380-470) and the fingers lie flat along the rail behind it (about x 600-910, y 250-390). No fingers are wrapped around the handle.
+   expected: Fingers wrapped around and pinching the charging handle (0 of 4 fingers on it is a failure).
+
+4. [major] [medium] hand_not_on_part  (rack-grip-190-_color_Cyan_MP9_S_color_-left.png)
+   seen: The grey mesh free hand lies flat on top of the receiver. Its fingers run forward along the receiver side (about x 290-500, y 360-500) and the knuckles rest on top (about x 500-690, y 200-260). No fingers curl around any handle.
+   expected: Fingers closed on the charging handle at the rear of the receiver, pinching it.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-pulled-190-_color_Cyan_MP9_S_color_-left.png)
+   seen: The grey free hand is in the same pose as in rack-grip-190-_color_Cyan_MP9_S_color_-left.png (thumb about x 280-330 y 270-330, fingers about x 290-500 y 360-500, knuckles about x 500-690 y 200-250). It did not move while the handle should have travelled back about 38 mm.
+   expected: The hand moves back with the handle, staying on it.
+
+6. [major] [medium] mag_duplicate_or_missing  (rack-grip-190-_color_Cyan_MP9_S_color_-left.png)
+   seen: A black magazine with yellow rounds hangs in mid-air at the top right (about x 960-1210, y 40-220), far from the gun and not on the ground. It is still there in rack-grip-pulled-190-_color_Cyan_MP9_S_color_-left.png (about x 890-1090, y 40-210), i.e. it does not fall. The test says the dropped magazine was picked up and seated, so this is either a second magazine or a floating dropped one.
+   expected: No loose magazine left floating after the reload; the dropped magazine should be on the ground or gone, and only the one in the gun should exist.
+
+7. [major] [high] mag_not_in_hand  (mag-4-in-hand-190-_color_Cyan_MP9_S_color_.png)
+   seen: The grey-glove left hand is open with the fingers spread flat, pointing left. The fresh magazine is tilted about 30-35 degrees and sits under the heel of the palm at about x 690-910, y 470-570. No finger wraps it, so it looks held by the palm edge or floating beside the hand.
+   expected: Fingers curled around the fresh magazine, same model as the gun's, feed end pointing toward the gun.
+
+8. [minor] [low] other  (mag-6-half-in-190-_color_Cyan_MP9_S_color_.png)
+   seen: The magazine's visible part below the magwell (about y 470 to 745) is essentially the same length and depth as in mag-1-seated and mag-7-seated-again (bottom about y 730). The frame labelled half way already looks fully seated, while mag-5 shows it far below. The insertion step looks like a jump, not a half-way state.
+   expected: The magazine partway up the magwell, with clearly more of it hanging below the grip than in the seated frames.
+
+Test line flags:
+  - rack grip 0/4 fingers on it: supported. rack-grip-190-..-left and -right show the fingers lying flat on the receiver, not around the handle.
+  - pulled half way 0/4 fingers on it: supported. rack-grip-pulled-190-..-left and -right show the same hand position with no fingers on the handle.
+  - moving with the hand: the charging handle: contradicted. The hand pose is identical between rack-grip and rack-grip-pulled (both left and right), so the hand did not move with anything, and the charging-handle box stays in place.
+  - drawn: 2 drawn parts move, most 38 mm: partly supported. In rack-grip-pulled-190-..-right the rear slide block, rear sight and bracket visibly travel about 180 px back, consistent with about 38 mm. The charging-handle box does not move.
+  - the nearest is 0.0 cm from the hand: not clearly supported. The part at the thumb (the charging-handle box) is the one that does not move.
+  - the gun moved 0.3 mm with the pull: supported. The barrel and the front of the receiver stay in the same place in the right-side pulled picture.
+  - magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine, 7.7 cm out: not supported. No picture shows a dropped copy 7.7 cm from the gun; the only loose magazine visible is about 1 m away in mid-air at top right (rack-grip-190-..-left).
+  - in the hand: 2.5 cm from the palm: supported by mag-4-in-hand-190-..png, where the magazine sits under the palm heel and is not held by fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: the line looks right in mag-6-half-in, but the depth does not look half way (it reads as seated), so the half-way step is not confirmed.
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. mag-1-seated and mag-7-seated-again show the magazine at the same place.
+  - magazine: seated, 31 rounds and racked: chambered: not verifiable from these pictures.
+  - fired 3/3, cases thrown 3, recoil and impulse figures: no shooting frames in this set, so not checkable.

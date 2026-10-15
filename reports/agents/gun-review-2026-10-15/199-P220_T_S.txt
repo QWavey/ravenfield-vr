@@ -1,0 +1,30 @@
+Gun 199: P220 T S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-199-P220_T_S-right.png)
+   seen: The left hand misses the slide. The index fingertip hangs in the air above the slide, to the right of the rear sight (around x 1000-1060, y 330-410, slide top at about y 430). The thumb pad sits on the frame below the rear end of the slide (x 700-810, y 440-570). No finger is on the slide.
+   expected: Fingers pinched on the slide's rear serrated top so the slide can be racked. No finger in the air.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-199-P220_T_S-right.png)
+   seen: The hand does not travel with the pull. Thumb and index fingertip are at the same screen spots as in rack-grip-199-P220_T_S-right.png (thumb x 620-810, index tip x 1000-1060, y 330-410). A brass case head now shows in the ejection port (x 915-990, y 445-500) that was not there before, so the slide area changes while the hand stays still.
+   expected: The hand moves back with the slide, fingers still on the slide, about half way back (the test says 27 mm).
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-199-P220_T_S-left.png)
+   seen: Compared with rack-grip-199-P220_T_S-left.png, the front sight (green dot near x 110, y 365) and the frame stay at the same screen position, so no visible rearward slide travel (rear is to the right in this view). The glove's top edge shifts roughly 60-80 px to the left, toward the muzzle, the wrong way for a pull.
+   expected: The slide visibly travels back (about 27 mm, roughly 50-70 px to the right in this view) with the fingers on it.
+
+4. [major] [medium] mag_wrong_orientation_or_model  (mag-5-lined-up-199-P220_T_S.png)
+   seen: The fresh magazine (tan body, orange feed lips at top around x 620-660, y 560-600) leans about 20-30 degrees: its lower end swings right to about x 750-790 at y 800, while the grip's own axis is near vertical. The feed end also sits roughly a grip-width below the grip bottom (grip bottom near y 380), not right at the magwell.
+   expected: Magazine on the grip's axis, untilted, feed end right at the magwell.
+
+5. [minor] [low] mag_not_in_hand  (mag-4-in-hand-199-P220_T_S.png)
+   seen: The fresh magazine (orange feed lips at top-left, x 400-425, y 75-120) runs down behind the top edge of the glove (about y 285-300). No finger is visibly wrapped around its body, so it looks pinned behind the fist rather than gripped. The test reports it 3.5 cm from the palm.
+   expected: Fingers curled around the magazine body, feed end toward the gun.
+
+Test line flags:
+  - rack grip 0/72 points inside, 0/4 fingers on it: CONFIRMED by rack-grip-199-P220_T_S-right.png (index tip above the slide, thumb on the frame).
+  - pulled half way 1/72 inside, 1/4 fingers on it: consistent with rack-grip-pulled-199-P220_T_S-right.png, where the fingers still sit off the slide.
+  - moving with the hand: the slide / bolt: NOT confirmed. The hand stays put across the right-side pull (rack-grip-pulled-199-P220_T_S-right.png vs rack-grip-199-P220_T_S-right.png), and the left pair shows no visible slide travel (rack-grip-pulled-199-P220_T_S-left.png).
+  - drawn 6 parts move, most 27 mm; the nearest is 0.0 cm from the hand: DOUBTFUL. A 0.0 cm nearest distance sits badly with 0/4 fingers on the slide and the index tip visibly above it. The first-person pair rack-grip-199-P220_T_S.png and rack-grip-pulled-199-P220_T_S.png shows almost no visible change in the slide.
+  - in the hand: 3.5 cm from the palm: NOT confirmed. mag-4-in-hand-199-P220_T_S.png shows the magazine ending behind the glove's top edge with no gap, so the picture cannot tell whether it is 3.5 cm off the palm or behind the fist.
+  - NOTE (not a measurement): the islands-map lens brightness bug and the flash test requested by the user were not done. This is a Read-only review, so nothing was launched, and this gun's brief lists no lensflash or lens-eyes pictures.

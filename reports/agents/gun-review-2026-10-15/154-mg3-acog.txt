@@ -1,0 +1,42 @@
+Gun 154: mg3-acog
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] optic_or_sight_issue  (weapon-154-mg3-acog.png)
+   seen: The ACOG is not on the receiver top. Where the scope should sit there is a tall ribbed black block (about x 725-825, y 255-530 in the 1280x800 frame) standing straight up off the receiver, and the red dot is not visible. The other first-person frames from this run (lensflash, lensburst, rack-grip-154-mg3-acog.png) show the ACOG flat on the receiver at about x 690-900, y 450-560 with its red dot near (780,455).
+   expected: The ACOG lies flat on the receiver top rail with its red dot visible, and nothing stands up from the top of the MG3 (it is belt-fed and has no box magazine).
+
+2. [major] [medium] part_floating_or_detached  (weapon-154-mg3-acog.png)
+   seen: A solid black disc about 40 px across hangs in the air at about (870,535), just right of the tall block, with a thin dark post under it at about x 838-858, y 555-610. Nothing visibly attaches it to the gun.
+   expected: The scope tube end is attached to the scope body on the receiver. No loose disc or post floats in the air.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-154-mg3-acog-left.png)
+   seen: Compared with rack-grip-154-mg3-acog-left.png (the blue ragdoll at lower right barely moves, so the camera is about fixed), the belt rounds, the black block under the glove, the trigger-guard loop and the top loop all shift about 200-260 px to the left (roughly 6-7 cm at this scale, close to the test's 75 mm). The glove's palm edge stays at x about 870 and the index fingertip moves only about 60 px. The receiver assembly slides sideways under a hand that stays put.
+   expected: Only the charging handle slides back, with the fingers still wrapped on it so the hand moves with it. The receiver, belt feed and trigger guard should stay still. Caveat: head-camera parallax could explain part of the shift.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-154-mg3-acog-left.png)
+   seen: The glove lies across the receiver side. The index finger runs over the belt-feed rounds (x about 260-300, y 270-330), and the curled fingers sit below the palm on a black block (x about 600-730, y 500-660) rather than on any handle. The top loop (x about 990-1090, y 88-140) is about 200 px away from the fingers.
+   expected: Fingers wrapped around the charging handle, not over the belt feed or the lower receiver.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-154-mg3-acog-right.png)
+   seen: The silver charging lever (x about 710-950, y 370-580) sits above the glove. Only the lower-right corner of the lever (x about 880-980, y 555-600) touches the fingertips. No finger wraps the lever.
+   expected: Three or four fingers closed around the lever so that the pull moves it.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-154-mg3-acog.png)
+   seen: LEFT eye: a faint small flare with a dim core and barely visible rings. RIGHT eye: a bright core with long star spikes and clear rings. The core gap is roughly 2-3x, larger than in the single-shot lens-eyes-154-mg3-acog.png pair where both eyes show rings. The right eye is the gun side, so the direction is right, but the gap is more than a bit.
+   expected: Both eyes similar, with the gun-side (right) only a bit stronger, as in the single-shot pair.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-154-mg3-acog.png)
+   seen: The ring halos are centred on the muzzle flash at about (690,450), which is correct. But a bright vertical streak runs down the right screen edge (x about 1215-1245, y 0-400) and a white haze lies along the sea horizon on the right, far from the muzzle.
+   expected: The lens flare stays around the muzzle light, with no streak or haze at the far screen edge.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': confirmed. rack-grip-154-mg3-acog-right.png shows fingertips only under the lever, and rack-grip-154-mg3-acog-left.png shows the index finger on the belt feed.
+  - pulled half way '0/72 points, 0/4 fingers': consistent with rack-grip-pulled-154-mg3-acog-left.png, where the palm does not move with the part.
+  - drawn '2 drawn parts move, most 75 mm; nearest 0.0 cm from the hand': supported by rack-grip-pulled-154-mg3-acog-left.png. The moving parts look like the receiver body with belt feed and trigger guard, not only the handle. The 0.0 cm contact is not a grip.
+  - 'gun moved 0.5 mm with the pull, 0.9 mm when it went home': not checkable from pictures. The close-up receiver shift suggests the receiver moves relative to the gun root, which a 0.5 mm gun-root figure would not show.
+  - Right-side pull not confirmed: in rack-grip-pulled-154-mg3-acog-right.png the lever notch sits at about the same spot as in rack-grip-154-mg3-acog-right.png, and the top hook seen in the unpulled frame is not clearly visible in the pulled one. Could not confirm a pull on that side.
+  - 'magazine (deep): skipped (no detachable magazine)': consistent. There are no magazine pictures for this belt-fed gun, and by the test's own account the tall block in weapon-154-mg3-acog.png is not a magazine.
+  - 'lens flash burst: flashes L 22 / R 22 (full L 4 / R 3)': equal counts, but lens-eyes-burst-154-mg3-acog.png shows the left flare much weaker than the right in the same burst. Counts do not reveal the brightness gap.
+  - 'muzzle flash: ... the flash light; lens flash shown, strength 0.75': confirmed. lensflash-154-mg3-acog.png and lensburst-154-mg3-acog.png show the flash at the muzzle.
+  - 'equipped': the test line passes, but weapon-154-mg3-acog.png shows the ACOG displaced and a tall block standing up. The test did not flag this.
+  - 'racked: chambered', 'pulled out by hand', 'belt pulled too far': no pictures to check.

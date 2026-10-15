@@ -1,0 +1,38 @@
+Gun 162: PKP OKP7
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-162-PKP_OKP7-left.png)
+   seen: Left-side close-up. The left hand lies across the lower front of the receiver (x 225-880, y 200-520). Its index finger points straight left (x 225-430, y 200-300) and the other fingers lie over the top of the ammo box (x 330-460, y 330-520). No finger touches the charging lever at the upper right of the receiver (x 870-1100, y 0-160). In the full view rack-grip-162-PKP_OKP7.png the free left hand has moved from its idle spot to the front of the ammo box, not to the top handle.
+   expected: Left fingers wrapped around the charging handle (the lever at the top rear of the receiver), pinching it, not hanging in front of the receiver over the box.
+
+2. [major] [high] hand_not_on_part  (rack-grip-162-PKP_OKP7-right.png)
+   seen: Right-side close-up. The small charging tab on the receiver side (x 530-680, y 205-285) has no fingers on it. The left hand sits 100-150 px below it, under the receiver's lower edge (x 420-860, y 355-560), with fingers curled at x 430-530, y 380-540 against the lower frame next to the trigger guard.
+   expected: Fingers on the charging tab itself (about 1-2 finger widths of contact), not under the receiver near the trigger guard.
+
+3. [major] [high] hand_not_on_part  (rack-grip-pulled-162-PKP_OKP7-right.png)
+   seen: Right-side close-up, pulled frame. The left hand's knuckles and fingers (x 550-880, y 350-560) are wrapped around the black trigger guard (x 460-960, y 350-560). The receiver lever/tab (x 900-1100, y 200-275) is untouched and clearly above and away from the fingers. The hand is holding the trigger guard, which is the wrong part, while the handle stays put.
+   expected: Fingers on the charging handle (x 900-1100, y 200-275), drawing it back about half way with the hand. The trigger guard should not be the grabbed part.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-162-PKP OKP7.png)
+   seen: Burst frame, LEFT | RIGHT on black. Left eye: a tiny faint star at about (166, 152) with almost no halo ring. Right eye: a clearly brighter star at about (466, 152) with six or more spikes and a visible halo ring around (390-550, 70-240). The right eye's core and halo look roughly 2-3x brighter than the left, a big imbalance. This matches the L/R brightness imbalance the user reported on the islands map.
+   expected: Both eyes showing the same flare shape at the same brightness, with the gun-side right eye only a bit stronger (roughly 1.1-1.3x).
+
+5. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-162-PKP_OKP7-left.png)
+   seen: Pulled left close-up: the left hand is still in front of the receiver with its fingers pointing left over the ammo box (x 210-880, y 200-520). The index finger grows only slightly (about 205 px to 230 px) compared with rack-grip-162-PKP_OKP7-left.png, so the hand barely moves back. In the full views rack-grip-162-PKP_OKP7.png and rack-grip-pulled-162-PKP_OKP7.png the gun, sight and receiver sit at identical screen positions, so no visible backward travel of the bolt or handle is shown. The camera angle differs between the two close-ups, so this is hard to confirm.
+   expected: The charging handle visibly pulled back about half way, with the gun's hand travelling back along the receiver and the handle moving with the fingers.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-162-PKP_OKP7.png)
+   seen: The muzzle flash itself is correctly at the muzzle (about x 650-700, y 470-530). Also present: a bright vertical light band at the right edge (x 1200-1260, from the top of the frame down to the horizon) and a white haze along the horizon (x 880-1280, y 370-400). Neither appears in weapon-162-PKP_OKP7.png. They are far from the muzzle and off the axis of the ring ghosts, so they may be a flare from another light source (sun) or a bloom artifact.
+   expected: Flare and streaks only around the muzzle, with ghost rings on the line through the screen centre. If the horizon glare is the real sun it is acceptable, but the vertical streak should not appear only during the shot.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-162-PKP OKP7.png)
+   seen: Single-shot LEFT | RIGHT panels. Each eye's warm brown haze fills a whole rounded square and stops at a visible rounded-rectangle edge (for example the left panel's right edge at x about 298 and bottom edge at y about 248) instead of fading out to black. The star, rings and ghosts themselves are placed correctly and the right eye is a bit stronger, as intended.
+   expected: The haze should fade to black toward the panel edges with no visible rounded-rectangle boundary.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it' and pulled half way '0/4 fingers on it': CONFIRMED by rack-grip-162-PKP_OKP7-left.png and -right.png (no finger on the charging handle) and by rack-grip-pulled-162-PKP_OKP7-left.png and -right.png (hand over the ammo box and the trigger guard).
+  - 'drawn: 1 part moves, most 67 mm; the nearest is 0.0 cm from the hand' looks WRONG: rack-grip-pulled-162-PKP_OKP7-right.png shows the hand on the trigger guard with the handle clearly away from the fingers. The 0.0 cm nearest-part reading probably measures the trigger guard or knuckles, not the moved part.
+  - 'the gun moved 1.0 mm with the pull, 1.5 mm when it went home': not contradicted; the full views rack-grip-162-PKP_OKP7.png and rack-grip-pulled-162-PKP_OKP7.png show the gun at identical screen positions, which fits a tiny movement. Cannot be measured from stills.
+  - 'lens flash burst: flashes L 13 / R 13 (full L 4 / R 4)': the counts are equal, but lens-eyes-burst-162-PKP OKP7.png shows the left eye far dimmer than the right. The counter does not measure brightness balance, so the test passes while the picture is unbalanced.
+  - 'magazine (deep): skipped (no detachable magazine, or the hand is busy)': expected for a belt-fed PKP; no magazine pictures exist (overview sheet tiles 8-14 are 'none'). The green box is the belt box, so nothing to check here. Not a bug.
+  - 'muzzle flash: particles every shot, lens flash shown, strength 0.89': lensflash-162-PKP_OKP7.png shows the muzzle flash at the muzzle and an on-screen flare, consistent with the line. lensburst-162-PKP_OKP7.png shows a smaller muzzle flash at the muzzle, which is acceptable for a mid-burst frame.

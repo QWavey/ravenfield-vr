@@ -1,0 +1,54 @@
+Gun 170: [Sec]BRN180 SS
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-170-_Sec_BRN180_SS-right.png)
+   seen: Compared with rack-grip-170-_Sec_BRN180_SS-right.png, nothing on the receiver moves relative to anything else. The rear flip sight, the rail end, the serrated latch (about x 640-730 before, x 745-835 after), the rod and the spring bar all shift together about 100 px to the right. The glove keeps its right edge at about x 830 and only its upper part shows behind the rail. No slide or charging handle visibly moves; the hand appears to slide over a gun that stays put.
+   expected: The charging or bolt handle that the hand pinches slides back about half way (roughly 1-2 cm) with the hand, while the sight, rail and receiver stay still.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-170-_Sec_BRN180_SS-left.png)
+   seen: Compared with rack-grip-170-_Sec_BRN180_SS-left.png, the whole gun body shifts about 50 px across the frame: the red-dot optic (x 665-820 becomes x 610-770), the rail end, the pistol grip and the magazine (x 340-575 becomes x 310-530) all move together. Their spacing is unchanged, so nothing slides inside the receiver. The left glove (x 430-870, y 230-530) stays in the same screen spot, so the gun seems to move as one piece away from the hand.
+   expected: Only the charging or bolt handle slides back with the hand. The optic, receiver, grip and magazine should stay still.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-170-_Sec_BRN180_SS-left.png)
+   seen: The left glove lies over the top front of the upper receiver. Its fingers rest on the rail just under and in front of the red-dot mount (roughly x 430-870, y 230-330), and the palm covers the receiver side down to about the trigger guard. Nothing visible under the fingers is a charging handle or bolt handle; the hand sits forward of the rear part of the upper receiver.
+   expected: The fingers pinch the charging handle or bolt handle itself, at the rear of the upper receiver, not the rail or the optic mount.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-170-_Sec_BRN180_SS.png)
+   seen: In the first-person view the left glove (about x 685-750, y 530-625) sits on the front of the handguard, roughly 50-70 px forward of the rear sight (x 760-790, y 505-535). No charging handle is visible under the fingers.
+   expected: The glove pinches the charging handle at the rear of the upper receiver, near the rear sight, with the fingers on that handle.
+
+5. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-170-_Sec_BRN180_SS.png)
+   seen: In the first-person half-pulled view the gun and the left glove (about x 685-750, y 530-630) look the same as in rack-grip-170-_Sec_BRN180_SS.png. The glove does not visibly move back and no rack part visibly moves.
+   expected: The hand visibly pulls the handle back part of the way, and the handle moves in the view.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-170-_Sec_BRN180_SS.png)
+   seen: No muzzle flash is visible at the muzzle tip (about x 690-720, y 445-470) on this shot. The barrel end looks clean with no bright flash or puff. The only yellow-green puff in the burst frame (lensburst-170) sits about 40-70 px below-left of the tip, not at it.
+   expected: A bright flash at the muzzle tip on every shot (the Muzzle (2) particles visibly at the tip).
+
+7. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-170-[Sec]BRN180 SS.png)
+   seen: Both LEFT and RIGHT panels are almost black. Each has only a small dark-orange speck with faint grey rings, at about 55% across and 57% down (left speck near x 168, right near x 467, y 143). The right eye is a little stronger, which is right, but neither looks like a bright star. The halo has a faint hard vertical boundary near x 298 on the left panel and x 395 on the right (low confidence on the edge).
+   expected: A bright star or flare at the muzzle with soft rings, clearly visible in both eyes, the right eye a bit stronger, and no hard edges.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-170-[Sec]BRN180 SS.png)
+   seen: The same tiny dark-orange speck and faint rings appear in both panels (left x 168, right x 467, y 143) as in the single shot. Nothing is brighter or more repeated across the burst; the burst flash looks no stronger than one shot.
+   expected: A visibly brighter flash (star plus soft rings) through the full-auto burst, with the right eye a bit stronger.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-170-_Sec_BRN180_SS.png)
+   seen: Large soft blue translucent discs are scattered across the sky and sea away from the muzzle: near (1130-1230, 40-130), (1115-1190, 210-300), (880-950, 335-400), (1095-1155, 425-485), plus smaller ones near the helicopter at about (670-685, 155-175) and (730-750, 325-350). They are absent from the single-shot frame and not on the muzzle axis, which looks like lens ghosts or smoke sprites spread over the view.
+   expected: The flash only at the muzzle, with no discs elsewhere on the view.
+
+10. [tiny] [low] other  (mag-1-seated-170-_Sec_BRN180_SS.png)
+   seen: The ammo label on the rear of the receiver (about x 1175-1245, y 230-275) reads backwards from this camera. The same mirrored label text shows in the reload close-ups (mag-2 to mag-7).
+   expected: The label text reads correctly from the side the camera is on.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 1 drawn part(s) move, most 17 mm; the nearest is 0.0 cm from the hand' are NOT confirmed. In rack-grip-pulled-170-_Sec_BRN180_SS-right.png no part slides relative to the receiver; the sight, rail, latch and spring bar shift together, so the 17 mm moving part is not visible as a slide.
+  - 'the gun moved 0.3 mm with the pull, 2.2 mm when it went home' looks inconsistent with the pulled close-ups: the gun body (optic, rail, grip, magazine) shifts about 50-100 px against the glove in rack-grip-pulled-170-_Sec_BRN180_SS-left.png and -right.png. Pictures cannot tell whether the close-up camera moved or the gun did.
+  - 'rack grip ... not measured (the part draws no mesh of its own)': the pictures show no visible charging or bolt handle under the glove, so the rack part itself is unverified.
+  - 'muzzle flash: particles Muzzle (2), 100 cm, every shot': no muzzle flash is visible at the tip in lensflash-170; the burst frame shows a faint puff about 40-70 px below-left of the tip. The '100 cm' figure cannot be checked from the pictures.
+  - 'lens flash shown, strength 0.07' and 'strongest soft flash 0.08': CONFIRMED. The flare in lens-eyes-170 and lens-eyes-burst-170 is almost black, so the flash is effectively invisible in these views.
+  - 'lens flash burst: 21 shots in 1.6 s, flashes L 21 / R 21 (full L 4 / R 4), budget 6': not checkable from one frame. lens-eyes-burst-170 looks no stronger than a single shot, which fits mostly soft flashes.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in looks on the line, but half-in and seated look the same from this camera (the mag top is hidden inside the receiver), so the depth is not confirmed.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONFIRMED. mag-7-seated-again matches the position of mag-1-seated.
+  - 'magazine (deep): dropped copy ... 2.8 cm out': mag-2-leaving shows the magazine dropping straight down along its line by about 70 px, which at this scale looks closer to 1-1.5 cm than 2.8 cm. Low confidence.
+  - 'in the hand: 3.4 cm from the palm': mag-4-in-hand shows the glove holding the magazine low on its body with fingers across the front, which is consistent.

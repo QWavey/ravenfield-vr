@@ -1,0 +1,48 @@
+Gun 143: K13
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-143-K13-right.png)
+   seen: Close-up from the right side. The left glove lies flat on top of the rail, fingers stretched along the rail from about x 400 to x 1100 (y 255-390), touching only the rail ticks. No finger reaches the charging-handle housing, which sits below the rail (box at about x 590-720, y 490-615, roughly 100 px under the glove). A curved black area fills the lower-left of the picture, hiding part of the receiver side.
+   expected: Fingertips pinch the charging handle itself at the rear of the upper receiver, below the top rail, with the fingers wrapped on that handle, not resting on the rail above it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-143-K13-left.png)
+   seen: Left-side close-up. The glove covers the top of the upper receiver from ahead of the flip sight (x about 725-830) back to about x 870. The fingers hook over the receiver's top-left edge at the handguard junction, and the back of the wrist covers the area where the charging handle sits. No finger is on a handle; the glove is resting on top of the gun.
+   expected: Fingers pinch the charging handle at the rear of the upper receiver (left side), with the knuckles and fingertips on that handle.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-143-K13-right.png)
+   seen: Compared with rack-grip-143-K13-right.png the glove is in the same place in the frame, but the rail (left end moves from about x 140 to x 475), the flip sight (about x 305-490 to x 635-820) and the housing below the rail (about x 590-720 to x 915-1050) all slide about 330 px to the right together, toward the muzzle. By the sight size that is roughly 5 cm. The whole upper receiver moves under a still hand, and no handle visibly slides back under the fingers.
+   expected: Only the charging handle / bolt slides back about half way under the fingers; the rail, rear sight and receiver housing stay exactly where they were.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-143-K13-left.png)
+   seen: Compared with rack-grip-143-K13-left.png the glove and horizon stay in the same place, but the magazine (x about 340-550 to 195-400), the pistol grip (x about 700-1000 to 560-870), the trigger guard and the flip sight (x about 725-830 to 598-645) all shift about 130-160 px left, toward the muzzle. The foregrip leaves the frame on the left. The gun body slides under the hand while the charging handle shows no backward movement.
+   expected: The charging handle / bolt pulls back about half way while the magazine, grip, trigger guard, foregrip and sight stay exactly where they were.
+
+5. [minor] [medium] mag_floating_or_offset  (mag-6-half-in-143-K13.png)
+   seen: The fresh magazine is clearly more upright than the seated magazine in mag-1 and mag-7 (its left edge is nearly vertical; the seated one leans forward about 10 degrees). Its top sits about 60-70 px higher than the seated magazine's top, past the magwell's lower edge, and a sliver of it shows in front of the lower receiver's front wall at x about 540-560, y 250-330. Its front edge is slightly ahead of the magwell's front edge. The lower end is hidden by the glove, so the exact depth cannot be read.
+   expected: A half-inserted magazine rides the magwell line (same forward lean as the seated one), with its top partway up toward the magwell opening, not above the seated depth and not in front of the receiver wall.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-143-K13.png)
+   seen: Both eyes' flare sits inside rounded panels with a warm brown gradient fill (left panel about x 0-298, right about x 307-605, y 0-250). The fill stops at a hard rounded edge against black instead of fading to black. The star and soft rings look right, and the right eye is a little stronger, as expected.
+   expected: The flare sits on pure black, with the glow fading out softly and no visible panel or tile edges.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-143-K13.png)
+   seen: On full auto the right eye's star (x about 470) is roughly twice as bright as the left eye's (x about 173, a tiny faint star), and its halo is about twice as wide. The test counts are equal (L 17 / R 17), so the difference is intensity, not count.
+   expected: The right eye only a bit stronger than the left, with both eyes' stars and halos similar in size and brightness.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-143-K13.png)
+   seen: First-person shot. The flash is at the muzzle (about x 670-720, y 470-520, just under the front sight), but the bloom spreads over the right half of the screen, blowing the sky and sea out to white, with a bright vertical streak along the right edge (x about 1210-1280). The muzzle reads as a glow with star spikes, not a flame.
+   expected: A flash at the muzzle with the scene still readable, the sky not blown out, and a visible muzzle flame.
+
+Test line flags:
+  - rack grip 0/72 points inside, 0/4 fingers on the part: confirmed. rack-grip-143-K13-right.png and rack-grip-143-K13-left.png show the glove resting on the rail and receiver top, with no fingers on the charging handle.
+  - pulled half way 0/72 points inside, 0/4 fingers: confirmed by rack-grip-pulled-143-K13-right.png and rack-grip-pulled-143-K13-left.png; the hand stays on the rail and receiver top.
+  - moving with the hand: the slide / bolt: conflicts with the pictures. No slide or handle visibly slides back under the fingers; the rail, sight and receiver housing move instead (rack-grip-pulled-143-K13-right.png).
+  - drawn: 2 drawn part(s) move, most 60 mm; nearest 1.4 cm from the hand: the 60 mm move fits the whole upper receiver shifting (about 330 px in rack-grip-pulled-143-K13-right.png), i.e. the wrong part is moving.
+  - gun moved 0.8 mm with the pull, 2.0 mm when it went home: conflicts with rack-grip-pulled-143-K13-left.png, where the magazine, grip and foregrip shift about 130-160 px against rack-grip-143-K13-left.png while the glove stays fixed. Either the gun moves or the camera rides the hand; the test should say which.
+  - magazine half way in (on the rail): 0.0 cm off the magwell line: the position claim is not confirmed by mag-6-half-in-143-K13.png, which shows the magazine more upright than the seated one and its top higher and forward of the receiver wall.
+  - seated: the gun's magazine shows 0.0 cm from where it was: confirmed. mag-7-seated-again-143-K13.png matches mag-1-seated-143-K13.png.
+  - in the hand: 3.4 cm from the palm: consistent with mag-4-in-hand-143-K13.png, where the glove wraps the lower body of the fresh magazine with the feed end up toward the gun.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 2.8 cm out: mag-2-leaving-143-K13.png shows the magazine dropping straight down its line; the 2.8 cm distance cannot be checked from the picture.
+  - muzzle flash: particles 'Muzzle Flash Particles', 100 cm, every shot: not confirmed. lensflash-143-K13.png and lensburst-143-K13.png show a small glow or burst at the muzzle, not a flame anywhere near the size a 100 cm particle would give.
+  - lens flash burst: flashes L 17 / R 17 (full L 4 / R 3): the counts are balanced, but lens-eyes-burst-143-K13.png shows the right eye about twice as bright as the left.
+  - lens flash shown, strength 1.05: lens-eyes-143-K13.png shows the flare on both eyes with the right a little stronger; the visible panel edges are a separate bug.

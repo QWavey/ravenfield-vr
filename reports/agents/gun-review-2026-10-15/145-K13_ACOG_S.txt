@@ -1,0 +1,41 @@
+Gun 145: K13 ACOG S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-145-K13_ACOG_S-left.png)
+   seen: The left glove lies flat across the top of the upper receiver. Its cuff is at the rear (about x 830-870, y 260-530) and its fingers reach forward over the top rail and the ACOG mount (about x 290-420, y 290-420). No finger wraps any handle. In the full first-person frame rack-grip-145-K13_ACOG_S.png the same glove shows as a light-grey shape just in front of the sight (about x 680-760, y 510-600). In rack-grip-pulled-145-K13_ACOG_S.png that shape shifts a little down and right while the gun does not move, so the hand moves but nothing on the gun follows.
+   expected: The left hand pinches the charging handle at the rear of the upper receiver with the fingers on that handle, and the handle moves back under the hand when pulled. The fingers should not sit on the rail or the ACOG mount, and the hand should not sit at the muzzle end.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-145-K13_ACOG_S-left.png)
+   seen: Compared with rack-grip-145-K13_ACOG_S-left.png, the ACOG sight and the block it sits on move about 200 px toward the muzzle (left in this frame), roughly 6 cm at the sight length. The glove, pistol grip, trigger guard and magazine stay in the same screen position, so the sight moves while nothing at the hand moves.
+   expected: Only the charging handle or bolt under the hand moves back toward the shooter (right in frame), about half the pull. The ACOG stays fixed on its mount.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-145-K13_ACOG_S-right.png)
+   seen: From the other side (compare rack-grip-145-K13_ACOG_S-right.png) the ACOG and the grey knob-block under it shift about 275-355 px to the right. That is toward the muzzle in this view, since the ACOG front bell is on the right. The rock and black-hole background stay put and the glove fingertip at about x 790-920, y 380-450 does not move. This agrees with the left pair: the sight slides forward instead of the handle sliding back.
+   expected: Only the charging handle moves, back toward the shooter under the glove. The sight stays on its mount, and the hand moves with the handle.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-145-K13_ACOG_S.png)
+   seen: The fresh magazine (yellow feed lips pointing up) stands at the bottom centre. Its top is about 290 px below the magwell and about 100 px left of it, so it hangs about one magazine length under the well and is not lined up with it. On screen it is only about 130 px wide, against 220-240 px for the gun's own magazine in mag-1 and mag-6, so it sits farther from the camera than the magwell. Its base is held by the left glove at the very bottom edge.
+   expected: The fresh magazine sits right at the magwell, just under it and on the same plane and on the well's line, ready to go up into it. mag-6 shows the correct width and line.
+
+5. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-145-K13 ACOG S.png)
+   seen: Almost entirely black. Only two tiny faint specks, about 3 px each, at about x 170 on the left eye and x 468 on the right eye, y 147. No soft rings, no halo, no star, so the full-auto flash is effectively invisible.
+   expected: Each eye shows a bright star with soft rings on the burst, with the right eye slightly stronger. The test counts 14 flashes per eye, so they should read on screen.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-145-K13_ACOG_S.png)
+   seen: No bright muzzle flash in this first-person frame, and the same holds for lensburst-145-K13_ACOG_S.png. The only shot effect is a faint grey-white puff about 80 px wide just in front (left) of the ACOG. In the burst frame a few brass cases lie on the ground at the right. The muzzle itself is not clearly visible.
+   expected: A bright white-orange flash at the muzzle end on each shot, clearly visible in the first-person view.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-145-K13 ACOG S.png)
+   seen: Very dim. A warm star about 4 px sits at about x 165 (left eye) and x 465 (right eye), y 148, with a faint halo and barely visible rings. The right eye is a little brighter, which is correct. The star is near the centre of each eye view, while the gun is at the lower right of the first-person frame, so the flare does not clearly read as coming from the muzzle.
+   expected: A clearly visible star with soft rings placed at the muzzle, with the right eye a bit stronger than the left.
+
+8. [tiny] [low] optic_or_sight_issue  (weapon-145-K13_ACOG_S.png)
+   seen: The ACOG eyepiece is a flat solid black disc (about 40 px across, about x 765-800, y 500-535) in every first-person frame, with no glass look. It may be intended as an opaque lens cap.
+   expected: A scope lens that reads as glass, with a reflection or the scene, rather than a flat black disc.
+
+Test line flags:
+  - rack grip 0/72 points and 0/4 fingers (and pulled half way 0/4 fingers): confirmed by rack-grip-145-K13_ACOG_S-left.png. The glove lies flat on the top rail and ACOG mount with no finger on any handle.
+  - moving with the hand: the slide / bolt: not supported by the pictures. The part that moves is the ACOG sight and the block under it, not a handle the glove holds (rack-grip-pulled-145-K13_ACOG_S-left.png and -right.png).
+  - drawn: 2 parts move, most 60 mm, nearest 3.5 cm from the hand (THE PART UNDER THE HAND DOES NOT MOVE): confirmed. The ACOG shifts about 200 px (roughly 6 cm at its length) in rack-grip-pulled-145-K13_ACOG_S-left.png while the glove, grip and magazine hold still.
+  - lens flash burst: flashes L 14 / R 14 (full L 4 / R 4), strongest soft flash 0.10: not visible in lens-eyes-burst-145-K13 ACOG S.png, which shows only two faint specks. The counted flashes do not read on screen.
+  - muzzle flash: particles 'Muzzle Flash Particles', no flash light: confirmed. The first-person frames show only a faint grey puff and no light flash.

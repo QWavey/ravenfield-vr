@@ -1,0 +1,39 @@
+Gun 206: M4A1 CCO
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] hand_not_on_part  (rack-grip-206-M4A1_CCO-left.png)
+   seen: The left-hand glove lies on top of the upper receiver and rail with the fingers pointing forward over the rail. No finger wraps the black charging-handle lever, which sits clear of the fingertips. The base rack-grip-206-M4A1_CCO.png shows the same placement.
+   expected: Index finger and thumb pinching the charging handle itself, fingers on that part, so the hand can pull it back.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-206-M4A1_CCO-right.png)
+   seen: From the right side the fingertips rest on the rail ahead of the dark lever (lever at roughly x 195-430, y 320-410 of the 1280x800 frame, fingertips at roughly x 430-600, y 255-300). The lever has no finger on it.
+   expected: Fingers on the charging-handle lever, not on the rail above it.
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-206-M4A1_CCO-right.png)
+   seen: After the half-way pull the hand and the dark lever are in the same spots as in the rack-grip close-ups (fingertips still on the rail, lever still at roughly x 195-430, y 320-410). No visible rearward travel of the handle and the hand does not visibly move back, so the pull looks like it pulls air. The -left and base pulled pictures look the same.
+   expected: Charging handle pulled about half way back to the rear with the fingers still on it, so the handle visibly moves with the hand.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-206-M4A1_CCO.png)
+   seen: The magwell under the receiver (upper right) is empty and the free hand is not in frame. A black magazine with a yellow top sits on the ground at the bottom centre (roughly x 510-710, y 670-800), far below the receiver and not on the magwell line. In mag-4 the fresh magazine was in the glove, so it has left the hand by this frame.
+   expected: The fresh magazine held by the left hand directly under the magwell, on its vertical line, feed end up, ready to be pushed up into the well as in mag-6.
+
+5. [minor] [low] mag_not_into_magwell  (mag-7-seated-again-206-M4A1_CCO.png)
+   seen: The magazine hangs below the receiver with a long visible body down to the glove at its base, looking very much like mag-6 (half in). Nothing clearly shows it pushed fully up into the well.
+   expected: Magazine fully seated in the magwell, same place mag-1 had it, with the hand away from the gun. Could be camera angle, so this needs a closer look.
+
+6. [tiny] [low] hand_not_on_part  (weapon-206-M4A1_CCO.png)
+   seen: The gun sits at the lower right with the grip cut off by the bottom edge. No clear glove wrapped around the pistol grip is visible.
+   expected: Right hand wrapped around the pistol grip, gun pointing forward.
+
+Test line flags:
+  - rack grip '0/4 fingers on it' and '0/72 points inside the part': CONFIRMED by rack-grip-206-M4A1_CCO-left.png and -right.png. The fingers rest on the rail, none touch the charging handle.
+  - pulled half way '0/4 fingers on it': CONFIRMED by rack-grip-pulled-206-M4A1_CCO-left/-right/base. The hand stays on the rail.
+  - 'moving with the hand: the charging handle': NOT CONFIRMED. The hand is not on the handle and the handle shows no clear rearward travel in the pulled pictures.
+  - 'drawn: 4 drawn part(s) move, most 93 mm; the nearest is 0.0 cm from the hand': NOT CONFIRMED. No 93 mm movement is visible in the pulled pictures, and the 0.0 cm contact does not show, since the fingers are clear of the lever.
+  - 'the gun moved 0.2 mm with the pull, 1.0 mm when it went home': consistent. The gun looks static across the pulled pictures (sub-mm cannot be checked from pictures).
+  - 'dropped copy 0.0 cm across the pull ... 8.0 cm out': partly consistent. mag-2 shows a magazine dropping at the well line, but by mag-5 the magazine lies far below the receiver, not 8 cm out.
+  - 'the gun's own magazine STILL SHOWS after the drop': NOT CONFIRMED by mag-3, where the well is empty. mag-2 shows only one magazine-shaped object at the well, so the gun's own magazine and the dropped copy cannot be told apart from that frame.
+  - 'in the hand: 3.4 cm from the palm': plausible in mag-4 (magazine sits just above the palm with the fingers over its lower part), but not measurable from the picture.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': CONFIRMED. mag-6 shows the magazine on the magwell line.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent with mag-7 at the well, but full seating is not confirmed (see mag-7 bug).
+  - No test measurement covers the 'lined up' step (mag-5). The test's in-hand and half-in numbers pass while mag-5 shows the magazine on the ground, away from the well, so the test misses this failure.

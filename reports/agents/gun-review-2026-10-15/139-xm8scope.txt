@@ -1,0 +1,51 @@
+Gun 139: xm8scope
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-139-xm8scope-left.png)
+   seen: Close-up from the gun's left side. The left glove lies flat across the top rail and receiver. Only the index fingertip touches anything, at the right end of a small dark block at the front of the top rail (about x 230-270, y 245-300 of the 1280x800 frame). The middle, ring and little fingers hang over the left side of the receiver, tips at about x 320-520, y 480-560, near the magazine well, and none of them closes around a handle. The palm sits behind the scope mount.
+   expected: The free hand's fingers, most or all four, wrapped around the charging handle / slide on top of the receiver so the part can be pinched and pulled back. The test line's 1 of 4 fingers on the part matches this picture.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-139-xm8scope-left.png)
+   seen: Compared with rack-grip-139-xm8scope-left.png, the glove, its index fingertip and the dark block at the front of the top rail stay at exactly the same screen spot. The rail, scope mount, receiver, pistol grip and magazine all shift about 110-160 px to the left. The gun body moves while the hand and the front block stay put, so the hand is not carrying the part back.
+   expected: The charging handle / slide travels back about half way WITH the hand (the glove moves with it). The receiver, scope and magazine stay still.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-139-xm8scope-right.png)
+   seen: Right-side close-up. The pale, dotted glove fingertip is at the same spot as in rack-grip-139-xm8scope-right.png (about x 670-910, y 285-430) and does not travel with the pull. Meanwhile the scope mount, the rectangular side slot and the small square latch shift about 215-230 px to the right. The fingertip rests on the receiver top with nothing under it that moved back.
+   expected: The fingertip moves back with the handle as it goes about half way; the receiver stays still.
+
+4. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-139-xm8scope.png)
+   seen: The muzzle glow is at the muzzle (about x 690, y 495), but the bloom spreads over most of the frame. The sky and sea horizon (x 900-1280, y 370-400) wash out to a white haze, and a vertical bright band runs down the right screen edge (about x 1215-1280, full height). That band reads as an edge artifact, not a muzzle flash.
+   expected: Flash confined to the muzzle with soft rings, no bright vertical band along the screen edge, and a less blown-out horizon. The test's strength 0.99 may be stronger than intended.
+
+5. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-139-xm8scope.png)
+   seen: The full-auto first-person frame shows no glow at the muzzle (around x 690-720, y 490-510), where the single-shot frame has a bright flash. The only light marks are a few thin white streaks in the sky. This may simply be a frame taken between shots.
+   expected: A muzzle flash visible at the muzzle when the frame catches a shot.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-139-xm8scope.png)
+   seen: The fresh magazine's top edge sits right at the underside of the receiver (about y 295). Its visible lower end is at the same spot as the fully seated magazine in mag-1-seated-139-xm8scope.png and mag-7-seated-again-139-xm8scope.png, so the frame does not look half way in. Its flank also shows horizontal ribs where the gun's own magazine (screw at about (673, 376)) has a plain flank, so the fresh magazine may be a different model.
+   expected: Magazine visibly partway up into the magwell on its line, clearly lower than the seated state, and the same model as the gun's magazine.
+
+7. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-139-xm8scope.png)
+   seen: The fresh magazine (about x 530-665, y 540-800) hangs about 340 px below the trigger guard. It appears roughly half the on-screen width of the pistol grip (about 135 px vs about 250 px), so it sits noticeably farther from the camera than the magwell instead of right at it, although its axis is roughly under the receiver.
+   expected: Magazine right at the magwell, on its line and at the same depth as the magwell, feed end pointing up.
+
+8. [minor] [low] hand_pose_wrong  (mag-4-in-hand-139-xm8scope.png)
+   seen: The glove's fingers are extended almost flat to the left (about x 350-600, y 285-480) and do not curl around the magazine. The magazine stands up behind and above the fingers, its top running past the handguard and receiver silhouette and cut off at the top edge of the frame, so it overlaps the gun body in view.
+   expected: Fingers wrapped around the magazine body in a grip, with the magazine's feed end pointing toward the magwell and not overlapping the gun body.
+
+9. [tiny] [low] other  (weapon-139-xm8scope.png)
+   seen: A flat, hard-edged black trapezoid sits at the top centre of the first-person frame (about x 520-990, y 0-55), above the sky. The same shape appears in every first-person frame (weapon, rack-grip, lensflash, lensburst).
+   expected: No black unlit shape in the open sky. If it is an intended roof or overhang piece, ignore it.
+
+Test line flags:
+  - rack grip '1/4 fingers on it': confirmed by rack-grip-139-xm8scope-left.png. Only the index fingertip touches anything, and the other fingers hang over the receiver.
+  - 'moving with the hand: the slide / bolt': contradicted by rack-grip-pulled-139-xm8scope-left.png and rack-grip-pulled-139-xm8scope-right.png. The glove and fingertip keep their screen positions while the rail, scope mount, receiver and magazine shift 110-230 px, so the gripped part does not travel with the hand.
+  - 'drawn: 3 drawn part(s) move, most 43 mm': not confirmed. In rack-grip-pulled-139-xm8scope.png (first-person) the scope, receiver and sight do not visibly move. The only change is a small glove piece on the gun's left side. The large movement only shows in the close-ups, and it is the receiver moving relative to the hand, not the part under the hand.
+  - 'the gun moved 1.1 mm with the pull': consistent. The first-person pre and pulled frames show no visible shift of the gun.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ... 2.8 cm out': consistent with mag-2-leaving-139-xm8scope.png. The dropped magazine goes straight down on the same line with the same screw spacing as the gun's magazine.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks right, but depth is not measured. mag-6-half-in-139-xm8scope.png looks as deep as the seated magazine in mag-1, so the half-way frame does not visibly show a half-way insertion.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7-seated-again matches mag-1-seated.
+  - 'lens flash shown, strength 0.99': lensflash-139-xm8scope.png is very strong, with the sky and horizon washed out. Plausible for 0.99, but it looks overpowering.
+  - 'lens flash burst ... strongest soft flash 0.34': consistent with lens-eyes-burst-139-xm8scope.png, where the flashes are faint. However lensburst-139-xm8scope.png shows no muzzle glow at all.
+  - 'muzzle flash: particles, 70 cm, every shot': consistent. lensflash-139-xm8scope.png shows a glow at the muzzle.
+  - 'in the hand: 3.4 cm from the palm': not verifiable from the pictures. In mag-4-in-hand-139-xm8scope.png the magazine is held near its base, but the fingers look flat rather than wrapped.

@@ -1,0 +1,26 @@
+Gun 196: P220 G
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-196-P220_G-left.png)
+   seen: Against rack-grip-196-P220_G-left.png, the receiver below the slide moves: the grip with its magwell base plate and round emblem, the trigger guard and the right hand's cuff sit roughly 80 px further left (toward the muzzle). The front sight, the slide top and the left-hand glove keep the same pixel positions, so the slide itself does not travel back.
+   expected: Only the slide (with its sight) slides back about 27 mm under the left hand, with the glove riding along. The frame, grip and magwell stay where they are.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-196-P220_G-right.png)
+   seen: Against rack-grip-196-P220_G-right.png, the left-hand glove (cuff, knuckles, thumb tip) and the slide top edge are at identical pixels, so neither the slide nor the hand moved. The only clear new element is a brass cartridge in the ejection port (about x 925-1005, y 450-500). The trigger, the pin and the right hand's fingers shift about 100 px on screen while the slide does not.
+   expected: The slide is visibly drawn back about 27 mm, with the thumb and fingers travelling with it on the serrations. The frame and trigger stay put.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-196-P220_G.png)
+   seen: The fresh tan magazine (orange-tipped top round) hangs above the left fist at about x 410-545, y 130-300. Its base end only touches the top edge of the knuckles at about y 290, and no finger wraps the magazine body. The magazine is floating beside the hand rather than held. Its orientation (feed end up, same tilt as the grip) looks right.
+   expected: Fingers curled around the magazine body with the palm under it, feed end pointing up toward the gun's grip.
+
+Test line flags:
+  - drawn: 2 drawn part(s) move, most 27 mm: not confirmed. Neither the slide nor the sight moves in rack-grip-pulled-196-P220_G-left.png or -right.png, and the first-person pair (rack-grip-196-P220_G.png vs rack-grip-pulled-196-P220_G.png) looks the same at the slide and barrel. What changes is the frame/grip assembly and a brass case in the port.
+  - moving with the hand: the slide / bolt: contradicted. The glove and the slide stay put between rack-grip and pulled; the receiver moves instead (see the left close-up).
+  - pulled half way: 0/72 points inside the part, 2/4 fingers on it: the left-hand glove is pixel-identical between the rack-grip and pulled close-ups, so no hand travel is visible and the hand is not following a pulled part. The finger count change cannot be seen in the pictures.
+  - rack grip: 1/4 fingers on it: consistent with rack-grip-196-P220_G-right.png, where the thumb presses the slide side and the other digits do not clearly touch the slide.
+  - the gun moved 0.3 mm with the pull: consistent. The front sight and the glove hold still in the pulled close-ups.
+  - in the hand: 3.5 cm from the palm: confirmed by mag-4-in-hand-196-P220_G.png. The magazine rests on top of the fist and is not gripped by the fingers.
+  - magazine (deep): dropped copy 5.2 cm out: consistent with mag-2-leaving-196-P220_G.png, where the dropped magazine falls straight down below the grip.
+  - half way in (on the rail): 0.0 cm off the magwell line: consistent with mag-5-lined-up and mag-6-half-in, where the magazine sits on the grip's axis.
+  - seated: the gun's magazine shows 0.0 cm from where it was: cannot be confirmed. In mag-7-seated-again-196-P220_G.png the left glove's palm covers the grip bottom where mag-1-seated shows the base plate.
+  - racked: chambered: the brass case in the ejection port appears only in rack-grip-pulled-196-P220_G-right.png. It is consistent with a chambered round, but the port change is not accompanied by visible slide travel.

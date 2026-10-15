@@ -1,0 +1,25 @@
+Gun 200: P220 T S AKIMBO
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [minor] [medium] other  (weapon-200-P220_T_S_AKIMBO.png)
+   seen: Many translucent blue-grey disc and puff shapes float across the whole first-person view: the sky (upper left, top centre, right side), the hill and the grass at lower left, and the area above the helicopter. None of them are near the muzzles. The same puffs appear in the first-person rack-grip and rack-grip-pulled pictures. In the side close-up rack-grip-pulled-200-P220_T_S_AKIMBO-right.png, tall dark translucent ellipses hang at the top right in front of the rock and sea, and dark soft blobs lie over the grass.
+   expected: Gun smoke or dust only at the muzzle and ejection area, fading within a moment, and no puffs hanging in the sky far from the gun.
+
+2. [minor] [low] hand_pose_wrong  (rack-grip-200-P220_T_S_AKIMBO-right.png)
+   seen: Close-up from the right: the gloved left hand rests across the middle of the racked pistol's slide, with the thumb on the slide top just forward of the rear sight. The index finger reaches up and forward over the second pistol (upper right, behind the racked gun), so part of the fingers lie on the other gun. The rear serrated section of the racked slide is left bare, and the pinch is not clearly on the racking part.
+   expected: Thumb and index finger pinched on the rear serrations of the racked slide, with the fingers on that gun only and none resting on the other pistol.
+
+3. [minor] [low] hand_pose_wrong  (weapon-200-P220_T_S_AKIMBO.png)
+   seen: First-person view: the free left hand is not the gloved hand from the close-ups. It is a bent blue limb with dark fingertips, sitting between the two pistols at bottom centre (roughly x 580-720, y 530-690 at 1280x800), and overlapping the edge of the left pistol's slide. The right pistol's grip, where the right hand should wrap, is hidden, so the right-hand grip cannot be confirmed. The same blue limb appears in rack-grip-200-P220_T_S_AKIMBO.png and rack-grip-pulled-200-P220_T_S_AKIMBO.png, with the fingertips at the side of the right pistol, not on its slide.
+   expected: A gloved left hand whose fingers pinch the racked slide, and the right hand wrapped around the right pistol's grip, using the same hand model as the close-ups.
+
+4. [minor] [low] part_floating_or_detached  (rack-grip-200-P220_T_S_AKIMBO-left.png)
+   seen: Side view from the left: the glove's wrist cuff (grey with a rectangular window) hangs at the right of the pistol grip, around x 680-830, y 480-610. Below the cuff there is no forearm or sleeve, only grass and pebbles, so the cuff looks detached in this view. In the right close-up the blue forearm does continue from under the cuff, so the arm is visible from one side only.
+   expected: The wrist cuff connects to a forearm that continues out of frame, from the same side in every view.
+
+Test line flags:
+  - Magazine: the line says 'dropped magazine picked up and seated, 25 rounds kept; magazine: seated, 26 rounds', but also 'magazine (deep): skipped (no detachable magazine...)'. A P220 has a detachable magazine, so the skip reason is wrong. The sheet shows 'none' for mag 1-7, so no magazine picture exists and the 25/26 round counts cannot be checked from pictures.
+  - Firing: 'fired 3/3' but the brief lists no lensflash or lensburst picture for this gun. No muzzle flash can be checked from this run; the first-person pictures are all pre-fire or show only the smoke puffs noted above.
+  - Slide travel: 'drawn: 2 drawn part(s) move, most 28 mm' for the half-way pull. The close-up pair rack-grip-200-P220_T_S_AKIMBO-right.png and rack-grip-pulled-200-P220_T_S_AKIMBO-right.png shows only a modest shift of the slide. The brass case appears at the ejection area only in the pulled frame, which supports some slide movement, but 28 mm at 'half way' looks larger than the picture shows. Not confirmed; low confidence.
+  - Second moved part: 'the nearest is 0.0 cm from the hand' and '2 drawn part(s) move' do not name the second part. The top-right pistol (the other akimbo gun) sits at the same place in both right close-ups; I cannot confirm from the pictures that it moves.
+  - Consistent with pictures: '0/72 points inside the part' (no obvious clipping into the slide), '2/4 fingers on it' (thumb and index visibly on the slide), '0.0 cm' nearest (thumb touches the slide top), and 'racked: chambered' (a brass case is visible at the ejection area in rack-grip-pulled-200-P220_T_S_AKIMBO-right.png, not in the unpulled right close-up).

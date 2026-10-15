@@ -1,0 +1,34 @@
+Gun 167: [Gear]BRN180 SS
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-167-[Gear]BRN180 SS.png)
+   seen: On black, the LEFT and RIGHT eye panels each show a single pin-point orange dot (about 4-6 px) with very faint rings around it, centred roughly mid-panel. At normal brightness it is close to invisible. The right (gun-side) eye is at most slightly stronger than the left.
+   expected: A bright star or flare with visible soft rings at the muzzle position, clearly readable at normal brightness, right eye somewhat stronger than left, soft edges.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-167-[Gear]BRN180 SS.png)
+   seen: Same look as the single shot: two dim pin-point flares with faint rings on black, left and right nearly identical. Nothing in the frame reads as a series of 20 distinct bright flashes.
+   expected: Each burst shot shows a clearly visible flare (bright star with soft rings), right eye a bit stronger, so the flashes can be told apart across the burst.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-167-_Gear_BRN180_SS.png)
+   seen: First-person frame on a shot with no readable muzzle flash. The muzzle end (front sight area) is at about x 690-720, y 455-470. Below it there is only a faint yellow-green haze around x 665-715, y 485-545. The only clear object is a spent casing at about x 865-905, y 520-528.
+   expected: A short, bright muzzle flash burst at the muzzle end of the barrel in the shot frame.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-167-_Gear_BRN180_SS.png)
+   seen: Full-auto first-person frame: no bright flash at the muzzle (about x 690-740, y 455-470). A faint light band runs from the muzzle down-left over the grass (about x 650-760, y 480-620). Three casings are in the air to the right. A pale smoke puff sits far off on the horizon (about x 690-790, y 270-400), not at the muzzle.
+   expected: A muzzle flash at the muzzle on each burst shot, with the flash and smoke starting from the muzzle end.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-167-_Gear_BRN180_SS-right.png)
+   seen: The left glove's fingers lie along the top rail next to the flip-up rear sight (finger spans about x 600-885, y 235-345, tip hanging over the rail's front edge at x 780-885). No finger wraps any part. The black curved handle on the far right (about x 1110-1280, y 370-550) is roughly 230-330 px (several cm) from the fingertips, and the two-screw bracket (x 430-590) sits beside the fingers, not under them.
+   expected: Fingers closed around the charging handle, the part the test says moves with the hand, so the fingers are on the handle before the pull.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-pulled-167-_Gear_BRN180_SS-right.png)
+   seen: After the pull the fingertip sits on the two-screw bracket (bracket now at about x 700-850, y 205-330; fingertip at x 790-885, y 240-340) instead of beside it. The bracket shifted about 270 px together with the receiver and flip sight, so it looks like gun body rather than the moving handle. The curved handle on the far right is still about 200 px or more away from the fingers.
+   expected: Fingers stay on the moving charging handle while it is pulled back; the sight, bracket and receiver stay put.
+
+Test line flags:
+  - "drawn: ... the nearest is 0.0 cm from the hand" - contradicted by rack-grip-167-_Gear_BRN180_SS-right.png: the moving curved handle is about 230-330 px (several cm) from the fingertips and no finger touches it. Picture confirms the mismatch (medium confidence).
+  - "muzzle flash: particles 'Muzzle (2)' ... no flash light" - lensflash-167 and lensburst-167 show no readable flash at the muzzle. Picture confirms the flash is effectively invisible on screen.
+  - "lens flash shown, strength 0.07" and "strongest soft flash 0.09" - lens-eyes-167 and lens-eyes-burst-167 show only a very dim pin-point flare. Picture confirms it is far too weak.
+  - "magazine: seated, 31 rounds" - the on-gun ammo label in mag-6 and mag-7 is small and mirrored; my best read is a single-digit count (roughly "8+1"), and mag-1 looked like "29+1". If that reading is right it does not match 31 rounds. Low confidence; needs a zoomed look at the label.
+  - "rack grip ... not measured" / "pulled half way ... not measured" and "3 drawn part(s) move, most 52 mm" - no measurement to check, and the pictures have no scale to verify 52 mm. The close-up pairs show the receiver shifting 115-270 px against a fixed glove or finger, which fits the hand or camera moving rather than the gun. The first-person pair (rack-grip-167 vs rack-grip-pulled-167) keeps the front sight and rear optic in the same screen spot, which matches "gun moved 0.6 mm". Not contradicted.
+  - "half way in (on the rail): 0.0 cm off the magwell line" and "seated: ... 0.0 cm" - mag-6-half-in and mag-7-seated-again agree: the magazine stays on the magwell line, and the seated length matches mag-1 within roughly 1 cm. Not contradicted. The reload sequence (mag-1 to mag-7) shows no floating, offset or doubled magazine.

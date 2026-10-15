@@ -1,0 +1,27 @@
+Gun 174: BRN180_L
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] hand_not_on_part  (rack-grip-174-BRN180_L-left.png)
+   seen: The gloved left hand is wrapped over the top of the upper receiver just in front of the flip sight and above the trigger guard (roughly x 445-875, y 160-530 on the 1280x800 frame). The thumb rests on the rail and the fingers lie on the receiver side. The rear handle at the right end of the upper receiver (x 1030-1120, y 260-470) is about 400 px away and nothing is pinched there.
+   expected: The fingers pinch the charging handle at the rear of the upper receiver, near the stock end, not the receiver top in front of the sight.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-174-BRN180_L-right.png)
+   seen: The left index finger lies across the top rail just behind the flip sight (x 590-885, y 230-345). The bent rear handle at the right edge (x 1110-1280, y 380-550) is roughly 300 px away and the finger is not on it.
+   expected: The finger tips pinch the charging handle at the rear, not the rail beside the sight.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-174-BRN180_L-left.png)
+   seen: Compared with rack-grip-174-BRN180_L-left.png the glove stays in the same screen spot (same thumb position on the rail), but the whole gun slides about 100-150 px to the left: flip optic (x 665-820 -> 515-670), rail end, rear handle (x 1030-1120 -> 880-990), magazine (x 340-570 -> 240-460), pistol grip and the right hand on it. The gun body moves; the handle does not visibly travel back along the receiver. The picture cannot show whether the camera is locked to the glove, but either way the receiver is what moves.
+   expected: Only the charging handle travels back about half way with the hand. Receiver, optic, magazine, grip and right hand stay still, and the glove moves back with the handle.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-174-BRN180_L-right.png)
+   seen: The index finger (x ~790-885, y ~235-345) stays in the same screen spot while the upper receiver slides about 250-270 px to the right: rail start (x 100 -> 350), flip sight (x 315-590 -> 580-690), bolt spring (x 570-690 -> 840-960). The bent rear handle at the right edge barely moves, so the rail and sight slide out from under the finger and the finger now sits over the sight housing.
+   expected: The handle, not the receiver, moves back about half way with the hand. The flip sight, rail and bolt spring stay in place.
+
+5. [minor] [low] mag_not_into_magwell  (mag-6-half-in-174-BRN180_L.png)
+   seen: The fresh magazine hangs from the magwell rim with its visible length below the rim (about 380-430 px) and its base plate near y 640-690, which is about the same height as the seated magazine in mag-1-seated (base near y 700). The glove holds the base. No half-way offset is visible: the magazine already looks fully seated.
+   expected: The magazine partway up into the magwell on its line: its base clearly lower than the seated position in mag-1-seated and higher than mag-2 or mag-5 where it is out.
+
+6. [minor] [medium] other  (mag-7-seated-again-174-BRN180_L.png)
+   seen: The magazine is seated where mag-1 had it (same visible length, top under the rim, hand below the base, not inside the gun). The ammo decal on the receiver at the right reads '1 / NO MAG', while mag-1 reads a loaded count ('23+1'). In mag-6 the decal looks like a loaded count again, so the decal flips between states across the reload.
+   expected: With the magazine seated the decal shows the loaded round count (for example '30+1'), not 'NO MAG', and it does not flip back and forth.
+

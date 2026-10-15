@@ -1,0 +1,39 @@
+Gun 187: <color=Cyan>MP9 H S</color>
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-187-_color_Cyan_MP9_H_S_color_-right.png)
+   seen: Compared with rack-grip-187-_color_Cyan_MP9_H_S_color_-right.png, the free hand (cuff at left x about 400-520, thumb tip at x about 910, y about 380) and the small black block under the thumb (x about 765-880, y about 385-475) are at exactly the same screen spot. Nothing visibly travels back half way. The EOTech sight stays put too.
+   expected: The charging handle block and the hand that holds it move rearward together, about half way back (the test says 38 mm), with fingers pinched on the handle.
+
+2. [major] [low] wrong_part_moves  (rack-grip-pulled-187-_color_Cyan_MP9_H_S_color_-right.png)
+   seen: The lower receiver / barrel mount (plate with two screws) sits about 150-180 px further right than in rack-grip-187-_color_Cyan_MP9_H_S_color_-right.png, and the barrel rod now runs out to x about 880 instead of about 690. The charging block, hand and sight did not move, so a part other than the handle appears to shift.
+   expected: Only the charging handle moves back. The receiver, barrel mount and sight should stay where they were in the rest frame.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-187-_color_Cyan_MP9_H_S_color_-left.png)
+   seen: The free hand lies flat across the top of the receiver near the EOTech, index finger and thumb pointing forward over the rail. No fingers close around a distinct handle; the fingers sit in the air above the receiver top. The test's 0/4 fingers on the part agrees.
+   expected: Fingers pinched on the charging handle (拉机柄) on the receiver, not resting on the top rail.
+
+4. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-187-_color_Cyan_MP9_H_S_color_-left.png)
+   seen: The thumb and hand sit at the same place as in rack-grip-187-_color_Cyan_MP9_H_S_color_-left.png (thumb tip around x 240-340, y 280-330). No rearward travel of the hand or of any handle is visible; only the background shifts a little.
+   expected: The hand and the charging handle are pulled about half way back, with the handle visibly further back than in the rest frame.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-187-_color_Cyan_MP9_H_S_color_.png)
+   seen: The gloved left hand is open with fingers stretched to the left and its palm over the top of a black magazine. The magazine is angled about 30-35 degrees and pokes out under the heel of the hand toward the lower right (x about 700-910, y about 450-570). No finger wraps around the magazine body; it looks like it rests behind the palm rather than being held. The test's 2.5 cm from the palm agrees.
+   expected: Fingers wrapped around the fresh magazine (same model, feed end toward the gun), the magazine held in the palm and fingers, not hanging behind the hand.
+
+6. [minor] [low] other  (mag-6-half-in-187-_color_Cyan_MP9_H_S_color_.png)
+   seen: The fresh magazine's visible base sits at about the same height as in mag-1-seated (base about y 735-740 vs about y 730), so the magazine already looks fully seated. Nothing shows a half-way position; the test's half-way measurement is not visible.
+   expected: The magazine visibly partway up into the magwell, with more of it hanging below the housing than in mag-7-seated-again (base lower than y 730).
+
+7. [minor] [low] other  (rack-grip-pulled-187-_color_Cyan_MP9_H_S_color_.png)
+   seen: First-person frame: the free (left) hand is not visible at all and the charging/slide area is out of view. It looks identical to rack-grip-187-_color_Cyan_MP9_H_S_color_.png, so the pull cannot be confirmed from this picture.
+   expected: The free hand visible on the slide / charging handle, with the handle visibly pulled back half way compared with the rest frame.
+
+Test line flags:
+  - 'moving with the hand: the charging handle' is not supported by the pictures: between rack-grip-187-_color_Cyan_MP9_H_S_color_-right.png and rack-grip-pulled-187-_color_Cyan_MP9_H_S_color_-right.png the hand and the handle block do not move on screen.
+  - 'drawn: 2 drawn part(s) move, most 38 mm; the nearest is 0.0 cm from the hand' is not visible in the pictures. The only visible shift is the lower receiver/barrel mount in the pulled-right frame, which suggests the 38 mm mover may be the wrong part.
+  - 'rack grip ... 0/4 fingers on it' and 'pulled half way ... 0/4 fingers on it' agree with the pictures: the hand rests across the receiver top, not on a handle.
+  - 'in the hand: 2.5 cm from the palm' agrees with mag-4-in-hand: the magazine is not wrapped by the fingers.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' agrees with the pictures: mag-1-seated and mag-7-seated-again have the magazine base at about the same height (y about 730).
+  - 'half way in (on the rail): 0.0 cm off the magwell line' cannot be checked for the line offset, and mag-6-half-in looks already seated in depth, so the half-way state is not visible.
+  - 'the gun moved 0.2 mm with the pull' agrees: the EOTech, grip and gun body stay in place between the rest and pulled frames.

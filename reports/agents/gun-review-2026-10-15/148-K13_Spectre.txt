@@ -1,0 +1,50 @@
+Gun 148: K13 Spectre
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-148-K13_Spectre-left.png)
+   seen: The left glove lies across the upper receiver ahead of the magazine well, thumb pointing forward past the receiver (tip near x 275, y 300). The lever at the rear top of the receiver (about x 815-935, y 225-275, the likely charging handle) only touches the back edge of the wrist; no finger closes around it. The FPV rack-grip-148-K13_Spectre.png shows the same glove blob at the gun's front (about x 690-760, y 530-640), not at the rear handle.
+   expected: Thumb and index pinch the charging handle at the rear top of the upper receiver, with fingers wrapped on that part, not parked on the receiver in front of it.
+
+2. [minor] [low] other  (rack-grip-pulled-148-K13_Spectre-left.png)
+   seen: Compared with rack-grip-148-K13_Spectre-left.png, the gun (optic, magwell, grip, stock) sits about 150-225 px further left in frame while the glove stays in the same screen spot, so the two close-ups do not share a fixed camera and the pull cannot be read directly. The thumb rests on a small striped part (about x 335-380, y 330-355) that is partly hidden under the glove.
+   expected: The same camera framing for the rest and pulled close-ups, with the charging handle visibly sliding back under the fingers while the gun stays still.
+
+3. [minor] [medium] picture_unusable  (rack-grip-148-K13_Spectre-right.png)
+   seen: The lower-left quarter to third of the frame is solid black with a curved edge (from about x 0, y 400 to x 620, y 800). It looks like the close-up camera clipping into the gun or ground, cutting off the front of the lower receiver. The left hand is not visible from this side, which is expected.
+   expected: A full scene with no black region and the close-up camera outside the gun geometry.
+
+4. [minor] [medium] picture_unusable  (rack-grip-pulled-148-K13_Spectre-right.png)
+   seen: The same solid black lower-left region (about x 0-680, y 400-800). Framing is also shifted about 315-340 px to the right compared with rack-grip-148-K13_Spectre-right.png (front sight and optic move together), so the two shots cannot be compared directly.
+   expected: A full scene with no black region and a camera framing that matches the unpulled close-up.
+
+5. [minor] [low] hand_or_finger_clipping  (rack-grip-pulled-148-K13_Spectre-right.png)
+   seen: A grey glove-like edge pokes in at the bottom of the frame under the receiver (about x 820-1080, y 740-800). It is absent from rack-grip-148-K13_Spectre-right.png, so the left hand may have moved under the gun, possibly into the lower receiver.
+   expected: No part of the free hand below or inside the receiver during the pull; the hand stays on the upper receiver at the charging handle.
+
+6. [minor] [low] mag_floating_or_offset  (mag-6-half-in-148-K13_Spectre.png)
+   seen: The fresh magazine's front-top corner (about x 540-560) rises to y 255, above the magwell's front lower edge (about y 320-355), so it looks proud of the receiver front instead of sliding straight up into the well. The rest of the magazine is centred on the magwell (x 540-760) and the glove holds its base. Width (about 220 px) matches the seated magazine.
+   expected: The top of the magazine hidden inside the magwell with nothing visible above the lip, as in mag-1-seated.
+
+7. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-148-K13_Spectre.png)
+   seen: The fresh magazine's top (about x 535-670, y 535) sits roughly 4-5 cm below the magwell (lip about y 210-255), and its centre is about 100 px left of the magwell centre (x 600 vs about 700). It also looks narrower (about 135 px) than the gun's magazine (about 220 px in mag-6), so it sits farther from the camera than the magwell.
+   expected: The magazine right under the magwell on the same axis, at the same depth and apparent size as the gun's magazine.
+
+8. [tiny] [low] other  (mag-3-out-148-K13_Spectre.png)
+   seen: The ammo plate on the grip-side receiver (about x 1140-1200, y 262-300) reads mirrored, as if the text is viewed from the back.
+   expected: Readable text on the ammo plate.
+
+9. [tiny] [low] other  (lensburst-148-K13_Spectre.png)
+   seen: Soft blue-grey puffs (about 30-80 px across) hang in the sky tens of metres out along a diagonal, plus a dotted trail toward the upper right (x 1010-1280, y 200-300). They do not look attached to the muzzle; they may be leftover smoke from earlier rounds.
+   expected: Muzzle smoke that stays near the gun, or nothing floating in the sky.
+
+Test line flags:
+  - rack grip 3/72 points inside, 1/4 fingers on it: confirmed by rack-grip-148-K13_Spectre-left.png, where the glove is parked on the upper receiver ahead of the lever and no finger wraps the handle.
+  - pulled half way 4/72 points inside, 1/4 fingers on it: partly confirmed by rack-grip-pulled-148-K13_Spectre-left.png. The fingers hang over the receiver side and the thumb rests on a small part, with no clear wrap around a handle.
+  - moving with the hand: the slide / bolt: cannot be confirmed. The handle sits under the glove in the pulled close-up and the framing changed between shots.
+  - drawn: 2 drawn parts move, most 60 mm, nearest 0.0 cm from the hand: not checkable from these pictures. The FPV optic stays fixed (gun static), consistent with the 0.7 mm gun motion.
+  - in the hand: 3.4 cm from the palm: consistent with mag-4-in-hand, where the fingers pinch the magazine base and the palm is off the magazine.
+  - half way in (on the rail): 0.0 cm off the magwell line: weakly supported. mag-6 is roughly centred, but the magazine's top corner pokes above the magwell lip.
+  - seated: the gun's magazine shows 0.0 cm from where it was: confirmed. mag-7-seated-again matches the mag-1-seated position.
+  - muzzle flash every shot, lens flash strength 1.07: consistent with lensflash-148-K13_Spectre.png, which shows a starburst at the handguard tip with a strong bloom.
+  - lens flash burst strongest soft flash 0.34: confirmed by lens-eyes-burst-148-K13 Spectre.png, where each eye shows only a tiny, dim star, so the full-auto flash is nearly invisible.
+  - the gun moved 0.7 mm with the pull: consistent. The optic sits at the same screen spot in the FPV rack and pulled shots, while the glove blob moves.

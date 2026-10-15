@@ -1,0 +1,32 @@
+Gun 194: P220 Double Evil
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-194-P220_Double_Evil-left.png)
+   seen: Compared with rack-grip-194-P220_Double_Evil-left.png, the slide is in the same screen position: the front sight (green dot) and the slide's front edge are unchanged, and the glove cuff and fingers are unchanged. The right pair shows the same thing: the rear sight block (about x 660-700) and the start of the serrations are at the same spot in rack-grip-...-right.png and rack-grip-pulled-...-right.png. No rearward slide movement and no barrel opening in front of the slide is visible.
+   expected: Half-way rack: the slide moves about 1 to 1.5 cm back on the frame, with the front sight and serrations moving rearward with it, and the gloved hand moving back with the slide.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-194-P220_Double_Evil-left.png)
+   seen: The lower gun shifts toward the muzzle while the slide stays put. In the left pair, the light/laser module (black cylinder under the front) is about 90 px further toward the muzzle than in rack-grip-left, the trigger guard and cream grip are about 50 px further, and the grey rear housing about 70 px. In the right pair, the cream grip front block and its small screws shift about 60 to 100 px toward the muzzle relative to rack-grip-right. The laser beam start moves with the module. Background is identical in both frames, so the camera did not move. At this close-up distance this is several centimetres, far larger than the 0.2 mm root movement the test reports.
+   expected: Only the slide should move back when racked. The frame, trigger guard, grip and light/laser module should stay fixed relative to the frame and the hand.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-194-P220_Double_Evil-right.png)
+   seen: The right close-up shows the thumb resting on the slide serrations, but the index and middle fingers extend forward over the slide and their tips hang in the air about 1 to 2 cm above the slide top, past the ejection port, without touching it. The ring and little fingers are hidden. In the left close-up the glove lies flat across the top of the slide and no fingers wrap around the serrations. The same finger position appears in rack-grip-pulled-...-right.png.
+   expected: Index and middle fingers curled onto the slide so that all of the grip fingers touch the slide serrations (4 of 4 fingers on the part).
+
+4. [tiny] [low] other  (rack-grip-pulled-194-P220_Double_Evil-right.png)
+   seen: A brass-coloured cylinder sits inside the ejection port (about x 955-1020, y 455-525). It is not visible in rack-grip-194-P220_Double_Evil-right.png at the same spot.
+   expected: If it is a chambered round seen through the port, it should show in both frames. If it is a spent case object parked at the port, it should not persist there. Cannot be confirmed from the pictures.
+
+5. [tiny] [low] other  (weapon-194-P220_Double_Evil.png)
+   seen: At the bottom centre-left, a flat low-poly blue hand with curled fingers clasps a black rod with white bands, well away from the grey gloved right hand on the grip. The free (left) hand is the grey gloved hand in the close-ups, not this blue shape. The same blue shape appears low in the close-ups next to red blood spots in the grass.
+   expected: The free left hand should be the same gloved model as in the close-ups, not a blue placeholder. If the blue shape is a dead soldier's limb, it should not be in the hand's place in the first-person view. Cannot be resolved from the pictures.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' is contradicted by the pictures: in rack-grip-pulled left and right the slide, front sight and rear sight stay at the same screen spots as in rack-grip. The part that visibly moves is the lower frame (see the wrong_part_moves bug).
+  - 'drawn: 2 drawn part(s) move, most 28 mm; the nearest is 0.0 cm from the hand': something moves, but the big mover looks like the lower frame, grip and light, not the slide. The test should name which two parts moved.
+  - 'the gun moved 0.2 mm with the pull, 0.8 mm when it went home': the root-level check is consistent with the first-person views, but it cannot see the sub-part shift in the close-ups. It is not evidence that the slide moved.
+  - 'rack grip: 0/72 points inside the part, 2/4 fingers on it' is confirmed: in rack-grip-...-right.png the thumb touches the slide and the index and middle fingers float. 0/72 inside is consistent with no visible hand clipping.
+  - 'pulled half way: 0/72 points inside, 2/4 fingers on it': the hand sits in exactly the same place in rack-grip and rack-grip-pulled, left and right pairs (cuff and fingertips unchanged), so the hand did not visibly pull anything.
+  - 'magazine (deep): skipped (no detachable magazine, or the hand is busy)' conflicts with the line above ('dropped magazine picked up and seated ... magazine: seated, 26 rounds'), which implies a detachable magazine. The overview sheet panels 8 to 14 (mag 1 to mag 7) all read 'none', so the reload path (drop, lined up, half in, seated again) has no pictures and is unverified.
+  - 'fired 3/3; cases thrown: 3': no muzzle-flash or lens-flash picture is listed for this gun, so firing visuals were not checked here.
+  - 'racked: chambered' cannot be verified from the pictures. The only candidate is the brass object in the ejection port of rack-grip-pulled-...-right.png (bug 4), which is not visible in rack-grip-...-right.png.

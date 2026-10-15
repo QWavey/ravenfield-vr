@@ -1,0 +1,61 @@
+Gun 202: Suzuya's Custom AR-15 HAMR 5.56x45MM
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_floating_or_offset  (mag-5-lined-up-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: The fresh yellow magazine stands on the grass at the bottom centre of the frame (about x 475-680, y 680-800), several hundred pixels below the receiver. The gun's receiver and pistol grip are at the top right, with the right hand wrapped round the grip. No left hand is in view holding the magazine, and it is nowhere near the magwell.
+   expected: The fresh magazine held by the left hand right under the magwell, on the magwell's line, a few cm below the receiver.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: The left glove is flat, fingers extended to the left, with a yellow magazine above it. The fingers do not wrap the magazine. Its base sits on the top edge of the index finger / back of the hand (about x 340-580, y 0-290), so it reads as floating just above the palm. It is also well forward of the magwell, which is under the receiver to the right (around x 650-1000).
+   expected: Fingers curled around the magazine body near its base, feed end pointing up toward the magwell, magazine held on the magwell's line beside the gun.
+
+3. [major] [medium] part_floating_or_detached  (rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-right.png)
+   seen: Compared with rack-grip-202...-right.png, the yellow handle block with the black slot has moved about 270 px toward the receiver end (from x about 800-1010 to x about 1085-1280). The thumb and fingers stayed on the top of the green handguard (x about 740-910, same place as before). A yellow stub is left on the handguard top at x about 800-935, so the handle looks split, and the block is not attached to the hand.
+   expected: The charging handle slides back about half way as one piece with the fingers pinching it; nothing is left behind on the handguard and the receiver shows no gap.
+
+4. [major] [medium] part_floating_or_detached  (rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-left.png)
+   seen: A yellow stub stands on top of the green handguard (about x 800-935, y 450-550) with the thumb pressing on it. A separate yellow block with a black slot sits at the receiver end (about x 1090-1280, y 450-740). The handle looks detached from the stub, and the hand is on the stub, not the block.
+   expected: One charging handle block pinched by the fingers and sliding back as a single piece, with nothing left on the handguard.
+
+5. [major] [high] hand_not_on_part  (rack-grip-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-right.png)
+   seen: The left thumb and fingers hang over the top edge of the green handguard, just forward of the yellow handle block (about x 740-900, y 360-470). Only the tip of the thumb touches the yellow cap at the top of the block (about x 830-900, y 440-480). No fingers wrap the yellow block with the black slot (about x 800-1010, y 455-730).
+   expected: Thumb and index finger pinching the charging handle block itself, fingers on the part, not on the handguard.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-left.png)
+   seen: The left glove's fingers run horizontally over the top rail of the receiver to the left of the green handguard (about x 290-720, y 250-500). The index finger lies under a long black bar. No finger closes on the yellow handle or any part of the charging area, so the 0/4 finger claim is consistent with the picture.
+   expected: Index and thumb pinching the charging handle at the rear of the receiver.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: First-person view: the left glove (grey mesh) sits low on the green handguard at the bottom right (about x 760-870, y 620-800). The top-rear of the receiver (small black knob about x 790-850, y 400-470) has no fingers on it.
+   expected: Left fingers pinching the charging handle at the back of the receiver, not the handguard.
+
+8. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: Compared with rack-grip-202...png, the left glove has moved down and right along the handguard (about x 760-980, y 640-800). The knob on the receiver top (about x 790-850, y 400-470) is in the same place, so the charging handle has not visibly moved back. The hand moved along the handguard rather than pulling the handle.
+   expected: Left hand gripping the charging handle and pulling it about half way back, with the handle visibly shifted rearward and the hand on it.
+
+9. [major] [high] picture_unusable  (mag-1-seated-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: Extreme close-up of a grey hex-mesh glove back with pale stitched dashes filling the whole frame. No rifle, magwell or magazine is visible. Only a tiny mirrored readout at the right edge. The camera is pressed against the hand.
+   expected: Camera outside the hand, showing the magwell with the magazine fully seated (only the base plate below the receiver).
+
+10. [major] [high] picture_unusable  (mag-2-leaving-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: The same glove close-up as mag-1 (mesh with stitched dashes, mirrored readout reading like 1 NO MAG at the right edge). The magazine dropping out of the magwell cannot be seen.
+   expected: Camera outside the hand, showing the magazine dropping straight down out of the magwell along its line.
+
+11. [major] [high] picture_unusable  (mag-3-out-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM.png)
+   seen: The same glove close-up again (mesh with stitched dashes). Whether the magwell is empty cannot be checked; the only hint is the mirrored readout at the right edge.
+   expected: Camera outside the hand, showing the receiver with the magwell empty and no magazine below it.
+
+12. [minor] [low] part_floating_or_detached  (rack-grip-202-Suzuya_s_Custom_AR-15_HAMR_5.56x45MM-left.png)
+   seen: A long black bar crosses the frame from the top (about x 350) down to the lower right (about x 930, y 680), in front of the hand and receiver. In no frame does it visibly connect to the rifle (the same dark tube sits at the top right of weapon-202). It may be a detached piece, the player's other item, or a stray object. Its identity is unclear.
+   expected: Nothing in front of the hand, or the bar should be an identifiable part attached to the rifle.
+
+Test line flags:
+  - rack grip 0/72 points and 0/4 fingers on the part: CONFIRMED by rack-grip-202...-right.png and rack-grip-202...-left.png. The fingers rest on the handguard and over the rail, not on the handle.
+  - pulled half way 0/4 fingers on the part: CONFIRMED by rack-grip-pulled-202...-left.png and -right.png. The thumb stays on the handguard top while the handle moves.
+  - moving with the hand: a piece cut out of the receiver (and the carrier inside): PARTLY CONFIRMED. rack-grip-pulled-202...-right.png shows the yellow handle block slid about 270 px rearward with a yellow stub left behind (a split). But the hand did not move with it, which contradicts 'moving with the hand'.
+  - drawn: 4 parts move, most 57 mm; nearest 0.9 cm from the hand: NOT CONFIRMED and contradicted. The moving block is well away from the thumb, and no finger touches it.
+  - magazine in the hand 3.3 cm from the palm: PARTLY CONFIRMED. mag-4-in-hand-202...png shows the magazine above the back of the glove with no grip, so it reads as floating; the cm value cannot be read from the picture.
+  - dropped copy 0.0 cm across the pull, 8.1 cm out: CANNOT VERIFY. mag-2-leaving-202...png is a glove close-up (picture_unusable).
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in-202...png looks on the magwell line, so not contradicted. BUT the lined-up stage contradicts it: mag-5-lined-up-202...png shows the magazine on the grass far below the magwell, with no hand holding it.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CANNOT VERIFY. mag-1-seated-202...png is a glove close-up with no receiver, and there is no reference picture.
+  - magazine: seated, 31 rounds; racked: chambered; fired 3/3; cases thrown 3: CANNOT VERIFY from these pictures. The ammo readout is tiny and mirrored, and there are no firing or chambering pictures for this gun.

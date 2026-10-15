@@ -1,0 +1,42 @@
+Gun 156: PKM Z E
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [medium] hand_not_on_part  (rack-grip-156-PKM_Z_E-left.png)
+   seen: Close-up from the left. The free gloved left hand lies flat along the receiver side plate and top: thumb over the rail at about x 320-420, y 215-260, fingers spread across the flat side panel at about x 300-500, y 380-500. No finger closes around any handle. The right hand is correctly wrapped on the pistol grip at bottom right (x 910-1190, y 600-800). The orange capsule sits at the front-left (x 30-410, y 320-420).
+   expected: Thumb and fingers closed on the charging handle (the part the test says moves about 67 mm), so the hand is on the part and travels with it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-156-PKM_Z_E-right.png)
+   seen: Close-up from the right. The glove rests on top of the rail and sight base (x 670-890, y 250-370) with its fingers lying in the rail slots (x 550-1000, y 300-360). The dark lever with its knob (x 75-540, y 320-440) is 1-2 cm to the left of the glove and nothing grips it.
+   expected: Fingers closed on the charging lever or knob itself, not resting on the rail.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-156-PKM_Z_E-right.png)
+   seen: Same close-up after the pull. Measured from the optic's left edge, which is the same object in both shots (x about 300 in the rest shot, about 680 here), the glove's right edge sits about 380 px further toward the muzzle (left), and the grey glove now lies over the lever. The lever and knob stay within about 70 px (roughly 1 cm) of their rest positions relative to the optic and rail, so the handle does not visibly come back with the hand. The test reports a 67 mm move.
+   expected: The charging handle slides rearward with the hand about 67 mm, the fingers stay on it, and the hand moves rearward with it, not forward over it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-156-PKM_Z_E-left.png)
+   seen: Pulled close-up from the left. The glove is still on the flat receiver side plate (x 205-880, y 215-560), with the index fingertip now further left at about x 205-260, y 340-390. No finger is on a handle. The whole gun shifts about 120-165 px left in frame between the rest and pulled shots.
+   expected: Fingers closed on the charging handle, moving back with it at the half-pulled pose.
+
+5. [minor] [low] other  (rack-grip-156-PKM_Z_E.png)
+   seen: First-person frame at the rack grip. The free left hand is not visible anywhere (weapon-156-PKM_Z_E.png shows it at x 540-630, y 585-690). Also a tall black rear post rising above the receiver at about x 712-748, y 363-490 that is in weapon-156 is gone here; only a red-dot sight sits at x 715-780, y 465-530.
+   expected: The free hand visibly reaching for the charging handle, and the sight/post geometry consistent with the weapon pose.
+
+6. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-156-PKM_Z_E.png)
+   seen: First-person frame after the half pull looks the same as rack-grip-156-PKM_Z_E.png: same red-dot at x 715-780, y 465-530, same green box and yellow loop at x 830-875, y 605-655. No left hand is visible and no visible change of the handle.
+   expected: Some visible sign of the charging handle pulled back, or the free hand shown holding it.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-156-PKM Z E.png)
+   seen: Left eye: a small dim star at about x 165, y 152 with only a faint halo (about 40 px). Right eye: a larger star at about x 465, y 152 with rays and a visible ring about 80 px across. The right eye looks roughly 2-3 times stronger than the left, more than the slight right-eye boost the brief expects.
+   expected: Both eyes showing a similar star, the gun-side right eye only a bit stronger.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-156-PKM Z E.png)
+   seen: The warm haze in each eye panel ends at a visible rounded-rectangle boundary at the lower right: about x 298 and y 248 in the left panel and about x 605 and y 248 in the right panel. This leaves a hard edge instead of a soft falloff to black. The star itself is centred near the muzzle position (about x 165 and x 465, y 150).
+   expected: The flare haze fading softly to black with no visible panel boundary.
+
+Test line flags:
+  - rack grip 0/72 points inside the part and 0/4 fingers on it, and pulled half way 0/72 and 0/4: CONFIRMED by rack-grip-156-PKM_Z_E-left.png, rack-grip-156-PKM_Z_E-right.png and rack-grip-pulled-156-PKM_Z_E-left.png. The fingers rest on the receiver side and rail, and none close on the charging lever.
+  - drawn: 1 drawn part moves, most 67 mm, nearest 0.6 cm from the hand: NOT CONFIRMED. In rack-grip-pulled-156-PKM_Z_E-right.png the lever and knob stay within about 1 cm of their rest positions relative to the optic and rail, several times less than 67 mm.
+  - gun moved 1.1 mm with the pull, 1.5 mm home: consistent with the first-person rack-grip and rack-grip-pulled frames, which look the same. The close-ups shift the gun 120-380 px in frame between rest and pulled, so close-up framing is not fixed and those shots cannot check this number.
+  - magazine (deep): skipped (no detachable magazine, or the hand is busy): CONTRADICTED by the other lines (dropped magazine picked up and seated, 99 rounds kept; magazine seated, 100 rounds). The green box under the receiver is visible in every frame. Sheet panels mag 1 to mag 7 are all 'none', so no reload pictures exist and the reload cannot be reviewed.
+  - lens flash burst: flashes L 13 / R 13 (full L 4 / R 4): counts match, but lens-eyes-burst-156-PKM Z E.png shows the right eye flare clearly stronger than the left. The count check does not catch the brightness imbalance.
+  - muzzle flash and lens flash strength 0.84: CONFIRMED by lensflash-156-PKM_Z_E.png, which shows a bright muzzle flash at the front of the gun and a lens flare.

@@ -1,0 +1,36 @@
+Gun 195: P220 Eatchel Gustav
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-195-P220_Eatchel_Gustav-left.png)
+   seen: Compared with rack-grip-195-P220_Eatchel_Gustav-left.png, the slide (anime art and rear end, x 0-340, y 340-490) is in the same screen spot, and the left-hand glove (x 215-875, y 240-540) is in the same position. Nothing visible travels back about 27 mm, so the slide does not move with the hand.
+   expected: The slide slides back toward the grip (to the right in this view) by about 27 mm, the left hand stays pinched on it and moves back with it.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-195-P220_Eatchel_Gustav-left.png)
+   seen: The lower gun body moves instead. The trigger guard, grip, green frame marking, magazine base and the right-hand glove sit roughly 60-80 px further left (toward the muzzle) than in rack-grip-195-P220_Eatchel_Gustav-left.png. The background and slide art do not change between the two pictures.
+   expected: Only the slide moves back. Frame, grip, magazine and right hand stay still.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-195-P220_Eatchel_Gustav-right.png)
+   seen: Same pattern in the right close-up. Trigger guard, grip, frame and right-hand glove sit roughly 100 px further right (toward the muzzle, which points right here) than in rack-grip-195-P220_Eatchel_Gustav-right.png. The rear sight, slide text and left-hand glove (x 400-850, y 255-560) stay where they were, so the frame moves while the slide does not.
+   expected: Only the slide moves back (left in this view), the frame and grip stay still, and the hand moves with the slide.
+
+4. [major] [high] mag_not_in_hand  (mag-4-in-hand-195-P220_Eatchel_Gustav.png)
+   seen: The fresh magazine (tan body, orange-red feed lips at the top) floats above the back of the left-hand glove, centre-left, spanning x 395-545, y 75-300. Its bottom end only rests on the thumb and knuckle ridge. The curled fingers (x 395-520, y 340-500) form an empty fist and do not wrap the magazine. The magazine is also close to vertical while the grip is tilted roughly 25 degrees.
+   expected: The left fingers wrap around the magazine body, which is held in the palm with the feed end toward the gun and aligned with the grip angle.
+
+5. [minor] [low] gun_pose_or_aim_wrong  (rack-grip-195-P220_Eatchel_Gustav.png)
+   seen: First-person rack frame: no left hand is visible anywhere in the frame (weapon-195 shows the left hand at lower-left). The pistol is turned so its muzzle and bore face the camera, instead of the slide top seen from behind in weapon-195.
+   expected: Left hand visible at the slide top near the lower left, gun pointing forward, slide seen from behind as in weapon-195.
+
+6. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-195-P220_Eatchel_Gustav.png)
+   seen: First-person pulled frame looks almost the same as rack-grip-195 first-person. No rearward slide travel is visible, and the bore looks slightly larger, which fits the whole gun drifting toward the camera rather than the slide moving back.
+   expected: Slide visibly drawn back with the barrel exposed in front of it, the gun body stays put.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" is contradicted by rack-grip-pulled-195-P220_Eatchel_Gustav-left.png and -right.png: the slide and the left-hand glove stay in the same screen position as in rack-grip-195 left/right, while the frame and grip move.
+  - "drawn: 2 drawn part(s) move, most 27 mm" is not confirmed: the slide art and rear sight shift only a few px in the close-ups, where 27 mm would be on the order of 100 px. The visibly moving parts are the frame, grip and magazine base.
+  - "the gun moved 0.2 mm with the pull" is contradicted by the pulled-left and pulled-right close-ups: the grip, trigger guard and magazine base shift roughly 60-100 px, with the background identical in both pictures.
+  - "pulled half way: 2/4 fingers on it" conflicts with the pictures: the left glove does not move between rack-grip and pulled close-ups, so the fingers are not following the part.
+  - "in the hand: 3.5 cm from the palm" is confirmed by mag-4-in-hand-195-P220_Eatchel_Gustav.png: the magazine hovers above the back of the hand and is not wrapped by the fingers.
+  - "half way in (on the rail): 0.0 cm off the magwell line" is not contradicted: mag-6-half-in looks on the grip axis.
+  - "seated: the gun's magazine shows 0.0 cm from where it was" is consistent: the base plate in mag-7-seated-again sits where it does in mag-1-seated.
+  - "rack grip ... 1/4 fingers on it" is plausible: rack-grip-left and -right show fingers resting on the upper side of the slide. Not contradicted.

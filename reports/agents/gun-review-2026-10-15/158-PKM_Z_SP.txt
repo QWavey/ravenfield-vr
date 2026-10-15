@@ -1,0 +1,42 @@
+Gun 158: PKM Z SP
+Haiku picture review (read only), overall: bugs, pictures read: 12
+
+1. [major] [high] hand_not_on_part  (rack-grip-158-PKM_Z_SP-left.png)
+   seen: Close-up from the left side (1280x800). The left glove lies flat against the receiver side with its fingers pointing forward at about y 330-520. The orange handle sits above it at top-left (x 0-390, y 80-200). Only the index fingertip touches the underside of that handle (about x 220-240, y 200-215). No finger goes around the handle.
+   expected: The left index and middle fingers wrap around the orange handle with the fingertips on it, the hand closed on the part, not lying under it on the receiver side.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-158-PKM_Z_SP-left.png)
+   seen: Same framing as rack-grip-158-PKM_Z_SP-left.png. The glove is in the same screen spot (fingertips about x 230-290, y 230-490), but the orange handle has moved about 270 px to the left, toward the muzzle, and its visible end is now at about x 110 instead of 390, well off the fingers. The sight rail and the right grip hand also shifted about 160-250 px left relative to the glove. The fingers did not follow the handle back.
+   expected: The handle moves rearward (right, toward the stock) about half way, with the fingers still wrapped on it and the hand moving with it. Nothing should move toward the muzzle.
+
+3. [minor] [medium] hand_not_on_part  (rack-grip-158-PKM_Z_SP.png)
+   seen: First-person frame on the rack grip. The left glove that sits at lower-left (about x 540-630, y 585-690) in weapon-158, lensflash and lensburst is absent here; that area is only grass. No hand is visible on the handle or slide from this camera. Rack-grip-pulled-158-PKM_Z_SP.png has the same gap. The hand may be hidden behind the receiver, but nothing in the frame shows it on the part.
+   expected: The left hand visible from this camera on the handle, fingers wrapped around it, consistent with what the close-ups show.
+
+4. [minor] [medium] other  (weapon-158-PKM_Z_SP.png)
+   seen: First-person view (1280x800). A tall twin-post sight block stands on top of the receiver at about x 705-745, y 360-490, with a dark box under it at about y 490-530. The rack-grip, rack-grip-pulled, lensflash and lensburst frames show the same spot with only a round scope lens (about x 715-775, y 470-530) and sky above it. The overview sheet tile 1 shows the tall posts too.
+   expected: The same sight / optic configuration on the gun in every first-person frame; the top of the receiver should not change between the weapon-in-hand frame and the rack and fire frames.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-158-PKM Z SP.png)
+   seen: Left eye (x 0-300): a small dim star at about (166, 153) with a glow of roughly 35 px and no visible ring. Right eye (x 305-606): a star at about (466, 153) roughly 2-3 times brighter, with a glow of about 60 px and a faint ring of about 80 px radius. The gun-side eye is clearly stronger, more than the 'a bit stronger' expected. In this burst frame the left (non-gun) eye is the weak one, the reverse of the user's report about the other lens being brighter.
+   expected: Both eyes with near-equal star size and rings, the right (gun-side) eye only a bit stronger.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-158-PKM Z SP.png)
+   seen: Each eye pane is not pure black: a warm brown haze fills the lower-right and is cut off by a rounded-rectangle edge along the right and bottom of each pane (about x 295-300 and y 240-250), which reads as a hard edge.
+   expected: Flare on black with a soft falloff and no visible framed edge.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-158-PKM_Z_SP.png)
+   seen: Besides the muzzle flash at about (668, 497), a vertical white-blue streak runs down the right screen edge (x 1200-1250, y 0-400) and a white glare sits along the horizon (x 880-1280, y 380-410). These are far from the muzzle (around x 670, y 500). The muzzle flash itself and the ejected case in flight look correct.
+   expected: Flash bloom and flare centred on the muzzle; streaks far from the muzzle should be absent or much weaker.
+
+8. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-158-PKM_Z_SP-right.png)
+   seen: Right close-up. The lever / bracket at the bottom-right of the receiver (about x 890-1080, y 460-590) keeps the same position against the receiver edges as in rack-grip-158-PKM_Z_SP-right.png (where it was at about x 540-680). The whole frame, including the left finger at bottom-left, shifts about 350-400 px right together. Nothing visibly slides back relative to the receiver, and the finger is near the trigger guard, not on any moving part. This is ambiguous because the close-up camera may be moving.
+   expected: The racking part visibly moves rearward relative to the receiver, with the fingers on it.
+
+Test line flags:
+  - 0/4 fingers on it (rack grip and pulled half way): confirmed. rack-grip-158-PKM_Z_SP-left.png shows no finger wrapped on the handle, and rack-grip-pulled-158-PKM_Z_SP-left.png shows the fingers further off it.
+  - moving with the hand: the slide / bolt: contradicted by rack-grip-pulled-158-PKM_Z_SP-left.png, where the handle moves toward the muzzle away from the fingers instead of rearward with them.
+  - the nearest is 0.0 cm from the hand: only the index fingertip touches the handle underside in rack-grip-158-PKM_Z_SP-left.png. 0.0 cm fits a fingertip touch, not a grip, so it does not contradict 0/4 fingers but does not show the hand on the part.
+  - drawn: 1 drawn part(s) move, most 67 mm: the moving handle travels toward the muzzle in the close-up (wrong direction for a rack-back). The mm travel itself cannot be checked from the pictures.
+  - the gun moved 1.0 mm with the pull, 1.5 mm when it went home: the close-up pair shifts about 160-270 px in frame, far more than 1 mm at close-up scale, while the first-person pair (rack-grip-158 vs rack-grip-pulled-158) shows no visible gun movement. Measurement and pictures disagree, or the close-up camera is moving.
+  - lens flash burst: full L 4 / R 3: lens-eyes-burst-158-PKM Z SP.png shows the left eye much weaker than the right in that frame, the opposite of what the L 4 / R 3 count suggests. Only one frame, so not conclusive.

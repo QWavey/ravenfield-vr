@@ -1,0 +1,69 @@
+Gun 175: BRN180 L S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-175-BRN180_L_S.png)
+   seen: Flat olive wall and ceiling edge with a brown post filling the frame. The camera is inside building geometry. No gun, magwell or magazine is visible.
+   expected: The gun with its magazine fully seated in the magwell (rifle: up into the well ahead of the trigger), only the base plate showing.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-175-BRN180_L_S.png)
+   seen: Same flat olive wall, ceiling edge and brown post as mag-1. The camera is inside geometry. No gun or dropping magazine is visible.
+   expected: The magazine dropping straight out of the magwell along its line, with the gun in frame.
+
+3. [major] [high] picture_unusable  (mag-3-out-175-BRN180_L_S.png)
+   seen: Same flat olive wall and brown post. The camera is inside geometry, so the magwell cannot be checked.
+   expected: The gun in frame with an empty magwell and no magazine anywhere in view.
+
+4. [major] [medium] mag_floating_or_offset  (mag-4-in-hand-175-BRN180_L_S.png)
+   seen: Gloved left hand at bottom centre, fingers around the lower end of a dark olive ridged magazine. The magazine body rises past the top edge of the frame, about 200-400 px in front of the magwell (the magwell is under the trigger guard, around x 700-800), and it looks very close to the camera. A green tank-like model with red vents (the same vehicle seen on the horizon in the rack-grip pictures) sits right beside the fingers, so it is unclear whether the fingers hold the magazine or that object.
+   expected: Left hand holding the fresh magazine, fingers around it, feed end toward the gun, and the magazine held on the magwell line just below the receiver, not forward of it.
+
+5. [major] [high] picture_unusable  (mag-5-lined-up-175-BRN180_L_S.png)
+   seen: Flat olive wall with a diagonal ceiling edge and a brown post. The camera is inside geometry. No magazine or magwell is visible.
+   expected: The fresh magazine right at the magwell on its line, with the gun in frame.
+
+6. [major] [high] picture_unusable  (mag-6-half-in-175-BRN180_L_S.png)
+   seen: Flat olive wall with a diagonal ceiling edge and a brown post. The camera is inside geometry. No magazine is visible.
+   expected: The fresh magazine half way into the magwell on its line.
+
+7. [major] [high] picture_unusable  (mag-7-seated-again-175-BRN180_L_S.png)
+   seen: Same flat olive wall and brown post as mag-1. The camera is inside geometry. No magazine or gun is visible.
+   expected: The fresh magazine fully seated where mag-1 had it, no second magazine, hand not inside the gun.
+
+8. [major] [medium] wrong_part_moves  (rack-grip-pulled-175-BRN180_L_S-left.png)
+   seen: Compared with rack-grip-175-BRN180_L_S-left.png, the glove sits in the same place (about x 440-880, y 180-540) but the rest of the rifle has slid about 100-140 px to the left, toward the muzzle. The rear sight, magazine (now about x 240-460), pistol grip and stock adapter all moved. The background tree and tank did not move, so the camera is fixed. The receiver moved forward under a stationary hand.
+   expected: Only the charging handle slides back (toward the stock, to the right in this view) under the fingers, the glove moves with it, and the receiver, sight and magazine stay still.
+
+9. [major] [medium] wrong_part_moves  (rack-grip-pulled-175-BRN180_L_S-right.png)
+   seen: The rear sight block and bolt spring sit about 250-270 px further right than in rack-grip-175-BRN180_L_S-right.png (sight now about x 580-690, spring about x 840-970), i.e. toward the muzzle. The pale fingertip at about x 790-880 stays where it was. The curved dark bar at the right edge barely moves. The sight and receiver slid forward and the hand did not follow.
+   expected: The charging handle slides back toward the stock (left in this view) with the fingers on it, while the sight, receiver and spring stay put.
+
+10. [major] [medium] hand_not_on_part  (rack-grip-175-BRN180_L_S-left.png)
+   seen: The glove wraps the middle of the upper receiver, ahead of the magazine well and under the optic, with the thumb up on the top rail just in front of the optic. The fingers are not on a handle. The charging handle should sit at the rear of the upper near the stock adapter (right edge of this frame), and the glove stops well short of it.
+   expected: Fingers pinching the charging handle at the rear of the upper, not the middle of the receiver.
+
+11. [major] [medium] hand_or_finger_clipping  (rack-grip-175-BRN180_L_S-right.png)
+   seen: No glove is visible from this side. Only a pale grey rounded object (looks like a glove fingertip or thumb tip) pokes up through the top rail just ahead of the optic base, at about x 790-880, y 230-340, with its base hidden inside the rail. The fingers appear buried inside the receiver rather than wrapped around a handle.
+   expected: The glove visible on the charging handle with the fingers on the part, not a bare fingertip coming out of the rail.
+
+12. [major] [medium] hand_not_on_part  (weapon-175-BRN180_L_S.png)
+   seen: A grey, glove-like shape hangs in the air about 80-120 px left of the muzzle, in front of the blue ragdoll's arm (about x 540-620, y 580-690). It touches neither the rifle's handguard nor any visible arm, so it looks like a floating left hand or a stray object. The right hand and pistol grip are cut off at the bottom edge, so the right-hand grip cannot be checked.
+   expected: The free hand resting on the handguard just under the muzzle, with no stray object floating in the air.
+
+13. [minor] [low] hand_not_on_part  (rack-grip-175-BRN180_L_S.png)
+   seen: First-person frame with the rifle and the blue body only. No free hand is visible at the rifle's top rear where the charging handle would be, so the rack grip cannot be confirmed in this picture.
+   expected: The free hand visible pinching the charging handle at the top rear of the upper.
+
+14. [minor] [low] hand_not_on_part  (rack-grip-pulled-175-BRN180_L_S.png)
+   seen: Same frame as rack-grip-175-BRN180_L_S.png: the rifle sits in exactly the same screen position and no hand is visible at the charging handle, so the pull cannot be seen here.
+   expected: The free hand on the charging handle, with the handle visibly pulled back about half way and the hand moving with it.
+
+Test line flags:
+  - magazine (deep): dropped copy 1242.7 cm across the pull, 127.1 cm out, size x0.01 - no picture confirms it (mag-2-leaving is a flat wall). 12 m away at 1% size reads as a wrong object or a bad measurement.
+  - half way in (on the rail): 1242.7 cm off the magwell line - the same 1242.7 cm as the dropped copy, so the half-way check probably measured the far dropped copy. mag-6-half-in is a wall, so no picture confirms it. Looks wrong.
+  - the gun moved 0.2 mm with the pull, 5.4 mm when it went home - contradicted by rack-grip-pulled-175-BRN180_L_S-left.png and -right.png, where the sight, magazine and receiver shift about 100-270 px on screen toward the muzzle while the glove and background stay fixed. The pictures show clear visible movement.
+  - moving with the hand: the charging handle; drawn: 3 drawn part(s) move, most 53 mm; nearest 0.0 cm from the hand - the pictures show the sight and receiver moving, not a handle sliding under the glove. The 0.0 cm contact is not visible in rack-grip-175-BRN180_L_S-left.png, where the glove sits on the middle of the upper.
+  - in the hand: 3.4 cm from the palm - mag-4-in-hand shows a magazine held near the glove, but its body rises past the top of the frame and sits forward of the magwell. Partly consistent; the scale cannot be confirmed from the picture.
+  - magazine: seated, 31 rounds / dropped magazine picked up and seated, 30 rounds kept - mag-1-seated is a flat wall, so no picture confirms the seated magazine.
+  - seated: the gun's magazine shows 0.4 cm from where it was - mag-7-seated-again is a flat wall, so no picture confirms it.
+  - rack grip (charging handle) not measured - agreed: the rack-grip-left and first-person frames do not show the free hand on the charging handle, so finger contact cannot be confirmed from the pictures.
+  - fired 3/3, cases thrown 3, recoil and impulse figures - no firing pictures were listed for this gun, so these cannot be checked from the pictures.

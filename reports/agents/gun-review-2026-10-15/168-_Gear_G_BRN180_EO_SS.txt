@@ -1,0 +1,50 @@
+Gun 168: [Gear]G BRN180 EO SS
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_floating_or_offset  (mag-5-lined-up-168-_Gear_G_BRN180_EO_SS.png)
+   seen: The fresh magazine (translucent shell, dark top plate) is low in the frame at about x 555-700, y 570-800, out over the grass. Its top sits roughly 400 px below the magwell (receiver opening near x 600-790, y 130-200), and it renders only about 0.55x the width of the gun's own magazine in mag-1, so it is well in front of and below the gun, perhaps 15-25 cm away. The hand is only a fingertip at the bottom edge (x 690-715, y 755-800).
+   expected: Fresh magazine right under the magwell, top a few cm below the receiver, on the same vertical line and at the same depth as the gun.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-168-_Gear_G_BRN180_EO_SS.png)
+   seen: The left hand is open, fingers splayed flat toward the left (x 365-830, y 190-530), and nothing is curled around a magazine. The translucent fresh magazine hangs above and left of the palm (x 330-570, y 0-440); only the index knuckle and thumb tip touch its lower corner. The magazine body is not held.
+   expected: Fingers curled around the magazine body or base with the feed end toward the gun, magazine resting in the palm.
+
+3. [major] [high] other  (mag-7-seated-again-168-_Gear_G_BRN180_EO_SS.png)
+   seen: The fresh magazine shows no yellow rounds. It is a grey translucent shell with a dark top plate (mag-4 at x 320-500, y 0-50; mag-6 dark bars at x 555-790, y 240-300). In mag-7 the seated magazine at x 565-790, y 60-170 still shows dark bars and no brass, while mag-1 at the same spot shows bright yellow rounds and the dropped copy in mag-2 shows yellow rounds too.
+   expected: Brass-coloured rounds visible through the magazine body, as in mag-1 and mag-2, including after the reload (test line says 31 rounds).
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-168-_Gear_G_BRN180_EO_SS-left.png)
+   seen: Compared with rack-grip-168-_Gear_G_BRN180_EO_SS-left.png, the glove is at the same screen spot (x 445-870, y 250-530) in both frames, but the EOTech, rear lever, rear grooved block, magazine, pistol grip and right hand all slide about 110-155 px to the left. Relative to the EOTech, the rear lever and block keep the same offset (within about 35 px), so the charging handle does not visibly slide back under the hand. The right-side pair does show the carrier and recoil spring sliding back, so the bolt moves there, but in this view the hand and the handle do not visibly travel together.
+   expected: The charging handle and the glove move back together about half of the 52 mm travel while the receiver stays put; the gun body itself should not slide.
+
+5. [minor] [low] other  (mag-6-half-in-168-_Gear_G_BRN180_EO_SS.png)
+   seen: A thin dark line runs from inside the receiver's magwell (about x 590, y 170) down through the magazine to its base (about x 555, y 640). The same line shows in mag-7, and in mag-4 a similar line runs from the top edge (x 355, y 0) down to the fingertips (x 415, y 380). It does not belong to any magazine or hand model.
+   expected: No stray line; nothing linking the magazine to the gun or the hand.
+
+6. [minor] [low] other  (rack-grip-pulled-168-_Gear_G_BRN180_EO_SS-right.png)
+   seen: In the close-ups and reload frames the upper and lower receiver are drawn see-through with rainbow edges: the recoil spring, the carrier with its hole, and the magazine rounds show through the receiver body. The weapon-168 wide shot reads as solid camo, so the see-through look is most likely a material or transparency problem on the gun body during close-ups.
+   expected: Opaque receiver that hides the internal parts; only intended glass (if any) should be see-through.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-168-[Gear]G BRN180 EO SS.png)
+   seen: Both eyes show only a small dim orange dot with faint rings on black, roughly 8-9% brightness (test line: strength 0.08, soft flash 0.09). The right eye is a touch stronger, as intended. lens-eyes-burst shows the same dim dots. The flare is hard to see, not a bright star.
+   expected: A clearly bright star or flare with soft rings near the muzzle, easy to see on black, right eye slightly stronger.
+
+8. [minor] [low] hand_not_on_part  (rack-grip-168-_Gear_G_BRN180_EO_SS.png)
+   seen: In rack-grip and rack-grip-pulled (wide), the free left hand is not visible anywhere. In weapon-168 the claw-shaped left hand sits at about x 540-630, y 585-690, but that spot is grass in the rack frames. The close-ups show a glove on top of the receiver, so the hand exists but is missing from the wide capture.
+   expected: The free hand visible on the charging handle in the wide frame too, or the wide capture should not be used to judge the rack.
+
+9. [tiny] [low] other  (mag-2-leaving-168-_Gear_G_BRN180_EO_SS.png)
+   seen: The dropped copy's rounds look faded to a dull brown-yellow and the copy is semi-transparent, while the gun's own magazine in mag-1 is bright. The test line gives the copy a x1.06 size.
+   expected: A solid copy with the same look and scale as the gun's magazine.
+
+Test line flags:
+  - "magazine: seated, 31 rounds" vs "30 rounds kept": off by one. The mirrored on-gun label could not be read reliably, so no picture confirms either number.
+  - "the gun moved 0.2 mm with the pull": the left close-ups show the visible gun body (EOTech, rear lever, magazine, grip, right hand) sliding about 110-155 px left against a static glove. The picture does not match a 0.2 mm move; check whether the gun's mesh moved relative to its root.
+  - "moving with the hand: the charging handle": in the left pair the rear lever keeps the same offset from the EOTech, while the right pair shows the carrier and spring sliding. The 52 mm part looks like the carrier; the handle itself does not visibly travel. Picture only partly supports the test.
+  - "rack grip ... not measured": the left close-up shows the glove resting on the receiver top with its knuckles under the left end of the lever, fingers not clearly pinching it. Contact is weak or unverified.
+  - "in the hand: 0.9 cm from the palm": mag-4 shows a loose corner hold with the magazine above an open palm, not a palm grip. The distance may be close, but the picture contradicts the grip.
+  - "half way in (on the rail): 0.1 cm off the magwell line": mag-6 looks on its line. Consistent.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": mag-7 sits where mag-1 sat. Consistent.
+  - "magazine (deep): dropped copy ... size x1.06": the copy looks faded and possibly a little larger; not verifiable precisely from the pictures.
+  - "muzzle flash: particles 'Muzzle (2)' ... no flash light": first-person frames show only a faint haze at the muzzle. Consistent with no light.
+  - "lens flash shown, strength 0.08": lens-eyes shows a very dim flare. Consistent with a low strength.

@@ -1,0 +1,37 @@
+Gun 169: [Sec]BRN180 S A S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] part_floating_or_detached  (weapon-169-_Sec_BRN180_S_A_S.png)
+   seen: In the first-person view a grey gloved hand floats in the grass left of the gun at about x 540-630, y 585-690 (1280x800). It is not attached to any arm or to the gun and keeps the same screen spot in weapon-169, lensflash-169 and lensburst-169. The free hand is not on the handguard in these frames; the only other hand-like shape is a pale fingertip at the bottom right (x 760-830, y 700-790). In rack-grip-169-_Sec_BRN180_S_A_S.png the free hand is on the handguard instead and the floating glove is gone.
+   expected: The free (left) hand should be attached to the arm and resting on the handguard, not floating about a metre in front-left of the gun.
+
+2. [major] [high] mag_floating_or_offset  (mag-5-lined-up-169-_Sec_BRN180_S_A_S.png)
+   seen: The fresh magazine stands in the grass in front of and well below the magwell. Its top is at about y 530, roughly 355 px under the receiver underside (about y 175), while in mag-6-half-in and mag-7-seated-again the magazine top sits flush with the magwell. Only a hand fragment shows at the bottom edge (x 520-740, y 775-800), holding the base.
+   expected: The fresh magazine should be right at the magwell on its line, a short distance below it, with the hand holding it near the well.
+
+3. [major] [medium] hand_or_finger_clipping  (rack-grip-pulled-169-_Sec_BRN180_S_A_S-right.png)
+   seen: In the receiver close-up from the right side, a yellow-green fingertip-like shape (the same colour as the glove's stripes) sits in the ejection-port / charging-latch area at about x 745-830, y 435-520, with the bolt piece just below it at x 780-960. In rack-grip-169-_Sec_BRN180_S_A_S-right.png the same spot is a grey serrated latch at x 640-730, y 435-470. It looks like a glove finger pushed into the receiver.
+   expected: Fingers should sit on the outside of the charging handle, not inside the receiver where they show through the ejection port.
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-169-_Sec_BRN180_S_A_S-left.png)
+   seen: Pulled frame vs rack-grip-169-_Sec_BRN180_S_A_S-left.png: the glove stays at exactly the same screen spot (x 435-870, y 230-530), while the optic, flip sight, magazine and grip all shift about 40-55 px left. In the right-side pair (rack-grip-169-_Sec_BRN180_S_A_S-right.png vs rack-grip-pulled-169-_Sec_BRN180_S_A_S-right.png) the rear sight, optic mount, latch, bolt, spring and rail bar all move about 100 px right together, with the olive wall behind unchanged, and no part slides against the others. The first-person frame rack-grip-pulled-169 also looks identical to rack-grip-169 (free hand and gun unchanged). Either the whole upper receiver is moving under a static hand, or the close-up camera moved; no visible rearward slide of the charging handle or bolt is seen.
+   expected: With the pull, only the charging handle / bolt should move back about 17 mm with the hand (rearward relative to a still receiver); sight, optic and magazine should stay put and nothing should slide forward.
+
+5. [minor] [low] hand_not_on_part  (rack-grip-169-_Sec_BRN180_S_A_S-left.png)
+   seen: In the glove close-up the glove is draped over the middle of the upper receiver, above the trigger and in front of the pistol grip (x 435-870, y 230-530), with fingers curling over the top. The area just behind the glove where a charging handle would sit (x 870-960, y 240-300) shows no hand and no visible handle. In the first-person frame rack-grip-169 the free hand sits on the front handguard (x 685-750, y 530-620), not near the rear sight.
+   expected: Fingers should be on the charging handle at the rear of the upper receiver, the part that racks the gun.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-169-[Sec]BRN180 S A S.png)
+   seen: Left and right eye panels on black each show a faint orange star with soft rings near the muzzle position (about x 165 and x 465, y 145), the right eye slightly stronger as expected. Not black, but very weak and dim (test strength 0.09). lens-eyes-burst-169 shows the same weak flare.
+   expected: A clearly visible bright star / flare near the muzzle with soft rings, the right (gun-side) eye a bit stronger.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-169-_Sec_BRN180_S_A_S.png)
+   seen: On the single shot the muzzle flash is only a faint yellow haze at about x 650-700, y 430-470 at the muzzle; lensburst-169 shows a similar faint haze. The flash is hard to read at the picture scale.
+   expected: A visible muzzle flash burst at the muzzle on each shot (the user asked to see it).
+
+Test line flags:
+  - drawn: 1 drawn part moves, most 17 mm; nearest 0.0 cm from the hand: NOT confirmed by the pictures. In rack-grip-pulled-169-_Sec_BRN180_S_A_S-right.png the latch, bolt and spring move together with the receiver (no relative slide beyond about 10 px); the 17 mm part is either hidden under the glove or not moving.
+  - gun moved 0.1 mm with the pull: contradicted by the pictures unless the close-up camera moved. Upper receiver shifts about 100 px right between rack-grip-169 right and rack-grip-pulled right, and optic, sights and magazine shift about 40-55 px in the left pair while the glove holds its screen spot.
+  - muzzle flash: particles 'Muzzle (2)' every shot: the muzzle flash in lensflash-169 and lensburst-169 is only a faint haze at the muzzle; a real per-shot flash is hard to confirm from these frames.
+  - half way in (on the rail): 0.0 cm off the magwell line: the sideways line is right in mag-6-half-in-169, but the magazine's visible height matches the seated magazine (mag-1, mag-7), so the half-way depth is not visible; the HUD still reads NO MAG there.
+  - no test measurement covers mag-5 (fresh magazine lined up at the well): the picture shows it about 355 px below the magwell, standing in the grass, not lined up.

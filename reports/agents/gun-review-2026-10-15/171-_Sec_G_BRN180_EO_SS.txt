@@ -1,0 +1,43 @@
+Gun 171: [Sec]G BRN180 EO SS
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-171-_Sec_G_BRN180_EO_SS-left.png (also the plain rack-grip-171-_Sec_G_BRN180_EO_SS.png))
+   seen: Left close-up: the dark glove sits on the top of the forward upper receiver, under and in front of the black charging handle/latch (about x 665-920, y 150-240 in the 1280x800 frame, the handle is up and to the rear of the glove). The fingers do not close on the handle. In the first-person plain picture the glove is clamped to the left side of the gun about a third of the way back from the muzzle (around x 685-750, y 530-625), not at the rear of the receiver.
+   expected: The left hand's fingers pinch the charging handle at the rear top of the upper receiver, the hand touching the handle itself.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-171-_Sec_G_BRN180_EO_SS-right.png (compare rack-grip-171-_Sec_G_BRN180_EO_SS-right.png))
+   seen: Between the two right close-ups the whole image shifts about 95-105 px to the right: front sight ring (x ~228 -> ~322), EOTech body (x ~690 -> ~770), spring (left end x ~60 -> ~150), bolt tube start (x ~730 -> ~830) and the hole in the bolt (x ~905 -> ~1000) all move together. The spacing between the front sight and the bolt tube barely changes (502 -> 508 px), so the bolt carrier and spring do not slide back relative to the receiver. Relative spacing is camera-independent, so this is not just framing.
+   expected: With the pull, the bolt carrier / charging-handle part slides back (right, toward the stock) by about 17 mm while the sight, front sight and receiver stay put, the spring compressing relative to them.
+
+3. [major] [medium] other  (mag-7-seated-again-171-_Sec_G_BRN180_EO_SS.png (compare mag-1-seated-171-_Sec_G_BRN180_EO_SS.png and mag-6-half-in-171-_Sec_G_BRN180_EO_SS.png))
+   seen: In the seated-again picture the magazine's base plate sits where mag-1's base plate sat, but the magazine body shows no yellow cartridges: only dark horizontal stripes at the top of the magwell (x ~565-790, y ~60-170) and a dark body. In mag-1 the same seated magazine shows about 30 bright yellow rounds down its length. Mag-6 (half in) also shows no rounds.
+   expected: The magazine seated in the magwell looks like mag-1: full of visible yellow cartridges (test says 31 rounds).
+
+4. [major] [low] mag_wrong_orientation_or_model  (mag-5-lined-up-171-_Sec_G_BRN180_EO_SS.png)
+   seen: The fresh magazine under the gun (x ~555-705, y ~565-800) has a dark plate-like block at its gun-side (upper) end (x ~565-695, y ~575-640, with a light edge), and yellow cartridges only at the far lower edge (x ~600-690, y ~765-800). In mag-4 and mag-6/7 the yellow rounds are at the gun end and the dark base plate is at the far end, so this magazine looks turned end for end.
+   expected: Feed end (rounds) toward the magwell, base plate pointing down away from the gun, same as mag-4 and mag-6.
+
+5. [minor] [low] mag_not_in_hand  (mag-4-in-hand-171-_Sec_G_BRN180_EO_SS.png)
+   seen: The left glove is open with fingers spread to the left (x ~370-560, y ~290-440). The fresh magazine (x ~615-690, y ~490-760) hangs below the heel of the palm, with its top hidden under the palm and no finger wrapped around it.
+   expected: The fingers wrap around the magazine body, feed end toward the gun, with the hand clearly holding it.
+
+6. [minor] [low] mag_duplicate_or_missing  (mag-4-in-hand-171-_Sec_G_BRN180_EO_SS.png)
+   seen: A translucent slanted object with horizontal ridges sits above the handguard at the top edge of the frame (x ~320-495, y ~0-50), outside the receiver and not where a magazine should be. A thin dark line runs from it down to the glove. Could be a stray second magazine or leftover mesh; the picture is cut off at the top, so this is not certain.
+   expected: Only one magazine exists: the fresh one in the left hand, with the magwell empty.
+
+7. [minor] [low] other  (rack-grip-pulled-171-_Sec_G_BRN180_EO_SS-left.png (compare rack-grip-171-_Sec_G_BRN180_EO_SS-left.png))
+   seen: Between the two left close-ups the glove keeps its place in the frame while the sight shifts about 55 px left and the charging handle shifts the same ~50 px left. The handle keeps the same spacing to the sight (about 355 -> 360 px), so the handle does not move back, but the glove is now about 55 px further back relative to the gun. The hand moves while the handle stays put, which looks like the hand pulling air.
+   expected: The glove and the charging handle move back together by about 17 mm relative to the sight.
+
+Test line flags:
+  - 'drawn: 1 drawn part moves 17 mm; the nearest is 0.0 cm from the hand': not confirmed. The right close-ups show no relative motion of the bolt/spring against the receiver, and the left close-up shows the glove on the forward receiver, not on the handle. The 0.0 cm reading probably refers to a different part.
+  - 'the gun moved 0.2 mm with the pull': the whole close-up frame shifts about 50-105 px between rack-grip and rack-grip-pulled on both sides, while the sight-to-part spacing stays fixed. Either the close-up camera moves or the gun does; the pictures cannot reconcile this with 0.2 mm.
+  - 'magazine: seated, 31 rounds': contradicted visually. The seated magazine in mag-7 shows no yellow cartridges, unlike mag-1 in the same position.
+  - 'half way in (on the rail): 0.1 cm off the magwell line': consistent. In mag-6 the magazine sits on the magwell's vertical line, within roughly 10-20 px.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. The base plate in mag-7 lands where the base plate in mag-1 sat.
+  - 'in the hand: 0.9 cm from the palm': not confirmed. In mag-4 the magazine hangs under the palm with no finger wrap, which looks further than a grip.
+  - 'dropped copy ... size x1.06': tiny and roughly consistent. The falling copy in mag-2 is only about 5% wider than the seated magazine in mag-1.
+  - 'lens flash shown, strength 0.08' and 'strongest soft flash 0.09': lens-eyes shows a dim orange core (about 5 px) with faint rings in both eyes, the right a bit brighter. Consistent with the numbers, but very faint on screen.
+  - 'muzzle flash: particles Muzzle (2), 100 cm, every shot': lensflash and lensburst show a faint haze at the muzzle and brass thrown to the right. Consistent but weak.
+  - A thin dark line runs from the magwell down to the fresh magazine in mag-4, mag-6 and mag-7. It looks like a test guide line or tether rather than gun geometry; worth checking it is not visible in-game.
+  - 'lens flash burst: flashes L 19 / R 19 (full L 4 / R 4)': not checkable from single frames. The burst picture shows dim flares in both eyes, similar in strength.

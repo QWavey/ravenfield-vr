@@ -1,0 +1,41 @@
+Gun 131: ak12h 1p87 squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_into_magwell  (mag-6-half-in-131-ak12h_1p87_squad.png)
+   seen: The fresh magazine hangs under the receiver with its top about 2 cm (roughly 40 px) below the magwell opening. Sky is visible between the receiver underside and the magazine top (around x 650-820, y 195-235). No part of the magazine is above the receiver line; its top lip sits at about y 235-250. In mag-5 the same magazine's top was about 14 cm lower (y ~530), so this frame is close to the seated position but not inserted, and it is not half way.
+   expected: Half way in: the magazine's top is already up inside the magwell, overlapping the receiver outline by roughly half the insertion depth, on the same tilted line as mag-1. The hand still holds it low.
+
+2. [major] [medium] mag_duplicate_or_missing  (mag-2-leaving-131-ak12h_1p87_squad.png)
+   seen: The dropping magazine's base is about 2.5 cm lower than the seated magazine in mag-1 (base near y 760 instead of y 690, same x range 460-650). Its top stays flush under the receiver (y 190-290, same notch at the top-left as mag-1). The silhouette is longer and reads as one stretched magazine, most likely the gun's own seated magazine still drawn underneath an offset copy, so two magazine shapes overlap.
+   expected: One magazine that slides straight down out of the magwell along its line, top leaving first, with the gun's own magazine gone once the copy is released. No stretching, no overlap.
+
+3. [major] [medium] part_floating_or_detached  (rack-grip-pulled-131-ak12h_1p87_squad-right.png)
+   seen: Compared with rack-grip-131-ak12h_1p87_squad-right.png (same framing): the gray glove and the dark handle block (x 780-900, y 400-480) stay at the same screen spot, while the receiver body moved about 190 px to the right. The receiver's rear edge went from x ~715 to x ~905, the buffer-tube seam from x ~450 to x ~645, and the rear ring from x ~1050 to x ~1240. So the handle block now sits on the buffer tube, to the left of the receiver's rear edge, outside the receiver, where in the base shot it was inside the receiver outline. If the camera follows the hand, the handle travelled back out of its receiver slot.
+   expected: Only the charging handle slides back (about half of its 39 mm stroke, roughly 2 cm) and stays inside its receiver slot. The receiver and buffer tube stay still.
+
+4. [major] [low] hand_not_on_part  (rack-grip-131-ak12h_1p87_squad-right.png)
+   seen: The gray glove (left hand) lies under the receiver's lower edge. Its palm and fingers span x 550-1200, y 540-760, and the index fingertip ends at about x 1200, y 560, pointing past the receiver. The dark handle block is at x 780-900, y 400-480, roughly 60-100 px above the fingers, and nothing touches it in this frame. The fingers are not visibly pinching a part on the receiver side. Depth is ambiguous from a single frame.
+   expected: The left fingers close on the charging handle (the block on the receiver side) with fingertips on it, not under the receiver.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-131-ak12h 1p87 squad.png)
+   seen: Both eye panels are almost black. Each has one tiny dim star (about 10-15 px) at the muzzle position with a faint ring and nothing else. This is far weaker than the single-shot lens-eyes picture, consistent with the test line's strongest soft flash of 0.34 (single shot 0.93).
+   expected: A visible flare at the muzzle on each eye for the firing burst, roughly like the single-shot picture (a lower strength is acceptable, but not near black). The right eye a little stronger.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-131-ak12h_1p87_squad.png)
+   seen: The muzzle flare is at about x 660-720, y 440-500 (correct place). A bright vertical band runs down the right screen edge (x ~1190-1280, y ~120-520), and white bloom washes out the horizon at y ~370-400 on the right. Those ghost/bloom shapes sit off the line from the flare through screen centre (about 640,400).
+   expected: Lens ghosts and bloom lying on the line from the flare through the screen centre, with no hard vertical band at the screen edge.
+
+7. [minor] [low] other  (weapon-131-ak12h_1p87_squad.png)
+   seen: A saturated lime-green cloud with red and yellow edges fills the left third of every first-person frame (weapon, rack-grip, rack-pulled, lensflash, lensburst; roughly x 170-560, y 280-600). It is centred on the wall above the target's blue health bar (about x 370-440, y 555) and is far from the muzzle. The muzzle flash is the small star at the gun tip (about x 690, y 480 in lensflash). The cloud is much larger than the 70 cm muzzle particle in the test line.
+   expected: A small muzzle flash at the gun tip. Any green cloud at the target should not be this saturated or block the left half of the view. Unclear whether the cloud is an intended effect or a misplaced particle.
+
+Test line flags:
+  - half way in (on the rail): 0.0 cm off the magwell line. The line is right, but mag-6-half-in shows the magazine about 2 cm below the magwell with no part of it inside the well. The test does not measure insertion depth, so the picture contradicts a half-way pose. Confirmed by the picture.
+  - magazine: dropped copy 0.0 cm across the pull, 2.6 cm out. mag-2-leaving shows the lower end about 2.5 cm lower, which matches the 2.6 cm, but the top did not leave the well and the silhouette doubles up. The picture supports an offset copy drawn beside the gun's own magazine.
+  - rack grip and pulled half way: both not measured (the part's shape is not ready). No measurement exists for the handle motion, so the pictures are the only evidence. rack-grip-pulled-...-right shows the handle block ending up outside the receiver's rear edge, which the test would not catch.
+  - drawn: 1 drawn part(s) move, most 39 mm; the nearest is 0.0 cm from the hand. Neither number can be verified from the pictures. In rack-grip-...-right the gray glove's fingers sit a few cm below the handle block, so the 0.0 cm contact is not visible in that frame.
+  - gun moved 0.8 mm with the pull, 3.0 mm when it went home. Not checkable from the pictures. The pulled close-ups shift the whole gun in frame, but the left glove stays put, which suggests the camera follows the hand, so the frame shift is not a gun movement measure.
+  - in the hand: 3.4 cm from the palm. mag-4-in-hand shows the fresh magazine held low by the fingers, with the palm over its upper body. Not contradicted by the picture.
+  - seated: the gun's magazine shows 0.0 cm from where it was. mag-7-seated-again matches mag-1 exactly and there is no second magazine. Confirmed.
+  - muzzle flash: particles 'Muzzle Flash Particles', 70 cm, every shot. lensflash shows a small bright flare at the muzzle; no clear 70 cm flash is visible. The large object in the first-person frames is a green cloud at the wall, not at the muzzle. Not confirmed.
+  - lens flash burst: strongest soft flash 0.34. lens-eyes-burst is nearly black with one tiny star per eye. Confirms the full-auto flash is very weak.

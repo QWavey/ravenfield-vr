@@ -1,0 +1,23 @@
+Gun 193: P220 Devil Eatchel
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-193-P220_Devil_Eatchel-left.png)
+   seen: Compared with rack-grip-193-P220_Devil_Eatchel-left.png (same camera, same tree and tank in the background), the slide lettering 'Devil' and the red horns at the muzzle end stay exactly where they were, and the left glove does not move at all. The lower gun shifts about 60-80 px to the left (roughly 3 cm at this scale): the trigger guard, the grip under the right hand and the magazine base (about x 575-700 becomes x 500-635) all move together. A silver barrel and a black guide rod now stick out ahead of the slide at the far left (x 0-120, y 335-410). So the receiver moves forward while the slide stays put.
+   expected: The slide itself slides back (toward the right of this view, the rear) about 27 mm, so the horns and the 'Devil' lettering move right with the glove still gripping them. The frame, trigger guard, grip and magazine stay where they were. The barrel should only show ahead of the slide because the slide has moved back over it.
+
+2. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-193-P220_Devil_Eatchel-right.png)
+   seen: Compared with rack-grip-193-P220_Devil_Eatchel-right.png, the slide lettering at the right edge (x 1150-1280), the front sight (x 620-700, y 460-500) and the glove are all at the same screen positions. The only change is a gold cartridge that appears in the ejection-port area (x 975-1070, y 495-560), with a grey plate at x 1070-1120. A visible round there fits a chambered round, but the slide is not visibly sliding back.
+   expected: The slide moves rearward about 27 mm under the glove, so the lettering and the sight shift with it. The chambered round showing through the port is a secondary detail on top of that motion.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-193-P220_Devil_Eatchel.png)
+   seen: The fresh magazine (tan body, orange feed tip at about x 395-425, y 73-105) stands above the left fist. Its lower end rests on the top edge of the closed glove at about x 440-545, y 285-300. No finger wraps around the magazine body; the fist (x 395-825, y 280-530) sits below it, so the magazine looks perched on the hand rather than held.
+   expected: The fingers close around the lower part of the fresh magazine (near its base) so it sits inside the fist, feed end up toward the gun.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 3 drawn parts move, most 27 mm, nearest 0.0 cm from the hand' are contradicted by rack-grip-pulled-193-P220_Devil_Eatchel-left.png: the slide and the glove stay still while the receiver shifts about 60-80 px (roughly the 27 mm figure). The test may be moving the receiver rather than the slide. Picture confirms the mismatch (medium).
+  - 'the gun moved 0.3 mm with the pull, 0.7 mm when it went home': the pulled close-up shows the lower gun visibly shifting, so a tiny gun-root movement cannot account for the picture. Picture supports a moving child part (medium).
+  - 'rack grip: 2/4 fingers on it' and 'pulled half way: 2/4 fingers on it': rack-grip-193-P220_Devil_Eatchel-left.png shows the index finger over the top of the slide, but the glove does not move in the pulled shot, so fingers on a slide that moved 27 mm would not stay put. The exact 2/4 count cannot be confirmed; the free hand is not clearly on the slide in the wide rack-grip shots.
+  - 'in the hand: 3.5 cm from the palm': mag-4-in-hand-193-P220_Devil_Eatchel.png shows the magazine resting on top of the fist with no fingers around it, consistent with a floating magazine. Picture confirms the magazine is not gripped (medium).
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in shows the magazine on the grip line with no clear sideways offset, but only a short piece sticks out below the grip, so the 'half way' depth cannot be confirmed from the picture.
+  - 'fired 3/3; cases thrown: 3': no muzzle or lens flash picture is listed for this gun in the brief, so the shots' flash cannot be checked here.
+  - 'racked: chambered': rack-grip-pulled-193-P220_Devil_Eatchel-right.png shows a gold round at the ejection port, which is consistent with a chambered round.

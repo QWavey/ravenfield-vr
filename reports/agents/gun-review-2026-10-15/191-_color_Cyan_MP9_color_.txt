@@ -1,0 +1,41 @@
+Gun 191: <color=Cyan>MP9</color>
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-191-_color_Cyan_MP9_color_-left.png)
+   seen: The gloved left hand lies flat across the top of the receiver with its fingers pointing left. The fingertips stop a few cm short of the small dark charging knob on the receiver side (about x 230-270, y 375-415), and no finger wraps or touches it. The hand rests on the rail above and in front of the knob.
+   expected: Thumb and index finger pinch the charging handle knob itself, fingers wrapped around it, so the hand can pull it back.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-191-_color_Cyan_MP9_color_-left.png)
+   seen: Compared with rack-grip-191-_color_Cyan_MP9_color_-left.png, the whole gun body has slid about 100-120 px sideways: the charging knob (now about x 115-150), the olive right hand on the grip, and the stock butt all moved together. The gloved left hand and the background did not move. The fingertips are now roughly 140 px from the knob, so the hand is pulling air and the handle is not travelling with it.
+   expected: The charging handle slides back a few cm under the pinching left hand, the hand moves with it, and the receiver, grip and stock stay still.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-191-_color_Cyan_MP9_color_-right.png)
+   seen: Compared with rack-grip-191-_color_Cyan_MP9_color_-right.png, the receiver housing, barrel end, rear sight and clamp have slid about 150-190 px to the right. The gloved hand, the dark charging block (about x 765-880, y 385-475) and the background stayed put. The part that moves is the whole gun body, not the handle under the hand.
+   expected: Only the charging handle slides back under the pinching hand; the receiver and barrel stay still.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-191-_color_Cyan_MP9_color_.png)
+   seen: The fresh black magazine sits under the heel of the gloved palm (about x 690-910, y 440-575), not inside the fingers. The fingers are spread out to the left and do not curl around it. The magazine body is tilted roughly 30 degrees below horizontal, far from the vertical line of the magwell above it, and the hand is about 2.5 cm from it, matching the test line.
+   expected: Fingers wrapped around the fresh magazine (same black MP9 model), held upright with its feed end pointing at the magwell on the gun.
+
+5. [major] [medium] part_floating_or_detached  (rack-grip-191-_color_Cyan_MP9_color_-left.png)
+   seen: A black magazine with yellow rounds hangs in mid-air at the top right (about x 960-1210, y 40-215), in front of the rock. It is not in the gun and not on the ground. The same object appears in rack-grip-191-_color_Cyan_MP9_color_-pulled-left.png at about x 890-1090, so it is drifting rather than resting.
+   expected: Only the magazine seated in the gun should exist. A dropped magazine should fall to the ground, and no magazine should hang in the air.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-191-_color_Cyan_MP9_color_.png)
+   seen: The magazine held by the gloved left hand already sits at the magwell at the same height as in mag-1-seated: top flush under the receiver near y 440, base near y 745 against about y 730 in mag-1. Nothing shows it partway up into the well, so this frame reads as fully seated.
+   expected: The magazine visibly partway up into the magwell on its line, clearly between the lined-up frame and the seated frame.
+
+7. [minor] [low] hand_or_finger_clipping  (mag-7-seated-again-191-_color_Cyan_MP9_color_.png)
+   seen: After seating, the gloved left hand has risen up beside the magazine. Its fingers (about x 460-640, y 290-460) overlap the front of the gun frame next to the trigger guard and magwell, so the hand is clipping into the gun body.
+   expected: Magazine seated at the magwell with the hand off the gun body, fingers not overlapping or inside the frame.
+
+Test line flags:
+  - 'rack grip ... 0/4 fingers on it': confirmed by rack-grip-191-_color_Cyan_MP9_color_-left.png, where the fingertips stop short of the charging knob.
+  - 'moving with the hand: the charging handle': not confirmed. In rack-grip-pulled-191-_color_Cyan_MP9_color_-left.png the knob moves while the gloved hand stays still, so the hand does not travel with it.
+  - 'drawn: ... the nearest is 0.0 cm from the hand': not confirmed by rack-grip-pulled-191-_color_Cyan_MP9_color_-left.png, where the knob is well clear of the fingertips after the pull.
+  - 'the gun moved 0.2 mm with the pull': contradicted by rack-grip-pulled-191-_color_Cyan_MP9_color_-left.png and -right.png, where the gun body shifts about 100-190 px in frame while the background and the hand stay still.
+  - 'in the hand: 2.5 cm from the palm': consistent with mag-4-in-hand-191-_color_Cyan_MP9_color_.png, but the picture shows the magazine under the palm and not held by the fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks right in mag-6-half-in-191-_color_Cyan_MP9_color_.png, but the frame looks fully seated, so the half-way state is not visible.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7-seated-again-191-_color_Cyan_MP9_color_.png matches the mag-1 seated position.
+  - 'dropped magazine picked up and seated' versus 'dropped copy ... 8.0 cm out': conflicting with rack-grip-191-_color_Cyan_MP9_color_-left.png, which shows a loose magazine hanging in the air overhead.
+  - 'racked: chambered', 'fired 3/3', 'cases thrown', recoil and impulse numbers: no picture covers these, so they are not checked.

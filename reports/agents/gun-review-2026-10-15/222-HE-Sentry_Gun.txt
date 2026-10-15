@@ -1,0 +1,16 @@
+Gun 222: HE-Sentry Gun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-222-HE-Sentry_Gun.png)
+   seen: The held item is an olive-green crate with a yellow strap, sitting in the bottom-right corner (roughly x 640-1020, y 555-800 of the 1280x800 frame) and cut off by the bottom and right edges. No right hand is visible on it: no fingers, wrist or sleeve anywhere in the frame. The left hand is also not visible, which is consistent with it being free. The cyan translucent turret in the middle is the sentry placement preview, not the held item, so I did not count it as a bug.
+   expected: The right hand wrapped around the carried crate/gun with fingers on it, visible in the frame like the other weapon pictures (at minimum the wrist and fingers entering from the bottom edge).
+
+2. [tiny] [low] other  (weapon-222-HE-Sentry_Gun.png)
+   seen: Several soft, out-of-focus blue-grey round blobs, some with faint rings, are scattered over the sky and terrain (for example near x 855 y 150, x 110 y 30 and x 1120 y 250). They look like lens-dirt or droplet overlays. They may be an intentional effect, so this is only worth a look if they are not meant to be there.
+   expected: A clean sky and terrain with no stray blobs, unless the blobs are an intended effect.
+
+Test line flags:
+  - 'HE-Sentry Gun: equipped': consistent with the picture. An item is held in the lower right and the sentry placement preview is showing.
+  - 'manual reload not active for this weapon': consistent with the picture. No reload pose or magazine motion is visible, so nothing contradicts it.
+  - 'bag: carried without a glove': NOT confirmed by the picture. No hand is visible anywhere in the frame, so no glove can be checked. The carried crate also has no visible hand on it, which contradicts a carry pose if a hand should be there.
+  - 'throwable without a pin': not visible in this picture, so it cannot be confirmed or contradicted.

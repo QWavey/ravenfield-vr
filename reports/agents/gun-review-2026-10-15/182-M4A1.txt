@@ -1,0 +1,41 @@
+Gun 182: M4A1
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-182-M4A1-left.png)
+   seen: Left hand lies flat across the top of the upper receiver, glove back toward the camera, thumb draped over the top and fingers stretched forward along the top rail. No finger curls round or pinches any handle. The rear top of the receiver, where the charging handle sits next to the buttstock junction, is covered by the palm and wrist. The right hand on the pistol grip at lower left looks fine.
+   expected: Index finger and thumb pinching the AR charging handle at the back of the upper receiver, fingers on that handle, not lying flat on the receiver top.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-182-M4A1-right.png)
+   seen: Glove lies over the top of the gun with the thumb draped across the top edge and the fingers resting on the top surface. Nothing is pinched. The test's rack-grip measurement (0/4 fingers on the part) matches this.
+   expected: Fingers pinching the charging handle at the rear of the receiver, not resting on the receiver top.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-182-M4A1-left.png)
+   seen: Glove sits in the same place across the top of the receiver as in rack-grip-182-M4A1-left.png, with the same spacing to the buttstock. The fingers are not dragged rearward and nothing at the rear of the receiver has visibly slid back. The hand looks like it is pulling air.
+   expected: The hand pinches the charging handle and has pulled it about half way back toward the buttstock, the handle sliding rearward along the receiver top with the hand, the receiver staying put.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-182-M4A1-right.png)
+   seen: Thumb and fingers rest over the top of the receiver in the same place as in rack-grip-182-M4A1-right.png. The long cylindrical part at left and the sight and rings at right are unchanged. No part is visibly drawn back with the hand.
+   expected: The hand pinches the charging handle and it has moved rearward about half way with the hand, the hand moving with it.
+
+5. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-182-M4A1.png)
+   seen: First-person frame is almost identical to weapon-182.png: same gun position, same rear sight, no left hand visible on the gun and no visible rearward handle. The charging handle is too small at this scale to confirm or rule out a pull.
+   expected: Some sign of the left hand on the charging handle, and the handle visibly drawn back about half way.
+
+6. [minor] [high] other  (mag-1-seated-182-M4A1.png)
+   seen: The left-hand glove fills the lower left of the frame and covers the area under the receiver where the magwell and magazine should be, so seating cannot be seen. mag-2-leaving-182-M4A1.png and mag-3-out-182-M4A1.png have the same framing. Only the ammo label changes (number, then NO MAG), so the magazine dropping out and the empty magwell cannot be checked from these pictures.
+   expected: Magwell and magazine in view: seated magazine (base plate only) in mag-1, magazine dropping straight down in mag-2, empty magwell in mag-3.
+
+7. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-182-M4A1.png)
+   seen: Olive magazine stands alone at bottom centre (about x 575-765, y 630-800), roughly 470 px below the receiver's magwell and lined up with it on x. No fingers or hand are visible touching it; the hand may simply be below the frame.
+   expected: Magazine held by the left hand right at the magwell on its line, feed end toward the gun.
+
+Test line flags:
+  - rack grip 0/72 points, 0/4 fingers on the part: confirmed by rack-grip-182-M4A1-left.png and rack-grip-182-M4A1-right.png, where the fingers lie on top of the receiver and no handle is gripped.
+  - pulled half way 0/72 points, 0/4 fingers: confirmed by rack-grip-pulled-182-M4A1-left.png and -right.png, where the hand sits in the same spot as in the rest frames.
+  - drawn: 2 drawn parts move, most 53 mm, nearest 0.3 cm from the hand: NOT confirmed. No part near the hand visibly moves between the rack-grip and rack-grip-pulled left/right close-ups, and a 53 mm travel would be obvious there.
+  - moving with the hand: an added handle (and the carrier inside): NOT confirmed. No extra handle is visible in or on the hand in the pulled frames, and the hand holds no visible object.
+  - magazine: seated, 30 rounds, after 29 rounds kept on pickup: suspicious count change from 29 to 30. The receiver ammo label is too small and partly hidden to confirm the number.
+  - in the hand: 3.1 cm from the palm: NOT clearly confirmed. mag-4-in-hand-182-M4A1.png shows the magazine sitting against the fingers and palm, not visibly about 3 cm off. The measurement may refer to a different point on the magazine.
+  - half way in (on the rail): 0.0 cm off the magwell line: consistent with mag-6-half-in-182-M4A1.png, where the magazine is lined up under the receiver with no visible sideways offset.
+  - seated: the gun's magazine shows 0.0 cm from where it was: roughly consistent with mag-6 vs mag-7 (same spot at this scale). Not precise enough to confirm 0.0 cm.
+  - dropped copy 0.0 cm across the pull, 8.0 cm out: NOT confirmed. The glove hides the drop path in mag-2 and mag-3, and no dropped magazine is clearly visible on the ground in the other frames.
