@@ -102,6 +102,10 @@ namespace RavenfieldVR.Weapons
                     }
                     else if (Ammo.UsesDetachableMag && Ammo.MagInserted)
                     {
+                        if (Data.IsPistol)
+                        {
+                            dom.Model?.ThumbPress(); // the gun hand's thumb on the magazine release
+                        }
                         if (CanPalm(off))
                         {
                             TacticalEject(off);
@@ -132,6 +136,9 @@ namespace RavenfieldVR.Weapons
                 if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked)
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
+                    // The thumb on the slide or bolt release: the gun hand's on a pistol, the support hand's on the gun otherwise.
+                    VRHand presses = !Data.IsPistol && off.Role == HandRole.Foregrip ? off : dom;
+                    presses.Model?.ThumbPress();
                     ReleaseSlide();
                 }
                 else if (VRConfig.TriggerReleasesSlide.Value && Ammo.SlideLocked && !_racking && VRInput.GetPressed(DigitalAction.Fire, dom.Side)

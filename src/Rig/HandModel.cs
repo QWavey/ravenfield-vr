@@ -170,6 +170,15 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>
+        /// The thumb presses a release for a moment (Boneworks style): a pistol's magazine release when the magazine is
+        /// dropped with the button, the slide or bolt release when the action is sent home with it.
+        /// </summary>
+        public void ThumbPress(float seconds = 0.3f) => _thumbPressUntil = Time.unscaledTime + seconds;
+
+        private float _thumbPressUntil = -1f;
+        private bool ThumbPressing => Time.unscaledTime < _thumbPressUntil;
+
         /// <summary>Valve's pointing hand, mirrored for this side (null without one).</summary>
         private Quaternion[][] _pointRotations;
         /// <summary>How far the hand is in Valve's pointing pose (eased).</summary>
@@ -540,6 +549,10 @@ namespace RavenfieldVR.Rig
             // tracking makes from grip and trigger: its thumb has nothing tracked and wraps over the fingers.
             bool restThumb = _hand.Role == HandRole.Free && _pose.Id != HandPoseId.Fist;
             Quaternion thumbGoal = restThumb ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
+            if (ThumbPressing && !restThumb)
+            {
+                thumbGoal = Quaternion.Slerp(thumbGoal, _thumbFist, 0.5f); // in across the frame, onto the release
+            }
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
             for (int f = 0; f < 5; f++)
             {
@@ -1109,7 +1122,7 @@ namespace RavenfieldVR.Rig
                 if (_hand.Role == HandRole.Weapon)
                 {
                     // A rifle's thumb wraps over the grip until it meets it; a pistol's lies along the frame.
-                    Minimum(WeaponIsPistol ? 0.35f : 0.95f, -1f, 0.95f, 0.95f, 0.95f);
+                    Minimum(WeaponIsPistol ? (ThumbPressing ? 0.8f : 0.35f) : 0.95f, -1f, 0.95f, 0.95f, 0.95f);
                 }
                 else
                 {
@@ -1117,7 +1130,7 @@ namespace RavenfieldVR.Rig
                     // the thumb of a hand with its palm on a slide (it stopped 13 mm off; grip_check.py).
                     bool wraps = _hand.Role == HandRole.Magazine
                                  || _hand.Role == HandRole.Slide && WorkedPart == WorkedPart.Slide && GraspAnchor.HasValue && !GraspPinch;
-                    Minimum(wraps ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
+                    Minimum(wraps || ThumbPressing ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
                 }
                 IndexAlongPistolMagazine(p);
                 return _goal;
