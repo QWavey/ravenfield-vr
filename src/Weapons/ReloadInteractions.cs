@@ -1876,6 +1876,10 @@ namespace RavenfieldVR.Weapons
             {
                 yield return Move(s => along(0.12f * (1f - s)), 0.45f, "reaching");
                 VRInput.SimulatedGrab[side] = true;
+                if (off.Held == null && Ammo.MagInserted)
+                {
+                    PullSeatedMagazine(off); // what a squeeze at the magazine's base does (the simulated grab is held, not pressed)
+                }
                 yield return Move(s => along(0f), 0.15f, "grab");
                 pulled = off.Held is MagazineProp;
                 yield return Move(s => along(outBy * s), 0.8f, "pulling out");

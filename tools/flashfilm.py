@@ -126,17 +126,26 @@ def film(d, summary):
             for f in frames]
     if cv2 is not None:
         h, w = pics[0].height, pics[0].width
-        vw = cv2.VideoWriter(os.path.join(os.path.dirname(d), name + '.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+        # A whole frame rate: MPEG-4 takes no time base past 65535 (85.07 fps failed to open).
+        vw = cv2.VideoWriter(os.path.join(os.path.dirname(d), name + '.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), int(round(fps)), (w, h))
         for p in pics:
             vw.write(cv2.cvtColor(np.asarray(p), cv2.COLOR_RGB2BGR))
         vw.release()
-    small = [p.resize((p.width * 2 // 3, p.height * 2 // 3), Image.LANCZOS) for p in pics]
-    durations = []
-    for j in range(len(frames)):
-        nxt = frames[j + 1][1]['time'] if j + 1 < len(frames) else frames[j][1]['time'] + 1 / fps
-        durations.append(max(20, int(round(4000 * (nxt - frames[j][1]['time'])))))
-    small[0].save(os.path.join(os.path.dirname(d), name + '-slow.gif'), save_all=True, append_images=small[1:],
-                  duration=durations, loop=0, optimize=False)
+    # The slow GIF: only around the shots (from a frame before each to 8 after, and the held trigger), smaller: the whole
+    # film four times slower was 35-45 MB a gun.
+    keep = set()
+    for k in shots:
+        keep.update(range(max(0, k - 2), min(len(frames), k + 9)))
+    keep.update(j for j, f in enumerate(frames) if f[1]['note'] == 'burst')
+    order = sorted(keep)
+    if order:
+        small = [pics[j].resize((pics[j].width // 2, pics[j].height // 2), Image.LANCZOS) for j in order]
+        durations = []
+        for j in order:
+            nxt = frames[j + 1][1]['time'] if j + 1 < len(frames) else frames[j][1]['time'] + 1 / fps
+            durations.append(max(20, int(round(4000 * (nxt - frames[j][1]['time'])))))
+        small[0].save(os.path.join(os.path.dirname(d), name + '-slow.gif'), save_all=True, append_images=small[1:],
+                      duration=durations, loop=0, optimize=True)
 
 
 def reload_film(d, summary):
@@ -162,7 +171,7 @@ def reload_film(d, summary):
     durations = [max(20, int(round(2000 * (times[j + 1] - times[j])))) for j in range(len(times) - 1)] + [600]
     pics[0].save(os.path.join(os.path.dirname(d), name + '.gif'), save_all=True, append_images=pics[1:], duration=durations, loop=0)
     if cv2 is not None:
-        fps = (len(times) - 1) / max(1e-3, times[-1] - times[0])
+        fps = int(round((len(times) - 1) / max(1e-3, times[-1] - times[0])))
         vw = cv2.VideoWriter(os.path.join(os.path.dirname(d), name + '.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (pics[0].width, pics[0].height))
         for p in pics:
             vw.write(cv2.cvtColor(np.asarray(p), cv2.COLOR_RGB2BGR))

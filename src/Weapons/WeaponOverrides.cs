@@ -67,14 +67,41 @@ namespace RavenfieldVR.Weapons
                 {
                     return;
                 }
+                bool changed = _file != null;
                 _file = JsonUtility.FromJson<WeaponOverrideFile>(File.ReadAllText(path)) ?? new WeaponOverrideFile();
                 _loadedStamp = stamp;
+                if (changed)
+                {
+                    // Edited while the game runs: weapons analysed already are analysed again (from their next draw), or the
+                    // edit reached none of them.
+                    WeaponAnalyzer.ClearCache();
+                    Log.Info("Weapon overrides changed: weapons are analysed again with them.");
+                }
             }
             catch (Exception e)
             {
                 Log.WarnOnce("overrides", "Could not read " + FilePath + ": " + e.Message);
                 _file = new WeaponOverrideFile();
             }
+        }
+
+        /// <summary>"true" / "false" in any case; empty is unset; anything else is said once.</summary>
+        private static bool? Flag(string value, string match, string field)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return null;
+            }
+            if (string.Equals(value.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            if (string.Equals(value.Trim(), "false", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            Log.WarnOnce($"override-{field}:{value}", $"Weapon override '{match}': {field} '{value}' is neither true nor false.");
+            return null;
         }
 
         public static void Apply(Weapon w, WeaponRigData d)
@@ -91,9 +118,18 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (!string.IsNullOrEmpty(o.action) && Enum.IsDefined(typeof(ActionType), o.action))
+                if (!string.IsNullOrEmpty(o.action))
                 {
-                    d.Action = (ActionType)Enum.Parse(typeof(ActionType), o.action);
+                    // Any case ("manual", "Manual"); a name that is no action is said, not dropped silently.
+                    string action = Array.Find(Enum.GetNames(typeof(ActionType)), n => string.Equals(n, o.action.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (action != null)
+                    {
+                        d.Action = (ActionType)Enum.Parse(typeof(ActionType), action);
+                    }
+                    else
+                    {
+                        Log.WarnOnce("override-action:" + o.action, $"Weapon override '{o.match}': '{o.action}' is no action ({string.Join(", ", Enum.GetNames(typeof(ActionType)))}).");
+                    }
                 }
                 if (!string.IsNullOrEmpty(o.magazine))
                 {
@@ -116,13 +152,15 @@ namespace RavenfieldVR.Weapons
                 {
                     d.SlideTravel = d.SlideTravel.normalized * o.slideTravel;
                 }
-                if (o.lockOnEmpty == "true" || o.lockOnEmpty == "false")
+                bool? lockOnEmpty = Flag(o.lockOnEmpty, o.match, "lockOnEmpty");
+                if (lockOnEmpty.HasValue)
                 {
-                    d.LockOnEmpty = o.lockOnEmpty == "true";
+                    d.LockOnEmpty = lockOnEmpty.Value;
                 }
-                if (o.magKick == "true" || o.magKick == "false")
+                bool? magKick = Flag(o.magKick, o.match, "magKick");
+                if (magKick.HasValue)
                 {
-                    d.MagKickable = o.magKick == "true";
+                    d.MagKickable = magKick.Value;
                 }
                 d.GripPoint += d.AimAxis * o.gripForward + d.Up * o.gripUp;
                 if (o.pitch != 0f)
