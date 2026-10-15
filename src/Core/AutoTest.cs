@@ -45,6 +45,13 @@ namespace RavenfieldVR.Core
 
         private static readonly bool MenuTestRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-menutest", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// -rfvr-grabshots (with -rfvr-autotest -vr): every weapon only drawn and pictured where the hand takes it to reload:
+        /// its slide, bolt or handle racked (three views) and its magazine all the way round (seated, dropped, in the hand,
+        /// lined up, half in, home). For checking every grab by eye.
+        /// </summary>
+        private static readonly bool GrabShots = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabshots", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
         private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
 
@@ -248,6 +255,14 @@ namespace RavenfieldVR.Core
                     {
                         Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
                     }
+                }
+                if (VRManager.Active && GrabShots)
+                {
+                    PerfProbe.Reset();
+                    yield return TestWeapons();
+                    Write();
+                    Application.Quit();
+                    yield break;
                 }
                 if (VRManager.Active && PerfBenchRequested)
                 {
@@ -457,6 +472,37 @@ namespace RavenfieldVR.Core
                 }
                 GraphicsPresets.Apply();
                 Runtime.OpenVRRuntime.ApplyLiveSettings();
+            }
+        }
+
+        /// <summary>The grab pictures of one weapon (see <see cref="GrabShots"/>).</summary>
+        private static IEnumerator GrabPictures(HeldWeapon held, int index, string name, List<string> lines)
+        {
+            yield return new WaitForEndOfFrame();
+            Shots.Capture($"weapon-{index:000}-{name}");
+            ActionType action = held.Rig.Data.Action;
+            if (action == ActionType.Manual || action == ActionType.SelfLoading || action == ActionType.ShellFed)
+            {
+                yield return held.Reload.RackGripSelfCheck(lines.Add, shot =>
+                {
+                    Shots.Capture($"{shot}-{index:000}-{name}");
+                    Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
+                    Vector3 c = rackHand.Model.Root.position;
+                    Runtime.RigidPose g = held.GripWorld;
+                    Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+                    Shots.Capture($"{shot}-{index:000}-{name}-left", c - right * 0.25f + up * 0.08f, Quaternion.LookRotation(right * 0.25f - up * 0.08f, up), 45f);
+                    Shots.Capture($"{shot}-{index:000}-{name}-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(-right * 0.25f - up * 0.08f, up), 45f);
+                });
+            }
+            if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+            {
+                yield return held.Reload.MagazineDeepCheck(lines.Add, (shot, at) =>
+                {
+                    Runtime.RigidPose g = held.GripWorld;
+                    Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+                    Vector3 from = at - right * 0.32f + up * 0.03f;
+                    Shots.Capture($"{shot}-{index:000}-{name}", from, Quaternion.LookRotation(at - from, up), 45f);
+                });
             }
         }
 
@@ -1870,7 +1916,11 @@ namespace RavenfieldVR.Core
                         lines.Add("NO VISIBLE MODEL");
                     }
                     yield return held.Reload.SelfCheck(lines.Add);
-                    if (VRManager.Active)
+                    if (VRManager.Active && GrabShots)
+                    {
+                        yield return GrabPictures(held, index, entry.name, lines);
+                    }
+                    else if (VRManager.Active)
                     {
                         // A picture of the weapon in the (simulated) hands: a spread across the list, plus melee, grenades
                         // and pistols.

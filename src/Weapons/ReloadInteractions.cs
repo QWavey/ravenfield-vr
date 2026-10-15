@@ -2255,6 +2255,12 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                     int oldRounds = Ammo.MagRounds;
+                    // Each pass starts with a full reserve: a gun with a few spare magazines (a sniper's four) ran the pouch dry
+                    // by the fourth pass, the knocked-out magazines lying on the ground with their rounds.
+                    if (!Ammo.InfiniteSpare && Ammo.Weapon.configuration.spareAmmo > 0)
+                    {
+                        Ammo.SpareAmmo = Mathf.Max(Ammo.SpareAmmo, Ammo.Weapon.configuration.spareAmmo);
+                    }
                     // Counted without the pouch (a mutator may refill it at any moment): what is loaded, plus the fresh one.
                     int before = Ammo.MagRounds + (Ammo.Chambered ? 1 : 0);
                     TakeFromPouch(off);

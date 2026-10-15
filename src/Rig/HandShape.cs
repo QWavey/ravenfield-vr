@@ -39,6 +39,8 @@ namespace RavenfieldVR.Rig
         public Quaternion ThumbRest, ThumbWeapon;
         /// <summary>The thumb's first joint in a fist (poses turn the thumb base between the rest and this).</summary>
         public Quaternion ThumbFist;
+        /// <summary>Valve's own pointing hand, every joint (null for a glove without one).</summary>
+        public Quaternion[,] Point;
         /// <summary>Points on the palm's skin (palm side).</summary>
         public Vector3[] PalmSkin;
         /// <summary>The palm and back of the hand as a box (the thumb and fingers excluded).</summary>
@@ -249,6 +251,7 @@ namespace RavenfieldVR.Rig
             var h = new HandShape { Name = "tactical (SteamVR glove)", Scale = size, Quality = SkinQuality.Bone4 };
             var relaxed = new Quaternion[5, 3];
             var fist = new Quaternion[5, 3];
+            var point = new Quaternion[5, 3];
             for (int f = 0; f < 5; f++)
             {
                 for (int s = 0; s < 3; s++)
@@ -268,7 +271,7 @@ namespace RavenfieldVR.Rig
                     h.Open[f, s] = ReadQuaternion(r);
                     fist[f, s] = ReadQuaternion(r);
                     relaxed[f, s] = ReadQuaternion(r);
-                    ReadQuaternion(r); // pointing pose (not used yet)
+                    point[f, s] = ReadQuaternion(r);
                 }
             }
             h.PalmSkin = new Vector3[12];
@@ -287,6 +290,7 @@ namespace RavenfieldVR.Rig
             h.ThumbRest = relaxed[0, 0];
             h.ThumbWeapon = Quaternion.Slerp(relaxed[0, 0], fist[0, 0], 0.35f);
             h.ThumbFist = fist[0, 0];
+            h.Point = point;
             // Curl 0 is Valve's relaxed hand with its curl taken out, not the open hand: the open hand spreads the fingers
             // wide (index, ring and little finger 10-15 degrees out at the knuckle), which read as a stiff hand at rest.
             // Each joint keeps the relaxed pose's sideways set (the swing) and curls about the same axis as before, so a

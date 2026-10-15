@@ -29,8 +29,8 @@ namespace RavenfieldVR.Rig
         public static bool CloseupsRequested => Environment.GetCommandLineArgs().Any(a => string.Equals(a, "-rfvr-handshots", StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
-        /// Close-ups of the right glove: rows open, at rest, half closed, fist, holding a grip (weapon thumb), pinching;
-        /// columns from the back of the hand, the palm and the thumb's side. One picture, 3 x 6 tiles.
+        /// Close-ups of the right glove: rows open, at rest, half closed, fist, holding a grip (weapon thumb), pinching,
+        /// pointing (Valve's pose); columns from the back of the hand, the palm and the thumb's side. One picture, 3 x 7 tiles.
         /// </summary>
         public static string CaptureCloseups(string path)
         {
@@ -47,7 +47,8 @@ namespace RavenfieldVR.Rig
                     (new[] { 0.35f, 0.45f, 0.5f, 0.55f, 0.6f }, false),
                     (new[] { 1f, 1f, 1f, 1f, 1f }, false),
                     (new[] { 0.3f, 0.25f, 0.72f, 0.74f, 0.76f }, true),
-                    (new[] { 0.45f, 0.55f, 0.7f, 0.75f, 0.78f }, false)
+                    (new[] { 0.45f, 0.55f, 0.7f, 0.75f, 0.78f }, false),
+                    (new[] { 0.45f, 0.05f, 0.82f, 0.84f, 0.86f }, false) // last row: Valve's own pointing pose (below)
                 };
                 // One hand per pose, a metre apart: a skinned mesh is skinned once per frame, so re-posing one hand
                 // between renders of the same frame would show its first pose every time.
@@ -59,6 +60,7 @@ namespace RavenfieldVR.Rig
                     hands[p].Root.localRotation = Quaternion.identity;
                     hands[p].Model.PreviewPose(poses[p].curls, poses[p].weaponThumb);
                 }
+                hands[poses.Length - 1].Model.PreviewPointing();
                 var light = new GameObject("light").AddComponent<Light>();
                 light.transform.SetParent(root.transform, false);
                 light.type = LightType.Directional;

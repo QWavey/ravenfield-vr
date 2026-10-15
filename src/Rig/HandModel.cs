@@ -156,6 +156,37 @@ namespace RavenfieldVR.Rig
             _thumbFist = HandShape.MirrorRotation(_shape.ThumbFist, m);
             _thumbBase = _thumbRest;
             _pinchPoint = PinchFromShape();
+            if (_shape.Point != null)
+            {
+                _pointRotations = new Quaternion[5][];
+                for (int f = 0; f < 5; f++)
+                {
+                    _pointRotations[f] = new Quaternion[3];
+                    for (int s = 0; s < 3; s++)
+                    {
+                        _pointRotations[f][s] = HandShape.MirrorRotation(_shape.Point[f, s], m);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Valve's pointing hand, mirrored for this side (null without one).</summary>
+        private Quaternion[][] _pointRotations;
+        /// <summary>How far the hand is in Valve's pointing pose (eased).</summary>
+        private float _pointBlend;
+
+        /// <summary>
+        /// The hand points: as the laser pointer, or an empty hand with the index out and the other three fingers in (from
+        /// finger tracking, or the grip squeezed without the trigger). Then it takes Valve's own pointing pose: a curl alone
+        /// left the thumb sticking out and the index bent like a hook.
+        /// </summary>
+        private bool Pointing(float[] goal)
+        {
+            if (_hand.Role == HandRole.Pointer)
+            {
+                return true;
+            }
+            return _hand.Role == HandRole.Free && _hand.Held == null && goal[1] < 0.3f && goal[2] > 0.6f && goal[3] > 0.6f && goal[4] > 0.55f;
         }
 
         /// <summary>The pinch point (<see cref="PinchFromShape"/>) in the tracked palm's frame: where the hand holds what it pinches.</summary>
@@ -502,6 +533,7 @@ namespace RavenfieldVR.Rig
             float[] goal = TargetCurls();
             float k = 1f - Mathf.Exp(-25f * dt);
             float kJoint = 1f - Mathf.Exp(-40f * dt);
+            _pointBlend = Mathf.MoveTowards(_pointBlend, _pointRotations != null && Pointing(goal) ? 1f : 0f, dt * 8f);
             // The pose turns the thumb's base between its rest and the fist: along the frame of a held gun or the side of a
             // handguard (Valve's relaxed thumb stood up through it), wrapped round a knife's handle, up beside a pinch.
             // An empty hand keeps the rest (its tracked thumb moves from there), except the fist a controller without finger
@@ -560,7 +592,12 @@ namespace RavenfieldVR.Rig
                 for (int s = 0; s < 3; s++)
                 {
                     _joint[f, s] = Mathf.Lerp(_joint[f, s], closing ? _solved[s] : _curl[f], kJoint);
-                    _joints[f][s].localRotation = JointRest(f, s) * Quaternion.AngleAxis(_shape.CurlAngle[f, s] * _joint[f, s], _axis[f, s]);
+                    Quaternion q = JointRest(f, s) * Quaternion.AngleAxis(_shape.CurlAngle[f, s] * _joint[f, s], _axis[f, s]);
+                    if (_pointBlend > 0.001f)
+                    {
+                        q = Quaternion.Slerp(q, _pointRotations[f][s], _pointBlend);
+                    }
+                    _joints[f][s].localRotation = q;
                 }
             }
             UpdateSkin();
@@ -890,6 +927,24 @@ namespace RavenfieldVR.Rig
             // The last segment reaches on into the rounded fingertip.
             float end = s == 2 ? 1.12f : 1f;
             return Solid(Vector3.LerpUnclamped(a, b, 0.4f)) || Solid(Vector3.LerpUnclamped(a, b, 0.75f)) || Solid(Vector3.LerpUnclamped(a, b, end));
+        }
+
+        /// <summary>Self-test picture: the glove in Valve's own pointing pose (false without one).</summary>
+        internal bool PreviewPointing()
+        {
+            if (_pointRotations == null)
+            {
+                return false;
+            }
+            SetVisible(true);
+            for (int f = 0; f < 5; f++)
+            {
+                for (int s = 0; s < 3; s++)
+                {
+                    _joints[f][s].localRotation = _pointRotations[f][s];
+                }
+            }
+            return true;
         }
 
         /// <summary>Self-test picture: the glove with these finger curls (thumb..pinky), no tracking needed.</summary>
