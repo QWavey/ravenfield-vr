@@ -53,6 +53,7 @@ namespace RavenfieldVR.Core
             f._dir = dir;
             f._recording = true;
             // Below the game's threads: the PNGs take a core of their own, and the frames filmed must not be slowed by them.
+            Interlocked.Increment(ref Writing);
             f._writer = new Thread(f.WriterLoop) { IsBackground = true, Name = "RavenfieldVR eye film", Priority = System.Threading.ThreadPriority.BelowNormal };
             f._writer.Start();
             f._frames.AppendLine("frame\teye\ttime\tnote\tlens");
@@ -79,15 +80,38 @@ namespace RavenfieldVR.Core
             {
                 yield return null;
             }
+            // Every frame written before the writer stops (up to 2 minutes; a whole machine-gun magazine is 1400 pictures):
+            // waited only 10 s, the game quit while the writer was still in Unity's PNG encoder, and crashed.
+            for (float until = Time.realtimeSinceStartup + 120f; Queued > 0 && Time.realtimeSinceStartup < until;)
+            {
+                yield return null;
+            }
             _stop = true;
             _wake.Set();
-            _writer.Join(10000);
+            if (!_writer.Join(15000))
+            {
+                Log.Warn("Eye film: the frame writer did not finish; the game waits for it before quitting.");
+            }
             File.WriteAllText(Path.Combine(_dir, "frames.txt"), _frames.ToString());
             _copy?.Release();
             Destroy(this);
         }
 
         internal int Frames => _mono ? _count[0] : Mathf.Min(_count[0], _count[1]);
+
+        private int Queued
+        {
+            get
+            {
+                lock (_queue)
+                {
+                    return _queue.Count;
+                }
+            }
+        }
+
+        /// <summary>Films still writing frames (the autotest waits for them before it quits the game).</summary>
+        internal static int Writing;
 
         private CommandBuffer _copy;
         private bool _mono;
@@ -151,6 +175,7 @@ namespace RavenfieldVR.Core
                 {
                     if (_stop)
                     {
+                        Interlocked.Decrement(ref Writing);
                         return;
                     }
                     _wake.WaitOne(200);

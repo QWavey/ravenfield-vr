@@ -284,6 +284,8 @@ def main():
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
     ap.add_argument('--film', action='append', nargs='?', const='', metavar='NAME|ID',
                     help='film both eyes while guns shoot (repeatable; alone: four sample guns)')
+    ap.add_argument('--flashcheck', action='store_true', help='every weapon fired: lens flashes counted against shots (no pictures)')
+    ap.add_argument('--one-mag', action='store_true', help='with --film: aimed, full auto until one magazine is empty, nothing else')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--out', metavar='NAME', help='collect into reports/shots/NAME instead of the mode folder (a run that must not move the last one away)')
     ap.add_argument('--no-build', action='store_true')
@@ -298,7 +300,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None)) if on]
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck)) if on]
     if not modes:
         ap.print_help()
         return
@@ -323,7 +325,9 @@ def main():
             args, timeout = base + ['-rfvr-uishots'], a.timeout or 20
         elif mode == 'film':
             only = ','.join(x.replace(',', ' ') for x in a.film if x)
-            args, timeout = base + ['-rfvr-flashfilm', f'-rfvr-only={only}'], a.timeout or 20
+            args, timeout = base + ['-rfvr-flashfilm', f'-rfvr-only={only}'] + (['-rfvr-filmonemag'] if a.one_mag else []), a.timeout or 20
+        elif mode == 'flashcheck':
+            args, timeout = base + ['-rfvr-flashcheck'], a.timeout or 45
         elif mode == 'bench':
             args, timeout = base + ['-rfvr-perfbench'], a.timeout or 20
         elif mode == 'autotest':

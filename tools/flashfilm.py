@@ -133,10 +133,19 @@ def film(d, summary):
         vw.release()
     # The slow GIF: only around the shots (from a frame before each to 8 after, and the held trigger), smaller: the whole
     # film four times slower was 35-45 MB a gun.
+    burst = [j for j, f in enumerate(frames) if f[1]['note'] in ('burst', 'after burst')]
+    if len(burst) > 10:
+        clip = [pics[j].resize((pics[j].width // 2, pics[j].height // 2), Image.LANCZOS) for j in burst]
+        durations = []
+        for j in burst:
+            nxt = frames[j + 1][1]['time'] if j + 1 < len(frames) else frames[j][1]['time'] + 1 / fps
+            durations.append(min(200, max(20, int(round(1000 * (nxt - frames[j][1]['time']))))))
+        clip[0].save(os.path.join(os.path.dirname(d), name + '-burst.gif'), save_all=True, append_images=clip[1:],
+                     duration=durations, loop=0, optimize=True)
     keep = set()
     for k in shots:
         keep.update(range(max(0, k - 2), min(len(frames), k + 9)))
-    keep.update(j for j, f in enumerate(frames) if f[1]['note'] == 'burst')
+    keep.update(burst[:int(2 * fps)])  # the first 2 s of a held trigger (a whole magazine is in -burst.gif)
     order = sorted(keep)
     if order:
         small = [pics[j].resize((pics[j].width // 2, pics[j].height // 2), Image.LANCZOS) for j in order]

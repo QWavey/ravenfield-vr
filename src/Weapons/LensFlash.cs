@@ -34,6 +34,8 @@ namespace RavenfieldVR.Weapons
         // put out count as its flash (not an earlier shot's still in the air, or another barrel's).
         private ParticleSystem[] _pendingSystems = new ParticleSystem[0];
         private int[] _pendingCounts = new int[0];
+        // The gun's flash plays on every shot (no burst chance): any of its particles out is this shot's flash.
+        private bool _pendingEveryShot;
         // The gun now (for the glow of sustained fire).
         private readonly List<float> _shots = new List<float>();
         private Weapon _gun;
@@ -52,6 +54,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Self-test: flashes shown, and the last one's strength (the stronger eye).</summary>
         internal int Shown { get; private set; }
+
+        /// <summary>Self-test: the player's shots seen (each may or may not flash).</summary>
+        internal int ShotsSeen { get; private set; }
         internal float LastPower { get; private set; }
 
         public LensFlash(VRRig rig)
@@ -64,11 +69,13 @@ namespace RavenfieldVR.Weapons
         public void OnShot(HeldWeapon held, Weapon weapon)
         {
             _shots.Add(Time.unscaledTime); // every shot counts for the glow's rate, two in one frame too
+            ShotsSeen++;
             _pendingHeld = held;
             _pendingWeapon = weapon;
             _pendingFrame = Time.frameCount;
             // Read now, before the shot's particles are simulated (the game has only asked them to play).
             _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
+            _pendingEveryShot = MuzzleFlashInfo.Of(weapon).Chance >= 0.999f;
             _pendingCounts = new int[_pendingSystems.Length];
             for (int i = 0; i < _pendingSystems.Length; i++)
             {
@@ -112,7 +119,10 @@ namespace RavenfieldVR.Weapons
             float size = FlashSize(held, w, ParticlesOut());
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
-            _gunSize = size * strength;
+            // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
+            // flash-less set it to nothing, and the glow went out in the middle of a burst).
+            float gunSize = MuzzleFlashInfo.Of(w).Particles ? FlashSize(held, w, true) : size;
+            _gunSize = gunSize * strength;
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
             {
@@ -185,7 +195,10 @@ namespace RavenfieldVR.Weapons
         {
             for (int i = 0; i < _pendingSystems.Length; i++)
             {
-                if (_pendingSystems[i] != null && _pendingSystems[i].particleCount > _pendingCounts[i])
+                ParticleSystem ps = _pendingSystems[i];
+                // More particles than at the shot; or, for a flash that plays on every shot, any: a machine gun's system is
+                // full and playing through sustained fire, its count never rises, and only the first of 120 rounds flashed.
+                if (ps != null && (ps.particleCount > _pendingCounts[i] || _pendingEveryShot && ps.particleCount > 0))
                 {
                     return true;
                 }

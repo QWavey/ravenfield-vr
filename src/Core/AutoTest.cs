@@ -64,6 +64,12 @@ namespace RavenfieldVR.Core
         /// </summary>
         private static readonly bool FlashFilmRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-flashfilm", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>-rfvr-flashcheck (with -rfvr-autotest -vr): every weapon fired, its lens flashes counted against its shots.</summary>
+        private static readonly bool FlashCheckRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-flashcheck", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>-rfvr-filmonemag (with -rfvr-flashfilm): each gun aimed and fired on full auto until one magazine is empty, nothing else.</summary>
+        private static readonly bool FilmOneMag = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-filmonemag", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
         private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
 
@@ -287,10 +293,21 @@ namespace RavenfieldVR.Core
                     Application.Quit();
                     yield break;
                 }
+                if (VRManager.Active && FlashCheckRequested)
+                {
+                    yield return FlashCheck();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (VRManager.Active && FlashFilmRequested)
                 {
                     yield return FlashFilm();
                     Write();
+                    for (float until = Time.realtimeSinceStartup + 30f; EyeFilm.Writing > 0 && Time.realtimeSinceStartup < until;)
+                    {
+                        yield return null; // quitting while a frame writer is in Unity's encoder crashed the game
+                    }
                     Application.Quit();
                     yield break;
                 }
@@ -748,7 +765,7 @@ namespace RavenfieldVR.Core
                 {
                     film.Note("still");
                     yield return Frames(0.5f);
-                    for (int k = 1; k <= 3; k++)
+                    for (int k = 1; k <= 3 && !FilmOneMag; k++)
                     {
                         film.Note($"hip shot {k}");
                         Shoot();
@@ -763,7 +780,7 @@ namespace RavenfieldVR.Core
                         hip = false;
                         film.Note("aiming");
                         yield return Frames(0.6f);
-                        for (int k = 1; k <= 3; k++)
+                        for (int k = 1; k <= 3 && !FilmOneMag; k++)
                         {
                             film.Note($"aimed shot {k}");
                             Shoot();
@@ -777,12 +794,19 @@ namespace RavenfieldVR.Core
                     if (auto != null && auto.configuration != null && auto.configuration.auto)
                     {
                         film.Note("burst");
-                        for (float until = Time.realtimeSinceStartup + 1.2f; Time.realtimeSinceStartup < until && auto.ammo != 0;)
+                        int magStart = auto.ammo;
+                        float burstStart = Time.realtimeSinceStartup;
+                        // One magazine: the trigger held until it is empty (at most 40 s); else a 1.2 s burst.
+                        for (float until = burstStart + (FilmOneMag ? 40f : 1.2f); Time.realtimeSinceStartup < until && auto.ammo != 0;)
                         {
                             auto.Fire(auto.CurrentMuzzle().forward, true); // the trigger held: it fires at its own rate
                             yield return Frames(0f);
                         }
                         auto.StopFire();
+                        if (FilmOneMag)
+                        {
+                            Results.Add($"film {entry.name}: one magazine on full auto, {magStart} -> {auto.ammo} rounds in {Time.realtimeSinceStartup - burstStart:0.0} s");
+                        }
                         film.Note("after burst");
                         yield return Frames(0.4f);
                     }
@@ -792,7 +816,10 @@ namespace RavenfieldVR.Core
                     Rig.VRHand.Scripted[side] = null;
                 }
                 yield return film.Finish();
-                yield return ReloadFilm(held, index, entry.name);
+                if (!FilmOneMag)
+                {
+                    yield return ReloadFilm(held, index, entry.name);
+                }
                 Rig.LensEffects lens = Rig.LensEffects.Instance;
                 int flashes = (LensFlash.Instance != null ? LensFlash.Instance.Shown : 0) - shown;
                 Results.Add($"film {entry.name}: {film.Frames} frames per eye in {dir}, {fired} single shot(s) fired, {flashes} lens flash(es) "
@@ -874,6 +901,114 @@ namespace RavenfieldVR.Core
             UnityEngine.Object.Destroy(go);
             rt.Release();
             UnityEngine.Object.Destroy(rt);
+        }
+
+        /// <summary>
+        /// -rfvr-flashcheck: every weapon drawn and fired (three single shots, and the trigger held a second on an automatic):
+        /// how many shots, how many lens flashes, and its own muzzle flash. A weapon whose flash plays on every shot must
+        /// flash on (nearly) every shot; one without a muzzle flash of its own has none by design (Tasks 212) and is listed.
+        /// </summary>
+        private static IEnumerator FlashCheck()
+        {
+            List<WeaponManager.WeaponEntry> entries = WeaponManager.instance.allWeapons.Where(e => e != null && e.prefab != null && WeaponSelfTest.Allows(e)).ToList();
+            Results.Add($"Lens flash check: {entries.Count} weapon(s)");
+            var none = new List<string>();
+            int checkedGuns = 0, short_ = 0;
+            foreach (WeaponManager.WeaponEntry entry in entries)
+            {
+                Weapon proto = entry.prefab.GetComponent<Weapon>();
+                if (proto == null || proto is MeleeWeapon || proto is ThrowableWeapon)
+                {
+                    continue;
+                }
+                _context = "flash check " + entry.name;
+                Actor actor = LocalPlayer.actor;
+                if (actor == null || actor.dead)
+                {
+                    yield return Deploy();
+                    actor = LocalPlayer.actor;
+                    if (actor == null || actor.dead)
+                    {
+                        Results.Add("flash check: the player could not respawn, stopping");
+                        break;
+                    }
+                }
+                Weapon weapon = null;
+                try
+                {
+                    weapon = actor.EquipNewWeaponEntry(entry, Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1), true);
+                }
+                catch (Exception e)
+                {
+                    Problem($"[{entry.name}] flash check equip: {e.GetType().Name}: {e.Message}");
+                }
+                for (float until = Time.realtimeSinceStartup + 4f; weapon != null && !weapon.unholstered && Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.3f);
+                HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                if (weapon == null || held == null || held.Weapon != weapon || LensFlash.Instance == null)
+                {
+                    Results.Add($"  {entry.name}: not held, skipped");
+                    continue;
+                }
+                Weapon active = weapon.GetActiveSubWeapon();
+                MuzzleFlashInfo info = MuzzleFlashInfo.Of(active);
+                int shots0 = LensFlash.Instance.ShotsSeen, flashes0 = LensFlash.Instance.Shown;
+                for (int k = 0; k < 3 && active.ammo != 0; k++)
+                {
+                    try
+                    {
+                        active.Fire(active.CurrentMuzzle().forward, true);
+                        active.StopFire();
+                    }
+                    catch (Exception e)
+                    {
+                        Problem($"[{entry.name}] flash check fire: {e.GetType().Name}: {e.Message}");
+                        break;
+                    }
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    if (held.ActiveAmmo != null && held.ActiveAmmo.Rig.CyclesByHand)
+                    {
+                        held.Reload.CycleForTest();
+                    }
+                }
+                int singleShots = LensFlash.Instance.ShotsSeen - shots0, singleFlashes = LensFlash.Instance.Shown - flashes0;
+                int burstShots = 0, burstFlashes = 0;
+                if (active.configuration != null && active.configuration.auto && active.ammo != 0)
+                {
+                    int s1 = LensFlash.Instance.ShotsSeen, f1 = LensFlash.Instance.Shown;
+                    for (float until = Time.realtimeSinceStartup + 1f; Time.realtimeSinceStartup < until && active.ammo != 0;)
+                    {
+                        active.Fire(active.CurrentMuzzle().forward, true);
+                        yield return null;
+                    }
+                    active.StopFire();
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    burstShots = LensFlash.Instance.ShotsSeen - s1;
+                    burstFlashes = LensFlash.Instance.Shown - f1;
+                }
+                checkedGuns++;
+                int shots = singleShots + burstShots, flashes = singleFlashes + burstFlashes;
+                bool expected = info.Any;
+                bool tooFew = expected && shots > 0 && flashes < Mathf.FloorToInt(shots * (info.Particles ? Mathf.Min(1f, info.Chance) : 1f) * 0.8f);
+                string line = $"  {entry.name}: singles {singleFlashes}/{singleShots} flashed, held trigger {burstFlashes}/{burstShots} flashed; muzzle flash: {info.Describe()}"
+                              + (tooFew ? " (TOO FEW LENS FLASHES)" : !expected ? " (no muzzle flash of its own: no lens flash by design)" : "")
+                              + (shots == 0 ? " (DID NOT FIRE)" : "");
+                Results.Add(line);
+                Metric("lens flash check: share of shots that flashed (weapons with a muzzle flash)", expected && shots > 0 ? (double)flashes / shots : 1.0);
+                if (!expected)
+                {
+                    none.Add(entry.name);
+                }
+                if (tooFew)
+                {
+                    short_++;
+                    Problem($"[{entry.name}] lens flash on {flashes} of {shots} shots (its muzzle flash: {info.Describe()})");
+                }
+            }
+            Results.Add($"Lens flash check: {checkedGuns} guns fired, {short_} with too few lens flashes, {none.Count} without a muzzle flash of their own: {string.Join(", ", none)}");
         }
 
         private static IEnumerator LensBurstCheck(Weapon w, int index, string name, List<string> lines)
