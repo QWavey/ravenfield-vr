@@ -93,6 +93,9 @@ namespace RavenfieldVR.UI
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
             TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Wrist display", VRConfig.WristHud);
             TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
+            TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Reduce flashing", VRConfig.ReduceFlashing);
+            Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
+                d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
             Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",
                 d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 

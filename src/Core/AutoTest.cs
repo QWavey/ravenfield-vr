@@ -1958,7 +1958,7 @@ namespace RavenfieldVR.Core
                 Results.Add($"Quick run: {entries.Count} weapons");
                 every = Mathf.Max(1, entries.Count / 28);
             }
-            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0;
+            int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0, lensShots = 0;
             bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
@@ -2265,6 +2265,7 @@ namespace RavenfieldVR.Core
                             yield return null;
                         }
                         held?.ResetKick(); // each shot on its own: shots that stack up are not one shot's kick
+                        int flashesBefore = LensFlash.Instance != null ? LensFlash.Instance.Shown : 0;
                         try
                         {
                             Weapon active = weapon.GetActiveSubWeapon();
@@ -2274,6 +2275,20 @@ namespace RavenfieldVR.Core
                         catch (Exception e)
                         {
                             Problem($"[{entry.name}] fire: {e.GetType().Name}: {e.Message} {FirstFrames(e)}");
+                        }
+                        if (i == 0 && VRManager.Active && LensFlash.Instance != null && lensShots < 12)
+                        {
+                            // The muzzle lens flash of the first shot, pictured in its frame (it is gone 60 ms later).
+                            yield return new WaitForEndOfFrame();
+                            bool flashed = LensFlash.Instance.Shown > flashesBefore;
+                            if (flashed)
+                            {
+                                lensShots++;
+                                Shots.Capture($"lensflash-{index:000}-{entry.name}");
+                            }
+                            MuzzleFlashInfo flashInfo = MuzzleFlashInfo.Of(weapon.GetActiveSubWeapon());
+                            lines.Add($"muzzle flash: {flashInfo.Describe()}; lens flash {(flashed ? $"shown, strength {LensFlash.Instance.LastPower:0.00}" : "none")}");
+                            Metric("muzzle lens flash: strength of a first shot", flashed ? LensFlash.Instance.LastPower : 0f);
                         }
                         yield return new WaitForSecondsRealtime(0.25f);
                         if (held != null)

@@ -39,6 +39,14 @@ namespace RavenfieldVR.Weapons
             Instance = this;
             Rig = rig;
             Sounds = new ProceduralSounds();
+            try
+            {
+                _lensFlash = new LensFlash(rig);
+            }
+            catch (System.Exception e)
+            {
+                Log.Exception("Muzzle lens flash could not be set up; playing without it", e);
+            }
             Zones = new BodyZones(rig);
             _throwables = new ThrowableHandler(this);
             _melee = new MeleeHandler(this);
@@ -276,7 +284,10 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _readout.BeforeRender(); // after every magazine has its pose for this frame
+            _lensFlash?.BeforeRender(); // after the gun is placed: the flash sits at its muzzle
         }
+
+        private readonly LensFlash _lensFlash;
 
         // ---------------------------------------------------------------------------------------------
 
@@ -423,6 +434,7 @@ namespace RavenfieldVR.Weapons
             {
                 Held.OnShot(weapon);
                 Rig.Dominant.Model?.TriggerShot();
+                _lensFlash?.OnShot(Held, weapon);
             }
         }
 
@@ -802,6 +814,7 @@ namespace RavenfieldVR.Weapons
             Casings.DestroyAll();
             Drops.Dispose();
             _pouch.Destroy();
+            _lensFlash?.Destroy();
             _holsters.Destroy();
             _readout.Destroy();
             FireSelector.Clear();

@@ -122,6 +122,9 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> GunAmmoCounter;
         public static ConfigEntry<string> LaserColor;
         public static ConfigEntry<bool> ExplosionDirt;
+        public static ConfigEntry<bool> LensFlash;
+        public static ConfigEntry<float> LensFlashStrength;
+        public static ConfigEntry<bool> ReduceFlashing;
         public static ConfigEntry<bool> WorldCollision;
 
         // Debug
@@ -302,6 +305,12 @@ namespace RavenfieldVR.Core
                 "on cover; it comes back to your hand when you pull it free. Off: the gun always follows your hand.");
             ExplosionDirt = cfg.Bind("UI", "ExplosionDirt", true,
                 "A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds.");
+            LensFlash = cfg.Bind("UI", "MuzzleLensFlash", true,
+                "Your muzzle flash flares on the eyes for a moment (see-through, only on shots where the weapon's own flash shows).");
+            LensFlashStrength = cfg.Bind("UI", "MuzzleLensFlashStrength", 1f,
+                new ConfigDescription("How strong the muzzle lens flash is.", new AcceptableValueRange<float>(0f, 2f)));
+            ReduceFlashing = cfg.Bind("UI", "ReduceFlashing", true,
+                "Photosensitivity safety: never more than three visible flashes a second (a steady glow instead on full auto).");
 
             DebugLogging = cfg.Bind("Debug", "VerboseLogging", false, "Log extra diagnostics.");
             ShowGrabZones = cfg.Bind("Debug", "ShowGrabZones", false, "Draw spheres at mag wells, slides, foregrips, pouches and holsters.");

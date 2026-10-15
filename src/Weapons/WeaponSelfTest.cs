@@ -397,6 +397,7 @@ namespace RavenfieldVR.Weapons
                     {
                         sb.AppendLine("    " + Shape(r));
                     }
+                    sb.AppendLine($"    muzzle flash: {MuzzleFlashInfo.Of(r.Weapon).Describe()}");
                     sb.AppendLine($"    reload timeline: mag out {T(d.TMagOut)}, mag in {T(d.TMagIn)}, slide back {T(d.TSlideBack)}, slide home {T(d.TSlideForward)}");
                     sb.AppendLine($"    sound sources: mag out {SoundSource(d, MechSound.MagOut)}, mag in {SoundSource(d, MechSound.MagIn)}, slide back {SoundSource(d, MechSound.SlideBack)}, slide home {SoundSource(d, MechSound.SlideForward)}");
                     if (d.Cues.Count > 0 || d.ShotCues.Count > 0)
