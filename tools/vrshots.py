@@ -1,0 +1,310 @@
+"""vrshots: pictures of the mod in a virtual headset, for checking things by eye (and by agents).
+
+Runs Ravenfield with the mod under SteamVR's null driver (a headset that is not there), lets the autotest take the
+pictures, and puts the user's SteamVR settings back afterwards, always (a fresh backup is made before every run and its
+hash is checked after the restore). Never starts while Ravenfield is already running.
+
+Examples
+  python tools/vrshots.py --weapons                     every weapon: grab pictures + one sheet per weapon
+  python tools/vrshots.py --weapon "GLOCK 43X"          one weapon (any part of its name)
+  python tools/vrshots.py --weapon 60 --weapon P320     by id (the number on its sheet) and by name
+  python tools/vrshots.py --weapon "mod:Tactical"       every weapon of a mod (its title or folder)
+  python tools/vrshots.py --weapon "=AK-47"             exactly this name
+  python tools/vrshots.py --ui                          loading, pause menu + options, loadout, squad pointing,
+                                                        wrist view, body/holsters, damage, dirt
+  python tools/vrshots.py --hands                       glove close-ups and the pose sheet (no headset needed)
+  python tools/vrshots.py --bench                       graphics bench (GPU and frame time per setting)
+  python tools/vrshots.py --autotest                    the whole autotest (every check, a sample of weapons)
+  python tools/vrshots.py --list                        the weapon ids and names from the last weapons run
+
+Options
+  --no-build          use the DLL already built (default: build.ps1 first, then install it)
+  --res 2064x2208     the virtual headset's resolution (default 1440x1584; the Quest 3 over Link is about 2064x2208)
+  --timeout MIN       give up after this many minutes (default: 240 for --weapons, 30 otherwise)
+  --game DIR          Ravenfield's folder (default: Steam's)
+
+Output
+  reports/shots/<mode>/            the pictures of the run (the previous run's in <mode>-previous)
+  reports/shots/weapons/sheets/    one labelled sheet per weapon, and index.json (id, name, sheet, pictures)
+  reports/shots/<mode>/autotest.txt  the autotest report of the run
+"""
+import argparse
+import glob
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STEAM = r'C:\Program Files (x86)\Steam'
+STEAMVR_CFG = os.path.join(STEAM, 'config', 'steamvr.vrsettings')
+BACKUPS = os.path.join(os.environ.get('LOCALAPPDATA', REPO), 'RavenfieldVR', 'steamvr-backups')
+VR_PROCESSES = ['vrmonitor.exe', 'vrserver.exe', 'vrcompositor.exe', 'vrdashboard.exe', 'vrstartup.exe', 'vrwebhelper.exe',
+                'steamvr_room_setup.exe']
+
+
+def log(msg):
+    print(time.strftime('%H:%M:%S'), msg, flush=True)
+
+
+def running(image):
+    out = subprocess.run(['tasklist', '/FI', f'IMAGENAME eq {image}'], capture_output=True, text=True, errors='ignore').stdout
+    return image.lower() in out.lower()
+
+
+def kill(image):
+    subprocess.run(['taskkill', '/F', '/IM', image], capture_output=True)
+
+
+def sha(path):
+    return hashlib.sha256(open(path, 'rb').read()).hexdigest()
+
+
+# ---- SteamVR: the null driver for the run, the user's settings back after ------------------------------------------
+
+class NullHeadset:
+    def __init__(self, res):
+        self.res = res
+        self.backup = None
+        self.hash = None
+
+    def __enter__(self):
+        for p in VR_PROCESSES:
+            kill(p)
+        time.sleep(2)
+        cfg = json.load(open(STEAMVR_CFG, encoding='utf-8'))
+        if cfg.get('steamvr', {}).get('forcedDriver') == 'null':
+            raise SystemExit('SteamVR is already on the null driver (a run that did not restore?): put your own settings back first.')
+        os.makedirs(BACKUPS, exist_ok=True)
+        self.hash = sha(STEAMVR_CFG)
+        self.backup = os.path.join(BACKUPS, f'steamvr.vrsettings.{time.strftime("%Y%m%d-%H%M%S")}.{self.hash[:8]}')
+        shutil.copyfile(STEAMVR_CFG, self.backup)
+        w, h = self.res
+        cfg.setdefault('steamvr', {})
+        cfg['steamvr']['forcedDriver'] = 'null'
+        cfg['steamvr']['activateMultipleDrivers'] = False
+        cfg['steamvr']['enableHomeApp'] = False
+        cfg['driver_null'] = {'displayFrequency': 90, 'enable': True, 'renderHeight': h, 'renderWidth': w,
+                              'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
+        json.dump(cfg, open(STEAMVR_CFG, 'w', encoding='utf-8'), indent=3)
+        log(f'SteamVR on the null driver ({w}x{h}); your settings backed up to {self.backup}')
+        return self
+
+    def __exit__(self, *exc):
+        for p in VR_PROCESSES:
+            kill(p)
+        time.sleep(3)
+        shutil.copyfile(self.backup, STEAMVR_CFG)
+        ok = sha(STEAMVR_CFG) == self.hash
+        log(f'SteamVR settings restored ({"hash matches" if ok else "HASH DIFFERS: check " + STEAMVR_CFG})')
+        return False
+
+
+# ---- the game ------------------------------------------------------------------------------------------------------
+
+def build_and_install(game):
+    log('building the mod')
+    r = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(REPO, 'build.ps1')],
+                       capture_output=True, text=True, errors='ignore', cwd=REPO)
+    if r.returncode != 0:
+        print(r.stdout[-3000:], r.stderr[-2000:])
+        raise SystemExit('build failed')
+    dest = os.path.join(game, 'BepInEx', 'plugins', 'RavenfieldVR')
+    for f in ('RavenfieldVR.dll', 'RavenfieldVR.pdb'):
+        shutil.copy2(os.path.join(REPO, 'build', f), dest)
+    log('installed into ' + dest)
+
+
+def ensure_steam():
+    if running('steam.exe'):
+        return
+    log('starting Steam (workshop weapons only load with it)')
+    subprocess.Popen([os.path.join(STEAM, 'steam.exe'), '-silent'])
+    time.sleep(25)
+
+
+def run_game(game, args, timeout_min, vr):
+    exe = os.path.join(game, 'ravenfield.exe')
+    logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
+    full = args + ['-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720']
+    for attempt in range(1, 4):
+        start = time.time()
+        log(f'starting Ravenfield (attempt {attempt}): {" ".join(args)}')
+        subprocess.Popen([exe] + full, cwd=game)
+        flat = False
+        while True:
+            time.sleep(4)
+            if vr and running('steamvr_room_setup.exe'):
+                kill('steamvr_room_setup.exe')  # it closes the game on a fresh null driver
+            if vr and os.path.exists(logfile) and os.path.getmtime(logfile) >= start:
+                try:
+                    if 'flat mode' in open(logfile, encoding='utf-8', errors='ignore').read():
+                        flat = True
+                        break
+                except OSError:
+                    pass
+            if not running('ravenfield.exe'):
+                if vr and time.time() - start < 40:
+                    flat = True  # taken down while SteamVR was still starting
+                break
+            if time.time() - start > timeout_min * 60:
+                log('timeout: stopping the game')
+                kill('ravenfield.exe')
+                break
+        if flat:
+            log('came up without the headset; trying again')
+            kill('ravenfield.exe')
+            time.sleep(8)
+            continue
+        log(f'the game finished after {time.time() - start:.0f} s')
+        return True
+    return False
+
+
+# ---- pictures -----------------------------------------------------------------------------------------------------
+
+TILES = [
+    ('weapon', 'weapon in hand'),
+    ('rack-grip', 'rack grip'), ('rack-grip@left', 'rack grip, left'), ('rack-grip@right', 'rack grip, right'),
+    ('rack-grip-pulled', 'rack pulled'), ('rack-grip-pulled@left', 'rack pulled, left'), ('rack-grip-pulled@right', 'rack pulled, right'),
+    ('mag-1-seated', 'mag 1 seated'), ('mag-2-leaving', 'mag 2 dropped, leaving'), ('mag-3-out', 'mag 3 out (gun empty)'),
+    ('mag-4-in-hand', 'mag 4 fresh one in hand'), ('mag-5-lined-up', 'mag 5 lined up under well'),
+    ('mag-6-half-in', 'mag 6 half way in'), ('mag-7-seated-again', 'mag 7 seated again'),
+]
+
+
+def build_sheets(shots, out):
+    from PIL import Image, ImageDraw
+    os.makedirs(out, exist_ok=True)
+    pat = re.compile(r'^(?P<kind>[a-z0-9-]+?)-(?P<idx>\d{3})-(?P<name>.+?)(?P<side>-left|-right)?\.png$')
+    weapons = {}
+    for f in os.listdir(shots):
+        m = pat.match(f)
+        if not m or m.group('name').endswith('-looking-down'):
+            continue
+        key = m.group('kind') + ('@' + m.group('side')[1:] if m.group('side') else '')
+        weapons.setdefault((int(m.group('idx')), m.group('name')), {})[key] = f
+    tw, th, cols = 400, 250, 4
+    index = []
+    for (idx, name), tiles in sorted(weapons.items()):
+        have = [k for k, _ in TILES if k in tiles]
+        if not any(k.startswith(('rack', 'mag')) for k in have):
+            continue
+        rows = (len(TILES) + cols - 1) // cols
+        sheet = Image.new('RGB', (tw * cols, th * rows + 30), (40, 40, 40))
+        d = ImageDraw.Draw(sheet)
+        d.text((8, 8), f'{idx:03d} {name}', fill=(255, 255, 255))
+        for i, (key, label) in enumerate(TILES):
+            x, y = (i % cols) * tw, 30 + (i // cols) * th
+            if key in tiles:
+                sheet.paste(Image.open(os.path.join(shots, tiles[key])).convert('RGB').resize((tw, th)), (x, y))
+            else:
+                d.rectangle([x, y, x + tw - 1, y + th - 1], fill=(90, 90, 90))
+                d.text((x + tw // 2 - 15, y + th // 2), 'none', fill=(200, 200, 200))
+            d.rectangle([x, y, x + tw - 1, y + 16], fill=(0, 0, 0))
+            d.text((x + 4, y + 2), f'{i + 1}. {label}', fill=(255, 230, 120))
+        path = os.path.join(out, f'{idx:03d}-{re.sub(r"[^A-Za-z0-9_.-]+", "_", name)}.jpg')
+        sheet.save(path, quality=82)
+        index.append({'id': idx, 'name': name, 'sheet': os.path.relpath(path, REPO), 'pictures': have})
+    json.dump(index, open(os.path.join(out, 'index.json'), 'w', encoding='utf-8'), indent=1)
+    return index
+
+
+def collect(game, mode):
+    """The run's pictures into reports/shots/<mode> (the run before kept as <mode>-previous)."""
+    src = os.path.join(game, 'BepInEx', 'RavenfieldVR-shots')
+    dest = os.path.join(REPO, 'reports', 'shots', mode)
+    if os.path.isdir(dest):
+        prev = dest + '-previous'
+        shutil.rmtree(prev, ignore_errors=True)
+        os.replace(dest, prev)
+    os.makedirs(dest, exist_ok=True)
+    for f in glob.glob(os.path.join(src, '*.png')):
+        shutil.copy2(f, dest)
+    for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),
+                     ('RavenfieldVR-hand-poses.png', 'hand-poses.png')):
+        p = os.path.join(game, 'BepInEx', name)
+        if os.path.exists(p) and os.path.getmtime(p) > time.time() - 6 * 3600:
+            shutil.copy2(p, os.path.join(dest, to))
+    return dest
+
+
+def summary(dest):
+    report = os.path.join(dest, 'autotest.txt')
+    if not os.path.exists(report):
+        return
+    lines = open(report, encoding='utf-8', errors='ignore').read().splitlines()
+    problems = [l for l in lines if l.startswith('  ! ')]
+    log(f'autotest: {len(problems)} problem(s)')
+    for p in problems[:25]:
+        print('   ', p.strip()[:220])
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--weapons', action='store_true', help='every weapon: grab pictures and sheets')
+    ap.add_argument('--weapon', action='append', default=[], metavar='NAME|ID|mod:TEXT|=NAME', help='one weapon (repeatable)')
+    ap.add_argument('--ui', action='store_true', help='menus, wrist view, loadout, squad pointing, body, damage, dirt')
+    ap.add_argument('--hands', action='store_true', help='glove close-ups and the pose sheet (flat)')
+    ap.add_argument('--bench', action='store_true', help='graphics bench')
+    ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
+    ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
+    ap.add_argument('--no-build', action='store_true')
+    ap.add_argument('--res', default='1440x1584')
+    ap.add_argument('--timeout', type=float, default=0)
+    ap.add_argument('--game', default=os.path.join(STEAM, 'steamapps', 'common', 'Ravenfield'))
+    a = ap.parse_args()
+
+    if a.list:
+        idx = os.path.join(REPO, 'reports', 'shots', 'weapons', 'sheets', 'index.json')
+        for w in json.load(open(idx, encoding='utf-8')) if os.path.exists(idx) else []:
+            print(f'{w["id"]:4d}  {w["name"]}')
+        return
+    modes = [m for m, on in (('weapons', a.weapons or bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
+                             ('autotest', a.autotest)) if on]
+    if not modes:
+        ap.print_help()
+        return
+    if running('ravenfield.exe'):
+        raise SystemExit('Ravenfield is running (someone is playing?): not starting.')
+    w, h = (int(v) for v in a.res.lower().split('x'))
+    if not a.no_build:
+        build_and_install(a.game)
+    ensure_steam()
+    for mode in modes:
+        shots = os.path.join(a.game, 'BepInEx', 'RavenfieldVR-shots')
+        shutil.rmtree(shots, ignore_errors=True)  # the run starts with an empty folder (copied to reports/shots after)
+        base = ['-vr', '-map', 'island2023', '-nointro', '-rfvr-autotest']
+        if mode == 'weapons':
+            only = ','.join(x.replace(',', ' ') for x in a.weapon)
+            args = base + ['-rfvr-deep', '-rfvr-grabshots', f'-rfvr-only={only}']
+            timeout = a.timeout or (240 if not a.weapon else 30)
+        elif mode == 'ui':
+            args, timeout = base + ['-rfvr-uishots'], a.timeout or 20
+        elif mode == 'bench':
+            args, timeout = base + ['-rfvr-perfbench'], a.timeout or 20
+        elif mode == 'autotest':
+            args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
+        else:
+            args, timeout = ['-novr', '-nointro', '-rfvr-handshots'], a.timeout or 10
+        if mode == 'hands':
+            run_game(a.game, args, timeout, vr=False)
+        else:
+            with NullHeadset((w, h)):
+                run_game(a.game, args, timeout, vr=True)
+        dest = collect(a.game, mode)
+        log(f'{len(glob.glob(os.path.join(dest, "*.png")))} picture(s) in {os.path.relpath(dest, REPO)}')
+        if mode == 'weapons':
+            index = build_sheets(dest, os.path.join(dest, 'sheets'))
+            log(f'{len(index)} weapon sheet(s) in {os.path.relpath(os.path.join(dest, "sheets"), REPO)}')
+            for e in index[:40]:
+                print(f'    {e["id"]:4d}  {e["name"]:40s} {e["sheet"]}')
+        summary(dest)
+
+
+if __name__ == '__main__':
+    main()

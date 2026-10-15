@@ -94,20 +94,70 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Whether -rfvr-only lets this weapon through (always, without the option).</summary>
+        /// <summary>
+        /// A weapon's id: its place in the game's weapon list, from 1 (the number on its pictures and sheets; the same in
+        /// every run with the same mods). 0 when it is not in the list.
+        /// </summary>
+        internal static int IdOf(WeaponManager.WeaponEntry entry)
+        {
+            if (WeaponManager.instance == null || entry == null)
+            {
+                return 0;
+            }
+            int id = 0;
+            foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
+            {
+                if (e == null || e.prefab == null)
+                {
+                    continue;
+                }
+                id++;
+                if (ReferenceEquals(e, entry))
+                {
+                    return id;
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Whether -rfvr-only lets this weapon through (always, without the option). Each comma-separated filter is one of:
+        /// "#60" or "60" (the weapon with that id), "=name" (that exact name), "mod:text" (every weapon of a mod whose title
+        /// or folder contains the text), or text found in the weapon's name, its prefab's name, its mod's title or folder.
+        /// </summary>
         internal static bool Allows(WeaponManager.WeaponEntry entry)
         {
             if (Only.Length == 0)
             {
                 return true;
             }
+            int id = -1;
             foreach (string f in Only)
             {
-                // "=name" takes that weapon only; otherwise any weapon whose name contains it.
+                string id0 = f.StartsWith("#", StringComparison.Ordinal) ? f.Substring(1) : f;
+                if (int.TryParse(id0, out int wanted))
+                {
+                    if (id < 0)
+                    {
+                        id = IdOf(entry);
+                    }
+                    if (id == wanted)
+                    {
+                        return true;
+                    }
+                    continue;
+                }
+                ModInformation mod = entry.sourceMod;
+                bool InMod(string text) => mod != null && (mod.title != null && mod.title.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0
+                                                           || mod.path != null && mod.path.Replace('\\', '/').IndexOf(text.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase) >= 0
+                                                           || mod.directoryName != null && mod.directoryName.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (f.StartsWith("=", StringComparison.Ordinal)
                         ? string.Equals(entry.name, f.Substring(1), StringComparison.OrdinalIgnoreCase)
-                        : entry.name != null && entry.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0
-                          || entry.prefab != null && entry.prefab.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0)
+                        : f.StartsWith("mod:", StringComparison.OrdinalIgnoreCase)
+                            ? InMod(f.Substring(4))
+                            : entry.name != null && entry.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0
+                              || entry.prefab != null && entry.prefab.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0
+                              || InMod(f))
                 {
                     return true;
                 }

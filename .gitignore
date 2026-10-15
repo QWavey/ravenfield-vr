@@ -13,3 +13,7 @@ dist/
 
 __pycache__/
 *.pyc
+
+# Pictures taken by tools/vrshots.py (re-made by every run)
+reports/shots/
+reports/grabs/

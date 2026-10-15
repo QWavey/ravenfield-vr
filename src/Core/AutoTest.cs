@@ -52,6 +52,12 @@ namespace RavenfieldVR.Core
         /// </summary>
         private static readonly bool GrabShots = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabshots", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// -rfvr-uishots (with -rfvr-autotest -vr): only the screens: loading, the pause menu and its options, the loadout,
+        /// squad pointing, the wrist view, the body (holsters), damage, dirt and the muzzle lens flash; then quit.
+        /// </summary>
+        private static readonly bool UiShots = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-uishots", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
         private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
 
@@ -255,6 +261,17 @@ namespace RavenfieldVR.Core
                     {
                         Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
                     }
+                }
+                if (VRManager.Active && UiShots)
+                {
+                    yield return SquadPointingCheck();
+                    yield return LoadoutPickerCheck();
+                    yield return PauseMenuCheck();
+                    yield return WristViewCheck();
+                    yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
                 }
                 if (VRManager.Active && GrabShots)
                 {
@@ -1962,7 +1979,9 @@ namespace RavenfieldVR.Core
             bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
-                index++;
+                // The weapon's id (its place in the game's list): the same number on its pictures in every run, however
+                // the list was filtered.
+                index = WeaponSelfTest.IdOf(entry);
                 _context = entry.name;
                 Actor actor = LocalPlayer.actor;
                 if (actor == null || actor.dead)
