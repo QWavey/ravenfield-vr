@@ -1541,6 +1541,9 @@ namespace RavenfieldVR.Weapons
                                                      || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
         }
 
+        /// <summary>Self-test: the worked part's shape has been measured (or there is none to measure).</summary>
+        internal bool PartShapeReady => WorkedPart == null || _partTried && (_partVolume == null || _partVolume.Ready);
+
         /// <summary>Self-test: how much of a hand working the action is buried in the part it holds.</summary>
         internal string PartClipping(VRHand hand, out int buried, out int touching)
         {

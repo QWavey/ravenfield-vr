@@ -2564,6 +2564,12 @@ namespace RavenfieldVR.Weapons
                 yield return null;
                 BeginRack(off);
                 yield return new WaitForSecondsRealtime(0.5f); // the part is measured, the hand closes on it
+                // The part's shape is measured from pictures over a few frames: waited for (up to 2 s more), or the hand
+                // was measured against nothing ("the part's shape is not ready").
+                for (float until = Time.realtimeSinceStartup + 2f; !_held.PartShapeReady && Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
                 yield return new WaitForEndOfFrame();
                 shot("rack-grip");
                 string atRest = _held.PartClipping(off, out int restBuried, out int restTouching);
