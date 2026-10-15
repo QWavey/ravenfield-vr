@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
-    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon, Casing, CasingSoft }
+    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon, Casing, CasingSoft, MagKnock, MagScrape, MagLip }
 
     /// <summary>
     /// Mechanical weapon sounds synthesised at start-up (filtered noise bursts and damped metallic partials),
@@ -56,6 +56,16 @@ namespace RavenfieldVR.Weapons
                 lp2 += (lp1 - lp2) * 0.06f;
                 return Thump(t, 180f, 0.015f) * 0.9f + lp2 * Env(t, 0.012f) * 6f;
             });
+
+            // A magazine knocked against the gun: a dull metal thud with a short ring (steel on steel, not a click).
+            _clips[(int)MechSound.MagKnock] = Build("mag_knock", 0.11f, rng, (t, n) =>
+                Thump(t, 290f, 0.022f) * 0.7f + Click(t, n, 0f, 0.35f) + Ring(t, 1650f, 0.035f) * 0.3f + Ring(t, 2950f, 0.02f) * 0.15f);
+            // Dragged along it: a soft scrape.
+            _clips[(int)MechSound.MagScrape] = Build("mag_scrape", 0.14f, rng, (t, n) =>
+                Scrape(t, n, 0.12f) * 0.35f + Ring(t, 2400f, 0.06f) * 0.05f);
+            // Onto the magwell's lip: a small click.
+            _clips[(int)MechSound.MagLip] = Build("mag_lip", 0.06f, rng, (t, n) =>
+                Click(t, n, 0f, 0.5f) + Ring(t, 2300f, 0.02f) * 0.25f);
 
             _host = new GameObject("RavenfieldVR Sounds");
             UnityEngine.Object.DontDestroyOnLoad(_host);

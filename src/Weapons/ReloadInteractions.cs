@@ -1024,6 +1024,10 @@ namespace RavenfieldVR.Weapons
                     prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
                     prop.LastTick = prop.RailDepth;
                     off.Haptic(0.015f, 180f, 0.3f);
+                    if (prop.Kind == PropKind.Magazine)
+                    {
+                        _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.5f); // onto the well's lip
+                    }
                 }
                 return;
             }

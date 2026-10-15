@@ -1122,6 +1122,7 @@ namespace RavenfieldVR.Weapons
                 _drawnFor = null;
             }
             _keptOut = drawn - target.position;
+            ContactSounds(gun, drawn, _keptOut.sqrMagnitude > 1e-6f);
             if (_keptOut.sqrMagnitude < 1e-8f)
             {
                 return target;
@@ -1164,6 +1165,47 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return inside;
+        }
+
+        private bool _touchingGun;
+        private Vector3 _lastScrapeAt;
+        private static float _lastContactSound = -1f;
+
+        /// <summary>
+        /// A held magazine meeting the gun knocks, louder the faster it came in, and scrapes while it slides along; both
+        /// buzz the hand. At most four sounds a second (a magazine resting against the gun does not machine-gun knocks).
+        /// </summary>
+        private void ContactSounds(HeldWeapon gun, Vector3 drawn, bool touching)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            if (sys == null || HeldBy == null || gun == null)
+            {
+                _touchingGun = false;
+                return;
+            }
+            float now = Time.unscaledTime;
+            if (touching && now - _lastContactSound >= 0.25f)
+            {
+                VRHand dom = sys.Rig.Dominant;
+                float speed = (HeldBy.Velocity - (dom != null ? dom.Velocity : Vector3.zero)).magnitude;
+                if (!_touchingGun)
+                {
+                    float loud = Mathf.Clamp01(0.2f + speed / 1.5f);
+                    sys.Sounds.Play(MechSound.MagKnock, drawn, loud);
+                    HeldBy.Haptic(0.02f + 0.03f * loud, 150f, 0.3f + 0.5f * loud);
+                    dom?.Haptic(0.015f, 150f, 0.2f * loud);
+                    _lastContactSound = now;
+                    _lastScrapeAt = drawn;
+                }
+                else if ((drawn - _lastScrapeAt).sqrMagnitude > 0.015f * 0.015f && speed > 0.1f)
+                {
+                    sys.Sounds.Play(MechSound.MagScrape, drawn, Mathf.Clamp01(speed / 0.8f) * 0.5f);
+                    HeldBy.Haptic(0.012f, 220f, 0.15f);
+                    _lastContactSound = now;
+                    _lastScrapeAt = drawn;
+                }
+            }
+            _touchingGun = touching;
         }
 
         /// <summary>World pose at the current rail depth, given the seated pose of the magazine/shell/rocket.</summary>
