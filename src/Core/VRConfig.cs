@@ -123,6 +123,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<string> LaserColor;
         public static ConfigEntry<bool> ExplosionDirt;
         public static ConfigEntry<bool> LensFlash;
+        public static ConfigEntry<bool> WaterDrops;
         public static ConfigEntry<float> LensFlashStrength;
         public static ConfigEntry<bool> ReduceFlashing;
         public static ConfigEntry<bool> WorldCollision;
@@ -305,6 +306,8 @@ namespace RavenfieldVR.Core
                 "on cover; it comes back to your hand when you pull it free. Off: the gun always follows your hand.");
             ExplosionDirt = cfg.Bind("UI", "ExplosionDirt", true,
                 "A grenade or shell going off close by throws dirt on your view (water for a blast in water); it runs down and fades in a few seconds.");
+            WaterDrops = cfg.Bind("UI", "WaterDrops", false,
+                "Coming up out of the water leaves drops on your view that run down and dry in a few seconds.");
             LensFlash = cfg.Bind("UI", "MuzzleLensFlash", true,
                 "Your muzzle flash flares on the eyes for a moment (see-through, only on shots where the weapon's own flash shows).");
             LensFlashStrength = cfg.Bind("UI", "MuzzleLensFlashStrength", 1f,

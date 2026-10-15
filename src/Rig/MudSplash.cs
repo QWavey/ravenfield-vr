@@ -94,11 +94,22 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        private bool _wasUnderwater;
+
         public void Update()
         {
             Subscribe();
             float now = Time.unscaledTime;
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
+            // Coming up out of the water: drops on the view, gathering toward the edges, dry in a few seconds (Tasks2 209
+            // I; optional, off by default).
+            Actor me = Util.GameContext.PlayerActor;
+            bool under = me != null && !me.dead && me.immersedInWater;
+            if (_wasUnderwater && !under && VRConfig.WaterDrops.Value && _head != null)
+            {
+                Splash(_head.position + _head.forward * 0.3f, 2f, true);
+            }
+            _wasUnderwater = under;
             bool any = false;
             for (int i = 0; i < Pool; i++)
             {

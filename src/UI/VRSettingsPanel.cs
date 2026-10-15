@@ -77,9 +77,9 @@ namespace RavenfieldVR.UI
             Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
             TogglePair("Two-handed aiming", VRConfig.TwoHandedAiming, "Holster switching", VRConfig.HolsterSwitching);
             TogglePair("Spawn empty-handed", VRConfig.SpawnEmptyHanded, "Grip to hold", VRConfig.GripToHoldWeapon);
-            TogglePair("Grenade pins", VRConfig.GrenadePins, "MG belts by hand", VRConfig.BeltByHand);
+            TogglePair("MG belts by hand", VRConfig.BeltByHand, "Magazine palming", VRConfig.MagazinePalming);
             TogglePair("Gun stops at walls", VRConfig.WorldCollision, "Weapon weight", VRConfig.WeaponWeight);
-            TogglePair("Magazine palming", VRConfig.MagazinePalming, "Show pouch", VRConfig.ShowPouch);
+            TogglePair("Show pouch", VRConfig.ShowPouch, "Reduce flashing", VRConfig.ReduceFlashing);
             Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0;-0;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
             Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
             Stepper("Throw strength", () => $"{VRConfig.ThrowVelocityMultiplier.Value:0.0}×",
@@ -91,9 +91,10 @@ namespace RavenfieldVR.UI
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
             Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
-            TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Wrist display", VRConfig.WristHud);
+            TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);
             TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
-            TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Reduce flashing", VRConfig.ReduceFlashing);
+            Choice("Wrist display", VRConfig.WristHud, new[] { true, false }, new[] { "On", "Off" });
+            TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
             Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
                 d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
             Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",
