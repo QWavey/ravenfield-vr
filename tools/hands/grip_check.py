@@ -769,6 +769,36 @@ POSES = {
 }
 
 
+# ---- the support hand on a handguard (HandRole.Foregrip) -----------------------------------------------------------
+# HandModel.TargetCurls for Foregrip: the weapon's support curls (or the pose's), and while closing on the gun
+# Minimum(0.55, 0.9, 0.95, 0.95, 0.95), each finger stopping where it touches; the palm settles onto the handguard.
+SUPPORT_CURLS = [0.3, 0.55, 0.6, 0.62, 0.65]   # Pose(c, fallback) fallbacks for an unmeasured support hand
+HANDGUARDS = {
+    # name: (kind, radius or half width, half height)
+    "handguard slim (3.6 cm round)": ("round", 0.018, 0.018),
+    "handguard thick (4.8 cm round)": ("round", 0.024, 0.024),
+    "handguard square (5 x 5 cm)": ("box", 0.025, 0.025),
+}
+
+
+def handguard_hold(glove, kind, half_w, half_h, length=0.30):
+    """The support hand under a handguard: it lies across the palm along the knuckle line (index to little finger),
+    in the fist hollow, resting on the palm's skin."""
+    palm_rot = np.array([0.0, 0.0, 0.0, 1.0])
+    across = glove.knuckle[4] - glove.knuckle[1]
+    across[0] = 0.0  # in the palm's plane
+    across = across / np.linalg.norm(across)
+    rot = look_rotation(across, [-1.0, 0.0, 0.0])
+    palm_pos = FIST_HOLLOW.copy()
+    surface = palm_surface_from_grip(glove)
+    centre = palm_pos + np.array([-1.0, 0.0, 0.0]) * (surface + half_h)
+    if kind == "round":
+        obj = Cylinder(centre, rot, half_w, length / 2)
+    else:
+        obj = Box(centre, rot, [half_h, half_w, length / 2])
+    return obj, palm_pos, palm_rot
+
+
 def main():
     glove = Glove(os.path.join(ROOT, "src", "Rig", "Glove", "glove.bin"))
     skip = set()
@@ -896,6 +926,16 @@ def main():
 
     for rr in RIFLE_RACKS:
         run(rr, lambda rr=rr: rifle_rack(rr))
+
+    def handguard(name):
+        kind, half_w, half_h = HANDGUARDS[name]
+        obj, pp, pr = handguard_hold(glove, kind, half_w, half_h)
+        hand, push = hold(glove, obj, pp, pr, goals_for(SUPPORT_CURLS, magazine=False), 0.3)
+        picture(name, hand, obj)
+        return report(name, hand, push, obj)
+
+    for hg in HANDGUARDS:
+        run(hg, lambda hg=hg: handguard(hg))
 
     run("seating rifle magazine", lambda: seating("seating rifle magazine", "RifleMagazine", 0.064, 0.023, 0.18, 0.081, rifle_well))
     run("seating pistol magazine", lambda: seating("seating pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, 0.054, pistol_grip))
