@@ -162,6 +162,13 @@ namespace RavenfieldVR.Weapons
                 }
             }
             Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+            Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
+            if (_inertiaOmega > 0f && _inertiaOmega < 14f)
+            {
+                // Picked up, a heavy weapon (a machine gun, a launcher) comes up into the hand over about half a second.
+                _lagPos = Vector3.down * 0.05f;
+                _lagPitch = 6f;
+            }
             _weaponClass = ClassOf(rig, weapon);
             if (!rig.Data.IsPistol && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
             {
@@ -568,6 +575,98 @@ namespace RavenfieldVR.Weapons
         /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
         /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
         /// </summary>
+        // ---- weight: inertia (Tasks2 208 / 204) -------------------------------------------------------
+
+        /// <summary>How quickly the weapon follows the hand's accelerations (rad/s; 0: at once). Heavier is slower.</summary>
+        private readonly float _inertiaOmega;
+        /// <summary>Degrees the muzzle dips per m/s² the hand accelerates upward (a long, heavy muzzle lags behind the grip).</summary>
+        private readonly float _inertiaLever;
+        private Vector3 _lagPos, _lagVel, _handVelPrev, _handAcc;
+        private float _lagPitch, _lagPitchVel;
+        private bool _lagInit;
+
+        /// <summary>Self-test: how far the drawn grip lags the hand now (metres) and the muzzle dips (degrees).</summary>
+        internal Vector3 InertiaLag => _lagPos;
+        internal float InertiaPitch => _lagPitch;
+
+        private static void Inertia(WeaponRigData d, Weapon w, out float omega, out float lever)
+        {
+            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
+            if (d.IsPistol)
+            {
+                omega = 0f; lever = 0f; // a pistol stays snappy
+            }
+            else if (d.IsMachineGun)
+            {
+                omega = 11f; lever = 0.7f;
+            }
+            else if (d.Action == ActionType.SingleShot && w.configuration.ammo <= 1 && length > 0.4f)
+            {
+                omega = 12f; lever = 0.6f; // launchers
+            }
+            else if (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual && w.configuration.projectilesPerShot > 1)
+            {
+                omega = 18f; lever = 0.4f; // shotguns
+            }
+            else if (length < 0.32f)
+            {
+                omega = 26f; lever = 0.2f; // SMGs, PDWs
+            }
+            else
+            {
+                omega = 20f; lever = 0.35f; // rifles, DMRs, snipers
+            }
+        }
+
+        /// <summary>
+        /// The weapon has mass: it lags the hand when the hand speeds up or stops, settles with a little overshoot, and a long
+        /// heavy one's muzzle dips when the hand jerks up. Driven by the hand's acceleration only, so a steady hand (aiming,
+        /// a steady sweep) has the weapon exactly in it. Held with both hands or against the shoulder it is much stiffer;
+        /// pistols do not lag at all.
+        /// </summary>
+        private void StepInertia(VRHand main, float dt)
+        {
+            if (!VRConfig.WeaponWeight.Value || _inertiaOmega <= 0f || !main.Tracked)
+            {
+                _lagPos = _lagVel = Vector3.zero;
+                _lagPitch = _lagPitchVel = 0f;
+                _lagInit = false;
+                return;
+            }
+            Vector3 v = main.Velocity;
+            if (!_lagInit)
+            {
+                _handVelPrev = v;
+                _handAcc = Vector3.zero;
+                _lagInit = true;
+            }
+            Vector3 raw = dt > 1e-4f ? (v - _handVelPrev) / dt : Vector3.zero;
+            _handVelPrev = v;
+            raw = Vector3.ClampMagnitude(raw, 40f); // a tracking jump is no acceleration
+            _handAcc = Vector3.Lerp(_handAcc, raw, 1f - Mathf.Exp(-25f * dt));
+            bool supported = Supported || Shouldered;
+            float omega = _inertiaOmega * (supported ? 2.2f : 1f);
+            float zeta = supported ? 0.8f : 0.55f;
+            int steps = Mathf.Clamp(Mathf.CeilToInt(dt / 0.006f), 1, 8);
+            float h = dt / steps;
+            for (int i = 0; i < steps; i++)
+            {
+                Vector3 a = -omega * omega * _lagPos - 2f * zeta * omega * _lagVel - _handAcc;
+                _lagVel += a * h;
+                _lagPos += _lagVel * h;
+                float wr = omega * 1.2f;
+                float ap = -wr * wr * _lagPitch - 2f * zeta * wr * _lagPitchVel + _inertiaLever * (supported ? 0.3f : 1f) * Vector3.Dot(_handAcc, Vector3.up);
+                _lagPitchVel += ap * h;
+                _lagPitch += _lagPitchVel * h;
+            }
+            if (_lagPos.sqrMagnitude > 0.08f * 0.08f)
+            {
+                _lagPos = _lagPos.normalized * 0.08f;
+                _lagVel = Vector3.ProjectOnPlane(_lagVel, _lagPos);
+            }
+            _lagPitch = Mathf.Clamp(_lagPitch, -10f, 10f);
+        }
+
         private static void Handling(WeaponRigData d, Weapon w, out float oneHandRecoil, out float sag, out float follow)
         {
             float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
@@ -852,8 +951,10 @@ namespace RavenfieldVR.Weapons
 
         private void StepRecoil(float dt)
         {
-            // Critically damped springs: snappy kick, quick settle.
-            const float stiffness = 260f, damping = 2f * 16.1f;
+            // Critically damped springs: snappy kick, quick settle. A long gun in one hand comes back down more slowly (and
+            // climbs more: the kick is stronger one-handed, see _oneHandRecoil).
+            bool oneHandLong = VRConfig.WeaponWeight.Value && !Rig.Data.IsPistol && !Supported && !Shouldered;
+            float stiffness = oneHandLong ? 150f : 260f, damping = 2f * Mathf.Sqrt(stiffness);
             _recoilPosVel += (-stiffness * _recoilPos - damping * _recoilPosVel) * dt;
             _recoilPos += _recoilPosVel * dt;
             _recoilRotVel += (-stiffness * _recoilRot - damping * _recoilRotVel) * dt;
@@ -936,12 +1037,24 @@ namespace RavenfieldVR.Weapons
                 _carriedInit = true;
             }
 
+            StepInertia(main, dt);
+            if (main.Model != null && _lagPos.sqrMagnitude > 1e-8f)
+            {
+                main.Model.FollowOffset = _lagPos; // the hand stays on the grip of the lagging gun
+                main.Model.FollowFrame = Time.frameCount;
+            }
+            if (Mathf.Abs(_lagPitch) > 1e-3f)
+            {
+                Vector3 pitchAxis = gunRot * Vector3.Cross(d.Up, d.AimAxis).normalized;
+                gunRot = Quaternion.AngleAxis(_lagPitch, pitchAxis) * gunRot;
+            }
+
             // Recoil rotates the gun about its grip and pushes it back along the barrel.
             Quaternion recoil = Quaternion.Euler(_recoilRot.x, _recoilRot.y, 0f);
             Quaternion aimFrame = gunRot * gripInGun.rotation;
             aimFrame = aimFrame * recoil;
             gunRot = aimFrame * Quaternion.Inverse(gripInGun.rotation);
-            Vector3 gripWorld = hand.position + aimFrame * _recoilPos;
+            Vector3 gripWorld = hand.position + _lagPos + aimFrame * _recoilPos;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
 
             // The world holds the gun back (a wall, a crate, the ground, a sandbag it rests on): it is drawn where its physics

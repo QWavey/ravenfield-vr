@@ -396,6 +396,9 @@ namespace RavenfieldVR.Rig
         public Vector3? GraspAnchor;
         /// <summary>True: the anchor is pinched between thumb and index (a bolt handle); false: it runs through the fist.</summary>
         public bool GraspPinch;
+        /// <summary>The glove moves with what it holds by this much this frame (a heavy gun lagging the hand): no easing.</summary>
+        public Vector3 FollowOffset;
+        public int FollowFrame = -10;
         /// <summary>How far the glove may be drawn from the tracked hand onto <see cref="GraspAnchor"/> (a support hand pulled away stays on the handguard).</summary>
         public float GraspReach = 0.05f;
 
@@ -518,6 +521,11 @@ namespace RavenfieldVR.Rig
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
             // Always the tracked hand: held objects follow the hand, never the reverse.
             RigidPose target = _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
+            // Carried along with a heavy weapon that lags the hand (set every frame by the weapon; a stale one is none).
+            if (Time.frameCount - FollowFrame <= 1)
+            {
+                target = new RigidPose(target.position + FollowOffset, target.rotation);
+            }
 
             // Settling onto a held part: a small, smoothed offset, released as soon as the hand lets go.
             Vector3 want = Vector3.zero;

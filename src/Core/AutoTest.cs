@@ -570,6 +570,56 @@ namespace RavenfieldVR.Core
             report(line);
         }
 
+        /// <summary>
+        /// Weight (Tasks2 208): the gun hand lifted at 1 m/s for 0.3 s and stopped. A heavier weapon lags the lift more and
+        /// swings past more after the stop; a pistol stays in the hand. Measured one-handed.
+        /// </summary>
+        private static IEnumerator WeightCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || !VRConfig.WeaponWeight.Value || rig.Off.Role != Rig.HandRole.Free)
+            {
+                yield break;
+            }
+            Rig.VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            Runtime.RigidPose start = dom.Raw;
+            float maxLag = 0f, maxOver = 0f, maxDip = 0f, minPitch = 0f;
+            try
+            {
+                for (float t = 0f; t < 0.3f; t += Time.unscaledDeltaTime)
+                {
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + Vector3.up * t, start.rotation);
+                    Rig.VRHand.ScriptedVelocity[side] = Vector3.up;
+                    yield return null;
+                    maxLag = Mathf.Max(maxLag, -held.InertiaLag.y);
+                    maxDip = Mathf.Max(maxDip, held.InertiaPitch);
+                }
+                Runtime.RigidPose top = new Runtime.RigidPose(start.position + Vector3.up * 0.3f, start.rotation);
+                for (float t = 0f; t < 0.6f; t += Time.unscaledDeltaTime)
+                {
+                    Rig.VRHand.Scripted[side] = top;
+                    Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
+                    yield return null;
+                    maxOver = Mathf.Max(maxOver, held.InertiaLag.y);
+                    minPitch = Mathf.Min(minPitch, held.InertiaPitch);
+                }
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
+            }
+            Metric("weight: lag lifting 1 m/s, cm", maxLag * 100f);
+            Metric("weight: swing past after stopping, cm", maxOver * 100f);
+            report($"weight: lifting at 1 m/s it lags up to {maxLag * 100f:0.0} cm, the muzzle dips {maxDip:0.0} deg; stopped, it swings {maxOver * 100f:0.0} cm past (muzzle {-minPitch:0.0} deg up)");
+            if (held.Rig.Data.IsPistol && (maxLag > 0.005f || maxOver > 0.005f))
+            {
+                Problem($"[{name}] a pistol lags the hand ({maxLag * 100f:0.0} cm)");
+            }
+            yield return new WaitForSecondsRealtime(0.4f);
+        }
+
         /// <summary>Footsteps and landings the game played (counted by <see cref="CountFootstepsPatch"/>).</summary>
         internal static int Footsteps;
 
@@ -1892,7 +1942,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -2068,6 +2118,11 @@ namespace RavenfieldVR.Core
                                      || action == ActionType.SelfLoading && !held.Rig.Data.IsPistol && steadyRifles++ < 1))
                         {
                             yield return SteadyCheck(held, entry.name, lines.Add);
+                            yield return WeightCheck(held, entry.name, lines.Add);
+                        }
+                        else if (want && held.Rig.Data.IsPistol && weightPistols++ < 1)
+                        {
+                            yield return WeightCheck(held, entry.name, lines.Add);
                         }
                         if (Deep && want && held.Rig.Data.HasEyePoint && action != ActionType.Melee && action != ActionType.Throwable)
                         {
