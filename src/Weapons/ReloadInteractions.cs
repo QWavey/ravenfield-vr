@@ -1646,6 +1646,9 @@ namespace RavenfieldVR.Weapons
                             anchor = HandguardPoint(off.Palm.position);
                         }
                         break;
+                    case HandRole.Free:
+                        KeepEmptyHandOut(off);
+                        break;
                     case HandRole.Magazine:
                         // On the rail, and already while it is lined up under the well: a pistol's rail is only the last
                         // part of the way, and the hand was in the grip before the keep-out began.
@@ -1705,6 +1708,34 @@ namespace RavenfieldVR.Weapons
         /// through the fingers, so the hand ends on its lower end. The glove followed it into the gun before (a pistol
         /// magazine, held by most of its length, took the hand up into the grip).
         /// </summary>
+        /// <summary>
+        /// An empty hand does not pass through the held gun or the hand holding it (Tasks2 207): its glove is drawn out of
+        /// them the shortest way (away from the bore first). Only the drawing: the tracked hand, and what it can grab, stay
+        /// where they are. Its fingers still move freely.
+        /// </summary>
+        private void KeepEmptyHandOut(VRHand off)
+        {
+            if (!off.Tracked || off.Held != null || off.Model == null || Rig.GunBody == null
+                || (off.Palm.position - _held.GripWorld.position).sqrMagnitude > 0.7f * 0.7f)
+            {
+                return;
+            }
+            _keepOutGun = _held.HandsSolid;
+            _keepOutHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
+            if (_keepOutGun == null && _keepOutHand == null)
+            {
+                return;
+            }
+            if (_keepOutBlocked == null)
+            {
+                _keepOutBlocked = p => _keepOutGun != null && _keepOutGun(p) || _keepOutHand != null && _keepOutHand.NearSkin(p, GunVolume.Grow);
+            }
+            Vector3 bore = Rig.ToWorld(Data.MuzzlePoint);
+            Vector3 away = Vector3.ProjectOnPlane(off.Palm.position - bore, Rig.AimWorld);
+            off.Model.KeepOut = off.Model.ShortestWayOut(_keepOutBlocked, 0.1f, away);
+            off.Model.KeepOutFrame = Time.frameCount;
+        }
+
         private void KeepOutOfGun(VRHand off, MagazineProp prop)
         {
             _keepOutGun = _held.HandsSolid;

@@ -434,6 +434,45 @@ namespace RavenfieldVR.Rig
             return max;
         }
 
+        private static readonly Vector3[] WayOutDirs = new Vector3[7];
+
+        /// <summary>
+        /// The shortest shift (up to <paramref name="max"/>) that takes the glove, from where the tracked hand puts it, out
+        /// of <paramref name="blocked"/>: <paramref name="preferred"/> first (away from the thing), then up, down and to each
+        /// side. Zero when it is not in it; the farthest shift the preferred way when nothing within reach is clear.
+        /// </summary>
+        internal Vector3 ShortestWayOut(System.Func<Vector3, bool> blocked, float max, Vector3 preferred)
+        {
+            if (!_skinValid)
+            {
+                return Vector3.zero;
+            }
+            Vector3 tracked = -_graspOffset - _keepOut;
+            if (!GloveIn(blocked, tracked))
+            {
+                return Vector3.zero;
+            }
+            Quaternion r = _root.rotation;
+            WayOutDirs[0] = preferred.sqrMagnitude > 1e-6f ? preferred.normalized : r * Vector3.up;
+            WayOutDirs[1] = Vector3.up;
+            WayOutDirs[2] = Vector3.down;
+            WayOutDirs[3] = r * Vector3.right;
+            WayOutDirs[4] = r * Vector3.left;
+            WayOutDirs[5] = r * Vector3.back;
+            WayOutDirs[6] = r * Vector3.forward;
+            for (float s = 0.005f; s <= max + 1e-4f; s += 0.005f)
+            {
+                foreach (Vector3 d in WayOutDirs)
+                {
+                    if (!GloveIn(blocked, tracked + d * s))
+                    {
+                        return d * s;
+                    }
+                }
+            }
+            return WayOutDirs[0] * max;
+        }
+
         private bool GloveIn(System.Func<Vector3, bool> blocked, Vector3 shift)
         {
             for (int i = 0; i < _skinA.Length; i++)
@@ -489,7 +528,7 @@ namespace RavenfieldVR.Rig
             _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
             // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
             // the reload while it does; a stale value from a frame that did not set it counts as none).
-            bool keepOut = _hand.Role == HandRole.Magazine && Time.frameCount - KeepOutFrame <= 1;
+            bool keepOut = (_hand.Role == HandRole.Magazine || _hand.Role == HandRole.Free) && Time.frameCount - KeepOutFrame <= 1;
             _keepOut = Vector3.Lerp(_keepOut, keepOut ? KeepOut : Vector3.zero, 1f - Mathf.Exp(-(keepOut ? 30f : 18f) * dt));
             // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
             // easing in when the grip is taken and back out to the tracked hand when it is let go.
