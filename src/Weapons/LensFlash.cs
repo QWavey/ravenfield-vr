@@ -35,6 +35,16 @@ namespace RavenfieldVR.Weapons
         private float _gunSize;
         private bool _gunAuto;
 
+        /// <summary>Autotest: one eye's flash as the limiter let it through (the steps it was charged; 0 for a soft one).</summary>
+        internal struct TestFlash
+        {
+            public float Time, Asked, Shown;
+            public int Eye, Steps;
+        }
+
+        /// <summary>Autotest: every flash is written here while it is set.</summary>
+        internal List<TestFlash> TestLog;
+
         /// <summary>Self-test: flashes shown, and the last one's strength (the stronger eye).</summary>
         internal int Shown { get; private set; }
         internal float LastPower { get; private set; }
@@ -106,7 +116,9 @@ namespace RavenfieldVR.Weapons
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);
-                float p = _limiters[e].Shot(now, EyePower(size * strength, m, dir, ex, fx.Ipd) * sizeK);
+                float asked = EyePower(size * strength, m, dir, ex, fx.Ipd) * sizeK;
+                float p = _limiters[e].Shot(now, asked, out int steps);
+                TestLog?.Add(new TestFlash { Time = now, Asked = asked, Shown = p, Eye = e, Steps = steps });
                 Vector2 at = LensEffects.Project(m, ex) + new Vector2(LensEffects.Focal * Mathf.Tan(jx), -LensEffects.Focal * Mathf.Tan(jy));
                 fx.AddFlash(e, new LensEffects.Flash { X = at.x, Y = at.y, Power = p, Phase = phase, Born = now });
                 strongest = Mathf.Max(strongest, p);
@@ -240,8 +252,9 @@ namespace RavenfieldVR.Weapons
             private readonly List<KeyValuePair<float, int>> _full = new List<KeyValuePair<float, int>>();
             private float _glow;
 
-            public float Shot(float t, float power)
+            public float Shot(float t, float power, out int steps)
             {
+                steps = 2;
                 if (!VRConfig.ReduceFlashing.Value)
                 {
                     return power;
@@ -258,6 +271,7 @@ namespace RavenfieldVR.Weapons
                 if (left >= cost)
                 {
                     _full.Add(new KeyValuePair<float, int>(t, cost));
+                    steps = cost;
                     return power;
                 }
                 if (left >= 2)
@@ -265,6 +279,7 @@ namespace RavenfieldVR.Weapons
                     _full.Add(new KeyValuePair<float, int>(t, 2));
                     return Mathf.Min(power, one);
                 }
+                steps = 0; // a soft flash, under the flash threshold
                 return Mathf.Min(power, Interp(_glow, Soft));
             }
 

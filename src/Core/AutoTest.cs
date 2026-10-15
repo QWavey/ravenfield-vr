@@ -569,6 +569,80 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// An automatic held on the trigger for 1.6 s (Tasks2 209 A-C): the lens flash limiter must keep each eye within
+        /// six counted steps (three flashes) in any 1.1 s, as flash_sim.py's photosensitivity test, the rest soft flashes
+        /// and the glow; the glow pictured a second in.
+        /// </summary>
+        private static IEnumerator LensBurstCheck(Weapon w, int index, string name, List<string> lines)
+        {
+            LensFlash lf = LensFlash.Instance;
+            var log = new List<LensFlash.TestFlash>();
+            lf.TestLog = log;
+            int shotsBefore = _shots;
+            float start = Time.realtimeSinceStartup;
+            bool pictured = false;
+            try
+            {
+                while (Time.realtimeSinceStartup - start < 1.6f && w != null && w.ammo != 0)
+                {
+                    w.Fire(w.CurrentMuzzle().forward, true); // the trigger held: an automatic fires at its own rate
+                    yield return null;
+                    if (!pictured && Time.realtimeSinceStartup - start > 1f)
+                    {
+                        pictured = true;
+                        yield return new WaitForEndOfFrame();
+                        Shots.Capture($"lensburst-{index:000}-{name}");
+                        Rig.LensEffects.Instance?.SavePictures($"lens-eyes-burst-{index:000}-{name}");
+                    }
+                }
+            }
+            finally
+            {
+                if (w != null)
+                {
+                    w.StopFire();
+                }
+                lf.TestLog = null;
+            }
+            float took = Time.realtimeSinceStartup - start;
+            int shots = _shots - shotsBefore;
+            int[] worst = new int[2];
+            int[] full = new int[2];
+            for (int e = 0; e < 2; e++)
+            {
+                List<LensFlash.TestFlash> eye = log.FindAll(f => f.Eye == e);
+                full[e] = eye.FindAll(f => f.Steps > 0).Count;
+                for (int a = 0; a < eye.Count; a++)
+                {
+                    int sum = 0;
+                    for (int b = a; b < eye.Count && eye[b].Time - eye[a].Time < 1.1f; b++)
+                    {
+                        sum += eye[b].Steps;
+                    }
+                    worst[e] = Mathf.Max(worst[e], sum);
+                }
+            }
+            bool over = VRConfig.ReduceFlashing.Value && (worst[0] > 6 || worst[1] > 6);
+            float softMax = 0f;
+            foreach (LensFlash.TestFlash f in log)
+            {
+                if (f.Steps == 0)
+                {
+                    softMax = Mathf.Max(softMax, f.Shown);
+                }
+            }
+            Metric("lens flash limiter: most counted steps in any 1.1 s of a held burst (budget 6)", Mathf.Max(worst[0], worst[1]));
+            lines.Add($"lens flash burst: {shots} shots in {took:0.0} s, flashes L {log.FindAll(f => f.Eye == 0).Count} / R {log.FindAll(f => f.Eye == 1).Count} "
+                      + $"(full L {full[0]} / R {full[1]}), most counted steps in any 1.1 s L {worst[0]} / R {worst[1]} (budget 6), "
+                      + $"strongest soft flash {softMax:0.00}{(over ? " (OVER THE FLASH LIMIT)" : "")}");
+            if (over)
+            {
+                Problem($"[{name}] the lens flash limiter let {Mathf.Max(worst[0], worst[1])} steps through in 1.1 s of a held burst (budget 6)");
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
+        /// <summary>
         /// A magazine close-up from the gun's left side, else its right: when the left one sits inside one of the weapon's
         /// meshes, or draws one flat colour (an akimbo pair's other gun there).
         /// </summary>
@@ -2421,7 +2495,7 @@ namespace RavenfieldVR.Core
                         {
                             Problem($"[{entry.name}] fire: {e.GetType().Name}: {e.Message} {FirstFrames(e)}");
                         }
-                        if (i == 0 && VRManager.Active && LensFlash.Instance != null && lensShots < 12)
+                        if (i == 0 && VRManager.Active && LensFlash.Instance != null && lensShots < (Deep || GrabShots ? 1000 : 12))
                         {
                             // The muzzle lens flash of the first shot, pictured when it shows: its picture is made on a
                             // worker and comes a frame or two after the shot (it is gone 60 ms later).
@@ -2455,7 +2529,15 @@ namespace RavenfieldVR.Core
                             held.Reload.CycleForTest(); // a bolt or pump needs working between shots
                         }
                     }
+                    int firedSingles = _shots;
+                    Weapon burstWeapon = weapon.GetActiveSubWeapon();
+                    if ((Deep || GrabShots) && VRManager.Active && counts && burstWeapon != null && burstWeapon.configuration != null
+                        && burstWeapon.configuration.auto && LensFlash.Instance != null)
+                    {
+                        yield return LensBurstCheck(burstWeapon, index, entry.name, lines);
+                    }
                     listened?.onSpawnProjectiles.RemoveListener(CountShot);
+                    _shots = firedSingles;
                     if (counts)
                     {
                         lines.Add($"fired {Mathf.Min(_shots, 3)}/3");
