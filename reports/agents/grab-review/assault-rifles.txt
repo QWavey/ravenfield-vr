@@ -1,0 +1,267 @@
+assault-rifles: 106 weapons reviewed, 90 with issues
+
+  6 AUTOMATICO: OK
+ 16 JOLT-20-S: OK
+ 19 PATRIOT:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 21 PATRIOT_TAC:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 22 QUICKSILVER:
+     tile 12: [minor] Mag 5 close-up: the glove sleeve fills the lower right and the fresh magazine is not visible.
+ 24 RIPCORD: OK
+ 25 RK-44:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 48 asval:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 49 asval_o:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 54 AK-24:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 55 AK-24_OKP-7:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 56 light_mk18_acog: OK
+ 57 light_mk18_EXPS3: OK
+ 64 ak74m_Zenit:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 72 f2000:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 73 f2000_scope:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 74 f2000exps3:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 77 m733: OK
+ 78 m733_barska: OK
+ 79 m733_pro: OK
+ 85 _comm_f2k_exps3_No_script_:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 86 _comm_f2k_scope_No_script_:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 87 _comm_f2k_No_script_:
+     tile 4: [minor] Rack grip right shows no glove in frame; rack pulled right (tile 7) also shows no glove, so the right-side rack cannot be checked.
+ 88 mwii-ak105_No_script_:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 89 mwii-ak105pkas_No_script_:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+ 92 mwii-m4_No_script_: OK
+ 93 mwii-m4acog_No_script_: OK
+ 94 mwii-m4holo_No_script_: OK
+106 apc45:
+     tile 1: [minor] Orange wedge at the lower-right corner of tiles 1, 2 and 5. It is not part of the gun outline; possibly a stray mesh, check.
+107 asval:
+     tile 1: [minor] Orange wedge at the lower-right corner of tiles 1, 2 and 5, not part of the gun outline; possibly a stray mesh.
+     tile 4: [minor] Rack grip right and rack pulled right: the glove appears to hover above the receiver with no clear contact with the bolt or handle.
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+108 asvalokp7:
+     tile 1: [minor] Orange wedge at the lower-right corner of tiles 1, 2 and 5, not part of the gun outline; possibly a stray mesh.
+     tile 3: [minor] Rack grip left, rack grip right and rack pulled right: the glove appears to hover above the receiver with no clear contact with the bolt or handle.
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+109 asvalpkas:
+     tile 1: [minor] Orange wedge at the lower-right corner of tiles 1, 2 and 5, not part of the gun outline; possibly a stray mesh.
+     tile 3: [minor] Rack grip left, rack grip right and rack pulled right: the glove appears to hover above the receiver with no clear contact with the bolt or handle.
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+110 asvalpso:
+     tile 3: [major] A grey PSO scope tube floats in the air above and to the right of the receiver, not attached to the gun. It appears again beside the glove in tiles 6 and 7, with a mount apart from the gun in tile 10.
+     tile 4: [minor] Rack grip right: the glove appears to hover above the receiver with no clear contact with the bolt or handle.
+     tile 1: [minor] Orange wedge at the lower-right corner of tiles 1, 2 and 5, not part of the gun outline; possibly a stray mesh.
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+112 ARS_HK416:
+     tile 8: [major] Magazine steps 8-14 are all 'none' although the HK416 has a detachable magazine. The magazine change was not pictured.
+116 ARS_HK416_Bot_Friendly_:
+     tile 8: [major] Magazine steps 8-14 are all 'none' although this rifle has a detachable magazine. The magazine change was not pictured.
+     tile 3: [major] Rack frames 3, 4, 6 and 7: the left glove hovers over grass and the jeep with no gun body around it, so it is not on any part of the weapon.
+     tile 1: [minor] Weapon in hand (1, 2, 5): the gun sits small and low at the bottom edge with no holding glove in view; the hold cannot be confirmed.
+119 95-1: OK
+120 95-1_holo: OK
+121 95-1_qmk: OK
+127 ak12_1p78_squad:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+128 ak12_1p78s_squad:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+129 ak12_1p87_squad:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+130 ak12_1p87s_squad:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+131 ak12h_1p87_squad:
+     tile 1: [major] A large olive plate (vehicle hull) covers most of the head view in tiles 1, 2, 5 and 6; the rifle is only a small silhouette at the bottom, so the hand and gun cannot be checked.
+     tile 4: [major] Rack grip right and rack pulled right (4 and 7) are blank dark planes; no glove or gun is visible.
+     tile 3: [minor] Rack grip left: the glove floats above the rail with no visible contact.
+132 ak12h_squad:
+     tile 1: [major] A large olive plate (vehicle hull) covers most of the view in tiles 1, 2 and 5; the rifle is a small silhouette at lower right.
+     tile 3: [minor] Rack grip left, rack pulled left and rack pulled right: the glove appears to hover above the rail with no clear contact with the gun.
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+133 ak12squad:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+136 xm8:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+139 xm8scope:
+     tile 8: [minor] Mag 1-3 close-ups (tiles 8-10) are filled by the left glove's hex-mesh back; the magazine and well are not visible.
+143 K13:
+     tile 4: [major] A solid black arc fills the lower-left of the rack grip right frame, masking the receiver. Looks like a clipped or unrendered mesh.
+     tile 7: [major] Same solid black arc in the lower-left of the rack pulled right frame.
+144 K13_ACOG:
+     tile 4: [major] A solid black arc fills the lower-left of the rack grip right frame, masking the receiver. Looks like a clipped or unrendered mesh.
+     tile 7: [major] Same solid black arc in the lower-left of the rack pulled right frame.
+145 K13_ACOG_S:
+     tile 4: [major] A solid black arc fills the lower-left of the rack grip right frame, masking the receiver. Looks like a clipped or unrendered mesh.
+     tile 7: [major] Same solid black arc in the lower-left of the rack pulled right frame.
+148 K13_Spectre:
+     tile 4: [major] A solid black arc fills the lower-left of the rack grip right frame, masking the receiver. Looks like a clipped or unrendered mesh.
+     tile 7: [major] Same solid black arc in the lower-left of the rack pulled right frame.
+149 K13_Spectre_S:
+     tile 4: [major] A solid black arc fills the lower-left of the rack grip right frame, masking the receiver. Looks like a clipped or unrendered mesh.
+     tile 7: [major] Same solid black arc in the lower-left of the rack pulled right frame.
+166 _Gear_BRN180_S_A_S:
+     tile 8: [major] Mag 1 close-up is a flat olive wall with a brown post; no gun, glove or magazine is visible. Tiles 9, 10, 12, 13 and 14 show the same wall, so the camera seems to be inside geometry.
+167 _Gear_BRN180_SS:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+168 _Gear_G_BRN180_EO_SS:
+     tile 4: [major] Receiver and magazine render see-through (tiles 3-7); internal parts and rounds show through, looks like a broken material
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+169 _Sec_BRN180_S_A_S:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+170 _Sec_BRN180_SS:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+171 _Sec_G_BRN180_EO_SS:
+     tile 4: [major] Receiver and magazine render see-through (tiles 3-7); internal parts and rounds show through, looks like a broken material
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+172 BRN180_EO_L:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+173 BRN180_EO_S:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 11: [minor] Dark wedge hangs below the glove, not clearly part of the fresh magazine; possible stray mesh
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+174 BRN180_L:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 11: [minor] Green tracked vehicle with red lights sits beside the glove in the magazine shot; likely a stray scene object
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+175 BRN180_L_S:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 11: [minor] Green tracked vehicle with red lights sits beside the glove in the magazine shot; likely a stray scene object
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+176 BRN180_S_A:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+177 BRN180_S_A_S:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+178 BRN180_SS:
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+179 G_BRN180_EO_S:
+     tile 4: [major] Receiver and magazine render see-through (tiles 3-7); internal parts and rounds show through, looks like a broken material
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+180 G_BRN180_EO_SS:
+     tile 4: [major] Receiver and magazine render see-through (tiles 3-7); internal parts and rounds show through, looks like a broken material
+     tile 8: [major] Close-ups 8-10 show a plain wall with a wooden post, not the gun or its magazine well
+     tile 12: [major] Close-ups 12-14 show the same wall, so the fresh magazine going into the well cannot be checked
+182 M4A1:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+183 M4A1_acog:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+184 M4A1_reddot:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+201 Suzuya_s_Custom_AR-15_5.56x45MM:
+     tile 3: [minor] Black rod crosses the frame at an angle and does not attach to the green rifle (also tiles 1, 6, 7); possible stray or misplaced part
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+202 Suzuya_s_Custom_AR-15_HAMR_5.56x45MM:
+     tile 3: [minor] Black rod crosses the frame at an angle and does not attach to the green rifle (also tiles 1, 6, 7); possible stray or misplaced part
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+204 M4A1:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+205 M4A1_ACOG:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+206 M4A1_CCO:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+207 M4A1_CCO_FT:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+208 M4A1_EOT:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+209 M4A1_EOT_FT:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+210 mk18riii:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+214 FA1911_10R: OK
+215 FA1911_20R:
+     tile 12: [minor] No magazine visible at the grip in this frame; fresh magazine not shown lined up under the well
+216 FAQ1911: OK
+229 NVO-228E:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+230 M417A2:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well only partly visible, drop cannot be checked cleanly
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+249 QBZ192:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+250 QBZ192_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+251 QBZ192-A:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+252 QBZ192-A_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+253 QBZ192-B:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+254 QBZ192-B_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+257 QBZ192-D:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+258 QBZ192-D_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+259 QBZU191:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+260 QBZU191_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+261 QBZU191-A:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+262 QBZU191-A_S:
+     tile 8: [minor] Close-up shows a grey sleeve filling the frame; magazine well hidden, so the drop in 9-10 cannot be checked
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+270 HK416:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+271 HK416_S:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+272 HK416-A:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+273 HK416-A_S:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+274 HK416-B:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+275 HK416-B_S:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+278 HK416-D:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+279 HK416-D_S:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+280 HK416-E:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun
+281 HK416-E_S:
+     tile 12: [major] No magazine at the well; a magazine lies on the ground well away from the gun

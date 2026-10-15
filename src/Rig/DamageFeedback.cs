@@ -7,37 +7,19 @@ namespace RavenfieldVR.Rig
 {
     /// <summary>
     /// Getting hit, the VR way. The game shows damage as a flat full-screen vignette and a rotating arrow on a screen
-    /// canvas, which in the headset is a red picture hanging in front of you. In VR those are hidden and instead a ring
-    /// around the edge of your view (head-locked, a little in front of the eyes) flashes red, brightest on the side the
-    /// shot came from (top = in front, bottom = behind, as the game's arrow points), and both controllers buzz with the
-    /// hit's strength. Below half health a faint red edge stays.
+    /// canvas, which in the headset is a red picture hanging in front of you. In VR those are hidden; instead, as approved
+    /// (Tasks2 209 F, G; drawn by <see cref="LensEffects"/>): a red glow on the side the hit came from, in both eyes and
+    /// stronger in the nearer one, for half a second, with a short buzz in the hand on that side; and at low health a red
+    /// edge pulsing with a heartbeat while the colour drains from the view (a grey veil). All of it gone when healed.
     /// </summary>
     public sealed class DamageFeedback
     {
         public static DamageFeedback Instance { get; private set; }
 
         private const float Distance = 0.26f;
-        private const int Segments = 48;
-        // View-cone angles (from the centre of view) of the ring's inner (clear), middle (full) and outer edge.
-        private static readonly float[] RingAngles = { 34f, 52f, 80f };
-        private static readonly float[] RingAlpha = { 0f, 1f, 1f };
 
-        private readonly GameObject _go;
-        private readonly Mesh _mesh;
-        private readonly MeshRenderer _renderer;
-        private readonly Color32[] _colors;
-        private readonly float[] _vertexAngle;
-        private readonly float[] _vertexRing;
-
-        private float _flash;        // overall red, decays
-        private float _flashPeak;
-        private float _flashFrom;
-        private float _flashStart = -10f;
-        private float _flashDuration = 1.2f;
-        private float _hitAngle;     // degrees, 0 = in front (top of the view), 90 = left
-        private float _direction;    // strength of the directional cue, decays
-        private bool _balanceOnly;
         private float _lowHealth;
+        private float _vignetteAt = -10f, _directionAt = -10f;
         /// <summary>The grey veil that drains the colour from the view at low health (Tasks2 209 G).</summary>
         private readonly GameObject _veil;
         private readonly Material _veilMaterial;
@@ -46,54 +28,7 @@ namespace RavenfieldVR.Rig
         public DamageFeedback(Transform head)
         {
             Instance = this;
-            _go = new GameObject("Damage Feedback") { layer = 5 };
-            _go.transform.SetParent(head, false);
-            _go.transform.localPosition = Vector3.zero;
-
-            int rings = RingAngles.Length;
-            var verts = new Vector3[rings * Segments];
-            _colors = new Color32[verts.Length];
-            _vertexAngle = new float[verts.Length];
-            _vertexRing = new float[verts.Length];
-            for (int r = 0; r < rings; r++)
-            {
-                float radius = Distance * Mathf.Tan(RingAngles[r] * Mathf.Deg2Rad);
-                for (int i = 0; i < Segments; i++)
-                {
-                    // Angle around the view, counter-clockwise from the top (the game's indicator convention).
-                    float a = i * 360f / Segments;
-                    float rad = a * Mathf.Deg2Rad;
-                    int v = r * Segments + i;
-                    verts[v] = new Vector3(-Mathf.Sin(rad) * radius, Mathf.Cos(rad) * radius, Distance);
-                    _vertexAngle[v] = a;
-                    _vertexRing[v] = RingAlpha[r];
-                }
-            }
-            var tris = new int[(rings - 1) * Segments * 6];
-            int t = 0;
-            for (int r = 0; r < rings - 1; r++)
-            {
-                for (int i = 0; i < Segments; i++)
-                {
-                    int a = r * Segments + i, b = r * Segments + (i + 1) % Segments;
-                    int c = a + Segments, d = b + Segments;
-                    tris[t++] = a; tris[t++] = c; tris[t++] = b;
-                    tris[t++] = b; tris[t++] = c; tris[t++] = d;
-                }
-            }
-            _mesh = new Mesh { name = "RavenfieldVR Damage Ring", vertices = verts, triangles = tris, colors32 = _colors };
-            _mesh.bounds = new Bounds(Vector3.forward * Distance, Vector3.one * 10f);
-            _mesh.MarkDynamic();
-            _go.AddComponent<MeshFilter>().sharedMesh = _mesh;
-            var mat = new Material(Shader.Find("Sprites/Default")) { renderQueue = 4001, color = Color.white };
-            _renderer = _go.AddComponent<MeshRenderer>();
-            _renderer.sharedMaterial = mat;
-            _renderer.shadowCastingMode = ShadowCastingMode.Off;
-            _renderer.receiveShadows = false;
-            _renderer.enabled = false;
-            _go.AddComponent<DamageEyeTint>().Renderer = _renderer;
-
-            // A grey veil over the whole view, under the ring: mixed toward grey, the world loses its colour.
+            // A grey veil over the whole view: mixed toward grey, the world loses its colour.
             _veil = GameObject.CreatePrimitive(PrimitiveType.Quad);
             _veil.name = "Low Health Veil";
             Object.Destroy(_veil.GetComponent<Collider>());
@@ -112,34 +47,23 @@ namespace RavenfieldVR.Rig
         /// <summary>Autotest: the share of health to show (-1: the player's own).</summary>
         internal static float TestHealthShare = -1f;
 
-        /// <summary>The side of the last hit, for the eyes: -1 left, +1 right, 0 straight ahead or behind.</summary>
-        internal float HitSide => _direction > 0.01f ? -Mathf.Sin(_hitAngle * Mathf.Deg2Rad) * Mathf.Clamp01(_direction) : 0f;
-
-        /// <summary>The game's damage vignette: how hard (0..1, more the lower your health) and for how long.</summary>
+        /// <summary>The game's damage vignette (a hit). Without a direction from the game it glows from below.</summary>
         public void OnVignette(float intensity, float duration)
         {
-            _flashPeak = Mathf.Max(_flash, Mathf.Clamp01(intensity));
-            _flashFrom = _flash;
-            _flashStart = Time.unscaledTime;
-            _flashDuration = Mathf.Clamp(duration * 0.25f, 0.6f, 1.8f);
+            _vignetteAt = Time.unscaledTime;
         }
 
         /// <summary>The game's hit-direction arrow: angle in the view (0 in front, 90 to the left).</summary>
         public void OnHitDirection(float angle, bool balanceOnly)
         {
-            _hitAngle = angle;
-            _direction = 1f;
-            _balanceOnly = balanceOnly;
+            _directionAt = Time.unscaledTime;
+            LensEffects.Instance?.Hit(angle, balanceOnly);
             // A short buzz in the hand on the side it came from (angle 90 = from the left).
             float side = -Mathf.Sin(angle * Mathf.Deg2Rad);
             VRRig rig = VRRig.Instance;
             if (rig != null && !balanceOnly && Mathf.Abs(side) > 0.3f)
             {
                 rig.Hand(side > 0f ? Input.Hand.Right : Input.Hand.Left).Haptic(0.07f, 70f, Mathf.Clamp01(0.4f + Mathf.Abs(side) * 0.5f));
-            }
-            if (!balanceOnly && _flash < 0.35f)
-            {
-                OnVignette(0.35f, 2f); // a hit the game did not vignette (in a vehicle) still flashes a little
             }
         }
 
@@ -163,58 +87,39 @@ namespace RavenfieldVR.Rig
         public void Update()
         {
             float now = Time.unscaledTime;
-            float age = now - _flashStart;
-            // Snaps in within a few hundredths of a second, fades over the duration.
-            _flash = age < 0.05f ? Mathf.Lerp(_flashFrom, _flashPeak, age / 0.05f) : _flashPeak * Mathf.Clamp01(1f - (age - 0.05f) / _flashDuration);
-            _direction = Mathf.MoveTowards(_direction, 0f, Time.unscaledDeltaTime / 0.5f); // the side's glow: half a second
-
+            // Damage the game gave no direction for (a fall, a fire): the glow comes from below.
+            if (now - _vignetteAt > 0.1f && _vignetteAt > _directionAt + 0.25f)
+            {
+                _vignetteAt = -10f;
+                LensEffects.Instance?.Hit(180f, false);
+            }
             Actor actor = Util.GameContext.PlayerActor;
             float healthShare = actor != null && !actor.dead && actor.maxHealth > 0f ? actor.health / actor.maxHealth : 1f;
             if (TestHealthShare >= 0f)
             {
                 healthShare = TestHealthShare;
             }
-            _lowHealth = Mathf.MoveTowards(_lowHealth, Mathf.Clamp01((0.5f - healthShare) * 2f) * 0.45f, Time.unscaledDeltaTime);
+            // Below half health, fully at a quarter; eased in and out over a second or two.
+            _lowHealth = Mathf.MoveTowards(_lowHealth, Mathf.Clamp01((0.5f - healthShare) * 4f), Time.unscaledDeltaTime);
             // The heartbeat: a double beat, faster the lower the health (70 to 110 a minute).
-            float lowness = Mathf.Clamp01(_lowHealth / 0.45f);
-            _beatPhase = (_beatPhase + Time.unscaledDeltaTime * Mathf.Lerp(70f, 110f, lowness) / 60f) % 1f;
+            _beatPhase = (_beatPhase + Time.unscaledDeltaTime * Mathf.Lerp(70f, 110f, _lowHealth) / 60f) % 1f;
             float beat = Mathf.Exp(-Mathf.Pow((_beatPhase - 0.08f) / 0.05f, 2f)) + 0.6f * Mathf.Exp(-Mathf.Pow((_beatPhase - 0.3f) / 0.05f, 2f));
-            float pulse = _lowHealth * (0.55f + 0.45f * beat);
-            bool veil = lowness > 0.01f && actor != null && !actor.dead;
+            bool alive = actor != null && !actor.dead;
+            // screen_effects.py G at the beat's peak, a little under it between beats.
+            LensEffects.Instance?.SetLowHealth(alive ? _lowHealth * (0.6f + 0.4f * Mathf.Clamp01(beat)) : 0f);
+            bool veil = _lowHealth > 0.01f && alive;
             if (_veil.activeSelf != veil)
             {
                 _veil.SetActive(veil);
             }
             if (veil)
             {
-                _veilMaterial.color = new Color(0.32f, 0.32f, 0.33f, 0.3f * lowness * (0.9f + 0.1f * beat));
+                _veilMaterial.color = new Color(0.32f, 0.32f, 0.33f, 0.3f * _lowHealth * (0.9f + 0.1f * beat));
             }
-
-            bool visible = (_flash > 0.01f || _direction > 0.01f || _lowHealth > 0.01f) && actor != null && !actor.dead;
-            if (_renderer.enabled != visible)
-            {
-                _renderer.enabled = visible;
-            }
-            if (!visible)
-            {
-                return;
-            }
-            Color tint = _balanceOnly && _flash < 0.05f ? new Color(1f, 0.85f, 0.2f) : new Color(0.75f, 0.02f, 0.02f);
-            for (int v = 0; v < _colors.Length; v++)
-            {
-                float toward = Mathf.Max(0f, Mathf.Cos((_vertexAngle[v] - _hitAngle) * Mathf.Deg2Rad));
-                float a = _vertexRing[v] * Mathf.Clamp01(_flash * 0.75f + pulse + _direction * toward * toward * 0.85f);
-                _colors[v] = new Color(tint.r, tint.g, tint.b, a);
-            }
-            _mesh.colors32 = _colors;
         }
 
         public void Destroy()
         {
-            if (_go != null)
-            {
-                Object.Destroy(_go);
-            }
             if (_veil != null)
             {
                 Object.Destroy(_veil);
@@ -223,28 +128,6 @@ namespace RavenfieldVR.Rig
             {
                 Instance = null;
             }
-        }
-    }
-
-    /// <summary>The damage ring drawn a little stronger in the eye on the side the hit came from (and weaker in the other).</summary>
-    internal sealed class DamageEyeTint : MonoBehaviour
-    {
-        public MeshRenderer Renderer;
-        private MaterialPropertyBlock _block;
-
-        private void OnWillRenderObject()
-        {
-            DamageFeedback d = DamageFeedback.Instance;
-            Camera cam = Camera.current;
-            if (d == null || Renderer == null || cam == null)
-            {
-                return;
-            }
-            float eye = cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? -1f : cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right ? 1f : 0f;
-            float k = 1f + 0.25f * d.HitSide * eye; // the nearer eye up to a quarter more, the other a quarter less
-            _block = _block ?? new MaterialPropertyBlock();
-            _block.SetColor("_Color", new Color(1f, 1f, 1f, Mathf.Clamp(k, 0.5f, 1.5f)));
-            Renderer.SetPropertyBlock(_block);
         }
     }
 

@@ -1,0 +1,9 @@
+bolt-action-snipers: 4 weapons reviewed, 1 with issues
+
+ 23 RECON_LRR: OK
+ 32 SL-DEFENDER:
+     tile 3: [minor] Left hand lies flat over the receiver top with fingers splayed toward the muzzle, not wrapped round a bolt knob or handle. The same open-hand pose shows in tile 6. Check that the hand is actually on the bolt.
+     tile 7: [minor] No glove is visible in the rack-pulled-right shot, although tile 4 shows it on the bolt area. Cannot confirm it moved back with the bolt.
+     tile 14: [minor] Glove sits to the side and below-right of the magazine rather than under it, so the hand is not supporting the seated magazine.
+ 95 mwii-mrad_No_script_: OK
+ 99 mrad: OK

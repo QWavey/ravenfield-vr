@@ -46,6 +46,7 @@ namespace RavenfieldVR.Rig
         private readonly ComfortVignette _vignette;
         private readonly DamageFeedback _damage;
         private readonly MudSplash _mud;
+        private readonly LensEffects _lens;
         private readonly CockpitControls _cockpit;
 
         public RigMode Mode { get; private set; } = RigMode.None;
@@ -106,6 +107,14 @@ namespace RavenfieldVR.Rig
             Hands[0] = new VRHand(Input.Hand.Left, Root);
             Hands[1] = new VRHand(Input.Hand.Right, Root);
             _vignette = new ComfortVignette(Camera.transform);
+            try
+            {
+                _lens = new LensEffects(this); // before DamageFeedback and MudSplash: they hand it their effects
+            }
+            catch (System.Exception e)
+            {
+                Log.Exception("The on-screen effects could not be set up; playing without them", e);
+            }
             _damage = new DamageFeedback(Camera.transform);
             try
             {
@@ -1043,6 +1052,7 @@ namespace RavenfieldVR.Rig
             _vignette.Destroy();
             _damage.Destroy();
             _mud?.Destroy();
+            _lens?.Destroy();
             foreach (VRHand h in Hands)
             {
                 h.Destroy();

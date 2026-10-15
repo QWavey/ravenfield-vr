@@ -1,0 +1,8 @@
+launchers: 1 weapons reviewed, 1 with issues
+
+ 20 PATRIOT_GL:
+     tile 8: [major] Left glove's back fills the frame close to the camera and hides the magazine well; no magazine is visible as seated.
+     tile 9: [major] Same frame as tile 8 with the glove covering the gun; no released magazine is visible sliding out of the well.
+     tile 10: [minor] Near-identical frame to 8 and 9; the glove hides the well, so the empty well cannot be confirmed.
+     tile 2: [minor] Identical to tile 1 (in-hand view); no glove is visible on the charging handle or slide, so the rack grip is not shown.
+     tile 5: [minor] Identical to tile 1; no glove or moved part is visible, so the rack pull is not shown.

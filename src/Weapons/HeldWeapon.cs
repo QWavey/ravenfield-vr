@@ -1221,7 +1221,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// An estimated rack point (from the reload hand, or virtual) can lie inside the receiver or float beside it: it is
         /// moved straight out from the bore onto the drawn model's surface, where a hand can take it and a handle can be cut
-        /// out or added. A handle cut at the old point is cut again at the new one.
+        /// out or added. A handle cut at the old point is cut again at the new one. A stroke of the reload hand that starts
+        /// well off the model held no handle (an AS Val's left hand passed 10 cm over the front sight): the estimate above
+        /// the grip is used instead.
         /// </summary>
         private void SnapRackPoint()
         {
@@ -1231,40 +1233,21 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 p = d.RackPoint;
-            Vector3 bore = d.MuzzlePoint + d.AimAxis * Vector3.Dot(p - d.MuzzlePoint, d.AimAxis);
-            Vector3 outward = p - bore;
-            outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : d.Up;
-            bool Inside(Vector3 gun) => _volume.InsideModel(Rig.ToWorld(gun));
-            Vector3 snapped = p;
-            if (Inside(p))
+            float off = ToSurface(p, out Vector3 snapped);
+            string how = off > 0f ? "onto the receiver" : "out of the receiver";
+            if (d.RackFromHand && off > 0.05f)
             {
-                for (float s = 0.002f; s <= 0.08f; s += 0.002f)
-                {
-                    if (!Inside(p + outward * s))
-                    {
-                        snapped = p + outward * s;
-                        break;
-                    }
-                }
+                p = WeaponAnalyzer.RackEstimate(d);
+                ToSurface(p, out snapped);
+                how = $"the reload hand's stroke started {off * 100f:0.0} cm off the model, no handle there: the estimate above the grip instead";
             }
-            else
-            {
-                for (float s = 0.002f; s <= 0.06f; s += 0.002f)
-                {
-                    if (Inside(p - outward * s))
-                    {
-                        snapped = p - outward * (s - 0.002f);
-                        break;
-                    }
-                }
-            }
-            float moved = Vector3.Distance(snapped, p);
+            float moved = Vector3.Distance(snapped, d.RackPoint);
             if (moved < 0.003f)
             {
                 return;
             }
             RackPointGun = snapped;
-            Log.InfoOnce("racksnap:" + d.Key, $"{d.Key}: rack point put on the model's surface ({moved * 100f:0.0} cm {(Inside(p) ? "out of the receiver" : "onto the receiver")}).");
+            Log.InfoOnce("racksnap:" + d.Key, $"{d.Key}: rack point put on the model's surface ({moved * 100f:0.0} cm, {how}).");
             if (_boltPiece != null)
             {
                 _boltPiece.Destroy();
@@ -1278,6 +1261,44 @@ namespace RavenfieldVR.Weapons
                     Log.WarnOnce("boltpiece2:" + d.Key, $"Could not build a moving handle for {d.Key}: {e.Message}");
                 }
             }
+        }
+
+        /// <summary>
+        /// <paramref name="p"/> (gun space) moved straight out from the bore onto the model's surface. Returns how far
+        /// outside the model it was (0 when it was inside and is moved out; the whole way to the bore when nothing is there).
+        /// </summary>
+        private float ToSurface(Vector3 p, out Vector3 snapped)
+        {
+            WeaponRigData d = Rig.Data;
+            Vector3 bore = d.MuzzlePoint + d.AimAxis * Vector3.Dot(p - d.MuzzlePoint, d.AimAxis);
+            Vector3 outward = p - bore;
+            outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : d.Up;
+            bool Inside(Vector3 gun) => _volume.InsideModel(Rig.ToWorld(gun));
+            snapped = p;
+            if (Inside(p))
+            {
+                for (float s = 0.002f; s <= 0.08f; s += 0.002f)
+                {
+                    if (!Inside(p + outward * s))
+                    {
+                        snapped = p + outward * s;
+                        break;
+                    }
+                }
+                return 0f;
+            }
+            // In toward the bore until the model: a reload hand taken over the top put the point 8 to 15 cm above the
+            // receiver (an MK46's), past a search of 6 cm, and the racking hand hung in the air there.
+            float reach = Mathf.Min(0.2f, (p - bore).magnitude);
+            for (float s = 0.002f; s <= reach; s += 0.002f)
+            {
+                if (Inside(p - outward * s))
+                {
+                    snapped = p - outward * (s - 0.002f);
+                    return s - 0.002f;
+                }
+            }
+            return reach;
         }
 
         /// <summary>
@@ -1548,6 +1569,10 @@ namespace RavenfieldVR.Weapons
         internal string PartClipping(VRHand hand, out int buried, out int touching)
         {
             buried = touching = -1;
+            if (_partTried && _partVolume == null)
+            {
+                return "not measured (the part draws no mesh of its own: a bone of the gun's skinned mesh, or built by the mod)";
+            }
             if (_partVolume == null || !_partVolume.Ready || hand.Model == null)
             {
                 return "not measured (the part's shape is not ready)";

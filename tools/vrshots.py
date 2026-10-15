@@ -16,6 +16,7 @@ Examples
   python tools/vrshots.py --bench                       graphics bench (GPU and frame time per setting)
   python tools/vrshots.py --autotest                    the whole autotest (every check, a sample of weapons)
   python tools/vrshots.py --list                        the weapon ids and names from the last weapons run
+  python tools/vrshots.py --weapon MK46 --dumprig MK46  also the weapon's whole rig with what each part does
 
 Options
   --no-build          use the DLL already built (default: build.ps1 first, then install it)
@@ -24,9 +25,11 @@ Options
   --game DIR          Ravenfield's folder (default: Steam's)
 
 Output
-  reports/shots/<mode>/            the pictures of the run (the previous run's in <mode>-previous)
+  reports/shots/<mode>/            the pictures of the run (the previous run's in <mode>-previous); --weapon runs go to
+                                   reports/shots/weapon/, so the full --weapons run stays where it is
   reports/shots/weapons/sheets/    one labelled sheet per weapon, and index.json (id, name, sheet, pictures)
   reports/shots/<mode>/autotest.txt  the autotest report of the run
+  reports/shots/<mode>/game-log.txt  the game's log (BepInEx), weapon-report.txt and rig-dump.txt when made by the run
 """
 import argparse
 import glob
@@ -214,8 +217,8 @@ def build_sheets(shots, out):
     return index
 
 
-def collect(game, mode):
-    """The run's pictures into reports/shots/<mode> (the run before kept as <mode>-previous)."""
+def collect(game, mode, since):
+    """The run's pictures and reports into reports/shots/<mode> (the run before kept as <mode>-previous)."""
     src = os.path.join(game, 'BepInEx', 'RavenfieldVR-shots')
     dest = os.path.join(REPO, 'reports', 'shots', mode)
     if os.path.isdir(dest):
@@ -226,9 +229,10 @@ def collect(game, mode):
     for f in glob.glob(os.path.join(src, '*.png')):
         shutil.copy2(f, dest)
     for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),
-                     ('RavenfieldVR-hand-poses.png', 'hand-poses.png')):
+                     ('RavenfieldVR-hand-poses.png', 'hand-poses.png'), ('LogOutput.log', 'game-log.txt'),
+                     ('RavenfieldVR-weapon-report.txt', 'weapon-report.txt'), ('RavenfieldVR-rig-dump.txt', 'rig-dump.txt')):
         p = os.path.join(game, 'BepInEx', name)
-        if os.path.exists(p) and os.path.getmtime(p) > time.time() - 6 * 3600:
+        if os.path.exists(p) and os.path.getmtime(p) >= since:  # made by this run (the game rewrites them)
             shutil.copy2(p, os.path.join(dest, to))
     return dest
 
@@ -253,6 +257,7 @@ def main():
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
+    ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--no-build', action='store_true')
     ap.add_argument('--res', default='1440x1584')
     ap.add_argument('--timeout', type=float, default=0)
@@ -264,7 +269,7 @@ def main():
         for w in json.load(open(idx, encoding='utf-8')) if os.path.exists(idx) else []:
             print(f'{w["id"]:4d}  {w["name"]}')
         return
-    modes = [m for m, on in (('weapons', a.weapons or bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
+    modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
                              ('autotest', a.autotest)) if on]
     if not modes:
         ap.print_help()
@@ -279,9 +284,11 @@ def main():
         shots = os.path.join(a.game, 'BepInEx', 'RavenfieldVR-shots')
         shutil.rmtree(shots, ignore_errors=True)  # the run starts with an empty folder (copied to reports/shots after)
         base = ['-vr', '-map', 'island2023', '-nointro', '-rfvr-autotest']
-        if mode == 'weapons':
+        if mode in ('weapons', 'weapon'):
             only = ','.join(x.replace(',', ' ') for x in a.weapon)
             args = base + ['-rfvr-deep', '-rfvr-grabshots', f'-rfvr-only={only}']
+            if a.dumprig:
+                args.append('-rfvr-dumprig=' + ','.join(x.replace(',', ' ') for x in a.dumprig))
             timeout = a.timeout or (240 if not a.weapon else 30)
         elif mode == 'ui':
             args, timeout = base + ['-rfvr-uishots'], a.timeout or 20
@@ -291,14 +298,15 @@ def main():
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
         else:
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'], a.timeout or 10
+        since = time.time()
         if mode == 'hands':
             run_game(a.game, args, timeout, vr=False)
         else:
             with NullHeadset((w, h)):
                 run_game(a.game, args, timeout, vr=True)
-        dest = collect(a.game, mode)
+        dest = collect(a.game, mode, since)
         log(f'{len(glob.glob(os.path.join(dest, "*.png")))} picture(s) in {os.path.relpath(dest, REPO)}')
-        if mode == 'weapons':
+        if mode in ('weapons', 'weapon'):
             index = build_sheets(dest, os.path.join(dest, 'sheets'))
             log(f'{len(index)} weapon sheet(s) in {os.path.relpath(os.path.join(dest, "sheets"), REPO)}')
             for e in index[:40]:

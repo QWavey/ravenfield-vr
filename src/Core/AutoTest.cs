@@ -329,9 +329,21 @@ namespace RavenfieldVR.Core
             {
                 damage.OnVignette(0.85f, 3f);
                 damage.OnHitDirection(60f, false);
-                yield return new WaitForSecondsRealtime(0.08f);
+                // The glow's picture is made on a worker and shows a frame or two later.
                 yield return new WaitForEndOfFrame();
+                for (int wait = 0; wait < 6 && Rig.LensEffects.Instance != null && !Rig.LensEffects.Instance.ShowsHit; wait++)
+                {
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                }
+                bool hitShown = Rig.LensEffects.Instance != null && Rig.LensEffects.Instance.ShowsHit;
+                Results.Add($"Hit from the front left: the glow {(hitShown ? "shown" : "NOT SHOWN")}");
+                if (!hitShown)
+                {
+                    Problem("[hit glow] a hit from the side showed no glow (" + (Rig.LensEffects.Instance != null ? Rig.LensEffects.Instance.DebugState : "no lens effects") + ")");
+                }
                 Shots.Capture("damage-from-front-left");
+                Rig.LensEffects.Instance?.SavePictures("lens-eyes-hit-from-front-left");
                 yield return new WaitForSecondsRealtime(2.5f); // the ring fades
                 // Low health: the red edge pulsing with the heartbeat and the colour drained (all gone when healed).
                 Rig.DamageFeedback.TestHealthShare = 0.12f;
@@ -340,6 +352,7 @@ namespace RavenfieldVR.Core
                     yield return new WaitForSecondsRealtime(1.2f);
                     yield return new WaitForEndOfFrame();
                     Shots.Capture("low-health");
+                    Rig.LensEffects.Instance?.SavePictures("lens-eyes-low-health");
                 }
                 finally
                 {
@@ -370,6 +383,29 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.15f);
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("water-splash-0s");
+                // Coming up out of the water (Tasks2 209 I): the approved drops, shown even with the option off.
+                Rig.LensEffects lens = Rig.LensEffects.Instance;
+                if (lens != null)
+                {
+                    bool was = VRConfig.WaterDrops.Value;
+                    VRConfig.WaterDrops.Value = true;
+                    try
+                    {
+                        lens.WaterDrops();
+                        yield return new WaitForSecondsRealtime(0.4f);
+                        yield return new WaitForEndOfFrame();
+                        Shots.Capture("water-drops-surfacing");
+                        lens.SavePictures("lens-eyes-water-drops");
+                        Results.Add($"Water drops after surfacing: {(lens.DropsShown > 0f ? "shown" : "NOT SHOWN")}");
+                        yield return new WaitForSecondsRealtime(3f);
+                        yield return new WaitForEndOfFrame();
+                        Shots.Capture("water-drops-3s");
+                    }
+                    finally
+                    {
+                        VRConfig.WaterDrops.Value = was;
+                    }
+                }
                 Metric("explosion dirt: splats on the view right after a blast 2 m away", first);
                 Metric("explosion dirt: splats left 4 s later", left);
                 Results.Add($"Explosion dirt: {first} spots right after a blast 2 m away, {left} still fading after 4 s{(first == 0 ? " (NO DIRT)" : "")}");
@@ -528,14 +564,64 @@ namespace RavenfieldVR.Core
             }
             if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
             {
-                yield return held.Reload.MagazineDeepCheck(lines.Add, (shot, at) =>
-                {
-                    Runtime.RigidPose g = held.GripWorld;
-                    Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-                    Vector3 from = at - right * 0.32f + up * 0.03f;
-                    Shots.Capture($"{shot}-{index:000}-{name}", from, Quaternion.LookRotation(at - from, up), 45f);
-                });
+                yield return held.Reload.MagazineDeepCheck(lines.Add, (shot, at, distance) => MagazineSideShot(held, $"{shot}-{index:000}-{name}", at, distance));
             }
+        }
+
+        /// <summary>
+        /// A magazine close-up from the gun's left side, else its right: when the left one sits inside one of the weapon's
+        /// meshes, or draws one flat colour (an akimbo pair's other gun there).
+        /// </summary>
+        private static void MagazineSideShot(HeldWeapon held, string file, Vector3 at, float distance)
+        {
+            Runtime.RigidPose g = held.GripWorld;
+            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+            Vector3 left = at - right * distance + up * 0.03f, other = at + right * distance + up * 0.03f;
+            if (InsideWeapon(held, left))
+            {
+                (left, other) = (other, left);
+            }
+            Shots.CaptureFirstClear(file, new (Vector3?, Quaternion?)[]
+            {
+                (left, Quaternion.LookRotation(at - left, up)), (other, Quaternion.LookRotation(at - other, up))
+            }, 45f);
+        }
+
+        /// <summary>
+        /// A picture camera at <paramref name="p"/> would sit inside one of the weapon's own meshes (its arms left out): an
+        /// akimbo pair's other pistol beside the gun filled the magazine close-ups with flat colour.
+        /// </summary>
+        private static bool InsideWeapon(HeldWeapon held, Vector3 p)
+        {
+            if (held.Weapon == null)
+            {
+                return false;
+            }
+            var arms = new HashSet<Renderer>(held.Rig.ArmRenderers);
+            foreach (Renderer r in held.Weapon.GetComponentsInChildren<Renderer>(false))
+            {
+                if (!r.enabled || arms.Contains(r))
+                {
+                    continue;
+                }
+                MeshFilter mf = r is MeshRenderer ? r.GetComponent<MeshFilter>() : null;
+                Mesh mesh = mf != null ? mf.sharedMesh : null;
+                if (mesh == null)
+                {
+                    if (r.bounds.Contains(p) && r.bounds.size.magnitude < 0.6f)
+                    {
+                        return true;
+                    }
+                    continue;
+                }
+                Bounds local = mesh.bounds;
+                local.Expand(0.02f / Mathf.Max(1e-4f, r.transform.lossyScale.x));
+                if (local.Contains(r.transform.InverseTransformPoint(p)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -783,7 +869,7 @@ namespace RavenfieldVR.Core
             }
             yield return new WaitForSecondsRealtime(0.3f);
             float start = Time.realtimeSinceStartup;
-            float openedAt = -1f, ringAtOne = -1f;
+            float openedAt = -1f, ringAtOne = -1f, longestFrame = 0f;
             int frames = 0, scoreToggles = 0, mapToggles = 0, menuFrames = 0, scoreClosed = 0, mapClosed = 0;
             bool lastScore = false, lastMap = false;
             float barMin = 2f;
@@ -794,6 +880,7 @@ namespace RavenfieldVR.Core
                 while (Time.realtimeSinceStartup - start < 3.6f)
                 {
                     yield return null;
+                    longestFrame = Mathf.Max(longestFrame, Time.unscaledDeltaTime);
                     float t = Time.realtimeSinceStartup - start;
                     if (t > 1f && t < 1.1f)
                     {
@@ -845,7 +932,9 @@ namespace RavenfieldVR.Core
                         + $"map closed {mapClosed} / toggled {mapToggles}, a game menu counted open {menuFrames}, match bar alpha at least {barMin:0.00}; let go: {(closed ? "all closed" : "STILL OPEN")}, match bar {barAfter:0.00}");
             Metric("wrist view: flicker (scoreboard and map toggles while held)", scoreToggles + mapToggles);
             Metric("wrist view: seconds before it opens", openedAt);
-            if (openedAt < 1.8f || openedAt > 2.4f || frames == 0 || scoreToggles + mapToggles > 0 || scoreClosed + mapClosed > 0 || menuFrames > 0 || !closed)
+            // Seen a frame late at worst: a slow run (the null driver at 12 frames a second, hitches of most of a second)
+            // opened it at 2.8 s.
+            if (openedAt < 1.8f || openedAt > 2.4f + longestFrame || frames == 0 || scoreToggles + mapToggles > 0 || scoreClosed + mapClosed > 0 || menuFrames > 0 || !closed)
             {
                 Problem($"[wrist view] opened at {openedAt:0.00} s, {frames} frames: scoreboard closed {scoreClosed}/toggled {scoreToggles}, map closed {mapClosed}/toggled {mapToggles}, menu {menuFrames}, closed after {closed}");
             }
@@ -2172,13 +2261,7 @@ namespace RavenfieldVR.Core
                         {
                             int magIndex = index;
                             HeldWeapon magHeld = held;
-                            yield return held.Reload.MagazineDeepCheck(lines.Add, (name, at) =>
-                            {
-                                Runtime.RigidPose g = magHeld.GripWorld;
-                                Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-                                Vector3 from = at - right * 0.32f + up * 0.03f;
-                                Shots.Capture($"{name}-{magIndex:000}-{entry.name}", from, Quaternion.LookRotation(at - from, up), 45f);
-                            });
+                            yield return held.Reload.MagazineDeepCheck(lines.Add, (name, at, distance) => MagazineSideShot(magHeld, $"{name}-{magIndex:000}-{entry.name}", at, distance));
                         }
                         if (want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && (Deep || keepOutChecks++ < 4))
                         {
@@ -2277,7 +2360,9 @@ namespace RavenfieldVR.Core
                 {
                     // The game keeps a drawn weapon from firing for its draw delay (about a second): wait it out.
                     Weapon ready = weapon.GetActiveSubWeapon() ?? weapon;
-                    float until = Time.realtimeSinceStartup + 3f;
+                    // A launcher's draw takes longer (the game's unholster time, on scaled time: an RPG-7V's ran past 3 s).
+                    float drawTime = ready != null && ready.configuration != null ? ready.configuration.unholsterTime / Mathf.Max(0.1f, Time.timeScale) : 0f;
+                    float until = Time.realtimeSinceStartup + Mathf.Max(3f, drawTime + 1f);
                     while (ready != null && !ready.unholstered && Time.realtimeSinceStartup < until)
                     {
                         yield return null;
@@ -2289,21 +2374,41 @@ namespace RavenfieldVR.Core
                     float shotKick = 0f, shotBack = 0f, shotImpulse = 0f;
                     Weapon listened = counts ? ready : null;
                     listened?.onSpawnProjectiles.AddListener(CountShot);
+                    string atPull = null, atFire = null;
                     for (int i = 0; i < 3; i++)
                     {
                         // A slow gun (a bolt sniper's 1.5 s) is still cooling down from the check before, or from the last
                         // shot: waited out, or it "did not fire".
+                        // Also a launcher still in its own reload animation after the test loaded it (an RPG-7V's): the
+                        // game cannot fire until it ends.
                         Weapon cooling = weapon.GetActiveSubWeapon();
-                        for (float coolUntil = Time.realtimeSinceStartup + 3f; cooling != null && cooling.CoolingDown() && Time.realtimeSinceStartup < coolUntil;)
+                        for (float coolUntil = Time.realtimeSinceStartup + 3f; cooling != null && (cooling.CoolingDown() || cooling.reloading || !cooling.unholstered || !cooling.CanFire())
+                                                                               && Time.realtimeSinceStartup < coolUntil;)
                         {
                             yield return null;
+                        }
+                        if (cooling != null && atPull == null && !cooling.CanFire())
+                        {
+                            atPull = $"at the pull: can fire False, reloading {cooling.reloading}, cooling down {cooling.CoolingDown()}, locked {cooling.isLocked}, "
+                                     + $"unholstered {cooling.unholstered}, ammo {cooling.ammo}, fired this pull {cooling.hasFiredSingleRoundThisTrigger}, "
+                                     + $"mod can fire {(held != null && held.ActiveAmmo != null ? held.ActiveAmmo.CanFire.ToString() : "-")}";
                         }
                         held?.ResetKick(); // each shot on its own: shots that stack up are not one shot's kick
                         int flashesBefore = LensFlash.Instance != null ? LensFlash.Instance.Shown : 0;
                         try
                         {
                             Weapon active = weapon.GetActiveSubWeapon();
-                            active.Fire(active.CurrentMuzzle().forward, true);
+                            bool fired = active.Fire(active.CurrentMuzzle().forward, true);
+                            if (!fired && atFire == null)
+                            {
+                                // Read before StopFire, which clears the pull's state.
+                                Weapon sub = active.GetActiveSubWeapon();
+                                atFire = $"Fire returned false: sub weapon {(sub == active ? "itself" : sub != null ? sub.name : "none")}, unholstered {active.unholstered}, "
+                                         + $"overheating {active.isOverheating}, locked {active.isLocked}, can fire now {active.CanFire()}, reloading {active.reloading}, "
+                                         + $"fired this pull {active.hasFiredSingleRoundThisTrigger}, ammo {active.ammo}, holding fire {active.holdingFire}, "
+                                         + $"script took it {(active.onFireScriptable != null && active.onFireScriptable.isConsumed)}, "
+                                         + $"muzzles {(active.configuration.muzzles != null ? active.configuration.muzzles.Length : 0)}, type {active.GetType().Name}";
+                            }
                             active.StopFire();
                         }
                         catch (Exception e)
@@ -2312,13 +2417,21 @@ namespace RavenfieldVR.Core
                         }
                         if (i == 0 && VRManager.Active && LensFlash.Instance != null && lensShots < 12)
                         {
-                            // The muzzle lens flash of the first shot, pictured in its frame (it is gone 60 ms later).
+                            // The muzzle lens flash of the first shot, pictured when it shows: its picture is made on a
+                            // worker and comes a frame or two after the shot (it is gone 60 ms later).
                             yield return new WaitForEndOfFrame();
+                            for (int wait = 0; wait < 4 && LensFlash.Instance.Shown > flashesBefore && Rig.LensEffects.Instance != null
+                                                && !Rig.LensEffects.Instance.ShowsFlash; wait++)
+                            {
+                                yield return null;
+                                yield return new WaitForEndOfFrame();
+                            }
                             bool flashed = LensFlash.Instance.Shown > flashesBefore;
                             if (flashed)
                             {
                                 lensShots++;
                                 Shots.Capture($"lensflash-{index:000}-{entry.name}");
+                                Rig.LensEffects.Instance?.SavePictures($"lens-eyes-{index:000}-{entry.name}");
                             }
                             MuzzleFlashInfo flashInfo = MuzzleFlashInfo.Of(weapon.GetActiveSubWeapon());
                             lines.Add($"muzzle flash: {flashInfo.Describe()}; lens flash {(flashed ? $"shown, strength {LensFlash.Instance.LastPower:0.00}" : "none")}");
@@ -2362,7 +2475,7 @@ namespace RavenfieldVR.Core
                                     + $"charge {w0.configuration.useChargeTime}, auto {w0.configuration.auto}, muzzles {(w0.configuration.muzzles != null ? w0.configuration.muzzles.Length : 0)}, "
                                     + $"projectile {(w0.configuration.projectilePrefab != null ? w0.configuration.projectilePrefab.name : "NONE")}; mod: can fire {a0.CanFire}, chambered {a0.Chambered}, bolt open {a0.BoltOpen}, "
                                     + $"slide locked {a0.SlideLocked}, magazine {a0.MagRounds}; a script took the shot {(w0.onFireScriptable != null && w0.onFireScriptable.isConsumed)}, "
-                                    + $"unholstered {w0.unholstered}, overheating {w0.isOverheating})");
+                                    + $"unholstered {w0.unholstered}, overheating {w0.isOverheating}){(atPull != null ? "; " + atPull : "")}{(atFire != null ? "; " + atFire : "")}");
                         }
                         else if (VRManager.Active && held.Rig.Data.HasSupportPoint && (Deep || (held.Rig.Data.IsPistol ? recoilPistols++ < 2 : recoilRifles++ < 4)))
                         {

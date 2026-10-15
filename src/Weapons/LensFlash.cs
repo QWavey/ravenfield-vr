@@ -2,108 +2,47 @@ using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
-    /// The muzzle flash as the eye sees it (Tasks2 209 A-C): a see-through flash on the lens, only on a shot where the
-    /// weapon's own muzzle flash plays (Tasks2 212; none for a weapon without one, a faint glint for a suppressed one).
-    /// At the muzzle, a little ahead of it: a white-hot core fading to orange with a ragged edge (the gas plume seen end
-    /// on) and a short, faint starburst. On the lens (head-locked): soft ghosts on the line from the flash through the
-    /// middle of the view, a thin halo ring, and a light warm wash from the gun's side. All of it added to the picture
-    /// (never covering it), never above 94% white, one frame bright and gone within 60 ms, each eye by its own strength:
-    /// flash size x how much the muzzle is in front of that eye x nearness, the eye further off sideways getting less.
-    /// A flash limiter (on by default) keeps it under three visible flashes a second (WCAG 2.3.1): a budget of six
-    /// brightness steps in any 1.1 s, a flash costing two (a very bright one three); past it, a soft flash and a steady
-    /// glow while the firing goes on, instead of a strobe.
+    /// The muzzle flash on the lens (Tasks2 209 A-C), as approved: on a shot where the weapon's own muzzle flash plays
+    /// (Tasks2 212: none for a weapon without one, a faint glint for a suppressed one), each eye gets the approved lens
+    /// flash (<see cref="LensEffects"/> draws it). Everything here follows the approved simulation, flash_sim.py: the flash's
+    /// centre a little ahead of the muzzle (the plume) with an uneven spread, a size varying shot to shot and a turning
+    /// starburst; each eye's strength from the gun's flash size x how much the muzzle faces that eye x nearness x how much
+    /// that eye looks along the gun; and a flash limiter per eye (on by default) that keeps it under three visible flashes
+    /// a second (WCAG 2.3.1): six brightness steps in any 1.1 s, a flash costing two (a very bright one three); past
+    /// the budget a soft flash below the flash threshold, and a steady glow for sustained fire instead of a strobe. The
+    /// gun's flash size is its own (defined by the gun): its class (pistol, SMG, rifle, machine gun, shotgun) and its
+    /// particles' real size.
     /// </summary>
     public sealed class LensFlash
     {
         public static LensFlash Instance { get; private set; }
 
-        private const float Life = 0.06f, HalfLife = 0.016f, MaxStrength = 1.6f, OverlayDistance = 0.25f;
-        private const int Ghosts = 4;
+        private const float MaxPower = 1.6f;
 
         private readonly VRRig _rig;
-        private readonly GameObject _world, _overlay;
-        private readonly Transform _core, _rays, _halo, _wash;
-        private readonly Transform[] _ghosts = new Transform[Ghosts];
-        private readonly List<FlashPart> _parts = new List<FlashPart>();
-        private static Texture2D _coreTex, _raysTex, _discTex, _ringTex, _washTex;
-        private static Mesh _quad;
-
-        // The flash now.
-        private float _bornAt = -10f, _power, _rayAngle, _jitterSize = 1f;
-        private Vector3 _muzzle, _muzzleForward, _gunSide;
-        private Vector2 _jitter;
+        private readonly Limiter[] _limiters = { new Limiter(), new Limiter() };
         // A shot this frame, decided before drawing (the game plays its particles during the frame).
         private Weapon _pendingWeapon;
         private HeldWeapon _pendingHeld;
         private int _pendingFrame = -1;
-        // The limiter.
-        private readonly List<KeyValuePair<float, int>> _steps = new List<KeyValuePair<float, int>>();
-        private float _glow, _lastShotAt = -10f;
+        // The gun now (for the glow of sustained fire).
+        private readonly List<float> _shots = new List<float>();
+        private Weapon _gun;
+        private float _gunSize;
+        private bool _gunAuto;
 
-        /// <summary>Self-test: flashes shown, and the last one's strength.</summary>
+        /// <summary>Self-test: flashes shown, and the last one's strength (the stronger eye).</summary>
         internal int Shown { get; private set; }
-        internal float LastPower => _power;
+        internal float LastPower { get; private set; }
 
         public LensFlash(VRRig rig)
         {
             Instance = this;
             _rig = rig;
-            EnsureAssets();
-            Shader additive = FindAdditive();
-            _world = new GameObject("RavenfieldVR Lens Flash (muzzle)");
-            Object.DontDestroyOnLoad(_world);
-            _core = Part(_world.transform, "Core", _coreTex, additive, new Color(1f, 0.92f, 0.82f), 0, 4000);
-            _rays = Part(_world.transform, "Rays", _raysTex, additive, new Color(1f, 0.85f, 0.7f) * 0.35f, 0, 4001);
-            _overlay = new GameObject("RavenfieldVR Lens Flash (lens)") { layer = 5 };
-            _overlay.transform.SetParent(rig.Camera.transform, false);
-            _halo = Part(_overlay.transform, "Halo", _ringTex, additive, new Color(1f, 0.8f, 0.6f) * 0.12f, 5, 4002);
-            for (int i = 0; i < Ghosts; i++)
-            {
-                _ghosts[i] = Part(_overlay.transform, "Ghost" + i, _discTex, additive, new Color(1f, 0.75f, 0.5f) * (0.09f - i * 0.015f), 5, 4002);
-            }
-            _wash = Part(_overlay.transform, "Wash", _washTex, additive, new Color(1f, 0.55f, 0.25f) * 0.07f, 5, 4001);
-            _world.SetActive(false);
-            _overlay.SetActive(false);
-        }
-
-        private Transform Part(Transform parent, string name, Texture2D tex, Shader shader, Color color, int layer, int queue)
-        {
-            var go = new GameObject(name) { layer = layer };
-            go.transform.SetParent(parent, false);
-            go.AddComponent<MeshFilter>().sharedMesh = _quad;
-            var r = go.AddComponent<MeshRenderer>();
-            r.sharedMaterial = new Material(shader) { mainTexture = tex, renderQueue = queue, name = "RavenfieldVR " + name };
-            r.shadowCastingMode = ShadowCastingMode.Off;
-            r.receiveShadows = false;
-            r.lightProbeUsage = LightProbeUsage.Off;
-            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            var part = go.AddComponent<FlashPart>();
-            part.Owner = this;
-            part.Renderer = r;
-            part.Base = color;
-            part.Property = r.sharedMaterial.HasProperty("_TintColor") ? "_TintColor" : "_Color";
-            part.Halve = part.Property == "_TintColor"; // the legacy particle shaders double the tint
-            _parts.Add(part);
-            return go.transform;
-        }
-
-        private static Shader FindAdditive()
-        {
-            foreach (string n in new[] { "Legacy Shaders/Particles/Additive", "Particles/Additive", "Mobile/Particles/Additive" })
-            {
-                Shader s = Shader.Find(n);
-                if (s != null)
-                {
-                    return s;
-                }
-            }
-            Log.WarnOnce("lensflash-shader", "No additive particle shader found: the lens flash is drawn blended.");
-            return Shader.Find("Sprites/Default");
         }
 
         /// <summary>The player's weapon fired (Weapon.Shoot): the flash is decided before the frame is drawn.</summary>
@@ -123,27 +62,15 @@ namespace RavenfieldVR.Weapons
                 _pendingWeapon = null;
                 _pendingHeld = null;
             }
-            // A steady glow while a long burst goes on past the limiter: no strobe, and it fades when the firing stops.
-            _glow = Mathf.MoveTowards(_glow, now - _lastShotAt < 0.15f && Budget(now) <= 0 ? 0.3f : 0f, Time.unscaledDeltaTime * 3f);
-            float age = now - _bornAt;
-            bool on = VRConfig.LensFlash.Value && (age < Life || _glow > 0.01f) && Util.GameContext.PlayerActor != null && !Util.GameContext.PlayerActor.dead;
-            if (_world.activeSelf != on)
-            {
-                _world.SetActive(on);
-                _overlay.SetActive(on);
-            }
-            if (!on)
-            {
-                return;
-            }
-            Place();
+            UpdateGlow(now, Time.unscaledDeltaTime);
         }
 
-        // ---- deciding a flash ---------------------------------------------------------------------------
+        // ---- a shot ------------------------------------------------------------------------------------------------
 
         private void TryFlash(HeldWeapon held, Weapon w, float now)
         {
-            if (!VRConfig.LensFlash.Value || held == null || w == null || w.configuration == null)
+            LensEffects fx = LensEffects.Instance;
+            if (!VRConfig.LensFlash.Value || fx == null || held == null || w == null || w.configuration == null)
             {
                 return;
             }
@@ -152,6 +79,46 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            float size = FlashSize(held, w);
+            _gun = w;
+            _gunSize = size;
+            _gunAuto = w.configuration.auto;
+            _shots.Add(now);
+            if (size <= 0f)
+            {
+                return; // no flash on this shot (none on this weapon, or its particles skipped this one)
+            }
+            Transform head = _rig.Camera.transform;
+            // flash_sim.py fire(): the plume's centre a little ahead of the muzzle, its uneven spread, its size and starburst.
+            float ahead = Random.Range(0.02f, 0.07f) * Mathf.Sqrt(size);
+            float jx = Gauss() * 0.8f * Mathf.Deg2Rad, jy = Gauss() * 0.8f * Mathf.Deg2Rad;
+            float sizeK = Random.Range(0.85f, 1.15f);
+            float phase = Random.Range(0f, 6.28f);
+            Vector3 m = head.InverseTransformPoint(muzzle.position + muzzle.forward * ahead);
+            Vector3 dir = head.InverseTransformDirection(muzzle.forward);
+            if (m.z < 0.02f)
+            {
+                return; // behind the eyes
+            }
+            float strongest = 0f;
+            for (int e = 0; e < 2; e++)
+            {
+                float ex = fx.EyeX(e);
+                float p = _limiters[e].Shot(now, EyePower(size, m, dir, ex, fx.Ipd) * sizeK);
+                Vector2 at = LensEffects.Project(m, ex) + new Vector2(LensEffects.Focal * Mathf.Tan(jx), -LensEffects.Focal * Mathf.Tan(jy));
+                fx.AddFlash(e, new LensEffects.Flash { X = at.x, Y = at.y, Power = p, Phase = phase, Born = now });
+                strongest = Mathf.Max(strongest, p);
+            }
+            LastPower = strongest;
+            Shown++;
+        }
+
+        /// <summary>
+        /// The gun's flash size on this shot, as flash_sim.py's guns (pistol 1.0, SMG 1.1, rifle 1.7, machine gun 2.0,
+        /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot.
+        /// </summary>
+        private static float FlashSize(HeldWeapon held, Weapon w)
+        {
             MuzzleFlashInfo info = MuzzleFlashInfo.Of(w);
             // Did the game's own flash play on this shot? Its particles are out by now (a burst with a chance may skip).
             bool particlesOut = false;
@@ -171,8 +138,10 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = held.Rig.Data;
             if (particlesOut)
             {
+                // A short automatic that is no pistol nor machine gun is an SMG (a gun under 45 cm from grip to muzzle).
+                bool smg = w.configuration.auto && !d.IsPistol && !d.IsMachineGun && Vector3.Distance(d.GripPoint, d.MuzzlePoint) < 0.45f;
                 float byClass = !info.Light ? 0.15f // suppressed: a faint glint
-                    : d.IsPistol ? 1f : d.IsMachineGun ? 2f : w.configuration.projectilesPerShot > 1 ? 2.6f : 1.7f;
+                    : d.IsPistol ? 1f : d.IsMachineGun ? 2f : w.configuration.projectilesPerShot > 1 ? 2.6f : smg ? 1.1f : 1.7f;
                 float real = info.Size > 0.01f ? Mathf.Clamp(info.Size / 0.15f, 0.6f, 1.5f) : 1f;
                 size = byClass * real;
             }
@@ -182,251 +151,144 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                return; // no flash on this shot (none on this weapon, or its particles skipped this one)
-            }
-            _lastShotAt = now;
-            float power = size * Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
-            if (VRConfig.ReduceFlashing.Value)
-            {
-                int left = Budget(now);
-                int cost = power > 1.2f ? 3 : 2;
-                if (left >= cost)
-                {
-                    _steps.Add(new KeyValuePair<float, int>(now, cost));
-                }
-                else if (left >= 2)
-                {
-                    power = Mathf.Min(power, 1.2f); // the strongest that fades in one step
-                    _steps.Add(new KeyValuePair<float, int>(now, 2));
-                }
-                else
-                {
-                    power = Mathf.Lerp(0.34f, 0.22f, _glow / 0.3f); // under the threshold; less over a glow already lit
-                }
-            }
-            _power = Mathf.Min(power, MaxStrength);
-            _bornAt = now;
-            _muzzle = muzzle.position;
-            _muzzleForward = muzzle.forward;
-            Transform head = _rig.Camera.transform;
-            _gunSide = Vector3.ProjectOnPlane(_muzzle - head.position, head.forward);
-            // Never the same twice: size, place and starburst angle.
-            _jitterSize = Random.Range(0.85f, 1.15f);
-            _jitter = Random.insideUnitCircle * 0.8f;
-            _rayAngle = Random.Range(0f, 360f);
-            Shown++;
-        }
-
-        /// <summary>Brightness steps left in the limiter's 1.1 s window.</summary>
-        private int Budget(float now)
-        {
-            int used = 0;
-            for (int i = _steps.Count - 1; i >= 0; i--)
-            {
-                if (now - _steps[i].Key > 1.1f)
-                {
-                    _steps.RemoveAt(i);
-                }
-                else
-                {
-                    used += _steps[i].Value;
-                }
-            }
-            return 6 - used;
-        }
-
-        // ---- drawing --------------------------------------------------------------------------------------
-
-        private static float WorldSize(float degrees, float distance) => 2f * distance * Mathf.Tan(degrees * 0.5f * Mathf.Deg2Rad);
-
-        private void Place()
-        {
-            Transform head = _rig.Camera.transform;
-            float p = Mathf.Max(_power, _glow);
-            // At the muzzle, a little ahead of it (the plume): a billboard toward the eyes.
-            Vector3 at = _muzzle + _muzzleForward * (0.04f + 0.02f * p);
-            at += head.rotation * new Vector3(_jitter.x, _jitter.y, 0f) * (Mathf.Deg2Rad * Vector3.Distance(head.position, at));
-            float dist = Mathf.Max(0.1f, Vector3.Distance(head.position, at));
-            Quaternion face = Quaternion.LookRotation(at - head.position, head.up);
-            float coreDeg = (5.5f + 9f * p) * _jitterSize; // the ember glow's edge; core and body are inside the texture
-            _core.SetPositionAndRotation(at, face);
-            _core.localScale = Vector3.one * WorldSize(coreDeg, dist);
-            _rays.SetPositionAndRotation(at, face * Quaternion.Euler(0f, 0f, _rayAngle));
-            _rays.localScale = Vector3.one * WorldSize(coreDeg * 1.4f, dist);
-
-            // On the lens: where the flash is seen from the head, on a plane a hand's width ahead.
-            Vector3 local = head.InverseTransformPoint(at);
-            Vector2 onLens = local.z > 0.05f ? new Vector2(local.x, local.y) / local.z * OverlayDistance : new Vector2(0f, -OverlayDistance);
-            float halo = WorldSize(19f + 10f * p, OverlayDistance);
-            _halo.localPosition = new Vector3(onLens.x, onLens.y, OverlayDistance);
-            _halo.localRotation = Quaternion.identity;
-            _halo.localScale = Vector3.one * halo;
-            float[] along = { -0.45f, -0.9f, -1.35f, 0.5f };
-            float[] sizes = { 3.5f, 6f, 2.5f, 4.5f };
-            for (int i = 0; i < Ghosts; i++)
-            {
-                Vector2 g = onLens * along[i] * -1f; // through the middle of the view and out the other side
-                _ghosts[i].localPosition = new Vector3(g.x, g.y, OverlayDistance);
-                _ghosts[i].localRotation = Quaternion.identity;
-                _ghosts[i].localScale = Vector3.one * WorldSize(sizes[i] * (0.7f + 0.3f * p), OverlayDistance);
-            }
-            Vector3 sideLocal = head.InverseTransformDirection(_gunSide);
-            var washAt = new Vector2(sideLocal.x, sideLocal.y);
-            washAt = washAt.sqrMagnitude > 1e-6f ? washAt.normalized * (OverlayDistance * 0.35f) : new Vector2(0f, -OverlayDistance * 0.35f);
-            _wash.localPosition = new Vector3(washAt.x, washAt.y, OverlayDistance);
-            _wash.localRotation = Quaternion.identity;
-            _wash.localScale = Vector3.one * WorldSize(70f, OverlayDistance);
-        }
-
-        /// <summary>This eye's strength now (0..1.6): power x in front of it x nearness x the eye's side; fading.</summary>
-        internal float EyeStrength(Camera cam)
-        {
-            float age = Time.unscaledTime - _bornAt;
-            float flash = age < Life ? _power * Mathf.Pow(0.5f, age / HalfLife) : 0f;
-            float level = Mathf.Max(flash, _glow);
-            if (level <= 0.001f)
-            {
                 return 0f;
             }
+            return size * Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
+        }
+
+        /// <summary>
+        /// flash_sim.py eye_power: flash size x facing (seen from behind: half, toward the face: full) x nearness x how
+        /// much this eye looks along the gun (the other eye down to half). <paramref name="m"/> and <paramref name="dir"/>
+        /// are in head space (x right, y up, z forward).
+        /// </summary>
+        private static float EyePower(float size, Vector3 m, Vector3 dir, float eyeX, float ipd)
+        {
+            Vector3 toEye = new Vector3(eyeX, 0f, 0f) - m;
+            float d = Mathf.Max(toEye.magnitude, 1e-3f);
+            float facing = 0.5f + 0.5f * Mathf.Max(0f, Vector3.Dot(dir.normalized, toEye / d));
+            float dist = Mathf.Clamp(0.75f / d, 0.5f, 2.5f);
+            float near = Mathf.Min(Mathf.Abs(m.x + ipd / 2f), Mathf.Abs(m.x - ipd / 2f));
+            float side = 1f - 0.5f * Mathf.Clamp01((Mathf.Abs(m.x - eyeX) - near) / ipd);
+            return Mathf.Min(MaxPower, size * facing * dist * side);
+        }
+
+        // ---- the glow of sustained fire ------------------------------------------------------------------------------
+
+        private void UpdateGlow(float now, float dt)
+        {
+            LensEffects fx = LensEffects.Instance;
+            if (fx == null)
+            {
+                return;
+            }
+            _shots.RemoveAll(t => now - t > 0.5f);
+            Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
-            Vector3 eye = head.position;
-            float ipd = cam != null && cam.stereoSeparation > 0.04f && cam.stereoSeparation < 0.09f ? cam.stereoSeparation : 0.064f;
-            float sideSign = 0f;
-            if (cam != null && cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left)
+            Vector3 m = muzzle != null ? head.InverseTransformPoint(muzzle.position) : Vector3.forward;
+            Vector3 dir = muzzle != null ? head.InverseTransformDirection(muzzle.forward) : Vector3.forward;
+            float rate = _gunAuto ? _shots.Count / 0.5f : 0f;
+            for (int e = 0; e < 2; e++)
             {
-                sideSign = -1f;
+                float ex = fx.EyeX(e);
+                float power = muzzle != null && m.z > 0.02f ? EyePower(_gunSize, m, dir, ex, fx.Ipd) : 0f;
+                if (power <= 0f)
+                {
+                    _limiters[e].ClearGlow(); // no gun to glow at
+                }
+                float glow = _limiters[e].Step(dt, rate, power);
+                Vector2 at = m.z > 0.02f ? LensEffects.Project(m, ex) : new Vector2(LensEffects.W / 2f, LensEffects.H);
+                fx.SetGlow(e, muzzle != null && m.z > 0.02f ? glow : 0f, at, at.x >= LensEffects.W / 2f ? 1f : -1f);
             }
-            else if (cam != null && cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right)
-            {
-                sideSign = 1f;
-            }
-            eye += head.right * (ipd * 0.5f * sideSign);
-            Vector3 toMuzzle = _muzzle - eye;
-            float dist = toMuzzle.magnitude;
-            float facing = 0.5f + 0.5f * Vector3.Dot(head.forward, toMuzzle / Mathf.Max(dist, 1e-3f));
-            float near = Mathf.Clamp(0.75f / Mathf.Max(dist, 0.05f), 0.5f, 2.5f);
-            // The eye on the far side from the muzzle (sideways) gets down to half.
-            float lateral = Vector3.Dot(_muzzle - head.position, head.right);
-            float side = sideSign == 0f || Mathf.Sign(lateral) == sideSign ? 1f : 1f - 0.5f * Mathf.Clamp01(Mathf.Abs(lateral) / 0.15f);
-            return Mathf.Min(MaxStrength, level * facing * near * side);
+        }
+
+        private static float Gauss()
+        {
+            float u1 = 1f - Random.value, u2 = Random.value;
+            return Mathf.Sqrt(-2f * Mathf.Log(u1)) * Mathf.Cos(2f * Mathf.PI * u2);
         }
 
         public void Destroy()
         {
-            if (_world != null)
+            if (Instance == this)
             {
-                Object.Destroy(_world);
-            }
-            if (_overlay != null)
-            {
-                Object.Destroy(_overlay);
+                Instance = null;
             }
         }
 
-        // ---- textures (made once) ---------------------------------------------------------------------------
-
-        private static void EnsureAssets()
+        /// <summary>
+        /// flash_sim.py Limiter, per eye: at most 3 full flashes in any second; later shots get a soft flash below the
+        /// flash threshold, and sustained fire a steady glow that rises and falls slowly. The soft and one-step levels
+        /// were calibrated by flash_sim.py calibrate_soft() for each glow under them (on a lit base the same step in the
+        /// picture is a bigger change in light).
+        /// </summary>
+        private sealed class Limiter
         {
-            if (_quad != null)
+            private static readonly float[] Glows = { 0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.6f };
+            private static readonly float[] Soft = { 0.3408f, 0.3216f, 0.2947f, 0.267f, 0.2447f, 0.2215f };
+            private static readonly float[] OneStep = { 0.8583f, 0.8338f, 0.8042f, 0.7737f, 0.7526f, 0.8012f };
+            private const float Window = 1.1f;
+            private const int Budget = 6;
+
+            private readonly List<KeyValuePair<float, int>> _full = new List<KeyValuePair<float, int>>();
+            private float _glow;
+
+            public float Shot(float t, float power)
             {
-                return;
-            }
-            _quad = new Mesh { name = "RavenfieldVR flash quad" };
-            _quad.vertices = new[] { new Vector3(-0.5f, -0.5f, 0f), new Vector3(0.5f, -0.5f, 0f), new Vector3(-0.5f, 0.5f, 0f), new Vector3(0.5f, 0.5f, 0f) };
-            _quad.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
-            _quad.triangles = new[] { 0, 2, 1, 2, 3, 1 };
-            _quad.RecalculateBounds();
-            _quad.bounds = new Bounds(Vector3.zero, Vector3.one * 2f);
-            var rng = new System.Random(4127);
-            float[] edge = new float[64];
-            for (int i = 0; i < edge.Length; i++)
-            {
-                edge[i] = 0.75f + 0.5f * (float)rng.NextDouble();
-            }
-            _coreTex = Make(128, (x, y, r, a) =>
-            {
-                // Ragged plume edge: a wobble round the circle (smoothed), white-hot middle, orange body, dim ember glow.
-                float t = (a / (2f * Mathf.PI) + 1f) % 1f * edge.Length;
-                int i0 = (int)t % edge.Length, i1 = (i0 + 1) % edge.Length;
-                float wob = Mathf.Lerp(edge[i0], edge[i1], t - Mathf.Floor(t));
-                float body = Mathf.Clamp01(1f - r / (0.42f * wob));
-                float core = Mathf.Clamp01(1f - r / 0.1f);
-                float ember = Mathf.Clamp01(1f - r) * 0.35f;
-                body = body * body;
-                Color c = new Color(1f, 0.55f, 0.15f) * body + new Color(1f, 0.98f, 0.92f) * core * core + new Color(0.9f, 0.35f, 0.08f) * ember * ember;
-                return new Color(Mathf.Min(c.r, 0.94f), Mathf.Min(c.g, 0.94f), Mathf.Min(c.b, 0.94f), 1f);
-            });
-            _raysTex = Make(128, (x, y, r, a) =>
-            {
-                float v = 0f;
-                for (int k = 0; k < 6; k++)
+                if (!VRConfig.ReduceFlashing.Value)
                 {
-                    float da = Mathf.DeltaAngle(a * Mathf.Rad2Deg, k * 60f) * Mathf.Deg2Rad;
-                    v += Mathf.Exp(-da * da / 0.0025f);
+                    return power;
                 }
-                v *= Mathf.Clamp01(1f - r) * Mathf.Clamp01(1f - r) * Mathf.Clamp01(r * 6f);
-                return new Color(v, v * 0.9f, v * 0.75f, 1f);
-            });
-            _discTex = Make(64, (x, y, r, a) =>
-            {
-                float v = Mathf.Clamp01(1f - r);
-                v = v * v * (3f - 2f * v);
-                return new Color(v, v, v, 1f);
-            });
-            _ringTex = Make(128, (x, y, r, a) =>
-            {
-                float v = Mathf.Exp(-(r - 0.85f) * (r - 0.85f) / 0.0012f) * Mathf.Clamp01((1f - r) * 20f);
-                return new Color(v, v, v, 1f);
-            });
-            _washTex = Make(64, (x, y, r, a) =>
-            {
-                float v = Mathf.Clamp01(1f - r);
-                v *= v;
-                return new Color(v, v, v, 1f);
-            });
-        }
-
-        private static Texture2D Make(int n, System.Func<float, float, float, float, Color> f)
-        {
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "RavenfieldVR flash" };
-            var px = new Color[n * n];
-            for (int j = 0; j < n; j++)
-            {
-                for (int i = 0; i < n; i++)
+                _full.RemoveAll(s => t - s.Key >= Window);
+                int left = Budget;
+                foreach (var s in _full)
                 {
-                    float x = (i + 0.5f) / n * 2f - 1f, y = (j + 0.5f) / n * 2f - 1f;
-                    float r = Mathf.Sqrt(x * x + y * y);
-                    px[j * n + i] = r >= 1f ? Color.black : f(x, y, r, Mathf.Atan2(y, x));
+                    left -= s.Value;
                 }
+                // A flash costs 2 transitions (on, off); a very bright one fades in two counted steps and costs 3.
+                float one = Interp(_glow, OneStep);
+                int cost = power <= one ? 2 : 3;
+                if (left >= cost)
+                {
+                    _full.Add(new KeyValuePair<float, int>(t, cost));
+                    return power;
+                }
+                if (left >= 2)
+                {
+                    _full.Add(new KeyValuePair<float, int>(t, 2));
+                    return Mathf.Min(power, one);
+                }
+                return Mathf.Min(power, Interp(_glow, Soft));
             }
-            tex.SetPixels(px);
-            tex.Apply(true, true);
-            return tex;
-        }
-    }
 
-    /// <summary>One part of the lens flash: tinted for the eye it is drawn into (each eye has its own strength).</summary>
-    internal sealed class FlashPart : MonoBehaviour
-    {
-        public LensFlash Owner;
-        public MeshRenderer Renderer;
-        public Color Base;
-        public string Property;
-        public bool Halve;
-        private MaterialPropertyBlock _block;
-
-        private void OnWillRenderObject()
-        {
-            if (Owner == null || Renderer == null)
+            /// <summary>The steady glow while firing fast: follows the rate, eased (never more than 4% a frame at 90 fps).</summary>
+            public float Step(float dt, float rate, float power)
             {
-                return;
+                float want = VRConfig.ReduceFlashing.Value ? Mathf.Min(0.35f, 0.025f * rate) * power : 0f;
+                float most = 0.04f * power + 1e-4f;
+                _glow += Mathf.Clamp(want - _glow, -most, most) * Mathf.Min(1f, dt * 90f);
+                return _glow;
             }
-            _block = _block ?? new MaterialPropertyBlock();
-            float k = Owner.EyeStrength(Camera.current) * (Halve ? 0.5f : 1f);
-            Color c = Base * k;
-            c.a = 1f;
-            _block.SetColor(Property, c);
-            Renderer.SetPropertyBlock(_block);
+
+            public void ClearGlow()
+            {
+                _glow = 0f;
+            }
+
+            private static float Interp(float x, float[] ys)
+            {
+                if (x <= Glows[0])
+                {
+                    return ys[0];
+                }
+                for (int i = 1; i < Glows.Length; i++)
+                {
+                    if (x <= Glows[i])
+                    {
+                        return Mathf.Lerp(ys[i - 1], ys[i], (x - Glows[i - 1]) / (Glows[i] - Glows[i - 1]));
+                    }
+                }
+                return ys[ys.Length - 1];
+            }
         }
     }
 }

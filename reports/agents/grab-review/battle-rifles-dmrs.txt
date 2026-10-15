@@ -1,0 +1,46 @@
+battle-rifles-dmrs: 10 weapons reviewed, 9 with issues
+
+ 17 M1_GARRET: OK
+ 28 SIGNAL_DMR:
+     tile 14: [minor] Fresh magazine is tilted well off the line of the well, with the glove beside it rather than under it.
+146 K13_Eotech_G33:
+     tile 4: [major] Solid black area fills the lower left of the frame with a curved edge, looks like a broken render or an inside-out glove. No glove is visible on the silver charging handle.
+     tile 7: [major] Same solid black area in the lower left. No glove is visible on the handle when pulled back.
+     tile 14: [minor] Fresh magazine is tilted off the line of the well, with the glove beside it rather than under it.
+147 K13_Eotech_G33_S:
+     tile 4: [major] Solid black area fills the lower left of the frame with a curved edge, looks like a broken render or an inside-out glove. No glove is visible on the silver charging handle.
+     tile 7: [major] Same solid black area in the lower left. No glove is visible on the handle when pulled back.
+     tile 14: [minor] Fresh magazine is tilted off the line of the well, with the glove beside it rather than under it.
+243 CZ_Bren_2_BR:
+     tile 8: [major] Close-up is filled by the glove's back (grey hex plate, triangle emblem, slots), so no magazine is visible. Tiles 9 and 10 show the same view, so the magazine drop and the empty-well check cannot be verified.
+     tile 14: [minor] Fresh magazine is tilted off the line of the well, with the glove beside it rather than under it.
+244 CZ_Bren_2_BR_S:
+     tile 8: [major] Close-up shows only the grey hex-mesh glove, no gun or magazine, so the seated state cannot be checked (camera likely at the glove).
+     tile 9: [major] Same frame as tile 8: no magazine sliding out of the well is visible.
+     tile 10: [major] Same frame as tile 8: the empty well cannot be seen, so the gun-empty step is unverified.
+     tile 12: [major] Fresh magazine lies on the grass well below and beside the magazine well, not lined up under it; the glove is up at the top right and not holding it.
+     tile 14: [minor] Magazine appears tilted, wider at the bottom and angled toward the viewer, rather than straight in the well.
+245 CZ_Bren_2_BR_Holo:
+     tile 8: [major] Close-up shows only the grey hex-mesh glove, no gun or magazine, so the seated state cannot be checked (camera likely at the glove).
+     tile 9: [major] Same frame as tile 8: no magazine sliding out of the well is visible.
+     tile 10: [major] Same frame as tile 8: the empty well cannot be seen, so the gun-empty step is unverified.
+     tile 12: [major] Fresh magazine lies on the grass well below and beside the magazine well, not lined up under it; the glove is up at the top right and not holding it.
+     tile 14: [minor] Magazine appears tilted, wider at the bottom and angled toward the viewer, rather than straight in the well.
+246 CZ_Bren_2_BR_Raid:
+     tile 8: [major] Close-up shows only the grey hex-mesh glove, no gun or magazine, so the seated state cannot be checked (camera likely at the glove).
+     tile 9: [major] Same frame as tile 8: no magazine sliding out of the well is visible.
+     tile 10: [major] Same frame as tile 8: the empty well cannot be seen, so the gun-empty step is unverified.
+     tile 12: [major] Fresh magazine lies on the grass well below and beside the magazine well, not lined up under it; the glove is up at the top right and not holding it.
+     tile 14: [minor] Magazine appears tilted, wider at the bottom and angled toward the viewer, rather than straight in the well.
+247 CZ_Bren_2_BR_Tac:
+     tile 8: [major] Close-up shows only the grey hex-mesh glove, no gun or magazine, so the seated state cannot be checked (camera likely at the glove).
+     tile 9: [major] Same frame as tile 8: no magazine sliding out of the well is visible.
+     tile 10: [major] Same frame as tile 8: the empty well cannot be seen, so the gun-empty step is unverified.
+     tile 12: [major] Fresh magazine lies on the grass well below and beside the magazine well, not lined up under it; the glove is up at the top right and not holding it.
+     tile 14: [minor] Magazine appears tilted, wider at the bottom and angled toward the viewer, rather than straight in the well.
+248 CZ_Bren_2_BR_Assault:
+     tile 8: [major] Close-up shows only the grey hex-mesh glove, no gun or magazine, so the seated state cannot be checked (camera likely at the glove).
+     tile 9: [major] Same frame as tile 8: no magazine sliding out of the well is visible.
+     tile 10: [major] Same frame as tile 8: the empty well cannot be seen, so the gun-empty step is unverified.
+     tile 12: [major] Fresh magazine lies on the grass well below and beside the magazine well, not lined up under it; the glove is up at the top right and not holding it.
+     tile 14: [minor] Magazine appears tilted, wider at the bottom and angled toward the viewer, rather than straight in the well.

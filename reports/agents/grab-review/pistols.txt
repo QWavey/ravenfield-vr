@@ -1,0 +1,68 @@
+pistols: 57 weapons reviewed, 8 with issues
+
+  3 AA-AA:
+     tile 8: [major] Flat salmon-red fill with no gun or magazine visible. Tiles 9, 10, 13 and 14 are the same blank fill.
+     tile 12: [major] The part under the well is a large flat orange wedge, far larger than a magazine (stretched or oversized mesh).
+  7 AUTOMATICO_AKIMBO:
+     tile 8: [major] Blank olive-grey fill with no gun visible. Tiles 9, 10, 13 and 14 are the same, so the magazine drop and reinsert cannot be seen.
+  8 BUNDLE_O_BUSS: OK
+ 29 S-IND7: OK
+ 30 S-IND7_SUP_: OK
+ 58 P320: OK
+ 59 P320s: OK
+ 60 GLOCK_43X: OK
+ 61 GLOCK_43X_FA_: OK
+ 62 GLOCK_43X-S: OK
+ 63 GLOCK_43X-S_FA_: OK
+ 70 92g: OK
+ 71 92gs: OK
+ 80 mwii-g17: OK
+ 81 mwii-g17_rmr_s: OK
+ 82 mwii-g17_s: OK
+ 83 _comm_92g_s_No_script_: OK
+ 84 _comm_92g_No_script_: OK
+ 90 mwii-g17_No_script_: OK
+ 91 mwii-g17rmr_s_No_script_: OK
+111 ARS_Glock_19:
+     tile 8: [minor] Magazine steps 8-14 are all not pictured on a detachable-magazine pistol, so the reload is unverified.
+115 ARS_Glock_19_Bot_Friendly_:
+     tile 8: [minor] Magazine steps 8-14 are all not pictured on a detachable-magazine pistol, so the reload is unverified.
+192 P220: OK
+193 P220_Devil_Eatchel: OK
+194 P220_Double_Evil:
+     tile 8: [minor] Magazine steps 8-14 are all not pictured on a detachable-magazine pistol, so the reload is unverified.
+195 P220_Eatchel_Gustav: OK
+196 P220_G: OK
+197 P220_G_AKIMBO:
+     tile 8: [minor] Magazine steps 8-14 are all not pictured on a detachable-magazine pistol, so the reload is unverified.
+198 P220_G_R: OK
+199 P220_T_S: OK
+200 P220_T_S_AKIMBO:
+     tile 8: [minor] Magazine steps 8-14 are all 'none' on a detachable-magazine pistol, so the reload is not checked. Recapture needed.
+203 Suzuya_s_PX9105_Springfield_.45_ACP: OK
+211 1911: OK
+212 1911_10R: OK
+213 D1911:
+     tile 8: [minor] Khaki magazine body hangs well below the grip (about 70 px, vs about 30 px on 1911_10R), and shows as a block under the glove in tiles 3 and 6. The magazine may not be seated flush. Possible, verify at higher resolution.
+217 Q1911: OK
+218 SpringField_1911: OK
+219 TTI_VIPER: OK
+231 FNX-45: OK
+232 FNX-45_SUP_: OK
+233 FNX-45_FLASH_: OK
+234 FNX-45_LASER_: OK
+235 FNX-45_FLASH_SUP_: OK
+236 FNX-45_LASER_SUP_: OK
+237 FNX-45_RDS_: OK
+238 FNX-45_RDS_SUP_: OK
+239 FNX-45_RDS_FLASH_: OK
+240 FNX-45_RDS_LASER_: OK
+241 FNX-45_TAC1_: OK
+242 FNX-45_TAC2_: OK
+263 Colt_M1911: OK
+264 Colt_M1911A1: OK
+265 AF2011A1: OK
+266 Springfield_1911: OK
+267 Springfield_1911_W: OK
+268 SF_1911_MOD_3: OK
+269 SF_1911_MOD_3_W: OK

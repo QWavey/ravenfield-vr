@@ -1,0 +1,37 @@
+smgs: 16 weapons reviewed, 10 with issues
+
+ 12 GREASER:
+     tile 9: [minor] Mag drop not visible: tiles 8, 9 and 10 show the same close-up (olive glove mesh, tan grip post). No magazine is seen leaving the well, and the empty well in 10 cannot be confirmed.
+     tile 12: [minor] No gun or magazine well in frame, only the tank wheel behind; the fresh magazine's alignment under the well cannot be checked.
+ 15 INGRESS_700:
+     tile 4: [minor] Red and black block at the lower left of the frame (also in tile 7). May be scenery, or a broken mesh; worth checking.
+ 75 vector:
+     tile 8: [minor] Mag 1 close-up shows only the olive glove mesh; no magazine is visible to check seating.
+     tile 9: [minor] Tiles 9 and 10 look identical (glove mesh only), so the magazine drop and the empty well cannot be confirmed.
+ 76 vector_rds:
+     tile 8: [minor] Mag 1 close-up shows only the olive glove mesh; no magazine is visible to check seating.
+     tile 9: [minor] Tiles 9 and 10 look identical (glove mesh only), so the magazine drop and the empty well cannot be confirmed.
+ 97 mw-vector_rds_No_script_:
+     tile 8: [minor] Mag 1 close-up shows only the olive glove mesh; no magazine is visible to check seating.
+     tile 9: [minor] Tiles 9 and 10 look identical (glove mesh only), so the magazine drop and the empty well cannot be confirmed.
+ 98 mw-vector_No_script_:
+     tile 8: [minor] Mag 1 close-up shows only the olive glove mesh; no magazine is visible to check seating.
+     tile 9: [minor] Tiles 9 and 10 look identical (glove mesh only), so the magazine drop and the empty well cannot be confirmed.
+114 ARS_MP9:
+     tile 8: [minor] No magazine steps captured (8-14 all none) for an SMG that should have a detachable magazine, so the magazine swap is unverified.
+118 ARS_MP9_Bot_Friendly_:
+     tile 1: [minor] Weapon in hand reads as a small light-grey shape, unlike the black MP9 in sheet 114. Possibly a different or missing mesh.
+     tile 4: [major] No black MP9 receiver or barrel in the rack frames; a large grey mass fills the lower frame (also in tile 7). Looks like a misplaced or stray mesh.
+     tile 8: [minor] Magazine steps 8-14 all none (same as 114), so the magazine swap is not captured and unverified.
+164 PPSh-41: OK
+185 _color_Cyan_MP9_H_L_S_color_: OK
+186 _color_Cyan_MP9_H_L_color_: OK
+187 _color_Cyan_MP9_H_S_color_: OK
+188 _color_Cyan_MP9_H_color_: OK
+189 _color_Cyan_MP9_PDW_color_: OK
+190 _color_Cyan_MP9_S_color_:
+     tile 3: [minor] A black object with a yellow face hangs in the top-right corner, not attached to the gun or either glove. It may be a stray magazine or an ejected casing; not seen in the other MP9 sheets.
+     tile 6: [minor] Same black and yellow object in the top-right corner, at the same screen position as in tile 3, so it is a fixed world object rather than part of the gun.
+191 _color_Cyan_MP9_color_:
+     tile 3: [minor] A black object with a yellow face hangs in the top-right corner, not attached to the gun or either glove. It may be a stray magazine or an ejected casing.
+     tile 6: [minor] Same black and yellow object in the top-right corner, at the same screen position as in tile 3.

@@ -1,0 +1,71 @@
+Grab-picture review, 2026-10-15: triage of the Haiku reviewers' findings
+=========================================================================
+
+Run: tools/vrshots.py --weapons (full run, 18:49), 233 weapon sheets sorted by kind (tools/shots_categories.py),
+two Haiku reviewers per category, read only (workflow wf_da78a3a5-2a8, 15 agents). Their reports: <category>.txt here.
+256 findings on 136 of 233 sheets. Each finding was checked against the pictures and the autotest log, grouped by root cause, and fixed
+at the cause. Re-checked with targeted runs (vrshots --weapon ...).
+
+ROOT CAUSES FOUND
+-----------------
+
+1. Picture tool: the free glove stood in front of the magazine close-ups (mag 1-3)               ~70 findings
+   (PATRIOT, AK-24, asval, ak12 family, xm8, M4A1, QBZ192/HK416, CZ Bren 2, vector, GREASER, PATRIOT GL...)
+   Fix: the free hand is moved out of the side camera's way for those pictures (commit 45a1246, after the run).
+   Checked: BRN180 SS, M4A1, asval sheets now show the gun and magazine.
+
+2. Picture tool: "lined up under the well" framed too low: the fresh magazine waits a magazine's   ~45 findings
+   length under the well, only its tip showed at the frame's bottom edge (reviewers: "magazine lies on the ground").
+   Fix: that picture is aimed at the fresh magazine's top, from 50 cm. Checked: M4A1, HK416, BRN180.
+
+3. BRN180 family (16 weapons): every magazine close-up showed a wall                                ~45 findings
+   Cause: the BRN 180 parks spent rounds 25 m away; the magazine's measured middle was 12 m off, the camera aimed
+   there. Fix: DrawnBounds leaves out pieces more than a metre from the rest. Checked: BRN180 SS, G BRN180 EO S.
+   (The "see-through receiver" of the G / Gear variants is the mod's own glass skin, not a bug.)
+
+4. K13 family: a solid black arc over the receiver in the right-side pictures                       10 findings
+   Cause: the scope lens disc measured as wide as the receiver. Fix: lens disc kept to an ocular's size (80b07eb).
+   Checked: K13 ACOG.
+
+5. ARS Glock 19 / HK416 / MP9: no magazine pictures at all                                         3 findings
+   Cause: their magazine is a bone of the gun's skinned mesh, the check stopped ("draws nothing of its own").
+   Fix: the analysed magazine box stands in; the pictures are taken. Checked: all three have mag 1-7 now.
+
+6. AS Val (mod "asval", 4 variants), ak12h 1p87: the racking hand floated over the front sight       ~12 findings
+   Cause: the rack point came from a stroke of the reload animation's hand that passed the gun 10-12 cm up, at the
+   front sight (the gun itself tilts 31 degrees in that reload). Fix: a reload-hand stroke that starts more than 5 cm
+   off the measured model is no rack: the estimate above the grip is used, put on the receiver. The surface snap now
+   searches all the way to the bore (it stopped at 6 cm, so MK46's point stayed 15 cm up). The rack check waits for
+   the gun's measurement before placing the hand (it pictured the old point). Checked: MK46 glove now on the cover.
+
+7. Akimbo Berettas (AA-AA, AUTOMATICO AKIMBO): magazine close-ups one flat colour                    6 findings
+   Cause: the left-side camera sat inside the other pistol's (stretched skinned) mesh. Fix: a picture that is one
+   flat colour is taken again from the gun's other side. Checked: both sheets show the gun and magazine.
+
+8. MW M870 (No script): two shotgun shells hanging in the air beside the gun                         1 finding
+   Cause: the mod's reload animation keeps its two shells ("zidan") beside the gun at rest, out of the flat view.
+   Fix: small parts the reload carries far that wait outside the gun at rest are not drawn while held (like the
+   spare magazines). To check in the next run (one shell was still drawn with a 4 cm margin; margin now 1 cm).
+
+9. RPG-7V variants and Panzerfaust 3: "did not fire" although the game says it can                   (autotest)
+   Not yet found. The game reports can fire / unholstered / no script; the next run records the state the moment
+   Weapon.Fire returns false (before StopFire clears it).
+
+NOT BUGS (reviewer misreads or scene)
+-------------------------------------
+- f2000 family, QJB201: "no glove in the right-side rack picture": the handle is on the left, the right camera
+  looks at the far side.
+- ak12h: "olive plate covers the view": a vehicle parked over the test spot.
+- Yellow streaks, smoke, red/black blocks at the edge: tracers, explosions and a red dot sight.
+- SUPERNOVA tile 11 "gun turned around": the in-hand picture is aimed at the palm, another part of the gun.
+- D1911 magazine "hangs low": the model's extended base pad.
+- MP9 S black/yellow object: a world object (not in the new run).
+- Bot Friendly ARS variants: the guns are drawn tiny/missing in the hand. They are bot-only versions; left as they are
+  (noted).
+
+STILL OPEN
+----------
+- The lined-up picture could show the well better (aimed 7 cm higher now).
+- Rack grips on parts drawn by a skinned mesh are "not measured" (the hand closes on nothing of its own there):
+  BRN180 handle, ARS guns. The check says so now instead of "not ready".
+- A full --weapons rerun to confirm everything above on all 233 sheets.

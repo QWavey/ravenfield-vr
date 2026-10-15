@@ -1979,36 +1979,74 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Autotest: H3VR-style tactical reload through the real code. A fresh magazine from the pouch in the off hand,
-        /// the release pressed (the old one goes into the same hand), the fresh one seated, the old one still held, then
-        /// both let go. Pictures at each step; rounds must add up.
+        /// The world bounds of what is drawn under <paramref name="t"/> (enabled meshes not scaled away); false if nothing.
+        /// Pieces more than a metre from the middle of the rest are left out: a BRN 180 parks spent rounds 25 m away, which
+        /// put its magazine's middle 12 m off and the autotest's close-up camera in a wall.
         /// </summary>
-        /// <summary>The world bounds of what is drawn under <paramref name="t"/> (enabled meshes not scaled away); false if nothing.</summary>
         internal static bool DrawnBounds(Transform t, out Bounds bounds)
         {
             bounds = default;
-            bool any = false;
             if (t == null)
             {
                 return false;
             }
+            var parts = new System.Collections.Generic.List<Bounds>();
             foreach (Renderer r in t.GetComponentsInChildren<Renderer>(false))
             {
-                if (!r.enabled || !(r is MeshRenderer || r is SkinnedMeshRenderer) || r.transform.lossyScale.sqrMagnitude < 1e-6f)
+                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer) && r.transform.lossyScale.sqrMagnitude >= 1e-6f)
+                {
+                    parts.Add(r.bounds);
+                }
+            }
+            if (parts.Count == 0)
+            {
+                return false;
+            }
+            float Median(int axis)
+            {
+                var v = new float[parts.Count];
+                for (int i = 0; i < v.Length; i++)
+                {
+                    v[i] = parts[i].center[axis];
+                }
+                System.Array.Sort(v);
+                return v[v.Length / 2];
+            }
+            var middle = new Vector3(Median(0), Median(1), Median(2));
+            bool any = false;
+            foreach (Bounds b in parts)
+            {
+                if ((b.center - middle).sqrMagnitude > 1f)
                 {
                     continue;
                 }
                 if (!any)
                 {
-                    bounds = r.bounds;
+                    bounds = b;
                     any = true;
                 }
                 else
                 {
-                    bounds.Encapsulate(r.bounds);
+                    bounds.Encapsulate(b);
                 }
             }
             return any;
+        }
+
+        /// <summary>
+        /// World box of the magazine as analysed, at its seat: for a magazine drawn by the gun's skinned mesh (a bone of it,
+        /// nothing of its own to measure) or one the mod makes (no magazine part).
+        /// </summary>
+        private Bounds AnalysedMagWorld()
+        {
+            RigidPose seat = SeatPose;
+            Bounds mb = Data.MagBounds;
+            var b = new Bounds(seat.TransformPoint(mb.center), Vector3.zero);
+            for (int i = 0; i < 8; i++)
+            {
+                b.Encapsulate(seat.TransformPoint(mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f))));
+            }
+            return b;
         }
 
         /// <summary>
@@ -2017,10 +2055,10 @@ namespace RavenfieldVR.Weapons
         /// the pouch: is it in the hand or floating beside it? Slid in: does it travel up the magwell or in front of it?
         /// Seated: does the gun's magazine show where it was?
         /// </summary>
-        internal IEnumerator MagazineDeepCheck(System.Action<string> report, System.Action<string, Vector3> sideShot)
+        internal IEnumerator MagazineDeepCheck(System.Action<string> report, System.Action<string, Vector3, float> sideShot)
         {
             VRHand off = _sys.Rig.Off;
-            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null || Rig.Magazine == null)
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
             {
                 report("magazine (deep): skipped (no detachable magazine, or the hand is busy)");
                 yield break;
@@ -2035,23 +2073,26 @@ namespace RavenfieldVR.Weapons
                 yield return null;
             }
             yield return new WaitForSecondsRealtime(0.5f); // the gun settles in the hand (the check before may have moved it)
-            if (!DrawnBounds(Rig.Magazine, out Bounds own))
+            var lines = new System.Collections.Generic.List<string>();
+            // A magazine drawn by the gun's skinned mesh (a bone of it) or made by the mod (no magazine part) has nothing of
+            // its own to measure: its analysed box at the seat stands in, and the pictures are still taken (ARS guns had none).
+            bool ownDrawn = DrawnBounds(Rig.Magazine, out Bounds own);
+            if (!ownDrawn)
             {
-                report("magazine (deep): the gun's magazine draws nothing of its own (a bone of the gun's skinned mesh): not measured");
-                yield break;
+                own = AnalysedMagWorld();
+                lines.Add(Rig.Magazine != null ? "the gun's magazine is drawn by its skinned mesh: its analysed box measured" : "no magazine part (a made one): its analysed box measured");
             }
             // Measured in gun space: the gun may move in the hand during the check.
             Vector3 ownGun = Rig.ToGun(own.center);
             Vector3 outGun = Data.MagEjectAxis.normalized;
             Vector3 outWorld = Rig.DirToWorld(outGun);
-            var lines = new System.Collections.Generic.List<string>();
             // The free hand out of the side camera's way for the first pictures (it stood right in front of it).
             RigidPose offRaw = off.Raw;
             VRHand.Scripted[(int)off.Side] = new RigidPose(offRaw.position + Vector3.down * 0.6f - Rig.AimWorld * 0.3f, offRaw.rotation);
             yield return null;
             yield return null;
             yield return new WaitForEndOfFrame();
-            sideShot("mag-1-seated", Rig.ToWorld(ownGun));
+            sideShot("mag-1-seated", Rig.ToWorld(ownGun), 0.32f);
 
             // 1. Dropped.
             EjectMagazine();
@@ -2065,21 +2106,21 @@ namespace RavenfieldVR.Weapons
                 float size = copy.size.magnitude / Mathf.Max(own.size.magnitude, 1e-4f);
                 Core.AutoTest.Metric("magazine (deep): cm the dropped copy starts across the pull from the gun's magazine", across * 100f);
                 lines.Add($"dropped copy {across * 100f:0.0} cm across the pull from the gun's magazine, {Vector3.Dot(delta, outGun) * 100f:0.0} cm out, size x{size:0.00}"
-                          + (across > 0.015f || size > 1.5f || size < 0.67f ? " (THE DROPPED MAGAZINE IS NOT THE ONE IN THE GUN)" : ""));
+                          + (ownDrawn && (across > 0.015f || size > 1.5f || size < 0.67f) ? " (THE DROPPED MAGAZINE IS NOT THE ONE IN THE GUN)" : ""));
             }
             else
             {
                 lines.Add("dropped copy: DRAWS NOTHING");
             }
-            bool ownShows = DrawnBounds(Rig.Magazine, out _);
+            bool ownShows = ownDrawn && DrawnBounds(Rig.Magazine, out _);
             if (ownShows)
             {
                 lines.Add("the gun's own magazine STILL SHOWS after the drop");
             }
-            sideShot("mag-2-leaving", Rig.ToWorld(ownGun));
+            sideShot("mag-2-leaving", Rig.ToWorld(ownGun), 0.32f);
             yield return new WaitForSecondsRealtime(0.6f);
             yield return new WaitForEndOfFrame();
-            sideShot("mag-3-out", Rig.ToWorld(ownGun));
+            sideShot("mag-3-out", Rig.ToWorld(ownGun), 0.32f);
             VRHand.Scripted[(int)off.Side] = null;
 
             // 2. A fresh one from the pouch, in the hand.
@@ -2102,7 +2143,7 @@ namespace RavenfieldVR.Weapons
                     Core.AutoTest.Metric("magazine (deep): cm from the palm to the magazine in the hand", gap * 100f);
                     lines.Add($"in the hand: {gap * 100f:0.0} cm from the palm{(gap > 0.04f ? " (FLOATS BESIDE THE HAND)" : "")}");
                 }
-                sideShot("mag-4-in-hand", off.PalmCentre);
+                sideShot("mag-4-in-hand", off.PalmCentre, 0.32f);
 
                 // 3. Lined up under the well, half way in on the rail, home.
                 RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
@@ -2111,7 +2152,10 @@ namespace RavenfieldVR.Weapons
                 yield return null;
                 yield return null;
                 yield return new WaitForEndOfFrame();
-                sideShot("mag-5-lined-up", Rig.ToWorld(ownGun + outGun * 0.05f));
+                // It waits a magazine's length under the well: framed from further back, on its top (a shot at the well
+                // showed only the tip of it at the frame's bottom edge).
+                Vector3 freshTip = fresh.Go != null ? fresh.Go.transform.TransformPoint(fresh.TipLocal) : Rig.ToWorld(ownGun + outGun * 0.05f);
+                sideShot("mag-5-lined-up", freshTip - outWorld * 0.07f, 0.5f);
                 // In until it is half way along its rail (a long magazine only meets the rail near the well).
                 float halfIn = 0.03f;
                 for (float below = 0.03f; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && !Ammo.MagInserted
@@ -2130,9 +2174,9 @@ namespace RavenfieldVR.Weapons
                     Vector3 expected = ownGun + outGun * left;
                     float off1 = Vector3.ProjectOnPlane(halfGun - expected, outGun).magnitude;
                     Core.AutoTest.Metric("magazine (deep): cm off the magwell line half way in", off1 * 100f);
-                    lines.Add($"half way in ({(fresh.OnRail ? "on the rail" : "NOT ON THE RAIL")}): {off1 * 100f:0.0} cm off the magwell line{(off1 > 0.012f ? " (SLIDES IN BESIDE THE WELL)" : "")}");
+                    lines.Add($"half way in ({(fresh.OnRail ? "on the rail" : "NOT ON THE RAIL")}): {off1 * 100f:0.0} cm off the magwell line{(ownDrawn && off1 > 0.012f ? " (SLIDES IN BESIDE THE WELL)" : "")}");
                 }
-                sideShot("mag-6-half-in", Rig.ToWorld(ownGun));
+                sideShot("mag-6-half-in", Rig.ToWorld(ownGun), 0.32f);
                 for (float below = halfIn; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && fresh.Go != null && !Ammo.MagInserted; below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
                 {
                     PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.3f);
@@ -2144,9 +2188,10 @@ namespace RavenfieldVR.Weapons
                 }
                 yield return new WaitForEndOfFrame();
                 bool seated = Ammo.MagInserted;
-                string back = seated && DrawnBounds(Rig.Magazine, out Bounds again) ? $"{(Rig.ToGun(again.center) - ownGun).magnitude * 100f:0.0} cm from where it was" : "NOT SHOWN";
+                string back = !ownDrawn ? "(not measured: nothing of its own)"
+                    : DrawnBounds(Rig.Magazine, out Bounds again) ? $"{(Rig.ToGun(again.center) - ownGun).magnitude * 100f:0.0} cm from where it was" : "NOT SHOWN";
                 lines.Add(seated ? $"seated: the gun's magazine shows {back}" : "NOT SEATED");
-                sideShot("mag-7-seated-again", Rig.ToWorld(ownGun));
+                sideShot("mag-7-seated-again", Rig.ToWorld(ownGun), 0.32f);
             }
             finally
             {
@@ -2164,6 +2209,11 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.2f);
         }
 
+        /// <summary>
+        /// Autotest: H3VR-style tactical reload through the real code. A fresh magazine from the pouch in the off hand,
+        /// the release pressed (the old one goes into the same hand), the fresh one seated, the old one still held, then
+        /// both let go. Pictures at each step; rounds must add up.
+        /// </summary>
         internal IEnumerator TacticalSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
@@ -2558,6 +2608,12 @@ namespace RavenfieldVR.Weapons
             if (!Manual || !Ammo.UsesChamber || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null)
             {
                 yield break;
+            }
+            // The rack point is put on the model's surface once the gun is measured (HeldWeapon.SnapRackPoint): waited
+            // for, or the hand was put at the analysis's point and the pictures showed it where the point had been.
+            for (float until = Time.unscaledTime + 2f; _held.HandsSolid == null && Time.unscaledTime < until;)
+            {
+                yield return null;
             }
             int side = (int)off.Side;
             RigidPose raw = off.Raw;

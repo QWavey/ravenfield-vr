@@ -1,0 +1,14 @@
+shotguns: 10 weapons reviewed, 2 with issues
+
+  2 76_EAGLE: OK
+ 36 SUPERNOVA:
+     tile 11: [minor] Gun looks turned around compared with the neighbouring tiles: the grip is on the right and the muzzle end on the left, while tiles 9, 10, 12 and 13 have the grip on the left. Could be the reload pose, so worth a look.
+ 39 M1014: OK
+ 40 M1014_Tactical: OK
+ 41 R870_BUCKSHOT_: OK
+ 42 R870_SLUG_: OK
+ 43 R870_CQC: OK
+ 96 mw-m870_No_script_:
+     tile 1: [major] Two red-and-yellow shotgun shells hang in the air beside the barrel in the head views (tiles 1, 2 and 5). No hand holds them, they are not in the gun, and they do not show in the side views, so they look like stray floating props.
+113 ARS_M500: OK
+117 ARS_M500_Bot_Friendly_: OK

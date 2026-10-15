@@ -1,0 +1,56 @@
+machine-guns: 29 weapons reviewed, 14 with issues
+
+122 qjb95: OK
+137 xm8mg: OK
+138 xm8mg_scope: OK
+153 mg3: OK
+154 mg3-acog: OK
+155 PKM: OK
+156 PKM_Z_E: OK
+157 PKM_Z_E_S: OK
+158 PKM_Z_SP: OK
+159 PKM_Z_SP_S: OK
+160 PKP: OK
+161 PKP_1P78: OK
+162 PKP_OKP7: OK
+163 Type_80: OK
+165 PPSh-41_DRUM_:
+     tile 8: [minor] Tiles 8-10: the glove fills most of the close-up and hides the drum. It looks much larger than the glove in the same close-up on other sheets (e.g. 122 tile 8), so it may be placed too close to the camera or scaled up. Check at full resolution.
+181 MK46_ET: OK
+255 QBZ192-C:
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+256 QBZ192-C_S:
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+276 HK416-C:
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+277 HK416-C_S:
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+282 QJB201_:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.
+283 QJB201_MG_AR_:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.
+284 QJB201_H510:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.
+285 QJB201_H510_MG_AR_:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.
+286 QJB201_Mag:
+     tile 4: [minor] No glove is visible on the right-side handle. Tile 7 looks the same.
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+287 QJB201_Mag_H510:
+     tile 4: [minor] No glove is visible on the right-side handle. Tile 7 looks the same.
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+288 QJB201_Mag_QMK204:
+     tile 4: [minor] No glove is visible on the right-side handle. Tile 7 looks the same.
+     tile 9: [major] Tiles 8-10 are one close-up of the left glove over the gun side. No magazine is visible, and 9 and 10 are the same picture, so the dropped magazine and the empty well are not shown.
+     tile 12: [major] The fresh magazine sits low in the grass, well away from the glove and the receiver, so it is not lined up under the well.
+     tile 14: [minor] A yellow streak crosses the lower left of the frame. It is probably an attachment beam or effect; confirm it is intended.
+289 QJB201_QMK204:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.
+290 QJB201_QMK204_MG_AR_:
+     tile 4: [minor] No glove is visible on the right-side handle; the frame shows only the open feed tray and belt. Tile 7 is the same.

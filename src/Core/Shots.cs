@@ -24,11 +24,19 @@ namespace RavenfieldVR.Core
         private static bool _cleared;
 
         /// <summary>Renders from the VR head (or <paramref name="position"/> / <paramref name="rotation"/>) to a PNG named <paramref name="name"/>.</summary>
-        public static void Capture(string name, Vector3? position = null, Quaternion? rotation = null, float fov = 90f)
+        public static void Capture(string name, Vector3? position = null, Quaternion? rotation = null, float fov = 90f) =>
+            CaptureFirstClear(name, new[] { (position, rotation) }, fov);
+
+        /// <summary>
+        /// Renders from each pose in turn and saves the first picture that shows something. A camera inside a mesh draws
+        /// one flat colour (the akimbo Berettas' close-ups were all salmon: the other pistol's mesh stretched over the
+        /// camera); the last pose is saved whatever it shows.
+        /// </summary>
+        public static void CaptureFirstClear(string name, (Vector3? position, Quaternion? rotation)[] poses, float fov)
         {
             VRRig rig = VRRig.Instance;
             Camera source = rig != null ? rig.Camera : Camera.main;
-            if (source == null)
+            if (source == null || poses.Length == 0)
             {
                 return;
             }
@@ -62,18 +70,27 @@ namespace RavenfieldVR.Core
                 cam.cullingMask = source.cullingMask | (ui != null ? ui.cullingMask : 1 << 5);
                 cam.fieldOfView = fov;
                 cam.nearClipPlane = Mathf.Min(source.nearClipPlane, 0.02f);
-                go.transform.SetPositionAndRotation(position ?? source.transform.position, rotation ?? source.transform.rotation);
                 rt = new RenderTexture(1280, 800, 24);
                 cam.targetTexture = rt;
-                cam.Render();
-                prev = RenderTexture.active;
-                RenderTexture.active = rt;
-                swapped = true;
                 tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
-                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-                tex.Apply();
-                RenderTexture.active = prev;
-                swapped = false;
+                for (int i = 0; i < poses.Length; i++)
+                {
+                    go.transform.SetPositionAndRotation(poses[i].position ?? source.transform.position, poses[i].rotation ?? source.transform.rotation);
+                    cam.Render();
+                    prev = RenderTexture.active;
+                    RenderTexture.active = rt;
+                    swapped = true;
+                    tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                    tex.Apply();
+                    RenderTexture.active = prev;
+                    swapped = false;
+                    if (i < poses.Length - 1 && Flat(tex))
+                    {
+                        Log.Info($"Shot '{name}': view {i + 1} shows one flat colour (the camera is inside something), the next one taken");
+                        continue;
+                    }
+                    break;
+                }
                 string file = Path.Combine(Dir, Regex.Replace(name, @"[^A-Za-z0-9_.\-]+", "_") + ".png");
                 File.WriteAllBytes(file, tex.EncodeToPNG());
                 Log.Info("Shot: " + file);
@@ -103,6 +120,26 @@ namespace RavenfieldVR.Core
                     UnityEngine.Object.Destroy(go);
                 }
             }
+        }
+
+        /// <summary>The picture is nearly one colour: its brightness varies by less than 2% over a grid of samples.</summary>
+        private static bool Flat(Texture2D tex)
+        {
+            double sum = 0, sq = 0;
+            int n = 0;
+            for (int y = 8; y < tex.height; y += tex.height / 24)
+            {
+                for (int x = 8; x < tex.width; x += tex.width / 32)
+                {
+                    Color c = tex.GetPixel(x, y);
+                    double l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+                    sum += l;
+                    sq += l * l;
+                    n++;
+                }
+            }
+            double mean = sum / n;
+            return Math.Sqrt(Math.Max(0, sq / n - mean * mean)) < 0.02;
         }
     }
 }

@@ -527,6 +527,7 @@ namespace RavenfieldVR.Weapons
                 ReclassifyAdvancedReload(d, w);
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
                 FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
+                CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
@@ -2035,6 +2036,62 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Rounds and shells of the flat reload animation: they wait at rest beside the gun, out of the flat view, until the
+        /// reload's hand brings them in (an MW M870's two shells hung in the air by the gun hand in VR). Small, drawn at
+        /// rest, carried far by the reload, outside the gun at rest, and no magazine, slide or handle: not drawn while
+        /// held, like the spare magazines.
+        /// </summary>
+        private static void CollectReloadRounds(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (!sampler.HasReload || gunBody == null)
+            {
+                return;
+            }
+            // The gun at rest without what its reload moves: what the rounds wait outside of.
+            Bounds still = sampler.GunSpaceBoundsWhere(gunBody, gunIdle, t => index.TryGetValue(t, out int k) && sampler.ReloadMax[k] > 0.03f);
+            if (still.size.sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            still.Expand(0.01f); // the M870's second shell waited 3 cm beside the receiver
+            var parts = new List<Transform>();
+            foreach (int[] path in new[] { d.MagazinePath, d.SlidePath, d.HandlePath, d.HingePath })
+            {
+                Transform part = path != null ? WeaponRig.Resolve(root, path) : null;
+                if (part != null)
+                {
+                    parts.Add(part);
+                }
+            }
+            var found = new List<Transform>();
+            foreach (Transform t in all)
+            {
+                if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] < 0.15f || !HasRendererInSubtree(t) || !ShownAtIdle(t, sampler)
+                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || parts.Exists(p => t == p || t.IsChildOf(p) || p.IsChildOf(t)))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                if (b.size.magnitude > 0.15f || b.size.sqrMagnitude < 1e-8f || still.Contains(b.center)
+                    || Vector3.ProjectOnPlane(b.center - d.MuzzlePoint, d.AimAxis).magnitude < 0.035f)
+                {
+                    continue;
+                }
+                found.Add(t);
+            }
+            foreach (Transform t in found)
+            {
+                if (found.Exists(o => o != t && t.IsChildOf(o)) || d.SparePartPaths.Count >= 8)
+                {
+                    continue;
+                }
+                d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
+                d.Notes += $"reload prop '{t.name}' ({sampler.ReloadMax[index[t]] * 100f:0} cm moved by the reload, beside the gun at rest) hidden while held ";
+            }
+        }
+
+        /// <summary>
         /// A box magazine leaves its well along its own length. The reload animation's first motion is often something
         /// else (an AK magazine rocked forward off its front lug, a hand that tugs it sideways first), and an insert axis
         /// taken from that tilts the magazine in the hand and makes it go in crooked. A clearly elongated magazine that
@@ -2710,15 +2767,17 @@ namespace RavenfieldVR.Weapons
 
         // ---- shared helpers ---------------------------------------------------------------------------
 
+        /// <summary>Where a handle that was not found is guessed: above the grip (put onto the receiver once it is measured).</summary>
+        internal static Vector3 RackEstimate(WeaponRigData d) =>
+            d.GripPoint + d.Up * (d.IsPistol ? 0.07f : 0.08f) + d.AimAxis * (d.IsPistol ? -0.02f : 0.03f);
+
         /// <summary>Fills in grab points for parts that were not found so every interaction still works.</summary>
         private static void FinishVirtualParts(WeaponRigData d)
         {
             if (d.SlidePath == null && !d.RackFromHand)
             {
                 bool pump = d.Action == ActionType.Manual && d.HasSupportPoint && !d.IsPistol;
-                d.RackPoint = pump
-                    ? d.SupportPoint
-                    : d.GripPoint + d.Up * (d.IsPistol ? 0.07f : 0.08f) + d.AimAxis * (d.IsPistol ? -0.02f : 0.03f);
+                d.RackPoint = pump ? d.SupportPoint : RackEstimate(d);
                 d.SlideTravel = -d.AimAxis * (d.IsPistol ? 0.035f : 0.07f);
                 d.RackOnSurface = !pump; // an estimate above the grip: put on top of the receiver once the model is measured
             }

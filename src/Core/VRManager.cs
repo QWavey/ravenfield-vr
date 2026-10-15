@@ -147,7 +147,7 @@ namespace RavenfieldVR.Core
 
         // Per-frame work goes to Log.Guard as delegates made once: passing a method group allocates a new delegate
         // (garbage) on every call, ten times a frame.
-        private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender;
+        private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
         private Action[] _handApply;
 
         private static void UpdateInput()
@@ -170,6 +170,7 @@ namespace RavenfieldVR.Core
             _rigRender = Rig.BeforeRender;
             _weaponsRender = Weapons.BeforeRender;
             _uiRender = UI.BeforeRender;
+            _lensRender = () => LensEffects.Instance?.Present();
             _handApply = new Action[Rig.Hands.Length];
             for (int i = 0; i < Rig.Hands.Length; i++)
             {
@@ -196,6 +197,7 @@ namespace RavenfieldVR.Core
             Log.Guard("Rig.BeforeRender", _rigRender);
             Log.Guard("Weapons.BeforeRender", _weaponsRender);
             Log.Guard("UI.BeforeRender", _uiRender);
+            Log.Guard("LensEffects", _lensRender); // after the weapons: this frame's flashes and glow are in
             // The gun hand first: a support hand cupping it closes on where it is this frame.
             int first = (int)Input.VRInput.GunHand;
             Log.Guard("HandModel", _handApply[first]);
