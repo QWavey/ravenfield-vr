@@ -26,6 +26,20 @@ namespace RavenfieldVR.Weapons
 
         public static bool IsSemiByPlayer(Weapon w) => w != null && SemiByPlayer.Contains(w);
 
+        /// <summary>
+        /// A weapon picked up again (a new instance of the same entry) gets the player's semi mode back. Set on the
+        /// configuration directly: SetSingleFire on a weapon that has not run Start yet took its volume for the authored one.
+        /// </summary>
+        public static void RestoreSemi(Weapon w)
+        {
+            if (w == null || w.configuration == null || !w.configuration.auto)
+            {
+                return;
+            }
+            w.configuration.auto = false;
+            SemiByPlayer.Add(w);
+        }
+
         /// <summary>True when the weapon has both modes (it was authored automatic).</summary>
         public static bool HasModes(Weapon w) => w != null && (w.configuration.auto || SemiByPlayer.Contains(w));
 

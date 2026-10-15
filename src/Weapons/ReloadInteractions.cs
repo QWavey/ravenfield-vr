@@ -117,7 +117,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 // Snap it shut with a flick of the wrist, like the real thing.
-                if (Breaks && Ammo.Open && Time.unscaledTime - _openedAt > 0.35f && dom.AngularVelocity.magnitude > 9f)
+                if (Breaks && Ammo.Open && !_coverHeld && Time.unscaledTime - _openedAt > 0.35f && dom.AngularVelocity.magnitude > 9f)
                 {
                     SetBreakOpen(false);
                 }
@@ -1382,7 +1382,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private bool HandleStroke => Data.HandlePath != null && Rig.Handle != null && Data.HandleTravel.sqrMagnitude > 1e-4f;
         private Vector3 StrokeDir => HandleStroke ? Data.HandleTravel.normalized : TravelDir;
-        private float StrokeLength => HandleStroke ? Mathf.Clamp(Data.HandleTravel.magnitude, 0.03f, 0.14f) : Travel;
+        // The handle's own travel, not clamped: the drawn handle moves all of it, and the hand clamped to 14 cm let go
+        // of a 20 cm handle at the end of its stroke.
+        private float StrokeLength => HandleStroke ? Data.HandleTravel.magnitude : Travel;
         /// <summary>How far the action is open, 0 closed .. 1 fully back.</summary>
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
@@ -1415,7 +1417,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>A pump at the handguard: holding it is also the support grip, so both hands aim while pumping.</summary>
         private bool IsPump => Data.CyclesByHand && GripData.HasSupportPoint && !GripData.IsPistol
-                               && Vector3.Distance(Data.RackPoint, GripData.SupportPoint) < 0.15f;
+                               && Vector3.Distance(Rig.ToWorld(Data.RackPoint), GripRig.ToWorld(GripData.SupportPoint)) < 0.15f;
 
         private void BeginRack(VRHand off)
         {

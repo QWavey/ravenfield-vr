@@ -473,10 +473,12 @@ namespace RavenfieldVR.UI
                 }
                 forward.Normalize();
                 Vector3 pos = head.position + forward * VRConfig.MenuDistance.Value - Vector3.up * 0.08f;
-                _menuAnchor = new RigidPose(pos, Quaternion.LookRotation(forward, Vector3.up));
+                _menuAnchor = RigidPose.Of(_rig.Root).Inverse().Multiply(new RigidPose(pos, Quaternion.LookRotation(forward, Vector3.up)));
                 _menuLocalAnchor = _rig.Root.InverseTransformPoint(pos);
             }
-            RigidPose anchor = _menuAnchor.Value;
+            // Kept relative to the rig: a menu opened later (the loadout's weapon list in a moving car) went where the rig
+            // had been when the first one opened.
+            RigidPose anchor = RigidPose.Of(_rig.Root).Multiply(_menuAnchor.Value);
             // Stack overlapping menus by sorting order, a few millimetres apart.
             anchor.position -= anchor.Forward * 0.004f * Mathf.Clamp(t.Order, -50, 50);
             t.LocalPose = RigidPose.Of(_rig.Root).Inverse().Multiply(anchor);

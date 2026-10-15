@@ -162,7 +162,7 @@ namespace RavenfieldVR.UI
             bool point = false;
             foreach (char ch in text.Trim())
             {
-                if (char.IsDigit(ch))
+                if (ch >= '0' && ch <= '9') // not char.IsDigit: Arabic-Indic or fullwidth digits do not parse as numbers
                 {
                     sb.Append(ch);
                 }

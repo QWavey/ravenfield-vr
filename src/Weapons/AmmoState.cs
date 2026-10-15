@@ -373,7 +373,7 @@ namespace RavenfieldVR.Weapons
         private int CounterKey()
         {
             int flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
-                        | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0);
+                        | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0);
             return (MagRounds * 397) ^ (Capacity << 20) ^ (flags << 12);
         }
 

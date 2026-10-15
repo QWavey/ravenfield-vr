@@ -34,6 +34,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public int OwnerSlot = -1;
         public float ReturnAt;
+        /// <summary>The player had set it to semi (FireSelector): it comes back in semi.</summary>
+        public bool Semi;
         /// <summary>Meshes baked for this copy (skinned parts), destroyed with it.</summary>
         public List<Mesh> OwnedMeshes;
         /// <summary>Body colliders (ragdolls, soldiers' hitboxes) this weapon no longer collides with.</summary>
@@ -673,6 +675,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void RestoreAmmo(Weapon w, DroppedWeapon d)
         {
+            if (d.Semi)
+            {
+                FireSelector.RestoreSemi(w); // picked up or back in its holster: still in semi, as the player left it
+            }
             if (d.Ammo >= 0 && w.configuration.ammo > 0)
             {
                 int most = w.configuration.ammo + (VRConfig.ChamberPlusOne.Value ? 1 : 0);
@@ -770,6 +776,7 @@ namespace RavenfieldVR.Weapons
                 }
                 swapped.SubAmmo = SubAmmoOf(current);
                 swapped.Key = WeaponAnalyzer.KeyOf(current);
+                swapped.Semi = FireSelector.IsSemiByPlayer(current);
             }
             // Into the hand that picked it up: taken with the free hand, it went into the other one.
             _sys.TakeIntoHand(hand);
@@ -943,7 +950,8 @@ namespace RavenfieldVR.Weapons
                 DropTime = Time.time,
                 OwnerSlot = slot,
                 ReturnAt = Time.time + Mathf.Max(1f, VRConfig.WeaponReturnSeconds.Value),
-                OwnedMeshes = baked
+                OwnedMeshes = baked,
+                Semi = FireSelector.IsSemiByPlayer(w)
             };
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);

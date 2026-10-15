@@ -865,6 +865,8 @@ namespace RavenfieldVR.Weapons
         private static readonly System.Func<Vector3, bool>[] HandSolids = new System.Func<Vector3, bool>[2];
         private static readonly VRHand[] HandSolidOwners = new VRHand[2];
 
+        private float _volumeRetryAt;
+
         /// <summary>Self-test: this magazine's measured solid (null until measured).</summary>
         internal GunVolume Volume => _volume;
 
@@ -874,6 +876,11 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (_volume != null && _volume.Failed && Time.unscaledTime < _volumeRetryAt)
+            {
+                return; // a read-back that failed: measured again once a second, not every frame
+            }
+            _volumeRetryAt = Time.unscaledTime + 1f;
             _volumeTried = true;
             var renderers = new List<Renderer>();
             foreach (Renderer r in Go.GetComponentsInChildren<Renderer>(false))
