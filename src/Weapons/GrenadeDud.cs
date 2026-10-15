@@ -62,7 +62,7 @@ namespace RavenfieldVR.Weapons
             }
             // The grenade's own shape: its body, lever and ring as convex pieces of its mesh.
             ShapeFit.Piece[] shape = any
-                ? ShapeFit.Fit("dud:" + weapon.name, root.GetComponentsInChildren<Renderer>(true), root.transform.worldToLocalMatrix, 0.012f, 6)
+                ? ShapeFit.Fit("dud:" + WeaponAnalyzer.KeyOf(weapon), root.GetComponentsInChildren<Renderer>(true), root.transform.worldToLocalMatrix, 0.012f, 6)
                 : new ShapeFit.Piece[0];
             if (shape.Length == 0)
             {

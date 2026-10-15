@@ -2625,7 +2625,9 @@ namespace RavenfieldVR.Weapons
             if (d.TSlideBack >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.SlideBack, d.TSlideBack));
             if (d.TSlideForward >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.SlideForward, d.TSlideForward));
 
-            var reloadCues = new List<SampledCue>(sampler.ReloadCues);
+            // A particle burst is no sound (MatchCues skips them too): one first in line took the mag-out slot and moved every
+            // later sound one slot on.
+            var reloadCues = new List<SampledCue>(sampler.ReloadCues).FindAll(c => c.Function != "EmitParticles");
             reloadCues.Sort((a, b) => a.Time.CompareTo(b.Time));
             if (keyframes.Count > 0)
             {
@@ -2648,7 +2650,7 @@ namespace RavenfieldVR.Weapons
                 {
                     d.ShotCues.Add(ToCue(c));
                 }
-                else if (d.Action == ActionType.Manual)
+                else if (d.Action == ActionType.Manual && c.Function != "EmitParticles")
                 {
                     bool nearForward = d.TFireSlideForward >= 0f && Mathf.Abs(c.Time - d.TFireSlideForward) < Mathf.Abs(c.Time - Mathf.Max(0f, d.TFireSlideBack));
                     MechSound kind = nearForward ? MechSound.SlideForward : MechSound.SlideBack;

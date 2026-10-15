@@ -92,7 +92,10 @@ namespace RavenfieldVR.Core
                 FarClipCap = float.PositiveInfinity;
                 ForceMsaa = null;
                 RestoreTerrains();
-                RestoreGameQuality(); // switched to Game while running: the last preset's quality settings stayed
+                // Switched to Game while running: the last preset's quality settings stayed. Once, on the change: restored on
+                // every options save it put back the start-up quality over a Quality level the player had just picked.
+                RestoreGameQuality();
+                _gameQuality = null; // the next preset takes the game's quality as it is then
                 return;
             }
             ApplyProfile(p);

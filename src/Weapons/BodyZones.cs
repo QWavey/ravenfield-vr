@@ -102,7 +102,9 @@ namespace RavenfieldVR.Weapons
             OffBackShoulder = neck + Vector3.up * 0.05f - TorsoForward * 0.12f - TorsoRight * (0.17f * side);
             OffChest = Chest - TorsoRight * (0.13f * side);
             DomChest = Chest + TorsoRight * (0.13f * side) - Vector3.up * 0.08f;
-            HeadSide = head.position - head.right * (0.11f * side) + head.up * 0.02f;
+            // The free hand's side: after the weapon was passed to the other hand, the configured side could never be met
+            // together with BesideHead (night vision could not be switched at all).
+            HeadSide = head.position - head.right * (0.11f * gunSide) + head.up * 0.02f;
             Belt = belt;
             // Boneworks: pistols high under the arms (against the ribs, just below the armpit), gear at the small of the
             // back and at the front of the belt.

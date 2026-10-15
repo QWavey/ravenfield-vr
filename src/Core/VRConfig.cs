@@ -158,7 +158,7 @@ namespace RavenfieldVR.Core
             PostProcessing = cfg.Bind("Rendering", "PostProcessing", false,
                 "Copy the game's post-processing stack (colour grading, bloom, AO) onto the VR camera. Costs performance.");
             MinFarClip = cfg.Bind("Rendering", "MinFarClip", 1500f,
-                "Smallest far plane used for the VR camera, in metres. The game's draw distance is used when larger.");
+                "Smallest far plane used for the VR camera, in metres. The game's draw distance is used when larger; the graphics preset's view distance still caps it (Low 1200, Medium 2000, High 3000, Ultra 4000).");
 
             Turn = cfg.Bind("Comfort", "TurnMode", TurnMode.Snap, "Right stick turning style.");
             SnapTurnAngle = cfg.Bind("Comfort", "SnapTurnAngle", 30f,
@@ -329,8 +329,9 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// Moves settings still at an old default to the new one (a value the player chose is kept): BepInEx keeps
-        /// whatever is in the file, so a changed default would otherwise never reach an existing install.
+        /// Moves settings to a new default once: BepInEx keeps whatever is in the file, so a changed default would
+        /// otherwise never reach an existing install. A number still at its old default is moved (a value the player chose
+        /// is kept); an on/off setting cannot tell the old default from a choice and is set once (revision 2: grip to hold).
         /// </summary>
         private static void Migrate(ConfigFile cfg)
         {

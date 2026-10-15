@@ -234,6 +234,10 @@ namespace RavenfieldVR.Core
                     GameManager.PauseGame();
                     _pausedForDashboard = true;
                 }
+                else if (_pausedForHeadset)
+                {
+                    _pausedForDashboard = true; // opened with the headset off: putting it back on must not run the match behind it
+                }
                 return;
             }
             bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();

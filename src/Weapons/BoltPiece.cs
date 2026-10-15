@@ -102,7 +102,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 center = mf.transform.InverseTransformPoint(rackWorld);
-                float scale = Mathf.Max(1e-5f, mf.transform.lossyScale.x);
+                float scale = Mathf.Max(1e-5f, Mathf.Abs(mf.transform.lossyScale.x)); // a mirrored mesh (negative x) took the whole receiver
                 float r = radius / scale;
                 if ((mf.sharedMesh.bounds.ClosestPoint(center) - center).magnitude > r)
                 {
@@ -140,6 +140,9 @@ namespace RavenfieldVR.Weapons
                 piece.AddKnob(rig, rackGun);
             }
         }
+
+        /// <summary>1 / v keeping its sign (a mirrored parent), never dividing by almost nothing.</summary>
+        private static float Inverse(float v) => (v < 0f ? -1f : 1f) / Mathf.Max(1e-5f, Mathf.Abs(v));
 
         private static bool IsMagazine(WeaponRig rig, Transform t)
         {
@@ -345,7 +348,7 @@ namespace RavenfieldVR.Weapons
                     // World pose and unit scale every frame: gun-body space is in metres whatever the bone's scale.
                     p.T.SetPositionAndRotation(rig.ToWorld(_knobBase + travelGun), rig.GunBody.rotation * _knobRotation);
                     Vector3 parentScale = p.T.parent != null ? p.T.parent.lossyScale : Vector3.one;
-                    p.T.localScale = new Vector3(1f / Mathf.Max(1e-5f, parentScale.x), 1f / Mathf.Max(1e-5f, parentScale.y), 1f / Mathf.Max(1e-5f, parentScale.z));
+                    p.T.localScale = new Vector3(Inverse(parentScale.x), Inverse(parentScale.y), Inverse(parentScale.z));
                 }
             }
         }

@@ -201,7 +201,8 @@ namespace RavenfieldVR.Weapons
         // ---- the pin -----------------------------------------------------------------------------------
 
         private static readonly Regex PinName = new Regex(@"\b(pin|ring|pullring|pinring|pull ring|safety pin)\b");
-        private static readonly Regex ArmName = new Regex(@"hand|arm(?!ature|or)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
+        // Not a stick grenade's "Handle" or an "Arming" lever: a real pin under one was taken for a finger bone.
+        private static readonly Regex ArmName = new Regex(@"hand(?!le|guard|rail)|arm(?!ature|or|our|ing|ed)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
         private static readonly Regex NotAGrenade = new Regex(@"bag|kit|c4|charge|mine|claymore|beacon|molotov|cocktail|knife|axe|tomahawk", RegexOptions.IgnoreCase);
 
         /// <summary>Fused grenades get a pin; bags, kits, charges and other throwables do not.</summary>
@@ -267,6 +268,10 @@ namespace RavenfieldVR.Weapons
         {
             foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
             {
+                if (t == root)
+                {
+                    continue; // a grenade named "Ring Grenade" was its own pin: pulling it hid the whole grenade
+                }
                 string name = Regex.Replace(Regex.Replace(t.name, "(?<=[a-z])(?=[A-Z])", " "), "[^A-Za-z]+", " ").ToLowerInvariant();
                 if (!PinName.IsMatch(name))
                 {
