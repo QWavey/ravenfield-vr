@@ -1,0 +1,60 @@
+Gun 64: ak74m Zenit
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-064-ak74m_Zenit-right.png)
+   seen: Compared with rack-grip-064-ak74m_Zenit-right.png, the upper receiver block (optic housing, rear sight, top rail and the lever under the receiver) has shifted right by about 260-290 px. At this close-up scale that is about the 52 mm the test reports. The olive bar and steel rod (x about 520-1000, y 400-445) and the yellow charging handle (x about 945-1050, y 415-510) stay exactly where they were. The left-hand fingertip moves up about 70-80 px and ends on the optic base, not following the handle back.
+   expected: The yellow charging handle and the bolt bar under it slide back toward the stock about 52 mm with the finger pinching the handle. The receiver and optic stay still.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-064-ak74m_Zenit.png)
+   seen: First-person view during the pull: the free left hand is back at its idle resting spot in the grass (about x 540-630, y 585-690), well away from the rifle. No finger touches the gun. The hand has retreated from the front-left of the gun seen in rack-grip-064-ak74m_Zenit.png.
+   expected: The left hand stays on the charging handle while it pulls the handle about half way back.
+
+3. [major] [high] hand_not_on_part  (rack-grip-064-ak74m_Zenit-right.png)
+   seen: The left-hand fingertip (dotted glove, about x 675-925, y 300-420) sits in the open receiver channel above the olive bar, not on the yellow charging handle. The handle is about 3-5 cm lower-right (x 950-1050, y 420-510) and no finger touches it. In rack-grip-064-ak74m_Zenit-left.png the glove lies across the receiver's left side with fingers ending in the air in front of the handguard. Nothing is pinched under them. The test line agrees: 0/4 fingers on the part.
+   expected: Thumb and fingers pinch the yellow charging handle at the rear of the receiver, so the hand is on the part that racks the gun.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-064-ak74m_Zenit.png)
+   seen: First-person view before the pull: the left hand is not a readable glove here. A pale tan finger shape sits at the gun's front-left (about x 712-765, y 540-610), at the fore-end below the front sight. That spot is empty in weapon-064-ak74m_Zenit.png, so the hand moved there. It is not at the charging handle near the receiver's rear.
+   expected: The left hand grips the charging handle on the receiver, not the fore-end.
+
+5. [major] [medium] picture_unusable  (lens-eyes-064-ak74m Zenit.png)
+   seen: The whole frame is black: no flare on the left eye and none on the right. The test line says the lens flash was shown at strength 1.05, and lens-eyes-burst-064-ak74m Zenit.png does show flares, so either this frame was captured after the flash had faded or the single-shot lens flash does not render.
+   expected: Left and right eye panels each show a bright star flare with soft rings near the centre, the gun-side (right) eye a bit stronger.
+
+6. [major] [medium] mag_not_in_hand  (mag-4-in-hand-064-ak74m_Zenit.png)
+   seen: The left glove is open with fingers extended flat to the left. The fresh magazine sits behind the index and middle fingers (about x 300-570, y 0-480) with its lower end hidden behind the palm. No finger curls round the magazine body and no far-side finger is visible. The test line says the magazine is 3.4 cm from the palm, which matches the gap.
+   expected: Fingers wrap around the fresh magazine body (same model as the gun's, feed end toward the gun) so it is held in the hand.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-064-ak74m Zenit.png)
+   seen: The left-eye star is small and dim (core about a third of the right, halo about half the size). The right-eye star is roughly twice as bright with a wider halo. The test counts are symmetric (L 14 / R 14), so the gap is in strength, not frequency. This is the same lopsided pattern the user reported on the islands map (one lens rendered brighter than the other).
+   expected: Both eyes show the same flare, with the gun-side (right) eye only a bit stronger, not about double.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-064-ak74m_Zenit.png)
+   seen: First-person frame described as taken on a shot: no muzzle flash is visible at the muzzle (the front sight area around x 690-730, y 455-520 is dark). The lensburst-064-ak74m_Zenit.png frame shows an orange flash at the same spot (x 650-720, y 460-530). A brass case is visible on the beach but no flash.
+   expected: An orange muzzle flash at the muzzle on the shot frame, as the test line says appears every shot.
+
+9. [minor] [low] mag_floating_or_offset  (mag-6-half-in-064-ak74m_Zenit.png)
+   seen: The magazine's top face (x about 615-830, y 210-225) sits roughly 45 px (about 1-2 cm) below the receiver's magwell edge (y about 165) with a clear gap. The mag is on its axis but has not moved up into the well. In mag-7-seated-again-064-ak74m_Zenit.png the same top is tucked under the receiver edge.
+   expected: Half way in: the top of the magazine partly inside the magwell opening on the same line.
+
+10. [minor] [low] other  (rack-grip-pulled-064-ak74m_Zenit-right.png)
+   seen: A brass cartridge floats in the open ejection port above the olive bar (about x 865-1200, y 340-395). Its narrower bullet tip is at the right, which is the stock side, so the round appears to point backwards. It is not seated in a visible chamber or magazine.
+   expected: A chambered round, if shown, with its bullet pointing toward the muzzle (left), seated in the bolt area; otherwise no round visible.
+
+11. [minor] [low] wrong_part_moves  (rack-grip-pulled-064-ak74m_Zenit-left.png)
+   seen: Compared with rack-grip-064-ak74m_Zenit-left.png, the glove sits in exactly the same frame position, but the optic housing, pistol grip, magazine and right hand have all shifted about 140-190 px to the left. The test line says the gun moved only 0.4 mm. Either the close-up camera moved or the whole gun moved; this needs checking.
+   expected: Only the charging handle and the upper receiver move a little; the gun root and the grip stay put, and the hand moves with the handle.
+
+Test line flags:
+  - 0/4 fingers on the part (rack grip) is CONFIRMED: rack-grip-064-ak74m_Zenit-right.png shows the fingertip in the open receiver channel above the yellow charging handle, and the -left close-up shows no finger under the glove.
+  - 0/4 fingers on it (pulled half way) is CONFIRMED: rack-grip-pulled-064-ak74m_Zenit-right.png shows the finger resting on the optic base, and rack-grip-pulled-064-ak74m_Zenit.png shows the left hand back at its idle spot.
+  - 'moving with the hand: the slide / bolt' is CONTRADICTED: in rack-grip-pulled-064-ak74m_Zenit-right.png the part that moves is the upper receiver with the optic, rear sight and lever, while the olive bar and the yellow charging handle stay still.
+  - 'drawn: 1 drawn part(s) move, most 52 mm' is SUPPORTED as to size: the receiver shift is about 260-290 px at the close-up scale, roughly 52 mm. It also shows the moving part is the receiver, not the bolt.
+  - 'the nearest is 0.0 cm from the hand' is consistent: the finger lands on the optic base in the pulled close-up, so the hand touches the receiver rather than the handle.
+  - 'the gun moved 0.4 mm with the pull' is NOT CONFIRMED and may be contradicted: in the -left pair (rack-grip-064-ak74m_Zenit-left.png vs rack-grip-pulled-064-ak74m_Zenit-left.png) the grip, magazine and optic shift about 140-190 px with the glove unchanged. Check whether the camera moved.
+  - 'in the hand: 3.4 cm from the palm' is CONFIRMED: mag-4-in-hand-064-ak74m_Zenit.png shows the magazine behind the open fingers, not wrapped in them.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is partly supported: the axis of mag-6-half-in-064-ak74m_Zenit.png matches the seated line, but the top still sits about 1-2 cm below the magwell, so the depth is not confirmed by the picture.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' is CONSISTENT: mag-1-seated and mag-7-seated-again sit in the same place at the same angle.
+  - 'lens flash shown, strength 1.05' and 'muzzle flash every shot' are PARTLY CONTRADICTED: lens-eyes-064-ak74m Zenit.png is fully black and lensflash-064-ak74m_Zenit.png shows no muzzle flash, while lensburst and lens-eyes-burst do show flash. This may be capture timing.
+  - 'flashes L 14 / R 14 ... most counted steps in any 1.1 s L 6 / R 6 (budget 6)': the budget is saturated (6 of 6) on full auto, so the flash limiter is active. The burst pictures show weak soft flares (strongest 0.33), consistent with throttling. Worth checking.
+  - 'racked: chambered' is UNCLEAR: the cartridge in rack-grip-pulled-064-ak74m_Zenit-right.png appears to point backwards (bullet toward the stock) and floats in the open port.

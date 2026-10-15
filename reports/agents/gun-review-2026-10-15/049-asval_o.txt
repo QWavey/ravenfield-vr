@@ -1,0 +1,52 @@
+Gun 49: asval o
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-049-asval_o-left.png)
+   seen: The left gloved hand lies flat across the top of the receiver, index finger reaching forward over the gas tube. No finger is on any charging handle.
+   expected: Fingers pinch the rifle's charging handle before the pull. The lever in rack-grip-049-asval_o-right.png is the likely handle.
+
+2. [major] [high] hand_not_on_part  (rack-grip-049-asval_o-right.png)
+   seen: From the right side, the left index finger comes up from below and stops about 60 px under the lever's underside (lever spans about x 290-750, y 500-650). No finger wraps the lever.
+   expected: Fingertips on top of the lever, pinching it, before the pull.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-049-asval_o-left.png)
+   seen: The glove sits in the same screen spot as in rack-grip-049-asval_o-left.png (fingertip near x 280, palm x 420-860) and is still flat on the receiver top. The sight ring, pistol grip and magazine shift about 140-195 px left. The hand does not travel back with any handle.
+   expected: The glove follows the charging handle back about half way with fingers still on it, and the handle moves back while the receiver stays put.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-049-asval_o-right.png)
+   seen: Compared with rack-grip-049-asval_o-right.png, the lever, rear sight tab, optic ring and top of the receiver all sit about 255-290 px further right. The finger keeps the same offset to the lever and one fingertip now touches its underside. It looks like the whole upper receiver shifts, not only the handle sliding.
+   expected: Only the charging handle slides back about half the stroke under the fingers. Receiver, optic and sight stay still.
+
+5. [major] [high] mag_not_in_hand  (mag-4-in-hand-049-asval_o.png)
+   seen: The fresh magazine stands up behind and above the gloved hand. Its base disappears behind the palm and no fingers wrap the magazine body. The test's 3.4 cm from the palm agrees.
+   expected: Fingers wrapped around the magazine body, feed end toward the gun, and the magazine moving with the hand.
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-049-asval_o.png)
+   seen: The fresh magazine stands alone in the lower middle of the frame, its top roughly 450-500 px below the receiver underside. No hand is in view holding it (its base is cut off at the bottom edge, so the hand may be just out of frame).
+   expected: Magazine right at the magwell on its line, held by the free hand.
+
+7. [minor] [low] mag_floating_or_offset  (mag-6-half-in-049-asval_o.png)
+   seen: The magazine top is flush with the receiver underside at the same height as in mag-1-seated-049-asval_o.png, so no half-way depth is visible. The glove holds the base.
+   expected: Magazine visibly part way up into the magwell, its top partly inside the receiver and the rest outside.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-049-asval o.png)
+   seen: Both eyes show a small dim orange point with barely visible rings, at about 55% across and 58% down each eye (matches the muzzle position). The right eye is slightly stronger, as intended, but the whole flash is very faint on black.
+   expected: A clearly bright star with soft rings at the muzzle, the right eye somewhat brighter.
+
+9. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-049-asval o.png)
+   seen: The full-auto eye pair shows only two pinpoint dots at the same spots, with no visible rings. Almost nothing reads on black.
+   expected: A visible flare per shot with soft rings at the muzzle, right eye somewhat stronger.
+
+10. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-049-asval_o.png (same weak flame in lensburst-049-asval_o.png))
+   seen: In first person, the muzzle end (about x 690, y 460) shows only a few small yellow specks around x 640-700, y 440-545. No visible glow or bloom at the muzzle.
+   expected: A visible muzzle flame at the muzzle on each shot, readable in the first-person view.
+
+Test line flags:
+  - rack grip 0/4 fingers on the part: confirmed. In rack-grip-049-asval_o-left.png and rack-grip-049-asval_o-right.png no finger is on a handle.
+  - pulled half way 1/4 fingers on it: plausible. In rack-grip-pulled-049-asval_o-right.png one fingertip touches the lever's underside and the rest do not.
+  - drawn: 1 drawn part(s) move, most 54 mm, nearest 0.0 cm from the hand: not confirmed. In the right close-up pair the lever, rear sight tab, optic ring and receiver top all shift about 255-290 px together, so either more than one part moves or the close-up camera moved.
+  - the gun moved 0.6 mm with the pull: not reconciled. The first-person pair shows no obvious shift, but the left close-up pair shows the sight, grip and magazine moving 140-195 px while the glove stays put, so the close-up camera framing is not a reliable check.
+  - in the hand: 3.4 cm from the palm: confirmed. mag-4-in-hand-049-asval_o.png shows the magazine behind the palm, not between the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: the line looks right, but mag-6-half-in-049-asval_o.png shows the magazine top at the same height as the seated picture, so the half-way depth is not visible.
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. mag-7-seated-again-049-asval_o.png matches mag-1-seated-049-asval_o.png.
+  - lens flash strength 0.07 and muzzle flash with no flash light: consistent with the very faint flash in lens-eyes-049-asval o.png and lensflash-049-asval_o.png.

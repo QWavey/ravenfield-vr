@@ -1,0 +1,47 @@
+Gun 6: AUTOMATICO
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-006-AUTOMATICO.png)
+   seen: The left glove (palm down, fingers stretched flat to the left at about x 355-430, y 380-430) holds nothing. The fresh magazine (dark slab at about x 370-510, y 95-440) stands upright above and behind the palm. The glove's top edge at about y 290 cuts across its lower part, and no finger touches the magazine body. It floats about a hand width away from the palm.
+   expected: Fingers closed around the magazine body with the palm on it, feed end toward the gun's magwell, and the magazine moving with the hand.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-006-AUTOMATICO-right.png)
+   seen: Against rack-grip-006-AUTOMATICO-right.png the left glove does not move at all: cuff (x 400-520), thumb (x 730-910, y 235-350) and index fingertips (x 900-1150, y 275-370) are at identical pixels. The black slide's front-left edge moves from about x 530 to x 615-640 and its top bevel shifts right, so the slide slides out from under the still hand. The fingertips near x 1100-1150 now sit above the slide top instead of on it.
+   expected: The left hand moves back with the slide and its fingers stay on the slide top. The test says the slide moves about 36 mm with the hand.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-006-AUTOMATICO-left.png)
+   seen: Compared with rack-grip-006-AUTOMATICO-left.png, the left glove, its thumb and the slide top at the left edge stay at the same pixels. The trigger guard (about x 250-430 to 150-370), trigger lever, grip, magazine and right-hand cuff (about x 690-880 to 590-770) all shift about 80-110 px to the left, toward the muzzle. The slide shows no rearward movement, so the lower gun body appears to slide forward.
+   expected: Only the slide moves back, with the barrel and front sight visible ahead of it. The frame, trigger, magazine and right hand stay put. This also contradicts the test line 'the gun moved 0.8 mm'.
+
+4. [minor] [medium] part_floating_or_detached  (rack-grip-pulled-006-AUTOMATICO-left.png)
+   seen: A brass cartridge lies along the top of the slide at about x 290-470, y 232-258, tip pointing left. The same kind of round sits on the slide top in rack-grip-pulled-006-AUTOMATICO-right.png at about x 945-1280, y 355-405. Neither appears in the unpulled rack-grip frames. It rests on the slide surface, not inside the chamber or the ejection port.
+   expected: No round resting on top of the slide. A chambered round should be hidden inside the slide, and an ejected case should fly away from the port.
+
+5. [minor] [low] part_floating_or_detached  (rack-grip-pulled-006-AUTOMATICO-right.png)
+   seen: A tan lever-like part under the slide's front-left (about x 500-615, y 405-530 in rack-grip-006-AUTOMATICO-right.png) is gone from there in the pulled frame. A light part of similar size appears at about x 705-810, y 520-590, displaced about 200 px right and 115 px down. That is more than the slide's roughly 85 px shift, so it moves independently of the slide.
+   expected: The part stays attached to its frame or slide and moves only with the mechanism it belongs to.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-006-AUTOMATICO.png)
+   seen: The right eye panel is clearly brighter overall than the left. Its brown haze reaches the panel edges, and its star near (478,162) with a larger ring is much stronger than the star near (180,162) on the left panel, which stays dark at the edges. In lens-eyes-burst-006-AUTOMATICO.png the left star is barely visible while the right one shows a clear ring.
+   expected: Right eye a bit stronger, with the two stars and rings of similar shape and size. The gap here looks closer to 1.5-2x than 'a bit'.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-006-AUTOMATICO.png)
+   seen: A hard-edged vertical brightness band fills the right screen edge (about x 1215-1280, from the top down to about y 520). A grey haze washes out the whole left half, including the wall. The core flare at about (715,530) is near the muzzle at about (745,545), as expected.
+   expected: Soft falloff with no hard vertical edge, and the haze should not wash out most of the view.
+
+8. [minor] [low] other  (rack-grip-006-AUTOMATICO.png)
+   seen: In this first-person frame, and in rack-grip-pulled-006-AUTOMATICO.png (where it is larger), the gun's front-left shows a large dark rounded opening at about x 735-800, y 640-740 (to about y 780 in the pulled frame). It is not present at that spot in weapon-006-AUTOMATICO.png. The lensflash muzzle flash sits at the top-left of the gun, so this opening is not the muzzle.
+   expected: The same gun silhouette as weapon-006-AUTOMATICO.png, with no dark opening at the front.
+
+9. [minor] [low] hand_not_on_part  (weapon-006-AUTOMATICO.png)
+   seen: No right hand or fingers are visible on the grip. The grip runs off the bottom edge at about x 790-900, y 700-800, so the hold cannot be seen.
+   expected: The right hand wrapped around the pistol grip, with nothing floating.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' is contradicted: the left glove sits at identical pixels in rack-grip-006-AUTOMATICO-left.png vs rack-grip-pulled-006-AUTOMATICO-left.png and in rack-grip-006-AUTOMATICO-right.png vs rack-grip-pulled-006-AUTOMATICO-right.png, while the slide moves in the right view.
+  - 'the gun moved 0.8 mm with the pull' looks wrong: in rack-grip-pulled-006-AUTOMATICO-left.png the trigger guard, trigger, grip, magazine and right-hand cuff sit about 80-110 px further left than in rack-grip-006-AUTOMATICO-left.png, while the slide and left hand stay put.
+  - 'drawn: 1 drawn part(s) move' looks wrong: two parts move in the right pulled view (the slide and the tan part under its front). The 36 mm figure cannot be checked from these pictures; the slide shift looks like roughly 2-3 cm at close-up scale.
+  - 'racked: chambered' is not consistent with the pictures: in both pulled close-ups a brass round sits on top of the slide rather than inside it.
+  - 'in the hand: 4.0 cm from the palm (FLOATS BESIDE THE HAND)' is confirmed by mag-4-in-hand-006-AUTOMATICO.png: the magazine stands behind and above the glove and no finger wraps it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' looks consistent with mag-6-half-in-006-AUTOMATICO.png; the magazine emerges from the grip bottom on the line.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' looks consistent: mag-1-seated and mag-7-seated-again show the magazine base at the same place under the grip.

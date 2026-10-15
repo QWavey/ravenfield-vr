@@ -1,0 +1,40 @@
+Gun 80: mwii-g17
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-080-mwii-g17-right.png)
+   seen: Close-up from the right, in the same frame as rack-grip-080-mwii-g17-right.png. The slide front edge sits at about x=620 in both, the tan glove thumb tip lies on the slide at about (860-880, 470-500) in both, and the cuff is in the same place on the left. Nothing shifted back. The only change is a brass case showing in the ejection port at about (1040-1100, 430-470). The hand does not travel with the slide.
+   expected: Slide pulled about half way back: the front of the slide visibly moves toward the rear (right in this view), the fingers move with the serrations, and the receiver and grip stay still.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-080-mwii-g17.png)
+   seen: First-person view. No free hand is visible anywhere in the frame, so nothing shows fingers on the slide. The pistol sits low, centre-right, with the slide top at about (735-790, 570-615). The free hand that is visible in weapon-080.png at about (540-630, 590-690) is absent here.
+   expected: The left (free) hand's fingers pinching the slide near the rear, visible in frame.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-080-mwii-g17.png)
+   seen: First-person view that is essentially identical to the unpulled rack-grip first-person frame: the pistol is in the same place, no free hand is in frame, and no rearward slide travel is visible.
+   expected: Left hand pulling the slide about half way back, visible in frame, with the slide clearly drawn back toward the shooter.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-080-mwii-g17-right.png)
+   seen: Only the thumb or fingertip of the tan leather glove touches the slide top, at about (630-890, 270-500), near the front sight. The other fingers curl below the slide and do not wrap it. This matches the test line's 1 of 4 fingers on the part.
+   expected: Several fingers wrapped over the slide serrations, pinching the slide.
+
+5. [major] [low] hand_pose_wrong  (rack-grip-080-mwii-g17-right.png)
+   seen: The glove on the slide is the tan leather glove with white-dot thumb and vented cuff, which is the same glove that holds the grip in mag-1-seated.png. The grey hex glove with triangle emblem, which is the free hand on the slide in rack-grip-080-mwii-g17-left.png and the hand holding the magazine in mag-4-in-hand, sits low under the trigger guard instead. The gun hand may be racking the slide while the free hand is down by the grip. Not certain from these frames alone.
+   expected: The free (grey hex) hand pinches the slide while the gun hand keeps its grip on the pistol grip.
+
+6. [major] [low] wrong_part_moves  (rack-grip-pulled-080-mwii-g17-left.png)
+   seen: Compared with rack-grip-080-mwii-g17-left.png: the fingertips on the slide (about x 230-300, y 400-450) are in the same place, but the slide's muzzle end is now cut off at the left edge of the frame, where in the unpulled shot it is visible at about x=40. The black grip block and the vented cuff also sit further left. The only visible slide change is a brass case in the ejection port. This reads as the gun body shifting forward relative to the hand, not the slide travelling back.
+   expected: The slide moves back about half way, its front moving toward the rear (right in this view), the fingers moving with it, and the receiver and grip staying still.
+
+7. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-080-mwii-g17.png)
+   seen: The fresh magazine held by the grey hex hand sits about a grip height below the grip base. Its top is at about (685-735, 515) and the grip base at about y=440. Its axis is shifted toward the grip's right edge, roughly half a grip width off the magwell line. It is not yet at the magwell.
+   expected: Magazine lined up directly under the magwell on the grip's axis, close to the base plate, feed end up.
+
+8. [minor] [low] gun_pose_or_aim_wrong  (rack-grip-080-mwii-g17.png)
+   seen: In this first-person rack frame the muzzle opening, a dark ring at about (760-810, 670-760), faces the camera. In weapon-080.png the same pistol points forward and away. The gun appears turned toward the viewer during the racking pose.
+   expected: Pistol held pointing forward, as in weapon-080.png, unless the racking pose intentionally tilts the gun.
+
+Test line flags:
+  - rack grip '1/4 fingers on it': confirmed by rack-grip-080-mwii-g17-right.png, where only one fingertip lies on the slide. The first-person rack-grip frame shows no hand at all.
+  - pulled half way '1/4 fingers on it': confirmed by the same single contact in rack-grip-pulled-080-mwii-g17-right.png.
+  - drawn: '5 drawn part(s) move, most 29 mm; the nearest is 0.0 cm from the hand': NOT confirmed. The pulled close-ups show no rearward slide travel and the hand stays in the same place, so the 29 mm move with the hand is not visible in the pictures.
+  - 'the gun moved 0.4 mm with the pull': the right close-up is consistent (receiver unchanged), but the pulled left close-up shows the gun body shifted in frame relative to the hand, so this is not clearly confirmed.

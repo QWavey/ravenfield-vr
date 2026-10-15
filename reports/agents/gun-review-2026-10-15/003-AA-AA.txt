@@ -1,0 +1,48 @@
+Gun 3: AA-AA
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-003-AA-AA.png)
+   seen: The fresh magazine stands upright above the left glove, roughly x 355-500, y 110-400 of the 1280x800 frame. The fingers only touch its lower edge and the palm is well away from it, so it floats beside the hand. Matches the test line 'FLOATS BESIDE THE HAND'.
+   expected: Fingers wrap around the magazine body with the palm against it, feed end pointing toward the magwell.
+
+2. [major] [medium] mag_not_into_magwell  (mag-1-seated-003-AA-AA.png)
+   seen: The dark magazine body (x ~525-690, y ~465-590) hangs about 95 px below the bottom of the grip, which ends near y 490-495 at x 530-560. Roughly 3 cm of magazine shows under the handle. mag-7-seated-again-003-AA-AA.png shows the same offset.
+   expected: Magazine fully inside the grip, only the base plate visible below it.
+
+3. [major] [low] mag_not_into_magwell  (mag-6-half-in-003-AA-AA.png)
+   seen: The fresh magazine's visible bottom sits at y ~690, below the seated magazine (y ~590) and below the dropping copy in mag-2-leaving-003-AA-AA.png (y ~650). It reads as further out than half way, hanging below the well rather than rising into the grip.
+   expected: Roughly half of the magazine inside the grip, its bottom above the dropping copy's position, on the magwell line.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-003-AA-AA-right.png)
+   seen: Compared with rack-grip-003-AA-AA-right.png (same camera, same glove and frame), the slide's barrel tip and rear end sit about 50-60 px further right, toward the muzzle. The hand and frame do not move, so the slide shifts forward instead of back toward the hand. The magnitude (~2-3 cm) is close to the test's 29 mm.
+   expected: The slide moves back toward the hand (left in this view, toward the rear) by about 29 mm, with the barrel showing ahead of it.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-003-AA-AA-right.png)
+   seen: The racking glove sits mostly on the frame side of the gun. Its thumb tip rests on the frame below the slide (about x 800-850, y 500-560), and the fingers sit in the gap between slide and frame (x 620-850, y 300-420). Only the knuckles touch the slide's rear top. The same hand is in rack-grip-pulled-003-AA-AA-right.png.
+   expected: Fingers pinch the slide's top or rear serrations, not the gap or the frame.
+
+6. [minor] [low] part_floating_or_detached  (rack-grip-003-AA-AA-right.png)
+   seen: A band of background (tan wall) shows between the slide (y ~240-380) and the frame (y ~420-580) on the right side, so the slide appears to float about 1.5 cm above the frame. Same in rack-grip-pulled-003-AA-AA-right.png.
+   expected: Slide sits on the frame rails with no visible gap, unless the design intends one.
+
+7. [major] [low] other  (weapon-003-AA-AA.png)
+   seen: Two red gun-shaped objects stand in the first-person view: the gun on the right and a second one at x ~480-570 on the left, rising to y ~540, with a grey glove beside it. The same left object is in lensflash-003-AA-AA.png, lensburst-003-AA-AA.png, rack-grip-003-AA-AA.png and rack-grip-pulled-003-AA-AA.png. Its identity cannot be confirmed from the picture.
+   expected: Only the gun in the right hand is visible; the left hand is free.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-003-AA-AA.png)
+   seen: The right muzzle flash is correct: a starburst at the top of the right gun (x ~680-810, y ~440-540). A second small yellow glow sits on the top of the left red object (x ~535, y ~520), and lensburst-003-AA-AA.png shows it too. The test lists only 'Muzzle R'.
+   expected: Flash only at the right gun's muzzle.
+
+9. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-003-AA-AA.png)
+   seen: Both eyes show a star with soft rings and no hard edges, and neither eye is hugely brighter. The right (gun-side) eye is not visibly stronger; the left halo looks at least as strong.
+   expected: Right eye a bit stronger than the left.
+
+Test line flags:
+  - rack grip '1/4 fingers on it' and pulled half way '1/4 fingers on it': confirmed by rack-grip-003-AA-AA-right.png and rack-grip-pulled-003-AA-AA-right.png. The thumb rests on the frame and the fingers sit in the slide-frame gap.
+  - drawn 'most 29 mm': the magnitude is plausible (the slide's barrel tip shifts ~2-3 cm in rack-grip-pulled-003-AA-AA-right.png), but the direction looks forward, not back.
+  - in the hand '4.0 cm from the palm (FLOATS BESIDE THE HAND)': confirmed by mag-4-in-hand-003-AA-AA.png.
+  - half way in '0.0 cm off the magwell line': the line is not contradicted, but the depth looks wrong in mag-6-half-in-003-AA-AA.png (bottom lower than the dropping copy).
+  - seated 'the gun's magazine shows 0.0 cm from where it was': consistent between mag-1 and mag-7, but both show ~3 cm of magazine below the grip (see the mag-1 finding).
+  - magazine (deep) 'dropped copy 2.0 cm out': mag-2-leaving-003-AA-AA.png shows the copy dropping straight down its line; consistent.
+  - muzzle flash 'Muzzle R, the flash light': the right muzzle flash is confirmed in lensflash-003-AA-AA.png; the extra glow on the left object is not covered by the test line.
+  - the gun moved 0.6 mm with the pull: inconclusive (low confidence). The grip hand's thumb and the lower grip look ~90 px further left in rack-grip-pulled-003-AA-AA-left.png than in rack-grip-003-AA-AA-left.png, while the trigger guard stays put. That would exceed 0.6 mm if the gun itself moved.

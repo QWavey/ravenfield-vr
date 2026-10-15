@@ -1,0 +1,21 @@
+Gun 27: SCALPEL
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-027-SCALPEL.png)
+   seen: No right hand is visible anywhere in the frame. The thin dark grip/rod at lower-left-centre (around x 595-625, y 660-800) and the lower housing (around x 660-800, y 640-800) run off the bottom edge with no fingers or palm wrapped around them. The bottom-right corner shows only grass.
+   expected: The right hand wrapped around the grip at the bottom centre, fingers visible around the grip below the sight, as the brief describes for the held gun.
+
+2. [tiny] [low] other  (weapon-027-SCALPEL.png)
+   seen: A black rounded opening with a grey rim sits at the bottom edge under the lower housing (around x 800-870, y 748-800). It could be a hole or back-face gap in the mesh, or a normal trigger-guard opening; one frame does not settle which.
+   expected: A solid grey/olive gun surface at that spot, unless the black opening is the intended trigger guard.
+
+3. [minor] [low] other  (weapon-027-SCALPEL.png)
+   seen: Translucent brown and blue discs are spread over the whole frame: over the wall, the sky, and the green tube (around x 845, y 505 and x 880, y 445). They look like screen-space dust or lens dirt rather than gun parts, and at least two sit on the weapon itself.
+   expected: No dirt discs on the weapon model. If the dust is intended ambient effect, it should not overlay the gun.
+
+Test line flags:
+  - The test line says the gun is held in the right hand with the left hand free, but the picture shows no right hand at all, so the held-in-hand claim is not confirmed by the picture (matches the hand_not_on_part bug above).
+  - 'loaded to 1/1' and 'equipped' are consistent with the gun being in hand and a red 'FULL' label on the sight housing, but the picture cannot confirm the ammo count.
+  - 'muzzle flash: no particles, the flash light' and 'lens flash none' are untested: 'fired 0/3' means the gun never fired, so no muzzle or lens flash was produced. The picture shows no flash, which is expected for an unfired gun, but this result says nothing about the flash.
+  - 'not fired: needs a lock-on (no target here)' is a test-setup limitation, not a gun bug. The picture shows no enemy in view and cannot confirm or deny that a lock-on would work. The test needs a target to exercise firing and the flash checks.
+  - Only one picture (weapon-027-SCALPEL.png) is listed for this gun, so there are no rack-grip, reload, magazine or lens-flash pictures. The slide/bolt and magwell checks cannot be verified by this run.

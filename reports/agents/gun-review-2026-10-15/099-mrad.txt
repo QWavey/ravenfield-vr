@@ -1,0 +1,53 @@
+Gun 99: mrad
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-099-mrad.png)
+   seen: The fresh magazine (black box, tilted about 30 degrees) floats above and behind the open left hand, roughly x 290-600, y 120-435. Only the thumb and index finger cross its lower-left corner. No fingers wrap the magazine body, and a visible gap separates it from the palm (the test measures 3.4 cm).
+   expected: Fingers closed around the magazine body with the palm under it, magazine upright, feed end pointing up toward the magwell.
+
+2. [major] [high] hand_not_on_part  (rack-grip-099-mrad-right.png)
+   seen: The ball-knob charging handle (x 660-810, y 475-625, arm rising to the receiver slot) is not gripped. The left hand sits below and in front of it: thumb at lower left, index finger stretched under the knob and across the trigger guard (x 600-690, y 620-750). No finger wraps the knob.
+   expected: Thumb and fingers closed around the ball knob, so the hand can pull it back along the receiver slot.
+
+3. [major] [medium] hand_or_finger_clipping  (rack-grip-099-mrad-right.png)
+   seen: One glove fingertip sits inside the receiver's top bolt channel at the base of the charging-handle arm (x 700-880, y 215-345). The finger is buried in the receiver body above the handle instead of outside it.
+   expected: All fingers outside the receiver, on the charging handle.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-099-mrad-right.png)
+   seen: After the pull the hand is still under the knob. The thumb is at x 470-650, and the index finger runs to the trigger guard (x 600-1010, y 600-800). Only the tip of one finger touches the knob's lower edge (around x 640-700, y 600-680). The knob does not travel with a closed hand.
+   expected: Fingers closed around the knob, with the hand moving back with it about half way (roughly half of the 74 mm travel).
+
+5. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-099-mrad-right.png)
+   seen: Compared with rack-grip-099-mrad-right.png, the knob and arm sit at about the same position against the receiver top and trigger guard. The framing differs somewhat, but no clear rearward travel is visible even though the test reports 74 mm.
+   expected: The knob and arm visibly slide back toward the stock, about half way along the slot.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-pulled-099-mrad-left.png)
+   seen: From the left, the open hand lies flat on the receiver side plate with spread fingers and no pinch. Its position is nearly the same as in rack-grip-099-mrad-left.png, so the hand does not visibly travel back with a pull. The handle itself is on the far side and is not visible here.
+   expected: Fingers pinching the bolt handle on the right side, moving back with it.
+
+7. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-099-mrad.png)
+   seen: The fresh magazine (x 485-680, y 540-700) sits about 150 px below the receiver bottom and left of the magwell (the well is about x 540-790). It looks about 0.6x the size of the gun's own magazine (195 px wide vs 310 px), so it appears to be further from the camera than the magwell.
+   expected: Magazine right under the magwell, on the well's vertical line, at the same depth and scale as the gun's magazine.
+
+8. [minor] [low] mag_floating_or_offset  (mag-6-half-in-099-mrad.png)
+   seen: The thumb covers the lower part of the fresh magazine. Its front edge hangs about 75 px lower than the seated magazine's front edge (about y 600 vs 525), and its visible length (about 220 px) matches the leaving magazine in mag-2. It is not clearly half way into the well.
+   expected: Magazine partly inside the magwell, its base about half way between the lined-up and seated positions, square to the well.
+
+9. [tiny] [low] other  (lens-eyes-099-mrad.png)
+   seen: The brown haze in the lower-right of each eye panel ends at a hard rounded-rectangle edge (left panel edge near x 298, right panel near x 600) instead of fading to black.
+   expected: Soft falloff of the flare glow to black at the panel edges.
+
+10. [tiny] [low] other  (mag-2-leaving-099-mrad.png)
+   seen: Mirrored text (for example '1 NO MAG') is drawn on the right hand's knuckles in the magazine pictures. It looks like a test or debug label rather than game art, and may be a harness overlay.
+   expected: No debug text on the hand unless it is intended.
+
+Test line flags:
+  - rack grip 0/72 points inside the part, 1/4 fingers on it: CONFIRMED by rack-grip-099-mrad-right.png. The fingers sit below the ball knob, not around it; at most one fingertip touches it.
+  - pulled half way 0/72 points inside the part, 1/4 fingers on it: CONFIRMED by rack-grip-pulled-099-mrad-right.png. The hand is still beneath the knob.
+  - moving with the hand: the slide / bolt: NOT CONFIRMED. No clear rearward movement of the knob or arm is visible between rack-grip-099-mrad-right.png and rack-grip-pulled-099-mrad-right.png, and the hand does not visibly move with it.
+  - drawn: 1 drawn part(s) move, most 74 mm; the nearest is 0.0 cm from the hand: the 74 mm travel is NOT visible in the pictures. The 0.0 cm contact matches only a fingertip touching the knob's lower edge, not a grip.
+  - in the hand: 3.4 cm from the palm: CONFIRMED by mag-4-in-hand-099-mrad.png. The magazine floats behind the palm rather than sitting in the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: NOT CONFIRMED. In mag-6-half-in-099-mrad.png the thumb hides most of the magazine base and the front edge sits lower than the seated one.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONSISTENT. mag-7-seated-again-099-mrad.png matches mag-1-seated-099-mrad.png in placement.
+  - dropped copy 0.0 cm across the pull, 1.7 cm out: CONSISTENT. mag-2-leaving-099-mrad.png shows the magazine dropping straight down, and no second magazine appears in mag-3 or mag-7.
+  - muzzle flash particles 18 cm, lens flash shown strength 0.61: CONSISTENT. lensflash-099-mrad.png shows the glow right at the muzzle, and lens-eyes-099-mrad.png shows a star with rings, the right eye slightly stronger.

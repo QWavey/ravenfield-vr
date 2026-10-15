@@ -419,6 +419,17 @@ namespace RavenfieldVR.Rig
         private Vector3 _keepOut;
 
         /// <summary>
+        /// Holding a magazine that slides on the well's line (pulled out or pushed in): where the palm is drawn this frame,
+        /// so the glove holds it as it holds one in the free hand. The magazine follows the well's line, not the hand, and
+        /// the glove stayed with the tracked hand: the hand went through the magazine, and the grip snapped back when the
+        /// magazine came off the well. Set with <see cref="HeldPalmFrame"/> every frame it applies; eased in and out.
+        /// </summary>
+        public RigidPose HeldPalm;
+        public int HeldPalmFrame = -10;
+        private RigidPose _heldPalmLast;
+        private float _heldPalmWeight;
+
+        /// <summary>
         /// How far the glove, where the tracked hand alone puts it, has to move back against <paramref name="dir"/> to keep
         /// its bones and palm out of <paramref name="blocked"/>: in 5 mm steps up to <paramref name="max"/>. The glove as last
         /// posed (its fingers round what it holds); 0 while it is not shown, and 0 when no step is clear (then it is not
@@ -521,6 +532,20 @@ namespace RavenfieldVR.Rig
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
             // Always the tracked hand: held objects follow the hand, never the reverse.
             RigidPose target = _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
+            // Holding a magazine on the well's line: the palm where it holds that magazine (eased over the magazine's own
+            // 80 ms switch onto and off the line).
+            bool heldPalm = Time.frameCount - HeldPalmFrame <= 1;
+            if (heldPalm)
+            {
+                _heldPalmLast = HeldPalm;
+            }
+            _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, dt / 0.08f);
+            if (_heldPalmWeight > 0f)
+            {
+                RigidPose over = _heldPalmLast.Multiply(new RigidPose(posOffset, rotOffset));
+                float kh = _heldPalmWeight * _heldPalmWeight * (3f - 2f * _heldPalmWeight);
+                target = new RigidPose(Vector3.Lerp(target.position, over.position, kh), Quaternion.Slerp(target.rotation, over.rotation, kh));
+            }
             // Carried along with a heavy weapon that lags the hand (set every frame by the weapon; a stale one is none).
             if (Time.frameCount - FollowFrame <= 1)
             {

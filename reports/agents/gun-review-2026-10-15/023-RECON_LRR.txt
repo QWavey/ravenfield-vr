@@ -1,0 +1,55 @@
+Gun 23: RECON LRR
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-023-RECON LRR.png)
+   seen: The whole picture is black. Both the left-eye and right-eye halves are empty: no star, no flare, no soft rings, nothing near a muzzle.
+   expected: A bright star/flare with soft rings near the muzzle position, the same in both eyes, with the right (gun-side) eye a bit stronger.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-023-RECON_LRR.png)
+   seen: First-person view. The free left glove (about x 540-630, y 590-690) floats in the grass left of and below the gun's front end. It touches neither the receiver top nor any handle, so the rack part is not being grabbed.
+   expected: Fingers pinched on the charging handle / slide on top of the receiver, not in the air beside the gun.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-023-RECON_LRR-left.png)
+   seen: Close-up from the left. The glove lies flat across the top rail and upper receiver (about x 370-870, y 250-540). One index finger sticks straight up above the rail (about x 505-600, y 165-250) into the air. Nothing handle-like is under the fingers; the hand grips the body of the receiver.
+   expected: Fingers wrapped around the charging handle / slide, with no finger hanging in the air.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-023-RECON_LRR.png)
+   seen: First-person view during the pull. The free glove has moved about 200 px right and 90 px down (now about x 740-830, y 680-790), low beside the grip/trigger area and away from the top of the receiver. The receiver top and front sight show no visible rearward travel of any handle.
+   expected: Hand still on the charging handle / slide, with that part visibly pulled about half way back toward the rear.
+
+5. [major] [low] wrong_part_moves  (rack-grip-pulled-023-RECON_LRR-left.png)
+   seen: Compared with rack-grip-023-RECON_LRR-left.png, the glove sits at the same screen spot (about x 370-870, y 170-540), but the scope, top rail, receiver and muzzle brake all shift about 95 px to the left together. The whole upper gun, including the sight, moves while the glove stays put. The test says only the slide moved; this picture does not show that.
+   expected: Only the slide/handle under the glove moves back about half way, with the glove travelling with it; the scope and receiver stay still.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-023-RECON_LRR.png)
+   seen: First-person frame taken on a shot. The muzzle end of the gun (about x 715-765, y 500-545) is a plain grey shape with no flash, burst, particles or glow. Nothing in the frame is bright except sky and sea.
+   expected: A bright muzzle flash burst at the muzzle end, with the lens flash glow around it.
+
+7. [major] [medium] part_floating_or_detached  (mag-5-lined-up-023-RECON_LRR.png)
+   seen: A separate dark pistol-shaped object floats at the right edge (about x 890-1280, y 240-560; lanyard ring about x 1135-1170, y 240-275; trigger guard about x 1120-1240, y 460-560). No hand holds it. The same object shows at the right edge in mag-1, mag-2, mag-3, mag-6 and mag-7, and is absent from the first-person frames.
+   expected: No extra floating weapon in view; the only gun is the RECON LRR held in the right hand.
+
+8. [minor] [low] wrong_part_moves  (rack-grip-pulled-023-RECON_LRR-right.png)
+   seen: Close-up from the right. The glove is unchanged (about x 405-900, y 245-325), but the scope, the dark tube under the rail and the lower yellow body all shift about 200 px to the right, while the top band under the fingers stays where it was. The sight and receiver move; the part under the fingers does not visibly move.
+   expected: Only the slide/handle moves back about half way with the hand; the sight and receiver stay still.
+
+9. [minor] [low] mag_not_into_magwell  (mag-6-half-in-023-RECON_LRR.png)
+   seen: The fresh magazine sits on the right line (about x 530-745, same as the seated magazine), but its top is about 70 px below the magwell underside (seated top at about y 220; here about y 290). Sea colour shows in the gap, so the magazine is hanging under the well and has not gone into it.
+   expected: Magazine top overlapping the receiver's magwell opening, half way up into the well on the same line.
+
+10. [minor] [low] hand_or_finger_clipping  (rack-grip-023-RECON_LRR-right.png)
+   seen: Close-up from the right. The finger row (about x 400-900, y 240-325) is cut off in a straight horizontal line by the top rail band at about y 320, so the fingers look sunk behind or into the receiver top rather than resting on a handle.
+   expected: Fingers resting on the handle / slide, fully visible above the receiver body.
+
+Test line flags:
+  - 'lens flash shown, strength 1.08': contradicted. lens-eyes-023-RECON LRR.png is entirely black for both eyes, so no flash is shown.
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm, every shot': not confirmed. lensflash-023-RECON_LRR.png shows no flash at the muzzle.
+  - 'rack grip: 0/72 points inside the part, 1/4 fingers on it': supported. rack-grip-023-RECON_LRR.png shows the free hand floating in the grass, and the -left close-up shows the glove on the rail with one finger in the air.
+  - 'pulled half way: 0/72 points inside the part, 1/4 fingers on it': supported. The glove never travels with a handle in the pulled close-ups.
+  - 'moving with the hand: the slide / bolt': not confirmed. No slide or bolt visibly travels in the pulled pictures. The only shifts are the scope and receiver in the -left and -right close-ups.
+  - 'drawn: 1 drawn part(s) move, most 33 mm; the nearest is 0.0 cm from the hand': contradicted in part. In rack-grip-pulled-023-RECON_LRR-left.png and -right.png, the scope, rail, receiver and muzzle brake all shift together relative to the glove, which is more than one part.
+  - 'the gun moved 0.5 mm with the pull': cannot be settled from pictures. The close-ups show roughly 95-200 px of shift against a fixed glove. That is only consistent with 0.5 mm if the close-up camera rides the hand, so the camera reference needs checking.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ... 1.7 cm out': consistent. mag-2-leaving-023-RECON_LRR.png shows the magazine dropping straight down along the same vertical line with no sideways shift.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': partly contradicted. mag-6-half-in-023-RECON_LRR.png matches the magwell line horizontally, but the magazine top is about 70 px below the magwell, so it is not in the well yet.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': supported. mag-7-seated-again-023-RECON_LRR.png matches mag-1-seated (top touching the receiver underside, same x).
+  - 'racked: chambered', 'fired 3/3', 'cases thrown: 3': not checkable from these pictures; no casings or chamber are visible.

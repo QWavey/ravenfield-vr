@@ -1,0 +1,37 @@
+Gun 92: mwii-m4(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-092-mwii-m4_No_script_-left.png)
+   seen: The gloved left hand lies flat along the top of the gun, from the tan buttstock forward over the upper receiver. The cuff sits on the stock and the fingertips reach forward toward the aperture sight area. Nothing is under the fingers to pinch: there is no charging handle at the rear top of the receiver, so the hand is grabbing empty space.
+   expected: The fingertips pinch the AR charging handle at the top rear of the receiver, ahead of the buttstock, with the fingers on that handle and not on the stock or the top rail.
+
+2. [major] [high] hand_not_on_part  (rack-grip-092-mwii-m4_No_script_-right.png)
+   seen: Same problem from the right side: the cuff sits on top of the tan buttstock and the fingers lie along the stock top toward the receiver. The index fingertip rests on the stock and buffer-tube junction at the back of the receiver. No handle geometry is visible under the fingertips.
+   expected: The fingers pinch a visible charging handle at the rear top of the receiver. The grip point should not sit on the buttstock.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-092-mwii-m4_No_script_-left.png)
+   seen: Compared with rack-grip-092-mwii-m4_No_script_-left.png, the whole rifle body (front sight, pistol grip, buttstock loop) has shifted about 110 px toward the muzzle in frame, roughly 4 cm at this range, while the glove cuff stays in the same screen spot. No handle is seen sliding back under the glove, so the glove looks like it is pulling air and the body moves with it. The first-person pulled view (rack-grip-pulled-092-mwii-m4_No_script_.png) barely changes from the rack-grip first-person view. The ~37 mm shift matches the whole rifle, not one part.
+   expected: Only the charging handle slides back about 3-4 cm under the glove, the glove stays on it, and the rest of the rifle does not move (the test line says the gun moved 0.4 mm).
+
+4. [major] [medium] hand_pose_wrong  (rack-grip-pulled-092-mwii-m4_No_script_-right.png)
+   seen: Compared with rack-grip-092-mwii-m4_No_script_-right.png, the cuff and wrist stay put while the stock and receiver shift about 150-180 px toward the muzzle. The index finger is stretched about 200 px further forward, lying over the top of the receiver near the buffer tube with its tip past the stock. It looks stretched rather than curled around a handle.
+   expected: The glove keeps its normal finger pose and stays wrapped on the charging handle. The fingers should not extend over the receiver or into it.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-092-mwii-m4_No_script_.png)
+   seen: The muzzle flash is correctly at the muzzle (about x 680, y 470). But a bright vertical streak runs from the top edge down to the horizon at the far right edge (about x 1200-1245), with a white glare along the horizon from about x 880 to 1230. That far-off light is nowhere near the muzzle, and the lensburst frame has no such streak.
+   expected: Flash bloom and ring ghosts stay around the muzzle flash, with no streak at the screen edge far from the muzzle.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-092-mwii-m4(No script).png)
+   seen: In both eye panels the warm glow runs right up to the rounded panel border on the right and bottom and is cut off with a hard edge instead of fading out. The star and rings are placed well and the right eye is a bit stronger, which is correct.
+   expected: The glow fades to black before the panel border so the edge is soft.
+
+Test line flags:
+  - rack grip: not measured (the part's shape is not ready). Confirmed by rack-grip-092-mwii-m4_No_script_-left.png and -right.png: no charging handle is under the glove, which rests on the buttstock top.
+  - drawn: 1 drawn part moves, most 37 mm; gun moved 0.4 mm with the pull. Not confirmed. In rack-grip-pulled-092-mwii-m4_No_script_-left.png and -right.png the rifle body shifts roughly 110-180 px in frame (about the 37 mm reported) while the cuff stays fixed and no handle is seen moving. The 0.4 mm gun movement conflicts with that unless the close-up camera tracks the hand. The pictures alone cannot say which part moved.
+  - moving with the hand: an added handle. No added handle is visible in any picture, so this cannot be confirmed.
+  - dropped magazine picked up and seated, 29 rounds kept; magazine: seated, 30 rounds. The ammo HUD digits in the close-ups are too small to read, so the counts cannot be checked.
+  - half way in (on the rail): 0.0 cm off the magwell line; seated: 0.0 cm from where it was. Not fully checkable: mag-6-half-in and mag-7-seated-again have the glove covering the magazine base, so depth and line offset cannot be verified. The magazine top sits at the same spot under the receiver in mag-1-seated and mag-7-seated-again, which is consistent.
+  - Reload pictures mag-1 to mag-5 show no clear magwell or magazine bug: the magazine seats in front of the trigger guard, drops straight down its own line in mag-2-leaving, the well is empty in mag-3-out, and the fresh magazine is held and lined up under the well.
+  - muzzle flash: particles at the muzzle, every shot; lens flash shown, strength 1.00. Confirmed by lensflash-092 and lensburst-092: the flash sits at the muzzle.
+  - lens flash burst: flashes L 16 / R 16 (full L 4 / R 3). Consistent with lens-eyes-burst-092: both eyes show similar dim flares, with the right slightly stronger.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 2.8 cm out. Consistent with mag-2-leaving-092: the magazine drops straight down along its own line.

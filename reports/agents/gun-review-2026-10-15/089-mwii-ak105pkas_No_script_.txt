@@ -1,0 +1,59 @@
+Gun 89: mwii-ak105pkas(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-089-mwii-ak105pkas_No_script_-right.png)
+   seen: Right-side close-up of the rack grip: the left-hand glove sits low at the bottom-left of the frame (about x 0-640, y 580-800), beside the sling and trigger guard under the front of the receiver. The rear lever above the pistol grip (about x 1095-1240, y 415-500, most likely the charging handle) has no hand on it; the nearest glove part is several hundred px away.
+   expected: Left-hand fingers pinched on the charging handle lever at the rear of the receiver, above the grip.
+
+2. [major] [high] hand_not_on_part  (rack-grip-089-mwii-ak105pkas_No_script_-left.png)
+   seen: Left-side close-up: the glove lies flat over the upper left side and top of the receiver (about x 240-880, y 240-560) with fingers pointing toward the handguard and scope. Its fingers rest on the receiver body, not on any handle.
+   expected: Fingers closed on the charging handle at the rear right of the receiver (hidden from this camera), hand reaching across the gun to it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-089-mwii-ak105pkas_No_script_.png)
+   seen: First-person rack-grip frame: the free left hand is missing from its rest spot in the grass (in the weapon and lensflash frames it hangs at about x 540-630, y 585-690). Instead a grey glove knuckle sits on the front of the receiver and handguard at about x 715-775, y 575-645, nowhere near the rear charging handle.
+   expected: Left hand closed on the charging handle at the rear of the receiver, fingers on the part.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-089-mwii-ak105pkas_No_script_-left.png)
+   seen: Pulled half way, left close-up: the glove is in the same place over the receiver top as in the rack-grip-left frame (about x 235-880, y 240-560). Nothing travels back with the hand, so the hand is pulling air.
+   expected: Hand on the handle, handle pulled about half way to the rear, hand moving back with it.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-pulled-089-mwii-ak105pkas_No_script_.png)
+   seen: Pulled half way, first-person: the grey glove knuckle is still at the front of the receiver (about x 730-800, y 575-690), the same spot as in the rack-grip frame. No rearward motion of the hand is visible.
+   expected: Hand on the charging handle at the rear, moving back with it.
+
+6. [major] [medium] hand_or_finger_clipping  (rack-grip-pulled-089-mwii-ak105pkas_No_script_-right.png)
+   seen: Pulled half way, right close-up: a pale rounded glove knuckle with honeycomb texture sits on top of the receiver above the ejection port (about x 700-900, y 270-380) and looks pushed into the receiver shell rather than resting on it. The glove back also runs along the bottom under the receiver toward the trigger guard (about x 150-780, y 600-800), again not on the handle.
+   expected: Hand outside the receiver, fingers on the charging handle lever at the rear.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-089-mwii-ak105pkas(No script).png)
+   seen: Left and right eye panels are less balanced than a bit: the right panel has a warm brown haze over most of its area plus a larger flare with longer rays, while the left panel stays nearly black away from its flare. The two flare cores are close in brightness, so the difference is in the surrounding glow.
+   expected: Right eye slightly stronger than left, both backgrounds matched, flare centred on the muzzle in each eye.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-089-mwii-ak105pkas(No script).png)
+   seen: Burst frame: both flares are tiny and faint with no visible rings. The right flare is clearly brighter than the left, which is barely visible, and the right panel again carries more haze.
+   expected: Both eyes show a visible small flare, right a bit stronger.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-089-mwii-ak105pkas_No_script_.png)
+   seen: Full-auto first-person frame: flash haze covers the whole screen (sky and sea horizon blown to white, yellow veil over the grass), well beyond the muzzle. A vertical white band runs down the right screen edge at about x 1215-1245, also faintly present in lensflash-089-mwii-ak105pkas_No_script_.png. Looks like a lens artifact.
+   expected: Glow centred on the muzzle and fading with distance; no streak on the screen edge.
+
+10. [minor] [medium] mag_not_into_magwell  (mag-6-half-in-089-mwii-ak105pkas_No_script_.png)
+   seen: The fresh magazine is nearly fully in: its top cap sits only a small gap (about 50 px) under the receiver mouth on the rail line. In mag-1 and mag-7 the top is at the mouth (seated), and in mag-5 the lined-up magazine is about 400 px below it, so this frame is close to the seated pose, not half way.
+   expected: Top of the magazine already inside the magwell, about half of the insertion travel done, on the same line.
+
+11. [tiny] [low] other  (rack-grip-089-mwii-ak105pkas_No_script_.png)
+   seen: A thin dark dotted line runs across the sky from about (640, 215) to (1040, 0). It is not in the other first-person frames and does not start at the gun. Possibly a debug ray or a leftover trace.
+   expected: Clear sky.
+
+12. [tiny] [low] other  (rack-grip-pulled-089-mwii-ak105pkas_No_script_-right.png)
+   seen: A brass case sits across the upper right edge of the receiver above the ejection port (about x 1010-1280, y 295-345), looking partly sunk into the shell rather than clear of it.
+   expected: Case either clear of the receiver (in flight) or on the ground.
+
+Test line flags:
+  - rack grip 4/72 points inside, 1/4 fingers on it: CONFIRMED by rack-grip-089-mwii-ak105pkas_No_script_-right.png, -left.png and the first-person rack-grip frame. The glove is on the receiver front, top and underside, never on the rear lever.
+  - pulled half way 0/72 points, 0/4 fingers: CONFIRMED by rack-grip-pulled-089-mwii-ak105pkas_No_script_-left.png and the first-person pulled frame. The glove stays where it was.
+  - moving with the hand: the slide / bolt: NOT SUPPORTED. No frame shows the hand on the moving part, so nothing moves with the hand in the pictures.
+  - drawn: 1 drawn part(s) move, most 71 mm; the nearest is 0.0 cm from the hand: INCONSISTENT with 0/4 fingers and with the far glove in rack-grip-089-mwii-ak105pkas_No_script_-right.png. The 0.0 cm may be the knuckle on the receiver top in rack-grip-pulled-089-mwii-ak105pkas_No_script_-right.png. The 71 mm motion is not visible in the pictures: the right close-ups are framed differently between rack and pulled, and the first-person frames show no clear rearward motion.
+  - half way in (on the rail): 0.0 cm off the magwell line: the line alignment looks right, but mag-6-half-in-089-mwii-ak105pkas_No_script_.png is nearly seated (top about 50 px under the mouth), so the picture does not show a half-way insertion.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED. mag-7 top lines up with mag-1.
+  - lens flash burst: flashes L 14 / R 14 (full L 4 / R 3): lens-eyes-burst-089-mwii-ak105pkas(No script).png shows both flares faint with the right brighter. Consistent with mostly soft flashes, though the eye asymmetry is larger than described (see the lens-eyes finding).

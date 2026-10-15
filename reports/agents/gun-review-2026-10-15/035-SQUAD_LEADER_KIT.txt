@@ -1,0 +1,13 @@
+Gun 35: SQUAD LEADER KIT
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [high] part_floating_or_detached  (weapon-035-SQUAD_LEADER_KIT.png)
+   seen: A green cylindrical bag (two round end caps with rings) lies horizontally in the lower-right centre of the frame, roughly x 600-910, y 605-795. No hand is wrapped around it and it hangs in the air over the grass. The free left glove sits just up-left of it (roughly x 540-635, y 585-690) with its fingers pointing up and away, not closed around the bag. The bag is detached from both hands.
+   expected: The bag is carried by the left hand (fingers around it, as in the 'carried with a glove' case) or is attached to the player's body. Nothing should float.
+
+2. [minor] [low] hand_not_on_part  (weapon-035-SQUAD_LEADER_KIT.png)
+   seen: The radio (antenna up, body at roughly x 370-515, y 560-800) is in the lower-left of the frame. No right hand is visible on it. The radio body runs off the bottom edge at y=800, so the hand may simply be below the frame and the grip cannot be checked from this picture.
+   expected: The right hand is wrapped around the radio's grip, with the radio held forward. Confirm with a picture that shows the lower edge of the radio.
+
+Test line flags:
+  - bag: carried without a glove -- the picture confirms it. The green bag floats in the air beside the free left glove with no fingers on it. This is the same floating-bag bug as the first finding, not just a measurement quirk.

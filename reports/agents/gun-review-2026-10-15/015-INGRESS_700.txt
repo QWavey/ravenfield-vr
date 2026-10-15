@@ -1,0 +1,26 @@
+Gun 15: INGRESS 700
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-015-INGRESS_700-left.png)
+   seen: The pulled-half-way left close-up matches rack-grip-015-INGRESS_700-left.png: the glove, the index fingertip (about x 220-470, y 400-465) and the slide edge (about x 0-440, y 315-400) are in the same place, and the grip and magazine base lower right are unchanged. The right close-up (rack-grip-pulled-...-right.png) matches rack-grip-...-right.png, with the ejection port still at about x 990-1165, y 430-520. The first-person pulled frame (rack-grip-pulled-015-INGRESS_700.png) matches the unpulled one: same gun, same rear ring size and position. No rearward slide shift, no barrel gap in front of the slide, no hand movement.
+   expected: The slide visibly slid about half way back with the free hand still pinching it (the test says about 25 mm). In the right close-up the ejection port and serrations should shift rearward by a clearly visible amount, and in the left close-up a gap should open in front of the slide.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-015-INGRESS_700.png)
+   seen: First-person view: the gun is in frame (muzzle at top, about x 745, y 540; slide; rear ring about x 765-840, y 640-735) with the red crate on the grass, but no left hand anywhere, and nothing touches the slide front (about x 745-800, y 540-600). rack-grip-pulled-015-INGRESS_700.png has the same problem. The left hand is visible in weapon-015-INGRESS_700.png (lower left, next to the red crate), so this camera does render it; here it is missing from the slide.
+   expected: The left hand's fingers pinching the slide at the front of the gun, with the slide visible under them.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-015-INGRESS_700.png)
+   seen: The fresh magazine (dark box, upright, about x 445-568, y 135-300) stands on top of the back of the glove's fist (fist about x 385-825, y 280-520). The fingers curl to the left and do not wrap the magazine, nothing sits in the palm, and the magazine's base only touches the top edge of the fist, so it looks balanced on or floating above the hand. The test's 4.0 cm from the palm fits this. The same arrangement appears in mag-5-lined-up-015-INGRESS_700.png.
+   expected: Fingers wrapped around the magazine body, held in the palm, feed end pointing up toward the gun.
+
+4. [minor] [low] hand_not_on_part  (weapon-015-INGRESS_700.png)
+   seen: First-person gun at lower right: slide and serrations are visible, but the grip runs off the bottom edge of the frame with no olive glove wrapped around it. The free left hand is visible near the red crate. No right hand is visible on the grip here or in lensflash-015-INGRESS_700.png, so the right hand may be out of frame or not rendered.
+   expected: The right hand wrapped around the pistol grip, with the gun held in it.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" and "drawn: 3 drawn part(s) move, most 25 mm": NOT confirmed. The pulled pictures (left, right, first-person) show no slide travel and no hand travel against the rack-grip pictures, so the part under the hand does not visibly move.
+  - "rack grip ... 2/4 fingers on it" and "pulled half way ... 3/4 fingers on it": the close-ups show fingers resting on the slide, but the first-person rack-grip frames show no left hand at all, so the count cannot be confirmed from the main frames.
+  - "in the hand: 4.0 cm from the palm" and "pulled out by hand: stays in the hand": the 4.0 cm fits mag-4, where the magazine stands above the fist rather than being gripped. "Stays in the hand" is contradicted by the picture.
+  - "half way in (on the rail): 0.0 cm off the magwell line": cannot be confirmed. mag-6-half-in-015-INGRESS_700.png shows no magazine at all because the glove covers the magwell.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": consistent. mag-7-seated-again-015-INGRESS_700.png shows the base plate at the same spot as mag-1-seated-015-INGRESS_700.png.
+  - "lens flash shown, strength 0.88" and the muzzle flash particles: confirmed. lensflash-015-INGRESS_700.png shows the flash at the muzzle, and lens-eyes-015-INGRESS 700.png shows a star with soft rings, the right eye a bit stronger and no hard edges.

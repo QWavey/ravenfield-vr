@@ -1,0 +1,46 @@
+Gun 28: SIGNAL DMR
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-028-SIGNAL_DMR-left.png)
+   seen: Compared with rack-grip-028-SIGNAL_DMR-left.png, the upper receiver assembly (rail and rear sight, barrel end cap, trigger guard, square bolt-catch button, magazine) has slid about 100-130 px toward the muzzle (left in this view), roughly 2-4 cm at this close-up distance. The buttstock block and the gloved hand stay at exactly the same screen position in both pictures, so the hand is not moving with any part.
+   expected: The free hand pulls the charging handle or slide back about half way toward the stock (to the right here) and the hand follows it. The receiver, barrel, trigger guard and magazine stay fixed.
+
+2. [major] [medium] part_floating_or_detached  (rack-grip-pulled-028-SIGNAL_DMR-right.png)
+   seen: A flat bright-yellow block (about x 780-890, y 405-490) stays at the same screen spot as in rack-grip-028-SIGNAL_DMR-right.png, while the receiver body around it slides about 150-170 px forward (toward the muzzle). The block is no longer on the moving part and the fingertips above it do not move either. The block is probably the test's added handle, so the handle does not travel with the part.
+   expected: The handle or slide with the yellow block on it moves back with the hand, and the receiver stays put.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-028-SIGNAL_DMR-right.png)
+   seen: The left hand's fingertip rests on the receiver skin above a flat bright-yellow block (about x 780-895, y 415-495). The fingers do not wrap or pinch the block, and no slide or charging-handle shape sits under the hand. rack-grip-028-SIGNAL_DMR-left.png shows the same thing: the index finger lies across the top of the upper receiver near a small square button, and nothing is pinched.
+   expected: The left hand pinches the rear slide or charging handle, with the fingers on that part. The yellow block looks like a placeholder or debug marker, not a real handle.
+
+4. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-028-SIGNAL DMR.png)
+   seen: The whole 606x250 frame is black. Neither eye shows any flare, although the test line says the lens flash was shown at strength 0.85 and the burst frame (lens-eyes-burst-028-SIGNAL DMR.png) does show it. This is probably a capture-timing gap on single shots, but as delivered the single-shot lens picture is empty.
+   expected: Left and right eye panels, side by side, each with a bright star near the muzzle, soft rings, and the right (gun-side) eye a bit stronger.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-028-SIGNAL_DMR.png)
+   seen: First-person frame on a single shot shows no muzzle flash: no glow, no particles and no halo at the muzzle tip (around x 650-720, y 420-500, where lensburst-028-SIGNAL_DMR.png shows the flash). Only ejected brass on the ground (near x 885-930, y 490-505 and x 1240-1265, y 520-535) is visible. The test says the muzzle particles were 200 cm and every shot had a flash.
+   expected: A bright muzzle flash with a halo and soft ring at the muzzle, as in lensburst-028-SIGNAL_DMR.png.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-028-SIGNAL DMR.png)
+   seen: The right (gun-side) panel is clearly brighter across its whole area, not only at the flare: a warm brown wash covers the entire panel and the starburst is larger and hotter. The left panel is nearly black toward its edges. Both flares sit in the same relative spot, so the position is fine. The brown wash is also cut off by a hard rounded-rectangle border on both panels. This is the same kind of one-sided brightness as the islands-map lens report.
+   expected: The gun-side eye a bit stronger than the other eye, with the same flare shape and a soft falloff instead of a hard edge.
+
+7. [minor] [medium] mag_not_in_hand  (mag-4-in-hand-028-SIGNAL_DMR.png)
+   seen: The fresh magazine (dark, about x 365-625, y 70-460 visible) sits high and forward of the left palm, with its upper part above the back of the hand. The fingers only cover its lower-left corner and do not wrap the body, so the grip looks loose. The test measured 3.2 cm from the palm, which fits this.
+   expected: The left fingers wrap around the magazine body at its base, with the magazine resting in the palm and the feed end toward the magwell.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensburst-028-SIGNAL_DMR.png)
+   seen: A thin vertical light streak runs from the top of the frame down to the horizon at the far right edge (about x 1205-1245). It does not come from the muzzle and looks like a lens artifact.
+   expected: The flash stays around the muzzle and its rings, with no stray streak across the scene.
+
+Test line flags:
+  - rack grip (slide/bolt, virtual): not measured (the part's shape is not ready). Confirmed by the pictures: no slide or charging-handle shape sits under the left fingers (rack-grip-028-SIGNAL_DMR-right.png and -left.png); the hand rests on the receiver skin and a yellow block.
+  - pulled half way: not measured (the part's shape is not ready). The picture does not match a clean pull: rack-grip-pulled-028-SIGNAL_DMR-left.png shows the upper receiver moving forward about 2-4 cm while the hand stays put, so this gap hides a real bug.
+  - drawn: 1 drawn part(s) move, most 35 mm; the nearest is 0.0 cm from the hand. Supported by rack-grip-pulled-028-SIGNAL_DMR-left.png: the moving part is the upper receiver, it moves toward the muzzle (wrong direction), and the hand does not move with it.
+  - the gun moved 0.4 mm with the pull, 2.1 mm when it went home. The root moves little, but the picture shows the receiver sliding forward relative to the stock, so this does not rule out the wrong part moving.
+  - moving with the hand: an added handle. The yellow block in rack-grip-028-SIGNAL_DMR-right.png and rack-grip-pulled-028-SIGNAL_DMR-right.png is probably this handle. It stays fixed on screen while the receiver moves, so it does not move with the part.
+  - magazine (deep): in the hand: 3.2 cm from the palm. Supported by mag-4-in-hand-028-SIGNAL_DMR.png: the magazine sits high and loosely held, with the fingers covering only its corner.
+  - half way in (on the rail): 0.0 cm off the magwell line. Not contradicted by mag-6-half-in-028-SIGNAL_DMR.png; the magazine is on the magwell line, although the glove hides most of it.
+  - seated: the gun's magazine shows 0.0 cm from where it was. Consistent with mag-1-seated-028-SIGNAL_DMR.png and mag-7-seated-again-028-SIGNAL_DMR.png.
+  - muzzle flash: particles 'Muzzle Flash Particles', 200 cm, every shot, the flash light; lens flash shown, strength 0.85. Not confirmed for single shots: lensflash-028-SIGNAL_DMR.png shows no flash and lens-eyes-028-SIGNAL DMR.png is black. The burst frames (lensburst-028-SIGNAL_DMR.png, lens-eyes-burst-028-SIGNAL DMR.png) do show the flash.
+  - lens flash burst: 10 shots in 1.6 s, flashes L 9 / R 9 (full L 4 / R 4). lens-eyes-burst-028-SIGNAL DMR.png shows both eyes flashing, but the right eye is much brighter overall than the left.

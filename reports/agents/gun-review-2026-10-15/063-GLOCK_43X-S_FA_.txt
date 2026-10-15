@@ -1,0 +1,48 @@
+Gun 63: GLOCK 43X-S [FA]
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] hand_not_on_part  (rack-grip-pulled-left)
+   seen: The slide does move back: the dark barrel tube now shows between the suppressor nut and the slide front (about x 400-490). But the left glove did not move. Thumb tip (x about 320), top fingertip (x about 510-560, y 160-205) and cuff edge (x about 870) are where they were in rack-grip-left, while the sights slid right about 30-35 px. The slide is pulled out from under the hand instead of being pulled by it.
+   expected: The left hand and fingers travel rearward with the slide by roughly the same distance and keep pinching the slide top the whole way.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-right)
+   seen: Same failure from the other side. The slide has moved back and the barrel shows ahead of it (about x 905-1055). The glove lying across the slide top (about x 420-900, y 200-320) and the right-hand trigger finger (about x 530-790, y 470-600) are at the same screen spots as in rack-grip-right. The slide slides out from under the stationary hand.
+   expected: The glove and fingers shift back with the slide and stay on its top; the hand does not stay behind while the part moves.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand)
+   seen: The fresh magazine (dark body, orange feed lip at the top) sticks up from behind the top edge of the left glove, at about x 375-550, y 105-300. No finger crosses the magazine body, so it looks pushed behind the fist rather than gripped. Its feed end points up and away from the gun (gun grip at about x 850-1000, y 260-380), roughly 90 degrees or more off the magwell direction.
+   expected: Fingers wrap the magazine body, and the feed end (orange lip) is angled toward the magwell of the gun at upper right, ready to insert.
+
+4. [major] [medium] mag_floating_or_offset  (mag-6-half-in)
+   seen: The fresh magazine is in front of the grip's front strap, not centred in the magwell. Its dark body runs at about x 530-600 (y 300-420), along the front edge of the grip outline, while the seated magazine in mag-1 and mag-7 sits further back. The base is at about x 580-720, y 540-600, below the grip. The right-hand fingers cover the top, so part of the offset is hidden.
+   expected: Magazine half way up inside the grip, centred on the magwell line and flush with the grip, with nothing protruding in front of the front strap.
+
+5. [minor] [low] mag_floating_or_offset  (mag-5-lined-up)
+   seen: The fresh magazine hangs about 140 px below the grip bottom. Its feed end is at about x 585-640, under the front part of the grip (magwell about x 630-720), and it leans more steeply than the grip.
+   expected: Magazine directly under the magwell, centred on the grip's line, before it moves up into the well.
+
+6. [minor] [low] hand_not_on_part  (rack-grip)
+   seen: In this first-person frame the free hand is not visible on the slide. Around the slide (about x 730-830, y 570-700) there is only the suppressor and the right hand at the bottom. The free hand that floats left of the gun in weapon-063 is absent. rack-grip-pulled shows the same empty spot. Fingers on the slide cannot be confirmed from this view; they may be hidden behind the suppressor.
+   expected: The free hand visibly pinching the slide top, or at least clearly reaching it in this shot.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-063-GLOCK 43X-S [FA].png)
+   seen: Each eye's warm haze runs out to the right side of its rounded panel and is cut off by the panel edge (about x 290-300 on the left panel, x 600-606 on the right), leaving a visible hard boundary. The star and soft rings are placed correctly near the muzzle, and the right eye is only slightly stronger.
+   expected: The haze fades out softly before the panel edge.
+
+8. [tiny] [high] other  (lensflash-063-GLOCK_43X_FA_.png)
+   seen: A translucent dark box with the word DEFEAT covers the centre of the screen (about x 355-935, y 235-565). It is not a gun problem, but the box covers the muzzle flash (flash at about x 690-740, y 470-540), so the shot is partly obscured.
+   expected: No end-of-round banner in a weapon test capture, or the capture taken when the banner is not up.
+
+Test line flags:
+  - pulled half way: 0/4 fingers on it. Confirmed by rack-grip-pulled-left and -right: the glove stays in place while the slide slides back under it.
+  - rack grip: 1/4 fingers on it. Plausible for the close-ups (a top finger and a forward thumb are on the slide). The first-person rack shot shows no free hand on the slide, so this cannot be checked there.
+  - moving with the hand: the charging handle. The part that moves in the pictures is the pistol slide, not a handle. This is a naming mismatch, not a measured bug.
+  - the gun moved 0.2 mm with the pull. Not confirmed: between rack-grip-left and rack-grip-pulled-left the suppressor and magazine base shift about 40 px while the hand stays put. This may be camera framing, but the claim should be checked.
+  - half way in (on the rail): 0.0 cm off the magwell line. Not confirmed: mag-6 shows the magazine ahead of the front strap, not centred in the well.
+  - in the hand: 3.5 cm from the palm. Consistent with mag-4: the magazine is not wrapped by fingers and sits behind the fist, with its feed end turned away from the gun.
+  - seated: the gun's magazine shows 0.0 cm from where it was. Confirmed: mag-7 matches mag-1.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 2.0 cm out. Consistent with mag-2: the magazine drops straight down its grip line.
+  - muzzle flash particles and lens flash shown. Confirmed: lensflash-063 shows the flash at the muzzle, although a DEFEAT banner box covers part of it.
+  - racked: chambered. Consistent with rack-grip-pulled-right, where a round tip shows in the ejection port.
+  - magazine: seated, 15 rounds (after 14 rounds kept). Consistent with the in-game 14+1 label visible on the slide in the first-person frames.
+  - drawn: 10 drawn part(s) move, most 25 mm. Cannot be checked from the pictures; no scale reference beyond the gun's own size.

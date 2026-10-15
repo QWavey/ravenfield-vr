@@ -1,0 +1,56 @@
+Gun 133: ak12squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_into_magwell  (mag-6-half-in-133-ak12squad.png)
+   seen: The fresh magazine's top end sits about 35-40 px (roughly 3-4 cm) below the underside of the receiver. Sea and sky show in that gap, so the magazine is not in the magwell at all. It hangs low in front of the gun, held by the left hand (hand spans about x 450-1090, y 470-800).
+   expected: Magazine pushed up about half way into the magwell on the same line as mag-1, its top end hidden inside the receiver outline.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-133-ak12squad.png)
+   seen: The fresh magazine (feed end up, about x 400-600) stands on top of the left thumb (about x 330-600, y 280-340) instead of inside the hand. The curled fingers sit below and in front of it (about x 380-820, y 290-520) and none wrap the magazine body. The magazine also overlaps the receiver underside in front of the magwell, away from its line. Test says 3.4 cm from the palm.
+   expected: Fingers wrapped around the magazine body, magazine held in the palm with feed end toward the gun, close to the magwell line.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-133-ak12squad-left.png)
+   seen: Compared with rack-grip-133-ak12squad-left.png, the background smoke and soldiers are at the same screen spot and the left hand and thumb do not move. But the whole gun body slides about 150-200 px to the left (toward the muzzle): rear sight x 725-950 to 530-750, stock tube start x 1080 to 880, and magazine and right hand also shift left by about 140-170 px. Nothing is pulled back under the fingers.
+   expected: Only the charging handle / slide moves rearward about half way with the fingers on it. Receiver, sight, magazine and right hand stay still.
+
+4. [major] [high] hand_not_on_part  (rack-grip-133-ak12squad-left.png)
+   seen: The left hand lies flat over the top of the receiver: back of hand about x 230-880, y 230-570. Thumb tip (x 230-340, y 240-300) and fingers run forward over the receiver side. No fingertip touches a distinct handle; test says 0/4 fingers on the part.
+   expected: Fingertips pinch the charging handle / slide (the part that racks the gun) with the fingers on that part, not lying over the receiver.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-133-ak12squad-right.png)
+   seen: Against rack-grip-133-ak12squad-right.png, the front and rear sights and the forward receiver move about 300 px to the right (toward the muzzle), while the olive fingertip (about x 670-910, y 290-450) and the gold cartridge (about x 740-1260, y 340-520) stay put. The distant rock also looks different, so the camera may have moved too. No handle is shown sliding back.
+   expected: The handle / slide travels back about half way under the fingertip. Fixed sights and receiver stay still.
+
+6. [minor] [low] part_floating_or_detached  (rack-grip-133-ak12squad-right.png)
+   seen: A gold cartridge lies across the outside of the receiver (about x 740-1220, y 340-520, pale rounded end at x 1120-1220) with no visible port or slot to sit in. The olive fingertip rests on the receiver directly above it. The same gold piece looks unchanged in the pulled frame.
+   expected: A chambered round hidden inside the receiver or seen only through the ejection port. If the gold piece is the handle, it should move back when pulled.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-133-ak12squad.png)
+   seen: The muzzle glow is small and sits at the muzzle (about x 670-720, y 440-500). A large saturated green cloud (about x 280-600, y 0-560) with red fringes sits on the wall and grass 250-400 px left of the muzzle, and the left half of the frame is tinted green.
+   expected: A small glow at the muzzle with a few streaks through the screen centre. No coloured cloud far from the muzzle.
+
+8. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-133-ak12squad.png)
+   seen: The star at the muzzle (about 690,480) and its ring ghosts look right. But a large red cloud (about x 220-560, y 120-620) and a green cloud (about x 380-700, y 60-560) cover the left half of the view, centred on the blue enemy health bar behind the wall. A vertical white-blue streak also runs down the right screen edge (x 1200-1250). The lens-eyes pictures, which show the actual lens flash, contain only the star, so these clouds come from something else.
+   expected: Only the star, rings and streaks around the muzzle. No coloured clouds far from it.
+
+9. [major] [medium] muzzle_flash_or_lens_flash_issue  (weapon-133-ak12squad.png)
+   seen: The whole frame has a green colour cast: sky turns teal-green, wall and grass are tinted green, plus a red-and-green cloud on the wall around the blue enemy health bar (about x 370-440, y 550). The same wash is gone in the later mag frames, so it seems to linger after the shots.
+   expected: Natural colours in the normal view. Any flash should be a brief, small glow at the muzzle only.
+
+10. [tiny] [medium] other  (rack-grip-133-ak12squad.png)
+   seen: In this wide rack-grip frame no left hand is visible anywhere, so the grip on the handle cannot be checked. The same holds for rack-grip-pulled-133-ak12squad.png.
+   expected: The free hand visible on the slide / charging handle in the frame.
+
+Test line flags:
+  - rack grip 1/72 points inside, 0/4 fingers on the part: CONFIRMED by rack-grip-133-ak12squad-left.png. The left hand lies over the receiver with no fingertip on a handle.
+  - pulled half way 0/4 fingers: CONFIRMED by rack-grip-pulled-133-ak12squad-left.png. The hand is in exactly the same screen spot as at rest.
+  - drawn: 1 drawn part moves, most 60 mm, nearest 0.0 cm from the hand: NOT CONFIRMED. No handle visibly travels about 6 cm back in the pulled close-ups; the visible motion is the gun body moving forward.
+  - the gun moved 1.5 mm with the pull: CONTRADICTED by rack-grip-pulled-133-ak12squad-left.png. The gun body shifts 150-200 px while the hand and background stay put, far more than 1.5 mm.
+  - magazine half way in (on the rail): 0.0 cm off the magwell line: the lateral line may be right, but mag-6-half-in-133-ak12squad.png shows the magazine top about 3-4 cm below the receiver, so it is not half way in.
+  - magazine in the hand: 3.4 cm from the palm: CONFIRMED by mag-4-in-hand-133-ak12squad.png. The magazine stands on the thumb and the fingers do not wrap it.
+  - magazine seated: 0.0 cm from where it was: CONSISTENT. mag-7-seated-again-133-ak12squad.png matches mag-1-seated-133-ak12squad.png in position, with no second magazine.
+  - mag-2-leaving and mag-3-out look right: in mag-2 the magazine hangs lower with its top hidden in the magwell; mag-3 shows an empty magwell.
+  - muzzle flash particles 'Muzzle Flash Particles', 70 cm, every shot, the flash light: the star at the muzzle is right in lensflash-133 and lensburst-133, but the large red/green clouds far from the muzzle are not explained by a muzzle flash. Check the particle position or another overlay.
+  - lens flash (lens-eyes-133 and lens-eyes-burst-133): one star per eye with the right slightly stronger, consistent with L14/R14 and full L4/R3. No bug seen.
+  - cases thrown 18: small brass pieces lie on the ground in lensflash-133 and lensburst-133. Plausible.
+  - racked: chambered: cannot be confirmed from the pictures. A gold cartridge lies across the receiver side in the right close-ups (rack-grip-133-ak12squad-right.png).

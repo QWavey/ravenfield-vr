@@ -1,0 +1,11 @@
+Gun 125: Helo Signal Smoke (Support)
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+1. [tiny] [low] other  (weapon-125-Helo_Signal_Smoke_Support_.png)
+   seen: The grey glove-like left hand sits mid-bottom of the frame (about x 540-635, y 585-690), fingers curled up and to the right, floating over the grass. No wrist or arm runs from it to the bottom or left screen edge.
+   expected: The left hand is free (per the brief), but it should be attached to an arm entering from the lower-left edge if this mod draws arms. If the mod only draws hands, this is expected and not a bug.
+
+2. [tiny] [low] other  (weapon-125-Helo_Signal_Smoke_Support_.png)
+   seen: A flat, dark, semi-transparent rectangle with hard edges covers the middle of the view (about x 455-815, y 500-560). Grass and trees show through it. It is not part of the grenade or the hands.
+   expected: Probably a HUD or notice panel, which would be fine. If it is a stray overlay left over from the test, it is a bug. Nothing gun-related should be there.
+

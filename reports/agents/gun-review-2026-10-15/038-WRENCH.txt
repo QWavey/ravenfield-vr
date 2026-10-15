@@ -1,0 +1,6 @@
+Gun 38: WRENCH
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+Test line flags:
+  - WRENCH line is consistent with weapon-038-WRENCH.png: the right hand holds the wrench at the bottom right (equipped), and the left hand is free and not on any part. 'Manual reload not active', 'muzzle flash: none' and 'lens flash none' all fit a melee wrench, and no muzzle flash or magazine is visible.
+  - NOTE (not a measurement): the relayed user request also asked for an islands-map lens brightness check and a launched flash test. Those are outside this read-only picture review and were not done.

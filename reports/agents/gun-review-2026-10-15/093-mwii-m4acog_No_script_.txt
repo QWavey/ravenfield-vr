@@ -1,0 +1,28 @@
+Gun 93: mwii-m4acog(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] picture_unusable  (lens-eyes-093-mwii-m4acog(No script).png)
+   seen: Solid black frame. Neither the LEFT nor the RIGHT eye panel shows a star, rings or glow. The test line says the lens flash was shown at strength 0.98 for this shot.
+   expected: Two panels on black, each with a bright star and soft rings at the muzzle's on-screen spot (about 55% across, 59% down, as in the burst picture), the right eye a bit stronger. The burst picture lens-eyes-burst shows this, so the single-shot capture is either taken after the flash has faded or the single-shot flash does not render.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-093-mwii-m4acog_No_script_.png)
+   seen: First-person single-shot frame. The gun is in the same place as in lensburst, but there is no glow or sparks at the muzzle (about x 690-720, y 470-490). The grass there is plain. The full-auto frame lensburst shows a yellow-white muzzle flash with sparks at that exact spot, plus casings in flight. The test says a muzzle flash particle effect plays on every shot.
+   expected: A bright yellow-white flash with sparks at the muzzle tip, as in lensburst. If the frame was captured after the flash expired, the single-shot capture timing is off, but the flash should still be visible in a shot captured on the same frame as the lens flash.
+
+3. [minor] [low] other  (lensflash-093-mwii-m4acog_No_script_.png)
+   seen: A thin bright white diagonal streak over the sea at the right edge (about x 1115-1190, y 400-485), far from the gun and not at the muzzle. Similar tiny white dashes over the sea also appear in mag-2-leaving (about x 75, y 390) and mag-4-in-hand (about x 155, y 450), where no shot was fired.
+   expected: Only the muzzle flash, sparks and casings should appear near the gun. A tracer or particle streak should start at the muzzle, and nothing should streak across the sea in frames with no shot.
+
+4. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-093-mwii-m4acog(No script).png)
+   seen: Each eye's flare sits in a faint brown rounded-square tint that ends in a visible hard edge at the lower right of its panel (around x 298 in the left panel and x 606 in the right, y 250). The black background is cut straight against that boundary.
+   expected: Soft rings and glow that fade smoothly into black, with no quad or sprite boundary visible.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-093-mwii-m4acog(No script).png)
+   seen: The left eye's corner glow looks a little stronger than the right eye's, the reverse of the expected right-eye-stronger balance. The star cores look the same size and brightness in both panels, so this is a small imbalance, not a large one.
+   expected: The two eyes equally bright at the star, with the right eye a bit stronger. Neither eye should look visibly brighter than the other.
+
+Test line flags:
+  - "lens flash shown, strength 0.98" (single shot) is not supported by the pictures: lens-eyes-093 is solid black and lensflash-093 shows no muzzle flash. The burst pictures do show the flash, so the single-shot capture is either too late or the single-shot flash does not render.
+  - "muzzle flash: particles 'Muzzle Flash Particles', 70 cm, every shot": lensburst-093 confirms the flash at the muzzle during full auto. The single-shot frame lensflash-093 does not show it.
+  - "rack grip ... not measured (the part's shape is not ready)" and "pulled half way: not measured": the pictures cannot confirm a grip on a handle. In rack-grip-093 -left and -right the fingers rest across the top of the upper receiver near the buffer tube, and no charging-handle silhouette is visible under them.
+  - "drawn: 1 drawn part(s) move, most 37 mm; the nearest is 0.4 cm from the hand": the pulled frames show the hand drawn back relative to the gun. In the close-ups the whole gun shifts about 120-190 px in frame while the hand stays put, and in first-person the glove looks slightly closer to the camera. That fits a pull, but no moving part can be identified in the pictures, so the 37 mm figure and which part moves are not confirmed. The 0.4 cm gap means the nearest drawn part is not under the fingers.

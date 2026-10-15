@@ -1,0 +1,15 @@
+Gun 53: Zombie Swipe
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] part_floating_or_detached  (weapon-053-Zombie_Swipe.png)
+   seen: A gray metallic claw-shaped hand with three curled finger tips pointing up-right sits mid-screen over the grass, roughly x 540-635, y 585-690 in the 1280x800 frame. No wrist, forearm or arm connects it to any frame edge, so it reads as hovering in the air.
+   expected: If this is the free left hand, it should sit lower-left with a wrist or forearm leading off the frame edge. If the mod's VR hand models are arm-less by design, this is intended and not a bug.
+
+2. [tiny] [low] hand_not_on_part  (weapon-053-Zombie_Swipe.png)
+   seen: The gunmetal weapon at lower right (top end around x 755-835, y 675-720) runs off the bottom edge at y 800. No right hand is visible wrapped around its grip, so the grip hold cannot be confirmed in this picture.
+   expected: The right hand wrapped around the grip with the grip entering from below the frame and nothing floating. Possibly just framing, since the hand may sit below the screen edge.
+
+Test line flags:
+  - muzzle flash: none / lens flash none: the only picture is an idle, equipped view with no shot taken, so it can neither confirm nor refute these values. No firing picture is listed for gun 53.
+  - manual reload not active: consistent with the picture (no reload pictures listed for this gun).
+  - equipped: consistent with the picture, the weapon is visible in the right-hand area.

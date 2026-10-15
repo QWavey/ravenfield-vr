@@ -1,0 +1,74 @@
+Gun 116: ARS HK416 (Bot Friendly)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-116-ARS HK416 (Bot Friendly).png)
+   seen: The whole frame is black. Both the LEFT and RIGHT eye halves are empty: no star, no flare, no soft rings. The on-screen lens flash is absent during the full-auto burst. (Black is the bug here, not a unusable picture: the brief lists empty/black as the failure.)
+   expected: A bright star/flare with soft rings near the muzzle position in both halves, the right eye a bit stronger.
+
+2. [major] [high] hand_not_on_part  (rack-grip-116-ARS_HK416_Bot_Friendly_-right.png)
+   seen: Fogged close-up. The free hand at centre-left (about x 395-915, y 260-570) closes on empty air. Its index fingertip (about x 880-915, y 380-505) sits roughly 150-180 px (about 8 cm, matching the test's 8.2 cm) away from the gun's black tab with '30+1' at about x 1060-1100, y 425-505. No charging-handle shape exists under the fingers.
+   expected: Fingers pinching the charging handle at the gun's rear, on the part itself.
+
+3. [major] [high] mag_not_in_hand  (mag-4-in-hand-116-ARS_HK416_Bot_Friendly_.png)
+   seen: The free left hand (big glove, back toward camera, fingers spread to the left) does not hold the magazine. The plain black block sits in front of and above its knuckles at about x 405-590, y 110-290; only its bottom edge overlaps the top of the glove. No fingers wrap around it. The block is also a plain black box with no magazine detail, not the HK416 magazine model.
+   expected: Fingers wrapped around a fresh magazine of the gun's model, feed end pointing toward the gun.
+
+4. [major] [medium] mag_floating_or_offset  (mag-2-leaving-116-ARS_HK416_Bot_Friendly_.png)
+   seen: The dropped magazine is a plain black block (about 190 x 375 px, no detail) hanging in the air at about x 545-735, y 265-640. Judging by hand size it is roughly 15-20 cm to the left of and below the right hand's base. It is not dropping out of any visible magwell next to the hand, and the gun body is not drawn in the frame.
+   expected: The magazine falling straight down out of the magwell along its line, starting at the hand's grip.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-116-ARS_HK416_Bot_Friendly_-right.png)
+   seen: Compared with rack-grip-right, the free hand is at exactly the same pixel position, so it does not travel with the pull (it pulls air). The gun-side glove with the triangle logo and the '30+1' label slide about 150 px to the right, and the dark block at lower left shifts about 55 px. The thing that moves is the gun body with the right-hand glove, not the part under the free hand.
+   expected: The charging handle slides back about half way with the free hand, the hand moving with it; the gun body stays still.
+
+6. [major] [medium] wrong_part_moves  (rack-grip-pulled-116-ARS_HK416_Bot_Friendly_.png)
+   seen: First-person view. The free hand (about x 745-830, y 660-725) and the '30+1' label (about x 790-815, y 683-695) stay exactly where they were in rack-grip (plain). The lower-right end of the gun body shifts about 50 px to the right instead. The pinched point does not move, so the pull moves the wrong thing.
+   expected: The charging handle at the hand's grip moves back about half way; the hand moves with it.
+
+7. [major] [medium] wrong_part_moves  (rack-grip-pulled-116-ARS_HK416_Bot_Friendly_-left.png)
+   seen: The left hand shifts only about 40-50 px left, but the '30+' label tab slides about 110 px left and goes behind the index finger. Meanwhile the dark polymer piece at the right edge (the gun's grip/receiver) slides left and grows about 10% (nearer the camera). The moving object is the gun, not a handle under the hand; the test's 1.1 mm would be only 2-3 px in this view.
+   expected: The charging handle moves back with the hand; the gun body stays put.
+
+8. [major] [medium] other  (mag-1-seated-116-ARS_HK416_Bot_Friendly_.png)
+   seen: No gun is drawn in the frame. Only the right hand floats in the sky at upper right, fingers curled in an empty pinch, with a small dark plate under its palm. No receiver, grip or magwell is visible, so the seated magazine cannot be seen. The same gun-less frame appears in mag-3 and mag-7.
+   expected: The gun held in the right hand with the magazine fully in the magwell (only the base plate showing).
+
+9. [major] [medium] mag_duplicate_or_missing  (mag-7-seated-again-116-ARS_HK416_Bot_Friendly_.png)
+   seen: No magazine anywhere in the frame and no gun body. The free glove sits at centre-bottom (about x 555-1020, y 385-680) with curled fingers and no magazine among them. The magazine that should be fully seated again has vanished from view.
+   expected: The gun with the fresh magazine fully seated where mag-1 had it, no second magazine, hand not inside the gun.
+
+10. [major] [medium] mag_not_into_magwell  (mag-6-half-in-116-ARS_HK416_Bot_Friendly_.png)
+   seen: The block (about x 545-735, y 290-650) runs down behind the free glove's index finger at its lower end (about x 545-640, y 530-650). It goes into the hand, not into a visible magwell. No gun body is drawn, so there is no well for it to go up into.
+   expected: The magazine half way up into the magwell ahead of the trigger, on the magwell's line.
+
+11. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-116-ARS_HK416_Bot_Friendly_.png)
+   seen: The block (about x 580-700, y 530-665) rests on top of the free glove's back band (about x 545-865, y 640-800). No fingers hold it, and no magwell is visible to line it up with, so it sits on the back of the hand rather than under a magwell.
+   expected: The fresh magazine right under the magwell, on its line, feed end toward the gun.
+
+12. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-116-ARS_HK416_Bot_Friendly_.png)
+   seen: First-person frame while firing full auto. The rifle is bottom right with its muzzle end near (745-790, 665-700). No flash, glow, sparks or light on the grass or wall at the muzzle. The test says a 'MuzzleTransform' particle system fires every shot with a light, so either the flash is missing or this frame fell between shots.
+   expected: A bright muzzle flash burst at the muzzle end, lighting the nearby grass.
+
+13. [major] [low] hand_not_on_part  (rack-grip-116-ARS_HK416_Bot_Friendly_-left.png)
+   seen: The left hand (pale fingers, index pointing left, about x 40-560, y 380-630) pinches near the small '30+' tab at about x 262-292, y 380-420. No charging-handle shape is visible under the pinch, so the fingers close around bare space beside the tab.
+   expected: Fingers pinching the charging handle itself, on the rear of the receiver.
+
+14. [minor] [low] hand_not_on_part  (rack-grip-pulled-116-ARS_HK416_Bot_Friendly_.png)
+   seen: Not a separate defect from the wrong-part-moves finding above: the free hand's fingers rest on the top front of the receiver with no handle shape under them.
+   expected: A charging handle shape under the fingers.
+
+15. [minor] [low] hand_pose_wrong  (weapon-116-ARS_HK416_Bot_Friendly_.png)
+   seen: First-person view, gun in the right hand. The right-hand glove covers only the top-front of the receiver (about x 745-830, y 660-725). The grip below it (about x 840-915, y 700-800) looks bare, so the hand does not clearly look wrapped around the pistol grip.
+   expected: The right hand wrapped around the grip, gun pointing forward.
+
+Test line flags:
+  - rack grip 'not measured (the part's shape is not ready)': confirmed. No charging-handle shape sits under the pinch in rack-grip-right or rack-grip-pulled-right.
+  - 'THE PART UNDER THE HAND DOES NOT MOVE': confirmed. In rack-grip-pulled-right and rack-grip-pulled (first-person) the free hand and its pinch point stay still while the gun body shifts.
+  - 'the gun moved 1.1 mm with the pull, 3.2 mm when it went home': does not match the pictures. rack-grip-pulled-left shows the gun body shifting about 90 px and rack-grip-pulled-right about 150 px, while 1.1 mm would be only about 2 px at these scales.
+  - 'dropped copy 0.0 cm across the pull from the gun's magazine, 1.7 cm out': does not match mag-2-leaving. The block hangs roughly 15-20 cm from the hand, not 1.7 cm out, and no magwell is visible to check the line.
+  - 'in the hand: 3.3 cm from the palm': consistent with mag-4-in-hand. The block rests on the knuckles and is not gripped by any finger.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': not confirmed. mag-6-half-in shows the block going into the free hand's fingers, with no magwell visible.
+  - 'seated: the gun's magazine shows (not measured: nothing of its own)': confirmed missing. mag-7-seated-again shows no magazine and no gun body.
+  - The gun body is not drawn in mag-1, mag-2, mag-3, mag-6 and mag-7, so magwell seating and the empty-magwell check cannot be verified from the pictures.
+  - 'lens flash burst: flashes L 0 / R 0' and 'lens flash none': confirmed by the all-black lens-eyes-burst picture.
+  - 'muzzle flash: particles MuzzleTransform, every shot, the flash light': not visible in the lensburst frame (single frame, may fall between shots).

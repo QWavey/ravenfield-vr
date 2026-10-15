@@ -1,0 +1,14 @@
+Gun 140: Minigun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-140-Minigun.png)
+   seen: The left hand is a grey open hand at roughly x 540-640, y 585-690, to the left of the minigun's barrel housing, over the grass. No forearm or sleeve is visible running to the bottom-left edge of the frame, so the hand ends abruptly at the wrist. Nothing holds the gun with it; at most a fingertip touches the housing near x 620-640, y 585-615.
+   expected: A left hand that is attached to a visible arm running off the bottom-left edge and either rests on the minigun or sits at the side. It should not float detached in midair.
+
+2. [minor] [low] hand_pose_wrong  (weapon-140-Minigun.png)
+   seen: At the lower right, around x 720-880, y 600-800, the gun's rear grip area reads as a white bar and bracket running from the gun body toward the bottom-right corner. No fingers are clearly wrapped around a grip, so the right hand's grasp cannot be confirmed from this frame.
+   expected: The right hand visibly wrapped around the grip with fingers closed on it, and the arm entering from the bottom-right corner.
+
+Test line flags:
+  - 'equipped' and 'manual reload not active for this weapon' are consistent with the gun held in the right hand and a minigun needing no manual reload. Not contradicted.
+  - 'muzzle flash: 600 cm, every shot, the flash light; lens flash none' cannot be checked here. This frame is not a firing frame, so no muzzle flash or lens flash is visible, and the brief lists no firing picture for gun 140. Neither the flash nor 'lens flash none' is confirmed or refuted.

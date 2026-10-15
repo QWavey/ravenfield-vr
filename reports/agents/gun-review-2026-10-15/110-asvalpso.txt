@@ -1,0 +1,49 @@
+Gun 110: asvalpso
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-110-asvalpso.png)
+   seen: The left glove is shown from the back of the hand. Its fingers are stretched flat to the left and are not curled around anything. The fresh black magazine stands behind and above the glove, its top running off the top of the frame, and no finger touches it. It floats about 3 cm behind the palm.
+   expected: Fingers wrapped around the fresh magazine with its feed end toward the gun, the magazine sitting in the palm.
+
+2. [minor] [medium] mag_wrong_orientation_or_model  (mag-2-leaving-110-asvalpso.png)
+   seen: The dropped copy is near-black with almost no visible ribs. In mag-1-seated and mag-7-seated-again the gun's own magazine is clearly brown with ribs. The fresh magazine in mag-4 to mag-6 is also black, so the reload magazine does not look like the gun's magazine.
+   expected: Same material and colour as the gun's own magazine (brown, ribbed), as in mag-1-seated-110-asvalpso.png.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-110-asvalpso.png)
+   seen: First-person frame on a shot. The muzzle (black opening at about x 790-830, y 550-590) has no glow, no particle burst and no bright sprite. The rest of the frame is normal.
+   expected: A muzzle flash at the muzzle on the shot (the test line says Muzzle Flash Particles, 75 cm, every shot). If the capture was late, the flash should still be visible in a test that targets the shot.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-110-asvalpso.png)
+   seen: First-person frame while firing full auto. The muzzle (about x 790-830, y 555-590) shows no flash, glow or particles. Same as lensflash-110-asvalpso.png.
+   expected: Muzzle flash burst at the muzzle during full auto fire.
+
+5. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-110-asvalpso.png)
+   seen: Almost black. Only two pinpoint dots (left at about x 172, right at about x 470, y 150) with no soft halo or rings. The single-shot pair at a similar strength (lens-eyes-110-asvalpso.png) shows a clear soft flare.
+   expected: A soft star with rings at each eye, the right eye a bit stronger, as in lens-eyes-110-asvalpso.png. Could be a capture taken between flashes.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-110-asvalpso-left.png)
+   seen: The left glove grips from above. The index finger lies flat on the top of the black receiver. The fingers curl around a separate black block hanging below the receiver (about x 480-640, y 520-660) whose attachment is hidden by the glove. No charging handle or bolt handle on the receiver is visibly held.
+   expected: Fingers pinching the charging handle or slide on the receiver, with that handle attached to the receiver.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-110-asvalpso-right.png)
+   seen: The left index finger rests across the top of the black receiver, ahead of the spring-loaded black latch (about x 430-650, y 350-520). The fingers do not touch the latch or the spring.
+   expected: Fingertips on the rack part itself (the slide or charging handle), not on the receiver top.
+
+8. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-110-asvalpso-left.png)
+   seen: The glove is still on the top of the receiver with the same finger shape. No part is clearly drawn back toward the rear. The scope knob and the brown magazine sit about 150-200 px further left in frame than in rack-grip-110-asvalpso-left.png, while the glove stays in place.
+   expected: The rack part visibly about half way back, with the hand moving with it and the gun body staying still.
+
+9. [major] [low] wrong_part_moves  (rack-grip-pulled-110-asvalpso-right.png)
+   seen: The receiver, scope and latch sit about 200 px further right in frame than in rack-grip-110-asvalpso-right.png, while the hand stays on the top of the receiver. The whole upper receiver seems to shift rather than a handle moving on its own.
+   expected: Only the charging handle or slide moves back half way. The receiver body stays put and the hand holds that handle.
+
+Test line flags:
+  - rack grip: 'not measured (the part's shape is not ready)' and 'pulled half way: not measured'. The rack has no numbers, so the pictures are the only evidence. Both rack-grip-110-asvalpso-left.png and -right.png show the fingers on the receiver top or around a separate block, not on a clearly identified handle.
+  - drawn: '1 drawn part(s) move, most 46 mm; the nearest is 0.3 cm from the hand'. Not confirmed. No rack part visibly travels about 4.6 cm in the pulled close-ups. The nearest moving part is 3 mm from the fingers, so the hand is not on the moving part. Note the test says 'bolt is part of the receiver mesh', so a 46 mm move could be the whole receiver (see rack-grip-pulled-110-asvalpso-right.png).
+  - gun moved 1.1 mm with the pull: inconclusive. The scope, receiver and magazine shift in frame between the rack-grip and rack-grip-pulled close-ups while the glove stays put. A 1.1 mm move should not produce that shift, so either the camera moved or a larger part moved.
+  - muzzle flash: 'Muzzle Flash Particles', 75 cm, every shot, no flash light'. Contradicted by lensflash-110-asvalpso.png and lensburst-110-asvalpso.png, where no flash is visible at the muzzle. Either the particles are not rendering or the capture is too late.
+  - lens flash burst: 'strongest soft flash 0.09', 'flashes L 18 / R 18'. Not confirmed by lens-eyes-burst-110-asvalpso.png, which is nearly black with only pinpoints, while the single shot at 0.08 (lens-eyes-110-asvalpso.png) shows a clear soft flare.
+  - lens flash shown, strength 0.08: consistent with lens-eyes-110-asvalpso.png, where both eyes show a faint star with rings and the right eye is a little stronger.
+  - in the hand: '3.1 cm from the palm': confirmed by mag-4-in-hand-110-asvalpso.png. The fresh magazine is not in the fingers.
+  - half way in (on the rail): '0.0 cm off the magwell line' and seated: 'the gun's magazine shows 0.0 cm from where it was': consistent with mag-6-half-in-110-asvalpso.png and mag-7-seated-again-110-asvalpso.png, where the brown magazine returns to the same place as in mag-1-seated-110-asvalpso.png.
+  - magazine: 'seated, 21 rounds' after '20 rounds kept': one more round than the dropped magazine held. Plausible only if the count includes the chambered round. The on-gun HUD text is too small to read in mag-7, so this is unverified.

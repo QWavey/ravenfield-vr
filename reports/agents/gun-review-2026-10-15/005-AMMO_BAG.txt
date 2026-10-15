@@ -1,0 +1,12 @@
+Gun 5: AMMO BAG
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-005-AMMO_BAG.png)
+   seen: The first-person view shows the ammo bag in the lower center-right of the frame: a red-orange open-top bag full of brass shell casings, spanning roughly x 560-845, y 498-800, cut off by the bottom edge. No hand, glove or arm is visible anywhere on or around it, and no strap connects it to anything, so it appears to hang in the air in front of the camera. A dark gray rounded shape peeks out at the bag's left side near x 540-560, y 625-690; it could be a handle or a hand fragment, but a still cannot settle that. The bag sits in the middle of the bottom of the screen rather than in the area where a held item's hand would be.
+   expected: The bag held in the right hand: the right hand and forearm visible coming in from the bottom edge, fingers wrapped around the bag's handle or strap, with the bag resting against the hand and nothing floating in the air.
+
+Test line flags:
+  - bag: carried without a glove. Consistent with the picture: no hand or glove is visible on the bag, so the measurement and the picture agree that the bag has no hand on it. Confirmed by weapon-005-AMMO_BAG.png.
+  - throwable without a pin: cannot be checked from a still picture.
+  - manual reload not active for this weapon: no reload pictures were listed for gun 5, so the magazine and slide checks could not be made. Not a measurement error.
+  - muzzle flash: none; lens flash none: consistent with the single first-person picture, which shows no firing. Nothing to confirm or refute.

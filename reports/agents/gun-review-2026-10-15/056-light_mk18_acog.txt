@@ -1,0 +1,41 @@
+Gun 56: light mk18 acog
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-056-light_mk18_acog-right.png)
+   seen: Right close-up, same framing as rack-grip-056-light_mk18_acog-right.png. The ACOG objective ring moves from about x 975-1100 to x 1160-1240 (of 1280), and the rear sight block on the upper receiver moves about the same distance toward the muzzle, roughly 5 cm. The charging-handle lever (x 745-905, y 380-470) and the buffer tube do not move, and the glove does not travel with the pull.
+   expected: Only the charging-handle lever slides rearward (toward the stock, left in this frame) by about half the pull, staying under the fingers. The optic and rear sight stay fixed to the upper receiver.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-056-light_mk18_acog-left.png)
+   seen: Left close-up against rack-grip-056-light_mk18_acog-left.png: the ACOG ring and the sight block sit about 100 px further toward the muzzle (ring at about x 250-305 instead of 355-420). The glove and buffer tube stay put, so the hand does not follow anything and no rearward pull of the handle is visible. The trigger and magazine also shift left by 70-90 px, so part of this shift may be the whole frame; the right close-up is the clearer case.
+   expected: The charging handle, not the optic, slides back by about half the pull with the glove on it.
+
+3. [major] [high] hand_not_on_part  (rack-grip-056-light_mk18_acog-right.png)
+   seen: Before the pull the free hand lies flat over the receiver and buffer tube. Only the thumb touches the top of the charging-handle lever (x 750-910, y 300-400); the index and middle fingers rest on the tube behind it, not on the lever. The test line says 1 of 4 fingers is on the part.
+   expected: Thumb and index finger pinching the serrated lever itself, fingers wrapped on the handle.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-056-light_mk18_acog-left.png)
+   seen: The glove's knuckles lie across the top of the upper receiver and buffer tube (x 500-730, y 200-260), with the thumb pointing forward over the receiver. The dark charging-handle/sight block (x 325-530, y 205-270) sits under or ahead of the knuckles and no finger is around it.
+   expected: Fingers closed around the charging handle so the hand can pull it back.
+
+5. [minor] [medium] mag_not_in_hand  (mag-4-in-hand-056-light_mk18_acog.png)
+   seen: The left hand's fingers are stretched flat to the left and do not curl around the magazine. The magazine rises from behind the glove's knuckles (about x 380-600, from the top edge down to y 470), so it looks like it sits behind the back of the hand rather than in the fingers. The test line puts it 3.1 cm from the palm.
+   expected: Fingers wrapped around the magazine body, magazine held in the palm with its feed end toward the gun.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-056-light_mk18_acog.png)
+   seen: At the muzzle (about x 700, y 465) lensflash shows only a tiny whitish speck of about 6-10 px. lensburst shows a grey smoke puff about 50 px wide and no bright flash. lens-eyes-056 and lens-eyes-burst-056 show a dim orange star about 10 px across with faint rings, roughly equal for left and right eyes.
+   expected: A bright muzzle flash plume at the muzzle in the first-person frames, and a clearly readable star with soft rings in the eye pictures.
+
+7. [tiny] [medium] other  (mag-2-leaving-056-light_mk18_acog.png)
+   seen: A small black tag on the pistol grip (about x 1060-1110, y 295-335) shows text: a count such as +80 in mag-1 and reversed NO MAG in mag-2 and mag-3. The text is mirrored as the player sees it.
+   expected: No debug text on the grip, or text that reads correctly from the camera.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 1/4 fingers on it': confirmed by rack-grip-056-light_mk18_acog-right.png, where only the thumb touches the lever.
+  - pulled half way '0/72 points inside the part, 1/4 fingers on it': confirmed, the glove stays where it was in rack-grip-pulled-056-light_mk18_acog-right.png.
+  - 'moving with the hand: the charging handle': contradicted by rack-grip-pulled-056-light_mk18_acog-right.png. The lever does not move; the optic and rear sight block move toward the muzzle instead.
+  - 'drawn: 2 drawn part(s) move, most 49 mm; the nearest is 0.0 cm from the hand': the 49 mm matches the optic/sight shift (about 5 cm, forward), not the charging handle. The hand is not gripping the moving sight block, so the 0.0 cm reading looks doubtful.
+  - 'the gun moved 0.2 mm with the pull, 0.4 mm when it went home': consistent with the right close-up, where the buffer tube and lever stay in place.
+  - 'in the hand: 3.1 cm from the palm': consistent with mag-4-in-hand-056-light_mk18_acog.png, where the magazine sits behind the glove rather than in the fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': no picture contradicts it; mag-6-half-in sits on the magwell line.
+  - 'muzzle flash: Muzzle Flash Particles, 70 cm, every shot, no flash light': consistent with lensburst, where the effect reads as a grey smoke puff, not a bright flash.
+  - 'lens flash strength 0.07' and 'flashes L 17 / R 17 (full L 4 / R 4)': the left and right eyes look balanced in lens-eyes-056, so no asymmetry on this gun. The sheets are built from the per-eye textures, so they cannot show a headset-side problem.

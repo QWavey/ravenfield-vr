@@ -1,0 +1,31 @@
+Gun 117: ARS M500 (Bot Friendly)
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [medium] hand_not_on_part  (rack-grip-117-ARS_M500_Bot_Friendly_-right.png)
+   seen: Left hand lies on top of the long grey barrel. The barrel runs across the full frame (about y 490-575) and cuts across the bottom of the glove (glove about x 400-1110, y 250-490), so the glove sits behind or above the barrel. The black ribbed pump forend is under the barrel (about y 575-800) with no fingers on it.
+   expected: Fingers wrapped around the black ribbed pump forend, the part that racks the gun. The forend, not the barrel, should sit under the hand.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-117-ARS_M500_Bot_Friendly_-right.png)
+   seen: Compared with the rest close-up, the black forend slid about 200 px toward the receiver side (its left end moved from about x 305 to x 505), which is the right direction. The glove stayed in the same spot (about x 395-1140, y 255-460) and did not follow the forend. The barrel still sits between the glove and the forend.
+   expected: Hand moves back with the forend to about half way, fingers still on the forend.
+
+3. [minor] [low] wrong_part_moves  (rack-grip-pulled-117-ARS_M500_Bot_Friendly_-right.png)
+   seen: The barrel and the magazine tube sit about 35-40 px higher than in the rest close-up (top tube top edge moves from y 490 to 455, lower tube from about y 620 to 580), while the sand slope and wall behind stay put. The gun body appears to move up with the pull, not only the forend.
+   expected: Only the forend slides back. Barrel, magazine tube and receiver stay still.
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-117-ARS_M500_Bot_Friendly_-left.png)
+   seen: Compared with the rest close-up from the left, the receiver end and the barrel rings shift left by about 80 px (a barrel ring goes from about x 1100 to 1030, the receiver edge from about x 1140 to 1060) while the sea and beach do not move. The visible forend end also shifts left (about x 205 to 70), which is toward the muzzle, the wrong way for a pull back toward the receiver. The forend end is partly hidden under the hand, so this reading is uncertain and conflicts with the first-person and right-side views.
+   expected: Forend moves toward the receiver (to the right in this view). Barrel and receiver stay still, and the glove stays in contact with the forend.
+
+5. [minor] [low] hand_pose_wrong  (weapon-117-ARS_M500_Bot_Friendly_.png)
+   seen: The free left hand is a glove with no arm, hovering in the grass at about x 535-635, y 585-690 with fingers pointing up. It may be intentional for a disembodied VR hand. The right hand that should hold the gun is not visible at all, and the gun's rear is cut off at the bottom right, so the grip cannot be checked.
+   expected: Left hand attached to a visible arm, or clearly a deliberate disembodied hand. Right hand wrapped around the grip and visible or at least plausibly placed.
+
+Test line flags:
+  - rack grip (slide/bolt, virtual) and pulled half way are 'not measured (the part's shape is not ready)'. The pictures show the hand is off the forend in the right-side close-ups (rack-grip-117-ARS_M500_Bot_Friendly_-right.png), so the missing shape explains the measurement gap but not the picture bug.
+  - 'THE PART UNDER THE HAND DOES NOT MOVE' with 'nearest is 4.1 cm from the hand': confirmed by rack-grip-pulled-117-ARS_M500_Bot_Friendly_-right.png. The glove sits above the barrel and the forend that moves is about 4 cm below it.
+  - 'drawn: 1 drawn part(s) move, most 35 mm': plausible. The forend shifts back in rack-grip-pulled-117-ARS_M500_Bot_Friendly_.png (about 25-40 px right and down versus rack-grip-117-ARS_M500_Bot_Friendly_.png) and by about 200 px in the right close-up. The mm value cannot be checked from the pictures.
+  - 'the gun moved 1.0 mm with the pull (hand-driven: stays open)' looks too small. The left and right close-ups show barrel and receiver shifting by tens of pixels (about 35-80 px) while the background stays still, although the first-person barrel start does not move. Low confidence.
+  - 'moving with the hand: a piece cut out of the receiver' is not confirmed. No picture shows the receiver close enough to see a hole.
+  - 'lens flash none' while 'fired 3/3' and 'the flash light' is set: no lens flash or lens-eyes picture is listed in the brief or on the sheet for this gun, so the on-screen flash could not be checked here. The test measured none, which matches the missing flash picture.
+  - Sheet shows mag 1 through mag 7 all 'none'. The gun is a pump shotgun with a tube magazine (loaded 7/7), and no magazine pictures are listed, so the reload checks were not run for this gun.

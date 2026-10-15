@@ -1,0 +1,31 @@
+Gun 70: 92g
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] hand_not_on_part  (rack-grip-070-92g.png)
+   seen: First-person view. The free left hand is still in its idle pose at the lower left of the gun (about x 540-630, y 585-690, the same pixels as in weapon-070-92g.png), roughly 100 px left of the slide (slide at about x 730-800, y 550-640). Its fingers curl in the air and touch nothing. The close-ups rack-grip-070-92g-left.png and rack-grip-070-92g-right.png show the same hand on the slide, so the first-person frame and the close-ups disagree.
+   expected: Left hand pinched on the slide's rear top, fingers on the serrations, before the pull, as the close-ups show.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-070-92g.png)
+   seen: The left hand holds the fresh magazine only at its low end. The magazine stands up out of the fist (about x 355-530, y 85-300), tilted about 15-20 degrees and resting on the extended index finger, with no fingers wrapped around its body. Its feed end points up and left, away from the gun's magwell at the upper right. The test line says 3.5 cm from the palm, which fits a magazine held by the fingertips.
+   expected: Fingers wrapped around the magazine body in the palm, magazine close to upright, same model as the gun's, feed end toward the magwell.
+
+3. [major] [low] other  (rack-grip-pulled-070-92g.png)
+   seen: First-person mid-pull. The gun's grip and frame outline are replaced by a large rounded grey mass (about x 735-835, y 600-790), with the slide top above it at about y 555-600. The left hand's idle spot (x 540-630, y 585-690) is now empty grass, and the right-hand glove is hard to make out at its usual place (x 760-900, y 690-800). Compared with rack-grip-070-92g.png, the gun's lower half changed shape.
+   expected: Slide pulled back about 34 mm toward the shooter, its rear end nearer the camera, left hand still on the slide's rear. Grip, frame and right hand stay where they were in weapon-070-92g.png. This may be correct (slide coming toward the camera), but one frame cannot confirm it.
+
+4. [minor] [low] mag_floating_or_offset  (mag-2-leaving-070-92g.png)
+   seen: The dropped magazine's base spans about x 590-750 (about 160 px wide), below the grip at about y 575-620. The seated magazine in mag-1-seated-070-92g.png spans about x 585-785 (about 200 px). The dropped copy looks about 20% smaller and its centre sits about 10 px closer to the screen centre, so it appears to be further from the camera than the magwell rather than on the same line. The drop itself is straight down.
+   expected: Same size and depth as the magazine in the magwell, falling straight down the magwell axis.
+
+5. [tiny] [low] other  (lensflash-070-92g.png)
+   seen: A thin dark dashed vertical line at the top left (about x 425-450, y 0-125), not connected to the gun. Probably a particle or a tracer. It is not a gun part.
+   expected: Nothing there, or a clearly intended tracer.
+
+Test line flags:
+  - pulled half way: 2/4 fingers on it (grip read 3/4). The close-ups rack-grip-pulled-070-92g-left.png and -right.png show the same finger placement as rack-grip-070-92g-left.png and -right.png, with the index finger on the slide in both, so no finger visibly lets go. The count drop is not confirmed by the pictures. Check which finger loses contact.
+  - rack grip: 3/4 fingers on it. The close-ups agree, but the first-person rack-grip-070-92g.png shows the free hand off the slide (see the first bug).
+  - drawn: 1 part moves, most 34 mm; nearest 0.0 cm from the hand; gun moved 0.5 mm with the pull. Consistent with the close-ups: in rack-grip-pulled-070-92g-left.png and -right.png the hand and slide stay put on screen while the magazine, trigger guard and slide-stop lever shift about 100-140 px toward the muzzle. That is the slide sliding back with the hand, in the correct direction in both views. Not a bug, provided the close-up camera is anchored to the hand.
+  - in the hand: 3.5 cm from the palm. Supported by mag-4-in-hand-070-92g.png: the magazine stands out of the fist and is held at its end.
+  - half way in (on the rail): 0.0 cm off the magwell line. Not verifiable from mag-6-half-in-070-92g.png. The glove covers the lower part of the magazine, and the magazine in the grip looks at seated height, the same as in mag-1 and mag-7.
+  - magazine (deep): dropped copy 0.0 cm across, size x1.00. The size reading conflicts with mag-2-leaving-070-92g.png, where the dropped copy looks about 20% smaller.
+  - muzzle flash and lens flash strength 0.67: lensflash-070-92g.png shows the flash at the muzzle, about 25 px from the slide's muzzle end. lens-eyes-070-92g.png shows the flare near the lower centre in both eyes, and the right eye is not clearly stronger. Consistent with the test; no bug seen.

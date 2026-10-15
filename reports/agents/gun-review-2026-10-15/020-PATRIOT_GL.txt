@@ -1,0 +1,41 @@
+Gun 20: PATRIOT GL
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-020-PATRIOT_GL.png)
+   seen: The fresh magazine stands upright in the upper middle of the frame (about x 430-625, y 15-290), above the back of the free left glove and in front of the grenade launcher and top rail. The glove's knuckles (y 285-330) carry the magazine's bottom edge, and the fingers are spread out to the left with no finger wrapped around the magazine. The magazine hovers above the hand rather than being held in it.
+   expected: The left hand closed around the fresh magazine (fingers wrapped round its body, feed end toward the gun), with the magazine held at the hand, not above it.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-020-PATRIOT GL.png)
+   seen: The whole image is black: no flare on the left eye half and none on the right. The test line says lens flash shown, strength 0.83, but the first-person frame lensflash-020-PATRIOT_GL.png shows a muzzle glow on a shot, so the lens overlay is not drawn in this capture.
+   expected: Left and right eye side by side, each with a bright star and soft rings near the muzzle, the right (gun side) a bit stronger.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-020-PATRIOT_GL-left.png)
+   seen: The free hand (triangle-logo glove) lies flat across the top of the receiver in front of the red-dot sight. Index finger rests on the upper surface, middle and ring fingers curl down the side of the receiver ahead of the optic, knuckles raised. No finger wraps around a charging handle; the hand sits on the top surface. The same pose shows in rack-grip-020-PATRIOT_GL-right.png.
+   expected: The free hand's fingers pinching the charging handle, fingers on that handle and not on the receiver top.
+
+4. [major] [low] hand_pose_wrong  (rack-grip-pulled-020-PATRIOT_GL-left.png)
+   seen: Both pulled close-ups (-left and -right) show a different glove over the receiver: the grey cuffed glove (the same glove that holds the pistol grip in the reload pictures), its tan fingertip resting on a small grey block forward of the rear sight. The triangle-logo free-hand glove is not visible in either. The fingers run over a black knob toward the right in the -right frame. The close-up camera sits in a different position from the pre-pull frames, so the handle's travel back cannot be confirmed by eye.
+   expected: The free (left) hand's triangle-logo glove pinching the charging handle, with the handle visibly pulled about half way back by that hand.
+
+5. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-020-PATRIOT_GL.png)
+   seen: The fresh magazine sits low in the frame (about x 630-760, y 535-740) and is roughly half the apparent size of the magazine at the magwell in mag-6-half-in-020-PATRIOT_GL.png (about 130 px wide vs about 235). It looks displaced further from the camera than the magwell, not directly under it on the same line, with the free glove beneath its base.
+   expected: The fresh magazine directly under the magwell on its insertion line, at the magwell's depth (about the same size as in mag-6).
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-020-PATRIOT GL.png)
+   seen: Two flares on black. The left eye's flare (about x 170) is small and faint with a tight halo. The right eye's flare (about x 470) has a brighter core and a soft halo roughly twice as wide. The gun-side (right) eye is clearly stronger, more than the 'a bit' the brief expects. The test counts 12 flashes per eye, so both fired. In this run the brighter eye is the gun side, not the other lens, but the size gap is the same one-eye-brighter pattern the user reported.
+   expected: Both flares similar in size and brightness, with the right eye only a bit stronger.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensburst-020-PATRIOT_GL.png)
+   seen: The full-auto first-person frame shows no glow at the muzzle, the spot where lensflash-020-PATRIOT_GL.png shows a yellow flash. Brass casings are in flight, so shots are going out. This may just be a frame between flashes; one full-auto frame does not prove a missing flash.
+   expected: A muzzle flash at the gun's front on a firing frame.
+
+Test line flags:
+  - lens flash shown, strength 0.83: contradicted by lens-eyes-020-PATRIOT GL.png, which is fully black. The first-person frame lensflash-020-PATRIOT_GL.png does show a flash, so the lens-eyes capture is the problem.
+  - rack grip 0/4 fingers on it, and pulled half way 0/4 fingers: consistent with rack-grip-020-PATRIOT_GL-left.png and -right.png, where the free hand rests on the receiver top and no finger is on a handle.
+  - moving with the hand: the charging handle, alongside 0/4 fingers on it: contradictory. A part cannot move with the hand while no finger touches it. No picture confirms the handle moving with the hand.
+  - drawn: 2 drawn part(s) move, most 37 mm: no picture confirms a 37 mm move. The pulled close-ups use a different camera position than the pre-pull ones, and the pulled first-person frame does not show the handle clearly.
+  - in the hand: 3.2 cm from the palm: mag-4-in-hand-020-PATRIOT_GL.png shows the magazine resting above the back of the hand with no fingers around it. The picture does not confirm a grip.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in-020-PATRIOT_GL.png looks consistent, with the magazine lined up on the magwell.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7-seated-again-020-PATRIOT_GL.png looks consistent with mag-1-seated-020-PATRIOT_GL.png (same top edge under the lip; bottom partly hidden by the hand).
+  - muzzle flash: every shot: lensflash-020 shows a flash and lens-eyes-burst shows 12 flashes per eye, but the full-auto lensburst frame shows none. Not contradicted; that single frame does not confirm it.
+  - dropped copy 0.0 cm across the pull, 2.3 cm out: mag-2-leaving-020-PATRIOT_GL.png shows the magazine dropped straight down with its top still at the magwell line. Consistent.

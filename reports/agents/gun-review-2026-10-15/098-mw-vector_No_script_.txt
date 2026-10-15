@@ -1,0 +1,46 @@
+Gun 98: mw-vector(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_or_finger_clipping  (rack-grip-098-mw-vector_No_script_-right.png)
+   seen: A gloved fingertip sits inside the ejection window of the receiver (window about x 660-890, y 260-460; fingertip about x 690-800, y 335-450). The charging handle lever (about x 430-560, y 260-380) is untouched, roughly 150 px to the left.
+   expected: Fingers pinch the charging handle lever or the slide top from outside the receiver. No finger inside the receiver or the ejection port.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-098-mw-vector_No_script_-left.png)
+   seen: The left hand lies over the side of the receiver under the rail (palm about x 400-870, y 240-530) with the fingers pointing forward across the side plate. No finger reaches the slide top, its serrations, or the charging handle. The rail and slide top sit above the hand.
+   expected: Thumb and fingers pinch the slide top / rear serrations or the charging handle, so the hand is on the part that racks the gun.
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-098-mw-vector_No_script_-left.png)
+   seen: The hand is at the same pixel position as in rack-grip-098-mw-vector_No_script_-left.png (fingers and palm unchanged), while the gun body shifts in frame (front sight and magazine about 100 px further left). Nothing visibly travels rearward with the hand.
+   expected: The hand moves rearward with the slide or charging handle (about 35 mm per the test) while the rest of the receiver stays put.
+
+4. [minor] [medium] other  (rack-grip-pulled-098-mw-vector_No_script_-right.png)
+   seen: A full cartridge (brass with a pointed orange bullet) pokes out of the solid receiver just above the ejection window, about x 820-1150, y 230-290, with its tip outside the window opening. The thumb is on the charging lever, which is the right place, but the cartridge looks loose or clipping through the receiver.
+   expected: No cartridge visible on the receiver side. A round is only plausible inside the port or chamber.
+
+5. [major] [medium] mag_duplicate_or_missing  (mag-2-leaving-098-mw-vector_No_script_.png)
+   seen: The magazine runs from the grip bottom edge down to about y 775. In mag-1-seated it ends near y 700 with its base plate visible. Here the top still meets the grip bottom with no gap, the base plate band is gone, and the grip label already reads NO MAG. The silhouette is about 75 px (roughly 2.8 cm) longer than the seated magazine.
+   expected: One magazine sliding straight down out of the magwell along its line. The seated magazine should not still be drawn in the well under the dropped copy, and nothing should remain above the copy.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (rack-grip-098-mw-vector_No_script_.png)
+   seen: The first-person muzzle flash is a fan of large translucent yellow triangles with straight hard edges, running from the muzzle (around x 700-760, y 540-600) out to the right edge (about x 1270, y 410) and up across the sky. It reads as flat geometry, not a soft particle flash. Compare lensflash-098-mw-vector_No_script_.png, where the same muzzle flash is a small soft glow.
+   expected: A soft, compact muzzle glow with particle puffs and soft rays that fade out, as in lensflash-098-mw-vector_No_script_.png. No hard-edged triangles.
+
+7. [minor] [low] hand_not_on_part  (rack-grip-098-mw-vector_No_script_.png)
+   seen: No left hand is visible anywhere in this wide first-person shot, and the same is true of rack-grip-pulled-098-mw-vector_No_script_.png. In weapon-098-mw-vector_No_script_.png the free hand sits at about x 540-640, y 580-690 in the same view.
+   expected: The racking hand visible on the slide or charging handle, or at least in frame near the gun.
+
+8. [tiny] [low] mag_not_in_hand  (mag-5-lined-up-098-mw-vector_No_script_.png)
+   seen: The fresh magazine stands about 8 cm below the magwell on its line, which looks right. The glove sits at the bottom edge about 80-100 px to the right of the magazine and does not clearly touch it. The magazine runs out of the bottom of the frame.
+   expected: Fingers visibly holding the fresh magazine while it is lined up.
+
+9. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-098-mw-vector(No script).png)
+   seen: Both star centres sit near the muzzle position (left at about x 178, right at about x 476 in their 300 px panels), so the flare placement is right. The right-eye panel has a brown wash across the whole frame, while the left-eye panel is near black except its lower-right corner. The right eye is stronger, but by more than a bit.
+   expected: Right eye a bit stronger, with a wash close to the left eye's. The flare core and rings should match in size.
+
+Test line flags:
+  - rack grip (slide/bolt): '1/72 points inside the part, 0/4 fingers on it' is confirmed by rack-grip-098-mw-vector_No_script_-right.png (a fingertip sits inside the ejection window) and rack-grip-098-mw-vector_No_script_-left.png (the hand lies on the side plate under the rail with no finger on the slide top or handle).
+  - pulled half way: '0/72 points inside the part, 0/4 fingers on it; moving with the hand: the slide / bolt' is not supported by the left pair. In rack-grip-pulled-098-mw-vector_No_script_-left.png the hand does not move at all between the two shots. The right pair shows the charging lever and ejection window shifting together about 170 px, which fits a handle moving rearward, but the hand reaches it from a different spot than before the pull.
+  - drawn: '1 drawn part(s) move, most 35 mm; the nearest is 0.0 cm from the hand' is only partly consistent. The right pair shows the lever and window moving together, but the pre-pull right shot has the hand inside the port, not touching the lever, so the 0.0 cm contact is only true after the pull.
+  - the gun moved 0.8 mm with the pull' looks wrong. In the left pair the gun body (sights, receiver rail and magazine) shifts about 100 px in frame while the hand stays put. Either the camera moved or the gun moved far more than 0.8 mm. Check the camera position in the test before trusting this number.
+  - magazine (deep): 'dropped copy 0.0 cm across the pull from the gun's magazine, 2.8 cm out' matches mag-2-leaving-098-mw-vector_No_script_.png, where the silhouette is about 75 px (roughly 2.8 cm) longer than the seated magazine with no gap at the grip. That suggests the gun's own magazine is still drawn in the well under the dropped copy.
+  - muzzle flash: 'Muzzle Flash Particles, 70 cm' is questionable. rack-grip-098-mw-vector_No_script_.png shows a first-person flash that is much larger than the single-shot flash in lensflash-098-mw-vector_No_script_.png and is built from flat hard-edged triangles, so the flash particle size or mesh is suspect.

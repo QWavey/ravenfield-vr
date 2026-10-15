@@ -1,0 +1,51 @@
+Gun 76: vector rds
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-076-vector_rds-right.png (also -left.png and rack-grip-pulled-076-vector_rds.png))
+   seen: Comparing the pulled close-up with rack-grip-076-vector_rds-right.png: the red dot, charging lever, rear sight, rail, screws and ejection port keep the same position relative to the lower receiver (grip, magazine plate, screws). The whole gun block shifts about 160-190 px across the frame together, and the upper receiver moves back relative to the lower one by roughly 15-30 px at most. The left pair (rack-grip-076-vector_rds-left.png vs -pulled-left) shows the same: about 100-115 px shift for both upper and lower features. In the first-person pair the red dot and gun body do not move at all.
+   expected: The slide (upper receiver) should visibly slide back about 35 mm, as the test says, which is roughly 80-120 px at this close-up scale, while the lower receiver and grip stay put. The red dot, lever and rear sight should move back with the slide.
+
+2. [major] [medium] hand_or_finger_clipping  (rack-grip-076-vector_rds-right.png)
+   seen: A gloved fingertip is pushed into the ejection port opening, around the brass of the chambered round (about x 685-850, y 330-450). So a finger is inside the receiver body, not on the outside of the slide.
+   expected: Fingers should wrap on the outside of the slide (top or side edge), with nothing poking into the ejection port.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-076-vector_rds-left.png (and rack-grip-pulled-076-vector_rds-left.png))
+   seen: The gloved left hand lies flat against the receiver side panel below the rail, palm in front of the side, fingers pointing forward past the front of the upper receiver. No finger wraps around the slide's top or edge, and no thumb is visible on the far side. The test reports 0/4 fingers on the part, and the picture agrees.
+   expected: Fingers curled around the slide (top or side edge), thumb on the far side, so the hand stays attached to the slide as it moves back.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-076-vector_rds.png (and rack-grip-pulled-076-vector_rds.png))
+   seen: In weapon-076-vector_rds.png the free left hand floats low on the left of the gun (about x 540-630, y 585-690). In the rack frame that hand is gone from there and a light-grey glove shape sits at the muzzle end of the gun, below the front sight (about x 700-745, y 580-650), not on the slide top. In the pulled frame it moves only about 10-20 px further down-right, and the slide shows no visible movement.
+   expected: The left hand should be on the slide top, close to the red dot or the rear of the slide, with fingers wrapped on it, and it should visibly pull the slide back.
+
+5. [minor] [low] part_floating_or_detached  (rack-grip-pulled-076-vector_rds-right.png)
+   seen: A complete cartridge (brass with an orange bullet tip, pointing toward the muzzle) sits on the top edge of the receiver just in front of the charging lever and above the ejection port (about x 840-1150, y 230-290), with a fingertip resting over its base. The rest of the round is inside the port. It looks like a loose round sitting on or through the receiver top, not a chambered round seen through the port.
+   expected: No loose round on the receiver top. The chambered round should be hidden inside the slide and visible only through the port, with the hand on the slide.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-076-vector rds.png and lens-eyes-burst-076-vector rds.png)
+   seen: Both eye panels show only a tiny star with a faint ring, almost black around it (about 10-15% of normal brightness at the star). The right eye is a bit stronger, and the star sits at a plausible muzzle position (lower right of centre). In the burst panel the star is an even smaller dot.
+   expected: A clearly visible bright star with soft rings at the muzzle position on black, with the right eye a bit stronger, readable at a glance.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-076-vector_rds.png (and lensburst-076-vector_rds.png))
+   seen: The first-person shot shows only a faint yellow-green haze at the muzzle end, left of the red dot (about x 670-740, y 480-560). There is no bright flame cluster at the muzzle, though the test says a 70 cm particle flash plays on every shot. The burst frame shows the same faint haze plus ejected brass flying to the right, which is fine.
+   expected: A bright, clearly readable muzzle flash (particle flame) at the muzzle end of the gun, brighter than the surrounding grass.
+
+8. [tiny] [low] mag_not_into_magwell  (mag-6-half-in-076-vector_rds.png)
+   seen: The magazine's top edge sits at the same spot on the receiver's bottom edge as in mag-1-seated and mag-7-seated-again, and its visible length looks the same. The index finger covers its lower end. I cannot see the half-way insertion step, so it may be depth-correct or just hard to see.
+   expected: Visibly different depth from seated (roughly half of the insertion depth further in or out), still on the magwell line.
+
+9. [tiny] [low] other  (weapon-076-vector_rds.png (and every first-person frame))
+   seen: A flat black rectangle fills the bottom-right corner (about x 995-1280, y 620-800) in every first-person frame. It does not move in the pull frames, and it is not part of the gun. It could be a HUD panel or a stray object.
+   expected: Nothing there unless it is a deliberate HUD element.
+
+Test line flags:
+  - rack grip / pulled half way '0/72 points inside the part, 0/4 fingers on it': confirmed. The left hand is flat on the receiver side (rack-grip-left), at the muzzle end in first-person, and one fingertip is in the ejection port.
+  - 'drawn: 1 drawn part(s) move, most 35 mm; the nearest is 0.0 cm from the hand': NOT confirmed. The visible slide does not travel back relative to the lower receiver in the pulled close-ups (about 15-30 px relative vs roughly 80-120 px expected for 35 mm), so the part the test measured may not be the visible slide.
+  - 'the gun moved 0.8 mm with the pull': first-person frames agree (red dot static). The close-up frames shift as a block by 100-190 px, which points to camera framing rather than gun movement; not fully clear.
+  - 'magazine: seated, 33 rounds' and 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-1-seated and mag-7-seated-again show the magazine in the same place at the front of the grip.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks right, but the depth does not visibly look half-way (see mag-6 finding).
+  - 'in the hand: 3.6 cm from the palm': mag-4 shows the fist covering the magazine base, consistent; the exact distance cannot be checked from a still.
+  - 'muzzle flash: particles 70 cm, every shot, no flash light': the flash is barely visible in lensflash and lensburst (faint haze only).
+  - 'lens flash shown, strength 0.10' and 'strongest soft flash 0.12': the eye pictures show a tiny dim star, near the edge of being visible.
+  - 'lens flash burst: 24 shots in 1.6 s, flashes L 23 / R 23': cannot verify from one still; the burst eye still shows the same faint dot.
+  - 'cases thrown: 27': lensburst shows brass ejecting to the right in flight; consistent.
+  - 'racked: chambered': a round is visible through the ejection port in the pulled right close-up; consistent, but see the loose round finding.

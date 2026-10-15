@@ -131,6 +131,10 @@ namespace RavenfieldVR.Weapons
                     {
                         yield return null; // (never stuck: a read-back that never returns does not hold the warm-up up)
                     }
+                    while (InMatch())
+                    {
+                        yield return new WaitForSecondsRealtime(1f); // a match that started during the wait above: not now
+                    }
                     Weapon weapon = entry.prefab.GetComponent<Weapon>();
                     // Skipped only once all of it was done here: analysed elsewhere first (a sound donor, a draw), its shape fit and
                     // the dropped model were never prepared, and the first draw in the match did them (the hitch this avoids).

@@ -1,0 +1,79 @@
+Gun 12: GREASER
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] picture_unusable  (lens-eyes-012-GREASER.png)
+   seen: The whole 606x250 frame is black on both the LEFT and RIGHT eye halves. No star, no rings, no halo anywhere. The test line still says the lens flash was shown at strength 1.02.
+   expected: A bright star / flare near the muzzle on both eyes with soft rings, the right eye a bit stronger.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-012-GREASER.png)
+   seen: Only two tiny, dim specks: LEFT at about x 172, y 148 and RIGHT at about x 470, y 148 (of 606x250), each a few pixels with a faint ring. Nothing bright, so the flash during full-auto is nearly invisible. The right eye's halo is slightly larger, which is the expected bias, and neither eye is hugely brighter.
+   expected: Bright star with soft rings on both eyes for the whole burst, right eye a bit stronger.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-012-GREASER.png)
+   seen: First-person frame 'on a shot': the muzzle end at about x 700-720, y 460-480 is a plain grey barrel tip with at most a tiny white highlight. No flash, fireball or particles at the muzzle. A few faint grey smoke puffs drift in the sky far to the right of the gun (about x 1050-1130, y 150-240), nowhere near the muzzle.
+   expected: The gun's own muzzle flash at the muzzle: a bright burst with particles on the frame of the shot, matching the lens flash.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-012-GREASER.png)
+   seen: Same as lensflash: full-auto first-person frame, muzzle at about x 700-720, y 460-480 shows no flash, just the barrel tip; faint grey puffs far off in the sky.
+   expected: Muzzle flash particles visible at the muzzle while firing full auto.
+
+5. [major] [high] hand_not_on_part  (rack-grip-012-GREASER.png)
+   seen: No left hand in the frame at all. The slide top above the receiver (about x 690-860, y 460-520) is untouched, and a red box lies on the grass by itself. Test says 0/4 fingers on the part.
+   expected: Left hand pinching the rear of the slide with fingers on it.
+
+6. [major] [high] hand_not_on_part  (rack-grip-012-GREASER-left.png)
+   seen: Left glove lies across the middle of the receiver (about x 330-880, y 255-540): knuckles on top, fingers curled round the lower side near the grip. The top hook / rack lever at about x 735-820, y 140-220 sits beyond the knuckles and is not gripped. Fingers are on the receiver body, not on the rack part.
+   expected: Fingers pinching the slide / charging lever itself, not the receiver side or the magazine area.
+
+7. [major] [high] hand_not_on_part  (rack-grip-012-GREASER-right.png)
+   seen: Glove rests above and behind the slide (about x 410-1050, y 250-345). Its fingertips do not touch the slide top; the slide's hook (about x 250-440, y 195-370) is in front of the knuckles, not held. Test: 0/4 fingers.
+   expected: Fingers on the slide top at the hook, with the glove following the slide.
+
+8. [major] [high] hand_not_on_part  (rack-grip-pulled-012-GREASER-right.png)
+   seen: The slide with its hook slid back about 290 px to the right, roughly 4 cm at this view's scale (consistent with the test's 44 mm), with the rods showing in front of it. The glove did not move: it is still at about x 400-1040, y 240-345, in exactly its unpulled place, so the hook now passes in front of the knuckles. The hand pulls air.
+   expected: Glove pulled back with the slide, fingers pinched on the hook, slide about half way back.
+
+9. [minor] [low] wrong_part_moves  (rack-grip-pulled-012-GREASER-right.png)
+   seen: The lower olive block with the round pin under the slide moves the same ~290 px as the slide, so the frame / lower receiver looks like it moves with the slide instead of staying put.
+   expected: Only the slide / bolt moves; the lower frame and grip stay fixed.
+
+10. [major] [high] hand_not_on_part  (rack-grip-pulled-012-GREASER-left.png)
+   seen: Left glove stays at the same screen spot (about x 335-870, y 175-520) while the hook and receiver end shift about 120 px to the left (hook now at about x 615-690). The fingertips at x 500-600 end up roughly a finger's width from the hook: the receiver has slid out from under the hand.
+   expected: Glove moving with the rack part, fingers still on it, part about half way back.
+
+11. [major] [medium] wrong_part_moves  (rack-grip-pulled-012-GREASER-left.png)
+   seen: The olive grip / magazine-base block under the hand, and the grey hand holding it, also shift left by about 110-120 px along with the receiver, while the rods and background stay put. This suggests the whole gun body moves on the pull, not the slide alone.
+   expected: Only the slide or bolt moves; the grip, magazine and hand holding the grip stay in place on the gun.
+
+12. [minor] [medium] hand_not_on_part  (rack-grip-pulled-012-GREASER.png)
+   seen: No left hand in frame. A dark smoke cloud and blue puffs cover the wall and sky, so the pull cannot be confirmed from this view.
+   expected: Left hand visible on the slide, slide visibly pulled back.
+
+13. [major] [medium] other  (mag-2-leaving-012-GREASER.png)
+   seen: The magazine has not dropped visibly. The olive column still hangs from the magwell in the same place as in mag-1 (top at the receiver's bottom edge, about y 210, x 575-708), with no offset or gap. It then vanishes by mag-3 instead of falling out along its line. The test line says the dropped copy is 2.8 cm out.
+   expected: Magazine dropping straight down out of the magwell along its line, its top edge visibly moving down and away.
+
+14. [minor] [low] mag_wrong_orientation_or_model  (mag-4-in-hand-012-GREASER.png)
+   seen: The fresh magazine is held tilted about 30 degrees below horizontal (roughly 60 degrees off the grip's vertical line), its far end pointing down and away from the gun. Its upper end sits left of the magwell housing (about x 420-520, y 150-250) rather than lined up under it. The palm covers its top half.
+   expected: Magazine held roughly in line with the grip, feed end toward the magwell, fingers around it.
+
+15. [minor] [low] optic_or_sight_issue  (mag-4-in-hand-012-GREASER.png)
+   seen: A flat, unshaded black slab sits on top of the receiver (about x 400-670, y 15-75). It looks like a missing texture or a sight / cover drawn black, unlike the shaded metal around it.
+   expected: Shaded receiver top or sight matching the rest of the gun.
+
+16. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-012-GREASER.png)
+   seen: The fresh magazine is upright, feed end up, and on the magwell's vertical line (x about 600-685 vs block 585-690), but it hangs about 1.5 magazine heights below the magwell block (magazine top at y about 525, block bottom at y about 80). Camera depth may explain part of this.
+   expected: Magazine right at the magwell mouth, on its line.
+
+Test line flags:
+  - 'lens flash shown, strength 1.02' conflicts with lens-eyes-012-GREASER.png, which is entirely black; lensflash-012 and lensburst-012 also show no muzzle flash. Confirmed mismatch.
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm, every shot' is not visible in lensflash-012-GREASER.png or lensburst-012-GREASER.png. Confirmed mismatch, or the capture missed the flash.
+  - 'lens flash burst: flashes L 10 / R 10 (full L 4 / R 3), strongest soft flash 0.33': lens-eyes-burst-012-GREASER.png shows only faint specks, consistent with weak flashes, not a visible bright flash.
+  - 'rack grip 0/72 points inside the part, 0/4 fingers on it' and the same for 'pulled half way': confirmed by rack-grip-012-GREASER(-left/-right) and rack-grip-pulled-012-GREASER(-left/-right). No fingers on the slide.
+  - 'moving with the hand: the slide / bolt' is contradicted. In the pulled pictures the glove stays put while the slide moves away from it.
+  - 'the gun moved 0.6 mm with the pull' does not match rack-grip-pulled-012-GREASER-left.png or -right.png. The receiver, hook and grip block shift about 110-290 px in the close-ups while the rods and background stay still; 0.6 mm looks too small.
+  - 'drawn: 1 drawn part(s) move, most 44 mm; the nearest is 0.2 cm from the hand': plausible for rack-grip-pulled-012-GREASER-right.png (the slide moves about 290 px, and the hook sits in front of the knuckles, not on them).
+  - 'magazine (deep): dropped copy 2.8 cm out' is not confirmed by mag-2-leaving-012-GREASER.png, which shows no visible drop.
+  - 'in the hand: 2.6 cm from the palm': mag-4-in-hand-012-GREASER.png shows the magazine under the palm, consistent.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' and 'seated: 0.0 cm from where it was': mag-6 and mag-7 agree with mag-1 placement, consistent.
+  - 'magazine: seated, 30 rounds' and 'cases thrown: 15' cannot be checked from pictures. A case is visible at lower right in lensflash-012-GREASER.png.

@@ -1,0 +1,27 @@
+Gun 62: GLOCK 43X-S
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-062-GLOCK_43X-S-right.png)
+   seen: The slide has moved back about 70 px: the rear sight is at x about 80-190 instead of 150-255 as in rack-grip-062-GLOCK_43X-S-right.png, and a black barrel section now shows ahead of the slide. The left glove has not moved: its index finger and knuckles lie at the same screen spot on the slide top (x about 420-900, y about 200-320) as in the rack-grip picture. The slide slides out from under a stationary hand, which matches the test's 0/4 fingers on the part.
+   expected: The fingers stay pinched on the slide top and travel back with it, so the hand and the slide move together about half way back.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-062-GLOCK_43X-S-left.png)
+   seen: Compared with rack-grip-062-GLOCK_43X-S-left.png the slide front has moved about 35-40 px toward the rear, and a black barrel section (x about 400-490) now shows between the suppressor ring and the slide. The glove's knuckles on top of the slide (x about 505-700, y about 160-265) are at the same place as before, so the fingers are no longer riding with the slide.
+   expected: Fingers stay on the slide top and move back with it, the slide retracting about half way with the hand.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-062-GLOCK_43X-S-right.png)
+   seen: The suppressor collar (hex ring) sits at x about 1040-1120 instead of x about 960-1000 in rack-grip-062-GLOCK_43X-S-right.png, so the barrel end is pushed about 80 px further toward the muzzle. The trigger guard and the background did not move. The left view shows the same thing: the collar ring is about 45 px further toward the muzzle (x about 305-400 vs 350-440 in rack-grip-062-GLOCK_43X-S-left.png). Only the slide should retract over a fixed barrel; here the barrel and suppressor also travel forward.
+   expected: Barrel and suppressor stay fixed in the frame; only the slide moves back, uncovering the barrel by the slide's travel (about 70 px), not by an extra 45-80 px of barrel movement.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-062-GLOCK_43X-S.png)
+   seen: The fresh magazine (dark body with an orange feed lip) hovers above the left glove at x about 400-545, y about 180-300, touching only the top of the index knuckle ridge. The fingers do not close around it. It is tilted about 40-45 degrees, and its orange feed lip points up and to the left, away from the gun's magwell at the grip (x about 880-1000, y about 230-380), instead of toward it.
+   expected: Fingers curled around the magazine body, magazine roughly upright and parallel to the grip, feed lip toward the gun, base close to the palm, as in mag-5-lined-up.
+
+5. [tiny] [low] other  (lens-eyes-062-GLOCK 43X-S.png)
+   seen: Each eye's flare sits in a warm brown rounded-rectangle patch that ends in a visible edge toward the right and bottom (about x 298 on the left panel and x 606 on the right panel), instead of fading into pure black. The right eye is a little stronger than the left, as intended.
+   expected: The flare fades out softly on pure black with no visible panel boundary.
+
+Test line flags:
+  - "pulled half way: 0/4 fingers on it" together with "moving with the hand: the charging handle": confirmed by rack-grip-pulled-062-GLOCK_43X-S-right.png and -left.png. The slide moves while the glove stays at the same screen spot, so the hand is not carrying the slide. The 'moves with the hand' check is passing on the slide's own movement, not on the hand moving with it.
+  - "in the hand: 3.7 cm from the palm": confirmed by mag-4-in-hand-062-GLOCK_43X-S.png. The fresh magazine is not held by the fingers; it sits off the glove, tilted, with its feed end pointing away from the gun.
+  - "the gun moved 0.3 mm with the pull": not supported by the pulled close-ups. The barrel and suppressor collar shift roughly 45-80 px toward the muzzle while the trigger guard stays put, which is far more than the trigger guard or background moves. Either the test measured a different object than the barrel end, or the barrel end moves (see the wrong_part_moves finding on rack-grip-pulled-062-GLOCK_43X-S-right.png).

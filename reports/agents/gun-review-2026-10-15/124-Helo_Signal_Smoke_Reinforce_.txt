@@ -1,0 +1,9 @@
+Gun 124: Helo Signal Smoke (Reinforce)
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [medium] part_floating_or_detached  (weapon-124-Helo_Signal_Smoke_Reinforce_.png)
+   seen: The left hand is a gray hand shape at the centre-bottom of the view, roughly x 540-635, y 585-690 px on the 1280x800 frame, fingers pointing up and to the right. Its wrist ends in mid-air about 110 px above the bottom edge, and no arm runs from it to the bottom of the screen, so it looks detached and floating.
+   expected: The left hand should sit attached to a visible forearm that runs to the bottom edge of the view (or be placed at the lower-left like a normal first-person hand), not float in the middle of the screen. The brief says the left hand is free, so its pose is acceptable; only the missing arm connection is in question.
+
+Test line flags:
+  - None of the measurements look wrong. 'muzzle flash: none' and 'lens flash none' fit a smoke grenade, which has no muzzle. 'equipped' and 'manual reload not active' match the held item. The pin, throw and refund outcomes ('pin in: dud', 'pin pulled: live grenade thrown', 'picked up again: refunded') are not visible in this single picture, so they are unconfirmed rather than contradicted.

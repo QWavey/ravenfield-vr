@@ -1,0 +1,22 @@
+Gun 40: M1014 Tactical
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-040-M1014 Tactical.png)
+   seen: Both eye panels (left x 0-300, right x 303-606, 250 px tall) are almost all black. Each shows one small orange star about 6-8 px across at roughly 56% across and 58% down, with a faint ring around it that is barely visible. Left and right are about equal; the right may be a touch brighter. The position matches the muzzle in lensflash-040 (about 54% across, 57% down), so placement is right. The problem is strength: the flare reads as almost nothing on screen.
+   expected: A clearly visible bright star with soft rings, which is what a 0.08 strength lens flash should show. The right eye staying a little stronger than the left is correct as it is.
+
+2. [tiny] [low] other  (lensflash-040-M1014_Tactical.png)
+   seen: The free left hand (glove, fingers spread) hangs in mid-air at about x 540-630, y 585-690 with no arm, roughly 150 px left of the gun and not touching it. weapon-040-M1014_Tactical.png shows the same hand in the same place.
+   expected: The brief asks for nothing floating in weapon shots. The hand is probably the intended rest pose, since VR hands have no arms, so only report it if the rest pose should sit on or near the gun.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-040-M1014_Tactical.png)
+   seen: Wide first-person view: the left hand is not visible anywhere. The sight (x 735-790, y 485-540) and the receiver top show no fingers, while the same gun in weapon-040 has the left hand in view. rack-grip-pulled-040-M1014_Tactical.png shows the same gap. The close-ups (rack-grip-*-left/right) do show the hand on top of the gun, so the hand may simply be hidden by the receiver from this camera side.
+   expected: Either the hand visible on the charging handle at the top of the receiver, or a clear reason it is hidden from this angle. The wide shots cannot confirm the grip.
+
+Test line flags:
+  - rack grip and pulled half way: 'not measured' (the handle has no mesh). Only the pictures show the grip. In the close-ups the hand stays on the handle bump (fist in rack-grip-left vs rack-grip-pulled-left; finger on the top shelf in rack-grip-right vs rack-grip-pulled-right), which is plausible but cannot be measured from pictures.
+  - '2 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand': in the pulled-left close-up the receiver and sight shift about 200 px on screen while the fist and the handle bump stay put. At close range that is roughly 5-6 cm, so the picture is roughly consistent with a 57 mm handle travel. The before and after framing differs, so this is not proof, and the direction (rear or forward) cannot be read from the frames.
+  - 'the gun moved 0.5 mm with the pull': the before and after close-ups are not framed the same (receiver about 200 px shift), so the pictures cannot check the 0.5 mm figure.
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm': in lensflash-040 the muzzle flash is a small spark cluster roughly 5-10 cm across at the muzzle, not a 2 m flash. The 200 cm figure does not match what the picture shows; it may be a particle setting in another unit or a range. Picture does not confirm it.
+  - 'lens flash shown, strength 0.08': matches the very faint flare in lens-eyes-040 (see the bug above).
+  - The overview sheet shows 'none' for mag 1-7. That is expected for the M1014, a tube-fed shotgun with no detachable magazine, so it is not a bug.

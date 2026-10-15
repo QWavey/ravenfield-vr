@@ -1,0 +1,36 @@
+Gun 111: ARS Glock 19
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-111-ARS_Glock_19-left.png)
+   seen: Compared with rack-grip-111-ARS_Glock_19-left.png, the slide has moved back about 130 px (rear sight from about x 390 to x 520, near y 230-255). The free-hand glove stays exactly where it was (top-left corner about (435,262), right edge about x 875), and the fingers at about (160-450, 370-440) have not moved either. The slide's rear now runs under the glove from about x 435 to x 545, so the slide slides into the hand instead of being carried by it.
+   expected: The glove and fingers travel back with the slide by the same amount and stay pinched on the rear serrations (about x 260-380, y 265-325 in the rest pose). The slide should not pass through the glove.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-111-ARS_Glock_19-right.png)
+   seen: Compared with rack-grip-111-ARS_Glock_19-right.png, the slide's rear end has moved about 185 px toward the hand (from about x 985 to about x 800, rear sight now about x 830-870). The glove and fingers are in the same screen position as before (glove about x 400-910, y 250-600; index fingertip about x 800-910, y 330-380), so the hand does not move with the slide. The slide slides under the stationary fingertip, which now overlaps the slide's rear.
+   expected: The hand and fingers move back with the slide by the same amount, keeping the fingertip on the rear serrations.
+
+3. [minor] [medium] hand_not_on_part  (rack-grip-111-ARS_Glock_19-right.png)
+   seen: Before the pull, the index fingertip ends about 70 px short of the slide's rear end (fingertip about x 915, slide rear about x 985, slide band y 330-500). The fingers hang in the air just in front of the slide instead of touching it.
+   expected: Fingertips pinch the slide's rear serrations and touch the slide.
+
+4. [tiny] [low] hand_not_on_part  (rack-grip-111-ARS_Glock_19-left.png)
+   seen: The pale fingers lie under the slide at about y 370-440, along the front of the frame and below the slide's serrations (about x 260-380, y 265-325). The glove's back starts right at the slide's rear end (x 435). The fingers rest on the frame rather than the slide.
+   expected: Fingertips on the slide's rear serrations, not under the slide on the frame.
+
+5. [major] [high] mag_not_in_hand  (mag-4-in-hand-111-ARS_Glock_19.png)
+   seen: The fresh magazine stands on the top edge of the left glove at about x 400-510, y 290-310, resting on the knuckles rather than wrapped in the fingers. The lower fingers (about x 410-500, y 310-430) do not touch the magazine body. The test line also reports it 4.3 cm from the palm.
+   expected: The fingers curl around the magazine body and hold it low in the palm, feed end toward the gun.
+
+6. [minor] [medium] mag_wrong_orientation_or_model  (mag-4-in-hand-111-ARS_Glock_19.png)
+   seen: The magazine leans up-left, roughly 130 degrees away from the direction of the gun's magwell (the gun is up-right, its grip bottom about x 950-1040, y 370-385). Its feed end, marked by the orange cartridge tip at about x 320-345, y 135-160, points away from the gun.
+   expected: The feed end points up toward the gun's magwell, in line with the grip.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' is contradicted by rack-grip-pulled-111-ARS_Glock_19-left.png and rack-grip-pulled-111-ARS_Glock_19-right.png: the slide travels about 130 px and 185 px while the glove stays still.
+  - 'the nearest is 0.0 cm from the hand' is contradicted by rack-grip-111-ARS_Glock_19-right.png: there is a visible gap of several cm between the index fingertip and the slide before the pull.
+  - 'in the hand: 4.3 cm from the palm (FLOATS BESIDE THE HAND)' is confirmed by mag-4-in-hand-111-ARS_Glock_19.png.
+  - 'half way in (on the rail): 1.9 cm off the magwell line' is not clearly visible in mag-6-half-in-111-ARS_Glock_19.png; the lower magazine sits on the grip's line at this scale. Neither confirmed nor refuted.
+  - 'lens flash none' and 'muzzle flash: particles MuzzleTransform, every shot' cannot be checked: the brief lists no firing or lens-flash picture for gun 111.
+  - 'pulled half way ... barrel showing in front of it' cannot be checked in either pulled close-up, because the front of the slide runs off the frame edge.
+  - 'dropped copy 7.6 cm out': mag-2-leaving-111-ARS_Glock_19.png shows the dropped magazine on the grip's line running off the bottom edge, so the 7.6 cm extent cannot be measured from the frame.
+  - '15 rounds kept' vs 'magazine: seated, 16 rounds': 16 is most likely 15 in the magazine plus one chambered round; the frame reads '15+1' in rack-grip-111-ARS_Glock_19-right.png. Wording only, not a bug.

@@ -1,0 +1,63 @@
+Gun 130: ak12 1p87s squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-130-ak12 1p87s squad.png)
+   seen: Both eye panels are almost pure black. Each has only a tiny dim star (about 5-8 px; left eye near x=170 y=148, right eye near x=470 y=148 in the 606x250 image) with barely visible faint rings. The right eye is a little brighter, as expected. The flare is far too faint to read as a flash.
+   expected: A clearly bright star/flare at the muzzle with soft visible rings, the right eye a bit stronger than the left.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-130-ak12 1p87s squad.png)
+   seen: Same near-black frame with the same tiny dim star pair. The full-auto burst is no brighter than the single-shot frame, so the 4 full flashes per eye are not visible.
+   expected: Repeated bright flashes at the muzzle on each shot, clearly readable against black.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-130-ak12_1p87s_squad.png)
+   seen: First-person shot. The only bright effect is a large yellow/red/green smoke cloud about 300 px wide on the wall left of centre (roughly x 320-640, y 120-600), not at the gun's muzzle. No small flash is visible at the barrel end. The same kind of large colored cloud appears in weapon-130, lensburst-130, rack-grip-130 (centre) and rack-grip-pulled-130 (centre), each in a different colour.
+   expected: A small bright muzzle flash at the barrel tip (the 75 cm Muzzle Flash Particles), not a smoke cloud on the target wall.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-130-ak12_1p87s_squad.png)
+   seen: Full-auto first-person view. A large green smoke cloud spans roughly x 310-640, y 230-600 on the wall left of the gun. No small repeating flash is visible at the muzzle. The distant orange/yellow puffs (x 580-720, y 300-400) are far-off explosions, not the muzzle flash.
+   expected: A small muzzle flash at the barrel tip on each shot of the burst.
+
+5. [major] [high] hand_not_on_part  (rack-grip-130-ak12_1p87s_squad-right.png)
+   seen: Right-side close-up. The gold-highlighted moving part (charging handle) lies along the receiver at about x 740-1220, y 350-525, with its rounded tab at x 1130-1220, y 450-520. The left hand's fingers (about x 660-910, y 265-400) rest on the receiver top above the bar; only their lower edge touches the bar's top-left. No finger is wrapped around the handle or its tab. The thumb is at the bottom-left, far from the handle.
+   expected: Index finger and thumb pinching the handle's tab (around x 1130-1220, y 450-520) so the hand can pull it back.
+
+6. [major] [medium] hand_pose_wrong  (rack-grip-130-ak12_1p87s_squad-left.png)
+   seen: Left-side view. The left hand lies flat over the receiver top and side (about x 230-870, y 240-560) with fingers stretched forward and the back of the hand to the camera. No finger or thumb closes on a handle or small part; the hand just covers the receiver.
+   expected: Fingers and thumb pinching the charging handle, fingertips on the handle itself.
+
+7. [minor] [medium] hand_not_on_part  (rack-grip-130-ak12_1p87s_squad.png)
+   seen: First-person view. The free left hand is low at the bottom of the frame near the handguard/magazine (about x 780-870, y 690-800), nowhere near the receiver top where the charging handle is.
+   expected: Left hand on the charging handle at the receiver top.
+
+8. [major] [medium] hand_not_on_part  (rack-grip-pulled-130-ak12_1p87s_squad-right.png)
+   seen: Same right-side close-up after the pull. The left fingers still rest on the receiver top at nearly the same spot (about x 650-910, y 300-445, only about 35 px lower than before). The gold part changed: the upper gold band that spanned about x 790-1080 is gone, and only a short piece remains at x 1085-1160, plus a lower strip at x 740-930. So the handle moved while the hand stayed put; the hand pulls air.
+   expected: Fingers pinching the handle tab and moving with it, roughly half way back, the hand travelling with the handle.
+
+9. [minor] [medium] other  (rack-grip-pulled-130-ak12_1p87s_squad-right.png)
+   seen: A live cartridge sits in the charging slot at about x 930-1240, y 425-465, brass to the left and bullet tip to the right. The sight/optic end is on the right, so the bullet points toward the rear and the round is reversed. A round in the chamber would point forward toward the muzzle (left).
+   expected: No round sticking out of the handle slot, or a round oriented bullet-forward if it is meant to show as chambered.
+
+10. [major] [medium] hand_pose_wrong  (rack-grip-pulled-130-ak12_1p87s_squad-left.png)
+   seen: Left-side view after the pull. The left hand lies in the same flat pose across the receiver top (about x 230-880, y 230-560), fingers forward, nothing pinched. The right hand is on the pistol grip and the magazine hangs at bottom-left. The hand looks the same as before the pull, so no handle is being drawn back.
+   expected: Fingers on the handle, moving rearward about half way with the hand.
+
+11. [major] [medium] mag_not_in_hand  (mag-4-in-hand-130-ak12_1p87s_squad.png)
+   seen: The left glove has fingers spread flat (about x 300-820, y 280-520) with the back of the hand to the camera. No finger wraps the magazine. The fresh magazine sits behind the palm, and its top runs up past the hand into the gun's underside, overlapping the receiver (about x 410-600, y 0-290) up to the top edge of the frame. It looks like it is in front of or through the receiver rather than held low in the hand.
+   expected: Fingers wrapped around the magazine body, the magazine held below the receiver with its feed end pointing up at the gun.
+
+12. [major] [medium] mag_not_into_magwell  (mag-6-half-in-130-ak12_1p87s_squad.png)
+   seen: The fresh magazine's top (about x 640-830, y 232) sits about 30 px below the receiver underside (y about 200). Nothing of it is inside the magwell. In mag-1 and mag-7 the same magazine's top sits right at the underside (y about 195). So it hangs just under the well with a gap instead of being half way in. The left glove holds the lower part.
+   expected: The top half of the magazine inside the magwell on its line, straight up from the receiver.
+
+Test line flags:
+  - rack grip (slide/bolt, fire motion): 0/72 points inside the part, 0/4 fingers on it -> confirmed by rack-grip-130-ak12_1p87s_squad-right.png (fingers rest above the handle) and rack-grip-130-ak12_1p87s_squad-left.png (flat hand over the receiver).
+  - pulled half way: 1/72 points inside the part, 0/4 fingers on it -> confirmed by rack-grip-pulled-130-ak12_1p87s_squad-right.png and rack-grip-pulled-130-ak12_1p87s_squad-left.png (fingers never on the handle).
+  - moving with the hand: the slide / bolt -> NOT supported by the pictures. The gold handle changes between rack-grip-130 right and rack-grip-pulled-130 right while the fingers stay roughly in place, so the hand does not travel with the part.
+  - racked: chambered -> rack-grip-pulled-130-ak12_1p87s_squad-right.png shows a round in the handle slot, but its bullet points rearward, so the chambered state looks wrong.
+  - half way in (on the rail): 0.0 cm off the magwell line -> the line offset may be right, but mag-6-half-in-130-ak12_1p87s_squad.png shows the magazine top about 30 px below the receiver, not inserted. The measurement does not capture insertion depth; the picture confirms the problem.
+  - in the hand: 3.4 cm from the palm -> mag-4-in-hand-130-ak12_1p87s_squad.png shows the magazine behind the palm with no fingers wrapped around it, and the magazine rising up into the receiver. The picture suggests the grip is not on the magazine.
+  - seated: the gun's magazine shows 0.0 cm from where it was -> confirmed: mag-7-seated-again top sits where mag-1-seated top was.
+  - muzzle flash: particles 'Muzzle Flash Particles', 75 cm, every shot -> the first-person pictures show large coloured clouds on the wall far from the muzzle and no small flash at the barrel. The picture contradicts a muzzle-located flash on every shot.
+  - lens flash shown, strength 0.07 -> confirmed too faint: lens-eyes-130-ak12 1p87s squad.png is near black with a tiny dim star.
+  - lens flash burst: 15 shots in 1.6 s, flashes L 14 / R 14 (full L 4 / R 4) -> lens-eyes-burst-130-ak12 1p87s squad.png shows no visibly brighter full flashes; the burst frame looks like the single-shot frame.
+  - drawn: 1 drawn part(s) move, most 60 mm; the nearest is 0.0 cm from the hand -> rack-grip-130-ak12_1p87s_squad-right.png shows the finger lying only on the top edge of the bar, a contact at the edge rather than a grip.

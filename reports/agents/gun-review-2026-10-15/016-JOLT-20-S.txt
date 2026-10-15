@@ -1,0 +1,52 @@
+Gun 16: JOLT-20-S
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] mag_not_in_hand  (mag-4-in-hand-016-JOLT-20-S.png)
+   seen: The fresh magazine is a dark stick about 115 px wide (same width as the gun's own magazine) that stands upright from the glove up past the suppressor and off the top edge, passing behind the suppressor. The left glove's fingers curl to its left (about x 380-500, y 340-520) and the palm sits to its right (x 500-820). The fingers do not close around the magazine column (about x 445-560), so the magazine reads as beside the hand, not held in it.
+   expected: Left fingers wrapped around the fresh magazine, palm holding it, feed end pointing up toward the magwell, magazine moving with the hand.
+
+2. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-016-JOLT-20-S.png)
+   seen: The fresh magazine (x about 650-720, y 525-775) sits about 300 px below the magwell (grip bottom at y about 225). It is drawn only about 70 px wide, versus about 115 px for the gun's magazine in mag-1, so it sits at a clearly different depth from the magwell and well behind its line. Its centre is also about 40-60 px right of the grip's centreline. Its base seems to rest on the top of the glove at the bottom edge, but the depth does not match.
+   expected: Fresh magazine right at the magwell, on the same axis and depth as the well, ready to push straight up.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-016-JOLT-20-S-right.png)
+   seen: The left hand lies over the receiver top at x about 590-910. The undersides of the fingers sit roughly 40-70 px above the slide's top surface (y about 365-380), so they float above the part. Only a fingertip reaches the rear charging knob (x 1045-1140, y 345-405). The cuff is at x about 400-520.
+   expected: Fingers pinch or wrap the slide / charging knob at the rear and touch it (test line says 4 of 4 fingers should be on it, it reports 1 of 4).
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-016-JOLT-20-S-right.png)
+   seen: Compared with rack-grip-016-JOLT-20-S-right.png, the whole side block (front chamfer, ejection-port recess, two rivets) has slid about 140 px toward the rear of the gun (screen right). The glove cuff (x about 400-470) and the knuckles stay where they were, so the slide moves out from under the fingers rather than being pulled by the hand. The charging knob that sat at x 1045-1140 is no longer visible at that spot.
+   expected: The fingers and cuff travel back with the slide by about the same distance (test: about 25 mm); the charging knob moves with the slide.
+
+5. [major] [low] wrong_part_moves  (rack-grip-pulled-016-JOLT-20-S-left.png)
+   seen: Against rack-grip-016-JOLT-20-S-left.png, the front sight (x about 140-210 becomes about 55-130), the side oval (x about 200-300 becomes about 120-215), and the trigger guard and magwell (x about 460-630 becomes about 390-560) all sit 70-85 px further toward the muzzle. The left palm and the rear rails at right (x 880-1280) stay put, and the muzzle/suppressor leaves the frame. So the gun body appears to shift forward or sideways, not just the slide sliding back, and this is the opposite direction from the right close-up.
+   expected: Only the slide / charging handle moves rearward (about 25 mm). Sight, trigger guard, magwell and the rest of the gun stay still (test says the gun moved 0.8 mm).
+
+6. [minor] [medium] hand_not_on_part  (rack-grip-016-JOLT-20-S.png)
+   seen: First-person wide view: the slide top at about x 715-915, y 510-640 shows no glove at all. The left glove is visible beside the red box (about x 530-630, y 585-690) in the weapon, lensflash and lensburst frames but is missing here, so the free hand is not visible on the gun in this shot. rack-grip-pulled-016-JOLT-20-S.png shows the same absence.
+   expected: Free left hand visible on the slide / charging handle top of the gun.
+
+7. [minor] [medium] other  (rack-grip-pulled-016-JOLT-20-S-right.png)
+   seen: A brass round is visible through the open port. Its base is at about x 868 and its copper nose points right (about x 1140-1240), toward the rear and the charging-knob side. The base also sits partly outside the port recess (recess about x 910-1150), over the solid receiver face.
+   expected: Round with its nose toward the muzzle (left), seated inside the port / chamber area and not overlapping the solid receiver face.
+
+8. [tiny] [low] mag_floating_or_offset  (mag-7-seated-again-016-JOLT-20-S.png)
+   seen: The magazine spans about x 598-715, versus about x 580-695 in mag-1, so it sits roughly 15-18 px further right. Its right edge slightly overhangs the grip's rear edge at about x 710.
+   expected: Magazine in the same place as in mag-1 (test says 0.0 cm from where it was).
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-016-JOLT-20-S.png)
+   seen: At the suppressor tip (about x 715-760, y 505-560) the only flash is a faint warm haze around x 665-720, y 480-545. No bright core or burst is readable at normal view. lensburst-016-JOLT-20-S.png looks the same.
+   expected: A clearly visible bright muzzle flash at the suppressor tip, consistent with the 50 cm muzzle particle effect the test reports.
+
+Test line flags:
+  - rack grip '0/72 points inside, 1/4 fingers on it': CONFIRMED. rack-grip-016-JOLT-20-S-right.png shows most fingers hovering above the slide top with only a fingertip reaching the knob; rack-grip-016-JOLT-20-S-left.png shows the top finger in the air above the receiver band.
+  - pulled half way '1/4 fingers on it': CONFIRMED. rack-grip-pulled-016-JOLT-20-S-right.png shows only the thumb resting on the top surface; the cuff and knuckles do not travel with the block.
+  - 'moving with the hand: the slide / bolt': CONTRADICTED by rack-grip-pulled-016-JOLT-20-S-right.png. The block slides about 140 px while the cuff and knuckles stay in place.
+  - 'drawn: 1 drawn part moves, most 25 mm; nearest 0.0 cm from the hand': PARTLY consistent. The right close-up shows a block sliding about 2 cm, which fits 25 mm, but the left close-up shows sight, trigger guard and magwell moving instead. Not settled.
+  - 'the gun moved 0.8 mm with the pull, 3.3 mm when it went home': CONTRADICTED (low confidence). rack-grip-pulled-016-JOLT-20-S-left.png shows the front sight, side oval, trigger guard and magwell shifted about 70-85 px against rack-grip-016-JOLT-20-S-left.png.
+  - 'in the hand: 4.7 cm from the palm (FLOATS BESIDE THE HAND)': CONFIRMED by mag-4-in-hand-016-JOLT-20-S.png. The magazine stands beside the fingers and is not closed in by them.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in-016-JOLT-20-S.png shows the magazine about 14 px right of the grip centreline (x about 598-715 against grip about 575-710). Small, probably tiny, not clearly confirmed as a bug.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': slight conflict. mag-7-seated-again-016-JOLT-20-S.png is about 15-18 px right of mag-1's position (tiny).
+  - 'dropped copy 0.0 cm across the pull': mag-2-leaving-016-JOLT-20-S.png is about 13 px right of mag-1's line. Within tiny tolerance; not reported as a bug.
+  - 'muzzle flash: particles Muzzle Particles 50 cm, no flash light (not loud)': consistent. Only a faint haze appears at the muzzle in lensflash and lensburst (see bug on lensflash).
+  - 'lens flash shown, strength 0.09': consistent. lens-eyes-016-JOLT-20-S.png shows a dim star with soft rings near the muzzle position; left and right eyes are close in brightness (right slightly stronger); no black frame, no hard edges.
+  - 'racked: chambered': a round is visible in the port in rack-grip-pulled-016-JOLT-20-S-right.png, but it faces the wrong way (see the round-orientation bug).

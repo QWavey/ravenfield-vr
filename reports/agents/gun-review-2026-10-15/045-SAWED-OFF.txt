@@ -1,0 +1,20 @@
+Gun 45: SAWED-OFF
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] part_floating_or_detached  (weapon-045-SAWED-OFF.png)
+   seen: The free left hand is a dark grey, untextured claw-shaped hand in the grass at about x 540-635, y 585-690, left of the gun. No forearm or arm runs from it to the bottom edge, while the right arm does run off the bottom at about x 780-870. Its colour does not match the skin tone of the right hand, so it looks disconnected from the body.
+   expected: The left arm should come up from the bottom-left edge into the hand, with the same skin material as the right hand, relaxed or resting near the gun. Nothing should float.
+
+2. [major] [low] gun_pose_or_aim_wrong  (weapon-045-SAWED-OFF.png)
+   seen: At the top of the shotgun (about x 715-800, y 555-605) the two barrel ends are dark round openings with red-and-white shell heads sitting in or over them, and they face the camera side. The receiver runs down and to the right to the bottom edge (about x 800-950, y 670-800). From this angle the barrels read as pointing back toward the viewer or up, not forward into the scene, and the shell heads look like they stick out of the muzzles.
+   expected: The barrels should run away from the camera toward the horizon, with the muzzle openings not facing the viewer. The loaded shells should sit inside the chambers, not protrude from the muzzles. A closer or second-angle shot is needed to confirm.
+
+3. [tiny] [low] other  (weapon-045-SAWED-OFF.png)
+   seen: About seven soft, translucent blue-grey discs float over the sea and cliffs, for example around x 700-830 y 0-55, x 1135-1220 y 40-125, x 785-850 y 118-182, x 1025-1090 y 218-275 and x 555-600 y 245-310. They are not near the gun or any muzzle.
+   expected: No stray blobs in the sky. Smoke from the shots should stay near the muzzle and fade quickly. If these are lens droplets or dust, they should not appear in the VR view.
+
+Test line flags:
+  - "lens flash none" conflicts with "muzzle flash ... the flash light" being reported every shot, since a gun with a flash light should produce a lens flash. The only picture for gun 45 is an idle frame with no shot, so it does not confirm or refute this. A lensflash/lensburst picture for gun 45 is needed.
+  - "fired 2/3": the gun was loaded to 2/2, so a third trigger pull on an empty chamber would explain 2/3. Check whether the third pull was a dry fire or a missed trigger. The picture does not confirm either.
+  - "opened after a shot, 0 case(s) fell out; opened again, 0": a break-action shotgun should drop the spent hull when opened after a shot, so 0 looks wrong. The picture shows a closed, loaded gun, so it does not confirm or refute the ejection.
+  - "two hands 0.0 deg, 0.0 cm" and "two hands 0 deg/s": exact zeros for two-handed recoil and impulse look suspicious, since a second hand normally reduces recoil rather than removing it entirely. The two-hand path may not be engaging, possibly tied to the floating left hand in bug 1. The picture is the one-hand state (left hand free), so it does not confirm this. A two-hand frame is needed.

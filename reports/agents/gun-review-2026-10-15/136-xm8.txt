@@ -1,0 +1,37 @@
+Gun 136: xm8
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-136-xm8-right.png)
+   seen: Close-up from the right side: the grey oval charging-handle knob sits at about x 715-910, y 290-400 under the carry-handle bar. Only one dark glove fingertip reaches the knob, at its left end (x 715-770, y 260-390). The rest of the glove lies over the rail and receiver, not on the knob.
+   expected: Index finger and thumb (fingers) pinch and wrap the charging-handle knob, so the fingers are on the part, not beside it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-136-xm8-left.png)
+   seen: Close-up from the left side: the glove lies flat across the top of the rail and carry-handle area, palm down, with the fingers stretched straight forward over the handguard (x 240-600, y 240-560). Nothing is curled around a handle and the charging knob is hidden under the palm. Only the test line's 1/4 fingers on the part supports that any finger touches it.
+   expected: Fingers curled around the charging handle with index and thumb pinching it, not stretched out in the air over the handguard.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-136-xm8.png)
+   seen: First-person view: the left hand is a dark rounded shape on the front-top of the handguard around x 715-780, y 530-640, with no finger detail. It sits near the front sight post (x about 720, y 480-500), not visibly on the charging handle.
+   expected: Left hand wrapped over the charging handle with fingers visible on the knob.
+
+4. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-136-xm8.png)
+   seen: Full-auto frame: the muzzle glow is at the muzzle (about x 690, y 490), which is correct. But the flash also paints a vertical blue-white band down the whole right edge (x about 1215-1280, top to bottom) and a bright white glare along the horizon (x 880-1280, y 380-400), so the whole view is washed out.
+   expected: Bloom concentrated at the muzzle with soft falloff; no full-height light band on the screen edge and no horizon glare band.
+
+5. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-136-xm8.png)
+   seen: The fresh magazine (feed end up) stands at x about 530-670 with its top at y about 540, roughly 300 px below the receiver underside. Its face is about 135 px wide against about 200 px for the gun's own magazine in mag-1, so it sits farther from the camera too. The glove holds it from the bottom edge of the frame.
+   expected: Feed end right at the magwell, just under the receiver and ahead of the trigger, on the magwell line, as the step describes.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-136-xm8.png)
+   seen: Each eye panel has a warm brown haze in its lower-right that stops at a hard rounded-rectangle edge (left panel about x 298, y 250) instead of fading to black. The star and rings sit at the muzzle position on both eyes. The two eyes are close in brightness, right slightly stronger, with no eye hugely brighter.
+   expected: Soft falloff to black with no hard edge in the haze.
+
+Test line flags:
+  - rack grip (slide/bolt, fire motion): 2/72 points inside the part, 1/4 fingers on it - confirmed by rack-grip-136-xm8-left.png and rack-grip-136-xm8-right.png: only one fingertip reaches the charging knob, the rest of the hand lies over the rail and handguard.
+  - pulled half way: 3/72 points inside, 1/4 fingers on it - rack-grip-pulled-136-xm8-right.png still shows one fingertip on the knob's left end (x about 715-745); the grip is weak as in the unpulled frames. No visible clipping of the glove into the knob, so the 3 inside points are not confirmed.
+  - drawn: 3 drawn part(s) move, most 43 mm; nearest 0.0 cm from the hand - in the pulled close-ups the knob and glove keep their screen spot while the sight, rail, carry handle, magazine and grip shift together (about 140 px in the left close-up, about 200 px in the right). That is what a pull looks like if the camera follows the hand, so it neither confirms nor refutes the 43 mm, and the three moved parts are not named in the pictures.
+  - lens flash burst: full L 4 / R 3 - the gun-side (right) eye has fewer full flashes than the left, but lens-eyes-burst-136-xm8.png shows the right star at least as bright as the left. The count looks inverted or thresholded unevenly; one frame cannot settle it.
+  - half way in (on the rail): 0.0 cm off the magwell line - mag-6-half-in-136-xm8.png agrees: the fresh magazine is on the line ahead of the trigger.
+  - seated: the gun's magazine shows 0.0 cm from where it was - mag-7-seated-again-136-xm8.png matches mag-1-seated-136-xm8.png, agrees.
+  - in the hand: 3.4 cm from the palm - mag-4-in-hand-136-xm8.png shows the glove across the lower end of the magazine, plausible, not measurable from the picture.
+  - eye balance for the user's left/right brightness question: lens-eyes-136-xm8.png and lens-eyes-burst-136-xm8.png show the two eyes at similar brightness with the right slightly stronger, as intended. No one-eye-brighter case on this gun.
+  - racked: chambered and muzzle flash particles 70 cm - no picture evidence to check.

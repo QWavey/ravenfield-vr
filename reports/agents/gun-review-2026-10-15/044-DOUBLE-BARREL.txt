@@ -1,0 +1,24 @@
+Gun 44: DOUBLE-BARREL
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] other  (weapon-044-DOUBLE-BARREL.png)
+   seen: Two dark barrel openings with red and gold shell heads seated in them sit at the top of the gun (about x 725-790, y 550-605), so the breech faces the camera. The test line says 0 cases fell out after the gun was opened, and the shells still appear to be in the breech.
+   expected: Fired shell cases should eject when the double barrel is broken open. Shells should only stay visible at the breech if they are unfired (loaded 2/2).
+
+2. [minor] [low] hand_not_on_part  (weapon-044-DOUBLE-BARREL.png)
+   seen: The right arm rises from the bottom centre (about x 760-850, y 680-800) into the gun. No fingers are clearly visible wrapped around the grip, which sits at the lower right of the receiver (about x 830-950, y 690-780). The only skin-toned shape near the gun's left side (about x 700-745, y 620-700) could be a hand or the wooden fore-end, so it is ambiguous.
+   expected: The right hand wraps around the pistol grip with the fingers visible on it, and the gun's barrels point forward.
+
+3. [tiny] [low] hand_pose_wrong  (weapon-044-DOUBLE-BARREL.png)
+   seen: The free left hand (about x 535-635, y 583-690) is grey, has no forearm, and its fingers are curled into a claw pointing up and right, so it looks like it floats in mid-air. It does not match the skin-toned right arm.
+   expected: A relaxed free left hand in the same style as the right arm, or confirmation that the grey glove model is intended.
+
+4. [minor] [low] part_floating_or_detached  (weapon-044-DOUBLE-BARREL.png)
+   seen: A dark wedge sits in the bottom-right corner (about x 1030-1180, y 755-800). It is separated from the grey stock and grip near x 830-950 by a gap of grass (about x 950-1030), and its angle does not continue the stock's line.
+   expected: The stock is one continuous piece with the gun. If the dark wedge is the butt end, it should join the stock.
+
+Test line flags:
+  - 'lens flash none' for DOUBLE-BARREL, while muzzle flash particles and the flash light are reported. No lens-flash picture is listed for this gun and the one picture is a static frame, so no picture confirms it. Expected a visible lens flash at the muzzle when the gun fires.
+  - 'break-open: opened after a shot, 0 case(s) fell out; opened again, 0': fired cases not ejecting looks wrong. The shell heads still in the breech in weapon-044-DOUBLE-BARREL.png are consistent with this, but the picture does not show whether those shells were fired or only loaded, so it only partly confirms it.
+  - 'recoil: two hands 0.0 deg, 0.0 cm' and 'impulse per shot two hands 0 deg/s': an exact zero for two-hand recoil looks suspicious. The two-hand path may not be engaged, or the reading may not have come from a real shot. The picture is one-handed (left hand free), so it does not confirm or refute this.
+  - 'muzzle flash: particles Muzzle Flash Particles, 1000 cm': 1000 cm (10 m) looks wrong for a muzzle flash's size or reach. No picture confirms it.

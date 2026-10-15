@@ -1,0 +1,19 @@
+Gun 1: .357 CONDOR
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-001-.357_CONDOR.png)
+   seen: The bright flash core sits around (700, 545) on the 1280x800 frame, about 35-40 px left of and a little below the barrel's muzzle tip at roughly (730, 520). The yellow streak runs up-left from the core along the barrel line, so the flash reads as coming from beside the muzzle rather than from the tip.
+   expected: The flash core should sit on the muzzle tip, with the streak leaving the barrel along its axis.
+
+2. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-001-.357 CONDOR.png)
+   seen: Each eye panel has a warm brown glow in the lower-right that stops at a rounded-rectangle edge (left panel roughly x 250-298, y 180-250; right panel the same). It reads as a hard boundary against the black rather than a soft fall-off.
+   expected: The glow should fade smoothly to black with no visible rounded edge. If the rounded edge is the intended lens mask, this is not a bug.
+
+Test line flags:
+  - break-open: opened after a shot, 0 case(s) fell out; opened again, 0 -- after one shot, opening the action should eject one spent case, so 0 suggests spent cases are not ejected. No picture shows the open action, so the pictures neither confirm nor refute it.
+  - muzzle flash: particles 'Muzzle', 100 cm -- in lensflash-001 the glow stays within about 120 px of the muzzle tip and is roughly 60-100 px across; nothing in that frame looks 100 cm across. The unit or meaning of '100 cm' (length, distance, or size) cannot be confirmed from the picture.
+  - lens flash shown, strength 0.77 -- CONFIRMED: lens-eyes-001 shows a clear star with soft rings in both eyes; the right eye is slightly brighter, as expected.
+  - equipped -- consistent: weapon-001 shows the .357 held in the right hand.
+  - fired 3/3 and loaded to 6/6 -- no picture covers these, so they are not checked by a picture.
+  - recoil: two hands (2.3 deg, 0.4 cm, 194 deg/s) lower than one hand (8.6 deg, 0.6 cm, 279 deg/s) -- internally consistent; no picture covers recoil.
+  - coverage: no rack-grip, magazine or reload pictures are listed for this gun, so the slide / magwell checks could not be done from pictures.

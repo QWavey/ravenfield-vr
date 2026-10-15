@@ -1,0 +1,54 @@
+Gun 97: mw-vector rds(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_or_finger_clipping  (rack-grip-097-mw-vector_rds_No_script_-right.png)
+   seen: A beige gloved fingertip is inside the ejection-port opening of the receiver, around x 690-860, y 330-450 of the 1280x800 frame, with the dark port cavity around it. The finger pokes into the receiver instead of resting on the outside of the charging part. The black charging lever is to its left (x 430-560, y 250-380) and no finger is on it.
+   expected: Fingers rest on the outside of the charging lever / slide edge, none inside the receiver or the ejection port.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-097-mw-vector_rds_No_script_-left.png)
+   seen: The left hand lies flat across the receiver's left side panel below the rail. Index and middle fingers point forward over the panel and the knuckles cover the middle of the receiver. The black charging lever sits just above the knuckles (x 690-750, y 195-250) and a second lever is at the right (x 1075-1150, y 210-290), but no finger curls around either.
+   expected: Fingers pinch the charging handle or slide edge, curled around its lip, not lying flat on the side panel.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-097-mw-vector_rds_No_script_-left.png)
+   seen: Compared with rack-grip-097-mw-vector_rds_No_script_-left.png, the hand has moved about 100-125 px rearward toward the grip, but the charging lever, sight and rail keep the same spacing from the grip (lever-to-sight distance is 370 px in both frames). The whole gun image shifted left about 115 px together, which looks like camera framing. So nothing visible slides back; the hand moves over a part that stays put. The knuckles also overlap the lever loop near x 560-760, y 195-240.
+   expected: The pinched part (charging lever / slide) moves back about half way with the hand, visibly changing its spacing from the grip and receiver, with the fingers staying on it.
+
+4. [minor] [low] other  (rack-grip-pulled-097-mw-vector_rds_No_script_-right.png)
+   seen: A brass round is drawn across the top edge of the ejection port (x 800-1150, y 230-290), partly over the receiver outline above the port, with the bolt face visible below it. It does not look seated inside the port opening.
+   expected: Any round visible in the port sits inside the receiver opening, not on the top edge of the receiver.
+
+5. [major] [medium] mag_duplicate_or_missing  (mag-2-leaving-097-mw-vector_rds_No_script_.png)
+   seen: The magazine runs from the magwell lip at y about 470 down to its base at y about 770, roughly 75 px longer than the seated magazine in mag-1 (base at y about 695). It attaches straight to the magwell with no gap and no base plate shows partway down, so it reads as stretched or doubled (a second copy dropped about 2.8 cm lower while the gun's own magazine is still drawn), not as one magazine dropping out.
+   expected: One magazine, the same length as in mag-1, sliding straight down its line and separating from the magwell with a visible gap opening at the top; the gun's own copy already hidden.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-097-mw-vector rds(No script).png)
+   seen: Both eye panels are nearly black with one tiny dim orange star (about 6-8 px) at x about 180 (left) and x about 476 (right), y about 172, and very faint rings. The right eye is a bit stronger with a wider glow, which is intended and not extreme. The soft glow also appears cut off by a faint rounded edge near x about 298 on the left panel and x about 380 on the right, so it does not fade fully to black (edge part is low confidence). The lens-eyes-burst file shows the same dim stars.
+   expected: A clearly bright star with soft visible rings near the muzzle, the gun-side eye a bit stronger, and the glow fading smoothly to black with no edge.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-097-mw-vector_rds_No_script_.png)
+   seen: First-person view on a shot: the muzzle flash is only a faint yellow-green smear around x 650-740, y 520-600, just ahead of the sight. It is hard to pick out against the grass, with no bright core or burst.
+   expected: A readable muzzle flash burst at the muzzle end (brighter core, short-lived) that is clearly visible in the first-person view.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-097-mw-vector_rds_No_script_.png)
+   seen: First-person view while firing full auto: the muzzle area around x 650-720, y 480-540 shows only a dim grey-green haze and no clear flash, while ejected cases fly to the right. Only one frame, so flashes may fall between frames.
+   expected: A visible flash at the muzzle for each shot in the burst, as in lensflash but readable.
+
+9. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-097-mw-vector_rds_No_script_.png)
+   seen: The fresh magazine stands about 220 px below the magwell (roughly its own visible length), on the same tilt line, with sea and beach visible between it and the receiver. The left glove shows only at the bottom edge beside the magazine base, so no hand is clearly holding the magazine in frame.
+   expected: The fresh magazine held right at the magwell line, close enough to read as going into the well, with the hand on it.
+
+10. [tiny] [low] other  (mag-2-leaving-097-mw-vector_rds_No_script_.png)
+   seen: A dark tag with white text sits on the top right of the grip (x 1190-1260, y 80-125) reading '1 NO MAG', mirrored in this view. mag-1 shows the same tag reading '33+1'.
+   expected: Either no tag in the world, or text readable from the player's side; unclear whether the tag is meant to be shown.
+
+Test line flags:
+  - rack grip 1/72 points inside, 0/4 fingers: CONFIRMED by rack-grip-097-mw-vector_rds_No_script_-right.png (fingertip inside the ejection port) and rack-grip-097-mw-vector_rds_No_script_-left.png (fingers lie flat on the side panel, not on the lever).
+  - pulled half way 0/72 points inside, 0/4 fingers: consistent with rack-grip-pulled-097-mw-vector_rds_No_script_-left.png (hand not on the lever). In rack-grip-pulled-097-mw-vector_rds_No_script_-right.png a fingertip rests on top of the charging lever, so 0/4 is not clearly right there; could be in front of it, unclear.
+  - drawn: 1 drawn part(s) move, most 35 mm; nearest 0.0 cm from the hand: NOT CONFIRMED. In both pulled close-ups the lever, rail/sight and ejection port keep the same spacing from each other while the hand moves about 100-125 px. No 35 mm slide travel is visible on the outside of the gun; the moving part may be hidden under the palm.
+  - magazine (deep): dropped copy 2.8 cm out: CONFIRMED by mag-2-leaving (silhouette about 75 px longer than mag-1 with no gap at the magwell), though it looks like overlap or stretch rather than a clean drop.
+  - seated: gun's magazine 0.0 cm from where it was: consistent (mag-7-seated-again matches mag-1-seated).
+  - half way in (on the rail): 0.0 cm off the magwell line: no visible offset in mag-6-half-in; cannot verify 0.0 cm from a picture, but nothing contradicts it.
+  - in the hand: 3.6 cm from the palm: consistent; mag-4-in-hand shows the magazine inside the gloved fist, feed end up toward the gun.
+  - muzzle flash: particles every shot, no flash light (not loud): consistent with a very weak first-person flash (faint in lensflash, almost nothing in lensburst).
+  - lens flash strength 0.11 / strongest soft flash 0.12: consistent with the very dim lens-eyes pictures (tiny star, faint rings). The left and right eyes are balanced (right slightly stronger on the gun side), so no one-eye-much-brighter problem in this gun.
+  - racked: chambered: the round is drawn in the ejection port area of rack-grip-pulled-right, so the chambered state is at least visible; placement of the round is questionable (see bugs).

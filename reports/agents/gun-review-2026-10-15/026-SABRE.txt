@@ -1,0 +1,15 @@
+Gun 26: SABRE
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-026-SABRE.png)
+   seen: The sabre grip is at the bottom right (about x 780-910, y 620-800): a blue-grey handle with gold wrapping under a gold hook guard. No right hand is visible on it and no fingers wrap the grip. The only hand in view is a grey, free-looking left hand at about x 540-635, y 585-690, far to the left of the blade.
+   expected: The right hand visible wrapped around the sabre grip below the gold guard, fingers on the handle, with the hand attached to the hilt.
+
+2. [minor] [low] gun_pose_or_aim_wrong  (weapon-026-SABRE.png)
+   seen: The blade stands almost vertical, its tip at about x 725, y 75, pointing up into the sky above the horizon instead of forward along the view.
+   expected: Blade pointing forward with the tip near the horizon, unless a raised idle pose is intended.
+
+3. [tiny] [low] other  (weapon-026-SABRE.png)
+   seen: Two short yellow streaks with no obvious source: one at about x 450-485, y 535-555 next to a bush, and one at about x 715-765, y 740-795 just left of the grip. A melee sabre has no muzzle, so neither streak has an obvious cause.
+   expected: No stray spark or streak in an idle sabre picture, unless it is an intended hit or tracer effect from elsewhere in the scene.
+

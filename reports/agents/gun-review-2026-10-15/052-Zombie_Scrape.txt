@@ -1,0 +1,15 @@
+Gun 52: Zombie Scrape
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] part_floating_or_detached  (weapon-052-Zombie_Scrape.png)
+   seen: A dark grey left hand (back of the hand toward the camera, fingers curled up and to the right) sits mid-screen at about x 540-635, y 585-690, over the grass. No forearm or arm is drawn to it, so it looks like it hangs in the air. It is well away from the gun in the bottom-right corner.
+   expected: The free left hand should be anchored to a visible arm or a rest pose, or not appear as a loose hand in mid-air. If the game deliberately draws only the hands with no arms, this may be intended, so it is unconfirmed.
+
+2. [minor] [low] hand_not_on_part  (weapon-052-Zombie_Scrape.png)
+   seen: The right hand that should hold the gun is not in the frame. The gun sits in the bottom-right corner (about x 750-920, y 675-800) and its grip runs off the bottom edge, so no fingers can be seen wrapped around the pistol grip. The gun itself looks intact and points forward-left.
+   expected: The right hand wrapped around the pistol grip, visible or at least clearly attached at the bottom of the frame. Cannot be confirmed from this picture because the grip is cut off.
+
+Test line flags:
+  - 'equipped': confirmed, the gun is visible in the right-hand position in the bottom-right corner.
+  - 'manual reload not active for this weapon': no reload pictures exist for this gun in the brief, and nothing in this frame contradicts it, so it cannot be verified here.
+  - 'muzzle flash: none; lens flash none': this is an idle frame, not a shot, so this picture cannot confirm or refute either value.

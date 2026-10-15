@@ -1,0 +1,69 @@
+Gun 118: ARS MP9 (Bot Friendly)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-118-ARS MP9 (Bot Friendly).png)
+   seen: The whole 600x250 image is solid black. Left eye and right eye are both empty: no star, no flare, no soft rings.
+   expected: A bright star/flare near the muzzle with soft rings on both eyes, the right (gun side) eye a bit stronger.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-118-ARS_MP9_Bot_Friendly_.png)
+   seen: First-person frame during full-auto fire. The gun at bottom right (about x 740-910, y 620-800) is lit normally, with no flash, glow or smoke at the muzzle end.
+   expected: A bright muzzle flash burst at the muzzle, visible in the first-person view while firing.
+
+3. [major] [high] hand_not_on_part  (rack-grip-118-ARS_MP9_Bot_Friendly_-left.png)
+   seen: Left (grey-banded) hand with the index finger curled out to the left and grey fingertips. The fingers hang over grass and sea with nothing under them. The only gun-coloured item is a black block at the far right edge (x 1220-1280, y 380-510), far from the fingers.
+   expected: Fingers pinching the top rear slide / charging part of the gun, not pinching air.
+
+4. [major] [high] hand_not_on_part  (rack-grip-118-ARS_MP9_Bot_Friendly_-right.png)
+   seen: The left hand's fingertips sit in the air over grass and a grey haze and pinch nothing. The grey-banded hand's fingers meet the right hand's thumb, not a gun part. Only a black block at the bottom-left corner (x 60-175, y 760-800) is visible, far from the fingers.
+   expected: Left fingers on the slide top, not in the air and not pinched against the other hand.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-118-ARS_MP9_Bot_Friendly_-left.png)
+   seen: Compared with rack-grip-118-...-left: the index-finger hand has moved about 100 px left (fingertip from x about 325 to about 200). The black part at the right edge also moved left (left edge from x about 1220 to about 1135) and looks closer. The hand and the black part move together, and no slide shows sliding back with a barrel ahead of it.
+   expected: The slide (the part under the fingers) slides back about half way while the hand and the rest of the gun stay put.
+
+6. [major] [medium] wrong_part_moves  (rack-grip-pulled-118-ARS_MP9_Bot_Friendly_-right.png)
+   seen: Same camera as rack-grip-118-...-right. The grey-banded hand has slid about 165 px to the right (its triangle logo moved from about x 490-600 to x 655-765). The black block at bottom-left moved about 55 px right. The wrist-strap hand did not move. No slide is visibly sliding back; the hand and the black block move instead.
+   expected: Only the slide / charging part moves back with the hand. The hand and the gun body stay still relative to the camera.
+
+7. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-118-ARS_MP9_Bot_Friendly_.png)
+   seen: First-person pulled frame looks the same as the rest frame: the gun at bottom right is in the same spot and angle, and the top of the gun shows no rearward shift. The left hand is not in view.
+   expected: The slide visibly pulled back about half way with the barrel showing ahead of it.
+
+8. [major] [medium] mag_not_into_magwell  (mag-5-lined-up-118-ARS_MP9_Bot_Friendly_.png)
+   seen: The black magazine (x 580-700, y 530-665) sits on the knuckles of the grey-banded free hand, well below and left of the gun fist at upper right. Nothing links it to a grip.
+   expected: The fresh magazine right at the magwell under the gun's grip, on its line.
+
+9. [major] [medium] mag_not_into_magwell  (mag-6-half-in-118-ARS_MP9_Bot_Friendly_.png)
+   seen: The black magazine (x 545-735, y 290-490) hangs left of and below the gun fist. Its lower part disappears behind the free hand's top band and shows between its fingers (x 548-640, y 520-650). It is going into the free hand, not up into the gun's grip (around x 1030-1105).
+   expected: Magazine half way up into the grip under the gun hand, on the magwell line, and not passing into the free hand.
+
+10. [major] [medium] mag_floating_or_offset  (mag-2-leaving-118-ARS_MP9_Bot_Friendly_.png)
+   seen: The dropped magazine copy (x 545-735, y 265-635) hangs in mid-air over the beach, about 300 px left of and well below the gun fist's grip bottom (x 1030-1105, y about 345), with nothing attached. The gun's own base piece is still visible under the fist.
+   expected: The magazine dropping straight down out of the magwell, starting at the grip bottom, on its line.
+
+11. [major] [low] mag_not_in_hand  (mag-4-in-hand-118-ARS_MP9_Bot_Friendly_.png)
+   seen: The black magazine stands upright above and behind the grey-banded free hand's knuckles (x 405-590, y 110-450). It looks like it hovers just off the palm: the fingers do not visibly close around it.
+   expected: Fingers wrapped around the magazine, feed end toward the gun, the magazine cupped in the hand.
+
+12. [major] [medium] other  (mag-1-seated-118-ARS_MP9_Bot_Friendly_.png)
+   seen: No gun body is visible: the right fist (olive wrist-strap glove, index out to the left) closes on nothing. No receiver, grip or barrel shows, only a small dark piece under the heel of the palm (x 1030-1105, y 340-365). The same empty-looking fist appears in mag-2, mag-3 and mag-7.
+   expected: The gun inside the fist, with the magazine fully in the grip and only the base plate showing.
+
+13. [minor] [low] mag_duplicate_or_missing  (mag-3-out-118-ARS_MP9_Bot_Friendly_.png)
+   seen: No magazine copy is in the air (correct). The same small dark piece under the palm heel as in mag-1 is still there. If that is the magazine base, a magazine is still in the gun; if it is a fixed gun part, this is fine.
+   expected: Nothing left in the magwell after the magazine is out, so the small dark piece should not be a magazine base.
+
+14. [minor] [low] other  (rack-grip-118-ARS_MP9_Bot_Friendly_-right.png)
+   seen: The whole frame is tinted by a grey-green haze over the wall, grass and hands, with a faceted grey rock shape on the left. The camera may be inside or behind a rock or fog volume.
+   expected: A clear view of the hands and the gun.
+
+Test line flags:
+  - rack grip (slide/bolt, virtual) not measured (part's shape not ready): confirmed by rack-grip-118-...-left and -right. No slide or charging part is under the fingers.
+  - 'THE PART UNDER THE HAND DOES NOT MOVE' (nearest 4.1 cm): confirmed by rack-grip-pulled-118-...-left, -right and the first-person rack-grip-pulled frame. The hand moves but no part under the fingers moves.
+  - 'the gun moved 1.0 mm with the pull': doubtful. In rack-grip-pulled-118-...-right the black block at bottom-left moves about 55 px and the grey-banded hand about 165 px at close-up scale, which is far more than 1 mm if those are gun parts. Medium-low, since it is not certain the black block is the gun.
+  - 'moving with the hand: a piece cut out of the receiver' (hole in the gun): cannot be confirmed from the pictures, since no receiver body is visible in the close-ups.
+  - 'dropped copy 0.0 cm across the pull, 1.7 cm out': not matched by mag-2-leaving-118-...png. The dropped copy hangs in mid-air roughly a hand-width or more left of and below the gun fist's grip bottom, not 1.7 cm out.
+  - 'in the hand: 3.3 cm from the palm': consistent with mag-4-in-hand-118-...png. The magazine stands above and behind the free hand and the fingers do not visibly close around it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': contradicted by mag-6-half-in-118-...png. The magazine is about 300 px left of the gun's grip and goes into the free hand's fingers rather than up into the grip.
+  - 'seated: the gun's magazine shows (not measured: nothing of its own)': cannot be verified, since no gun body is visible in mag-1 or mag-7.
+  - 'lens flash none' and 'flashes L 0 / R 0': confirmed. lens-eyes-burst-118-...png is entirely black, and lensburst-118-...png shows no flash at the muzzle even though the test says particles fire every shot.

@@ -1,0 +1,21 @@
+Gun 103: M1878 Shotgun Buck Gear
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [low] part_floating_or_detached  (weapon-103-M1878_Shotgun_Buck_Gear.png)
+   seen: Bottom-right corner (about x 1055-1280, y 650-800): a flat, dark-brown slab with straight edges and no shading detail. It does not connect to the gun. The tan wooden stock/forend runs from the receiver (about x 690-720, y 580-610) off the bottom edge near x 860, so the slab sits about 200 px to the right of any wood, in a different direction, and in a darker, different material.
+   expected: Nothing in that corner, unless it is a real world object. If it is a gun part (buttstock or cap), it must be attached to the tan stock and follow the gun. A detached gun part here is a floating-part bug.
+
+2. [minor] [low] muzzle_flash_or_lens_flash_issue  (weapon-103-M1878_Shotgun_Buck_Gear.png)
+   seen: Two solid bright-yellow discs with dark centres (about x 700-755, y 530-570), sitting at the front of the black receiver where the two barrel ends are. They look like flash sprites, not gun metal. This is a still frame with no shot, so the flash should not be showing.
+   expected: Plain barrel muzzle ends in gun-metal or dark openings. A muzzle flash should only appear during a shot (see the lensflash/lensburst pictures). If these discs are the flash sprite left on while idle, that is the bug. If they are a yellow-painted barrel tip, it is correct.
+
+3. [tiny] [low] hand_pose_wrong  (weapon-103-M1878_Shotgun_Buck_Gear.png)
+   seen: The free left hand (about x 540-635, y 585-690) is a dark grey hand with no arm or wrist, hanging in mid-air over the grass well left of the gun. Its fingers are bent up and to the right like a claw and it touches nothing.
+   expected: A relaxed free hand near the body or the gun, with a connected wrist/arm, or no hand shown if the mod hides it. Hard to judge from one frame whether this is a bug or just the free-hand rest pose.
+
+Test line flags:
+  - Two-hand recoil is exactly 0.0 deg, 0.0 cm, and two-hand impulse is 0 deg/s, while one hand gives 7.3 deg climb and 413 deg/s. Zero kick in a two-handed hold looks suspicious. No picture confirms it: the only picture is one-handed (left hand free), so the two-hand numbers are unverified.
+  - 'lens flash none' even though the muzzle flash has 'the flash light' and fires every shot. This may be wrong. No lensflash/lens-eyes picture exists for gun 103 to confirm or deny it.
+  - 'fired 2/3': one of three trigger pulls produced no shot. Possibly a bug, but no picture covers the shooting sequence, so it is not confirmed.
+  - 'muzzle flash: particles ... 100 cm': the meaning of the 100 cm value is unclear. The yellow discs at the muzzle in the still frame may be the flash shown while idle (see bugs), which would be a visible sign of the flash being on when not firing. Not confirmed beyond that picture.
+  - 'break-open: opened after a shot, 1 case(s) fell out; opened again, 0; loaded to 2/2': no picture shows the break-open or reload, so this is not confirmed.

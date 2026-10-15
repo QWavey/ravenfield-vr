@@ -1,0 +1,60 @@
+Gun 115: ARS Glock 19 (Bot Friendly)
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_-right.png)
+   seen: Same camera as rack-grip-115-ARS_Glock_19_Bot_Friendly_-right.png. The free (left) glove's back and cuff shift about 75 px to the right (glove edge near x 640 moves to about x 715), but the part being racked does not move: the dark slide sliver (about x 955-990, y 415-470) and the ammo label '15+1' (about x 1020-1045, y 440-460) stay at the same pixels in both pictures. Nothing slides back; the hand moves past it.
+   expected: The slide is pulled about half way back with the hand, its front (barrel side) showing ahead of it, and the ammo label moves with it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-115-ARS_Glock_19_Bot_Friendly_-left.png)
+   seen: The free glove's thumb (grey tip, about x 270-370, y 368-445) and index (dark finger with white-striped tip reaching to about x 135, y 395-505) meet at about x 250-330, y 370-450 over open grass and sky. No slide, frame or gun is anywhere in the picture, so the pinch closes on air.
+   expected: Thumb and index pinch the rear top of the slide (serrations), with the slide visible under the fingers.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_-left.png)
+   seen: Compared with rack-grip-115-ARS_Glock_19_Bot_Friendly_-left.png, the fingers move about 60-65 px further left (index tip from about x 135 to about x 70, thumb from about x 270 to about x 200) while the glove back and cuff stay put. The pinch still closes on nothing, and no part is visible that could have moved.
+   expected: The pinch stays on the slide and the slide moves back about half way with the hand; the hand should not slide forward off the part into empty space.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: First-person view, gun at bottom right (about x 740-910, y 660-800). The slide top (about x 745-790, y 665-690) and the ammo label (about x 795-820, y 688-695) are in the same place as in rack-grip-115-ARS_Glock_19_Bot_Friendly_.png. No retraction is visible, and no free hand is in frame.
+   expected: Slide visibly pulled back about half way, the front of the slide (barrel side) showing ahead of the rear, with the free hand on it.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: The fresh magazine (a plain black box, about x 383-580, y 120-300 where visible) stands above and behind the back edge of the free glove's knuckle strip; its lower part is hidden behind the glove. No finger wraps around it: the fingers (about x 365-520, y 290-470) sit in front of the hand's back, below the box. It looks stuck to or behind the hand rather than held. The box is not a Glock 19 magazine shape.
+   expected: Fingers wrap the sides of the magazine, held in the palm with the feed end toward the gun, and the model matches the gun's magazine.
+
+6. [major] [medium] other  (mag-1-seated-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: The weapon hand (right, about x 315-835, y 70-470) curls around nothing. In the close-ups (mag-1 to mag-7 and rack-grip-*-left/right) no slide, frame, trigger guard or barrel is drawn; the only gun part is a small black sliver under the free index finger in rack-grip-115-ARS_Glock_19_Bot_Friendly_-right.png. The index finger points into open sky.
+   expected: The pistol sits in the fist with its frame and slide visible and the magazine inside the grip, so the magwell and slide can be checked.
+
+7. [major] [medium] mag_duplicate_or_missing  (mag-1-seated-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: No magazine or magazine base plate is visible. The only dark item is a bar under the wrist (about x 735-805, y 425-447), and the same bar is still there in mag-3-out-115-ARS_Glock_19_Bot_Friendly_.png where the magazine is out, so mag-1 and mag-3 look the same. The bar is glove hardware (it also sits on the free glove's wrist in rack-grip-115-ARS_Glock_19_Bot_Friendly_-left.png), not the magazine base.
+   expected: Seated: a black base plate flush with the bottom of the grip under the palm, which is visibly different from the picture with the magazine out.
+
+8. [minor] [low] hand_not_on_part  (rack-grip-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: First-person view: the free hand is not in the frame at all, and nothing is pinching the slide area (about x 745-790, y 665-690). The only free-hand fragment in the set is in weapon-115-ARS_Glock_19_Bot_Friendly_.png, about 150 px left of the gun.
+   expected: The free hand's thumb and index visible on the slide top; if the hand is off screen, the first-person picture does not show the rack grip.
+
+9. [minor] [low] hand_not_on_part  (weapon-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: The gun sits at the bottom right (about x 740-910, y 660-800) with its grip running off the bottom edge. No right hand is visible on the grip. The free left hand is a detached pinch (about x 540-630, y 593-690) about 150 px left of the gun, with no arm; this may just be how hands render without arms.
+   expected: The right hand wrapped around the visible grip, and the free hand relaxed or near the gun.
+
+10. [minor] [low] mag_not_in_hand  (mag-5-lined-up-115-ARS_Glock_19_Bot_Friendly_.png)
+   seen: The black box (about x 580-700, y 530-665) rests on top of the free glove's knuckle strip (about x 540-860, y 640-700). The fingers below do not wrap around it, and its base hides behind the glove. The line under the weapon hand looks roughly right.
+   expected: Fingers around the magazine, held on the magwell line with the feed end toward the gun.
+
+11. [minor] [low] mag_duplicate_or_missing  (rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_-right.png)
+   seen: A black box labelled '4+' sits on the grass at the lower left (about x 120-240, y 710-800). The label follows the same format as the gun's '15+1', so it may be a loose magazine left on the ground. The same box is in rack-grip-115-ARS_Glock_19_Bot_Friendly_-right.png; it does not show in mag-3 or mag-7, and the other frames do not show the area. Cannot confirm from one view.
+   expected: No loose magazine on the ground once the dropped magazine has been picked up and seated (the test says it was).
+
+Test line flags:
+  - THE PART UNDER THE HAND DOES NOT MOVE (nearest 5.5 cm): confirmed by rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_-right.png (slide sliver and ammo label stay put while the free hand moves about 75 px) and by rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_.png (gun looks unchanged in first-person).
+  - drawn: 1 drawn part moves, most 17 mm: no picture shows which part moves 17 mm, so this cannot be confirmed. The slide area under the hand does not move, so the 17 mm mover is probably not that part.
+  - the gun moved 0.4 mm with the pull, 2.6 mm when it went home: too small to see at picture scale; consistent with the first-person rack and pulled frames looking the same.
+  - rack grip (slide/bolt, virtual): not measured (the part's shape is not ready): the pictures agree the pinch touches nothing (rack-grip-115-ARS_Glock_19_Bot_Friendly_-left.png and rack-grip-pulled-115-ARS_Glock_19_Bot_Friendly_-left.png).
+  - moving with the hand: a piece cut out of the receiver: not visible in any picture; no close-up shows the receiver. Cannot confirm.
+  - seated: the gun's magazine shows (not measured: nothing of its own): not confirmed. mag-1-seated-115-ARS_Glock_19_Bot_Friendly_.png shows no magazine or base plate, and the heel bar is also present with the magazine out (mag-3).
+  - in the hand: 3.3 cm from the palm: consistent with mag-4-in-hand-115-ARS_Glock_19_Bot_Friendly_.png, where the box sits behind the palm edge with no fingers around it.
+  - magazine (deep): no magazine part (a made one): the magazine in mag-2, mag-4, mag-5 and mag-6 is a plain black box, not a Glock 19 magazine shape, so 'same model' cannot be checked from the pictures.
+  - half way in (on the rail): 0.0 cm off the magwell line: cannot confirm. No gun body or magwell is drawn in mag-6-half-in-115-ARS_Glock_19_Bot_Friendly_.png to measure against.
+  - muzzle flash: particles 'MuzzleTransform', 60 cm, every shot; lens flash none: no lensflash, lensburst or lens-eyes picture is listed for gun 115, and no first-person picture shows any muzzle flash. Cannot confirm either way. 'lens flash none' is the value most likely to be a real problem for the flash test, but there is no picture for it.
+  - dropped copy 0.0 cm across the pull, 1.7 cm out: mag-2-leaving-115-ARS_Glock_19_Bot_Friendly_.png shows a box dropping straight down below the fingers; consistent.
+  - fired 3/3, racked: chambered, pulled out by hand: stays in the hand: no picture covers these.

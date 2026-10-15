@@ -1,0 +1,20 @@
+Gun 102: M1878 Shotgun Buck
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [low] other  (weapon-102-M1878_Shotgun_Buck.png)
+   seen: The black receiver at about x 685-765, y 530-600 ends in two yellow rings (they look like shell heads or barrel ends). No barrel tube runs forward from it toward the horizon; grass and bushes sit directly behind it. The forward part of the gun looks missing, or it points back at the camera.
+   expected: A double barrel running forward from the receiver, up and to the left toward the horizon (vanishing point near x 640, y 400). Any shells should show only at the breech.
+
+2. [minor] [low] hand_not_on_part  (weapon-102-M1878_Shotgun_Buck.png)
+   seen: The right hand is hard to read. A dark glove sits on top of the receiver at about x 690-795, y 555-645, and a separate grey glove-shaped object lies on the wood at about x 800-945, y 675-800. Neither clearly wraps around a grip.
+   expected: The right hand's fingers wrapped around the grip under the receiver, with no separate glove floating beside the stock.
+
+3. [minor] [low] part_floating_or_detached  (weapon-102-M1878_Shotgun_Buck.png)
+   seen: A flat wood-coloured slab with hard straight edges fills the bottom-right corner at about x 1055-1280, y 650-800. It is much closer to the camera than the stock and is separated from the wood by grass at about x 940-1055. It looks like a detached panel, or a stock end too close to the lens.
+   expected: The stock is one continuous wood piece running from the receiver back toward the shoulder, with no separate floating slab.
+
+Test line flags:
+  - lens flash none: a muzzle flash light and particles are recorded on every shot, yet no on-screen lens flash was captured. The brief lists no lensflash picture for this gun, so the picture cannot confirm or refute it. A lensflash picture is needed.
+  - fired 2/3: one of three shots did not fire, with no explanation in the line. The single idle picture cannot confirm it.
+  - recoil two hands 0.0 deg, 0.0 cm and impulse two hands 0 deg/s: exact zeros next to one-hand values of 7.1 deg and 413 deg/s look like two-hand recoil is not applied or not measured. The only picture shows the one-hand case (left hand free), so it cannot confirm the two-hand numbers.
+  - break-open 1 case fell out, and muzzle flash particles at 100 cm: no ejection or firing picture is listed for this gun, so neither can be confirmed.

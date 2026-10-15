@@ -1,0 +1,38 @@
+Gun 94: mwii-m4holo(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] hand_not_on_part  (rack-grip-094-mwii-m4holo_No_script_-left.png)
+   seen: The left glove lies flat across the top of the upper receiver, from the top rail near the rear sight back to the buffer-tube junction (roughly x 250-870, y 200-530 in the 1280x800 close-up). The index and middle fingers run forward along the top rail (fingertips near x 250-420, y 270-440) and the thumb rests on top behind the sight. No charging handle is visible under or between the fingers, and nothing is curled around a lever at the back of the receiver. The right hand on the pistol grip looks fine.
+   expected: The left fingers close around the AR charging handle at the back of the upper receiver, pinching that lever, instead of lying flat along the rail.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-094-mwii-m4holo_No_script_-right.png)
+   seen: Compared with rack-grip-094-mwii-m4holo_No_script_-right.png (same camera: the hill and wall match, and the glove sits at the same pixels, x 400-930), the whole stock and receiver have slid about 180 px to the right, toward the muzzle. The buffer-tube junction moves from x about 820 to about 1000, and the round knob on the receiver from x about 1090 to about 1260. Only the glove stays put. In the first-person pair (rack-grip-094 vs rack-grip-pulled-094) the gun does not visibly move, so the close-up and first-person views disagree.
+   expected: Only the charging handle should slide back about 3-4 cm at the back of the upper receiver. The receiver, stock and sight stay still, and the glove moves back with the handle.
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-094-mwii-m4holo_No_script_-left.png)
+   seen: The left glove slides back over the buffer-tube and stock top (its back edge goes from about x 870 to about x 980) while the fingers stay flat on the top rail. No handle or lever is visible at any point, so nothing shows the handle moving back. The gun body also sits about 80-130 px further toward the muzzle than in rack-grip-094-mwii-m4holo_No_script_-left.png; the sight and the right hand on the grip shift together with it.
+   expected: The charging handle lever should visibly slide back about 3-4 cm at the top rear of the receiver while the receiver stays still, with the glove following it.
+
+4. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-094-mwii-m4holo(No script).png)
+   seen: The left eye panel (star near x 172, y 146) looks equal to or slightly stronger than the right eye panel (star near x 470, y 146); the left halo ring and ghost circles are a touch more visible. The single-shot lens-eyes picture leans the other way (right slightly stronger), so the stronger eye changes between shots. The test line counts full-strength flashes L 4 / R 3.
+   expected: Both eyes equal, with the gun-side right eye a bit stronger, on every flash.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-094-mwii-m4holo(No script).png)
+   seen: The brown glow in the lower-right of each eye panel stops at a hard rounded-rectangle edge (about x 298 in the left panel, about x 605 in the right, and about y 248 along the bottom) instead of fading out.
+   expected: A soft falloff to black toward the panel edge, with no visible hard boundary.
+
+6. [tiny] [low] part_floating_or_detached  (mag-1-seated-094-mwii-m4holo_No_script_.png)
+   seen: A small black rectangular slab hangs just below the bottom of the pistol grip (about x 1040-1120, y 538-582), beside the pinky. It is not attached to any visible grip part and looks loose. The same slab shows in mag-2 and mag-3, and a similar dark piece sits at the grip bottom in weapon-094.
+   expected: Nothing should stick out under the grip, or the slab should be part of the grip or a pinky shelf and sit flush with it.
+
+Test line flags:
+  - rack grip and pulled half way are 'not measured (the part's shape is not ready)': confirmed by the pictures, no charging handle geometry is visible in any rack-grip or rack-grip-pulled picture, so the glove has nothing to pinch.
+  - 'drawn: 1 drawn part moves 37 mm, nearest 0.4 cm from the hand': not confirmed. It contradicts 'the part's shape is not ready', and no picture shows any part moving 37 mm; the only visible changes are the glove and the close-up receiver shift.
+  - 'the gun moved 0.4 mm with the pull': contradicted by rack-grip-pulled-094-mwii-m4holo_No_script_-right.png, where the stock and receiver sit about 180 px further toward the muzzle than in rack-grip-094-mwii-m4holo_No_script_-right.png (same camera, glove and background). The first-person pair shows no gun movement, so the pictures disagree with each other.
+  - 'magazine dropped copy 2.8 cm out': consistent. mag-2-leaving shows the magazine body about 70 px lower than mag-1-seated, with the top still under the magwell lip.
+  - 'in the hand: 3.2 cm from the palm': plausible. mag-4-in-hand shows the glove holding the magazine base, no contradiction.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': confirmed. mag-6-half-in shows the magazine on the magwell line in front of the trigger guard.
+  - 'seated: 0.0 cm from where it was': confirmed. mag-7-seated-again sits where mag-1 did, and no second magazine is visible.
+  - 'flashes L 17 / R 17 (full L 4 / R 3)': the full-strength count differs between eyes, with the left one higher, against the expected right-stronger. lens-eyes-burst shows the left flare equal to or slightly stronger than the right, while the single-shot lens-eyes leans the other way, so the stronger eye flips between shots. Matches a 'one lens brighter on some runs' problem.
+  - 'lens flash shown, strength 0.86' and muzzle flash every shot: confirmed. lensflash and lensburst show the flash at the muzzle with a soft halo.
+  - '29 rounds kept' then 'seated, 30 rounds': not checkable from the pictures, the HUD text in the close-ups is too small to read reliably.

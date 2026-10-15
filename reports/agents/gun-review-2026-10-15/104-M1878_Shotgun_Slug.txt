@@ -1,0 +1,21 @@
+Gun 104: M1878 Shotgun Slug
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] muzzle_flash_or_lens_flash_issue  (weapon-104-M1878_Shotgun_Slug.png)
+   seen: Two bright yellow round discs (about 30 px each, centred near x 720 and x 745, y 555) sit on top of the dark receiver block at the far end of the tan wood, where the barrels point. They look like glowing flash sprites or brass heads with a dark centre. Nothing else at the muzzle is lit, and the gun is not firing in this frame.
+   expected: At idle the muzzle should show plain gunmetal barrel ends with no yellow glow. Muzzle flash should only appear on a shot. If these are shell heads in the breech, they should not be visible on a closed gun. Cannot tell which from this resolution.
+
+2. [minor] [low] hand_not_on_part  (weapon-104-M1878_Shotgun_Slug.png)
+   seen: The right hand is only partly visible. A dark grey glove at the bottom right (about x 805-945, y 670-800) sits under and beside the tan wood. Its fingers are hidden or unclear, and I cannot see them wrapped around a grip part. The picture is too small to be sure either way.
+   expected: Right hand wrapped around the pistol grip or stock grip, fingers visibly curled around it, with the gun sitting in the hand.
+
+3. [minor] [low] part_floating_or_detached  (weapon-104-M1878_Shotgun_Slug.png)
+   seen: A large flat brown slab with sharp corners fills the bottom-right corner (about x 1055-1280, y 650-800). The tan wood runs out of frame at about x 860 on the bottom edge, leaving roughly 200 px of grass between it and the slab, so the slab does not visibly attach to the gun.
+   expected: If the slab is the buttstock close to the camera, it should continue from the wood in the same colour and grain. If it is a stray part, it should not be in the frame.
+
+Test line flags:
+  - 'lens flash none' while the muzzle flash particles and flash light are set to play on every shot. No lens flash picture exists for gun 104 in this run (only weapon-104 is listed, and the weapons-previous folder holds an older copy of the same shot). This picture is idle, so it cannot confirm or refute. This is the most likely real gap: the on-screen flash is missing for this gun.
+  - 'recoil: two hands 0.0 deg, 0.0 cm' and 'impulse two hands 0 deg/s': exact zeros for the two-hand case, while one hand gives 4.9 deg and 276 deg/s. A second hand should reduce recoil, not remove it entirely, so the two-hand run probably did not apply or did not capture the shot. This picture shows only the one-hand pose (left hand free), so it cannot confirm.
+  - 'fired 2/3': one of the three attempted shots did not fire. It could be a dry third attempt after loading 2/2, or a shot lost during the break-open. The picture cannot confirm either.
+  - 'break-open: opened after a shot, 1 case(s) fell out' and 'loaded to 2/2': the picture shows a closed gun, so it cannot confirm the break-open or the loaded count.
+  - 'muzzle flash: particles ... every shot': the yellow discs at the muzzle in the idle picture may be a flash sprite left visible at rest (see the first bug). If so, the flash effect is not gated to shots.

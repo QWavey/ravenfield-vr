@@ -1,0 +1,39 @@
+Gun 22: QUICKSILVER
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [high] hand_not_on_part  (rack-grip-022-QUICKSILVER-right.png)
+   seen: The free left glove lies flat across the top of the receiver, wrist strap at the left edge (x about 400-530). Its fingers are straight and point rearward (striped index finger out to x about 1150, y 280-400). The fingertips float in the air above the receiver top (edge at y about 410). The only contact is the thumb pressed on a small block at x 740-880, y 385-440. The racking group (gold-spring cylinder at x 520-670, y 400-610, and the octagonal bar with the 24+1 end cap at x 320-1160, y 580-720) sits below the fingers and no finger touches it.
+   expected: Index and middle fingers curled onto the charging / bolt handle at the rear of the receiver top, fingertips ON that part, so the hand can pull it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-022-QUICKSILVER-left.png)
+   seen: Same grip seen from the left: the glove lies flat over the top of the grey receiver plate (x about 260-870, y 250-530) with straight fingers pointing to the rear. The index fingertip (x about 240-470, y 400-460) hangs over the plate edge in the air. No finger is curled around any handle; nothing is pinched.
+   expected: Fingers pinching the charging / bolt handle (the part that racks the gun), fingertips on it, not floating over the receiver.
+
+3. [major] [high] hand_not_on_part  (rack-grip-pulled-022-QUICKSILVER-right.png)
+   seen: Compared with rack-grip-022-QUICKSILVER-right.png, the racking group (gold-spring cylinder and octagonal bar) has slid about 280-300 px toward the rear: cylinder left edge x 520 to 800, bar front end x 320 to 620, gold spring x 510 to about 800. The glove did NOT move at all (wrist strap still at x 400-530, thumb still at x 750-920, index still out to x 1150). The hand does not travel with the part; the part slides out from under a hand that stays put, so the hand pulls air. The left pair (rack-grip-pulled-022-QUICKSILVER-left.png vs rack-grip-022-QUICKSILVER-left.png) shows the same unchanged glove.
+   expected: Fingers locked on the charging / bolt handle and the hand moving rearward with it (about 6.5 cm, the test says 65 mm) while the receiver and sight stay still.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-022-QUICKSILVER.png)
+   seen: First-person grip frame: the free left hand that sits in front of the magazine in weapon-022-QUICKSILVER.png and lensflash-022-QUICKSILVER.png (x about 540-630, y 580-690) is gone. No hand is visible anywhere in the frame, so the player cannot see the hand reach the charging handle. The close-ups (rack-grip-022-QUICKSILVER-left/right) do show the hand on the receiver top, so it may just be out of frame.
+   expected: The free hand visibly on the charging handle at the receiver's rear (lower right of the first-person view) during the grip.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-022-QUICKSILVER.png)
+   seen: The fresh magazine is not wrapped by the hand. The glove is flat with straight fingers pointing left. The magazine stands almost vertical behind the back of the hand and index finger, its top runs out of the top edge of the frame across the receiver and orange handguard, and its base pokes out under the fingertips. No finger curls around the magazine body. The test's 3.7 cm from palm agrees: the magazine is beside the hand, not in it.
+   expected: Fingers wrapped around the magazine body (same curved model as the gun's), magazine held in the fist with its feed end pointing toward the magwell.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-022-QUICKSILVER.png)
+   seen: Nearly black frame with only two faint specks (left eye about x 172, right eye about x 470, y about 150) and no soft rings. The single-shot lens-eyes-022-QUICKSILVER.png shows a visible star with rings at the same muzzle position at the stated 0.09 strength. The burst specks sit in the right place but are far weaker.
+   expected: A soft star-and-rings flare at the muzzle in both eyes, like lens-eyes-022-QUICKSILVER.png, on at least some of the 14 burst shots. This frame may simply be captured after the flash decayed, so treat as a possible issue.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED. rack-grip-022-QUICKSILVER-right.png and -left.png show the fingers hovering over the receiver top, none touching the racking group.
+  - pulled half way '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-022-QUICKSILVER-right.png (the glove does not move while the group slides).
+  - 'moving with the hand: the slide / bolt': CONTRADICTED. The racking group slides about 280-300 px rearward while the glove stays in place, so the hand does not travel with the part.
+  - 'drawn: 1 drawn part(s) move, most 65 mm' : the slide distance is plausible for the scale, but the stated 0.0 cm contact is not visible (no finger on the moving part). Likely the thumb on the receiver-top block, not the racking part. Not confirmed.
+  - 'the gun moved 0.8 mm with the pull, 1.5 mm when it went home': consistent. The receiver stays fixed in frame in both close-up pairs.
+  - 'in the hand: 3.7 cm from the palm': consistent with mag-4-in-hand-022-QUICKSILVER.png, where the magazine is not wrapped by the fingers.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONFIRMED. The base plate of mag-7-seated-again-022-QUICKSILVER.png sits where mag-1-seated-022-QUICKSILVER.png has it (x about 405-500, y about 410-500).
+  - 'half way in (on the rail): 0.0 cm off the magwell line': not contradicted by mag-6-half-in-022-QUICKSILVER.png. The magazine sits lower than seated, which fits half in.
+  - 'lens flash shown, strength 0.09' and 'strongest soft flash 0.10': lens-eyes-022-QUICKSILVER.png matches (flare at the muzzle position, symmetric eyes). The burst frame lens-eyes-burst-022-QUICKSILVER.png is near-black, so the 0.10 peak is not visible there.
+  - 'muzzle flash: Smoke Particles, no flash light': consistent. Smoke puffs in lensflash and lensburst, and only a faint glow at the muzzle.
+  - '24 rounds kept', '25 rounds': consistent. The 24+1 label is visible on the receiver in weapon-022-QUICKSILVER.png.

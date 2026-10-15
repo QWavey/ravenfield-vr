@@ -1,0 +1,27 @@
+Gun 86: [comm]f2k scope(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-086-[comm]f2k scope(No script).png)
+   seen: Left-eye panel (left half) has a bright flare core at about x 178, y 155 with strong starburst rays and a full ring. Right-eye panel (right half) is much dimmer: core small and faint at about x 170 in its panel, rays nearly gone, ring barely visible. The left eye is roughly 2-3 times brighter than the right. The single-shot pair (lens-eyes-086) has the right eye stronger, so the burst frame is inverted.
+   expected: Both eyes at similar strength, with the gun-side (right) eye a bit stronger, as in the single-shot pair. This is the same kind of left/right brightness imbalance the user reported on the islands map (the other lens brighter on some runs).
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-086-_comm_f2k_scope_No_script_-left.png)
+   seen: Compared with rack-grip-086-_comm_f2k_scope_No_script_-left.png: the camera did not move (sea horizon stays put). The gloved left hand, the ridged bar at the top, the latch and the rail stay exactly where they were. Everything to the right of the hand shifts about 130-170 px to the LEFT (toward the muzzle; the magazine sits behind the grip so right is rearward): the round knob on top of the receiver (about x 870-1060 before, x 700-890 after), the magazine (x 800-1030 to 660-890), the pale right hand on the grip (x 490-830 to 345-680), the trigger opening and the dark blade at the top-right edge. So the rear part of the gun moves forward, and the knob the hand is supposed to pull does not travel back with the hand. Before the pull the thumb only touches the end of the ridged bar and the fingers sit on the rail, not wrapped round the knob.
+   expected: The part the hand holds (charging handle / knob) slides about half way back toward the stock (right, away from the muzzle) with the fingers riding on it. The rest of the gun (magazine, grip, right hand, trigger) stays still.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-086-_comm_f2k_scope_No_script_.png)
+   seen: First-person pair (vs rack-grip-086-_comm_f2k_scope_No_script_.png): the scope/receiver top, the rear knob at lower right, the muzzle and the body are pixel-identical in both frames. Only the pale left glove changes, dropping about 50 px at the gun's front-left (roughly y 585-750 instead of 560-690). Nothing on the gun visibly moves backward.
+   expected: The knob / charging handle the glove holds moves about half way back, visible as the knob changing position on the receiver, with the glove riding along on it.
+
+4. [minor] [medium] picture_unusable  (rack-grip-pulled-086-_comm_f2k_scope_No_script_-right.png)
+   seen: Both right close-ups (rack-grip-086-..._-right.png and rack-grip-pulled-086-..._-right.png) are very dark, with the receiver barely lit. In the pulled frame the whole gun (rounded nose at left, panel lines, a hole and a slot) and the distant olive wall and rocks are shifted about 430 px to the right. Background moving too means the camera moved, so this pair cannot show part motion of the gun.
+   expected: A lit close-up with the camera fixed to the gun, so a pull of the slide or charging handle shows against a fixed receiver.
+
+Test line flags:
+  - 'pulled half way: 0/4 fingers on it' contradicts 'moving with the hand: the slide / bolt'. rack-grip-pulled-086-..._-left.png shows the hand in the same screen spot as rack-grip-086-..._-left.png, so the pictures do not show the hand carrying a part. Picture supports the 0/4 reading.
+  - 'drawn: 3 drawn part(s) move, most 57 mm': the first-person pair shows no movement of the receiver or knob. The left close-up shows a 130-170 px shift of the rear group, but toward the muzzle, not back. The 57 mm rearward travel is not confirmed.
+  - 'the gun moved 1.4 mm with the pull, 2.6 mm when it went home': the first-person pair shows the gun unmoved, consistent with 1.4 mm. The left close-up shift of the rear group cannot be squared with that at an unknown close-up distance, so this cannot be confirmed.
+  - 'lens flash burst: 19 shots ... flashes L 18 / R 18': equal counts, but lens-eyes-burst-086-[comm]f2k scope(No script).png shows the left eye far brighter than the right. The counter does not measure brightness, so it misses the imbalance (see bug 1).
+  - '29 rounds kept' vs 'magazine: seated, 30 rounds': the in-world ammo plate on the grip is too small to read in any picture, so neither number can be confirmed.
+  - Checked and consistent: 'seated: the gun's magazine shows 0.0 cm from where it was'. mag-7-seated-again matches mag-1-seated in position, and no second magazine appears in any reload frame. mag-2 drops along the same line, mag-3 shows an empty magwell, and mag-4 shows the fresh magazine held in the glove. 'half way in: 0.0 cm off the magwell line' looks plausible in mag-6 but its depth cannot be verified from the picture.
+  - Checked and consistent: 'lens flash shown, strength 1.02'. lens-eyes-086-[comm]f2k scope(No script).png shows a flare on both eyes with the right slightly stronger, and lensflash-086 shows the flash at the muzzle.

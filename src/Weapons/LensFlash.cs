@@ -21,7 +21,8 @@ namespace RavenfieldVR.Weapons
     {
         public static LensFlash Instance { get; private set; }
 
-        private const float MaxPower = 1.6f;
+        // 1.6 in flash_sim.py; at the strength it needs over a lit scene a rifle's flash washed out half the view.
+        private const float MaxPower = 1.3f;
 
         private readonly VRRig _rig;
         private readonly Limiter[] _limiters = { new Limiter(), new Limiter() };
@@ -119,7 +120,9 @@ namespace RavenfieldVR.Weapons
             }
             Transform head = _rig.Camera.transform;
             // flash_sim.py fire(): the plume's centre a little ahead of the muzzle, its uneven spread, its size and starburst.
-            float ahead = Random.Range(0.02f, 0.07f) * Mathf.Sqrt(size);
+            // The plume's bright part in front of the muzzle (10-25 cm for a rifle): at flash_sim.py's 2-7 cm an aimed rifle's
+            // flash sat behind its front sight base and looked as if it came out of the gun.
+            float ahead = Random.Range(0.08f, 0.16f) * Mathf.Sqrt(size);
             float jx = Gauss() * 0.8f * Mathf.Deg2Rad, jy = Gauss() * 0.8f * Mathf.Deg2Rad;
             float sizeK = Random.Range(0.85f, 1.15f);
             float phase = Random.Range(0f, 6.28f);

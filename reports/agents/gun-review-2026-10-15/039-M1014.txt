@@ -1,0 +1,28 @@
+Gun 39: M1014
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [medium] hand_not_on_part  (rack-grip-039-M1014.png)
+   seen: First-person racking frame. The gun sits lower right with the barrel tip near screen centre, but no left hand is anywhere in the frame. weapon-039-M1014.png shows the free left hand floating at mid-left (about x 540-635, y 585-690), so the hand has disappeared here. The receiver top (about x 735-800, y 515-560) shows only the rail and a small sight dot, with no glove. The overview sheet cell 2 looks the same.
+   expected: The left hand visible in frame, fingers pinched on the charging handle at the rear top of the receiver, as in the close-up rack-grip-039-M1014-left.png.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-039-M1014.png)
+   seen: Same first-person framing as the rack-grip frame. No left hand is on screen, so nothing visibly pulls the charging handle back. The gun sits about 25-30 px higher than in rack-grip-039-M1014.png. The overview sheet cell 5 shows the same.
+   expected: The left hand visible with fingers on the charging handle, which has been pulled about half way back toward the stock (rear of the receiver).
+
+3. [major] [low] hand_not_on_part  (rack-grip-039-M1014-right.png)
+   seen: Right-side close-up. The charging handle (pale bulb at top middle, about x 640-850, y 210-340) is bare, with no glove on it. The only glove fingers are at lower left (about x 0-500, y 570-800), curled under the receiver ahead of the trigger guard, roughly 300-400 px from the handle. The left fist in rack-grip-039-M1014-left.png sits over the receiver top from the other side, so the pinch may be on the far side of the gun.
+   expected: Fingers pinched on the charging handle. If the hand is on the far (left) side, the right-side view should at least show knuckles or the thumb reaching over the handle.
+
+4. [major] [low] other  (rack-grip-pulled-039-M1014-right.png)
+   seen: Compared with rack-grip-039-M1014-right.png, the charging handle barely moves on screen (about 40 px right, from x 640-850 to about 680-890). Meanwhile the rail start, the barrel-to-receiver step, the trigger guard and the glove fingers all shift about 200 px right. Relative to the receiver, the handle appears to slide forward toward the muzzle, and the glove stays with the receiver rather than the handle.
+   expected: The handle slides straight back (toward the stock) relative to the receiver by about 46 mm, with the pinching fingers moving with it. The receiver, trigger guard and barrel stay put, consistent with the test's 0.9 mm gun movement.
+
+5. [tiny] [low] other  (rack-grip-039-M1014-right.png)
+   seen: A small white squiggle mark on the receiver side at about x 160-190, y 565-600. It does not look like part of the gun model. A similar mark appears at about x 365-385, y 585-610 in rack-grip-pulled-039-M1014-right.png.
+   expected: No stray marks on the receiver. If it is a decal, debug text or particle, it should not appear on the gun.
+
+Test line flags:
+  - "the nearest is 0.0 cm from the hand" is not confirmed by the pictures. rack-grip-039-M1014.png shows no left hand at all, and rack-grip-039-M1014-right.png shows nothing touching the charging handle from the right side. Only rack-grip-039-M1014-left.png shows a fist over the receiver top where the handle would be, so the 0.0 cm may hold from the left side only.
+  - "rack grip ... not measured" and "pulled half way: not measured" are a measurement gap, not a wrong number. The pinch and the pull therefore rest on the pictures alone, and the first-person pair does not show a hand at all.
+  - "the gun moved 0.9 mm with the pull, 1.3 mm when it went home" looks inconsistent with the close-ups. Between rack-grip-039-M1014-right.png and rack-grip-pulled-039-M1014-right.png, the receiver, trigger guard and fingers shift about 200 px on screen while the handle moves about 40 px. That is more than a 0.9 mm gun move would produce with a fixed camera. Either the camera moved or the body moved; the pictures do not settle which.
+  - "2 drawn parts move, most 46 mm" cannot be checked from the pictures. The handle moves only about 40 px on screen in the right-side pair, and there is no scale reference to confirm 46 mm.

@@ -1,0 +1,41 @@
+Gun 57: light mk18 EXPS3
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-057-light_mk18_EXPS3-right.png)
+   seen: The charging handle (black latch, about x 740-905, y 380-470 on the 1280x800 frame) and the glove thumb tip resting on it (about x 750-915, y 280-395) are at the same screen spot as in rack-grip-057-light_mk18_EXPS3-right.png. The handle has not moved back, and the hand has not moved with it.
+   expected: The charging handle slides back about half a pull (about 49 mm, roughly 150 px along the gun axis at this close-up scale), with the thumb still on it and moving with it.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-057-light_mk18_EXPS3-right.png)
+   seen: The long dark tube to the left of the handle is what changed. Its right end sits at about x 680 here versus about x 500 in rack-grip-057-light_mk18_EXPS3-right.png, so the tube and the narrow section beside it are shifted about 180 px, close to the 49 mm the test reports. The handle does not move.
+   expected: Only the charging handle (and the bolt carrier behind it) moves back. The tube (barrel/handguard) should stay where it was in the base frame.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-057-light_mk18_EXPS3-right.png)
+   seen: The glove thumb tip rests on top of the charging handle, but the other fingers are above and beside it, not curled round it. Only one finger touches the handle, so the hand does not pinch it.
+   expected: Thumb and index finger (or several fingers) wrapped around and pinching the charging handle, so the hand can pull it back.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-057-light_mk18_EXPS3-left.png)
+   seen: The glove lies flat along the top of the upper receiver with the fingers pointing forward toward the sight. The charging handle is hidden under the glove and no finger wraps around any latch.
+   expected: Fingers on the charging handle at the rear of the upper receiver.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-057-light mk18 EXPS3.png)
+   seen: Both eyes are almost black. The only thing at the muzzle position is a tiny dim orange dot (about x 172 and x 470, y 143 on the 606x250 strip) with no visible soft rings. In lens-eyes-057-light mk18 EXPS3.png the same spot is a clear star with rings.
+   expected: A visible star with soft rings near the muzzle on both eyes, the right eye a bit stronger. Soft-flash frames can be dimmer, but this frame reads as no flash at all.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-057-light_mk18_EXPS3.png)
+   seen: Grey-blue translucent discs, roughly 20-70 px across, are spread over the sky, wall and ground of the whole view. The same discs appear at the same spots in lensburst-057-light_mk18_EXPS3.png. None sit around the muzzle, and the eye capture has none of them, so they read as a smudge or dirt overlay rather than flare.
+   expected: Flare confined to the muzzle area: a star with soft rings around the muzzle position and nothing smeared across the scene.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-057-light_mk18_EXPS3.png)
+   seen: At the muzzle (about x 700-720, y 462-478) there is only a small grey smoke puff with no bright flash core. The eye capture puts a bright star at this spot, but it does not come through clearly in the first-person view. The same grey puff shows in lensburst-057-light_mk18_EXPS3.png.
+   expected: A short bright muzzle flash at the muzzle on each shot. The test line says particles only with no flash light, so at minimum a brighter core is expected.
+
+Test line flags:
+  - rack grip 0/4 fingers on the part: confirmed by rack-grip-057-light_mk18_EXPS3-right.png. Only the thumb tip touches the charging handle; the other fingers are not on it.
+  - pulled half way 1/4 fingers on it: rack-grip-pulled-057-light_mk18_EXPS3-right.png shows the thumb in exactly the same screen spot as the base frame, so the hand did not travel with the handle.
+  - 'moving with the hand: the charging handle' and 'drawn: 2 drawn part(s) move, most 49 mm': NOT confirmed. The charging handle is in the same place in rack-grip-057 and rack-grip-pulled-057 (-right). The part that shifts about 180 px (roughly 49 mm at this scale) is the dark tube to the left of the handle, so the test is probably measuring the wrong part.
+  - the gun moved 0.4 mm with the pull: consistent. The receiver stays in the same screen position between the base and pulled -right frames.
+  - half way in (0.0 cm off the magwell line) and seated (0.0 cm from where it was): cannot be confirmed from the pictures. The left glove covers the lower magazine in mag-6-half-in and mag-7-seated-again, and those two frames look almost identical (magazine top at the receiver rim in both). mag-5-lined-up looks on the magwell line.
+  - muzzle flash: particles only, no flash light: consistent with lensflash and lensburst, which show a small grey puff at the muzzle with no bright core.
+  - lens flash shown, strength 0.07: consistent with lens-eyes-057 (clear star and rings, right eye a bit stronger).
+  - lens flash burst flashes L 18 / R 18 (full L 4 / R 4): lens-eyes-burst is almost black and far weaker than the single shot. This fits mostly soft flashes, but the burst frame shows essentially no flash.
+  - cases thrown 22: consistent, about three brass cases are visible on the ground to the right in lensburst-057.

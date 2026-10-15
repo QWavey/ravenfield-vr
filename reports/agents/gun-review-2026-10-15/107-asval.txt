@@ -1,0 +1,59 @@
+Gun 107: asval
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-107-asval.png)
+   seen: Both eye tiles are almost pure black. Each has one tiny dim orange pinpoint (about 5 px) at roughly 57% across and 61% down, with a faint ring barely visible around it. Nothing gets bright. The flare position matches the muzzle position in lensflash-107-asval.png (about 55% across, 58% down).
+   expected: A bright white-orange star with soft halo rings around the muzzle position, the right (gun-side) eye a bit stronger than the left.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-107-asval.png)
+   seen: Same faint pinpoint on both eyes, no stronger than the single-shot lens-eyes picture. No visible build-up across the full-auto burst.
+   expected: A clearly visible bright star with soft rings on each eye, building or staying bright through the burst (budget permitting), right eye a bit stronger.
+
+3. [major] [high] wrong_part_moves  (rack-grip-pulled-107-asval-right.png)
+   seen: Compared with rack-grip-107-asval-right.png, the receiver top block with the black ring and spring slid about 230-290 px toward the stock (image right). At the hand's scale that is roughly 5 cm, matching the 47 mm in the test. The grey gauntlet hand (about x 400-920, y 250-370) did not move at all, so the fingertips are left at the front edge of the slid block and the part pulls out from under them. The gas-tube bar (x 0-660, y 400-520) stayed in place, so it is the receiver top block that moved, not a separate handle.
+   expected: Only a small charging handle or bolt handle moves back about 47 mm, and the pinching fingers travel with it. The receiver body, sight and gas tube stay in place.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-107-asval.png)
+   seen: The muzzle tip (top-left end of the barrel, about 55% across, 58% down) is dark with no glow and no flash particles. The only effects in the frame are ejected brass cases in the air on the right side.
+   expected: The gun's own Muzzle Flash Particles visible at the muzzle on the shot (the test line says they spawn every shot).
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-107-asval.png)
+   seen: During full auto the muzzle tip (about 55% across, 58% down) is still unlit. No flash particles at the barrel end, only brass cases and a small grey object near the top-left wall.
+   expected: Muzzle flash visible at the muzzle while firing full auto, not only lens flash on black.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-107-asval-left.png)
+   seen: The gauntlet's index finger lies along the receiver's left flank (x 240-440, y 240-300) and the palm sits across the receiver body. No separate charging handle is visible for it to pinch. The lower fingers curl in front of the pistol grip (x 420-520, y 480-600) with nothing to close on.
+   expected: Index finger and thumb pinch a distinct charging handle lever on the receiver's left side, with the fingers on that lever rather than on the receiver body.
+
+7. [minor] [medium] mag_wrong_orientation_or_model  (mag-4-in-hand-107-asval.png)
+   seen: The fresh magazine is near-black. The gun's own magazine in mag-1-seated-107-asval.png, same spot and same lighting, is maroon-brown. The dropped copy in mag-2-leaving, the lined-up one in mag-5 and the half-in one in mag-6 are also near-black, and the magazine only turns brown again at mag-7-seated-again. The copies do not look like the gun's magazine.
+   expected: The fresh magazine is the same model with the same colour and texture as the gun's own magazine.
+
+8. [minor] [low] mag_not_into_magwell  (mag-6-half-in-107-asval.png)
+   seen: The magazine's top end, with a brass-coloured feed lip visible, sits right at the underside of the receiver (x about 620-800, y about 265). None of its top is hidden by the receiver, so it reads as touching the magwell opening rather than half-way in. Its lateral line matches the seated magazine.
+   expected: About half of the magazine's top end hidden inside the magwell, the receiver edge covering it, on the same line.
+
+9. [minor] [low] other  (rack-grip-pulled-107-asval-left.png)
+   seen: The brown magazine that sits at the left edge in rack-grip-107-asval-left.png (x 0-230, y 400-780) is not visible here. The frame is also shifted (the orange object moved from top-right to top-left), so it is unclear whether the magazine moved out of view or only the camera changed.
+   expected: The magazine stays where it is during a rack pull, with the same framing as the un-pulled close-up so the two can be compared.
+
+10. [tiny] [low] other  (mag-3-out-107-asval.png)
+   seen: A debug-style label on the grip reads '1 NO MAG', and the lettering looks mirrored from this side.
+   expected: Either readable text from the player's side, or no label on the gun model.
+
+Test line flags:
+  - rack grip (slide/bolt): 'not measured (the part's shape is not ready)' - confirmed: the close-ups show no separate charging handle; the fingers rest on the receiver body (rack-grip-107-asval-left.png, rack-grip-107-asval-right.png).
+  - pulled half way: 'not measured' - but rack-grip-pulled-107-asval-right.png shows the receiver top block sliding about 5 cm back while the hand stays put. The pull happens, but the hand does not follow it.
+  - drawn: '1 drawn part(s) move, most 47 mm' - the visible slide (about 230-290 px, roughly 5 cm at the hand's scale) agrees with 47 mm, so the moving part is real.
+  - 'the nearest is 0.1 cm from the hand' - cannot hold during the pull: in rack-grip-pulled-107-asval-right.png the part moves away from the fingers. At most true at rest.
+  - 'the gun moved 1.2 mm with the pull, 3.0 mm when it went home' - pictures cannot resolve 1.2 mm. The pulled-right frame suggests the rear of the gun (stock and trigger lever) may also shift right relative to the gas tube; not confirmed either way.
+  - 'moving with the hand: an added handle' - no added handle is visible in any close-up; the fingers grip the receiver body. Not confirmed.
+  - magazine (deep): 'dropped copy 0.0 cm across the pull, 2.3 cm out' - mag-2-leaving-107-asval.png shows the copy dropping straight below the magwell with no visible sideways offset, so consistent. But the copy is near-black where the gun's magazine is brown (bug 4 above).
+  - 'in the hand: 3.1 cm from the palm' - mag-4-in-hand-107-asval.png: the magazine runs up past the palm with its lower end behind the hand, so a few cm offset is plausible. The picture does not clearly confirm a finger grip.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' - lateral line in mag-6-half-in-107-asval.png matches the seated line, but the magazine top looks at the opening, not half-way inside (bug above).
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' - mag-7-seated-again-107-asval.png matches mag-1-seated-107-asval.png. Confirmed.
+  - muzzle flash: 'particles Muzzle Flash Particles, 75 cm, every shot' - no flash visible at the muzzle in lensflash-107-asval.png or lensburst-107-asval.png. Contradicts the particle claim as seen in the pictures.
+  - 'lens flash shown, strength 0.07' and 'strongest soft flash 0.09' - lens-eyes-107-asval.png shows the flash barely visible. Consistent with the low number, which is the visible bug.
+  - 'lens flash burst: 19 shots in 1.4 s, flashes L 18 / R 18 (full L 4 / R 4)' - lens-eyes-burst-107-asval.png shows no stronger flash than the single shot. Counts cannot be checked from a still.
+  - 'fired 3/3; cases thrown: 22' - lensburst-107-asval.png shows brass cases in flight. Consistent.
+  - 'magazine: seated, 21 rounds' - the ammo label on the grip is too small to read at this size. Not confirmed.

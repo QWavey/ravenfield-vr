@@ -1,0 +1,36 @@
+Gun 84: [comm]92g(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-084-_comm_92g_No_script_-left.png)
+   seen: Same camera and same glove as rack-grip-084-_comm_92g_No_script_-left.png. The glove back, its index fingertip (about x 230-290, y 410-455) and the slide top edge (y about 322-330) stay where they were. The trigger guard, grip and magazine base (magazine base about x 510-690 before, x 420-600 after, y 570-690) have slid about 90-110 px to the left, toward the muzzle. The slide does not visibly move back in front of the frame; the receiver moves forward instead.
+   expected: Only the slide moves rearward (toward the glove, to the right in this view) by the amount the test reports (34 mm), with the index finger staying on it. The trigger guard, grip and magazine base stay where they were.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-084-_comm_92g_No_script_-right.png)
+   seen: Same camera as rack-grip-084-_comm_92g_No_script_-right.png. The glove, its index finger and the slide's silver ejection-port highlight (about x 960-1125, y 420-452) do not move. The small round pin at the rear of the frame moves from about x 565 to x 710, and the trigger lever from about x 640-770 to x 800-930, roughly 150 px to the right (toward the muzzle in this view). The slide's rear edge shifts only slightly. The receiver moves forward while the slide stays put.
+   expected: The slide slides back (left in this view) relative to the frame, with the index finger on its top. The frame, pin and trigger stay still.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-084-_comm_92g_No_script_.png)
+   seen: In this first-person rack-grip shot the free left hand is not visible at all. In weapon-084 it sits at about x 540-630, y 590-690. Here the slide top (about x 728-820, y 548-600) has no glove on it, although the -left and -right close-ups show the glove on the slide. rack-grip-pulled-084-_comm_92g_No_script_.png (first-person) has the same missing hand.
+   expected: The left-hand fingers pinching the slide top, visible in the first-person view.
+
+4. [tiny] [low] other  (rack-grip-pulled-084-_comm_92g_No_script_-right.png)
+   seen: A brass-coloured cylinder sits against the outside right side of the slide at about x 1210-1280, y 440-500, outside the ejection port. The gold piece inside the port (x 1005-1040) could be a chambered round, but this one looks stuck to or clipping the slide side. It is not in the unpulled -right close-up.
+   expected: Either nothing there, or a round visibly leaving through the ejection port, not sitting on the outside of the slide.
+
+5. [minor] [low] mag_not_in_hand  (mag-4-in-hand-084-_comm_92g_No_script_.png)
+   seen: The fresh magazine (feed end up, toward the grip, which is correct) goes behind the top ridge of the left glove (about x 370-530, y 280-380). The fingertips (x 390-500, y 380-440) sit below it. It looks more like resting on or passing behind the hand than being wrapped in the fingers.
+   expected: Fingers visibly wrapped around the magazine body, feed end toward the gun.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-084-[comm]92g(No script).png)
+   seen: Background of both eyes is dark brown with a lighter tan haze in the lower right, cut off at rounded panel edges (about x 298 on the left panel and x 605 on the right). Flare star and rings are present at about 0.6 of panel width, and the right eye is a bit stronger, which is correct.
+   expected: Pure black background so the flare reads on black.
+
+Test line flags:
+  - 'pulled half way ... moving with the hand: the slide / bolt' and 'drawn: 1 drawn part(s) move, most 34 mm': the two pulled close-ups (rack-grip-pulled-084-_comm_92g_No_script_-left.png and -right.png) do not show the slide moving. The glove, the index fingertip and the slide's ejection-port highlight stay put while the trigger guard, grip and magazine base shift about 90-150 px. The picture contradicts this: the part that moves looks like the receiver, not the slide. Picture confirms.
+  - 'the gun moved 0.6 mm with the pull': the same two close-ups show the receiver shifting roughly 90-150 px at close-up scale, which is far more than 0.6 mm. Picture contradicts it, if the close-ups are correct.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in shows the magazine on the grip axis, so the line is consistent. The depth cannot be confirmed because the left glove covers the magazine base, and the magazine looks as deep as in mag-7. Not confirmed.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': mag-7-seated-again has the base plate at the same spot as mag-1-seated. Consistent.
+  - 'magazine (deep): dropped copy ... 2.2 cm out': mag-2-leaving shows the magazine base dropped below the grip bottom by a visible gap, consistent in order of magnitude; the exact 2.2 cm cannot be checked. The dropped magazine visible in mag-2 is gone in mag-3 with nothing on the ground under the gun before mag-4 shows a magazine in hand. The test says it was picked up, so this may just be timing, but it is worth checking for a vanishing magazine.
+  - 'racked: chambered': a brass rim is visible inside the ejection port in rack-grip-pulled-084-_comm_92g_No_script_-right.png (about x 1005-1040, y 425-455). Consistent.
+  - 'lens flash shown, strength 0.88' and 'muzzle flash ... every shot': lensflash-084 shows a bright flash at the muzzle with a large halo, and lens-eyes shows the right eye a little stronger. Consistent.
+  - 'fired 3/3', 'cases thrown: 3', 'in the hand: 3.5 cm from the palm', 'recoil' values: cannot be verified from the pictures.

@@ -1,0 +1,35 @@
+Gun 87: [comm]f2k(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_not_on_part  (rack-grip-087-_comm_f2k_No_script_-left.png)
+   seen: Gloved left hand lies on top of the receiver. The index finger rests on the picatinny rail segment (about x 280-420, y 340-410) and the thumb sits on the top plate just right of the ribbed piece (about x 170-340, y 262-290). No finger closes around the ribbed piece; it is left of the thumb, outside the grip.
+   expected: The fingers pinch the racking part itself (charging handle), fingertips on the handle, not on the rail beside it. Test says 1/4 fingers on the part, which fits this picture.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-087-_comm_f2k_No_script_-left.png)
+   seen: Same framing and same pose as rack-grip-087-_comm_f2k_No_script_-left.png: glove at the same spot (x 280-880, y 215-530), ribbed piece still at x 170-340, y 262-290, latch at x 0-170, y 245-320, rail unchanged. Nothing has moved back toward the stock (right of frame) and no part travels with the hand. The test's 57 mm movement is not visible here.
+   expected: The charging part pulled about half way back toward the grip/stock (rightwards in this view), the glove moving with it, and the part's new position visible against the rail.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-087-_comm_f2k_No_script_.png)
+   seen: First-person frame on a shot with no flash at the muzzle (around x 715-745, y 485-510) and no glow in front of it, even though an ejected case is already in the air at about (880-900, 478-492).
+   expected: An orange muzzle flash at the muzzle tip, as lensburst-087_comm_f2k_No_script_.png shows (flash centred near x 700, y 495).
+
+4. [major] [high] picture_unusable  (lens-eyes-087-[comm]f2k(No script).png)
+   seen: Entirely black 606x250 frame. Neither the left nor the right eye shows any flare, although the test line says the lens flash was shown at strength 0.90.
+   expected: Left and right eye side by side, each with a bright star and soft rings near the muzzle, right (gun side) a bit stronger, as lens-eyes-burst-087 shows.
+
+5. [minor] [low] other  (mag-5-lined-up-087-_comm_f2k_No_script_.png)
+   seen: A black cylinder with a rounded cap sits at the right edge (about x 1190-1280, y 490-680). It is not olive like the magazines and is not an identifiable part of this gun. It does not appear in mag-4, mag-6 or mag-7.
+   expected: Only the fresh magazine should be in the reload frame. This extra black object is unexplained and should be checked (stray part or wrong object).
+
+6. [tiny] [low] other  (rack-grip-pulled-087-_comm_f2k_No_script_-right.png)
+   seen: A thin white zigzag line sits at the bottom edge of the receiver (about x 860-880, y 730-780). A similar small white dash appears at about x 600-612, y 735-765 in rack-grip-087-_comm_f2k_No_script_-right.png. Neither looks like part of the gun model.
+   expected: Clean model edge at the bottom of the receiver; if this is a debug line or particle artifact it should not show in the frame.
+
+Test line flags:
+  - "dropped magazine picked up and seated, 29 rounds kept" vs "magazine: seated, 30 rounds" in the same line: the count goes from 29 to 30 on reseat. The small HUD label on the grip is unreadable in the pictures, so this is not confirmed either way.
+  - "rack grip 1/4 fingers on it" and "pulled half way ... 0/4 fingers on it" with "moving with the hand: the slide / bolt": the left close-up pair (rack-grip-...-left and rack-grip-pulled-...-left) is identical in glove position and part position, so the pictures do not show the hand moving a part. The pulled picture contradicts the 'moving with the hand' claim.
+  - "drawn: 3 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand": no 57 mm movement is visible in the left pair. The right pair cannot be compared directly because the camera framing differs (sea behind rack-grip-...-right, olive cliff wall behind rack-grip-pulled-...-right).
+  - "lens flash shown, strength 0.90" and "muzzle flash ... every shot": lens-eyes-087 is black and lensflash-087 shows no muzzle flash, so the single-shot pictures contradict these numbers. lensburst-087 and lens-eyes-burst-087 do show the flash, consistent with the burst numbers.
+  - "lens flash burst: flashes L 20 / R 20 (full L 4 / R 3) ... strongest soft flash 0.34": lens-eyes-burst-087 shows a star with soft rings on both eyes, the right (gun side) a bit stronger, which fits. Not contradicted.
+  - "magazine (deep): dropped copy ... 2.8 cm out": no dropped magazine is visible on the grass in mag-3-out or mag-4-in-hand, so the dropped copy cannot be confirmed by picture.
+  - "half way in (on the rail): 0.0 cm off the magwell line" and "seated: ... 0.0 cm from where it was": mag-6-half-in, mag-7-seated-again and mag-1-seated sit on the same magwell line, so the pictures agree. Reload sequence otherwise checked: magazine drops along its line (mag-2), magwell empty (mag-3), fresh magazine held (mag-4), no second magazine in any frame.

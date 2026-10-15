@@ -1,0 +1,52 @@
+Gun 21: PATRIOT TAC
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [high] hand_not_on_part  (rack-grip-021-PATRIOT_TAC-right.png)
+   seen: Close-up from the right: the free (left) gauntlet lies flat across the top of the handguard / upper receiver, fingers pointing forward along the rail. The thumb tip rests on top of the small latch bump at about x 770-890, y 390-440 (1280x800 frame), but none of the fingers wrap around it. The left close-up (rack-grip-021-PATRIOT_TAC-left.png) shows the same flat hand. The test line agrees: 0/4 fingers on the part.
+   expected: The left hand pinches the charging handle, with fingers on its latch/tab, so the handle sits under the fingers and the hand can pull it back.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-021-PATRIOT_TAC-right.png)
+   seen: Compared with rack-grip-021-PATRIOT_TAC-right.png, the hand is unchanged on screen (thumb, cuff and fingertips stay at the same pixels), but the parts around it shift rearward by about 165-185 px: the front-sight post (about x 678 to 862), the receiver plate behind the thumb (x 700-770 to 880-960), and the optic housing (left edge x 985 to 1150, partly out of frame). The latch under the thumb stays where it was. The left pair shows the same kind of shift (optic about x 215 to 100, sight post x 615 to 490, roughly 115-125 px). So the upper receiver and sight slide back while the hand stays put, instead of the charging handle moving with the hand.
+   expected: Only the charging handle slides back about half way, and the hand moves back with it. The receiver, optic and front sight stay still.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-021-PATRIOT_TAC.png)
+   seen: First-person frame during the pull: the free hand is not on the gun. It floats in the grass to the left of the handguard (about x 540-660, y 585-700), well away from the receiver. In the pre-pull frame rack-grip-021-PATRIOT_TAC.png the same hand is only a sliver at the bottom edge, far below the gun. The hand in the close-ups over the receiver does not match where it appears in the first-person view.
+   expected: The free hand sits on the charging handle on the upper receiver, near the rear of the gun, before and during the pull.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-021-PATRIOT_TAC.png)
+   seen: The fresh magazine (dark slab, about x 420-630 from the top edge down to y ~290) rests on top of the glove's knuckles / index ridge instead of being held in the hand. The fingers (about x 350-600, y 370-520) curl beneath it and do not wrap around the magazine body. The test line agrees: 3.2 cm from the palm.
+   expected: Fingers wrap around the magazine body with the palm under it, magazine upright with its feed end toward the gun.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-021-PATRIOT_TAC.png)
+   seen: First-person frame on a shot: nothing visible at the muzzle. The barrel tip (about x 690-720, y 470-500) shows only the front-sight post. No muzzle sparks or flash burst, although the test says 'Muzzle Sparks' 70 cm every shot.
+   expected: A bright muzzle flash or spark burst at the barrel tip in the frame of the shot.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-021-PATRIOT_TAC.png)
+   seen: First-person frame during full auto: smoke puffs in the sky and impact smoke on the horizon show shots were fired, but the barrel tip (about x 690-720, y 470-500) shows no flash or sparks, at most a faint speck.
+   expected: The gun's muzzle flash visible at the muzzle on the shots of the burst.
+
+7. [major] [high] picture_unusable  (lens-eyes-burst-021-PATRIOT TAC.png)
+   seen: Entirely black frame for both eyes: no flare, no star, no rings. The test line counts 7 flashes per eye in this burst, so the capture landed between flashes or the flash did not render.
+   expected: Flares at the muzzle position for each eye (right a bit stronger), as in lens-eyes-021-PATRIOT TAC.png, or a visible sequence of them.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-021-PATRIOT TAC.png)
+   seen: Left and right flares are present at the muzzle position (about 57% across each half, 59% down), with the right eye slightly stronger, which is correct. But each is a tiny dim speck (about 5 px core) with faint rings, barely above black, so the flash reads as almost nothing on screen.
+   expected: A clearly bright star with soft rings, readable on screen.
+
+9. [minor] [low] optic_or_sight_issue  (weapon-021-PATRIOT_TAC.png)
+   seen: A solid black disc (about x 828-865, y 548-588) overlaps the right edge of the red-dot housing (about x 760-830, y 515-580). No red reticle is visible through the optic. The same black disc appears in the other first-person frames and floats above the receiver in the close-ups, so it is not clearly part of the gun.
+   expected: A red dot visible through the optic lens, and no black blob on the gun.
+
+10. [minor] [low] mag_wrong_orientation_or_model  (mag-5-lined-up-021-PATRIOT_TAC.png)
+   seen: The fresh magazine (about x 630-760, y 535-740) renders as an unshaded near-black slab, while the gun's own magazine in mag-1-seated-021-PATRIOT_TAC.png is olive like the receiver. This may be a material or lighting mismatch, or a different magazine model.
+   expected: Same magazine model and material as the gun's own magazine, shaded like it.
+
+Test line flags:
+  - rack grip and pulled half way '0/4 fingers on it': confirmed. rack-grip-021-PATRIOT_TAC-right.png and -left.png show the fingers lying over the rail, not on the handle.
+  - 'moving with the hand: the charging handle': not confirmed. On screen the hand does not move between rack-grip and rack-grip-pulled close-ups; the receiver, sight and plate shift instead (rack-grip-pulled-021-PATRIOT_TAC-right.png).
+  - 'the gun moved 0.9 mm with the pull': contradicted in the close-ups, where the sight and upper receiver shift about 115-185 px. The root measurement probably missed the wrong part moving.
+  - 'drawn: 2 drawn part(s) move, most 37 mm; the nearest is 0.0 cm from the hand': the moving parts seen are the receiver and sight, not the handle under the thumb. The 0.0 cm contact is at most the thumb touching the latch.
+  - 'in the hand: 3.2 cm from the palm': confirmed by mag-4-in-hand-021-PATRIOT_TAC.png. The magazine rests on the glove, not in the palm.
+  - 'muzzle flash: particles Muzzle Sparks, 70 cm, every shot': not confirmed. No sparks at the muzzle in lensflash-021-PATRIOT_TAC.png, lensburst-021-PATRIOT_TAC.png or weapon-021-PATRIOT_TAC.png.
+  - 'lens flash burst: 14 shots, flashes L 7 / R 7 (full L 5 / R 5)': half the shots give no lens flash, which looks like the 6-per-1.1 s budget cutting flashes. The burst picture (lens-eyes-burst-021-PATRIOT TAC.png) is black, so it cannot confirm or refute the count.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': line-up looks right in mag-6-half-in-021-PATRIOT_TAC.png, but its magazine top already sits at the magwell lip, so it looks almost the same as seated (mag-1). The half-way step is hard to tell apart from seated in the picture.

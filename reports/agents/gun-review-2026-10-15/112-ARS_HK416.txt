@@ -1,0 +1,48 @@
+Gun 112: ARS HK416
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] picture_unusable  (lens-eyes-burst-112-ARS HK416.png)
+   seen: The whole image is flat black. No flare or star on the left eye, none on the right, no soft rings, no glow anywhere. The test line agrees: flashes L 0 / R 0, strongest soft flash 0.00.
+   expected: A bright star-shaped flare near the muzzle with soft rings on both eyes, the right eye a bit stronger, on black.
+
+2. [major] [high] mag_duplicate_or_missing  (mag-2-leaving-112-ARS_HK416.png)
+   seen: The gun's own magazine is still fully seated, in the same place as in mag-1 (about x 520-720, y 615-800, flush under the magwell). Nothing is dropping out of the magwell and no dropped copy is in frame. The magazine is gone by mag-3, so it vanishes without a visible drop.
+   expected: The magazine sliding straight down out of the magwell along its line, partly out, before it is gone.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-112-ARS_HK416.png)
+   seen: The fresh olive magazine (same model) stands upright behind the left hand, roughly x 415-615, running from the top edge down behind the palm. The glove is flat with the fingers pointing left, none curled around the magazine body. Its lower end hides behind the palm instead of sitting in the fingers. The test line says 3.7 cm from the palm, which fits.
+   expected: Fingers wrapped around the magazine body, the magazine held in the hand with its feed end toward the gun.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-112-ARS_HK416-left.png)
+   seen: Compared with rack-grip-112-ARS_HK416-left.png, the glove is exactly where it was, but the rear sight, the magazine, the pistol grip and the buttstock's rear plate all sit about 100 px further left. The receiver body slides under the hand. The charging handle does not visibly travel back with the fingers. The right hand moved along with the grip.
+   expected: Only the charging handle moves back, with the fingers on it. The rest of the gun stays still.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-112-ARS_HK416-right.png)
+   seen: Compared with rack-grip-112-ARS_HK416-right.png, the glove and the beige charging-handle knob stay put. The barrel, the tan ring and the black block behind the knob all move about 200 px further right (toward the rear). A thin beige bar now runs from the knob back to about x 1130. The knob stays under the fingers while the gun body around it moves, so the handle looks stretched or the receiver slides instead of the handle moving alone. The left and right views move the gun in opposite screen directions, so this is not one rigid slide.
+   expected: The charging handle slides back (test says 129 mm) with the fingers on its knob, while the barrel and receiver stay still.
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-112-ARS_HK416.png)
+   seen: The fresh magazine (orange feed lips at its top, x 595-725) sits well below the receiver. About 320 px of sea and sky lie between the magwell bottom and the magazine top, roughly a magwell-height or more. It is under the gun but not at the magwell. Only a dark glove edge shows at the bottom frame edge, so the carrying hand is probably off-screen.
+   expected: The feed end right at the magwell mouth, on the magwell's line.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-112-ARS_HK416.png)
+   seen: At the muzzle (about x 690-720, y 480-510) there is only a small faint grey-white puff. No bright flash and no lens spill show in the first-person frame during full auto.
+   expected: A clear bright muzzle flash at the muzzle, with a lens flash spill on screen.
+
+8. [minor] [low] hand_not_on_part  (weapon-112-ARS_HK416.png)
+   seen: No right hand is visible in the frame. The pistol grip shows only as a dark shape at the bottom edge with no fingers wrapped around it. The left glove floats in the grass as the free hand, which is expected.
+   expected: The right hand wrapped around the pistol grip, with the gun pointing forward.
+
+9. [tiny] [low] other  (mag-7-seated-again-112-ARS_HK416.png)
+   seen: A dotted line of small specks runs from the top edge of the frame down to the rear sight. It is probably a casing or dust trail, or a debug line. Nothing should be there after the reload.
+   expected: Clear sky above the rear sight.
+
+Test line flags:
+  - lens flash burst 'flashes L 0 / R 0, strongest soft flash 0.00': CONFIRMED by lens-eyes-burst-112-ARS HK416.png, which is entirely black.
+  - muzzle flash 'particles MuzzleTransform, 80 cm, the flash light' with 'lens flash none': NOT visibly confirmed. lensburst-112-ARS_HK416.png shows only a faint puff at the muzzle, no bright flash.
+  - 'the gun moved 1.3 mm with the pull, 2.9 mm when it went home': CONTRADICTED by rack-grip-pulled-112-ARS_HK416-left.png and -right.png. The gun body shifts about 100-200 px in those close-ups while the hand stays put, far more than 1.3 mm. Either the root is the only thing measured or the receiver mesh/bones are moving.
+  - 'drawn: 2 drawn part(s) move, most 129 mm; the nearest is 0.0 cm from the hand': NOT confirmed. In rack-grip-pulled-right the knob stays under the fingers and the body around it slides, so the handle does not visibly travel 129 mm with the hand.
+  - 'rack grip ... the part draws no mesh of its own': QUESTIONABLE. A beige charging-handle knob is clearly drawn in rack-grip-112-ARS_HK416-right.png and its pulled version, so the handle does have visible geometry and the 129 mm figure may be on a different part.
+  - 'in the hand: 3.7 cm from the palm': CONFIRMED by mag-4-in-hand-112-ARS_HK416.png. The magazine sits behind the palm and is not held in the fingers.
+  - 'half way in (on the rail): 1.8 cm off the magwell line': NOT confirmed. mag-6-half-in-112-ARS_HK416.png shows the magazine centred under the magwell within a few px. A depth offset would not show in a side view, so this is unverifiable from the picture.
+  - 'dropped copy 1.8 cm across the pull ... 12.4 cm out, size x1.77': NOT confirmed. No picture shows the dropped copy beside the gun's magazine, and mag-2-leaving-112-ARS_HK416.png shows the gun's magazine still seated with nothing dropping.

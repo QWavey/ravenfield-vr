@@ -1,0 +1,54 @@
+Gun 59: P320s
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-059-P320s.png)
+   seen: First-person pulled shot: the free left hand is back at its idle spot in mid-air, a gloved fist roughly 120-200 px left of the gun and low (about x 540-630, y 590-690). In the matching rack-grip-059-P320s.png the same hand is on the gun's slide (about x 745-850, y 590-720). So during the pull the hand has left the slide.
+   expected: The left hand still pinching the slide and moving back with it, fingers on the slide at its rear, as in rack-grip-059-P320s.png.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-059-P320s.png)
+   seen: The fresh brown magazine is not clasped. Its top sticks up out of the back of the left hand (upper left, about x 345-420, y 165-290), its middle passes behind the knuckles, and its lower end (about x 460-510, y 390-450) sits at the fingertips. The fingers do not close around the body, so it looks like it floats beside the hand, consistent with the test's 4.2 cm.
+   expected: Fingers wrapped around the magazine body, magazine held firmly in the hand with the feed end toward the gun.
+
+3. [major] [medium] mag_floating_or_offset  (mag-2-leaving-059-P320s.png)
+   seen: While the magazine drops, a brown panel (the magazine's front face) shows on the front of the grip from just under the trigger guard (about x 545-610, y 315) down to about y 600. The grip's front wall should hide the magazine. Only the base plate (about x 590-710, y 575-625) has dropped out below the grip; the magazine body sits in front of or through the front wall rather than inside the handle.
+   expected: Magazine dropping straight down inside the handle cavity, only its base showing below the grip, and the grip front clean tan like mag-1-seated-059-P320s.png.
+
+4. [major] [medium] mag_not_into_magwell  (mag-6-half-in-059-P320s.png)
+   seen: Same brown panel on the front of the grip (about x 545-610, y 315-600) as in mag-2-leaving. The magazine base (about x 590-710, y 575-640) is under the grip, but the body above it shows on the grip's front instead of sliding up inside the handle, so it is not going into the magwell cleanly.
+   expected: Half-way magazine entering the grip bottom on its axis, hidden by the grip walls above the base.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-059-P320s-left.png)
+   seen: Compared with rack-grip-059-P320s-left.png, the hand and slide sit at the same screen spots: the index fingertip at about x 225-265, y 415-460 in both, the back of the hand at about x 465-870, y 230-480 in both, and the slide serrations at about x 125-230, y 380-420 in both. No visible backward travel of the slide and no backward movement of the hand, although the test says 19 mm. The -right pulled close-up looks the same at the fingertip.
+   expected: Slide visibly moved back (about 19 mm) with the fingers moving with it, shifting the hand and the slide's rear in the close-up.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-059-P320s-left.png)
+   seen: Only the index fingertip reaches the slide, at its lower edge where it meets the frame (about x 225-265, y 415-460). The middle and ring fingers hang below the slide over the frame rail and the top of the trigger guard (about x 300-470, y 420-530). The palm sits above and behind the slide. The test's 1/4 fingers on the part agrees.
+   expected: Fingers on the slide's serrated top and sides, pinching the slide, not hanging over the frame and trigger guard.
+
+7. [minor] [low] part_floating_or_detached  (rack-grip-pulled-059-P320s-left.png)
+   seen: A brass cartridge stands up above the slide at the ejection port (about x 300-390, y 300-330), above the slide's top line (about y 330). It is not in rack-grip-059-P320s-left.png. In rack-grip-pulled-059-P320s-right.png the round sits inside the port instead.
+   expected: A chambered round, if shown, sits inside the port below the slide's top surface.
+
+8. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-059-P320s.png)
+   seen: The fresh magazine, held low by the left hand (about x 555-640, y 545-720), has its top about 60-70 px forward of the grip base centre (base about x 610-715) and about 90 px below the grip. It sits under the front half of the grip rather than on the magwell line.
+   expected: Magazine right under the magwell, centred on the grip axis, as in mag-2-leaving's dropped base.
+
+9. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-059-P320s.png)
+   seen: On black, each eye shows only a small dim orange star (about 15-20 px) with faint rings, hard to see at a glance. The right eye is a bit stronger with a larger ring, which is right. The test's lens flash strength 0.13 matches this weak result.
+   expected: A clearly visible bright star at the muzzle with soft rings, the right eye a bit stronger.
+
+10. [tiny] [low] other  (weapon-059-P320s.png)
+   seen: Translucent blue discs drift over the sky, sea and wall in rack-grip-059-P320s.png, rack-grip-pulled-059-P320s.png and weapon-059-P320s.png, but not in lensflash-059-P320s.png. They look like smoke puffs or lens droplets, not gun geometry. Not clearly a gun bug.
+   expected: Nothing floating over the scene unless it is intended smoke from the shots.
+
+Test line flags:
+  - rack grip: 1/4 fingers on the part: consistent with rack-grip-059-P320s-left.png, where only the index fingertip touches the slide's lower edge.
+  - pulled half way: 2/4 fingers on the part: NOT confirmed. In rack-grip-pulled-059-P320s.png the free hand is back in mid-air away from the slide, and the pulled close-ups show the fingers where they were before the pull.
+  - drawn: 1 drawn part moves, most 19 mm: NOT confirmed by the pictures. The slide and fingertip in rack-grip-pulled-059-P320s-left.png and -right.png sit at the same screen spots as in the rack-grip shots.
+  - in the hand: 4.2 cm from the palm (FLOATS BESIDE THE HAND): CONFIRMED by mag-4-in-hand-059-P320s.png, the magazine sticks out beside and above the hand rather than being clasped.
+  - half way in (on the rail): 0.0 cm off the magwell line: PARTLY CONTRADICTED by mag-6-half-in-059-P320s.png. The base lines up, but the body shows on the front of the grip, which suggests a forward offset.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED. The base plate in mag-7-seated-again-059-P320s.png is where it was in mag-1-seated-059-P320s.png.
+  - magazine: seated, 17 rounds: consistent with the '16+1' label visible in the first-person shots.
+  - lens flash shown, strength 0.13: CONFIRMED weak. The lens-eyes flare is a small dim star, see lens-eyes-059-P320s.png.
+  - muzzle flash: particles 'Flame', 100 cm, every shot: consistent with the small yellow flame at the muzzle in lensflash-059-P320s.png. The 100 cm size cannot be checked from the picture.
+  - racked: chambered: a brass round is visible at the ejection port in the pulled close-ups, consistent with a chambered round, but see the floating round note on rack-grip-pulled-059-P320s-left.png.

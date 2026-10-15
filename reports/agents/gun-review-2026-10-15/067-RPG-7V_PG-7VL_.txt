@@ -1,0 +1,18 @@
+Gun 67: RPG-7V [PG-7VL]
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-067-RPG-7V [PG-7VL].png)
+   seen: Both eye panels show a rounded-rectangle tile. The warm brown glow in the lower-right of each tile runs right up to the tile's edge and stops with a visible outline, so the lens-flash background has a hard boundary (left tile right edge near x=290 of 300, right tile near x=600). Outside the tile is pure black.
+   expected: The lens-flash background should fade smoothly to black with no visible rectangle or rounded-corner edge. Only the star and soft rings should be visible on black.
+
+2. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-067-RPG-7V_PG-7VL_.png)
+   seen: A faint vertical light band sits in the sky at the top-right edge, about x=1200-1240, running from the top edge down to about y=400. The muzzle flash centre is near x=700, y=480, so the band is far from it. weapon-067 shows no such band at that spot, so it appears only during the flash.
+   expected: Lens streaks and ghosts should lie on the line from the flash through the screen centre. A column of light at the far right edge is not explained by the flash position and should not be there.
+
+3. [tiny] [low] hand_pose_wrong  (weapon-067-RPG-7V_PG-7VL_.png)
+   seen: The free left hand is drawn in mid-screen over the grass, around x=540-630, y=585-690, with fingers spread. No forearm or wrist reaches a screen edge, so the hand looks detached from any arm.
+   expected: The free left hand (the test's stated pose) should look attached to an arm at the lower-left of view, not floating in mid-air. This is only a visual concern, not a gun-grip problem.
+
+Test line flags:
+  - Two-hand recoil reads exactly 0.0 deg and 0.0 cm, and two-hand impulse exactly 0 deg/s, while one-hand gives 3.4 deg climb, 0.7 cm back and 489 deg/s. Exact zeros for the two-hand state look suspicious. No picture confirms it: weapon-067 shows the left hand free, not on the gun, so the two-hand state is not captured. Check that the two-hand measurement really had the left hand gripping the gun.
+  - Lens flash strength 0.98: the first-person lensflash-067 picture is washed out over a large area around the muzzle, but much of that is the smoke cloud. lens-eyes-067 shows only a moderate flare on black. Not clearly confirmed as too strong.

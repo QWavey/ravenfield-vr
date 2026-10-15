@@ -1,0 +1,20 @@
+Gun 81: mwii-g17 rmr s
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-081-mwii-g17_rmr_s-right.png)
+   seen: Compared with rack-grip-081-mwii-g17_rmr_s-right.png, the framing is the same. The slide front edge is still at about x=620 with its top at y=455, the trigger guard is still at x 960-1140, the grip is in the same place, and the left index finger still lies across the slide at x 630-850. Nothing shifts relative to the frame. The only change is a brass case that appears in the ejection port at about x 1030-1090, y 465-505.
+   expected: After the half pull the slide should sit visibly further back toward the grip, roughly 100 px to the right at this close-up scale (about 30 mm). The index finger and thumb should travel with it and stay on the slide. The brass in the port is fine as a chambered round.
+
+2. [minor] [low] other  (rack-grip-pulled-081-mwii-g17_rmr_s-left.png)
+   seen: Against rack-grip-081-mwii-g17_rmr_s-left.png, the left glove and the slide top stay in the same place. The trigger guard, grip and right-hand wrist cuff sit about 70-85 px further left (trigger guard tip at x about 215 instead of about 305, grip right edge at about 620 instead of about 690). A brass case also appears on the slide top near x 310-345.
+   expected: A rear pull should move the slide relative to the frame while the frame (trigger guard, grip, right hand) stays put. The test line says the gun moved 0.4 mm, so this sideways shift of the lower gun is unexpected. It is either the gun moving or the camera; needs a check.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 7 drawn part(s) move, most 30 mm' are not confirmed by the close-ups. In rack-grip-pulled-...-right.png the slide and the index finger sit at the same pixels as in the pre-pull frame. The first-person pair does look different: in rack-grip-pulled-...png the glove-and-slide mass sits nearer the camera and lower than in rack-grip-...png, which fits a real rearward motion. So the close-up camera may not follow the motion, or the slide motion may be missing from the close-ups. Confirm which.
+  - 'pulled half way: 2/4 fingers on it' is consistent: the index finger and thumb still rest on the slide in both pulled close-ups. They do not appear to travel with the slide, though.
+  - 'the gun moved 0.4 mm with the pull' does not fit the pulled-left close-up, where the lower gun appears about 70-85 px off its pre-pull position relative to the glove (see the low-confidence item above).
+  - 'racked: chambered' is consistent: brass is visible in the ejection port (pulled-right) and on the slide top (pulled-left) only in the pulled frames, not before the pull.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is consistent. In mag-6 the fresh magazine's base sits about midway between the seated base (mag-1, same height as mag-7) and the dropped position (mag-2) on the grip line.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' is consistent: mag-7 matches mag-1 (base plate at the same height, no second magazine, hand not inside the gun).
+  - 'lens flash shown, strength 0.76' and the muzzle flash are consistent: lens-eyes shows a flare at about 57-61% across and 68% down on each eye panel, the right eye a bit stronger, and lensflash-081 shows the flash at the muzzle at about 56%, 67% of the frame. No empty eye, no hard edges on the flare.
+  - Reload pictures mag-1 to mag-7 look correct: the magazine is seated in the grip (mag-1), drops straight out along the grip line (mag-2), the magwell is empty (mag-3), a fresh magazine is held in the left hand (mag-4), it lines up under the well (mag-5), it is halfway in (mag-6), and it is seated again with no second magazine (mag-7).

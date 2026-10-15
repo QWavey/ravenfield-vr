@@ -527,7 +527,6 @@ namespace RavenfieldVR.Weapons
                 Transform slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w);
                 MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler);
-                MagKickRule(d, w);
                 ReclassifyAdvancedReload(d, w);
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
                 FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
@@ -555,6 +554,7 @@ namespace RavenfieldVR.Weapons
             }
 
             FinishVirtualParts(d);
+            MagKickRule(d, w); // after the virtual magazine's seat is set: before, a virtual magazine was judged at no seat
             ArChargingHandle(d);
             BoltInsideOnSurface(d);
             ForwardSideHandle(d);

@@ -1631,7 +1631,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (held.OnRail)
                 {
-                    held.ShowAt(held.RailPose(SeatPose));
+                    held.ShowOnRail(held.RailPose(SeatPose));
                 }
                 else
                 {

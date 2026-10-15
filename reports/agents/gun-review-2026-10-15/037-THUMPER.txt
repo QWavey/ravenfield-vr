@@ -1,0 +1,20 @@
+Gun 37: THUMPER
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-037-THUMPER.png)
+   seen: On the shot frame the lens star sits at about (690,505), right at the barrel tip (tip around x 700-740, y 505-525), with two soft ghost rings at about (630,380) and (665,450). No fireball, sparks or flash body is visible at the muzzle; the barrel tip is only lightly lit. The flash reads as a lens glare, not a muzzle flash.
+   expected: A short bright muzzle flash (particle burst or sprite) at the barrel tip on the shot frame, lighting the barrel and the smoke just in front of it, with the lens star on top of it.
+
+2. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-037-THUMPER.png)
+   seen: Each eye panel has a faint tinted rounded-rectangle region that ends in a visible edge instead of fading out: the left-eye tint stops at about x 298 with a rounded bottom-right corner, and the right-eye tint has a curved boundary near x 360-370. The flare centre is consistent between the eyes (left about (172,155), right about (470,155) on the full sheet), and the right eye is a little stronger.
+   expected: The lens glow fades smoothly to black with no visible outer boundary or hard edge.
+
+3. [tiny] [low] other  (weapon-037-THUMPER.png)
+   seen: A small olive-green object floats about 30 px above the barrel at about (700-738, 510-528) with no visible connection to the gun. It could be a distant vehicle or unit, or a detached part; the picture does not settle which.
+   expected: Nothing floating above the barrel. If it is a scene object (vehicle or unit) it is fine; if it is a gun part it should be attached to the receiver.
+
+Test line flags:
+  - two hands 0.0 deg / 0.0 cm and impulse two hands 0 deg/s look wrong: one hand gives 0.6 deg climb and 396 deg/s, and zero kick with two hands is suspicious. No picture shows a two-hand grip; weapon-037 has the left hand free and far from the gun, so the two-hand numbers are not backed by a grip in any picture and cannot be confirmed.
+  - fired 1/3: only one of three attempted shots fired, and loaded was 1/1. lensflash-037 confirms one shot fired. The other two cannot be confirmed from pictures; if the test meant three shots, this is a flag.
+  - opened after a shot, 0 case(s) fell out; opened again, 0: no picture covers the break-open, so this cannot be confirmed. If the launcher is meant to eject a spent case on break-open, 0 is wrong.
+  - muzzle flash: no particles, the flash light: lensflash-037 agrees. The shot frame shows only the lens star at the muzzle and no particle burst, so the flash is light-only and visually weak (see the first bug).

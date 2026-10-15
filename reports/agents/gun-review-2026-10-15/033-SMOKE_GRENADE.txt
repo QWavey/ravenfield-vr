@@ -1,0 +1,5 @@
+Gun 33: SMOKE GRENADE
+Haiku picture review (read only), overall: pictures unusable, pictures read: 0
+
+Test line flags:
+  - Not a verdict on the pictures: no gun-33 pictures were read because the relayed user request asked about the islands lens brightness and a flash test, not this gun. The lens findings are in the text reply (src/Weapons/LensFlash.cs, Limiter.Shot and per-eye _limiters).

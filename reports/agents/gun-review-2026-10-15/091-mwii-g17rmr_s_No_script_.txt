@@ -1,0 +1,24 @@
+Gun 91: mwii-g17rmr s(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] hand_not_on_part  (rack-grip-091-mwii-g17rmr_s_No_script_.png)
+   seen: First-person rack-grip frame: the gun sits lower right (silencer tip about x 715, y 535; slide about x 740-830, y 580-700; the '16+1' label about x 795, y 693). No left glove appears on or beside the slide. The free left glove that is visible at rest in weapon-091 and lensflash (about x 540-630, y 585-690) is gone from this frame, so the hand is not shown on the slide at all.
+   expected: The left glove's index finger and thumb pinching the slide's rear top, visible in this frame around x 720-840, y 560-650, as the -right close-up shows it.
+
+2. [minor] [low] gun_pose_or_aim_wrong  (rack-grip-pulled-091-mwii-g17rmr_s_No_script_.png)
+   seen: Compared with the rack-grip first-person frame (same camera and background), the gun's front end changes: a large dark ring-shaped end (suppressor or slide end) fills the lower centre (about x 760-840, y 640-790) where the rack-grip frame shows only slide and the right hand. Several times the apparent size of the muzzle end in the rack-grip frame. The right hand on the grip is not visible in this frame.
+   expected: Only the slide sliding back about 29 mm, with the barrel and suppressor still in roughly the same place on screen as in the rack-grip frame and the right hand still wrapped on the grip.
+
+3. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-091-mwii-g17rmr_s_No_script_.png)
+   seen: The fresh magazine (about x 685-790, y 512-690) sits below and about 1.5 cm to the right of the grip's line (grip about x 540-700, bottom about y 440), so it is not lined up under the magwell. It also looks narrower than in mag-4 and mag-6, which suggests it is turned or further from the camera. The left hand holds it low on the right side.
+   expected: The magazine directly under the magwell on the grip's axis, parallel to it, feed end pointing up toward the well, held by the hand just below.
+
+Test line flags:
+  - in the hand: 3.9 cm from the palm: the mag-4 frame shows the magazine rising above and behind the fingers rather than sitting inside the fist; 3.9 cm fits that, so the picture partly supports the flag.
+  - rack grip 3/4 fingers on it: the rack-grip-right and rack-grip-left close-ups show the index finger on the slide top, which supports it; the first-person rack-grip frame shows no hand at all, so that frame cannot confirm it.
+  - pulled half way 2/4 fingers on it: the rack-grip-pulled-right and -left close-ups still show the index finger on the slide, not contradicted.
+  - drawn: 7 drawn part(s) move, most 29 mm: CONFIRMED by rack-grip-pulled-right. The slide's rear now sticks out about 120 px behind the frame's rear edge (frame edge moved from about x 620 to about x 740) while the slide is about 110 px tall, which is roughly 27-30 mm at this scale.
+  - gun moved 0.5 mm with the pull: the root move can be small while the slide moves, but the first-person rack-grip-pulled frame changes the gun's front silhouette much more than a slide move of 29 mm should; see the rack-grip-pulled bug above. Not confirmed.
+  - magazine (deep): half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in looks roughly centred under the grip; not contradicted, but 0.0 cm cannot be confirmed from the picture.
+  - muzzle flash particles, no flash light (not loud): lensflash shows a small yellow glow at the suppressor tip and lens-eyes shows a soft flare with the right eye a bit stronger; consistent with a suppressed shot and lens strength 0.16 (the flare is dim).
+  - magazine: seated, 17 rounds with 16 rounds kept: consistent with the '16+1' label on the slide (16 in the magazine plus 1 chambered); not a bug.

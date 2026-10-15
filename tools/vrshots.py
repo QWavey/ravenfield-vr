@@ -285,6 +285,7 @@ def main():
     ap.add_argument('--film', action='append', nargs='?', const='', metavar='NAME|ID',
                     help='film both eyes while guns shoot (repeatable; alone: four sample guns)')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
+    ap.add_argument('--out', metavar='NAME', help='collect into reports/shots/NAME instead of the mode folder (a run that must not move the last one away)')
     ap.add_argument('--no-build', action='store_true')
     ap.add_argument('--res', default='1440x1584')
     ap.add_argument('--timeout', type=float, default=0)
@@ -338,7 +339,7 @@ def main():
         if not ran:
             failed = True
             log(f'!!! the game did not come up in the headset after three tries: the {mode} pictures are missing or partial !!!')
-        dest = collect(a.game, mode, since)
+        dest = collect(a.game, a.out or mode, since)
         log(f'{len(glob.glob(os.path.join(dest, "*.png")))} picture(s) in {os.path.relpath(dest, REPO)}')
         if mode in ('weapons', 'weapon'):
             index = build_sheets(dest, os.path.join(dest, 'sheets'))

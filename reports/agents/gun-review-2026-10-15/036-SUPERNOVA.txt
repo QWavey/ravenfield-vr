@@ -1,0 +1,52 @@
+Gun 36: SUPERNOVA
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-036-SUPERNOVA-left.png)
+   seen: The left glove lies flat against the side of the receiver with the fingers spread along its body in front of the magwell. The index finger points forward along x 220-450, y 270-330 (1280x800). No finger closes on any handle; the thumb sits up at x 510-620, y 145-230, in the air.
+   expected: Thumb and index pinching the charging handle / bolt handle at the top rear of the receiver, with the fingers on that part.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-036-SUPERNOVA-right.png)
+   seen: Close-up from the right: a gloved fingertip (x 630-890, y 200-340) rests on the flat top edge of the receiver beside the yellow bar, which ends at about x 700. The finger is not wrapped around any handle. The yellow cylinder at the far right is a fixed part.
+   expected: Fingers closed on the charging handle, the handle held between thumb and index, the fingertip on that part.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-036-SUPERNOVA-left.png)
+   seen: Compared with rack-grip-036-SUPERNOVA-left.png the glove is at the same screen spot, but the scope, the magazine and the yellow buttstock have all shifted about 140-150 px to the left (toward the muzzle side). The whole rifle body moves forward while the hand stays still. The right hand on the pistol grip, visible at lower-left in the unpulled shot, is no longer in frame.
+   expected: Only the charging handle / bolt moves back toward the buttstock (right in this view) with the hand. Scope, magazine and stock stay put.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-036-SUPERNOVA-right.png)
+   seen: Compared with rack-grip-036-SUPERNOVA-right.png, the yellow top bar, the hex knob and the grey housing behind it have slid about 250-300 px to the right (toward the muzzle side). The bar now lies under the fingertip, which stayed in place. The glove and the yellow cylinder at the far right do not move.
+   expected: The charging handle moves rearward (left in this view) under the pinching hand, and the glove travels with it. Nothing should move forward.
+
+5. [major] [high] mag_not_in_hand  (mag-4-in-hand-036-SUPERNOVA.png)
+   seen: The fresh magazine (upright, ribbed, dark) stands on the upper edge of the glove. Its bottom edge sits at about y 290 over x 380-610, and it overlaps the rifle's yellow receiver behind it. The fingers curl downward and do not wrap around the magazine; the thumb sits off to the left.
+   expected: Fingers wrapped around the magazine body close to the palm, feed end pointing up toward the magwell.
+
+6. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-036-SUPERNOVA.png)
+   seen: Both eye halves are completely black: no flare, no soft rings. The same test's burst capture (lens-eyes-burst-036-SUPERNOVA.png) shows a flare at the muzzle position on both eyes.
+   expected: A star-shaped flare with soft rings near the muzzle, the right eye slightly stronger, as in the burst picture.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-036-SUPERNOVA.png)
+   seen: First-person frame of a single shot: the muzzle at about x 695-715, y 480-500 shows no flash at all, only the gun and smoke. The same muzzle in lensburst-036-SUPERNOVA.png has a bright orange-white flare.
+   expected: A bright muzzle flash at the muzzle on the shot frame, consistent with the test line's 'muzzle flash every shot'. Could be a capture-timing issue, since the burst frame shows the flash.
+
+8. [minor] [low] mag_duplicate_or_missing  (mag-2-leaving-036-SUPERNOVA.png)
+   seen: The dropping magazine has a plain dark block over its top ~80 px (y 205-285) with a visible seam at y ~285 where the ribs start, and the ribbed part runs down to y ~730. In mag-1-seated-036-SUPERNOVA.png the same top ends at y ~660, so this one looks about 15% longer. It reads as two overlapping copies (the gun's magazine and the dropped copy) or a stretched mesh.
+   expected: One magazine dropping straight down out of the magwell along its line, with no doubled or stretched geometry.
+
+9. [minor] [low] mag_not_into_magwell  (mag-6-half-in-036-SUPERNOVA.png)
+   seen: The fresh magazine's top edge stops about 20-25 px below the magwell's bottom face, with a thin strip of sky visible between them (x 570-790, y 220-240). It does not overlap the magwell at all; the hand covers its lower part.
+   expected: Top end partly up inside the magwell, overlapping its bottom face by roughly half the insertion depth, on the magwell line.
+
+Test line flags:
+  - rack grip 0/72 points inside the part, 0/4 fingers on it: confirmed by rack-grip-036-SUPERNOVA-left.png and -right.png; no finger closes on a handle.
+  - pulled half way 0/72 points, 0/4 fingers: confirmed by rack-grip-pulled-036-SUPERNOVA-left.png and -right.png; the glove rests on or beside the part and does not pinch it.
+  - 'moving with the hand: the slide / bolt': contradicted by the pictures. The glove stays at the same screen position in the pulled shots while the scope, magazine and stock (left) or the top bar and housing (right) shift. The moving parts travel forward (toward the muzzle side), not rearward.
+  - 'drawn: 2 drawn part(s) move, most 49 mm; nearest 0.1 cm from the hand': the 49 mm cannot be checked from pictures, but the drawn parts move in the wrong direction (forward) in rack-grip-pulled-036-SUPERNOVA-right.png.
+  - 'the gun moved 0.5 mm with the pull': conflicts with the ~140-150 px shift of scope, magazine and buttstock between rack-grip-036-SUPERNOVA-left.png and rack-grip-pulled-036-SUPERNOVA-left.png. Unless the camera itself moved (the glove does not suggest that), the whole rifle is moving, not just the handle.
+  - 'in the hand: 3.1 cm from the palm': confirmed by mag-4-in-hand-036-SUPERNOVA.png. The magazine rests on the top edge of the glove with no fingers wrapped around it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks roughly right in mag-6-half-in-036-SUPERNOVA.png, but the magazine has not entered the magwell at all (a gap of about 20-25 px). Depth is not confirmed.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': not confirmed. In mag-7-seated-again-036-SUPERNOVA.png the magazine's visible bottom edge is about 60 px higher (y ~600) than in mag-1-seated-036-SUPERNOVA.png (y ~660), with the top flush in both. It may sit at a different depth.
+  - 'dropped copy 0.0 cm across the pull ... 2.4 cm out': consistent with the doubled, seamed look in mag-2-leaving-036-SUPERNOVA.png, which suggests a second copy overlapping the gun's magazine during the drop.
+  - 'muzzle flash every shot, lens flash shown, strength 1.03': contradicted by the single-shot pictures. lens-eyes-036-SUPERNOVA.png is black and lensflash-036-SUPERNOVA.png shows no muzzle flash. Only the burst pictures (lens-eyes-burst, lensburst) show the flash. The single-shot capture misses the flash, or the first shot's flash does not render.
+  - 'lens flash burst: flashes L 15 / R 15': lens-eyes-burst-036-SUPERNOVA.png and lensburst-036-SUPERNOVA.png show flares on both eyes and at the muzzle, consistent. The count itself is not checkable from pictures.
+  - '29 rounds kept' then 'magazine: seated, 30 rounds': the HUD text on the gun is too small to read in the pictures, so this cannot be checked.

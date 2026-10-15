@@ -1,0 +1,9 @@
+Gun 18: MEDIC BAG
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-018-MEDIC_BAG.png)
+   seen: The medic bag (olive pouch with two buckle straps, cream rolled bandages sticking out of the open top) sits low in the frame, roughly x 550-835 and y 520-800 px, cut off by the bottom edge. No hand, glove, wrist or fingers appear anywhere in the picture, so nothing visibly grips the bag and it reads as hanging in the air in front of the camera.
+   expected: The right hand, with the forearm entering from the bottom right, wrapped around the bag's strap or body so the bag is clearly held. Nothing should look floating. The test line says 'carried without a glove', so the hand model is probably not drawn for this item, which would be the bug.
+
+Test line flags:
+  - 'bag: carried without a glove' looks wrong for a held item: weapon-018-MEDIC_BAG.png confirms it, with no hand or glove visible on the bag.

@@ -1,0 +1,25 @@
+Gun 66: RPG-7V [PG-7V]
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] hand_not_on_part  (weapon-066-RPG-7V_PG-7V_.png)
+   seen: The left hand hangs in mid-air over the grass at roughly x 535-635, y 580-690, with fingers curled up and no forearm or wrist visible. It touches no part of the launcher; the nearest gun part (the tube front near x 730) is about 100 px away.
+   expected: The test says the left hand is free, so an idle pose is acceptable, but the hand should be attached to an arm (or rest on the launcher) rather than float detached in the scene.
+
+2. [minor] [low] hand_not_on_part  (weapon-066-RPG-7V_PG-7V_.png)
+   seen: The right hand is almost entirely off the bottom edge. Only grey fingers show at roughly x 740-830, y 660-800, sitting beside a red-brown part with a small 'FULL' label under the launcher body. They do not clearly wrap around a grip.
+   expected: The right hand wrapped around the grip under the launcher, with the fingers visibly closed on the grip and the gun pointing forward.
+
+3. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-066-RPG-7V [PG-7V].png)
+   seen: Each eye's warm glow is clipped to a rounded rectangle. The right edge of the left-eye panel (x about 298) and the bottom edges (y about 250) show a fairly crisp boundary against the black background instead of fading out.
+   expected: A soft falloff of the lens glow to black, with no visible panel outline.
+
+4. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-066-RPG-7V_PG-7V_.png)
+   seen: A whitish-blue haze band runs down the right edge (x about 1180-1280, y 0-380). It is not in weapon-066 and does not lie on the line from the muzzle flash, so it may be bloom or a glare artifact.
+   expected: The sky and sea at the right edge should look like weapon-066 apart from the muzzle flash and smoke. Probably harmless; flagged only because it is visible.
+
+Test line flags:
+  - recoil one hand 0.7 cm back: looks understated. In lensflash the gun is roughly 15-20% larger on screen than in weapon-066, while the camera did not move (the wall edge and the bush are in the same place in both). A 0.7 cm pull-back on a gun about 30 cm from the eye would give only about 2-3%, so either the recoil moved the gun more than measured or the frames are at different recoil moments. Low-to-medium confidence, based on eyeballed sizes.
+  - recoil one hand 3.7 deg climb: the picture supports it. In lensflash the gun sits roughly 50-70 px lower on screen than in weapon-066 with the camera unchanged, which is consistent with the muzzle climbing.
+  - lens flash shown, strength 0.81: confirmed as shown. Both eyes have a flare, and the right eye is a bit stronger, as the brief expects. The strength value itself cannot be checked from the picture.
+  - muzzle flash 'Muzzle (2)', 400 cm, every shot: lensflash shows a fireball and smoke at the launcher muzzle, so a flash on this shot is confirmed. The 400 cm figure cannot be checked from the picture.
+  - two hands 0.0 deg / 0.0 cm, impulse values, loaded 1/1, fired 1/3: no pictures in the brief cover two-hand aiming or the reload state, so these cannot be verified. lensflash does show a shot being fired.

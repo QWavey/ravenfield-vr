@@ -1,0 +1,25 @@
+Gun 68: RPG-7V [PG-7VR]
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-068-RPG-7V [PG-7VR].png)
+   seen: Each eye's brown haze is clipped to a rounded rectangle. In the left-eye panel it stops abruptly at about x=298 and y=250, and in the right-eye panel at about x=605 and y=250, leaving a visible rounded corner against black, most obvious at the lower-right corners. The haze does not fade out at the edges.
+   expected: The lens haze should fade smoothly to black toward the panel edges, with no visible rectangular or rounded boundary. The star and rings can stay as they are.
+
+2. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-068-RPG-7V [PG-7VR].png)
+   seen: The lens ghost circles sit about 73 px left of the star in the left-eye panel (ghost near x=115, star near x=188), but only about 53 px left of the star in the right-eye panel (ghost near x=430, star near x=483). The star itself is at about the same spot in both eyes, so the ghost layout differs between the eyes by roughly 20 px. These are rough pixel estimates from a small image.
+   expected: Both eyes should show the same ghost layout along the line from the star, differing only by a small stereo parallax shift.
+
+3. [minor] [low] hand_not_on_part  (weapon-068-RPG-7V_PG-7VR_.png)
+   seen: The left hand is a gray gloved hand with no forearm, hanging in the grass at about x=540-630, y=585-690. It is roughly 150 px from the nearest part of the tube and touches nothing; its fingers point up toward the launcher but do not reach it. The same hand sits in the same spot in lensflash-068-RPG-7V_PG-7VR_.png. The right hand around the grip is cut off by the bottom edge of the frame, so its wrap cannot be verified from this picture.
+   expected: The brief says the left hand is free, so an idle pose is acceptable. If the launcher's front support is meant to be held, the left hand should wrap around it under the tube. A hand with no arm should not hang unattached in mid-air.
+
+4. [minor] [low] other  (weapon-068-RPG-7V_PG-7VR_.png)
+   seen: About a dozen translucent blue-grey discs float across the sky, grass and tree line, for example near x=540 y=60, x=720 y=55, x=1045 y=150 and x=745 y=300. They look like leftover smoke puffs or lens dirt, and they are present in this pre-shot view. The same discs appear in lensflash-068-RPG-7V_PG-7VR_.png.
+   expected: A clean pre-shot view should show no floating smoke or dust discs, unless the game's dust effect is meant to be visible here.
+
+Test line flags:
+  - two hands 0.0 deg / 0.0 cm recoil and two hands 0 deg/s impulse: exactly zero two-hand recoil looks suspicious next to one-hand 3.9 deg climb and 0.7 cm back, but no picture shows two hands on this gun (weapon-068 has the left hand free), so no picture confirms or refutes it.
+  - loaded to 1/1 and fired 1/3: CONFIRMED consistent. weapon-068-RPG-7V_PG-7VR_.png shows the red ammo box reading FULL, and lensflash-068-RPG-7V_PG-7VR_.png shows it reading EMPTY after the shot.
+  - muzzle flash particles 'Muzzle (2)', 400 cm, every shot: lensflash-068-RPG-7V_PG-7VR_.png shows a bright flash core right at the launcher's muzzle and a fireball roughly 430 px wide. Its size in metres cannot be checked from the picture. The flash is present on the shot pictured.
+  - lens flash shown, strength 0.93: lens-eyes-068-RPG-7V [PG-7VR].png shows a clearly visible star with soft rings, consistent with a strong flash. The strength value itself cannot be measured from the picture.
+  - one hand 3.9 deg climb, 0.7 cm back, impulse per shot one hand 489 deg/s: no picture can confirm these from single still frames.

@@ -1,0 +1,42 @@
+Gun 19: PATRIOT
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-019-PATRIOT.png)
+   seen: The whole 606x250 frame is black for both LEFT and RIGHT eye: no star, no soft rings, no glow. The test line says the lens flash was shown at strength 0.86 for this shot, so the single-shot flash does not reach the screen in this capture. The burst frame lens-eyes-burst-019-PATRIOT.png from the same run does show flares, so the lens flash works in bursts.
+   expected: A bright star/flare near where the muzzle projects on screen, soft rings around it, the RIGHT eye (gun side) a bit stronger than the LEFT, as in lens-eyes-burst-019-PATRIOT.png.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-019-PATRIOT.png)
+   seen: First-person single shot: a spent casing is in the air (about x 890-935, y 510), so the shot fired, but nothing glows at the muzzle (front of the gun, about x 700-740, y 480-520). The full-auto frame lensburst-019-PATRIOT.png shows a yellow-white muzzle flash at that spot. The single-shot muzzle flash is missing from this frame.
+   expected: A muzzle flash at the muzzle on the shot frame, as in lensburst-019-PATRIOT.png (if the frame was simply taken after the flash faded, the capture timing should be fixed).
+
+3. [major] [medium] hand_not_on_part  (rack-grip-019-PATRIOT-right.png)
+   seen: Close-up from the right: the free hand's thumb tip rests on top of the small grey knob (about x 775-915, y 385-470). The index, middle and ring fingers run forward over the barrel/handguard top (about x 320-720, y 255-520) and do not touch the knob. The hand is not wrapped around the part; the knob is pinched only at its top edge at most.
+   expected: All four fingers closed around the charging handle / knob, fingertips on the part, not resting on the barrel.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-019-PATRIOT-left.png)
+   seen: Glove lies flat across the top of the upper receiver in front of the red-dot housing (about x 265-875, y 200-530). The thumb overlaps the sight base at its left edge and the fingers run forward over the receiver top. No charging handle is visible under any finger, and no finger is closed on a handle.
+   expected: Fingers curled around the charging handle, fingertips on that part, not on the optic base or flat rail.
+
+5. [major] [low] wrong_part_moves  (rack-grip-pulled-019-PATRIOT-right.png)
+   seen: Compared with rack-grip-019-PATRIOT-right.png, the hand and the grey knob stay at the same screen spot (the knob is still under the thumb), but the bracket, the rear sight block and a rounded latch behind them slid about 150-190 px to the right. The knob also no longer sits on the bracket it was on in the unpulled shot, so it looks detached from its carrier. The part that visibly travels is the sight/receiver block, not the handle under the hand. Camera framing may differ between the two shots, so this is not conclusive.
+   expected: Only the charging handle slides back with the hand (the test says about 37 mm); the optic and upper receiver stay still; the knob stays attached to its bracket.
+
+6. [major] [medium] mag_not_in_hand  (mag-4-in-hand-019-PATRIOT.png)
+   seen: The fresh magazine (same olive colour as the gun's magazine, feed end pointing up toward the rifle) stands on top of the left hand's knuckles; its base edge rests on the back of the fingers (about x 415-625, y 15-290). No finger curls around the magazine body, so the hand holds it from above/underneath rather than gripping it. The test line says 3.2 cm from the palm, which matches.
+   expected: Fingers wrapped around the magazine low on its body, magazine in the palm, feed end toward the magwell.
+
+7. [minor] [low] other  (mag-6-half-in-019-PATRIOT.png)
+   seen: The magazine top already sits at the magwell lip (about y 265). Its visible length and height match the fully seated magazine in mag-1-seated-019-PATRIOT.png and mag-7-seated-again-019-PATRIOT.png, so the frame looks already seated rather than half way. Between mag-5 (magazine well below the lip) and mag-7 there is no clearly partial insertion depth.
+   expected: Magazine partly up inside the magwell on the same line, visibly between the lined-up and fully seated positions.
+
+Test line flags:
+  - 'lens flash shown, strength 0.86': contradicted for the single shot by lens-eyes-019-PATRIOT.png, which is fully black. The burst frame lens-eyes-burst-019-PATRIOT.png does show flares, so the lens flash works in bursts only in this capture.
+  - 'muzzle flash: ... every shot': not confirmed on the single-shot frame lensflash-019-PATRIOT.png (no flash at the muzzle, casing visible). Confirmed on the full-auto frame lensburst-019-PATRIOT.png.
+  - 'rack grip ... 0/4 fingers on it' and 'pulled half way: 0/4 fingers on it': confirmed. In rack-grip-019-PATRIOT-right.png only the thumb tip touches the knob and in rack-grip-019-PATRIOT-left.png no finger closes on any handle. The first-person rack-grip and rack-grip-pulled frames do not show the free hand at all, so they cannot confirm the grip.
+  - 'moving with the hand: the charging handle' and 'the gun moved 1.1 mm with the pull': not confirmed. In the right-side pair the knob under the thumb stays fixed on screen while the sight block shifts about 150-190 px (rack-grip-pulled-019-PATRIOT-right.png). Camera difference between shots is possible, so this is a flag, not proof.
+  - 'in the hand: 3.2 cm from the palm': confirmed. The magazine rests on the knuckles in mag-4-in-hand-019-PATRIOT.png, not in the fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the magazine is on the magwell line in mag-6-half-in-019-PATRIOT.png, but its depth looks seated, so the picture does not confirm a half-way depth.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-7-seated-again-019-PATRIOT.png shows the magazine where mag-1-seated-019-PATRIOT.png had it.
+  - 'dropped copy ... 2.3 cm out' (mag-2 leaving): consistent. mag-2-leaving-019-PATRIOT.png shows the magazine dropping straight down along its line and more of it visible below the lip.
+  - 'magazine: seated, 30 rounds': the ammo badge in mag-1-seated-019-PATRIOT.png is tiny and mirrored; it looks like it reads 28+1 rather than 30, but it cannot be read reliably from this picture.
+  - 'lens flash burst: flashes L 12 / R 12': consistent with lens-eyes-burst-019-PATRIOT.png, where both eyes show a flare and the right eye is slightly stronger.

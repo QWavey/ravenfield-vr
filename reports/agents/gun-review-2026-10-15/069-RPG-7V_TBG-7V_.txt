@@ -1,0 +1,19 @@
+Gun 69: RPG-7V [TBG-7V]
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [low] hand_not_on_part  (weapon-069-RPG-7V_TBG-7V_.png)
+   seen: No right hand is visible. The grip area sits on the bottom edge of the frame (about x 740-830, y 650-800): grey metal with a small red marking and no fingers wrapped around it. The only hand in view is the left hand, floating mid-screen over the grass (about x 540-635, y 585-690) with no forearm; that is the free-hand pose the brief allows.
+   expected: The right hand wrapped around the RPG's pistol grip, fingers on the grip and trigger, inside the frame.
+
+2. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-069-RPG-7V_TBG-7V_.png)
+   seen: A faint vertical light band runs down the right edge of the sky (about x 1195-1240, y 0-400). It is not centred on the muzzle and matches no other light in the frame; it looks like a stray bloom or flare streak.
+   expected: No stray streak. The flare should radiate from the muzzle at about x 720, y 475.
+
+3. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-069-RPG-7V_TBG-7V_.png)
+   seen: The flash core is correctly at the muzzle (about x 720, y 475, at the tube front x 680-760, y 420-500). But a pink-white haze cloud spans roughly x 480-900, y 180-700, about a third of the frame width, and washes out the wall, the top of the sight and the sky. It may be the intended 400 cm particle size, but it reads oversized next to the gun.
+   expected: A tighter flash at the muzzle that fades out quickly and stays clear of the sight and the wall.
+
+Test line flags:
+  - recoil two hands '0.0 deg, 0.0 cm' and impulse two hands '0 deg/s': all three two-hand values are exactly zero, which looks like the two-hand branch not applying recoil rather than a real result. No picture confirms or refutes it, because weapon-069 shows one hand only (left hand free).
+  - 'loaded to 1/1' together with 'fired 1/3': the line does not say whether 1/1 is before or after the shot. If it is after, the round should have left the tube and loaded should read 0/1. In lensflash-069 the tube front still shows what looks like the warhead cone (about x 735-780, y 440-500), so timing is unclear. The pictures cannot settle it.
+  - 'muzzle flash: particles Muzzle (2), 400 cm, every shot': lensflash-069 confirms a flash at the muzzle on this shot, so the effect plays. The 400 cm size cannot be checked from a still, but the haze in lensflash-069 is much wider than the flash core (see the oversized-haze entry).

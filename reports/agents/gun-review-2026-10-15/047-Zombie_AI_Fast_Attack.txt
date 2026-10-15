@@ -1,0 +1,28 @@
+Gun 47: Zombie AI Fast Attack
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (weapon-047-Zombie_AI_Fast_Attack.png)
+   seen: A semi-transparent dull brown/grey speckled rectangle covers the middle of the 1280x800 view, roughly x 357-1097, y 217-582. Its top, bottom, left and right edges are straight and sharp, with no soft falloff. Its centre is about (727,400), so it ends roughly 100 px above the gun's muzzle (about 745,685) and does not cover the muzzle. It darkens the scene instead of brightening it. The same box appears in lensflash-047-Zombie_AI_Fast_Attack.png.
+   expected: A soft-edged bright flash anchored at the muzzle (or a soft lens flare that fades out at the screen edges), with no straight box edges and a bright tint rather than a dark speckled panel.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-047-Zombie_AI_Fast_Attack.png)
+   seen: No muzzle flash is visible at the gun's muzzle (around x 725-745, y 670-690, bottom right). The muzzle end looks plain grey, nothing around it is brighter, and no glow shows on the grass next to the gun. Only the hard-edged box and the dirt specks appear on screen.
+   expected: A bright muzzle flash (particle or light glow) at the muzzle. The test line says the muzzle effect is a flash light with no particles, so the glow should be visible on the gun tip and the nearby grass.
+
+3. [minor] [low] hand_not_on_part  (weapon-047-Zombie_AI_Fast_Attack.png)
+   seen: No right hand is visible wrapped around the grip. The gun runs off the bottom edge of the frame (x about 800-890, y 740-800), so the grip and hand may be below the picture. Only the gun barrel and body are in view. The same framing appears in lensflash-047.
+   expected: The right hand wrapped around the pistol grip, with the grip inside the frame so the hand can be seen.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-047-Zombie AI Fast Attack.png)
+   seen: Both eyes are dark brown gradients on black with no bright star. The only flare is a faint teal ring near the top-left of each eye (about (145,87) left, (462,87) right) and a small dim orange dot near the bottom centre (about (167,240) left, (438,240) right). The right eye is not visibly stronger than the left. This flash is far weaker than the hard-edged box in the first-person pictures, so it does not look like the same effect.
+   expected: A bright star or flare at the muzzle position (about 58% across and 86% down in each eye panel), with soft rings around it, and the right eye a bit stronger than the left.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-047-Zombie AI Fast Attack.png)
+   seen: The brown glow is clipped by the rounded panel edges with a visible hard boundary. It runs right up to the left eye's edge at about x 298 and the right eye's edge at about x 307, then stops abruptly instead of fading out.
+   expected: A soft falloff to black toward the eye edges, with no visible cut-off at the panel boundary.
+
+Test line flags:
+  - "equipped": consistent. weapon-047 shows a grey gun in the right-hand area of the view.
+  - "manual reload not active for this weapon": cannot be checked from these three pictures, since no reload pictures were listed for this gun. Not confirmed or refuted.
+  - "muzzle flash: no particles, the flash light": the pictures confirm the problem. No glow or light is visible at the muzzle in weapon-047 or lensflash-047, so the muzzle flash is effectively missing from the picture.
+  - "lens flash shown, strength 0.54": the first-person pictures do show a lens overlay, so "shown" is confirmed. But that overlay is a hard-edged dark box, and the lens-eyes pair is very faint. A strength of 0.54 looks inconsistent with the lens-eyes brightness, so either the eye capture was taken at a different moment or the measurement is off. Unconfirmed.

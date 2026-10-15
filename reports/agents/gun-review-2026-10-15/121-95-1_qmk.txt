@@ -1,0 +1,50 @@
+Gun 121: 95-1 qmk
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-121-95-1_qmk-right.png)
+   seen: The left hand lies flat over the top front of the receiver. The thumb rests on the top rim at about x 620-930, y 225-360, and the fingers lie across the side plate. No finger wraps around any handle. The tan, black-striped handle inside the rear window (about x 1030-1150, y 300-380) sits behind the thumb tip and is not touched. The left close-up (rack-grip-121-95-1_qmk-left.png) shows the same flat hand, fingertips at about x 230, y 270-450. In the first-person frame (rack-grip-121-95-1_qmk.png) the glove sits low on the gun body around x 790-930, y 620-800, not on the top rack part.
+   expected: Index and middle fingers wrap around the rack part (the charging handle in the rear window) so the hand pinches it. The hand should not rest beside it on the receiver top.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-121-95-1_qmk-left.png)
+   seen: This frame is effectively identical to rack-grip-121-95-1_qmk-left.png: same flat hand, same fingertip positions, same rear block, same knob at about (1115, 490), same tan object at the right edge. No part visibly travels rearward and the hand does not move with a pull. In the first-person pair the glove moves about 50 px down and right (about x 790-930, y 620-800 before; about x 820-940, y 680-800 after) while the rifle, scope and sight stay in place. In the right pair (rack-grip-pulled-121-95-1_qmk-right.png) the thumb and cuff stay exactly where they were. The only change is a round appearing in the side window (about x 840-1180, y 420-520). That round may be the chambered round, but the handle itself does not move with the hand.
+   expected: The charging handle or bolt is visibly pulled about half way back (the test says 66 mm) and the fingers travel with it. The receiver and scope stay put.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-121-95-1_qmk.png)
+   seen: The fresh magazine is held low in front of the trigger guard and pistol grip. Its feed end is at about x 360-500, y 430-460, roughly 2-3 grip widths forward of the magwell. The magwell is the receiver underside recess behind the grip, around x 700-880, y 170-210, with a catch tab at about x 860-900. The left glove holds the magazine base at the bottom-left (x 240-430, y 620-800). The magazine is not lined up under the magwell.
+   expected: The feed end sits directly under the magwell behind the grip, on the well's line, at the same spot the magazine occupies in mag-6 and mag-7. The hand is close to the base.
+
+4. [major] [medium] mag_floating_or_offset  (mag-6-half-in-121-95-1_qmk.png)
+   seen: The magazine top is at the receiver underside at about the same height as in the seated frame, but shifted left. Its top-left corner is at about x 497, while the seated magazine (mag-7-seated-again-121-95-1_qmk.png and mag-1-seated-121-95-1_qmk.png) has it at about x 600. The top therefore overhangs the left edge of the magwell (about x 580). It does not visibly rise into the well on its line. It looks about a third of a magazine width off the magwell line.
+   expected: The magazine partly up inside the magwell, its top centered on the magwell line (same x as in mag-7), moving straight up along its own axis.
+
+5. [minor] [low] mag_floating_or_offset  (mag-2-leaving-121-95-1_qmk.png)
+   seen: Compared with mag-1-seated-121-95-1_qmk.png, the magazine top has moved about 60-70 px to the left. It still sits at the receiver underside (top edge about y 190-225) instead of dropping clear. The bottom moves down and left. The motion looks more sideways than along the magazine's own axis, and the top-left corner overhangs the magwell's left edge (x about 530 vs 580).
+   expected: The magazine slides straight out down its own axis, with the top dropping clear of the receiver underside.
+
+6. [minor] [low] other  (mag-5-lined-up-121-95-1_qmk.png)
+   seen: An olive pistol-shaped part (a slide with a rear-sight notch over a black frame with trigger guard) sits at the top right, about x 1010-1280, y 90-350, behind the rifle's rear block. The same tan part shows at the right edge in rack-grip-121-95-1_qmk-left.png and rack-grip-pulled-121-95-1_qmk-left.png. It is not visible in any first-person frame.
+   expected: Only the rifle and the player's own hands should be drawn at the rifle's rear. If this is the player's holstered sidearm it belongs on the hip. Otherwise it is a stray model attached behind the stock.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-121-95-1 qmk.png)
+   seen: Left eye panel: a tiny, dim star at about (180, 160) with almost no halo. Right eye panel: a brighter star at about (476, 160) with a visible halo ring whose glow radius is roughly 3 times the left's. The gap is larger than the expected slightly stronger right eye.
+   expected: Both eyes show a similar star and halo, with the right eye slightly stronger.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-121-95-1 qmk.png)
+   seen: Each eye panel has a brown tint that fills the lower-right area and ends at a visible rounded panel edge, for example at the right edge of the left panel near x 297. The tint does not fade to black.
+   expected: A soft falloff to black with no visible panel boundary or hard edge.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensburst-121-95-1_qmk.png)
+   seen: A pale blue-white vertical band runs down the right screen edge (about x 1200-1245, y 0-400) with a sharp left boundary. The broad yellow haze over the grass in the middle of the screen is strong. The muzzle glow itself sits at the muzzle (about x 700, y 500).
+   expected: A soft flare that fades smoothly, with no hard-edged vertical band.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': confirmed by rack-grip-121-95-1_qmk-right.png. The thumb rests on the receiver rim and the striped handle behind it is not gripped.
+  - pulled half way '0/72 points inside, 0/4 fingers': confirmed. The hand is in the same place in rack-grip-pulled-121-95-1_qmk-left.png and rack-grip-121-95-1_qmk-left.png.
+  - 'moving with the hand: the slide / bolt': not supported by the pictures. No handle travel with the hand is visible in any pulled frame.
+  - 'drawn: 3 drawn parts move, most 66 mm; the nearest is 0.0 cm from the hand': conflicts with 0/4 fingers. The nearest moving part touches the hand but nothing is gripped. The 66 mm travel is not visible in rack-grip-pulled-121-95-1_qmk-right.png.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': contradicted by mag-6-half-in-121-95-1_qmk.png. The top sits about a third of a magazine width left of the seated position in mag-7-seated-again-121-95-1_qmk.png.
+  - 'magazine (deep): 2.8 cm out': mag-2-leaving-121-95-1_qmk.png does not clearly show the magazine dropping. The top stays at the receiver underside and the movement looks sideways. Not confirmed.
+  - 'seated: 0.0 cm from where it was': consistent. The magazine top sits at the same place in mag-1-seated-121-95-1_qmk.png and mag-7-seated-again-121-95-1_qmk.png.
+  - 'racked: chambered': consistent. rack-grip-pulled-121-95-1_qmk-right.png shows a round in the side window that is absent in rack-grip-121-95-1_qmk-right.png.
+  - 'lens flash burst: flashes L 14 / R 14 (full L 4 / R 4)': lens-eyes-burst-121-95-1 qmk.png shows the left flare much dimmer than the right. Equal counts may hide a weak left flash. Only one frame, so the counts cannot be checked.
+  - 'muzzle flash: particles, 100 cm, every shot; lens flash shown, strength 0.73': consistent. lensflash-121-95-1_qmk.png shows the glow at the muzzle.

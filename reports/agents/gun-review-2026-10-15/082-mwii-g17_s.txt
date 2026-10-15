@@ -1,0 +1,45 @@
+Gun 82: mwii-g17 s
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-082-mwii-g17_s-right.png)
+   seen: Compared with rack-grip-082-mwii-g17_s-right.png the slide does not visibly travel back. The front sight stays at about x 640-670, y 400-430 and the slide front edge stays at x 620 in both pictures. A 29 mm slide travel would shift the slide by roughly 100 px at this scale. The thumb and glove sit in the same place. The left pair shows the same thing: the glove silhouette and slide edges are unchanged between rack-grip-082-mwii-g17_s-left.png and rack-grip-pulled-082-mwii-g17_s-left.png. The only visible change is a gold cylinder at the slide's top rear (about x 1040-1100, y 430-475).
+   expected: The slide visibly slides back about 29 mm: front sight and slide edge shift rearward, the barrel/suppressor shows in front of the slide, and the thumb and fingers travel back with it.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-082-mwii-g17_s-right.png)
+   seen: Only the thumb touches the slide, its tip just below the slide's top edge near the front (about x 860-885, y 470-500). The index-to-pinky fingers and the back of the glove sit above the slide's top edge (about y 250-420) rather than wrapped on the serrations. Same in rack-grip-pulled-082-mwii-g17_s-right.png. Matches the test's 1/4 fingers on the part.
+   expected: Fingers pinch the slide (index on top, middle and ring on the side serrations) with the thumb on the opposite side, with no gap between the fingers and the slide.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-082-mwii-g17_s.png)
+   seen: The fresh magazine (feed end up, held by the glove at its base) sits about 2-3 cm below and behind the grip. Its top is at about x 685-790, y 515, while the grip base (magwell) is at about x 600-700, y 430. It hangs beside the back edge of the grip rather than directly under the magwell on its line.
+   expected: Magazine centred directly under the magwell on the grip axis, a few mm below the base, feed end up, ready to go up into the grip.
+
+4. [minor] [low] mag_not_in_hand  (mag-4-in-hand-082-mwii-g17_s.png)
+   seen: The magazine stands upright at about x 375-490, its top about 180 px above the fist. The glove's fingertips touch only its lower part, and the palm is clear of it. This matches the test's 3.9 cm from the palm. It looks pinched at the fingertips rather than clasped in the hand.
+   expected: Fingers wrapped around the magazine body with the palm against it, feed end toward the gun.
+
+5. [tiny] [low] mag_not_into_magwell  (mag-6-half-in-082-mwii-g17_s.png)
+   seen: Only about 1 cm of the magazine base shows below the grip (about x 655-780, y 575-600), so it looks nearly seated rather than half way in. For comparison, the dropped copy in mag-2-leaving-082-mwii-g17_s.png is about 2 cm out. Lateral alignment looks on the magwell line.
+   expected: Magazine about half way up into the grip, clearly lower than seated, with several cm of the magazine below the grip.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-082-mwii-g17_s.png)
+   seen: First-person view: the free left hand is missing. In weapon-082-mwii-g17_s.png it floats at about x 540-630, y 585-690. Here nothing is near the slide (slide top about x 715-800, y 530-620). It may be hidden behind the gun from this angle, but the hand is not visible reaching the slide. Same in rack-grip-pulled-082-mwii-g17_s.png.
+   expected: Free hand visible at the slide's top or rear, pinching it, in the first-person view.
+
+7. [minor] [low] part_floating_or_detached  (rack-grip-pulled-082-mwii-g17_s-left.png)
+   seen: A small gold cylinder sits on the top of the slide only in the pulled close-ups: about x 290-345, y 335-365 in the left view and about x 1040-1100, y 430-475 in the right view (rack-grip-pulled-082-mwii-g17_s-right.png). It is absent from the un-pulled pairs. It could be a loaded-chamber indicator (acceptable) or a spent casing stuck to the slide (bug).
+   expected: Nothing loose attached to the slide. If it is a loaded-chamber indicator it should be part of the slide model and move with the slide.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-082-mwii-g17 s.png)
+   seen: Each eye's warm brown haze runs out to a hard rounded-rectangle edge on its right and lower side (about x 298 in the left panel, x 605 in the right panel) instead of fading to black. The flare position near the muzzle and the slightly stronger right eye look right.
+   expected: Soft falloff of the haze to black around the flare, with no visible panel edge.
+
+9. [tiny] [low] other  (rack-grip-pulled-082-mwii-g17_s.png)
+   seen: Thin dotted lines cross the sky from the top edge down toward the right horizon (about x 430,0 to 930,390), not attached to the gun. Likely a debug or test marker rather than a game effect. Not visible in rack-grip-082-mwii-g17_s.png.
+   expected: No stray line in the sky in the first-person view, unless it is an intended aim or debug overlay.
+
+Test line flags:
+  - "rack grip ... 1/4 fingers on it" is confirmed by rack-grip-082-mwii-g17_s-right.png: only the thumb touches the slide.
+  - "pulled half way: ... moving with the hand: the slide / bolt" is NOT confirmed. The glove silhouette is unchanged between rack-grip-082-mwii-g17_s-left.png and rack-grip-pulled-082-mwii-g17_s-left.png, so the hand did not move with the slide, and the slide body does not visibly move either.
+  - "drawn: 5 drawn part(s) move, most 29 mm" is NOT confirmed. No 29 mm slide travel is visible in the left or right close-up pairs (the front sight would shift about 100 px and stays put). The only visible change is the small gold cylinder, which may be the part that actually moved.
+  - "in the hand: 3.9 cm from the palm" is consistent with mag-4-in-hand-082-mwii-g17_s.png: the magazine is held at the fingertips, not in the palm.
+  - "half way in (on the rail): 0.0 cm off the magwell line": lateral alignment looks right in mag-6-half-in-082-mwii-g17_s.png, but the depth looks nearly seated, and the test does not measure depth.

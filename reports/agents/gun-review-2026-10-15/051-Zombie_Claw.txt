@@ -1,0 +1,15 @@
+Gun 51: Zombie Claw
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] part_floating_or_detached  (weapon-051-Zombie_Claw.png)
+   seen: A grey claw-shaped object with curled fingers pointing up-right sits mid-left of the frame, roughly x 540-635, y 585-690, over the grass. It does not touch the grey object at the lower right (a gap of about 120 px), and no arm or wrist runs from it to any screen edge, so it hangs in the air.
+   expected: If this is the free left hand, an arm should come in from the lower-left edge and the hand should be attached to it. If it is part of the weapon, it should be held by the right hand at the lower right. Either way it should not float unattached.
+
+2. [minor] [low] hand_not_on_part  (weapon-051-Zombie_Claw.png)
+   seen: The gun-like grey piece at the lower right (roughly x 750-920, y 675-800) is cut off by the bottom edge of the frame. No fingers are visible wrapped around its grip, and the hand that should hold it is not in view.
+   expected: The right hand visibly wrapped around the grip, with the weapon fully in frame and pointing forward. If the frame cannot show the hand, the framing should keep the hand and grip visible.
+
+Test line flags:
+  - Zombie Claw: equipped - consistent with a weapon visible in the right-hand area of the picture (weapon-051-Zombie_Claw.png).
+  - manual reload not active for this weapon - consistent: no magazine or slide is visible and no reload pictures are listed for gun 51.
+  - muzzle flash: none; lens flash none - not confirmed or contradicted by the picture. It is an idle frame with no shot fired, and no lensflash/lensburst or muzzle picture is listed for this gun.

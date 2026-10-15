@@ -1,0 +1,42 @@
+Gun 30: S-IND7 [SUP]
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-030-S-IND7_SUP_.png)
+   seen: The fresh magazine (tan slab, about x 425-555, y 175-300 in the 1280x800 frame) floats above and in front of the left glove, far to the left of the pistol. Its top edge touches the underside of the suppressor (x 245-640, y 125-190). The glove (x 405-830, y 270-525) has its fingers spread open with nothing closed around the magazine; the magazine only goes behind the back of the hand. The grip is roughly 400 px to the right. The magazine stands upright with its top pointing at the suppressor, not angled toward the magwell.
+   expected: Fingers closed around the magazine body, same model as the gun, feed end toward the magwell, palm against it, with the magazine held near the grip.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-030-S-IND7_SUP_-left.png)
+   seen: Compared with rack-grip-030-S-IND7_SUP_-left.png, the trigger guard (x 205-410 there, x 150-400 here), the grip and the magazine base (x 450-665 there, x 390-610 here) sit about 50 px further left, roughly 1.5-2 cm at this scale. The slide (silver top band y 318-345, small rear sight block at x 15-60), the glove fingers (x 215-470, y 395-470) and the glove cuff (x 425-870, y 225-500) stay at exactly the same screen position. So the frame (receiver, grip, trigger guard) moves while the slide does not visibly slide back, and the hand does not travel with the part.
+   expected: The slide visibly moves back (toward the right in this view, about 1.5-2 cm, barrel side showing in front of it) with the glove moving along with it, while the receiver, trigger guard and magazine stay still.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-030-S-IND7_SUP_-right.png)
+   seen: Compared with rack-grip-030-S-IND7_SUP_-right.png, the slide rear end (x about 600), the rear sight block (x 685-730, y 400-455), the glove cuff (x 400-540, y 255-520) and the thumb tip (x 880-900, y 465-495) are all in the same place. The slide does not visibly travel and the hand does not move. The only change is a brass case showing in the ejection port at the right edge (x 1185-1280, y 440-485). The slide top edge at y about 405 is unchanged.
+   expected: Slide visibly pulled back (toward the rear, about 1.5-2 cm at this scale) with the rear sight and glove moving with it. A brass case showing in the port is fine if it comes from the rack.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-pulled-030-S-IND7_SUP_.png)
+   seen: In this first-person frame the free left hand is not visible at all: not at its rest spot (about x 540-630, y 585-690, where weapon-030 and lensflash-030 show it) and not on the slide top at the bottom right. The same is true of rack-grip-030-S-IND7_SUP_.png, so the grip on the slide cannot be seen from this view.
+   expected: Left hand visibly pinching the slide's top rear in the first-person view, or a frame where the hand is in view.
+
+5. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-030-S-IND7_SUP_.png)
+   seen: At the suppressor muzzle (x 705-760, y 490-560) there is no flash burst, bright sprite or smoke, even though the test line says a 50 cm 'Muzzle' particle plays every shot. The only flash evidence is the faint lens star in lens-eyes-030-S-IND7 [SUP].png.
+   expected: A visible muzzle flash burst at the suppressor tip on the shot frame. If the suppressed gun is meant to show little or none, that should be intentional and the test line should say so.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-030-S-IND7_SUP_.png)
+   seen: Below the grip only the seated magazine base line (x 605-740, y 527-550) shows, the same as mag-1 and mag-7. No magazine body hangs below the grip, and the left glove covers the area where half of a magazine would appear. The half-way depth cannot be confirmed: it is either already fully seated or hidden behind the glove.
+   expected: About half of the magazine body visible below the magwell on its line, with its base plate visibly lower than in mag-7.
+
+7. [tiny] [low] other  (mag-2-leaving-030-S-IND7_SUP_.png)
+   seen: A tiny dark upright object with light specks sits on the top rear of the grip just above the thumb (about x 715-722, y 255-292). It appears at the same spot in mag-2, mag-3 and mag-5. In mag-4 a tiny text-like mark ('23'-looking) sits at the grip top (x 975-985, y 225-238). It looks like a stray world label or a round stuck in the frame, not part of the pistol.
+   expected: Nothing on the pistol at that spot, or a clearly intended part.
+
+Test line flags:
+  - pulled half way: '3/4 fingers on it' and 'moving with the hand: the slide / bolt' are not visible in the pictures. The glove sits at the same screen position in rack-grip and rack-grip-pulled (left and right), so the hand does not visibly travel with the part, and the 2/4 to 3/4 change in finger count cannot be seen.
+  - drawn: '1 drawn part(s) move, most 20 mm; the nearest is 0.0 cm from the hand': the roughly 20 mm (about 1.5-2 cm at this scale) motion in rack-grip-pulled-030-S-IND7_SUP_-left.png is on the trigger guard, grip and magazine base, not the slide. The slide and rear sight do not move on screen. Picture supports that the wrong part moves.
+  - the gun moved 0.3 mm with the pull' conflicts with the roughly 1.5-2 cm frame shift in rack-grip-pulled-030-S-IND7_SUP_-left.png, unless the camera moved too. The horizon and sand edge look unchanged, so the picture does not confirm that explanation.
+  - magazine (deep) 'in the hand: 3.3 cm from the palm' is confirmed by mag-4-in-hand-030-S-IND7_SUP_.png: the magazine sits above and off to the side of the palm, not in the fist.
+  - magazine 'half way in (on the rail): 0.0 cm off the magwell line' cannot be verified from mag-6-half-in-030-S-IND7_SUP_.png, because the magazine body is not visible below the grip.
+  - magazine 'seated: the gun's magazine shows 0.0 cm from where it was' is confirmed: the base plate in mag-7 sits at the same spot as in mag-1 (x 605-740, y 527-550).
+  - magazine 'dropped copy 0.0 cm across the pull ... 1.5 cm out' is consistent with mag-2-leaving-030-S-IND7_SUP_.png: the dropped magazine slides straight down the grip's slope with no sideways drift.
+  - 'racked: chambered' is consistent with rack-grip-pulled-030-S-IND7_SUP_-right.png, which shows a brass case at the ejection port.
+  - muzzle flash 'particles Muzzle, 50 cm, every shot' is not visible in lensflash-030-S-IND7_SUP_.png (see the lensflash bug). The on-screen flash exists only as the lens star.
+  - 'lens flash shown, strength 0.12': in lens-eyes-030-S-IND7 [SUP].png the star is small and faint on black. The flare sits about 60% across and 64% down each eye panel, which matches the muzzle position in lensflash-030-S-IND7_SUP_.png, and the right eye is a little stronger as expected. Strength looks low, so the flash may be hard to see in play.

@@ -1,0 +1,64 @@
+Gun 32: SL-DEFENDER
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] hand_not_on_part  (rack-grip-032-SL-DEFENDER-right.png)
+   seen: Right close-up from the gun's right side. The left glove lies flat over the top of the dark block and the long gray bar (glove about x 400-880, y 180-430; a finger lies on the bar at x 620-880, y 180-320). The bolt handle is lower right: an L-shaped lever (x 985-1080, y 380-540) ending in a ball knob (x 830-1065, y 490-730). No finger touches the knob or the lever. rack-grip-032-SL-DEFENDER-left.png confirms the hand lies flat on the receiver top well ahead of the handle, fingers pointing forward over the tan body.
+   expected: Left fingers pinch the charging / bolt handle: fingers on the ball knob and lever at lower right, not on the sight block or the top of the receiver.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-032-SL-DEFENDER-right.png)
+   seen: Same camera as rack-grip-032-SL-DEFENDER-right.png. The glove is at the same pixels (about x 400-880, y 180-430) and the ball knob and lever are also at the same pixels (knob about x 830-1060, y 490-720, lever x 985-1080, y 380-540, versus x 835-1065, y 490-730 unpulled). The handle has not moved back at all and the hand has not moved, so the pull is empty air.
+   expected: Ball knob and lever pulled back about half way along the receiver, with the hand still gripping them and moving with them.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-032-SL-DEFENDER-right.png)
+   seen: The change is on the upper receiver, not at the handle. The long gray bar under the thumb now ends near x 1070 instead of running to the right edge, a new dark block appears at upper right (x 1180-1280, y 235-340), and the three small blocks above the bar (x 860-1030, y 240-280) are gone.
+   expected: Only the bolt / charging handle (and the bolt it drives) moves back. The sight blocks and the bar by the scope should stay where they are.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-032-SL-DEFENDER-left.png)
+   seen: The glove is still at about x 215-870, y 135-600, exactly as in rack-grip-032-SL-DEFENDER-left.png. But the scope tube, which runs to x 900 in the unpulled frame, now stops at a sharp vertical cut near x 640 (thin sliver at x 645-650, sea showing beyond it). The dark cylinder at the right of the rail moves from x 1125 to x 925, and a pale block appears at x 155-300, y 245-305.
+   expected: Only the charging handle moves back; the scope stays intact on its mounts, and the glove moves with the handle.
+
+5. [major] [high] hand_not_on_part  (weapon-032-SL-DEFENDER.png)
+   seen: The free left glove (about x 540-630, y 590-690, fingers pointing up-right) hangs over the grass roughly 70-130 px left of the rifle's fore-end (fore-end starts near x 700). It touches nothing, no arm is visible, and no part of the rifle is in its fingers. The same floating glove sits in the same place in lensflash-032-SL-DEFENDER.png.
+   expected: Left hand wrapped on the fore-end / foregrip of the rifle, or at least attached to the gun. Nothing floating in the grass.
+
+6. [minor] [medium] hand_not_on_part  (rack-grip-032-SL-DEFENDER.png)
+   seen: The first-person centre view of the rack grip shows no free hand anywhere. The scope and receiver are visible at about x 680-1000, but there is no glove on the receiver top or at the bolt area, and the grass at x 540-630, y 585-690, where the glove sits in weapon-032, is empty. The hand is in a different place in each frame: missing here, floating in the grass in weapon-032 / lensflash-032, flat on the receiver in the close-ups.
+   expected: Left hand visible on the receiver top gripping the charging handle, consistent with the close-ups.
+
+7. [minor] [medium] mag_not_into_magwell  (mag-6-half-in-032-SL-DEFENDER.png)
+   seen: The fresh magazine (about x 465-810) sits up against the receiver underside, with its visible bottom edge at about y 520-530 on the left. That is the same depth as the seated magazine in mag-1 (bottom about y 510-540) and in mag-7. Below the fingertip at about x 455-600, y 530-585 there is only beach, so the magazine looks fully seated, not half way up. In mag-5 the magazine hangs clearly lower.
+   expected: Magazine caught half way up into the magwell: visibly lower than the seated position and higher than the lined-up position in mag-5.
+
+8. [minor] [low] mag_floating_or_offset  (mag-1-seated-032-SL-DEFENDER.png)
+   seen: The magazine (about x 470-810, roughly 340 px wide) hangs flat against the flat underside of the receiver. The only magwell visible in mag-3-out.png (a rounded notch at about x 675-775, y 370-410) is roughly a third of the magazine's width, and the magazine centre (about x 640) sits about 85 px left of that notch centre (about x 725). It does not look centred on, or entering, a well. The test line says 0.0 cm off the magwell line, so the reference point may differ from the visible notch.
+   expected: Magazine centred on the magwell opening and going up into it, with the opening about as wide as the magazine.
+
+9. [tiny] [low] mag_duplicate_or_missing  (mag-7-seated-again-032-SL-DEFENDER.png)
+   seen: A small dark bar (about x 975-1070, y 688-712) sticks out from under the palm of the glove. It also shows in mag-6-half-in-032-SL-DEFENDER.png, and smaller at about x 735-800, y 455-475 in mag-4 and x 850-880, y 785-795 in mag-5. It could be the base of the magazine in the hand or a second object; it is not clearly a second magazine.
+   expected: Only the gun's magazine and the hand, with nothing extra under the glove.
+
+10. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-032-SL-DEFENDER.png)
+   seen: Several large grey translucent puffs, about 60-130 px across, float across the sky far from the muzzle, for example around x 840-910, y 90-200; x 1120-1190, y 40-120; x 1000-1060, y 300-430; and x 570-700, y 160-290. The muzzle flash itself is correctly placed at the barrel tip (about x 630-700, y 400-460).
+   expected: Muzzle smoke and flash kept small and at the muzzle, not scattered as large puffs across the sky.
+
+11. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-032-SL-DEFENDER.png)
+   seen: A bluish vertical light band runs down the right screen edge (about x 1190-1280, y 0-520). It appears only in this shot frame; the non-shot frames (weapon-032, rack-grip-032-SL-DEFENDER.png) have no such band.
+   expected: Flash light confined to the muzzle and the flare; no vertical streak at the screen edge.
+
+12. [tiny] [low] hand_pose_wrong  (rack-grip-032-SL-DEFENDER-left.png)
+   seen: The thumb of the left glove sticks straight up off the back of the hand, its tip at about x 530, y 135 above the rail, with a bent joint, instead of lying along the palm.
+   expected: Relaxed thumb alongside the palm, or wrapped around the handle.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED. rack-grip-032-SL-DEFENDER-right.png and -left.png show the fingers resting on the receiver top and sight area, none on the ball-knob charging handle.
+  - pulled half way '0/72 points inside, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-032-SL-DEFENDER-right.png and -left.png, same finger positions as before the pull.
+  - 'moving with the hand: the slide / bolt': CONTRADICTED. rack-grip-pulled-032-SL-DEFENDER-right.png has the glove and the ball knob at the same pixels as the unpulled frame, so nothing moves with the hand. Only the bar and sight blocks above the receiver change.
+  - 'drawn: 2 parts move, most 71 mm; nearest is 0.0 cm from the hand': DOUBTFUL. Something on the receiver top changes in both pulled frames, but the hand does not move, so 0.0 cm from the hand describes a part that never travels with the hand. The 71 mm cannot be checked from stills.
+  - 'the gun moved 0.9 mm with the pull': not checkable from stills.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the lateral offset is not contradicted, but mag-6-half-in-032-SL-DEFENDER.png shows the magazine at seated depth, so the half-way state is not what the picture shows. The lateral check also does not cover depth. The mag-1 magazine centre sits about 85 px from the visible notch, so the reference point may differ.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONFIRMED. mag-7-seated-again matches mag-1-seated.
+  - 'in the hand: 3.2 cm from the palm': not checkable precisely from stills. mag-4-in-hand shows the magazine held against the index finger.
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm': PROBABLY WRONG. lensflash-032-SL-DEFENDER.png shows grey puffs far larger than the muzzle flash, spread across the sky. The flash at the muzzle itself looks correct.
+  - 'lens flash shown, strength 0.77': CONFIRMED. lens-eyes-032-SL-DEFENDER.png shows a visible star with soft rings in both eyes, the right eye a little stronger, centred where the muzzle is.
+  - 'fired 3/3', 'cases thrown: 3', 'case objects made so far 40 for 310 thrown': not checkable from stills.
+  - 'recoil: one hand 1.5 deg climb, 0.8 cm back' and 'impulse per shot one hand 150 deg/s': not checkable from stills.

@@ -1,0 +1,53 @@
+Gun 114: ARS MP9
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-114-ARS MP9.png)
+   seen: The whole frame, both the LEFT and RIGHT eye panels side by side, is solid black. There is no star, no flare, and no soft rings on either eye, so the lens flash is absent entirely.
+   expected: A bright star or flare near the muzzle with soft rings on both eyes, the right eye a bit stronger.
+
+2. [major] [high] mag_duplicate_or_missing  (mag-3-out-114-ARS_MP9.png)
+   seen: The magwell is not empty. The tan ridged magazine is still in the magwell and hangs below the receiver and trigger guard, identical in position and shape to mag-1-seated and running to the bottom edge of the frame.
+   expected: Magwell empty, with no magazine under the receiver.
+
+3. [major] [high] mag_duplicate_or_missing  (mag-2-leaving-114-ARS_MP9.png)
+   seen: The magazine has not started to drop. Its position and shape match mag-1-seated exactly, with no lowering or offset along the magwell line. No separate falling magazine is visible; the test's 12.8 cm dropped copy would lie below the bottom edge.
+   expected: The magazine moving straight down out of the magwell along its line and separating from the receiver.
+
+4. [major] [medium] mag_duplicate_or_missing  (mag-6-half-in-114-ARS_MP9.png)
+   seen: The frame looks the same as mag-1-seated: one tan magazine and the hand wrapped at the same spot. No fresh magazine is visible going half way into the magwell, so it is either hidden inside the gun's own magazine or missing.
+   expected: The fresh magazine visibly half way into the magwell on its line, as a distinct magazine with its base sticking out at the magwell.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-114-ARS_MP9-right.png)
+   seen: Compared with rack-grip-114-ARS_MP9-right.png, the hand, the background and the square charging handle on the receiver top (about x 720-850) stay at the same screen spot. The whole receiver and barrel shift about 150 px to the right, toward the rear of the gun (roughly 3 cm at this range, an estimate). The barrel joint moves from x about 650 to about 800, and the rear sight and the 24+1 label move with it. Relative to the receiver, the handle moves forward, not back.
+   expected: Only the charging handle travels back about half way with the fingers on it. The receiver and barrel stay fixed.
+
+6. [minor] [medium] hand_or_finger_clipping  (mag-7-seated-again-114-ARS_MP9.png)
+   seen: A second gloved hand sits at the bottom-left (about x 270-450, y 575-800). It holds nothing, and its curled fingers poke into the trigger guard and press against the rear grip. The magazine-holding glove at the magwell is fine. Only this frame shows the extra hand; mag-1 to mag-6 do not.
+   expected: No hand through the trigger guard or against the rear grip once the magazine is seated; the hand released from the gun.
+
+7. [minor] [low] mag_wrong_orientation_or_model  (mag-4-in-hand-114-ARS_MP9.png)
+   seen: The fresh magazine is tucked under the back edge of the palm on a steep diagonal and is not wrapped by the fingers. Its orange feed end points up and to the left, away from the gun's magwell, which is up and to the right.
+   expected: Fingers wrapped around the magazine, with the feed end toward the magwell.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-114-ARS_MP9.png)
+   seen: During full auto the first-person view shows thrown casings, but the muzzle flash is tiny: only a pale spark and a small grey puff just in front of the barrel tip. There is no clear bright flash at the muzzle.
+   expected: A clear muzzle flash at the muzzle on each shot.
+
+9. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-114-ARS_MP9.png)
+   seen: The first-person pulled view looks nearly the same as rack-grip-114-ARS_MP9.png. The slide and rear sight stay in the same place, and only the glove shifts slightly. No visible rearward slide travel with the barrel showing in front of it.
+   expected: The pistol slide visibly pulled back about half way with the hand on it.
+
+10. [minor] [low] hand_not_on_part  (weapon-114-ARS_MP9.png)
+   seen: No right hand is clearly wrapped around the pistol grip. The gun's lower part is cut off by the bottom edge, and the only glove in view is the free left hand mid-grass.
+   expected: The right hand wrapped around the pistol grip, holding the gun.
+
+Test line flags:
+  - 'gun moved 0.9 mm with the pull, 3.1 mm when it went home': contradicted by the close-up pair rack-grip-114-ARS_MP9-right.png and rack-grip-pulled-114-ARS_MP9-right.png. The receiver and barrel visibly shift about 150 px while the hand and handle stay put, so the picture confirms the moving part is wrong.
+  - 'drawn: 2 drawn part(s) move, most 69 mm; the nearest is 0.1 cm from the hand': in the pulled close-up (rack-grip-pulled-114-ARS_MP9-right.png) the nearest moving part, the charging handle, does not travel back with the fingers. The picture does not support a handle moving 69 mm with the hand.
+  - 'seated: the gun's magazine shows': this check cannot tell seated from still-there. mag-2-leaving and mag-3-out also show the gun's magazine, so this check would pass the bug seen in those frames.
+  - 'dropped copy ... 12.8 cm out, size x1.56': the dropped copy is not visible in any frame (it would be below the bottom edge in mag-2 and mag-3), so 12.8 cm is not confirmable. The size x1.56 is not supported either: the fresh magazine held in mag-5 is not visibly about 56 percent larger than the gun's own magazine. Likely a wrong scale, not confirmed.
+  - 'half way in (on the rail): 0.4 cm off the magwell line': no separate half-in magazine is visible in mag-6-half-in-114-ARS_MP9.png, so this measurement cannot be confirmed; the half-in magazine appears to overlap the gun's own magazine.
+  - 'in the hand: 2.7 cm from the palm': mag-4-in-hand-114-ARS_MP9.png shows the magazine tucked under the palm edge, not gripped by the fingers. Plausible distance, but the grip is not confirmed.
+  - 'lens flash none' and 'flashes L 0 / R 0': confirmed by the solid black lens-eyes-burst-114-ARS MP9.png.
+  - 'muzzle flash: particles MuzzleTransform, 70 cm': the unit and meaning are unclear. lensburst-114-ARS_MP9.png shows only a small spark at the barrel tip, which does not confirm a 70 cm figure.
+  - 'rack grip ... not measured' and 'pulled half way: not measured': the rack check rests on pictures only, and the close-up pair shows the handle not travelling back with the hand (see rack-grip-pulled-114-ARS_MP9-right.png).

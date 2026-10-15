@@ -1,0 +1,27 @@
+Gun 74: f2000exps3
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-074-f2000exps3-left.png)
+   seen: The hand does not move back at all. In the left close-up it is in exactly the same pose as in rack-grip-074-f2000exps3-left.png: top finger on the right end of the ridged cylinder at about x 340-420, y 250-300, lower fingers at x 275-400, y 340-420. In the first-person frame rack-grip-pulled-074-f2000exps3.png the glove sits at x 705-800, y 580-760, unchanged from rack-grip-074-f2000exps3.png. In the right close-up (rack-grip-pulled-074-f2000exps3-right.png against rack-grip-074-f2000exps3-right.png, same camera) the block with the round pin and the notch slid about 370-430 px toward the rear (pin from x about 155 to about 590, notch from about 610 to about 980), so the part moves out from under a hand that stays put.
+   expected: The fingers stay on the handle and travel back with it, about half way (the test says 57 mm), so the hand moves as far as the part does. Here the hand pulls air.
+
+2. [major] [high] hand_not_on_part  (rack-grip-074-f2000exps3-left.png)
+   seen: The gloved hand lies on the top rail of the receiver. The ridged cylinder (x about 170-340, y 255-295) and the black lever block to its left (x about 0-170, y 245-320) are left of the fingers. Only the top finger touches the right end of the cylinder. The lower fingers rest on the black rail (x about 150-500, y 330-420) under it, so about 1 of 4 fingers is on the handle.
+   expected: All four fingers closed on the charging handle, not resting on the rail beside it.
+
+3. [major] [high] picture_unusable  (lens-eyes-074-f2000exps3.png)
+   seen: The whole 606 x 250 picture is black. Neither eye shows any flare. The burst capture lens-eyes-burst-074-f2000exps3.png from the same run shows both eyes flaring, so the single-shot frame missed the flash (capture timing or the flash not drawn on a single shot).
+   expected: A bright star with soft rings near the muzzle in both eyes, the right eye a bit stronger, as in lens-eyes-burst-074-f2000exps3.png.
+
+4. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-074-f2000exps3.png)
+   seen: First-person single shot with no muzzle flash. The muzzle at the left end of the rifle (about x 700-730, y 480-510) is dark. The frame is covered in grey-blue smoke puffs over the sky, wall and hill, but there is no bright flash at the muzzle. The same muzzle in lensburst-074-f2000exps3.png shows a yellow-orange burst at about x 650-740, y 455-535.
+   expected: A yellow-white muzzle flash at the muzzle on the shot frame, as in lensburst-074-f2000exps3.png. This may be capture timing, since the test says the muzzle flash shows on every shot.
+
+5. [minor] [low] part_floating_or_detached  (weapon-074-f2000exps3.png)
+   seen: The free left hand is drawn alone in the grass at about x 540-630, y 590-690, fingers pointing up-right, with no forearm or arm leading to it from the bottom-left corner. The same floating hand shows in lensflash-074-f2000exps3.png and lensburst-074-f2000exps3.png.
+   expected: Either a forearm drawn to the hand, or the hand hidden if this VR build intentionally shows armless hands. Low confidence because no right arm is visible either.
+
+Test line flags:
+  - "pulled half way: 0/4 fingers on it; moving with the hand: the slide / bolt": CONFIRMED as wrong. In the pulled pictures the hand does not move while a part slides away, so the claim that the part moves with the hand is not supported.
+  - "drawn: 3 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand": the size cannot be checked (no scale in the pictures). The right close-up does show a real move of about 370-430 px, but the hand does not follow, so the 0.0 cm contact does not hold through the pull.
+  - "lens flash shown, strength 0.93" and "muzzle flash: every shot": CONTRADICTED for the single-shot frames. lens-eyes-074-f2000exps3.png is black and lensflash-074-f2000exps3.png has no muzzle flash. The burst frames (lensburst, lens-eyes-burst) do show the flash, so the effect works during full auto.

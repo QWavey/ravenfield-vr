@@ -1,0 +1,25 @@
+Gun 46: Zombie AI
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-046-Zombie_AI.png)
+   seen: The only bright thing is a pale blue-white flare disc in the upper middle of the view, centred about (660, 275) and roughly 120 px across. The gun's barrel tip is at the bottom right, about (715-745, 640-690), and nothing glows there: no muzzle flash is visible at the muzzle at all.
+   expected: A bright flash or flare centred on the muzzle at about (730, 660), with the glow on the barrel end, instead of a flare roughly 400 px higher and to the left of the gun.
+
+2. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-046-Zombie AI.png)
+   seen: Left and right eye panels (606x250 image) each show only a dim, desaturated teal-grey disc in the upper third, about (145, 88) left and (462, 88) right, about 35 px across with fairly crisp edges, plus a tiny dim orange dot near the bottom at about (165, 235) and (438, 235). There is no bright star and no soft rings. The two eyes look about equally bright; the gun-side right eye is not visibly stronger.
+   expected: A bright star or flare near the muzzle with soft rings, with the right (gun-side) eye a bit stronger than the left.
+
+3. [minor] [low] other  (lens-eyes-046-Zombie AI.png)
+   seen: weapon-046 and lensflash-046 both show a hard-edged rectangle over the middle of the view, roughly x 357-1097, y 217-582, with a reddish dithered noise tint and straight visible edges. It is not in the lens-eyes picture.
+   expected: No hard-edged box over the view. If this is the lens-flash quad, its edge should be soft. It may be an intended HUD or overlay element, which I cannot confirm from the pictures.
+
+4. [minor] [low] hand_not_on_part  (weapon-046-Zombie_AI.png)
+   seen: The gun sits at the bottom right, barrel pointing up-left toward the centre, and its grip runs off the bottom edge around x 800-880. No right hand is visible wrapped around the grip. The only hand visible is the left one at about (540-635, 585-690), which is free as expected.
+   expected: The right hand wrapped around the pistol grip. The hand may simply be below the frame, so this cannot be confirmed from the picture.
+
+Test line flags:
+  - "muzzle flash: no particles, the flash light": lensflash-046-Zombie_AI.png shows no visible glow at the barrel tip, so the muzzle flash is not visible on the gun. The picture confirms this part of the line is not visible.
+  - "lens flash shown, strength 0.54": lens-eyes-046-Zombie AI.png confirms a flash is present, but it reads faint (dim discs, no bright star) and sits in the upper third of the view, far from the muzzle. A strength of 0.54 would normally look clearly bright, so this is doubtful.
+  - Expected gun-side (right) eye a bit stronger: lens-eyes-046-Zombie AI.png shows both eyes about equally bright. The picture does not confirm this.
+  - "equipped": weapon-046-Zombie_AI.png shows the gun held at the bottom right, consistent with the line, but no right hand is visible on the grip (see the hand_not_on_part entry).
+  - "manual reload not active for this weapon": no magazine pictures are listed for this gun, so there is nothing to check against it.

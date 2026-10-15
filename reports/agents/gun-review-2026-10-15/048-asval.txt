@@ -1,0 +1,54 @@
+Gun 48: asval
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-048-asval-left.png)
+   seen: The free left hand lies flat over the top cover of the receiver and gas tube, fingers pointing toward the muzzle (left). No finger touches any handle. Fingers and knuckles cover roughly x 215-870, y 200-570; the rear box at the right end of the receiver (x 1050-1230, y 290-430) is nowhere near the hand.
+   expected: Fingers pinch the racking handle (charging handle at the upper rear of the receiver), visibly closed on that part.
+
+2. [major] [medium] hand_or_finger_clipping  (rack-grip-048-asval-right.png)
+   seen: One gloved fingertip sits on top of the gas tube / receiver at about x 720-915, y 265-380, its base cut into the top rail, with no hand visibly attached. The rest of the hand is at the bottom left (x 0-510, y 600-800); the index finger pokes up beside the trigger at about x 420-515, y 600-660. The top tip reads as a finger poking through the top of the gun, not holding a handle.
+   expected: Fingers wrap the outside of the racking handle. No finger inside or through the receiver, and no finger in the trigger area.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-048-asval.png)
+   seen: First-person view: the free hand shows only as a dark rounded glove shape stuck to the receiver side at about x 705-790, y 540-650, right above the magazine. No fingers are visible closed on a handle; it is not at the rear top of the receiver. Low confidence because the hand is small at this distance.
+   expected: Hand at the racking handle with fingers closed on it.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-048-asval-left.png)
+   seen: Compared with rack-grip-048-asval-left.png, the whole gun body has shifted about 170 px to the left (toward the muzzle): the rear box, magazine, pistol grip and the right hand on the grip all moved together. The left hand stayed exactly where it was on screen (fingertip at x 215, y 270-330 in both pictures), so the gun moved and the hand did not follow a moving part.
+   expected: Only the racking handle / slide moves about half way back, under the fingers. Receiver, magazine, grip and trigger stay still, and the hand moves with the handle.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-048-asval-right.png)
+   seen: The long black rack bar above the trigger (x 300-740, y 470-600 in rack-grip-048-asval-right.png) and the trigger below it have moved about 250 px to the right, toward the muzzle side (the magazine is on the right of this view). The index finger has extended forward under the bar rather than pulling it back. The top fingertip has also sunk lower into the receiver top (now about x 690-925, y 300-440, overlapping the rail).
+   expected: The racking part moves about half way back toward the stock (left in this view) with the fingers on it. Trigger and receiver stay still; no finger inside the receiver.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-048-asval.png)
+   seen: First-person view on a shot. A shell case is in the air at about x 905-945, y 518-528, so the gun fired, but there is no visible flame at the muzzle (about x 685-700, y 448-465). The muzzle reads as plain metal over grass; no flash cone or glow.
+   expected: A bright muzzle flame (the 'Flame' particle system, 100 cm, every shot) visible at the muzzle.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-048-asval.png)
+   seen: Full-auto first-person view. Several cases are in flight (about x 830-1275, y 470-545), but at the muzzle (about x 680-700, y 448-470) there is at most a faint yellow tint in the grass. No flame cone and no visible repeated muzzle flash.
+   expected: A visible flame at the muzzle on each shot of the burst.
+
+8. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-048-asval.png)
+   seen: Left and right eye on black (606x250 composite). Each eye shows only a 2-3 px dim orange star, at about (170,145) on the left and (468,145) on the right, with very faint soft rings. Almost black overall, so the flash is barely readable. Positives: the flare sits where the muzzle is (about 57%, 58% of the eye vs muzzle about 54%, 57% of the first-person frame), and the right eye is a bit stronger as expected.
+   expected: A clearly visible bright star with soft rings near the muzzle, the right eye a bit stronger than the left.
+
+9. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-048-asval.png)
+   seen: Same layout while holding the trigger. The stars are even smaller and dimmer: a 1-2 px dot in each eye at the same spots, with no visible rings. Almost nothing shows against the black. Right eye slightly stronger.
+   expected: Each shot in the burst gives a visible soft flash near the muzzle, right eye a bit stronger.
+
+Test line flags:
+  - rack grip '0/4 fingers on it': confirmed. rack-grip-048-asval-left.png and rack-grip-048-asval-right.png show no finger closed on any handle.
+  - pulled half way '1/4 fingers on it': not confirmed. In rack-grip-pulled-048-asval-right.png the index finger lies under the bar, not on it; the only fingertip on top sits in the receiver top, which is clipping rather than a grip.
+  - 'moving with the hand: the slide / bolt': not supported by rack-grip-pulled-048-asval-left.png. The left hand stays where it was on screen while the gun body moves.
+  - 'drawn: 1 drawn part(s) move, most 54 mm; nearest 0.0 cm from the hand': the bar in rack-grip-pulled-048-asval-right.png moves about 250 px, roughly consistent with 54 mm at this scale, but it moves toward the muzzle side, not rearward. The nearest-to-hand claim fits the picture.
+  - 'the gun moved 0.7 mm with the pull, 2.0 mm when it went home': contradicted by rack-grip-pulled-048-asval-left.png, where the gun body shows a shift of about 170 px with the hand unmoved. Unless the camera framing changed between the shots, this is a real movement and the test number is wrong or measures a different transform.
+  - 'muzzle flash: particles Flame, 100 cm, every shot': not confirmed. lensflash-048-asval.png and lensburst-048-asval.png show no visible flame at the muzzle although cases are flying.
+  - 'lens flash shown, strength 0.08': the flash exists but is almost invisible in lens-eyes-048-asval.png and lens-eyes-burst-048-asval.png.
+  - 'lens flash burst: 21 shots, flashes L 21 / R 21 (full L 4 / R 4)': lens-eyes-burst-048-asval.png shows only faint dots, consistent with mostly soft flashes. Nothing hard-edged.
+  - 'magazine seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-1-seated-048-asval.png and mag-7-seated-again-048-asval.png put the magazine in the same place.
+  - 'magazine dropped copy 0.0 cm across the pull, 2.8 cm out': mag-2-leaving-048-asval.png shows the magazine dropping down along its axis with no obvious sideways shift. Consistent.
+  - 'in the hand: 3.4 cm from the palm': mag-4-in-hand-048-asval.png shows the fingers closed on the lower part of the magazine, which looks held. The distance cannot be checked from this view.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in-048-asval.png looks on the well's line. The offset cannot be measured from the picture.
+  - 'cases thrown: 24': lensburst-048-asval.png shows several cases in flight. Consistent.
+  - Not a bug, but worth knowing: in mag-5-lined-up-048-asval.png the fresh magazine sits well below and left of the magwell in view, so 'right at the well' cannot be confirmed from this angle. No magazine bug seen in mag-1, mag-2, mag-3, mag-4, mag-6 or mag-7.

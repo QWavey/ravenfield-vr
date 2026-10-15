@@ -1,0 +1,37 @@
+Gun 43: R870 CQC
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-043-R870_CQC-left.png)
+   seen: Close-up from the left. Compared with rack-grip-043-R870_CQC-left.png, the gloved free hand (pale thumb, palm, fingers) stays at exactly the same screen spot, but the scope, rail, receiver and the right-hand grip all slide about 150 px toward the muzzle (left) as one piece. rack-grip-pulled-043-R870_CQC-right.png shows the same thing from the other side: receiver and scope move about 235 px toward the muzzle against a finger that stays put. Nothing is carried back toward the stock by the hand.
+   expected: The free hand grips the R870 pump (forend) and it slides back toward the stock about half way (the test says about 45 mm) while the receiver, scope and grip stay still. The hand should travel with the part it is racking.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-043-R870_CQC-left.png)
+   seen: Close-up from the left. The gloved free hand lies across the top of the gun: the pale thumb rests on the barrel top (about x 220-340, y 270-330), the palm sits on the receiver rail under the scope (x 400-870, y 240-530), and the four fingers hang down beside the tube/forend at x 240-470, y 330-440. Nothing wraps the forend under the barrel at the far left (x 0-200, y 330-470). Agrees with the test line's 0/4 fingers on the part.
+   expected: The four fingers close around the R870 pump/forend under the barrel, fingertips on that part, ready to rack it back. The hand should not rest on the barrel top or the receiver rail.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-043-R870_CQC.png)
+   seen: First-person view. The free hand that is clearly visible in weapon-043-R870_CQC.png (about x 540-630, y 585-690) is gone; no glove shows anywhere near the forend (about x 715-790, y 590-670). rack-grip-pulled-043-R870_CQC.png has the same empty view. Possibly hidden behind the gun, but in the close-ups the hand sits on the receiver, so it should be visible somewhere in this frame.
+   expected: The free hand visible on the pump/forend while it is racked, as in the weapon-in-hand shot.
+
+4. [minor] [low] hand_or_finger_clipping  (rack-grip-043-R870_CQC-right.png)
+   seen: Close-up from the right. The dotted glove finger drops over the receiver side, and its pale fingertip (about x 760-900, y 420-540) sits on the side plate below the loading window, looking pressed into the receiver body rather than resting on a part.
+   expected: Fingers resting on the outside of the pump, not sunk into the receiver side plate.
+
+5. [minor] [low] other  (rack-grip-043-R870_CQC-right.png)
+   seen: The oval window in the receiver side (about x 500-760, y 370-470, partly covered by the finger) shows olive background, so it reads as a see-through hole in the gun. In rack-grip-pulled-043-R870_CQC-right.png the same opening shows solid red instead, so something inside changes between the two shots.
+   expected: A loading or ejection port shows the inside of the action (dark metal), never the background. No see-through hole in the receiver side.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-043-R870 CQC.png)
+   seen: The brown lens haze runs out to a rounded-rectangle border: in the left-eye panel it is cut off at about x 298, in the right-eye panel at about x 605. That leaves a visible edge at the right and top corners instead of fading to black. The right eye is a bit stronger than the left, which is correct.
+   expected: The haze fades smoothly to black well inside each eye panel, with no clipped edge.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-043-R870_CQC.png)
+   seen: A faint vertical bright band runs down the far right edge of the frame (about x 1200-1240) from the top to the horizon. It does not line up with the muzzle flash (about x 690, y 500). The ghost rings do line up with the muzzle-to-centre line, so only this band is off.
+   expected: Lens ghosts and streaks only along the line from the muzzle flash through the screen centre.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': matches the pictures (the hand is on the barrel top and receiver rail, not the pump). This is the bug itself, not a test error. Confirmed by rack-grip-043-R870_CQC-left.png.
+  - pulled half way '0/72 points, 0/4 fingers' and 'moving with the hand: the slide / bolt': looks wrong. In the pulled close-ups no part follows the hand; the gun body shifts relative to the glove. Confirmed by rack-grip-pulled-043-R870_CQC-left.png and rack-grip-pulled-043-R870_CQC-right.png.
+  - 'drawn: 1 drawn part(s) move, most 45 mm; the nearest is 0.0 cm from the hand': looks wrong. In the first-person pair (rack-grip-043-R870_CQC.png vs rack-grip-pulled-043-R870_CQC.png) the forend sits in the same place, so a 45 mm backward move is not visible. The 0.0 cm contact is with barrel or receiver, not the pump. The pictures do not confirm the 45 mm move.
+  - 'the gun moved 0.8 mm with the pull': looks wrong. The close-ups show the scope and receiver shifting about 150-235 px against a static glove, far more than 0.8 mm unless the close-up camera itself moves. Picture suggests a larger move than the test reports; check the measurement.
+  - No magazine pictures exist for this gun: sheet panels 8-14 (mag 1 to mag 7) read 'none' and the brief lists none. The reload path could not be checked from pictures. If the R870 is tube-fed with no magazine steps, the test should say so instead of leaving the steps empty.

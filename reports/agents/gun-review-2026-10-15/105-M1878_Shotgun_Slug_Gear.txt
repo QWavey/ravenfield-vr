@@ -1,0 +1,14 @@
+Gun 105: M1878 Shotgun Slug Gear
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] part_floating_or_detached  (weapon-105-M1878_Shotgun_Slug_Gear.png)
+   seen: A flat, dark-brown slab fills the bottom-right corner (roughly x 1055-1280, y 650-800 of the 1280x800 frame) and is cut off by the frame edge. Its color is darker than the tan wooden body of the gun, and it sits about 120 px to the right of the right hand with grass between them, so it does not look attached to the grip. It may be the shotgun's stock detached from the hand, or a stray object close to the camera.
+   expected: If it is the stock, it should sit attached behind the grip / right hand in matching wood, not apart from the hand. If it is not part of the gun, it should not be in the first-person view.
+
+2. [minor] [low] other  (weapon-105-M1878_Shotgun_Slug_Gear.png)
+   seen: The black head at the front of the gun carries two bright yellow round discs (around x 690-760, y 535-585) in an idle frame with no shot fired. They may be the two loaded shell heads (the test says loaded 2/2), which would be correct, but they glow like emissive objects. If they are a flash sprite or glow left on at rest, that is a bug.
+   expected: At rest the discs should read as brass / shell heads in normal light, with no bright glow. Any muzzle flash should appear only on a shot.
+
+Test line flags:
+  - Lens flash is reported as 'none' while the same line says muzzle flash uses 'the flash light'. If the flash light is on, a shot should produce an on-screen lens flash, so this looks wrong for the lens-flash effect. The picture is an idle frame with no shot, and no lensflash or lens-eyes picture is listed for gun 105, so it does not confirm this.
+  - Two-hand recoil and impulse are exactly zero ('two hands 0.0 deg, 0.0 cm' and 'two hands 0 deg/s'), while one hand gives 4.4 deg, 1.8 cm and 276 deg/s. Exact zeros on every two-hand value look like the two-hand path did not run or the measurement is broken. The picture shows the left hand free (one-hand carry), so it cannot confirm the two-hand values either way.

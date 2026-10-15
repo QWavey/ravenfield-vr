@@ -314,8 +314,8 @@ namespace RavenfieldVR.Core
                 "Coming up out of the water leaves drops on your view that run down and dry in a few seconds.");
             LensFlash = cfg.Bind("UI", "MuzzleLensFlash", true,
                 "Your muzzle flash flares on the eyes for a moment (see-through, only on shots where the weapon's own flash shows).");
-            LensFlashStrength = cfg.Bind("UI", "MuzzleLensFlashStrength", 2f,
-                new ConfigDescription("How strong the muzzle lens flash is (1 is the approved simulation's own strength, seen on black; over a lit scene it is faint, so 2 by default). The flash limiter's caps hold at any strength.",
+            LensFlashStrength = cfg.Bind("UI", "MuzzleLensFlashStrength", 1.5f,
+                new ConfigDescription("How strong the muzzle lens flash is (1 is the approved simulation's own strength, seen on black; over a lit scene it is faint, so 1.5 by default). The flash limiter's caps hold at any strength.",
                     new AcceptableValueRange<float>(0f, 3f)));
             ReduceFlashing = cfg.Bind("UI", "ReduceFlashing", true,
                 "Photosensitivity safety: never more than three visible flashes a second (a steady glow instead on full auto).");
@@ -361,6 +361,15 @@ namespace RavenfieldVR.Core
                     LensFlashStrength.Value = 2f;
                 }
                 revision.Value = 3;
+            }
+            if (revision.Value < 4)
+            {
+                // 2 was too much on rifles (half the view washed out): a little smaller for every gun.
+                if (Mathf.Approximately(LensFlashStrength.Value, 2f))
+                {
+                    LensFlashStrength.Value = 1.5f;
+                }
+                revision.Value = 4;
             }
         }
 

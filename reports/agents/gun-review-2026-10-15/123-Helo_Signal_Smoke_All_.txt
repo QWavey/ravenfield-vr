@@ -1,0 +1,18 @@
+Gun 123: Helo Signal Smoke (All)
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [medium] gun_pose_or_aim_wrong  (weapon-123-Helo_Signal_Smoke_All_.png)
+   seen: The gun sits at the very bottom edge of the frame. Only its upper body (about x 780-950, y 715-800) is visible, and it is cut off by the bottom of the screen, so the grip and the lower part of the gun are out of view.
+   expected: The gun held in the lower-right of the frame with the grip fully visible and pointing forward, the whole gun inside the view.
+
+2. [minor] [low] hand_not_on_part  (weapon-123-Helo_Signal_Smoke_All_.png)
+   seen: The right hand is not identifiable. The only candidate is a plain white blob at about x 735-790, y 725-800, cut off by the bottom edge, with no finger shapes. No fingers can be seen wrapped round any grip, so the hold cannot be confirmed.
+   expected: The right hand visibly wrapped round the grip with fingers on the grip, and the hand readable as a hand.
+
+3. [minor] [low] part_floating_or_detached  (weapon-123-Helo_Signal_Smoke_All_.png)
+   seen: The free left hand is a dark grey fingered hand hanging in mid-air over the grass at about x 540-635, y 585-690, in the centre-left of the view. It has no forearm or wrist running to the screen edge and sits roughly 300 px away from the gun.
+   expected: A free left hand resting at the lower-left, attached to the body, not hovering mid-screen. This may be the intended arm-less hand style (the right hand also shows no arm), so treat it as low confidence.
+
+Test line flags:
+  - two hands 0.0 deg, 0.0 cm and impulse two hands 0 deg/s: exactly zero two-handed recoil on every measure looks wrong. It suggests two-hand stabilisation fully cancels recoil, or the two-hand case did not register. The picture shows only one hand, so it does not confirm or refute the two-hand numbers.
+  - muzzle flash: none and lens flash none, even though the line says fired 1/3 (a shot registered): no flash was recorded for a shot that happened. The picture is taken at rest with no shot in frame, and the brief lists no lensflash or lens-eyes picture, so this cannot be confirmed. A signal smoke launcher may legitimately have no muzzle flash, so this is a question rather than a confirmed bug.

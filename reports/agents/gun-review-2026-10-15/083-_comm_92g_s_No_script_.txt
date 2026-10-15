@@ -1,0 +1,52 @@
+Gun 83: [comm]92g s(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-083-_comm_92g_s_No_script_-right.png)
+   seen: Compared with rack-grip-083-_comm_92g_s_No_script_-right.png, the slide does not travel. Its bright top highlight (about x 955-1130, y 420-450) and the left thumb and fingers on it stay at the same spot. The frame moves instead: the pivot pin circle (x about 1050 to 1225), the trigger lever (x about 640-770 to 800-930), the small hole at the front of the frame (x about 560 to 710), and the right hand's fingertip on the grip (x about 1060 to 1225) all shift about 160 px to the right. The slide's front edge moves about 30 px left. A brass case appears at the right edge (x 1210-1280, y 445-500).
+   expected: The slide slides back about 34 mm under the left hand's pinch, so the highlight and slide edge move with the thumb. The frame, pivot, trigger lever and the right hand on the grip stay still.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-083-_comm_92g_s_No_script_-left.png)
+   seen: Compared with rack-grip-083-_comm_92g_s_No_script_-left.png, the trigger guard and the magazine base shift about 90-100 px to the left (magazine base about x 510-690 to 410-600, trigger guard hook about x 240-460 to 140-350). The left hand's index fingertip (x about 230-260, y 410-450) and the slide's top edge (y about 320) stay where they were. A brass case appears above the barrel (x 280-350, y 265-295).
+   expected: Only the slide moves back under the hand. Trigger guard, frame and magazine stay in place. This shift is in the opposite direction to the right-side close-up, so the frame is not moving consistently between the two views.
+
+3. [major] [medium] mag_floating_or_offset  (mag-4-in-hand-083-_comm_92g_s_No_script_.png)
+   seen: The fresh magazine (about x 355-530, y 85-300) is tilted about 25 degrees and rests on top of the back of the left hand, its lower end just touching the knuckle edge at y about 290-300. The fingers curl underneath and to the left (x 370-500, y 300-440) and do not wrap around the magazine. It is not held in the palm; the test line's 3.5 cm from the palm fits this.
+   expected: The fingers wrap the magazine body close to the palm, with the magazine held upright or angled toward the magwell and the feed end toward the gun.
+
+4. [minor] [low] mag_wrong_orientation_or_model  (mag-4-in-hand-083-_comm_92g_s_No_script_.png)
+   seen: The far (upper-left) end of the magazine points away from the gun, roughly 140 degrees off the direction to the magwell. If that upper end is the feed end, the magazine is turned around.
+   expected: Feed end pointing toward the magwell on the gun, as in mag-5 where the feed end points up at the grip.
+
+5. [minor] [low] mag_wrong_orientation_or_model  (mag-5-lined-up-083-_comm_92g_s_No_script_.png)
+   seen: The fresh magazine (x 615-715) is about 100 px wide, while the grip directly above it at the same depth is about 160 px wide and the gun's own magazine in mag-1 and mag-2 is about as wide as the grip. The fresh magazine looks seen from its narrow side, which suggests it is rotated about 90 degrees or is a different model. Its vertical line is otherwise aligned with the magwell.
+   expected: Same width and broad face as the gun's magazine, facing the same way, so it fits the magwell when it goes up.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-083-_comm_92g_s_No_script_.png)
+   seen: In the first-person rack frames (rack-grip and rack-grip-pulled) no left hand is visible at the slide (slide at about x 705-760, y 510-600). The free hand that sits at x 540-630, y 585-690 in weapon-083 is gone, so the racking grip cannot be checked from this view. It may be hidden behind the gun.
+   expected: The left hand pinching the slide's rear, visible in this first-person view.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-083-_comm_92g_s_No_script_.png)
+   seen: At the muzzle (barrel tip about x 705-720, y 508-530) there is only a faint yellow glow of about 30-40 px (x 675-705, y 495-535) against the grass. No bright flash burst is visible.
+   expected: A clearly visible muzzle flash burst at the muzzle, matching the 50 cm muzzle flash particles the test reports.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-083-[comm]92g s(No script).png)
+   seen: Both eyes show only a dim brown-orange star about 10 px across with faint rings. It is barely readable on black. The star sits near the centre of each panel (left at about x 175, right at about x 470), which matches the muzzle position in the first-person view. The right eye is slightly brighter, which is correct.
+   expected: A bright star with soft rings that is clearly visible at strength 0.12, with the right eye a bit stronger.
+
+9. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-083-[comm]92g s(No script).png)
+   seen: The faint halo rings appear clipped by a rounded edge on the inner side of each panel (left panel near x 297, right panel near x 378), so the glow ends in a visible edge instead of fading out.
+   expected: A soft falloff with no visible panel edge.
+
+Test line flags:
+  - drawn: 1 drawn part(s) move, most 34 mm, nearest 0.0 cm from the hand: NOT CONFIRMED. In rack-grip-pulled-083-...-right.png the slide does not travel; the highlight and the slide edge stay in place. The part that moves is the frame (receiver, pivot, trigger lever) and the right hand on the grip.
+  - the gun moved 0.4 mm with the pull, 2.8 mm when it went home: CONTRADICTED. The frame and grip shift about 90-160 px between rest and pulled in both close-ups, far more than 0.4 mm.
+  - moving with the hand: the slide / bolt: CONTRADICTED. The left hand and its pinch stay at the same image position in rest and pulled close-ups; only the frame moves.
+  - pulled half way: 0/72 points inside the part, 2/4 fingers on it: not verifiable from the pictures. The fingers sit at the same spot in rest and pulled close-ups.
+  - rack grip: 3/4 fingers on it: not clearly verifiable. In rack-grip-083-...-left.png the middle finger sits at the slide-frame junction in front of the trigger guard, not clearly on the slide.
+  - in the hand: 3.5 cm from the palm: CONFIRMED. mag-4-in-hand shows the fresh magazine resting above the back of the hand, not held by the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: not contradicted. In mag-6-half-in the hand hides most of the magazine; only a sliver of base (x about 575-650, y 595-650) shows at the grip's left edge, which lines up with the grip.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED consistent. In mag-7 the base plate sits at the same spot as in mag-1 (x about 580-780, y about 530-575).
+  - magazine (deep): dropped copy 0.0 cm across the pull, 2.2 cm out: consistent with mag-2-leaving, where the base drops straight down about 55 px without a clear sideways shift.
+  - muzzle flash particles 50 cm every shot, no flash light; lens flash strength 0.12: consistent with the very faint flash seen in lensflash-083 and lens-eyes-083. The flash reads as too weak to see.
+  - cases thrown: 3: consistent. Brass is visible in rack-grip-pulled-083-...-left.png (above the barrel) and rack-grip-pulled-083-...-right.png (right edge).
+  - racked: chambered, fired 3/3, magazine seated 15 rounds, recoil and impulse numbers: no picture evidence either way.

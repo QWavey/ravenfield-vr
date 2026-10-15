@@ -1,0 +1,52 @@
+Gun 7: AUTOMATICO AKIMBO
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-007-AUTOMATICO AKIMBO.png)
+   seen: Left-eye panel: bright white-orange star at about x=135, y=160 of the ~300x250 panel, with a clear soft ring about 80 px across and warm haze in the lower-left corner. Right-eye panel: star at about x=430, y=160 is roughly half as bright, with almost no ring. The LEFT eye is the stronger one.
+   expected: Both eyes show a similar star with soft rings, and the right (gun-side) eye a bit stronger, not the left. The gap should be small, not roughly 2x.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-007-AUTOMATICO AKIMBO.png)
+   seen: Same asymmetry in a single shot: left-eye star is bright with a larger halo ring and warm corner haze; right-eye star is noticeably dimmer and smaller (about 60% of the left).
+   expected: Right (gun-side) eye a bit stronger than the left, with similar star size and rings in both eyes.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-007-AUTOMATICO_AKIMBO.png)
+   seen: The only muzzle glow is at the screen-left gun's muzzle (about x=545, y=520). The screen-right gun's muzzle (about x=740, y=540) shows no flash, and lensflash-007-AUTOMATICO_AKIMBO.png shows the same one-sided flash. The test names the particles 'Muzzle R'.
+   expected: A flash at the muzzle of each gun that fires. With full auto from both guns, flashes should appear at both muzzles (or alternate), and the right-hand gun's 'Muzzle R' flash should be visible at its own muzzle.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-007-AUTOMATICO_AKIMBO-left.png)
+   seen: Compared with rack-grip-007-AUTOMATICO_AKIMBO-left.png, the glove (top edge about y=240, thumb tip about x=215-270, y=420-470) and the gun's slide/rail (about x=0-470, y=330-380) are in the same place. No rearward slide travel and no barrel showing in front of the slide.
+   expected: The slide pulled back about half way with the glove moving with it. The test says the drawn part moves most 28 mm, which should be clearly visible.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-007-AUTOMATICO_AKIMBO-right.png)
+   seen: Slide serrations (about x=690-900, y=415-530) and the dotted-thumb glove are in the same spot as in rack-grip-007-AUTOMATICO_AKIMBO-right.png. The upper gun's muzzle (about x=1060-1140, y=245-300) is also unchanged. No visible rearward movement.
+   expected: Slide visibly shifted rearward with the glove moving with it, about 2.8 cm (the test's drawn-part figure).
+
+6. [major] [medium] mag_not_in_hand  (mag-4-in-hand-007-AUTOMATICO_AKIMBO.png)
+   seen: The fresh magazine (about x=380-560, y=115-300) stands above the left fist. The glove's top edge touches its base, but no fingers wrap around the magazine body; the fingers curl below it, so the magazine rests on or above the back of the hand.
+   expected: Fingers closed around the magazine body, magazine held in the palm with its feed end toward the gun.
+
+7. [major] [medium] mag_not_into_magwell  (mag-1-seated-007-AUTOMATICO_AKIMBO.png)
+   seen: Magazine body shows about 100 px (roughly 2-3 cm) below the grip's bottom. The small dark grip end at about x=530-560, y=460-490 stays visible in mag-3-out, so it marks the grip bottom, yet the magazine runs down to about y=595. Mag-7-seated-again shows the same protrusion.
+   expected: Magazine fully inside the grip, with only the base plate showing below the grip bottom.
+
+8. [minor] [low] mag_not_into_magwell  (mag-6-half-in-007-AUTOMATICO_AKIMBO.png)
+   seen: The magazine shows the same visible length below the hand as in mag-7-seated-again (about y=465 to 595), so the half-way step looks identical to the fully seated pose.
+   expected: Visibly partway into the handle, different from the seated pose.
+
+9. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-007-AUTOMATICO_AKIMBO.png)
+   seen: Fresh magazine (about x=597-712, y=537-680) stands about 100 px left of the grip's base (about x=735-790, y=445-490) and about 50 px below it, held low by the glove. It is not directly under the magwell line.
+   expected: Magazine right at the magwell, on its line, directly under the grip.
+
+10. [tiny] [low] other  (rack-grip-007-AUTOMATICO_AKIMBO.png)
+   seen: A red block (about x=545-580, y=610-665) sits beside the screen-left gun's grip. It is not attached to a hand or any part of the gun, and the same red block appears in rack-grip-pulled-007-AUTOMATICO_AKIMBO.png (first-person).
+   expected: Nothing red beside the gun grip, unless it is an intended pickup or part.
+
+Test line flags:
+  - pulled half way / drawn most 28 mm / gun moved 2.8 mm when it went home: CONFIRMED BY PICTURES. rack-grip-pulled-...-left, -right and the first-person pulled shot match their rack-grip pictures (glove, slide and barrel at the same positions). No 28 mm slide travel is visible.
+  - in the hand: 3.3 cm from the palm: CONFIRMED BY PICTURES. mag-4-in-hand shows the magazine standing above the fist with no finger wrap; the 3.3 cm gap fits a magazine that is not held.
+  - seated: the gun's magazine shows 0.0 cm from where it was: the same-place check passes, but mag-1 and mag-7 both show the magazine body hanging below the grip. This is a blind spot in the check, not a measurement error.
+  - half way in (on the rail): 0.0 cm off the magwell line: the magwell-line offset cannot be checked from pictures. mag-6 looks identical to mag-7 in height, so the half-way depth is not confirmed.
+  - muzzle flash: particles 'Muzzle R' ... the flash light: CONFIRMED BY PICTURES. lensflash and lensburst show a flash only at the screen-left gun's muzzle; the screen-right gun shows none.
+  - lens flash burst: flashes L 25 / R 25 (full L 4 / R 3): CONFIRMED BY PICTURES as a brightness problem. Equal counts, but lens-eyes-burst shows the left eye roughly 2x the right, so the counts do not reflect brightness.
+  - lens flash shown, strength 0.84: CONFIRMED BY PICTURES. lens-eyes-007 shows the left eye stronger than the right, opposite to the expected gun-side (right) bias.
+  - fired 3/3, recoil numbers, cases thrown, magazine (deep) numbers: not checkable from pictures.

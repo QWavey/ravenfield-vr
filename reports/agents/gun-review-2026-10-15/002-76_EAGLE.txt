@@ -1,0 +1,36 @@
+Gun 2: 76 EAGLE
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [high] hand_not_on_part  (rack-grip-002-76_EAGLE-left.png)
+   seen: Gloved left hand lies across the side of the receiver (x 255-870, y 235-510 in the 1280x800 frame). The index finger runs out to the left past the receiver's front edge (tip about x 255, y 265) and the other fingers curl against the flat side wall. No finger touches the top rear of the receiver where the rear sight sits (x 870-1040, y 40-135). The fingers float in front of the side panel.
+   expected: Fingers hooked on the top part that racks the gun (charging handle / bolt handle / slide) and pinching it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-002-76_EAGLE-right.png)
+   seen: Left index finger comes in from the left edge (y 580-690) and its tip ends near (320, 620), below the lower edge of the receiver (lower edge about y 580). The top of the receiver, the rail and the ejection window (x 495-915, y 205-345) have no fingers on them. The hand hangs under the gun in the grass.
+   expected: Fingertips pinched on the rack part at the top of the receiver.
+
+3. [major] [high] hand_not_on_part  (rack-grip-pulled-002-76_EAGLE-left.png)
+   seen: Compared with rack-grip-002-76_EAGLE-left.png, the left hand did not travel back with the pull. The index fingertip sits at about x 230, y 265 (rest: x 255) and the palm stays in the same place against the receiver side. The hand pulls air: no fingers are on any part.
+   expected: The hand follows the rack part about half way back, fingers stay on the part, and the hand moves toward the rear (right of frame) with it.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-002-76_EAGLE-left.png)
+   seen: The rear of the gun shifted toward the muzzle (left), not back. Versus rack-grip-002-76_EAGLE-left.png, the rear sight is now at x 710-870 (was 870-1040) and the grip and right thumb are about 100-170 px further left, while the front receiver (x 260-790) and the left hand stay put. A new tan block appears at the far right top (x 1140-1280, y 120-245) with a dark barrel band between x 985-1210. No clear backward slide travel is visible.
+   expected: Only the rack part (slide / bolt) slides back about half way; the sight, grip, receiver and magazine stay put.
+
+5. [minor] [low] hand_or_finger_clipping  (rack-grip-pulled-002-76_EAGLE-right.png)
+   seen: A gray curved piece sticks up through the lower slot under the ejection window at about x 735-880, y 425-520. It is not visible at that spot in rack-grip-002-76_EAGLE-right.png. It is not clearly attached to the left hand, whose fingertips are at bottom-left (x 0-545, y 535-800). It looks like a finger or a loose part poking into the receiver.
+   expected: A clean lower slot: no finger or loose part inside the receiver, and the trigger stays in the trigger guard.
+
+6. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-002-76_EAGLE.png)
+   seen: The flare hot spot sits on the muzzle at about x 660-720, y 460-530 (muzzle near x 705, y 475-500), so its position is right. But the flash washes the whole frame: wall, grass and gravel are yellow-white. The sky and horizon at the right (x 900-1280, y 330-400) are blown out to white, and a bright vertical streak runs along the right screen edge (x 1210-1250, y 0-400), far from the muzzle.
+   expected: Flash confined to the muzzle area with soft rings and ghosts along the line from the muzzle through the screen centre; the scene only mildly brightened and the horizon not blown out.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 0/4 fingers on it. CONFIRMED by rack-grip-002-76_EAGLE-left.png and rack-grip-002-76_EAGLE-right.png: no finger sits on any top / rack part.
+  - pulled half way: 0/72 points inside, 0/4 fingers on it. CONFIRMED by rack-grip-pulled-002-76_EAGLE-left.png: the left hand is in the same place as at rest (fingertip moved about 25 px), so it pulls air.
+  - moving with the hand: the slide / bolt; drawn: 1 drawn part(s) move, most 51 mm; the nearest is 0.0 cm from the hand. NOT CONFIRMED: no clear 51 mm backward slide travel is visible in the pulled pictures. The only shifted parts move toward the muzzle. The 0.0 cm contact looks like the palm resting on the receiver side, not a finger on a slide, so the moving part may be the receiver rather than a slide.
+  - the gun moved 1.6 mm with the pull (hand-driven: stays open). CONFLICTING: the first-person pair (rack-grip main vs rack-grip-pulled main) shows no visible change, which fits 1.6 mm. But rack-grip-pulled-002-76_EAGLE-left.png shows the rear sight, grip and thumb about 100-170 px left of rest while the front receiver and the left hand stay put. That is not 1.6 mm unless the close-up camera moved between shots.
+  - cases thrown: 3, case objects made so far 4 for 4 thrown. INTERNALLY INCONSISTENT (3 thrown vs '4 for 4 thrown'). No case pictures exist, so it cannot be confirmed.
+  - lens flash shown, strength 1.40. lensflash-002-76_EAGLE.png shows a strong flash that overexposes the frame (see bugs). lens-eyes-002-76 EAGLE.png shows the left and right flares almost equal in size and brightness, with the right slightly stronger, so this shot does NOT reproduce a one-eye-much-brighter lens.
+  - muzzle flash: particles 'Muzzle Flash Particles', 100 cm, every shot. NOT CONFIRMED: lensflash-002-76_EAGLE.png shows only a glow / star at the muzzle, with no separate flame shape; the particles may be hidden under the lens flare.
+  - Magazine / reload: the test line has no magazine measurement and the overview sheet shows 'none' for mag 1 to 7 (panels 8-14). No magazine pictures exist for this gun, so the reload could not be checked at all.

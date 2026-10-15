@@ -1,0 +1,57 @@
+Gun 25: RK-44
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-025-RK-44-right.png (compare rack-grip-025-RK-44-right.png))
+   seen: Between the before and pulled right close-ups, the black top cover and the long charging lever slide about 200 px to the right (rearward). The gloved fingertip resting on the cover stays at exactly the same screen spot (about x 700-895, y 258-365) in both frames. The part slides out from under the hand, so the hand pulls air and is not carried with the slide.
+   expected: The fingers stay pinched on the charging handle and travel back with it (about 39 mm), so the fingertip moves with the cover/lever.
+
+2. [major] [high] hand_not_on_part  (rack-grip-025-RK-44-right.png)
+   seen: Only one gloved fingertip is visible, resting on top of the black dust cover at about x 700-895, y 260-365 (1280x800). The long lever along the receiver side (x 390-910, y 490-610, rounded knob at its left end around x 390-455) is about 150-200 px lower and no finger touches it. The free hand is not on the racking part.
+   expected: Thumb and fingers pinch the charging handle lever itself (its knob on the receiver side), wrapped around it, so the pull can move it.
+
+3. [major] [high] mag_not_into_magwell  (mag-6-half-in-025-RK-44.png)
+   seen: The fresh magazine is aligned horizontally with the magwell (x about 555-830, same as the seated magazine in mag-1), but its top edge sits about 85 px below the receiver underside (roughly 1-2 cm). Sky and sea show through the gap, so the magazine overlaps the receiver not at all. The frame does not show it half way into the well.
+   expected: Top of the magazine partly inside the magwell, roughly half of its insertion depth, on the same line the seated magazine uses in mag-1 and mag-7.
+
+4. [major] [high] picture_unusable  (lens-eyes-025-RK-44.png)
+   seen: The single-shot lens flash frame is completely black for both the left and right eye. No star, flare or ring at all, although the test line says the lens flash was shown at strength 0.84.
+   expected: A bright star with soft rings near the muzzle in both eyes, the right eye a bit stronger, as the burst frame lens-eyes-burst-025-RK-44.png shows faintly.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-025-RK-44.png)
+   seen: First-person frame on a single shot: no glow at the muzzle (around x 700-720, y 470-500); the front sight and barrel look plain. The same spot in lensburst-025-RK-44.png has a clear yellow flash at about x 670-720, y 470-540. The single shot is missing its flash, which contradicts the test line's strength 0.84. Capture timing (flash already faded) is a possible cause.
+   expected: A visible muzzle flash at the muzzle in the shot frame, matching the lens flash the test reports.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-pulled-025-RK-44-left.png (compare rack-grip-025-RK-44-left.png))
+   seen: The gloved left hand sits at exactly the same screen position in both frames (about x 215-880, y 240-560). Meanwhile the receiver top, rear sight, magazine (x about 240-530 becomes 130-400), right grip and right fingers all shift about 100-140 px to the left. The glove does not follow the top cover as it slides. The shift is also far larger than the test's 1.1 mm gun movement, unless the close-up camera moved.
+   expected: The left hand travels with the racked part while it is pulled; the gun body should not shift in frame by more than a few millimetres.
+
+7. [major] [low] mag_not_in_hand  (mag-4-in-hand-025-RK-44.png)
+   seen: The gloved left hand is open with fingers spread to the left. The dark magazine stands above and behind the back of the hand, its lower end hidden behind the glove, and no finger wraps around the magazine body. The magazine also sits forward of the receiver's front edge (x about 350-590) rather than in the hand's grip.
+   expected: Fingers wrapped around the magazine body, feed end toward the gun, magazine held in the palm (test says 3.4 cm from the palm).
+
+8. [minor] [low] other  (rack-grip-025-RK-44.png (also rack-grip-pulled-025-RK-44.png))
+   seen: In these first-person frames the free hand is not at its usual lower-left spot of the screen (where weapon-025 and lensburst show it). A dark round blob sits on the receiver front at about x 725-790, y 575-670, right above the magazine top. From this frame it cannot be told whether the hand is on the slide or buried inside the receiver.
+   expected: Free hand visibly gripping the charging handle or slide, with no dark blob or hidden hand inside the receiver.
+
+9. [tiny] [low] other  (mag-2-leaving-025-RK-44.png (also mag-4, mag-5, mag-6))
+   seen: The dropped and fresh magazines render near black with the same ridges, while the gun's own magazine in mag-1 and mag-7 is grey-olive. Same silhouette, different tint.
+   expected: Same magazine material and tint as the gun's own magazine, since the brief says it should be the same model.
+
+10. [tiny] [low] other  (mag-3-out-025-RK-44.png (also mag-2, mag-6))
+   seen: The grip label '1 NO MAG' reads mirrored (letters reversed) in these close-ups.
+   expected: Label text reads correctly from the player's point of view.
+
+Test line flags:
+  - rack grip '0/72 points inside, 0/4 fingers on it': CONFIRMED by rack-grip-025-RK-44-right.png. The fingertip rests on the top cover and the charging lever is untouched.
+  - pulled half way '0/72 points inside, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-025-RK-44-right.png. The cover and lever slide about 200 px under the same fingertip.
+  - 'moving with the hand: the slide / bolt': CONTRADICTED by the right close-up pair. The hand does not move with the slide; it stays in place while the part slides back under it.
+  - 'drawn: 1 drawn part(s) move, most 39 mm; nearest is 0.0 cm from the hand': the cover/lever shift of about 200 px is plausible for 39 mm at close-up scale. But '0.0 cm' is only contact with the top of the cover, not a grip.
+  - 'the gun moved 1.1 mm with the pull, 3.1 mm when it went home': DOUBTFUL. In the left close-up pair the gun body, magazine and right hand shift about 100-140 px in frame while the glove stays fixed. That is far more than 1.1 mm unless the close-up camera itself moved, which the nearly unchanged horizon does not clearly show.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull, 2.5 cm out': consistent. mag-2-leaving-025-RK-44.png shows the dropped copy dropping about 55-60 px straight down from the magwell line.
+  - 'in the hand: 3.4 cm from the palm': NOT CONFIRMED. In mag-4-in-hand-025-RK-44.png the magazine is not wrapped in the fingers; it sits above the open glove.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the horizontal alignment looks right in mag-6-half-in-025-RK-44.png, but the magazine is about 1-2 cm below the magwell and not in it. The test does not measure that gap.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONFIRMED. mag-7-seated-again-025-RK-44.png matches mag-1-seated-025-RK-44.png, and no second magazine is visible.
+  - 'lens flash shown, strength 0.84': CONTRADICTED for the single shot. lens-eyes-025-RK-44.png is fully black and lensflash-025-RK-44.png has no glow at the muzzle.
+  - 'muzzle flash: particles 200 cm': DOUBTFUL. The muzzle glow in lensburst-025-RK-44.png is about 50-70 px across, far smaller than a 2 m particle would look at this distance; the test's unit or meaning needs checking.
+  - 'lens flash burst: flashes L 14 / R 14, strongest soft flash 0.34': consistent. lens-eyes-burst-025-RK-44.png shows faint flares in both eyes, the right one a bit stronger, and the flares are dim.
+  - 'cases thrown: 18': casings are visible in flight and on the ground in lensburst-025-RK-44.png and lensflash-025-RK-44.png. Not contradicted.

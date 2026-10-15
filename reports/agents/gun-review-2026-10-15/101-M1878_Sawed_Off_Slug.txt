@@ -1,0 +1,15 @@
+Gun 101: M1878 Sawed Off Slug
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] muzzle_flash_or_lens_flash_issue  (weapon-101-M1878_Sawed_Off_Slug.png)
+   seen: Two bright yellow glowing discs sit side by side at the far (muzzle) end of the gun, roughly x 705-745, y 525-560 in the 1280x800 frame. The gun is idle and not firing. They look like emissive flash sprites or lit barrel ends rather than dark bores or plain metal. The single picture cannot tell which.
+   expected: At rest the muzzle end should be plain metal with dark barrel bores and no glow. The muzzle flash should appear only on a shot.
+
+2. [tiny] [low] hand_pose_wrong  (weapon-101-M1878_Sawed_Off_Slug.png)
+   seen: The free left hand floats in the grass at roughly x 540-635, y 585-690 with no arm. Its fingers are bent into a claw or pincer shape with a sharp hooked tip pointing up-right. It is not holding anything, which is correct.
+   expected: A relaxed, open or resting left hand without hooked fingers. Floating without an arm is expected in this mod, so only the pose is in question.
+
+Test line flags:
+  - two hands 0.0 deg, 0.0 cm and impulse two hands 0 deg/s: every two-hand value is exactly zero, while one hand gives 16.5 deg climb, 0.9 cm back and 487 deg/s. This looks wrong. The two-hand recoil path may be bypassed or never measured. The picture is a one-hand idle frame with the left hand free, so it cannot confirm or deny this.
+  - lens flash none, while the muzzle flash particles and the flash light fire on every shot. The on-screen lens flash should appear when a shot fires, which is the effect the user wants. The picture is idle, so it cannot confirm this. The lensflash- or lensburst- pictures for gun 101 are needed, and none are listed in the brief.
+  - fired 2/3: three attempts and only two shots fired, with the gun loaded to 2/2. This is unexplained. It could be a dry click or a missed trigger pull. The single idle picture cannot confirm it.

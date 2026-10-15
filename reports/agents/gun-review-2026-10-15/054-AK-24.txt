@@ -1,0 +1,35 @@
+Gun 54: AK-24
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] picture_unusable  (lens-eyes-054-AK-24.png)
+   seen: The whole frame is black. Neither the left nor the right eye shows any flare, although the test line says the lens flash was shown at strength 0.83.
+   expected: A bright star / flare near the muzzle with soft rings on both eyes, as in lens-eyes-burst-054-AK-24.png, with the right (gun-side) eye a bit stronger.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-054-AK-24-right.png)
+   seen: The left glove sits low at the bottom-left of the frame, under the receiver at the trigger guard, with its fingers pointing toward the trigger. The gold bolt / charging area is at the top right of the receiver (roughly x 740-1280, y 300-430), and the glove is well below and away from it, touching nothing that moves.
+   expected: Left-hand fingers pinching the charging handle / bolt on the receiver, at the gold bolt area.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-054-AK-24-left.png)
+   seen: The glove lies flat across the left side of the receiver front (x 240-870, y 240-550), with the thumb and fingers draped over the plain side panel above the magazine. No handle sits between the fingers and nothing is pinched.
+   expected: Fingers pinching the racking part (charging handle / slide), not resting on the plain receiver side.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-054-AK-24.png)
+   seen: First-person view identical to rack-grip-054-AK-24.png: the dark glove shape at the front of the magazine / handguard (about x 715-790, y 575-700) has not moved. The hand does not follow the pull and appears to pull air.
+   expected: The left hand has pulled the charging handle / bolt about half way back with it, so the hand has moved back toward the shooter relative to the rest picture.
+
+5. [major] [medium] wrong_part_moves  (rack-grip-pulled-054-AK-24-left.png)
+   seen: The glove is in exactly the same spot as in rack-grip-054-AK-24-left.png, but the rear sight, rail, magazine and pistol grip have all shifted about 120-160 px to the left (toward the muzzle). The rifle body moves forward while the hand stays put, and no racking handle visibly comes back.
+   expected: Only the charging handle / bolt slides back about half way under the glove. The receiver, sight, magazine and grip stay still, and the glove moves back with the handle.
+
+6. [major] [low] wrong_part_moves  (rack-grip-pulled-054-AK-24-right.png)
+   seen: Compared with rack-grip-054-AK-24-right.png, the rear sight, rail and magazine have shifted about 230-260 px to the right, and the glove outline extends about 240 px further right. The whole rifle and the hand appear to move together instead of only the handle sliding under a still receiver.
+   expected: Only the bolt / charging handle slides back. Receiver, sight and magazine stay put, and the glove follows the handle.
+
+Test line flags:
+  - rack grip '1/4 fingers on it' is confirmed by rack-grip-054-AK-24-right.png: the glove sits under the receiver at the trigger guard, away from the gold bolt area.
+  - pulled half way '0/4 fingers on it' is confirmed by rack-grip-pulled-054-AK-24.png and rack-grip-pulled-054-AK-24-left.png: the glove is in the same pose as at rest, so the hand does not follow the handle.
+  - 'the nearest is 0.0 cm from the hand' looks wrong: in rack-grip-pulled-054-AK-24-right.png the moving bolt area sits well above and forward of the glove and is not touching it.
+  - 'the gun moved 1.3 mm with the pull, 2.7 mm when it went home' does not fit the close-up pairs: the rifle body shifts roughly 120-260 px between rest and pulled pictures, a few cm at this zoom, and the left-side glove stays fixed while the rifle moves. This is either camera drift or a real whole-rifle move, and the 1.3 mm figure is not confirmed by the pictures.
+  - 'lens flash shown, strength 0.83' is contradicted by lens-eyes-054-AK-24.png, which is entirely black.
+  - 'flashes L 17 / R 17 (full L 4 / R 3)': lens-eyes-burst-054-AK-24.png shows the two flares about equally bright, with the gun-side right eye not stronger. The count favours the left eye, which is the opposite of the expected right-eye-stronger pattern. This is small, but it is the same kind of L/R brightness imbalance the user reported on the islands map.
+  - 'moving with the hand: the slide / bolt' and 'drawn: 1 drawn part(s) move, most 49 mm' cannot be confirmed from the pictures; no picture clearly shows the charging handle moving.

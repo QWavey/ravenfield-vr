@@ -1,0 +1,51 @@
+Gun 119: 95-1
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-119-95-1-left.png)
+   seen: After the pull, the left close-up is framed exactly like rack-grip-119-95-1-left.png and nothing has moved. The left hand is still flat on the top of the receiver with its fingertips at the same spot (left end of the hand, around x 225-290, y 275-450). The rear block with its knob (about x 915, y 487), the magazine and the olive pistol-shaped object at lower right all sit where they did before. The hand has not travelled back and no part visibly slides.
+   expected: The hand should be pulled about half way back to the rear with the charging/bolt handle, and that part should visibly slide back with the hand following it.
+
+2. [major] [high] hand_not_on_part  (rack-grip-119-95-1-left.png)
+   seen: The left hand lies flat across the top of the receiver, palm on the top surface, fingers spread forward over the side window. No finger wraps any handle and no charging or bolt handle is under the hand. This matches the test's 0/4 fingers on the part.
+   expected: Thumb and index pinching the charging/bolt handle at the receiver top, with the fingers on that part, not a flat palm resting on the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-119-95-1-right.png)
+   seen: After the pull, the left hand (thumb over the top front edge, striped fingers along the top) is at the same spot in frame as in rack-grip-119-95-1-right.png. The only visible change is a brass round now showing in the chamber window, which was empty before. The receiver and window sit about 250-300 px further right in frame while the hand stays put, so either the gun moved relative to the hand or the framing shifted. The test says the gun moved only 0.9 mm.
+   expected: The hand should travel back with the handle/bolt, and the part under the fingers should be the part that moves.
+
+4. [minor] [low] other  (rack-grip-119-95-1-left.png)
+   seen: An olive/gold pistol-shaped object (slide with rear sight, trigger guard, grip) sticks out from the rear of the receiver at lower right (about x 1000-1280, y 370-790). It is not visibly attached to the rifle and no hand holds it. It also appears in rack-grip-pulled-119-95-1-left.png and in sheet tiles 3 and 6, and it is not in the first-person weapon view.
+   expected: Only the rifle's own parts (black receiver and stock block). If this is the player's holstered sidearm it is fine; if it is part of gun 119 it is a wrong or floating part.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-119-95-1.png)
+   seen: The fresh magazine hangs low in front of the trigger guard, left of the pistol grip (about x 350-500, y 430-730 in the 1280x800 frame). The magwell that the seated magazine uses is behind the trigger under the receiver (about x 740-900 in this frame, the same spot mag-6 and mag-7 use relative to the grip), roughly 400 px further right. The magazine is not lined up under the magwell and its axis would not run into it.
+   expected: The fresh magazine right under the magwell, its top at the receiver underside on the same line the seated magazine uses (bottom leaning toward the trigger side by about 20-25 degrees, as in mag-1-seated).
+
+6. [minor] [low] mag_floating_or_offset  (mag-6-half-in-119-95-1.png)
+   seen: In the half-way-in frame the magazine top sits about 90-100 px left of where mag-7 and mag-1 put it, and it leans noticeably more upright. Its visible depth below the receiver rim is the same as the seated magazine, so it looks parked against the receiver underside rather than rising into the well on its line.
+   expected: The magazine sliding up into the magwell on the seated line, with its top partly hidden inside the receiver rim and the same lean as mag-1 and mag-7.
+
+7. [minor] [low] mag_floating_or_offset  (mag-2-leaving-119-95-1.png)
+   seen: In the leaving frame the magazine top is still at the receiver rim but has moved about 100 px left, with the body leaning more upright. It looks like it pivots sideways at the rim instead of sliding straight down out of the magwell along the seated line.
+   expected: The magazine dropping straight down out of the magwell along its own axis, top sliding out of the rim on the seated line.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-119-95-1.png)
+   seen: Two panels on black. The left eye shows only a tiny dim star with no visible ring (around x 180, y 160). The right eye has a star about twice as large and brighter with a faint halo ring (around x 475, y 160). In this frame the left flash is roughly a third of the right, so the eyes are visibly unbalanced even though the test counts match (L 15 / R 15).
+   expected: Both eyes show a star with soft rings at the same spot, the right eye a bit stronger, as in lens-eyes-119-95-1.png.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-119-95-1.png)
+   seen: The background is not black. Each eye panel has a brown/amber haze brightest at the lower right, and it ends in a rounded-rectangle edge at the bottom-right corners, a hard edge. The flare itself sits at the muzzle position.
+   expected: Flare on a pure black background with soft falloff and no hard-edged tinted panel.
+
+Test line flags:
+  - rack grip 0/72 points inside the part, 0/4 fingers on it: CONFIRMED by rack-grip-119-95-1-left.png (fingers lie flat on the receiver top, none on a charging/bolt handle).
+  - pulled half way 0/72 points inside the part, 0/4 fingers on it: CONFIRMED by rack-grip-pulled-119-95-1-left.png (the hand is in the same place as before the pull).
+  - moving with the hand: the slide / bolt: NOT CONFIRMED. In rack-grip-pulled-119-95-1-left.png the hand and receiver do not move at all, so the hand is not travelling with any part.
+  - drawn: 3 drawn part(s) move, most 65 mm; the nearest is 0.0 cm from the hand: NOT CONFIRMED. No 65 mm movement is visible in either close-up. The only visible change is a round appearing in the chamber window in rack-grip-pulled-119-95-1-right.png.
+  - the gun moved 0.9 mm with the pull: the right close-up shows the receiver and window about 250-300 px further right after the pull while the hand stays put (rack-grip-pulled-119-95-1-right.png). Could be framing, but it does not match a 0.9 mm gun move cleanly.
+  - half way in (on the rail): 0.0 cm off the magwell line: NOT CONFIRMED. mag-6-half-in-119-95-1.png shows the magazine top about 90-100 px left of the seated position with a steeper lean.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED. mag-7-seated-again-119-95-1.png matches mag-1-seated-119-95-1.png.
+  - racked: chambered: CONFIRMED. The chamber window shows a round only in rack-grip-pulled-119-95-1-right.png and is empty in rack-grip-119-95-1-right.png.
+  - strength 0.76 lens flash and muzzle flash: CONFIRMED. The muzzle flash cloud sits at the muzzle in lensflash-119-95-1.png and lensburst-119-95-1.png, and the lens flare sits at the muzzle position in lens-eyes-119-95-1.png.
+  - lens flash burst flashes L 15 / R 15 (full L 4 / R 4): counts cannot be checked from one frame. lens-eyes-burst-119-95-1.png shows the left eye much weaker than the right, so equal counts do not mean equal brightness.
+  - in the hand 3.4 cm from the palm; dropped copy 0.0 cm across the pull; 2.8 cm out; recoil and impulse numbers: not checkable from still pictures. mag-4-in-hand-119-95-1.png does show the glove fingers wrapped around the magazine.

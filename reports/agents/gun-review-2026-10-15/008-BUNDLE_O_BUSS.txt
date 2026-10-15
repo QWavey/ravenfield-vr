@@ -1,0 +1,44 @@
+Gun 8: BUNDLE O' BUSS
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-008-BUNDLE_O_BUSS-right.png)
+   seen: The left glove and the grey slab its fingertips pinch (about x 670-790, y 415-500) are in the same place as in rack-grip-008-BUNDLE_O_BUSS-right.png. Nothing moves back with the hand; the hand is pulling air.
+   expected: The hand pulled about half way back along the gun, with the slab it grips moving back with it, so the fingers stay on the part.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-008-BUNDLE_O_BUSS-left.png)
+   seen: The dark glove, its index finger and the finger pointing left sit exactly where they are in rack-grip-008-BUNDLE_O_BUSS-left.png. The hand has not been pulled back and no part under the fingers has moved.
+   expected: The hand pulled about half way back with the rack part (slide, handle or bolt) moving under the fingers.
+
+3. [major] [low] wrong_part_moves  (rack-grip-pulled-008-BUNDLE_O_BUSS-right.png)
+   seen: The gun's top parts (black sight or hammer at about x 1000-1055, y 205-250; grey hook at x 1090-1112; grey block at x 1115-1260, y 250-340) sit roughly 30 px further right than in rack-grip-008-BUNDLE_O_BUSS-right.png. The lower orange piece and the grey mesh sleeve at bottom right may also be shifted right. The background and the glove stay put, so the gun is moving sideways rather than a slide going back.
+   expected: Only the slide or handle moves back under the hand. The sight, hammer and receiver stay still, and nothing shifts sideways.
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-008-BUNDLE_O_BUSS-left.png)
+   seen: The orange lower lobe and the lower grey finger look roughly 50 px further left than in rack-grip-008-BUNDLE_O_BUSS-left.png, while the glove and index finger stay put. The lower finger and the orange piece are displaced relative to the hand.
+   expected: No sideways drift. Only the rack part moves back under the fingers, and the fingers stay attached to the hand.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-008-BUNDLE_O_BUSS-left.png)
+   seen: The index fingertip rests on the orange wooden piece at the bottom left, and the lower grey finger also lies on the orange. No grey slide, handle or bolt is under the fingertips; the nearest grey plate is off at the left edge.
+   expected: The fingertips pinch the gun's rack part (slide, charging handle or bolt), not the wooden piece.
+
+6. [minor] [low] part_floating_or_detached  (rack-grip-008-BUNDLE_O_BUSS-right.png)
+   seen: A small black triangular shard stands alone between the fingers and the orange part at about x 905-935, y 480-545. In rack-grip-008-BUNDLE_O_BUSS-left.png a similar sliver sits at about x 370-395, y 455-500. Both touch nothing and appear unchanged in the pulled pictures.
+   expected: No loose piece. If this is the piece cut out of the receiver, it should be attached to the moving part and leave a hole in the receiver, not float between the fingers.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-008-BUNDLE_O_BUSS.png)
+   seen: Only the left barrel tip (about x 575, y 495) shows a bright flash glow. The right barrel tip (about x 720, y 495) has grey smoke puffs but no flash glow.
+   expected: If both barrels fire on each shot (the test says fired 3/3 with a flash every shot), both muzzles should show a flash. If only one barrel fires, this is correct.
+
+8. [minor] [low] other  (lens-eyes-008-BUNDLE O' BUSS.png)
+   seen: The left-eye panel looks a bit brighter overall, with a warm haze in its lower-left corner, while the right-eye panel is darker. Both star centres sit at the muzzle position (about 46% across, 61% down), which matches the left barrel tip in the first-person picture.
+   expected: The right eye (the gun's side) a bit stronger than the left, not weaker. A small difference is fine; the star position is correct.
+
+Test line flags:
+  - rack grip (slide/bolt, virtual): not measured (the part's shape is not ready) is consistent with the pictures. In rack-grip-008-BUNDLE_O_BUSS-left.png the fingers sit on the orange wooden piece, not on a racking part.
+  - THE PART UNDER THE HAND DOES NOT MOVE: confirmed. rack-grip-008-BUNDLE_O_BUSS-right.png and rack-grip-pulled-008-BUNDLE_O_BUSS-right.png show the same grey slab and glove, and rack-grip-008-BUNDLE_O_BUSS-left.png and rack-grip-pulled-008-BUNDLE_O_BUSS-left.png show the same glove.
+  - 1 drawn part moves, most 17 mm; nearest is 5.5 cm from the hand: not verifiable in cm from pictures. The parts that visibly shift in the right close-up are the sight/hammer group and receiver top on the right, not the part under the hand.
+  - moving with the hand: a piece cut out of the receiver: no clear hole in the receiver in any picture. Only the small dark shard noted above is a candidate. Not confirmed.
+  - the gun moved 0.3 mm with the pull: the right close-up shows parts shifting by tens of pixels (about 30 px on the top parts). At close range that is likely more than 0.3 mm, so this number looks too small. Not confirmed in cm.
+  - muzzle flash every shot and lens flash strength 0.63: lens flash confirmed. The star sits at the left barrel tip in lens-eyes-008 and lensflash-008, and the right barrel shows smoke only.
+  - magazine steps: the overview sheet shows 'none' for mag 1 seated through mag 7 seated again (sheet thumbnails 8-14). No magazine pictures exist for this gun, so the reload could not be checked at all.
+  - fired 3/3, recoil and impulse numbers: no picture check possible.

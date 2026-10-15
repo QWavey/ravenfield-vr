@@ -1,0 +1,28 @@
+Gun 71: 92gs
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-071-92gs-left.png)
+   seen: Compared with rack-grip-071-92gs-left.png, the trigger guard and the magazine base sit about 85-90 px further left in the frame, while the slide top edge and the gloved fingers stay where they were. The lower frame appears to shift under the hand instead of the slide moving back under it.
+   expected: Only the slide moves back under the fingers. Trigger guard, grip and magazine stay where they were in the frame, and the hand moves with the slide.
+
+2. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-071-92gs-right.png)
+   seen: Compared with rack-grip-071-92gs-right.png, the slide's front end moves only about 30 px and the grey highlight on the slide about 5 px. The fingertip resting on the slide barely changes position. The test reports 34 mm of slide travel, which should be a clearly visible shift back.
+   expected: The slide is visibly pulled about half way back, well beyond a 30 px nudge, with the fingertip carried along on the slide top.
+
+3. [minor] [low] hand_not_on_part  (rack-grip-pulled-071-92gs.png)
+   seen: First-person view: the free hand floats about 100-150 px left of the slide, fingers pointing at the gun's grip area, not on the slide top. In rack-grip-071-92gs.png (before the pull) the free hand is not in the frame at all, although the close-ups show fingers on the slide.
+   expected: The free hand pinches the top of the slide in both shots, and that contact is visible from the first-person view.
+
+4. [minor] [low] mag_not_in_hand  (mag-4-in-hand-071-92gs.png)
+   seen: The fresh magazine stands upright above the left hand with its top near the top of the frame. Its lower end disappears behind the back of the knuckles, and only the lower fingers touch it. It also overlaps the suppressor in front of the gun. The hand is well away from the magwell.
+   expected: Fingers wrap around the magazine body, held in the fist with the feed end toward the gun, not stuck behind the knuckles.
+
+Test line flags:
+  - gun moved 0.4 mm with the pull: rack-grip-pulled-071-92gs-left.png shows the trigger guard and magazine base about 85-90 px off their rack-grip-071-92gs-left.png positions while the slide and hand stay put. The picture contradicts a 0.4 mm move (medium confidence).
+  - drawn: most 34 mm: rack-grip-pulled-071-92gs-right.png shows the slide front moving only about 30 px against rack-grip-071-92gs-right.png. That looks far less than 34 mm. Not confirmed, likely wrong (low confidence).
+  - half way in (on the rail): 0.0 cm off the magwell line: not checkable in mag-6-half-in-071-92gs.png because the hand covers the lower magazine. The visible magazine sits as high as the seated one in mag-1-seated-071-92gs.png, so the half-way state is not visible.
+  - in the hand: 3.5 cm from the palm: mag-4-in-hand-071-92gs.png shows the magazine end going behind the knuckles rather than into the fingers, consistent with a loose hold (see bug 4).
+  - seated: the gun's magazine shows 0.0 cm from where it was: confirmed. mag-7-seated-again-071-92gs.png puts the magazine at the same place as mag-1-seated-071-92gs.png.
+  - lens flash shown, strength 0.11: lens-eyes-071-92gs.png confirms a faint but present flare (small dim star with faint rings on black), right eye a bit stronger. Not missing, but weak.
+  - muzzle flash particles 50 cm every shot: lensflash-071-92gs.png shows only a small glow at the muzzle, consistent with a small particle effect and no large flash.
+  - cases thrown: 3: brass is visible in the air in rack-grip-pulled-071-92gs-left.png and at the right edge of rack-grip-pulled-071-92gs-right.png, consistent with ejection.

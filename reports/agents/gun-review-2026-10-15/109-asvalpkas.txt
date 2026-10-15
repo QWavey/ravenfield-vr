@@ -1,0 +1,61 @@
+Gun 109: asvalpkas
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] mag_not_in_hand  (mag-4-in-hand-109-asvalpkas.png)
+   seen: The left glove's fingers are straight and point left with nothing wrapped around them. The fresh magazine stands upright behind the palm at about x 410-620: its bottom is hidden behind the palm and its top runs past the barrel line to the top edge of the frame (y about 10), so it overlaps the gun's front end instead of hanging low in the fist.
+   expected: Fingers curled around the magazine, held low in the fist with its feed end toward the magwell, not poking up through the gun's silhouette.
+
+2. [minor] [medium] mag_wrong_orientation_or_model  (mag-4-in-hand-109-asvalpkas.png)
+   seen: The fresh magazine renders near-black with few ridges (also black in mag-2, mag-5, mag-6), while the gun's own magazine (mag-1, mag-7, and the first-person views) is maroon-brown with visible ridges. It only turns maroon after being seated in mag-7, so the held copy does not look like the gun's model.
+   expected: The magazine in the hand has the same maroon-brown material and ridges as the gun's magazine.
+
+3. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-109-asvalpkas.png)
+   seen: The fresh magazine (gold feed tip at its top, about x 640-670, y 540) is held low in the glove at the bottom of the frame. Its top sits about one magazine length below the receiver underside (about 290 px gap at this scale). It is on the gun's line but not at the magwell.
+   expected: Magazine right at the magwell mouth on its line.
+
+4. [minor] [low] other  (mag-6-half-in-109-asvalpkas.png)
+   seen: The magazine's gold top lip sits just at the receiver underside (about y 245-255 at x 620-690) and nothing of the magazine is visibly inside the receiver silhouette. Its top is about 30 px lower than the top of the seated magazine in mag-7. The frame reads as touching the mouth rather than half way in.
+   expected: Magazine visibly half way up into the magwell on its line, with about half of its insertion depth hidden inside the receiver.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-109-asvalpkas.png)
+   seen: First-person single shot: at the muzzle end (about x 670-710, y 490-540) there is only a faint yellow-green haze, barely distinguishable from the grass. Shell casings are visible in the air, so the shot happens, but the flash does not read.
+   expected: A clearly bright muzzle flash at the muzzle end on each shot (the test line says 75 cm particles every shot).
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-109-asvalpkas.png)
+   seen: Full-auto first-person frame: the muzzle at about x 700, y 480-520 shows no real flash, at most a barely visible smudge. Casings are visible on the beach and in the air.
+   expected: A bright muzzle flash burst at the muzzle, visible during automatic fire.
+
+7. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-109-asvalpkas.png)
+   seen: Left and right eye panels show only a small dim orange star with faint rings (left at about (172,155), right at about (470,155)). The flare is barely brighter than the black background. The right eye is a little stronger, as expected, and there are no hard edges or black panels.
+   expected: A bright star with clearly visible soft rings near the muzzle.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-109-asvalpkas.png)
+   seen: Burst frame: both stars are fainter still. The left star at about (172,145) is almost invisible and the right at about (472,145) is a tiny dot; the soft rings are gone. Right is a bit brighter.
+   expected: A clearly visible flare during automatic fire, with a bright star and soft rings near the muzzle.
+
+9. [minor] [low] hand_not_on_part  (rack-grip-109-asvalpkas-left.png)
+   seen: The left hand lies across the top of the receiver. Only the index fingertip (about x 200-215, y 255-280) touches the end of the gold lever (about x 95-205, y 255-315). The palm and the other fingers rest on the receiver top and curl under it, so the grip is on the receiver rail rather than on the handle.
+   expected: The fingers pinch the charging handle itself.
+
+10. [minor] [low] part_floating_or_detached  (rack-grip-109-asvalpkas-left.png)
+   seen: A dark rounded black cylinder (about x 480-660, y 520-665) hangs below the receiver directly under the fingers and is not attached to any visible part of the gun. In rack-grip-pulled-109-asvalpkas-left.png the same object sits at about x 340-500, y 540-680.
+   expected: Nothing floating under the hand. If this is the test's added handle, it should sit on the charging handle or be hidden.
+
+11. [minor] [low] wrong_part_moves  (rack-grip-pulled-109-asvalpkas-right.png)
+   seen: Compared with rack-grip-109-asvalpkas-right.png, the rear block with the coil spring and round knob has moved about 200 px to the right (toward the stock) while the fingers over the receiver top stay where they were. The spring is no longer visible. The hand does not travel with the moving part. The background also shifts, so the camera framing may have changed too.
+   expected: The handle or bolt slides back about half of its 46 mm travel with the fingers still on it.
+
+12. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-109-asvalpkas.png)
+   seen: The first-person pulled frame is visually the same as rack-grip-109-asvalpkas.png: the charging lever hook at about (745-760, 585-600) and the scope sit in the same place. The free left hand that floats mid-left in weapon-109 is not visible at all.
+   expected: The handle visibly pulled back about half way, with the free hand on it.
+
+Test line flags:
+  - 'in the hand: 3.1 cm from the palm': confirmed by mag-4-in-hand. The magazine stands behind and above the palm rather than in the fingers, consistent with a floating magazine.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks right in mag-6, but the magazine barely reaches the receiver underside, so the half-way depth is not visible. The picture does not confirm the depth.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-7 matches mag-1's position.
+  - 'dropped copy 0.0 cm across the pull ... 2.3 cm out': consistent with mag-2 (the copy starts where the gun's magazine was and drops straight), but the copy is black while the gun's magazine is maroon.
+  - 'muzzle flash ... 75 cm, every shot, no flash light' and 'lens flash shown, strength 0.08': the pictures confirm a weak flash (faint haze in lensflash, dim star in lens-eyes).
+  - 'rack grip ... not measured' and 'pulled half way: not measured': no number to check. The stills show fingers on the receiver top with only the tip on the lever, and the first-person pulled frame shows no visible movement.
+  - 'drawn: 1 drawn part(s) move, most 46 mm; the nearest is 0.3 cm from the hand': cannot be checked from stills. The right close-up suggests the moving block ends up well away from the fingers, which would contradict a 0.3 cm nearest distance at the end of the pull.
+  - 'moving with the hand: an added handle': the black cylinder under the fingers in the left close-ups may be this added handle. It is visible and not on the charging lever.
+  - 'the gun moved 1.2 mm with the pull': consistent. No visible gun shift between the first-person rest and pulled frames.

@@ -1,0 +1,34 @@
+Gun 96: mw-m870(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-096-mw-m870_No_script_-right.png)
+   seen: The olive pump forend (left edge about x 665, y 290-500) and the glove under it sit in almost the same screen spot as in rack-grip-right.png (forend left edge x 665, y 270-480). The dark receiver and barrel block has slid about 200 px to the right, toward the forend: the receiver front edge goes from about x 230 to x 430, and the visible dark magazine-tube gap shrinks from about 435 px to about 235 px. The background wall and ground are nearly unchanged, so the receiver block is what moves on screen, not the pump. Confidence is medium because the close-up camera anchor is not known.
+   expected: The pump forend and the hand around it should slide back toward the receiver by roughly the 46 mm in the test line (forend and glove shift left together), while the receiver and barrel stay where they were.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-096-mw-m870_No_script_-left.png)
+   seen: Same problem as the right view, seen from the other side. The receiver rail and sight block moved about 145 px left (receiver rear edge from about x 920 in rack-grip-left.png to about x 780), toward the grey forend plate. The plate (x 200-620) and the index finger are in exactly the same place as in rack-grip-left.png, so the pump does not visibly move back with the hand.
+   expected: The forend plate and the index finger should slide back toward the receiver with the hand, while the receiver stays still.
+
+3. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-096-mw-m870_No_script_.png)
+   seen: The muzzle flash itself is correctly at the muzzle (about x 665-735, y 455-510). A second, large white jagged starburst (about 460 px wide, spanning x 820-1280, y 500-720) sits on the right side of the receiver, next to the ejected red-and-yellow shell and far from the muzzle.
+   expected: One muzzle flash at the muzzle. Any ejection-port puff should be small and sit at the ejection port, not a large burst beside the shell.
+
+4. [minor] [medium] part_floating_or_detached  (weapon-096-mw-m870_No_script_.png)
+   seen: A red-and-yellow shotgun shell hangs in the air at the bottom right of the first-person view (about x 890-1010, y 645-760), with no hand or gun part holding it. The same shell shows up in rack-grip and rack-grip-pulled first-person frames at a different height each time (top edge about y 675, then about y 720), so it is not fixed to the view.
+   expected: No loose shell floating in front of the camera when idle. A thrown case should fall to the ground away from the view, or a round should be in the gun or a hand.
+
+5. [minor] [low] hand_not_on_part  (weapon-096-mw-m870_No_script_.png)
+   seen: The free left hand (grey-black glove, fingers pointing up-right) hovers in the grass about 150 px left of and below the forend (about x 540-630, y 580-690), with no arm and no contact with the gun. The right hand wrapped around the grip is not clearly visible at the bottom centre; there is only a grey shape there.
+   expected: The free left hand should rest at the side or on the forend, not float in the grass. The right hand should be visibly wrapped around the pistol-grip area of the gun.
+
+6. [tiny] [low] other  (lens-eyes-096-mw-m870(No script).png)
+   seen: The brown haze at the right and bottom of each eye panel stops at a hard rounded-rectangle edge (left panel about x 298 and y 250, right panel about x 605 and y 245), leaving a visible frame. The flare itself is fine: a star near the middle of each eye with soft rings, and the right eye slightly stronger as expected.
+   expected: A soft falloff to black with no clipped, visible edge in the glow.
+
+Test line flags:
+  - "drawn: 1 drawn part(s) move, most 46 mm; the nearest is 0.0 cm from the hand": not confirmed by rack-grip-pulled-096-mw-m870_No_script_-right.png. The forend next to the hand barely moves on screen; the part that visibly moves is the receiver block about 200 px away from the hand. This backs the wrong-part bug above.
+  - "the gun moved 0.5 mm with the pull (hand-driven: stays open)": not supported by the pulled close-ups. The receiver and barrel shift about 145-200 px on screen in both the -left and -right pictures while the background stays nearly still, which is far more than 0.5 mm if the camera is fixed to the gun.
+  - "moving with the hand: the slide / bolt": not confirmed. The hand and the forend keep the same screen position in the pulled close-ups, so the picture does not show them moving back together.
+  - "rack grip (pump, fire motion): 3/4 fingers on it" and "pulled half way: 3/4 fingers on it": roughly consistent. rack-grip-right.png shows three finger segments under the forend's lower edge, and the fourth finger is not visible, so 3/4 is plausible.
+  - "muzzle flash: particles 'Muzzle Flash Particles', 18 cm, every shot" and "lens flash shown, strength 0.92": the lens-flash picture shows the flash at the muzzle as expected, plus an extra large white burst at the receiver side. Worth checking whether a second emitter also fires. The lens-eyes picture is consistent with a strong flare.
+  - "loaded to 8/8", "fired 3/3", "cases thrown: 3", "racked: chambered" and the recoil and impulse figures: cannot be checked from still pictures. No magazine pictures were listed for this gun, so the reload checks do not apply; the 'none' panels on the overview sheet are expected.

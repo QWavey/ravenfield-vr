@@ -1,0 +1,48 @@
+Gun 77: m733
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-pulled-077-m733-right.png)
+   seen: The gray charging knob with the spiral ring is at about x 905-1010, y 480-610, roughly 190 px further back than in rack-grip-077-m733-right.png (where it sits at x 715-810). The left thumb and glove stay at exactly the same pixels (thumb tip about x 740-900, y 250-380) and the background is unchanged, so the camera did not move. The handle slides back out from under a hand that does not move: the hand pulls air. The left-side pair shows the same thing, with the glove in the same place in rack-grip-pulled-077-m733-left.png as in rack-grip-077-m733-left.png.
+   expected: Fingers stay pinched on the handle and the hand travels back with it about half way, so the glove follows the knob.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-077-m733-right.png)
+   seen: Before the pull the left thumb rests on top of a small black block above the receiver (about x 735-815, y 365-420). The gray charging knob (about x 715-810, y 480-610) sits below that block with a gap of roughly 80-100 px from the thumb. No finger touches the knob. This matches the test's 1/4 fingers on the part.
+   expected: Several fingers pinching the charging handle itself (the gray knob), not resting on the receiver above it.
+
+3. [major] [medium] part_floating_or_detached  (rack-grip-pulled-077-m733-left.png)
+   seen: A dark angled block floats in the air above the rear of the rifle at the top right (about x 948-1075, y 0-245). Nothing attaches it to a visible part: sky and sea show between it and the stock. In rack-grip-077-m733-left.png the same block is at about x 1040-1200, y 0-245, so it moved about 100 px left between the two frames while the glove stayed put. It also appears in overview sheet tiles 3 and 6.
+   expected: No loose object above the gun. Only the charging handle moves, and it stays attached to the receiver.
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-077-m733-right.png)
+   seen: Compared with rack-grip-077-m733-right.png, the front of the gun shifts: the end of the silencer/handguard tube moves from about x 690 to x 585 (about 100 px toward the muzzle), and a gray tube (x 600-880, y 400-540) appears where there was none. The carry-handle knob at top right (x 1165-1265, y 150-245) does not move. In the left pair, the upper receiver and carry handle also look about 100-125 px further left while the buttstock stays put. The test line reports only 0.8 mm of gun movement, so this may conflict with it.
+   expected: Only the charging handle slides back. Barrel, handguard and receiver stay still.
+
+5. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-077-m733.png)
+   seen: Single-shot first-person frame: a spent casing is already in the air (about x 930-980, y 540-552), but there is no muzzle flash at the muzzle (around x 700-730, y 470-510). The full-auto frame lensburst-077-m733.png shows a yellow-orange flash at that same spot, so the flash appears in bursts but not in this frame. This could be capture timing.
+   expected: A bright muzzle flash at the muzzle on the shot frame, as the test line claims (every shot, flash light on).
+
+6. [major] [high] picture_unusable  (lens-eyes-077-m733.png)
+   seen: The whole 606x250 image is black: no flare in either the LEFT or the RIGHT eye half. The test line says the lens flash was shown at strength 1.01, and the burst frame lens-eyes-burst-077-m733.png has flares, so this single-shot capture either missed the flash or the single-shot flash is not drawn.
+   expected: A bright star with soft rings near the muzzle in both halves, the right eye a bit stronger.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-077-m733.png)
+   seen: Both eyes show a flare. The LEFT one is a small star at about x 177, y 155 with a dim halo about 60 px wide. The RIGHT one at about x 473, y 155 is clearly larger and brighter, with longer rays and a halo about 110 px wide, roughly twice the glow of the left. The direction matches the brief (gun side stronger), but the gap is more than a bit.
+   expected: Right eye a bit stronger than the left, not roughly double.
+
+8. [minor] [low] mag_not_into_magwell  (mag-6-half-in-077-m733.png)
+   seen: The magazine's top sits right under the magwell lip (about y 300), and it hangs as far down as in the fully seated mag-1-seated-077-m733.png (base near y 570-665 there). It looks already fully seated rather than half way up. The glove holds the base low. A half-way insertion would show noticeably less magazine body below the lip.
+   expected: Magazine partly up into the magwell on its line, with less of its body visible below the lip than in the seated frame.
+
+9. [tiny] [low] hand_pose_wrong  (mag-4-in-hand-077-m733.png)
+   seen: The fresh magazine (tan, about x 415-615, running up past the top edge) sits behind the palm, and its lower end disappears behind the glove. The three fingers stretch left past the magazine's left edge (tips at about x 245-400) instead of curling around it, so the magazine looks clipped into the hand rather than gripped.
+   expected: Fingers wrapped around the magazine body, feed end toward the gun, with the magazine held in the fist.
+
+Test line flags:
+  - rack grip '0/72 points inside, 1/4 fingers on it': consistent with rack-grip-077-m733-right.png. The thumb lies on a black block above the receiver, and no finger touches the gray knob.
+  - pulled half way '1/4 fingers' and 'moving with the hand: the charging handle': contradicted by rack-grip-pulled-077-m733-right.png. The knob slides back about 190 px while the glove stays at identical pixels, so the handle does not move with the hand.
+  - 'the nearest is 0.0 cm from the hand': not supported. In rack-grip-077-m733-right.png the knob is clearly separated from the thumb, with a black block and a gap of about 80-100 px between them.
+  - 'the gun moved 0.8 mm with the pull, 3.1 mm when it went home' and 'drawn: 4 parts move, most 52 mm': not verifiable in mm from pictures. However, rack-grip-pulled-077-m733-right.png shows the silencer/handguard end about 100 px further forward. If the knob's 190 px travel is the reported 52 mm (about 3.6 px per mm), that shift would be about 27 mm, far above 0.8 mm. The pictures and the 0.8 mm figure disagree if the shift is real, and the test does not mention the front moving.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the half-way pose in mag-6-half-in-077-m733.png looks fully seated, so the depth step is not shown. The line offset itself cannot be checked from the pictures.
+  - 'muzzle flash ... every shot ... lens flash shown, strength 1.01': single-shot frames show no flash. lensflash-077-m733.png has no muzzle flash even though a casing is already airborne, and lens-eyes-077-m733.png is black. The burst frames (lensburst-077-m733.png, lens-eyes-burst-077-m733.png) do show flashes.
+  - 'lens flash burst: flashes L 16 / R 16 (full L 4 / R 3)': the counts are equal, but lens-eyes-burst-077-m733.png shows the right flare about twice as bright as the left, which fits the one-lens-brighter concern.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7-seated-again-077-m733.png matches mag-1-seated-077-m733.png.

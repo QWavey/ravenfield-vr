@@ -1070,6 +1070,26 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: the colliders were still the meshes' boxes when matched.</summary>
         internal bool BoxShaped => _boxShaped;
 
+        /// <summary>
+        /// On the well's line (pulled out or pushed in): drawn there, and the hand's glove moved to hold it there as it holds
+        /// one in the free hand (<see cref="Rig.HandModel.HeldPalm"/>), the fingers closing on it where it is.
+        /// </summary>
+        public void ShowOnRail(RigidPose railPose)
+        {
+            ShapeHand();
+            TakeRenderedShape();
+            ShowAt(railPose);
+            if (HeldBy != null && HeldBy.Model != null)
+            {
+                // The palm such that this magazine, at its pose on the line, sits in the hand as HoldPose puts it.
+                RigidPose palm = HeldBy.Palm;
+                RigidPose hold = HoldPose(HeldBy);
+                HeldBy.Model.HeldPalm = RigidPose.Of(Go.transform).Multiply(hold.Inverse().Multiply(palm));
+                HeldBy.Model.HeldPalmFrame = Time.frameCount;
+                HeldShapesFrame[(int)HeldBy.Side] = -1; // moved: the fingers' solid is measured again from where it is now
+            }
+        }
+
         public void FollowHand()
         {
             ShapeHand();

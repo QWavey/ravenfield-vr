@@ -1,0 +1,13 @@
+Gun 13: HMG
+Haiku picture review (read only), overall: looks ok, pictures read: 3
+
+1. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-013-HMG.png)
+   seen: A pale blue-white vertical glare band runs down the right screen edge (roughly x 1210 to 1280, from the top of the frame to the sea line near y 520). It is not in weapon-013-HMG.png and does not line up with the muzzle flash at about x 635, y 475. A few long white streaks also cross the upper-right sky, more of them than in the weapon picture.
+   expected: Only the muzzle flash and its lens flare, centered on the muzzle (plus ghosts on the line through screen center). No glare band along the screen edge.
+
+Test line flags:
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm, every shot': not confirmed or refuted. lensflash-013-HMG.png shows a small yellow glow at the front of the gun with a few specks and no visible particle plume, so the 200 cm particle setting cannot be checked from the picture.
+  - 'lens flash shown, strength 0.55': consistent. lens-eyes-013-HMG.png shows a flare on both eyes, moderate in strength and not blown out.
+  - 'lens flash' asymmetry check: lens-eyes-013-HMG.png shows the left and right flare centers at about the same offset in their panels (about x 152 and x 150 from each panel's left edge), with similar brightness. The right eye is only slightly stronger, as expected. No eye is hugely brighter.
+  - 'equipped': consistent. weapon-013-HMG.png shows the gun held in the right hand, pointing forward, with nothing visibly floating.
+  - 'manual reload not active for this weapon': consistent. The brief lists no reload or rack pictures for this gun, so there is nothing to check.

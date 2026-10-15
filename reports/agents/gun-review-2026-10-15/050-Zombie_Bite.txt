@@ -1,0 +1,7 @@
+Gun 50: Zombie Bite
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+1. [minor] [low] hand_not_on_part  (weapon-050-Zombie_Bite.png)
+   seen: The gun sits in the bottom-right corner (about x=750-920, y=675-800). Its body runs off the bottom edge of the 1280x800 frame, so the grip is out of view. No right hand is visible on the gun anywhere in the frame. The only hand is a grey, free left hand near the centre (about x=540-635, y=585-690) with no arm attached. The gun barrel points up-left toward the centre of the view and nothing else is clipping or floating.
+   expected: The right hand visibly wrapped around the grip, with the grip inside the frame, as the brief specifies for weapon-... pictures. A closer or re-framed shot is needed to confirm.
+

@@ -1,0 +1,28 @@
+Gun 61: GLOCK 43X [FA]
+Haiku picture review (read only), overall: bugs, pictures read: 16
+
+1. [major] [medium] mag_not_into_magwell  (mag-6-half-in-061-GLOCK_43X_FA_.png)
+   seen: The fresh dark magazine is drawn over the grey front strap of the grip. Its upper section (about x 535-600, y 300-500 in the 1280x800 frame) starts level with the trigger guard and runs down to the bottom of the grip (about y 495). It sits forward of the seated magazine line: in mag-1 and mag-7 the seated base is at x 610-750, while here the body is pushed toward the front of the handle by roughly a third of the grip width. The lower end of the magazine is in the fist at y 520-580. The magazine reads as sitting in front of the handle, not sliding up into the magwell.
+   expected: Magazine half way up into the magwell on its line: the upper half hidden inside the grip, nothing of it drawn over the front strap, centred on the same line as the seated magazine (base centre about x 680).
+
+2. [major] [medium] mag_not_into_magwell  (mag-2-leaving-061-GLOCK_43X_FA_.png)
+   seen: The dark magazine body covers the front of the grip from the trigger-guard level down to the grip bottom (about x 555-700, y 290-500). In mag-1 the same area is light olive grip. The base has dropped straight down about 45 px (base now at x 615-750, y 540-650), which looks right. The problem is the upper body, which should already be out of the magwell or hidden inside the grip, but is drawn in front of the handle.
+   expected: Magazine dropping straight out of the magwell along its line: only the part below the grip visible, the upper section inside the grip or already clear, nothing drawn over the front strap.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-061-GLOCK_43X_FA_-left.png)
+   seen: Compared with rack-grip-061-GLOCK_43X_FA_-left.png, the cream slide has moved right by about 25-40 px (front sight about x 460 to 490, rear sight about x 880 to 905), and a dark barrel tube is now visible in front of the slide (x 405-490). That direction is rearward. But the glove fingers resting on the slide top (x 505-670, y 155-265) are at exactly the same pixels as in the un-pulled shot. The hand did not travel with the slide; the slide slid out from under the fingers. The test line's 0/4 fingers on the part agrees with this.
+   expected: The free hand's fingers stay on the slide's rear serrations and travel back with it, about half way (the slide should move with the hand, not beneath it).
+
+4. [major] [medium] part_floating_or_detached  (rack-grip-pulled-061-GLOCK_43X_FA_-right.png)
+   seen: Compared with rack-grip-061-GLOCK_43X_FA_-right.png, the finger across the top of the slide stays at the same pixels (x 410-900, y 200-320), but the cream slide body, front sight, muzzle end and ejection port (port x 435-670 becomes 370-620) have shifted toward the muzzle (left) by roughly 55-70 px. A dark barrel tube (x 900-1050, y 315-395) now shows in a gap between the slide's rear end (x about 920) and the black rear block (x about 1020), which is closed in the un-pulled shot. This is the opposite direction to the left close-up and reads as the slide moving forward and separating from its rear, not sliding back.
+   expected: Slide travels rearward (away from the muzzle) about half way with the hand riding on its rear serrations; no gap opening at the rear of the slide; barrel showing in front of the slide, as in the left close-up.
+
+5. [minor] [low] mag_not_into_magwell  (mag-2-leaving-061-GLOCK_43X_FA_.png)
+   seen: Duplicate note on the same mag-2 frame is not counted separately; see the first mag-2 entry above.
+   expected: n/a
+
+Test line flags:
+  - moving with the hand: the charging handle -- looks wrong: in rack-grip-pulled-061-GLOCK_43X_FA_-left.png and -right.png the hand does not travel with the slide (fingers stay at their rack-grip pixels while the slide moves beneath them). The pictures confirm the hand is not moving with the part.
+  - pulled half way: 0/4 fingers on it -- consistent with rack-grip-pulled-061-GLOCK_43X_FA_-left.png: the fingers stay where they were while the slide moves out from under them. Picture confirms the 0/4.
+  - half way in (on the rail): 0.0 cm off the magwell line -- looks wrong: in mag-6-half-in-061-GLOCK_43X_FA_.png the fresh magazine sits forward of the seated line and over the front strap, roughly a third of the grip width off. The picture contradicts the 0.0 cm.
+  - lens flash burst: full L 3 / R 2 -- looks inverted: the gun-side (right) eye should be the stronger one, but it has fewer full-strength flashes. lens-eyes-061-GLOCK 43X [FA].png shows the right eye slightly brighter, so the counts do not match the picture. The picture cannot confirm the counts themselves.

@@ -1,0 +1,53 @@
+Gun 137: xm8mg
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] hand_or_finger_clipping  (rack-grip-pulled-137-xm8mg-right.png)
+   seen: Two gloved shapes sit inside the receiver's top channel below the top ledge: a grey rounded knuckle at about x 700-890, y 270-380 and a striped glove finger at about x 920-1140, y 235-305 (1280x800). The hand is buried in the gun body rather than resting on a handle outside it.
+   expected: Fingers outside the receiver, pinching the charging handle / slide on its surface, with no glove geometry inside the receiver body.
+
+2. [major] [medium] hand_or_finger_clipping  (rack-grip-137-xm8mg-right.png)
+   seen: A grey-blue glove knuckle pokes up out of the receiver's top channel near the sight / ejection area, about x 700-830, y 245-350, sitting in the dark recess under the top ledge. It is inside the body, not wrapped around any handle.
+   expected: Left hand outside the receiver with index finger and thumb pinching the charging handle / slide at the top rear; no glove inside the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-137-xm8mg-left.png)
+   seen: The left glove lies across the top of the receiver ahead of the rear sight, knuckles resting on the outer surface at about x 480-880, y 230-520. No fingers wrap a slide, charging handle or rail. The test agrees: 0/4 fingers on the part.
+   expected: Index finger and thumb pinching the charging handle / slide at the top rear, with fingers on the part.
+
+4. [major] [medium] hand_pose_wrong  (rack-grip-pulled-137-xm8mg-left.png)
+   seen: The glove sits further forward than in rack-grip-137-xm8mg-left.png, over the top rail, with fingers stretched straight forward off the receiver into the air (index finger about x 260-430, y 200-300). Nothing is visibly held and the hand points forward instead of pulling back. The test reports 1/4 fingers and 3/72 points on the part.
+   expected: Fingers pinching the handle and drawing it straight back toward the shooter about half way, with the hand travelling back with it.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-137-xm8mg.png)
+   seen: In the first-person rack view no left hand is visible at all, although the free hand was visible at lower-left in weapon-137-xm8mg.png. Nothing grips the receiver top. A dark rounded stub sits on top of the magazine at the receiver front (about x 720-790, y 555-690); it is unclear whether it is a fingertip, a second magazine or a part.
+   expected: Left hand visibly pinching the charging handle / slide on the receiver top, fingers on the part.
+
+6. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-137-xm8mg.png)
+   seen: Almost identical to rack-grip-137-xm8mg.png: the same stub on the magazine top, the same sight and receiver position, and no hand visibly pulling anything back. The test's 43 mm travel is not visible from this camera.
+   expected: Charging handle / slide visibly drawn back about half way with the hand on it, while the sight and receiver stay put.
+
+7. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-137-xm8mg.png)
+   seen: The fresh magazine is held low at bottom-left (about x 230-510, y 535-800), well forward of and below the magwell (magwell front about x 750-830, y 350-520). It is not on the magwell line. Two cylinders are stacked there, one above the other, which may be a duplicate.
+   expected: Fresh magazine right under the magwell, in front of the trigger guard, on the insertion line, held at its base by the glove.
+
+8. [major] [medium] mag_not_in_hand  (mag-4-in-hand-137-xm8mg.png)
+   seen: The magazine sits above the gloved hand, resting on the back of the glove rather than enclosed by the fingers, and is tilted at a steep diagonal instead of level along the gun. The test says 0.0 cm from the palm; the picture does not show the magazine at the palm.
+   expected: Fingers wrapped around the magazine, feed end toward the magwell, same model as the gun's magazine.
+
+9. [minor] [low] mag_duplicate_or_missing  (mag-4-in-hand-137-xm8mg.png)
+   seen: Two dark magazine-shaped objects overlap above the glove, one behind the other (about x 330-520, y 25-240 and x 410-720, y 75-290).
+   expected: Exactly one fresh magazine in the hand. The second object may be a duplicate or the dropped copy that was not removed on pickup.
+
+10. [minor] [low] mag_not_into_magwell  (mag-6-half-in-137-xm8mg.png)
+   seen: Lateral position looks right (in front of the trigger guard, like mag-1). But the magazine top edge sits right at the underside of the receiver with no part going up into the magwell. In mag-1-seated-137-xm8mg.png the top is tucked roughly 40-50 px above that line, so this one looks fully out rather than half way in.
+   expected: Top edge about half the seating depth up inside the magwell, on the insertion line.
+
+11. [tiny] [low] other  (weapon-137-xm8mg.png)
+   seen: The right hand and pistol grip are cut off by the bottom edge, so the grip hold cannot be checked. The left glove floats detached in mid-air at about x 540-630, y 590-690 with no arm, probably the free VR hand.
+   expected: Right hand visible wrapped around the grip with the gun pointing forward. The free hand is expected by design, so this is only a note.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" is not supported. The same line reports 0/4 fingers and 0/72 points on the part at rest, and 1/4 fingers and 3/72 points when half pulled. rack-grip-pulled-137-xm8mg-left.png and -right.png show the glove beside or inside the receiver, not holding a part that moves back.
+  - "drawn: 3 drawn part(s) move, most 43 mm; the nearest is 0.0 cm from the hand": the 43 mm travel is not visible. rack-grip-137-xm8mg.png and rack-grip-pulled-137-xm8mg.png show the receiver and stub in the same place. The 0.0 cm contact looks like the glove resting on the receiver top (rack-grip-137-xm8mg-left.png), not on a handle.
+  - "in the hand: 0.0 cm from the palm": mag-4-in-hand-137-xm8mg.png shows the magazine above the back of the glove, not against the palm. Not confirmed.
+  - "half way in (on the rail): 0.0 cm off the magwell line": the lateral alignment looks right in mag-6-half-in-137-xm8mg.png, but the top edge sits at the receiver underside, so "half way in" is not visibly confirmed.
+  - "magazine (deep): dropped copy 0.0 cm across the pull ... 1.2 cm out": mag-2-leaving-137-xm8mg.png shows one magazine dropping and no visible second copy about 1.2 cm off. Not confirmed; it may be hidden in the same spot.

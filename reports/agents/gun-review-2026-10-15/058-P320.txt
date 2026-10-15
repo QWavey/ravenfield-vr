@@ -1,0 +1,35 @@
+Gun 58: P320
+Haiku picture review (read only), overall: bugs, pictures read: 16
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-058-P320.png)
+   seen: The fresh magazine is not held in the fist. It sticks up out of the top of the olive gauntlet (fist about x 385-830, y 275-530) and leans about 25 degrees up and to the left, away from the gun (gun at upper right, about x 675-990, y 140-390). Only its lower end is partly hidden behind the curled fingers near x 410-505, y 370-450. It reads as floating beside or behind the hand.
+   expected: Magazine closed in the fist with the fingers around its body, upright, feed end toward the gun's magwell. The test line agrees: 4.2 cm from the palm, FLOATS BESIDE THE HAND.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-058-P320.png)
+   seen: First-person view. The free left hand (grey glove, about x 540-640, y 585-690) is in its rest pose in mid-air roughly 110 px left of the slide (slide about x 750-840, y 555-650). The fingers point toward the gun but do not touch it. The same hand position appears in weapon-058-P320.png and rack-grip-pulled-058-P320.png, so in the player's view the hand never reaches the slide. The close-ups show a different (olive) glove on the slide, so the test may be measuring a different hand than the one the player sees.
+   expected: Left fingers pinching the slide top, and the hand moving with the slide when it is pulled.
+
+3. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-058-P320.png)
+   seen: First-person view. Compared with rack-grip-058-P320.png the gun and the free hand look essentially unchanged. No visible slide travel shows in the player's view.
+   expected: Slide visibly pulled about half way back, with the hand moving along with it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-058-P320-left.png)
+   seen: Close-up from the left. The olive gauntlet (about x 465-875, y 225-560) and its fingers sit at exactly the same pixels as in rack-grip-058-P320-left.png, so the hand does not travel back with the pulled part. The slide front and front sight stay at about the same place. The only sign of slide travel is a dark barrel end at the far left edge (x 0-60, y 345-395) in front of the slide. A brass casing sits on top of the slide at about x 300-385, y 300-330 and looks stuck to the slide top rather than in the ejection port.
+   expected: Slide visibly slides back with the barrel showing in front of it, the hand moving with it, and nothing floating on the slide.
+
+5. [minor] [medium] hand_pose_wrong  (rack-grip-058-P320-left.png)
+   seen: Close-up from the left. The palm rests on top of the rear of the slide and the fingers hang down beside the frame. Only the index fingertip (about x 225-265, y 410-460) reaches the slide-frame junction. The other fingers do not wrap the slide. The glove identity is unclear: the olive gauntlet is on the slide here, while in the reload close-ups it holds the grip.
+   expected: Fingers curled over the slide top with several of them touching the part.
+
+Test line flags:
+  - 4.2 cm from the palm (FLOATS BESIDE THE HAND): confirmed by mag-4-in-hand-058-P320.png, the magazine sits beside the fist, not in it.
+  - rack grip 0/72 points inside the part, 1/4 fingers on it: consistent with rack-grip-058-P320-left.png. Only the index fingertip reaches the slide; the palm sits on top.
+  - pulled half way 2/4 fingers on it: doubtful. The gauntlet is at the same pixels in rack-grip-058-P320-left.png and rack-grip-pulled-058-P320-left.png, so the fingers did not move with the pull.
+  - drawn: 1 drawn part moves, most 19 mm, nearest 0.0 cm from the hand: not confirmed by the pictures. The slide front and front sight stay put in the left close-ups; only a barrel end showing in front of the slide hints at movement.
+  - the gun moved 0.3 mm with the pull: conflicts with what looks like a shift of the grip and trigger guard, roughly 60-90 px left between rack-grip-058-P320-left.png and rack-grip-pulled-058-P320-left.png (low-medium confidence in my pixel estimates). Verify with a frame diff.
+  - magazine: seated, 17 rounds after 16 rounds kept: the count goes up by one. Check whether the chambered round is being added to the magazine total. The HUD text is too small in the pictures to confirm.
+  - dropped copy 1.7 cm out: consistent. mag-2-leaving-058-P320.png shows the magazine base about 25-45 px below its seated position in mag-1-seated-058-P320.png, same x.
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. The base plate in mag-7-seated-again-058-P320.png is at the same place as in mag-1-seated-058-P320.png.
+  - half way in (on the rail) 0.0 cm off the magwell line: consistent. The base plate in mag-6-half-in-058-P320.png sits on the grip axis.
+  - muzzle flash 'Flame' at the muzzle and lens flash strength 0.98: lensflash-058-P320.png shows the flash at the muzzle, with ghost rings on the line through screen centre. The large bright band on the right edge is not at the muzzle, probably sky or sun glare, and is not a gun bug.
+  - lens-eyes-058-P320.png (lens flash, relevant to the user's report that one lens renders brighter on some runs): the right (gun-side) eye is brighter across its whole panel and the left eye is dimmer. That is the intended gun-side bias and is not a hard imbalance in this run. The islands-map lens bug and the requested muzzle-flash test were not addressed here because this is a read-only review.

@@ -1,0 +1,24 @@
+Gun 4: AIR HORN
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lensflash-004-AIR_HORN.png)
+   seen: The lens flash is a pale blue translucent disc, about 110 px across, centred near (670, 285) in the 1280x800 frame, in the sky above the distant black smoke. The horn's bell (muzzle) is near (690, 550), about 265 px lower. Nothing bright sits at the muzzle. The disc has a fairly defined rim rather than a soft falloff.
+   expected: A bright star / flare centred on the horn's muzzle at roughly (690, 550), with soft rings spreading out from that point and light falling on the horn bell.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-004-AIR HORN.png)
+   seen: Both eye panels put the flare at the same height: left eye disc about (148, 90) and right eye about (161, 90) in each ~303x250 panel, i.e. roughly 36% down from the top. In the matching first-person frame the muzzle sits about 69% down, so the flare is placed well above the muzzle. The horizontal position (about 50-53%) is close to the muzzle's, only the height is wrong.
+   expected: The flare centred on the muzzle, about 69% down the frame, at the same spot in both eyes, with the gun's side (right eye) a little brighter.
+
+3. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-004-AIR HORN.png)
+   seen: The flare is weak. Each eye shows only a small dim teal disc about 35 px across, plus a faint orange dot near the bottom (left about (158, 228), right about (432, 228)). There is no bright star or hot core, and the soft rings are barely visible. The right eye does not look clearly stronger than the left.
+   expected: A bright star / flare with soft rings at the muzzle, the right eye a bit stronger than the left eye.
+
+4. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-004-AIR_HORN.png)
+   seen: Around the horn bell and the grass just in front of the muzzle, the frame looks the same as weapon-004-AIR_HORN.png. There is no extra light or glow on the red horn or the nearby grass. The only new element is the disc up in the sky.
+   expected: The muzzle flash light (test line: 'the flash light') should briefly light the horn bell and the grass in front of it while the horn fires.
+
+Test line flags:
+  - 'equipped' is confirmed: weapon-004-AIR_HORN.png shows the horn held in the right hand.
+  - 'muzzle flash: no particles, the flash light' is not confirmed: no visible light on the horn bell or grass in lensflash-004-AIR_HORN.png compared with weapon-004-AIR_HORN.png. The light may be too weak to see here, or it lights something other than the muzzle.
+  - 'lens flash shown, strength 0.52' is partly confirmed: a flash is present in lensflash-004-AIR_HORN.png and lens-eyes-004-AIR HORN.png, but it sits about 265 px above the muzzle and looks dim.
+  - 'manual reload not active for this weapon' cannot be checked from these pictures (no magazine pictures for this gun). The horn shows no magazine, which fits.

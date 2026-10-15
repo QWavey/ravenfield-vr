@@ -1,0 +1,14 @@
+Gun 34: SPEARHEAD
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+1. [tiny] [low] part_floating_or_detached  (weapon-034-SPEARHEAD.png)
+   seen: The free left hand sits mid-screen, left of centre and low (about x 540-635, y 585-690), with fingers curled up and to the right. No forearm runs from the wrist to the bottom edge; grass is visible under the wrist (about x 560-640, y 690-800), so the hand looks disconnected from the body. The grenade hand at bottom right is cut off by the bottom edge, so the right arm cannot be compared.
+   expected: If this mod draws armless VR hands, this is intended and not a bug. If arms are drawn, the left forearm should come in from the bottom-left edge and connect to the wrist.
+
+Test line flags:
+  - 'equipped': confirmed. The grenade is in the right hand in the picture.
+  - 'pin in: dud, no live grenade': not confirmed. At 1280x800 the pin or spoon state cannot be read.
+  - 'pin pulled: live grenade thrown': not confirmed. No grenade in flight or on the ground is visible. A grey smoke cloud (about x 570-760, y 265-410, roughly 30 m out on the hill) shows an explosion happened near the test spot. If it came from a pin-in throw, that would contradict 'dud'. The picture alone cannot say which throw made it.
+  - 'muzzle flash: none; lens flash none': consistent. A grenade has no muzzle, and no flash shows on screen.
+  - 'manual reload not active for this weapon': consistent. No magazine or reload element is visible.
+  - 'picked up again: refunded': not visible in this picture.

@@ -1,0 +1,24 @@
+Gun 10: DAGGER
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] other  (lensflash-010-DAGGER.png)
+   seen: A vertical blue-white light streak runs down the right screen edge, about x 1200-1265 px, from the top of the frame to about y 520, fading into the sea. It does not line up with the muzzle flash (centre about x 676, y 465), so it does not look like a lens ghost of that flash. It is probably a stray flare or bloom streak from another source.
+   expected: Lens flare elements (star rays, rings, ghosts) should radiate from the muzzle flash only. A separate vertical bar at the right edge should not appear unless it is a real sun glare, and no sun is visible in the sky.
+
+2. [tiny] [low] other  (lens-eyes-010-DAGGER.png)
+   seen: Both eye panels are not pure black. Each has a dark brown tint that gets lighter toward the bottom-right corner, and the panel edge is a visible rounded rectangle.
+   expected: The brief says the flare sits on black. A faint warm vignette may be intentional, in which case ignore this.
+
+3. [tiny] [low] other  (weapon-010-DAGGER.png)
+   seen: The free left hand (about x 530-640, y 580-690) floats in the grass with no arm attached. A small orange-red block sits behind its knuckles (about x 525-565, y 610-640). It is not clear whether this is the glove cuff or a stray object.
+   expected: A free hand floating without an arm is expected in VR. The red block should only be there if it is part of the glove model; otherwise it should not be visible.
+
+Test line flags:
+  - two hands 0.0 deg, 0.0 cm and two hands 0 deg/s: all two-hand values are exactly zero, but no picture shows a two-handed grip (weapon-010 has the left hand free). Nothing confirms the two-hand case, and exact zeros look like the second hand never took hold. Worth checking.
+  - one hand 2.2 deg climb, 1.3 cm back: cannot be checked from still pictures.
+  - muzzle flash particles 'Muzzle', 300 cm: lensflash-010 shows the flash star at the muzzle tip plus a grey smoke puff about 100-200 px above and to the right of it, over the far hill. The puff sits well apart from the muzzle, but without a scale the 300 cm offset cannot be confirmed. The detachment may be that offset working as intended.
+  - lens flash shown, strength 1.00: lens-eyes-010 shows a soft flare with rings on both eyes, the right eye a little brighter and stronger than the left, as the brief expects. No hard edges and no black or missing flash. Confirmed.
+  - muzzle flash on the shot: lensflash-010 shows a bright star centred on the muzzle tip while the gun fires. Confirmed.
+  - loaded to 1/1 and fired 1/3: the HUD ammo text at the bottom centre (about x 790-810, y 688-700) is too small to read in weapon-010 or lensflash-010. Cannot confirm.
+  - No rack-grip, rack-grip-pulled, or magazine pictures are listed for DAGGER, so the slide/bolt and reload checks could not be done for this gun.
+  - Framing: in weapon-010 the right hand is cut off at the bottom edge (y=800), so whether the fingers wrap the grip cannot be confirmed.

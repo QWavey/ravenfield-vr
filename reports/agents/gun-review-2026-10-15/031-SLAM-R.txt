@@ -1,0 +1,22 @@
+Gun 31: SLAM-R
+Haiku picture review (read only), overall: bugs, pictures read: 3
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-031-SLAM-R.png)
+   seen: A dark grey smoke cloud hangs in the sky above the far hill, roughly x 650-850, y 255-390. The muzzle (about x 705, y 445) shows only the bright star flash, and the smoke is detached from it, about 60-190 px above and ahead of the muzzle. This matches the test line's 'particles Muzzle, 300 cm'.
+   expected: Muzzle smoke should start at the muzzle and drift away from it. A cloud sitting about 300 cm forward of the muzzle reads as smoke floating in mid-air rather than muzzle smoke. If the 300 cm offset is intended, this is fine.
+
+2. [minor] [low] muzzle_flash_or_lens_flash_issue  (lensflash-031-SLAM-R.png)
+   seen: A pale-blue vertical streak sits at the right screen edge (x about 1210-1245, from the top down to the horizon). A white glare band runs along the horizon on the right (x about 880-1280, y about 385-400). Neither lines up with the muzzle flash at (705, 440) or its rings, and the beach on the right is washed out to near white.
+   expected: Flare elements should sit on the line from the screen centre through the muzzle flash, or fade out. Stray streaks and a horizon glare at the far right edge should not appear.
+
+3. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-031-SLAM-R.png)
+   seen: The brown glow in each eye panel runs out to the rounded-rectangle outer edge (right edge of the left panel near x 298, and the bottom-right and top-left corners of the right panel) and stops abruptly against black, leaving a visible hard edge.
+   expected: The glow should fade to black before the panel edge so no hard border shows.
+
+Test line flags:
+  - muzzle flash: particles 'Muzzle', 300 cm: lensflash-031-SLAM-R.png supports this being wrong. The smoke cloud sits well away from the muzzle (see the first bug), which fits a particle emitter placed about 3 m forward of the muzzle.
+  - recoil two hands 0.0 deg, 0.0 cm and impulse per shot two hands 0 deg/s: exact zeros for the two-hand case look suspicious. The two-hand case may not be applying anything, or the measurement may not have run. weapon-031-SLAM-R.png shows only the right hand on the gun (left hand free), so no picture confirms or refutes the two-hand grip.
+  - lens flash shown, strength 0.76: confirmed. lensflash-031-SLAM-R.png shows a clear flash at the muzzle and lens-eyes-031-SLAM-R.png shows a star with soft rings on both eyes, with the right eye slightly stronger.
+  - fired 1/3 and one hand 6.6 deg climb / 1.3 cm back / 729 deg/s impulse: no picture shows recoil or the shot count, so these cannot be confirmed or refuted from the pictures.
+  - loaded to 1/1: not confirmable. No magazine is clearly visible in weapon-031-SLAM-R.png. The orange part under the receiver could be the grip or the magazine.
+  - No rack-grip or magazine-reload pictures are listed for this gun, so the slide/bolt and magazine checks could not be done from the brief.

@@ -1,0 +1,34 @@
+Gun 55: AK-24/OKP-7
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-055-AK-24_OKP-7-left.png)
+   seen: Same camera framing as rack-grip-055-AK-24_OKP-7-left.png, and the glove sits in the same screen spot in both. But the whole gun has moved about 150 px to the left: the red-dot optic (x 463-940 before, x 285-765 now), the magazine (x 290-590 before, x 160-450 now) and the pistol grip with trigger (x 800-1040 before, x 660-900 now) all shifted together. The gun slides out from under the hand instead of the charging handle moving back.
+   expected: Only the charging handle slides back about half way with the hand on it. The receiver, optic, magazine and grip stay exactly where they were in the rack-grip picture.
+
+2. [major] [medium] part_floating_or_detached  (rack-grip-pulled-055-AK-24_OKP-7-right.png)
+   seen: A grey-blue, glove-textured tip with a dark-blue edge (looks like a gloved fingertip) floats in mid-air above the rail, between the two sight mounts (about x 710-860, y 190-330). It is attached to nothing. The hand is at bottom-left under the receiver (x 0-840, y 630-800). A similar grey piece sits above the glove's back in rack-grip-pulled-055-AK-24_OKP-7-left.png (about x 570-720, y 195-260).
+   expected: No loose glove part. Every finger stays attached to the hand, and the hand is pinching the charging handle on the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-055-AK-24_OKP-7-right.png)
+   seen: From the right, the tan handle (most likely the charging handle) sits on the upper right of the receiver (about x 790-1220, y 320-440). The gloved hand is down at bottom-left under the receiver, and one gloved finger lies flat along the lower receiver (about x 0-600, y 630-800). Nothing on the hand touches the tan handle.
+   expected: Thumb and index finger pinch the tan charging handle on the receiver, with the fingers on the part, not under the receiver.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-055-AK-24_OKP-7-left.png)
+   seen: The glove lies across the middle of the receiver's left side with the fingers pointing toward the muzzle (index tip around x 240, y 380). The fingers hover in front of the side plates. No handle is between them, and no racking handle is visible on this side.
+   expected: Fingers pinch the charging handle, which is on the right side of the receiver, not hover over the left side plates.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-055-AK-24_OKP-7.png)
+   seen: The fresh magazine is held low in the frame, its top at about y 530 (x 625-765). That is roughly a third of the frame height below the magwell, which sits under the receiver near the trigger guard (about x 760-900, y 100-200). The glove holds it at the bottom edge, so it is in the hand but nowhere near the well.
+   expected: The fresh magazine is right at the magwell mouth on its line, its top just under the receiver, as in mag-6-half-in-055-AK-24_OKP-7.png.
+
+Test line flags:
+  - 'rack grip 3/72 points inside the part, 1/4 fingers on it': confirmed. rack-grip-055-AK-24_OKP-7-right.png shows the finger under the receiver, not on the tan handle, and rack-grip-055-AK-24_OKP-7-left.png shows the fingers hovering over the side plates.
+  - 'pulled half way: 0/72 points inside the part, 1/4 fingers on it': confirmed. rack-grip-pulled-055-AK-24_OKP-7-right.png shows the hand still under the receiver with no pinch on the handle.
+  - 'moving with the hand: the slide / bolt': not supported. rack-grip-pulled-055-AK-24_OKP-7-left.png shows the whole gun body (optic, magazine, grip) sliding under an unmoved glove.
+  - 'the gun moved 1.2 mm with the pull, 2.6 mm when it went home': contradicted. rack-grip-pulled-055-AK-24_OKP-7-left.png vs rack-grip-055-AK-24_OKP-7-left.png shows the whole gun shifted about 150 px, several cm at this range. The horizon and glove stayed put, so the camera did not move.
+  - 'drawn: 1 drawn part(s) move, most 49 mm; the nearest is 0.0 cm from the hand': cannot be matched to one part in the pictures. In the -right pair the rail, the receiver lever and the glove all shift about 250 px together, so either the gun and hand moved together or the camera moved. The moved part is not identifiable.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': confirmed. mag-6-half-in-055-AK-24_OKP-7.png shows the magazine top centred on the well and on its line.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-1-seated and mag-7-seated-again show the magazine in the same place.
+  - 'in the hand: 3.4 cm from the palm': plausible in mag-4-in-hand-055-AK-24_OKP-7.png, with the magazine held behind the glove. Not contradicted.
+  - 'muzzle flash ... lens flash shown, strength 0.93': lensflash and lensburst pictures show a flame at the muzzle with a soft halo. Consistent.
+  - 'racked: chambered': not checkable. rack-grip-pulled-055-AK-24_OKP-7-right.png shows a brass-coloured cylinder at the right edge where the unpulled shot shows only a tan end. It could be the chambered round showing through the port, but the picture does not settle it.

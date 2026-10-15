@@ -1,0 +1,21 @@
+Gun 150: K400
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [medium] part_floating_or_detached  (weapon-150-K400.png)
+   seen: A grey, glove-like hand (fingers curled up and to the right, about x 540-635, y 583-690 in the 1280x800 frame) hangs over the grass in the middle-left of the view with no forearm or wrist attached. It sits well in front of the camera, further away than the gun, so it reads as a free-floating hand rather than the left arm. This is presumably the free left hand.
+   expected: The free left hand should be attached to the player's arm and sit low at the left edge or bottom-left of the view, with the forearm visible or hidden, not hovering in the middle of the scene.
+
+2. [minor] [medium] other  (weapon-150-K400.png)
+   seen: About 15 translucent blue-grey soft discs (roughly 20-120 px across) hang in the sky, over the beach and over the sea, e.g. around (1010,115), (750,245), (850,315), (1035,415), (1165,530), (880,70). None touches the gun, and none sits at the muzzle at the bottom-right (about x 760-790, y 680-720). They look like smoke or particle puffs floating in front of the camera and blur the upper half of the view.
+   expected: An idle weapon view should show no free-floating puffs. Shot particles should spawn at the muzzle, a few cm out, be small, fall away and fade quickly.
+
+3. [tiny] [low] other  (weapon-150-K400.png)
+   seen: The gun sits in the bottom-right corner and is cut off by the bottom and right edges (visible roughly x 715-910, y 678-800). The grip, the right hand wrapped around it and the muzzle end are mostly off-frame, so the grip wrap cannot be judged from this picture. This may just be normal low-hold framing.
+   expected: Gun and right hand fully in frame, with the grip under the right hand and the barrel pointing forward, so the grip and hand can be checked.
+
+Test line flags:
+  - muzzle flash: particles 'Casing Particles', 100 cm, every shot - likely wrong. A muzzle flash should sit at the muzzle (a few cm), not 100 cm out. This frame shows no flash at the muzzle, but the blue discs hang well away from the muzzle across the view, which fits particles spawned about 1 m out in front of the camera. The picture partly supports the flag but does not prove the 100 cm figure.
+  - lens flash none / no flash light (not loud) - not checkable from this picture. It is not a shot frame and no lensflash picture is listed for this gun. Nothing bright is visible here, but that alone does not confirm it.
+  - manual reload not active for this weapon - not checkable. No magazine pictures are listed for this gun, so no reload check exists.
+  - pin in: dud, no live grenade / picked up again: refunded / pin pulled: live grenade thrown - grenade checks in a gun test. If K400 is a firearm these do not apply; if it is a grenade, the first-person view should show a grenade. The picture does not settle it: at the bottom-left of the gun (about x 715-790, y 730-800) a tan rounded object with a metal ring could be a grenade body with a pin, or part of the hand or gun. Not confirmed.
+  - equipped - consistent with the gun being in the right hand at the bottom-right corner, though the grip itself is off-frame.

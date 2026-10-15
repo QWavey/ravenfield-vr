@@ -1,0 +1,58 @@
+Gun 75: vector
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_or_finger_clipping  (rack-grip-075-vector-right.png)
+   seen: A gloved fingertip is pushed into the dark ejection-port recess on the receiver's right side (about x 660-890, y 260-460 in the 1280x800 frame), so the finger sits inside the receiver. No finger is on the top of the slide, and the lever on the upper-left of the receiver (about x 430-560, y 260-390) is untouched.
+   expected: Fingertips pinching the outside of the slide / charging part on the top rear of the receiver, with nothing inside the receiver.
+
+2. [major] [high] picture_unusable  (lens-eyes-075-vector.png)
+   seen: Entirely black across both eyes. No star or flare on the left or the right eye, so the single-shot lens flash is not visible.
+   expected: A bright star with soft rings near the muzzle on both eyes, the right (gun-side) eye a bit stronger.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-075-vector-left.png)
+   seen: The glove lies across the side plate of the receiver below the rail (fingers spanning about x 240-880, y 240-530). The fingers rest on the flank, not on the slide top. The receiver's charging lever (about x 1075-1150, y 225-300) is well away from the fingers.
+   expected: Fingers pinching the slide (top rear) or the charging handle, not the side plate.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-075-vector-left.png)
+   seen: Compared with rack-grip-075-vector-left.png, the front and rear sights, the rail and the lever sit about 120-130 px further left (toward the muzzle), while the glove stays at the same screen spot on the flank. The moving part is not the one under the hand, and it moved forward rather than back. The background also shifted a little, so camera movement may explain part of this.
+   expected: The slide / charging handle moves back toward the rear (right in this view) with the fingers on it. The hand and the part move together.
+
+5. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-075-vector.png)
+   seen: The first-person single-shot frame has no muzzle flash at all at the muzzle (front end of the gun, around x 720-740, y 510-530) and no lens halo. Plain sky and grass. lensburst-075-vector.png does show a glow at the muzzle, so this single-shot frame misses the flash.
+   expected: A bright muzzle flash at the muzzle on the shot frame, plus the on-screen lens flare.
+
+6. [major] [medium] part_floating_or_detached  (rack-grip-pulled-075-vector-right.png)
+   seen: A brass cartridge sits on the top edge of the receiver just above the ejection port (about x 820-1140, y 235-290), its base not inside the receiver. The fingertip rests on the lever (about x 700-850, y 165-320) rather than on the slide. The bolt face is visible inside the port (about x 870-1030, y 350-430).
+   expected: No loose round outside the gun. The pulled part moves back with the fingers on it.
+
+7. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-075-vector.png)
+   seen: The fresh magazine's top sits about 230 px below the magwell, with ground and sea visible in the gap. It is also much narrower than the gun's magazine in mag-1-seated-075-vector.png (about 60 px vs about 100 px), so it looks further from the camera than the magwell.
+   expected: The fresh magazine right at the magwell, on the same line and depth as the well.
+
+8. [minor] [low] mag_not_into_magwell  (mag-6-half-in-075-vector.png)
+   seen: The magazine's top end sits flush against the grip's bottom edge, the same spot as the seated magazine in mag-7-seated-again-075-vector.png. Nothing of it is hidden by the grip. Only the 'I NO MAG' label shows it is not seated.
+   expected: The magazine top partly inside the magwell, with the grip edge overlapping it, so the visible part is shorter than when seated.
+
+9. [minor] [low] hand_not_on_part  (weapon-075-vector.png)
+   seen: No right hand is visible wrapped around the grip. The lower-right corner holds a flat black slab with no fingers or wrist (about x 995-1280, y 620-800). The grip at bottom centre (about x 770-840, y 690-780) shows only a light grey capsule. The large yellow spiky burst is on the far target, not at the muzzle.
+   expected: The right hand wrapped around the pistol grip with the gun pointing forward and nothing flat or blocky in view.
+
+10. [minor] [low] hand_not_on_part  (rack-grip-075-vector.png)
+   seen: In this wide shot the free glove that is visible in the other first-person frames (about x 540-630, y 585-690) is gone. A grey glove-like blob sits at the front-under edge of the gun (about x 700-745, y 590-650), away from the rail and the rear sight.
+   expected: The free hand on the slide / bolt at the rear top of the receiver.
+
+Test line flags:
+  - rack grip '1/72 points inside the part, 0/4 fingers on it': confirmed. rack-grip-075-vector-right.png shows a fingertip inside the receiver recess, and rack-grip-075-vector-left.png shows the fingers on the side plate, not on the slide.
+  - pulled half way '0/72 points inside, 0/4 fingers on it': consistent with rack-grip-pulled-075-vector-left.png, where the glove is still on the flank.
+  - 'moving with the hand: the slide / bolt': contradicted by rack-grip-pulled-075-vector-left.png. The receiver moves while the glove does not move with it.
+  - 'drawn: 1 drawn part(s) move, most 35 mm; the nearest is 0.0 cm from the hand': not confirmed. The glove sits on the side flank, and the moving receiver is not under it.
+  - 'the gun moved 0.8 mm with the pull, 3.0 mm when it went home': looks wrong. The receiver shifts about 120-130 px in frame between rack-grip-075-vector-left.png and rack-grip-pulled-075-vector-left.png, far more than 0.8 mm at this range. Camera movement may account for part of it.
+  - 'muzzle flash ... every shot ... lens flash shown, strength 0.81': not confirmed. lensflash-075-vector.png shows no muzzle flash and lens-eyes-075-vector.png is black. The burst pictures (lensburst-075-vector.png, lens-eyes-burst-075-vector.png) do show flashes.
+  - 'lens flash burst: flashes L 21 / R 21 (full L 4 / R 4)': consistent. lens-eyes-burst-075-vector.png shows a flare on both eyes, the right slightly stronger, with no large left/right imbalance.
+  - 'racked: chambered': doubtful. rack-grip-pulled-075-vector-right.png shows a round sitting above the ejection port, outside the receiver.
+  - '32 rounds kept' vs 'magazine: seated, 33 rounds': the test line contradicts itself. The grip label in mag-1-seated-075-vector.png and mag-7-seated-again-075-vector.png reads '33+1' (33 plus one chambered), which agrees with 33.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': roughly consistent on screen in mag-6-half-in-075-vector.png, but that picture shows no insertion into the well (see the mag-6 bug).
+  - 'magazine (deep): ... 2.8 cm out': consistent. mag-2-leaving-075-vector.png shows the magazine hanging on the grip's line.
+  - 'in the hand: 3.6 cm from the palm': plausible. mag-4-in-hand-075-vector.png shows the magazine end tucked into the top of the glove.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7 matches mag-1 in position.
+  - 'fired 3/3', 'cases thrown: 25', 'case objects made so far 40': cannot be checked from stills. A few spent cases are visible on the grass in weapon-075-vector.png.

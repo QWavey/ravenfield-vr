@@ -1,0 +1,42 @@
+Gun 85: [comm]f2k exps3(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-085-[comm]f2k exps3(No script).png)
+   seen: Two panels side by side on black. LEFT eye (x 0-300) has a bright star with soft rings, ghost discs and a visible brown glow along its right and lower edges. RIGHT eye (x 305-605, the gun side) is nearly black around a much weaker star, with the rings barely visible. The left (non-gun) eye is clearly the brighter one. In the single-shot lens-eyes-085 frame the two eyes are about equal, right a touch stronger. This is the same pattern as the user's report that the other lens sometimes renders brighter.
+   expected: Star at the muzzle position in both eyes, similar size, the gun-side (right) eye a bit stronger than the left, and neither eye much brighter than the other.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-085-_comm_f2k_exps3_No_script_-left.png)
+   seen: Compared with rack-grip-085-_comm_f2k_exps3_No_script_-left.png, the left hand (thumb across x 340-640, y 250-320; fingers across the rail, x 280-500) is at exactly the same screen position and pose. Meanwhile the red-dot sight, the rear sight block and the receiver cap shift about 150-175 px to the left (toward the muzzle). The lower gun (grip, magazine, buttstock edge) and the right-hand fingers appear shifted similarly. Only the latch and coil at the far left stay put.
+   expected: The charging handle / slide under the fingers pulled back about half way with the hand, the hand moving back with it. The sight and receiver stay still.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-085-_comm_f2k_exps3_No_script_.png)
+   seen: The first-person frame looks identical to rack-grip-085-_comm_f2k_exps3_No_script_.png. The left hand is still at the front of the gun (x 705-810, y 570-750) with the same pose, and the sight (x 760-840, y 475-550) has not moved. Nothing visibly slides, and the hand has not moved back.
+   expected: The hand pulls back with the handle (the test line says 57 mm), the handle or slide visibly moves rearward, and the hand follows it.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-085-_comm_f2k_exps3_No_script_-right.png)
+   seen: Versus rack-grip-085-_comm_f2k_exps3_No_script_-right.png, the optic rings and the upper receiver block are shifted several hundred px sideways. The optic has left the frame, and a rounded dark nose appears at far left (x 60-500). The moving upper receiver is in view with no hand to show it being pulled.
+   expected: Only the racked part (charging handle / slide) moves, with the left hand. Sights and receiver stay still.
+
+5. [minor] [low] hand_not_on_part  (rack-grip-085-_comm_f2k_exps3_No_script_-left.png)
+   seen: The index and middle fingers lie across the top rail (x 280-500, y 330-470), below the knurled coil and latch at the front-left of the receiver (x 0-340, y 245-325). Only the thumb tip (around x 340, y 250-300) touches the coil's right end. The test line says 1/4 fingers on the part.
+   expected: Fingers wrapped on the charging handle / slide top, pinching the part itself.
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-085-_comm_f2k_exps3_No_script_.png)
+   seen: The fresh magazine is at bottom centre (x 550-690, top edge y 540, running past the bottom of the frame). It sits roughly 160 px below the magwell (olive box x 505-610, y 285-380) and about 60 px to its right. No hand is in frame to show what holds it. A black tube with a rounded end at the right edge (x 1190-1280, y 490-680) is not a magazine and is unexplained.
+   expected: Fresh magazine right at the magwell on its line, held by the left hand, with the hand visible or the magazine clearly in the hand.
+
+7. [minor] [low] hand_not_on_part  (weapon-085-_comm_f2k_exps3_No_script_.png)
+   seen: No right hand is visible in the first-person frame (the same holds for lensflash, lensburst and the rack frames). The pistol grip is cut off at the bottom edge, with only a pale shape at x 790-850, y 690-800. The free left hand floats in the grass at x 540-630, y 580-690 with no arm. The floating free hand is probably the normal look for this mod, so it is not counted as a bug.
+   expected: Right hand visible wrapped around the grip at the bottom right of the frame.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-085-_comm_f2k_exps3_No_script_.png)
+   seen: Besides the star at the muzzle (x 690-720, y 480-520) and its ring ghosts, a vertical white-blue light streak runs the full height at the far right (x 1190-1260). It is not tied to the muzzle.
+   expected: Flare originating from the muzzle. A generic streak at the far edge is a judgement call.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" is not supported. In rack-grip-pulled-085 (first-person, -left and -right) the left hand is at the same screen position and pose as in rack-grip-085. The parts that visibly move are the sight/receiver assembly, not anything under the fingers.
+  - "drawn: 3 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand" is contradicted. In rack-grip-pulled-085-left the moving upper receiver is not under the hand, and the hand does not move, so the 0.0 cm contact is not confirmed.
+  - "the gun moved 1.7 mm with the pull" looks wrong. The -left pair shows the lower gun (grip, magazine, buttstock) shifted about 140-175 px in frame while the left hand and front latch stay fixed. At close-up scale that is far more than 1.7 mm unless the camera moved, and the picture does not confirm 1.7 mm.
+  - "pulled half way: 0/4 fingers on it" is consistent with the pictures: the hand did not move back with any part.
+  - "rack grip ... 1/4 fingers on it" is only partly supported. The fingers appear to rest on the rail, and only the thumb tip touches the coil (low confidence).
+  - "lens flash burst: ... flashes L 17 / R 17 (full L 4 / R 3)": counts cannot show brightness. lens-eyes-burst-085 shows the left eye clearly brighter than the right, which contradicts the gun-side-stronger expectation. Confirmed by the picture.

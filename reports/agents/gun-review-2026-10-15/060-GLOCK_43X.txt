@@ -1,0 +1,45 @@
+Gun 60: GLOCK 43X
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] mag_not_into_magwell  (mag-6-half-in-060-GLOCK_43X.png)
+   seen: The fresh magazine (black, roughly x 585-730) is drawn over the front-left face of the grip from about y 440 down to the grip bottom at about y 560, and its base ends about 35 px below the grip. The right hand's fingers (x 590-790, y 370-450) overlap its top end. It reads as standing in front of the handle, not sliding up into the magwell. The grip face is visible where the magazine should be hidden.
+   expected: Half of the magazine hidden inside the grip, the grip's bottom edge cutting across it on the magwell's centre line. Only the lower part and base should show below the grip.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-060-GLOCK_43X.png)
+   seen: The fresh magazine (x 400-540, y 180-300) sticks up out of the top of the left fist, above the knuckle line, tilted with its cartridge-tipped (orange) end pointing up and to the left. The gun's magwell is down and to the right of the hand (around x 900, y 350), so the feed end points away from the gun. The fingers curl below the magazine and do not wrap its body, so it looks balanced on the hand rather than held.
+   expected: Fingers wrapped around the magazine body, with the feed end (orange rounds) pointing toward the gun's magwell and the magazine held close to the gun.
+
+3. [major] [medium] mag_floating_or_offset  (mag-2-leaving-060-GLOCK_43X.png)
+   seen: The dropping magazine (x 585-745, y 440-615) shows its upper part (y 445-555) drawn over the grip face instead of coming out of the bottom of the grip. Its base plate (x 610-745, y 580-615) is about 50 px below the grip bottom. It appears offset toward the camera from the magwell line.
+   expected: The magazine dropping straight down out of the magwell along the grip's centre line, with its top end hidden inside the grip and the grip's bottom edge cutting across it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-060-GLOCK_43X-left.png)
+   seen: The slide has moved back about 30 px and the barrel now shows in front of it (x 400-480), which is correct. But the hand does not move with it: the knuckles stay at x 370-870, y 250-540, and the finger across the top of the slide stays at x 505-700, y 155-265. The slide slides out from under the stationary finger instead of travelling with the hand. Compare rack-grip-060-GLOCK_43X-left.png, where the slide's front edge was at about x 445 with no barrel showing.
+   expected: The hand travels back with the slide, the fingers stay pinned on the slide top through the pull, and the slide and hand move together for about half the travel.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-pulled-060-GLOCK_43X-right.png)
+   seen: The slide has shifted about 50 px rearward (rear sight from about x 150-250 to x 95-200, ejection port from about x 430-680 to x 378-620) while the single finger lying across the top of the slide stays at about x 430-900, y 200-320. Only one finger is on the slide, and the index finger along the frame does not follow the slide. A chambered round tip is visible in the ejection port at about x 480-520.
+   expected: The hand and fingers move back with the slide, with at least the pinching fingers staying on the slide's rear section through the pull.
+
+6. [minor] [low] hand_pose_wrong  (rack-grip-060-GLOCK_43X-right.png)
+   seen: The single finger on the slide lies across the middle-front of the slide (x about 430-900, where the slide runs from about x 140 at the rear to x 1010 at the muzzle), over the ejection port and side windows. It is not on the rear serrated section at the left end (x about 140-330).
+   expected: The racking fingers pinch the rear, serrated part of the slide.
+
+7. [minor] [low] hand_pose_wrong  (rack-grip-060-GLOCK_43X.png)
+   seen: The left glove has moved onto the gun as a dark rounded blob at the left side of the slide's front half (x about 705-765, y 580-700), touching the muzzle end. The rear of the slide, bottom right near x 800-835, y 650-690, has no hand on it. This blob is also in rack-grip-pulled-060-GLOCK_43X.png in the same place. It could be a protruding barrel instead of the hand, but its shape is closer to a glove.
+   expected: The left fingers pinching the rear of the slide (top, rear serrations), with the glove over the rear part of the slide rather than the muzzle end.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-060-GLOCK_43X.png)
+   seen: The muzzle flash sits at the muzzle (centre around x 720, y 550), and the ghost rings lie on the line from the muzzle through screen centre. But there is a hard bright vertical band at the far right edge (x about 1210-1255, from the top down to the horizon) and a glare line along the horizon on the right (x about 890-1280, y 380-400). Neither lies on the muzzle-centre line.
+   expected: Only the muzzle flash and its ghosts/rings along the muzzle-centre line, with no streak at the right edge of the screen.
+
+Test line flags:
+  - rack grip: '2/4 fingers on it' is not confirmed. rack-grip-060-GLOCK_43X-right.png shows one finger across the slide top, and the other fingers are out of frame.
+  - pulled half way: '1/4 fingers on it' is consistent with rack-grip-pulled-060-GLOCK_43X-right.png (one finger on the slide), and the pictures show why: the hand stays still while the slide slides back under it.
+  - moving with the hand: 'the charging handle' is contradicted by rack-grip-pulled-060-GLOCK_43X-left.png and -right.png. The slide moves while the hand and finger stay in place, so the picture does not confirm the part moves with the hand.
+  - drawn: 'most 25 mm' looks too large. In the half-pulled close-ups the slide travel is only about 30-50 px, roughly 0.5-1 cm on a rough scale estimate. Not confirmed; the 25 mm may apply to other parts.
+  - magazine half way in (on the rail): '0.0 cm off the magwell line' disagrees with mag-6-half-in-060-GLOCK_43X.png, where the magazine is drawn over the grip face, which is a forward offset the lateral measurement would not catch.
+  - magazine in the hand: '3.7 cm from the palm' is not confirmed by mag-4-in-hand-060-GLOCK_43X.png, where the magazine stands above the fist rather than inside the fingers.
+  - dropped copy: '1.6 cm out' is roughly consistent with mag-2-leaving-060-GLOCK_43X.png (about 50 px below the grip on a rough scale), but the copy's upper part is drawn over the grip face, which the measurement does not show.
+  - racked: 'chambered' is consistent with rack-grip-pulled-060-GLOCK_43X-right.png, which shows a round's tip in the ejection port.
+  - lens flash shown, strength 0.79 and the muzzle-flash particles are consistent with lensflash-060-GLOCK_43X.png (flash at the muzzle) and lens-eyes-060-GLOCK 43X.png (star at a similar spot in both eyes, no hard one-eye imbalance).

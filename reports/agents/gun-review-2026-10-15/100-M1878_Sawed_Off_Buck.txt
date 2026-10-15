@@ -1,0 +1,12 @@
+Gun 100: M1878 Sawed Off Buck
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [medium] muzzle_flash_or_lens_flash_issue  (weapon-100-M1878_Sawed_Off_Buck.png)
+   seen: Idle first-person frame, no shot in progress. At the far end of the barrels (about x 685-765, y 520-565 of the 1280x800 frame) two bright yellow glowing rings with dark centers sit on the two barrel openings, so the muzzle looks lit like two yellow eyes while the gun is not firing.
+   expected: Barrel openings should look dark at rest. The muzzle flash particles and flash light should only show for the few frames after a shot. If the yellow is the barrel model's own texture it is fine; if it is the flash light or flash particles, they are running at rest and should be off.
+
+Test line flags:
+  - 'lens flash none': the gun has a muzzle flash particle system and a flash light, yet the on-screen lens flash reads none. This frame is idle, so it cannot confirm or refute this. Treat as a likely missing lens flash until a firing frame shows one.
+  - 'recoil: two hands 0.0 deg, 0.0 cm; impulse per shot two hands 0 deg/s': exact zero two-handed recoil, while one-handed gives 24.1 deg climb, 1.2 cm back and 729 deg/s, looks wrong for a shotgun. It suggests the two-hand shot did not register or two-hand recoil is not applied. The picture only shows the one-hand hold (left hand free), so no picture confirms the two-hand case.
+  - 'muzzle flash: ... 100 cm': if 100 cm is the offset of the flash from the muzzle, it is far off (a muzzle flash should sit a few cm from the muzzle). Not confirmed: the picture is idle and shows no flash.
+  - 'break-open: opened after a shot, 1 case(s) fell out; opened again, 0': the sequence is ambiguous. If the second opening came after the second barrel fired, 0 spent cases is wrong (2 expected). No picture covers the break-open, so this is unconfirmed.

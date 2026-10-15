@@ -228,7 +228,9 @@ namespace RavenfieldVR.Weapons
                 }
                 SetInt(Weapon.RELOAD_MOTION_PARAMETER_HASH, motion);
             }
-            float duration = Mathf.Clamp(config.reloadTime, 0.5f, 6f) + 0.4f;
+            // The whole reload the game waits for, up to 12 s: at 6 s a machine gun's or a shotgun's long reload lost its end
+            // (the magazine in, the bolt home).
+            float duration = Mathf.Clamp(config.reloadTime, 0.5f, 12f) + 0.4f;
             int steps = Mathf.CeilToInt(duration / Dt);
             ReloadSteps = steps;
             ReloadTrajectory = Alloc(steps);

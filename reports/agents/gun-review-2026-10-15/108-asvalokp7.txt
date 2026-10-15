@@ -1,0 +1,45 @@
+Gun 108: asvalokp7
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-108-asvalokp7-right.png)
+   seen: Compared with rack-grip-108-asvalokp7-right.png, the receiver assembly (scope and rail at top right, receiver top, spring/hook housing at centre left) has slid about 180-230 px toward the muzzle and away from the stock, roughly 4-5 cm. The black tubular stock at left does not move. The olive glove (index and thumb on the receiver top) stays at nearly the same screen place, so the fingers are no longer on the part that moved. rack-grip-pulled-108-asvalokp7-left.png shows the same: the optic, receiver, magazine and grip shift about 140-190 px toward the muzzle (left) while the glove stays put.
+   expected: The charging/bolt part should slide back toward the stock about half way, with the left fingers riding on it. The receiver, optic, magazine and grip should stay where they are. The test line says the bolt is part of the receiver mesh, which is probably why the whole receiver moves.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-108-asvalokp7.png)
+   seen: The left hand (olive glove with triangle emblem and yellow dashes) is open, index and middle fingers straight out to the left, and nothing wraps the magazine. The black magazine stands up behind the back of the hand, its lower end hidden just behind the knuckles, and its upper part rises past the handguard and barrel to the top edge of the picture. It sits in front of the handguard, nowhere near the magwell under the receiver.
+   expected: Fingers closed around the magazine body or base in the palm, feed end pointing up toward the magwell. The test line agrees: 'in the hand: 3.1 cm from the palm'.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-108-asvalokp7.png)
+   seen: First-person view on a shot: at the muzzle (top-left end of the gun, around x 700, y 490-510) there is no flash. No glow, no bright burst, no visible particles. lensburst-108-asvalokp7.png shows the same (only ejected cases in the air). The only flash shown anywhere is the faint lens flare in the eye pictures.
+   expected: A bright muzzle flash burst at the muzzle on each shot (the test says 'Muzzle Flash Particles', 75 cm, every shot), visible in the first-person frame. If this is only a frame-timing miss, re-capture on the same frame as the lens-flash shot.
+
+4. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-108-asvalokp7.png)
+   seen: Both eyes show only a tiny orange star about 6-8 px across, at about 57% across and 60% down, which is at the muzzle's screen position (good). The soft rings are barely visible and the rest of each eye is near black. The right eye is a little brighter, which is correct. lens-eyes-burst-108-asvalokp7.png is the same, very faint.
+   expected: A clearly visible bright star with soft rings around the muzzle, not barely above black. Keep the gun-side (right) eye a bit stronger.
+
+5. [minor] [low] other  (mag-6-half-in-108-asvalokp7.png)
+   seen: The black magazine's top sits at the underside of the receiver at about y 250, versus about y 535 in mag-5-lined-up and about y 215 when fully seated in mag-7-seated-again. That is roughly 90% of the way in, nearly seated, not half way. The left glove already holds the base.
+   expected: The magazine about half way up into the magwell on the same line, top roughly halfway between the lined-up spot (y about 535) and the seated spot (y about 215), i.e. around y 375.
+
+6. [tiny] [low] other  (mag-2-leaving-108-asvalokp7.png)
+   seen: The magazine dropping out renders near-black, while the gun's own magazine in mag-1-seated-108-asvalokp7.png at the same spot is dark maroon-brown. The loose magazine in mag-4, mag-5 and mag-6 is also near-black, and the one seated in mag-7 is maroon again. The same model appears to change colour between in-gun and loose states.
+   expected: One magazine material and colour in every state (in the gun, falling, in the hand, reinserted).
+
+7. [tiny] [low] other  (weapon-108-asvalokp7.png)
+   seen: A flat brown-orange slab fills the bottom-right corner of every first-person frame (weapon, lensflash, lensburst, rack-grip), and an orange shape sits at the top right of the left close-ups. It does not look like part of the gun.
+   expected: Probably nothing. If it is a stray prop or a model in the player's view that should not be in frame, remove it. Check whether it is intended.
+
+Test line flags:
+  - rack grip and pulled half way: 'not measured (the part's shape is not ready)'. The pictures show the wrong part moving (bug 1). The grip finger count is missing. In rack-grip-108-asvalokp7-right.png the fingers rest on top of the receiver with the spring/hook housing below them.
+  - drawn: 1 part moves, most 46 mm, nearest 0.3 cm from hand: confirmed by the close-ups (the receiver assembly slides about 4-5 cm). But the moving part is the whole receiver, not a bolt or charging handle, and it moves toward the muzzle.
+  - rack-grip-pulled-108-asvalokp7.png (first-person) shows no obvious gun-body displacement, unlike the close-ups. In the close-ups the glove stays fixed on screen, so that camera seems to follow the hand. Verify whether the gun or the hand moves before fixing.
+  - moving with the hand: an added handle: no separate handle object is visible in the close-ups; the hand rests on the receiver top. Cannot confirm.
+  - gun moved 1.3 mm with the pull, 3.1 mm when it went home: no visible gun-body shift in the first-person pulled frame, consistent with a small root motion.
+  - magazine in the hand: 3.1 cm from the palm: confirmed (bug 2, the magazine is not wrapped by fingers).
+  - magazine half way in (on the rail): 0.0 cm off the magwell line: the line looks right, but the frame is about 90% in (bug 5). Depth is not measured.
+  - magazine seated: 0.0 cm from where it was: confirmed. mag-7 sits where mag-1 did (top edge and bottom-left corner match).
+  - dropped copy 0.0 cm across the pull, 2.3 cm out, size x1.00: confirmed in mag-2 (same line, dropped about 70 px). The copy renders near-black (bug 6).
+  - muzzle flash: particles 'Muzzle Flash Particles', 75 cm, every shot: contradicted by lensflash-108 and lensburst-108, where no particle is visible at the muzzle (bug 3).
+  - lens flash shown, strength 0.08 and strongest soft flash 0.09: confirmed weak (bug 4).
+  - lens flash burst: flashes L 18 / R 18 (full L 4 / R 4): the burst eye picture shows faint flares in both eyes, right slightly stronger, with no large one-sided difference. Most flashes are dim, consistent with only 4 reaching full.
+  - cases thrown: 22: lensburst shows about three ejected cases in flight. Consistent, not checked for all 22.

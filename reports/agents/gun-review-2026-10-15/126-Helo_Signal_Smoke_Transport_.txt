@@ -1,0 +1,12 @@
+Gun 126: Helo Signal Smoke (Transport)
+Haiku picture review (read only), overall: looks ok, pictures read: 1
+
+1. [tiny] [low] other  (weapon-126-Helo_Signal_Smoke_Transport_.png)
+   seen: Across the middle of the 1280x800 frame (about x 455-815, y 500-560) there is a dark translucent rectangle with a darker top edge and no legible text, drawn over the trees. It is not part of the held item.
+   expected: If this is a HUD message or prompt, it should show its text. It is only a bug if text was meant to be there. Probably unrelated to the gun.
+
+Test line flags:
+  - Item is a throwable (signal smoke grenade), so 'muzzle flash: none' and 'lens flash none' are expected and are not faults. There is no muzzle. The magazine and rack-grip checks do not apply to this item.
+  - 'pin in: dud, no live grenade' is consistent with the picture: the pin ring is still attached to the held grenade. The single picture cannot confirm the dud or refund outcome.
+  - 'pin pulled: live grenade thrown' is consistent with the large yellow-green smoke plume in the scene, which uses the same colours as the held canister. The held grenade still has its pin, so the plume most likely comes from an earlier throw in the run, not from this item. The throw itself is not shown.
+  - 'manual reload not active for this weapon' is consistent: no magazine or reload pictures are listed for this item.

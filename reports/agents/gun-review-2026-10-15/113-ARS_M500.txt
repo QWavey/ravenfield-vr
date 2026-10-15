@@ -1,0 +1,31 @@
+Gun 113: ARS M500
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-113-ARS_M500-right.png)
+   seen: Compared with rack-grip-113-ARS_M500-right.png, the whole receiver body moves about 190-200 px toward screen-right (the muzzle side, since the trigger guard sits in front of the grip). The tan ejection window's left edge goes from about x 840 to x 1040, the sight tag from about x 110-150 to x 295-325, and the trigger guard from about x 440-730 to about x 615-900. The trigger-hand finger tip moves from about x 630 to x 830 with it. Only the receiver's rear block visibly slides; the trigger guard and trigger should not move at all.
+   expected: Only the charging handle / slide should move back about 62 mm toward the stock, with the hand. The receiver, sight tag, trigger guard and trigger should stay where they were in rack-grip-113-ARS_M500-right.png.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-113-ARS_M500-right.png)
+   seen: The left hand does not travel with the moving part. Its fingers lying on top (x about 415-855, y about 215-330) and the wrist strap (x about 400-500, y 270-390) stay in exactly the same screen position as in rack-grip-113-ARS_M500-right.png, while the receiver slides out from under them. The fingers keep only a resting contact on the top surface, not a pinch on a handle.
+   expected: The left-hand fingers stay pinched on the charging handle and move back with it, so the hand is seen dragging the part rearward and no part slides under the fingers.
+
+3. [major] [high] wrong_part_moves  (rack-grip-pulled-113-ARS_M500-left.png)
+   seen: Compared with rack-grip-113-ARS_M500-left.png, the dark receiver block's front end moves about 120 px toward the muzzle side (left), from about x 230 to about x 110. It now covers much more of the tan tube/barrel on the left (the visible tube length roughly halves). The fist (x about 435-880) and forearm stay where they were, so the part moves away from the hand, and the block appears to intrude into the tube.
+   expected: The slide / charging handle should move back toward the stock with the fist, the receiver should stay still, and no body part should overlap the barrel or tube.
+
+4. [minor] [low] other  (rack-grip-pulled-113-ARS_M500.png)
+   seen: The centre pulled view looks broadly the same as rack-grip-113-ARS_M500.png: the grey fist near the barrel and the small tag near the receiver do not show a clear change at this size. Nothing can be confirmed or denied from this picture alone.
+   expected: Same hand-follows-part motion as in the close-ups, visible from the front.
+
+5. [tiny] [low] picture_unusable  (weapon-113-ARS_M500.png)
+   seen: First-person view: the gun's grip and the right hand that should hold it are cut off at the bottom edge of the frame, so the pistol-grip wrap cannot be checked. The free left hand is a grey claw with no arm, floating in the grass, which is normal for a free VR hand.
+   expected: Right hand wrapped around the grip, fully in frame, to verify the grip.
+
+Test line flags:
+  - 'moving with the hand: the charging handle' is contradicted by rack-grip-pulled-113-ARS_M500-right.png and -left.png: the receiver body, trigger guard and sight tag move, while the fingers and fist under the hand stay put. The handle is not the moving part.
+  - 'the gun moved 1.0 mm with the pull (hand-driven: stays open)' is not a clean result: the gun root may be only 1 mm, but in rack-grip-pulled-113-ARS_M500-right.png the receiver and trigger guard visibly shift about 190-200 px (several cm) in the close-up. The body moves even though the root does not.
+  - 'the nearest is 0.0 cm from the hand' is not kept through the pull: in rack-grip-pulled-113-ARS_M500-right.png the fingers stay on top while the receiver slides under them, so the contact is lost during the movement.
+  - 'drawn: 3 drawn part(s) move, most 62 mm' is plausible: the close-up shift of about 190-200 px is consistent with several cm. The picture confirms that parts move, but not that the charging handle is one of them.
+  - 'lens flash none' and 'muzzle flash: particles MuzzleTransform, 150 cm, every shot, the flash light' cannot be confirmed or denied: no lensflash / lensburst or lens-eyes picture is listed for gun 113.
+  - 'loaded to 7/7' and 'racked: chambered' look consistent: the sight tag in rack-grip-113-ARS_M500-right.png reads roughly 6+1 (6 in the tube plus 1 chambered). The tag in the pulled picture is too small to read reliably, so a change in count cannot be checked.
+  - 'rack grip ... not measured' and 'pulled half way: not measured' leave the pictures as the only evidence for the racking motion.

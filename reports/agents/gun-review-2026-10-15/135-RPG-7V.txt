@@ -1,0 +1,10 @@
+Gun 135: RPG-7V
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-135-RPG-7V.png)
+   seen: First-person view, RPG-7V in the bottom-right, pointing forward correctly with the sight block on top. No right hand is visible on the launcher. The rear grip area under the sight (about x 750-810, y 620-720) and the front grip (about x 730-800, y 700-770) show bare gray metal with no glove wrapped around either. The only hand in frame is a dark gray hand floating in the grass at about x 540-635, y 585-690, roughly 150-200 px left of the launcher. That one is the free left hand and is not itself a bug, but nothing is holding the gun.
+   expected: The right (gun) hand wrapped around the pistol grip under the sight with fingers closed on it, and the launcher held in that hand. The free left hand may hang anywhere, as it does now.
+
+Test line flags:
+  - 'two hands 0.0 deg, 0.0 cm' and 'two hands 0 deg/s' are exact zeros, so two-handed recoil looks completely disabled rather than reduced. weapon-135-RPG-7V.png is an idle frame and cannot confirm or refute this.
+  - 'lens flash none' while 'muzzle flash: particles Muzzle (4), 1500 cm, every shot, the flash light' is reported. The RPG has muzzle flash and a flash light but no lens flash at all, which may be a bug for the shooting-flash check. No lensflash or lensburst picture is listed for gun 135, and the idle frame shows no muzzle flash, so this is not confirmed by a picture.

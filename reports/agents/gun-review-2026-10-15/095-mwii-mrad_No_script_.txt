@@ -1,0 +1,41 @@
+Gun 95: mwii-mrad(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] hand_not_on_part  (rack-grip-095-mwii-mrad_No_script_-right.png)
+   seen: The left hand does not close around the bolt handle. The handle (black ball on a lever; ball about x 660-810, y 475-630; lever root about x 760-830, y 340) is not gripped: one pale fingertip rests on the bolt body above the lever root (x 700-880, y 215-340), and the index finger stops below-left of the ball (tip about x 690, y 640) in front of the trigger guard. The ball and lever sit outside the fingers.
+   expected: Several fingers wrapped around the handle lever/ball so the handle is pinched between thumb and fingers, with the fingers on the handle and not on the bolt body.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-095-mwii-mrad_No_script_-right.png)
+   seen: Compared with rack-grip-095-mwii-mrad_No_script_-right.png, the bolt ball stays at the same spot in the frame (about x 660-815, y 480-645), while the trigger guard, scope and glove all shift about 350 px to the right. The handle has therefore slid roughly 5-7 cm forward (toward the muzzle; the stock is on the right) and now sits ahead of the trigger guard. The glove stays on the gun body instead of moving with the handle. The two close-ups have different framing, so this rests on relative positions, and the handle moves the wrong way.
+   expected: The handle moves back toward the stock, and the hand stays closed on the handle ball so the glove travels with it during the pull.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-095-mwii-mrad_No_script_-left.png)
+   seen: The left hand lies flat on the left flank of the receiver (about x 220-880, y 215-580), palm on the plain receiver side with the fingers pointing forward along the body. Nothing is pinched. No handle is under the fingers from this side, and the glove sits over the receiver above the magazine.
+   expected: Fingers closed on the charging / bolt handle. If the handle is on the far side, the hand should reach across to it, which this view does not show.
+
+4. [minor] [low] hand_not_on_part  (rack-grip-pulled-095-mwii-mrad_No_script_-left.png)
+   seen: The glove stays at the same frame spot (about x 215-880, y 230-580) while the receiver, scope mount, stock cut-out and pistol grip shift about 230-240 px to the left relative to it (for example the mount screws move from about x 250 and 490 to about x 10 and 240). The glove has therefore slid rearward along the receiver side relative to the gun, with no handle under the fingers.
+   expected: The hand and the handle move back together with the glove closed on the handle, and the gun body does not slide under a hand that stays in place.
+
+5. [minor] [medium] mag_not_into_magwell  (mag-6-half-in-095-mwii-mrad_No_script_.png)
+   seen: Same camera as mag-1 and mag-7. The fresh magazine is on the magwell line (left edge about x 465, against about x 478 when seated), but it hangs lower: its visible lower edge is about y 610-615, against about y 530-555 when seated (mag-1, mag-7) and about y 605 for the dropped magazine in mag-2. It reads as out at roughly the drop-out depth, not half way in. The glove sits under it.
+   expected: Half way in: the top of the magazine inside the magwell, with the visible part between the seated length and the dropped length.
+
+6. [tiny] [low] mag_wrong_orientation_or_model  (mag-4-in-hand-095-mwii-mrad_No_script_.png)
+   seen: The fresh magazine in the left hand is tilted roughly 20-25 degrees (its top edge slopes up toward the receiver, about x 290-590, y 120-430), while the other reload frames show it vertical. Its lower part is hidden behind the thumb and index finger.
+   expected: Magazine upright with the feed end toward the gun, held in the palm on the magwell's vertical axis.
+
+7. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-095-mwii-mrad(No script).png)
+   seen: Both panels (left about x 0-300, right about x 305-605) have a warm haze that stops at a hard rounded-rectangle edge on the right and bottom-right (about x 298 and y 230-250 in the left panel) instead of fading to black. Star and rings are centred on the flare (left about x 165, right about x 467), and the right eye is brighter as expected.
+   expected: The haze fades smoothly to black toward the panel edges.
+
+Test line flags:
+  - "rack grip ... 0/72 points inside the part, 1/4 fingers on it": CONFIRMED by rack-grip-095-mwii-mrad_No_script_-right.png. The ball and lever are not enclosed; only one finger touches the bolt body near the handle root.
+  - "pulled half way: 0/72 points inside the part, 1/4 fingers on it": CONFIRMED by rack-grip-pulled-095-mwii-mrad_No_script_-right.png. The handle has slid forward away from the fingers and is not enclosed.
+  - "moving with the hand: the slide / bolt": CONTRADICTED by rack-grip-pulled-095-mwii-mrad_No_script_-right.png. The glove stays on the gun body while the handle slides about 350 px forward in the frame, so the handle is not moving with the hand.
+  - "drawn: 1 drawn part(s) move, most 74 mm; the nearest is 0.0 cm from the hand": the 74 mm matches the size of the handle shift in the right close-up (roughly 5-7 cm estimated), but the direction is toward the muzzle. The 0.0 cm contact is a finger on the bolt body, not on the handle, so it is only consistent if the bolt body counts as the part.
+  - "magazine (deep): dropped copy ... 1.7 cm out": NOT CONFIRMED, low confidence. mag-2 shows the dropped magazine only about 50 px below the seated position, which looks like roughly 1 cm or less at this scale, so 1.7 cm looks large.
+  - "half way in (on the rail): 0.0 cm off the magwell line": the lateral offset looks right in mag-6 (within about 15 px of seated), but the magazine sits lower than half way (see the mag-6 bug). The line does not measure depth, so the depth error is not caught by the test.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": CONSISTENT. mag-7 matches mag-1 in position within a few tens of pixels.
+  - "muzzle flash: particles 18 cm, every shot ... lens flash shown, strength 0.66": CONFIRMED. lensflash-095-mwii-mrad_No_script_.png shows the flash at the muzzle, and lens-eyes shows the flare with the right eye a bit stronger.
+  - "fired 3/3", recoil, impulse and cases thrown: cannot be checked from the pictures.

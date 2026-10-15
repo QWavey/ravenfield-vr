@@ -1,0 +1,61 @@
+Gun 24: RIPCORD
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-024-RIPCORD.png)
+   seen: The fresh magazine (grey slab, right of centre, about x 900-1040, y 185-440) is not in the free glove. The glove (centre, about x 380-830, y 265-530, fingers pointing left) has a visible gap to the slab and its fingers do not wrap the magazine. The magazine stands beside the hand.
+   expected: Fingers wrapped around the fresh magazine in the palm, feed end toward the gun, magazine moving with the hand.
+
+2. [major] [high] hand_not_on_part  (rack-grip-024-RIPCORD.png)
+   seen: Free glove hangs in front of the receiver (about x 200-870, y 240-620), index finger pointing left. Nothing is pinched: no finger is on a slide or charging handle. Test line says 0/4 fingers on the part.
+   expected: Fingers pinching the racking part (slide, bolt or charging handle), on the part and not beside it.
+
+3. [major] [high] picture_unusable  (lens-eyes-024-RIPCORD.png)
+   seen: Frame is completely black for both eyes: no flare at all, although the test line says lens flash shown, strength 0.74. The burst capture of the same gun does show flares in both eyes.
+   expected: A bright star with soft rings near the muzzle on both eyes, the gun-side (right) eye a bit stronger.
+
+4. [major] [medium] mag_not_into_magwell  (mag-6-half-in-024-RIPCORD.png)
+   seen: The fresh magazine (grey slab) hangs directly under the grey grip block: its top edge touches the block's bottom edge at about y 340 and it runs down to the grass (about y 690). Its visible length is about the same as in mag-1-seated. Nothing of it is hidden inside the block, so it has not gone up into the magwell.
+   expected: Half the magazine inside the magwell: top half hidden in the grip/handle, only the lower half visible, on the same line.
+
+5. [major] [medium] mag_not_into_magwell  (mag-1-seated-024-RIPCORD.png)
+   seen: A long grey slab hangs below the grey grip block (block about x 490-720, y 0-340; slab about x 570-760, y 340-720) and sticks well out below the grip. The receiver and magwell are not in frame, so the magazine cannot be seen seated in the gun. The glove holds the top of the block.
+   expected: Magazine fully seated: only its base plate showing just below the grip, nothing hanging out.
+
+6. [major] [medium] mag_duplicate_or_missing  (mag-7-seated-again-024-RIPCORD.png)
+   seen: Only the grey block remains, with the glove below at bottom right. There is no magazine or base plate below it. mag-1-seated shows a slab under the same block, so the seated magazine does not look the same as in step 1: it has vanished from view.
+   expected: Fully seated where mag-1 had it: the same base plate showing under the grip as in mag-1, and no other magazine.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-pulled-024-RIPCORD.png)
+   seen: Glove is in the same place and pose as in rack-grip-024-RIPCORD.png, fingers in front of the receiver, and nothing visibly pulled back with it. The receiver outline looks unchanged. Test says a 36 mm part moves 0.0 cm from the hand, but 0/4 fingers are on it.
+   expected: Index and middle fingers pinching the slide/charging handle, which is visibly pulled about half way back with the hand.
+
+8. [major] [medium] hand_not_on_part  (rack-grip-024-RIPCORD-right.png)
+   seen: Glove sits below the receiver's lower edge at bottom right, beside a hex-shaped nut (about x 700-810, y 580-690). Fingers curl under the receiver and touch nothing that looks like a racking handle.
+   expected: Fingers on the racking handle on the receiver, not beside or under the receiver.
+
+9. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-024-RIPCORD-left.png)
+   seen: Receiver and glove are in roughly the same place as in rack-grip-024-RIPCORD-left.png. The glove has not moved back with any part; only small shifts of the rear sight fin are visible. Test says a part moves 36 mm.
+   expected: Slide/handle visibly pulled about half way back with the fingers on it, the moving part matching the hand.
+
+10. [minor] [low] hand_not_on_part  (rack-grip-024-RIPCORD-left.png)
+   seen: Glove lies across the front of the receiver with fingers pointing left and resting on its face. It does not visibly pinch a handle; a tall grey plate hangs below the receiver.
+   expected: Fingers pinching the slide/charging handle.
+
+11. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-024-RIPCORD.png)
+   seen: First-person frame on a shot: no muzzle flash at the muzzle (front sight about x 700-800, y 465-570). The frame shows blue smoke puffs in the sky and one brass case on the grass. The lensburst frame of the same gun does show a yellow-orange flash at the muzzle.
+   expected: Yellow-orange flash at the muzzle on the shot frame, as in lensburst-024-RIPCORD.png. May be timing: the frame may be taken after the flash faded.
+
+12. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-024-RIPCORD.png)
+   seen: Both eyes flash, but the right eye (gun side, star about x 472 of the 606 px panel) is clearly bigger and brighter than the left (star about x 177). The right has a wide soft halo about twice the radius; the left is nearly faint. This is more than 'a bit' stronger.
+   expected: Both eyes roughly equal, right only a bit stronger, with similar star size and halo radius.
+
+Test line flags:
+  - lens flash shown, strength 0.74: contradicted by lens-eyes-024-RIPCORD.png, which is fully black for both eyes (no flare at all).
+  - lens flash burst: flashes L 15 / R 15 (full L 4 / R 4): lens-eyes-burst-024-RIPCORD.png shows flares in both eyes, but the right is clearly stronger than the left. Confirms an L/R brightness imbalance.
+  - muzzle flash: 'every shot': lensflash-024-RIPCORD.png shows no muzzle flash at the muzzle, while lensburst-024-RIPCORD.png does. Possibly a timing issue on single shots, consistent with the black lens-eyes-024 capture.
+  - in the hand: 4.4 cm from the palm (FLOATS BESIDE THE HAND): confirmed by mag-4-in-hand-024-RIPCORD.png, the fresh magazine is beside the glove with a visible gap.
+  - half way in (on the rail): 0.0 cm off the magwell line: the line may be straight, but mag-6-half-in-024-RIPCORD.png shows the magazine docked under the grip block, not entering it. Depth is wrong, so the half-way claim is not confirmed.
+  - seated: the gun's magazine shows 0.0 cm from where it was: not consistent with the pictures. mag-1-seated-024-RIPCORD.png shows a magazine slab below the grip block, and mag-7-seated-again-024-RIPCORD.png shows none.
+  - rack grip: 0/72 points inside the part, 0/4 fingers on it, and pulled half way: 0/72 points, 0/4 fingers: confirmed by rack-grip-024-RIPCORD.png and rack-grip-pulled-024-RIPCORD.png. No finger is on a racking handle.
+  - drawn: 1 drawn part(s) move, most 36 mm; the nearest is 0.0 cm from the hand; moving with the hand: the slide / bolt: not confirmed. rack-grip-pulled-024-RIPCORD-left.png shows no clear slide travel. In rack-grip-pulled-024-RIPCORD-right.png the receiver block and hex nut shift right together with the hand, which could be the slide riding with the hand or a camera change. Ambiguous.
+  - racked: chambered: consistent. rack-grip-pulled-024-RIPCORD-right.png shows a cartridge in the ejection port after the pull, which is not visible in rack-grip-024-RIPCORD-right.png.

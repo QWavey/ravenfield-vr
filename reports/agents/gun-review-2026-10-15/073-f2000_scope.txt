@@ -1,0 +1,58 @@
+Gun 73: f2000 scope
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_in_hand  (mag-5-lined-up-073-f2000_scope.png)
+   seen: The fresh magazine stands upright in the grass at the bottom centre (about x 550-690, y 540-800), roughly 160 px below the empty magwell (about x 510-610, y 285-380) and closer to the camera. No hand holds it and no fingers are on it; the left hand that held the magazine in mag-4 is not in frame. Its base sits at the bottom edge, so it looks resting on the ground, not held. A black unidentified object also floats at the right edge (about x 1135-1280, y 400-660) with no hand on it.
+   expected: The fresh magazine held by the left hand right under the magwell, on the magwell line, with the fingers around it, as in mag-4 and mag-6.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-073-f2000 scope.png)
+   seen: The LEFT eye's star is small and dim with almost no halo, and the left panel is much darker overall. The RIGHT eye's star is roughly twice as bright, with clear spikes and a visible halo. The gap is far more than the slightly stronger gun-side eye that is expected.
+   expected: Both eyes similar in brightness; the right (gun-side) eye only slightly stronger than the left.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-073-f2000_scope-left.png)
+   seen: The gloved left hand rests on top of the receiver. Only the thumb tip touches the ribbed part (about x 170-345, y 250-295) at its right end. The index and middle fingers lie on the dark rail below and in front of it (about x 280-470, y 340-420), not on the handle. The hand is not wrapped around the part.
+   expected: Four fingers wrapped on the charging handle / slide, pinching it.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-073-f2000_scope-left.png)
+   seen: Compared with rack-grip-073-f2000_scope-left.png, the glove and the ribbed part are in exactly the same screen positions. The receiver behind them moved: the rounded bump (was about x 870-1060, y 150-240) is now at about x 700-890, and the dark block at top right (was about x 1140-1280) is now at about x 1010-1140, a shift of roughly 130-170 px. The hand did not travel with any part and has no fingers on the moving piece.
+   expected: The handle or bolt moves back with the hand, the receiver stays still, and the glove follows the handle.
+
+5. [major] [low] wrong_part_moves  (rack-grip-pulled-073-f2000_scope-right.png)
+   seen: Compared with rack-grip-073-f2000_scope-right.png, the side of the receiver with the round knob and small slot moved about 440 px to the right (knob from about x 120-190 to x 560-615; slot from about x 255-270 to x 690-710). A rounded dark cap now shows along the left side (about x 60-520, y 220-470) where before only its end showed at the edge. The whole receiver shape moves rather than a small handle. No hand is visible in this frame.
+   expected: Only the charging handle or bolt moves; the receiver stays in place.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-073-f2000_scope.png)
+   seen: In the first-person view the left hand is a grey hand hanging below and in front of the receiver (about x 705-790, y 555-690), under the muzzle end. It is not on the top rear part where the handle would be.
+   expected: Fingers on the top handle / slide, as in the close-up.
+
+7. [minor] [low] hand_not_on_part  (rack-grip-pulled-073-f2000_scope.png)
+   seen: The grey hand drops about 60 px lower and forward (about x 710-815, y 580-750) while nothing at the top of the gun visibly moves back. The hand moves down rather than rearward with a part. The rear of the gun is off-screen, so the handle itself cannot be seen.
+   expected: The hand travels rearward with the handle and stays on it.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-073-f2000_scope.png)
+   seen: Single-shot bloom is heavy: the right half of the view (sand and horizon) washes out to white, and a soft vertical light band runs down the right edge (about x 1210-1280, full height). The flare energy sits far from the muzzle (about x 700, y 500). The muzzle flash itself and the rings look right.
+   expected: Bloom concentrated around the muzzle, with no broad wash or edge streak far from it (unless the streak is intended).
+
+9. [minor] [medium] hand_pose_wrong  (weapon-073-f2000_scope.png)
+   seen: The free left hand is a flat grey hand with no glove texture (the close-ups show a textured green glove), with no arm, floating in the grass about 150 px left of the gun at about x 540-630, y 585-690. The right hand and grip are cut off by the bottom edge, so the right-hand wrap cannot be checked.
+   expected: The same textured glove as in the close-ups, in a relaxed pose and consistent with the close-up hands.
+
+10. [minor] [high] picture_unusable  (rack-grip-073-f2000_scope-right.png)
+   seen: The frame is almost black. Only the receiver outline, a round knob and a small slot are faintly visible. No hand or part under a hand can be checked from this side.
+   expected: A lit right-side view in which the hand and the part it touches can be seen.
+
+Test line flags:
+  - rack grip '1/72 points inside the part, 1/4 fingers on it': rack-grip-073-f2000_scope-left.png shows the glove resting on the receiver top with only the thumb tip touching the ribbed part, so the 1/4 looks high (about one finger at most).
+  - pulled half way '0/4 fingers on it': confirmed by rack-grip-pulled-073-f2000_scope-left.png, where the glove stays exactly where it was.
+  - 'moving with the hand: the slide / bolt': NOT confirmed. In rack-grip-pulled-073-f2000_scope-left.png the ribbed part under the hand does not move; the receiver behind it moves instead.
+  - 'drawn: 3 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand': NOT confirmed. Nothing at the hand moves; the moving part is the receiver, not the handle (rack-grip-pulled-073-f2000_scope-left.png and -right.png).
+  - 'the gun moved 1.3 mm with the pull, 2.3 mm when it went home': cannot be checked from the pictures; there is no scale reference and the receiver shifts on screen are large.
+  - 'dropped magazine picked up and seated': NOT consistent with the pictures. mag-4 shows the fresh magazine in the left glove, but mag-5-lined-up-073-f2000_scope.png shows a magazine standing on the grass with no hand on it, so the magazine left the hand or there are two magazines.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ... 2.8 cm out': consistent with mag-2-leaving-073-f2000_scope.png, which shows the magazine dropping straight down on its line.
+  - 'in the hand: 3.4 cm from the palm': consistent with mag-4-in-hand-073-f2000_scope.png, where the glove holds the magazine.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': consistent with mag-6-half-in-073-f2000_scope.png, which sits on the same axis as mag-1.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent with mag-7-seated-again-073-f2000_scope.png versus mag-1-seated-073-f2000_scope.png.
+  - 'muzzle flash ... lens flash shown, strength 0.95': the flash sits at the muzzle in lensflash-073-f2000_scope.png, but the bloom is heavy (see bug 8).
+  - 'lens flash burst: flashes L 19 / R 19 (full L 4 / R 3), strongest soft flash 0.33': the picture disagrees about which eye is brighter. lens-eyes-burst-073-f2000 scope.png shows the right eye clearly brighter, while the count gives the left eye more full-strength flashes. This matches the asymmetry the user reported.
+  - 'cases thrown: 23': lensburst-073-f2000_scope.png shows casings on the ground, consistent.
+  - 'fired 3/3', 'pulled out by hand: stays in the hand', and the recoil and impulse numbers: no picture to check them against.

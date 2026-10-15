@@ -1,0 +1,40 @@
+Gun 42: R870 [SLUG]
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-042-R870_SLUG_-left.png)
+   seen: Compared with rack-grip-042-R870_SLUG_-left.png, the receiver outline (rear sight hump, top rail, ejection-port housing) sits about 130 px further left, which is toward the muzzle in this view. The rear sight moves from about x 650-830 to x 520-690, and the barrel visible in front of the housing shrinks from about 450 px to about 305 px. The background and the gloved left hand stay in the same place. The grip and right-hand fingers on the right side also shift left with the receiver.
+   expected: Only the pump (forend) slides back toward the stock, which is right in this view, about half way (about 45 mm). The receiver, rear sight, rail and trigger guard stay still. The barrel in front of the housing should get longer, not shorter.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-042-R870_SLUG_-right.png)
+   seen: Compared with rack-grip-042-R870_SLUG_-right.png, the rear sight (x 300-610 becomes x 555-860), the top rail and the ejection window (x 495-895 becomes x 745-1150) shift about 250 px toward the muzzle, which is right in this view. The trigger guard moves right too. The rocks and grass in the background do not move, so the camera is fixed and the receiver outline is what moves. The barrel on the right edge is also cut differently.
+   expected: Only the pump moves back toward the stock, which is left in this view, about half way. The receiver, sight and trigger guard stay fixed.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-042-R870_SLUG_-left.png)
+   seen: The gloved left hand occupies the same screen spot (about x 295-880, y 235-530) in rack-grip-042-R870_SLUG_-left.png and in this frame. The receiver outline moves about 130 px behind it, so the hand does not travel with whatever moves, and it looks like it is pulling air.
+   expected: The fingers stay clamped on the pump and move back with it, about half way, so the hand moves by the same amount as the part.
+
+4. [major] [low] hand_not_on_part  (rack-grip-042-R870_SLUG_-left.png)
+   seen: The thumb tip lies on the top edge where the barrel meets the housing (about x 295-420, y 240-300). The fingers hang over the magazine tube under the barrel (about x 320-470, y 320-410). The palm sits against the receiver housing (about x 470-880). No finger wraps around a pump grip, which matches the test line of 1 of 4 fingers and 0 of 72 points inside the part.
+   expected: Four fingers close around the pump forend under the barrel, with the thumb on top, so the grip is on the part that racks.
+
+5. [major] [low] hand_not_on_part  (rack-grip-042-R870_SLUG_.png)
+   seen: In the first-person view, the left glove that rests in the grass at about x 540-635, y 585-690 in weapon-042 and lensflash-042 is gone here. The only new object is a grey bulge under the barrel at about x 700-745, y 590-690. That bulge sits roughly 100 px above and in front of the pump and receiver at about x 760-870, y 690-790. The hand looks to be beside the barrel rather than on the pump. I cannot tell from this angle whether the bulge is the hand or the forend.
+   expected: The left hand's fingers are wrapped around the pump forend at the lower right of the gun, not beside the barrel.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-042-R870_SLUG_.png)
+   seen: The muzzle flash itself is correct, at about x 690, y 515 right at the muzzle. Also present only in this frame (not in weapon-042): a vertical bluish band at the right screen edge (about x 1200-1260, y 0-400), a glow along the horizon (about x 900-1280, y 380-400), and a pale halo ring at about x 540-700, y 200-360, roughly 200 px up and to the left of the muzzle.
+   expected: The flash should come only from the muzzle. The extra edge band and the far halo ring are probably lens artifacts; check whether they should be there.
+
+7. [tiny] [low] other  (rack-grip-pulled-042-R870_SLUG_-right.png)
+   seen: A shotgun shell (brass base at left, orange crimp tip at right) sits in the ejection window at about x 745-1025, y 250-380. It is not visible in rack-grip-042-R870_SLUG_-right.png, where the window shows only background.
+   expected: Either the freshly cycled round seen through the port, which is fine, or a case stuck in the receiver, which is a bug. One frame cannot tell which. Check that the shell is a loaded round being fed and not a fired case that stays in the port.
+
+Test line flags:
+  - Reload not checked: the overview sheet labels mag 1 through mag 7 (items 8-14) as 'none', and the brief lists no magazine pictures. The magwell, magazine-in-hand and seated-again checks could not be done for gun 42. The test needs to capture these pictures.
+  - 'rack grip ... 0/72 points inside the part, 1/4 fingers on it': confirmed. In rack-grip-042-R870_SLUG_-left.png the fingers rest across the magazine tube below the barrel and the palm sits on the receiver housing, not on a pump. The first-person rack-grip frame also shows no hand clearly on the pump.
+  - 'pulled half way: 0/72 points inside the part, 1/4 fingers on it': confirmed by the same pictures. The glove stays at the same screen spot between rack-grip and rack-grip-pulled in the left view.
+  - 'moving with the hand: the slide / bolt': contradicted. The hand does not move between the rack and pulled left close-ups, and the outline that moves is the receiver side (rear sight, rail, window, trigger guard), not a pump under the hand.
+  - 'the gun moved 1.0 mm with the pull (hand-driven: stays open)': conflicts with the close-ups, where the receiver outline shifts about 130 px (left view) and 250 px (right view) against a static background. The 1.0 mm may measure only the gun root. The first-person pulled frame shows the receiver at the same screen spot as the rack frame, so the picture evidence is mixed. Medium confidence.
+  - 'drawn: 1 drawn part(s) move, most 45 mm; the nearest is 0.0 cm from the hand': the 45 mm figure is plausible for the receiver shift visible in the close-ups. The 0.0 cm contact claim is not confirmed. The glove does not move with that part, so the 0.0 cm reading does not match the visible motion. Low confidence.
+  - 'lens flash shown, strength 0.71' and 'muzzle flash: Muzzle Flash Particles': consistent with lensflash-042-R870_SLUG_.png (bright flare at the muzzle at about x 690, y 515) and lens-eyes-042-R870 [SLUG].png (a star with soft rings, right eye a bit stronger). No bug found in the lens pictures. The lens-eyes background is dark brown rather than pure black, which I did not count as a bug.
+  - 'racked: chambered': not contradicted. A shell is visible in the ejection window only in rack-grip-pulled-042-R870_SLUG_-right.png.

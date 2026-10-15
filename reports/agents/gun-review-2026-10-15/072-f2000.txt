@@ -1,0 +1,58 @@
+Gun 72: f2000
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] picture_unusable  (lens-eyes-072-f2000.png)
+   seen: The whole frame is flat black for both eyes. No flare, star or wash at all, so the single-shot lens flash is not visible in this capture, even though the test line says the lens flash was shown at strength 1.02.
+   expected: A LEFT | RIGHT pair on black with a bright star near the muzzle position (roughly 55-60% across, 60% down), soft rings, and the right (gun-side) eye a bit stronger, as lens-eyes-burst-072-f2000.png shows.
+
+2. [major] [high] muzzle_flash_or_lens_flash_issue  (lensflash-072-f2000.png)
+   seen: First-person frame taken on a shot with no muzzle flash. The muzzle area (about x 715-740, y 480-505, the front sight/rail end) is plain gun metal: no yellow-white star, no orange haze, no glow on the grass. The same shot type in full auto (lensburst-072-f2000.png) does show the flash.
+   expected: A bright white-yellow star with orange haze at the muzzle, roughly x 650-740, y 440-540, as in lensburst-072-f2000.png.
+
+3. [major] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-072-f2000.png)
+   seen: Both eyes have a similar central star, but the LEFT panel's warm wash and outer ring are clearly brighter (its lower-right area glows brown) while the matching area of the RIGHT panel is nearly black. The non-gun (left) eye is the brighter one, the reverse of the expected right-eye-a-bit-stronger. This is the left/right imbalance the user reported on the islands map.
+   expected: The right (gun-side) eye slightly stronger than the left, with the wash and rings balanced or leaning right.
+
+4. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-072-f2000.png)
+   seen: The warm wash and rings stop at a hard rounded-rectangle edge at the outer side of each panel (about x 298 on the left panel, about x 605 on the right) instead of fading out to black before the panel edge.
+   expected: A soft falloff of the glow to black before the panel border.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-072-f2000-left.png)
+   seen: The left gloved hand rests across a ribbed rail-like block on the left side of the receiver (about x 150-330, y 330-410). The index finger and thumb lie on top of that block, and the palm sits on the upper receiver (x 480-880, y 220-530). No finger closes around a charging handle; the test line says 1 of 4 fingers is on the part.
+   expected: Thumb and index pinching the charging handle / bolt handle, with fingers on that part and not on the rail block or the receiver top.
+
+6. [major] [medium] wrong_part_moves  (rack-grip-pulled-072-f2000-left.png)
+   seen: The hand is in exactly the same screen position as in rack-grip-072-f2000-left.png, but the gun body has slid about 140-165 px to the left around it: rear sight post x 785 to 620, trigger-guard light x 410-480 to 255-330, magazine x 800-1040 to 660-890, and the dark block at the top-right corner x 1140-1280 to 1010-1140. The horizon stays put, so the camera did not rotate. No handle moves back under the fingers. Translucent brown streaks (x 880-1040, y 0-370) appear in this frame only.
+   expected: The charging handle / bolt handle slides back about half way with the fingers on it, while the receiver, sight and magazine stay where they were.
+
+7. [major] [low] wrong_part_moves  (rack-grip-pulled-072-f2000-right.png)
+   seen: Compared with rack-grip-072-f2000-right.png, the sight housing and its round knob (about x 120-190 to 560-615) and the rail recess (x 570-650 to 960-1010) all shift roughly 300-430 px to the right, by different amounts, and a rounded dark nose now shows at the far left (x 60-510). Either the sight/receiver moved, a move on the order of the test's 57 mm, or the camera moved. The handle is not visibly what moved.
+   expected: Only the charging handle moves back. The sight and receiver stay still.
+
+8. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-072-f2000.png)
+   seen: The fresh magazine (x 550-690, y 540-800) stands about 200 px below the magwell (receiver underside near x 560-720, y 300-340). No glove is in frame holding it; only a pale bit shows at the bottom edge (x 510-550, y 785-800). It looks like it is floating or standing in the grass. mag-3-out-072-f2000.png shows no magazine on the ground, so this may be the dropped copy rather than the fresh magazine.
+   expected: The left hand holding the fresh magazine right under the magwell, its top about to enter the well, with fingers visible around it.
+
+9. [minor] [low] other  (mag-5-lined-up-072-f2000.png)
+   seen: A black ridged cylinder with a rounded end sits at the right edge (x 1135-1280, y 400-670). It is black, thinner than a magazine, and it is the only frame in the reload sequence where I could see it.
+   expected: Nothing there, or a clearly identified object that should not be in the reload shot.
+
+10. [tiny] [low] hand_pose_wrong  (weapon-072-f2000.png)
+   seen: The right hand is not visible on the grip: the grip is cut off below the bottom edge. The only pale shape near the bottom (x 790-850, y 690-800) is not clearly a hand. The free left hand floats in the grass (x 540-630, y 585-690).
+   expected: The right hand wrapped around the pistol grip, visible in frame.
+
+11. [tiny] [low] other  (lensflash-072-f2000.png)
+   seen: Dozens of translucent blue-grey discs, about 40-90 px across, are scattered over the sky and the wall far from the muzzle (for example x 660-1200, y 20-230). The same discs appear in lensburst-072-f2000.png and rack-grip-pulled-072-f2000.png.
+   expected: Smoke or dust puffs that start near the muzzle or the impact point, not floating in the sky. If this is intended, ignore it.
+
+Test line flags:
+  - "lens flash shown, strength 1.02": contradicted by lens-eyes-072-f2000.png (entirely black) and by lensflash-072-f2000.png (no flash at the muzzle). The flash appears only in the burst shots (lens-eyes-burst-072-f2000.png, lensburst-072-f2000.png), so single-shot captures seem to miss it.
+  - "muzzle flash: particles 'Muzzle Flash Particles', 70 cm, every shot": not visible on the single shot lensflash-072-f2000.png. It is visible on full auto in lensburst-072-f2000.png, so the claim holds only for bursts.
+  - "the gun moved 1.1 mm with the pull, 2.5 mm when it went home": rack-grip-072-f2000-left.png vs rack-grip-pulled-072-f2000-left.png show the whole gun body shifted about 140-165 px on screen while the hand and horizon stay put. The magazine is about 240 px wide, so this is far more than 1.1 mm. Either the measurement is wrong or it measured a different part. Camera movement is not fully excluded.
+  - "moving with the hand: the slide / bolt": not supported. In rack-grip-pulled-072-f2000-left.png the hand did not move with any part.
+  - "rack grip ... 1/4 fingers on it" and "pulled half way: 0/4 fingers on it": consistent with the pictures. No finger is clearly on a handle, and the hand position is unchanged after the pull.
+  - "drawn: 3 drawn part(s) move, most 57 mm; the nearest is 0.0 cm from the hand": rack-grip-pulled-072-f2000-right.png shows the sight housing and knob moving roughly 300-430 px, which fits a large move of a non-handle part (a wrong part). The 0.0 cm contact with the hand is not visible: the moving sight sits about 100-200 px above the fingertips.
+  - "half way in (on the rail): 0.0 cm off the magwell line": mag-6-half-in-072-f2000.png looks on the magwell line (same x as the seated magazine). Consistent.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": mag-1-seated and mag-7-seated-again match in position. Consistent.
+  - "dropped copy 0.0 cm across the pull ... 2.8 cm out": mag-2-leaving shows the magazine dropping along its line. mag-3-out-072-f2000.png shows no dropped magazine on the ground, so the dropped copy is not visible there. The 2.8 cm figure cannot be checked from the pictures.
+  - "flashes L 17 / R 17 (full L 4 / R 3)": the one burst frame shows the left wash brighter than the right, so the counts do not show a gun-side bias. Only one frame, so this is not conclusive.

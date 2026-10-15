@@ -1,0 +1,36 @@
+Gun 90: mwii-g17(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-090-mwii-g17_No_script_.png)
+   seen: The fresh magazine is held low in the left hand at about x 683-790, y 515-650, feed end at top (y 515). The gun's grip base is at about x 560-700, y 440. There is empty background between them: the magazine's feed end is about 75 px below the grip base (roughly 3-4 cm at this scale) and about 60-90 px toward the rear, so it is not at the magwell. Its long axis leans about 15-20 degrees (top to the left, bottom to the right) while the grip is near vertical.
+   expected: The fresh magazine's feed end sits right under the magwell, a few mm below the grip base, on the grip's axis and not tilted. mag-6 and mag-7 show the magazine aligned, so the approach in mag-5 starts off the magwell line.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-090-mwii-g17_No_script_.png)
+   seen: First-person view: the pistol is in the right hand at the bottom right (slide top around x 735-800, y 570-615, muzzle side up-left). No free left hand is visible anywhere in the frame; the space where it should pinch the slide is empty grass. In weapon-090 the idle left hand is visible at x 540-630, y 585-690, so it has disappeared here. Nothing is shown gripping the slide from this view. Caveat: the gun may be hiding the hand from this camera angle.
+   expected: The left hand pinching the slide's rear serrations, with fingers visibly on the slide top, visible in the first-person view.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-090-mwii-g17_No_script_.png)
+   seen: Same first-person framing as rack-grip-090 (pistol bottom right, slide top around x 740-800, y 575-620). The slide is supposed to be pulled about half way back, but no left hand is visible, so nothing shows the slide being held or moved. The slide position looks essentially unchanged in this view.
+   expected: The left hand visibly holding the slide pulled about half way back toward the camera, with the barrel showing ahead of the slide.
+
+4. [minor] [medium] hand_not_on_part  (rack-grip-090-mwii-g17_No_script_-right.png)
+   seen: Right-side close-up: only one finger (the index) touches the slide, with its tip pressed onto the front-middle of the slide top around x 870, y 490. The other fingers lie above the slide's top edge (y 260-420) with a visible gap, and the hand does not wrap around the serrations. This matches the test's 1/4 fingers on the part.
+   expected: All fingers resting on or wrapped around the slide's serrated section, not just one fingertip touching it.
+
+5. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-090-mwii-g17_No_script_.png)
+   seen: A vertical blue-white band runs down the right screen edge (about x 1205-1245, y 0-510). It is separate from the muzzle flash at about (715, 555) and does not sit on the flash-to-screen-centre line where the ring ghosts are. It looks like a streak or bloom artifact from the flash.
+   expected: Only the muzzle star and glow, the soft rings and the ghosts along the flash-to-centre line, with no edge streak.
+
+6. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-090-mwii-g17(No script).png)
+   seen: Both eye panels show the flare star and soft rings in the right place (about 60% across and 70% down, matching the muzzle flash position in lensflash), and the right eye is slightly stronger. The warm brown tint, however, ends at each rounded panel edge with a clear boundary against black, so the glow looks clipped on the right and bottom sides.
+   expected: The warm tint falls off softly into black, without a visible clipped panel edge.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 1/4 fingers on it': confirmed by rack-grip-090-mwii-g17_No_script_-right.png. Only one finger touches the slide top; the others sit above it, so the hand is resting on the slide rather than gripping it.
+  - pulled half way '1/4 fingers on it': consistent with rack-grip-pulled-090 close-ups (pulled-left and pulled-right). The same single-finger contact is visible while the hand stays on the slide side.
+  - 'drawn: 5 drawn parts move, most 29 mm' and 'moving with the hand: the slide': not contradicted. In the pulled-left close-up the trigger guard and grip sit roughly 25-30 mm further toward the muzzle relative to the hand and slide than in rack-grip-090-...-left, which fits a slide sliding rearward under the hand.
+  - 'racked: chambered': consistent. A brass round shows through the ejection port in rack-grip-pulled-090-...-right and not in the un-pulled rack-grip-090-...-right.
+  - 'magazine half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in looks aligned, so the reported value is plausible. The lined-up pose before it (mag-5) is not on the line (about 3-4 cm off and tilted), so the approach path is not straight; the test does not measure that pose and the picture contradicts the 'lined up' label.
+  - 'in the hand: 3.9 cm from the palm' and 'seated: 0.0 cm from where it was': consistent with mag-4 (magazine gripped in the fingers) and mag-7 (magazine back in the same spot as mag-1, no second magazine visible).
+  - 'lens flash shown, strength 0.86': consistent with lens-eyes and lensflash. The flare sits at the muzzle position and the right eye is slightly stronger, as expected.
+  - 'gun moved 0.5 mm with the pull, 2.7 mm when it went home': cannot be verified from pictures.

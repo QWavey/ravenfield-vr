@@ -1,0 +1,37 @@
+Gun 41: R870 [BUCKSHOT]
+Haiku picture review (read only), overall: bugs, pictures read: 10
+
+1. [major] [high] picture_unusable  (lens-eyes-041-R870 [BUCKSHOT].png)
+   seen: The whole 634x250 image is pure black. No flare, no star, no soft rings, on either the left or the right eye. The test line says 'lens flash shown, strength 1.34', so the flash is not reaching this capture.
+   expected: Left and right eye panels side by side on black, each with a bright star or flare near the muzzle with soft rings, the right-eye side a bit stronger.
+
+2. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-041-R870_BUCKSHOT_.png)
+   seen: On the shot, the muzzle tip (about x 700, y 520, upper centre of the gun) shows only grey smoke. No bright flash, glow or flare at the muzzle, and no lens flare anywhere on screen, although the test says the muzzle flash particles and flash light fire every shot.
+   expected: A bright muzzle flash burst at the barrel tip, with a warm flare or glow on the first-person view.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-041-R870_BUCKSHOT_-left.png)
+   seen: Compared with rack-grip-041-R870_BUCKSHOT_-left.png, the left glove stays exactly in place (thumb at x 290-430, y 240-300; fingers at x 310-480, y 330-410). The sight hump, top rail, light-grey receiver housing and the right hand on the grip all slide about 120-150 px toward the muzzle (left in this picture). The barrel and magazine-tube end look unchanged. So the body of the gun moves forward while the pinching hand does not travel with any part sliding back.
+   expected: The pump under the left hand slides back toward the stock with the hand, so the hand visibly moves rearward. Receiver, sight, barrel and magazine tube stay still.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-041-R870_BUCKSHOT_-right.png)
+   seen: Compared with rack-grip-041-R870_BUCKSHOT_-right.png, the sight hump, top rail, ejection-port window, trigger guard and the right index finger all shift about 160-250 px toward the muzzle (right in this picture). The left glove under the receiver stays put. The shell now visible in the port is fine. The receiver body moves, not the pump the glove is pinching.
+   expected: The pump moves back toward the stock with the hand. Receiver, ejection port, trigger guard and right hand stay where they were.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-041-R870_BUCKSHOT_.png)
+   seen: First-person, pulled state: the gun, the left hand and the grey pump end (about x 700-750, y 590-690) are in the same place as in rack-grip-041-R870_BUCKSHOT_.png. Nothing visibly travels back half way, so the 45 mm the test reports is not visible from the head camera.
+   expected: The pump visibly slides back about half way with the left hand, so the forend and the hand have moved toward the stock (lower right).
+
+6. [minor] [low] hand_not_on_part  (rack-grip-041-R870_BUCKSHOT_-left.png)
+   seen: Only the top thumb (yellow-green tip, x 290-430, y 240-300) rests on the forend. The palm and back of the glove (x 480-880, y 240-520) sit under the receiver, and the other three fingers point forward under the magazine tube (x 310-480, y 330-410). This matches the test's 1/4 fingers.
+   expected: Fingers wrapped around the pump forend with the palm under it, most fingers touching the part.
+
+Test line flags:
+  - 'lens flash shown, strength 1.34': not confirmed. lens-eyes-041-R870 [BUCKSHOT].png is pure black, and lensflash-041-R870_BUCKSHOT_.png shows no flare at the muzzle.
+  - 'muzzle flash: particles Muzzle Flash Particles, 200 cm, every shot, the flash light': not confirmed. No flash is visible at the muzzle in lensflash-041-R870_BUCKSHOT_.png or weapon-041-R870_BUCKSHOT_.png. A 200 cm flash would be very large, and none is seen.
+  - 'drawn: 1 drawn part(s) move, most 45 mm': not confirmed as the pump. The close-ups show the receiver body (sight, rail, trigger guard, right hand) shifting 120-250 px against a static glove, and the first-person pulled pair shows no pump movement at all.
+  - 'the gun moved 0.9 mm with the pull (hand-driven: stays open)': conflicts with the close-ups, which show the upper gun shifting 120-250 px on screen while the glove stays. The first-person pair (rack-grip vs rack-grip-pulled, centre) does agree with a nearly still gun.
+  - 'moving with the hand: the slide / bolt': not confirmed. In no pulled picture does the hand visibly travel back with the pump.
+  - 'rack grip ... 1/4 fingers on it' and 'pulled half way ... 1/4 fingers on it': consistent with the close-ups, where only the top thumb touches the forend (low confidence).
+  - 'racked: chambered', 'loaded to 8/8', 'fired 3/3', 'cases thrown: 3': not checkable from these pictures. A shell with brass at the stock end is visible in the ejection port in rack-grip-pulled-041-R870_BUCKSHOT_-right.png, which fits a cycling shell. The port is empty in rack-grip-041-R870_BUCKSHOT_-right.png.
+  - Overview sheet panels 8-14 (mag 1 to mag 7) are 'none'. A tube-fed R870 has no detachable magazine, so there are no reload pictures to check. This is not a bug.
+  - The right hand and pistol grip are cut off at the bottom of weapon-041-R870_BUCKSHOT_.png, so the right-hand grip cannot be verified from that picture.

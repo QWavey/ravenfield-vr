@@ -1,0 +1,21 @@
+Gun 14: HYDRA
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-014-HYDRA.png)
+   seen: No right hand is visible anywhere in the frame. The black grip under the orange body (around x 590-770, y 640-800) is bare: no fingers or palm wrap it. The grip runs off the bottom edge, so the hand could sit just below the picture, but nothing of it shows. The left hand is also not visible, which is fine because the brief says it is free.
+   expected: The right hand wrapped around the grip with fingers on it, gun held in the right hand, visible in the lower part of the view.
+
+2. [minor] [low] gun_pose_or_aim_wrong  (weapon-014-HYDRA.png)
+   seen: The long orange launch tube on the right (x ~770-1280, y ~420-800) ends toward the upper left in a black ring (x ~770-900, y ~425-580) whose dark opening appears to face the camera. A second black tube end with a lighter centre sits at x ~740-820, y ~650-760. Read at face value, the tube openings look toward the viewer, which would mean the launcher points at the player or sideways instead of forward. This may just be perspective of a rear cap, so it is not certain.
+   expected: The launch tube runs forward, away from the camera, with the open muzzle at the far end and the rear end near the camera.
+
+3. [tiny] [low] other  (weapon-014-HYDRA.png)
+   seen: Semi-transparent blue discs with soft edges are scattered over the sky and sea (x ~600-1200, y ~0-470). Brown smudges sit on the wall (around x 120-190, y 90-150 and x 300-340, y 310-360) and on the orange tube and body (around x 820-880, y 480-530 and x 700-740, y 540-570). They look like a screen-space overlay (lens dirt or leftover particle sprites), not gun geometry. They may be a deliberate effect, or a stray one like the soft ring artifacts from the lens-flash work.
+   expected: A clean first-person view with no floating discs or smudges over the gun, unless a lens-dirt effect is intended.
+
+Test line flags:
+  - "fired 0/3; not fired: needs a lock-on (no target here)": the HYDRA was never fired in this run, so this gives no shot, no muzzle flash and no lens flash data for this gun. The picture shows no flash, which is consistent with no shot but confirms nothing. This gun needs a lock-on target for the flash test to run.
+  - "muzzle flash: no particles, the flash light": not measured on a real shot, so the picture neither confirms nor refutes it. A rocket launcher reporting no particles should be rechecked when the gun actually fires.
+  - "lens flash none": consistent with the picture (no flash in frame), but it comes from a non-fired state, so it is not a valid lens-flash measurement.
+  - "loaded to 1/1": no ammo count is visible in the picture, so this cannot be confirmed.
+  - "equipped": confirmed, the launcher is clearly in the first-person view.

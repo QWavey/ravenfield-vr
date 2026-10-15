@@ -1,0 +1,58 @@
+Gun 17: M1 GARRET
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [medium] mag_not_into_magwell  (mag-7-seated-again-017-M1_GARRET.png)
+   seen: No gun anywhere in the frame. The left glove is still closed around the fresh 8-round magazine in open air over the beach: the cartridge tips stick out to the left of the fist (about x 530-620, y 325-475) and the gray magazine body shows above the knuckles (about x 650-800, y 315-330). Nothing has been pushed into a magwell.
+   expected: Magazine fully seated in the gun's magwell (only the base plate showing), the left hand empty and clear of the magazine, the gun in the same frame.
+
+2. [major] [medium] picture_unusable  (mag-6-half-in-017-M1_GARRET.png)
+   seen: No gun in frame. The glove holds the magazine in open air at mid-frame (cartridges pointing left at about x 530-620, y 420-450; gray body at about x 650-730, y 350-360). The half-way-in position on the magwell rail cannot be seen.
+   expected: Gun in view with the magazine half way up into the magwell on its line, the hand at the magwell.
+
+3. [major] [medium] picture_unusable  (mag-5-lined-up-017-M1_GARRET.png)
+   seen: No gun in frame. The glove holds the magazine low-centre in open air over the beach (cartridge tips at about x 540-620, y 540-600). The line-up at the magwell cannot be checked.
+   expected: Gun in view with the fresh magazine right under or at the magwell on its line, cartridges pointing forward.
+
+4. [major] [medium] picture_unusable  (mag-1-seated-017-M1_GARRET.png)
+   seen: No gun and no hand in frame. The only object is one 8-round magazine (cartridges pointing left, gray box at right) at mid-frame, about x 530-755, y 315-490, sitting on or above the shoreline. Nothing shows a magwell, so 'fully seated in the gun' cannot be confirmed, and it is unclear whether this is the gun's magazine or the dropped copy.
+   expected: Gun in view with the magazine fully inside the magwell, only the base plate showing.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-017-M1_GARRET-left.png)
+   seen: The left glove lies flat across the top of the receiver and wood, fingers stretched to the left, thumb up on top. No fingers close around a charging handle or any knob; no grip shape is wrapped on any part.
+   expected: Fingers curled around the charging handle, pinching it.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-017-M1_GARRET-right.png)
+   seen: The glove rests flat on the receiver top beside the rear peep sight, fingers laid along the metal, thumb up. Nothing is closed around a handle.
+   expected: Fingers wrapped on the charging handle, pinching it.
+
+7. [major] [low] wrong_part_moves  (rack-grip-pulled-017-M1_GARRET-left.png)
+   seen: The glove is in the same spot as in rack-grip-017-M1_GARRET-left.png and still not on any handle. The rear peep sight and the right hand both appear shifted roughly 100-130 px left in frame, so what moved looks like the sight / gun body rather than a handle sliding back under the fingers. Camera framing may differ between shots, so this is unconfirmed.
+   expected: The charging handle pulled about half way back with the fingers on it; the rear sight stays fixed on the receiver.
+
+8. [minor] [medium] picture_unusable  (mag-2-leaving-017-M1_GARRET.png)
+   seen: No gun in frame. The 8-round magazine has dropped about 30 px straight down in frame from its mag-1 spot, with no magwell visible, so its exit line cannot be checked.
+   expected: Gun in view with the magazine sliding straight down out of the magwell along its line.
+
+9. [minor] [medium] picture_unusable  (mag-3-out-017-M1_GARRET.png)
+   seen: Only empty beach and sea. No gun and no magazine, so the empty magwell cannot be verified.
+   expected: Gun in view with the magwell empty and the hand clear.
+
+10. [minor] [low] hand_not_on_part  (weapon-017-M1_GARRET.png)
+   seen: First-person view: the gun receiver sits upper centre-right, the stock and trigger guard run off the bottom-right edge, and no right hand or forearm is visible anywhere in the frame. The left hand hovers at lower centre beside the red ammo crate. The gun looks like it floats with no grip. The same absence of a right hand shows in the lensflash and rack-grip first-person frames.
+   expected: Right hand visible wrapped around the grip or stock at the bottom right, gun held forward.
+
+11. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-017-M1_GARRET.png)
+   seen: The muzzle flash is in the right place (about x 650-700, y 440-490, at the muzzle). But a long bluish-white vertical streak runs down the right screen edge (about x 1200-1260, y 0-400), and a glare band crosses the horizon on the right (about x 880-1280, y 380-410). Both are far from the muzzle and absent from weapon-017, so the flash's lens effect is spilling across the screen.
+   expected: Flare and soft rings centred on the muzzle flash only, with no edge streak or horizon band.
+
+Test line flags:
+  - 7 rounds kept (dropped copy) vs 8 rounds: mag-1-seated and mag-2-leaving show about 8 visible cartridge tips, not 7. Medium confidence the count in the test line is off.
+  - magazine seated, 8 rounds / seated 0.0 cm from where it was: not confirmed. mag-7-seated-again shows the fresh magazine still in the left fist in open air with no gun in frame, which contradicts 'seated' unless that frame is stale.
+  - half way in (on the rail) 0.0 cm off the magwell line: not confirmed. mag-6-half-in has no gun in frame.
+  - rack grip 0/72 points inside the part, 0/4 fingers on it: confirmed. rack-grip-017-M1_GARRET-left and -right show the fingers resting on top of the receiver and wood, not on a handle.
+  - pulled half way 0/72 points, 0/4 fingers: confirmed by rack-grip-pulled-017-M1_GARRET-left. The fingers stay off any handle.
+  - drawn: 2 drawn parts move, most 52 mm, nearest 0.0 cm from the hand; moving with the hand: the charging handle. Not confirmed. In the rack-grip-pulled first-person frame the hand blob shifts only about 10-15 px against rack-grip-017-M1_GARRET.png, and the close-up shows the sight moving rather than a handle sliding under the fingers.
+  - in the hand: 3.2 cm from the palm: plausible in mag-4-in-hand (magazine inside the fist, rounds out); not contradicted.
+  - muzzle flash particles and lens flash strength 0.74: lensflash-017 shows the muzzle flash and lens effect; consistent (the edge streak is reported above).
+  - fired 3/3 and cases thrown 3: lensflash-017 shows one ejected case in flight; consistent, the other shots cannot be checked from stills.
+  - gun moved 1.2 mm with the pull and 3.1 mm when it went home: no visible change in the first-person pairs; consistent.

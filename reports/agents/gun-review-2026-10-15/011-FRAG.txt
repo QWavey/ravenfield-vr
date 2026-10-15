@@ -1,0 +1,17 @@
+Gun 11: FRAG
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] other  (weapon-011-FRAG.png)
+   seen: A dark grey curved metal piece with a small red/orange blob sits in the grass mid-frame, about x 527-635, y 585-690, left of and above the held grenade. It has no visible contact shadow and is not the olive-green frag grenade body, so it does not match the held item. Nothing else in the frame explains it.
+   expected: Nothing should be in front of the player except the held frag grenade. If it is a thrown or dropped grenade, it should read as a green frag grenade resting on the ground, not a grey piece that may be floating.
+
+2. [minor] [low] hand_pose_wrong  (weapon-011-FRAG.png)
+   seen: The right hand is not clearly visible. Behind the grenade there is a grey metal-looking shape running from about x 780-915, y 665-800 down to the bottom edge, and no skin-coloured fingers can be seen wrapping the grenade body. It may simply be a grey-rendered hand, so this cannot be confirmed from one frame.
+   expected: The right hand's fingers wrap around the grenade body and the grenade sits in the palm, with nothing floating. A second still from another angle would settle it.
+
+Test line flags:
+  - "equipped" matches the picture: the frag grenade is in the right hand and the left hand is free.
+  - "muzzle flash: none; lens flash none" is consistent with a grenade, which has no muzzle, and nothing in this still contradicts it.
+  - "pin in: dud, no live grenade", "pin pulled: live grenade thrown" and "picked up again: refunded" cannot be verified from this single still. No picture shows the pin, the throw or the pickup. The grey mid-frame object is not a green frag grenade, so it cannot be confirmed as the thrown one.
+  - "manual reload not active for this weapon": no reload, magazine or slide pictures are listed for FRAG (only weapon-011-FRAG.png), so there was nothing to check for the reload or slide bugs on this gun.
+  - No test line value looks numerically wrong. The line gives no finger count or cm offset for this gun, so there is nothing to cross-check.

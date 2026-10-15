@@ -1,0 +1,13 @@
+Gun 9: C4
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-009-C4.png)
+   seen: No hand is visible anywhere in the frame. The grey held item at the bottom right (roughly x 745-930, y 590-800, with a thin antenna rising from its top near x 780-800) has no fingers or palm on it. The brief says the right hand should be wrapped around the held item, with the left hand free.
+   expected: The right hand visible at the bottom right, fingers wrapped around the grip of the held C4 item, so the item reads as held and not floating.
+
+2. [major] [medium] part_floating_or_detached  (weapon-009-C4.png)
+   seen: The olive box with a red dial, two dark wires and a small grey stub on its right side (roughly x 450-630, y 560-785, centre-left bottom) hangs in mid-air in front of the camera over the grass. No hand is under or around it. It sits in the left-hand area, which the brief says should be free.
+   expected: Either the C4 charge is the item held in the right hand, attached to the hand's model, or nothing sits in the left-hand area. No detached model should float in front of the camera.
+
+Test line flags:
+  - 'equipped' is not confirmed by weapon-009-C4.png: no hand is visible around the held item, so the picture does not show the item being held. 'muzzle flash: none' and 'lens flash none' fit a C4 (not a firing weapon) and are not flagged. 'manual reload not active' and 'throwable without a pin' cannot be checked from this picture.

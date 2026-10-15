@@ -1,0 +1,63 @@
+Gun 79: m733 pro
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-079-m733_pro.png)
+   seen: The fresh tan magazine hangs in the air above and behind the open left glove: its body spans about x 400-600, y 100-440, roughly a third of the screen left of the magwell. The glove fingers are spread flat and lie in front of its lower end without wrapping it; the palm sits below and in front of the magazine. It is not held in the hand (test says 3.2 cm from the palm).
+   expected: The fresh magazine sits in the left palm with the fingers curled around its body, same model as the gun's, feed end pointing up toward the magwell.
+
+2. [major] [high] wrong_part_moves  (rack-grip-pulled-079-m733_pro-right.png)
+   seen: Compared with rack-grip-079-m733_pro-right.png, the whole upper receiver assembly slides about 190 px to the right (rearward in this view): the rear-sight knob, the handguard collar and the grey lever under the receiver all move together. The glove cuff, the fingertip and the small black latch under the fingertip (about 735-815, 365-420) do not move at all. The hand is no longer touching the part that moved, and the part under the hand stays still.
+   expected: Only the charging handle slides back about half way, with the fingertip still pressing on it; the receiver and sight stay fixed.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-079-m733_pro-left.png)
+   seen: Compared with rack-grip-079-m733_pro-left.png, the entire rifle shifts about 100-120 px to the left (toward the muzzle in this view): scope, carry-handle knob, magazine, pistol grip and the right hand on the grip all move together. The left glove stays exactly where it was (about 240-880, 240-560), so the hand is not pulling anything. This is the opposite direction from the right-side close-up, where the receiver moved rearward.
+   expected: Only the charging handle moves rearward (toward the stock, right in this view) with the glove travelling with it; the rest of the rifle stays put.
+
+4. [major] [high] hand_not_on_part  (rack-grip-079-m733_pro-left.png)
+   seen: The left glove lies flat over the top and side of the upper receiver at the carry-handle base, palm down, index finger extended forward (about 240-420, 240-310). No finger wraps a handle; the fingers rest on the receiver surface. The only handle-like tan latch on the receiver side (about 150-270, 455-475) is well away from the fingertips. Test line says 1/4 fingers on the part.
+   expected: Thumb and fingers pinched on the charging handle (the racking part) with the fingers actually on it, not resting on the receiver top.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-079-m733_pro-right.png)
+   seen: Only the tip of one finger rests on top of the receiver at about 830-895, 265-380, just above the small black latch (about 735-815, 365-420). The grey lever that the test names as the charging handle sits several cm lower on the receiver side at about 710-810, 480-610, far from any finger.
+   expected: The fingers pinch the charging handle itself; the handle that moves should be the one under the fingers.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-079-m733_pro.png)
+   seen: Full-auto first-person frame with ejected brass lying on the ground at right, but no muzzle flash at all at the muzzle (about 700-740, 475-500). The flash hider and the grass around it are plain.
+   expected: A visible muzzle flash puff at the muzzle on each shot (the test says 75 cm particles every shot), not absent from frames where casings are being thrown.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-079-m733_pro.png)
+   seen: The only muzzle flash is a faint yellow-green smudge about 50 px across at about 665-720, 490-545, against the grass. It has no bright core and is hard to see at this size.
+   expected: A clearly bright, larger flash at the muzzle that reads at a glance.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-079-m733 pro.png)
+   seen: Left and right eye panels: a dim warm point with faint soft rings, at about 58% across and 62% down on each panel. The right eye is a little brighter, as intended, and the flare sits where the muzzle is, but the whole effect is very dark on black.
+   expected: A bright star with a soft halo near the muzzle, right eye a bit stronger than left.
+
+9. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-079-m733 pro.png)
+   seen: Both eyes show only a tiny pinpoint dot at the same spots as the single shot. There are no soft rings, and it is far weaker than lens-eyes-079-m733 pro.png; left and right stay matched.
+   expected: A flare with soft rings during the burst, at a strength comparable to the single shot, right eye a bit stronger.
+
+10. [minor] [low] wrong_part_moves  (rack-grip-pulled-079-m733_pro.png)
+   seen: First-person pulled frame: the muzzle end of the rifle (about 765-870, 580-800) sits roughly 30-40 px lower-right than in rack-grip-079-m733_pro.png, while the scope and the left glove (about 695-760, 480-540) stay put.
+   expected: Only the charging handle moves; the muzzle end and scope stay still.
+
+11. [minor] [low] hand_pose_wrong  (weapon-079-m733_pro.png)
+   seen: The free left glove hangs in mid-air in the grass about 150-250 px left of the gun (about 540-630, 585-690), with no forearm or sleeve; it reads as a detached glove.
+   expected: The free hand held in a natural rest pose attached to the arm, nothing floating.
+
+12. [minor] [low] part_floating_or_detached  (rack-grip-079-m733_pro-left.png)
+   seen: A dark, tilted, rounded slab hovers above the rear of the receiver and the buttstock at top right (about 1040-1200, 0-245), with clear sky between it and the gun. It is not a gun part. The same slab appears at about 950-1080, 0-245 in rack-grip-pulled-079-m733_pro-left.png. A similar dark panel sits at bottom right of the first-person frames.
+   expected: No stray object floating in the frame; if it is the player's arm or controller model it should be attached to that body part.
+
+Test line flags:
+  - 'gun moved 0.9 mm with the pull' looks wrong: in both side close-ups the rifle body shifts 100-190 px on screen (several cm at this range) while the glove stays fixed. The picture confirms a large shift, unless the camera moved, which the test should rule out.
+  - 'rack grip: 0/72 points inside the part, 1/4 fingers on it' is confirmed by rack-grip-079-m733_pro-left.png and rack-grip-079-m733_pro-right.png: the fingers rest on the receiver top, not on a handle.
+  - 'pulled half way: 0/72 points, 1/4 fingers' and 'moving with the hand: the charging handle' are contradicted: the glove is in exactly the same place in the grip and pulled shots, so nothing moves with the hand; the receiver moves instead.
+  - 'drawn: ... the nearest is 0.0 cm from the hand' looks wrong: the only part touching the fingertip (small latch, about 735-815, 365-420 in rack-grip-right) does not move between rack-grip-right and rack-grip-pulled-right, so the 0.0 cm nearest part is probably the stationary one.
+  - 'magazine in the hand: 3.2 cm from the palm' is confirmed by mag-4-in-hand: the magazine floats behind and above the palm.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is consistent with mag-6-half-in (magazine on the magwell column), but the depth cannot be checked because the magazine top is hidden by the receiver lip.
+  - 'seated: 0.0 cm from where it was' is consistent: mag-7-seated-again matches mag-1-seated.
+  - 'dropped copy 1.8 cm out' is consistent: mag-2-leaving shows the dropped magazine about 50 px (roughly 2 cm) below the seated position and still in line.
+  - 'muzzle flash ... 75 cm, every shot' is contradicted visually: no flash at the muzzle in lensburst, and only a faint smudge in lensflash.
+  - 'lens flash burst: 18 shots, flashes L 17 / R 17 (full L 4 / R 4)' cannot be verified: the burst frame shows only pinpoint dots, with no visible full-strength flashes.
+  - 'cases thrown: 21' is plausible: three casings are visible on the ground in lensburst.

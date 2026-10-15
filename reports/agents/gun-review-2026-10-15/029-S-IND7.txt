@@ -1,0 +1,51 @@
+Gun 29: S-IND7
+Haiku picture review (read only), overall: bugs, pictures read: 17
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-029-S-IND7-right.png)
+   seen: Compared with rack-grip-029-S-IND7-right.png, the slide does not move. Its front face stays at about x=600-640 and the small front-sight block at about x=688-725, y=410-447 is at the same screen place. The glove on the slide top is also unchanged. The only new detail is a gold element at the rear of the slide (about x=1180-1280, y=430-470).
+   expected: The slide should visibly slide back about 20 mm, roughly 60+ px at this close-up scale: the front face and front sight should shift right toward the hand, with the barrel/muzzle end showing ahead of the slide.
+
+2. [major] [high] hand_pose_wrong  (rack-grip-pulled-029-S-IND7-right.png)
+   seen: The free left glove is in the same place as in rack-grip-029-S-IND7-right.png: cuff at about x=405-500, knuckles at x=405-925, y=255-515, index fingertip at about x=850-895, y=460-510 on the slide top. The same holds in the left close-up (fingertip at about x=215-250, y=420-465, palm edge at about x=870 in both). The hand does not travel back with the pull, so it is pulling air.
+   expected: The pinching fingers should stay on the slide and the hand should move rearward with it, about half of the slide travel (roughly 60 px to the right in the right close-up).
+
+3. [major] [high] mag_not_into_magwell  (mag-6-half-in-029-S-IND7.png)
+   seen: The fresh magazine sits below the grip at about x=617-760, y=527-607. Its top only just touches the grip bottom (grip bottom about y=550) and it is drawn in front of the grip, not inside it. The glove holds its lower end. Compared with mag-7-seated-again-029-S-IND7.png (base plate flush at about y=527-552) and mag-2-leaving-029-S-IND7.png (block at about y=527-593), it sits at the same spot as the dropped copy or lower. It has not moved up into the magwell.
+   expected: Half of the magazine pushed up into the grip (pistol handle), its top hidden inside the grip, on the same vertical line as the magwell.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-029-S-IND7.png)
+   seen: The fresh olive magazine stands tilted above the left glove's knuckles at about x=420-555, y=172-300. Its lower end is hidden behind the glove. The glove's fingers are spread flat toward the left and none wraps around the magazine, so it looks balanced on the hand rather than held. The gun is in the right hand at upper right, as expected.
+   expected: Fingers curled around the lower part of the magazine, the magazine held in the left palm with the feed end toward the gun (upper right).
+
+5. [major] [medium] hand_not_on_part  (rack-grip-029-S-IND7.png)
+   seen: In this first-person frame the free left hand is not visible near the gun. Only the pistol shows, at about x=735-910, y=550-800. The glove is visible at about x=540-630, y=585-690 in weapon-029-S-IND7.png and lensflash-029-S-IND7.png, but is gone here. A small dark speck sits high in the sky at about (385, 95), so the hand may have been displaced far away. The close-ups show the glove on the slide, so the first-person view does not match them.
+   expected: The left hand should be visible in the player's view, pinching the slide at the top of the gun (about x=740-850, y=540-600).
+
+6. [major] [medium] hand_not_on_part  (rack-grip-pulled-029-S-IND7.png)
+   seen: Same as rack-grip-029-S-IND7.png: no left hand is visible on the slide in the first-person view, only the pistol at about x=745-910, y=550-800. A small dark speck is in the sky at about (390, 55), about 40 px higher than in the before frame.
+   expected: The left hand should be pinching the slide in view, and it should move back with the pull.
+
+7. [major] [medium] wrong_part_moves  (rack-grip-pulled-029-S-IND7-left.png)
+   seen: Compared with rack-grip-029-S-IND7-left.png, the slide top, front sight (about x=15-60, y=312-327), the index finger and the palm stay put. The trigger guard, the grip with the olive magazine body, and the right wrist shift about 55-70 px sideways. In this view the shift is to the left, toward the muzzle. In the right close-up the lower frame and right glove shift to the right instead, so the body is moving rather than the slide.
+   expected: Only the slide should move back about half its travel (toward the hand). The trigger guard, grip, magazine and right hand should stay where they were.
+
+8. [minor] [low] mag_not_into_magwell  (rack-grip-029-S-IND7-left.png)
+   seen: An olive magazine body (about x=455-665, y=580-745, with a dark base at the bottom) hangs below the left fingers. It is taller than the base-plate-only look in mag-1-seated and mag-7-seated-again, so the magazine may be partly out during the rack step. It may also just be the grip's lower part.
+   expected: The magazine fully seated, with only the base plate showing at the bottom of the grip.
+
+9. [minor] [low] part_floating_or_detached  (rack-grip-029-S-IND7-right.png)
+   seen: A dark cylinder-like object sits at the far left edge (about x=0-130, y=460-660), separated from the slide front (about x=600) by roughly 450 px of background. It is not touching the slide. It repeats at a similar place in rack-grip-pulled-029-S-IND7-right.png (about x=0-150, y=460-710).
+   expected: If this is the muzzle or a gun part, it should be attached to the slide front. If it is a stray object, it should not be in the gun close-up.
+
+Test line flags:
+  - drawn: '1 drawn part moves, most 20 mm; the nearest is 0.0 cm from the hand' is not confirmed. In rack-grip-pulled-029-S-IND7-right.png the slide front and front sight do not shift at all, while 20 mm would be roughly 60+ px at this close-up scale. The pictures contradict a 20 mm slide move.
+  - pulled half way: '2/4 fingers on it; moving with the hand: the slide / bolt' is not confirmed. The free hand is in the same place in the grip and pulled close-ups (left and right), so it is not moving with the pull.
+  - 'the gun moved 0.3 mm with the pull, 2.1 mm when it went home' looks wrong. Between rack-grip and rack-grip-pulled close-ups the trigger guard, magazine and right glove shift roughly 50-90 px, while the slide does not move. That is far more than 0.3 mm, and the direction disagrees between the left and right views.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' checks only sideways alignment. mag-6-half-in-029-S-IND7.png shows the magazine still below the grip, not half way up into the magwell, so the depth of the insertion is not confirmed.
+  - 'in the hand: 3.3 cm from the palm' is consistent with mag-4-in-hand-029-S-IND7.png, where the magazine floats above the fist and no fingers wrap around it. The picture supports the distance being too large for a held magazine (medium confidence).
+  - 'dropped magazine picked up and seated, 11 rounds kept' followed by 'magazine: seated, 12 rounds' looks odd: the count rises from 11 to 12 on seating. This cannot be checked in the pictures.
+  - 'dropped copy 0.0 cm across the pull from the gun's magazine, 1.5 cm out' is consistent with mag-2-leaving-029-S-IND7.png, where the dropped copy hangs below the grip by roughly the stated amount.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' is consistent: the base plate in mag-7-seated-again-029-S-IND7.png is at the same place as in mag-1-seated-029-S-IND7.png.
+  - 'muzzle flash ... lens flash shown, strength 0.93' is consistent with lensflash-029-S-IND7.png (flash at the muzzle) and lens-eyes-029-S-IND7.png (flare with the right eye slightly stronger, as expected).
+  - 'rack grip: 0/72 points inside the part, 2/4 fingers on it' is partly consistent: the index finger is on the slide top in the right close-up and on the slide side in the left close-up. The other fingers cannot be counted from the pictures, and the 0/72 point count cannot be checked.
+  - 'cases thrown: 3, case objects made so far 40 for 296 thrown', 'fired 3/3' and the recoil and impulse numbers cannot be verified from these pictures.

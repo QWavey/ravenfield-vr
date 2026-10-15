@@ -1,0 +1,10 @@
+Gun 141: Minigun
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [minor] [low] part_floating_or_detached  (weapon-141-Minigun.png)
+   seen: The free left hand is a grey hand with fingers curled up, at roughly x 540-640, y 585-690 of the 1280x800 frame, sitting against the left side of the minigun housing. No forearm comes in from the bottom edge below it, only grass, while the right arm does run off the bottom-right edge. The hand is not visibly gripping any part of the gun.
+   expected: A free left hand should either have a visible arm running from the bottom edge like the right arm, or be placed in a clear rest pose on the gun, or be hidden. A hand hanging beside the housing with no arm reads as a detached, floating hand.
+
+Test line flags:
+  - 'lens flash none' conflicts with the same line's 'muzzle flash: particles, 600 cm, every shot, the flash light'. The gun fires its muzzle flash every shot but the on-screen lens flash is reported as absent. No lensflash-141 or lensburst-141 picture was listed, so no picture confirms or refutes it. This is the on-screen flash effect the user asked to see, so it is worth checking on the minigun specifically.
+  - '600 cm' for the muzzle flash range is not confirmed by any picture. The frame is a static, non-firing view, so the flash reach cannot be checked from it.

@@ -1,0 +1,45 @@
+Gun 129: ak12 1p87 squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-129-ak12_1p87_squad-left.png)
+   seen: The left glove lies flat on the top of the receiver under the rail, palm on the shell, fingers reaching forward over the sight base. The index fingertip (left edge, about x 230-300, y 240-300) and a second fingertip (about x 230-300, y 370-420) hang in the air past the receiver's left edge. No charging handle or slide sits under any finger. Test line agrees: 0/4 fingers on the part.
+   expected: Left fingers pinching the charging handle / rack part, fingers on that part, not resting on the shell.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-129-ak12_1p87_squad-right.png)
+   seen: A glove fingertip (dotted tan tip, about x 660-910, y 290-430) rests on the upper receiver shell. Below it, in the side slot, lies a brass-coloured cartridge-shaped piece (about x 740-1250, y 350-470) with a pointed end. No dark handle knob is visible, and no finger closes on anything in the slot.
+   expected: A charging handle sitting in the slot with the fingers pinched on its knob.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-129-ak12_1p87_squad-right.png)
+   seen: Compared with rack-grip-129-ak12_1p87_squad-right.png, the glove is in the same screen spot (same fingertip position), yet the brass-coloured cartridge-shaped piece in the slot has changed place and its pointed end now projects further right, toward the rear of the receiver. The hand does not follow the moving object, and the moving object looks like a round rather than a handle.
+   expected: The charging handle slides back in its slot with the fingers still on it; the cartridge and the shell stay where they are.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-129-ak12_1p87_squad-left.png)
+   seen: Compared with rack-grip-129-ak12_1p87_squad-left.png, the whole gun (optic, front sight, receiver, magazine, right hand on the pistol grip) sits about 150-200 px further left in the frame, while the left glove stays at exactly the same screen spot. The receiver appears to move, not only the handle. Test line says the gun moved 1.5 mm, which does not match this shift.
+   expected: Only the charging handle / slide moves back; receiver, sights, magazine and the gun's position stay put.
+
+5. [major] [medium] mag_duplicate_or_missing  (mag-2-leaving-129-ak12_1p87_squad.png)
+   seen: The magazine's top stays at the receiver's bottom edge, the same place as in mag-1-seated, but its lower end hangs about 75 px further down, so the silhouette is longer than the seated magazine. This reads as the gun's own magazine still in the magwell plus a second copy dropping about 2-3 cm lower, or as a stretched magazine.
+   expected: One magazine sliding straight down out of the magwell along its line, with no copy left in the well.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-129-ak12_1p87_squad.png)
+   seen: The fresh magazine's top edge is visible about 45 px below the receiver's bottom edge, just ahead of the trigger guard, so its top is still outside the gun. The glove holds its lower part. It is on the line but not yet inside the well.
+   expected: Top already inside the magwell, about half of the seating travel done.
+
+7. [tiny] [low] mag_duplicate_or_missing  (mag-3-out-129-ak12_1p87_squad.png)
+   seen: The magwell is empty, which is correct, but nothing lies on the grass or sand below it. The dropped copy that mag-2-leaving shows about 2-3 cm out is not in frame.
+   expected: The dropped magazine lying on the ground near the gun, or it fell out of frame.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (lens-eyes-129-ak12 1p87 squad.png)
+   seen: Both eyes show the star at the same spot, but the right panel carries a broad warm haze over most of the panel while the left panel is nearly black except for one corner. The haze in both panels stops at a visible rounded-rectangle edge near the bottom-right corners (about x 298 and 605, y 248).
+   expected: Right eye a bit stronger than the left (as the brief says), with matching soft rings in both eyes, and the haze fades out without a visible edge.
+
+Test line flags:
+  - rack grip 0/4 fingers on the part: confirmed by rack-grip-129-ak12_1p87_squad-left.png and -right.png, no finger is on a handle.
+  - pulled half way 0/4 fingers: confirmed by the rack-grip-pulled left and right close-ups, the glove never moves with the part.
+  - moving with the hand: the slide / bolt: not confirmed. In rack-grip-pulled-129-ak12_1p87_squad-right.png the glove stays put while the cartridge-like piece in the slot moves.
+  - drawn: 1 drawn part(s) move, most 60 mm; the nearest is 0.0 cm from the hand: the moving piece looks like a round, not a handle. The picture cannot confirm 60 mm, and the finger sits on the shell above the piece.
+  - the gun moved 1.5 mm with the pull, 2.7 mm when it went home: contradicted by the left close-up pair, where the whole gun shifts about 150-200 px against the same glove, unless the camera itself moved.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 2.6 cm out: mag-2-leaving-129-ak12_1p87_squad.png shows an extra magazine-length extension about 75 px below the seated magazine, which fits a copy 2.6 cm out while the gun's own magazine is still in the well. Supports the duplicate-magazine bug.
+  - half way in (on the rail): 0.0 cm off the magwell line: the line is right (ahead of the trigger), but the magazine top is still outside the receiver in mag-6-half-in, so the half-way depth is not confirmed.
+  - magazine: seated, 30 rounds after dropped magazine picked up with 29 rounds kept: no picture shows a readable ammo count. A magazine going from 29 to 30 by being seated looks wrong unless the chambered round is being counted.
+  - lens flash burst: flashes L 14 / R 14 (full L 5 / R 3): lens-eyes-burst-129-ak12 1p87 squad.png shows the right (gun-side) eye as the stronger one, but the count gives the left eye more full-strength steps. This is one frame, so it does not confirm the cause, but the eye counts and the picture disagree.

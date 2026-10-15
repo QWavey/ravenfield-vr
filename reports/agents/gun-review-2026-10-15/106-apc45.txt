@@ -1,0 +1,31 @@
+Gun 106: apc45
+Haiku picture review (read only), overall: bugs, pictures read: 18
+
+1. [major] [medium] hand_not_on_part  (rack-grip-106-apc45-left.png)
+   seen: Left hand lies across the top of the front rail: the index finger is laid forward along the rail teeth (about x 215-340, y 270-330), the thumb sits up on top of the rail (x 490-650, y 195-250), and the other fingers press against the side of the handguard above the magwell (x 300-500, y 360-520). No finger wraps around any handle or lever.
+   expected: Fingers pinch the charging handle (the part that racks the gun), most fingers on it, not resting on the top rail or the handguard side.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-106-apc45-right.png)
+   seen: Gray glove lies flat over the rail teeth (about x 400-1150, y 250-380), fingers on top of the rail. The only handle-like lever is lower on the side of the receiver (about x 515-630, y 690-790) and no finger touches it.
+   expected: Fingers pinch the charging handle, which should be where the lever is or wherever the racking part is; they should not lie flat on the top rail.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-106-apc45-left.png)
+   seen: Compared with rack-grip-106-apc45-left.png the hand is at exactly the same screen spot, but the rear flip sight moved from about x 865-965 to x 715-800, and the magazine from about x 365-470 to x 230-350 (roughly 130-150 px toward the muzzle). The magazine and sight also look slightly closer to the camera. The gun body moves forward while the hand stays put, so the hand is not pulling any part back.
+   expected: Only the slide / charging handle slides back about half way with the hand (toward the stock). The rear sight, receiver and magazine stay where they were, and the hand travels with the handle.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-106-apc45-right.png)
+   seen: Compared with rack-grip-106-apc45-right.png the hand is at about the same screen position, but the rear sight moved from about x 60-270 to x 355-450, the bottom lever from x 515-630 to x 775-890, the latch from x 850-910 to x 1110-1190, and the ejection-port cartridges slid out of the window to the right edge. Everything moved toward the muzzle (right) by roughly 250-290 px.
+   expected: Only the handle / slide moves, back toward the stock (the opposite way), by about half its travel and with the hand. The sight, lever, latch and receiver stay put.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensburst-106-apc45.png)
+   seen: A faint vertical bright band runs down the right side of the sky from the top edge to the horizon (about x 1205-1250, y 0-400). It is far from the muzzle and not on the line from the muzzle flash through the screen centre that the ring ghosts follow.
+   expected: Lens flash should be a star with soft rings around the muzzle. No vertical streak or glow band at the screen edge.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 1/4 fingers on it. Confirmed by rack-grip-106-apc45-left.png and rack-grip-106-apc45-right.png: only the index finger lies on the rail and no finger is on a handle.
+  - pulled half way: 0/72 points inside, 1/4 fingers on it. Confirmed by the pulled close-ups: the hand is where it was before the pull, so it is resting on the rail rather than travelling with a handle.
+  - moving with the hand: the slide / bolt. NOT supported by the pictures: in both pulled close-ups the hand stays at the same screen spot while the gun body moves forward, so nothing is travelling with the hand.
+  - drawn: 1 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand. The pulled close-ups show several parts shifting together (rear sight, magazine, lever, latch, ejection-port casings) and they move toward the muzzle, not back. More than one part visibly moves. The 52 mm and 0.0 cm figures cannot be checked from the pictures.
+  - the gun moved 0.6 mm with the pull. Contradicted by the close-ups, where the gun body shifts about 130-290 px on screen (the magazine itself is about 105 px wide). The first-person pair (rack-grip-106-apc45.png vs rack-grip-pulled-106-apc45.png) shows no visible change, so the two camera views disagree and the close-up camera or pose should be checked.
+  - dropped magazine picked up and seated, 29 rounds kept, then magazine: seated, 30 rounds. The count rises by one with no second magazine, probably the chambered round being counted. The round count is not readable in the pictures, so this is doubtful but not confirmed.
+  - magazine placement figures (dropped copy 2.8 cm out on the same line, 0.0 cm off the magwell line half way in, 0.0 cm from the original spot when seated). Consistent with mag-2-leaving-106-apc45.png, mag-6-half-in-106-apc45.png and mag-7-seated-again-106-apc45.png, so these look right.

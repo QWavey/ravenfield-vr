@@ -1,0 +1,54 @@
+Gun 88: mwii-ak105(No script)
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] picture_unusable  (lens-eyes-088-mwii-ak105(No script).png)
+   seen: The whole frame is black. Neither the LEFT nor the RIGHT eye half shows a star, flare or rings.
+   expected: A bright star with soft rings near the muzzle in both halves, the right (gun side) eye a bit stronger. The test line says 'lens flash shown, strength 0.95', which this frame contradicts.
+
+2. [major] [high] hand_not_on_part  (rack-grip-088-mwii-ak105_No_script_-right.png)
+   seen: Close-up from the right side. One grey gloved fingertip rests on the top cover at the front-middle of the receiver (about x 700-900, y 260-375, 1280x800 frame) and seems to sink into the receiver's top edge. The black charging lever is at the rear right (about x 1095-1230, y 415-500). No finger touches the lever, so the hand is about 1 of 4 fingers on the top cover and not on the handle.
+   expected: Thumb and fingers closed on the charging handle lever at the rear right, fingers on the lever itself and not on the top cover.
+
+3. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-088-mwii-ak105_No_script_-right.png)
+   seen: Same framing as the before-pull close-up. The fingertip is at the same screen spot (about x 700-905, y 270-390) and the charging lever is at the same spot (about x 1095-1230, y 410-500). Nothing moved rearward with the pull and the hand did not travel with it, so the hand pulls air. The part the test says moved 70 mm is not visible here.
+   expected: The charging lever pulled about half way back toward the stock, with the hand closed on it and moving with it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-088-mwii-ak105_No_script_-left.png)
+   seen: Left-side close-up. The glove lies over the top-left of the receiver and reaches forward over the handguard (about x 250-880, y 240-560). The fingers rest on the receiver body and forestock, not on a handle. The only lever-like handle in this rifle is on the right side (seen in the -right close-up), and the left hand is not on it.
+   expected: Fingers pinched on the charging handle / slide, with the hand on the side where the charging lever is.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-088-mwii-ak105_No_script_.png)
+   seen: First-person frame before the pull. The free glove that rests in the grass in the weapon, lensflash and lensburst frames is gone. No hand is on the receiver top or the charging handle. Only a small grey piece sits at the bottom of the forestock (about x 790-840, y 700-750). This contradicts the close-ups, which show a glove on the receiver.
+   expected: The free hand visibly gripping the slide / charging handle at the rear of the receiver.
+
+6. [major] [low] other  (rack-grip-pulled-088-mwii-ak105_No_script_-right.png)
+   seen: Two things are present here that are absent in the before-pull close-up from the same camera: an orange-yellow strip across the rear top of the receiver (about x 1010-1280, y 410-445) and a tan loop-shaped piece at the left (about x 60-230, y 510-640). The framing matches the before-pull frame (receiver top edge and fingertip are in the same place), so either a gap opened in the receiver showing an inner part, or a part shifted out of place.
+   expected: A closed receiver top with no inner part showing, and no loose piece floating in front of the receiver.
+
+7. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-088-mwii-ak105_No_script_.png)
+   seen: First-person frame taken on a shot. No muzzle flash is visible at the muzzle (around x 700-730, y 480-510), only a thin streak high in the sky. The full-auto frame lensburst-088 shows a yellow flash at that spot, so the single-shot frame is missing it (possibly a capture-timing issue).
+   expected: The gun's own yellow muzzle flash at the muzzle, as in the lensburst frame.
+
+8. [minor] [medium] mag_not_into_magwell  (mag-6-half-in-088-mwii-ak105_No_script_.png)
+   seen: The fresh magazine's top end (about x 620-830, y 215-240) is still below the receiver. Blue sky shows in a gap of roughly 60 px between the receiver's bottom edge and the magazine top, just ahead of the trigger guard. The magazine is not yet in the magwell.
+   expected: Roughly half the magazine inside the magwell, its top end hidden by the receiver's bottom edge, on the magwell line.
+
+9. [minor] [low] mag_wrong_orientation_or_model  (mag-5-lined-up-088-mwii-ak105_No_script_.png)
+   seen: The fresh magazine (about x 600-760, y 530-800) hangs nearly vertical, roughly 5-10 degrees from vertical. The seated magazine in mag-1 and mag-7 leans about 18 degrees, with its base to the left of its top. The fresh magazine does not match the magwell line in this frame.
+   expected: Magazine tilted to the same angle as the magwell line and sitting on that line under the magwell.
+
+10. [minor] [low] hand_not_on_part  (rack-grip-pulled-088-mwii-ak105_No_script_.png)
+   seen: First-person frame during the half-way pull. No hand is visible on the receiver top or the charging handle, and the free hand from the grass is gone. The rearward travel of the handle cannot be confirmed from this angle.
+   expected: The hand on the charging handle moving rearward with it, visible from this angle or from the close-up.
+
+Test line flags:
+  - rack grip '1/4 fingers on it' (1/72 points inside): contradicted. rack-grip-088-mwii-ak105_No_script_-right.png shows one fingertip on the receiver top cover, not on the charging lever at the rear right.
+  - pulled half way '0/4 fingers on it, 0/72 points inside': confirmed. rack-grip-pulled-088-mwii-ak105_No_script_-right.png and -left.png show the hand not on the handle, and the fingertip stays in the same place as before the pull.
+  - 'moving with the hand: the slide / bolt': not confirmed. In the right close-up the charging lever is at the same screen position before and after the pull.
+  - 'drawn: 1 drawn part(s) move, most 70 mm; the nearest is 0.0 cm from the hand': not confirmed. A 70 mm travel would be obvious in the right close-up, and the lever does not visibly move. The nearest contact is a fingertip on the top cover, not the handle. The only change in that frame is the orange strip and loop (see the rack-grip-pulled -right bug).
+  - 'the gun moved 2.1 mm with the pull': the right close-up shows no shift of the receiver, which fits. The left close-ups show the whole gun (receiver, magazine, grip) shifted about 170-200 px between before and after the pull while the glove stays put. That is not consistent with 2.1 mm unless the camera moved.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. mag-7-seated-again-088-mwii-ak105_No_script_.png matches mag-1-seated-088-mwii-ak105_No_script_.png in position, with one magazine and the hand outside the gun.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': not confirmed. mag-6-half-in-088-mwii-ak105_No_script_.png shows the magazine top still outside the receiver with a visible gap.
+  - 'muzzle flash ... lens flash shown, strength 0.95': contradicted for the single shot. lens-eyes-088-mwii-ak105(No script).png is fully black and lensflash-088-mwii-ak105_No_script_.png shows no visible muzzle flash. lensburst-088 and lens-eyes-burst-088 do show flashes, so the effect exists.
+  - 'dropped magazine picked up and seated, 29 rounds kept' then 'magazine: seated, 30 rounds': the round count rises by one across the reseat. The ammo label on the grip is too small to read in the pictures, so neither number can be confirmed.
+  - 'in the hand: 3.4 cm from the palm': plausible in mag-4-in-hand-088-mwii-ak105_No_script_.png. The glove holds the magazine with the feed end toward the gun.

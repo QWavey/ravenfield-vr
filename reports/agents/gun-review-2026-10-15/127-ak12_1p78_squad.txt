@@ -1,0 +1,55 @@
+Gun 127: ak12 1p78 squad
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-127-ak12_1p78_squad-left.png)
+   seen: The gloved left hand lies over the top of the receiver and rail in front of the scope, fingers pointing forward (frame left), palm pressed onto the receiver's upper edge near the rear sight. No finger touches a handle; the fingers float over the rail. The test says 0/4 fingers on the part.
+   expected: Four fingers pinching the charging / bolt handle on the receiver side, ready to pull it back.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-127-ak12_1p78_squad-left.png)
+   seen: Same pose as rack-grip-127-ak12_1p78_squad-left.png: the hand is in the same spot on the rail, fingers forward, receiver and scope unchanged. Nothing moves back with the hand, so the hand is pulling air.
+   expected: The charging / bolt handle moved about half way back with the hand gripping it, and the hand travelled back with it.
+
+3. [major] [medium] hand_or_finger_clipping  (rack-grip-127-ak12_1p78_squad-right.png)
+   seen: A tan lever with a speckled, glove-like tip sticks out of the receiver side near the ejection port, its base disappearing into the receiver, and no hand holds it. The free hand is low at the bottom-left by the trigger guard, far from the lever. It reads as a stray glove finger poking through the receiver wall, not a handle.
+   expected: A metal charging handle on the receiver with the free hand's fingers pinching it; no finger or loose piece coming through the receiver wall.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-127-ak12_1p78_squad-right.png)
+   seen: The tan lever stays in the same place as in rack-grip-127-ak12_1p78_squad-right.png, so no handle is visibly pulled back. A brass cartridge with a copper tip appears in the ejection port, which is not visible in the rack-grip-right shot; the only visible change is a loose round in the port.
+   expected: The charging handle slides back about half way (test says about 60 mm) with the hand, and no loose round appears in the port.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-127-ak12_1p78_squad.png)
+   seen: Left glove with fingers spread flat, pointing left. The dark curved magazine sits behind the palm and above the fingers, its lower end visible left of the knuckles. No fingers curl around the magazine body, so it looks unheld or floating just behind the hand. The test says the magazine is 3.4 cm from the palm.
+   expected: Fingers wrapped around the magazine body, feed end pointing toward the gun.
+
+6. [major] [medium] muzzle_flash_or_lens_flash_issue  (weapon-127-ak12_1p78_squad.png)
+   seen: The muzzle flash particles show as huge smoke clouds about 400 px wide: red at the top, green core, yellow on the right. The densest part sits 250-350 px left of the muzzle (muzzle about x 700, y 490) and covers the wall and the left half of the view, so it reads as smoke drifting away rather than a flash at the muzzle. The same cloud appears in lensburst-127 and lensflash-127.
+   expected: A short, bright flash right at the muzzle tip, with smoke that stays small and does not hide the scene. The red / green / yellow bands look like a debug or wrong tint and should be checked.
+
+7. [major] [medium] muzzle_flash_or_lens_flash_issue  (lensflash-127-ak12_1p78_squad.png)
+   seen: The whole first-person view is washed red; the wall, grass and sight are only faintly visible. The flare itself (about 680,495) sits right at the muzzle (about 700,490) with soft rings, which is correct. The full-screen wash is far stronger than the eye pictures suggest.
+   expected: A flare / bloom at the muzzle with the scene still readable; lens strength 0.75 should not wash out the whole frame.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (lens-eyes-127-ak12 1p78 squad.png)
+   seen: Both eyes show a warm brown glow over the whole panel instead of black. The glow stops at a hard rounded-rectangle edge (left panel near x 300, right panel near x 606, rounded bottom corners). The star and rings are fine, and the right eye is a bit brighter as expected.
+   expected: Black background with a soft falloff around the star and no visible plate edge.
+
+9. [minor] [medium] other  (mag-7-seated-again-127-ak12_1p78_squad.png)
+   seen: The whole frame has a red / orange wash at top-left fading to green and yellow on the right and bottom. The other reload frames have none. It looks like a muzzle smoke particle drifting past the camera or a screen overlay leaking in. The magazine and hand are still readable.
+   expected: A clean close-up with no colour wash.
+
+10. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-127-ak12_1p78_squad.png)
+   seen: The fresh magazine hangs about 40% of the frame height below the receiver (its top near y 530, receiver underside near y 150). It is held nearly upright (about 5 degrees) while the gun's own magazine leans about 20 degrees forward. Its bottom runs out of frame and the hand is at the frame edge, so the lineup cannot be confirmed.
+   expected: Magazine right under the magwell, on the magwell's own forward lean, close to the receiver.
+
+Test line flags:
+  - rack grip '3/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-127-ak12_1p78_squad-left.png. The hand lies over the rail and receiver with no finger on a handle, and the palm sinks into the receiver top.
+  - pulled half way '0/4 fingers on it' and 'moving with the hand: the slide / bolt': the fingers part is CONFIRMED. The 'moves with the hand' claim is NOT supported by rack-grip-pulled-127-ak12_1p78_squad-left.png: the hand is in the same place as before the pull and nothing moves back with it.
+  - drawn: '1 drawn part moves, most 60 mm; nearest is 0.0 cm from the hand': NOT supported. The tan lever in rack-grip-127-ak12_1p78_squad-right.png and rack-grip-pulled-127-ak12_1p78_squad-right.png sits in the same place in both shots, and the hand in those shots is down by the trigger guard, not touching it. The 0.0 cm may be the lever's own finger-like tip.
+  - magazine 'in the hand: 3.4 cm from the palm': CONFIRMED by mag-4-in-hand-127-ak12_1p78_squad.png. The magazine is not held in the fingers.
+  - magazine 'half way in (on the rail): 0.0 cm off the magwell line': not contradicted by mag-6-half-in-127-ak12_1p78_squad.png, but that frame already looks nearly all the way in (magazine top only about 35 px below the receiver, against 0 px when seated), so 'half way' may be a late frame.
+  - magazine 'seated: 0.0 cm from where it was': CONFIRMED. mag-7-seated-again-127-ak12_1p78_squad.png matches mag-1-seated-127-ak12_1p78_squad.png in position.
+  - magazine 'dropped copy 0.0 cm across the pull, 2.6 cm out': consistent with mag-2-leaving-127-ak12_1p78_squad.png (magazine drops along its own line). Not contradicted.
+  - muzzle flash 'Muzzle Flash Particles, 70 cm, every shot': CONFIRMED visually. Huge multi-colour smoke clouds appear in weapon-127, lensburst-127 and lensflash-127, displaced left of the muzzle.
+  - lens flash 'strength 0.75': the lens-eyes flare is moderate, but lensflash-127-ak12_1p78_squad.png washes the whole view red, so the strength looks too high for the first-person view.
+  - ammo: 'dropped magazine picked up and seated, 29 rounds kept' vs 'magazine: seated, 30 rounds': the counts do not match in the test line. The HUD ammo number is not readable in the stills, so this cannot be checked from pictures.
+  - 'racked: chambered': a loose cartridge appears in the ejection port in rack-grip-pulled-127-ak12_1p78_squad-right.png and is not visible in rack-grip-127-ak12_1p78_squad-right.png. A real chamber cannot be confirmed from stills.

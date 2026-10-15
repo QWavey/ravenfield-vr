@@ -1,0 +1,46 @@
+Gun 120: 95-1 holo
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] hand_not_on_part  (rack-grip-120-95-1_holo-right.png)
+   seen: The left glove lies flat across the receiver top rim, palm and fingers pointing forward (cuff about x 400-870, y 220-370). The only touch with the part is the index fingertip at about x 930, y 320, resting against the side of the tall black rear housing (x 870-1280, y 80-370, hex-nut screw at about x 1010, y 140). No finger wraps the housing. The cuff and lower palm end in a straight line at the receiver rim (about y 370), so the hand looks sunk into the top of the receiver.
+   expected: Fingers pinch the racking handle / rear housing on its outer side, hand wrapped around it, not lying on the rim and not buried in the receiver.
+
+2. [major] [high] hand_not_on_part  (rack-grip-120-95-1_holo-left.png)
+   seen: The left glove lies flat on the top rail with the index finger extended forward along it (fingertip about x 230, y 290). The thumb sits beside the tall black block with the hex-nut (block about x 300-490, y 80-270) and does not touch it. No finger is on the block or on any handle; the hand rests on the rail.
+   expected: Thumb and fingers pinched around the racking handle (the tall block area), so the hand can follow the handle back.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-120-95-1_holo-right.png)
+   seen: The glove is in exactly the same frame position as in rack-grip-120-95-1_holo-right.png (same cuff, same fingers, fingertip still at about x 930, y 320). Meanwhile the tall black rear housing moved about 270 px right (now starting near x 1140) and the ejection window moved about 320 px right (now x 840-1180, with a cartridge visible inside). The fingertip now hangs over the receiver top with empty space between it and the housing. The part slid rearward while the hand stayed put.
+   expected: At half pull the hand has travelled back with the slide / handle and the fingers are still on the part. A part that moves with the hand should not outrun it.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-120-95-1_holo.png)
+   seen: The fresh magazine hangs below the trigger guard and in front of the pistol grip, not under the magwell. Its top is at about x 350-500, y 430, roughly 230 px below the receiver, and its base is held low by the left hand (about x 240-430, y 610-800). The magwell is behind the grip (small rear lip at about x 860-895, y 175-215) and the magazine is about two grip-widths forward of it.
+   expected: Fresh magazine directly beneath the magwell, behind the grip, on the same axis the seated magazine uses (mag-1 and mag-7), top just under the well.
+
+5. [major] [medium] mag_floating_or_offset  (mag-6-half-in-120-95-1_holo.png)
+   seen: The magazine top is at the same height as the fully seated magazine in mag-7 (top about y 200-215), i.e. against the outside of the receiver rim, not raised up into the well. Its top-left corner (about x 500-590) hangs forward of the magwell opening, which starts near x 590. The magazine is also more upright than in mag-7 (roughly 14 degrees from vertical against about 24), so it turns during the insert. The line from mag-5 to mag-6 to mag-7 does not look like a straight insert on the magwell line.
+   expected: Magazine partly raised into the magwell (top inside the opening) on the same line and tilt as the seated magazine.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-120-95-1_holo.png)
+   seen: In this first-person frame the free hand is not visible on the top of the gun near the holo sight (about x 720-840, y 480-580): no glove on the slide and none floating in the grass. In weapon-120-95-1_holo.png, lensflash and lensburst the free hand is visible low in the grass (about x 540-630, y 585-690), but not here. The same hand is missing in rack-grip-pulled-120-95-1_holo.png.
+   expected: Left hand visible at the top of the receiver on the racking part, fingers on it.
+
+7. [minor] [low] mag_not_in_hand  (mag-4-in-hand-120-95-1_holo.png)
+   seen: The fresh magazine (same black curved model) comes out from behind the back of the glove at about x 400-450, y 280-340 and runs up-left toward the muzzle. The fingers curl under its lower end rather than wrapping the body, so it looks held by the back of the hand. Its upper end points away from where the magwell would be (behind the grip, up-right in this view).
+   expected: Fingers wrapped around the magazine body, feed end pointing back toward the magwell behind the grip.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensflash-120-95-1_holo.png)
+   seen: A bright blue-white vertical band runs down the right screen edge (about x 1200-1250, y 0-400), roughly 500 px from the muzzle flare at about x 700, y 500. The same band is in lensburst-120-95-1_holo.png and is absent from the non-firing frame weapon-120-95-1_holo.png. It may be sun / horizon glare picked up by the flash effect.
+   expected: Flash confined to the muzzle with soft rings; nothing bright far from the muzzle.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-120-95-1_holo-left.png and rack-grip-120-95-1_holo-right.png. The fingers rest on the flat top rail / rim and do not wrap any handle.
+  - pulled half way '0/72 points inside, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-120-95-1_holo-right.png. After the pull the fingertip hangs over empty receiver top.
+  - 'moving with the hand: the slide / bolt': CONTRADICTED by rack-grip-pulled-120-95-1_holo-right.png. The glove stays in the same frame position while the rear housing and ejection window move about 270-320 px. The part moves without the hand.
+  - 'the nearest is 0.0 cm from the hand': consistent with the fingertip touching only the side of the rear housing at grip. It is an edge touch, not a grip.
+  - 'the gun moved 1.0 mm with the pull': NOT CONSISTENT with rack-grip-pulled-120-95-1_holo-left.png. The magazine, round button and olive trim sit about 170-200 px further left than in rack-grip-120-95-1_holo-left.png while the glove is fixed. At this close-up scale that is several cm, unless the camera moved. Needs checking.
+  - 'drawn: 3 drawn parts move, most 66 mm': plausible for the rear housing and window shift in the right close-up, but the scale could not be verified and the hand does not follow.
+  - 'in the hand: 3.4 cm from the palm': consistent with mag-4-in-hand-120-95-1_holo.png, where the magazine sits behind the back of the glove and is not wrapped by the fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': NOT CONFIRMED by mag-6-half-in-120-95-1_holo.png. The top-left corner is in front of the magwell opening and the top is at the outside rim height, so the magazine is not on the magwell line in that frame.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': CONSISTENT. mag-7-seated-again-120-95-1_holo.png puts the top at the same spot (about x 600-830) as mag-1-seated-120-95-1_holo.png.
+  - 'muzzle flash ... the flash light' and 'lens flash shown, strength 0.71': CONSISTENT. A muzzle glow shows in lensflash and lensburst frames, and lens-eyes-120-95-1 holo.png shows a clear star flare in both eyes.

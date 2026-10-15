@@ -1,0 +1,46 @@
+Gun 122: qjb95
+Haiku picture review (read only), overall: bugs, pictures read: 19
+
+1. [major] [high] muzzle_flash_or_lens_flash_issue  (lens-eyes-burst-122-qjb95.png)
+   seen: LEFT eye panel is clearly brighter: full star with long rays, a visible soft ring and a warm-lit background. RIGHT eye (the gun's side) panel is dim: smaller star, faint ring, near-black background. Same frame, left stronger than right.
+   expected: Right (gun-side) eye at least as strong as the left, as in lens-eyes-122-qjb95.png where the right eye is slightly stronger. This is the 'other lens brighter on some runs' bug the user reported; the test's 'full L 4 / R 3' count agrees with the left being stronger here.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-122-qjb95-left.png)
+   seen: Free hand lies flat on top of the receiver just ahead of the carry-handle window, index finger on the upper surface, thumb raised above. The hand is in essentially the same spot as in rack-grip-122-qjb95-left.png, so nothing carried it back. Test says 0/4 fingers on the part during the pull.
+   expected: Index and middle fingers hooked on the charging / bolt handle, with the hand moving back with it about half way and the part visibly slid back. Currently the hand is pulling air.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-122-qjb95-left.png)
+   seen: Before the pull: index and middle fingers lie flat along the top of the receiver body, nothing pinched between them; thumb hangs above the carry-handle base. Test: 1/4 fingers on the part, 0/72 points inside.
+   expected: Fingers pinched around the charging / bolt handle itself (fingertips on the handle, not on the receiver skin).
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-122-qjb95-right.png)
+   seen: Compared with rack-grip-122-qjb95-right.png, the ejection window (now showing a brass round) and the rear carry block have shifted roughly 300 px sideways across the frame, while the receiver top edge and the free hand stay put. Only the thumb tip touches the window's left edge, so the section that moves is not under the fingers.
+   expected: The charging / bolt handle slides straight back along the receiver with the fingers on it. The fixed receiver body and window should not slide. Check the direction against the gun's axis; the shift also looks larger than the test's 66 mm maximum.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-122-qjb95.png)
+   seen: Fresh magazine is held low in the bottom-centre of the frame, with its feed neck roughly a third of the screen height below the receiver's bottom line and well to the right of the magwell. Only a sliver of the left glove shows at the bottom right. It is not at the magwell.
+   expected: Fresh magazine held right at the magwell, feed end up, on the magwell's vertical line just below it, before it moves up into the well.
+
+6. [minor] [low] mag_not_into_magwell  (mag-6-half-in-122-qjb95.png)
+   seen: Magazine top sits only about 2-3 cm below its fully seated height (compare mag-7-seated-again-122-qjb95.png), with the narrow feed neck still visible above it and no part of the magazine inside the receiver. The 'half way' frame is nearly seated, so most of the insertion happens between mag-5 and this frame.
+   expected: Magazine about half way up into the magwell on the same line, with its top visibly partly inside the receiver's bottom edge; insertion should be spread across the steps.
+
+7. [minor] [low] part_floating_or_detached  (mag-5-lined-up-122-qjb95.png)
+   seen: An olive pistol-shaped part (slide with a rear-sight notch, black frame, trigger guard, angled grip) hangs off the rear end of the bullpup receiver on the right side of the frame. It is not part of the rifle silhouette. The same olive piece shows at the right in mag-1-seated-122-qjb95.png and rack-grip-pulled-122-qjb95-left.png, and it is not visible in rack-grip-122-qjb95-left.png (framing may differ).
+   expected: A bullpup rifle with no pistol-shaped part at its stock. If it is meant to be the slide / bolt it should sit inside the receiver and move with the rack; otherwise it is a stray or floating mesh to remove or attach to the stock.
+
+8. [tiny] [low] muzzle_flash_or_lens_flash_issue  (lensburst-122-qjb95.png)
+   seen: A hard-edged vertical white band runs down the right screen edge (about x 1210-1245, full height), and the right half of the frame washes out to yellow-white around the sea and beach. Muzzle flash itself sits correctly at the front sight.
+   expected: Soft flash at the muzzle with soft rings and no vertical edge streak across the full screen height.
+
+Test line flags:
+  - rack grip '1/4 fingers on it, 0/72 points inside': supported by rack-grip-122-qjb95-left.png, where the fingers lie flat on the receiver top and nothing is pinched.
+  - pulled half way '0/4 fingers on it': supported by rack-grip-pulled-122-qjb95-left.png, where the hand has not moved with any part.
+  - moving with the hand: 'the slide / bolt': not supported. In both side views no part visibly travels with the hand.
+  - drawn: '3 parts move, most 66 mm; nearest 0.0 cm from the hand': unverified and probably off. In rack-grip-pulled-122-qjb95-right.png the window and rear block shift by more than 66 mm at receiver scale, and the hand stays put, so the 0.0 cm contact is not visible.
+  - gun moved '0.5 mm with the pull': unverified. In rack-grip-pulled-122-qjb95-left.png the grip and magazine sit roughly 170-250 px further left than in rack-grip-122-qjb95-left.png while the free hand stays put. Either the camera framing differs between the captures or the gun moved, which would not be 0.5 mm.
+  - half way in (on the rail) '0.0 cm off the magwell line': consistent with mag-6-half-in-122-qjb95.png (magazine centred under the magwell). Depth is nearly seated, see the mag-6 entry.
+  - seated '0.0 cm from where it was': consistent. mag-1-seated and mag-7-seated-again share the top edge at the receiver line and the same x range.
+  - magazine (deep) 'dropped copy 0.0 cm across the pull': consistent. mag-2-leaving shows the magazine dropping straight down on its line.
+  - lens flash burst 'flashes L 14 / R 14 (full L 4 / R 3)': counts are equal, but lens-eyes-burst-122-qjb95.png shows the left eye clearly brighter. The test does not compare per-eye brightness, so it misses this imbalance. The full-count L 4 > R 3 agrees with the picture.
+  - racked: 'chambered': a brass round appears in the ejection window only in rack-grip-pulled-122-qjb95-right.png. Consistent with a chambering cue, not proof that the bolt went home.

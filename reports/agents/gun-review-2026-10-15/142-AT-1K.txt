@@ -1,0 +1,11 @@
+Gun 142: AT-1K
+Haiku picture review (read only), overall: bugs, pictures read: 1
+
+1. [major] [medium] hand_not_on_part  (weapon-142-AT-1K.png)
+   seen: Green AT-1K launcher fills most of the frame, pointing forward-right, with its rear plate (sight lens, round knobs, lever) facing the camera. No hand or arm is visible anywhere in the frame. The dark rubber rear piece at the lower left (about x 340-420, y 560-800) has nothing wrapped around it, so the launcher looks like it floats in front of the camera.
+   expected: The right hand wrapped around the grip (the dark piece at the lower left), fingers on the gun, with the gun held forward and the left hand free. The hand should be visible in the first-person view. If the hand is hidden by design or cropped out of frame, this may be a false positive.
+
+Test line flags:
+  - 'not fired: needs a lock-on (no target here)': a helicopter is visible at the top edge of weapon-142-AT-1K.png (about x 540-610, y 0-40). If it is a valid lock-on target, 'no target here' is wrong. The picture does not show the lock-on state, so it neither confirms nor refutes the claim.
+  - 'loaded to 1/1': a small red 'FULL' marking is painted on the tube (about x 790-810, y 690-700), which fits a loaded launcher. Consistent with the picture, not confirmed by it.
+  - 'muzzle flash ... every shot' and 'lens flash none': no shot is in this idle picture, so the picture cannot confirm either line. No flash is expected in this frame. Not a wrong measurement.
