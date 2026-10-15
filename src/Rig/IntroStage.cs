@@ -72,7 +72,7 @@ namespace RavenfieldVR.Rig
                 _isIntro = scene.buildIndex == 0 && UnityEngine.Object.FindObjectOfType<GotoMenu>() != null;
                 _phase = _isIntro ? Phase.Idle : Phase.Done;
             }
-            if (_isIntro && Time.unscaledTime >= _nextTitleScan)
+            if (_isIntro && _phase != Phase.Done && Time.unscaledTime >= _nextTitleScan)
             {
                 // Text that switches on later in the intro too; a scene-wide search, so a few times a second.
                 _nextTitleScan = Time.unscaledTime + 0.1f;

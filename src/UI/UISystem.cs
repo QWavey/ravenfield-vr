@@ -131,8 +131,9 @@ namespace RavenfieldVR.UI
                 VRInput.Consume(DigitalAction.ModKeys);
                 ModKeys.Toggle();
             }
-            if (Settings.IsOpen)
+            if (Settings.IsOpen && Time.unscaledTime >= _nextSettingsRefresh)
             {
+                _nextSettingsRefresh = Time.unscaledTime + 0.2f; // its values change by hand: five times a second is plenty
                 Settings.Refresh();
             }
             ModKeys.Update();
@@ -190,12 +191,16 @@ namespace RavenfieldVR.UI
             }
         }
 
+        private float _nextSettingsRefresh;
+        private float _nextEventSystemSearch;
+
         /// <summary>Attaches the laser module to whichever EventSystem the current scene uses.</summary>
         private void EnsureModule()
         {
             EventSystem es = EventSystem.current;
-            if (es == null)
+            if (es == null && Time.unscaledTime >= _nextEventSystemSearch)
             {
+                _nextEventSystemSearch = Time.unscaledTime + 0.5f; // a scene-wide search: not every frame while there is none
                 es = UnityEngine.Object.FindObjectOfType<EventSystem>();
             }
             if (es == null || (es == _eventSystem && _module != null))

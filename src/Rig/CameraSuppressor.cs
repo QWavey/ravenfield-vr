@@ -33,9 +33,16 @@ namespace RavenfieldVR.Rig
         /// <summary>Cameras created by the mod (scope lenses, UI event cameras) that must keep rendering.</summary>
         public void Ignore(Camera c) => _ignored.Add(c);
 
+        private static readonly System.Predicate<Camera> IsGone = c => c == null;
+        private static readonly List<Camera> GoneCameras = new List<Camera>();
+        private static readonly List<PostProcessLayer> GoneLayers = new List<PostProcessLayer>();
+
         /// <summary>Call once per frame after the game's LateUpdate.</summary>
         public void Refresh()
         {
+            // The game's post-processing switches are looked at a few times a second (a component lookup per camera every
+            // frame before), and what went with an old map is forgotten then too.
+            bool lookAround = Time.frameCount % 15 == 0;
             int count = Camera.allCamerasCount;
             if (_buffer.Length < count)
             {
@@ -58,6 +65,10 @@ namespace RavenfieldVR.Rig
                 {
                     c.stereoTargetEye = StereoTargetEyeMask.None;
                 }
+                if (!lookAround)
+                {
+                    continue;
+                }
                 PostProcessLayer pp = c.GetComponent<PostProcessLayer>();
                 if (pp != null && pp.enabled)
                 {
@@ -68,8 +79,36 @@ namespace RavenfieldVR.Rig
                     pp.enabled = false;
                 }
             }
-            _suppressed.RemoveWhere(c => c == null);
-            _ignored.RemoveWhere(c => c == null); // a scope camera per draw of a scoped weapon, destroyed with it
+            if (!lookAround)
+            {
+                return;
+            }
+            _suppressed.RemoveWhere(IsGone);
+            _ignored.RemoveWhere(IsGone); // a scope camera per draw of a scoped weapon, destroyed with it
+            GoneCameras.Clear();
+            foreach (Camera c in _originalEye.Keys)
+            {
+                if (c == null)
+                {
+                    GoneCameras.Add(c);
+                }
+            }
+            foreach (Camera c in GoneCameras)
+            {
+                _originalEye.Remove(c);
+            }
+            GoneLayers.Clear();
+            foreach (PostProcessLayer p in _ppLayers.Keys)
+            {
+                if (p == null)
+                {
+                    GoneLayers.Add(p);
+                }
+            }
+            foreach (PostProcessLayer p in GoneLayers)
+            {
+                _ppLayers.Remove(p);
+            }
         }
 
         private void OnPreCull(Camera c)

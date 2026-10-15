@@ -57,6 +57,11 @@ namespace RavenfieldVR.Weapons
         public readonly float CrossHalf;
         /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held index-point instead of in the fist.</summary>
         public bool PistolSized => Kind == PropKind.Magazine && CrossHalf < 0.022f;
+        /// <summary>
+        /// A machine gun's box or drum: wider across than a hand closes round (over 11 cm), or thicker than any stick
+        /// magazine (over 5 cm). Held in the box pose, further out along the fingers.
+        /// </summary>
+        public bool BoxSized => Kind == PropKind.Magazine && (CrossHalf > 0.055f || _sideHalf > 0.025f);
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private Collider[] _colliders;
@@ -662,6 +667,10 @@ namespace RavenfieldVR.Weapons
             {
                 return IndexPointPose(hand, palm);
             }
+            if (Kind == PropKind.Shell && hand.Model != null)
+            {
+                return ShellPinchPose(hand, palm);
+            }
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
@@ -681,8 +690,10 @@ namespace RavenfieldVR.Weapons
             if (Kind == PropKind.Magazine)
             {
                 // A centimetre toward the fingers: further back its back edge lay in the root of the thumb, which went
-                // through it (rifle and AK magazines, grip_check.py); here the thumb wraps it and nothing is buried.
-                pos += palm.rotation * Vector3.forward * 0.01f;
+                // through it (rifle and AK magazines, grip_check.py); here the thumb wraps it and nothing is buried. A
+                // machine gun's box or drum (as wide as the box pose takes) three: its 8 cm side buried the thumb 14 mm
+                // at one (10 of 72 hand points inside it; at three none, every finger and the thumb on it).
+                pos += palm.rotation * Vector3.forward * (BoxSized ? 0.03f : 0.01f);
             }
             return new RigidPose(pos, rot);
         }
@@ -713,6 +724,25 @@ namespace RavenfieldVR.Weapons
             Quaternion rot = palm.rotation * inPalm * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             Vector3 middle = (BaseLocal + TipLocal) * 0.5f;
             return new RigidPose(palm.TransformPoint(centre) - rot * middle, rot);
+        }
+
+        // Shell pinch (tools/hands/grip_check.py, "shell (pinch)"): along the fingers, tipped 22 degrees toward the palm's
+        // heel, the pinch point (between the thumb and index tips) 2.5 cm up from the rim.
+        private static readonly Vector3 ShellPinchAxis = new Vector3(0f, -0.3714f, 0.9285f);
+        private const float ShellPinchFromRim = 0.025f;
+
+        /// <summary>
+        /// A shell the way it is pushed into a tube: pinched near its rim between the thumb and the index and middle
+        /// fingers, its front out past the fingertips. Held at its middle it lay in a closed fist.
+        /// </summary>
+        private RigidPose ShellPinchPose(VRHand hand, RigidPose palm)
+        {
+            Vector3 axis = palm.rotation * ShellPinchAxis;
+            Vector3 front = Vector3.ProjectOnPlane(palm.Up, axis);
+            front = front.sqrMagnitude > 1e-6f ? front.normalized : palm.Forward;
+            Quaternion rot = Quaternion.LookRotation(front, axis) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
+            Vector3 pinch = palm.TransformPoint(hand.Model.PinchInPalm);
+            return new RigidPose(pinch - axis * ShellPinchFromRim - rot * BaseLocal, rot);
         }
 
         /// <summary>

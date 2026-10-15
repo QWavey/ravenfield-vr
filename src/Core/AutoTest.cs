@@ -45,6 +45,9 @@ namespace RavenfieldVR.Core
 
         private static readonly bool MenuTestRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-menutest", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
+        private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
+
         public static void Install()
         {
             if (MenuTestRequested)
@@ -246,6 +249,13 @@ namespace RavenfieldVR.Core
                         Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
                     }
                 }
+                if (VRManager.Active && PerfBenchRequested)
+                {
+                    yield return PerfBench();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (VRManager.Active)
                 {
                     yield return StandingStillCheck();
@@ -387,6 +397,69 @@ namespace RavenfieldVR.Core
         /// The game's pause menu: the laser aimed at each of its buttons in turn (by the dominant hand), and what it is over
         /// then. Every button must be what the laser hits (only one of them took clicks in the headset). Nothing is clicked.
         /// </summary>
+        /// <summary>
+        /// The graphics bench (task 215): standing still in the match, each preset and then Ultra with one setting lowered
+        /// at a time, 2 s to settle and 5 s measured: the frame time and the GPU time SteamVR's compositor measured. The
+        /// saved settings are never changed (the player's are put back at the end).
+        /// </summary>
+        private static IEnumerator PerfBench()
+        {
+            UI.UISystem ui = UI.UISystem.Instance;
+            var runs = new List<KeyValuePair<string, Func<string>>>
+            {
+                new KeyValuePair<string, Func<string>>("Medium", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium)),
+                new KeyValuePair<string, Func<string>>("High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High)),
+                new KeyValuePair<string, Func<string>>("Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
+                new KeyValuePair<string, Func<string>>("Ultra, reflections off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, reflections: false)),
+                new KeyValuePair<string, Func<string>>("Ultra, 2 cascades", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, cascades: 2)),
+                new KeyValuePair<string, Func<string>>("Ultra, shadows 100 m", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, shadowDistance: 100f)),
+                new KeyValuePair<string, Func<string>>("Ultra, shadow map High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, shadowResolution: ShadowResolution.High)),
+                new KeyValuePair<string, Func<string>>("Ultra, MSAA 2x", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, msaa: 2)),
+                new KeyValuePair<string, Func<string>>("Ultra, scale 1.2", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.2f)),
+                new KeyValuePair<string, Func<string>>("Ultra, 4 pixel lights", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, pixelLights: 4)),
+                new KeyValuePair<string, Func<string>>("Ultra, LOD bias 1.5", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, lodBias: 1.5f)),
+                new KeyValuePair<string, Func<string>>("Ultra, no UI camera", () =>
+                {
+                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra);
+                    if (ui != null && ui.UiCamera != null)
+                    {
+                        ui.UiCamera.enabled = false;
+                    }
+                    return d + ", UI camera off";
+                }),
+                new KeyValuePair<string, Func<string>>("Ultra again", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
+            };
+            Results.Add("Graphics bench (standing still; frame = CPU frame interval, GPU = the compositor's timing of our frames):");
+            try
+            {
+                foreach (KeyValuePair<string, Func<string>> run in runs)
+                {
+                    if (ui != null && ui.UiCamera != null)
+                    {
+                        ui.UiCamera.enabled = true;
+                    }
+                    string applied = run.Value();
+                    yield return new WaitForSecondsRealtime(2f);
+                    PerfProbe.Reset();
+                    yield return new WaitForSecondsRealtime(5f);
+                    string summary = PerfProbe.Summary(out float cpu, out float gpu);
+                    Results.Add($"  {run.Key,-26} {summary}   [{applied}]");
+                    Metric($"bench {run.Key}: GPU ms", gpu);
+                    Metric($"bench {run.Key}: frame ms", cpu);
+                    Log.Info($"Bench {run.Key}: {summary}");
+                }
+            }
+            finally
+            {
+                if (ui != null && ui.UiCamera != null)
+                {
+                    ui.UiCamera.enabled = true;
+                }
+                GraphicsPresets.Apply();
+                Runtime.OpenVRRuntime.ApplyLiveSettings();
+            }
+        }
+
         /// <summary>Footsteps and landings the game played (counted by <see cref="CountFootstepsPatch"/>).</summary>
         internal static int Footsteps;
 

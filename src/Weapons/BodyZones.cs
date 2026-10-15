@@ -257,8 +257,19 @@ namespace RavenfieldVR.Weapons
             return slot;
         }
 
+        private int _assignedFrame = -1;
+        private Actor _assignedFor;
+
         private void AssignHolsters(Actor actor)
         {
+            // Once a frame: every holster query and every holster drawn asked again (the loadout does not change within a
+            // frame; a weapon picked up mid-frame shows its holster the next one).
+            if (_assignedFrame == Time.frameCount && ReferenceEquals(_assignedFor, actor))
+            {
+                return;
+            }
+            _assignedFrame = Time.frameCount;
+            _assignedFor = actor;
             for (int i = 0; i < SpotCount; i++)
             {
                 _spotSlot[i] = -1;

@@ -158,6 +158,18 @@ namespace RavenfieldVR.Rig
             _pinchPoint = PinchFromShape();
         }
 
+        /// <summary>The pinch point (<see cref="PinchFromShape"/>) in the tracked palm's frame: where the hand holds what it pinches.</summary>
+        public Vector3 PinchInPalm
+        {
+            get
+            {
+                Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
+                posOffset.x *= _hand.Mirror;
+                Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
+                return posOffset + rotOffset * (_pinchPoint * _scale);
+            }
+        }
+
         /// <summary>
         /// Between the thumb and index tips with the hand pinching (the curls a hand takes on a bolt handle), palm space:
         /// where a pinched handle sits.

@@ -34,6 +34,8 @@ namespace RavenfieldVR.Core
             public float TreeDistance;
             public float MinPixelError;
             public float FarClip;
+
+            public Profile MemberwiseCloneProfile() => (Profile)MemberwiseClone();
         }
 
         private static readonly Dictionary<GraphicsPreset, Profile> Profiles = new Dictionary<GraphicsPreset, Profile>
@@ -92,6 +94,39 @@ namespace RavenfieldVR.Core
                 RestoreTerrains();
                 return;
             }
+            ApplyProfile(p);
+            Log.Info($"Graphics preset {preset}: render scale {VRConfig.RenderScale.Value:0.0#}, MSAA {p.Msaa}x, shadows {p.ShadowDistance:0} m, " +
+                     $"LOD bias {p.LodBias:0.0#}, view distance {p.FarClip:0} m.");
+        }
+
+        /// <summary>
+        /// Perf bench: a preset with some of its settings changed, applied for the moment only (the saved settings are left
+        /// alone; <see cref="Apply"/> and the live settings put the player's back). Returns what was applied.
+        /// </summary>
+        internal static string ApplyForBench(GraphicsPreset preset, float? renderScale = null, int? msaa = null, float? shadowDistance = null,
+            int? cascades = null, bool? reflections = null, int? pixelLights = null, float? lodBias = null, ShadowResolution? shadowResolution = null)
+        {
+            if (!Profiles.TryGetValue(preset, out Profile src))
+            {
+                return "no such preset";
+            }
+            var p = (Profile)src.MemberwiseCloneProfile();
+            p.RenderScale = renderScale ?? p.RenderScale;
+            p.Msaa = msaa ?? p.Msaa;
+            p.ShadowDistance = shadowDistance ?? p.ShadowDistance;
+            p.Cascades = cascades ?? p.Cascades;
+            p.RealtimeReflections = reflections ?? p.RealtimeReflections;
+            p.PixelLights = pixelLights ?? p.PixelLights;
+            p.LodBias = lodBias ?? p.LodBias;
+            p.ShadowResolution = shadowResolution ?? p.ShadowResolution;
+            ApplyProfile(p);
+            UnityEngine.XR.XRSettings.eyeTextureResolutionScale = Mathf.Clamp(p.RenderScale, 0.5f, 2f);
+            return $"{preset}: scale {p.RenderScale:0.0#}, MSAA {p.Msaa}x, shadows {p.ShadowDistance:0} m {p.Cascades} cascades {p.ShadowResolution}, "
+                   + $"reflections {(p.RealtimeReflections ? "on" : "off")}, pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}";
+        }
+
+        private static void ApplyProfile(Profile p)
+        {
             // Only what differs: this runs several times at start-up and again at every level start, and some of
             // these setters are not free (MSAA touches the headset's eye targets, the texture limit reloads textures).
             if (QualitySettings.antiAliasing != p.Msaa) QualitySettings.antiAliasing = p.Msaa;
@@ -108,8 +143,6 @@ namespace RavenfieldVR.Core
             FarClipCap = p.FarClip;
             ForceMsaa = p.Msaa > 0;
             ApplyTerrains(p);
-            Log.Info($"Graphics preset {preset}: render scale {VRConfig.RenderScale.Value:0.0#}, MSAA {p.Msaa}x, shadows {p.ShadowDistance:0} m, " +
-                     $"LOD bias {p.LodBias:0.0#}, view distance {p.FarClip:0} m.");
         }
 
         /// <summary>The preset was picked (launcher, settings panel): it also sets the render scale, which stays adjustable.</summary>

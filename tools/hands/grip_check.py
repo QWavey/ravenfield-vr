@@ -603,7 +603,9 @@ def magazine_hold(glove, depth, thick, length, grip_at, goals, thumb_base, palm_
         lo_z, hi_z = centre[2] - depth / 2, centre[2] + depth / 2
         lo_y, hi_y = centre[1] - length / 2, centre[1] + length / 2
         centre = centre + qrot(palm_rot, [-1.0, 0, 0]) * (palm_surface_from_grip(glove, lo_z, hi_z, lo_y, hi_y) + thick / 2)
-        centre = centre + qrot(palm_rot, [0, 0, 1.0]) * 0.01  # a centimetre toward the fingers (clear of the thumb's root)
+        # toward the fingers (clear of the thumb's root): a centimetre, three for a box as wide as the box pose takes
+        box = depth / 2 > 0.055 or thick / 2 > 0.025  # MagazineProp.BoxSized
+        centre = centre + qrot(palm_rot, [0, 0, 1.0]) * (0.03 if box else 0.01)
     obj = Box(centre, rot, [thick / 2, length / 2, depth / 2])
     return obj, palm_pos, palm_rot
 
@@ -760,6 +762,7 @@ POSES = {
     "RifleMagazine": (0.3, [0.55, 0.7, 0.75, 0.78, 0.8]),
     "PistolMagazine": (0.5, [0.6, 0.18, 0.75, 0.8, 0.82]),
     "BoxMagazine": (0.35, [0.35, 0.5, 0.55, 0.58, 0.6]),
+    "Shell": (0.55, [0.55, 0.55, 0.85, 0.9, 0.9]),
     "PistolSlide": (0.5, [0.45, 0.65, 0.7, 0.7, 0.7]),
     "BoltHandle": (0.45, [0.5, 0.6, 0.8, 0.85, 0.85]),
     "ChargingHandle": (0.2, [0.15, 0.7, 0.72, 0.45, 0.4]),
@@ -842,6 +845,20 @@ def main():
     run("pistol magazine", lambda: mag("pistol magazine", "PistolMagazine", 0.032, 0.022, 0.12, grip_at))
     run("AK magazine", lambda: mag("AK magazine", "RifleMagazine", 0.07, 0.026, 0.2, grip_at))
     run("MG box", lambda: mag("MG box", "BoxMagazine", 0.1, 0.08, 0.12, grip_at))
+
+    def shell(name):
+        """MagazineProp.ShellPinchPose: a 12-gauge shell (2.1 x 7 cm) along the fingers, tipped 22 degrees toward the heel,
+        the pinch point 2.5 cm up from its rim."""
+        axis = np.array([0.0, -0.3714, 0.9285])
+        rot = look_rotation(axis, np.array([0.0, 1.0, 0.0]))
+        rim = pinch_point(glove) - axis * 0.025
+        obj = Cylinder(rim + axis * 0.035, rot, 0.0105, 0.035)
+        thumb, curls = POSES["Shell"]
+        hand, push = hold(glove, obj, FIST_HOLLOW.copy(), np.array([0.0, 0.0, 0.0, 1.0]), goals_for(curls), thumb)
+        picture(name, hand, obj)
+        return report(name, hand, push, obj)
+
+    run("shell (pinch)", lambda: shell("shell (pinch)"))
 
     # Seating: a rifle's well (the receiver from the opening up, 3 mm walls round the magazine, 4 cm round it) and a
     # pistol's grip (the grip from the opening up, 5 mm walls, the gun hand's fist round it from its bottom edge up).

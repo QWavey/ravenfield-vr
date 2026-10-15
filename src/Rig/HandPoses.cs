@@ -159,7 +159,7 @@ namespace RavenfieldVR.Rig
                             return HandPoseId.Rocket;
                         }
                         // By its size across: a pistol magazine is slim, a machine gun's box or drum is wide.
-                        if (magazine.CrossHalf > 0.055f)
+                        if (magazine.BoxSized)
                         {
                             return HandPoseId.BoxMagazine;
                         }
