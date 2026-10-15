@@ -1856,6 +1856,13 @@ namespace RavenfieldVR.Weapons
             // A real hand: 18 degrees turned about the well's line and 1.5 cm aside.
             Vector3 aside = Vector3.Cross(insert, Rig.AimWorld).normalized;
             RigidPose hand = new RigidPose(holding.position + aside * 0.015f, Quaternion.AngleAxis(18f, insert) * holding.rotation);
+            // Out of the gun, as a real hand is: a seated pistol magazine is held inside the grip (only its base shows), and
+            // the hand pushing it home stays under the grip.
+            System.Func<Vector3, bool> gunSolid = _held.HandsSolid;
+            for (int k = 0; k < 25 && gunSolid != null && gunSolid(hand.position + insert * 0.02f); k++)
+            {
+                hand = new RigidPose(hand.position - insert * 0.01f, hand.rotation);
+            }
             float outBy = railLength + 0.12f;
             System.Func<float, RigidPose> along = d => new RigidPose(hand.position - insert * d, hand.rotation);
             IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note)

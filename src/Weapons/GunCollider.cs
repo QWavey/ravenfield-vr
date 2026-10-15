@@ -522,7 +522,17 @@ namespace RavenfieldVR.Weapons
             Envelope(d, frame, origin, out Vector3 envMin, out Vector3 envMax);
 
             Matrix4x4 worldFromFrame = Matrix4x4.TRS(rig.ToWorld(origin), rig.GunBody.rotation * frame, Vector3.one);
-            ShapeFit.Piece[] fitted = ShapeFit.Fit("held:" + d.Key, VisibleRenderers(rig), worldFromFrame.inverse);
+            // Only meshes centred in the envelope go into the fit: a far-off one (parked 25 m away) stretched the span the
+            // slices are cut over, and every held gun came out in 8 cm slices.
+            Matrix4x4 frameFromWorld = worldFromFrame.inverse;
+            List<Renderer> renderers = VisibleRenderers(rig);
+            List<Renderer> near = renderers.FindAll(r =>
+            {
+                Vector3 c = frameFromWorld.MultiplyPoint3x4(r.bounds.center);
+                return c.x > envMin.x - 0.05f && c.y > envMin.y - 0.05f && c.z > envMin.z - 0.05f
+                       && c.x < envMax.x + 0.05f && c.y < envMax.y + 0.05f && c.z < envMax.z + 0.05f;
+            });
+            ShapeFit.Piece[] fitted = ShapeFit.Fit("held:" + d.Key, near.Count > 0 ? near : renderers, frameFromWorld);
             var kept = new List<ShapeFit.Piece>(fitted.Length);
             foreach (ShapeFit.Piece p in fitted)
             {

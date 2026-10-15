@@ -168,7 +168,8 @@ def reload_film(d, summary):
     if len(pics) < 3:
         summary.append(f'{name}: only {len(pics)} frame(s)')
         return
-    durations = [max(20, int(round(2000 * (times[j + 1] - times[j])))) for j in range(len(times) - 1)] + [600]
+    # Two times slower; a stalled frame (the first one waited out a long load) held at most 0.2 s.
+    durations = [min(200, max(20, int(round(2000 * (times[j + 1] - times[j]))))) for j in range(len(times) - 1)] + [600]
     pics[0].save(os.path.join(os.path.dirname(d), name + '.gif'), save_all=True, append_images=pics[1:], duration=durations, loop=0)
     if cv2 is not None:
         fps = int(round((len(times) - 1) / max(1e-3, times[-1] - times[0])))
