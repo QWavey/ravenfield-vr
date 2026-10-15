@@ -810,7 +810,7 @@ def main():
         else:
             obj, pp, pr = magazine_hold(glove, depth, thick, length, grip_at, None, thumb, on_palm=on_palm)
             hand, push = hold(glove, obj, pp, pr, goals_for(curls), thumb)
-        hand.pos = hand.pos + hand.palm_normal * push
+        # (hold() has already settled the palm: pushing it again here moved the glove twice as far.)
         insert = qrot(obj.rot, [0, 1.0, 0])
         pts = []
         for f in range(5):

@@ -1,0 +1,28 @@
+SUMMARY: CONFIRMED 2, REFUTED 0, UNSURE 1
+
+1. Foregrip grab accepted but released in the same frame (major)
+VERDICT: CONFIRMED. The trigger is reachable for long guns; the report's numbers are slightly off.
+- Acceptance: TryGrab choice 4 (ReloadInteractions.cs:279-287) accepts when ForegripDistance (:344-358) is under GrabRadius*1.4 = 0.126 m (VRConfig.cs:286). That distance is the minimum of the distance to the handguard segment and to SupportPoint, so a palm on the far handguard passes on the segment distance alone.
+- Release: TryGrab runs at :170 and the switch at :172-180 runs right after it in the same Update. case Foregrip (:175) releases when the palm is more than 0.35 m from GripRig.ToWorld(GripData.SupportPoint). The palm position is unchanged between the two, so the release fires the same frame. The press is consumed at :332.
+- The 0.35 m release is intended (Tasks2.md:76, task 206), so the acceptance check is the side that should change.
+- Numbers: the 0.22 m default is the virtual-gun fallback (WeaponAnalyzer.cs:234); the fallback at :723 uses 0.24. For analyzed weapons SupportPoint is the measured left palm (:718-719). The trigger still holds for rifles whose muzzle lies more than about 0.35 m beyond the support hand.
+- Effect: the two-hand flag toggles on and off in one frame, a 0.02 haptic plays, and nothing is held. GrabReaching repeats the cycle each frame.
+- Fix: reject choice 4 when the distance to SupportPoint exceeds 0.35 m, or store the grab point at acceptance (like _pressPalm at :166) and measure the release from it.
+
+2. Slide release during a rack leaves _returning set (minor)
+VERDICT: CONFIRMED, with the effect corrected. The slide mesh is not pulled closed. The glove grasp is displaced and a spurious jolt fires.
+- Trigger: the SlideRelease branch (:136-143) has no !_racking guard; the trigger branch at :144 does. BeginRack (:1382-1405) allows a locked slide with _rackBase = 1 (:1392). ReleaseSlide (:1508-1516) calls RackForward, which clears SlideLocked (AmmoState.cs:301), and sets _returning = true.
+- BeforeRender (:1531-1553): while _racking, the first two branches are skipped, so else-if _returning runs each frame and applies MoveTowards(SlideOffset, 0, 6*dt) (:1547). UpdateRack rewrites SlideOffset each Update (:1419), so the drift does not accumulate.
+- Slide mesh: HeldWeapon.BeforeRender calls ApplyPartOverrides() (HeldWeapon.cs:991) before Reload.BeforeRender() (:1003), so the mesh shows the hand value. The report's "slide renders pulled toward closed" is wrong.
+- Glove: UpdateGraspAnchor runs at :1572, after the MoveTowards, and reads the drifted value through RackPointWorld and Fraction (:1349, :1352, :1625). HandModel lerps _graspOffset toward the anchor, clamped to 5 cm (HandModel.cs:525-528), and applies it to position (:540). Hand Apply runs after Weapons.BeforeRender in OnBeforeRender (VRManager.cs:196-208). The glove is therefore pulled up to about 5 cm toward the closed end for the rest of the hold. _returning clears only when the hand offset is at or below 6*dt, so a long slide stays displaced.
+- Jolt: for short slides (pistol travel under about 6.7 cm at 90 Hz), the first BeforeRender after release drives SlideOffset to 0, so Nudge(..., 25) at :1551 fires once while the hand still holds the slide.
+- Fix: set _returning = !_racking in ReleaseSlide, or add !_racking to the SlideRelease branch, and keep the anchor from using the drifted offset while racking.
+
+3. IsPump mixes two gun spaces (minor)
+VERDICT: UNSURE.
+- The mixed-space comparison is real. IsPump (ReloadInteractions.cs:1379-1380) compares Data.RackPoint (the active rig; Data = ActiveRig.Data at :63) with GripData.SupportPoint (the parent; :68). A sub weapon with its own analysis has a different origin (SubWeaponRig, HeldWeapon.cs:553-565). A same-action fire-mode variant returns the parent rig (:559-563), so it is not affected.
+- Sub weapons with their own rigs exist (Tasks.md:197 lists the PATRIOT GL, JOLT, THUMPER and smoke weapons). Whether any has CyclesByHand (WeaponAnalyzer.cs:225 and :530) cannot be checked from the repo, since the game's weapon data is not in it.
+- The trigger needs both a sub weapon with its own rig and CyclesByHand, plus two unrelated gun-space points landing within 0.15 m. Neither is shown.
+- Fix idea: compare in world space, Rig.ToWorld(Data.RackPoint) against GripRig.ToWorld(GripData.SupportPoint). The WeaponAnalyzer.cs:1073 check compares within one rig and is fine.
+
+Nothing was built, run, or modified. The working tree is unchanged; only the files cited above were read.

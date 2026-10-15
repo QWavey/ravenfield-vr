@@ -39,6 +39,13 @@ namespace RavenfieldVR.Weapons
         /// from outside).
         /// </summary>
         public float RailHandOffset;
+        /// <summary>
+        /// Pulled out of its seat and still on the rail: it is not seated again (nor drawn home into a pistol's grip) until
+        /// it has come out a little. At the grab it sits at full depth, which counted as pushed home: it re-seated at once.
+        /// </summary>
+        public bool FromSeat;
+        /// <summary>The rail depth last frame (whether it is going in or coming out).</summary>
+        public float PrevDepth;
         public VRHand HeldBy { get; private set; }
 
         /// <summary>Insertion end (top of a magazine, nose of a shell/rocket) in prop space.</summary>
@@ -1075,10 +1082,15 @@ namespace RavenfieldVR.Weapons
                 }
                 ShowAt(KeepOffGun(target));
             }
+            if (HeldBy != null)
+            {
+                HeldShapesFrame[(int)HeldBy.Side] = -1; // moved: the fingers' solid is measured again from where it is now
+            }
         }
 
         /// <summary>How far the magazine in the hand is drawn away from the hand to stay out of the gun now.</summary>
         private Vector3 _keptOut;
+        internal Vector3 KeptOut => _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
         private Vector3 _drawnInGun;
@@ -1204,8 +1216,10 @@ namespace RavenfieldVR.Weapons
             }
             if (HeldBy != null && HeldBy.Model != null)
             {
-                HeldBy.Model.KeepOut = _keptOut;
-                HeldBy.Model.KeepOutFrame = Time.frameCount;
+                Rig.HandModel model = HeldBy.Model;
+                bool setThisFrame = model.KeepOutFrame == Time.frameCount;
+                model.KeepOut = setThisFrame && model.KeepOut.sqrMagnitude > _keptOut.sqrMagnitude ? model.KeepOut : _keptOut;
+                model.KeepOutFrame = Time.frameCount;
             }
             return new RigidPose(drawn, target.rotation);
         }

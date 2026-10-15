@@ -1,0 +1,42 @@
+SUMMARY: CONFIRMED 2, REFUTED 1, UNSURE 2
+
+Paths are relative to C:\Users\Flo\Downloads\NewApps\Ravenfield-VR. Several line numbers in the report have moved since the read; the current lines are given below. Ran tools/hands/grip_check.py with no scenario argument (print only); nothing was edited or built.
+
+#1 ClearanceAlong doc says 0 when no step is clear, but the code returns max
+VERDICT: REFUTED as a behaviour bug. The doc comment is stale; the code is intentional.
+- The doc is at src/Rig/HandModel.cs:417-422 (says 0 when no step is clear). The return is at 437-439 (returns max), not 432-434. The in-loop return at 432-434 is the clear-step return, which is correct.
+- The code comment at 437-438 states the reason: back at 0, a seated pistol magazine's hand snapped into the grip (36 points buried, per grip_check.py).
+- The offline model's "seating pistol magazine" scenario relies on the retreat (back 0.5 cm at 0% in, 6.0 cm at 100% in), so the 12 cm retreat is the designed behaviour, capped by min(0.12, length) at src/Weapons/ReloadInteractions.cs:1776.
+- Only the XML doc is wrong. Fixing the comment is a doc nit, not a bug.
+
+#2 Start back-off checks only segments 0 and 1, so a distal segment starting inside never stops the finger
+VERDICT: UNSURE. The code gap is real, but the trigger geometry was not reproduced.
+- The back-off condition is src/Rig/HandModel.cs:886-889 and the test at 894 uses only segments 0 and 1. in2 = SegmentTouches(2) is taken from the start state at 906, and FirstTouch ignores segment 2 when in2 is set (964). The mirror is tools/hands/grip_check.py:206, 210 and 217.
+- The trigger is reachable in principle: a distal segment inside the magazine while segments 0 and 1 are outside. The author's stated purpose at 880-882 ("segments that start inside never stop a finger") supports the gap.
+- The offline run reports buried 0/72 in every magazine scenario (pistol, rifle, AK, MG box), so no modelled geometry reaches it. The effect is unproven.
+- The claim that it contradicts the intent at 874-875 is weaker: 874-875 says already-inside segments do not stop the finger, which is the stated design.
+- Next step if pursued: a magazine geometry where the fingertip starts inside the front or top edge, checked with grip_check.py.
+
+#3 Weapon-role fingers have no open-out back-off
+VERDICT: UNSURE. The code gap is real, but its reachability was not checked.
+- The condition at src/Rig/HandModel.cs:886 covers f==0 (thumb), Foregrip and Magazine only. For Weapon fingers, the in-flags at 906 come from curl 0, so a segment already inside the grip is ignored for the whole solve.
+- Not reproduced offline: tools/hands/grip_check.py has no weapon-grip finger scenario (its scenarios are magazines, slide and rack holds, seating and shells), so the buried count for a rifle or pistol grip cannot be checked with it.
+- Whether an open weapon finger starts inside a real grip was not established. Fingers at curl 0 lie along the palm, which sits on the grip, so the outcome depends on the grip width.
+- Would need a weapon-grip scenario in grip_check.py (run it first, as the finding suggests) before this can be called a bug.
+
+#4 The gun hand's solid keeps the slide at its rest place while the slide is racked, and nothing re-solves it
+VERDICT: CONFIRMED (medium confidence). Impact depends on slide travel reaching the gun hand's contact points, which was not measured.
+- Trigger: rack a slide (SlideOffset > 0) while the gun hand is closed on the grip, with a gun-hand finger or thumb settled on the slide at its home position.
+- The gun hand's solid is HandSolid(), which is _volume, measured with the slide home (src/Weapons/HeldWeapon.cs:1192-1199 comment; _solid built at 1217 with no slide subtraction).
+- SnapHands runs every frame (HeldWeapon.cs:1105) and sets the gun hand's SolidVersion only from _magSolidShown (line 1580). Its only other writes are 1607 and 1613 (the foregrip hand). SolidVersion does not follow SlideOffset.
+- GripMoved (src/Rig/HandModel.cs:836-855) keys on the GunBody pose and SolidVersion. The slide is a child of the gun body, so the body does not move. The reuse test at HandModel.cs:612-620 keeps the stored curls when !moved and the curls are settled, so the gun hand's fingers keep their old contact point.
+- The slide hand is handled correctly: RackSolid (HeldWeapon.cs:1497-1518) subtracts _partRestPos, and SnapHands sets SolidVersion = RoundToInt(SlideOffset*500) at line 1595. The gun hand has neither.
+- Effect: the gun hand's fingers stay stopped at the slide's old position, leaving a gap as the slide moves away. Reference lines in the report (1465-1467, 1482) are stale; the current lines are 1573-1595.
+- Fix idea: for the gun hand, subtract the part's rest volume as RackSolid does, or bump SolidVersion with SlideOffset at HeldWeapon.cs:1580.
+
+#5 Index-point curl used to place the magazine (0.1) differs from the curl the solver aims for (0.18)
+VERDICT: CONFIRMED, tiny impact.
+- The placement constant is src/Weapons/MagazineProp.cs:781 (IndexPointCurl = 0.1f, used at 790 for the pad and tip). The solver's index target for PistolMagazine is HandPoses.cs:77 (0.18). IndexAlongPistolMagazine (src/Rig/HandModel.cs:1217-1223) sets _goal[1] = p[1], and p = _pose.Curls (line 1109), so the target is 0.18.
+- Trigger: any pistol magazine held index-point.
+- Effect: the magazine is posed for 0.1 curl, but the index closes toward 0.18 and stops at its first touch. The offline model's "pistol magazine" scenario solves the index at 0.06 with tip gaps of T-3 mm and I+1 mm, so the discrepancy is a few millimetres.
+- Fix idea: one shared constant, read from HandPoses PistolMagazine index in IndexPointPose.

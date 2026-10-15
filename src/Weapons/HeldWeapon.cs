@@ -1264,7 +1264,7 @@ namespace RavenfieldVR.Weapons
             }
             RackPointGun = snapped;
             Log.InfoOnce("racksnap:" + d.Key, $"{d.Key}: rack point put on the model's surface ({moved * 100f:0.0} cm {(Inside(p) ? "out of the receiver" : "onto the receiver")}).");
-            if (_boltPiece != null && moved > 0.01f)
+            if (_boltPiece != null)
             {
                 _boltPiece.Destroy();
                 try
@@ -1577,7 +1577,8 @@ namespace RavenfieldVR.Weapons
                 {
                     main.Model.Solid = solid;
                     main.Model.SolidAnchor = Rig.GunBody;
-                    main.Model.SolidVersion = _magSolidShown ? 1 : 0;
+                    // Solved again as a racked slide moves (a finger or thumb that lay on it stayed where it was).
+                    main.Model.SolidVersion = (_magSolidShown ? 1 : 0) + 2 * Mathf.RoundToInt(SlideOffset * 500f);
                 }
                 else if (main.Model.Solid == _solid)
                 {

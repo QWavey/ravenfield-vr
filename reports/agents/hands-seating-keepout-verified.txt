@@ -1,0 +1,26 @@
+SUMMARY: CONFIRMED 3, REFUTED 0, UNSURE 0
+
+Checked against the working tree (HEAD 35091c1; the cited line numbers match the current files, and MagazineProp.cs has no uncommitted diff). Read-only; I did not run the game, a build, or grip_check.py.
+
+#1 Grabbing a seated magazine re-seats it on the grab frame
+VERDICT: CONFIRMED (major)
+- Same frame: TryGrab calls PullSeatedMagazine (ReloadInteractions.cs:316). Attach sets off.Role = Magazine (MagazineProp.cs:725), so the switch at :172-185 calls UpdateHeldProp(off) in the same Update.
+- No guard stops it: TryMagKick returns false because MagInserted is false (:1124). AcceptsNow is true (:958-965). prop.OnRail was set true at :501, so the !OnRail branch is skipped.
+- HandAlongRail (:1080-1088) depends only on HoldPose(off), which is a pure function of hand.Palm and prop constants (MagazineProp.cs:738-764). So along at :1007 equals the value taken at :507. Subtracting RailHandOffset at :1047 gives exactly RailLength. RailDepth = L (:1054) passes the 0.96L test (:1060), so SeatProp runs (:1062, InsertMagazine at :1256, nudge at :1258).
+- Trigger: a grab within GrabRadius*1.1 of the seated base with lateral <= 0.07 (:1048). Lateral > 0.07 is the only way out on the grab frame.
+- Fix idea: skip the seat test until the hand has moved the prop off the grab depth (for example a PulledOut flag set when along < RailLength - 0.01), and make the self-check assert the magazine is still held after the frame.
+
+#2 A pistol magazine pulled partway out is drawn back home by the pull-in
+VERDICT: CONFIRMED, with a narrower trigger than the report gives (major)
+- The reported trigger (pulling a seated pistol magazine out by more than 4%) is masked today. The grab frame seats the magazine (#1) before any outward motion, so RailDepth never drops below 0.96L by hand.
+- A live path exists. A grab with lateral > 0.07 releases the magazine off-rail (:1048-1052) but leaves it in the hand (Role stays Magazine). If the hand then pulls it straight out with lateral < 0.045 (grip, :1019), along inside (-0.03, L) and angle < 40, the lined branch sets OnRail and RailDepth = along and returns (:1026-1031).
+- On the next frame, RailDepth is in [0.25L, 0.96L). WellInGrip is true for IsPistol (:1106-1113), so :1064-1071 sets _pullingIn with no direction check. :1035-1045 then drives the magazine home at 0.9 m/s whatever the hand does.
+- Fix idea: set _pullingIn only when depth increases since LastTick (or the hand's velocity along InsertDirLocal is positive), and never for a magazine that a pull-out started.
+
+#3 Glove keep-out is computed from the glove as last rendered
+VERDICT: CONFIRMED (minor; magnitude not measured)
+- KeepOutOfGun runs in ReloadInteractions.Update (through Weapons.Update, VRManager.cs:145), before HandModel.Apply in OnBeforeRender (VRManager.cs:190-205, HandModel.cs:657 UpdateSkin).
+- ClearanceAlong (HandModel.cs:418-427) tests _skinA/_skinB and PalmSkin as posed at the last Apply, shifted by the last-applied -_graspOffset - _keepOut. That is the glove where the previous palm put it.
+- Apply places the glove at the current palm plus offsets (HandModel.cs:518, :540). The tested and placed positions therefore differ by the palm's displacement since the last Apply. Pushing inward by d puts the glove d deeper into the gun than the 5 mm-quantised clear point (:426).
+- Partial damping: the _keepOut lerp (:532) lags the placed keep-out during fast motion. The effect is a few millimetres of glove clipping; I have not measured it.
+- Fix idea: test inside HandModel.Apply after the pose is set, or shift the test by (current target - last target) before calling GloveIn.

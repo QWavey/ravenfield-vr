@@ -1,0 +1,46 @@
+AREA: handmodel-solver
+FINDINGS: 5
+
+Note: src/Rig/HandModel.cs and src/Weapons/ReloadInteractions.cs were edited while I was reading them (ThumbPress, TriggerShot, ShortestWayOut and the Free-hand keep-out appeared between reads). Line numbers below are from the latest read. Re-check them if the files change again.
+
+#1 [minor] [confidence high] ClearanceAlong doc says 0 when no step is clear, but the code returns max
+   where: src/Rig/HandModel.cs:412-417 (doc), src/Rig/HandModel.cs:432-434 (return max); consumer src/Weapons/ReloadInteractions.cs:1753-1754
+   trigger: a magazine held in the off hand where every 5 mm step back along the insert axis is blocked (glove stuck beside the well).
+   effect: KeepOutOfGun sets KeepOut = -insert * back with back = max (up to 12 cm), so the glove is pulled that far off the tracked hand. The doc describes the opposite (0, and moving back "does not cure" it). The code comment at 432-433 explains the change (a buried-at-zero case), so the doc is stale. The 12 cm retreat in the case the doc calls pointless is still a visible behaviour worth confirming.
+   evidence: HandModel.cs:412-417 "0 when no step is clear (then it is not in the way along dir but stuck in something beside it, which moving back does not cure)"; HandModel.cs:432-434 "return max;"
+   fix idea: update the doc to match, or if the retreat is not wanted, return 0 and handle the buried-at-zero case in the caller.
+
+#2 [minor] [confidence low] Start back-off checks only segments 0 and 1, so a distal segment that starts inside a held magazine or foregrip never stops the finger
+   where: src/Rig/HandModel.cs:876-891 (condition and test cover segments 0 and 1 only); src/Rig/HandModel.cs:896 (in2 taken from the backed-off state); src/Rig/HandModel.cs:954 (FirstTouch ignores segment 2 when in2)
+   trigger: Magazine, Foregrip or thumb role where, at the open curl, segment 2 is inside the held solid but segments 0 and 1 are outside it (a straight fingertip inside a magazine's front or top edge).
+   effect: in2 is true, so FirstTouch never reports segment 2 and the fingertip closes through the model. This contradicts the stated intent at HandModel.cs:874-875. grip_check.py has the same omission (solve_finger, lines 206 and 210), so the offline model cannot catch it either.
+   evidence: HandModel.cs:879 "if (SegmentTouches(0) || SegmentTouches(1))"; HandModel.cs:884 "if (!SegmentTouches(0) && !SegmentTouches(1))"; HandModel.cs:896 "in2 = SegmentTouches(2)"; HandModel.cs:954 "if (!in2 && SegmentTouches(2))"
+   fix idea: include SegmentTouches(2) in the test and in the back-off condition, and mirror the change in tools/hands/grip_check.py.
+
+#3 [minor] [confidence low] Weapon-role fingers have no open-out back-off, so an open finger that starts inside the grip closes through it
+   where: src/Rig/HandModel.cs:876 (back-off condition covers thumb, Foregrip and Magazine only); src/Rig/HandModel.cs:896 (in-flags taken from the open state)
+   trigger: a grip whose solid covers segment 0 or 1 of the middle, ring or little finger at curl 0 (thick rifle grip, rear of a pistol grip under the open middle finger).
+   effect: the in-flag makes that segment ignored for the whole solve, so the finger closes straight through the grip's rear. The comment at HandModel.cs:874-875 gives exactly this reason for the magazine case, and it applies to weapon grips as well. Not verified numerically.
+   evidence: HandModel.cs:876 "if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Magazine))"
+   fix idea: first run tools/hands/grip_check.py on a weapon scenario and check the buried-point count; if it is non-zero, extend the back-off to Weapon fingers.
+
+#4 [minor] [confidence low] The gun hand's solid keeps the slide at its rest place while the slide is racked, and nothing re-solves it
+   where: src/Weapons/HeldWeapon.cs:1465-1467 (main.Model.Solid, SolidAnchor = GunBody, SolidVersion = _magSolidShown ? 1 : 0); src/Weapons/HeldWeapon.cs:1104 (_solid built from _volume); src/Weapons/HeldWeapon.cs:1082-1083 (_volume measured with the slide home); src/Weapons/HeldWeapon.cs:1384-1405 (RackSolid removes the part's rest volume only for the slide hand)
+   trigger: racking a slide (SlideOffset > 0) while the gun hand holds the grip, with slide travel near the gun hand's fingers (pistol thumb along the frame, or a charging handle near the grip).
+   effect: SolidVersion does not change with SlideOffset, GripMoved (HandModel.cs:826-845) only watches the GunBody pose, so the reuse test (HandModel.cs:563-565) keeps the old finger solution. The gun hand's fingers stop on where the slide used to be, not where it is now. The slide hand gets this right at HeldWeapon.cs:1482 (SolidVersion = RoundToInt(SlideOffset * 500)); the gun hand does not.
+   fix idea: subtract the part's rest volume for the gun hand as RackSolid does for the slide hand, or bump SolidVersion with SlideOffset as at HeldWeapon.cs:1482.
+
+#5 [tiny] [confidence low] Index-point curl used to place the magazine (0.1) differs from the curl the solver aims for (0.18)
+   where: src/Weapons/MagazineProp.cs:706 (IndexPointCurl = 0.1, used at 715); src/Rig/HandPoses.cs:77 (PistolMagazine index = 0.18); src/Rig/HandModel.cs:1189 and 1207-1212 (IndexAlongPistolMagazine sets the index goal to p[1] = 0.18)
+   trigger: any pistol magazine held index-point.
+   effect: the magazine is posed for a 0.1 curl, but the solver closes the index toward 0.18 and stops only at a touch. Where the index does not touch the front, the pad sits a few mm off the position the pose assumes. The touch stop absorbs most of the difference, so the impact is small.
+   fix idea: use one shared constant for the index curl (for example read HandPoses PistolMagazine index in IndexPointPose).
+
+Checked, no bug found:
+- Mirroring: HandShape.cs:404-410 (MirrorRotation as (x,-y,-z,w) and MirrorAxis as (x,-y,-z) pseudovector) are correct. VRHand.cs:205 MirrorEuler, HandModel PalmNormal (706), graspLocal and posOffset (514-523), PinchInPalm (206-209), NearSkin x-mirror (668), palm-centre/fist-hollow consistency, and MagazineProp.IndexPointPose (721-723) are all correct for the left hand.
+- NaN / divide by zero: NearSkin guards ab.sqrMagnitude with 1e-8; ShortestWayOut falls back when preferred is zero; PalmSurfaceFromGrip clamps at 0; SlideSteps and Steps are constants; no unguarded division found.
+- SolveFinger termination: guard (Steps + 4) covers the at most three extra iterations a solve can take, and every touch locks at least one joint. Bisection invariants hold (lo touch-free, hi touching, hit >= 0).
+- Palm/slide ordering: SlideOnGrip runs before SettlePalm, GripMoved sees the pre-palm root, and the search restores the root. No feedback loop found.
+- Reuse: the finger-reuse test covers curl, trigger pull, settling, thumb base, and GripMoved (3 mm / 2 deg, solid reference and SolidVersion). The only gaps are #4 above and a 0.5 deg thumb-base tolerance (negligible).
+- Pointing, _pointBlend, thumb base, ThumbPress and TriggerShot (new code): logic consistent; the trigger boost feeds only the curl goal and does not affect the pull branch.
+- Stale SnapPose/_lastSnap during release (80 ms ease toward a world-space pose that may be stale) is minor and not reported.

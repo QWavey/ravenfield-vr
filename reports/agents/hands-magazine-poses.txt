@@ -1,0 +1,55 @@
+AREA: magazine-poses
+FINDINGS: 7
+
+Note on this run: src/Weapons/MagazineProp.cs grew from 1365 to 1482 lines and src/Weapons/ReloadInteractions.cs changed twice while I was reading (last write 18:24). Line numbers below are the state at about 18:24. Re-check the lines before fixing. Nothing was built, run, or written. Repo root: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR
+
+#1 [major] [confidence medium] Palmed (second) magazine is never run through the gun keep-out and does not follow the primary's keep-out offset
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:842-854 (PalmedPose uses the raw HoldPose at 844); C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/ReloadInteractions.cs:1601-1602 (palmed placed each frame); ReloadInteractions.cs:1612-1613 (FollowHand only for off.Held, the primary)
+   trigger: MagazinePalming on. Tactical reload with a fresh magazine in the off hand within 0.2 m of the seated base (CanPalm). The fresh magazine is then pushed toward the well until its keep-out engages (lined up under the well, or blocked by the receiver). The primary is pulled back by _keptOut through MagazineProp.cs:1199-1209.
+   effect: The palmed magazine stays at its raw hand pose, so it passes through the receiver/gun body and separates from the primary by the keep-out distance. The finger solid (ShapeHand includes palmed magazines, MagazineProp.cs:896-898 and 941-945) still closes on its raw position, so the fingers wrap a magazine that is in the gun.
+   evidence: ReloadInteractions.cs:1602 PalmedPose(off, off.Held) -> MagazineProp.cs:844 HoldPose(hand) (raw palm) -> 853 return. Keep-out is applied only in MagazineProp.FollowHand (1059-1078 -> KeepOffGun 1094-1211) on HeldBy primary. Nothing applies _keptOut to the palmed object.
+   fix idea: Compute the palmed pose the same way the primary is posed (apply the primary's _keptOut to it, or run KeepOffGun on PalmedPose's target with the palmed prop's own sweep). Add the palmed prop to the gun sweep.
+
+#2 [major] [confidence medium] KeepOffGun overwrites the glove keep-out that KeepOutOfGun wrote earlier in the same frame
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:1199-1209 (writes HeldBy.Model.KeepOut = _keptOut when non-zero); C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/ReloadInteractions.cs:1592 (UpdateGraspAnchor), 1672-1678 and 1762-1779 (KeepOutOfGun writes Model.KeepOut at 1777), 1613 (FollowHand after it)
+   trigger: The magazine is lined up under the well (LinedUpUnderWell, ReloadInteractions.cs:1107-1116: lateral < 6 cm, angle < 40 deg, along in (-6 cm, RailLength)) but not yet OnRail, and it is blocked by the gun (KeepOffGun returns a non-zero _keptOut). FollowHand is skipped while OnRail, so this is the window where both writers run.
+   effect: The glove's own clearance (ClearanceAlong, which accounts for the glove skin and the dominant hand) is replaced by the magazine's lag for that frame. The glove can then sit deeper in the receiver by the difference. The keep-out flag for Magazine role is in HandModel.cs:533-534, so the replaced value is what is applied.
+   evidence: UpdateGraspAnchor (1592) -> case Magazine (1672-1678) -> KeepOutOfGun writes Model.KeepOut (1777-1778) -> FollowHand (1613) -> KeepOffGun (1199-1209) overwrites Model.KeepOut and KeepOutFrame.
+   fix idea: Combine the two instead of overwriting (per-component max along the insert axis, or sum the magazine lag into the glove value). Or skip the write in KeepOffGun when Model.KeepOutFrame == Time.frameCount.
+
+#3 [major] [confidence medium] KeepOffGun checks a magazine of one weapon against whichever weapon is currently drawn
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:1096-1105 (gun = WeaponSystem.Instance.Held; uses gun.Rig.Data.MagSeat, MagBounds, HandsSolid; no WeaponKey check); C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/ReloadInteractions.cs:974 (AcceptsNow rejects foreign WeaponKey), 1613 (FollowHand still runs for it), 2721-2725 (Release keeps the magazine in hand on a weapon switch)
+   trigger: Hold a magazine of gun A in the off hand, then draw gun B (or a grenade, which is not offManaged in WeaponSystem.UpdateLooseProps) with the dominant hand. The magazine stays in the off hand.
+   effect: The foreign magazine is swept against gun B's body, using B's well box and seat. It is held back whenever it is within 0.7 m of B's grip, and it drags the glove back through KeepOut. Gun B's well exemption does not match the foreign magazine's shape, so it can also be stopped or let through in the wrong place.
+   evidence: WeaponSystem.cs:308-314 ReleaseHeld -> HeldWeapon.Release -> ReloadInteractions.Release (2721-2725) keeps the magazine. Next frame, ReloadInteractions.BeforeRender (1613) -> FollowHand -> KeepOffGun (1096) uses the new Held. AcceptsNow (974) only blocks seating, not the follow.
+   fix idea: In KeepOffGun, only sweep when gun.Rig.Data.Key == WeaponKey (otherwise _drawnFor = null, _keptOut = 0, return target). Or keep foreign magazines out of the sweep entirely.
+
+#4 [minor] [confidence medium] Finger solid uses the held magazine's pose from before this frame's move
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:914 (hand.Model.SolidVersion = HeldShapesOf(hand).Count), 929-937 (per-frame cache: the list is built and stored with Position = t.position at 943-944), 1061 (ShapeHand runs first in FollowHand), 1076 (ShowAt moves the magazine after that); C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Core/VRManager.cs:197 and 201-206 (Weapons.BeforeRender runs, then HandModel.Apply for each hand, same frame)
+   trigger: Any frame where the held magazine moves in FollowHand and the glove re-solves (GripMoved, HandModel.cs:787-797, e.g. after a keep-out change or a grab). The first frame after a pouch grab is the worst case: Create places the prop at the gun's seat (MagazineProp.cs:226), and the cache is built before FollowHand moves it to the hand.
+   effect: The fingers are solved against the magazine's previous-frame pose (up to a frame of motion, or the gun seat on the first frame). The finger closure can overshoot or stop short for one frame. GripMoved then recovers on the next frame because the anchor-relative pose changed, so the error is brief but visible as a flick.
+   evidence: VRManager.OnBeforeRender order (197 then 201) -> ReloadInteractions.BeforeRender (1592, 1613) -> FollowHand (1061 ShapeHand -> 914 cache) -> ShowAt (1076). HandModel.Apply reads HeldSolid -> HeldShapesOf (cached, 933-935).
+   fix idea: Invalidate the cache (set HeldShapesFrame[side] = -1) at the end of FollowHand, or in ShowAt/Attach/Drop, so the next query after the move recomputes.
+
+#5 [minor] [confidence low] Procedural magazine stand-in puts the magazine's size on the wrong cube axes unless its own axes match (side, insert, front)
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:645-676 (size taken from magBounds.size in prop axes at 661; applied to cube-local axes oriented by LookRotation(front, insert) at 670-673; returned bounds at 675-676)
+   trigger: No copied mesh (rig.Magazine null, or CopyVisuals returns null, e.g. an unreadable skinned mesh), and the magazine's own long axis is not the insertion axis (MagSeat frame comes from RelIdle, WeaponAnalyzer.cs:1970-1976, so it is arbitrary).
+   effect: The stand-in box has its long dimension along the wrong axis (a flat plate along the insert direction, for example). The bounds returned at 675-676 match the drawn box, so physics agrees with the wrong shape.
+   evidence: magBounds and insertLocal share prop space (Create 197-230). Cube local Y is aligned to insert (670), and localScale = magBounds.size raw (673), so size.y lands on the insert axis.
+   fix idea: Measure the magazine extents along the insert, front and side axes (Dot(|axis|, bounds.extents)) and scale the cube by those, not by the raw size vector.
+
+#6 [minor] [confidence low] KeepOffGun and PointsInsideGun ignore the hinge that carries the magazine seat
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:1103 and 1224 (seat = gun.Rig.GunBodyPose.Multiply(MagSeat), unhinged); C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/ReloadInteractions.cs:477-487 (SeatPose rotates with HingeOpenness when Data.SeatOnHinge)
+   trigger: A SeatOnHinge gun (WeaponAnalyzer.cs:1555) with the hinge open (HingeOpenness > 0.001), and a magazine brought to the well.
+   effect: The magwell exemption (well.Contains at 1124 and 1236) is placed at the closed-hinge location, not where the well is now. Points inside the open well are tested as gun body, so the magazine can stop short at the well mouth, and the closed-position walls get exempted.
+   evidence: SeatPose (ReloadInteractions.cs:477-487) vs. KeepOffGun seat (MagazineProp.cs:1103). The hinge-rotated pose is not passed to the prop.
+   fix idea: Expose the hinge-aware SeatPose (or pass it in) and use it for both the well box and seat in KeepOffGun and PointsInsideGun.
+
+#7 [tiny] [confidence low] The 3 cm margin around the well lets the magazine pass through receiver wall next to the well mouth
+   where: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/src/Weapons/MagazineProp.cs:1105 and 1226 (well.Expand(0.03f) on all six sides)
+   trigger: Pushing the magazine in up to about 3 cm off-axis, so a receiver wall within 3 cm of the well box lies in the exempt margin.
+   effect: That wall is treated as free, so the magazine goes through it instead of sliding along it. This may be intended tolerance, which is why confidence is low. The margin is also applied along the insertion axis, where it lets a magazine pass the well's end.
+   evidence: BlockedAt (1119-1130) exempts any solid point with well.Contains(...) after the expand.
+   fix idea: Keep the margin along the insertion axis only, or use a smaller side margin.
+
+Checked and consistent (no finding): IndexPointPose mirroring (centre.x *= m, mirrored front/axis, and IndexFinger's FistHollow subtraction are consistent with the glove mirror; PalmSurfaceFromGrip's unmirrored skin matches the mirrored normal). ShellPinchPose uses PinchInPalm, which is already mirrored (HandModel.cs:202-210). PalmedPose's towardFingers matches HoldPose's rest direction and HandModel.PalmNormal. HandPoses.For (HandPoses.cs:146-171) and HoldPose agree on the BoxSized and PistolSized thresholds (they cannot both hold). KeepOffGun's gun-space round trip (_drawnInGun via ToGun/ToWorld, WeaponRig.cs:366-381) is consistent. Drop, Attach, Destroy and Cull handle Alive correctly (backward iteration, newest-drop ordering). The rocket and shell procedural bounds are centred consistently with the drawn geometry.

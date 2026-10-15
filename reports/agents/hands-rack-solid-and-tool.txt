@@ -1,0 +1,56 @@
+AREA: rack-solid-and-tool
+FINDINGS: 6
+
+#1 [major] [confidence high] Racking a handle the mod draws (BoltPiece cut or knob) has no solid, so the hand closes on nothing
+   where: src/Weapons/HeldWeapon.cs:1338 (WorkedPart), :1357 (PartSolid skips AddedByMod renderers), :1388-1391 (RackSolid returns null), :1476-1487 (SnapHands leaves off-hand Solid null); src/Weapons/GunCollider.cs:577 (VisibleRenderers skips AddedByMod)
+   trigger: an AR-pattern rifle whose charging handle is cut out of the receiver (WeaponAnalyzer.cs:693-696 sets CarveHandle, and with no SlidePath Rig.Slide stays null), or a bolt-less gun that gets an added knob (HeldWeapon.cs:190-197). The player grabs the handle and racks it.
+   effect: WorkedPart is Rig.Handle or Rig.Slide, both null here, so PartSolid returns null and RackSolid returns null. The off hand gets no Solid, so HandModel.Closing is false (HandModel.cs:674). TargetCurls then takes the Slide role default branch (HandModel.cs:1107-1118) and the fingers curl to the BoltHandle pose (HandPoses.cs:143) with no SolveFinger contact test (HandModel.cs:609). The fingers pass through the drawn handle. The palm does not settle and PalmOnPart never runs. For a carved handle on a gun that has a SlidePath (carrier inside), the part is the hidden carrier (HeldWeapon.cs:1338), so the hand closes on something inside the receiver and not on the handle. The cut piece itself is never a solid, because its renderers are named "RavenfieldVR ..." and are excluded from both _volume (GunCollider.cs:577) and PartSolid (HeldWeapon.cs:1357).
+   evidence: ReloadInteractions.cs:1573 sets WorkedPart Bolt for a non-handle AR; ReloadInteractions.cs:1580-1583 needs off.Model.Solid for PalmOnPart; HeldWeapon.cs:1386 RackSolid -> PartSolid() -> WorkedPart == null -> return null. WeaponRig.cs:255-256 resolves Slide and Handle as null when their paths are null.
+   fix idea: give the racked part a real volume. Measure the BoltPiece's own pieces (or the knob mesh) as the part, with rest = their rest pose, and let WorkedPart fall back to that. Or let the Slide-role solid be the gun solid with the handle included when the handle has no transform. Keep it out of the rest-carve subtraction.
+
+#2 [minor] [confidence high] SnapRackPoint moves RackPointGun by 3 to 10 mm without rebuilding the handle, so the drawn handle and the grab point disagree
+   where: src/Weapons/HeldWeapon.cs:1148 (threshold 0.003 for the move) vs :1154 (rebuild only if moved > 0.01)
+   trigger: a RackOnSurface gun with a BoltPiece (carved or knob), where the surface snap moves the point between 3 and 10 mm (for example an AR charging handle cut at the estimated point, or a Bren-style point 5 mm inside the receiver).
+   effect: RackPointGun (:1152) becomes the grab and zone point (ReloadInteractions.cs:1317, RackZoneDistance :1326-1335). The cut or knob stays at the unsnapped rackGun (:1159 is skipped), so the hand takes the gun up to 1 cm from the visible handle.
+   evidence: :1147-1152 set RackPointGun unconditionally after the 3 mm check; BoltPiece.Create(rig, rackGun) at :1159 is the only place the handle position is set.
+   fix idea: use the same threshold for both the move and the rebuild, or always rebuild when moved >= 0.003 (Destroy then Create is already done in that branch).
+
+#3 [minor] [confidence high] tools/hands/grip_check.py applies the palm push twice in the seating scenario
+   where: tools/hands/grip_check.py:812-813 (seating), with the first push inside hold() at :337-338
+   trigger: any call to seating(...) (scenarios "seating rifle magazine" and "seating pistol magazine").
+   effect: hold() already moves hand.pos by palm_normal*push. Line 813 adds it again, so the glove sits 2x the palm push off the tracked hand. The back and hollow numbers printed by seating() are off by that push (the report prints it as "glove moved"). C# applies the push once per frame (HandModel.cs:521-522, :703).
+   evidence: grip_check.py:337-338 vs :812-813. HandModel.SettlePalm sets root = root + n*_palmPush once per Apply (HandModel.cs:703).
+   fix idea: delete line 813, or have hold() return the unpushed hand if seating needs it.
+
+#4 [minor] [confidence high] The AR rack scenarios model a separate moving charging handle with the ChargingHandle pose, but the game's carved AR handle uses the BoltHandle pose and has no part solid
+   where: tools/hands/grip_check.py:744-745 (AR handle scenarios: part, ChargingHandle pose) vs src/Weapons/ReloadInteractions.cs:1573 (HandleStroke false, so WorkedPart = Bolt) and src/Rig/HandPoses.cs:141-143 (Bolt -> BoltHandle)
+   trigger: an AR-pattern gun with no HandlePath (WeaponAnalyzer.cs:693-696), which is the path the mod actually uses for AR charging handles.
+   effect: the offline check says the hand takes the ChargingHandle pose (thumb 0.2, curls 0.15/0.7/0.72/0.45/0.4) and closes on a real part. In game it takes BoltHandle (thumb 0.45, curls 0.5/0.6/0.8/0.85/0.85) and closes on nothing (see #1). The tool therefore cannot show the grip the player actually gets on that gun.
+   evidence: HandPoses.For (HandPoses.cs:138-145) maps the Slide role by WorkedPart; ReloadInteractions.cs:1573 sets Bolt when HandlePath is null.
+   fix idea: add a "carved AR handle" scenario using the BoltHandle pose and the gun-only solid, and match it to the C# once #1 is fixed.
+
+#5 [minor] [confidence medium] The offline rack solids do not match HeldWeapon.RackSolid or the palm search it feeds
+   where: tools/hands/grip_check.py:755 (rifle rack solid = Union(part, gun)), :713-714 (pistol palm search uses SLIDE only), :748-757 (rifle hold); C#: src/Weapons/HeldWeapon.cs:1400-1405 (part, plus gun minus the part's rest place, plus the gun hand's NearSkin), src/Weapons/ReloadInteractions.cs:1582-1583 (PalmOnPart is searched against off.Model.Solid = RackSolid)
+   trigger: any rack scenario in grip_check.py.
+   effect: the tool never subtracts the part's rest place from the gun (the carve in :1404) and never includes the gun hand's skin (:1405). The pistol palm search ignores the frame, so the palm can rest on a different surface than in game when the frame lies along the palm normal. The docstring says these scenarios mirror RackSolid, so their clearance numbers do not validate the subtraction or the gun-hand clearance.
+   evidence: grip_check.py:755 and :714 vs HeldWeapon.cs:1404-1405 and ReloadInteractions.cs:1583.
+   fix idea: model RackSolid as part + (gun minus part rest) + gun-hand skin in both the rack hold and palm_on_part, and add a scenario where the frame sits under the slide's rest place.
+
+#6 [tiny] [confidence high] Missing shader makes BoltPiece's knob fallback throw (already logged in reports/agents/props-verified.txt)
+   where: src/Weapons/BoltPiece.cs:268
+   trigger: neither "Standard" nor "Legacy Shaders/Diffuse" is in the build, and the weapon has no opaque renderer to borrow a material from.
+   effect: new Material((Shader)null) throws ArgumentNullException. HeldWeapon.cs:199-201 catches it, so the weapon gets no handle at all, and the warning fires once.
+   evidence: Shader.Find(...) ?? Shader.Find(...) is not null-guarded at the constructor.
+   fix idea: fall back to a plain Material with a found shader, or skip the knob without throwing.
+
+CHECKED, NO MISMATCH:
+- Constants: GROW 0.0072 (GunVolume.cs:21) = grip_check.py:19; SCALE 0.88 (HandShape.cs:172) = grip_check.py:20 (the C# GloveSize config at HandShape.cs:250 is not mirrored; informational); FIST_HOLLOW (-0.026, 0, 0.034) (VRHand.cs:170) = grip_check.py:21.
+- Pose table: all seven poses (RifleMagazine, PistolMagazine, BoxMagazine, Shell, PistolSlide, BoltHandle, ChargingHandle) match HandPoses.cs:67-80 and :68-69 with grip_check.py:762-768.
+- magazine_hold vs MagazineProp.HoldPose (MagazineProp.cs:663-698): gripAt 0.15, the y/z ranges of PalmSurfaceFromGrip, box offset 0.03/0.01, and the box test all agree (CrossHalf/SideHalf clamps do not change any scenario).
+- IndexPointPose (MagazineProp.cs:704-727) vs pistol_magazine_hold: axis, front (AngleAxis -20), side -0.004, curl 0.1 all agree.
+- Shell: ShellPinchPose (MagazineProp.cs:731-745) vs grip_check.py:849-859: axis (0,-0.3714,0.9285), 25 mm rim offset, Shell pose, Cylinder 0.0105 radius / 0.035 half length. Agrees.
+- Glove loader (grip_check.py:104-146) vs HandShape.LoadGlove (HandShape.cs:206-304): byte layout, the 35-float joint record, palm skin and bounds order all agree.
+- Solve/chain/palm/grasp: Chain, SolveFinger, FirstTouch, PalmOffset, goals (TargetCurls HandModel.cs:1024-1149) and the grasp shift (HandModel.cs:483-487 vs grip_check.py:329-335) agree.
+- GunVolume: Solid fast path vs Test (GunVolume.cs:141-209) and the SolidAt/InsideModelAt explicit-pose path agree; the decode/grow/back-mirror logic is consistent.
+- RackSolid travel math (HeldWeapon.cs:1395-1400) matches ApplyPartOverrides/MovePart (HeldWeapon.cs:1652-1659, :1730-1739) when racking.
+- PalmOnPart (ReloadInteractions.cs:1632-1659) vs palm_on_part (grip_check.py:685-703) match in logic; only the solid differs (#5).

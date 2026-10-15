@@ -1,0 +1,33 @@
+AREA: seating-keepout
+FINDINGS: 3
+(Line numbers are for HEAD 2fa9a96. The commit landed during this run and shifted lines in ReloadInteractions.cs and HandModel.cs; the numbers below are the current ones.)
+
+#1 [major] [confidence high] Grabbing a seated magazine re-seats it on the grab frame, so pulling it out by hand never works
+   where: src/Weapons/ReloadInteractions.cs:507 (RailHandOffset set), :1047 (along -= RailHandOffset), :1060-1062 (seat test); entry :170, :185, :315-316
+   trigger: A detachable magazine is inserted. The off-hand grab is pressed within GrabRadius*1.1 (about 0.099 m) of SeatedMagBaseWorld, and the palm is not more than about 7 cm off the well axis (tip lateral < 0.07).
+   effect: PullSeatedMagazine sets RailHandOffset = along_grab - RailLength. On that same frame UpdateHeldProp computes along = along_now - RailHandOffset = RailLength exactly, so RailDepth = RailLength and the 0.96 test at :1060 seats it immediately: Ammo.InsertMagazine, a MagIn sound, a +0.14 gun nudge, and prop.Destroy(). The hand is left empty. The seated magazine only leaves the gun when the grab lands more than about 7 cm off the axis (:1048-1052 drops it off-rail, which is a different symptom). The comment at :504-506 says this offset fixes the bug, but on the grab frame the subtraction cancels exactly, so it does not. SelfCheck (ReloadInteractions.cs around :1813-1818) yields one frame and then reports "magazine: seated" in either case, so the self-test cannot see this.
+   evidence: TryGrab :170 -> case 6 :315-316 -> PullSeatedMagazine :495-508 (Attach at :500 sets Role=Magazine; OnRail=true :501; RailDepth=L :502; RailHandOffset :507) -> TryGrab returns to the same Update, and the switch at :172-185 calls UpdateHeldProp(off) :973 in the same frame -> TryMagKick returns false (MagInserted is false, set by AmmoState.EjectMagazine AmmoState.cs:211-222) -> AcceptsNow :994 is true (WeaponKey matches, MagazineProp.cs:230) -> :1047 along = L -> :1054 RailDepth = L -> :1060 SeatProp.
+   fix idea: Do not run the seat test for a prop that PullSeatedMagazine started until the hand has drawn it out (for example, a PulledOut flag set when along < RailLength - 0.01 and cleared on seat or drop). Keep the lateral release at :1048 as the only way out on the grab frame, or drop it deliberately. Make the self-check assert the magazine is still held after the frame.
+
+#2 [major] [confidence high] A pistol magazine pulled partway out is drawn back home by the pull-in, whatever the hand does
+   where: src/Weapons/ReloadInteractions.cs:1064-1071 (sets _pullingIn on depth only); :1035-1045 (draws it home ignoring the hand); WellInGrip :1090-1097 (true for IsPistol)
+   trigger: A pistol magazine on the rail with RailDepth in [0.25*L, 0.96*L) while it moves outward. This happens when the hand pulls a seated pistol magazine out by more than about 4% of its rail length, or when the hand withdraws any pistol magazine back past 25%. The condition has no check on direction.
+   effect: On the first outward frame in that band, _pullingIn = prop. From then on :1035-1045 moves RailDepth toward RailLength at 0.9 m/s and calls SeatProp, regardless of where the hand goes. A pistol magazine cannot be pulled out of its well by hand, except through the lateral > 0.07 path at :1048. This is masked today by finding #1 (the magazine is re-seated even earlier). Fixing #1 alone will expose it.
+   evidence: PullSeatedMagazine :495 sets OnRail with RailDepth=L -> UpdateHeldProp :1047-1054 computes RailDepth -> :1064 else-if (Magazine && WellInGrip && RailDepth >= 0.25L) -> :1071 _pullingIn = prop -> next frame :1035 branch returns before the rail logic.
+   fix idea: Set _pullingIn only when the magazine is moving inward (depth increased since LastTick, or the hand's velocity along InsertDirLocal is positive), and never for a magazine the pull started (RailHandOffset != 0 or the PulledOut flag from #1).
+
+#3 [minor] [confidence medium] Glove keep-out is computed from the glove as last rendered, one frame behind the tracked hand
+   where: src/Weapons/ReloadInteractions.cs:1722-1723 (ClearanceAlong call and KeepOut write); src/Rig/HandModel.cs:418-424 (tracked = -_graspOffset - _keepOut, tested against skin from the previous render); HandModel.cs:618 (UpdateSkin at the end of Apply); HandModel.cs:509 (placement uses the current palm)
+   trigger: A magazine is on the rail and the off hand moves along the insert axis, for example a fast push into the well or a fast pull out.
+   effect: Update runs before the render (VRManager.cs:143-145 Rig.Update, then Weapons.Update, then ReloadInteractions.Update -> UpdateGraspAnchor -> KeepOutOfGun). HandModel.Apply runs later in OnBeforeRender (VRManager.cs around :190-207). So ClearanceAlong tests the skin posed from the previous frame's palm, offset back by the previous frame's offsets. The glove is then placed at the current palm minus `back`. The gap between the tested and placed positions is the palm's per-frame travel. At insertion speeds (about 0.5-1 m/s) that is roughly 5-10 mm, which is more than the 5 mm search step, so the glove can end up a few millimetres inside the receiver or the gun-hand glove. The effect is an estimate from the code; I did not measure it.
+   fix idea: Compute the clearance inside HandModel.Apply after the pose is set, against the current skin, or shift the test by (current target - last target) before calling GloveIn.
+
+Checked and found no bug in this area:
+- All SeatProp call sites (about 15) are gated by AcceptsNow or are inside UpdateHeldProp after its gate. Ammo.InsertMagazine cannot overwrite loaded rounds through them.
+- ReleaseProp :1258-1287 (the _pullingIn seat on release, the rail drop, Stows).
+- EjectMagazine, UpdateEject, FinishEject, and the caught-during-eject path (ReloadInteractions.cs:356-372, :426-457, :291-292).
+- TryMagKick: the strike and push tests, the 0.4 s seated guard, and the call to EjectMagazine. Minor: _kickTicked is not reset on the early-return paths. Haptic only, so not reported.
+- KeepOffGun (MagazineProp.cs:1000-1135) and its writes to Model.KeepOut. It only runs off-rail while KeepOutOfGun only runs on-rail, so the two writers to the same field do not overlap in a frame.
+- ClearanceAlong's fallback to 0 when no 5 mm step up to 12 cm is clear (HandModel.cs:418-424). It is documented in the summary comment and I could not build a concrete trigger from the code.
+- Apply's keep-out lerp (HandModel.cs:481-482) and its one-frame frameCount slack. Only a tiny effect.
+- The hidden-glove stale skin (_skinValid) is already covered by reports\agents\rig.txt #1 and was not re-reported.

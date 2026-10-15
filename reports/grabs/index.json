@@ -1,0 +1,686 @@
+[
+ {
+  "index": 2,
+  "name": "76_EAGLE",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\002-76_EAGLE.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 3,
+  "name": "AA-AA",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\003-AA-AA.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 6,
+  "name": "AUTOMATICO",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\006-AUTOMATICO.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 7,
+  "name": "AUTOMATICO_AKIMBO",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\007-AUTOMATICO_AKIMBO.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 8,
+  "name": "BUNDLE_O_BUSS",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\008-BUNDLE_O_BUSS.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 12,
+  "name": "GREASER",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\012-GREASER.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 15,
+  "name": "INGRESS_700",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\015-INGRESS_700.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 16,
+  "name": "JOLT-20-S",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\016-JOLT-20-S.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 17,
+  "name": "M1_GARRET",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\017-M1_GARRET.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 19,
+  "name": "PATRIOT",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\019-PATRIOT.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 20,
+  "name": "PATRIOT_GL",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\020-PATRIOT_GL.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 21,
+  "name": "PATRIOT_TAC",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\021-PATRIOT_TAC.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 22,
+  "name": "QUICKSILVER",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\022-QUICKSILVER.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 23,
+  "name": "RECON_LRR",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\023-RECON_LRR.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 24,
+  "name": "RIPCORD",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\024-RIPCORD.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 25,
+  "name": "RK-44",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\025-RK-44.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 28,
+  "name": "SIGNAL_DMR",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\028-SIGNAL_DMR.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 29,
+  "name": "S-IND7",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\029-S-IND7.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 30,
+  "name": "S-IND7_SUP_",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\030-S-IND7_SUP_.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 32,
+  "name": "SL-DEFENDER",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\032-SL-DEFENDER.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 36,
+  "name": "SUPERNOVA",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\036-SUPERNOVA.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 39,
+  "name": "M1014",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\039-M1014.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 40,
+  "name": "M1014_Tactical",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\040-M1014_Tactical.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 41,
+  "name": "R870_BUCKSHOT_",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\041-R870_BUCKSHOT_.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 42,
+  "name": "R870_SLUG_",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\042-R870_SLUG_.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 43,
+  "name": "R870_CQC",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\043-R870_CQC.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right"
+  ]
+ },
+ {
+  "index": 48,
+  "name": "asval",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\048-asval.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 49,
+  "name": "asval_o",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\049-asval_o.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 54,
+  "name": "AK-24",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\054-AK-24.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 55,
+  "name": "AK-24_OKP-7",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\055-AK-24_OKP-7.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 56,
+  "name": "light_mk18_acog",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\056-light_mk18_acog.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 57,
+  "name": "light_mk18_EXPS3",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\057-light_mk18_EXPS3.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 58,
+  "name": "P320",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\058-P320.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 59,
+  "name": "P320s",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\059-P320s.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up",
+   "mag-6-half-in",
+   "mag-7-seated-again"
+  ]
+ },
+ {
+  "index": 60,
+  "name": "GLOCK_43X",
+  "sheet": "C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/reports/grabs/sheets\\060-GLOCK_43X.jpg",
+  "tiles": [
+   "weapon",
+   "rack-grip",
+   "rack-grip@left",
+   "rack-grip@right",
+   "rack-grip-pulled",
+   "rack-grip-pulled@left",
+   "rack-grip-pulled@right",
+   "mag-1-seated",
+   "mag-2-leaving",
+   "mag-3-out",
+   "mag-4-in-hand",
+   "mag-5-lined-up"
+  ]
+ }
+]

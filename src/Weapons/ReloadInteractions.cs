@@ -133,7 +133,7 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.05f, 110f, 0.8f);
                     dom.Haptic(0.04f, 110f, 0.5f);
                 }
-                if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked)
+                if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked && !_racking)
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
                     // The thumb on the slide or bolt release: the gun hand's on a pistol, the support hand's on the gun otherwise.
@@ -176,7 +176,11 @@ namespace RavenfieldVR.Weapons
                     // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
                     // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
                     // a clear knock. At 35 cm it slipped off in a hard pull.
-                    float stretch = Vector3.Distance(off.Palm.position, GripRig.ToWorld(GripData.SupportPoint));
+                    // Measured from where on the handguard the hand is (a long handguard taken far from its support point
+                    // let go on the frame it was taken).
+                    float stretch = GripData.IsPistol
+                        ? Vector3.Distance(off.Palm.position, GripRig.ToWorld(GripData.SupportPoint))
+                        : Vector3.Distance(off.Palm.position, HandguardPoint(off.Palm.position));
                     if (!off.GrabHeld || stretch > SupportLetGo)
                     {
                         if (off.GrabHeld)
@@ -521,6 +525,8 @@ namespace RavenfieldVR.Weapons
             // here. Taken from the palm's depth, a grip a little up the magazine read as pushed home and seated it again
             // on the same frame: pulling a magazine out by hand did nothing.
             prop.RailHandOffset = HandAlongRail(off, prop, out _) - prop.RailLength;
+            prop.FromSeat = true;
+            prop.PrevDepth = prop.RailDepth;
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _held.Nudge(-SeatPose.TransformDirection(prop.InsertDirLocal) * 0.08f); // the latch gives with a tug
@@ -1025,6 +1031,7 @@ namespace RavenfieldVR.Weapons
             if (!prop.OnRail)
             {
                 prop.RailHandOffset = 0f;
+                prop.FromSeat = false;
                 float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
                 // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
                 // it is taken a little more loosely there.
@@ -1065,20 +1072,31 @@ namespace RavenfieldVR.Weapons
             {
                 prop.OnRail = false;
                 prop.RailHandOffset = 0f;
+                prop.FromSeat = false;
                 return;
             }
+            prop.PrevDepth = prop.RailDepth;
             prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
+            if (prop.FromSeat && prop.RailDepth < prop.RailLength - 0.015f)
+            {
+                prop.FromSeat = false; // out a little: pushed back now, it seats again
+            }
+            bool goingIn = prop.RailDepth > prop.PrevDepth + 1e-4f;
             if (Mathf.Abs(prop.RailDepth - prop.LastTick) > 0.01f)
             {
                 prop.LastTick = prop.RailDepth;
                 off.Haptic(0.006f, 200f, 0.15f);
             }
+            if (prop.FromSeat)
+            {
+                return; // just pulled out of its seat: neither seated again nor drawn home until it comes out a little
+            }
             if (prop.RailDepth >= prop.RailLength * 0.96f)
             {
                 SeatProp(off, prop);
             }
-            else if (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f
-                     || prop.Kind == PropKind.Rocket && prop.RailDepth >= prop.RailLength * 0.15f)
+            else if (goingIn && (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f
+                     || prop.Kind == PropKind.Rocket && prop.RailDepth >= prop.RailLength * 0.15f))
             {
                 // (A rocket started into the tube slides home the same way: pushing it the whole way in front of a
                 // shouldered launcher was out of reach.)
@@ -1599,7 +1617,12 @@ namespace RavenfieldVR.Weapons
                 }
                 else
                 {
-                    _palmed.PalmedPose(off, off.Held as MagazineProp).ApplyTo(_palmed.Go.transform);
+                    RigidPose palmedPose = _palmed.PalmedPose(off, off.Held as MagazineProp);
+                    if (off.Held is MagazineProp first)
+                    {
+                        palmedPose = new RigidPose(palmedPose.position + first.KeptOut, palmedPose.rotation); // with the first one, out of the gun
+                    }
+                    palmedPose.ApplyTo(_palmed.Go.transform);
                 }
             }
             if (off.Held is MagazineProp held)
@@ -1896,6 +1919,9 @@ namespace RavenfieldVR.Weapons
                 {
                     PullSeatedMagazine(off);
                     yield return null;
+                    yield return null;
+                    // Taken out of its seat by hand, it stays in the hand (it went straight back in on the grab frame).
+                    report(!Ammo.MagInserted && off.Held is MagazineProp ? "pulled out by hand: stays in the hand" : "pulled out by hand: NOT KEPT IN THE HAND (seated again at once)");
                     if (off.Held is MagazineProp pulled && AcceptsNow(pulled))
                     {
                         SeatProp(off, pulled);

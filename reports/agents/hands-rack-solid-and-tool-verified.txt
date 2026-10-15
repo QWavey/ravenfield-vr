@@ -1,0 +1,43 @@
+SUMMARY: CONFIRMED 6, REFUTED 0, UNSURE 0
+
+Note on line numbers: the working tree has uncommitted inertia/weight edits in src/Weapons/HeldWeapon.cs (about 113 lines inserted above the rack code, rack logic unchanged) and CRLF-only edits in src/Rig/HandModel.cs. Line numbers below are current working-tree numbers unless marked "committed".
+
+#1 Racking a handle the mod draws has no solid, so the hand closes on nothing [major]
+VERDICT: CONFIRMED (mechanism holds; several cited line numbers are wrong)
+- Trigger is reachable. ReloadInteractions.cs:1365 HandleStroke needs HandlePath, so for an AR with a carved handle and no SlidePath (WeaponAnalyzer.cs:693-698) WorkedPart becomes Bolt (ReloadInteractions.cs:1631). The rack grab (TryGrab, ReloadInteractions.cs:236-245 and 322-324) depends only on Manual reload mode and UsesChamber, not on Rig.Slide, so the player can grab and rack it.
+- WorkedPart (HeldWeapon.cs:1451) is Rig.Slide, which is null when SlidePath is null (WeaponRig.cs:255, Resolve returns null for a null path at :327). PartSolid returns null (HeldWeapon.cs:1460-1462), RackSolid returns null (:1501-1503), and the SnapHands Slide branch leaves off.Model.Solid null (:1589-1600). The cut piece and knob are named "RavenfieldVR ..." and are excluded by AddedByMod in both VisibleRenderers (GunCollider.cs:577) and PartSolid, so nothing solid covers the handle.
+- HandModel.Closing is false (HandModel.cs:715-716). The non-closing branch lerps joints straight to the pose goals with no SolveFinger contact (HandModel.cs:644-650), and the BoltHandle pose is used (HandPoses.cs:141-143). The palm never settles and PalmOnPart is not reached (ReloadInteractions.cs:1640-1641 require Solid != null).
+- Citation fixes: the Closing gate is HandModel.cs:715 (674 is UpdateSkin); the pose default branch is HandModel.cs:1161-1172 (1107-1118 is the Weapon role branch); the Bolt assignment is ReloadInteractions.cs:1631 (committed 1573); the PalmOnPart guard is 1640-1641 (committed 1580-1583).
+- Trigger: an AR-pattern rifle with CarveHandle and no SlidePath, or a bolt-less gun given the added knob (HeldWeapon.cs:204-208, committed 197-201, when there is no slide path). Effect: the fingers curl to the BoltHandle pose through the drawn handle and the palm does not settle. With a SlidePath present, the hand instead closes on the hidden carrier (WorkedPart = Rig.Slide), and the cut piece is still never a solid.
+- Fix idea: give the racked part a real volume (measure the BoltPiece's own pieces or the knob mesh as the part, with its rest pose), or let the Slide-role solid include the handle when HandlePath is null, and keep it out of the rest-carve subtraction.
+
+#2 SnapRackPoint moves RackPointGun by 3 to 10 mm without rebuilding the handle [minor]
+VERDICT: CONFIRMED
+- HeldWeapon.cs:1261 returns only if moved < 0.003; :1265 sets RackPointGun unconditionally; :1267 rebuilds the BoltPiece only if moved > 0.01. Between 3 and 10 mm the handle (carved cut or knob) stays at the unsnapped point.
+- The initial BoltPiece.Create (HeldWeapon.cs:204) runs before HandSolid's SnapRackPoint (:1098-1102), so the handle is built at Data.RackPoint and never moved. RackPointGun feeds the grab zone through RackGun (ReloadInteractions.cs:1375, RackZoneDistance :1384-1393), so the hand works up to 1 cm from the drawn handle.
+- Fix idea: use one threshold for both the move and the rebuild, or rebuild whenever moved >= 0.003.
+
+#3 tools/hands/grip_check.py applies the palm push twice in the seating scenario [minor]
+VERDICT: CONFIRMED (one wording correction)
+- hold() already moves the hand by palm_normal * push (grip_check.py:337-338), and seating() moves it again at :813 (hand.pos = hand.pos + hand.palm_normal * push). The C# applies the push once per frame (HandModel.SettlePalm).
+- Correction: seating() prints its own back/hollow lines (:840) and does not call report(), so the "glove moved" text in the finding is wrong. The back and hollow numbers are still skewed by one extra push.
+- Fix idea: delete line 813, or have hold() return the unpushed hand when seating needs it.
+
+#4 The AR rack scenarios model a separate charging handle, but the game's carved AR handle uses the BoltHandle pose and has no part solid [minor]
+VERDICT: CONFIRMED (coverage gap, not a wrong number)
+- grip_check.py:744-745 use the ChargingHandle pose (POSES at :768) with a real part. In the game, HandleStroke is false without HandlePath, so WorkedPart = Bolt and the pose is BoltHandle (ReloadInteractions.cs:1631, HandPoses.cs:143).
+- No scenario covers the carved AR case, so the offline check cannot show the grip the player gets on that gun. This is consistent with #1.
+- Fix idea: add a "carved AR handle" scenario with the BoltHandle pose and gun-only solid, matched to the C# once #1 is fixed.
+
+#5 Offline rack solids do not match HeldWeapon.RackSolid or the palm search it feeds [minor]
+VERDICT: CONFIRMED
+- grip_check.py:755 uses solid = Union(part, gun). It never subtracts the part's rest place from the gun (the carve in RackSolid, HeldWeapon.cs:1513-1516 working tree / 1400-1405 committed) and never adds the gun hand's NearSkin (the third term there).
+- The pistol palm search uses SLIDE only (grip_check.py:713-714), while the game searches RackSolid (ReloadInteractions.cs:1640-1641), which includes the gun. The docstring at :750-751 says the scenarios mirror RackSolid, so their clearance numbers do not validate the subtraction or the gun-hand clearance.
+- Fix idea: model RackSolid as part + (gun minus part rest place) + gun-hand skin in both the rack hold and palm_on_part, and add a scenario where the frame lies under the slide's rest place.
+
+#6 Missing shader makes BoltPiece's knob fallback throw [tiny]
+VERDICT: CONFIRMED (narrow trigger)
+- BoltPiece.cs:268: _fallback ?? (_fallback = new Material(Shader.Find("Standard") ?? Shader.Find("Legacy Shaders/Diffuse")) ...) is not null-guarded. new Material((Shader)null) throws ArgumentNullException.
+- The knob path runs from AddKnob, called by Create (BoltPiece.cs:126), which HeldWeapon wraps in a try/catch (HeldWeapon.cs:204-208, committed 197-201). The catch logs once and leaves _boltPiece null, so the weapon gets no handle.
+- The trigger needs both shaders stripped from the build and no opaque renderer to borrow (the candidate filter at BoltPiece.cs:242-264). That combination is improbable, so the severity is tiny.
+- Fix idea: guard the Shader.Find result, skip the knob when no shader is available, or use the borrowed material only.
