@@ -2060,8 +2060,10 @@ namespace RavenfieldVR.Weapons
             float second = longest == 0 ? Mathf.Max(s.y, s.z) : longest == 1 ? Mathf.Max(s.x, s.z) : Mathf.Max(s.x, s.y);
             Vector3 axisLocal = Vector3.zero;
             axisLocal[longest] = 1f;
+            bool fromVertices = false;
             if (magPart != null && PrincipalAxis(magPart, out Vector3 principal, out float elongation) && elongation >= 1.5f && s[longest] >= 0.05f)
             {
+                fromVertices = true;
                 // The magazine's own long axis from its vertices: a pistol magazine (or a raked one) modelled in place, in a
                 // frame lined up with the gun, has its bounding box upright, and the box's longest side pointed straight
                 // down from the bore instead of along the rake. Slid in on that line, it travelled in front of the grip
@@ -2084,6 +2086,14 @@ namespace RavenfieldVR.Weapons
             if (Vector3.Angle(axis, outward) > 60f)
             {
                 return; // lies along the gun rather than hanging off it: trust the animation
+            }
+            if (!fromVertices && animated && Vector3.Angle(axis, d.MagEjectAxis) < 20f)
+            {
+                // Its vertices could not be read, so this is only its bounding box, which stands upright, straight down
+                // from the bore, while a pistol's grip is raked: a dropped magazine slid straight down and its front
+                // poked out through the front of the grip (P320s). The animated pull, close to it, follows the rake.
+                d.Notes += $"magazine axis from the animated pull (its shape unreadable; the box is {Vector3.Angle(axis, d.MagEjectAxis):0}° off it) ";
+                return;
             }
             if (animated && Vector3.Angle(axis, d.MagEjectAxis) > 8f)
             {
