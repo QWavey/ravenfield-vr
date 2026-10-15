@@ -38,6 +38,10 @@ namespace RavenfieldVR.Rig
         private float _direction;    // strength of the directional cue, decays
         private bool _balanceOnly;
         private float _lowHealth;
+        /// <summary>The grey veil that drains the colour from the view at low health (Tasks2 209 G).</summary>
+        private readonly GameObject _veil;
+        private readonly Material _veilMaterial;
+        private float _beatPhase;
 
         public DamageFeedback(Transform head)
         {
@@ -87,7 +91,29 @@ namespace RavenfieldVR.Rig
             _renderer.shadowCastingMode = ShadowCastingMode.Off;
             _renderer.receiveShadows = false;
             _renderer.enabled = false;
+            _go.AddComponent<DamageEyeTint>().Renderer = _renderer;
+
+            // A grey veil over the whole view, under the ring: mixed toward grey, the world loses its colour.
+            _veil = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            _veil.name = "Low Health Veil";
+            Object.Destroy(_veil.GetComponent<Collider>());
+            _veil.layer = 5;
+            _veil.transform.SetParent(head, false);
+            _veil.transform.localPosition = new Vector3(0f, 0f, Distance + 0.01f);
+            _veil.transform.localScale = new Vector3(2.4f, 2.4f, 1f) * Distance;
+            _veilMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 4000, color = new Color(0.32f, 0.32f, 0.33f, 0f) };
+            var vr = _veil.GetComponent<MeshRenderer>();
+            vr.sharedMaterial = _veilMaterial;
+            vr.shadowCastingMode = ShadowCastingMode.Off;
+            vr.receiveShadows = false;
+            _veil.SetActive(false);
         }
+
+        /// <summary>Autotest: the share of health to show (-1: the player's own).</summary>
+        internal static float TestHealthShare = -1f;
+
+        /// <summary>The side of the last hit, for the eyes: -1 left, +1 right, 0 straight ahead or behind.</summary>
+        internal float HitSide => _direction > 0.01f ? -Mathf.Sin(_hitAngle * Mathf.Deg2Rad) * Mathf.Clamp01(_direction) : 0f;
 
         /// <summary>The game's damage vignette: how hard (0..1, more the lower your health) and for how long.</summary>
         public void OnVignette(float intensity, float duration)
@@ -104,6 +130,13 @@ namespace RavenfieldVR.Rig
             _hitAngle = angle;
             _direction = 1f;
             _balanceOnly = balanceOnly;
+            // A short buzz in the hand on the side it came from (angle 90 = from the left).
+            float side = -Mathf.Sin(angle * Mathf.Deg2Rad);
+            VRRig rig = VRRig.Instance;
+            if (rig != null && !balanceOnly && Mathf.Abs(side) > 0.3f)
+            {
+                rig.Hand(side > 0f ? Input.Hand.Right : Input.Hand.Left).Haptic(0.07f, 70f, Mathf.Clamp01(0.4f + Mathf.Abs(side) * 0.5f));
+            }
             if (!balanceOnly && _flash < 0.35f)
             {
                 OnVignette(0.35f, 2f); // a hit the game did not vignette (in a vehicle) still flashes a little
@@ -133,11 +166,29 @@ namespace RavenfieldVR.Rig
             float age = now - _flashStart;
             // Snaps in within a few hundredths of a second, fades over the duration.
             _flash = age < 0.05f ? Mathf.Lerp(_flashFrom, _flashPeak, age / 0.05f) : _flashPeak * Mathf.Clamp01(1f - (age - 0.05f) / _flashDuration);
-            _direction = Mathf.MoveTowards(_direction, 0f, Time.unscaledDeltaTime / 1.5f);
+            _direction = Mathf.MoveTowards(_direction, 0f, Time.unscaledDeltaTime / 0.5f); // the side's glow: half a second
 
             Actor actor = Util.GameContext.PlayerActor;
             float healthShare = actor != null && !actor.dead && actor.maxHealth > 0f ? actor.health / actor.maxHealth : 1f;
+            if (TestHealthShare >= 0f)
+            {
+                healthShare = TestHealthShare;
+            }
             _lowHealth = Mathf.MoveTowards(_lowHealth, Mathf.Clamp01((0.5f - healthShare) * 2f) * 0.45f, Time.unscaledDeltaTime);
+            // The heartbeat: a double beat, faster the lower the health (70 to 110 a minute).
+            float lowness = Mathf.Clamp01(_lowHealth / 0.45f);
+            _beatPhase = (_beatPhase + Time.unscaledDeltaTime * Mathf.Lerp(70f, 110f, lowness) / 60f) % 1f;
+            float beat = Mathf.Exp(-Mathf.Pow((_beatPhase - 0.08f) / 0.05f, 2f)) + 0.6f * Mathf.Exp(-Mathf.Pow((_beatPhase - 0.3f) / 0.05f, 2f));
+            float pulse = _lowHealth * (0.55f + 0.45f * beat);
+            bool veil = lowness > 0.01f && actor != null && !actor.dead;
+            if (_veil.activeSelf != veil)
+            {
+                _veil.SetActive(veil);
+            }
+            if (veil)
+            {
+                _veilMaterial.color = new Color(0.32f, 0.32f, 0.33f, 0.3f * lowness * (0.9f + 0.1f * beat));
+            }
 
             bool visible = (_flash > 0.01f || _direction > 0.01f || _lowHealth > 0.01f) && actor != null && !actor.dead;
             if (_renderer.enabled != visible)
@@ -152,7 +203,7 @@ namespace RavenfieldVR.Rig
             for (int v = 0; v < _colors.Length; v++)
             {
                 float toward = Mathf.Max(0f, Mathf.Cos((_vertexAngle[v] - _hitAngle) * Mathf.Deg2Rad));
-                float a = _vertexRing[v] * Mathf.Clamp01(_flash * 0.75f + _lowHealth + _direction * toward * toward * 0.85f);
+                float a = _vertexRing[v] * Mathf.Clamp01(_flash * 0.75f + pulse + _direction * toward * toward * 0.85f);
                 _colors[v] = new Color(tint.r, tint.g, tint.b, a);
             }
             _mesh.colors32 = _colors;
@@ -164,10 +215,36 @@ namespace RavenfieldVR.Rig
             {
                 Object.Destroy(_go);
             }
+            if (_veil != null)
+            {
+                Object.Destroy(_veil);
+            }
             if (Instance == this)
             {
                 Instance = null;
             }
+        }
+    }
+
+    /// <summary>The damage ring drawn a little stronger in the eye on the side the hit came from (and weaker in the other).</summary>
+    internal sealed class DamageEyeTint : MonoBehaviour
+    {
+        public MeshRenderer Renderer;
+        private MaterialPropertyBlock _block;
+
+        private void OnWillRenderObject()
+        {
+            DamageFeedback d = DamageFeedback.Instance;
+            Camera cam = Camera.current;
+            if (d == null || Renderer == null || cam == null)
+            {
+                return;
+            }
+            float eye = cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? -1f : cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right ? 1f : 0f;
+            float k = 1f + 0.25f * d.HitSide * eye; // the nearer eye up to a quarter more, the other a quarter less
+            _block = _block ?? new MaterialPropertyBlock();
+            _block.SetColor("_Color", new Color(1f, 1f, 1f, Mathf.Clamp(k, 0.5f, 1.5f)));
+            Renderer.SetPropertyBlock(_block);
         }
     }
 

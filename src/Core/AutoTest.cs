@@ -333,6 +333,21 @@ namespace RavenfieldVR.Core
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("damage-from-front-left");
                 yield return new WaitForSecondsRealtime(2.5f); // the ring fades
+                // Low health: the red edge pulsing with the heartbeat and the colour drained (all gone when healed).
+                Rig.DamageFeedback.TestHealthShare = 0.12f;
+                try
+                {
+                    yield return new WaitForSecondsRealtime(1.2f);
+                    yield return new WaitForEndOfFrame();
+                    Shots.Capture("low-health");
+                }
+                finally
+                {
+                    Rig.DamageFeedback.TestHealthShare = -1f;
+                }
+                yield return new WaitForSecondsRealtime(1.2f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("low-health-healed");
             }
             Rig.MudSplash mud = Rig.MudSplash.Instance;
             if (mud != null)
