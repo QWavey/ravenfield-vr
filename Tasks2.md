@@ -194,3 +194,28 @@ For 212. Added 2026-10-15 by the user: normally there is no muzzle flash. Whethe
 - weapons where the game shows a flash but the mod finds none (or the reverse) are listed and fixed one by one.
 
 Done when: the list covers every weapon, a weapon without a flash never puts one on the lens, and the user checks a few in the headset (a suppressed rifle, a pistol, a machine gun, a mod weapon).
+
+How 209 A-C should be built at home (from the simulation; animations in `assets/suggestions/screen-effects/simulation/all_guns.gif` and `.webp`):
+- Hook each shot: the existing `Weapon.Shoot` postfix (`WeaponSystem.OnPlayerShot`). Only when the weapon's own muzzle flash plays (task 212).
+- Strength per eye = flash size x facing x distance x side, capped at 1.6:
+  - size: suppressed 0.15, pistol 1.0, rifle 1.7, MG 2.0, shotgun 2.6 (later from the weapon's real flash);
+  - facing = 0.5 + 0.5 x how much the barrel points at the eye;
+  - distance = 0.75 m / muzzle distance, clamped 0.5-2.5;
+  - side: the eye further from the muzzle sideways gets up to half.
+- Drawn additive at the muzzle (a little ahead, plume), on the shot's frame. It fades x0.5 a frame (16 ms) and is gone after 60 ms. Random each shot: size +-15%, position +-0.8 degrees, starburst angle.
+- Look (sizes in degrees of view, p = strength):
+  - white core 0.9+1.2p;
+  - ragged orange body 2.8+5.2p;
+  - ember glow 5.5+9p;
+  - 6 short faint rays;
+  - 4 soft ghost discs on the line through the view centre;
+  - a thin halo of 19+10p degrees;
+  - a light orange wash from the gun's side;
+  - never above 94% white.
+- Head-locked parts (ghosts, halo, wash): like `MudSplash` (a mesh 25 cm in front of the camera), but additive. Find an additive shader (`Legacy Shaders/Particles/Additive`, or the game's own muzzle-flash particle shader).
+- Flash limiter (seizure safety, on by default):
+  - at most 6 brightness steps in any 1.1 s;
+  - a flash costs 2 steps, a very bright one 3;
+  - after that, a soft flash (strength about 0.22-0.34, lower the more glow) and a steady glow during sustained fire.
+- Settings: on/off, strength, reduce flashing.
+- Done when: autotest pictures show it, and in the headset there are no more than 3 visible flashes a second on full auto.
