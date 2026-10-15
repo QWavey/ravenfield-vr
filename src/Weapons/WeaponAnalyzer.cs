@@ -20,7 +20,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<string, WeaponRigData> Cache = new Dictionary<string, WeaponRigData>();
 
         private static readonly Regex ArmName = new Regex(
-            @"(^|[^a-z])(arm(?!ature|or|our)|forearm|upperarm|hand(?!guard|le|stop)|wrist|finger|thumb|index|middle|ring|pinky|pinkie|little|clavicle|shoulder|elbow|palm|knuckle)",
+            @"(^|[^a-z])(arm(?!ature|or|our)|forearm(?![\s_.-]*(grip|wood|guard))|upperarm|hand(?!guard|le|stop|[\s_.-]*(grip|rest|rail))|wrist|finger|thumb(?![\s_.-]*(hole|rest))|index|middle|ring|pinky|pinkie|little|clavicle|shoulder(?![\s_.-]*(stock|pad|rest))|elbow|palm|knuckle)",
             RegexOptions.IgnoreCase);
         // Mod authors name parts in many languages: English, German, French, Spanish, Russian (Cyrillic and
         // transliterated) and Chinese (characters and pinyin abbreviations such as DX = 弹匣, QJ = 枪机).
@@ -85,7 +85,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex CameraName = new Regex(
             @"camera|(^|[\s_.])cam([\s_.\d]|$)|shake|sway|sight ?bone|aim ?(point|bone|target|helper)|tracker|(^|[\s_.])ik([\s_.]|$)|locator|dummy|helper",
             RegexOptions.IgnoreCase);
-        private static readonly Regex MuzzleName = new Regex(@"muzzle|barrel ?end|flash|firepoint|fire ?point|projectile ?spawn", RegexOptions.IgnoreCase);
+        private static readonly Regex MuzzleName = new Regex(@"muzzle|barrel ?end|flash(?![\s_.-]*(light|lamp))|firepoint|fire ?point|projectile ?spawn", RegexOptions.IgnoreCase);
         private static readonly Regex FingerName = new Regex(@"index|middle|ring|pinky|pinkie|little|finger", RegexOptions.IgnoreCase);
 
         public static string KeyOf(Weapon w, WeaponManager.WeaponEntry entry = null)
@@ -294,12 +294,58 @@ namespace RavenfieldVR.Weapons
                     named.Add(t);
                 }
             }
+            // A gun part with an arm-like name (a shotgun's forearm, a grip called "Grip_Hand"): a mesh of its own, not on
+            // the arms' skeleton, and no arm-named transform above or below it. Taken for an arm, it was hidden in VR, and
+            // the receiver above it stopped being a candidate for the gun's body and its parts.
+            var armListed = new HashSet<Transform>();
+            if (w.arms != null && w.arms.bones != null)
+            {
+                foreach (Transform b in w.arms.bones)
+                {
+                    if (b != null)
+                    {
+                        armListed.Add(b);
+                    }
+                }
+            }
+            var lone = new List<Transform>();
+            foreach (Transform t in named)
+            {
+                if (LoneArmNamedMesh(t, root, named, armListed))
+                {
+                    lone.Add(t);
+                }
+            }
+            foreach (Transform t in lone)
+            {
+                named.Remove(t);
+                d.Warnings.Add($"'{t.name}' has an arm-like name but is a part of the gun (a mesh of its own, not on the arms)");
+            }
+            // An unnamed skeleton (Bone, Bone.001...): a bone the gun's own skinned mesh uses is the gun's, even when the
+            // arms mesh lists it too (all of the gun's bones counted as arm bones and the gun mesh was hidden).
+            var gunSkinned = new HashSet<Transform>();
+            if (named.Count == 0)
+            {
+                foreach (SkinnedMeshRenderer s in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    if (s != w.arms && s.bones != null && !ArmMeshName.IsMatch(s.name))
+                    {
+                        foreach (Transform b in s.bones)
+                        {
+                            if (b != null)
+                            {
+                                gunSkinned.Add(b);
+                            }
+                        }
+                    }
+                }
+            }
             var armBones = new HashSet<Transform>(named);
             if (w.arms != null && w.arms.bones != null)
             {
                 foreach (Transform b in w.arms.bones)
                 {
-                    if (b != null && b != root && !armBones.Contains(b) && OnArmChain(b, root, named, gunChain))
+                    if (b != null && b != root && !armBones.Contains(b) && !gunSkinned.Contains(b) && OnArmChain(b, root, named, gunChain))
                     {
                         armBones.Add(b);
                     }
@@ -322,7 +368,7 @@ namespace RavenfieldVR.Weapons
             // Some mods point it at the visible gun and keep the muzzle on a separate, still branch: then that subtree is
             // the gun, and the gun's reference body (the still branch would make the whole recoiling gun a moving part).
             Transform tpGun = tpCandidate && HoldsTheOnlyGunModel(w, root, tp, armBones) ? tp : null;
-            if (tpCandidate && tpGun == null)
+            if (tpCandidate && tpGun == null && !HoldsShownGunParts(tp, root))
             {
                 foreach (Transform t in tp.GetComponentsInChildren<Transform>(true))
                 {
@@ -394,6 +440,10 @@ namespace RavenfieldVR.Weapons
                 }
                 d.Warnings.Add("no muzzle configured; barrel direction estimated from the mesh");
             }
+            else if (muzzleMethod == "name")
+            {
+                d.Warnings.Add($"no muzzle configured; the muzzle is the part named '{muzzle.name}'");
+            }
             Transform gunBody = muzzle;
             for (Transform t = muzzle; t != null && t != root; t = t.parent)
             {
@@ -445,7 +495,7 @@ namespace RavenfieldVR.Weapons
                 RigidPose muzzleIdle = sampler.Idle(muzzle);
                 if (muzzleMethod == "geometry")
                 {
-                    d.AimAxis = GeometricAxis(root, gunBody, armRelated, sampler, gunIdle);
+                    d.AimAxis = GeometricAxis(root, muzzle, sampler, gunIdle, d.Warnings);
                 }
                 else
                 {
@@ -2770,6 +2820,54 @@ namespace RavenfieldVR.Weapons
         /// copy, so a comparable amount of gun mesh exists outside it. When (almost) all the non-arm mesh lives in that
         /// subtree, it is the gun, even if the mod keeps its muzzle on a separate branch.
         /// </summary>
+        /// <summary>
+        /// Drawn in first person and named like a moving part (slide, bolt, magazine, trigger): the visible gun's own parts.
+        /// A mod pointing thirdPersonTransform at the visible receiver, with the magazine and stock on other branches, had
+        /// the receiver, slide and well taken for a hidden third-person copy: no slide, magazine or hinge found.
+        /// </summary>
+        private static bool HoldsShownGunParts(Transform tp, Transform root)
+        {
+            foreach (Renderer r in tp.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer || !ShownAtRest(r, root))
+                {
+                    continue;
+                }
+                for (Transform t = r.transform; t != null && t != tp.parent; t = t.parent)
+                {
+                    if (SlideName.IsMatch(t.name) || MagName.IsMatch(t.name) || TriggerName.IsMatch(t.name))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>An arm-named transform with a mesh of its own, not on the arms' skeleton, with no arm-named relative.</summary>
+        private static bool LoneArmNamedMesh(Transform t, Transform root, HashSet<Transform> named, HashSet<Transform> armListed)
+        {
+            if (armListed.Contains(t) || t.GetComponent<MeshFilter>() == null || t.GetComponent<MeshRenderer>() == null)
+            {
+                return false;
+            }
+            for (Transform p = t.parent; p != null && p != root; p = p.parent)
+            {
+                if (named.Contains(p))
+                {
+                    return false;
+                }
+            }
+            foreach (Transform c in t.GetComponentsInChildren<Transform>(true))
+            {
+                if (c != t && named.Contains(c))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private static bool HoldsTheOnlyGunModel(Weapon w, Transform root, Transform tp, HashSet<Transform> armBones)
         {
             long inside = 0, outside = 0;
@@ -2972,16 +3070,22 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Barrel direction for meshes without a muzzle: the mesh's longest axis, signed toward the weapon's forward.</summary>
-        private static Vector3 GeometricAxis(Transform root, Transform gunBody, HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle)
+        /// <remarks>
+        /// Measured on the largest mesh (the one the muzzle was put on), not on the gun body: the body is often an empty
+        /// holder, and the weapon's own forward came back unchecked (a barrel off that axis was never reported).
+        /// </remarks>
+        private static Vector3 GeometricAxis(Transform root, Transform host, PoseSampler sampler, RigidPose gunIdle, List<string> warnings)
         {
             Vector3 forwardGun = gunIdle.InverseTransformDirection(sampler.Idle(root).Forward);
-            MeshFilter mf = gunBody.GetComponent<MeshFilter>();
+            MeshFilter mf = host != null ? host.GetComponent<MeshFilter>() : null;
             if (mf == null || mf.sharedMesh == null)
             {
+                warnings.Add("barrel direction: no mesh to measure, the weapon's forward axis is used");
                 return forwardGun.normalized;
             }
-            Vector3 size = Vector3.Scale(mf.sharedMesh.bounds.size, gunBody.lossyScale);
-            Vector3 axis = size.x >= size.y && size.x >= size.z ? Vector3.right : size.y >= size.z ? Vector3.up : Vector3.forward;
+            Vector3 size = Vector3.Scale(mf.sharedMesh.bounds.size, host.lossyScale);
+            Vector3 local = size.x >= size.y && size.x >= size.z ? Vector3.right : size.y >= size.z ? Vector3.up : Vector3.forward;
+            Vector3 axis = gunIdle.InverseTransformDirection(sampler.Idle(host).TransformDirection(local)).normalized;
             return Vector3.Dot(axis, forwardGun) < 0f ? -axis : axis;
         }
 

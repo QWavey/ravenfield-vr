@@ -135,6 +135,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Since when the wrist has been looked at (-1: it is not).</summary>
         private float _wristLookSince = -1f;
 
+        /// <summary>Autotest: the wrist counts as looked at (the null driver's hands cannot turn toward the eyes).</summary>
+        internal static bool TestWristLook;
+
         private static void CloseWristView()
         {
             VRGameInput.WristLooking = false;
@@ -146,7 +149,7 @@ namespace RavenfieldVR.Weapons
         {
             // The free hand's wrist: with the weapon passed to the other hand, that one holds it and its wrist is no watch.
             VRHand off = _rig.Off;
-            if (!off.Tracked)
+            if (!off.Tracked && !TestWristLook)
             {
                 CloseWristView();
                 _wristChangeSince = -1f;
@@ -162,7 +165,7 @@ namespace RavenfieldVR.Weapons
             Vector3 backOfHand = off.Palm.rotation * (off.IsLeft ? Vector3.left : Vector3.right);
             bool facing = dist < (on ? 0.62f : 0.55f) && Vector3.Dot(backOfHand, toHead / Mathf.Max(dist, 1e-3f)) > (on ? 0.45f : 0.6f);
             bool inView = Vector3.Dot(_rig.Head.forward, -toHead.normalized) > (on ? 0.6f : 0.75f);
-            bool want = facing && inView && off.Role == HandRole.Free;
+            bool want = TestWristLook || facing && inView && off.Role == HandRole.Free;
             float now = Time.unscaledTime;
             if (want == on)
             {

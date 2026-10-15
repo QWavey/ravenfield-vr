@@ -85,7 +85,8 @@ namespace RavenfieldVR.Weapons
                 {
                     return MagRounds > 0 && !Open;
                 }
-                return Chambered && !SlideLocked && !BoltOpen && !(HasCover && CoverOpen);
+                // A belt-fed gun shut over no belt does not fire either (the counter already says OPEN COVER).
+                return Chambered && !SlideLocked && !BoltOpen && !(HasCover && (CoverOpen || MagInserted && !BeltLaid));
             }
         }
 
@@ -226,8 +227,10 @@ namespace RavenfieldVR.Weapons
             MagInserted = true;
             MagRounds = Mathf.Clamp(rounds, 0, Capacity);
             ReturnSpare(rounds - MagRounds); // more than this weapon's magazine holds: the rest goes to the reserve
-            // A new box's belt still has to be laid on the feed tray under the cover.
-            BeltLaid = !HasCover;
+            // A new box's belt still has to be laid on the feed tray under the cover. Without belt laying by hand, a box
+            // seated under a cover already shut counts as laid, as shutting the cover over it would (nothing else would
+            // ever lay it: the gun stayed dead, the counter asking to close a closed cover).
+            BeltLaid = !HasCover || !VRConfig.BeltByHand.Value && !CoverOpen;
             Sync();
         }
 
@@ -346,13 +349,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        public void ReturnSpare(int rounds)
-        {
-            if (!InfiniteSpare && rounds > 0)
-            {
-                SpareAmmo += rounds;
-            }
-        }
+        /// <summary>Rounds back into the reserve, never past the game's reserve limit (where resupply stops too).</summary>
+        public void ReturnSpare(int rounds) => ReturnSpareCapped(rounds);
 
         /// <summary>
         /// Rounds coming back from a magazine left lying around, up to the weapon's reserve limit (where the game caps
@@ -364,7 +362,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            int cap = Weapon != null ? Weapon.configuration.spareAmmo : int.MaxValue;
+            int cap = Weapon != null && Weapon.configuration.spareAmmo > 0 ? Weapon.configuration.spareAmmo : int.MaxValue;
             SpareAmmo = Mathf.Max(SpareAmmo, (int)System.Math.Min(cap, (long)SpareAmmo + rounds));
         }
 
@@ -406,11 +404,12 @@ namespace RavenfieldVR.Weapons
             }
             if (HasCover && CoverOpen)
             {
-                return MagInserted && !BeltLaid ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
+                // Without belt laying by hand, shutting the cover lays it: the hint is to shut it.
+                return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
             }
             if (HasCover && MagInserted && !BeltLaid)
             {
-                return VRConfig.BeltByHand.Value ? "OPEN COVER" : "CLOSE COVER";
+                return "OPEN COVER"; // shut over no belt: it has to be opened (and the belt laid, or the cover shut again)
             }
             if (UsesDetachableMag && !MagInserted)
             {

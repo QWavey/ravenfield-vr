@@ -93,7 +93,9 @@ namespace RavenfieldVR.Weapons
                 // Settled onto the part it works the way the VR glove is: eased (it jumped up to 5 cm when racking began
                 // and ended).
                 bool anchored = off.Model != null && off.Model.GraspAnchor.HasValue;
-                Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - at, 0.05f) : Vector3.zero;
+                // The point the glove grips with goes onto the part (the fist hollow, or the pinch on a bolt handle), not the
+                // palm centre: the arm sat 4 cm off what the glove held.
+                Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - off.Model.GraspPointWorld, 0.05f) : Vector3.zero;
                 _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * Mathf.Min(Time.unscaledDeltaTime, 0.05f)));
                 at += _anchorOffset;
                 var free = new RigidPose(at - palmPoint, rot);

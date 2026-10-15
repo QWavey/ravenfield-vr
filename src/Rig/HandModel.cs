@@ -345,6 +345,9 @@ namespace RavenfieldVR.Rig
         /// <summary>True: the anchor is pinched between thumb and index (a bolt handle); false: it runs through the fist.</summary>
         public bool GraspPinch;
 
+        /// <summary>Where the glove grips with this frame (the fist hollow, or the pinch with <see cref="GraspPinch"/>), before settling.</summary>
+        public Vector3 GraspPointWorld { get; private set; }
+
         /// <summary>
         /// Holding a magazine that slides into the well: how far (world) the glove stays back from the tracked hand to keep
         /// out of the gun, so the magazine slides through the fingers instead of taking the hand into the gun with it. Set
@@ -423,10 +426,11 @@ namespace RavenfieldVR.Rig
 
             // Settling onto a held part: a small, smoothed offset, released as soon as the hand lets go.
             Vector3 want = Vector3.zero;
+            Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
+            GraspPointWorld = target.TransformPoint(graspLocal);
             if (GraspAnchor.HasValue)
             {
-                Vector3 local = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
-                want = Vector3.ClampMagnitude(GraspAnchor.Value - target.TransformPoint(local), 0.05f);
+                want = Vector3.ClampMagnitude(GraspAnchor.Value - GraspPointWorld, 0.05f);
             }
             _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
             // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by

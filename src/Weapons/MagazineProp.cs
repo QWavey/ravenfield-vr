@@ -33,6 +33,12 @@ namespace RavenfieldVR.Weapons
         /// if it despawns first they go back to this reserve, so leaving a half-full magazine behind costs nothing.
         /// </summary>
         public AmmoState Owner;
+        /// <summary>
+        /// On the rail after being pulled out of its seat: where the hand was along the rail at the pull minus the
+        /// magazine's depth then, so the magazine moves with the hand's pull from there (0 when it went onto the rail
+        /// from outside).
+        /// </summary>
+        public float RailHandOffset;
         public VRHand HeldBy { get; private set; }
 
         /// <summary>Insertion end (top of a magazine, nose of a shell/rocket) in prop space.</summary>
@@ -382,7 +388,7 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     AddPart(root.transform, r.name, mesh, r.sharedMaterials, inv * (r.transform.position - source.position), inv * r.transform.rotation,
-                        r is SkinnedMeshRenderer ? Vector3.one : r.transform.lossyScale);
+                        r is SkinnedMeshRenderer ? Vector3.one : r.transform.lossyScale, owned: r is SkinnedMeshRenderer);
                     any = true;
                 }
             }
@@ -396,7 +402,7 @@ namespace RavenfieldVR.Weapons
                     if (cut != null)
                     {
                         AddPart(root.transform, smr.name + " (magazine)", cut, smr.sharedMaterials,
-                            inv * (smr.transform.position - source.position), inv * smr.transform.rotation, Vector3.one);
+                            inv * (smr.transform.position - source.position), inv * smr.transform.rotation, Vector3.one, owned: true);
                         any = true;
                     }
                 }
@@ -410,7 +416,8 @@ namespace RavenfieldVR.Weapons
             return root;
         }
 
-        private static void AddPart(Transform root, string name, Mesh mesh, Material[] materials, Vector3 localPos, Quaternion localRot, Vector3 scale)
+        /// <param name="owned">The mesh was made for this copy (baked, cut out): it goes with the copy.</param>
+        private static void AddPart(Transform root, string name, Mesh mesh, Material[] materials, Vector3 localPos, Quaternion localRot, Vector3 scale, bool owned = false)
         {
             var part = new GameObject(name);
             part.transform.SetParent(root, false);
@@ -421,6 +428,10 @@ namespace RavenfieldVR.Weapons
             var mr = part.AddComponent<MeshRenderer>();
             mr.sharedMaterials = Util.MaterialFix.Fix(materials);
             mr.shadowCastingMode = ShadowCastingMode.On;
+            if (owned)
+            {
+                part.AddComponent<OwnedMesh>().Mesh = mesh;
+            }
         }
 
         /// <summary>Triangles whose vertices are driven mostly by the given bones, baked in the renderer's space.</summary>
@@ -1071,6 +1082,12 @@ namespace RavenfieldVR.Weapons
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
+            // The newest drop goes last: the cap on lying props counts from the end, so a magazine picked up and dropped
+            // again counts as new (counted by when it was made, it vanished at the feet the moment it was let go).
+            if (Alive.Remove(this))
+            {
+                Alive.Add(this);
+            }
             PropPhysics.IgnorePlayer(_colliders);
             // Bodies around it from the first physics step on (not from the next clean-up pass): a magazine falling next to
             // a soldier or into a ragdoll is not shoved away.
@@ -1128,9 +1145,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Removed by the clean-up: rounds still inside go back to the reserve they came from.</summary>
         public void Despawn()
         {
-            if (Owner != null && Rounds > 0 && VRConfig.ReturnRoundsOnMagDrop.Value)
+            if (Rounds > 0 && VRConfig.ReturnRoundsOnMagDrop.Value && WeaponSystem.Instance != null)
             {
-                Owner.ReturnSpareCapped(Rounds);
+                WeaponSystem.Instance.ReturnRounds(this, Rounds);
             }
             Rounds = 0;
             Destroy();

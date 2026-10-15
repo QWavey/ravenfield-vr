@@ -461,6 +461,23 @@ namespace RavenfieldVR.Weapons
     /// A case's tink when it lands (twice at most, softer for a slow touch); on earth, grass or sand a dull tap instead (a
     /// bright metal ring on the ground of every map sounded wrong).
     /// </summary>
+    /// <summary>
+    /// A mesh made for one copy (a skinned magazine baked, its triangles cut out of a skinned gun), destroyed with the copy
+    /// however it goes: every reload, pouch display and rejected copy left one behind in memory for the session.
+    /// </summary>
+    internal sealed class OwnedMesh : MonoBehaviour
+    {
+        public Mesh Mesh;
+
+        private void OnDestroy()
+        {
+            if (Mesh != null)
+            {
+                Object.Destroy(Mesh);
+            }
+        }
+    }
+
     internal sealed class CaseSound : MonoBehaviour
     {
         private int _tinks;

@@ -85,7 +85,9 @@ namespace RavenfieldVR.Weapons
             }
             model.name = "RavenfieldVR Holstered " + entry.name;
             Object.DontDestroyOnLoad(model);
-            Vector3 scale = live != null && live.thirdPersonTransform != null ? live.thirdPersonTransform.lossyScale : Vector3.one;
+            // The copy already holds the model at the weapon's own third-person scale: only what its parent adds on top.
+            Transform tpParent = live != null && live.thirdPersonTransform != null ? live.thirdPersonTransform.parent : null;
+            Vector3 scale = tpParent != null ? tpParent.lossyScale : Vector3.one;
             float uniform = Mathf.Clamp((Mathf.Abs(scale.x) + Mathf.Abs(scale.y) + Mathf.Abs(scale.z)) / 3f, 0.5f, 2f);
             model.transform.localScale = Vector3.one * uniform;
             var bounds = new Bounds();

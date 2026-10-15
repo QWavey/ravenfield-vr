@@ -252,6 +252,7 @@ namespace RavenfieldVR.Core
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
+                    yield return WristViewCheck();
                 }
                 PerfProbe.Reset();
                 yield return TestWeapons();
@@ -500,6 +501,93 @@ namespace RavenfieldVR.Core
             ammo.SlideLocked = locked;
             ammo.Chambered = chambered;
             ammo.Sync();
+        }
+
+        /// <summary>
+        /// The wrist view, the wrist held looked at for 3.5 s (a test hook: the null driver's hands cannot turn): the ring
+        /// fills for 2 s, then the scoreboard, the map and the match bar open and stay open without one flicker, and the
+        /// game never counts a menu open meanwhile (the focused scoreboard did: the keys let go, it closed, it opened again,
+        /// every other frame). Let go, all of it closes.
+        /// </summary>
+        private static IEnumerator WristViewCheck()
+        {
+            if (GameContext.Player == null || ScoreboardUi.instance == null || MinimapUi.instance == null)
+            {
+                Results.Add("Wrist view: skipped (no player or no scoreboard)");
+                yield break;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            float start = Time.realtimeSinceStartup;
+            float openedAt = -1f, ringAtOne = -1f;
+            int frames = 0, scoreToggles = 0, mapToggles = 0, menuFrames = 0, scoreClosed = 0, mapClosed = 0;
+            bool lastScore = false, lastMap = false;
+            float barMin = 2f;
+            UI.CanvasManager canvases = VRManager.Instance != null && VRManager.Instance.UI != null ? VRManager.Instance.UI.Canvases : null;
+            BodyZones.TestWristLook = true;
+            try
+            {
+                while (Time.realtimeSinceStartup - start < 3.6f)
+                {
+                    yield return null;
+                    float t = Time.realtimeSinceStartup - start;
+                    if (t > 1f && t < 1.1f)
+                    {
+                        yield return new WaitForEndOfFrame();
+                        Shots.Capture("wrist-view-ring-half");
+                    }
+                    if (ringAtOne < 0f && Input.VRGameInput.WristLookProgress >= 1f)
+                    {
+                        ringAtOne = t;
+                    }
+                    if (openedAt < 0f && Input.VRGameInput.WristLookGesture)
+                    {
+                        openedAt = t;
+                    }
+                    // Measured from 0.3 s after it opened (the map slides in over a few frames).
+                    if (openedAt < 0f || t - openedAt < 0.3f)
+                    {
+                        continue;
+                    }
+                    bool score = ScoreboardUi.instance.canvas.enabled;
+                    bool map = MinimapUi.instance.canvas.enabled;
+                    if (frames > 0)
+                    {
+                        scoreToggles += score != lastScore ? 1 : 0;
+                        mapToggles += map != lastMap ? 1 : 0;
+                    }
+                    lastScore = score;
+                    lastMap = map;
+                    frames++;
+                    scoreClosed += score ? 0 : 1;
+                    mapClosed += map ? 0 : 1;
+                    menuFrames += GameContext.GameMenuOpen ? 1 : 0;
+                    if (canvases != null)
+                    {
+                        barMin = Mathf.Min(barMin, canvases.MatchBarAlpha);
+                    }
+                }
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("wrist-view-open");
+            }
+            finally
+            {
+                BodyZones.TestWristLook = false;
+            }
+            yield return new WaitForSecondsRealtime(0.6f);
+            bool closed = !Input.VRGameInput.WristLookGesture && !ScoreboardUi.instance.canvas.enabled && !MinimapUi.instance.canvas.enabled;
+            float barAfter = canvases != null ? canvases.MatchBarAlpha : -1f;
+            Results.Add($"Wrist view held 3.6 s: ring full at {ringAtOne:0.00} s, opened at {openedAt:0.00} s; over {frames} frames open: scoreboard closed {scoreClosed} / toggled {scoreToggles}, "
+                        + $"map closed {mapClosed} / toggled {mapToggles}, a game menu counted open {menuFrames}, match bar alpha at least {barMin:0.00}; let go: {(closed ? "all closed" : "STILL OPEN")}, match bar {barAfter:0.00}");
+            Metric("wrist view: flicker (scoreboard and map toggles while held)", scoreToggles + mapToggles);
+            Metric("wrist view: seconds before it opens", openedAt);
+            if (openedAt < 1.8f || openedAt > 2.4f || frames == 0 || scoreToggles + mapToggles > 0 || scoreClosed + mapClosed > 0 || menuFrames > 0 || !closed)
+            {
+                Problem($"[wrist view] opened at {openedAt:0.00} s, {frames} frames: scoreboard closed {scoreClosed}/toggled {scoreToggles}, map closed {mapClosed}/toggled {mapToggles}, menu {menuFrames}, closed after {closed}");
+            }
+            if (barMin >= 0f && barMin < 0.9f || barAfter > 0.1f)
+            {
+                Problem($"[match bar] alpha {barMin:0.00} while the wrist view was open, {barAfter:0.00} after (want 1 and 0)");
+            }
         }
 
         private static IEnumerator PauseMenuCheck()

@@ -112,7 +112,11 @@ namespace RavenfieldVR.UI
                     continue;
                 }
                 bool visible = t.Canvas.isActiveAndEnabled && HasVisibleGraphics(t);
-                if (Time.unscaledTime >= t.NextRoleCheck || gameplayChanged)
+                // Worked out while it shows, and again the moment it opens: worked out while hidden (the game closes a
+                // list by switching it off, so it holds nothing clickable), a menu came back as HUD, drawn head-locked
+                // and then put where it stood at its last opening.
+                bool opening = visible && !t.Visible;
+                if (opening || visible && (Time.unscaledTime >= t.NextRoleCheck || gameplayChanged))
                 {
                     t.NextRoleCheck = Time.unscaledTime + 0.5f;
                     t.Collimated = t.Canvas.GetComponentInParent<Vehicle>() != null;
@@ -120,7 +124,7 @@ namespace RavenfieldVR.UI
                     // hold a clickable element; menus only exist while the game shows its cursor (or outside a match).
                     t.Role = gameplay ? CanvasRole.Hud : RoleOutsidePlay(t.Canvas);
                 }
-                if (visible && !t.Visible && t.Role == CanvasRole.Menu)
+                if (opening && t.Role == CanvasRole.Menu)
                 {
                     t.Placed = false; // re-place menus each time they open
                     CollectFlat(t); // its pages kept flat while it is open: something puts them back deep every frame
@@ -362,6 +366,9 @@ namespace RavenfieldVR.UI
 
         private CanvasGroup _matchBar;
         private Canvas _matchBarFor;
+
+        /// <summary>For tests: how visible the match bar is (its canvas group's alpha), -1 when the mod does not fade it.</summary>
+        public float MatchBarAlpha => _matchBar != null ? _matchBar.alpha : -1f;
 
         /// <summary>Menus are canvases with something to click; everything else is HUD.</summary>
         private static readonly List<Selectable> SelectableBuffer = new List<Selectable>();

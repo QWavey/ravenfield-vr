@@ -112,7 +112,10 @@ namespace RavenfieldVR.Input
             {
                 _scoreboardWithMap = !_scoreboardWithMap;
             }
-            Set(KeyBinds.Scoreboard, _scoreboardWithMap && !menu && WristLookGesture && GameContext.InGame);
+            // Held as the peek (the game's own SteamVR binding does the same): the Scoreboard key opens it focused, which frees
+            // the cursor, which counts as a menu here, which let the key go, which closed it: the whole wrist view (map,
+            // scoreboard, match bar, wrist display) came and went every other frame.
+            Set(KeyBinds.PeekScoreboard, _scoreboardWithMap && !menu && WristLookGesture && GameContext.InGame);
             // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
             Set(KeyBinds.Fire, VRInput.GetHeld(DigitalAction.Fire, dom) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
 
@@ -428,7 +431,7 @@ namespace RavenfieldVR.Input
         /// </summary>
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
 
-        /// <summary>Resets toggles when the player respawns or leaves a vehicle.</summary>
+        /// <summary>Resets toggles when the player respawns, gets into or out of a seat, or onto or off a ladder.</summary>
         public static void ResetToggles()
         {
             SprintActive = false;

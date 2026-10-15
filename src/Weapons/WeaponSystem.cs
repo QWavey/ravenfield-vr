@@ -336,6 +336,52 @@ namespace RavenfieldVR.Weapons
             return rig;
         }
 
+        /// <summary>
+        /// The reserve a magazine's rounds go back to: its own weapon while the player still carries it, else a weapon of
+        /// the same kind the player carries. Null when neither: the weapon it came out of was let fall since (the game
+        /// destroys a dropped weapon, and its reserve with it: a magazine kept in the other hand lost its rounds there).
+        /// </summary>
+        public AmmoState LiveOwner(MagazineProp prop)
+        {
+            AmmoState owner = prop.Owner;
+            if (owner != null && owner.Weapon != null && owner.Weapon.UserIsPlayer())
+            {
+                return owner;
+            }
+            Actor actor = GameContext.PlayerActor;
+            if (actor == null || actor.weapons == null)
+            {
+                return null;
+            }
+            foreach (Weapon w in actor.weapons)
+            {
+                if (w != null && w.UserIsPlayer() && RigFor(w).Data.Key == prop.WeaponKey)
+                {
+                    return StateFor(w, create: true);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// A magazine's rounds back into a reserve (up to its limit): <paramref name="into"/> when given, else the live owner,
+        /// else the player's own dropped weapon of that kind (they come back with it).
+        /// </summary>
+        public void ReturnRounds(MagazineProp prop, int rounds, AmmoState into = null)
+        {
+            if (rounds <= 0)
+            {
+                return;
+            }
+            into = into ?? LiveOwner(prop);
+            if (into != null)
+            {
+                into.ReturnSpareCapped(rounds);
+                return;
+            }
+            Drops?.ReturnRoundsToOwnDrop(prop.WeaponKey, rounds);
+        }
+
         public AmmoState StateFor(Weapon weapon, bool create)
         {
             if (weapon == null)

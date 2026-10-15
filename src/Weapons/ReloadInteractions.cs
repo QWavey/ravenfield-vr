@@ -493,6 +493,10 @@ namespace RavenfieldVR.Weapons
             prop.OnRail = true;
             prop.RailDepth = prop.RailLength;
             prop.LastTick = prop.RailDepth;
+            // The hand took it wherever it grabbed (the grab zone is large): the magazine follows the hand's pull from
+            // here. Taken from the palm's depth, a grip a little up the magazine read as pushed home and seated it again
+            // on the same frame: pulling a magazine out by hand did nothing.
+            prop.RailHandOffset = HandAlongRail(off, prop, out _) - prop.RailLength;
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _held.Nudge(-SeatPose.TransformDirection(prop.InsertDirLocal) * 0.08f); // the latch gives with a tug
@@ -861,6 +865,10 @@ namespace RavenfieldVR.Weapons
                 _beltHanging = false;
                 _beltShownLaid = false;
             }
+            else if (!Ammo.CoverOpen)
+            {
+                _beltHanging = false; // shut over it: a belt left hanging from the box no longer shows under the cover
+            }
             else if (Ammo.BeltLaid)
             {
                 _beltHanging = false;
@@ -987,15 +995,12 @@ namespace RavenfieldVR.Weapons
 
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
-            Vector3 entryTip = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
             RigidPose hold = prop.HoldPose(off);
-            Vector3 holdTip = hold.TransformPoint(prop.TipLocal);
-            Vector3 rel = holdTip - entryTip;
-            float along = Vector3.Dot(rel, insert);
-            float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            float along = HandAlongRail(off, prop, out float lateral);
 
             if (!prop.OnRail)
             {
+                prop.RailHandOffset = 0f;
                 float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
                 // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
                 // it is taken a little more loosely there.
@@ -1026,10 +1031,12 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            // On the rail: the hand pushes the prop along the axis only.
+            // On the rail: the hand pushes the prop along the axis only (from where it took it, when pulled out).
+            along -= prop.RailHandOffset;
             if (along < -0.03f || lateral > 0.07f)
             {
                 prop.OnRail = false;
+                prop.RailHandOffset = 0f;
                 return;
             }
             prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
@@ -1052,6 +1059,20 @@ namespace RavenfieldVR.Weapons
                 _pullingIn = prop;
                 off.Haptic(0.012f, 160f, 0.35f);
             }
+        }
+
+        /// <summary>
+        /// How far along the well's rail the held prop's tip is (from the rail's mouth; the rail's length = seated), and how
+        /// far off the rail's line.
+        /// </summary>
+        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral)
+        {
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
+            Vector3 entryTip = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
+            Vector3 rel = prop.HoldPose(off).TransformPoint(prop.TipLocal) - entryTip;
+            lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            return Vector3.Dot(rel, insert);
         }
 
         /// <summary>A magazine that is being drawn the last part of the way into a well inside the grip.</summary>
@@ -1224,8 +1245,7 @@ namespace RavenfieldVR.Weapons
                 _palmed = null;
                 if (Stows(off))
                 {
-                    AmmoState back = palmed.WeaponKey == Data.Key ? Ammo : palmed.Owner;
-                    back?.ReturnSpare(palmed.Rounds);
+                    _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
                     palmed.Rounds = 0;
                     palmed.Destroy();
                 }
@@ -1237,8 +1257,7 @@ namespace RavenfieldVR.Weapons
             if (Stows(off))
             {
                 // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
-                AmmoState into = prop.WeaponKey == Data.Key ? Ammo : prop.Owner;
-                into?.ReturnSpare(prop.Rounds);
+                _sys.ReturnRounds(prop, prop.Rounds, prop.WeaponKey == Data.Key ? Ammo : null);
                 prop.Rounds = 0;
                 prop.Destroy();
                 _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.5f);
@@ -1399,8 +1418,9 @@ namespace RavenfieldVR.Weapons
             }
             if (HandDriven)
             {
-                // Stays where the hand left it; it only closes when pushed forward.
-                Ammo.BoltOpen = _held.SlideOffset > Travel * 0.08f;
+                // Stays where the hand left it; it only closes when pushed forward. The same line as the stroke's own
+                // closing (a tenth of the travel): let go between the two, a chambered pump counted as open and clicked.
+                Ammo.BoltOpen = _held.SlideOffset > Travel * 0.1f;
                 _returning = false;
                 return;
             }

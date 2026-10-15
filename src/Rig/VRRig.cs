@@ -176,12 +176,17 @@ namespace RavenfieldVR.Rig
             if (!HeadTracked)
             {
                 HeadTracked = true;
-                // A view entered before the headset reported its first pose has a meaningless neutral pose.
-                _neutralPending = Mode == RigMode.Anchored || Mode == RigMode.Follow;
+                // A view entered before the headset reported its first pose has a meaningless neutral pose (and on foot a
+                // yaw worked out from an untracked head: the view stayed turned by wherever the headset faced).
+                _neutralPending = true;
             }
         }
 
         private bool _neutralPending;
+
+        /// <summary>The game's camera is lowered by a physical crouch (still, while it eases back up after it).</summary>
+        private bool _crouchLowered;
+        private float _crouchReleasedAt = -1f;
 
         // ---------------------------------------------------------------------------------------------
         // HUD frame: follows the head lazily instead of being glued to it
@@ -394,6 +399,12 @@ namespace RavenfieldVR.Rig
                 h.ForgetMotion();
             }
             bool cut = from != RigMode.None;
+            if (from == RigMode.Anchored || to == RigMode.Anchored)
+            {
+                // Into or out of a seat or onto a ladder: a crouch or prone toggled on foot before it kept the player
+                // down (and the view low) after getting out.
+                VRGameInput.ResetToggles();
+            }
             Mode = to;
             _anchorKey = key;
             Vector3 hl = HeadLocal;
@@ -497,7 +508,13 @@ namespace RavenfieldVR.Rig
                 dLocal.y = 0f;
                 Vector3 d = Quaternion.Euler(0f, Yaw, 0f) * dLocal;
                 float sq = d.sqrMagnitude;
-                // Ignore sub-millimetre jitter and tracking jumps (> 35 cm in one frame).
+                if (sq <= 1e-7f && player.controller != null && player.IsMovementEnabled())
+                {
+                    // Under a third of a millimetre: kept, adding up until it is a step. Dropped every frame, a slow lean
+                    // (under 3 cm a second) never moved the body, and the body was left behind the head.
+                    return;
+                }
+                // Ignore tracking jumps (> 35 cm in one frame).
                 if (sq > 1e-7f && sq < 0.1225f && player.controller != null && player.IsMovementEnabled())
                 {
                     Vector3 before = player.transform.position;
@@ -741,9 +758,27 @@ namespace RavenfieldVR.Rig
                     Quaternion r = Quaternion.Euler(0f, Yaw, 0f);
                     Vector3 origin = anchor - r * new Vector3(hl.x, 0f, hl.z);
                     float compensation = 0f;
-                    if (_physicalCrouch && !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled)
+                    // Also while the game eases its camera back up after the crouch lets go (a fifth of a second): the
+                    // compensation stopping at once dropped the view by the whole crouch depth on standing up.
+                    if (_physicalCrouch)
                     {
-                        compensation = GameStandEyeHeight - player.cameraHeight;
+                        _crouchLowered = true;
+                        _crouchReleasedAt = -1f;
+                    }
+                    else if (_crouchLowered)
+                    {
+                        if (_crouchReleasedAt < 0f)
+                        {
+                            _crouchReleasedAt = Time.unscaledTime;
+                        }
+                        if (player.cameraHeight >= GameStandEyeHeight - 0.01f || Time.unscaledTime - _crouchReleasedAt > 0.6f)
+                        {
+                            _crouchLowered = false;
+                        }
+                    }
+                    if (_crouchLowered && !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled)
+                    {
+                        compensation = Mathf.Max(0f, GameStandEyeHeight - player.cameraHeight);
                     }
                     origin.y = anchor.y - EyeHeight + compensation;
                     Root.SetPositionAndRotation(origin, r);

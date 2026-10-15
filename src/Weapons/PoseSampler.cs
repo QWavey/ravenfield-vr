@@ -712,7 +712,11 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
-                    float from = hadPrevious ? prev : -1e-4f;
+                    // First seen: only what it crossed in this step. A clip already playing when the tracker started (the
+                    // idle after the draw) replayed every event of its earlier loops, and the idle's sounds became shot or
+                    // reload cues.
+                    float stepped = Dt * Mathf.Max(1f, Mathf.Abs(state.speed * state.speedMultiplier));
+                    float from = hadPrevious ? prev : Mathf.Max(-1e-4f, now - stepped);
                     foreach (AnimationEvent e in events)
                     {
                         if (!CueFunctions.Contains(e.functionName))

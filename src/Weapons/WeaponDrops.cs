@@ -23,6 +23,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Rounds loaded (-1 = default) and in reserve (-1 = default) for whoever picks it up.</summary>
         public int Ammo = -1;
         public int Spare = -1;
+        /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
+        public int[] SubAmmo;
+        /// <summary>The key the weapon's rig is analysed under (magazines name it), when known.</summary>
+        public string Key;
         public float DropTime;
         /// <summary>
         /// The player's own weapon, let go of away from the body: the loadout slot it came from (-1 for a bot's weapon). It
@@ -82,11 +86,16 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Transform tp = w.thirdPersonTransform;
+            // The copy holds the model at the game's own offset, turn and scale under the weapon's pivot: the pivot goes
+            // where the soldier's hand holds it. At the model's own pose and scale both counted twice (a half-size weapon
+            // dropped at a quarter size, off to the side).
+            Transform hold = tp.parent != null ? tp.parent : tp;
+            Vector3 holdScale = tp.parent != null ? tp.parent.lossyScale : Vector3.one;
             Vector3 velocity = actor.Velocity() + Vector3.ClampMagnitude(info.impactForce * 0.004f, 3f) + UnityEngine.Random.insideUnitSphere * 0.4f;
             int spare = w.configuration.spareAmmo >= 0
                 ? Mathf.RoundToInt(w.configuration.spareAmmo * VRConfig.DroppedWeaponAmmo.Value)
                 : -1;
-            Spawn(w.weaponEntry, new RigidPose(tp.position, tp.rotation), tp.lossyScale, velocity, Mathf.Max(0, w.ammo), spare);
+            Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare);
         }
 
         // Stripped third-person models, built once per weapon type: copying the whole weapon prefab (scripts,
@@ -641,6 +650,81 @@ namespace RavenfieldVR.Weapons
             body.angularDrag = 0.5f;
         }
 
+        /// <summary>What each under-barrel weapon has loaded (null without any).</summary>
+        private static int[] SubAmmoOf(Weapon w)
+        {
+            if (w == null || w.alternativeWeapons == null || w.alternativeWeapons.Count == 0)
+            {
+                return null;
+            }
+            var ammo = new int[w.alternativeWeapons.Count];
+            for (int i = 0; i < ammo.Length; i++)
+            {
+                Weapon sub = w.alternativeWeapons[i];
+                ammo[i] = sub != null ? Mathf.Max(0, sub.ammo) : -1;
+            }
+            return ammo;
+        }
+
+        /// <summary>
+        /// The rounds a dropped weapon had, back in the weapon made from it: loaded (a chambered round on top of a full
+        /// magazine included: clamped to the magazine, a 30+1 rifle came back 29+1 after every drop), the reserve, and
+        /// what each under-barrel weapon had loaded (a launcher came back with its default grenade).
+        /// </summary>
+        private static void RestoreAmmo(Weapon w, DroppedWeapon d)
+        {
+            if (d.Ammo >= 0 && w.configuration.ammo > 0)
+            {
+                int most = w.configuration.ammo + (VRConfig.ChamberPlusOne.Value ? 1 : 0);
+                w.ammo = Mathf.Clamp(d.Ammo, 0, most);
+            }
+            if (d.Spare >= 0 && w.configuration.spareAmmo >= 0)
+            {
+                w.spareAmmo = d.Spare;
+            }
+            if (d.SubAmmo != null && w.alternativeWeapons != null)
+            {
+                for (int i = 0; i < d.SubAmmo.Length && i < w.alternativeWeapons.Count; i++)
+                {
+                    Weapon sub = w.alternativeWeapons[i];
+                    if (sub != null && d.SubAmmo[i] >= 0 && sub.configuration.ammo > 0)
+                    {
+                        sub.ammo = Mathf.Clamp(d.SubAmmo[i], 0, sub.configuration.ammo + (VRConfig.ChamberPlusOne.Value ? 1 : 0));
+                        sub.OnAmmoChanged();
+                    }
+                }
+            }
+            w.OnAmmoChanged();
+            // Its rig state (chamber, magazine) is taken from the game's count again.
+            WeaponSystem.Instance?.StateFor(w, create: false)?.AdoptWeaponAmmo();
+        }
+
+        /// <summary>
+        /// Rounds of a magazine whose weapon was let fall: into that drop's reserve (they come back with it). The player's
+        /// own drop of that kind, the newest first.
+        /// </summary>
+        public void ReturnRoundsToOwnDrop(string key, int rounds)
+        {
+            for (int i = _drops.Count - 1; i >= 0; i--)
+            {
+                DroppedWeapon d = _drops[i];
+                if (d.OwnerSlot < 0 || d.Entry == null || d.Spare < 0)
+                {
+                    continue;
+                }
+                bool same = d.Key != null ? d.Key == key : key != null && key.StartsWith(d.Entry.name + "#", System.StringComparison.Ordinal);
+                if (!same)
+                {
+                    continue;
+                }
+                int cap = d.Entry.prefab != null && d.Entry.prefab.GetComponent<Weapon>() is Weapon proto && proto.configuration.spareAmmo > 0
+                    ? proto.configuration.spareAmmo
+                    : int.MaxValue;
+                d.Spare = Mathf.Max(d.Spare, (int)System.Math.Min(cap, (long)d.Spare + rounds));
+                return;
+            }
+        }
+
         private DroppedWeapon Nearest(Vector3 palm)
         {
             DroppedWeapon best = null;
@@ -672,28 +756,28 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             int slot = drop.OwnerSlot >= 0 && drop.OwnerSlot < actor.weapons.Length ? drop.OwnerSlot : SlotFor(drop.Entry, actor);
-            // Into the hand that picked it up: taken with the free hand, it went into the other one.
-            _sys.TakeIntoHand(hand);
             Weapon current = actor.weapons[slot];
             if (current != null && current.weaponEntry != null && current.weaponEntry.prefab != null)
             {
-                // Swap: what you had in that slot goes where the picked-up weapon was.
+                // Swap: what you had in that slot goes where the picked-up weapon was. Made first: a weapon without a
+                // model to copy cannot be put down, so nothing is picked up (it was replaced and gone, rounds and all).
                 var pose = new RigidPose(drop.Go.transform.position + Vector3.up * 0.1f, drop.Go.transform.rotation);
-                Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, Mathf.Max(0, current.ammo), Mathf.Max(0, current.spareAmmo));
+                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, Mathf.Max(0, current.ammo), Mathf.Max(0, current.spareAmmo));
+                if (swapped == null)
+                {
+                    hand.Haptic(0.08f, 40f, 0.4f);
+                    return;
+                }
+                swapped.SubAmmo = SubAmmoOf(current);
+                swapped.Key = WeaponAnalyzer.KeyOf(current);
             }
+            // Into the hand that picked it up: taken with the free hand, it went into the other one.
+            _sys.TakeIntoHand(hand);
 
             Weapon equipped = actor.EquipNewWeaponEntry(drop.Entry, slot, true);
             if (equipped != null)
             {
-                if (drop.Ammo >= 0 && equipped.configuration.ammo > 0)
-                {
-                    equipped.ammo = Mathf.Clamp(drop.Ammo, 0, equipped.configuration.ammo);
-                }
-                if (drop.Spare >= 0 && equipped.configuration.spareAmmo >= 0)
-                {
-                    equipped.spareAmmo = drop.Spare;
-                }
-                equipped.OnAmmoChanged();
+                RestoreAmmo(equipped, drop);
             }
             Remove(drop);
             _sys.Sounds.Play(MechSound.Holster, hand.Palm.position, 0.8f);
@@ -854,6 +938,8 @@ namespace RavenfieldVR.Weapons
                 Entry = w.weaponEntry,
                 Ammo = Mathf.Max(0, w.ammo),
                 Spare = Mathf.Max(0, w.spareAmmo),
+                SubAmmo = SubAmmoOf(w),
+                Key = held.Rig.Data.Key,
                 DropTime = Time.time,
                 OwnerSlot = slot,
                 ReturnAt = Time.time + Mathf.Max(1f, VRConfig.WeaponReturnSeconds.Value),
@@ -976,15 +1062,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (w != null)
                 {
-                    if (d.Ammo >= 0 && w.configuration.ammo > 0)
-                    {
-                        w.ammo = Mathf.Clamp(d.Ammo, 0, w.configuration.ammo);
-                    }
-                    if (d.Spare >= 0 && w.configuration.spareAmmo >= 0)
-                    {
-                        w.spareAmmo = d.Spare;
-                    }
-                    w.OnAmmoChanged();
+                    RestoreAmmo(w, d);
                     _sys.Sounds.Play(MechSound.Holster, _sys.Rig.Head.position - Vector3.up * 0.5f, 0.6f);
                 }
                 Remove(d);
