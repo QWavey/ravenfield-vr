@@ -41,19 +41,19 @@ Started 2026-10-15. Tasks.md is left as it is. This file has:
 
 ## New tasks (2026-10-15)
 
-200. [ ] No sound when a magazine knocks against a gun
-201. [ ] Two-handed reload (mag kick): the old magazine comes out of the inside of the gun instead of being knocked out clear to the side
-202. [ ] The trigger finger visibly presses the trigger on each shot
-203. [ ] RPGs shake in the hand without being fired
-204. [ ] Machine guns: weight and delay when picked up and moved (Boneworks)
-205. [ ] A grabbed RPG rocket is invisible, and putting it in does nothing
-206. [ ] Pulling hard away from a grip makes the hand come off it
-207. [ ] The hands have no collision with weapons
-208. [ ] Weight and force like Boneworks: guns stay rigid in one hand and do not swing when the hand moves up or down; one-handed shots should push the muzzle up more
-209. [ ] On-screen effects picked by the user: muzzle flash as a see-through lens flash (A-C), hit from the side (F), low health (G), water drops (I)
+200. [ ] No sound when a magazine knocks against a gun (code done 2026-10-15: knock, scrape and magwell-lip click with haptics, at most four a second)
+201. [ ] Two-handed reload (mag kick): the old magazine comes out of the inside of the gun instead of being knocked out clear to the side (code done 2026-10-15: from the well mouth, set aside, kicked away from the gun hand, spinning)
+202. [ ] The trigger finger visibly presses the trigger on each shot (code done 2026-10-15, part: a visible press on each shot; the close-ups at trigger 0 and 1 still to look at)
+203. [ ] RPGs shake in the hand without being fired (2026-10-15: the autotest now measures it (held still, one and two hands); fix after the measurement)
+204. [ ] Machine guns: weight and delay when picked up and moved (Boneworks) (code done 2026-10-15 with 208: inertia, slower settle, coming up into the hand when picked up)
+205. [ ] A grabbed RPG rocket is invisible, and putting it in does nothing (code done 2026-10-15: a copy that is not drawn or measures wrong falls back to the made rocket)
+206. [ ] Pulling hard away from a grip makes the hand come off it (code done 2026-10-15 as suggested: the support hand stays on, buzzes as it stretches, lets go past 60 cm; racking/cover 35 cm)
+207. [ ] The hands have no collision with weapons (code done 2026-10-15: the empty hand's glove is kept out of the held gun and the gun hand)
+208. [ ] Weight and force like Boneworks: guns stay rigid in one hand and do not swing when the hand moves up or down; one-handed shots should push the muzzle up more (code done 2026-10-15: inertia from the hand's acceleration, muzzle dip, stiffer supported, pistols snappy, slower one-handed recoil recovery; autotest weight check)
+209. [ ] On-screen effects picked by the user: muzzle flash as a see-through lens flash (A-C), hit from the side (F), low health (G), water drops (I) (2026-10-15: muzzle lens flash per gun with the limiter, hit side, low health, water drops in code; to be redone EXACTLY like the approved pictures (user, 2026-10-15))
 210. [ ] More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
-211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash)
-212. [ ] The lens muzzle flash only where the weapon really has a muzzle flash: check every weapon
+211. [ ] A small view shake when shooting, by gun (recoil and muzzle flash) (code done 2026-10-15: ViewShake, low by default; to measure and sign off)
+212. [ ] The lens muzzle flash only where the weapon really has a muzzle flash: check every weapon (code done 2026-10-15: the self-test lists each weapon's flash; the lens flash only when its particles play, light-only weapons small)
 218. [ ] (low priority) M1 Garand (vanilla): make it work like a real Garand
 219. [ ] (low priority, at the end) A fast, smooth montage GIF of every picture and gun the tests took
 220. [x] A picture tool kept for testing: tools/vrshots.py (--weapons, --weapon NAME|ID|mod:TEXT, --ui, --hands, --bench, --autotest, --list)
