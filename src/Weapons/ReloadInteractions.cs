@@ -1956,6 +1956,13 @@ namespace RavenfieldVR.Weapons
                 yield break;
             }
             int side = (int)off.Side;
+            // The launcher's measured shape is what the rocket is kept out of: up to 6 s for it (measured a moment after the
+            // launcher is held at rest), or the side probes below measure nothing.
+            for (float waited = 0f; _held.HandsSolid == null && waited < 6f; waited += Time.unscaledDeltaTime)
+            {
+                yield return null;
+            }
+            bool solidReady = _held.HandsSolid != null;
             RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
             VRInput.SimulatedGrab[side] = true;
             TakeFromPouch(off);
@@ -2154,7 +2161,7 @@ namespace RavenfieldVR.Weapons
             report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, {model}, "
                    + $"lined up {Mathf.Abs(mouthAhead) * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "inside")} the tube's front{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}{atHand}, "
                    + $"{(fromBehind ? "TAKEN FROM THE BACK" : "not taken at the back")}, "
-                   + $"pushed into the launcher's side: {sideInside}/{sideSamples} points of it inside the launcher{(sideInside > 2 ? " (PASSES THROUGH THE LAUNCHER)" : "")}"
+                   + $"pushed into the launcher's side{(solidReady ? "" : " (NO SOLID: the launcher was never measured)")}: {sideInside}/{sideSamples} points of it inside the launcher{(sideInside > 2 ? " (PASSES THROUGH THE LAUNCHER)" : "")}"
                    + $"{(fromSide ? ", TAKEN IN FROM THE SIDE" : ", not taken in from the side")}, "
                    + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, "
                    + $"slid in {(lead > 0.03f ? $"AHEAD OF THE HAND by up to {lead * 100f:0} cm" : $"with the hand (at most {lead * 100f:0.0} cm ahead)")}, "

@@ -636,6 +636,12 @@ namespace RavenfieldVR.Core
             {
                 yield return held.Reload.MagazineDeepCheck(lines.Add, (shot, at, distance) => MagazineSideShot(held, $"{shot}-{index:000}-{name}", at, distance));
             }
+            if (action == ActionType.SingleShot && held.ActiveAmmo != null && !held.ActiveAmmo.UsesDetachableMag)
+            {
+                // Every launcher loaded by hand in the full picture runs too (the check sat only in the runs without
+                // pictures, so the full runs never loaded a rocket by hand).
+                yield return held.Reload.RocketCheck(lines.Add);
+            }
         }
 
         /// <summary>
