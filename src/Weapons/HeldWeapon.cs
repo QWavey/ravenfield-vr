@@ -954,6 +954,48 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: the furthest the gun was moved off the hand (metres) since <see cref="ResetKick"/>.</summary>
         internal float PeakShift { get; private set; }
 
+        private Quaternion _steadyRot;
+        private bool _steadyInit;
+        private float _steadyWeight;
+
+        /// <summary>Self-test: how far (degrees) the steadied aim is behind the hand now.</summary>
+        internal float SteadyLag { get; private set; }
+
+        /// <summary>
+        /// Aiming through a magnifying sight, the hands' small shake is steadied (Tasks 230): at 4x a tremor of a tenth of a
+        /// degree shook the picture by most of a degree. A one-euro style filter on the gun's turn: slow motion (a tremor) is
+        /// smoothed, the more the stronger the zoom; a deliberate swing is followed at once; the gun never trails the hand by
+        /// more than 5 degrees. Eased in and out with the aim; recoil is added after it, not smoothed.
+        /// </summary>
+        private Quaternion SteadyThroughScope(Quaternion gunRot, float dt)
+        {
+            float zoom = Aiming && Weapon != null ? 60f / Mathf.Max(1f, Weapon.GetAimFov()) : 1f;
+            float strength = VRConfig.ScopeSteadying.Value;
+            float want = strength > 0f && zoom > 1.8f ? strength : 0f;
+            _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
+            if (!_steadyInit || _steadyWeight <= 0f)
+            {
+                _steadyRot = gunRot;
+                _steadyInit = true;
+                SteadyLag = 0f;
+                return gunRot;
+            }
+            float behind = Quaternion.Angle(_steadyRot, gunRot);
+            float speed = behind / Mathf.Max(dt, 1e-4f); // degrees a second the hand is turning away from the steadied aim
+            // Cutoff frequency: 1 Hz for a tremor at 4x (lower at higher zoom), up to 8 Hz for a swing.
+            float cutoff = Mathf.Lerp(1.6f, 8f, Mathf.InverseLerp(4f, 60f, speed)) / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f);
+            float alpha = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff * dt);
+            _steadyRot = Quaternion.Slerp(_steadyRot, gunRot, alpha);
+            if (Quaternion.Angle(_steadyRot, gunRot) > 5f)
+            {
+                _steadyRot = Quaternion.RotateTowards(gunRot, _steadyRot, 5f);
+            }
+            float w = _steadyWeight * _steadyWeight * (3f - 2f * _steadyWeight);
+            Quaternion result = Quaternion.Slerp(gunRot, _steadyRot, w);
+            SteadyLag = Quaternion.Angle(result, gunRot);
+            return result;
+        }
+
         private void StepRecoil(float dt)
         {
             // Critically damped springs: snappy kick, quick settle. A long gun in one hand comes back down more slowly (and
@@ -1055,6 +1097,8 @@ namespace RavenfieldVR.Weapons
                 Vector3 pitchAxis = gunRot * Vector3.Cross(d.Up, d.AimAxis).normalized;
                 gunRot = Quaternion.AngleAxis(_lagPitch, pitchAxis) * gunRot;
             }
+
+            gunRot = SteadyThroughScope(gunRot, dt);
 
             // Recoil rotates the gun about its grip and pushes it back along the barrel.
             Quaternion recoil = Quaternion.Euler(_recoilRot.x, _recoilRot.y, 0f);
