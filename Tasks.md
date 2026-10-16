@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-16)
 
-- Done: 145
-- Code done, to check in the headset: 61
-- In progress: 10
+- Done: 146
+- Code done, to check in the headset: 65
+- In progress: 13
 - Still to do: 23
 
 ### Still to do
@@ -48,6 +48,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 215. Performance: the mod is heavy on performance (the user's session ran 45-90 fps at Ultra, render scale 1.4)
 - 226. Per-gun picture review (user: one Haiku agent for every gun, read only): reports/agents/gun-review-2026-10-15/ (a .txt per gun, SUMMARY.txt by kind). ...
 - 228. More GIFs (user, 2026-10-15): the flash film as GIFs per gun
+- 244. Study Boneworks from its files (no launch)
+- 245. Added knob instead of the gun's own handle (27 guns)
+- 246. Rack pictures: the part visibly moving on only 53 of 233 guns
 
 ### Code done, to check in the headset
 
@@ -112,10 +115,14 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 237. The muzzle flash renders through the gun (aimed): hide what the gun covers
 - 238. Guns have almost no noticeable recoil
 - 239. A camera flash when firing, sometimes
+- 240. Pistol magazines held by the base in the fist (user's picture)
+- 241. Pistol magazine seating: the hand turns into a push
+- 242. Palmed two-magazine reloads fade between poses
+- 243. Pistol slide pulled overhand (user's picture)
 
 ### Done
 
-1-124, 127-128, 133, 135-136, 140-141, 143, 147, 154, 156, 158, 166, 171-172, 187, 191, 219-221, 223
+1-124, 127-128, 133, 135-136, 140-141, 143, 147, 154, 156, 158, 166, 171-172, 187, 191, 219-221, 223, 247
 
 ## All tasks
 
@@ -397,6 +404,14 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 237. [ ] The muzzle lens flash renders through the weapon model: aimed, it is drawn over the gun and its sights (the user's screenshot 2026-10-15 night, an aimed machine gun). Make it realistic: the flash's source (core and fireball) in the world in front of the muzzle, so the gun and its sights hide what they cover; the eye's own effects (starburst, haze) weaker when the source is hidden from that eye; the light on the face (the wash) stays (code done 2026-10-16: the flash core is a fireball in the world in front of the muzzle, depth tested, so the gun and its sights hide it; each eye's star, rings and haze scale with how much of the source that eye sees; the wash on the face stays)
 238. [ ] Guns have almost no noticeable recoil (user, Quest 3, 2026-10-15 night): make it felt, by gun (see 137 and 208) (code done 2026-10-16: kick impulse 180 deg/s and 0.9 m/s per unit, softer spring (150; 90 one-handed long guns), two-handed reduction 0.4 (was 0.6), pistols climb more; setting migrated)
 239. [ ] No camera flash when firing: sometimes (not on every shot) the view should flash for a moment when a gun fires (user, 2026-10-15 night) (code done 2026-10-16: a short view flash on 35% of loud shots, within the photosensitivity limiter; setting ShotViewFlash)
+240. [ ] Pistol magazines held like the user's picture (2026-10-16): by the base, in the fist, out between thumb and index (code done 32af006: the index-point hold is gone; every pistol's magazine counts as one)
+241. [ ] Seating a pistol magazine: as it slides up the grip the thumb comes away and the hand turns into a push on the base plate (user's pictures, 2026-10-16; code done 32af006: blended with the depth, 20-75% of the way)
+242. [ ] Two-magazine (palmed) reloads: keep the poses but fade between them instead of switching abruptly (user, 2026-10-16; code done 32af006: pose changes fade over 0.3 s, a tactically ejected magazine eases from the well into the hand)
+243. [ ] Pistol slide pull like the user's picture: overhand, the fingers over the slide's rear on the far side, the palm's heel on the near side (2026-10-16; the in-game grab is a palm grip on the slide when the palm faces it; the rack self-check now holds it that way)
+244. [ ] Study Boneworks (the user's install and its MelonLoader mods; never launch it): how it does hand poses, grips, guns, magazines, physics hands (2026-10-16: decompiled from the files into the scratchpad, six read-only Haiku agents; reports in reports/agents/boneworks-2026-10-16/)
+245. [ ] Racking moves an added knob instead of the gun's own handle on 27 guns (M4A1 x3, mwii M4s, f2000s, AS Vals, AK-24s, MG3s, MRADs, RK-44, SIGNAL DMR, ak12h): their meshes cannot be read, so the handle cannot be cut out (user saw it on the M4A1 ACOG, 2026-10-16). M4A1: fixed (its own handle part is kept). Others: rig dumps queued to find their handle parts
+246. [ ] Rack picture check (24 Haiku agents on the 290-gun run, reports/agents/rack-check-2026-10-16): a part visibly comes back with the hand on 53 of 233 guns, no on 123, unclear 52. Partly the test: the hand was put under the gun when the rack point lay a few mm under the bore, the close-ups centred on the wrist, and the distance measured from the rack point (all fixed); to run and check again
+247. [x] Exceptions in the weapons run: seven sentry kits threw in the game's AimTransform every frame, three RPG-7V variants asked their SoundBank for a missing clip; both guarded (2026-10-16)
 
 ## Notes
 
