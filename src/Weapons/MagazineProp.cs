@@ -51,6 +51,8 @@ namespace RavenfieldVR.Weapons
         /// push only seating it, never pulling one out (it snapped into the push 1.5 cm out of a pistol's grip).
         /// </summary>
         public bool MovingIn;
+        /// <summary>The depth it last turned at (the deepest while it goes in, the shallowest while it comes out).</summary>
+        public float TurnDepth;
         public VRHand HeldBy { get; private set; }
 
         /// <summary>Insertion end (top of a magazine, nose of a shell/rocket) in prop space.</summary>
@@ -244,7 +246,10 @@ namespace RavenfieldVR.Weapons
             _sectionMeasured = true;
             if (GripSections.TryGetValue(_sectionKey, out Vector2 known) && known.x > 0f)
             {
-                return; // from its vertices, or measured on an earlier one
+                // From its vertices, or measured on an earlier one: this one takes it too (one made before that kept its box's
+                // widths for good, and a palmed one never measured: a pistol magazine could be held as a box; bug hunt).
+                ApplySection(known.x, known.y);
+                return;
             }
             Vector3 insert = InsertDirLocal, front = FrontLocal, side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             float length = Vector3.Dot(TipLocal - BaseLocal, insert);
@@ -285,14 +290,52 @@ namespace RavenfieldVR.Weapons
             }
             float frontHalf = (fMax - fMin) * 0.5f + step * 0.5f, sideHalf = (sMax - sMin) * 0.5f + step * 0.5f;
             GripSections[_sectionKey] = new Vector2(frontHalf, sideHalf);
+            ApplySection(frontHalf, sideHalf);
+        }
+
+        private Vector3 _sectionGoal; // front half, side half, cross half
+        private bool _sectionEasing;
+
+        /// <summary>
+        /// Takes the measured thickness where the hand holds it. In the hand it eases there over a tenth of a second: the
+        /// measurement lands a few frames after the grab, and the magazine jumped in the palm (bug hunt 2026-10-16).
+        /// </summary>
+        private void ApplySection(float frontHalf, float sideHalf)
+        {
+            var goal = new Vector3(Mathf.Clamp(frontHalf, 0.006f, 0.1f), Mathf.Clamp(sideHalf, 0.006f, 0.04f), Mathf.Clamp(Mathf.Max(frontHalf, sideHalf), 0.006f, 0.1f));
             bool wasBox = BoxSized, wasPistol = PistolSized;
-            _sideHalf = Mathf.Clamp(sideHalf, 0.006f, 0.04f);
-            _frontHalf = Mathf.Clamp(frontHalf, 0.006f, 0.1f);
-            CrossHalf = Mathf.Clamp(Mathf.Max(frontHalf, sideHalf), 0.006f, 0.1f);
-            if (wasBox != BoxSized || wasPistol != PistolSized)
+            if (HeldBy != null)
             {
-                Log.InfoOnce("magsection:" + WeaponKey, $"Magazine of {WeaponKey}: {SizeText} where the hand holds it (its box said {_boxHalf.x * 200f:0.0} x {_boxHalf.y * 200f:0.0} cm).");
+                _sectionGoal = goal;
+                _sectionEasing = true;
             }
+            else
+            {
+                _frontHalf = goal.x;
+                _sideHalf = goal.y;
+                CrossHalf = goal.z;
+            }
+            bool box = goal.z > 0.055f || goal.y > 0.025f, pistol = goal.z < 0.022f || _pistolGun && goal.z < 0.04f;
+            if (Kind == PropKind.Magazine && (wasBox != box || wasPistol != pistol))
+            {
+                Log.InfoOnce("magsection:" + WeaponKey, $"Magazine of {WeaponKey}: {goal.x * 200f:0.0} x {goal.y * 200f:0.0} cm where the hand holds it, held as "
+                                                        + $"{(box ? "a box" : pistol ? "a pistol magazine" : "a rifle magazine")} (its box said {_boxHalf.x * 200f:0.0} x {_boxHalf.y * 200f:0.0} cm).");
+            }
+        }
+
+        private void EaseSection()
+        {
+            if (!_sectionEasing)
+            {
+                return;
+            }
+            var now = new Vector3(_frontHalf, _sideHalf, CrossHalf);
+            float step = Time.unscaledDeltaTime / 0.1f * Mathf.Max((_sectionGoal - now).magnitude, 1e-4f);
+            now = HeldBy != null ? Vector3.MoveTowards(now, _sectionGoal, Mathf.Max(step, 1e-4f)) : _sectionGoal;
+            _frontHalf = now.x;
+            _sideHalf = now.y;
+            CrossHalf = now.z;
+            _sectionEasing = (now - _sectionGoal).sqrMagnitude > 1e-10f;
         }
 
         /// <summary>
@@ -1209,13 +1252,15 @@ namespace RavenfieldVR.Weapons
 
         private void EnsureVolume()
         {
-            if (_volume != null && !_volume.Failed || _volumeTried && _volume == null || Go == null)
+            if (_volume != null && !_volume.Failed || Go == null)
             {
                 return;
             }
-            if (_volume != null && _volume.Failed && Time.unscaledTime < _volumeRetryAt)
+            if (_volumeTried && Time.unscaledTime < _volumeRetryAt)
             {
-                return; // a read-back that failed: measured again once a second, not every frame
+                // A read-back that failed, or no volume at all (its build threw): measured again once a second, not every
+                // frame, and not never (a null on the first try left the magazine without a hand shape for good; bug hunt).
+                return;
             }
             _volumeRetryAt = Time.unscaledTime + 1f;
             _volumeTried = true;
@@ -1247,13 +1292,14 @@ namespace RavenfieldVR.Weapons
                 if (m.HeldBy == hand && m.Kind == PropKind.Magazine)
                 {
                     m.EnsureVolume(); // the palmed second magazine too: the fingers must not go through it either
+                    m.MeasureSectionFromVolume();
+                    m.EaseSection();
                 }
             }
             if (_volume == null || !_volume.Ready)
             {
                 return; // until it is measured the fingers keep their usual grip instead of closing on nothing
             }
-            MeasureSectionFromVolume();
             int side = (int)hand.Side;
             if (HandSolids[side] == null || !ReferenceEquals(HandSolidOwners[side], hand))
             {
@@ -1495,6 +1541,7 @@ namespace RavenfieldVR.Weapons
         internal Vector3 KeptOut => _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
+        private static readonly Vector3[] SlideAxes = new Vector3[3];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
         private Vector3 _drawnInGun;
         private HeldWeapon _drawnFor;
@@ -1602,7 +1649,10 @@ namespace RavenfieldVR.Weapons
                 {
                     // Met the gun: what is left of the move slides along it, one of the gun's axes at a time.
                     Vector3 upW = gun.Rig.UpWorld, aimW = gun.Rig.AimWorld, rightW = Vector3.Cross(upW, aimW).normalized;
-                    foreach (Vector3 axis in new[] { aimW, upW, rightW })
+                    SlideAxes[0] = aimW;
+                    SlideAxes[1] = upW;
+                    SlideAxes[2] = rightW;
+                    foreach (Vector3 axis in SlideAxes)
                     {
                         Vector3 part = axis * Vector3.Dot(target.position - drawn, axis);
                         if (part.sqrMagnitude > 1e-8f)

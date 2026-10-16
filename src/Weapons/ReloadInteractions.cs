@@ -541,6 +541,7 @@ namespace RavenfieldVR.Weapons
             prop.RailHandOffset = HandAlongRail(off, prop, out _) - prop.RailLength;
             prop.FromSeat = true;
             prop.MovingIn = false;
+            prop.TurnDepth = prop.RailDepth;
             prop.PrevDepth = prop.RailDepth;
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
@@ -1103,6 +1104,8 @@ namespace RavenfieldVR.Weapons
                     prop.OnRail = true;
                     prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
                     prop.LastTick = prop.RailDepth;
+                    prop.MovingIn = false;
+                    prop.TurnDepth = prop.RailDepth;
                     off.Haptic(0.015f, 180f, 0.3f);
                     if (prop.Kind == PropKind.Magazine)
                     {
@@ -1140,13 +1143,16 @@ namespace RavenfieldVR.Weapons
             }
             prop.PrevDepth = prop.RailDepth;
             prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
-            if (prop.RailDepth > prop.PrevDepth + 0.001f)
+            // Which way it is going, with 3 mm of play: a slow push still turns the hand into the push and a slow pull lets
+            // go of it (a millimetre a frame was a speed: slower than 9 cm/s neither ever happened; bug hunt 2026-10-16).
+            if (prop.MovingIn ? prop.RailDepth > prop.TurnDepth : prop.RailDepth < prop.TurnDepth)
             {
-                prop.MovingIn = true;
+                prop.TurnDepth = prop.RailDepth; // still going the same way: the turning point goes with it
             }
-            else if (prop.RailDepth < prop.PrevDepth - 0.001f)
+            else if (Mathf.Abs(prop.RailDepth - prop.TurnDepth) > 0.003f)
             {
-                prop.MovingIn = false;
+                prop.MovingIn = !prop.MovingIn;
+                prop.TurnDepth = prop.RailDepth;
             }
             if (prop.FromSeat && prop.RailDepth < prop.RailLength - 0.015f)
             {

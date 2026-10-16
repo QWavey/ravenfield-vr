@@ -541,6 +541,30 @@ namespace RavenfieldVR.Rig
             return false;
         }
 
+        /// <summary>Where the glove goes for the tracked hand alone (the configured offset from the controller's palm).</summary>
+        private RigidPose TrackedTarget()
+        {
+            Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
+            posOffset.x *= _hand.Mirror;
+            Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
+            return _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
+        }
+
+        /// <summary>
+        /// <see cref="GraspPointWorld"/> as it will be this frame, from the tracked hand now: the arm is solved before the
+        /// glove is placed, and on last frame's point it sat a frame of hand travel off the bolt the glove held (bug hunt).
+        /// </summary>
+        internal Vector3 GraspPointNow()
+        {
+            RigidPose target = TrackedTarget();
+            if (Time.frameCount - FollowFrame <= 1)
+            {
+                target = new RigidPose(target.position + FollowOffset, target.rotation);
+            }
+            Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
+            return target.TransformPoint(graspLocal);
+        }
+
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
         public void Apply()
         {
@@ -558,7 +582,7 @@ namespace RavenfieldVR.Rig
             posOffset.x *= _hand.Mirror;
             Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
             // Always the tracked hand: held objects follow the hand, never the reverse.
-            RigidPose target = _hand.Palm.Multiply(new RigidPose(posOffset, rotOffset));
+            RigidPose target = TrackedTarget();
             // Holding a magazine on the well's line: the palm where it holds that magazine (eased over the magazine's own
             // 80 ms switch onto and off the line).
             bool heldPalm = Time.frameCount - HeldPalmFrame <= 1;
