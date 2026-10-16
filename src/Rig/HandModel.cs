@@ -640,7 +640,11 @@ namespace RavenfieldVR.Rig
             // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
             // the reload while it does; a stale value from a frame that did not set it counts as none).
             bool keepOut = (_hand.Role == HandRole.Magazine || _hand.Role == HandRole.Free) && Time.frameCount - KeepOutFrame <= 1;
-            _keepOut = Vector3.Lerp(_keepOut, keepOut ? KeepOut : Vector3.zero, 1f - Mathf.Exp(-(keepOut ? 30f : 18f) * dt));
+            Vector3 wantOut = keepOut ? KeepOut : Vector3.zero;
+            // Pushed out at once, let back in eased: eased both ways, a fast shove left the glove up to 7 cm inside the gun
+            // for a few frames while the magazine it held stopped on the gun's face (user, 2026-10-16: "hands and mags
+            // glitch through weapons"). Only growing it is immediate, so a keep-out that flickers does not shake the glove.
+            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? wantOut : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
             // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
             // easing in when the grip is taken and back out to the tracked hand when it is let go.
             _snapBlend = Mathf.MoveTowards(_snapBlend, SnapPose.HasValue ? 1f : 0f, dt / 0.08f);

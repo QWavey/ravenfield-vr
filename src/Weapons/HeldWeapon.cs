@@ -672,7 +672,10 @@ namespace RavenfieldVR.Weapons
             _handAcc = Vector3.Lerp(_handAcc, raw, 1f - Mathf.Exp(-12f * dt));
             bool supported = Supported || Shouldered;
             float omega = _inertiaOmega * (supported ? 2.2f : 1f);
-            float zeta = supported ? 0.8f : 0.55f;
+            // A launcher's weight settles without bobbing: at 0.55 the spring overshot and the tube rocked at about 2 Hz with
+            // every small move of the hand (user, 2026-10-16: "rpgs still have alot of shaking").
+            bool launcher = _weaponClass == WeaponClass.Launcher;
+            float zeta = launcher ? (supported ? 1f : 0.9f) : supported ? 0.8f : 0.55f;
             int steps = Mathf.Clamp(Mathf.CeilToInt(dt / 0.006f), 1, 8);
             float h = dt / steps;
             for (int i = 0; i < steps; i++)
@@ -781,6 +784,53 @@ namespace RavenfieldVR.Weapons
             Reload.Update();
             HoldSlideLockPose();
             LeaveEmptyPose();
+            TurnEmittersForward();
+        }
+
+        private Transform[] _emitters;
+        private readonly HashSet<Transform> _emittersTurned = new HashSet<Transform>();
+
+        /// <summary>
+        /// A laser or flashlight that points back past the shooter is turned round to shine along the barrel: the MK18RII's
+        /// light and laser lit up the ground behind the player (user, 2026-10-16), its emitters facing about 180 degrees from
+        /// the bore. Checked every frame before the game's lasers cast their rays (a script may set them again); one tilted
+        /// on purpose (under 120 degrees off) is left alone.
+        /// </summary>
+        private void TurnEmittersForward()
+        {
+            if (_emitters == null)
+            {
+                var found = new List<Transform>();
+                foreach (LaserSight l in Weapon.GetComponentsInChildren<LaserSight>(true))
+                {
+                    found.Add(l.transform);
+                }
+                foreach (Light l in Weapon.GetComponentsInChildren<Light>(true))
+                {
+                    if (l.type == LightType.Spot && !found.Contains(l.transform))
+                    {
+                        found.Add(l.transform);
+                    }
+                }
+                _emitters = found.ToArray();
+            }
+            if (_emitters.Length == 0 || Rig.GunBody == null)
+            {
+                return;
+            }
+            Vector3 aim = Rig.AimWorld;
+            foreach (Transform e in _emitters)
+            {
+                if (e == null || !e.gameObject.activeInHierarchy || Vector3.Angle(e.forward, aim) <= 120f)
+                {
+                    continue;
+                }
+                e.localRotation *= Quaternion.Euler(0f, 180f, 0f);
+                if (_emittersTurned.Add(e))
+                {
+                    Log.Info($"{Weapon.name}: '{e.name}' shone backwards, past the shooter; turned round to shine along the barrel.");
+                }
+            }
         }
 
         /// <summary>The animator's state (layer 0) last seen at rest with a round loaded, and the one it sat in empty.</summary>
@@ -976,7 +1026,7 @@ namespace RavenfieldVR.Weapons
             float strength = VRConfig.RecoilStrength.Value;
             if (Shouldered)
             {
-                strength *= 0.75f; // the shoulder takes part of it
+                strength *= kind == WeaponClass.Launcher ? 0.9f : 0.75f; // the shoulder takes part of it (little of a launcher's)
             }
             if (Supported)
             {
@@ -999,7 +1049,11 @@ namespace RavenfieldVR.Weapons
             PeakShotImpulse = Mathf.Max(PeakShotImpulse, 180f * kick * climbShare * strength);
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
-            _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
+            _system.Rig.Dominant.Haptic(kind == WeaponClass.Launcher ? 0.18f : 0.03f + kick * 0.01f, kind == WeaponClass.Launcher ? 90f : 180f, amp);
+            if (kind == WeaponClass.Launcher && !TwoHanded)
+            {
+                _system.Rig.Off.Haptic(0.12f, 90f, amp * 0.6f); // the whole launcher thumps, whichever hand is on it
+            }
             _system.Rig.ShakeView(kick * (c.loud ? 1f : 0.6f)); // a suppressed gun jolts less (Tasks 211)
             if (TwoHanded)
             {
@@ -1040,13 +1094,19 @@ namespace RavenfieldVR.Weapons
             {
                 case WeaponClass.Pistol: floor = 0.9f; climbShare = 1.8f; break; // flips up in the hand
                 case WeaponClass.MachineGun: floor = 0.7f; climbShare = 0.9f; break;
-                case WeaponClass.Launcher: floor = 1.2f; climbShare = 0.8f; break;
+                // A launcher throws the tube up and back hard (user, 2026-10-16: "actually add more recoil when shot").
+                case WeaponClass.Launcher: floor = 2.6f; climbShare = 1f; break;
                 default:
                     floor = shotgun ? 1.6f : boltRifle ? 1.5f : 0.7f;
                     climbShare = boltRifle ? 0.85f : 1f;
                     break;
             }
-            return Mathf.Clamp(Mathf.Max(flat, round, floor), 0.5f, 10f);
+            float kick = Mathf.Max(flat, round, floor);
+            if (kind == WeaponClass.Launcher)
+            {
+                kick *= 1.4f;
+            }
+            return Mathf.Clamp(kick, 0.5f, 10f);
         }
 
         /// <summary>
@@ -1083,6 +1143,13 @@ namespace RavenfieldVR.Weapons
             float zoom = Aiming && Weapon != null ? 60f / Mathf.Max(1f, Weapon.GetAimFov()) : 1f;
             float strength = VRConfig.ScopeSteadying.Value;
             float want = strength > 0f && zoom > 1.8f ? strength : 0f;
+            if (_weaponClass == WeaponClass.Launcher && strength > 0f)
+            {
+                // A launcher is steadied whenever it is held, as through a 3x sight: a metre of tube on the shoulder showed
+                // every tremor of the hands (user, 2026-10-16). A swing is still followed at once; recoil is not smoothed.
+                zoom = Mathf.Max(zoom, 3f);
+                want = Mathf.Max(want, strength);
+            }
             _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
             if (!_steadyInit || _steadyWeight <= 0f)
             {

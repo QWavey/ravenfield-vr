@@ -1747,6 +1747,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The hand went on far past the gun this magazine is kept out of: it is let go of (ReloadInteractions).</summary>
+        internal bool LostByHand;
+
         /// <summary>How far the magazine in the hand is drawn away from the hand to stay out of the gun now.</summary>
         private Vector3 _keptOut;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
@@ -1878,10 +1881,9 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
-                if ((drawn - target.position).sqrMagnitude > 0.3f * 0.3f)
-                {
-                    drawn = target.position; // the hand is far through the gun: the magazine goes with it, not left behind
-                }
+                // The hand far through or past the gun: the magazine stays outside it, the glove with it (it jumped through the
+                // gun to the hand 30 cm on; user, 2026-10-16). Pulled more than 45 cm from it, the hand lets go of it.
+                LostByHand = (drawn - target.position).sqrMagnitude > 0.45f * 0.45f;
                 _drawnInGun = gun.Rig.ToGun(drawn);
                 _drawnFor = gun;
             }
@@ -1958,10 +1960,10 @@ namespace RavenfieldVR.Weapons
             {
                 VRHand dom = sys.Rig.Dominant;
                 float speed = (HeldBy.Velocity - (dom != null ? dom.Velocity : Vector3.zero)).magnitude;
+                // Felt, not heard: the knock and scrape sounds of a magazine meeting the gun were too goofy (user, 2026-10-16).
                 if (!_touchingGun)
                 {
                     float loud = Mathf.Clamp01(0.2f + speed / 1.5f);
-                    sys.Sounds.Play(MechSound.MagKnock, drawn, loud);
                     HeldBy.Haptic(0.02f + 0.03f * loud, 150f, 0.3f + 0.5f * loud);
                     dom?.Haptic(0.015f, 150f, 0.2f * loud);
                     _lastContactSound = now;
@@ -1969,7 +1971,6 @@ namespace RavenfieldVR.Weapons
                 }
                 else if ((drawn - _lastScrapeAt).sqrMagnitude > 0.015f * 0.015f && speed > 0.1f)
                 {
-                    sys.Sounds.Play(MechSound.MagScrape, drawn, Mathf.Clamp01(speed / 0.8f) * 0.5f);
                     HeldBy.Haptic(0.012f, 220f, 0.15f);
                     _lastContactSound = now;
                     _lastScrapeAt = drawn;

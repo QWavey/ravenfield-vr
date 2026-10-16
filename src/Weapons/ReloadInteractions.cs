@@ -241,6 +241,12 @@ namespace RavenfieldVR.Weapons
             MagazineProp caught = _ejecting != null && _ejecting.DistanceTo(palm) < 0.13f
                 ? _ejecting
                 : MagazineProp.NearestDropped(palm, 0.13f, Data.Key) ?? MagazineProp.NearestDropped(palm, 0.13f, null);
+            if (caught != null && caught != _ejecting && caught.Rounds == 0 && _sys.Zones.InPouch(palm))
+            {
+                // Reaching into the pouch takes a full one from it, not the empty magazine just dropped by the hip: the
+                // emptied M1 GARRET clip lay there and was handed back (user, 2026-10-16: "I grab an empty mag from the pouch").
+                caught = null;
+            }
             if (caught != null)
             {
                 Consider(1, caught.DistanceTo(palm) / 0.13f * 0.4f, ref choice, ref best);
@@ -1051,6 +1057,14 @@ namespace RavenfieldVR.Weapons
                 ReleaseProp(off, prop);
                 return;
             }
+            if (prop.LostByHand)
+            {
+                // The hand went 45 cm on past the gun it could not pass through: it let go, the magazine falls where it was.
+                prop.LostByHand = false;
+                prop.Drop(Vector3.zero, Vector3.zero); // out of the hand (Drop frees it)
+                off.Haptic(0.03f, 90f, 0.4f);
+                return;
+            }
             if (TryMagKick(off, prop))
             {
                 return;
@@ -1068,8 +1082,7 @@ namespace RavenfieldVR.Weapons
                 if (refusedLateral < 0.05f && refusedAlong > -0.02f && refusedAlong < prop.RailLength && Time.unscaledTime > _refusedAt + 1f)
                 {
                     _refusedAt = Time.unscaledTime;
-                    off.Haptic(0.04f, 70f, 0.55f);
-                    _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.35f);
+                    off.Haptic(0.04f, 70f, 0.55f); // felt only: no knock sound against the gun (user, 2026-10-16)
                 }
                 return;
             }

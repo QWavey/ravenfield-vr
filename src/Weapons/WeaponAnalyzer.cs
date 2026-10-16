@@ -2341,6 +2341,12 @@ namespace RavenfieldVR.Weapons
         /// from the gun (out of the flat view), moved in by the reload. Magazine-like (by name, or the chosen magazine's
         /// size), not part of the chosen one. In VR they hung in the air by the gun.
         /// </summary>
+        /// <summary>
+        /// How near a handgun's grip a spare magazine may wait: its reload's other hand holds the next one just behind the
+        /// pistol, and at 28 cm it was drawn there in VR (user, 2026-10-16). Its own magazine, in the grip, is never one.
+        /// </summary>
+        private const float SpareNearHandgun = 0.12f;
+
         private static void CollectSpareMagazines(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, Transform mag, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
         {
@@ -2350,7 +2356,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (t == mag || t.IsChildOf(mag) || mag.IsChildOf(t) || !index.TryGetValue(t, out int i)
                     || !MagCandidate(t, root, gunBody, muzzle, slide, armRelated, gunBones) || !ShownAtIdle(t, sampler)
-                    || sampler.ReloadMax[i] < 0.03f || Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint) < 0.28f)
+                    || sampler.ReloadMax[i] < 0.03f || Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint) < (d.Handgun ? SpareNearHandgun : 0.28f))
                 {
                     continue;
                 }
@@ -2531,7 +2537,10 @@ namespace RavenfieldVR.Weapons
                 d.Notes += $"magazine axis along the grip (the gun hand's knuckles; its box was {Vector3.Angle(axis, d.GripDown):0}° off) ";
                 return;
             }
-            if (!fromVertices && animated && Vector3.Angle(axis, d.MagEjectAxis) < 20f)
+            // Only a handgun's (its grip is raked): a long gun's magazine box is its well's line, and its reload animation's
+            // pull swings it out on an arc, 18 degrees toward the grip on the HK416-B/D: slid in on that, the magazine went in
+            // behind the well, through the trigger guard (user, 2026-10-16).
+            if (!fromVertices && animated && d.Handgun && Vector3.Angle(axis, d.MagEjectAxis) < 20f)
             {
                 // Its vertices could not be read, so this is only its bounding box, which stands upright, straight down
                 // from the bore, while a pistol's grip is raked: a dropped magazine slid straight down and its front
