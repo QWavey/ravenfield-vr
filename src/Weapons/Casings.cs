@@ -71,7 +71,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Fired cases falling out of an opened cylinder or break-action, straight down out of the chambers.</summary>
         public static void Drop(HeldWeapon held, int count, Vector3 chambers)
         {
-            if (held == null || !Ejects(held))
+            // Whatever its flat casing particles: an opened break action or cylinder always lets its fired cases out (the
+            // vanilla DOUBLE-BARREL and SAWED-OFF have none, and their shells stayed in; user, 2026-10-16). The count was
+            // already taken from the gun, so returning here lost them.
+            if (held == null || held.ActiveWeapon == null)
             {
                 return;
             }

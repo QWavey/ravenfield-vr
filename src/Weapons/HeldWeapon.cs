@@ -211,6 +211,18 @@ namespace RavenfieldVR.Weapons
             _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
             _isKit = IsKit(weapon);
             _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
+            if (rig.Data.Action == ActionType.Throwable && !_isKit && !GrenadeInFist.Contains(rig.Data))
+            {
+                // A grenade sits in the fist: its drawn middle where a grip goes. Held by where the throw animation's palm
+                // was, it hung against the side of the glove, in the air (user, 2026-10-16). Hand-sized things only.
+                GrenadeInFist.Add(rig.Data);
+                Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured);
+                if (gMeasured && Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
+                {
+                    Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");
+                    rig.Data.GripPoint = gb.center;
+                }
+            }
             ActionType action = rig.Data.Action;
             RackPointGun = rig.Data.RackPoint;
             if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
@@ -1968,6 +1980,8 @@ namespace RavenfieldVR.Weapons
         /// hand the way the game shows it.
         /// </summary>
         private readonly bool _isKit;
+        /// <summary>Throwables already put in the fist by their middle (once per analysis).</summary>
+        private static readonly HashSet<WeaponRigData> GrenadeInFist = new HashSet<WeaponRigData>();
 
         /// <summary>Self-test: this weapon is carried like a bag (no glove on it).</summary>
         internal bool IsKitForTest => _isKit;
