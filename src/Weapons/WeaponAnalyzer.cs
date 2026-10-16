@@ -529,6 +529,7 @@ namespace RavenfieldVR.Weapons
                 AnalyzeSightParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
                 Transform slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w);
+                KeepMagazineAxisInSidePlane(d);
                 MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler);
                 ReclassifyAdvancedReload(d, w);
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
@@ -1916,6 +1917,29 @@ namespace RavenfieldVR.Weapons
         }
 
         // ---- magazine ---------------------------------------------------------------------------------
+
+        /// <summary>
+        /// A magazine goes up into its well in the gun's side plane (along the bore and up). Its axis from the shape or the
+        /// reload tipped sideways put the 1911's 23 degrees out of that plane: it came up beside the grip instead of into it
+        /// (the user's pictures, 2026-10-16; measured by the seating check). One more than 45 degrees out is a side-feeder
+        /// (a Sten's, from the left) and keeps its axis.
+        /// </summary>
+        private static void KeepMagazineAxisInSidePlane(WeaponRigData d)
+        {
+            if (d.Action == ActionType.SingleShot || d.MagazinePath == null || d.MagEjectAxis.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            float tilt = Mathf.Asin(Mathf.Clamp01(Mathf.Abs(Vector3.Dot(d.MagEjectAxis.normalized, right)))) * Mathf.Rad2Deg;
+            Vector3 inPlane = Vector3.ProjectOnPlane(d.MagEjectAxis, right);
+            if (tilt < 1f || tilt > 45f || inPlane.sqrMagnitude < 1e-4f)
+            {
+                return;
+            }
+            d.MagEjectAxis = inPlane.normalized;
+            d.Notes += $"magazine axis {tilt:0} deg out of the side plane, put back into it ";
+        }
 
         private static void AnalyzeMagazine(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
