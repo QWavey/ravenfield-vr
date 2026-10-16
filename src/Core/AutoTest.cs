@@ -239,10 +239,54 @@ namespace RavenfieldVR.Core
                 if (GameManager.IsIngame(out bool noGameplay) && !noGameplay && ActorManager.instance != null)
                 {
                     _started = true;
-                    yield return Run();
+                    yield return Safely(Run(), e =>
+                    {
+                        // A check that throws ended the whole run silently: no report, no quit, the game open at the match
+                        // until the runner's timeout. Said as a problem, written, and the game quits as at the end.
+                        Problem($"[{_context}] the autotest stopped: {e.GetType().Name}: {e.Message} | {FirstFrames(e.StackTrace)}");
+                        Write();
+                        Application.Quit();
+                    });
                     yield break;
                 }
                 yield return null;
+            }
+        }
+
+        /// <summary>
+        /// Runs a coroutine and the coroutines it yields, catching what any of them throws (Unity drops a coroutine that
+        /// throws without a word). Yield instructions that are not enumerators go to Unity as usual.
+        /// </summary>
+        private static IEnumerator Safely(IEnumerator body, Action<Exception> failed)
+        {
+            var stack = new Stack<IEnumerator>();
+            stack.Push(body);
+            while (stack.Count > 0)
+            {
+                IEnumerator top = stack.Peek();
+                bool more;
+                object current;
+                try
+                {
+                    more = top.MoveNext();
+                    current = more ? top.Current : null;
+                }
+                catch (Exception e)
+                {
+                    failed(e);
+                    yield break;
+                }
+                if (!more)
+                {
+                    stack.Pop();
+                    continue;
+                }
+                if (current is IEnumerator nested)
+                {
+                    stack.Push(nested);
+                    continue;
+                }
+                yield return current;
             }
         }
 
