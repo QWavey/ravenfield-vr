@@ -25,8 +25,9 @@ namespace RavenfieldVR.Weapons
         // Mod authors name parts in many languages: English, German, French, Spanish, Russian (Cyrillic and
         // transliterated) and Chinese (characters and pinyin abbreviations such as DX = 弹匣, QJ = 枪机).
         private static readonly Regex MagName = new Regex(
-            @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
-            + @"|магазин|патрон|лента|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳",
+            @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|missile|warhead|projectile|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
+            // (a launcher's missile or warhead: 导弹, 火箭, 战斗部)
+            + @"|магазин|патрон|лента|ракета|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳|导弹|火箭|战斗部",
             RegexOptions.IgnoreCase);
         /// <summary>
         /// Parts named after the magazine that are not the magazine: its release button or catch, the well it sits in, a
@@ -537,6 +538,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 up = gunIdle.InverseTransformDirection(sampler.Idle(root).Up);
                 up = Vector3.ProjectOnPlane(up, d.AimAxis);
                 d.Up = up.sqrMagnitude > 1e-4f ? up.normalized : Vector3.ProjectOnPlane(Vector3.up, d.AimAxis).normalized;
+                d.Up = UprightByModel(d.Up, d.AimAxis, d);
                 d.MuzzlePoint = gunIdle.InverseTransformPoint(muzzleIdle.position);
                 float rootAngle = Vector3.Angle(gunIdle.TransformDirection(d.AimAxis), sampler.Idle(root).Forward);
                 if (rootAngle > 25f)
@@ -1970,6 +1972,38 @@ namespace RavenfieldVR.Weapons
         }
 
         // ---- magazine ---------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The gun's up from its own model: the model axis nearest the weapon root's up, when within 25 degrees. The root's up
+        /// as the flat idle pose leaves it is canted on many rigs (0-8 degrees on most, the 1911's 22): the gun sat rolled in
+        /// the hand and its magazine came up the grip from the side (the user's pictures, 2026-10-16).
+        /// </summary>
+        private static Vector3 UprightByModel(Vector3 up, Vector3 aim, WeaponRigData d)
+        {
+            Vector3 best = up;
+            float bestDot = 0f;
+            foreach (Vector3 axis in new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back })
+            {
+                Vector3 inPlane = Vector3.ProjectOnPlane(axis, aim);
+                if (inPlane.sqrMagnitude < 0.5f)
+                {
+                    continue; // along the bore
+                }
+                float dot = Vector3.Dot(inPlane.normalized, up);
+                if (dot > bestDot)
+                {
+                    bestDot = dot;
+                    best = inPlane.normalized;
+                }
+            }
+            float cant = Mathf.Acos(Mathf.Clamp(bestDot, -1f, 1f)) * Mathf.Rad2Deg;
+            if (cant < 0.5f || cant > 25f)
+            {
+                return up;
+            }
+            d.Notes += $"up {cant:0} deg off the model's axis: put upright ";
+            return best;
+        }
 
         /// <summary>
         /// A magazine goes up into its well in the gun's side plane (along the bore and up). Its axis from the shape or the

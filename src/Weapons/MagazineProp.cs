@@ -625,6 +625,19 @@ namespace RavenfieldVR.Weapons
         internal static void KeepLoadedLook(WeaponRig rig)
         {
             string key = rig.Data.Key;
+            WeaponRigData d = rig.Data;
+            if (rig.Magazine != null && rig.GunBody != null && (d.MagSeat.position - d.GripPoint).sqrMagnitude > 1.5f * 1.5f)
+            {
+                // The analysed rest pose had the rocket parked away (the Panzerfaust 3's warhead waits 30 m off in its empty
+                // idle, and its rocket was "seated" there: taken from the back, a 30 m rail). Loaded, it sits on the gun now.
+                RigidPose live = rig.GunBodyPose.Inverse().Multiply(RigidPose.Of(rig.Magazine));
+                if ((live.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f)
+                {
+                    Log.InfoOnce("rocketseat:" + key, $"Rocket of {key}: seated where it sits loaded, {(live.position - d.GripPoint).magnitude * 100f:0} cm from the grip "
+                                                      + $"(the analysis had it {(d.MagSeat.position - d.GripPoint).magnitude:0.0} m off).");
+                    d.MagSeat = live;
+                }
+            }
             if (LoadedLooks.ContainsKey(key) || !CopiesModel(rig, PropKind.Rocket)
                 || LoadedLookTries.TryGetValue(key, out int tries) && tries >= 30
                 || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + (tries < 5 ? 0.5f : 10f))
