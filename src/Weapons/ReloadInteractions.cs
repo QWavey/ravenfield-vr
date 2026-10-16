@@ -1108,7 +1108,10 @@ namespace RavenfieldVR.Weapons
                 // Started straight into a well inside the grip: the rail takes it home (see below), whatever the hand does.
                 // A damped spring (about a third of a second, at most 0.6 m/s), not a constant 0.9 m/s: the hand turning
                 // from holding it into pushing it home (PushPalm) was over in a tenth of a second and never seen.
-                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, 0.09f, 0.6f, Mathf.Min(Time.unscaledDeltaTime, 0.05f));
+                // A rocket's 30-70 cm in the tube quicker (at 0.6 m/s a Panzerfaust's took over a second and was let go short).
+                bool rocketIn = prop.Kind == PropKind.Rocket;
+                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, rocketIn ? 0.12f : 0.09f, rocketIn ? 1.6f : 0.6f,
+                    Mathf.Min(Time.unscaledDeltaTime, 0.05f));
                 if (prop.RailDepth >= prop.RailLength - 0.001f)
                 {
                     _pullingIn = null;
