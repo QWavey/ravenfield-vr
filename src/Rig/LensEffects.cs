@@ -198,15 +198,17 @@ namespace RavenfieldVR.Rig
                 _quads[q] = go;
             }
             Log.Info($"On-screen effects drawn with '{additive.name}' (colour space {QualitySettings.activeColorSpace}).");
-            // Above the game's own threads, and in four bands at once: a flash's picture took 30-80 ms on one thread in the
-            // game's runtime, and came after the flash was over.
+            // The worker wakes above the game's own threads so it starts a flash's picture promptly (one thread took 30-80 ms
+            // and came after the flash was over). The three band threads it then drives run at Normal: they do the heavy
+            // per-pixel passes and must not pre-empt the Unity main thread above its own priority. With a spare core each they
+            // still finish in time; only on a fully loaded machine would a flash picture arrive a frame or two later.
             _thread = new Thread(WorkerLoop) { IsBackground = true, Name = "RavenfieldVR lens effects", Priority = System.Threading.ThreadPriority.AboveNormal };
             for (int b = 1; b < Bands; b++)
             {
                 int band = b;
                 _bandWake[b] = new AutoResetEvent(false);
                 _bandDone[b] = new AutoResetEvent(false);
-                _bandThreads[b] = new Thread(() => BandLoop(band)) { IsBackground = true, Name = "RavenfieldVR lens effects " + b, Priority = System.Threading.ThreadPriority.AboveNormal };
+                _bandThreads[b] = new Thread(() => BandLoop(band)) { IsBackground = true, Name = "RavenfieldVR lens effects " + b, Priority = System.Threading.ThreadPriority.Normal };
                 _bandThreads[b].Start();
             }
             _thread.Start();
