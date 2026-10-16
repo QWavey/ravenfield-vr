@@ -22,6 +22,10 @@ namespace RavenfieldVR.Weapons
         private readonly GameObject _root;
         private readonly Mesh _mesh;
         private readonly Vector3[] _verts, _normals;
+        // The last placement, so a still belt (hanging or laid) is not rebuilt and re-uploaded every frame.
+        private Vector3 _lastFrom, _lastTo, _lastBarrel;
+        private int _lastRounds = -1, _lastCount;
+        private bool _built;
 
         public BeltStrip()
         {
@@ -50,6 +54,10 @@ namespace RavenfieldVR.Weapons
             _mesh.subMeshCount = 2;
             _mesh.SetTriangles(round, 0);
             _mesh.SetTriangles(link, 1);
+            // A box big enough for the whole belt around the box mouth (its reach, about 0.38 m, plus a generous margin so it
+            // is never culled early), set once: the rounds are placed in this local frame, so a per-frame bounds recompute
+            // would only re-derive the same reach.
+            _mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 1.2f);
             _root.AddComponent<MeshFilter>().sharedMesh = _mesh;
             var mr = _root.AddComponent<MeshRenderer>();
             mr.sharedMaterials = new[] { _brass, _link };
@@ -71,6 +79,16 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds)
         {
+            // A belt that has not moved (hanging off a gun held still, or laid on a belt-less gun) keeps its last geometry.
+            if (_built && rounds == _lastRounds && Same(from, _lastFrom) && Same(to, _lastTo) && Same(barrel, _lastBarrel))
+            {
+                return;
+            }
+            _built = true;
+            _lastFrom = from;
+            _lastTo = to;
+            _lastBarrel = barrel;
+            _lastRounds = rounds;
             Vector3 span = to - from;
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
@@ -80,18 +98,9 @@ namespace RavenfieldVR.Weapons
             // Built round the box mouth (small numbers anywhere on the map), in world directions.
             _root.transform.SetPositionAndRotation(from, Quaternion.identity);
             int n = _roundVerts.Length;
-            for (int i = 0; i < MaxRounds; i++)
+            for (int i = 0; i < count; i++)
             {
                 int b = i * n;
-                if (i >= count)
-                {
-                    // Not on the belt: folded to a point, nothing drawn.
-                    for (int k = 0; k < n; k++)
-                    {
-                        _verts[b + k] = Vector3.zero;
-                    }
-                    continue;
-                }
                 // Count from the hand back toward the box, so the end in the hand is always a whole round.
                 float t = 1f - i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
                 Vector3 p = span * t + sag * (4f * t * (1f - t));
@@ -101,10 +110,22 @@ namespace RavenfieldVR.Weapons
                     _normals[b + k] = rot * _roundNormals[k];
                 }
             }
+            // Fold to a point only the rounds that were on the belt last time and are now past its end (the rest are already
+            // zeroed, from the constructor or an earlier, longer belt).
+            for (int i = count; i < _lastCount; i++)
+            {
+                int b = i * n;
+                for (int k = 0; k < n; k++)
+                {
+                    _verts[b + k] = Vector3.zero;
+                }
+            }
+            _lastCount = count;
             _mesh.vertices = _verts;
             _mesh.normals = _normals;
-            _mesh.RecalculateBounds();
         }
+
+        private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
 
         /// <summary>Self-test: the belt round's side faces drawn from outside (see <see cref="Casings.CountFacingOut"/>).</summary>
         internal static void CountFacingOut(ref int outward, ref int total)

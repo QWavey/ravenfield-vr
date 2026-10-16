@@ -33,6 +33,7 @@ namespace RavenfieldVR.Weapons
         private bool _usesPin;
         private bool _pinPulled;
         private bool _holdingPin;
+        private Vector3 _pinGrabAt;
         private Transform _modPin;
         private Vector3 _modPinScale;
         private Vector3 _pinLocal;
@@ -321,6 +322,7 @@ namespace RavenfieldVR.Weapons
                 {
                     VRInput.Consume(DigitalAction.Grab, off.Side);
                     _holdingPin = true;
+                    _pinGrabAt = off.Palm.position; // the pull is measured from where the grip closed, not the pin
                     off.Role = HandRole.Pin;
                     off.Haptic(0.015f, 160f, 0.3f);
                 }
@@ -331,8 +333,9 @@ namespace RavenfieldVR.Weapons
                         _holdingPin = false; // let go before it came out
                         off.Role = HandRole.Free;
                     }
-                    else if (Vector3.Distance(off.Palm.position, pin) > PinPullDistance)
+                    else if (Vector3.Distance(off.Palm.position, _pinGrabAt) > PinPullDistance)
                     {
+                        // An actual tug of the hand, so a grip that closed 5.5-7 cm from the pin does not pop it the same frame.
                         PullPin(off);
                     }
                 }

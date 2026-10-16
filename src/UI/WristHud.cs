@@ -120,6 +120,7 @@ namespace RavenfieldVR.UI
             }
             if (!visible || actor == null)
             {
+                _wasVisible = false; // so it is refit once when it next shows
                 return;
             }
 
@@ -136,6 +137,8 @@ namespace RavenfieldVR.UI
             string counter = a != null ? a.CounterText() : null;
             int spare = a == null ? -2 : a.InfiniteSpare ? -1 : a.SpareAmmo;
             int hpWhole = Mathf.RoundToInt(hp);
+            bool becameVisible = !_wasVisible;
+            _wasVisible = true;
             // Rebuilt only when what it shows changes: no string garbage every frame.
             if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare)
             {
@@ -144,15 +147,37 @@ namespace RavenfieldVR.UI
                 _shownSpare = spare;
                 string reserve = spare == -1 ? "\u221e" : spare.ToString();
                 _text.text = a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve";
+                _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
-            _plate.Fit(); // every frame it shows: the text's size is known only once it has been laid out
-            _plate.SetAlpha(_alpha);
-            _text.color = hp > 60f ? new Color(0.85f, 0.88f, 0.84f, _alpha) : hp > 30f ? new Color(0.95f, 0.72f, 0.25f, _alpha) : new Color(1f, 0.42f, 0.36f, _alpha);
+            if (becameVisible)
+            {
+                _refitFrames = Mathf.Max(_refitFrames, 2);
+            }
+            if (_refitFrames > 0)
+            {
+                _refitFrames--;
+                _plate.Fit();
+            }
+            if (_alpha != _lastPlateAlpha)
+            {
+                _lastPlateAlpha = _alpha;
+                _plate.SetAlpha(_alpha);
+            }
+            Color col = hp > 60f ? new Color(0.85f, 0.88f, 0.84f, _alpha) : hp > 30f ? new Color(0.95f, 0.72f, 0.25f, _alpha) : new Color(1f, 0.42f, 0.36f, _alpha);
+            if (col.r != _lastColor.r || col.g != _lastColor.g || col.b != _lastColor.b || col.a != _lastColor.a)
+            {
+                _lastColor = col;
+                _text.color = col; // baked into the text mesh, so set only when it actually changes
+            }
         }
 
         private int _shownHp = int.MinValue;
         private string _shownCounter;
         private int _shownSpare = int.MinValue;
+        private bool _wasVisible;
+        private int _refitFrames;
+        private float _lastPlateAlpha = -1f;
+        private Color _lastColor = new Color(-1f, 0f, 0f, 0f);
 
         public void Destroy()
         {

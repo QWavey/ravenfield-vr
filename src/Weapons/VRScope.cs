@@ -37,6 +37,15 @@ namespace RavenfieldVR.Weapons
         private readonly Mesh _shadowMesh;
         private readonly Vector2[] _shadowUv;
         private Vector2 _shadowShift = new Vector2(float.NaN, 0f);
+        // Last values copied from the VR camera onto the scope camera: they are the same on nearly every frame (the player
+        // does not change graphics settings mid-aim), so a live scope stops rewriting six native camera properties per frame.
+        private float _lastFov = -1f;
+        private int _lastCullingMask = int.MinValue;
+        private CameraClearFlags _lastClearFlags = (CameraClearFlags)(-1);
+        private Color _lastBackground = new Color(float.NaN, 0f, 0f, 0f);
+        private float _lastFarClip = -1f;
+        private DepthTextureMode _lastDepthMode = (DepthTextureMode)(-1);
+        private int _lastHdr = -1;
 
         /// <summary>Looked up once: three searches by name on every draw of a scoped weapon.</summary>
         private static Shader _spriteShader;
@@ -260,13 +269,44 @@ namespace RavenfieldVR.Weapons
             float baseFov = 60f;
             float magnification = Mathf.Max(1.5f, baseFov / Mathf.Max(1f, _fov > 0.5f ? _fov : _rig.Weapon.GetAimFov()));
             float lensAngle = 2f * Mathf.Atan(_radius / EyeRelief) * Mathf.Rad2Deg;
-            _camera.fieldOfView = Mathf.Clamp(lensAngle / magnification, 0.5f, 60f);
-            _camera.cullingMask = vr.cullingMask & ~IgnoreLayers;
-            _camera.clearFlags = vr.clearFlags;
-            _camera.backgroundColor = vr.backgroundColor;
-            _camera.farClipPlane = vr.farClipPlane;
-            _camera.allowHDR = vr.allowHDR;
-            _camera.depthTextureMode = vr.depthTextureMode;
+            float fov = Mathf.Clamp(lensAngle / magnification, 0.5f, 60f);
+            if (!Mathf.Approximately(fov, _lastFov))
+            {
+                _lastFov = fov;
+                _camera.fieldOfView = fov;
+            }
+            int mask = vr.cullingMask & ~IgnoreLayers;
+            if (mask != _lastCullingMask)
+            {
+                _lastCullingMask = mask;
+                _camera.cullingMask = mask;
+            }
+            if (vr.clearFlags != _lastClearFlags)
+            {
+                _lastClearFlags = vr.clearFlags;
+                _camera.clearFlags = vr.clearFlags;
+            }
+            if (vr.backgroundColor != _lastBackground)
+            {
+                _lastBackground = vr.backgroundColor;
+                _camera.backgroundColor = vr.backgroundColor;
+            }
+            if (!Mathf.Approximately(vr.farClipPlane, _lastFarClip))
+            {
+                _lastFarClip = vr.farClipPlane;
+                _camera.farClipPlane = vr.farClipPlane;
+            }
+            int hdr = vr.allowHDR ? 1 : 0;
+            if (hdr != _lastHdr)
+            {
+                _lastHdr = hdr;
+                _camera.allowHDR = vr.allowHDR;
+            }
+            if (vr.depthTextureMode != _lastDepthMode)
+            {
+                _lastDepthMode = vr.depthTextureMode;
+                _camera.depthTextureMode = vr.depthTextureMode;
+            }
             // Eye box. The eye is the aiming one, the one nearer the line: measured from the middle of the head, a scope you
             // looked through perfectly with one eye was already 3.2 cm "off" and showed only 57% bright. Off the line, the
             // scope's shadow comes in from the eye's side (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the

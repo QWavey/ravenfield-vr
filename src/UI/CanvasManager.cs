@@ -122,7 +122,16 @@ namespace RavenfieldVR.UI
                     t.Collimated = t.Canvas.GetComponentInParent<Vehicle>() != null;
                     // During gameplay with no game menu open everything is HUD, even canvases that happen to
                     // hold a clickable element; menus only exist while the game shows its cursor (or outside a match).
+                    CanvasRole was = t.Role;
                     t.Role = gameplay ? CanvasRole.Hud : RoleOutsidePlay(t.Canvas);
+                    if (!opening && t.Role != was && t.Role == CanvasRole.Menu)
+                    {
+                        // A canvas that turned back into a menu without reopening (its clickable parts came back, the game
+                        // menu opened over it): re-place and re-flatten it like a fresh opening, or it stayed where it last
+                        // stood relative to the body with its deep pages un-flattened.
+                        t.Placed = false;
+                        CollectFlat(t);
+                    }
                 }
                 if (opening && t.Role == CanvasRole.Menu)
                 {
@@ -417,6 +426,7 @@ namespace RavenfieldVR.UI
             float hfov = VRConfig.HudHorizontalFov.Value;
             float distance = VRConfig.HudDistance.Value;
             float aspect = 16f / 9f;
+            float aspectArea = 0f;
 
             foreach (Tracked t in _tracked.Values)
             {
@@ -424,12 +434,16 @@ namespace RavenfieldVR.UI
                 {
                     continue;
                 }
-                if (t.Size.x > 1f && t.Size.y > 1f)
-                {
-                    aspect = t.Size.x / t.Size.y;
-                }
                 if (t.Role == CanvasRole.Hud)
                 {
+                    if (t.Size.x > 1f && t.Size.y > 1f && t.Size.x * t.Size.y > aspectArea)
+                    {
+                        // The game camera's frustum follows the main HUD (the largest HUD canvas), not whichever canvas is
+                        // enumerated last: a small HUD panel or a 4:3 canvas showing or hiding used to jerk the camera's
+                        // vertical FOV and shift the screen-projected markers (objectives, squad orders, hit indicators).
+                        aspectArea = t.Size.x * t.Size.y;
+                        aspect = t.Size.x / t.Size.y;
+                    }
                     // Head-locked frame matching the game camera's frustum (vehicle sights far out, same angular size).
                     float d = t.Collimated ? CollimatedDistance : distance;
                     float width = 2f * d * Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad);

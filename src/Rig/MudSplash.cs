@@ -36,6 +36,7 @@ namespace RavenfieldVR.Rig
         private readonly Transform _head;
         private readonly GameObject _root;
         private readonly Splat[] _splats = new Splat[Pool];
+        private int _liveCount;
         private readonly Texture2D _atlas;
         private readonly Material _material;
         private readonly Mesh _mesh;
@@ -111,6 +112,11 @@ namespace RavenfieldVR.Rig
             }
             _wasUnderwater = under;
             bool any = false;
+            // Nothing live and nothing on screen: skip the per-frame scan of all slots (the common case between blasts).
+            if (_liveCount == 0 && !_shown)
+            {
+                return;
+            }
             for (int i = 0; i < Pool; i++)
             {
                 Splat s = _splats[i];
@@ -119,6 +125,7 @@ namespace RavenfieldVR.Rig
                 if (s.Live && (age >= s.Life || dead))
                 {
                     s.Live = false;
+                    _liveCount--;
                 }
                 if (!s.Live)
                 {
@@ -161,12 +168,16 @@ namespace RavenfieldVR.Rig
         private void Subscribe()
         {
             ActorManager manager = ActorManager.instance;
-            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
-            if (manager == null || !Util.GameContext.InGame || ReferenceEquals(manager, _subscribedTo) && scene == _subscribedScene)
+            if (manager == null)
             {
                 return;
             }
-            if (manager.OnExplosion == null)
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            if (ReferenceEquals(manager, _subscribedTo) && scene == _subscribedScene)
+            {
+                return; // already subscribed for this manager and scene: no need to read InGame (IsSpectating) every frame
+            }
+            if (!Util.GameContext.InGame || manager.OnExplosion == null)
             {
                 return;
             }
@@ -239,7 +250,9 @@ namespace RavenfieldVR.Rig
             float R() => (float)rng.NextDouble();
             for (int i = 0; i < count; i++)
             {
-                Splat s = Free();
+                int idx = FreeIndex();
+                Splat s = _splats[idx];
+                bool wasLive = s.Live;
                 var p = new Vector2((R() * 2f - 1f) * HalfWidth, (R() * 2f - 1f) * HalfHeight);
                 if (i % 3 == 0)
                 {
@@ -262,7 +275,11 @@ namespace RavenfieldVR.Rig
                 s.Variant = rng.Next(Variants);
                 s.Angle = R() * Mathf.PI * 2f;
                 s.Live = true;
-                SetUvs(System.Array.IndexOf(_splats, s), s.Variant);
+                if (!wasLive)
+                {
+                    _liveCount++;
+                }
+                SetUvs(idx, s.Variant); // Free already knew the slot: no IndexOf scan of the pool
             }
             _mesh.uv = _uvs;
         }
@@ -279,18 +296,18 @@ namespace RavenfieldVR.Rig
             _uvs[v + 3] = new Vector2(x1, y1);
         }
 
-        private Splat Free()
+        private int FreeIndex()
         {
-            Splat oldest = _splats[0];
-            foreach (Splat s in _splats)
+            int oldest = 0;
+            for (int i = 0; i < _splats.Length; i++)
             {
-                if (!s.Live)
+                if (!_splats[i].Live)
                 {
-                    return s;
+                    return i;
                 }
-                if (s.Born < oldest.Born)
+                if (_splats[i].Born < _splats[oldest].Born)
                 {
-                    oldest = s;
+                    oldest = i;
                 }
             }
             return oldest;

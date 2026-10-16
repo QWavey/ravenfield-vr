@@ -300,9 +300,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            WeaponRig rig = RigFor(weapon);
             try
             {
-                WeaponRig rig = RigFor(weapon);
                 AmmoState state = StateFor(weapon, create: true);
                 Held = new HeldWeapon(this, weapon, rig, state);
                 Log.Debug($"Holding {weapon.name} ({rig.Data.Action})");
@@ -310,6 +310,12 @@ namespace RavenfieldVR.Weapons
             catch (Exception e)
             {
                 Held = null;
+                // The constructor may have created the physics stand-in before the step that threw: destroy it, or it stays
+                // DontDestroyOnLoad at the world origin with Held null and nothing ever moves or clears it.
+                if (GunCollider.Current != null && GunCollider.Current.Holds(rig))
+                {
+                    GunCollider.Current.Destroy();
+                }
                 _attachFailed.Add(weapon);
                 _attachFailed.RemoveWhere(w => w == null);
                 Log.Exception($"Setting up {weapon.name} for VR (it keeps its normal behaviour)", e);
