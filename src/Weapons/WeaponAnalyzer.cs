@@ -2093,6 +2093,25 @@ namespace RavenfieldVR.Weapons
                 CollectMagazineParts(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
                 MagKeyframes(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
             }
+            // A skinned gun's other magazine bones where its magazine sits (the ARS guns' "MagSwap", the magazine their own
+            // reload brings in, drawn in the same place): hidden with it, not copied (Tasks 232).
+            if (d.MagazineIsSkinned)
+            {
+                Vector3 magAt = sampler.RelIdle[mi].position;
+                foreach (Transform t in all)
+                {
+                    if (t == mag || !gunBones.Contains(t) || t.IsChildOf(mag) || mag.IsChildOf(t) || !index.TryGetValue(t, out int ti)
+                        || t.name.IndexOf("mag", StringComparison.OrdinalIgnoreCase) < 0 || NotMagName.IsMatch(t.name))
+                    {
+                        continue;
+                    }
+                    if (Vector3.Distance(sampler.RelIdle[ti].position, magAt) < 0.03f)
+                    {
+                        d.MagHideOnlyPaths.Add(WeaponRig.PathOf(root, t));
+                        d.Notes += $"'{t.name}' hidden with the magazine (a second one drawn in its place) ";
+                    }
+                }
+            }
             // What of it shows while it sits loaded, at rest (one warhead of five on an RPG-7V made for all of them).
             var magTransforms = new List<Transform> { mag };
             foreach (int[] p in d.MagazinePartPaths)

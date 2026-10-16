@@ -639,6 +639,10 @@ namespace RavenfieldVR.Weapons
             var magBones = new HashSet<Transform>();
             foreach (Transform part in rig.MagazineParts)
             {
+                if (rig.MagazineHideOnly.Contains(part))
+                {
+                    continue; // a second magazine drawn in its place: hidden with it, not copied (it doubled the one in the hand)
+                }
                 foreach (Transform t in part.GetComponentsInChildren<Transform>(true))
                 {
                     magBones.Add(t);
@@ -660,6 +664,10 @@ namespace RavenfieldVR.Weapons
             HashSet<Renderer> loadedLook = !anyShown && rig.MagShownLoaded != null && rig.MagShownLoaded.Count > 0 ? rig.MagShownLoaded : null;
             foreach (Transform part in rig.MagazineParts)
             {
+                if (rig.MagazineHideOnly.Contains(part))
+                {
+                    continue;
+                }
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
                     if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy) || loadedLook != null && !loadedLook.Contains(r))

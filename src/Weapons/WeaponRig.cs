@@ -83,6 +83,12 @@ namespace RavenfieldVR.Weapons
         /// was the rocket in the hand (RPG-7V variants; user, 2026-10-16).
         /// </summary>
         public readonly List<int[]> MagShownAtIdle = new List<int[]>();
+        /// <summary>
+        /// Bones of the gun's skinned mesh that draw a second magazine where the magazine sits (the ARS guns' "MagSwap",
+        /// the one their own reload brings in): hidden with the magazine, never copied into the hand (Tasks 232: with the
+        /// magazine out, the gun still drew one).
+        /// </summary>
+        public readonly List<int[]> MagHideOnlyPaths = new List<int[]>();
         /// <summary>True when the magazine is a bone of a skinned gun mesh rather than its own object.</summary>
         public bool MagazineIsSkinned;
         /// <summary>True when the reload animation hides and shows the magazine instead of moving it.</summary>
@@ -304,6 +310,17 @@ namespace RavenfieldVR.Weapons
                     parts.Add(t);
                 }
             }
+            var hideOnly = new HashSet<Transform>();
+            foreach (int[] p in data.MagHideOnlyPaths)
+            {
+                Transform t = Resolve(root, p);
+                if (t != null && !parts.Contains(t))
+                {
+                    parts.Add(t);
+                    hideOnly.Add(t);
+                }
+            }
+            MagazineHideOnly = hideOnly;
             MagazineParts = parts.ToArray();
             var shown = new HashSet<Renderer>();
             foreach (int[] p in data.MagShownAtIdle)
@@ -322,6 +339,9 @@ namespace RavenfieldVR.Weapons
                 MagazinePartScales[i] = MagazineParts[i].localScale;
             }
         }
+
+        /// <summary>Magazine parts only hidden with the magazine, never copied (<see cref="WeaponRigData.MagHideOnlyPaths"/>).</summary>
+        public HashSet<Transform> MagazineHideOnly { get; private set; } = new HashSet<Transform>();
 
         /// <summary>The magazine's renderers that show while it sits loaded (<see cref="WeaponRigData.MagShownAtIdle"/>).</summary>
         public HashSet<Renderer> MagShownLoaded { get; private set; } = new HashSet<Renderer>();
