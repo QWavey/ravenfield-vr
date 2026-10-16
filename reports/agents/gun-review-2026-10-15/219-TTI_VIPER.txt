@@ -1,0 +1,34 @@
+Gun 219: TTI VIPER
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-219-TTI_VIPER-right.png)
+   seen: Compared with rack-grip-219-TTI_VIPER-right.png, nothing has moved. The slide serrations (about x 590-840, y 420-530), the TTI logo (about x 1100-1200, y 440-500), the trigger guard and the gloved fingers lying on the slide top are at the same screen spots in both frames. There is no rearward travel and no barrel or frame exposed ahead of the slide's front edge (about x 590). The only change is a yellow-tan object in the rear ejection cut-out (about x 935-975, y 440-480) and a small shift of the orange cut-out's left edge. The glove does not pull back either.
+   expected: Slide pulled about half way back WITH the glove. The serrations and logo should shift toward the shooter (right in this view, roughly the test's 17 mm, i.e. 100+ px at this distance), the slide front should move so the frame/barrel shows ahead of it, and the fingers should stay on the serrations while moving.
+
+2. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-219-TTI_VIPER-left.png)
+   seen: The glove, grip and trigger look the same as in rack-grip-219-TTI_VIPER-left.png. The green front sight appears roughly 40-50 px further left (toward the muzzle) than in the before frame. If that is the slide, it moved forward, not back. No rearward slide movement is visible and the hand is not visibly pulling.
+   expected: Slide about half way back: sight and rear of the slide moved toward the shooter (right), the barrel visible ahead of the slide, the hand moved back with it.
+
+3. [minor] [medium] hand_or_finger_clipping  (mag-6-half-in-219-TTI_VIPER.png)
+   seen: The gloved hand fills the frame below the base plate (about x 585-1020, y 565-790). The fresh magazine shows only as a short olive strip right under the base plate (about x 630-745, y 565-615). The rest of it is hidden behind or inside the glove. In mag-2-leaving-219-TTI_VIPER.png about 170 px of magazine shows below the base, here only about 50 px, so the half-way depth cannot be verified and the magazine may be swallowed by the hand.
+   expected: Half the magazine visible below the base plate, centred on the magwell line, with the glove beside or below the magazine rather than covering it.
+
+4. [tiny] [low] mag_not_into_magwell  (mag-7-seated-again-219-TTI_VIPER.png)
+   seen: The black base at the bottom of the grip ends at about y 585, the same as the empty magwell in mag-3-out-219-TTI_VIPER.png. In mag-1-seated-219-TTI_VIPER.png the base plate ends about 15-20 px lower (about y 600), which is the seated magazine's floor plate. The glove's fingers cover the lower-left edge of the base here, so the floor plate may just be hidden.
+   expected: Same as mag-1-seated: the floor plate protruding the same small amount below the grip, with no second magazine.
+
+5. [minor] [low] other  (weapon-219-TTI_VIPER.png)
+   seen: In first-person the gun at the bottom right is a long grey/silver body with a rounded grey muzzle end and an orange-brown tip. It does not clearly read as the black/olive VIPER from the close-ups (no TTI logo visible). No right hand is visible on it; the grip runs off the bottom edge of the frame.
+   expected: The VIPER viewmodel (black/olive slide, TTI logo, green front sight) held in the right hand, with the grip and hand visible or at least the hand on the grip.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-219-TTI_VIPER.png)
+   seen: First-person frame with the same framing as weapon-219-TTI_VIPER.png, and rack-grip-pulled-219-TTI_VIPER.png is identical in framing. The gun sits at the bottom right, but no left hand is visible anywhere near the slide top, so the racking grip cannot be seen from this view.
+   expected: Either the free hand visible on the slide in this view, or the racking proof taken from the close-ups only.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 3 drawn part(s) move, most 17 mm' are NOT confirmed. In rack-grip-pulled-219-TTI_VIPER-right.png the slide serrations, TTI logo and trigger guard sit where they did in rack-grip-219-TTI_VIPER-right.png, so no 17 mm slide travel is visible. The pictures support 'THE PART UNDER THE HAND DOES NOT MOVE' for the right-side pair.
+  - 'pulled half way: 2/4 fingers on it' (down from 3/4) is not what the pictures show. The glove is in the same place in the before and pulled frames, left and right, so the finger count dropped without any visible hand movement.
+  - 'in the hand: 3.4 cm from the palm' is not clearly confirmed. In mag-4-in-hand-219-TTI_VIPER.png the magazine's lower end passes behind the glove's fingers and palm and looks in contact with the glove, not 3.4 cm away. Low confidence.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is consistent with mag-6-half-in-219-TTI_VIPER.png, where the visible olive strip is centred under the base plate. But the glove hides most of the magazine, so the depth is not confirmed.
+  - 'gun moved 0.2 mm with the pull' is consistent: the grip, trigger guard and body are in the same place between before and pulled frames.
+  - 'dropped copy 0.0 cm across the pull ... 6.6 cm out' is consistent with mag-2-leaving-219-TTI_VIPER.png, which shows a single magazine dropping straight out along the grip axis. Only one magazine appears in any frame.

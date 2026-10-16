@@ -1,0 +1,46 @@
+Gun 236: FNX-45 [LASER][SUP]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-236-FNX-45_LASER_SUP_-left.png)
+   seen: Same framing and pose as rack-grip-236-FNX-45_LASER_SUP_-left.png. The slide top edge sits at about y=335 from the left edge to the glove, the front sight tip is still at the top-left corner (x 0-25, y 305-335), the index fingertip is still at about x 215-260, y 420-470, and the glove is in the same spot (x 430-870, y 210-540). The slide has not moved back and the hand has not pulled anything. The background (blue body, green tank, tree) is unchanged too.
+   expected: The slide and the hand holding it should have moved about half way back (toward the right in this view, the rear end), about 34 mm. The front sight and slide front should shift clearly to the right, with the fingers staying on the slide while it moves.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-236-FNX-45_LASER_SUP_-right.png)
+   seen: Same as rack-grip-236-FNX-45_LASER_SUP_-right.png. The rear sight (x 640-700, y 385-440), the ejection-port cut (x 1080-1140, y 420-500) and the thumb tip on the slide top (x 880-890, y 400-460) are all at the same positions. The slide and glove are not displaced.
+   expected: The slide should be pulled about half way back, toward the left in this view (the rear sight end, away from the muzzle which is off the right edge), with the glove and thumb moving with it. The rear sight and port should be visibly shifted left.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-236-FNX-45_LASER_SUP_.png)
+   seen: First-person view. The suppressor end (x 710-790, y 490-560) and the slide (x 760-900, y 560-720) are at the same place and angle as in rack-grip-236-FNX-45_LASER_SUP_.png and weapon-236-FNX-45_LASER_SUP_.png. No slide travel is visible, and no hand is in frame to show the pull.
+   expected: The slide visibly slid back about half way, with the barrel/suppressor showing in front of it and the free hand on the slide.
+
+4. [minor] [low] other  (rack-grip-pulled-236-FNX-45_LASER_SUP_-right.png)
+   seen: Compared with rack-grip-236-FNX-45_LASER_SUP_-right.png, two things differ: a copper-coloured round tip sits on the slide top at about x 975-1000, y 455-490 (not in the pre-pull picture), and the small red indicator dot moves from about x 740, y 585 to about x 890, y 590 while the rear sight stays put.
+   expected: Nothing should poke out of the slide top unless it is a chambered round visible through the port. The red dot should stay attached to the part it sits on, and a dot that jumps 150 px suggests that part moved on its own or is a render artifact.
+
+5. [tiny] [low] mag_floating_or_offset  (mag-2-leaving-236-FNX-45_LASER_SUP_.png)
+   seen: The dropping magazine's base plate (x 650-830, y 680-790) sits about 60 px right of where the seated base plate was in mag-1 (x 590-765, y 560-625). The magazine looks leaned about 10-15 degrees to the right, steeper than the grip line. Perspective may explain part of it.
+   expected: The magazine drops straight out along the magwell line, parallel to the grip, with no lean.
+
+6. [tiny] [low] mag_floating_or_offset  (mag-6-half-in-236-FNX-45_LASER_SUP_.png)
+   seen: The tan magazine body peeking below the grip sits roughly 20-30 px right of the grip's bottom centre and is angled a little, and the base plate is hidden under the left thumb.
+   expected: The magazine should be centred on the magwell line under the grip, as it is in the seated frames mag-1 and mag-7.
+
+7. [minor] [low] mag_not_in_hand  (mag-4-in-hand-236-FNX-45_LASER_SUP_.png)
+   seen: The fresh magazine (x 355-495, y 45-395) stands upright and sticks about 230 px above the glove. The glove fingers (x 340-830, y 275-530) are spread flat pointing left and only cover its lower part, so the magazine does not look closed in by the fingers. The test says it is 3.8 cm from the palm.
+   expected: Fingers closed around the magazine body near the palm, with the magazine held steady and the feed end pointing toward the gun.
+
+8. [tiny] [low] other  (mag-3-out-236-FNX-45_LASER_SUP_.png)
+   seen: A translucent grey capsule-shaped object hangs beside the tree trunk at about x 905-935, y 245-310, well above the gun and not attached to it.
+   expected: No stray floating shape. If it is an ejected case or a smoke puff, it should not look like a solid-ish object hanging in the air.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 2 drawn part(s) move, most 34 mm; nearest 0.0 cm from the hand' are CONTRADICTED by the pictures: rack-grip-pulled-236-FNX-45_LASER_SUP_-left.png, -right.png and the plain pulled frame show the slide in exactly the pre-pull place, so the 34 mm travel is not visible. Either the moved part is not the rendered slide, or the capture happened before the motion.
+  - 'pulled half way: 0/72 points inside the part, 2/4 fingers on it': the hand does not move between rack-grip and rack-grip-pulled, so the pulled pose is not visible. The finger contact looks identical in both frames, so the change from 3/4 to 2/4 fingers is not visible either.
+  - 'rack grip (slide/bolt): 1/72 points inside the part, 3/4 fingers on it': roughly confirmed. The index finger and thumb rest on the slide in rack-grip-236-FNX-45_LASER_SUP_-left.png and -right.png.
+  - 'racked: chambered': not verifiable from the pictures because no slide travel is visible. The only hint is the copper round tip in rack-grip-pulled-236-FNX-45_LASER_SUP_-right.png, which is low confidence.
+  - 'magazine (deep): in the hand: 3.8 cm from the palm': mag-4-in-hand-236-FNX-45_LASER_SUP_.png is consistent with it. The fingers do not visibly close around the magazine (low-medium confidence).
+  - 'half way in (on the rail): 0.0 cm off the magwell line': not clearly confirmed. mag-6-half-in-236-FNX-45_LASER_SUP_.png shows the magazine body perhaps 1 cm right of the grip line and slightly angled.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': confirmed. The base plates in mag-1-seated and mag-7-seated-again sit at the same place.
+  - 'dropped copy 0.0 cm across the pull from the gun's magazine, 6.2 cm out': mag-2-leaving is roughly consistent with a straight drop, with a slight rightward lean.
+  - 'gun moved 0.2 mm with the pull, 0.5 mm when it went home': consistent. The gun body stays static in every frame.
+  - 'fired 3/3; cases thrown: 3': no shot frames are among these pictures, so this cannot be checked here.

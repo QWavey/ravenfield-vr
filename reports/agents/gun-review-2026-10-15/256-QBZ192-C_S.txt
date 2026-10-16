@@ -1,0 +1,64 @@
+Gun 256: QBZ192-C/S
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [medium] hand_not_on_part  (rack-grip-pulled-256-QBZ192-C_S-right.png)
+   seen: The charging knob with lever (round dot plus lever) has slid about 320 px to the right in the frame (roughly the 64 mm in the test). The glove fingertip resting on top of the receiver (tan-grey, dark speckled tip, about x 665-885, y 265-380) has NOT moved and sits exactly where it was in rack-grip-256-QBZ192-C_S-right.png, so the hand is not attached to the part and the part leaves the hand. The lower glove fingers do not touch the lever.
+   expected: Fingers pinch the charging lever and travel with it as it is pulled back; the hand stays on the handle (4/4 fingers), not on the top of the receiver.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-256-QBZ192-C_S-right.png)
+   seen: Left-hand fingertip rests on top of the receiver at about x 665-890, y 265-385, roughly 200 px above the round charging knob and lever (about x 495-675, y 490-600). No finger is on the knob or lever.
+   expected: Thumb and index pinch the charging handle lever itself, not the receiver top.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-256-QBZ192-C_S-left.png)
+   seen: Left glove sits on the top and front of the receiver: thumb laid across the top at about x 240-400, y 200-280; index finger stuck straight out in front of the two-stud side plate at about x 225-400, y 330-390; middle finger tucked into a dark gap at about x 380-470, y 390-450. No finger wraps a handle or slide edge; the fingers look like they float in front of the side plate.
+   expected: Thumb and index pinch the charging handle or slide edge with the fingers on the part, not floating beside the side plate.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-256-QBZ192-C_S-left.png)
+   seen: The glove and the two-stud side plate are in the same place as in rack-grip-256-QBZ192-C_S-left.png, so the hand did not travel with the pull. The only visible change is a dark object at top right that is larger and further left (about x 840-1280, y 0-220) than in the plain frame (about x 995-1280, y 40-215); it may be a wrong part moving.
+   expected: The hand moves back with the handle or slide while the fingers stay pinched on it; only the gripped part moves.
+
+5. [major] [low] part_floating_or_detached  (rack-grip-pulled-256-QBZ192-C_S.png)
+   seen: A dark grey knuckled object hangs in the air left of the magazine at about x 540-625, y 590-700 and overlaps the blue enemy's arm. It is absent at that spot in rack-grip-256-QBZ192-C_S.png (plain), so it appeared during the pull.
+   expected: Nothing separate floats in front of the magazine; the gun shows only its own parts and the hand stays on the grip or handle.
+
+6. [minor] [low] hand_pose_wrong  (weapon-256-QBZ192-C_S.png)
+   seen: The same grey knuckled object sits at about x 540-620, y 590-690 in front of the magazine. It has bare-hand-like knuckle rings and dark tips, and the grip that the right hand should hold is not visible in this frame. The fingers look like they are in front of the magazine, not wrapped around the grip.
+   expected: The right hand wraps the pistol grip behind the magazine, with the gun pointing forward and no fingers floating in front of the magazine.
+
+7. [major] [medium] picture_unusable  (mag-1-seated-256-QBZ192-C_S.png)
+   seen: The left-hand glove (hex texture, triangle logo) fills most of the frame directly in front of the magwell. The magazine and the magwell opening are hidden, so seated or not cannot be judged. The hand may be clipping into the magwell area.
+   expected: Magazine fully in the magwell, base plate only showing, with the magwell visible.
+
+8. [major] [medium] picture_unusable  (mag-2-leaving-256-QBZ192-C_S.png)
+   seen: This frame is practically identical to mag-1 (same glove pose, same receiver and grip). No magazine dropping out of the magwell is visible because the glove covers that area.
+   expected: Magazine visibly dropping straight down out of the magwell along its line, with the magwell and the hand clear of it.
+
+9. [major] [medium] picture_unusable  (mag-3-out-256-QBZ192-C_S.png)
+   seen: Same glove-covered frame as mag-1 and mag-2. The magwell cannot be checked for emptiness; the glove hides it.
+   expected: Magwell visibly empty: no magazine in the gun and no second magazine nearby.
+
+10. [major] [medium] mag_not_in_hand  (mag-4-in-hand-256-QBZ192-C_S.png)
+   seen: The fingers do not wrap any magazine. A large olive box magazine (about x 340-580, y 0-270) hangs in the air above and in front of the glove and touches only the edge of the thumb. Under the fingertips hangs a separate dark-grey ridged cylinder (about x 285-375, y 385-535) that is not the box model of the gun's magazine.
+   expected: Fingers wrapped around the fresh magazine, which is the same box model as the gun's, with the feed end toward the gun, in the palm area.
+
+11. [major] [low] mag_floating_or_offset  (mag-5-lined-up-256-QBZ192-C_S.png)
+   seen: No magazine sits at the magwell or below the trigger guard. The only magazine-like olive block is at the bottom edge (about x 530-740, y 720-800), roughly 500 px below the magwell, and the left hand is out of view. The fresh magazine is not lined up under the magwell in this frame.
+   expected: Fresh magazine right under the magwell, on its line, held by the left hand close to the gun.
+
+12. [minor] [low] other  (mag-6-half-in-256-QBZ192-C_S.png)
+   seen: The magazine (dark olive, about x 490-780) is directly ahead of the trigger, which is correct, but its top already touches the underside of the receiver at about y 230, the same height as in mag-7-seated-again. The half-in frame does not visibly show a partly inserted magazine.
+   expected: A clearly partly inserted magazine, with its top noticeably lower than the fully seated position, going up into the magwell on its line.
+
+13. [tiny] [low] mag_wrong_orientation_or_model  (mag-7-seated-again-256-QBZ192-C_S.png)
+   seen: The magazine sits ahead of the trigger in the seated position and no second magazine is visible. Its colour is much paler (light olive-grey) than the dark olive magazine in mag-6-half-in, which could be lighting or a different magazine model.
+   expected: The same magazine model and colour as the gun's own magazine in the seated position.
+
+Test line flags:
+  - in the hand: 0.3 cm from the palm - not confirmed by mag-4-in-hand-256-QBZ192-C_S.png: the olive box is above and in front of the glove, not at the palm, and the only object at the fingertips is a grey ridged cylinder that is not the magazine model. The reading may be measuring the wrong object.
+  - rack grip (slide/bolt): 1/4 fingers on it - confirmed by rack-grip-256-QBZ192-C_S-left.png and -right.png: fingers rest on the receiver top and side plate, not on the charging lever.
+  - pulled half way: 0/4 fingers on it - confirmed by rack-grip-pulled-256-QBZ192-C_S-right.png: the lever and dot slide away while the fingertip above stays put.
+  - moving with the hand: the slide / bolt - NOT confirmed. In the right close-ups the knob moves away from a fingertip that stays in place, so the part moves without the hand.
+  - nearest is 0.0 cm from the hand - NOT confirmed by the right close-ups: the moving knob and lever are about 200 px or more from the nearest fingertip. The 0.0 cm may be measured on a lower finger that moves with the part.
+  - magazine (deep): dropped copy 0.0 cm across the pull ... 3.5 cm out - cannot be verified from the pictures; the only other magazine-like box (mag-4-in-hand) floats above the hand far from the magwell, so it is not clearly a dropped copy 3.5 cm from the magwell.
+  - half way in (on the rail): 0.0 cm off the magwell line - the magazine in mag-6-half-in looks on the magwell line in x, but it sits at the same height as the seated frame mag-7, so the half-way stage may not be visibly different. Low confidence.
+  - gun moved 0.2 mm with the pull / 0.6 mm when it went home - consistent: stock, grip and muzzle positions match between plain and pulled full views.

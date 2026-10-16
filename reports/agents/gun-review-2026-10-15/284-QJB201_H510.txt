@@ -1,0 +1,41 @@
+Gun 284: QJB201 H510
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-284-QJB201_H510-right.png)
+   seen: The charging handle (black rounded handle with a tan block and a two-screw bracket, lower middle of the receiver, about x 665-1095, y 570-650 px) has no fingers on it. The only glove visible is at the bottom-left corner (x 0-200, y 670-800), far from the handle and under the barrel line.
+   expected: Left-hand fingers wrapped around the charging handle at the lower rear of the receiver, pinching it.
+
+2. [major] [high] wrong_part_moves  (rack-grip-pulled-284-QJB201_H510-right.png)
+   seen: Compared with rack-grip-284-QJB201_H510-right.png, the charging handle, its bracket and the barrel line are at the same pixels, so the handle did not move. The upper receiver / feed cover (top bump) and the belt rounds in both feed windows slid about 340-380 px to the right (lower belt rounds x 440-850 became x 780-1190, y 380-480). The part that moves is the cover and belt, not the handle.
+   expected: The charging handle slides back about half way with the hand. The feed cover and belt stay where they are.
+
+3. [major] [medium] hand_or_finger_clipping  (rack-grip-pulled-284-QJB201_H510-left.png)
+   seen: The left glove's index finger rises out of the top of the receiver into the air at about x 600-700, y 70-230, with its tip above the receiver's top edge. The fingers splay over the feed tray instead of closing on the handle. The same finger shows above the receiver in rack-grip-pulled-284-QJB201_H510-right.png at about x 590-700, y 40-185, where it is absent in rack-grip-284-QJB201_H510-right.png.
+   expected: Fingers closed on the charging handle, with no finger sticking up in the air above the receiver.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-284-QJB201_H510-left.png)
+   seen: The left glove sits over the front-top of the receiver on the feed tray, about x 420-880, y 210-520. Belt rounds (orange and green, about x 530-745, y 170-250) poke out above the glove, and the glove's top edge sits in the feed opening. The glove is resting on the belt feed area, not on the charging handle.
+   expected: The glove grips the charging handle at the lower rear of the receiver. The feed tray and belt are not touched.
+
+5. [minor] [low] other  (rack-grip-pulled-284-QJB201_H510-right.png)
+   seen: A brass round sticks out of the receiver's left edge at about x 655-720, y 255-335, outside the feed opening. In the top feed window a long brass round lies sideways across about x 800-1030, y 260-330, with a red-orange tip. This looks like the belt displaced by the cover moving.
+   expected: All belt rounds sit inside the feed tray in their row, with none poking out of the receiver side or lying across the window.
+
+6. [tiny] [low] hand_pose_wrong  (rack-grip-284-QJB201_H510-left.png)
+   seen: The right hand's trigger finger, around the pistol grip at about x 990-1110, y 460-545, ends in a brass-yellow bullet-like cylinder with a gray glove sleeve. It is not clear whether this is the trigger or a stray cartridge in the hand.
+   expected: A gray gloved trigger finger resting on the trigger, with no cartridge-like object in the hand.
+
+7. [tiny] [low] other  (weapon-284-QJB201_H510.png)
+   seen: A dark-blue ragdoll-looking limb lies in front of the muzzle, at about x 560-700, y 530-690. The same limb appears in rack-grip-284-QJB201_H510.png and rack-grip-pulled-284-QJB201_H510.png. The limb is blue and matches the blue world bodies on the ground, so it is probably a world object in front of the camera, not part of the gun.
+   expected: No blue body overlapping the muzzle. If it is meant to be the left hand, the hand should be gray-gloved and sit on the gun.
+
+Test line flags:
+  - rack grip (charging handle...): 0/72 points inside the part, 0/4 fingers on it. CONFIRMED: in rack-grip-284-QJB201_H510-right.png no finger touches the charging handle, and in rack-grip-284-QJB201_H510-left.png the glove sits on the feed tray.
+  - pulled half way: 0/72 points inside the part, 0/4 fingers on it. CONFIRMED: the glove in rack-grip-pulled-284-QJB201_H510-left.png and -right.png is not on the charging handle, and one index finger sticks up above the receiver.
+  - moving with the hand: the charging handle. CONTRADICTED: in rack-grip-pulled-284-QJB201_H510-right.png the charging handle is at the same pixels as in rack-grip-284-QJB201_H510-right.png. The part that visibly moves is the upper feed cover and belt.
+  - drawn: 3 drawn part(s) move, most 101 mm; the nearest is 1.0 cm from the hand. PARTLY CONFIRMED: the right-side close-up shows a non-handle part (feed cover + belt) moving about 340-380 px, consistent with a large move, but that is the wrong part. The 1.0 cm nearest distance is plausible because the glove rests on the feed cover.
+  - the gun moved 0.2 mm with the pull, 1.2 mm when it went home. NOT VERIFIABLE at mm scale from these pictures. The first-person views (rack-grip, rack-grip-pulled center) show no obvious gun-body change. In the left close-ups the optic, barrel clamp, belt rounds and camo box are about 120-165 px further left in rack-grip-pulled-284-QJB201_H510-left.png than in rack-grip-284-QJB201_H510-left.png, while the glove's back edge stays put. Check whether this is camera offset or real gun movement.
+  - belt pulled too far: slipped from the hand and hangs from the box. NOT CONFIRMED by any listed picture: there is no belt-pull picture, and the camo ammo box is under the gun in every close-up.
+  - belt laid: the strip stays on the feed tray; magazine: seated, 100 rounds, belt laid. PARTLY CONFIRMED: rack-grip-284-QJB201_H510-right.png shows a full row of rounds in the lower feed tray, but the belt is displaced in the pulled-right picture.
+  - magazine (deep): skipped (no detachable magazine, or the hand is busy). CONSISTENT: the overview sheet shows 'none' for mag 1-7 (sheet items 8-14), which is expected for a belt-fed gun. The reload pictures in the brief are absent, not unusable.
+  - racked: chambered; fired 3/3; cases thrown: 3; recoil; impulse per shot. NOT CHECKABLE from these pictures.

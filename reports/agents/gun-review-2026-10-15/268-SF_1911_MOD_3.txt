@@ -1,0 +1,42 @@
+Gun 268: SF 1911 MOD 3
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-268-SF_1911_MOD_3.png)
+   seen: The fresh magazine stands upright above the back of the left glove, upper left of the frame (about x 420-545, y 118-300 in the 1280x800 picture). Its base only touches the top edge of the glove. The glove is open, fingers flat and extended to the left, and nothing curls around the magazine. It hangs in the air roughly 3 cm off the palm, matching the test's 3.3 cm.
+   expected: The left-hand fingers wrap around the fresh magazine body (same model as the gun's, feed end toward the gun), held in the palm, not floating above the hand.
+
+2. [major] [high] hand_not_on_part  (rack-grip-268-SF_1911_MOD_3-left.png)
+   seen: The left glove's back and knuckles lie over the rear of the slide from above (x about 465-870, y 240-490). Only the index fingertip touches the slide, at its lower edge (x about 215-270, y 420-465). The other three fingers hang below the slide (x about 330-480, y 470-560) beside the frame and trigger guard, not on the slide. This matches the test's 1/4 fingers.
+   expected: All four fingers on the slide (serrated side and top), pinching it, so the hand can pull the slide straight back.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-268-SF_1911_MOD_3-left.png)
+   seen: Compared with rack-grip-268-SF_1911_MOD_3-left.png, the glove sits almost exactly where it was (knuckles still at x about 465-870). The index fingertip and the front of the slide each shifted only about 15 px. The hand is not travelling with the slide and the slide does not look drawn back about half way. The test reports up to 29 mm of travel, which is far more than this frame shows.
+   expected: The slide visibly pulled back (roughly 2-3 cm, a clear shift of the slide relative to the frame), with the glove and fingers moving back with it.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-268-SF_1911_MOD_3-right.png)
+   seen: Identical framing to rack-grip-268-SF_1911_MOD_3-right.png: the thumb pad still sits at x about 620-850, the serrations unchanged, and the brass in the ejection port still at x about 920-1065, y about 410-455. The slide has not moved toward the rear (left in this view) and the glove has not moved with it.
+   expected: The slide slid back toward the rear by about half its travel, with the ejection port, serrations and thumb shifted back in the frame together.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (rack-grip-pulled-268-SF_1911_MOD_3-right.png)
+   seen: Two bright yellow wedge-shaped flares fan up and to the right from just above the slide near the ejection port (x about 810-1065, y about 110-400). The muzzle is off the right edge of the frame, so these flares are far from the barrel end and look misplaced.
+   expected: Any muzzle flash should come from the barrel end, not from the top of the slide over the ejection port. No flare hanging over the slide.
+
+6. [minor] [medium] other  (mag-1-seated-268-SF_1911_MOD_3.png)
+   seen: A brass-coloured, green-tipped cartridge-shaped cylinder (about x 440-510, y 305-355) sits inside the trigger guard in front of the grip. It is still there in mag-3-out-268-SF_1911_MOD_3.png where the magwell is empty, and in the same spot in mag-2 and mag-7. It is a stray round-like object that does not belong in the trigger guard.
+   expected: Nothing in the trigger guard other than the trigger, or a round only if it is meant to be shown there and is not floating in the guard.
+
+7. [tiny] [low] other  (weapon-268-SF_1911_MOD_3.png)
+   seen: The gun sits at the bottom-right edge of the first-person view. The grip and any right hand are cut off below the frame, and no left hand appears anywhere, so the hand-on-grip pose cannot be confirmed from this picture.
+   expected: The right hand visible at the lower right, wrapped around the pistol grip, with the gun pointing forward.
+
+Test line flags:
+  - rack grip (slide/bolt, fire motion): 0/72 points inside the part, 1/4 fingers on it. CONFIRMED by rack-grip-268-SF_1911_MOD_3-left.png: only the index fingertip touches the slide; the other three fingers hang below it.
+  - pulled half way: 0/72 points inside the part, 1/4 fingers on it. CONFIRMED by rack-grip-pulled-268-SF_1911_MOD_3-left.png: the same one-fingertip contact in the pulled pose.
+  - drawn: 1 drawn part(s) move, most 29 mm. NOT CONFIRMED: the rack-grip vs rack-grip-pulled pairs (both -left and -right) show little or no visible slide travel. 29 mm should be clearly visible in the close-ups. The first-person pair (rack-grip-268 and rack-grip-pulled-268) is too small to confirm it either way.
+  - moving with the hand: the slide / bolt. NOT CONFIRMED: in both pulled close-ups the glove stays where it was, so the hand is not moving with the slide.
+  - in the hand: 3.3 cm from the palm. CONFIRMED by mag-4-in-hand-268-SF_1911_MOD_3.png: the magazine floats above the glove and is not held by the fingers.
+  - the gun moved 0.2 mm with the pull, 2.4 mm when it went home. CONSISTENT: the pistol sits at the same screen position in every pair of pictures.
+  - magazine (deep): dropped copy 5.3 cm out. CONSISTENT with mag-2-leaving-268-SF_1911_MOD_3.png: the magazine is dropping straight out below the grip along the grip axis.
+  - seated: the gun's magazine shows 0.0 cm from where it was. CONSISTENT: mag-1 and mag-7 show the grip and hand in the same place with no magazine below.
+  - racked: chambered. CONSISTENT: brass is visible in the ejection port in rack-grip-268-SF_1911_MOD_3-right.png and rack-grip-pulled-268-SF_1911_MOD_3-right.png.
+  - fired 3/3; cases thrown 3. The only shot-like effect (yellow flare in rack-grip-pulled-268-SF_1911_MOD_3-right.png) appears at the ejection port, not at the muzzle. See the muzzle-flash bug above.

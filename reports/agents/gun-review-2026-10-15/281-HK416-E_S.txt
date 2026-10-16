@@ -1,0 +1,30 @@
+Gun 281: HK416-E/S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_floating_or_offset  (mag-5-lined-up-281-HK416-E_S.png)
+   seen: The fresh magazine is at the bottom centre of the frame, roughly 450 to 470 px below the receiver's lower edge and offset to the left of the magwell. No hand is visible holding it, so it hangs in the air well away from the gun. The overview sheet tile 12 shows the same thing.
+   expected: The fresh magazine sits right under the magwell on its line, held in the left hand's fingers close to the gun, as in mag-4, before it is raised into the magwell in mag-6.
+
+2. [major] [high] hand_not_on_part  (rack-grip-281-HK416-E_S-left.png)
+   seen: The left glove lies flat across the top of the receiver. The thumb and index fingertip rest on the top rail ahead of the receiver, and the curled middle and ring fingers press against the receiver side plate around x 360-500, y 440-520, partly merging into it. No fingertip wraps a charging handle. A small plate with a lever at roughly x 115-245, y 390-500, probably the handle, is left of the fingers and not gripped. The test line also reports 1/4 fingers and 0/72 points.
+   expected: Index and middle fingers hook around the charging handle at the rear of the upper receiver, thumb on top of it, and no fingers sit inside the receiver body.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-281-HK416-E_S-left.png)
+   seen: The glove and thumb sit in essentially the same place as in rack-grip-281-HK416-E_S-left.png (within about 30 px), so the hand does not travel back with the pull. Meanwhile the gun body slides about 100 px sideways in frame: the scope, the side plate with the lever, and the magazine all move left, and the right hand on the grip moves with them. The background tree and rock do not move, so this shift is the gun, not the camera.
+   expected: The glove follows the charging handle about half way back (roughly 40 mm to the rear) with the fingers still hooked on it, while the rest of the gun body stays still.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-281-HK416-E_S-right.png)
+   seen: Compared with rack-grip-281-HK416-E_S-right.png, the glove and the small dark block under the thumb stay exactly in place, but the upper gun parts slide about 180 px to the right: the scope, the barrel collar, the bullet-shaped piece, the rear knob and the long suppressor/handguard cylinder all shift together. The hand is pulling air while the receiver and barrel move.
+   expected: Only the charging handle (with the bolt group) travels back about 40 mm under the fingers. The receiver, barrel, sight and suppressor stay still, and the hand moves with the handle.
+
+5. [tiny] [low] other  (mag-3-out-281-HK416-E_S.png)
+   seen: The small ammo decal on the pistol grip (around x 1100-1170, y 250-290) reads '1 NO MAG' but the letters look mirrored or reversed. Also seen in mag-5. Legibility only, and I am not certain of the reversal.
+   expected: The decal text reads left to right from the player's view, like the '40+1' label in the firing frames.
+
+Test line flags:
+  - Rack grip '0/72 points inside the part, 1/4 fingers on it': confirmed by rack-grip-281-HK416-E_S-left.png. The fingers rest on the rail and side plate and do not wrap the handle.
+  - Pulled half way '0/72 points inside, 1/4 fingers': confirmed by rack-grip-pulled-281-HK416-E_S-left.png and -right.png. The glove does not move between the grip and pulled frames while the gun parts shift.
+  - 'Moving with the hand: the charging handle' and 'drawn: 2 parts move, most 40 mm, nearest 0.0 cm from the hand': not confirmed. In rack-grip-pulled-281-HK416-E_S-right.png the parts that move are the scope, barrel collar and upper parts (about 180 px). The block under the thumb, which is the part nearest the hand, does not move.
+  - 'Gun moved 0.3 mm with the pull': looks wrong. The left close-up pair shows the gun body shifting about 100 px in frame while the background stays put, and the right pair shows about 180 px. A 0.3 mm move would not be this visible.
+  - Magazine lined-up step (mag-5) has no measurement in the test line, so the floating, off-magwell magazine in mag-5-lined-up-281-HK416-E_S.png went unchecked.
+  - 'Half way in 0.0 cm off the magwell line' (mag-6), 'seated: 0.0 cm from where it was' (mag-7), 'in the hand 3.4 cm from the palm' (mag-4) and 'dropped copy 7.9 cm out' (mag-2): the pictures look consistent with these numbers. Not flagged.

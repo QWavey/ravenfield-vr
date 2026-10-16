@@ -1,0 +1,61 @@
+Gun 250: QBZ192 S
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] picture_unusable  (mag-1-seated-250-QBZ192_S.png)
+   seen: The camera sits against the back of the left glove. The hex-textured glove back with the triangle badge fills the whole 1280x800 frame, with only a thin sliver of receiver at the very top. No magwell, magazine base or pistol grip is visible, so the seated magazine cannot be checked.
+   expected: A close-up where the magazine seated in the magwell is visible, base level with the receiver underside.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-250-QBZ192_S.png)
+   seen: Same frame as mag-1: identical glove close-up and receiver sliver. No magazine is dropping out, so the test's dropped copy (7.3 cm out along the magwell line) cannot be seen.
+   expected: The magazine visibly sliding straight down out of the magwell along its axis.
+
+3. [major] [high] picture_unusable  (mag-3-out-250-QBZ192_S.png)
+   seen: Identical to mag-1 and mag-2: the glove back fills the frame. The magwell is not visible, so an empty magwell cannot be confirmed.
+   expected: A view that shows the receiver underside and the empty magwell with no magazine in it.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-250-QBZ192_S.png)
+   seen: The left glove is open and flat, fingers stretched forward (about x 310-620, y 280-420) and not curled around anything. The olive magazine hangs above and behind the index finger (about x 340-580, from the top edge down to y 370), with its lower end tucked behind the finger. The palm is clear of it, which fits the test's 3.3 cm palm distance: the magazine hovers rather than being held. Its top also seems to run up under the receiver, so it may still be the gun's own magazine. The right hand is correctly wrapped on the pistol grip (about x 870-1060, y 250-440).
+   expected: Left fingers curled around the body of a fresh magazine of the same model, feed end toward the gun, palm touching it.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-250-QBZ192_S.png)
+   seen: No magazine at the magwell and no left hand in the frame. An olive magazine-shaped box lies in the grass at the bottom centre (about x 395-620, y 685-800), far below and in front of the gun. The top-right shows the trigger guard and the right hand's gray fingers on the grip, which is correct. This looks like the dropped magazine still lying on the ground, not the fresh one lined up under the magwell.
+   expected: The fresh magazine held in the left hand directly under the magwell, on the magwell's line, a few cm below it.
+
+6. [minor] [low] mag_wrong_orientation_or_model  (mag-6-half-in-250-QBZ192_S.png)
+   seen: The magazine's top meets the receiver underside (about x 570-830, y 170), but the body leans roughly 15-20 degrees off the receiver's vertical and curves toward the bottom-left. The left glove holds its base at the bottom (about x 360-960, y 540-800). The magazine in mag-4 hangs straight, so the lean looks wrong. Depth into the well cannot be judged from this frame, so the test's 0.0 cm off the magwell line is not confirmed.
+   expected: The magazine straight along the magwell axis, entering the well about half its height.
+
+7. [major] [medium] mag_wrong_orientation_or_model  (mag-7-seated-again-250-QBZ192_S.png)
+   seen: The magazine top stays at the receiver underside (about x 600-860, y 170), but its base has swung further left (about x 430-600, y 520-660) and the body leans about 20-25 degrees, more than in mag-6. It is not seated straight in the well and does not match the pose the gun's own magazine had. The glove holds the base, and the hand is outside the gun as it should be.
+   expected: The magazine fully seated in the magwell, straight on the same axis the original magazine (mag-1) had, with no lean.
+
+8. [tiny] [low] other  (weapon-250-QBZ192_S.png)
+   seen: A tan, tilted shell-casing-like cylinder hangs motionless at about x 820-880, y 185-305 in the sky. It sits at the same spot in weapon-250, rack-grip-250 and rack-grip-pulled-250 (full frames), while the smoke puffs around it change between frames. A thrown case should fall away, so this one looks stuck, consistent with the test's 'cases thrown: 3'.
+   expected: The ejected case falls away and lands on the ground instead of hanging in the air.
+
+9. [major] [medium] hand_not_on_part  (rack-grip-250-QBZ192_S-left.png)
+   seen: The left glove lies flat against the receiver's left side plate (about x 220-880, y 220-530). The index finger (about x 220-420, y 240-310) lies across two round screws (about x 210-300, y 290-310) and the other fingers run along the plate. No handle or slot is under the fingertips, and the free hand is not on the charging handle or slide. The right hand's gray fingers on the tan pistol grip (about x 600-910, y 500-730) are correct.
+   expected: The left fingers pinch the part that racks the gun (charging handle or slide), with fingers on that part rather than on a flat side plate.
+
+10. [major] [medium] hand_not_on_part  (rack-grip-250-QBZ192_S-right.png)
+   seen: A gray, rounded bolt-like part sits alone in the receiver's top channel (about x 685-910, y 280-400). No finger touches it. The only gray fingers in frame are at the bottom right (about x 620-860, y 690-800) on the pistol grip. The round-knob lever (about x 510-690, y 500-610) is about 200 px below and untouched. This matches the test's 0/4 fingers on the part.
+   expected: Left-hand fingers pinched on the charging handle or bolt, which sits in its channel attached to the receiver.
+
+11. [major] [medium] hand_not_on_part  (rack-grip-pulled-250-QBZ192_S-right.png)
+   seen: Compared with the rack-grip right frame, the gray bolt-like part (about x 690-905, y 280-390) stays at the same screen spot while the rivet, rear sight and round-knob lever all shift about 310-330 px sideways. The bolt has therefore moved roughly 6 cm back along the receiver with the hand, but no finger holds it and it looks carried or detached rather than pulled. The knob lever moves with the receiver and does not travel with the pull. This is consistent with the test's 64 mm drawn part sitting 0.0 cm from the hand without any fingers on it.
+   expected: The fingers grip the charging handle or bolt, which slides back in its channel and stays attached to the receiver while the hand pulls.
+
+12. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-250-QBZ192_S-left.png)
+   seen: The glove sits at the same screen spot as in the rack-grip-left close-up (about x 230-880, y 240-550), but the rear sight, magazine and pistol grip have all shifted about 200 px to the left. No part of the gun moves relative to the other gun parts, and no handle is visible under the fingers. The hand moved back, but the racking part did not visibly move with it, so the hand looks like it is pulling air.
+   expected: The charging handle or bolt slides about half way back under the fingers, with the hand moving with it, the gun body staying still.
+
+Test line flags:
+  - rack grip 0/72 points inside the part, 0/4 fingers on it: supported. In rack-grip-250-QBZ192_S-left and -right no finger is on the bolt-like part or any handle.
+  - pulled half way 1/4 fingers on it: not seen. In rack-grip-pulled-left the glove stays on the side plate, and in rack-grip-pulled-right no finger touches the moving part. The one finger may be a graze that is not visible in these frames.
+  - drawn 1 part moves, most 64 mm, nearest 0.0 cm from the hand: partly supported. In rack-grip-pulled-right the gray bolt-like part shifts about 6 cm relative to the receiver (about 330 px at close-up scale), while the knob lever does not move. The 0.0 cm contact with the hand has no finger behind it, so the part looks dragged rather than gripped.
+  - in the hand 3.3 cm from the palm: supported. mag-4-in-hand shows the magazine hovering above the open glove, not wrapped in the fingers.
+  - half way in (on the rail) 0.0 cm off the magwell line: not confirmed and looks wrong. mag-6-half-in shows the magazine leaning about 15-20 degrees off the receiver's vertical. Depth is unreadable.
+  - seated: the gun's magazine shows 0.0 cm from where it was: not confirmed. mag-7-seated-again leans more than mag-6 (about 20-25 degrees), so the magazine did not return to the same pose. mag-1 cannot be read at all.
+  - dropped copy 0.0 cm across the pull, 7.3 cm out: not checkable. mag-2-leaving is the same frame as mag-1. mag-5-lined-up shows a magazine lying on the grass, which conflicts with the test's 'dropped magazine picked up'.
+  - magazine: seated, 31 rounds after '30 rounds kept': not checkable in pictures. The extra round is probably the chambered round from the rack.
+  - fired 3/3, cases thrown 3: the first-person frames show one casing hanging motionless in the sky across several frames, so a case object may be stuck.

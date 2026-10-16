@@ -1,0 +1,62 @@
+Gun 215: FA1911 20R
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] mag_not_into_magwell  (mag-1-seated-215-FA1911_20R.png)
+   seen: The olive magazine hangs straight down out of the bottom of the orange grip. Its top edge meets the grip base at about x 545-690, y 270, and the body runs past the bottom edge of the frame (about 530 px visible, roughly 2 to 3 times the grip's visible width, i.e. several cm). Nothing of the magazine is inside the handle; only the top of the grip is above it.
+   expected: Magazine fully inside the grip, with only the base plate (about 1-2 cm) showing below the grip bottom.
+
+2. [major] [medium] mag_not_into_magwell  (mag-6-half-in-215-FA1911_20R.png)
+   seen: The magazine is already at exactly the same place as in mag-1 and mag-7: top edge at the grip base (y about 270), body hanging below it. No part goes up into the grip, so there is no visible half-way travel. A black glove sits at the bottom right against the magazine base.
+   expected: About half of the magazine body pushed up into the grip on the magwell line, with its top end inside the handle.
+
+3. [major] [medium] mag_duplicate_or_missing  (mag-5-lined-up-215-FA1911_20R.png)
+   seen: No fresh magazine anywhere in the frame. The grip bottom is at about y 110 with grass directly below it, and a dark gray hand shape sits in the top left corner. The magazine is absent here, yet in mag-6 it is already fully at the seated spot, so it appears to pop into place rather than travel up its line.
+   expected: Fresh magazine visible directly under the magwell on the grip's axis, just below the grip base.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-215-FA1911_20R.png)
+   seen: The olive magazine runs from the top edge (x 330-400) down to about (440-510, 460) and ends just above the left glove's knuckles, passing behind the index finger. The fingers do not close around it, so it looks like it hovers beside the palm. Its top end points up and left, away from the gun at upper right, so the feed end is not toward the gun.
+   expected: Left fingers closed around the magazine body and held against the palm, feed end (top) pointing up-right toward the gun's magwell.
+
+5. [minor] [low] other  (mag-2-leaving-215-FA1911_20R.png)
+   seen: The magazine barely moves: it still sits at the grip base, about 10 px lower than in mag-1, with a light seam at its top-left. No separate dropped magazine is visible about 8 cm below the magwell, and in mag-3 there is nothing on the ground under the grip, so the released magazine seems to vanish instead of dropping along its line.
+   expected: Magazine visibly slides straight down its line out of the grip, and the dropped copy lies about 8 cm further down, in view.
+
+6. [major] [medium] wrong_part_moves  (rack-grip-pulled-215-FA1911_20R-left.png)
+   seen: Compared with rack-grip-215-FA1911_20R-left.png, the whole gun body has shifted: the grip's lower screw goes from about (500, 712) to (421, 685), and the trigger guard and black rear loop move about 70-120 px left. The left glove and the tree/tank background stay put. The slide top does not visibly travel back.
+   expected: Only the slide moves back with the hand (roughly 8 cm, far more than the shift seen here). Receiver, grip, trigger guard and rear loop stay still, and the left hand stays on the slide.
+
+7. [major] [medium] wrong_part_moves  (rack-grip-pulled-215-FA1911_20R-right.png)
+   seen: Compared with rack-grip-215-FA1911_20R-right.png, the orange grip (lower screw from about (943, 590) to (1105, 630)) and the black loop shift about 100-160 px to the right, while the top glove stays on the same spot. The gun body moves against the hand; a brass cartridge shows through the ejection port, and the glossy rear patch on the slide has left the frame.
+   expected: The slide slides back under the left hand; the grip, trigger guard and right hand stay where they were, with the slide's rear moving rearward on its rails.
+
+8. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-215-FA1911_20R.png)
+   seen: First-person pulled frame looks like the rest frame: the slide and rear sight sit at the same screen position as in rack-grip-215-FA1911_20R.png with no visible rearward travel, and no left hand is in view to show it pulling the slide.
+   expected: Slide pulled about half way back by the left hand, which should be visible with its fingers on the slide.
+
+9. [minor] [low] hand_not_on_part  (rack-grip-215-FA1911_20R.png)
+   seen: No left hand in the frame at all, so the claimed 1 of 4 fingers on the slide cannot be seen. The right hand is not visible either; the gun sits low at the bottom edge.
+   expected: Left hand visible on the slide's top, with fingers on the part.
+
+10. [minor] [low] hand_not_on_part  (weapon-215-FA1911_20R.png)
+   seen: No right hand is visible. The orange grip runs off the bottom edge of the frame, so the gun appears to float in the lower right corner.
+   expected: Right hand wrapped around the pistol grip, visible at the bottom right.
+
+11. [minor] [low] gun_pose_or_aim_wrong  (weapon-215-FA1911_20R.png)
+   seen: The large dark muzzle ring (about x 815-890, y 670-790) is the part nearest the camera, while the slide recedes toward the upper left. The gun looks like it points back at the player instead of forward toward the helicopter and the scene.
+   expected: Muzzle pointing away from the camera into the scene, with the slide receding toward the horizon.
+
+12. [tiny] [low] other  (rack-grip-215-FA1911_20R-left.png)
+   seen: A black rectangular loop with a square hole sticks out behind the grip and rear of the frame in every close-up (top right in the mag frames, bottom right in the rack frames). A 1911 has no such part; it looks like a stray rifle-style charging handle or stock fragment.
+   expected: Only the pistol frame and slide parts, or a deliberate rack handle that is clearly attached to the slide.
+
+Test line flags:
+  - drawn: 3 drawn parts move, most 82 mm: not supported by the pictures. In the rack-grip close-ups the slide does not travel back anything like 82 mm (at the grip's scale that would be about 500 px and the slide would leave the frame); the visible motion is the gun body. Confirmed by rack-grip-pulled-215-FA1911_20R-left.png and -right.png.
+  - the gun moved 0.2 mm with the pull: contradicted. The grip, trigger guard and rear loop shift about 1 to 2.5 cm between rack-grip and rack-grip-pulled close-ups while the left glove and the background stay put.
+  - seated: the gun's magazine shows 0.0 cm from where it was: the picture shows the magazine hanging below the grip (mag-1-seated, mag-7-seated-again), not inside it. The 0.0 cm check does not catch a magazine parked too low.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in shows the magazine already at its seated place with no half-way travel, so the half-way frame is indistinguishable from seated.
+  - in the hand: 3.6 cm from the palm: consistent with mag-4-in-hand, where the magazine is not clamped by the fingers and ends in the air beside the palm.
+  - magazine (deep): dropped copy 8.2 cm out: not visible. No separate dropped magazine appears about 8 cm below the magwell in mag-2-leaving or mag-3-out.
+  - rack grip: 1/4 fingers on it: the left glove's fingers do lie over the top of the slide in rack-grip-left and rack-grip-right, so the picture does not contradict 1/4. The first-person centre frame shows no left hand at all, so it cannot be checked there.
+  - pulled half way: 2/4 fingers on it: the glove is still over the slide top in the pulled close-ups, so no contradiction, but the slide's travel is not shown (see the 82 mm flag).
+  - magazine: seated, 21 rounds, racked: chambered: not checkable from these pictures. A brass cartridge is visible through the ejection port in rack-grip-pulled-215-FA1911_20R-right.png, which is consistent with a chambered round.
+  - fired 3/3; cases thrown 3; recoil figures: no firing pictures for this gun, so they cannot be checked.

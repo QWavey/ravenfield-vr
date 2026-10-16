@@ -1,0 +1,50 @@
+Gun 276: HK416-C
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-5-lined-up-276-HK416-C.png)
+   seen: A dark olive magazine (small tan spot on its top) lies on the grass at bottom centre (roughly x 490-675, y 680-800 of 1280x800). It sits far below and in front of the gun: the magwell area under the receiver, left of the pistol grip, shows only sky and tree, so it is empty. No left hand is in view holding anything. The right hand grips the grip at top right and the ammo label reads 1 NO MAG.
+   expected: The fresh magazine held by the left hand right at the magwell, on its line (feed end up, just below the receiver), ready to go in.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-276-HK416-C.png)
+   seen: The left glove has its back toward the camera with the fingers splayed flat to the left. A dark magazine stands up from above the back of the hand, its lower end resting on the knuckles and its top running off the top edge in front of the receiver. No finger curls around the magazine body, so it looks hovering rather than gripped. The test line says it is 2.0 cm from the palm.
+   expected: The magazine held in the palm, fingers wrapped around its body and touching it, feed end pointing toward the gun.
+
+3. [major] [low] mag_duplicate_or_missing  (mag-4-in-hand-276-HK416-C.png)
+   seen: A second dark ribbed magazine-like object fills the right edge close to the camera (roughly x 1060-1280, y 330-800), separate from the one in the left hand. It looks like the same magazine that lies on the grass in mag-5-lined-up-276-HK416-C.png, so there may be two magazines in the scene.
+   expected: Only one magazine: the one in the hand. The dropped copy should be picked up or removed, not left on the ground.
+
+4. [major] [high] picture_unusable  (mag-1-seated-276-HK416-C.png)
+   seen: The whole frame is the back of the left glove (grey weave, yellow slots, dark triangle emblem) held right against the camera. Only a thin strip of the gun's receiver shows at the top edge and a mirrored ammo label at the right. The magwell and the seated magazine are not visible at all.
+   expected: A view of the magwell with the magazine fully seated (only the base plate showing below the receiver), with the free hand away from the lens.
+
+5. [major] [high] picture_unusable  (mag-2-leaving-276-HK416-C.png)
+   seen: The same glove close-up fills the frame; the mirrored label reads 1 NO MAG. The magazine dropping out of the magwell cannot be seen, so the step cannot be checked.
+   expected: The magazine visibly dropping straight down out of the magwell along its line, with the hand clear of the view.
+
+6. [major] [high] picture_unusable  (mag-3-out-276-HK416-C.png)
+   seen: The same glove close-up fills the frame with the mirrored label 1 NO MAG. The magwell is hidden, so an empty magwell cannot be confirmed.
+   expected: The empty magwell visible under the receiver, with no magazine in the gun and the hand clear of the view.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-276-HK416-C-left.png)
+   seen: The left glove lies flat across the top of the upper receiver near the optic, back of the hand up, thumb pushed out over the rail. The fingers rest on the receiver top and no finger visibly closes on a handle lever. The test says 1 of 4 fingers is on the part.
+   expected: Thumb and fingers pinching the charging handle (the lever on the receiver), not resting on the top rail.
+
+8. [minor] [low] hand_not_on_part  (rack-grip-276-HK416-C-right.png)
+   seen: The left glove lies flat on the top of the receiver near the front sight area, fingers laid along the top surface. No finger is wrapped around any handle, and the fingertips sit on the surface rather than in a pinch.
+   expected: Fingers pinching the charging handle with the hand gripping it.
+
+9. [major] [medium] hand_not_on_part  (rack-grip-pulled-276-HK416-C-left.png)
+   seen: The glove sits in the same flat position on top of the receiver: thumb forward, fingers laid over the rail, nothing wrapped around a handle. A bullet casing is in flight at top left (consistent with firing). The hand does not visibly travel back, so the handle that moves is not held by the hand. The test says 0 of 4 fingers on the part and the part 0.7 cm from the hand.
+   expected: The hand gripping the charging handle with fingers around it, and the handle pulled back about half way together with the hand.
+
+10. [minor] [low] hand_not_on_part  (rack-grip-pulled-276-HK416-C-right.png)
+   seen: The glove lies on the front of the receiver top in almost the same place as in rack-grip-276-HK416-C-right.png. No finger is wrapped around a handle and there is no visible backward travel, which fits a hand pulling air.
+   expected: The hand gripping the handle and drawn back about half way, fingers following the handle.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' conflicts with 'pulled half way: 0/4 fingers on it'. The part is reported as moving with the hand while no finger is on it. rack-grip-pulled-276-HK416-C-left.png and -right.png are consistent with the hand resting on the receiver top and wrapping nothing.
+  - 'rack grip ... 1/4 fingers on it' and 'the nearest is 0.7 cm from the hand' are consistent with the pictures: the glove rests on the receiver top beside the moving part instead of gripping it. Pictures confirm the hand is not gripping; they cannot confirm the 68 mm stroke from stills.
+  - 'in the hand: 2.0 cm from the palm' is consistent with mag-4-in-hand-276-HK416-C.png, where the magazine hovers above the back of the hand with the fingers splayed flat.
+  - 'dropped magazine picked up and seated' does not match mag-5-lined-up-276-HK416-C.png, which shows a magazine lying on the grass below the gun with no hand holding it. The test line does not report a second magazine; the pictures suggest one may exist (see mag-4-in-hand-276-HK416-C.png right edge).
+  - 'recoil: one hand 0.0 deg climb, 0.0 cm back' next to 'impulse per shot one hand 98 deg/s' looks internally inconsistent (zero net climb with a large per-shot angular impulse). No picture covers recoil, so this cannot be confirmed or refuted from the pictures.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' and 'seated: 0.0 cm from where it was' are not contradicted by mag-6-half-in-276-HK416-C.png and mag-7-seated-again-276-HK416-C.png, which look on the magwell line and seated. The 'where it was' comparison cannot be checked because mag-1 is occluded by the glove.

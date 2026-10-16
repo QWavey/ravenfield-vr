@@ -1,0 +1,38 @@
+Gun 283: QJB201 [MG&AR]
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-283-QJB201_MG_AR_-right.png)
+   seen: Compared with rack-grip-283-QJB201_MG_AR_-right.png, the whole upper receiver has slid about 350-380 px to the right (rearward). The top cover block moved from x about 320-750 to x about 700-1280, the feed tray and belt window moved from x about 420-860 to about 785-1230 (the light tab at the tray end moved from x about 420-470 to about 797-830), and the rear sight post moved from x about 20-180 to about 370-440. The two receiver side screws at x 985 and 1190, y 380 have left the frame. The lower receiver (bottom rail edge at y 565-580) did not move.
+   expected: Only the charging handle slides rearward with the hand. The top cover, feed tray, belt window, rear sight and receiver side plates stay fixed relative to the gun body.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-283-QJB201_MG_AR_-right.png)
+   seen: The charging handle (dark bar at about x 850-1095, y 568-655) and its light mount block (about x 783-855, y 585-635) and screw plate (about x 668-830, y 568-615) are at exactly the same pixel positions as in rack-grip-283-QJB201_MG_AR_-right.png. The handle did not move back at all.
+   expected: The charging handle slides rearward (toward the stock, which is at the bottom right of this view) about half its travel while the hand pulls it, and the fingers stay on it.
+
+3. [major] [high] hand_not_on_part  (rack-grip-283-QJB201_MG_AR_-left.png)
+   seen: The gloved left hand sits on the top cover and feed-tray area ahead of the pistol grip (glove roughly x 420-880, y 200-520). Its top edge overlaps the top cover, the fingers spread forward over the feed area, and the thumb tucks down beside the ammo box. No finger is on the rear charging handle, which sits lower and further back on the receiver.
+   expected: Fingers closed around the charging handle at the rear of the receiver (the dark lever with light mount at about x 850-1090, y 570-655 in the right close-up), not on the feed cover.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-283-QJB201_MG_AR_-right.png)
+   seen: A gloved finger rises from the hand over the top of the receiver, in front of the rear sight, at about x 575-700 from y about 220 up to y about 45. It sticks up into the open air above the gun body. The finger is not in the before close-up (rack-grip-283-QJB201_MG_AR_-right.png), and the same finger appears above the receiver in rack-grip-pulled-283-QJB201_MG_AR_-left.png at about x 600-700, y 70-220.
+   expected: The fingers stay curled around the charging handle at the lower rear of the receiver. No finger should stick up above the gun body.
+
+5. [minor] [medium] hand_not_on_part  (rack-grip-pulled-283-QJB201_MG_AR_-left.png)
+   seen: Compared with rack-grip-283-QJB201_MG_AR_-left.png, the glove has moved up and forward during the pull. Its top edge rose from about y 200 to about y 70, the fingers spread out to the left (to about x 290), and a finger points up over the receiver. The hand moved up off the feed cover instead of sliding back along the receiver.
+   expected: The hand stays on the charging handle and moves rearward (to the right in these left-side views) with it, without rising off the gun.
+
+6. [minor] [low] muzzle_flash_or_lens_flash_issue  (rack-grip-pulled-283-QJB201_MG_AR_.png)
+   seen: First-person view during the pull shows a yellow-white flash with a streak and small white sparks over the rock on the left (about x 250-340, y 340-400). It sits roughly 250-300 px from the barrel tip (about x 540, y 640, in front of the blue soldier), and there is no flash at the muzzle itself. The direction does not line up with the barrel.
+   expected: If this is the gun's muzzle flash (the test says fired 3/3), it should sit on the barrel tip. A flash here is more likely a bullet impact or a misplaced effect, so it needs checking against a lensflash picture for this gun.
+
+Test line flags:
+  - "moving with the hand: the charging handle" is NOT confirmed. In rack-grip-pulled-283-QJB201_MG_AR_-right.png the charging handle stays at the same pixels as in rack-grip-283-QJB201_MG_AR_-right.png. The part that moved is the upper receiver (see the wrong_part_moves entry).
+  - "drawn: 3 drawn part(s) move, most 101 mm; the nearest is 1.0 cm from the hand": a shift of about 100 mm is visible, but on the upper receiver (top cover, feed tray, belt window, rear sight), not on the charging handle. The 1.0 cm distance to the hand fits a hand resting on that cover. The picture supports that the wrong part moved.
+  - "rack grip ... 0/72 points inside the part, 0/4 fingers on it" and "pulled half way: 0/72 points inside the part, 0/4 fingers on it" are CONFIRMED by rack-grip-283-QJB201_MG_AR_-left.png and rack-grip-pulled-283-QJB201_MG_AR_-left.png. The glove sits on the top cover and feed area, and no fingers touch the charging handle.
+  - "the gun moved 0.1 mm with the pull" is consistent with the pictures: the lower receiver, the grip and the handle mount are static between the before and pulled right close-ups.
+  - "fired 3/3" is consistent with the muzzle flash in rack-grip-pulled-283-QJB201_MG_AR_.png, but that flash is not at the muzzle (see the minor flash entry).
+  - "belt laid: the strip stays on the feed tray" is consistent: the belt rounds sit in the feed tray in both right close-ups. They move together with the upper receiver, not separately.
+  - "belt pulled too far: slipped from the hand and hangs from the box" has no picture in this list, so it cannot be confirmed. The belt box hangs under the receiver in the left close-ups, which is consistent with the belt in the box.
+  - "racked: chambered" cannot be checked from these pictures.
+  - The right hand is not visible in weapon-283-QJB201_MG_AR_.png or the first-person pulled and rack frames, so the pistol-grip wrap cannot be verified. This is not reported as a bug.
+  - No magazine pictures (mag-1 to mag-7) are listed for this gun, consistent with "magazine (deep): skipped".

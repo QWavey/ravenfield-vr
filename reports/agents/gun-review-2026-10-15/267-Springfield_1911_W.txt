@@ -1,0 +1,42 @@
+Gun 267: Springfield  1911 W
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-267-Springfield_1911_W-right.png)
+   seen: Same framing as rack-grip-267-Springfield_1911_W-right.png, but the slide has not moved. The rear sight (about x 625-745, y 395-430), the serrations (x 700-870, y 440-520) and the ejection port (x 910-1060, y 405-450) are at the same pixels in both frames. The left-hand glove on top of the slide is also unchanged, so nothing is pulled back.
+   expected: The slide visibly pulled about half way back (test says 29 mm, roughly 3 cm, about 100 px at this distance) toward the shooter, with the sight and serrations shifted back and the glove's fingers riding back with it.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-267-Springfield_1911_W-left.png)
+   seen: The muzzle end and front sight (x 10-60, y 325-340, left of frame) are at the same screen spot as in rack-grip-267-Springfield_1911_W-left.png. The slide top edge (y about 340) and the index fingertip (x 225-250, y 420-460) are unchanged. The slide is not pulled back.
+   expected: Muzzle end and front sight shifted about 3 cm toward the shooter (right on screen), with the fingers moving back along the slide.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-267-Springfield_1911_W-right.png)
+   seen: Relative to the slide, the lower frame has moved about 115 px to the right (about 3 cm, toward the rear). The trigger guard is now at x 620-745, y 505-575 (was x 510-640 in the rack-grip frame). The grip-panel screw dot moved from x 760 to x 880, and the magwell-ring dots from x 885 to x 1000. The right hand's fingers under the grip moved the same way. The frame/receiver moves while the slide stays put.
+   expected: Only the slide moves back. The trigger guard, grip and magwell stay where they were in rack-grip-267-Springfield_1911_W-right.png.
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-267-Springfield_1911_W-left.png)
+   seen: The gold block under the grip (orange dot near its bottom) sits about 85 px further left than in rack-grip-267-Springfield_1911_W-left.png (dot moved from x 640 to x 553, y about 672). The grey fingers under it also moved about 90 px left. That is the opposite direction to the right close-up, so these lower parts are not moving as one rigid piece. The block looks like the magazine or the lower grip frame.
+   expected: Nothing below the slide moves during a rack. Only the slide moves.
+
+5. [tiny] [low] other  (rack-grip-pulled-267-Springfield_1911_W-right.png)
+   seen: An orange cartridge case shows inside the ejection port (about x 935-1010, y 410-445) in this frame, but not in rack-grip-267-Springfield_1911_W-right.png. A round showing in the port while the slide should be half back is odd.
+   expected: Slide half back with no round visible in the port, unless a round is actually being chambered at that moment.
+
+6. [minor] [medium] other  (mag-6-half-in-267-Springfield_1911_W.png)
+   seen: Only about 1-1.5 cm of the fresh magazine shows below the grip (base edge at about y 610-620, grip bottom at y 575, so roughly 45 px). In mag-2-leaving the magazine shows about 130 px below the grip while still coming out, so this is far deeper than half way. The magazine is almost fully seated.
+   expected: About half of the magazine body below the grip (roughly 130 px or more at this scale), going up into the magwell on its line.
+
+7. [minor] [low] mag_not_in_hand  (mag-6-half-in-267-Springfield_1911_W.png)
+   seen: The free left hand is in the foreground below and to the right of the magazine. Its top edge is about 30-40 px below the magazine base, and no fingers visibly touch the magazine.
+   expected: The left hand holds the magazine base and pushes it up along the magwell line.
+
+8. [minor] [medium] muzzle_flash_or_lens_flash_issue  (mag-2-leaving-267-Springfield_1911_W.png)
+   seen: A bright yellow burst with dark smoke sits right behind the hammer and the grip, at about x 720-930, y 240-410, in front of the tree trunk. The muzzle end (left, x about 110-170) is clear. The same spot shows a faint glow in mag-1-seated-267 and grey smoke in mag-3-out-267.
+   expected: Muzzle flash only at the muzzle (left end of the slide). Nothing burning behind the hammer. The test says it fired 3/3.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt' and 'drawn: 1 drawn part(s) move, most 29 mm': the pictures contradict this. In rack-grip-pulled-267-Springfield_1911_W-left.png and -right.png the slide does not move at all. The part that shifts is the frame below the slide (trigger guard, grip, magwell area, see rack-grip-pulled-267-Springfield_1911_W-right.png). The measurement is picking up the wrong part.
+  - 'the gun moved 0.2 mm with the pull': the gun root can stay still while the frame moves, so this does not rule out the frame shift. The slide is still not moving, so the root-level check is not a sufficient test.
+  - 'pulled half way: 2/4 fingers on it': both pulled close-ups show the index finger still lying on the slide, but the slide did not move under the hand. The 'fingers on the part' count is measuring a stationary slide, so it does not show the rack works.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the magazine is on its line in mag-6-half-in-267-Springfield_1911_W.png, but it is only about 1-1.5 cm below the grip (about 80-90 percent in), not half way. The test does not measure insertion depth, and the picture confirms the depth is wrong.
+  - 'fired 3/3' and 'cases thrown: 3': the bright burst and smoke in mag-2-leaving-267 and mag-1-seated-267 sit behind the hammer, not at the muzzle. The shot effect may be anchored at the wrong point. Confirmed by the picture.
+  - Checked and consistent, not flagged: 'seated: 0.0 cm' (mag-7 grip and trigger guard match mag-1); 'dropped copy 5.2 cm out' (mag-2 shows the magazine dropping along the grip line); 'in the hand: 3.3 cm from the palm' (mag-4 shows the left hand holding a same-model magazine, feed end up toward the gun).

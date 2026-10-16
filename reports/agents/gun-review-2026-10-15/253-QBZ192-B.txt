@@ -1,0 +1,51 @@
+Gun 253: QBZ192-B
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] picture_unusable  (mag-1-seated-253-QBZ192-B.png)
+   seen: Extreme close-up of the back of the left glove (hex fabric, triangle emblem, yellow bars along the bottom). No gun, receiver, magwell or magazine is in frame; the camera is pressed against the hand. Pixel-for-pixel the same image as mag-2 and mag-3.
+   expected: The fresh or original magazine fully seated in the magwell under the receiver, ahead of the trigger, with the magwell and magazine visible.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-253-QBZ192-B.png)
+   seen: Same glove close-up as mag-1. The magazine dropping out of the magwell cannot be seen at all.
+   expected: Magazine dropping straight down out of the magwell along its line, with the magwell and the free hand visible.
+
+3. [major] [high] picture_unusable  (mag-3-out-253-QBZ192-B.png)
+   seen: Same glove close-up again (also sheet panel 10). The empty magwell cannot be checked.
+   expected: Underside of the receiver visible with an empty magwell: no magazine left in the gun and no second magazine anywhere.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-253-QBZ192-B.png)
+   seen: The fresh olive magazine (top end open, facing up) sits alone at the bottom-centre of the frame, low on the grass beside the blue corpse. No left glove is on it, and the receiver and magwell are out of frame, so it cannot be seen lining up under the well. Only the foregrip (top left) and the right hand (right edge) are visible.
+   expected: Fresh magazine held in the left glove, feed end right under the magwell, on the gun's line.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-253-QBZ192-B-left.png)
+   seen: The left glove lies flat over the top rail and side plate ahead of the optic mount (round screws visible), fingers extended forward, thumb tip at the far left. No finger hooks any handle or the slide.
+   expected: Index and middle fingers wrapped around the charging handle (the lever with the round disc on the receiver side) or pinching the slide, not lying across the rail.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-253-QBZ192-B-right.png)
+   seen: Only one olive fingertip with a dark cuff rests on the top ledge of the receiver (about x 690-910, y 285-410). The rest of the hand is outside the frame. The charging lever with round disc on the receiver side (x 510-690, y 525-630) has no finger on it.
+   expected: Two to four fingers wrapped on the charging handle or slide, the palm close behind them.
+
+7. [major] [medium] wrong_part_moves  (rack-grip-pulled-253-QBZ192-B-right.png)
+   seen: Compared with rack-grip-253-QBZ192-B-right.png, the fingertip stays at exactly the same screen spot, but the charging lever (x 510 to 820), the yellow knob on the mount (x 405 to 740) and the receiver top edge all shift about 300 px together. The part slid away from the fingers, and the moving piece is bigger than a handle (it carries the mount and top edge).
+   expected: Only the charging handle or bolt moves back about 6 cm with the fingertip still on it; the receiver top, mount and sight stay still.
+
+8. [minor] [low] hand_not_on_part  (rack-grip-pulled-253-QBZ192-B-left.png)
+   seen: The glove sits on the top rail in the same place as in rack-grip-253-QBZ192-B-left.png, but the optic mount and rail top sit roughly 200 px further left relative to it, so the rail moved while the fingers stayed. Low confidence: the pistol grip and background also shift, so the camera may have moved.
+   expected: Fingers stay on the charging handle or slide while it moves back; the glove travels with the part.
+
+9. [major] [medium] optic_or_sight_issue  (weapon-253-QBZ192-B.png)
+   seen: The optic on the rail shows a solid black disc about 60 px across with no scene or reticle visible through it. The same black disc is in every first-person frame of this gun.
+   expected: The optic lens shows the scene with its reticle, not a solid black disc (a scope showing black is a bug).
+
+Test line flags:
+  - rack grip 0/72 points inside, 1/4 fingers on it: CONFIRMED. rack-grip-253-QBZ192-B-left.png shows the fingers flat on the top rail, and rack-grip-253-QBZ192-B-right.png shows only one fingertip on the receiver top with no finger on the charging lever.
+  - pulled half way 0/72 points inside, 1/4 fingers on it: consistent with rack-grip-pulled-253-QBZ192-B-right.png, where only one fingertip is visible and the rest of the hand is out of frame.
+  - moving with the hand: the slide / bolt: CONTRADICTED by rack-grip-pulled-253-QBZ192-B-right.png. The fingertip stays put while the lever, knob and receiver top move about 300 px away from it.
+  - drawn: 1 drawn part moves, most 64 mm, nearest 0.0 cm from the hand: NOT CONFIRMED. The moving piece in the close-ups includes the optic mount and receiver top, not just a handle. The wide frame rack-grip-pulled-253-QBZ192-B.png shows the optic in the same place as weapon-253-QBZ192-B.png, so no 6.4 cm move is visible there.
+  - gun moved 0.3 mm with the pull, 2.6 mm when it went home: consistent. No gun-body movement is visible in the wide frames.
+  - magazine (deep): dropped copy 7.6 cm out: cannot confirm. mag-2-leaving-253-QBZ192-B.png is unusable, and the magazine in mag-5-lined-up-253-QBZ192-B.png sits low in the frame with no hand on it.
+  - in the hand: 3.3 cm from the palm: plausible in mag-4-in-hand-253-QBZ192-B.png, where the glove fingers sit on the front edge of the magazine. Not a bug.
+  - half way in (on the rail): 0.0 cm off the magwell line: NOT CONFIRMED. mag-6-half-in-253-QBZ192-B.png shows the magazine top flush against the receiver underside with nothing visibly inside the well. The magazine leans noticeably, which may just be the gun's own forward tilt (the magazine in rack-grip-253-QBZ192-B-left.png leans the same way).
+  - seated: the gun's magazine shows 0.0 cm from where it was: cannot confirm. mag-7-seated-again-253-QBZ192-B.png looks almost identical to mag-6-half-in-253-QBZ192-B.png, and mag-1 (where the seated magazine should show) is unusable.
+  - fired 3/3, cases thrown 3: consistent with the brass case visible in the air in weapon-253-QBZ192-B.png. No muzzle flash frame is in this set, so the flash cannot be checked.
+  - Picture composition: rack-grip-253-QBZ192-B.png (base) and rack-grip-pulled-253-QBZ192-B.png (base) are wide first-person views in which the free hand is not visible. Neither shows the grip or the pull, and both look the same as weapon-253-QBZ192-B.png.

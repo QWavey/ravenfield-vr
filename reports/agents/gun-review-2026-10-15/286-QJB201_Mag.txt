@@ -1,0 +1,39 @@
+Gun 286: QJB201 Mag
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-286-QJB201_Mag-left.png)
+   seen: The left glove clamps the side of the receiver above the magwell. Its knuckles run across the top (x 440-870, y 230-300) and the curled fingers sit on the receiver side at x 440-500, y 300-500. The glove's bottom edge rests on the magazine top (y 490-530). The lever at the front-left of the receiver (x 235-375, y 195-290) has no finger on it; the nearest glove edge is about 65 px away.
+   expected: Thumb and fingers pinching the charging handle, the part that racks the gun (about 4 fingers on it), with nothing gripping the receiver side or the magazine.
+
+2. [major] [medium] hand_or_finger_clipping  (rack-grip-286-QJB201_Mag-right.png)
+   seen: Inside the open ejection window (x 480-850, y 365-475) an olive, light-spotted shape (x 620-830, y 365-440) looks like a glove finger pushed into the receiver. The pale glove finger at bottom-left (x 0-550, y 610-800) points up-right and stops about 300 px short of the charging handle bar (x 830-1040, y 520-580); nothing touches the bar.
+   expected: No finger inside the receiver; fingers wrapped on the charging handle bar.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-286-QJB201_Mag-right.png)
+   seen: Compared with rack-grip-286-QJB201_Mag-right.png, the upper receiver slides about 300 px toward the front of the gun: the rear sight post goes from x 110-210 to x 440-500, and the top cover and ejection window move right by about the same amount. A cartridge is now visible in the upper window (x 780-980, y 255-340), which was not visible before. The charging handle bar (x 825-1015, y 500-560) stays where it was and the bottom-left finger does not move, so the hand does not pull back and the charging handle does not travel back.
+   expected: The charging handle bar slides back toward the stock (left of this frame) with the hand; the receiver, sight and ejection window stay still.
+
+4. [major] [low] wrong_part_moves  (rack-grip-pulled-286-QJB201_Mag-left.png)
+   seen: Compared with rack-grip-286-QJB201_Mag-left.png, the rear sight post, the front lever, the barrel block and the magazine all sit about 140-190 px further left (toward the muzzle), while the glove keeps its right edge at x 870 and does not travel back. The magazine itself moves from x 430-730 to x 290-570 with its top still under the glove. The right hand and grip also shift about 120 px, so this may be the view moving rather than the gun. Low confidence for that reason.
+   expected: The charging handle moves back with the hand; the magazine and the front of the receiver stay put.
+
+5. [major] [medium] mag_not_in_hand  (mag-4-in-hand-286-QJB201_Mag.png)
+   seen: The fresh magazine stands upright above the left hand (x 330-570, y 0-300, cut off at the top) and overlaps the barrel and handguard in the picture. Its lower end disappears only behind the extended index finger. The fingers are straight and open toward the left and do not curl around the magazine body, so the magazine looks like it hovers a few cm from the palm.
+   expected: Fingers closed around the magazine body with the palm on it, feed end up toward the gun.
+
+6. [major] [medium] mag_not_into_magwell  (mag-7-seated-again-286-QJB201_Mag.png)
+   seen: The magazine's top meets the magwell under the receiver (x 590-790, y 210-250), but the body leans about 15-20 degrees toward the muzzle side, with its lower end at about x 455-600, y 600-800, and the glove still holds that lower end. It looks the same as the half-in frame mag-6 and unlike mag-1, where the magazine hangs straight down the well. The grip text changes from NO MAG to a round count, so the game counts it as seated while the model is still tilted.
+   expected: As in mag-1: magazine straight, fully inside the magwell ahead of the trigger, no lean, and no second magazine.
+
+Test line flags:
+  - rack grip 0/72 points, 0/4 fingers: confirmed. In rack-grip-left the fingers sit on the receiver side and the magazine top, and in rack-grip-right no finger touches the charging handle bar.
+  - pulled half way 0/72 points, 0/4 fingers: confirmed. The glove does not move back in either pulled close-up.
+  - moving with the hand: the charging handle: not supported. In the pulled frames the hand does not travel back and the handle bar stays put; the parts that move are the upper receiver (right close-up) and the front of the gun and magazine (left close-up).
+  - drawn: 3 drawn parts move, most 101 mm; nearest 1.3 cm from the hand: consistent with the wrong part moving. The largest visible move is the upper receiver (about 300 px in rack-grip-pulled-right), which is not under the hand, and the 1.3 cm gap fits fingers not touching the handle.
+  - gun moved 0.3 mm with the pull, 0.3 mm when it went home: plausible. The pistol grip and receiver base stay put in the right close-up pair; the upper receiver is the part that moves.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 7.4 cm out: consistent. In mag-2 the dropped magazine falls along the magwell line behind the glove, and it is gone in mag-3.
+  - in the hand: 3.4 cm from the palm: confirmed. In mag-4 the magazine is not enclosed by the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: partly confirmed. The magazine top sits on the magwell line in mag-6, but the body leans about 15-20 degrees, so the 0.0 cm reading may only check the top lip.
+  - seated: the gun's magazine shows 0.0 cm from where it was: contradicted by the picture. mag-7 still looks tilted and matches mag-6, not mag-1.
+  - magazine: seated, 30 rounds vs 29 rounds kept: cannot confirm. The grip ammo text is too small at 1280x800 to read reliably. If mag-7 really reads 30+1 and the weapon frame reads 29+1, the reload gained a round.
+  - fired 3/3, cases thrown 3, recoil and impulse figures: not checkable from these pictures.

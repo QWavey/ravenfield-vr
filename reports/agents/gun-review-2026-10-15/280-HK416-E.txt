@@ -1,0 +1,30 @@
+Gun 280: HK416-E
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-280-HK416-E-right.png)
+   seen: Against rack-grip-280-HK416-E-right.png the glove does not move: thumb tip stays at about x915 y380 and the wrist strap stays at x400-520 y255-430. The gun's own parts all shift together about 170-190 px to the right (the side the fingers point to): the black tube end goes from x430 to x600, the collar from x650-760 to x850-950, and the round-ended lever at bottom right from x950-1080 to x1120-1250. The charging handle does not visibly come back with the hand; the receiver parts slide forward instead.
+   expected: Only the charging handle slides back (about 4 cm, the test's 40 mm) with the thumb and fingers pinching it. The receiver, sight and tube stay where they were and the hand travels with the handle.
+
+2. [major] [high] wrong_part_moves  (rack-grip-pulled-280-HK416-E-left.png)
+   seen: Against rack-grip-280-HK416-E-left.png the index fingertip (x240-330 y270-330), the glove and the wrist stay exactly where they were, and the background tank and tree do not move. The scope body and its black knob shift about 120-145 px to the left (the side the fingers point to) and the optic objective shifts about 110 px the same way. The hand is pulling air while the upper gun parts slide forward.
+   expected: The charging handle comes back about half way with the fingers on it. The scope and receiver stay still and the hand moves with the handle.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-280-HK416-E-left.png)
+   seen: Only the index finger touches anything: it lies on top of the rail (fingertip at x240-330 y270-330). The middle and ring fingers hang in the air in front of the receiver side (x360-520 y400-530), and the lower part of the glove (x440-750 y530-700) sits under the receiver. None of the fingers closes on a handle-shaped part; the flat round-ended lever at about x130-245 y465-495 is not touched. This matches the test's 1 of 4 fingers on the part.
+   expected: Index, middle, ring and thumb close around the charging handle with the fingertips on the handle itself, not on the rail above it.
+
+4. [major] [low] mag_floating_or_offset  (mag-5-lined-up-280-HK416-E.png)
+   seen: The fresh magazine stands in the grass at the bottom centre (x490-680, y640-800). Its top edge is about 450 px below the receiver's bottom edge (around y170-200) and it sits to the left of the magwell area. It looks noticeably smaller than the gun's own magazine in mag-1 (about 190 px wide against 220-270 px), so it is farther from the camera. No glove is visible near it. It may also be the dropped copy lying in the grass.
+   expected: The fresh magazine held in the left glove right under the magwell, a few cm below the lip and on the same vertical line, with the glove around its base.
+
+Test line flags:
+  - 'rack grip ... 0/72 points inside the part, 1/4 fingers on it' is consistent with rack-grip-280-HK416-E-left.png: only the index tip rests on the rail, the other fingers are off any handle.
+  - 'pulled half way: 0/72 points inside, 1/4 fingers on it' fits the pictures only as a static hand: the glove sits in identical screen positions in the rest and pulled pairs, so the fingers never travel with the part.
+  - 'moving with the hand: the charging handle' is NOT supported: index tip, thumb tip and wrist strap are at the same screen positions in rack-grip-left vs rack-grip-pulled-left and rack-grip-right vs rack-grip-pulled-right.
+  - 'drawn: 2 drawn part(s) move, most 40 mm; the nearest is 0.0 cm from the hand' is not confirmed: the pictures show receiver-side parts moving about 120-190 px toward the fingers' side with the hand still. A 40 mm pull back is not visible, and the motion looks forward rather than back.
+  - 'the gun moved 0.1 mm with the pull, 0.4 mm when it went home' is contradicted by the close-up pairs: scope, tube and receiver lever shift together by 120-190 px while the hand, cliff and tank stay put. Either the root object did not move while the visible receiver did, or the test measured the wrong object. Worth checking.
+  - 'magazine (deep): seated: the gun's magazine shows 0.0 cm from where it was' is confirmed: mag-7-seated-again.png matches mag-1-seated-280-HK416-E.png (magazine top at the lip near y290, base near y640-650, same column x510-770).
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is consistent: mag-6-half-in-280-HK416-E.png keeps the magazine on the same column as the gun's own magazine; depth cannot be judged from the picture.
+  - 'in the hand: 3.4 cm from the palm' is consistent: mag-4-in-hand-280-HK416-E.png shows the glove wrapped around the fresh magazine with feed end toward the gun.
+  - 'dropped copy 0.0 cm across the pull from the gun's magazine, 7.7 cm out' is plausible: mag-2-leaving-280-HK416-E.png shows the dropped magazine falling straight below the magwell (it looks slightly narrower, i.e. farther from the camera).
+  - Fire, case-ejection, recoil, impulse and 'racked: chambered' figures cannot be checked: no picture in this set shows a muzzle flash, ejected case or chambered round.

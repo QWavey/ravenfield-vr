@@ -1,0 +1,41 @@
+Gun 232: FNX-45 [SUP]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-232-FNX-45_SUP_.png)
+   seen: The fresh magazine (light tan, feed end up, roughly x 355-495, y 45-390 on the 1280x800 frame) stands nearly upright above and behind the back of the left gloved hand, about 450 px left of the gun's grip (x 880-1000, y 240-400). The glove fingers are spread flat to the left (x 340-500, y 330-460) and do not curl around the magazine; the magazine's lower end disappears behind the glove knuckles. The magazine is not on the grip's line, which is tilted about 15 degrees from vertical.
+   expected: The left fingers wrap around the magazine body and palm holds it, feed end pointing up toward the magwell of the gun in the right hand, magazine axis parallel to the grip.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-232-FNX-45_SUP_-left.png)
+   seen: Compared with rack-grip-232-FNX-45_SUP_-left.png, the slide serrations (x 80-270, y 370-410), the rear sight and the glove resting on the slide stay at the same screen position. The trigger guard, the grip and the left forearm cuff have all shifted about 100 px to the left, toward the muzzle (trigger guard from x about 255-470 to 140-340, grip from x about 480-700 to 380-610). So the slide does not visibly move back with the hand; the frame moves instead.
+   expected: The slide slides back about half way with the glove still pinching it (serrations and rear sight move rearward, toward the grip) while the trigger guard, grip and frame stay where they were.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-232-FNX-45_SUP_-right.png)
+   seen: Compared with rack-grip-232-FNX-45_SUP_-right.png, the rear sight (x 640-700, y 385-440) and the glove on top of the slide stay put, but the red dot moved from about x 740 to x 890 (y 590) and the gloved right hand under the grip shifted about 150 px to the right, toward the muzzle. The slide does not visibly move back toward the grip.
+   expected: The slide moves back about 34 mm under the glove (rear sight and red dot travel rearward with it) while the frame, grip and right hand stay in place.
+
+4. [tiny] [low] other  (rack-grip-pulled-232-FNX-45_SUP_-right.png)
+   seen: A small copper cartridge tip shows at the top of the slide by the ejection port (about x 975-1005, y 450-490). It is not present in rack-grip-232-FNX-45_SUP_-right.png.
+   expected: Could be correct (the chambered round showing through the port when the slide is back). If the slide did not really move, this round mesh is out of place.
+
+5. [minor] [low] mag_wrong_orientation_or_model  (mag-2-leaving-232-FNX-45_SUP_.png)
+   seen: The dropped magazine is light tan with a dark base plate, while the gun's grip and magwell area next to it read black. The same tan appears on the fresh magazine in mag-4 and mag-5, so the copies look like a different material or model from the gun's own magazine. The drop itself runs straight down the grip line, which is correct.
+   expected: The dropped copy looks like the gun's own FNX-45 magazine (same black material and shape).
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-232-FNX-45_SUP_.png)
+   seen: The tan fresh magazine hangs at the bottom right, its top about 135 px below the bottom of the grip (grip bottom near y 450, magazine top near y 585) and a little to the right of the grip line. Its base runs off the bottom edge and no hand is visible holding it in frame.
+   expected: Magazine just under the magwell on the grip line, with the left hand visibly holding its base.
+
+7. [tiny] [low] hand_not_on_part  (rack-grip-232-FNX-45_SUP_.png)
+   seen: Wide first-person view of the slide: no free hand is visible anywhere near the slide, so the claimed 3/4 fingers on the part cannot be seen in this picture. The close-ups rack-grip-left and -right do show the glove on the slide.
+   expected: The left glove visibly pinching the slide at the rear.
+
+8. [tiny] [low] other  (weapon-232-FNX-45_SUP_.png)
+   seen: No right hand is visible on the pistol. The grip runs off the bottom edge of the frame, so the hand wrap around the grip cannot be checked in this picture.
+   expected: Right hand wrapped around the pistol grip, gun pointing forward.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" and "drawn: 2 drawn part(s) move, most 34 mm" are not confirmed by the pictures. In rack-grip-pulled-232-FNX-45_SUP_-left.png and -right.png the slide serrations and rear sight stay in place on screen, while the trigger guard, grip and right hand visibly shift about 100-150 px. The moving part in the pictures looks like the frame, not the slide.
+  - "the gun moved 0.2 mm with the pull" is contradicted by rack-grip-pulled-232-FNX-45_SUP_-left.png and -right.png, where the lower gun visibly moves about 100-150 px against the same references. The root-transform measurement likely misses a child part that moves.
+  - "in the hand: 3.8 cm from the palm" is confirmed by mag-4-in-hand-232-FNX-45_SUP_.png: the fresh magazine is not wrapped by the fingers and sits above and behind the glove.
+  - "pulled half way: 2/4 fingers on it" cannot be confirmed: in both pulled close-ups the glove fingers still lie on the slide top at the rear, and the picture does not show which finger lost contact.
+  - "fired 3/3; cases thrown: 3" cannot be checked: no muzzle-flash or lens pictures were provided for this gun.

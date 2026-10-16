@@ -1,0 +1,37 @@
+Gun 274: HK416-B
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [medium] hand_not_on_part  (rack-grip-274-HK416-B-left.png)
+   seen: The left glove lies flat across the top of the upper receiver, palm down, with the fingers stretched forward along the rail toward the scope (left of frame). No finger curls round a handle. The fingertips rest on the side and top of the receiver, and the knuckles sit over the rear-top area where the charging handle should be.
+   expected: Thumb and fingers curled around the charging handle at the rear top of the receiver, pinching it, so the fingers are ON the handle and not lying along the rail.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-274-HK416-B-right.png)
+   seen: Only one pale fingertip (about x 750-920, y 290-415) touches the top of the receiver, directly above a small dark block (about x 760-850, y 395-450). The other fingers lie flat on the rail further forward (about x 400-640). Nothing is wrapped round the block. This matches the test's 1/4 fingers.
+   expected: Several fingers (index and middle, with the thumb) curled around the charging handle and pinching it, not one fingertip resting on top.
+
+3. [minor] [medium] other  (rack-grip-pulled-274-HK416-B.png)
+   seen: Dozens of translucent blue soft-edged discs (roughly 20-90 px across) cover the sky, the mountain, the building, the helicopter and the flag. The matching pre-pull frame rack-grip-274-HK416-B.png shows only two faint grey dots. The rifle itself is unchanged. The blobs look like a stray particle or lens-dirt effect, not scene content.
+   expected: A clean scene like rack-grip-274-HK416-B.png with no stray blue discs over the sky and the scene.
+
+4. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-274-HK416-B.png)
+   seen: The fresh magazine hangs in the grass at the bottom centre (about x 490-680, from y 640 to the frame edge), well below and to the left of the receiver's magwell. No hand is visible on it, the left glove is not in frame, and the magazine base is cut off by the frame edge, so it looks free in the air.
+   expected: The fresh magazine held by the left hand just under the magwell, on the magwell's line, feed end up toward the gun.
+
+5. [minor] [low] mag_duplicate_or_missing  (mag-4-in-hand-274-HK416-B.png)
+   seen: An unidentified dark olive object fills the right edge, close to the camera (about x 1120-1280, y 200-800), with yellow tabs near the bottom and a blue-grey hook at the bottom right. It could be the right forearm or a stray magazine. It is not in either hand as far as I can tell.
+   expected: Only the fresh magazine in the left hand. The right forearm should read as a sleeve running to the right-hand grip, and any dropped magazine should not appear this close to the camera.
+
+6. [tiny] [low] other  (mag-3-out-274-HK416-B.png)
+   seen: The small plate on the receiver above the grip, reading '1 NO MAG', looks mirrored from this camera side. The same plate reads backwards in mag-1 to mag-7.
+   expected: The plate text reads the right way round from the side the camera sees.
+
+Test line flags:
+  - rack grip 1/4 fingers on it (0/72 points inside) and pulled half way 1/4 fingers (0/72 points inside): CONFIRMED by rack-grip-274-HK416-B-left.png and rack-grip-274-HK416-B-right.png. One fingertip rests on top of a small block and the other fingers lie flat along the rail.
+  - drawn: 2 drawn part(s) move, most 52 mm, nearest 0.0 cm from the hand: NOT CONFIRMED. The block under the fingertip sits in the same screen spot in rack-grip-274-HK416-B-right.png and rack-grip-pulled-274-HK416-B-right.png, and I cannot see the 52 mm travel. The close-up frames shift about 100-170 px against the static glove, which is probably the close-up camera following the hand rather than the rifle moving.
+  - gun moved 0.2 mm with the pull, 0.4 mm when it went home: CONSISTENT. In rack-grip-274-HK416-B.png and rack-grip-pulled-274-HK416-B.png the optic, muzzle and grip sit at the same screen spot.
+  - in the hand: 3.4 cm from the palm: NOT CONTRADICTED. In mag-4-in-hand-274-HK416-B.png the magazine runs behind the palm and fingers, so the 3.4 cm may be a centre-to-palm offset. Cannot confirm the distance from the picture.
+  - half way in (on the rail): 0.0 cm off the magwell line: CONSISTENT with mag-6-half-in-274-HK416-B.png, where the magazine is centred under the receiver's magwell.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONSISTENT. mag-1-seated and mag-7-seated-again show the magazine in the same place.
+  - magazine (deep): dropped copy 7.9 cm out: NOT CONFIRMED. mag-3-out-274-HK416-B.png shows no stray magazine in frame, so the dropped copy is not visible.
+  - magazine: seated, 46 rounds: NOT CONFIRMED. The receiver counter plate is mirrored and too small to read at this size.
+  - fired 3/3; cases thrown 3: NOT VISIBLE in these pictures.

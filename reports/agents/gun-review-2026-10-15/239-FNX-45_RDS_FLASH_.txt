@@ -1,0 +1,43 @@
+Gun 239: FNX-45 [RDS][FLASH]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-239-FNX-45_RDS_FLASH_-left.png)
+   seen: Compared with rack-grip-239-FNX-45_RDS_FLASH_-left.png, the camera, background (rock, tree, blue dead enemy, green vehicle) and the left glove are at identical pixels, but the whole pistol has moved toward the muzzle by about 90-100 px (roughly 3 cm). The muzzle cylinder goes from x about 105-190 to x about 5-90 (cut by the left edge), the under-barrel rail light from x about 150-420 to x about 55-360, the grip from x about 610-830 to x about 530-760, and the right forearm cuff moves with it. The slide does not travel back relative to the frame, and the glove stays where it was on top of the slide.
+   expected: The glove pinches the slide and the slide travels rearward (toward the grip, to the right in this view) about 34 mm while the frame, rail light and grip stay in place. The glove should travel with the slide.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-239-FNX-45_RDS_FLASH_-right.png)
+   seen: Compared with rack-grip-239-FNX-45_RDS_FLASH_-right.png, the red dot sight (x about 440-690, y about 350-530), the rear sight block, the slide top edge (y about 480) and the ejection-port cut (x about 745-930) are at the same pixels, so the slide does not visibly travel. Only the dark frame underside strip under the slide moves: its small red dot goes from x about 478 to x about 650 (about 170 px rearward) while the slide stays still.
+   expected: The slide with its sight and ejection port should move rearward (right in this view) by roughly 34 mm while the frame underside stays put. The frame should not move while the slide is racked.
+
+3. [minor] [medium] part_floating_or_detached  (rack-grip-pulled-239-FNX-45_RDS_FLASH_-right.png)
+   seen: A brass cartridge with a copper nose (x about 745-800, y about 520-565) sits in the ejection port. It is not present in the unpulled rack-grip-239-FNX-45_RDS_FLASH_-right.png, and the slide around the port has not visibly moved, so it looks like a loose round stuck in the port rather than part of a cycling slide.
+   expected: A round is visible through the port only when the slide is actually open and the round is seated in the chamber in line with the barrel. With the slide static it should not appear.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-239-FNX-45_RDS_FLASH_.png)
+   seen: The fresh magazine stands upright above the left glove (x about 355-495, y about 45-390). Its lower end rests against the back edge and thumb of the glove, and the four fingers point left away from it without curling around the magazine body. Nothing wraps the magazine.
+   expected: The left fingers wrap around the magazine body with the magazine held in the hand near the palm, not balanced on the back of the hand. The feed end should point toward the gun.
+
+5. [major] [medium] mag_wrong_orientation_or_model  (mag-2-leaving-239-FNX-45_RDS_FLASH_.png)
+   seen: The dropped magazine body below the grip is light tan with a dark base plate. The gun's own magazine in mag-1-seated and mag-7-seated-again is black. The same tan body shows on the fresh magazines in mag-4, mag-5 and mag-6, so the spare magazines look like a different model or material from the gun's magazine.
+   expected: The spare magazine should be the same FNX-45 magazine as the gun's, with the same black body and dark base, so the magazine looks identical whether seated or dropped.
+
+6. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-239-FNX-45_RDS_FLASH_.png)
+   seen: The fresh magazine sits at the bottom right of the frame (x about 680-840, y about 590-800). Its top is about 140 px below the grip mouth (y about 450) and shifted right of the grip line. No hand is visible on it in the frame, so it looks unsupported in the air (the hand may be below the frame edge).
+   expected: The top of the fresh magazine should sit right at the magwell mouth on the grip's line, held by the left hand.
+
+7. [minor] [low] hand_not_on_part  (rack-grip-239-FNX-45_RDS_FLASH_-right.png)
+   seen: A left forearm sleeve ends in an open wrist cuff (x about 400-520, y about 255-480) over the rear sight. No glove or fingers are visible on the slide from this side, unlike the left-side frame where the glove lies over the slide top.
+   expected: The gloved fingers should be visibly on the slide top or rear serrations from this side as well.
+
+Test line flags:
+  - rack grip: 1/4 fingers on the part. Plausible: the left close-up shows the glove lying over the slide top with fingertips on the front-top. The right close-up shows no fingers on the slide at all, so the one-finger count is weak.
+  - pulled half way: 'moving with the hand: the slide / bolt'. Not confirmed. Between rack-grip-239-...-right.png and rack-grip-pulled-239-...-right.png the red dot sight and slide top do not move. In the left pair the whole pistol moves relative to the glove, not the slide relative to the frame.
+  - 'the gun moved 0.2 mm with the pull'. Contradicted by rack-grip-pulled-239-...-left.png: muzzle, rail light and grip shift about 90-100 px (roughly 3 cm) toward the muzzle against an unchanged background and glove. The test may measure only the root object while the visible mesh moves inside it.
+  - 'drawn: 3 drawn part(s) move, most 34 mm'. Not confirmed. 34 mm of slide travel would show as a clear slide-to-frame shift. In the right pair the slide is static and the lower frame moves, and in the left pair the front of the slide does not move relative to the frame.
+  - 'in the hand: 3.8 cm from the palm'. Distance may be right, but mag-4-in-hand-239-...png shows the magazine resting on the glove, not gripped by the fingers.
+  - 'magazine (deep): dropped copy 6.9 cm out'. Cannot confirm. In mag-2-leaving the dropped body sits about 135 px below the seated base plate, which at the grip's scale looks closer to 2-3 cm (low confidence, depth uncertain).
+  - 'half way in (on the rail): 0.0 cm off the magwell line'. Consistent with mag-6-half-in-239-...png: the visible lower section of the magazine sits on the grip's line.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was'. Consistent: the base plate in mag-7-seated-again-239-...png sits where it was in mag-1-seated-239-...png.
+  - 'racked: chambered'. Only rack-grip-pulled-239-...-right.png shows a round in the ejection port, and the slide does not visibly travel to explain it. Treat as suspicious rather than confirmation.
+  - 'fired 3/3; cases thrown: 3'. No firing frames in this picture set, so this cannot be confirmed or refuted here.
+  - weapon-239-FNX-45_RDS_FLASH_.png: the right hand and grip are below the frame edge, so the hand wrap on the grip cannot be verified. Not reported as a bug.

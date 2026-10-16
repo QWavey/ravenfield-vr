@@ -1,0 +1,25 @@
+Gun 216: FAQ1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-216-FAQ1911-right.png)
+   seen: Compared with rack-grip-216-FAQ1911-right.png, the slide does not move. The front sight (about x 640, y 410), the rear sight (about x 1210, y 410) and the yellow/silver ejection port (about x 910-1060, y 425-500) are at the same screen positions in both frames. The right hand's index finger still rests on the slide top at the same spot (about x 830-880, y 430-510), so the hand did not move either. The only visible change is a silver cylinder at the far right edge (about x 1240-1280, y 430-580) and a brighter brass case inside the port.
+   expected: The slide should visibly slide back about 17 mm with the index finger on it, so the front and rear sights and the port shift clearly toward the rear (right in this view), with the barrel showing in front of the slide.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-216-FAQ1911-left.png)
+   seen: Compared with rack-grip-216-FAQ1911-left.png, the front block with the vent slots (muzzle end, left edge) has moved about 30-50 px to the left, and two white barrel-like tubes (about x 140-220, y 335-440) now show in a gap between it and the slide body. The grip base plate (its screw moves from about x 625 to x 575) and the olive foregrip also shift about 40-50 px left, while the background tree and green tank stay still. The left hand's knuckles and fingers stay in the same screen place, so the hand does not travel back with the slide.
+   expected: Only the slide should move back (right in this view) with the left hand. The frame, the grip base and the muzzle block should stay still, and the barrel should show in front of the slide without a detached gap.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-216-FAQ1911.png)
+   seen: The fresh tan magazine (about x 395-545, y 120-300, upper left) hovers above the open left hand and only touches the top edge of the knuckles (about x 410-560, y 285-300). The fingers are spread flat and point left, and they do not wrap around the magazine body. The palm sits about 3 cm below the magazine, which matches the test line's 3.4 cm.
+   expected: The left fingers should close around the magazine body with the magazine held in the palm, feed end pointing toward the gun's magwell (the grip is up and to the right of the hand).
+
+4. [minor] [medium] other  (rack-grip-pulled-216-FAQ1911.png)
+   seen: First-person view: no left hand is visible in the frame and the slide is not in view. The muzzle and sight look the same as in rack-grip-216-FAQ1911.png, which is also first-person with no left hand. The rack motion cannot be checked from these two pictures.
+   expected: A view where the left hand and the slide are in frame, so the grip on the slide and its movement can be confirmed.
+
+Test line flags:
+  - drawn: 3 drawn part(s) move, most 17 mm -- NOT confirmed. In rack-grip-pulled-216-FAQ1911-right.png the front sight, rear sight and ejection port sit at the same screen positions as in rack-grip-216-FAQ1911-right.png, where 17 mm of slide travel would be clearly visible.
+  - moving with the hand: the slide / bolt -- contradicted by the right close-up pair. The index finger and the slide stay in the same screen place, so the hand and the slide did not move together.
+  - the gun moved 0.2 mm with the pull -- suspicious. rack-grip-pulled-216-FAQ1911-left.png shows the grip base plate, foregrip and muzzle block about 40-50 px left of rack-grip-216-FAQ1911-left.png while the background stays still, which suggests the whole gun moved, not only the slide. Medium-low confidence.
+  - in the hand: 3.4 cm from the palm -- confirmed by mag-4-in-hand-216-FAQ1911.png: the magazine hovers above the open hand rather than being held in the fingers.
+  - rack grip: 1/4 fingers on it -- consistent with rack-grip-216-FAQ1911-right.png, where only the index finger rests on the slide top. Not flagged.

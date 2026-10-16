@@ -1,0 +1,38 @@
+Gun 212: 1911 10R
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-212-1911_10R.png)
+   seen: The fresh magazine (olive body, dark base) stands upright and tilted at the upper left of the frame, its lower end sitting behind the top ridge of the left glove, not between any fingers. The glove's fingers are open and point left with nothing wrapped around the magazine. The magazine's top points up and away from the gun's grip, which is at upper right. The magazine is roughly 4-5 cm from the palm, which matches the test line's 4.5 cm.
+   expected: The left fingers closed around the magazine body in the palm, feed end toward the gun's magwell, so the magazine moves with the hand.
+
+2. [major] [high] hand_not_on_part  (rack-grip-212-1911_10R-right.png)
+   seen: The left glove's index finger lies on top of the slide only at the rear area by the ejection port (about x 790-890 of 1280, y 420-490). The other fingers and the thumb sit below and behind the frame near the trigger, not on the slide. Only 1 of 4 fingers touches the slide, as the test line says. The left close-up (rack-grip-212-1911_10R-left.png) shows the same thing: the fingertips reach the lower front side of the slide while the rest of the hand curls under the frame.
+   expected: Several fingers, at least index and thumb, closed on the slide's sides or top at the serrated rear, pinching it so the pull can move it.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-212-1911_10R-right.png)
+   seen: Compared with rack-grip-212-1911_10R-right.png, the frame parts shift about 70-80 px toward the rear (right). The trigger moves from about x 450-560 to x 520-600, the grip-side screw from about x 740 to x 820, and the rear frame screw from about x 975 to x 1050. The serrated slide panel, the ejection port (the capsule at about x 910-1060) and the index fingertip stay where they were. The blue body in the background does not move, so the camera is static. The only change in the slide area is a brass cartridge base showing in the ejection port. The left pulled close-up (rack-grip-pulled-212-1911_10R-left.png) shows a change at the muzzle end that could mean the slide moved, so this call rests mainly on the right view.
+   expected: The slide (serrations, ejection port, front end) slides back about 17 mm with the fingertip while the trigger, frame and grip stay still. The chambered round then shows in the port.
+
+4. [minor] [medium] mag_floating_or_offset  (mag-5-lined-up-212-1911_10R.png)
+   seen: The fresh magazine hangs in the air at the bottom centre of the frame, tilted down to the right. Its top is about 170 px below the bottom of the grip's magwell, which by the magazine's width is roughly 4-5 cm. Only a sliver of glove shows at the bottom edge, beside the magazine's lower corner, with no clear grip on it.
+   expected: The fresh magazine's feed end right at the magwell, on the grip's line, with the free hand holding its base.
+
+5. [minor] [low] gun_pose_or_aim_wrong  (weapon-212-1911_10R.png)
+   seen: The gun sits in the lower right corner and is cut off by the frame edge. Only the slide top and a round barrel end show, and the round end appears to face the camera. The grip and the right hand are off-screen, so nothing shows the hand wrapped around the grip. This could be a low-ready pose, but the gun is not clearly pointing forward.
+   expected: The gun in the right hand with the grip and fingers visible, barrel pointing forward into the scene.
+
+6. [minor] [low] other  (rack-grip-pulled-212-1911_10R-left.png)
+   seen: A cream or brass-coloured block with rounded ends sticks out past the muzzle end of the slide at the left edge (about x 0-60, y 330-430). It is not present in rack-grip-212-1911_10R-left.png. It could be the barrel tip exposed after the slide moves back, but its colour is brass-like rather than steel, so it may be a round or a wrong part.
+   expected: If the barrel is exposed after a pull, its tip should be steel-coloured. Nothing brass-coloured should stick out of the muzzle.
+
+Test line flags:
+  - 'in the hand: 4.5 cm from the palm (FLOATS BESIDE THE HAND)': confirmed by mag-4-in-hand-212-1911_10R.png. The magazine is above and behind the glove, with no fingers around it.
+  - 'rack grip ... 1/4 fingers on it' and 'pulled half way ... 1/4 fingers on it': confirmed by rack-grip-212-1911_10R-right.png. Only the index fingertip rests on the slide top.
+  - 'moving with the hand: the slide / bolt' and 'drawn: 3 drawn part(s) move, most 17 mm; the nearest is 0.0 cm from the hand': contradicted by the right-side pair. The slide serrations and ejection port do not shift, while the trigger, grip and frame screw move about 70-80 px. The test may be reporting the frame or trigger as the moving part.
+  - 'magazine: seated, 11 rounds' after 'dropped magazine ... 10 rounds kept': not checkable from the pictures. If the chambered round is included in the 11 it is fine, otherwise the count is off by one.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': consistent with mag-6-half-in-212-1911_10R.png, where the magazine sits on the grip's line under the magwell.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent with mag-7-seated-again-212-1911_10R.png, which matches mag-1-seated-212-1911_10R.png.
+  - 'racked: chambered': a brass base shows in the ejection port in rack-grip-pulled-212-1911_10R-right.png, consistent with a chambered round.
+  - '0/72 points inside the part': no visible penetration of the glove into the slide in the close-ups.
+  - 'dropped copy ... 6.7 cm out' and 'the gun moved 0.1 mm': mag-2-leaving-212-1911_10R.png shows the magazine dropping down and rearward along the grip angle, plausible. The background is static across the frames, consistent with the gun not moving.
+  - 'fired 3/3', 'cases thrown: 3', recoil and impulse numbers: no shooting pictures were listed for this gun, so not checked.

@@ -1,0 +1,38 @@
+Gun 270: HK416
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] mag_floating_or_offset  (mag-5-lined-up-270-HK416.png)
+   seen: The fresh magazine sits low in the frame at bottom centre (about x 490-680, y 640-800 of 1280x800), lying in the grass roughly one magazine-length below the magwell line. The gun itself has moved up about 150 px since mag-3 (trigger loop and grip both higher), so the magwell is above the top edge of the frame. No left hand is visible holding the magazine.
+   expected: Fresh magazine right under the magwell on the same vertical line, its top a few cm below the receiver, held in the left hand with the feed end up, as the lead-in to mag-6.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-270-HK416-left.png)
+   seen: Left hand lies across the top of the upper receiver and handguard: thumb tip on the top rail, palm and fingers on the receiver top. The fingers curl down to the right of the small round charging-handle lever (lever about x 200-240, y 395-450; bar under it at x 130-240, y 470-500). The fingertips sit beside the lever, not on it; only the thumb touches the receiver. Matches the test's 1/4 fingers.
+   expected: Four fingers pinched around the charging-handle lever on the left side of the upper receiver, the hand wrapped around it.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-270-HK416-left.png)
+   seen: The hand is in exactly the same place as in rack-grip-270-HK416-left (thumb, palm and fingers on the same pixels). The rest of the gun shifts about 110-120 px to the left in frame: front sight, magazine, pistol grip and the lever plus bar together. The charging handle does not move back relative to the receiver; the receiver slides instead and the hand is not carrying the part.
+   expected: The charging-handle lever moves back about half its travel (about 4 cm in the test) with the fingers, while the receiver, sight, magazine and grip stay put.
+
+4. [minor] [low] other  (mag-6-half-in-270-HK416.png)
+   seen: The magazine already sits at the same depth as in mag-7: top tucked under the trigger-guard bar, visible body about x 510-770, y 320-650, same visible length as the seated magazine in mag-1. No visible half-way step.
+   expected: Magazine partway up into the magwell on its line, with its top visibly deeper than the outside position in mag-5 but clearly shallower than the seated frame in mag-7.
+
+5. [minor] [low] other  (weapon-270.png)
+   seen: Wide first-person frame: the rifle sits in the bottom-right corner with its grip cut off by the bottom edge, and no right hand is visible on the grip (the right hand is clearly visible in mag-1 and mag-7). The same wide framing appears in rack-grip-270-HK416.png and rack-grip-pulled-270-HK416.png. The grip cannot be confirmed from these frames.
+   expected: Right hand visible wrapped around the pistol grip, with the grip inside the frame.
+
+6. [tiny] [low] other  (mag-3-out-270-HK416.png)
+   seen: The small black ammo tag above the right thumb reads NO MAG mirrored (letters backwards). The same mirrored tag shows in mag-2, mag-5 and mag-6.
+   expected: Tag text readable from the camera, not mirrored.
+
+Test line flags:
+  - rack grip '1/4 fingers, 0/72 points': confirmed by rack-grip-270-HK416-left.png. The thumb touches the receiver top and the fingers rest beside the lever.
+  - pulled half way '1/4 fingers, 0/72 points': consistent. The hand does not move relative to the lever in the left pair.
+  - 'moving with the hand: the charging handle' and 'drawn: 2 parts move, most 40 mm, nearest 0.0 cm from hand': not visible in the left pair, where the lever stays fixed on the receiver. In the right pair (rack-grip-pulled-270-HK416-right.png) the lever stays under the thumb while the receiver shifts about 150 px, which looks like the lever travelling with the hand from that side. The two sides disagree and need a look.
+  - 'gun moved 0.2 mm with the pull': conflicts with the pictures. The receiver shifts about 110-150 px in frame between each rack and pulled close-up while the background stays put. This only fits if the close-up camera rides the hand. Check the camera rig.
+  - 'magazine (deep): 7.3 cm out': mag-2 shows the magazine only just clearing the receiver bottom, not visibly 7.3 cm. Check the frame timing.
+  - 'in the hand: 3.3 cm from the palm': consistent with mag-4, where the magazine is held at the palm with fingers around the base.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6 is visually identical to mag-7 (fully seated), so the half-way state is not distinguishable.
+  - 'seated: 0.0 cm from where it was': confirmed. mag-7 matches the mag-1 position.
+  - No measurement line exists for the lined-up step (mag-5), and the picture shows that magazine far below the magwell.
+  - 'fired 3/3', 'cases thrown 3' and recoil lines: no firing frame in this set, not checked.

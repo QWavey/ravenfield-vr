@@ -1,0 +1,45 @@
+Gun 271: HK416 S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-271-HK416_S-right.png)
+   seen: The left glove lies flat over the top of the upper receiver just in front of the rear sight. Only the rounded tip of one finger (about x 750-915, y 290-410) touches the top of the charging-handle knob (about x 770-880, y 395-450). The other fingers hover above the receiver and none curl around the knob.
+   expected: Fingers wrapped around the charging handle (pinched or hooked under the knob), most fingers on the handle rather than on the receiver top beside it.
+
+2. [major] [medium] hand_pose_wrong  (rack-grip-271-HK416_S-left.png)
+   seen: From the left side the glove's thumb tip (about x 240-330, y 270-330) and fingers lie over the top rail and receiver above the charging latch (small round knob and lever about x 120-260, y 390-500). No finger wraps the latch.
+   expected: Left hand closed around the charging handle at the rear of the upper, fingers on the latch and not on the rail above it.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-271-HK416_S-right.png)
+   seen: Compared with rack-grip-271-HK416_S-right.png, the rear sight, barrel and gas-block assembly have moved about 170 px (roughly 4 cm) toward the right of the frame. The left glove and the background stay exactly where they were, and the charging-handle knob stays under the same thumb tip. The upper and sight are sliding while the handle and hand do not travel with the pull.
+   expected: Only the charging handle slides back about 4 cm under the pinching fingers. Sight, barrel and receiver stay fixed and the hand moves with the handle.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-271-HK416_S-left.png)
+   seen: Compared with rack-grip-271-HK416_S-left.png, the rear sight, the magazine, the pistol grip and the right-hand fingers have all moved about 100-120 px to the left, while the left glove and background did not move. The gun body slides past the left hand, in the opposite direction from the right-side shot.
+   expected: Only the charging handle moves back under the left hand. Magazine, grip and right hand stay in place.
+
+5. [major] [medium] mag_floating_or_offset  (mag-2-leaving-271-HK416_S.png)
+   seen: The released magazine is still at the magwell. Its top edge sits just under the receiver lip (about y 320-330), at the same depth as the seated magazine and about 20 px left of its line. It is not visibly 7.6 cm out as the test line says.
+   expected: Magazine dropping straight down out of the magwell along its line, with a clear gap of several cm below the lip.
+
+6. [minor] [low] mag_duplicate_or_missing  (mag-3-out-271-HK416_S.png)
+   seen: The magwell is empty as intended, but the magazine that was dropping in mag-2 is gone from the frame. The grass and gravel below the magwell are empty, so the dropped magazine vanished instead of lying on the ground.
+   expected: The dropped magazine stays on the ground in front of the gun until picked up. It should not disappear between mag-2 and mag-3.
+
+7. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-271-HK416_S.png)
+   seen: The fresh magazine sits near the bottom edge of the frame (about x 490-680, y 640-800, cut off by the frame), roughly 10 cm below the magwell. No hand is visible holding it, so it looks like it is floating in the grass. It is under the magwell but not at it.
+   expected: Fresh magazine held by the left hand right at the magwell, on its line, just below the receiver lip.
+
+8. [minor] [low] other  (mag-6-half-in-271-HK416_S.png)
+   seen: The top of the magazine sits at the receiver lip at about the same height as the seated magazine in mag-1 and mag-7, so the half-way frame already looks fully seated. The magazine is on the magwell line.
+   expected: Magazine visibly partway up into the magwell, with its top noticeably lower than the seated position.
+
+Test line flags:
+  - rack grip 0/72 points, 1/4 fingers on the handle: CONFIRMED by rack-grip-271-HK416_S-right.png. Only one fingertip touches the knob and no points are inside it.
+  - pulled half way 0/72 points, 1/4 fingers: CONFIRMED by rack-grip-pulled-271-HK416_S-right.png. The glove and that same fingertip stay in place, so the hand does not travel with the pull.
+  - moving with the hand: the charging handle: NOT CONFIRMED. In the right close-up pair the glove and the knob keep the same positions relative to each other, and the handle does not visibly ride back with the hand.
+  - drawn: 2 drawn parts move, most 40 mm; nearest 0.0 cm from the hand: PARTLY CONFIRMED. The right pair shows the rear sight and barrel/gas-block (not the handle) moving about 4 cm, so the 40 mm part may be the upper rather than the handle.
+  - gun moved 0.2 mm with the pull and 0.2 mm going home: CONFLICTS with rack-grip-pulled-271-HK416_S-left.png, where the magazine, grip and right-hand fingers appear to shift about 100-120 px (roughly 3 cm) against the still left glove. Either the measured root is not what moves, or the test measures the wrong object.
+  - magazine (deep): dropped copy 0.0 cm across, 7.6 cm out: NOT CONFIRMED. mag-2-leaving-271-HK416_S.png shows the copy still at the lip, and the copy is absent in mag-3-out-271-HK416_S.png.
+  - in the hand: 3.3 cm from the palm: consistent with mag-4-in-hand-271-HK416_S.png, where the glove wraps the middle of the magazine. Not measurable from the picture.
+  - half way in (on the rail): 0.0 cm off the magwell line: line alignment is consistent with mag-6, but the depth looks like the seated depth (see the mag-6 entry).
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. mag-7-seated-again-271-HK416_S.png matches mag-1-seated-271-HK416_S.png, and the HUD reads 30+1 in both.

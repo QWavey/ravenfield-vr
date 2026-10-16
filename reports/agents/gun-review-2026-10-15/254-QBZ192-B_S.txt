@@ -1,0 +1,45 @@
+Gun 254: QBZ192-B/S
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] hand_not_on_part  (rack-grip-254-QBZ192-B_S-left.png)
+   seen: The left glove lies flat across the top of the receiver rail (upper half of frame) with index and middle fingers straight and pointing forward over the handguard. None of the glove fingers curl around any part. Only one grey fingertip, below the glove at centre-bottom, touches a tan plate hanging under the hand (about x 600-880, y 500-740). Three fingers float in the air above the rail.
+   expected: All four fingers closed around the charging handle or slide, fingers curled onto the part, no fingers resting on bare rail.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-254-QBZ192-B_S-left.png)
+   seen: Compared with rack-grip-254-QBZ192-B_S-left.png, the glove and the beige stock on the right stay in exactly the same place. The tan plate with its grey fingertip has slid about 170 px to the left (toward the muzzle, the wrong direction for a rack back), now at about x 440-700. The scope, its mount and the magazine at the left edge also appear shifted left by roughly 170-230 px. The hand does not travel with the part, so the grip is lost.
+   expected: Only the handle moves about half way back (toward the stock, to the right), the fingers travel with it, and sight, magazine and receiver stay put.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-254-QBZ192-B_S-right.png)
+   seen: The tan bullet-shaped charging knob on top of the receiver stays at the same screen spot (about x 680-910, y 290-410) as in rack-grip-254-QBZ192-B_S-right.png. Meanwhile the rear sight block, the rail and the lever (round base) have slid roughly 300 px to the right. A grey finger hangs in the air just behind the knob (about x 400-640, y 260-340), not touching it.
+   expected: The knob moves back about half way with a finger pinched on it. The receiver top and lever stay fixed.
+
+4. [major] [medium] mag_duplicate_or_missing  (mag-5-lined-up-254-QBZ192-B_S.png)
+   seen: No magazine sits at the magwell ahead of the trigger. The only magazine in frame is an olive box lying on the ground at bottom centre (about x 400-620, y 690-800), far below the receiver and cut off by the bottom edge. The left hand is not visible at all. This is probably the dropped copy, so the fresh magazine that should be lined up under the well is not shown.
+   expected: The fresh magazine held in the left hand right under the magwell, on its line, feed end up toward the receiver.
+
+5. [major] [high] picture_unusable  (mag-1-seated-254-QBZ192-B_S.png)
+   seen: The first-person camera is pressed against the back of the left glove. The whole frame is the glove's hex-patterned back with its triangle emblem, a dark recessed oval, an olive ribbed tube along the top edge and a tan knob at top-right. No magazine, magwell or receiver body is readable, so seated cannot be checked.
+   expected: Magazine seated in the magwell ahead of the trigger, gun body and magwell visible from outside the hand.
+
+6. [major] [high] picture_unusable  (mag-2-leaving-254-QBZ192-B_S.png)
+   seen: Pixel-for-pixel the same glove close-up as mag-1 (camera blocked by the hand). The magazine drop cannot be seen, and there is no visible change from mag-1.
+   expected: Magazine dropping straight down out of the magwell along its line, gun body visible.
+
+7. [major] [high] picture_unusable  (mag-3-out-254-QBZ192-B_S.png)
+   seen: Same glove close-up as mag-1 and mag-2. The magwell, the empty well and any second magazine are all hidden by the hand.
+   expected: Empty magwell with no magazine in the gun and no second magazine anywhere in view.
+
+8. [minor] [low] optic_or_sight_issue  (weapon-254-QBZ192-B_S.png)
+   seen: The front lens of the top sight (about x 760-800, y 500-545) is a flat, solid black disc with no glass or reflection. The same black disc shows in the rack-grip-254 and rack-grip-pulled-254 centre pictures.
+   expected: Optic glass that shows the scene or at least a reflective lens, not a flat black disc.
+
+Test line flags:
+  - rack grip '1/4 fingers on it': supported. rack-grip-254-QBZ192-B_S-left.png shows one fingertip on the tan plate and the other fingers over the bare rail.
+  - pulled half way '1/4 fingers on it': supported. rack-grip-pulled-254-QBZ192-B_S-right.png shows the finger beside the knob, not on it, and rack-grip-pulled-254-QBZ192-B_S-left.png shows only the one fingertip.
+  - 'moving with the hand: the slide / bolt': not supported. The charging knob stays at the same screen position between rack-grip-254-QBZ192-B_S-right.png and rack-grip-pulled-254-QBZ192-B_S-right.png, while other parts shift.
+  - 'drawn: 1 drawn part(s) move, most 64 mm; nearest 0.0 cm from the hand': suspect. In the left pair the plate that the finger touches moves about 170 px forward (wrong direction). In the right pair the receiver top moves about 300 px while the knob does not. 64 mm cannot be confirmed and the moving part is not the knob.
+  - 'the gun moved 0.4 mm with the pull': doubtful. In the left pair the scope, mount, magazine and plate shift 170-230 px while the glove and stock stay fixed, and the right pair shows a similar shift of the receiver top. That is far more than 0.4 mm unless the camera moved, and the stationary glove and stock argue against a camera move.
+  - 'magazine: seated' and 'seated: the gun's magazine shows 0.0 cm from where it was': not verifiable. mag-1, mag-2 and mag-3 are blocked by the left glove. mag-7 looks plausibly seated.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': plausible in mag-6-half-in-254-QBZ192-B_S.png (the magazine sits ahead of the trigger on a tilted line, top at the receiver underside), but the 0.0 cm offset cannot be measured from the picture.
+  - 'in the hand: 3.3 cm from the palm': doubtful. In mag-4-in-hand-254-QBZ192-B_S.png the magazine overlaps the glove's thumb, index finger and palm edge, which looks closer than 3.3 cm.
+  - 'dropped copy 7.8 cm out': cannot confirm. In mag-5-lined-up-254-QBZ192-B_S.png the magazine on the ground sits well below the magwell, possibly more than 7.8 cm, but perspective makes this uncertain.

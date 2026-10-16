@@ -1,0 +1,24 @@
+Gun 240: FNX-45 [RDS][LASER]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-240-FNX-45_RDS_LASER_-right.png)
+   seen: Compared with rack-grip-240-FNX-45_RDS_LASER_-right.png, nothing on the slide has moved on screen. The red dot sight (top about x 600-670, y 355-420; body x 445-690, y 430-530), the slide front at about x 320, and the ejection-port opening (about x 740-920, y 480-600) are at the same positions in both frames. The only change is an orange brass case tip that appears in the ejection port (about x 740-800, y 515-565). No rearward slide travel of about 34 mm is visible.
+   expected: The slide is visibly pulled about half way back: sight, slide and ejection port shift toward the rear (right of frame) by roughly the test's 34 mm while the frame stays put. The brass should only show in the port because the slide actually moved.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-240-FNX-45_RDS_LASER_-left.png)
+   seen: Compared with rack-grip-240-FNX-45_RDS_LASER_-left.png, the background (tree, sea, green tank) and the glove on top of the gun stay in the same place, but the whole pistol moves about 90-100 px toward the muzzle (left of frame). The muzzle cap goes from about x 105-180 to x 5-60, the laser rail from about x 155-420 to x 60-360, and the grip from about x 640-840 to x 530-760. The slide does not visibly travel back toward the hand; the hand stays while the gun slides out from under it.
+   expected: Only the slide moves rearward (toward the hand, right of frame) about 3-4 cm. The barrel, rail and grip stay where they were in rack-grip-left, and the gun does not move forward under the hand.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-240-FNX-45_RDS_LASER_-right.png)
+   seen: The left glove sits above and behind the red dot sight, not on the slide. The back of the glove spans about x 400-1100, y 250-420, and its fingertips end around y 380-420 beside the sight's rear. The slide's top surface is around y 480-500, below the sight base. The fingers hover above the slide, so at most one finger touches it, which matches the test's 1/4.
+   expected: Thumb and fingers pinch the slide's top or side (rear serrations) with the fingertips on the metal, the hand not resting on the optic or floating above the slide.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-240-FNX-45_RDS_LASER_.png)
+   seen: The fresh tan magazine (about x 360-495, y 45-390) stands upright above the left glove. The glove is open with the fingers flat and pointing left (about x 340-830, y 275-530), and no finger wraps the magazine body. Only the top edge of the thumb overlaps the magazine's lower end, so the magazine looks balanced on the hand rather than clamped in it.
+   expected: Fingers curled around the magazine body with the magazine clamped in the hand, feed end (top) pointing toward the gun.
+
+Test line flags:
+  - Pulled-half-way line 'moving with the hand: the slide / bolt', 'drawn: 3 drawn part(s) move, most 34 mm' and 'the nearest is 0.2 cm from the hand': NOT confirmed. In the right close-up pair (rack-grip-240-FNX-45_RDS_LASER_-right.png vs rack-grip-pulled-240-FNX-45_RDS_LASER_-right.png) the slide and red dot sight do not move on screen; in the left pair the whole pistol shifts instead. The hand is above the sight, not touching the slide, so a 0.2 cm nearest distance looks doubtful.
+  - 'the gun moved 0.2 mm with the pull': CONTRADICTED by rack-grip-pulled-240-FNX-45_RDS_LASER_-left.png. Against rack-grip-240-FNX-45_RDS_LASER_-left.png the muzzle cap, laser rail and grip shift about 90-100 px toward the muzzle with the background and glove fixed, which at close range is several cm, not 0.2 mm.
+  - 'rack grip ... 1/4 fingers on it' and 'pulled half way ... 1/4 fingers on it': CONFIRMED as a real grip problem by rack-grip-240-FNX-45_RDS_LASER_-right.png, where the glove sits over the red dot sight and the fingers do not rest on the slide.
+  - 'in the hand: 3.8 cm from the palm': CONFIRMED by mag-4-in-hand-240-FNX-45_RDS_LASER_.png. The magazine is not wrapped by the fingers and stands above the hand, so the magazine is not held in the palm.

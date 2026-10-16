@@ -1,0 +1,45 @@
+Gun 261: QBZU191-A
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-261-QBZU191-A.png)
+   seen: The whole frame is the back of the left-hand glove (honeycomb mesh, dark recess, triangle emblem, yellow stripe pills along the bottom edge). No magwell, magazine or base plate is visible. The frame looks the same as mag-2 and mag-3, so the glove is blocking the camera.
+   expected: Magazine fully seated in the magwell, only its base plate showing below the receiver/grip, with the camera clear of the glove.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-261-QBZU191-A.png)
+   seen: Same close-up of the glove as mag-1 (honeycomb back of the hand, yellow pills at the bottom). No magazine is visible, so the drop cannot be checked. The frame does not differ from mag-1.
+   expected: Magazine dropping straight down out of the magwell along its line, so this frame should differ clearly from mag-1.
+
+3. [major] [high] picture_unusable  (mag-3-out-261-QBZU191-A.png)
+   seen: Same glove close-up again. The magwell cannot be seen, so it cannot be confirmed that it is empty.
+   expected: Magwell empty: no magazine in the gun and no second magazine in view.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-261-QBZU191-A.png)
+   seen: An olive ribbed magazine stands above the left glove, its lower end resting on the top edge of the back of the hand (about x 340-580, y 0-290). The fingers stick out flat to the left (about x 310-470, y 280-420) and do not curl around the magazine body. Test line says 3.3 cm from the palm, which fits a magazine floating just above the hand.
+   expected: Fingers wrapped around the magazine body, magazine held in the hand with the feed end pointing up toward the gun.
+
+5. [major] [medium] mag_duplicate_or_missing  (mag-5-lined-up-261-QBZU191-A.png)
+   seen: The area under the receiver where the magazine should hang (about x 550-900, y 180-700) is empty, showing only grass, trees and the sea. The right-hand glove on the grip holds nothing. An olive box-shaped object, probably a magazine lying flat, sits on the grass at the bottom centre (about x 395-620, y 690-800). The fresh magazine is not at the magwell.
+   expected: Fresh magazine held by the left hand just under the magwell, on its line, feed end up.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-261-QBZU191-A-left.png)
+   seen: The glove's thumb rests on the top rail (about x 210-340, y 240-300). The index and middle fingers lie flat over the receiver side plate and the handguard seam (about x 240-470, y 340-420). Nothing under the fingertips looks like a charging handle or slide, so nothing is pinched. A grey magazine-like box sits at the lower centre (about x 600-910, y 500-720) touching the fingers, which is unexplained.
+   expected: Fingertips pinching the racking part (charging handle or slide), on the part and not hovering beside the receiver.
+
+7. [minor] [low] hand_not_on_part  (rack-grip-pulled-261-QBZU191-A-left.png)
+   seen: Compared with rack-grip-261-QBZU191-A-left.png, the glove stays at the same spot on screen while the receiver features (rail screws, rear sight knob) move about 220-230 px to the left. So the hand moved back relative to the gun. Nothing visibly moves with the fingers, which still lie on the side plate.
+   expected: The racking part moves back with the fingers while they stay on it, and the receiver stays still.
+
+8. [minor] [medium] other  (weapon-261-QBZU191-A.png)
+   seen: A yellow-olive ejected case hangs motionless in the sky above the scene (about x 820-880, y 185-305). It sits at exactly the same screen spot in rack-grip-261-QBZU191-A.png and rack-grip-pulled-261-QBZU191-A.png, while the smoke puffs have moved between those frames. The case is frozen in mid-air.
+   expected: A thrown case should fall and land on the ground, not stay still across frames.
+
+Test line flags:
+  - 0/4 fingers on it (rack grip): rack-grip-261-QBZU191-A-left.png agrees, no fingertip sits on a racking part.
+  - 1/4 fingers on it (pulled half way): rack-grip-pulled-261-QBZU191-A-left.png shows the same glove over the side plate with at most the thumb near the rail, so the grip looks weak or absent. Consistent with the measurement.
+  - drawn: 1 part moves, most 64 mm, nearest 0.0 cm from the hand: not confirmed. In the right close-ups (rack-grip-261-QBZU191-A-right.png and rack-grip-pulled-261-QBZU191-A-right.png) a grey speckled oval knob on top of the receiver (about x 680-905, y 270-385) stays at the same screen spot while the receiver features move about 310-335 px right. That fits a part carried by the hand, but the knob also looks like a glove fingertip, so the picture cannot confirm it is the charging handle.
+  - in the hand: 3.3 cm from the palm: confirmed by mag-4-in-hand-261-QBZU191-A.png, the magazine rests on top of the back of the hand rather than being gripped.
+  - half way in (on the rail): 0.0 cm off the magwell line: not confirmed. mag-6-half-in and mag-7-seated-again show the magazine leaning about 15-17 degrees forward from the receiver's vertical. A curved magazine could explain that, but a flat frame cannot prove 0.0 cm.
+  - magazine (deep): dropped copy 7.9 cm out: mag-5-lined-up-261-QBZU191-A.png shows a magazine-like box still lying on the grass at the bottom, so the dropped copy is on the ground and not at the magwell. rack-grip-261-QBZU191-A-left.png also shows a grey magazine-like box next to the fingers. Picture supports a leftover copy.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7 looks plausible with the glove holding the base, but mag-1 is unusable, so the comparison cannot be checked.
+  - the gun moved 0.3 mm with the pull / 1.3 mm home: the first-person frames (weapon, rack-grip, rack-grip-pulled) look unchanged in the gun, scene and ragdoll, so the gun barely moved. Consistent.
+  - fired 3/3; cases thrown 3: only one case is visible and it is frozen in the air (see weapon-261-QBZU191-A.png), so the case count may include a stuck object.

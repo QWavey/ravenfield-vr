@@ -1,0 +1,53 @@
+Gun 278: HK416-D
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-278-HK416-D-left.png)
+   seen: Same layout as rack-grip-278-HK416-D-left.png: the glove thumb tip is at about x 240-350, y 270-330, the fingers lie on the receiver top at x 260-500, y 380-520, and the tank and rear sight are in the same spots. The handle and hand have not moved rearward, so the hand is pulling air.
+   expected: The charging handle and the gloved hand should have slid about half way back along the receiver (test says about 40 mm), with the glove moving with the handle.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-278-HK416-D-right.png)
+   seen: Same as rack-grip-278-HK416-D-right.png: thumb tip at about x 740-920, y 290-410, the small black charging-handle knob at about x 790-850, y 400-450, and the buffer tube and receiver blocks are unchanged. No backward travel of the handle or the hand.
+   expected: The handle knob and glove displaced about half way back along the receiver top (about 40 mm per the test), the thumb moving with the knob.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-278-HK416-D-left.png)
+   seen: The glove lies flat over the top of the upper receiver: thumb tip at about x 240-350, y 270-330, index and middle fingers curled over the receiver at about x 260-500, y 380-520. The charging-handle area at the rear of the receiver (left of frame) is not gripped; the fingers rest on the receiver surface, not on the handle. Test says only 1 of 4 fingers is on the part.
+   expected: Index and middle fingers pinched around the charging handle (knob/lever at the rear of the upper receiver), wrapped on the part rather than resting on the receiver top.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-278-HK416-D-right.png)
+   seen: Only the thumb tip reaches the small black charging-handle knob at about x 790-850, y 400-450; it rests just above it at x 740-920, y 290-410. The fingers and cuff lie across the receiver top at x 400-870, y 250-530 and do not wrap the knob.
+   expected: Fingers wrapped around the charging-handle knob with the handle between thumb and fingers, not the thumb alone resting on top of it.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-278-HK416-D.png)
+   seen: The fresh magazine is alone at the bottom edge of the frame (about x 490-680, y 640-800), sitting in the grass. The magwell is up and to the right of it (around x 650-800, y 120-170), so the magazine is roughly 7-9 cm below the magwell and about 100 px left of its line. No left hand is visible holding it. It looks lying on the ground or floating, seen end-on rather than along the magwell line.
+   expected: Fresh magazine held by the left hand just under the magwell (a few cm below), on the magwell line, feed end pointing up into the receiver.
+
+6. [minor] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-278-HK416-D.png)
+   seen: The wide first-person shot is the same as rack-grip-278-HK416-D.png: gun body, optic at about x 735-770, y 478-502 and the ammo label near x 800, y 690 are unchanged. No hand is in frame, so no visible pull.
+   expected: The hand visibly pulling the charging handle back, with the upper receiver parts shifted back about half the travel.
+
+7. [minor] [low] hand_not_on_part  (rack-grip-278-HK416-D.png)
+   seen: No free (left) hand is visible anywhere in this first-person view. The receiver and optic sit at about x 680-870, y 470-800, and the area above the receiver where the glove appears in the left and right close-ups is empty sky and grass.
+   expected: The left glove visible in this first-person view, fingers on the charging handle at the top of the receiver.
+
+8. [minor] [low] other  (mag-6-half-in-278-HK416-D.png)
+   seen: The magazine top already sits against the lower receiver lip (about y 280) and the exposed magazine below the lip runs to about y 650, the same as in mag-7-seated-again-278-HK416-D.png. It reads as fully inserted, so the half-way step does not visibly show a partly inserted magazine. The glove holds the base at about x 480-1030, y 500-800.
+   expected: Magazine partly up into the magwell: more of the magazine body still showing below the lip than in the seated frame, its top just entering the well.
+
+9. [tiny] [low] other  (mag-3-out-278-HK416-D.png)
+   seen: The ammo label on the grip (about x 1100-1170, y 250-290) reads backwards ('1 NO MAG' mirrored) in the close-up.
+   expected: Label reads the right way round from the viewing side, or is intentionally mirrored. Probably cosmetic; flagged only because it is visibly backwards.
+
+Test line flags:
+  - rack grip 1/4 fingers on the part: CONFIRMED. rack-grip-278-HK416-D-left.png and -right.png show the fingers resting on the upper receiver, with only the thumb tip on the charging-handle knob in the right-side view.
+  - rack grip 0/72 points inside the part: not checkable from the pictures.
+  - pulled half way 0/72 points inside, 1/4 fingers on it: the pulled close-ups show the same hand position as the grip close-ups, so the hand did not visibly travel.
+  - moving with the hand: the charging handle: CONTRADICTED. rack-grip-pulled-278-HK416-D-left.png and -right.png look the same as the grip frames; the handle and the hand did not move.
+  - drawn: 2 drawn part(s) move, most 40 mm: CONTRADICTED. No part visibly moves about 4 cm in any pulled frame (rack-grip-pulled-278-HK416-D*.png).
+  - the nearest is 0.0 cm from the hand: consistent with the thumb resting on the charging-handle knob in rack-grip-pulled-278-HK416-D-right.png, but that knob does not move.
+  - the gun moved 0.2 mm with the pull, 2.2 mm when it went home: consistent. No visible gun movement in the pulled frames.
+  - magazine: seated, 31 rounds: consistent. The grip label changes from NO MAG (mag-3-out, mag-6-half-in) to a count in mag-7-seated-again.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 6.7 cm out: not clearly verifiable. The only loose magazine in the set is mag-5-lined-up-278-HK416-D.png, roughly 7-9 cm below the magwell and not on its line.
+  - in the hand: 3.3 cm from the palm: consistent. mag-4-in-hand-278-HK416-D.png shows the magazine held against the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: NOT CONFIRMED. mag-6-half-in-278-HK416-D.png looks already fully seated, so the frame shows no half-way state. mag-5 also shows the fresh magazine off the magwell line.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONFIRMED. mag-1-seated and mag-7-seated-again show the magazine in the same place.
+  - fired 3/3; cases thrown 3; recoil and impulse figures: no firing frames in this set, not checkable.

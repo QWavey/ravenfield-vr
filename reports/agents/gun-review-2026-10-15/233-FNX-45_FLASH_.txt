@@ -1,0 +1,50 @@
+Gun 233: FNX-45 [FLASH]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-233-FNX-45_FLASH_.png)
+   seen: The fresh tan magazine stands upright above and behind the open gray glove (roughly x 355-495, y 45-400). Its lower end disappears behind the thumb and palm. The glove's fingers are spread flat to the left and do not close around the magazine, so the magazine hovers about 3-4 cm above the palm instead of being held. This matches the test's 3.8 cm from the palm.
+   expected: The left hand holds the magazine: fingers wrapped around the body, magazine in the palm, feed end (top) toward the gun.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-233-FNX-45_FLASH_-left.png)
+   seen: Compared with rack-grip-233-FNX-45_FLASH_-left.png, the slide stays put: the front sight (x 0-30, y 305-335) and the slide serrations (x 80-210, y 370-400) are at the same pixels. The frame under it moves toward the muzzle (left in this view) by roughly 90-100 px. The trigger guard moves from x 270-460 to x 170-330, the flashlight rail's right end from x 270 to x 170, and the grip from x 460-700 to x 380-610. The cuffed gun hand holding the grip moves with it.
+   expected: Only the slide moves, back toward the shooter (right in this view) by about 34 mm. The frame, trigger guard, grip and gun hand stay where they were.
+
+3. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-233-FNX-45_FLASH_-right.png)
+   seen: The rear sight is at the same place (about x 640-700, y 385-445) as in rack-grip-233-FNX-45_FLASH_-right.png, and the slide top edge has not shifted, so the slide did not slide back. Frame details below it move toward the muzzle (right): the red dot goes from about x 740 to x 890 at y 590. The cuffed hand on the slide top has not moved either.
+   expected: The slide slides back about 34 mm (rear sight moves left, toward the shooter) while the frame stays put. The racking hand moves with the slide.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-233-FNX-45_FLASH_-left.png)
+   seen: The free hand (gray glove with yellow stripes, fingertips at x 220-270, y 420-465, palm top at y about 210) is at exactly the same pixels as in rack-grip-233-FNX-45_FLASH_-left.png. It is not moving anything: the part it pinches does not travel with it, so the pull is air. The test agrees: only 1/4 fingers on the part.
+   expected: The glove keeps its grip on the slide and moves back with it about 34 mm, with fingers still on the part at the half-way point.
+
+5. [minor] [low] hand_pose_wrong  (rack-grip-233-FNX-45_FLASH_-right.png)
+   seen: Here the cuffed sleeve reaches over the top of the slide near the rear sight (x 400-920, y 250-530), and the gray-mesh glove sits low under the frame (x 460-1030, y 640-800). In rack-grip-233-FNX-45_FLASH_-left.png the same cuffed sleeve holds the grip and the gray glove is on the slide. The two close-ups disagree about which hand is on which part.
+   expected: One consistent pose: the free (gray glove) hand pinches the slide from the left and the cuffed gun hand wraps the grip.
+
+6. [minor] [low] hand_not_on_part  (rack-grip-233-FNX-45_FLASH_.png)
+   seen: Centre first-person shot: the gun sits at bottom right (x 745-920, y 540-800), but no free hand is visible anywhere in the frame. The pinch on the slide cannot be seen here, so the side close-ups are the only evidence.
+   expected: The left hand visible pinching the slide top.
+
+7. [minor] [low] hand_not_on_part  (weapon-233-FNX-45_FLASH_.png)
+   seen: First-person view: the pistol sits at bottom right with its grip running off the bottom edge (x 800-870, y 650-800). No right hand is wrapped around the grip, so nothing visibly holds the gun.
+   expected: The right hand wrapped around the pistol grip, gun pointing forward.
+
+8. [minor] [low] mag_duplicate_or_missing  (weapon-233-FNX-45_FLASH_.png)
+   seen: A loose tan magazine-shaped object lies by the dead blue body at lower left (about x 540-620, y 585-690), separate from the gun.
+   expected: If this is the dropped magazine the test says was picked up and seated, no loose copy should remain. If it is a second magazine, it should not be there.
+
+9. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-233-FNX-45_FLASH_.png)
+   seen: The fresh magazine's top (about x 690-790, y 590) sits under the rear edge of the grip (grip bottom about x 540-710), not centred under the magwell. It looks roughly 1-2 cm toward the back of the gun, and its axis tilts less than the grip's.
+   expected: Fresh magazine centred under the magwell on the grip's axis, ready to rise into it.
+
+Test line flags:
+  - "moving with the hand: the slide / bolt" is contradicted. In rack-grip-pulled-233 left and right the slide (front sight, serrations, rear sight) does not move; the frame (trigger guard, flashlight, grip) and the gun hand do. The test appears to be tracking the wrong part.
+  - "drawn: 2 drawn part(s) move, most 34 mm; the nearest is 0.0 cm from the hand": the visible shift in the left close-up (about 90-100 px) is consistent with 34 mm, but the moving part is the receiver/grip, not the slide. The label looks wrong.
+  - "the gun moved 0.3 mm with the pull" is contradicted for the frame and gun hand, which shift roughly 3 cm during the pull in rack-grip-pulled-233 left and right. Check which transform the test measures.
+  - "pulled half way: 0/72 points inside the part, 1/4 fingers on it" is confirmed. The free glove sits at the same pixels in rack-grip-233 and rack-grip-pulled-233 (left view), so it is not travelling with the racked part.
+  - "in the hand: 3.8 cm from the palm" is confirmed. mag-4-in-hand shows the magazine hovering above the open glove, not gripped.
+  - "half way in (on the rail): 0.0 cm off the magwell line" is consistent with mag-6-half-in, which sits on the magwell line. Depth is only an estimate from the picture.
+  - "seated: the gun's magazine shows 0.0 cm from where it was" is consistent. mag-7-seated-again matches mag-1-seated closely.
+  - "magazine: seated, 16 rounds" after "15 rounds kept" and "racked: chambered" cannot be checked from pictures. 16 is one more than the 15 kept, so the count probably includes the chambered round. Verify the displayed count is intended.
+  - "magazine (deep): dropped copy 0.0 cm across the pull ... 6.9 cm out": no picture shows the dropped copy at that position, so this cannot be confirmed. mag-2-leaving does show the magazine dropping out of the magwell along its line.
+  - "rack grip: 1/72 points inside the part, 3/4 fingers on it" is consistent. The left close-up shows glove fingers over the slide side.

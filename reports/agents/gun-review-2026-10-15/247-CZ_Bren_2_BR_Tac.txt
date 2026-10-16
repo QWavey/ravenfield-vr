@@ -1,0 +1,60 @@
+Gun 247: CZ Bren 2 BR Tac
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-247-CZ_Bren_2_BR_Tac.png)
+   seen: The camera is pressed against the back of the left glove: the triangle logo and the pale knuckle slots fill the whole 1280x800 frame. No magwell, no magazine and no gun parts are visible except a mirrored label reading '247' at the right edge. The overview sheet thumbnail 8 is the same shot.
+   expected: A view of the receiver from the side or below with the magazine fully seated in the magwell, base plate at the bottom, and the left hand clear of the lens.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-247-CZ_Bren_2_BR_Tac.png)
+   seen: Same glove close-up as mag-1 (back of the left hand filling the frame). The mirrored label now reads '1 / NO MAG'. The magazine leaving the magwell cannot be seen at all.
+   expected: The magazine dropping straight down out of the magwell along its line, with the magwell and the gun's underside visible.
+
+3. [major] [high] picture_unusable  (mag-3-out-247-CZ_Bren_2_BR_Tac.png)
+   seen: Same glove close-up again, label '1 / NO MAG'. The magwell cannot be seen, so whether it is empty and whether a second magazine exists anywhere cannot be checked.
+   expected: The magwell visible and empty, with no magazine under the receiver and no second magazine in the frame.
+
+4. [major] [high] mag_not_in_hand  (mag-4-in-hand-247-CZ_Bren_2_BR_Tac.png)
+   seen: The left glove (x 330-820, y 280-520) is open and flat, fingers extended to the left (thumb at about x 330-420, y 285-330). The fingers do not wrap any magazine. The magazine (dark, grid-patterned) stands behind the flat palm, visible at about x 300-590 from the top edge down to about y 460, with the lower end hidden behind the glove.
+   expected: The left fingers curled around the fresh magazine's body, magazine held against the palm with its feed end pointing up toward the gun.
+
+5. [major] [medium] mag_not_into_magwell  (mag-4-in-hand-247-CZ_Bren_2_BR_Tac.png)
+   seen: The magazine runs off the top edge of the frame, so it rises above the receiver and passes over the barrel and front receiver (x 300-590, y 0-120). It sits in front of the gun body rather than below the receiver. Its feed end is not at the magwell, which lies under the receiver just ahead of the trigger guard (around x 650-800, y 260-290).
+   expected: Fresh magazine held below the receiver with its feed end (top) touching the magwell opening, just ahead of the trigger, and not overlapping the barrel or optic.
+
+6. [minor] [low] mag_duplicate_or_missing  (mag-4-in-hand-247-CZ_Bren_2_BR_Tac.png)
+   seen: A large dark segmented block with horizontal grooves and an orange-yellow plate (around x 1090-1280, y 260-800) sits very close to the camera on the right edge. It may be a second magazine (the dropped copy) or scenery; the picture does not settle it.
+   expected: Only the one fresh magazine in the left hand, plus the dropped copy on the ground away from the camera if it exists.
+
+7. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-247-CZ_Bren_2_BR_Tac.png)
+   seen: A magazine with a cartridge showing at its top stands at the bottom centre of the frame (x 460-690, y 650-800). No hand is around it and the left hand is not in the frame at all; the right hand holds the grip at top right. The magwell is up under the receiver ahead of the trigger guard (around x 700-950, y 130-200), so this magazine is far below and to the left of that line. It looks like it is floating or lying on the ground, not held under the well.
+   expected: The fresh magazine held by the left hand right under the magwell, on the insertion line, with fingers visible on it.
+
+8. [major] [high] hand_not_on_part  (rack-grip-247-CZ_Bren_2_BR_Tac-left.png)
+   seen: The left glove sits across the left side of the receiver (x 345-880, y 235-530), covering the magwell and the top of the magazine. The small knob under the rail, just ahead of the optic (around x 425-475, y 200-245, presumably the charging handle), is above the glove, not under the fingers. The fingertips (x 345-420, y 250-300) touch only the receiver side below and in front of the knob.
+   expected: Fingers closed on the charging handle at the front-left of the receiver, the thumb and index on the handle, nothing covering the magwell.
+
+9. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-247-CZ_Bren_2_BR_Tac-left.png)
+   seen: The glove has exactly the same pose and the same screen position as in rack-grip-left, fingers still not on the knob. Relative to the optic and rail, the knob sits in the same place as before, so it does not appear to have moved back. The whole gun (optic, knob, magazine, right hand) is shifted about 170 px left in the frame while the glove stays put, so the hand is not following the handle.
+   expected: The charging handle pulled about half way back to the rear, the glove moved back with it and the fingers still on the handle, so the handle is visibly displaced relative to the receiver rail and optic.
+
+10. [major] [medium] hand_not_on_part  (rack-grip-pulled-247-CZ_Bren_2_BR_Tac-right.png)
+   seen: The left glove enters only at the bottom-left edge (x 0-410, y 735-800). The lever/handle (x 90-215, y 625-690) is well above the fingers, not under them. The glove is cropped by the frame edge, so only its bottom part is visible.
+   expected: Fingers on the lever/handle when it is pulled back, not below it.
+
+11. [minor] [low] part_floating_or_detached  (rack-grip-pulled-247-CZ_Bren_2_BR_Tac-right.png)
+   seen: Two cartridges, one with a green band on the tip, lie inside the rounded side recess of the receiver (about x 735-1055, y 455-550), overlapping each other. The same recess is empty in rack-grip-right, so the rounds appeared only in the pulled shot and no part holds them.
+   expected: Nothing inside the side recess, or at most a chambered round visible through an open ejection port, seated in the chamber area and not floating in the recess.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-247-CZ_Bren_2_BR_Tac-left.png and -right.png. The fingers sit below and in front of the handle, not on it.
+  - pulled half way '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-247-CZ_Bren_2_BR_Tac-left.png and -right.png. The fingers still do not touch the handle.
+  - 'moving with the hand: the slide / bolt': NOT SUPPORTED. Between rack-grip-left and rack-grip-pulled-left the glove keeps the same pose and screen position, so the hand does not visibly move with the part.
+  - 'drawn: 1 drawn part(s) move, most 58 mm': NOT VISIBLE. The handle keeps the same place relative to the optic and rail in the left pair, so no 58 mm travel shows in the pictures. Cannot confirm.
+  - 'the nearest is 2.2 cm from the hand': consistent with the pictures. The fingers sit just below and in front of the handle in the left and right close-ups.
+  - 'the gun moved 0.3 mm with the pull': NOT CONFIRMED, and the framing contradicts it. Between rest and pulled the close-ups shift about 170 px (left pair) and about 340 px (right pair), so the close-up camera moves between shots. The first-person pair (rack-grip-247-CZ_Bren_2_BR_Tac.png vs rack-grip-pulled-247-CZ_Bren_2_BR_Tac.png) has identical framing and shows no gun movement.
+  - First-person rack-grip and rack-grip-pulled frames: the left hand is not visible at all, while it is visible at the left of the blue body in weapon-247-CZ_Bren_2_BR_Tac.png. Probably hidden behind the gun; cannot confirm.
+  - 'in the hand: 3.3 cm from the palm': CONFIRMED by mag-4-in-hand-247-CZ_Bren_2_BR_Tac.png. The flat glove does not wrap the magazine; the magazine sits behind the palm.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': NOT CONTRADICTED. mag-6-half-in-247-CZ_Bren_2_BR_Tac.png shows the magazine hanging straight from the receiver's front edge. The 'NO MAG' label is still shown there, which fits a half-inserted magazine.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': NOT CONTRADICTED by mag-7-seated-again-247-CZ_Bren_2_BR_Tac.png (top of the magazine at the receiver underside, gun label now shows a number). Cannot compare with mag-1 because mag-1 is unusable.
+  - 'magazine (deep): dropped copy 0.0 cm across the pull ... 8.7 cm out': CANNOT BE CHECKED. mag-2 and mag-3 are unusable and the dropped copy is not clearly identifiable in any picture.
+  - 'magazine: seated, 26 rounds': the mirrored gun label reads 'NO MAG' in mag-2, mag-3 and mag-6 and shows a number in mag-7. Consistent with a seated magazine; digits not readable.

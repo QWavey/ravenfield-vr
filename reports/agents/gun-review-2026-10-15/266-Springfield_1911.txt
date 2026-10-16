@@ -1,0 +1,33 @@
+Gun 266: Springfield  1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-266-Springfield_1911-left.png (same in -right))
+   seen: The pulled-back close-ups are pixel-for-pixel the same framing as the un-pulled ones. In -left the front sight stays at the far left of the slide (about x 25-50, y 325-335) and the slide spans x 5-470 in both rack-grip-266...-left.png and rack-grip-pulled-266...-left.png, and the left glove sits in the same place. In -right the slide, the rear notch (about x 625-660, y 400-420), the brass round in the ejection port (about x 920-1030, y 405-445) and the glove thumb tip (about x 740-840, y 380-470) are at identical screen positions in rack-grip-266...-right.png and rack-grip-pulled-266...-right.png. Nothing visibly moves, and the hand does not travel with the slide (the test says the slide moved 29 mm).
+   expected: After the pull the slide should have moved about 29 mm (roughly 80-90 px in these close-ups) toward the rear with the hand: in -left the front sight and slide front move right, in -right the slide front moves left, the glove moves with it, and the barrel shows in front of the slide.
+
+2. [major] [medium] mag_floating_or_offset  (mag-3-out-266-Springfield_1911.png)
+   seen: A yellow-olive striped cylinder (not the black magazine; it looks like a loose round) hangs in front of the grip, under the slide, at about x 440-530, y 300-380. It is still there in mag-3-out, where the magwell should be empty. The same object sits at the same spot in mag-1-seated, mag-2-leaving, mag-6-half-in and mag-7-seated-again, so it is not part of the magazine motion.
+   expected: Nothing in front of the grip once the magazine is out. The magazine should enter and leave through the bottom of the grip (the magwell), and no loose round or other object should float beside the frame.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-266-Springfield_1911.png)
+   seen: The fresh black magazine (orange dots, brass-rimmed end up) stands upright at about x 420-545, y 118-300, above the left glove. The glove's fingers stretch flat to the left (about x 405-520, y 290-500) and do not curl around the magazine; the magazine's lower end only touches the top edge of the index finger. The magazine sits off the palm (palm about x 540-830, y 380-530), which matches the test line's 3.3 cm from the palm. It looks hovering, not held.
+   expected: The left fingers wrap around the fresh magazine body, held in the palm with the feed end pointing up toward the gun's grip (gun at about x 670-1040, y 120-330).
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-266-Springfield_1911-left.png)
+   seen: Between rack-grip-266...-left.png and rack-grip-pulled-266...-left.png the trigger guard and the orange grip panel shift about 90-110 px to the left, toward the muzzle, while the slide, the front sight and the glove stay put. The -right pair shows no such shift (orange grip at about x 750-940, y 530-720 in both). The two side views disagree, so this may be the frame (receiver) moving forward, or the gun hand moving on the grip.
+   expected: Only the slide should move back. The receiver, trigger guard and grip should stay where they are relative to the slide.
+
+5. [minor] [low] mag_duplicate_or_missing  (mag-3-out-266-Springfield_1911.png)
+   seen: In mag-2-leaving the dropped magazine hangs below the grip on the grip line (about x 580-790, y 570-705). In mag-3-out nothing is below the grip at all (about x 550-820, y 600-800 shows only grass and ground), so the dropped magazine has either vanished or fallen out of frame.
+   expected: The dropped magazine should still be visible on the ground below the grip (it was 4.9 cm out in the test) unless it has been removed on purpose.
+
+Test line flags:
+  - drawn: 1 part moves, most 29 mm / moving with the hand: the slide: NOT confirmed. The visible slide, brass round and glove do not move between the rack-grip and rack-grip-pulled close-ups, in either the left or the right view. The 29 mm movement is not on screen.
+  - rack grip 1/4 fingers on it, pulled half way 2/4 fingers on it: the left glove lies flat over the slide's front-middle with the palm over the rear, and the thumb tip rests on the slide top in -right. Low contact is plausible, but the glove does not move between the two shots, so 2/4 after pulling is not supported.
+  - the gun moved 0.2 mm with the pull: conflicting. The -left pair shows the trigger guard and grip about 90-110 px further toward the muzzle after the pull, while the -right pair shows no shift.
+  - in the hand: 3.3 cm from the palm: CONFIRMED. mag-4-in-hand shows the magazine above the fingers, not in the palm.
+  - half way in (on the rail): 0.0 cm off the magwell line: the magazine in mag-6-half-in lines up with the grip's centre line, but only a base sliver shows below the grip, so the depth looks closer to seated than half way. Cannot confirm the half-way depth.
+  - seated: the gun's magazine shows 0.0 cm from where it was: consistent. mag-7-seated-again shows the grip bottom with no magazine protruding, and the grip looks the same as in mag-1.
+  - magazine (deep): dropped copy 4.9 cm out: consistent with mag-2-leaving (magazine on the grip line just below the grip). It is no longer visible in mag-3-out.
+  - racked: chambered: a brass cartridge is visible in the ejection port in rack-grip-266...-right.png, before the pull, and it does not move after it. That fits a chambered round, but it also means the rack did not visibly move it.
+  - fired 3/3, cases thrown 3 and the recoil/impulse numbers: not visible in these pictures, so they cannot be checked.

@@ -1,0 +1,41 @@
+Gun 248: CZ Bren 2 BR Assault
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] mag_not_in_hand  (mag-5-lined-up-248-CZ_Bren_2_BR_Assault.png)
+   seen: The magwell under the receiver is empty (receiver label reads NO MAG). No magazine is lined up at the well and no left hand is in view. The only magazine in the frame stands on the ground at bottom centre, about half the frame height below the receiver, with a cartridge showing at its top. The right hand is on the pistol grip at top right with nothing in it.
+   expected: The fresh magazine held in the left hand right under the magwell, feed end up, on the magwell's line.
+
+2. [major] [high] picture_unusable  (mag-1-seated-248-CZ_Bren_2_BR_Assault.png)
+   seen: The back of the left glove (triangle emblem, slot stripes) fills the whole frame, pressed right up to the lens. No gun, magwell or magazine is visible, only a mirrored in-world label near the top right edge.
+   expected: Magazine fully inside the magwell with only the base plate showing below the receiver, gun in view, and the hand at the well rather than against the camera.
+
+3. [major] [high] picture_unusable  (mag-2-leaving-248-CZ_Bren_2_BR_Assault.png)
+   seen: Same close-up of the glove back filling the frame. The magazine dropping out of the magwell cannot be seen. Mirrored label '1 / NO MAG' at top right. The label appears backwards (reads mirrored), which is also true of the NO MAG label in mag-5 and mag-3.
+   expected: Magazine dropping straight down out of the magwell along its line, with the gun and magwell in view. Any on-gun label should read correctly, not mirrored.
+
+4. [major] [high] picture_unusable  (mag-3-out-248-CZ_Bren_2_BR_Assault.png)
+   seen: Still the glove back filling the frame, so the empty magwell cannot be checked. Mirrored label '1 / NO MAG' at top right.
+   expected: Empty magwell with the gun in view and no magazine left in or under the gun.
+
+5. [major] [high] hand_not_on_part  (rack-grip-248-CZ_Bren_2_BR_Assault-left.png)
+   seen: The left glove lies flat over the front-left of the receiver with the fingers pointing forward (glove spans about x 340-880, y 235-530 of the 1280x800 frame). The small round charging-handle knob sits just above and to the right of the index finger (about x 425-475, y 200-240). No finger touches the knob; the hand is on bare receiver below it. The magazine hangs from under the glove's right half.
+   expected: Thumb and index finger pinching the charging-handle knob at the front-left of the receiver, with the fingers on the knob itself.
+
+6. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-248-CZ_Bren_2_BR_Assault-left.png)
+   seen: The glove is in exactly the same screen spot as in rack-grip-left (same finger outlines and bottom edge), so the hand did not travel back. The rifle around it (front foregrip, scope, magwell, charging knob) is shifted about 150-175 px to the left while the horizon barely moves. The knob now sits beside the glove's left edge instead of on it, so the hand is not carrying it. In the first-person pulled view (rack-grip-pulled-248 full frame) the gun does not visibly move and the glove shifts only a little.
+   expected: Charging handle pulled about half way back toward the stock with the glove's fingers still on it. The receiver stays still and the hand moves with the handle.
+
+7. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-248-CZ_Bren_2_BR_Assault-right.png)
+   seen: The charging knob sits at the same end of its horizontal slot on the receiver side as in rack-grip-right, and keeps the same position relative to the rail and the mag-release button. The whole frame has shifted about 350 px between the two captures, so only the relative positions are meaningful. No visible travel of about half a pull. The glove is only visible at bottom left, far from the knob.
+   expected: Knob moved about half way along its slot toward the rear, with the glove still on it.
+
+Test line flags:
+  - '0/72 points inside the part, 0/4 fingers on it' (rack grip and pulled half way): confirmed by rack-grip-248-CZ_Bren_2_BR_Assault-left.png and rack-grip-pulled-248-CZ_Bren_2_BR_Assault-left.png. The glove sits beside and below the charging knob and no finger is on it. The '2.2 cm from the hand' nearest-part figure agrees.
+  - 'moving with the hand: the slide / bolt' is not supported: the glove stays in the same screen place between rack-grip-left and rack-grip-pulled-left, so the hand is not moving with the part.
+  - 'drawn: 1 drawn part(s) move, most 58 mm' is not visible: in the right-side pair (rack-grip-right vs rack-grip-pulled-right) the charging knob barely changes its position relative to the receiver features. A 58 mm pull is not seen by eye.
+  - 'the gun moved 0.3 mm with the pull' looks wrong: between rack-grip-left and rack-grip-pulled-left the foregrip, scope and magwell shift about 150-175 px horizontally while the glove and horizon hold still. Either the rifle or the capture camera moved; if it was the rifle, 0.3 mm is far too small. Capture framing was not verified.
+  - 'dropped magazine picked up and seated' vs the pictures: mag-4 shows a magazine in the left glove (consistent with '3.3 cm from the palm'), but mag-5 shows a magazine standing on the ground with the magwell empty. Either the picked-up magazine was not at the well at that step or a second magazine was on the ground.
+  - 'half way in (on the rail): 0.0 cm off the magwell line' is not contradicted: mag-6 looks lined up under the magwell. The insertion depth cannot be checked, since mag-6 and mag-7 appear to sit at the same depth under the receiver.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was' is plausible (mag-7 shows a magazine under the magwell with the glove at its base and no second magazine), but it cannot be verified against mag-1, which is unusable.
+  - 'fired 3/3; cases thrown 3' is consistent: an ejected case is visible in flight in weapon-248 and the rack-grip frames.
+  - 'racked: chambered' is not contradicted: rounds appear inside the receiver side window only in rack-grip-pulled-right, not in rack-grip-right.

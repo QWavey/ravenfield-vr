@@ -1,0 +1,36 @@
+Gun 210: mk18riii
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-210-mk18riii-right.png)
+   seen: The left glove lies across the top of the upper receiver just in front of the tan charging handle (handle at about x 735-855, y 365-435 in the 1280x800 frame). The fingers and knuckles rest on the receiver above the handle; nothing wraps around the handle and the handle sticks out under the fingers. Matches the test's 0/4 fingers on the part.
+   expected: Fingers pinch the tan charging handle (fingers on its sides and top, hand at the rear of the upper receiver), so the handle is held, not hovered over.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-210-mk18riii-left.png)
+   seen: The left glove is at exactly the same screen position as in rack-grip-210-mk18riii-left.png (fingertips at x about 240, back of hand spanning x 240-880, y 190-530). In the -right pair the glove is also unchanged (x about 400-900, y 250-400 in both). The hand does not move back at all during the pull, so it pulls air.
+   expected: The hand travels rearward (toward the stock) with the charging handle, about half of the 46 mm pull, which should be clearly visible as tens of pixels in these close-ups.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-210-mk18riii-left.png)
+   seen: Compared with the unpulled close-up, the whole rifle body has slid toward the muzzle: the MK18 RIII marking and optic, the DANIEL DEFENSE lower receiver, the trigger guard and the magazine's tan base plate all sit about 100-130 px further left, and the tan pistol grip with the right hand gripping it moves about 140 px left with them. The -right pair shows the same thing: receiver, buffer tube and takedown knob move about 150-200 px toward the muzzle while the tan charging handle, the glove and the background stay put, and a tan bar appears on the receiver just forward of the handle that is absent in the unpulled frame. Only the handle should slide back; the receiver should stay still.
+   expected: Receiver, optic, magazine, grip and stock stay where they were; only the charging handle (with the glove on it) slides rearward toward the stock by about 23 mm (half of 46 mm) while the bolt carrier moves inside the receiver.
+
+4. [minor] [high] picture_unusable  (mag-1-seated-210-mk18riii.png)
+   seen: The left glove and forearm sit in front of the camera and fill the lower-left two-thirds of the frame (about x 0-840, y 320-800). They hide the magazine body and the magwell below the tan magwell plate, so seating in mag-1, the drop in mag-2 and the empty well in mag-3 cannot be checked from these shots. The HUD tag does change from a round count to NO MAG between mag-1 and mag-2, so the state change happens.
+   expected: A framing where the magwell and magazine are unobstructed: magazine fully up in the well in mag-1, dropping straight down in mag-2, empty well in mag-3.
+
+5. [tiny] [low] hand_not_on_part  (weapon-210-mk18riii.png)
+   seen: In the first-person frame no right hand is visible at all; the bottom-right of the frame shows the gun's grip and stock with no glove around them. The close-ups do show the right hand on the grip, so it may simply be framed out. The same is true of rack-grip-210-mk18riii.png and rack-grip-pulled-210-mk18riii.png.
+   expected: Right hand visible wrapped around the pistol grip in the first-person view, as the brief describes.
+
+6. [tiny] [low] mag_floating_or_offset  (mag-5-lined-up-210-mk18riii.png)
+   seen: The fresh magazine (feed end up, brass visible at its top) sits on the magwell's vertical line, but its top is about 350 px below the magwell mouth, in the lower part of the frame. No hand is visible holding it; the hand may be below the frame. It reads more like a magazine hanging below the gun than one held right at the well.
+   expected: Magazine held in the left hand directly under the magwell on its line, feed end a short distance below the mouth, with the hand visible.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 0/4 fingers on it. Picture confirms: in rack-grip-210-mk18riii-right.png the fingers rest on the receiver above the tan charging handle and do not pinch it.
+  - pulled half way: 0/72 points, 0/4 fingers; 'moving with the hand: the charging handle'. Picture confirms the hand does not move, and the handle stays at the same screen spot while the rest of the rifle slides, so the handle is not moving with the hand as a real pull would.
+  - drawn: 2 drawn part(s) move, most 46 mm; nearest 0.0 cm from the hand. Picture suggests the moving part is the receiver body (about 100-200 px shift in the pulled close-ups), not the handle, which stays put on screen. Not confirmed as the handle.
+  - 'the gun moved 0.2 mm with the pull, 2.3 mm when it went home' looks wrong for what is drawn. The pulled close-ups show the rifle body and the right hand shifting toward the muzzle by roughly 100-200 px. The first-person pulled frame barely changes, which fits motion along the barrel axis seen from the front, so the 0.2 mm figure probably measures only the root transform.
+  - magazine: seated, 30 rounds, versus '29 rounds kept' after the pick-up. One-round difference. The seated HUD tag in mag-7 is small and rotated and looks like a 30+1 style count; the picture cannot confirm the digits.
+  - half way in (on the rail): 0.0 cm off the magwell line. Lateral alignment is consistent with mag-6 (magazine centered on the well's vertical line). Depth cannot be checked: the magazine top is hidden behind the tan magwell plate and mag-6 looks almost identical to mag-7 (seated), so half-in and seated cannot be told apart from the picture.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 7.1 cm out. Not confirmed: the drop in mag-2 is hidden by the left glove, and no clean frame shows the dropped copy on the ground.
+  - fired 3/3, cases thrown 3. No muzzle flash or shot frame is in this set. The fireball in rack-grip-pulled-210-mk18riii-left.png is far away near a tank, not at the muzzle. Not confirmed.

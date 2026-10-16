@@ -1,0 +1,36 @@
+Gun 289: QJB201 QMK204
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-289-QJB201_QMK204-left.png)
+   seen: The gloved left hand rests on top of the receiver over the belt feed cover (roughly x 420-880, y 210-520 of the 1280x800 frame). The fingers curl over the feed opening. Belt rounds poke out between the fingers at about x 540-700, y 170-240. Nothing is wrapped around the charging handle at the lower rear of the receiver (the black bar with the brass latch, visible in the right close-up).
+   expected: Four fingers wrapped around the charging handle at the lower rear of the receiver. The hand should sit below the feed cover, with no fingers inside the belt feed opening.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-289-QJB201_QMK204-right.png)
+   seen: Compared with rack-grip-289-QJB201_QMK204-right.png, the whole feed group (top cover block, belt tray, brass rounds) has slid about 370 px rearward (to the right) across the receiver. The black charging handle and brass latch at lower right (x 780-1100, y 570-650) stay exactly where they were. The part that moves is the feed block, and the handle the hand should draw back does not move.
+   expected: The charging handle itself slides back about half way with the hand. The feed cover and belt tray stay fixed on the receiver.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-289-QJB201_QMK204-left.png)
+   seen: The gloved hand stays at the same spot as in rack-grip-289-QJB201_QMK204-left.png (the triangle logo on the cuff is at the same place), but the fingers are spread open and point out to the left (fingertips near x 290-420, y 300-500). It grips nothing. The feed block it was resting on has moved rearward out from under it, so the hand is pulling air.
+   expected: Hand half-closed around the handle, travelling back with it to about the half-way point, with fingers wrapped around the part.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-289-QJB201_QMK204.png)
+   seen: First-person view: the free left hand is a featureless blue limb at the front of the gun, near the barrel and the camo ammo box (x 540-720, y 520-700). It is far from the receiver top and the charging handle. In rack-grip-pulled-289-QJB201_QMK204.png the blue limb is in the same place, so the hand never moves back with the pull.
+   expected: The left hand (gloved, camo cuff) on the charging handle in this frame, and pulled back with it in the pulled frame.
+
+5. [minor] [low] hand_pose_wrong  (weapon-289-QJB201_QMK204.png)
+   seen: The blue left arm/hand does not come in from the bottom or side edge of the view. It hangs in mid-air in front of the barrel with no glove or fingers, unlike the camo-gloved left hand in the close-ups, so it may be a ragdoll limb or a wrong hand model. The right hand at the bottom-right edge is cut off by the frame.
+   expected: A gloved left hand on an arm entering from the lower-left edge, wrapped around the forward grip or barrel shroud.
+
+6. [minor] [low] hand_or_finger_clipping  (rack-grip-pulled-289-QJB201_QMK204-left.png)
+   seen: A cluster of orange-tipped belt rounds at upper left (x 370-560, y 170-330) appears to pass in front of or through the glove's index finger.
+   expected: The rounds stay in the feed above the hand, with no fingers overlapping them.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-289-QJB201_QMK204-left.png, where the glove rests on the feed cover and not on the charging handle.
+  - pulled half way '0/72 points inside, 0/4 fingers': CONFIRMED by rack-grip-pulled-289-QJB201_QMK204-left.png, where the hand is open and not gripping anything.
+  - 'moving with the hand: the charging handle': CONTRADICTED for the black charging handle. In rack-grip-pulled-289-QJB201_QMK204-right.png the handle and latch do not move; only the feed block slides rearward, and the glove does not follow it.
+  - 'drawn: 3 drawn parts move, most 101 mm; the nearest is 1.0 cm from the hand': consistent with the feed block sliding about 370 px in the right close-ups while the hand stays put. The hand is not on the moving part.
+  - 'the gun moved 0.2 mm with the pull, 0.8 mm when it went home': not contradicted; the gun body sits in the same place in the first-person frames.
+  - 'magazine (deep): skipped (no detachable magazine...)': doubtful, because the same test line says a dropped magazine was picked up and seated and the gun has a camo ammo box. The mag-1 to mag-7 pictures are all 'none' in the overview sheet, so no picture confirms or refutes it.
+  - 'racked: chambered': cannot be confirmed from the pictures. A brass case sits in the top feed window in rack-grip-pulled-289-QJB201_QMK204-right.png, but chambering is not visible.
+  - 'belt pulled too far: slipped from the hand and hangs from the box' and 'belt laid': no listed picture shows the belt steps, so these cannot be confirmed. A cluster of rounds sits outside the feed tray in rack-grip-pulled-289-QJB201_QMK204-left.png, but it is not clearly hanging from the box.

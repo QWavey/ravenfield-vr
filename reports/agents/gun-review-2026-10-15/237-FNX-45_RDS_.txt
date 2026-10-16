@@ -1,0 +1,26 @@
+Gun 237: FNX-45 [RDS]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-237-FNX-45_RDS_-right.png)
+   seen: Pulled-half-way right close-up. The slide, the red-dot sight (about x 440-690, y 355-530), the ejection port (about x 740-930, y 480-610), the slide front end (about x 320) and the glove on top are in the same screen positions as rack-grip-237-FNX-45_RDS_-right.png. Nothing has slid back. The only difference is a brass case in the ejection port.
+   expected: The slide should be visibly pulled back about half way with its rear moving toward the shooter and the sight moving with it, and the left glove should move back with it. The test reports up to 33 mm of travel, which is tens of pixels at this distance.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-237-FNX-45_RDS_-left.png)
+   seen: Compared with rack-grip-237-FNX-45_RDS_-left.png, the whole pistol has shifted roughly 70-100 px toward the muzzle (left). The muzzle cylinder moves from about x 105 to the image edge, and the grip moves from about x 640 to about x 530. The left glove, the blue ragdoll and the tree/sea background stay put. The muzzle-to-grip spacing is unchanged, so the slide did not travel back relative to the frame; the gun body moved forward.
+   expected: The slide should slide back relative to the frame (muzzle-to-grip spacing shrinks, barrel showing in front of the slide) while the frame and grip stay put, and the left glove should follow the slide back. Nothing should move forward or sideways.
+
+3. [major] [medium] mag_not_in_hand  (mag-4-in-hand-237-FNX-45_RDS_.png)
+   seen: The fresh tan magazine stands upright above the left glove (about x 355-495, y 45-390) and sits behind or above the fingertips. The fingers are straight and flat, extended to the left, and do not curl around the magazine. There is no visible palm contact with the magazine body. The test says it is 3.8 cm from the palm.
+   expected: The fresh magazine should be held in the left hand: fingers wrapped around its lower part, the magazine body against the palm (about 0 cm), feed end toward the gun.
+
+Test line flags:
+  - moving with the hand: the slide / bolt -- contradicted by rack-grip-pulled-237-FNX-45_RDS_-right.png and rack-grip-pulled-237-FNX-45_RDS_-left.png: the glove is in the same place in the rack-grip and pulled pairs, and the slide does not move relative to the frame.
+  - drawn: 3 drawn part(s) move, most 33 mm -- not seen in rack-grip-pulled-237-FNX-45_RDS_-right.png: the sight and ejection port are at the same screen positions as in rack-grip-237-FNX-45_RDS_-right.png, where 33 mm would be tens of pixels.
+  - the gun moved 0.2 mm with the pull -- contradicted by rack-grip-pulled-237-FNX-45_RDS_-left.png: the whole pistol shifts roughly 70-100 px against an unchanged background, far more than 0.2 mm.
+  - in the hand: 3.8 cm from the palm -- confirmed by mag-4-in-hand-237-FNX-45_RDS_.png: the magazine stands above and behind the fingers rather than being clasped.
+  - half way in (on the rail): 0.0 cm off the magwell line -- mag-6-half-in-237-FNX-45_RDS_.png looks on its line; not contradicted.
+  - seated: the gun's magazine shows 0.0 cm from where it was -- mag-7-seated-again-237-FNX-45_RDS_.png matches the mag-1 seat (the thumb hides part of the base plate); not contradicted.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 6.4 cm out -- mag-2-leaving-237-FNX-45_RDS_.png shows the copy on the grip's line; the 6.4 cm distance is not checkable from the picture.
+  - rack grip 1/4 fingers on it / pulled half way 1/4 fingers on it -- the left close-ups show fingers lying along the slide's left side, roughly consistent with only a few fingers touching; 0/72 points cannot be checked from pictures.
+  - racked: chambered -- not confirmed; no slide travel is visible in the pulled pictures.
+  - fired 3/3; cases thrown: 3 -- consistent: a brass case sits in the ejection port in rack-grip-pulled-237-FNX-45_RDS_-right.png.

@@ -1,0 +1,34 @@
+Gun 242: FNX-45 [TAC2]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] wrong_part_moves  (rack-grip-pulled-242-FNX-45_TAC2_-right.png (same in rack-grip-pulled-242-FNX-45_TAC2_.png))
+   seen: Compared with rack-grip-242-FNX-45_TAC2_-right.png, the red-dot sight block (x 440-690, y 350-525), the rear sight plate, the slide top edge and the ejection-port edge sit at exactly the same screen spots. The lower-frame details moved about 170 px to the right (toward the rear of the gun): the red LED from about x 477 to x 650 at y 686, the round pin from x 880-935 to x 1055-1110 at y 680, and a small round screw from x 812 to x 985 at y 690. So the slide does not travel back and the frame underneath moves instead. The only other change is a brass round showing in the ejection-port opening (x 740-790, y 520-560).
+   expected: The slide and the red-dot sight ride back together about 33 mm (roughly 170 px to the right in this close-up), with the frame, pin and LED staying where they are. The hand should travel with the slide.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-242-FNX-45_TAC2_-right.png (same in rack-grip-242-FNX-45_TAC2_-right / center))
+   seen: The left glove (cuff at x 400-540, y 255-430) lies above the red-dot sight and the slide. Its palm and fingers run across x 540-1100 at y 250-450, which leaves a visible gap of roughly 50-100 px between the hand and the slide top. Only a fingertip touches the rear slide top near x 900-1100, y 470-480. Matches the test's 1/4 fingers and 0/72 points.
+   expected: The left hand pinches the slide's rear serrations or sides with several fingers (3-4) on the part, the slide sitting between fingers and thumb, not hovering above it.
+
+3. [major] [low] wrong_part_moves  (rack-grip-pulled-242-FNX-45_TAC2_-left.png (vs rack-grip-242-FNX-45_TAC2_-left.png))
+   seen: The left glove (x 300-880, y 210-530) is in exactly the same place in both pictures, so the hand does not follow the pull. The gun body moved about 90 px to the left (toward the muzzle side): the muzzle ring, the tactical light (x 210-460 becomes x 115-370 at y 455-560) and the grip (x 620-840 becomes x 530-760) all shifted together. The background (tree, tank, soldier) does not move. Both right-side pictures show no such shift, so the two views disagree.
+   expected: The hand moves back with the slide. The frame, grip, tactical light and muzzle stay still. The gun should not shift as a whole.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-242-FNX-45_TAC2_.png)
+   seen: The fresh tan magazine (a brass round tip at its feed end, x 690-740, y 590-615) sits at the lower right of the frame. Its feed end is around (715, 590), about 130 px right of and 140 px below the grip's bottom centre (about (600, 450)), so it is not on the magwell line. No hand is visible next to it.
+   expected: The magazine's feed end sits directly under the grip's bottom opening on the same axis as the grip, a few cm below it, held in the left hand.
+
+5. [tiny] [low] mag_floating_or_offset  (mag-2-leaving-242-FNX-45_TAC2_.png)
+   seen: The dropped tan magazine body under the grip leans slightly to the right of the grip axis (roughly 10 degrees in the image) and its black base plate sits about 50 px to the right of the grip's bottom edge. This may be perspective.
+   expected: The magazine drops straight down along the magwell line, with its base aligned under the grip.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 1/4 fingers on it. CONFIRMED by rack-grip-242-FNX-45_TAC2_-right.png and the center picture: the glove hovers above the slide, and only a fingertip touches near the rear.
+  - pulled half way: 0/72 points inside the part, 1/4 fingers on it. CONFIRMED by rack-grip-pulled-242-FNX-45_TAC2_-right.png: the glove is in the same place as in the rack picture, so the hand did not travel with the part.
+  - moving with the hand: the slide / bolt. CONTRADICTED by rack-grip-pulled-242-FNX-45_TAC2_-right.png: the slide top, the sight and the ejection-port edge do not move. The parts that shift are lower-frame details.
+  - drawn: 3 drawn part(s) move, most 33 mm; the nearest is 0.2 cm from the hand. PARTLY CONSISTENT: the lower-frame details shift about 170 px in the pulled-right picture, roughly the size of 33 mm at close-up scale, but those are not the slide. The glove sits visibly above the slide with a gap, not 2 mm from a moving part.
+  - the gun moved 0.1 mm with the pull. CONTRADICTED by rack-grip-pulled-242-FNX-45_TAC2_-left.png: the gun body (muzzle ring, tactical light, grip) sits about 90 px further left than in the rack picture (roughly 1 cm at this scale), while the glove and background are unchanged. The right-side pictures show no such shift.
+  - magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine, 6.0 cm out. PLAUSIBLE: mag-2 shows the dropped magazine roughly on the grip axis, with a slight lean that may be perspective.
+  - in the hand: 3.8 cm from the palm. CONSISTENT with mag-4-in-hand: the fresh magazine is held out in front of the left glove, base hidden in the fingers. In mag-5 no hand is visible beside the magazine.
+  - half way in (on the rail): 0.0 cm off the magwell line. CONSISTENT with mag-6-half-in: the magazine looks on the grip axis.
+  - seated: the gun's magazine shows 0.0 cm from where it was. CONSISTENT: the base plate of mag-7 sits where mag-1's does.
+  - fired 3/3; cases thrown: 3. NOT CHECKABLE from this set (no muzzle-flash picture for this gun). A brass round shows in the ejection port only in the pulled-right and pulled-center pictures.

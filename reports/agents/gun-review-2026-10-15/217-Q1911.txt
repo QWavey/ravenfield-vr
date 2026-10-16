@@ -1,0 +1,42 @@
+Gun 217: Q1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-4-in-hand-217-Q1911.png)
+   seen: The fresh tan magazine stands upright above the open left glove, at about x 395-550, y 120-300, with its lower end resting just above the knuckle edge of the hand. No fingers curl around the magazine body. The fingers point flat to the left, so the magazine floats above the palm rather than being held. The test line says 3.4 cm from the palm.
+   expected: The fingers wrap around the magazine body and the palm holds it, with the same model magazine and its feed end toward the gun (up and to the right).
+
+2. [major] [high] hand_not_on_part  (rack-grip-217-Q1911-right.png)
+   seen: The left glove lies over the front half of the slide around the ejection port (about x 400-880, y 250-500). Only the thumb tip touches the slide top (about x 700-880, y 380-490). The other fingers hang in the air above the slide (about x 400-700, y 250-410). The rear serrations (about x 1130-1250) are not touched. This matches the test line of 1/4 fingers and 0/72 points inside the part.
+   expected: Several fingers pinch the slide's rear serrations and sit on the part before the pull, not in the air over the front of the slide.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-217-Q1911-left.png)
+   seen: The glove sits on top of the rear half of the slide (about x 460-880, y 220-480). The fingers stretch forward at about x 240-470, y 395-520, below the slide's underside, instead of closing on the slide's serrations or top.
+   expected: Fingers rest on the slide itself, on the serrations at the rear, so the slide can be pinched and pulled.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-217-Q1911-right.png)
+   seen: The glove and fingers occupy the same screen spot as in rack-grip-217-Q1911-right.png (glove edge about x 400-880, thumb tip about x 880, y 490), so the hand did not travel back with the slide. The hammer and rear serrations also stay where they were. The only visible change is a brass case showing in the ejection port, so the slide barely appears to move.
+   expected: The hand travels back with the slide about half way (17 mm, which should be tens of pixels in this close-up), and the hammer and rear serrations shift to the right.
+
+5. [minor] [low] wrong_part_moves  (rack-grip-pulled-217-Q1911-left.png)
+   seen: Two silver cylinders, one above the other at about x 135-230, y 335-430, stick out ahead of the muzzle. They are absent in rack-grip-217-Q1911-left.png, where the slide's front edge is at about x 190. In this frame the slide's front edge does not move right, so the protruding parts may be something pushed forward out of the slide rather than the slide sliding back.
+   expected: The slide moves rearward, its front edge shifting right, and the barrel shows only as the slide clears it. No part should move forward.
+
+6. [minor] [low] wrong_part_moves  (rack-grip-pulled-217-Q1911.png)
+   seen: In this first-person view a grey metal cylinder with a dark rim sits at about x 540-620, y 585-690, left of the blue ragdoll, and a silver stub is at about x 740-780, y 575-650. In rack-grip-217-Q1911.png the grey muzzle cylinder is at about x 715-800, y 575-740 and nothing sits to its left. The slide and frame at the bottom right (x 790-930) are unchanged, and the test says the gun body moved only 0.1 mm, so the muzzle-end part appears to have shifted about 150 px on screen.
+   expected: The slide slides back toward the shooter (down and to the right on screen) with the muzzle end staying in the slide, and nothing jumps out sideways.
+
+7. [tiny] [low] other  (mag-3-out-217-Q1911.png)
+   seen: A dark blurred oval hangs in the sky near the right edge, about x 1000-1035, y 220-345. It is not attached to the gun, and it stays at the same spot in mag-3 through mag-7. It is probably a smoke puff or a thrown casing, not a gun part, but it is a stray floating object.
+   expected: Nothing floating in the sky at that spot, or the object should be gone once the magazine is out.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 1/4 fingers on it': CONFIRMED by rack-grip-217-Q1911-right.png. Only the thumb tip touches the slide top and the other fingers hang in the air.
+  - pulled half way '1/4 fingers on it': CONFIRMED by rack-grip-pulled-217-Q1911-right.png. The glove stays at the same spot as before the pull.
+  - 'moving with the hand: the slide / bolt': NOT CONFIRMED. The glove and fingers sit at the same screen position before and after the pull in both the left and right pairs, so the hand does not travel with the slide.
+  - 'drawn: 3 drawn part(s) move, most 17 mm; the nearest is 0.0 cm from the hand': NOT CONFIRMED. The hammer and rear serrations stay in place in the right close-up pair, and 17 mm should show as tens of pixels there. The 0.0 cm contact is probably only the thumb tip. Some movement is hinted at by brass showing in the ejection port in the pulled-right frame.
+  - 'racked: chambered': consistent. Brass is visible in the ejection port in rack-grip-pulled-217-Q1911-right.png and not in rack-grip-217-Q1911-right.png.
+  - 'the gun moved 0.1 mm with the pull, 0.4 mm when it went home': consistent. Grip, trigger guard and frame stay at the same screen spots in the paired pictures.
+  - 'in the hand: 3.4 cm from the palm': CONFIRMED as a bug by mag-4-in-hand.png. The magazine floats above the open glove and no fingers are around it.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': consistent with mag-6-half-in-217-Q1911.png. The magazine sits on the grip's line with no obvious offset.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent with mag-7-seated-again-217-Q1911.png vs mag-1. The base plate is mostly hidden under the left glove in mag-7, so only partly checkable.
+  - 'magazine: seated, 6 rounds', '5 rounds kept', 'dropped copy 0.0 cm ... 5.1 cm out', 'fired 3/3', 'cases thrown: 3': not checkable from these pictures. No muzzle-flash or lens-flash frames exist for this gun.

@@ -1,0 +1,58 @@
+Gun 244: CZ Bren 2 BR S
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] hand_not_on_part  (rack-grip-244-CZ_Bren_2_BR_S-left.png)
+   seen: The left glove sits over the receiver's left side, with its fingers lying along the side panel below and in front of the charging-handle lever. The tan lever (about x 425-475, y 200-245) is visible just above the index finger, and no finger wraps it. The palm covers the slot at about x 500-880.
+   expected: Fingers pinched around the charging-handle lever at the front-left top of the receiver, ON the part.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-244-CZ_Bren_2_BR_S-left.png)
+   seen: The glove is in exactly the same screen position as in rack-grip-244-CZ_Bren_2_BR_S-left (about x 335-880, y 205-530), so the hand did not move with the pull. The lever is now at about x 240-300, y 200-245, roughly 1-2 cm in front of the fingertips, and it appears shifted toward the muzzle (left) rather than back toward the stock. The hand is pulling air.
+   expected: The hand travels back with the handle, fingers staying pinched on the lever, and the lever moves rearward (right in this view) about half way.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-244-CZ_Bren_2_BR_S-left.png)
+   seen: Compared with rack-grip-244-CZ_Bren_2_BR_S-left, the magazine has slid about 140 px (roughly 2-3 cm) toward the muzzle: its near edge is at about x 415-650 instead of x 555-800, while the trigger guard (x 865-1000) and trigger hand stay put. The gap between magazine and trigger guard grows from about 60 px to about 230 px, so the magazine is no longer in line with the magwell.
+   expected: The magazine stays seated in the magwell directly ahead of the trigger guard while the bolt moves.
+
+4. [minor] [low] other  (rack-grip-pulled-244-CZ_Bren_2_BR_S-right.png)
+   seen: The side bolt panel and its recess have moved about 345 px rearward compared with rack-grip-244-CZ_Bren_2_BR_S-right, about 5-6 cm at the magazine scale, which matches the test's 58 mm. Inside the open window, three cartridges lie angled together (about x 735-1050, y 445-540), not a single chambered round.
+   expected: Bolt half pulled back with at most the chambered round visible in the port, and nothing loose inside the receiver.
+
+5. [minor] [low] hand_or_finger_clipping  (rack-grip-pulled-244-CZ_Bren_2_BR_S-right.png)
+   seen: A left-hand glove finger comes in from the bottom-left edge (about x 0-420, y 725-800; in rack-grip-244-CZ_Bren_2_BR_S-right the same finger is only about x 0-110). Background grass and a blue soldier show through the lower receiver at about x 355-510, y 715-800, beside the magwell release. This may be the hand clipping into the receiver or a hole in the gun body.
+   expected: A solid lower receiver with no background showing through it, and the hand outside the gun body.
+
+6. [major] [high] picture_unusable  (mag-1-seated-244-CZ_Bren_2_BR_S.png)
+   seen: The whole frame is filled by the back of a gloved hand (grey hex-pattern glove with a triangle emblem and light stripes), so the camera sits behind or inside the hand. No receiver, magwell or magazine is visible. Only a mirrored gun label ('244', top right near x 1210-1240, y 190-210) shows.
+   expected: The gun from the side or front with the magazine fully seated in the magwell ahead of the trigger guard, base plate showing, and the left hand away from the lens.
+
+7. [major] [high] picture_unusable  (mag-2-leaving-244-CZ_Bren_2_BR_S.png)
+   seen: Same frame as mag-1: the glove fills the view, so the magazine dropping out cannot be seen and the drop along its line cannot be checked. The mirrored label has changed to 'NO MAG' (top right).
+   expected: The magazine falling straight down out of the magwell along its line, with the magwell and magazine in view.
+
+8. [major] [high] picture_unusable  (mag-3-out-244-CZ_Bren_2_BR_S.png)
+   seen: The glove still fills the frame, so the magwell cannot be seen and 'empty' cannot be confirmed. The label reads 'NO MAG'.
+   expected: The magwell under the receiver ahead of the trigger guard visible and empty, no second magazine in view, and the left hand moved away from the lens.
+
+9. [major] [low] mag_duplicate_or_missing  (mag-4-in-hand-244-CZ_Bren_2_BR_S.png)
+   seen: The held magazine (top centre, about x 300-590, y 0-290, feed end up toward the receiver, fingers over its lower end) looks right. Separately, a second dark olive magazine-like object with rectangular windows stands at the right edge (about x 1070-1280, y 260-800), close to the camera and held by no hand. A similar dark object may also sit at the bottom-right edge of rack-grip-244-CZ_Bren_2_BR_S-pulled-left.
+   expected: One magazine in the scene: the fresh copy in the left hand, with the dropped copy removed once it has been picked up.
+
+10. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-244-CZ_Bren_2_BR_S.png)
+   seen: The fresh magazine (a cartridge lying on its top) stands at the bottom centre (about x 460-690, y 650-800), cut off by the bottom edge and much nearer the camera. The magwell under the receiver (about x 540-880, y 120-200) is well above it and empty. No hand is visible holding the magazine.
+   expected: The magazine right under the magwell, on its line, just below the receiver ahead of the trigger guard, held by the left hand.
+
+Test line flags:
+  - rack grip 0/72 points inside, 0/4 fingers on it: CONFIRMED by rack-grip-244-CZ_Bren_2_BR_S-left.png. The lever sits just above the index finger and no finger wraps it.
+  - pulled half way 0/72 points inside, 0/4 fingers on it: CONFIRMED by rack-grip-pulled-244-CZ_Bren_2_BR_S-left.png. The glove has not moved and the lever is about 1-2 cm ahead of the fingertips.
+  - moving with the hand: the slide / bolt: CONTRADICTED. The glove does not move between the grip and pulled left pictures, so the hand is not carrying the part.
+  - drawn: 1 drawn part moves, most 58 mm: PARTLY CONFIRMED by rack-grip-pulled-244-CZ_Bren_2_BR_S-right.png, where the bolt panel and recess shift about 345 px rearward (about 5-6 cm at the magazine scale). The left close-up disagrees on direction, since the lever appears to move forward.
+  - the nearest is 2.1 cm from the hand: CONSISTENT with the 1-2 cm gap in rack-grip-pulled-244-CZ_Bren_2_BR_S-left.png.
+  - the gun moved 0.2 mm with the pull: CONSISTENT. The trigger guard, trigger hand and grip sit in the same place in both left pictures.
+  - seated: the gun's magazine shows 0.0 cm from where it was: CONTRADICTED in the rack frames. rack-grip-pulled-244-CZ_Bren_2_BR_S-left.png shows the magazine about 2-3 cm toward the muzzle compared with rack-grip-244-CZ_Bren_2_BR_S-left.png. mag-7 itself looks seated.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 7.0 cm out: NOT VERIFIABLE for the 7 cm. mag-4 shows a loose magazine-shaped object at the right edge that no hand holds, so check whether the dropped copy was really picked up or still exists.
+  - in the hand: 3.3 cm from the palm: NOT VERIFIABLE. mag-4 shows the magazine held by the fingers, which is plausible.
+  - half way in (on the rail): 0.0 cm off the magwell line: PLAUSIBLE. mag-6 shows the magazine entering directly ahead of the trigger guard.
+  - mag-1, mag-2 and mag-3: the drop and the empty-magwell steps cannot be checked, because the glove fills the frame in all three pictures.
+  - racked: chambered: UNCLEAR. rack-grip-pulled-244-CZ_Bren_2_BR_S-right.png shows three cartridges in the open window, not one.
+  - fired 3/3, cases thrown 3, recoil and impulse: no pictures in this set to check.
+  - Scale note: the roughly 60 px per cm figure is an estimate from the magazine width (about 4 cm), so the cm values in these notes are rough.

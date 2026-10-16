@@ -1,0 +1,33 @@
+Gun 218: SpringField 1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-218-SpringField_1911-right.png)
+   seen: Close-up from the gun's right side, compared pixel-for-pixel by eye with rack-grip-218-SpringField_1911-right.png. The slide is in the same place: the serrated rear section starts at about x 590 and the pale rear block sits at x 910-1060, y 420-495 in both frames. The left thumb and knuckles are at the same spot (thumb tip about x 840-900, y 380-430), so the hand did not travel either. Nothing moved back by the roughly 17 mm the test reports, which would be well over 100 px at this range. The only visible change is a yellow part on the left side of the rear block in the pulled frame.
+   expected: The slide pulled back about half way: serrations and rear block shifted toward the grip (to the viewer's right), the barrel or a gap showing ahead of the slide, and the left hand moved back with it, thumb still on the serrations.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-218-SpringField_1911-left.png)
+   seen: Left-side close-up, compared with rack-grip-218-SpringField_1911-left.png. The left glove is in exactly the same place (fingertips about x 240-300, y 400-445; knuckles over the slide rear at x 460-870, y 200-540). The front sight at x 40-100, y 312-335 has not moved. The only difference is a cream part at the muzzle end (x 0-60, y 340-430) that is not in the rest frame. That could be the barrel showing, but the sight did not shift, so the slide does not clearly travel back. The hand stays put either way, so the fingers are no longer riding the slide as it moves.
+   expected: The glove moved back with the slide, fingers still pinching the slide's rear serrations at the new position, and the slide visibly shifted toward the grip with the sight moving with it.
+
+3. [major] [low] hand_not_on_part  (rack-grip-pulled-218-SpringField_1911.png)
+   seen: Far third-person view. A light-gray cylinder with a dark tip lies left of the slide, from about x 540 to 730, y 585-690. Its tip is roughly 150-180 px away from the slide front, which starts near x 715. Nothing like it is in rack-grip-218-SpringField_1911.png, where the muzzle end sits directly in front of the slide at x 720-790, y 600-730. Its light top matches the honeycomb top of the left glove in the magazine frames, so it is most likely a left-hand finger pointing off into the air, away from the slide. It could also be a barrel that has come out of the slide.
+   expected: The left-hand fingers pinching the slide's rear serrations, so the hand stays on the slide while it is pulled, with no free finger or part sticking out in front of the gun.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-218-SpringField_1911.png)
+   seen: The fresh magazine (khaki, red-tipped feed end up, which is correct) stands above the left glove. Its lower end disappears behind the top edge of the glove at about x 410-555, y 280-300. Fingers do not visibly close around the magazine body; the thumb sits at the left edge (x 410-470, y 280-350). The magazine looks like it is resting on the hand rather than gripped in the fist. The test's 3.5 cm from the palm agrees.
+   expected: Left fingers wrapped around the magazine body and the magazine held in the palm or fist, feed end toward the gun, the magazine not resting on the hand.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 2/4 fingers on it. Plausible and not contradicted. The rest close-ups show the left thumb and knuckles on the slide rear.
+  - pulled half way: 1/4 fingers on it. Confirmed in part. The left hand sits in the same place in the pulled frames as in the rest frames, so the fingers did not travel with the slide, and the far pulled frame shows a finger-like tip about 150-180 px away from the slide.
+  - pulled half way: 0/72 points inside the part. Not checked by the pictures.
+  - moving with the hand: the slide / bolt. Not confirmed. The right close-up shows the slide at the same pixel positions as the rest frame, and the left close-up's front sight did not move.
+  - drawn: 3 drawn part(s) move, most 17 mm. Not visibly confirmed. About 17 mm of slide travel would be well over 100 px in the right close-up, and that movement is absent.
+  - nearest is 0.0 cm from the hand. Consistent: the slide sits against the left thumb and knuckles in the close-ups.
+  - gun moved 0.1 mm with the pull. Consistent: grip, trigger guard and frame are in the same place in rest and pulled close-ups.
+  - magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine, 6.2 cm out. Consistent with mag-2-leaving, where the dropped magazine hangs straight down the grip line.
+  - in the hand: 3.5 cm from the palm. Confirmed by mag-4-in-hand: the magazine rests on the top edge of the glove rather than inside the fist.
+  - half way in (on the rail): 0.0 cm off the magwell line. Consistent with mag-5 and mag-6: the magazine is on the grip line, with the same tilt as the grip.
+  - seated: the gun's magazine shows 0.0 cm from where it was. Consistent: mag-1-seated and mag-7-seated-again show the same grip base with no magazine visible.
+  - fired 3/3; cases thrown: 3. Not verifiable here: no lens-flash or muzzle-flash pictures for this gun are listed.
+  - magazine: seated, 11 rounds; dropped magazine picked up and seated, 10 rounds kept; racked: chambered; recoil figures. Not verifiable from the pictures.

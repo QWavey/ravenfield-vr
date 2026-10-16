@@ -1,0 +1,49 @@
+Gun 241: FNX-45 [TAC1]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-241-FNX-45_TAC1_.png)
+   seen: The fresh tan magazine hangs in mid-air below and to the right of the grip. Its top end is at about x 680-790, y 585; the grip bottom is at about x 545-750, y 445. So it sits roughly 90 px right of the grip axis and about 140 px below the grip (roughly 2-3 cm at this scale). No hand is visible holding it anywhere in the frame.
+   expected: Magazine directly under the magwell on the grip's axis, held by the left hand with fingers around the body and the feed end up, ready to go up into the grip.
+
+2. [major] [medium] mag_not_in_hand  (mag-4-in-hand-241-FNX-45_TAC1_.png)
+   seen: The fresh magazine stands upright above the open left glove (about x 355-495, y 45-390). Its lower end only touches the top of the index finger. No fingers curl around the magazine body and the palm is open below it. The test line says it is 3.8 cm from the palm, which matches the picture.
+   expected: Left fingers close around the magazine body so it sits in the hand, feed end toward the gun.
+
+3. [major] [low] wrong_part_moves  (rack-grip-pulled-241-FNX-45_TAC1_-left.png)
+   seen: Compared with rack-grip-241-FNX-45_TAC1_-left.png, the barrel end and the tactical light shift about 90 px left (toward the muzzle) and the grip about 45 px left. The sea and tree background does not move and the glove stays at the same screen spot. The slide appears to move forward relative to the frame instead of back, and the hand does not follow it.
+   expected: The slide moves rearward (right in this view) by about half its travel with the free hand on it, while the frame and grip stay put.
+
+4. [major] [low] slide_or_bolt_not_moving  (rack-grip-pulled-241-FNX-45_TAC1_-right.png)
+   seen: Versus rack-grip-241-FNX-45_TAC1_-right.png, the sight, the glove and the slide top with its ejection port (about x 745-930, y 490-600) stay in the same place. Only the row of small parts along the lower edge (red dot, round pin, hex pin, bar, about x 480-1110, y 655-700) jumps about 170 px to the right. The piece carrying the sight does not travel back. A brass case sits in the port at about x 745-800, y 520-565.
+   expected: The whole slide, sight included, moves back about half way with the hand. No part jumps relative to the rest of the slide.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-241-FNX-45_TAC1_.png)
+   seen: First-person view of the gun at lower right, slide top about x 715-800, y 490-560. No left hand is visible anywhere in the frame. The area left of and below the slide (about x 480-720, y 480-800) holds only the blue body, grass and gravel.
+   expected: The left glove visible at the slide's rear top, fingers pinching the slide serrations.
+
+6. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-241-FNX-45_TAC1_.png)
+   seen: Nearly identical to rack-grip-241-FNX-45_TAC1_.png. No left hand is visible, and the slide top and sight do not visibly move back. The only change is the muzzle block and lower part shifting roughly 10 px right and 25 px down.
+   expected: The slide visibly pulled back about half way, with the left hand on its rear.
+
+7. [major] [low] hand_not_on_part  (rack-grip-241-FNX-45_TAC1_-left.png)
+   seen: The left glove lies on top of the front half of the slide (about x 300-875, y 205-540). Its finger row (about x 300-470, y 365-510) hangs down past the slide's lower edge onto the tactical light (about x 150-430, y 455-530) instead of wrapping the slide sides. The test line says only 1 of 4 fingers is on the part.
+   expected: Fingers wrapped on the slide's sides or rear serrations, none of them below the slide edge.
+
+8. [minor] [medium] mag_not_into_magwell  (mag-7-seated-again-241-FNX-45_TAC1_.png)
+   seen: Compared with mag-1-seated-241-FNX-45_TAC1_.png, the base plate sits about 40 px (roughly 1 cm) lower: about x 610-790, y 585-660, versus x 590-770, y 560-630 in mag-1. A strip of the tan magazine body shows between the black grip bottom and the base plate. In mag-1 the base is flush with the grip bottom.
+   expected: Identical to mag-1: base plate flush against the grip bottom, no magazine body showing below the grip.
+
+9. [minor] [low] mag_not_into_magwell  (mag-6-half-in-241-FNX-45_TAC1_.png)
+   seen: The magazine is already at the same depth as in mag-7, with the tan body and base plate showing about 1 cm under the grip. No half-way stage is visible between the far-off magazine in mag-5 and the seated position.
+   expected: Magazine visibly part way up into the grip on the magwell line, with roughly half its length still below the grip.
+
+Test line flags:
+  - rack grip 0/72 points inside, 1/4 fingers on it: confirmed. The full views show no left hand at all, and in the left close-up the fingers hang off the slide.
+  - pulled half way 0/72 inside, 1/4 fingers on it: confirmed. The glove sits at the same screen spot in rack-grip and rack-grip-pulled in both close-up pairs.
+  - moving with the hand: the slide / bolt: not confirmed. The glove stays put and the slide top (sight, ejection port) does not visibly travel back. Only the small lower parts jump in the right-side pair.
+  - drawn: 3 drawn part(s) move, most 34 mm: not confirmed. A 34 mm slide move would be large in the close-ups, and the sight and port do not shift.
+  - the gun moved 0.3 mm with the pull: contradicted. In the left close-up pair the barrel block moves about 90 px and the grip about 45 px (roughly 1-2 cm at close-up scale) while the background does not move.
+  - magazine in the hand 3.8 cm from the palm: confirmed. In mag-4 the magazine stands above the open hand and no fingers close around it.
+  - half way in (on the rail) 0.0 cm off the magwell line: the on-line part is consistent with mag-6, but mag-6 already looks as deep as mag-7, so no half-way depth is visible.
+  - seated: the gun's magazine shows 0.0 cm from where it was: contradicted. The mag-7 base plate sits about 1 cm lower than mag-1 with magazine body showing under the grip.
+  - fired 3/3, cases thrown 3: consistent. A brass case sits in the ejection port in rack-grip-pulled-right.

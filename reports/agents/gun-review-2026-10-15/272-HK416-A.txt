@@ -1,0 +1,22 @@
+Gun 272: HK416-A
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-272-HK416-A-right.png)
+   seen: Close-up from the right side: the free (left) hand is closed over the top of the upper receiver and handguard. Its index, middle and ring fingers stick out forward in the air above the rail (roughly x 250-560, y 260-530). Only the tip of the thumb touches the small round knob at about x 760-860, y 400-450. The left-side close-up (rack-grip-272-HK416-A-left.png) shows the same thing: the fingers rest on the rail in front of the knob, not on the handle. The test line agrees (1/4 fingers, 0/72 points).
+   expected: Index to ring fingers closed around the charging handle (HK416 charging handle, 'HK416拉机柄') so that most of the fingers are on the handle, the thumb on its top, the hand following the handle's shape.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-272-HK416-A-right.png)
+   seen: Compared with rack-grip-272-HK416-A-right.png, the hand (cuff, wrist window, thumb tip), the knob and the rail are at the same pixel positions. Nothing has shifted back toward the shooter, so no pull is visible. The left-side pair (rack-grip-pulled-272-HK416-A-left.png vs rack-grip-272-HK416-A-left.png) is the same. The first-person pulled frame (rack-grip-pulled-272-HK416-A.png) also matches the plain one.
+   expected: About half way back, the charging handle and the hand holding it have both moved rearward (the test says up to 52 mm), with the fingers still on the handle. The upper receiver stays put.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-272-HK416-A.png)
+   seen: The fresh magazine stands at the bottom centre of the frame (about x 490-680, y 640-800, cut off by the bottom edge). That is well below the receiver and the magwell, and a little left of it, roughly a magazine length down. No hand or arm is visible anywhere near it, so it looks like it hangs in the air.
+   expected: The fresh magazine held by the left hand directly under the magwell, on the magwell's axis, only a few cm below it, feed end pointing up at the well, with fingers around it.
+
+4. [tiny] [low] other  (mag-3-out-272-HK416-A.png)
+   seen: The on-gun ammo label at the rear of the grip (about x 1100-1170, y 250-290) reads 'NO MAG', but the letters look mirrored (backwards). The same label looks mirrored in the mag-1 to mag-7 close-ups.
+   expected: Label text reads the right way round from the side it is shown on.
+
+Test line flags:
+  - 'moving with the hand: the charging handle' and 'drawn: 2 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand' look wrong. The pulled close-ups (rack-grip-pulled-272-HK416-A-left.png and -right.png) show the hand and knob at the same place as the un-pulled close-ups. A 52 mm (about 5 cm) travel would be an obvious shift at that range, so the pictures confirm the problem.
+  - 'magazine (deep): dropped copy ... 7.9 cm out' does not match mag-2-leaving-272-HK416-A.png. There the dropped magazine hangs only just below the magwell, about 40 px under the seated position at that scale, not 7.9 cm out. It may have been measured at a later moment than any picture, so this is not confirmed either way by the pictures.

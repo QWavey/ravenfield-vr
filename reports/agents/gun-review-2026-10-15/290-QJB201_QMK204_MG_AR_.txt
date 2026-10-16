@@ -1,0 +1,37 @@
+Gun 290: QJB201 QMK204 [MG&AR]
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-290-QJB201_QMK204_MG_AR_-left.png)
+   seen: Left close-up (1280x800). The left glove (back of hand with hex texture and triangle logo, about x 700-790, y 285-325) sits over the front of the top feed cover and the orange-tipped belt rounds, spanning roughly x 420-885, y 205-525. The fingers curl down-left at x 420-500 and the thumb hangs in air above the camo ammo box. No finger closes on any handle. The lever with two knobs at x 290-400, y 170-260 is not held either.
+   expected: Four fingers closed around the charging handle grip (the black handle on the receiver's rear-lower side, seen in rack-grip-290-QJB201_QMK204_MG_AR_-right.png), palm centred on the handle, fingers ON the part.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-290-QJB201_QMK204_MG_AR_-left.png)
+   seen: Same glove, still over the top of the receiver, but the fingers are spread open flat to the left, fingertips reaching about x 290, y 300-500. The palm is open and no finger closes on anything; the fingers hang in air over the feed opening. The back of the hand stays at the same screen spot (triangle logo x 700-790, y 285-325).
+   expected: Fingers closed on the charging handle grip and the hand moved back about half way with the handle, with the fingers bent around the grip, not spread into empty air.
+
+3. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-290-QJB201_QMK204_MG_AR_-right.png)
+   seen: Compared with rack-grip-290-QJB201_QMK204_MG_AR_-right.png, the black charging handle (grip x 850-1100, y 565-655; bar with two screws at x 735 and 800; yellow latch at x 785-860, y 590-635) is at exactly the same pixel position. It did not move back at all. The lower rail (y 560-700) is also unchanged.
+   expected: The charging handle grip and its bar slide back (toward the right of the frame, the rear) about half way, together with the hand that holds it.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-290-QJB201_QMK204_MG_AR_-right.png)
+   seen: The upper receiver section moved rearward (right) by about 350-380 px relative to the rest picture: the top feed-cover block (rest x 320-770, pulled x 700-1150), the belt window with its golden rounds (rest x 420-860, pulled x 780-1190), and the side panel with the two round studs (studs at x 985 and 1190 in the rest picture, not in frame in the pulled one). The pulled frame also shows one brass case in the top channel (x 800-1030, y 260-340) that is absent in the rest frame. The left recess panel and the charging handle stay still.
+   expected: Only the charging handle and its bar should move back with the hand. The feed cover, belt window and side panel should stay in place unless the hand is actually gripping that cover, which it is not (see the left pictures).
+
+5. [major] [medium] part_floating_or_detached  (weapon-290-QJB201_QMK204_MG_AR_.png)
+   seen: First-person view, gun in hand. A grey glove-like or muzzle-like object (about x 540-630, y 585-690) hangs in front of the camo handguard box (x 695-785, y 580-740) with a visible gap: blue enemy body shows through at x 630-695 between them. In rack-grip-290-QJB201_QMK204_MG_AR_.png (same gun, same scope and receiver position) the grey muzzle sits attached to the handguard at x 665-720, y 585-650, with no gap. The same displaced object also appears in rack-grip-pulled-290-QJB201_QMK204_MG_AR_.png.
+   expected: The muzzle / flash hider sits flush on the barrel end, directly against the handguard, with nothing floating. If the object is the free left hand, it should show an arm and sit on the gun.
+
+6. [minor] [low] other  (rack-grip-pulled-290-QJB201_QMK204_MG_AR_-left.png)
+   seen: Compared with rack-grip-290-QJB201_QMK204_MG_AR_-left.png, the lever with knobs (rest x 290-400, pulled x 110-240), the barrel rod end, the ammo box (rest x 515-760, pulled x 340-625), the pistol grip and the right glove all shift about 130-175 px to the left, while the left glove's back and triangle logo stay at the same screen spot.
+   expected: During a pull the gun root should stay still (the test reports 0.2 mm of gun movement) and only the charging handle should move. Either the close-up camera is hand-anchored or the whole gun slid forward; check the camera anchor before treating this as a gun bug.
+
+Test line flags:
+  - rack grip: 0/72 points and 0/4 fingers on the part. CONFIRMED by rack-grip-290-QJB201_QMK204_MG_AR_-left.png: the fingers hover over the feed cover and rounds, not on the handle.
+  - pulled half way: 0/72 points and 0/4 fingers. CONFIRMED by rack-grip-pulled-290-QJB201_QMK204_MG_AR_-left.png: the fingers are spread open in the air.
+  - 'moving with the hand: the charging handle': NOT CONFIRMED. In rack-grip-pulled-290-QJB201_QMK204_MG_AR_-right.png the charging handle is at the same pixel position as in rack-grip-290-QJB201_QMK204_MG_AR_-right.png. The parts that visibly moved are the upper feed-cover block, the belt window and the side panel.
+  - 'drawn: 3 drawn part(s) move, most 101 mm; the nearest is 1.0 cm from the hand': the pictures cannot confirm mm values. The moved section in the right close-up is the upper receiver, not the handle the test names, so the 'nearest part' claim conflicts with the static handle.
+  - 'the gun moved 0.2 mm with the pull, 1.1 mm when it went home': consistent in the right pair (lower receiver and handle static). The left pair shows the whole gun shifted about 130-175 px against a static glove, so the 0.2 mm reading needs the camera anchor checked.
+  - 'racked: chambered': cannot be confirmed from stills. The pulled right close-up shows one brass case in the top channel (x 800-1030, y 260-340) that is absent in the rest picture.
+  - 'belt laid: the strip stays on the feed tray': consistent. Belt rounds sit in the feed window in both right close-ups.
+  - 'magazine (deep): skipped': consistent. The gun is belt-fed and the overview sheet has no magazine frames (mag 1-7 all 'none'), so there is nothing to check.
+  - 'belt pulled too far ... hangs from the box', 'magazine: seated, 100 rounds', 'fired 3/3', 'cases thrown 3', and the recoil and impulse values: no listed picture covers these, so they are not verified.

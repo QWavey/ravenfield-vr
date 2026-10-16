@@ -1,0 +1,49 @@
+Gun 245: CZ Bren 2 BR Holo
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-245-CZ_Bren_2_BR_Holo-left.png)
+   seen: Left close-up: the left glove (about x 335-880, y 215-530) lies over the receiver side in front of the magwell. Its thumb and index finger sit at mid-receiver height, about 1-2 cm below and in front of the small round-topped charging lever (about x 425-478, y 200-245). No finger touches the lever; the fingers are in the air against the receiver side.
+   expected: Thumb and index finger pinch the charging lever at the front of the receiver (around x 430-480, y 200-245 in this frame), fingers wrapped on that part, not beside it.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-245-CZ_Bren_2_BR_Holo-left.png)
+   seen: Compared with rack-grip-245-...-left, the glove stays on the same screen spot (about x 325-880, y 240-530), while the charging lever, holo, receiver, magazine and right-hand grip all slide together about 185 px (roughly 5-6 cm at this range) toward the muzzle (left). The lever keeps the same position relative to the receiver, so it did not travel back, and the hand did not move with it.
+   expected: The charging lever slides about 5-6 cm rearward (to the right in this view) with thumb and index on it, the glove moves with the lever, and the receiver stays still.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-pulled-245-CZ_Bren_2_BR_Holo.png)
+   seen: First-person half-pull: the left glove at the foregrip (about x 780-860, y 720-800) and the whole gun (holo at about x 700-790, y 490-560, right-hand stock block at right) are in exactly the same place as in rack-grip-245-CZ_Bren_2_BR_Holo.png. Nothing shows the left hand pulling back or the gun moving during the pull.
+   expected: The left hand moves rearward a few cm with the charging handle while the handle is pulled, and the part under the hand visibly moves back. Here the hand pulls air.
+
+4. [major] [low] hand_not_on_part  (rack-grip-pulled-245-CZ_Bren_2_BR_Holo-right.png)
+   seen: Right-side close-up: the left glove appears only at the bottom-left (about x 0-420, y 730-800), far below the upper receiver where the rack part sits. The charging lever is on the left side of the gun so it is not visible from here; the glove is simply not at the top of the receiver.
+   expected: Glove wrapped on the charging lever at the front of the receiver during the pull. Confirmation depends on the test's 0/4 fingers figure and the left close-up.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-245-CZ_Bren_2_BR_Holo.png)
+   seen: The fresh magazine (feed end up, brass round showing at its top) sits alone at the bottom centre of the frame, roughly 8-10 cm below the magwell line. The magwell/trigger guard is at the upper right (magwell about x 540-870, y 130-170). No glove is visible holding the magazine, so it looks floating; the gun has also risen about 180 px since mag-6, so the magazine stayed behind.
+   expected: Fresh magazine held by the left hand right at the magwell, feed lips directly under the receiver ahead of the trigger, on the line it will travel into the well. In mag-4 it was in the glove; here it is detached and low.
+
+6. [major] [high] picture_unusable  (mag-1-seated-245-CZ_Bren_2_BR_Holo.png)
+   seen: Almost the whole frame is the back of the left glove (grey hex mesh with triangle logo) with the camera right against it. The gun, magwell and magazine are not visible. The only visible change across mag-1/2/3 is a mirrored in-game label at upper right ('247' here).
+   expected: Gun in view with the magazine fully seated in the magwell (only the base plate showing below the receiver).
+
+7. [major] [high] picture_unusable  (mag-2-leaving-245-CZ_Bren_2_BR_Holo.png)
+   seen: Frame is effectively identical to mag-1: the glove fills the view, no magazine drop is visible, and the mirrored label now reads 'NO MAG'.
+   expected: Magazine dropping straight down out of the magwell along its line, with the gun and magwell in frame.
+
+8. [major] [high] picture_unusable  (mag-3-out-245-CZ_Bren_2_BR_Holo.png)
+   seen: Frame is identical to mag-1 and mag-2: the glove fills the view, the magwell is not visible, and the label reads 'NO MAG'. Empty magwell cannot be checked.
+   expected: Gun in view with an empty magwell, no magazine left in the gun and no second magazine in frame.
+
+9. [minor] [medium] picture_unusable  (rack-grip-245-CZ_Bren_2_BR_Holo-right.png)
+   seen: Very dark right-side close-up of the receiver; panels and rivets are barely readable. The left hand appears only as a light fingertip at the bottom-left corner, so the rack contact cannot be judged.
+   expected: Adequately lit close-up of the right side, or the left-side close-up used as the reference for the rack grip.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': confirmed by rack-grip-245-...-left, where the glove is beside the charging lever, not on it.
+  - pulled half way '0/4 fingers on it' and 'moving with the hand: the slide/bolt': confirmed as a problem. The glove is at the same spot in rack-grip and rack-grip-pulled (left and first-person), so the hand does not move with any part.
+  - drawn '1 part moves, most 58 mm; nearest 2.1 cm from the hand': the 58 mm roughly matches the ~185 px shift in rack-grip-pulled-245-...-left, but that shift moves the whole receiver, holo and magazine together, not the lever. The picture does not confirm a lever travelling 58 mm.
+  - 'the gun moved 0.3 mm with the pull, 0.5 mm when it went home': contradicted by the left close-up pair (receiver and magazine shift about 5-6 cm against the same glove). The first-person pair shows no movement. The two views disagree and this needs checking.
+  - 'mag-5 lined up' has no measurement in the test line, but mag-5 shows the magazine about 8-10 cm below the magwell, so the picture contradicts a lined-up state.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': consistent with mag-6, where the magazine is directly under the receiver ahead of the trigger.
+  - 'in the hand: 3.3 cm from the palm': consistent with mag-4, where the magazine is held in the left glove with feed end toward the gun.
+  - 'dropped copy 7.8 cm out' and 'seated: 0.0 cm from where it was': cannot be verified because mag-1, mag-2 and mag-3 are unusable close-ups.
+  - 'fired 3/3', recoil and impulse figures: no firing pictures are listed for this gun, so they cannot be checked.

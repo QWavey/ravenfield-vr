@@ -1,0 +1,27 @@
+Gun 234: FNX-45 [LASER]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-234-FNX-45_LASER_-left.png)
+   seen: Same framing as rack-grip-234-FNX-45_LASER_-left.png and nothing has moved. The front sight stays at the far-left edge (about x 0-30, y 305-340), the laser/rail light stays at lower left (x 0-290, y 480-590), the glove cuff stays at x 435-500, y 250-480 and the fingertips still rest on the slide at x 215-470, y 420-550. The slide shows no travel back toward the hand and no barrel showing ahead of it. Only the background shifts slightly.
+   expected: The slide visibly pulled back about half way (test says 34 mm): the slide and front sight shift right, toward the hand, a bit of barrel shows ahead of the slide, and the glove moves back with it.
+
+2. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-234-FNX-45_LASER_-right.png)
+   seen: Compared with rack-grip-234-FNX-45_LASER_-right.png the rear sight (x 640-700, y 385-440), the glove (cuff x 400-500, fingers across the slide top x 640-910, y 255-470) and the laser/rail light (x 1120-1280, y 600-760) are in the same places, so the slide has not visibly travelled. The only new detail is an orange cartridge nose at x 975-1005, y 450-490 near the ejection port, which is not slide travel. The background behind the gun shifts about 50 px while the gun does not.
+   expected: Slide pulled back about half way (34 mm) with the rear sight and the fingers moving back with it, and the barrel visible ahead of the slide. The cartridge nose only makes sense if the slide actually cycled.
+
+3. [minor] [low] mag_floating_or_offset  (mag-5-lined-up-234-FNX-45_LASER_.png)
+   seen: The fresh tan magazine (dark cap at its top) hangs about 140 px below the grip bottom at x 680-840, y 585-800, roughly on the grip's tilt. No left hand is in the frame touching it, so it looks like it is floating over the grass.
+   expected: The left hand visibly holding the magazine just under the magwell on its line, feed end up toward the grip.
+
+Test line flags:
+  - "drawn: 2 drawn part(s) move, most 34 mm": NOT confirmed. rack-grip-pulled-left and rack-grip-pulled-right show no slide travel of that size (it would be roughly 150 px in these close-ups); the sight, rail light and hand stay put in both.
+  - "moving with the hand: the slide / bolt" and "pulled half way: 2/4 fingers on it": contradicted. The hand stays in the same screen position in the pulled and rack-grip close-ups, so the hand did not move with a pull.
+  - "racked: chambered": partly consistent. rack-grip-pulled-right shows a cartridge nose at the ejection port that is absent in rack-grip-right, but the slide itself does not visibly move.
+  - "the nearest is 0.0 cm from the hand": consistent. The fingertip rests on the slide top in the right close-ups.
+  - "the gun moved 0.2 mm with the pull": consistent. The frame, rail light and sight keep their place in the left and right pairs.
+  - "magazine (deep): dropped copy 0.0 cm across the pull": consistent within reading accuracy. mag-2-leaving shows the dropped copy following the grip's line with only a slight rightward shift at the base (about 20-30 px), not flagged.
+  - "half way in (on the rail): 0.0 cm off the magwell line": consistent. mag-6-half-in looks on the grip's line.
+  - "seated: the gun's magazine shows 0.0 cm from where it was": consistent. The mag-7 base plate sits in the same place as in mag-1.
+  - "in the hand: 3.8 cm from the palm": consistent. mag-4-in-hand shows the glove holding the lower end of the magazine.
+  - Centre first-person pair (rack-grip-234-FNX-45_LASER_.png and rack-grip-pulled-234-FNX-45_LASER_.png) and weapon-234-FNX-45_LASER_.png: too small or cut off to confirm the hold or the slide travel. No hand is visible at the grip or the slide in these frames. The gun's rear end may sit slightly lower and larger in the pulled frame, but this is not conclusive.
+  - Firing and recoil numbers (fired 3/3, cases thrown, recoil, impulse): no picture in the brief shows them, so they cannot be checked here.

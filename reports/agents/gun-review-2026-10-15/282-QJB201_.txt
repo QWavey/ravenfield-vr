@@ -1,0 +1,48 @@
+Gun 282: QJB201 
+Haiku picture review (read only), overall: bugs, pictures read: 7
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-282-QJB201_-right.png)
+   seen: Compared with rack-grip-282-QJB201_-right.png, the upper receiver has slid about 370 px to the right (rearward, roughly 10 cm at this close-up scale). The top cover block moved from x~320-740 to x~700-1140, the rear sight post from x~0-180 to x~340-480, the feed opening with its brass rounds moved about 380 px, and the side-plate cut-out moved from x~400-860 to x~780-1190. The charging handle (x~850-1090, y~570-650), its bracket with two screws (x~670-830, y~565-640) and the lower rail (y~565-600) stay exactly where they were. The handle is left behind while the receiver body (cover, sight, belt, side plate) moves.
+   expected: Only the charging handle (and the bolt carrier inside) slides back with the hand about half way. The top cover, rear sight, side plate and belt stay put on the receiver.
+
+2. [major] [high] hand_not_on_part  (rack-grip-282-QJB201_-right.png)
+   seen: The charging handle (black handle at x~850-1090, y~570-650, on the right of the receiver below the top cover) has no fingers on it. The only skin-like shape in the frame is a pale object at the bottom-left corner (x~0-180, y~690-800), far from the handle.
+   expected: The free hand's fingers and thumb pinch the charging handle, with fingers on the part and not in the air.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-282-QJB201_-left.png)
+   seen: The left glove (x~420-880, y~200-520) rests on top of the receiver over the feed tray and the belt. Orange-tipped rounds poke out beside it (x~370-600, y~170-240). The fingers hang down beside the feed tray (x~420-520, y~280-530) and touch no handle. The part being racked is not held.
+   expected: The glove's fingers pinch the charging handle on the receiver's side, not the top of the feed tray.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-pulled-282-QJB201_-left.png)
+   seen: The glove sits roughly where it did before the pull (over the receiver top and feed tray, x~420-880, y~200-520). The feed rounds and receiver top do not visibly move with it. The hand is pulling air, not a handle.
+   expected: The glove keeps its pinch on the charging handle and moves rearward with it about half way, and the handle is seen moving.
+
+5. [minor] [medium] hand_or_finger_clipping  (rack-grip-pulled-282-QJB201_-right.png)
+   seen: A gloved finger rises out of the top of the receiver beside the rear sight (x~580-700, y~40-230) and points up into the sky. Its base is hidden behind the top cover. It is nowhere near the charging handle (x~850-1090, y~570-650).
+   expected: The fingers wrap the charging handle. No finger should poke up through the top of the receiver.
+
+6. [minor] [low] part_floating_or_detached  (rack-grip-pulled-282-QJB201_-right.png)
+   seen: A brass cartridge sticks out of the receiver's left side at the front of the feed opening (x~655-720, y~255-335). The same spot is empty receiver in rack-grip-282-QJB201_-right.png. It looks like a belt round dragged out of its tray along with the cover.
+   expected: All belt rounds stay inside the feed tray and receiver when the cover moves.
+
+7. [tiny] [low] part_floating_or_detached  (rack-grip-282-QJB201_-right.png)
+   seen: A flat, unshaded light-beige block (x~785-860, y~590-635) sits in the gap between the bracket with two screws and the charging handle. It does not match the dark gun material and looks like a loose or untextured piece. The same block is in the same spot in the pulled picture.
+   expected: A shaded latch that belongs to the bracket, or nothing at all.
+
+8. [minor] [low] muzzle_flash_or_lens_flash_issue  (rack-grip-pulled-282-QJB201_-left.png)
+   seen: A yellow starburst flash (x~360-820, y~0-130) sits above the receiver at the top edge of the frame, nowhere near the barrel end. The barrel runs off to the left of the frame (around y~370-440) and no flash appears at its end. Small spark streaks sit around the burst.
+   expected: A muzzle flash at the barrel end on the left, or if this is an impact spark on the cliff, it should not read as a muzzle flash.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED. rack-grip-282-QJB201_-right.png shows no fingers on the charging handle, and rack-grip-282-QJB201_-left.png shows the glove resting on the receiver top over the feed tray.
+  - pulled half way '0/72 points inside the part, 0/4 fingers on it': CONFIRMED. rack-grip-pulled-282-QJB201_-right.png shows the nearest finger above the top cover, not on the handle.
+  - 'moving with the hand: the charging handle': CONTRADICTED. In rack-grip-282-QJB201_-right.png and rack-grip-pulled-282-QJB201_-right.png the charging handle, its bracket with two screws and the lower rail stay at the same screen position. The upper receiver (top cover, rear sight, belt window, side plate) is the part that moved.
+  - 'drawn: 3 drawn part(s) move, most 101 mm; the nearest is 1.0 cm from the hand': CONSISTENT with rack-grip-pulled-282-QJB201_-right.png. The upper receiver shifts about 370 px rearward, roughly 10 cm at this close-up scale. That confirms the wrong part moves, not the handle.
+  - 'the gun moved 0.2 mm with the pull, 0.5 mm when it went home': CONSISTENT. The lower rail, handle and bracket do not move in the pulled close-up, and the background is unchanged, so the camera did not move.
+  - 'belt pulled too far: slipped from the hand and hangs from the box': NOT COVERED by the listed pictures. rack-grip-pulled-282-QJB201_-right.png shows one brass round sticking out of the receiver at the front of the feed opening, which could be the slipped belt. Unconfirmed.
+  - 'belt laid: the strip stays on the feed tray' and 'magazine: seated, 100 rounds, belt laid': UNVERIFIED. No picture covers these steps. The overview sheet shows 'none' for panels 8-14 (magazine steps) and no mag-* picture exists in the folder. The camo ammo box hangs under the receiver in the weapon and rack-grip frames, but nothing shows it seated.
+  - 'magazine (deep): skipped': CONFIRMED that no magazine pictures exist, so the reload path (drop, pick up, seat, half-in, seated again) cannot be judged for this gun.
+  - 'racked: chambered': UNVERIFIED. No picture shows the chambering.
+  - 'fired 3/3; cases thrown 3': UNVERIFIED. No lens or muzzle-flash picture exists for this gun, and the flash in rack-grip-pulled-282-QJB201_-left.png is not at the barrel end.
+  - rack-grip-282-QJB201_.png and rack-grip-pulled-282-QJB201_.png are first-person frames with no visible left hand. They look identical to weapon-282-QJB201_.png, so the pinch cannot be seen from them. In weapon-282-QJB201_.png the right hand is also not visible on the pistol grip (the grip is likely below the frame). Unconfirmed, not reported as a bug.
+  - Recoil and impulse numbers (0.5 deg / 98 deg/s etc.) cannot be checked from pictures.

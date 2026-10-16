@@ -1,0 +1,44 @@
+Gun 265: AF2011A1
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-265-AF2011A1-left.png)
+   seen: Compared with rack-grip-265-AF2011A1-left.png, the pistol frame has moved about 3 cm toward the muzzle (leftward in this view). The grip screw hole goes from about x=640 to x=555 at y~675, the trigger guard now shows at x 255-340, y 455-530, and the right hand's knuckles and palm shift left by about 90 px with it. The slide front (x~10-60), the slide top edge and the left glove stay at the same pixels.
+   expected: Only the slide should travel back about 29 mm (about 3 cm) over the frame. The frame, grip, trigger guard and right hand should stay exactly where they were in the rack-grip shot.
+
+2. [major] [medium] wrong_part_moves  (rack-grip-pulled-265-AF2011A1-right.png)
+   seen: Compared with rack-grip-265-AF2011A1-right.png, the grip panel and trigger guard move about 100-120 px toward the muzzle (rightward in this view; the grip panel now starts near x~745 instead of ~625). The slide top edge (y~405-415), the rear sight, the ejection port and the glove stay at the same pixels in both right-side shots.
+   expected: The slide should slide back over a fixed frame. The grip, trigger guard and frame should not move in the pulled shot.
+
+3. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-265-AF2011A1-left.png)
+   seen: In both pulled close-ups the slide sits at the same pixels as in the rack-grip shots. In the -left shot the muzzle end stays at x~10, and in the -right shot the slide top edge and rear sight stay at the same place. No visible slide travel appears, although the test reports 29 mm.
+   expected: The slide should be visibly pulled about half way back: in the -left shot the slide front moves about 3 cm relative to the frame (rightward), and in the -right shot the slide rear moves back over the frame (leftward), with the barrel-end gap growing.
+
+4. [major] [medium] hand_pose_wrong  (rack-grip-pulled-265-AF2011A1-left.png)
+   seen: The left glove is at identical pixels in rack-grip-265-AF2011A1-left.png and in the pulled -left shot (cuff and back of hand from about (465,235) to (870,540)). In the -right pair the cuff at x 400-520 and the fingertip at about (890,510) are unchanged too. The hand does not move back with the slide; it appears to rest on the slide side without pulling.
+   expected: The fingers stay pinched on the slide and the hand moves back with it by about 3 cm, so the glove is at a different place in the pulled shots.
+
+5. [major] [medium] other  (weapon-265-AF2011A1.png)
+   seen: In the flat first-person shot (also rack-grip-265-AF2011A1.png and rack-grip-pulled-265-AF2011A1.png) the held gun is a light-grey body with a dark round opening at about (760-830, 600-720) and a small '041' mark, running off the bottom-right edge. It does not match the black 1911 with brown grips seen in every close-up. The round opening may be facing the camera.
+   expected: The same black 1911 with brown grips, held in the right hand at the bottom right and pointing forward into the scene.
+
+6. [minor] [low] hand_not_on_part  (weapon-265-AF2011A1.png)
+   seen: No right hand is visible on the gun in the full-scene shot. The grip runs off the bottom edge at about (830-920, 800), so the hand may simply be out of frame.
+   expected: The right hand wrapped around the grip at the bottom right, visible or clearly placed on the grip.
+
+7. [tiny] [low] other  (rack-grip-pulled-265-AF2011A1-right.png)
+   seen: A brass cartridge with a red-orange tip sits at about (940-1070, 425-475) in the ejection port. It appears only in this pulled shot; rack-grip-265-AF2011A1-right.png shows the port empty.
+   expected: A chambered round can show through an open port, but it should sit inside the port, not on top of the slide. Check it is inside the port and not floating.
+
+Test line flags:
+  - "drawn: 1 drawn part(s) move, most 29 mm" is not confirmed by the pictures. In the pulled -left and -right shots the slide shows no 29 mm travel; what visibly moves is the frame, grip, trigger guard and right hand, about 3 cm.
+  - "moving with the hand: the slide / bolt" is contradicted. The left glove sits at identical pixels in the rack-grip and pulled shots on both sides, and the slide stays put.
+  - "the gun moved 0.2 mm with the pull, 1.8 mm when it went home" is contradicted. The pistol frame and right hand shift about 3 cm (roughly 85-120 px) between rack-grip and pulled in the -left and -right close-ups.
+  - "pulled half way: 0/72 points inside the part, 2/4 fingers on it" cannot be confirmed as a pull. The fingers are on the slide side in both shots, but the hand has not moved back.
+  - "rack grip: 0/72 points inside the part, 1/4 fingers on it" is consistent with the -left and -right close-ups: the index finger lies along the slide side and the other fingers are below the slide.
+  - "seated: the gun's magazine shows 0.0 cm from where it was" cannot be verified. In mag-7-seated-again the glove covers the grip bottom, so the magazine base plate is hidden (mag-1 shows it).
+  - "half way in (on the rail): 0.0 cm off the magwell line" is consistent. In mag-6-half-in the visible base plate lines up with the grip.
+  - "in the hand: 3.2 cm from the palm" is consistent. In mag-4-in-hand the fresh magazine is upright, feed end up, with the glove around its lower part.
+  - "dropped copy 0.0 cm across the pull ... 5.4 cm out" is consistent. In mag-2-leaving the magazine falls along the grip's line.
+  - "magazine: seated, 9 rounds" and "8 rounds kept" cannot be checked from the pictures; mag-5 shows the rounds at the feed end but they cannot be counted.
+  - "racked: chambered" is not clearly supported. The only round visible is in the ejection port of the pulled -right shot (see the tiny bug above).
+  - "fired 3/3" and "cases thrown: 3" have no pictures to check.

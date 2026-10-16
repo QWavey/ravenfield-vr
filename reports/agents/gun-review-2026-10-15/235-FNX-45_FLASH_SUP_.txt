@@ -1,0 +1,45 @@
+Gun 235: FNX-45 [FLASH][SUP]
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-235-FNX-45_FLASH_SUP_-right.png)
+   seen: Same pose as rack-grip-235-FNX-45_FLASH_SUP_-right.png. The rear sight stays at the same pixels (about x 640-700, y 385-450), the slide top edge is unchanged, and the glove (cuff at x 400-480, thumb lying on the slide at x 700-900) is in the same place. No rearward travel of the slide is visible. A 34 mm pull should show as a shift of roughly 100 px at this distance. The hand has not moved either.
+   expected: The slide visibly slid back about half its travel (toward the shooter, i.e. left in this view), with the rear sight and the thumb riding with it and the front of the frame and barrel showing ahead of the slide.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-235-FNX-45_FLASH_SUP_-left.png)
+   seen: Framing is identical to rack-grip-235-FNX-45_FLASH_SUP_-left.png. The front sight at the top-left edge (x 0-30, y 305-340), the flashlight rail (x 40-270, y 470-560) and the glove over the slide (x 220-870, y 210-530) are at the same pixels. The only change is a muzzle-flash starburst (see its own entry). Nothing moved.
+   expected: The slide moved back about 34 mm (to the right in this view). The front sight and slide front should shift right by roughly 100 px, and the glove should move back with the slide.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-235-FNX-45_FLASH_SUP_.png)
+   seen: The grip base spans about x 540-710 at y 440. The fresh tan magazine's top sits at about x 690-790, y 590, so it is under the grip's right edge rather than its centre. That is about half a grip width (roughly 2 cm) off the magwell line, with a gap of about 150 px below the grip. No hand is visible around the magazine. It runs off the bottom edge of the frame, so the hand may simply be out of view.
+   expected: The fresh magazine centred directly under the magwell on the grip's own axis, a small gap below the grip, and the left hand holding it at the base.
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-235-FNX-45_FLASH_SUP_-right.png)
+   seen: Compared with rack-grip-235-FNX-45_FLASH_SUP_-right.png, the small red dot and the lever on the frame under the slide sit about 150 px further right (toward the muzzle). The rear sight and slide top do not move. The frame details appear to shift relative to the slide.
+   expected: Only the slide should move, rearward (left in this view). Frame details such as the red dot and lever should stay where they are relative to the slide.
+
+5. [minor] [medium] muzzle_flash_or_lens_flash_issue  (rack-grip-pulled-235-FNX-45_FLASH_SUP_-left.png)
+   seen: An orange and yellow starburst fans out from a centre behind the glove at about x 480-650, y 200-300, far up and to the right of the gun. The muzzle is off the left edge of the frame (the front sight is at x 0-30, y 305-340), so the flash sits roughly 500 px away from the muzzle.
+   expected: The flash drawn at the muzzle, at the left edge around y 320-500, in line with the barrel.
+
+6. [minor] [low] mag_not_in_hand  (mag-4-in-hand-235-FNX-45_FLASH_SUP_.png)
+   seen: The tan magazine stands upright above the left hand (x 355-495, y 50-390), in front of the suppressor and about 400 px left of the gun's grip. Only the thumb tip and fingertips touch its lower end. The fingers do not wrap around the body, and the palm sits well below it. It reads as barely held.
+   expected: Fingers curled around the magazine body with the palm supporting it, feed end pointing toward the magwell, and the magazine close to the grip.
+
+7. [minor] [low] other  (weapon-235-FNX-45_FLASH_SUP_.png)
+   seen: A tan/grey magazine-shaped object lies tilted against the dead blue body's arm at about x 540-640, y 585-690, with a dark base at the lower left and no visible contact shadow under it. The same object shows in rack-grip-pulled-235-FNX-45_FLASH_SUP_.png (wide) but not in rack-grip-235-FNX-45_FLASH_SUP_.png (wide), so it appears, disappears and reappears between shots.
+   expected: A dropped magazine should rest on the grass with a contact shadow, and it should not come and go between the rack shots.
+
+8. [tiny] [low] other  (weapon-235-FNX-45_FLASH_SUP_.png)
+   seen: The grip runs off the bottom edge of the frame and no right hand is visible, so the hold on the grip cannot be confirmed from this picture.
+   expected: The right hand wrapped around the pistol grip, visible or clearly attached to the gun.
+
+Test line flags:
+  - pulled half way: 2/4 fingers on it; moving with the hand: the slide / bolt; drawn: 2 drawn part(s) move, most 34 mm. NOT confirmed by rack-grip-pulled-235-FNX-45_FLASH_SUP_-left.png and -right.png: the glove and slide sit at the same pixel positions as in the before shots, so no 34 mm slide travel is visible. The pictures contradict this line.
+  - the gun moved 0.3 mm with the pull: consistent, the gun body does not visibly move in the pulled close-ups.
+  - in the hand: 3.8 cm from the palm: mag-4-in-hand-235-FNX-45_FLASH_SUP_.png shows the magazine held only at its lower end by the thumb tip and fingertips, not a palm grip. The distance cannot be checked directly. Not confirmed either way.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in-235-FNX-45_FLASH_SUP_.png shows the magazine axis matching the grip axis within a few pixels. Consistent.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 6.8 cm out: mag-2-leaving-235-FNX-45_FLASH_SUP_.png shows the dropped copy on the grip line at the magwell (within about 20 px). Consistent. The 6.8 cm figure cannot be checked from the picture.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7-seated-again-235-FNX-45_FLASH_SUP_.png has its base plate ending about 25 px higher than mag-1 at the same framing. Tiny, possibly perspective from the hand. Not clearly wrong.
+  - fired 3/3: rack-grip-pulled-235-FNX-45_FLASH_SUP_-right.png shows an ejected case in the ejection port, consistent with a shot. The flash in rack-grip-pulled-235-FNX-45_FLASH_SUP_-left.png is misplaced (see its bug entry).
+  - rack grip (slide/bolt, fire motion): 3/4 fingers on it: the right close-up shows the glove resting on the slide top and the left close-up shows fingertips on the slide side. Consistent. Point counts (1/72 inside) cannot be checked from pictures.
+  - racked: chambered and the pulled-slide measurements are not checkable from pictures except as noted above.

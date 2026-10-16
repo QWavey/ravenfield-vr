@@ -1,0 +1,33 @@
+Gun 285: QJB201 H510 [MG&AR]
+Haiku picture review (read only), overall: bugs, pictures read: 8
+
+1. [major] [high] hand_not_on_part  (rack-grip-285-QJB201_H510_MG_AR_-left.png)
+   seen: The left-hand glove (back of hand to the camera, fingers curled) is pressed onto the upper front of the receiver over the feed cover, roughly x 420-880, y 190-520 of the 1280x800 frame. No fingertip touches a handle or lever. One finger pokes up at about x 480-600, y 190-240, into the cover.
+   expected: Four fingers closed on the charging handle, the bar in the lower receiver slot that shows in the right-side close-up, with the glove on the handle rather than on the cover.
+
+2. [major] [high] hand_not_on_part  (rack-grip-285-QJB201_H510_MG_AR_-right.png)
+   seen: The charging handle (black bar with a yellow latch, lower receiver slot, about x 780-1100, y 570-650) is bare: no glove or finger touches it. The only hand fragment is a grey-green glove at the bottom-left corner (about x 0-190, y 670-800), roughly 700 px away from the handle.
+   expected: Fingers wrapped around the charging handle before the pull.
+
+3. [major] [high] hand_pose_wrong  (rack-grip-pulled-285-QJB201_H510_MG_AR_-left.png)
+   seen: The glove is open, fingers splayed to the left (x 290-500, y 300-500), and nothing is pinched. The index finger sticks straight up out of the top of the receiver (x 600-700, y 60-240), above the top cover and into the air. Belt rounds sit in the top feed port, and dark smoke behind the gun fits the three shots.
+   expected: Fingers pinched on the charging handle, which is pulled about half way back with the hand travelling with it. No finger poking up through the top of the receiver.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-285-QJB201_H510_MG_AR_-right.png)
+   seen: Compared with rack-grip-285-QJB201_H510_MG_AR_-right.png, the charging handle and its latch sit at exactly the same pixels (x 850-1100, y 570-650). The cartridge rows and the top cover have slid about 330-370 px to the right, and a new case sits in the top port (x 800-1040, y 260-340). A fingertip rises above the top cover (x 580-700, y 40-180), and the glove is at the bottom-left (x 0-510, y 670-800), far from the handle. The handle shows no rearward pull.
+   expected: The charging handle slides rearward (toward the stock, right in this view) about half way under the fingers, while the receiver, top cover and belt stay where they are.
+
+5. [minor] [low] hand_not_on_part  (rack-grip-285-QJB201_H510_MG_AR_.png)
+   seen: In weapon-285-QJB201_H510_MG_AR_.png a grey glove hangs in front of the blue ragdoll arm at about x 540-640, y 585-690. In this first-person shot that glove is gone, and a grey cylinder with a dark end sits at the front of the gun near the muzzle (x 670-720, y 580-650). The charging handle is not visible, so fingers on it cannot be confirmed. The free hand appears to have moved to the front of the gun.
+   expected: The left hand at the charging handle on the receiver for the rack, not at the front of the barrel.
+
+Test line flags:
+  - rack grip 0/72 points, 0/4 fingers: CONFIRMED. rack-grip-285-QJB201_H510_MG_AR_-left.png has no fingers on any handle, and rack-grip-285-QJB201_H510_MG_AR_-right.png shows the charging handle bare.
+  - pulled half way 0/72 points, 0/4 fingers: CONFIRMED. rack-grip-pulled-285-QJB201_H510_MG_AR_-left.png shows splayed fingers with one finger up above the cover, and rack-grip-pulled-285-QJB201_H510_MG_AR_-right.png shows the handle untouched.
+  - moving with the hand: the charging handle: NOT CONFIRMED. The handle sits at the same pixels before and after the pull in the right-side close-ups, so it does not visibly move back with the hand.
+  - drawn: 3 drawn part(s) move, most 101 mm: PARTLY CONFIRMED (medium). Between the pre-pull and pulled right-side close-ups the cartridge feed and top cover shift about 330-370 px while the handle stays put, so the parts that moved look like the wrong ones. This is weaker if the close-up camera itself moved.
+  - the nearest is 1.0 cm from the hand: NOT VERIFIABLE from the pictures. In rack-grip-pulled-285-QJB201_H510_MG_AR_-right.png the glove is far from the handle; the fingertip above the cover may be the nearest moving part.
+  - the gun moved 0.1 mm with the pull: CONSISTENT with the first-person pictures (rack-grip-285-QJB201_H510_MG_AR_.png vs rack-grip-pulled-285-QJB201_H510_MG_AR_.png): optic, camo box and barrel sit at the same pixels. The right-side close-up shift conflicts with this unless the camera moved.
+  - racked: chambered: NOT VERIFIABLE. One brass case sits in the top port in the pulled right-side close-up, but no picture shows the chamber itself.
+  - belt pulled too far, hangs from the box: NOT SHOWN. No listed picture shows a belt hanging from the box; the camo box under the receiver looks clean in the left-side close-ups.
+  - magazine steps: NO PICTURES. The overview sheet shows 'none' for mag 1 to mag 7, so the reload cannot be checked from pictures. The test line's 'magazine (deep): skipped' is consistent with this.

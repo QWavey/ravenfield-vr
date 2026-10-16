@@ -1,0 +1,51 @@
+Gun 259: QBZU191
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [high] picture_unusable  (mag-1-seated-259-QBZU191.png)
+   seen: A gloved hand (hex-pattern glove with a triangle badge at right) fills the whole frame. No magwell and no magazine are visible. The frame looks the same as mag-2 and mag-3.
+   expected: The magazine fully seated in the magwell, base plate showing, from a camera that can see the magwell.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-259-QBZU191.png)
+   seen: Same glove close-up as mag-1 and mag-3. Nothing shows the magazine dropping out, so the drop cannot be checked.
+   expected: The magazine dropping straight down out of the magwell along its line.
+
+3. [major] [high] picture_unusable  (mag-3-out-259-QBZU191.png)
+   seen: Same glove close-up again. The magwell is hidden, so an empty magwell cannot be confirmed.
+   expected: The magwell visibly empty, with no magazine in the gun and no second magazine.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-259-QBZU191.png)
+   seen: The gloved left hand is below an upright olive magazine. Its fingers are straight and point left, away from the magazine body. The magazine stands above the index finger and overlaps the receiver in front of it, and its top is cut off by the top edge of the frame. Nothing wraps around the magazine.
+   expected: Fingers curled around the magazine body, same model as the gun's, feed end toward the gun.
+
+5. [major] [high] mag_floating_or_offset  (mag-5-lined-up-259-QBZU191.png)
+   seen: The fresh magazine lies on the grass at bottom centre (roughly x 395-620, y 690-800), cut off by the bottom edge. No glove is visible holding it. The magwell is at the top right under the receiver, so the magazine sits far below and to the left of the magwell (roughly half a metre or more by eye, not measured). The magazine seems to have fallen out of the hand between step 4 and step 5.
+   expected: The fresh magazine held in the left hand right under the magwell, on its line.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-259-QBZU191-left.png)
+   seen: The gloved left hand lies flat on top of the receiver: palm over the top rail under the flip sight, index finger pointing forward along the rail. No fingers wrap around a handle. The charging handle is not visible from this side.
+   expected: Fingers pinching the charging handle (the pill-shaped handle on the receiver).
+
+7. [major] [medium] hand_not_on_part  (rack-grip-259-QBZU191-right.png)
+   seen: The pill-shaped charging handle sits in its slot on the right side of the receiver with nothing touching it. No glove or finger is on the handle from this side.
+   expected: Fingers on the pill-shaped handle, pinching it.
+
+8. [major] [medium] wrong_part_moves  (rack-grip-pulled-259-QBZU191-left.png)
+   seen: Compared with rack-grip-259-QBZU191-left, the receiver features shift about 220 px to the left (rear flip sight from about x 750 to x 525, rivet dot from about x 780 to x 560). The glove stays at the same spot on screen and the background (cliff, sea, tree) does not move. The whole receiver appears to slide under the hand, not the handle moving back.
+   expected: The charging handle moves back about half way with the hand; the receiver stays still.
+
+9. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-259-QBZU191-right.png)
+   seen: The charging handle stays at the same spot on screen as in rack-grip-259-QBZU191-right (about x 690-905, y 280-390), while the rivet dot and the T-lever move about 320 px to the right. The handle does not visibly slide back in its slot. A grey glove cuff sits on the top front of the receiver about 250 px ahead of the handle, so the hand is not on the handle.
+   expected: The handle slides back in its slot about half way, with the hand on it and moving with it; the receiver stays still.
+
+Test line flags:
+  - rack grip 0/72 points inside, 1/4 fingers on it: consistent with the pictures. The glove rests on top of the receiver and no finger is on the charging handle in the right close-up.
+  - pulled half way 0/72 points inside, 1/4 fingers on it: consistent with rack-grip-pulled-259-QBZU191-right.png, where the glove sits ahead of the handle.
+  - moving with the hand: the slide / bolt: NOT confirmed. In the right close-ups the handle keeps its screen position while the receiver shifts, so the handle does not visibly travel with the hand.
+  - drawn: 1 drawn part(s) move, most 64 mm, nearest 0.0 cm from the hand: NOT confirmed. No picture shows a handle moving about 6 cm; the two wide centre frames (rack-grip-259-QBZU191.png and rack-grip-pulled-259-QBZU191.png) look identical and show no visible slide or bolt motion.
+  - the gun moved 0.3 mm with the pull: CONTRADICTED by the close-ups. Between rest and pull, the receiver features move about 220 px (left close-up) and about 320 px (right close-up) while the background does not move. That is far more than 0.3 mm by eye, unless the camera moved.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 6.7 cm out: NOT confirmed. mag-1, mag-2 and mag-3 are the same glove close-up, so no dropped magazine can be seen in them.
+  - in the hand: 3.3 cm from the palm: PARTLY CONTRADICTED. In mag-4-in-hand-259-QBZU191.png the fingers do not wrap the magazine; the magazine stands in front of the fingers.
+  - half way in (on the rail): 0.0 cm off the magwell line: partly consistent. mag-6-half-in-259-QBZU191.png shows the magazine on the magwell line, but the half-way stage cannot be told apart from the seated frame.
+  - seated: the gun's magazine shows 0.0 cm from where it was: NOT confirmed. mag-1 (the reference) is unusable, so the seated position cannot be compared.
+  - fired 3/3, cases thrown 3: NOT confirmed by any picture. No muzzle-flash or lens picture is listed for this gun. A grey shell-like object at bottom centre of rack-grip-259-QBZU191-right.png could be one ejected case.
+  - mag-5-lined-up-259-QBZU191.png and the test line: the test says the dropped magazine was picked up and seated, but mag-5 shows a magazine on the grass away from the magwell, so the pick-up or hold may be failing between step 4 and step 5.

@@ -1,0 +1,53 @@
+Gun 246: CZ Bren 2 BR Raid
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-246-CZ_Bren_2_BR_Raid.png)
+   seen: Camera is pressed against the back of the left glove. The whole 1280x800 frame is blurred grey hex-pattern glove fabric with a triangle emblem and a mirrored '246' label at the right edge. The gun, the magwell and the magazine are not in view, so the seated state cannot be judged.
+   expected: Magazine fully inside the magwell under the receiver, ahead of the trigger guard, with only the base plate showing; gun and magwell in frame.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-246-CZ_Bren_2_BR_Raid.png)
+   seen: Same glove close-up as mag-1 (hex fabric, triangle emblem), with a mirrored '1 / NO MAG' label at the right edge. The magwell and the magazine leaving it are not visible.
+   expected: Magazine dropping straight down out of the magwell along its line, with the gun and magwell visible.
+
+3. [major] [high] picture_unusable  (mag-3-out-246-CZ_Bren_2_BR_Raid.png)
+   seen: Same glove close-up again, with a mirrored 'NO MAG' label. The magwell is not visible, so an empty magwell cannot be confirmed.
+   expected: Empty magwell under the receiver, no magazine anywhere in frame, gun and magwell visible.
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-246-CZ_Bren_2_BR_Raid.png)
+   seen: The left glove sits centre-left with its fingers pointing left. The fresh magazine (dark body with grid windows) stands behind and to the left of the palm and runs off the top edge of the frame, so the fingers do not visibly wrap around it. A second dark magazine-like block sits at the lower right edge (about x 1060-1280, y 290-800) and may be a second magazine or the dropped copy.
+   expected: Left-hand fingers closed around the fresh magazine body, feed end pointing up toward the receiver, and only one magazine in the scene.
+
+5. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-246-CZ_Bren_2_BR_Raid.png)
+   seen: A magazine with a cartridge sticking out of its top stands in the grass at the bottom centre (about x 460-690, y 650-800 of 1280x800). It is roughly 400 px below and 200 px left of the magwell, which sits just ahead of the trigger guard under the receiver (around x 750-900, y 150-250). No left hand is visible. It looks either lying on the ground (the dropped copy never picked up) or floating in front of the camera, and it is not lined up on the magwell.
+   expected: The fresh magazine held by the left hand right under the magwell, on the magwell's line, feed end up.
+
+6. [tiny] [low] other  (mag-6-half-in-246-CZ_Bren_2_BR_Raid.png)
+   seen: The magazine hangs from the receiver bottom ahead of the trigger guard (x about 520-790), with its top already flush against the receiver. The glove pinches its lower end at the bottom of the frame. It looks almost identical to mag-7-seated-again, so the half-way step does not look visibly half-way.
+   expected: Magazine partly inside the magwell, visibly between the fully out and fully seated positions, on the magwell's line.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-left-246-CZ_Bren_2_BR_Raid-left.png)
+   seen: The left glove clamps the flat side of the receiver below the top rail, in front of the magazine (glove about x 340-880, y 240-530 of 1280x800). The index finger lies horizontally just below a small round knob on the receiver's upper-left edge (about x 425-475, y 200-240). The fingers do not wrap the knob, so the knob sits above the hand rather than in it.
+   expected: Fingertips wrapped on the charging handle at the front-left of the receiver, with the handle itself under the fingers.
+
+8. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-left-246-CZ_Bren_2_BR_Raid-left.png)
+   seen: The glove stays at the same screen position as in rack-grip-left and does not travel back, and no handle is seen moving with it. Nothing visible shows a handle pulled half way. The receiver, scope and magazine sit about 150-180 px further left than in rack-grip-left while the glove stays put. That may be camera drift or the gun moving relative to the hand, and the test reports only 0.4 mm of gun movement.
+   expected: The charging handle pulled about half way back toward the rear, fingers still on it, with the glove travelling back with it.
+
+9. [major] [low] hand_not_on_part  (rack-grip-pulled-right-246-CZ_Bren_2_BR_Raid-right.png)
+   seen: Right-side close-up: two cartridges sit in the open side window (about x 735-1050, y 450-540), one tilted over the other, and no bolt or carrier is clearly holding them. The left glove appears at the lower front of the receiver (bottom-left corner, about x 0-420, y 720-800), beside the magazine release area, not on any handle.
+   expected: Bolt or charging handle pulled back with the hand on it, and any rounds seated in the chamber or feed area rather than loose in the window.
+
+10. [tiny] [low] other  (rack-grip-246-CZ_Bren_2_BR_Raid-right.png)
+   seen: Right-side close-up of the receiver top rail, with the scope lens at upper left and an empty side window. No hand is visible at all, so the rack grip cannot be confirmed from this side.
+   expected: Either a hand on the charging handle visible from this side, or an explicit note that the handle is on the far (left) side and not visible here.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-246-CZ_Bren_2_BR_Raid-left.png, where the fingers sit just below the knob rather than on it.
+  - pulled half way '0/72 points inside the part, 0/4 fingers on it': CONFIRMED by rack-grip-pulled-246-CZ_Bren_2_BR_Raid-left.png, where the glove does not move with any handle.
+  - 'moving with the hand: the slide / bolt' contradicts '0/4 fingers on it': the hand is not on the part that is reported as moving with it. CONFIRMED by the pulled-left picture, where nothing travels with the glove.
+  - 'drawn: 1 drawn part(s) move, most 57 mm; the nearest is 2.2 cm from the hand': consistent with the hand missing the part, but no picture clearly shows the 57 mm travel. rack-grip-pulled-246-CZ_Bren_2_BR_Raid-right.png shows loose-looking rounds in the window instead, so NOT confirmed.
+  - 'in the hand: 3.3 cm from the palm' (mag-4): the magazine stands behind and beside the glove rather than clasped by the fingers, so this looks like a loose hold. Supported by mag-4-in-hand-246_CZ_Bren_2_BR_Raid.png, medium confidence.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in looks on the magwell line, so that step is supported. The lined-up frame mag-5-lined-up-246 shows the fresh magazine far below and left of the magwell, which contradicts a line-up step at 0.0 cm, so this is a suspect value for the lined-up step.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': mag-6 and mag-7 look the same, so the 0.0 cm is consistent with the pictures, but mag-1 to mag-3 are unusable, so the seat itself cannot be checked from them.
+  - 'magazine: seated, 26 rounds' after '25 rounds kept': the count goes up by one on re-seating. This is not visible in any picture and may be a chambered round being counted. Worth checking.
+  - 'magazine (deep): dropped copy ... 7.6 cm out': the magazine standing on the grass in mag-5-lined-up-246 may be this dropped copy never picked up. NOT verified by any picture.

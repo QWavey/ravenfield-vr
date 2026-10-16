@@ -1,0 +1,34 @@
+Gun 263: Colt M1911
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-263-Colt_M1911-left.png)
+   seen: Compared with rack-grip-263-Colt_M1911-left.png, the slide does not move on screen: its front edge stays at about x 65-70 and its top at about y 315, and the left glove sits in the same place (fingertips near x 290-300). What moves is the frame. The wood grip, trigger guard and the right-hand glove holding the grip shifted about 100 px toward the muzzle (left), roughly 4-5 cm at slide scale (the slide is about 390 px long, a ~19 cm part), and tilted a few degrees. A dark barrel stub now shows ahead of the slide at x 0-70. It appears only because the frame moved forward, not because the slide moved back.
+   expected: The left hand pulls the slide back about half way toward the grip (to the right in this view) while the frame, grip and right hand stay still. The slide's front moves right by roughly half its travel, and the barrel shows ahead of the slide because the slide moved, not the gun body.
+
+2. [major] [high] slide_or_bolt_not_moving  (rack-grip-pulled-263-Colt_M1911-right.png)
+   seen: The rear sight (x 690-730, y 425-455), the slide's rear end (x about 615-625) and the rear serrations (x 705-855, y 490-580) are where they were in rack-grip-263-Colt_M1911-right.png, so the slide did not slide back. The wood grip (x about 620-860 before, about 760-990 now), the trigger guard and the bottom right-hand glove moved right by about 120-135 px, toward the muzzle. The left glove (wrist strap x 400-530, knuckles x 530-760) is essentially unchanged, so the left hand is not pulling. A brass round is now visible at the ejection port (x 955-1080, y 440-490), which suggests the slide moved relative to the frame, but the frame moved forward instead.
+   expected: The slide's rear sight and serrations move about half way toward the grip (left in this view) while the grip and right hand stay put. The left hand moves with the slide.
+
+3. [major] [high] mag_not_in_hand  (mag-4-in-hand-263-Colt_M1911.png)
+   seen: The fresh magazine (black, orange-tinted top, same model as the gun's) stands upright at upper left, about x 420-545, y 115-300. It rests on top of the left glove's extended knuckles and fingers (glove top edge at about x 400-530, y 260-300). The fingers are open and do not wrap around it, and the magazine's base is hidden behind the glove edge. The magazine is not in the hand; the test puts it 3.3 cm from the palm.
+   expected: The left hand closes its fingers around the magazine body with the magazine held against the palm, feed end toward the gun.
+
+4. [minor] [low] wrong_part_moves  (rack-grip-pulled-263-Colt_M1911.png)
+   seen: In this wide view the gun's silver front end is about 15-20% larger and sits lower and further right than in rack-grip-263-Colt_M1911.png (roughly x 735-830, y 590-760 against x 725-815, y 600-720). The gun body appears to move toward the camera, which matches the frame shift seen in the two close-ups.
+   expected: Only the slide moves back; the gun body stays where it was.
+
+5. [minor] [low] mag_duplicate_or_missing  (mag-3-out-263-Colt_M1911.png)
+   seen: The magwell is empty, which is correct, and there is no second magazine in the frame. However, the dropped copy that hung about 5 cm below the grip in mag-2-leaving-263-Colt_M1911.png is not visible anywhere here. The ground below the grip (about x 565-780, y 580-800) is empty and the left glove sits at bottom right. The magazine reappears above the hand in mag-4. It may be inside the left fist, which I cannot confirm.
+   expected: The dropped magazine should stay visible on the ground or in the left fist until it is picked up, with only one magazine existing at any time.
+
+Test line flags:
+  - 'moving with the hand: the slide / bolt': contradicted by rack-grip-pulled-263-Colt_M1911-left.png and -right.png. The slide stays where it was, the left hand barely moves, and the frame plus right hand move instead.
+  - 'the gun moved 0.1 mm with the pull': contradicted. In both pulled close-ups the grip, trigger guard and right hand shift about 100-135 px (roughly 4-5 cm at slide scale) toward the muzzle.
+  - 'drawn: 1 drawn part(s) move, most 29 mm; the nearest is 0.0 cm from the hand': cannot be reconciled with the pictures. The gun body moves as well as (or instead of) the slide, and the 29 mm slide travel is not visible in rack-grip-pulled-263-Colt_M1911-left.png or -right.png.
+  - 'in the hand: 3.3 cm from the palm': confirmed by mag-4-in-hand-263-Colt_M1911.png. The magazine rests above the extended fingers, not in them.
+  - 'dropped copy 0.0 cm across the pull from the gun's magazine, 5.1 cm out': consistent with mag-2-leaving-263-Colt_M1911.png, where the magazine hangs about 5 cm (roughly 130 px) below the grip.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': roughly consistent with mag-6-half-in-263-Colt_M1911.png, where the base sits centred under the grip. However, the visible base is only about 2 cm below the grip, so depth looks closer to seated than half way. Depth cannot be verified precisely.
+  - 'racked: chambered': consistent. A brass round is visible at the ejection port in rack-grip-pulled-263-Colt_M1911-right.png.
+  - 'rack grip ... 1/4 fingers on it' and 'pulled half way ... 1/4 fingers on it': consistent with the index finger on the slide top in rack-grip-263-Colt_M1911-right.png. Not contradicted.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': mag-7-seated-again-263-Colt_M1911.png hides the base behind the left palm, so this cannot be confirmed from the picture.
+  - 'magazine: seated, 8 rounds', 'fired 3/3', cases, recoil and impulse figures: no picture covers these, so they were not checked.

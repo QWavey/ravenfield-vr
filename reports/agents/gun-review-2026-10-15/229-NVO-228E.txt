@@ -1,0 +1,36 @@
+Gun 229: NVO-228E
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] picture_unusable  (mag-1-seated-229-NVO-228E.png)
+   seen: The whole frame is a close-up of the back of the left gloved hand (grey hex mesh, two yellow stripes, dark recess across the top). The camera is against or inside the glove. No magazine, magwell or gun receiver is visible, so the seated magazine cannot be checked.
+   expected: Gun receiver with the magazine fully seated in the magwell, only the base plate showing, hand outside the gun.
+
+2. [major] [high] picture_unusable  (mag-2-leaving-229-NVO-228E.png)
+   seen: Pixel-for-pixel the same glove close-up as mag-1. The magazine dropping out of the magwell is not in the picture.
+   expected: Magazine dropping straight down out of the magwell along its line, receiver visible.
+
+3. [major] [high] picture_unusable  (mag-3-out-229-NVO-228E.png)
+   seen: Same glove close-up again, identical to mag-1 and mag-2. The empty magwell is not visible, so 'magazine gone' cannot be seen.
+   expected: Receiver with an empty magwell, no magazine left in the gun and no second magazine in view.
+
+4. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-229-NVO-228E.png)
+   seen: The fresh olive segmented magazine sits at the bottom edge of the frame, left of centre (about x 280-490, y 705-800), far below the gun. The receiver is now in the top-right corner. The ragdoll and tree did not move, so the camera stayed put and the gun itself moved up and to the right compared with mag-4. The magazine is nowhere near the magwell and not on its line.
+   expected: Fresh magazine right under the magwell, on the magwell line, angled like the gun's own magazine with the feed end toward the receiver.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-229-NVO-228E-left.png)
+   seen: The left glove lies flat across the upper receiver with its back on the top rail and the thumb/index tip pointing forward. The three metal-tipped finger tips at the lower right (about x 810-900, y 490-600) hang in mid air beside the pistol grip, below the receiver edge, touching no part. The same finger position persists in rack-grip-pulled-229-NVO-228E-left.png.
+   expected: All four fingers wrapped around the charging handle / slide, none hanging in the air, and the handle clearly the thing being held.
+
+6. [minor] [low] mag_not_in_hand  (mag-4-in-hand-229-NVO-228E.png)
+   seen: The fresh olive segmented magazine rests on top of the open left glove, its base sitting on the thumb/index edge and the back of the hand. No fingers curl around the magazine body, so it looks balanced on the hand rather than held.
+   expected: Fingers wrapped around the magazine body, magazine in the palm, feed end toward the gun.
+
+Test line flags:
+  - rack grip '1/4 fingers on it' and pulled half way '1/4 fingers on it': CONFIRMED by rack-grip-229-NVO-228E-left.png and rack-grip-pulled-229-NVO-228E-left.png, where three fingertips hang in the air below the receiver.
+  - '2/72 points inside the part': NOT VISIBLE in the pictures. No buried fingers are seen in the close-ups.
+  - 'drawn: 1 part moves, most 31 mm' and 'gun moved 0.1 mm': NOT CONFIRMED. No part is visibly moving relative to the receiver in the pulled pictures. In -left the glove stays put while the receiver, sights, grip, magazine and background all shift about 90 px together. In -right everything shifts about 190 px together. That looks like the camera/hand moving while the gun body stays fixed, which fits the 0.1 mm figure. The 31 mm moving part is never visible, so 31 mm cannot be checked.
+  - 'dropped magazine picked up and seated, 30 rounds kept; magazine: seated, 31 rounds': internally inconsistent. A 30-round magazine reads 31 after seating, so check whether the count includes the chambered round. The pictures do not show a counter.
+  - 'magazine (deep): seated 0.0 cm from where it was; dropped copy 7.9 cm out': NOT CONFIRMABLE. mag-1, mag-2 and mag-3 never show the magazine.
+  - 'in the hand: 3.4 cm from the palm': CONSISTENT with mag-4, where the magazine rests on the open glove rather than being gripped by fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': NOT CONTRADICTED by mag-6-half-in, where the magazine rises straight into the receiver underside. The line-up failure is at mag-5, not mag-6.
+  - 'fired 3/3', 'cases thrown 3', recoil and impulse: NOT CHECKABLE. This set has no firing frames (no lensflash or lensburst pictures listed for this gun).

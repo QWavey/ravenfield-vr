@@ -1,0 +1,58 @@
+Gun 243: CZ Bren 2 BR
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] mag_not_in_hand  (mag-5-lined-up-243-CZ_Bren_2_BR.png)
+   seen: The magwell under the receiver (roughly x 540-850, y 170-400, just ahead of the trigger guard) is empty; sky, tree and grass show through. The only magazine is lying on the ground at the bottom of the frame (about x 460-690, y 650-800) with a brass cartridge on its top. No left hand is visible. In mag-4-in-hand the magazine is in the left glove at the same camera angle and that ground spot is bare gravel, so the magazine left the hand between the two shots (or a second copy appeared on the ground). The lined-up magazine is nowhere near the magwell.
+   expected: The fresh magazine held by the left hand just under the magwell, feed end up, on the magwell line, ready to be pushed in.
+
+2. [major] [high] hand_not_on_part  (rack-grip-243-CZ_Bren_2_BR-left.png)
+   seen: The left glove is laid over the receiver flank below the top rail (about x 330-880, y 210-530). Its thumb rests on the top edge at x 330-420, y 250-310, and the curled fingers press against the side at x 340-520, y 310-410. The charging-handle knob at about x 425-470, y 200-245 sits above and behind the fingers and is not gripped: 0 of 4 fingers on it, which matches the test line. The glove's lower edge covers the magwell where the magazine hangs.
+   expected: Thumb and index finger pinching the charging-handle knob at the top front of the receiver, fingers on the handle and not on the flank.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-243-CZ_Bren_2_BR-left.png)
+   seen: Compared with rack-grip-243-CZ_Bren_2_BR-left.png (same glove position, same background), the glove is exactly where it was, but the whole gun body has slid about 150-180 px toward the muzzle (left): the receiver, the magazine (now about x 415-650 instead of 555-800) and the right hand on the grip. The charging knob moved with the body (its spacing from the rear sight stays about 785 px in both shots), so the handle itself did not travel back. The hand stays put while the gun moves away from it.
+   expected: The glove stays on the handle and the handle slides rearward (toward the rear sight, to the right) about half its travel; the receiver and magazine stay still.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-243-CZ_Bren_2_BR-right.png)
+   seen: The charging knob sits at the forward (left) end of its long slot at about x 510, y 320-345. In rack-grip-243_CZ_Bren_2_BR-right.png the same knob sits at x 165, again at the forward end of the same slot. Pulled half way it should be well along the slot toward the rear, but it has not moved relative to the receiver.
+   expected: The knob pulled about half way along the slot toward the rear end, with the glove moving with it.
+
+5. [major] [high] picture_unusable  (mag-1-seated-243-CZ_Bren_2_BR.png)
+   seen: The frame is filled by the back of the left glove (triangle emblem, mesh knuckles) with the camera almost touching it. No rifle, magwell or magazine is visible, only a dark band at the very top edge. A tiny mirrored label sits at the upper right (about x 1210-1240, y 190-210) and is hard to read.
+   expected: A hand-level view of the rifle with the magazine fully seated in the magwell ahead of the trigger, base plate visible.
+
+6. [major] [high] picture_unusable  (mag-2-leaving-243-CZ_Bren_2_BR.png)
+   seen: Same glove close-up as mag-1. No magazine is visible dropping out and no magwell is in view. The mirrored label at the upper right reads NO MAG.
+   expected: The magazine visibly dropping straight down out of the magwell along its line.
+
+7. [major] [high] picture_unusable  (mag-3-out-243-CZ_Bren_2_BR.png)
+   seen: Same glove close-up again, so the empty magwell cannot be judged. Only the mirrored NO MAG label shows the gun reports no magazine.
+   expected: The magwell visible and empty, with no magazine in or beside it.
+
+8. [minor] [medium] hand_pose_wrong  (rack-grip-pulled-243-CZ_Bren_2_BR.png)
+   seen: In this first-person pulled frame a pale grey glove hangs in mid-air at about x 540-640, y 585-690, in front of the muzzle and left of the front sight post, over the blue corpse's leg, with nothing under it. The pre-pull first-person frame rack-grip-243_CZ_Bren_2_BR.png has no hand at that spot.
+   expected: The free hand at the charging handle at the rear of the receiver, or at least resting on the handguard, not floating ahead of the muzzle.
+
+9. [tiny] [low] hand_pose_wrong  (weapon-243-CZ_Bren_2_BR.png)
+   seen: The free left glove hangs in the air ahead of the rifle's muzzle at about x 540-640, y 580-690, touching neither the handguard nor any part (same spot as in rack-grip-pulled-243_CZ_Bren_2_BR.png).
+   expected: Left hand resting on the handguard or relaxed beside the body, nothing floating.
+
+10. [tiny] [low] other  (rack-grip-pulled-243-CZ_Bren_2_BR-right.png)
+   seen: Two brass cartridges now show inside the recess on the receiver side (about x 735-1050, y 450-540). The same recess is empty in rack-grip-243_CZ_Bren_2_BR-right.png. No bolt face or carrier is visible around them, so they look like loose rounds sitting in the receiver.
+   expected: Either nothing visible inside the recess, or a bolt face with the chambered round seated in it.
+
+11. [tiny] [low] other  (mag-6-half-in-243-CZ_Bren_2_BR.png)
+   seen: The diegetic label on the grip at the upper right (about x 1195-1280, y 170-220) reads NO MAG but is mirrored, so the text is backwards from the player's view.
+   expected: Label readable from the first-person camera.
+
+Test line flags:
+  - 0/72 points and 0/4 fingers on the part (rack grip and pulled half way): CONFIRMED by rack-grip-243_CZ_Bren_2_BR-left.png and rack-grip-pulled-243_CZ_Bren_2_BR-left.png. The glove is on the receiver flank and the charging knob sits above the fingers. The first-person rack-grip frame shows no hand on the receiver at all.
+  - drawn: 1 drawn part moves, most 58 mm, nearest 2.1 cm from the hand: NOT CONFIRMED. In both close-up pairs the charging knob keeps its place on the slot and relative to the rear sight, so no 58 mm travel of the handle is visible. The moved part is not identifiable in these pictures.
+  - the gun moved 0.7 mm with the pull: CONTRADICTED by rack-grip-pulled-243_CZ_Bren_2_BR-left.png. The receiver, magazine and right hand shift about 150-180 px toward the muzzle relative to the unmoved glove and background, far more than 0.7 mm at this zoom.
+  - moving with the hand: the slide / bolt: CONTRADICTED by the pictures. The whole gun body moves while the handle stays on its slot, so the part the test says moved is not the one that visibly moves.
+  - magazine in the hand, 3.3 cm from the palm: consistent with mag-4-in-hand; the magazine sits in the lower fingers of the glove.
+  - half way in, 0.0 cm off the magwell line: consistent with mag-6-half-in; the magazine hangs straight under the receiver ahead of the trigger guard.
+  - dropped copy 0.0 cm across the pull, 9.0 cm out: NOT CONFIRMED. mag-2-leaving is unusable. The only dropped magazine visible is in mag-5, lying on the ground well below the magwell, not 9 cm from the gun's magazine.
+  - seated: the gun's magazine shows 0.0 cm from where it was: NOT CONFIRMED. mag-1-seated is unusable. mag-6 to mag-7 show the magazine sliding up into the receiver, which is the expected motion.
+  - magazine seated 26 rounds / 25 kept: NOT CONFIRMED. The mirrored ammo label is too small and backwards to read reliably in mag-1 and mag-7.
+  - fired 3/3, cases thrown 3, racked: chambered: no picture in this set shows a shot, a muzzle flash or an ejected case, so these are not confirmed.

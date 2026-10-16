@@ -1,0 +1,62 @@
+Gun 277: HK416-C/S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] hand_not_on_part  (rack-grip-pulled-277-HK416-C_S-left.png)
+   seen: Left glove hovers over the top of the upper receiver near the red-dot mount: knuckles and back of the hand sit in the air above the rail, index finger points forward over the rail, thumb hangs off the side. The lever-like charging handle on the left side of the receiver is well away from any finger, so nothing is holding it while the hand pulls. The shot casing in the air and the muzzle burst on the green tank are unrelated to the pull.
+   expected: Thumb and fingers hooked around the charging handle, and the handle visibly pulled back about half way with the hand (the hand must not pull air).
+
+2. [major] [medium] hand_not_on_part  (rack-grip-277-HK416-C_S-left.png)
+   seen: Left glove lies flat on top of the upper receiver: index finger along the top rail toward the red-dot mount, middle and ring fingers curl down over the receiver's left side, thumb pressed into the receiver side at lower left. At most one finger or the thumb touches the lever-like charging handle; the rest of the hand rests on the rail and receiver side. Matches the test's 1/4 fingers.
+   expected: Thumb and three fingers wrapped around the charging handle and pinching it, not resting on the rail or buried in the receiver side.
+
+3. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-277-HK416-C_S.png)
+   seen: The receiver and grip are at the upper right, with the NO MAG readout on the receiver side and the magwell empty. The fresh magazine sits at the bottom centre of the frame, several magazine lengths (about 500 px) below the magwell and a little to the left of it, with its lower edge cut off by the frame. No hand is visible holding it, so it looks like it is sitting in the grass or floating.
+   expected: Fresh magazine right at the magwell, on its line (directly below the receiver just ahead of the trigger guard), held by the left hand.
+
+4. [major] [medium] mag_not_into_magwell  (mag-7-seated-again-277-HK416-C_S.png)
+   seen: Frame is essentially identical to mag-6-half-in: the magazine body and the glove sit in exactly the same place (lower centre), and a narrow neck is still visible between the receiver ledge and the magazine body. Nothing travels up into the magwell between the half-in and seated stages, so the magazine does not look fully seated.
+   expected: Magazine fully up into the magwell, body flush under the receiver with no neck showing, in the same spot mag-1 had it.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-277-HK416-C_S-right.png)
+   seen: Glove lies flat on the upper receiver rail: back of the hand and knuckles on top of the rail, thumb pressed onto the rail edge next to a lever-like part at the left of the wrist, fingertips reaching over the rear optic mount base (possible clipping into it). No finger curls around any handle.
+   expected: Fingers wrapped around the charging handle, not lying on the rail, and no fingers clipping into the optic mount.
+
+6. [major] [medium] hand_not_on_part  (rack-grip-pulled-277-HK416-C_S-right.png)
+   seen: Glove lies flat across the top rail: the thumb rests on top beside the charging-handle lever (about 0.7 cm from the hand, as the test says) and no finger hooks the lever. The hand is laid over the part rather than pinching it while the handle is pulled back.
+   expected: Hand pinching the charging handle with the handle pulled back about half way along with the hand.
+
+7. [major] [medium] hand_not_on_part  (rack-grip-277-HK416-C_S.png)
+   seen: First-person view from the right side. The left hand is not rendered anywhere in the frame, so there are no fingers on the charging handle or on the top of the receiver near the red-dot mount. The gun itself is held normally in the right hand.
+   expected: Left hand visible at the top of the receiver, fingers on the charging handle, ready to rack.
+
+8. [major] [medium] hand_not_on_part  (rack-grip-pulled-277-HK416-C_S.png)
+   seen: First-person view with no left hand anywhere in the frame. A spent casing is in flight at the right, so the shot went off, but the handle pull cannot be seen at all.
+   expected: Left hand on the charging handle, handle pulled back about half way with the hand.
+
+9. [major] [high] picture_unusable  (mag-1-seated-277-HK416-C_S.png)
+   seen: Extreme close-up of the left glove's back (triangular emblem, cream strips) filling the whole frame; the camera is pressed against the glove. No magazine, magwell or gun body is visible, only a tiny mirrored readout at the right edge.
+   expected: Magazine fully seated in the magwell, with the magwell, grip and receiver in frame.
+
+10. [major] [high] picture_unusable  (mag-2-leaving-277-HK416-C_S.png)
+   seen: Same glove close-up as mag-1 with essentially the same framing. No magazine is dropping out anywhere in view. The mirrored readout at the right edge reads NO MAG, so the release happened, but the magazine path is not visible.
+   expected: Magazine visibly dropping straight down out of the magwell along its line, with the magwell in frame.
+
+11. [major] [high] picture_unusable  (mag-3-out-277-HK416-C_S.png)
+   seen: Same glove close-up as mag-1 and mag-2; the magwell is not in frame. The readout reads NO MAG (mirrored), but an empty magwell and the absence of a second magazine cannot be seen.
+   expected: Magwell in frame, empty, with no second magazine anywhere in the picture.
+
+12. [tiny] [low] other  (weapon-277-HK416-C_S.png)
+   seen: The gun is in the right hand, but the grip and the right hand are cut off by the bottom edge, so the hold cannot be checked. A grey gloved object with curled fingers hangs in mid-air left of the dead body at roughly x 540-620, y 580-690 with no arm visible; it may be the free left hand, but it reads as floating.
+   expected: Right hand wrapped on the grip with the gun pointing forward, and the free left hand relaxed and attached to an arm, nothing floating.
+
+Test line flags:
+  - rack grip: 1/4 fingers on the part - CONFIRMED by rack-grip-277-HK416-C_S-left.png and -right.png: the hand lies on the top rail and at most one finger or the thumb touches the lever-like charging handle.
+  - pulled half way: 0/4 fingers on it - CONFIRMED by rack-grip-pulled-277-HK416-C_S-left.png and -right.png: no finger is on the handle during the pull.
+  - moving with the hand: the slide / bolt, drawn 1 part moves 68 mm with the nearest 0.7 cm from the hand - SUSPICIOUS: the test says the part moves with the hand while 0/4 fingers are on it; the pulled pictures show the hand resting on the rail, so the handle moves without being gripped. The 68 mm travel cannot be checked from the pictures.
+  - half way in (on the rail): 0.0 cm off the magwell line - CONSISTENT with mag-6-half-in-277-HK416-C_S.png, the magazine sits on the magwell line.
+  - seated: the gun's magazine shows 0.0 cm from where it was - CONSISTENT with mag-6 and mag-7 being identical frames (no travel into the well between half-in and seated); that identical frame is the mag-7 bug above.
+  - lined-up stage (not in the test line): mag-5-lined-up-277-HK416-C_S.png shows the fresh magazine well below the magwell, and the test line has no lined-up measurement, so the test did not catch it.
+  - in the hand: 2.0 cm from the palm - NOT CHECKABLE precisely; mag-4-in-hand-277-HK416-C_S.png shows the magazine resting on the glove knuckles, which looks plausible.
+  - magazine: seated, 61 rounds - NOT CONTRADICTED; the small mirrored readout in mag-6 and mag-7 looks like a rounds count.
+  - fired 3/3; cases thrown: 3 - CONSISTENT: a spent casing is in flight in rack-grip-pulled-277-HK416-C_S-left.png and another is in the centre pulled frame.
+  - dropped copy 0.0 cm across the pull from the gun's magazine, 3.4 cm out - NOT CHECKABLE: the mag-1, mag-2 and mag-3 close-ups never show the magazine or the magwell.

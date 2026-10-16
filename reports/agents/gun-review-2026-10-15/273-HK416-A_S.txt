@@ -1,0 +1,51 @@
+Gun 273: HK416-A/S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-273-HK416-A_S-left.png)
+   seen: The left hand lies flat along the top of the upper receiver, fingers pointing forward over the rail. The thumb tip is at the far left (about x 240-300, y 270-330). The fingertips stop around x 260-420, y 380-440, beside the round knob of the charging handle (about x 200-245, y 390-450) and above the pale lever (about x 130-245, y 470-500). No finger curls around the handle; the handle sits beside and below the hand.
+   expected: Four fingers curled around the charging handle lever, the handle inside the grip of the hand, fingers on the handle and not on the receiver top.
+
+2. [major] [high] hand_not_on_part  (rack-grip-273-HK416-A_S-right.png)
+   seen: The glove lies across the top of the receiver. Only the thumb tip reaches down onto a small black lever (about x 760-880, y 400-460). No other finger is clearly wrapped around the handle; the glove rests on the rail.
+   expected: Fingers wrapped around the charging handle, with the handle between thumb and fingers, the hand pinching it for the pull.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-273-HK416-A_S-right.png)
+   seen: Compared with rack-grip-273-HK416-A_S-right.png, the glove (wrist cuff at x 405-530, thumb at x 740-920) and the small black lever under the thumb are in the same place. But the gun body in front of them has shifted about 190 px to the right in the frame: the long barrel/gas block, the segmented collar, the small nub with a hole and the tapered part under the rail. So the receiver slides back while the hand and handle stay still, and the hand does not travel with the pull.
+   expected: The charging handle (black lever) travels back about half way with the hand (about 52 mm per the test), the receiver and barrel stay where they were, and the hand moves with the handle.
+
+4. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-273-HK416-A_S-left.png)
+   seen: Compared with rack-grip-273-HK416-A_S-left.png, the left hand is in exactly the same place: thumb tip at about x 240-300, y 270-330, fingertips at about x 260-420, y 380-440, wrist cuff at the right edge around x 700-870. There is no visible backward travel of the hand, and the knob and pale lever under the fingers look unmoved.
+   expected: The hand and fingers pulled about half way back toward the stock (to the right in frame), with the charging handle lever displaced back along with them.
+
+5. [major] [low] mag_floating_or_offset  (mag-5-lined-up-273-HK416-A_S.png)
+   seen: The fresh magazine stands alone in the grass at bottom centre (about x 490-680, top edge near y 640, running off the bottom of the frame). No hand is visible holding it. The magwell is at top centre (about x 580-720, y 150-200), so the magazine sits roughly 450-500 px below the well line rather than right at it.
+   expected: The magazine held by the left hand right at the magwell, on its line, with the hand visible on the magazine body.
+
+6. [minor] [low] mag_not_in_hand  (mag-4-in-hand-273-HK416-A_S.png)
+   seen: The magazine rises from above the left fist (about x 290-560, y 0-300), its lower end resting on the top edge of the glove. The fingers curl below it (about x 360-560, y 370-520) and do not clearly wrap its body; only the thumb tip touches the base corner (about x 240-420, y 270-330). Consistent with the test's 3.3 cm palm gap.
+   expected: Fingers wrapped around the magazine body with the palm against it, the magazine held firmly, feed end up toward the gun (the orientation itself looks right).
+
+7. [minor] [low] hand_not_on_part  (weapon-273-HK416-A_S.png)
+   seen: The rifle is held low at the bottom right with its pistol grip (small '30+1' decal around x 780-840, y 640-800) visible. No glove or fingers are clearly wrapped around the grip, and no right hand is clearly visible at all, so the gun looks unheld. Not certain: the hand may be hidden in the grip shadow.
+   expected: The right hand wrapped round the pistol grip with fingers visible, the gun pointing forward and nothing floating.
+
+8. [minor] [low] hand_not_on_part  (rack-grip-273-HK416-A_S.png)
+   seen: Wide view: the rifle is at bottom right with the holo sight and handguard visible, but no left hand is visible on the upper receiver or near the charging handle, so the pinch cannot be seen here. The close-ups show the hand on top of the receiver instead.
+   expected: The left hand visible in the wide shot, fingers on the charging handle or rear of the upper receiver.
+
+9. [minor] [low] other  (mag-3-out-273-HK416-A_S.png)
+   seen: The ammo decal on the pistol grip (about x 1105-1170, y 250-290) shows its text mirrored ('1 NO MAG' reads backwards). The same decal is mirrored in mag-1 and mag-7.
+   expected: Decal text reads correctly from the player's point of view.
+
+Test line flags:
+  - rack grip: 0/72 points inside the part, 1/4 fingers on it -- CONFIRMED by rack-grip-273-HK416-A_S-left.png and -right.png: the fingers rest on the top of the receiver and none wrap the charging handle (at most the thumb touches its lever).
+  - pulled half way: 0/72 points inside the part, 1/4 fingers on it -- CONFIRMED: the hand in rack-grip-pulled-...-left.png and -right.png sits in the same place as in the grip shots.
+  - moving with the hand: the charging handle -- NOT SUPPORTED: in rack-grip-pulled-...-right.png the black lever under the thumb stays in place while the hand is unchanged, so the handle does not visibly travel with the hand.
+  - drawn: 2 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand -- the pictures show the receiver body (barrel block, gas block, nub) moving about 190 px in rack-grip-pulled-...-right.png, not the handle. Supports the wrong part moving.
+  - the gun moved 0.2 mm with the pull, 1.4 mm when it went home -- CONTRADICTED by rack-grip-273-HK416-A_S-right.png vs rack-grip-pulled-273-HK416-A_S-right.png, where the front receiver shifts about 190 px with the hand fixed. Either the gun root did not move but a child did, or the measurement misses it.
+  - magazine (deep): in the hand: 3.3 cm from the palm -- PARTLY CONFIRMED by mag-4-in-hand: the magazine base sits above the fist and the fingers do not clearly wrap the body. The gap is consistent with a loose hold.
+  - magazine (deep): seated: the gun's magazine shows 0.0 cm from where it was -- CONFIRMED: mag-1-seated and mag-7-seated-again show the magazine in the same place.
+  - magazine (deep): half way in (on the rail): 0.0 cm off the magwell line -- not contradicted: mag-6-half-in sits under the lower receiver lip on the same line as the seated magazine.
+  - magazine (deep): dropped copy 0.0 cm across the pull, 7.8 cm out -- NOT CONFIRMED by mag-2-leaving: the dropping magazine still touches the receiver lip and its base is only a little lower than the seated one, so the 7.8 cm figure is not visible in that frame (possibly a timing issue).
+  - fired 3/3; cases thrown: 3 -- cannot be checked: no lensflash or lens-eyes picture is listed for this gun, so the muzzle flash and fire measurements have no picture here.
+  - magazine: seated, 31 rounds / equipped / racked: chambered -- no picture contradicts these; the grip decal changes from '1 NO MAG' (mag-3) to a loaded count after reload (mag-1, mag-7).

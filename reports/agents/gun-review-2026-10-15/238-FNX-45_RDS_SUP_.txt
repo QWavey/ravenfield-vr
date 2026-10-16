@@ -1,0 +1,68 @@
+Gun 238: FNX-45 [RDS][SUP]
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-238-FNX-45_RDS_SUP_.png)
+   seen: Grip bottom is at about y 440-450 (x 540-720). The olive magazine top is at about y 590 (x 685-790), so it sits about 140 px below the magwell and about 100 px right of the grip's line. Its visible width (about 110 px) is much smaller than the grip (about 180 px), so it also sits further from the camera.
+   expected: Fresh magazine directly under the magwell on the grip's line, its feed end a few px below the grip bottom.
+
+2. [major] [medium] mag_not_in_hand  (mag-5-lined-up-238-FNX-45_RDS_SUP_.png)
+   seen: The olive magazine hangs alone at the bottom of the frame (x about 680-840, y 590-800). No glove touches it anywhere in the frame. In mag-4 and mag-6 the left glove holds the magazine.
+   expected: Left glove holding the fresh magazine, feed end toward the gun, while it is lined up under the magwell.
+
+3. [major] [medium] mag_wrong_orientation_or_model  (mag-2-leaving-238-FNX-45_RDS_SUP_.png)
+   seen: The dropped magazine body is olive-green with a dark base plate (x about 640-840, y 550-800). The magazine part still in the grip directly above it is black. The fresh magazines in mag-4, mag-5 and mag-6 are the same olive colour, while the gun's own magazine in mag-1 is black.
+   expected: Dropped and fresh magazines look like the gun's own black FNX magazine (same model and material).
+
+4. [major] [medium] mag_not_in_hand  (mag-4-in-hand-238-FNX-45_RDS_SUP_.png)
+   seen: The olive magazine is at x about 355-495, y 45-390, to the left of the palm (palm about x 500-830, y 280-520). Only the fingertips cross its lower part, so it is held at its edge by the fingers and hangs about a hand's width from the palm. The test line says 3.8 cm from the palm.
+   expected: Magazine cradled in the palm with the fingers wrapped around its body, feed end up.
+
+5. [major] [medium] hand_not_on_part  (rack-grip-238-FNX-45_RDS_SUP_-left.png)
+   seen: The index finger lies on the top rear of the slide (x about 290-460, y 365-420). The other fingers curl at x about 380-500, y 440-500, below the slide's lower edge (about y 470) in front of the trigger guard, so they hang in the air. Three of four fingers are not on the slide.
+   expected: All four fingers on the slide's sides and top, pinching the rear serrations.
+
+6. [major] [medium] wrong_part_moves  (rack-grip-pulled-238-FNX-45_RDS_SUP_-left.png)
+   seen: Compared with rack-grip-238-FNX-45_RDS_SUP_-left.png: the suppressor ring moves from x about 140-190 to x about 40-90, the grip base from x about 680-840 to x about 600-750, and the right arm cuff about 60-100 px left. The trees, the blue body and the free hand do not move. The gun body shifts toward the muzzle side instead of the slide travelling back.
+   expected: Only the slide moves back about 33 mm toward the grip; frame, grip and suppressor stay put (test says the gun moved 0.3 mm).
+
+7. [major] [medium] hand_not_on_part  (rack-grip-pulled-238-FNX-45_RDS_SUP_-left.png)
+   seen: The free glove is at exactly the same pixels as in rack-grip-238-FNX-45_RDS_SUP_-left.png (palm top about x 470-870, y 205-260; index fingertip about x 290-300, y 370-410). The hand has not moved back with the slide at all.
+   expected: Hand moves back about 33 mm with the slide, fingers staying on it.
+
+8. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-238-FNX-45_RDS_SUP_-right.png)
+   seen: The red-dot housing (x about 445-690, y 350-530) and the rear sight (x about 355-440, y 440-520) are at identical pixels to rack-grip-238-FNX-45_RDS_SUP_-right.png. The only visible change is the rear of the slide, where an ejection port opens around x 745-880, y 490-610 showing a round. The forearm and glove are also unchanged.
+   expected: The whole slide, with the red-dot mounted on it, slides back about 33 mm and the sight moves with it.
+
+9. [major] [low] hand_not_on_part  (rack-grip-238-FNX-45_RDS_SUP_-right.png)
+   seen: The glove and forearm (x about 400-920, y 250-430) lie above the red-dot sight. The slide top beside the sight is at about y 480 and no fingers are visible touching it.
+   expected: Fingers pinching the slide's rear serrations behind the sight.
+
+10. [minor] [medium] muzzle_flash_or_lens_flash_issue  (mag-2-leaving-238-FNX-45_RDS_SUP_.png)
+   seen: Starburst about x 0-400, y 280-660, centred around x 100-200, y 450-500, level with the trigger guard. The suppressor end is at the left edge at y about 90-230, so the flash sits roughly 250-350 px below the muzzle. It is also large for a suppressed pistol.
+   expected: Small flash at the suppressor end (muzzle).
+
+11. [minor] [medium] muzzle_flash_or_lens_flash_issue  (mag-1-seated-238-FNX-45_RDS_SUP_.png)
+   seen: Hard-edged yellow-white diagonal bands cover the lower left (x 0-420, y 230-800) and lower right (x 480-1080, y 500-800), converging near the trigger guard rather than the muzzle. The scene looks washed out with no firing in this frame.
+   expected: No screen-wide wedges; any flash only at the muzzle and fading quickly.
+
+12. [minor] [low] muzzle_flash_or_lens_flash_issue  (rack-grip-pulled-238-FNX-45_RDS_SUP_-right.png)
+   seen: Large yellow-orange fireball across the upper left (x 0-620, y 0-420) with white spikes at x 0-80, y 130-330. The muzzle is hidden behind the dark cover at lower left, and the flash origin sits well above the slide front (x about 300, y 480-650).
+   expected: Small flash at the suppressor end only.
+
+13. [tiny] [low] mag_floating_or_offset  (mag-7-seated-again-238-FNX-45_RDS_SUP_.png)
+   seen: Magazine base bottom is at about y 600 here versus about y 625 in mag-1-seated (same grip, same camera), so the magazine sits about 25 px higher, roughly 0.3-0.5 cm.
+   expected: Magazine seated exactly where mag-1 had it.
+
+Test line flags:
+  - rack grip 1/4 fingers on it: confirmed by rack-grip-238-FNX-45_RDS_SUP_-left.png, three fingers curl below the slide's lower edge instead of on it.
+  - pulled half way 1/4 fingers: same finger position in rack-grip-pulled-238-FNX-45_RDS_SUP_-left.png, so only the index finger is on the slide.
+  - moving with the hand: the slide: NOT supported. The free hand is at identical pixels in rack-grip and rack-grip-pulled, in both the left and right close-ups.
+  - drawn: 4 drawn parts move, most 33 mm: not visible. The red-dot housing and rear sight stay at identical pixels in rack-grip-238-FNX-45_RDS_SUP_-right.png and rack-grip-pulled-238-FNX-45_RDS_SUP_-right.png.
+  - the gun moved 0.3 mm with the pull: conflicts with rack-grip-pulled-238-FNX-45_RDS_SUP_-left.png, where suppressor, slide, grip and right-arm cuff sit about 60-100 px further left than in rack-grip-238-FNX-45_RDS_SUP_-left.png. The right pair shows no such shift, so check which root or part moves.
+  - magazine (deep): dropped copy 0.0 cm across the pull from the gun's magazine: start position in mag-2-leaving looks right, but the copy is olive while the gun's magazine is black, so 'same model' is doubtful (see mag-2 bug).
+  - in the hand: 3.8 cm from the palm: confirmed by mag-4-in-hand-238-FNX-45_RDS_SUP_.png, where the magazine sits at the fingertips, off the palm.
+  - half way in (on the rail): 0.0 cm off the magwell line: mag-6-half-in looks on the line. The earlier frame mag-5-lined-up is about 140 px below and about 100 px right of the magwell, which the test does not measure.
+  - seated: the gun's magazine shows 0.0 cm from where it was: mag-7-seated-again sits about 25 px higher than mag-1-seated. Low confidence, tiny.
+  - equipped; 15 rounds kept, then magazine seated with 16 rounds: the count rises by one on reload. Could be the chambered round being counted; check.
+  - fired 3/3: muzzle flash placement is wrong in mag-2-leaving (about 250-350 px below the muzzle) and oversized in rack-grip-pulled-right.
+  - racked: chambered: rack-grip-pulled-238-FNX-45_RDS_SUP_-right.png shows a round at the ejection port, consistent with a chambered round.

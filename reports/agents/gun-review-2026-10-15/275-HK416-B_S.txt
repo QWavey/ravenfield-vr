@@ -1,0 +1,46 @@
+Gun 275: HK416-B/S
+Haiku picture review (read only), overall: bugs, pictures read: 14
+
+1. [major] [medium] mag_not_in_hand  (mag-4-in-hand-275-HK416-B_S.png)
+   seen: The left glove is open with the fingers stretched flat to the left (x 345-830, y 270-530). The fresh magazine stands above and behind the back of that hand (x 290-560, y 0-460). Its lower end passes behind the extended fingers and sits on the thumb area, but no finger closes around the magazine body. It reads as floating just in front of the gun's trigger area rather than held. An unidentified dark olive object sits at the right edge (x 1100-1280); it is probably the player's own gear, not a second magazine.
+   expected: Fingers wrapped around the fresh magazine body, magazine held in the palm, feed end pointing up toward the magwell. Test line agrees: 3.4 cm from the palm.
+
+2. [major] [medium] mag_floating_or_offset  (mag-5-lined-up-275-HK416-B_S.png)
+   seen: The fresh magazine is at the bottom edge of the frame (x 490-680, y 640-800, cut off by the frame). The magwell sits roughly 450 px higher, just under the receiver and trigger guard (guard at about y 80-175). No hand is visible holding the magazine; the glove that holds it in mag-6 is absent here. The magazine is not right at the magwell and not on a line directly under it. It looks like it hangs or stands in the air in the lower frame.
+   expected: Fresh magazine held by the left hand directly under the magwell, on the magwell line, a few cm below the opening, ready to rise into it.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-275-HK416-B_S-left.png)
+   seen: The left glove lies flat on top of the upper receiver. The thumb rests on the top rail (x 240-420, y 270-330) and the knuckles sit over the receiver top (x 500-870, y 210-420). The fingers hang down the receiver's left side (x 260-520, y 330-520). Only the index fingertip reaches the area of a lever-shaped charging handle on the left flank (x 120-245, y 390-500). The other fingers do not close on that handle.
+   expected: Thumb and index finger pinching the charging handle, fingers ON the handle, not resting on the receiver side. Test line agrees: 0/72 points inside, 1/4 fingers on it.
+
+4. [major] [medium] hand_not_on_part  (rack-grip-275-HK416-B_S-right.png)
+   seen: The left hand lies across the top of the receiver rail (x 240-920, y 210-530). The thumb tip (x 750-920, y 290-420) rests above a small round knob on the receiver top (x 760-850, y 400-450). The fingers lie flat over the rail and hang over the side of the receiver. The hand is laid on the receiver, not wrapped around a handle.
+   expected: Fingers pinching the charging handle itself, not resting across the top rail. Test line agrees: 1/4 fingers on the part.
+
+5. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-275-HK416-B_S-left.png)
+   seen: The hand sits in the same place on the receiver top as in rack-grip-275-HK416-B_S-left.png (thumb x 240-420, y 270-330; knuckles x 420-870). The stock tube on the right (x 870-1280) and the rail are in the same positions. No part is visibly drawn back relative to the receiver. The magnifier looks about 120 px further left than in the un-pulled frame while the stock stays put; this may be camera motion, not a sight shift.
+   expected: The charging handle pulled about half way back to the rear with the hand gripping it, the handle visibly displaced toward the stock relative to the receiver, the hand moving with it. Test line claims 52 mm of travel that these pictures do not show.
+
+6. [major] [medium] slide_or_bolt_not_moving  (rack-grip-pulled-275-HK416-B_S-right.png)
+   seen: Hand and receiver are in the same screen positions as in rack-grip-275-HK416-B_S-right.png. The thumb tip (x 750-920, y 290-420) and the small knob on the receiver top (x 760-850, y 400-450) have not moved. The magnifier at top right moved about 165 px in the frame, but the knob and hand did not. Nothing shows the charging handle pulled back.
+   expected: The handle pulled about half way back toward the stock, moving with the hand and visibly displaced relative to the receiver.
+
+7. [minor] [low] slide_or_bolt_not_moving  (rack-grip-pulled-275-HK416-B_S.png)
+   seen: First-person frame that looks the same as rack-grip-275-HK416-B_S.png: the gun sits at the bottom right with the same sight and muzzle positions, and no left hand is visible. No visible rearward movement of the charging handle.
+   expected: Gun with the charging handle pulled about half way back, and the left hand visibly on it if the frame shows it.
+
+8. [tiny] [low] other  (weapon-275-HK416-B_S.png)
+   seen: First-person view with the gun held low at the bottom right. Neither the right hand on the grip nor the left arm is in frame; the grip and stock are cut off by the bottom edge. The hand-on-grip cannot be confirmed from this picture.
+   expected: Right hand visibly wrapped around the pistol grip, gun pointing forward, nothing floating. The close-up pictures show the right hand correctly on the grip.
+
+Test line flags:
+  - rack grip '0/72 points inside the part, 1/4 fingers on it': CONFIRMED by rack-grip-275-HK416-B_S-left.png and -right.png. The fingers rest on the receiver top and side, not on the handle.
+  - pulled half way '0/72 points inside, 1/4 fingers on it': CONFIRMED by rack-grip-pulled-275-HK416-B_S-left.png and -right.png, which look like the un-pulled close-ups with the same hand position.
+  - drawn '2 drawn part(s) move, most 52 mm; the nearest is 0.0 cm from the hand': NOT CONFIRMED. The pulled close-ups show no clear 52 mm rearward travel of the charging handle relative to the receiver.
+  - 'the gun moved 0.3 mm with the pull, 0.3 mm when it went home': consistent. The first-person pairs (rack-grip vs rack-grip-pulled base) look the same, with no visible gun motion.
+  - magazine (deep) 'dropped copy ... 7.5 cm out': mag-2-leaving-275-HK416-B_S.png shows the magazine dropping down the magwell line, consistent. In mag-3-out-275-HK416-B_S.png the dropped magazine is no longer anywhere in frame (it fell out of view or vanished). Cannot confirm the copy's position from mag-3.
+  - 'in the hand: 3.4 cm from the palm': CONFIRMED by mag-4-in-hand-275-HK416-B_S.png. The magazine is not gripped by the fingers.
+  - 'half way in (on the rail): 0.0 cm off the magwell line': the line looks right in mag-6-half-in-275-HK416-B_S.png, but its depth looks about the same as the seated magazine in mag-1, so the half-way depth cannot be confirmed from the picture.
+  - 'seated: the gun's magazine shows 0.0 cm from where it was': consistent. mag-7-seated-again-275-HK416-B_S.png matches the position in mag-1-seated-275-HK416-B_S.png.
+  - Side label on the gun: reads NO MAG in mag-2, mag-3 and mag-6, and an ammo readout in mag-1 and mag-7. This matches the reload state in the test line (magazine seated, 46 rounds).
+  - 'fired 3/3', 'cases thrown 3', 'racked: chambered': no picture in this set shows firing or the chamber, so these cannot be checked.

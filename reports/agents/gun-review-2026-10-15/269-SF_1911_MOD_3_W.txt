@@ -1,0 +1,40 @@
+Gun 269: SF 1911 MOD 3 W
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] hand_not_on_part  (rack-grip-269-SF_1911_MOD_3_W-left.png)
+   seen: The black, yellow-striped racking glove (top centre, fingers pointing left) sits mostly below and in front of the slide. Only the index fingertip (about x 215-260, y 415-465) touches the slide's lower edge near the front serrations. The middle, ring and little fingers curl under the slide (about x 330-520, y 460-600) around the gold frame / dust-cover piece, not on the slide. The slide's serrations (about x 35-160, y 360-425) are not gripped. Matches the test's 1/4 fingers.
+   expected: The racking hand pinches the slide itself: fingers on the slide's sides or serrations, not on the frame underneath, with the fingers closing over the slide.
+
+2. [major] [medium] hand_not_on_part  (rack-grip-pulled-269-SF_1911_MOD_3_W-left.png)
+   seen: Compared with rack-grip-269-SF_1911_MOD_3_W-left.png, the racking glove is in the same screen position: fingertip at about x 228-262, y 418-458, back-of-hand outline (x 465-875, y 235-490) unchanged. The hand does not travel back with the slide, so the pull looks like it is done over an unmoving hand (the hand pulls air). Only the index tip stays at the slide's lower-front edge.
+   expected: The racking glove moves back about 3 cm with the slide and its fingers stay in contact with the serrated slide for the whole pull.
+
+3. [major] [medium] wrong_part_moves  (rack-grip-pulled-269-SF_1911_MOD_3_W-left.png)
+   seen: Against the rest close-up, the receiver parts shift toward the muzzle on screen: the trigger-guard arc moves from about x 330-400 to about x 265-345, the orange grip panel's dot moves from about x 640 to about x 555, and the grey gun-holding glove moves about 60-80 px left. The background (tank, tree, rock) and the racking glove stay still. The slide's serrations and front sight move only about 10-15 px. A dark barrel strip shows at the far left edge (x 0-22), so the slide does travel a little, but most of the relative shift comes from the receiver and the gun-holding hand.
+   expected: Only the slide travels back (about 29 mm, barrel showing in front of it). The frame, grip, trigger guard and the gun-holding hand stay still, and the racking hand moves with the slide.
+
+4. [major] [medium] wrong_part_moves  (rack-grip-pulled-269-SF_1911_MOD_3_W-right.png)
+   seen: Compared with rack-grip-269-SF_1911_MOD_3_W-right.png, the grip panel, the hammer hook with its hole and the trigger move about 120 px to the right on screen (toward the muzzle). The slide's serrations, ejection port and the hand's finger on the slide stay where they were, and the top glove does not move. So the receiver moves forward instead of the slide sliding back under a fixed frame.
+   expected: Only the slide moves back in the rear of the frame. The grip and frame stay in place and the racking hand follows the slide.
+
+5. [minor] [medium] other  (mag-3-out-269-SF_1911_MOD_3_W.png)
+   seen: A dark grey ribbed cylinder (about x 440-510, y 305-355) sits inside the trigger guard, in front of the grip. It is also in mag-1-seated, mag-2-leaving, mag-7-seated-again and the rack close-ups. In mag-3-out the magwell is empty, so this object is not the magazine. It looks like a stray round or a misplaced mesh floating in the trigger guard.
+   expected: The trigger guard holds only the flat trigger. Nothing extra (no round, no mesh) sits inside it.
+
+6. [minor] [low] mag_wrong_orientation_or_model  (mag-4-in-hand-269-SF_1911_MOD_3_W.png)
+   seen: The fresh magazine stands upright above the black glove. Its top end, which should face the gun, is light grey with only a small dark green corner. In mag-2, mag-5 and mag-6 the gun-facing end is dark green. The magazine sits behind the fingers and palm, so it looks held loosely by the fingertips and may be turned around (base end up). The test's 3.3 cm from the palm fits this loose hold.
+   expected: The magazine is held in the left fingers and palm with its feed end (dark) toward the gun, the same orientation as in mag-5-lined-up.
+
+7. [tiny] [low] other  (rack-grip-pulled-269-SF_1911_MOD_3_W.png)
+   seen: First-person rack frames: the free (left) hand is not in view in either rack-grip-269-SF_1911_MOD_3_W.png or rack-grip-pulled-269-SF_1911_MOD_3_W.png. The gun's dark rear opening with the '7+1' marking sits in the same place before and after the pull, so these frames cannot confirm the grip or the slide travel.
+   expected: The free hand is visible on the slide in the rack-grip frame, and the slide visibly sits further back in the pulled frame.
+
+Test line flags:
+  - rack grip 1/4 fingers on the part: confirmed by rack-grip-269-SF_1911_MOD_3_W-left.png. Only the index tip touches the slide edge; the other fingers hang below the slide around the frame.
+  - pulled half way 1/4 fingers on the part: confirmed by rack-grip-pulled-269-SF_1911_MOD_3_W-left.png. The racking glove is in exactly the same place as in the rest frame.
+  - the gun moved 0.1 mm with the pull: contradicted. In the pulled close-ups the grip, trigger guard and gun-holding hand shift about 60-120 px on screen, while the background and the racking glove stay fixed. The measurement may be tracking the wrong part.
+  - drawn: 1 part moves, most 29 mm, nearest 0.0 cm from the hand: only partly supported. The slide shows a barrel strip at its front in the pulled-left frame, but on screen its travel looks well short of 29 mm and the receiver moves too. Not confirmed.
+  - magazine in the hand 3.3 cm from the palm: not contradicted. mag-4 shows the magazine among the fingers, but its orientation is doubtful (see the mag-4 item).
+  - half way in 0.0 cm off the magwell line and seated 0.0 cm: consistent with mag-5, mag-6 and mag-7. The magazine sits on the grip line and nothing is left below the grip when seated. The depth of the half-way frame cannot be measured reliably, and mag-1 and mag-7 hide the base plate under the hand.
+  - magazine dropped 4.6 cm out and dropped copy 0.0 cm across the pull: not verifiable from the frames. mag-2-leaving shows the magazine dropping along the grip line.
+  - fired 3/3, cases thrown 3, recoil and impulse numbers: no frame shows shots or cases. Not verifiable from these pictures.

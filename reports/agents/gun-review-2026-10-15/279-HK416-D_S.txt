@@ -1,0 +1,41 @@
+Gun 279: HK416-D/S
+Haiku picture review (read only), overall: bugs, pictures read: 15
+
+1. [major] [high] wrong_part_moves  (rack-grip-pulled-279-HK416-D_S-right.png)
+   seen: The thumb, wrist and the small black block under the thumb sit at the same pixels as in rack-grip-279-HK416-D_S-right.png. The receiver group (the ring/cylinder around x 410-730 in the rack-grip frame, and the barrel and controls to its right) has slid roughly 170-190 px (about 3-4 cm) to the right, toward the muzzle side, away from the stock. The background blotches and the blue corpse do not move, so the camera did not move. The handle does not travel with the hand; the receiver moves instead.
+   expected: The charging handle moves back about 4 cm with the thumb and fingers still on it. The receiver and barrel stay where they were.
+
+2. [major] [high] hand_not_on_part  (rack-grip-pulled-279-HK416-D_S-left.png)
+   seen: The left hand (thumb tip around x 240-330, y 270-330; fingers around x 260-500; knuckles around x 700-870) is pixel-identical to rack-grip-279-HK416-D_S-left.png, so the hand did not move. The charging-handle lever and knob, the rear optic box, the magazine and the pistol grip all slid about 90-120 px (about 3 cm) to the left, toward the muzzle end, away from the fingertips. The stock at the right stays put. The hand is pulling air while the receiver slides out from under it.
+   expected: The fingers stay closed on the charging-handle knob and travel back about 4 cm with it, toward the stock. Only the handle moves; the receiver, optic, magazine and grip stay still.
+
+3. [major] [medium] hand_not_on_part  (rack-grip-279-HK416-D_S-left.png)
+   seen: The left hand lies flat over the top of the receiver with the fingers pointing forward over the rail. The charging-handle lever and knob (about x 120-245, y 395-500) sit just left of the fingertips (index fingertip about x 260-300, y 395-435). The fingers stop beside the knob instead of closing on it; at most the edge of the index touches it.
+   expected: Index and middle fingers pinch the charging-handle knob itself, with the fingers on the part.
+
+4. [major] [high] mag_not_in_hand  (mag-5-lined-up-279-HK416-D_S.png)
+   seen: The fresh magazine lies on the gravel at bottom centre (about x 490-680, y 640-800), well below and to the right of the empty magwell and grip at left. No left hand is in frame and nothing holds it, so it is not under the magwell and not on its line. It is not on the ground in mag-3-out or mag-4-in-hand, and in mag-4 a magazine was in the left hand, so it either fell out of the hand or a second copy exists.
+   expected: The fresh magazine held by the left hand directly below the magwell, on the magwell line, feed end pointing up into the receiver.
+
+5. [minor] [low] mag_not_in_hand  (mag-4-in-hand-279-HK416-D_S.png)
+   seen: The left glove is open, with the fingers splayed flat to the left and the thumb up. The magazine rises from behind and above the palm and its lower end is hidden behind the glove rather than closed in the fingers. It looks like it hangs behind the hand instead of sitting in the palm, which fits the test's 3.3 cm palm distance.
+   expected: Fingers curl around the magazine body near its base, the magazine centred in the palm, feed end toward the gun.
+
+6. [minor] [low] hand_not_on_part  (weapon-279-HK416-D_S.png)
+   seen: In the first-person view the gun sits at the bottom-right edge with no right hand visible around the pistol grip, so the gun looks unsupported. The hand may simply be out of frame; the mag-1 close-up does show the right hand on the grip.
+   expected: The right hand wrapped around the pistol grip, visible or consistent with the grip, with nothing floating.
+
+7. [minor] [low] wrong_part_moves  (rack-grip-pulled-279-HK416-D_S.png)
+   seen: In the first-person view the muzzle or suppressor end at bottom centre looks larger and lower than in rack-grip-279-HK416-D_S.png (about x 760-860, y 600-790 versus x 760-830, y 620-730). The rear optic (about x 735-790, y 475-520) stays in the same place, so the forward part of the gun appears to shift too.
+   expected: Only the charging handle moves rearward. The barrel and optic stay where they were.
+
+Test line flags:
+  - Rack grip '0/72 points inside, 1/4 fingers on it': consistent with rack-grip-279-HK416-D_S-left.png, where the fingertips rest beside the charging-handle knob instead of on it.
+  - Pulled half way '1/4 fingers on it' and 'moving with the hand: the charging handle': contradicted. rack-grip-pulled-279-HK416-D_S-left.png and -right.png show the hand at identical pixels to the rack-grip frames while the receiver section moves, so the handle is not moving with the hand.
+  - Drawn '2 parts move, most 40 mm; the nearest is 0.0 cm from the hand': rack-grip-pulled-279-HK416-D_S-right.png supports the 40 mm mover being the receiver group, while the block under the thumb (the nearest part) does not visibly move. This is the wrong part moving.
+  - 'The gun moved 0.3 mm with the pull, 0.3 mm when it went home': the root figure cannot be checked from pictures. The close-ups show several cm of receiver shift relative to the stock and hand, so a 0.3 mm root reading does not rule out child parts moving.
+  - Magazine (deep) 'dropped copy 0.0 cm across the pull, 7.4 cm out': mag-2-leaving-279-HK416-D_S.png shows the magazine dropping straight down its line, which is consistent. But no dropped magazine is visible on the ground in mag-3-out or mag-4-in-hand; it appears on the gravel only in mag-5-lined-up-279-HK416-D_S.png.
+  - 'In the hand: 3.3 cm from the palm': mag-4-in-hand-279-HK416-D_S.png shows the magazine above and behind the palm rather than closed in the fingers. The picture supports a noticeable offset, with low confidence.
+  - 'Half way in (on the rail): 0.0 cm off the magwell line': mag-6-half-in-279-HK416-D_S.png shows the magazine entering the magwell on its line. Consistent.
+  - 'Seated: the gun's magazine shows 0.0 cm from where it was': mag-7-seated-again-279-HK416-D_S.png matches the mag-1-seated-279-HK416-D_S.png position. Consistent.
+  - 'Fired 3/3', cases thrown, recoil, impulse per shot, 'racked: chambered', and round counts: not checkable from these pictures.
