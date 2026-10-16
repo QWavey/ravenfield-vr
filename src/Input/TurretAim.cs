@@ -84,13 +84,18 @@ namespace RavenfieldVR.Input
     [HarmonyPatch(typeof(SoundBank), "PlaySoundBank")]
     internal static class SoundBankIndexGuardPatch
     {
+        private static readonly System.Collections.Generic.HashSet<int> Reported = new System.Collections.Generic.HashSet<int>();
+
         private static bool Prefix(SoundBank __instance, int index)
         {
             if (__instance.clips != null && index >= 0 && index < __instance.clips.Length)
             {
                 return true;
             }
-            Log.WarnOnce("soundbank:" + __instance.name, $"'{__instance.name}' asked its sound bank for clip {index} of {(__instance.clips != null ? __instance.clips.Length : 0)}: skipped.");
+            if (Reported.Add(__instance.GetInstanceID()))
+            {
+                Log.Warn($"'{__instance.name}' asked its sound bank for clip {index} of {(__instance.clips != null ? __instance.clips.Length : 0)}: skipped.");
+            }
             return false;
         }
     }
@@ -98,13 +103,18 @@ namespace RavenfieldVR.Input
     [HarmonyPatch(typeof(AimTransform), "LateUpdate")]
     internal static class AimTransformGuardPatch
     {
+        private static readonly System.Collections.Generic.HashSet<int> Reported = new System.Collections.Generic.HashSet<int>();
+
         private static bool Prefix(AimTransform __instance)
         {
             if (__instance.idleTransform != null && __instance.aimTransform != null)
             {
                 return true;
             }
-            Log.WarnOnce("aimtransform:" + __instance.name, $"'{__instance.name}' blends its aim between transforms that are gone: left as it is.");
+            if (Reported.Add(__instance.GetInstanceID())) // every frame for a standing turret: nothing built after the first
+            {
+                Log.Warn($"'{__instance.name}' blends its aim between transforms that are gone: left as it is.");
+            }
             return false;
         }
     }

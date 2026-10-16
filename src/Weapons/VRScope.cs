@@ -267,7 +267,6 @@ namespace RavenfieldVR.Weapons
             _camera.farClipPlane = vr.farClipPlane;
             _camera.allowHDR = vr.allowHDR;
             _camera.depthTextureMode = vr.depthTextureMode;
-            _camera.enabled = true;
             // Eye box. The eye is the aiming one, the one nearer the line: measured from the middle of the head, a scope you
             // looked through perfectly with one eye was already 3.2 cm "off" and showed only 57% bright. Off the line, the
             // scope's shadow comes in from the eye's side (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
