@@ -45,16 +45,22 @@ namespace RavenfieldVR.Core
                 Log.Info("VR disabled (config or install check); running flat.");
                 yield break;
             }
-            if (!ShouldStartVR(out string reason))
+            if (!_retry && !ShouldStartVR(out string reason))
             {
                 Log.Info("Not starting VR: " + reason + " Launch with -vr to force it.");
+                if (reason != null && !reason.StartsWith("-novr", StringComparison.Ordinal))
+                {
+                    FlatNotice("VR not started: " + reason + "\nStart SteamVR (with the headset connected), then press F8 here, or start the game after SteamVR.");
+                }
                 yield break;
             }
             if (!OpenVRRuntime.Start())
             {
                 Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError);
+                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nCheck SteamVR and the headset, then press F8 to try again.");
                 yield break;
             }
+            _flatNotice = null;
 
             bool inputReady = VRInput.Initialize();
             try
@@ -130,10 +136,41 @@ namespace RavenfieldVR.Core
             return false;
         }
 
+        // Flat play because VR did not start: said on the screen (it was only a log line, and the game simply came up flat
+        // when SteamVR had not been started first), with F8 to try again once SteamVR runs.
+        private string _flatNotice;
+        private float _flatNoticeUntil;
+        private bool _retry, _retrying;
+
+        private void FlatNotice(string text)
+        {
+            _flatNotice = text;
+            _flatNoticeUntil = Time.unscaledTime + 40f;
+            _retrying = false;
+        }
+
+        private void OnGUI()
+        {
+            if (_active || _flatNotice == null || Time.unscaledTime > _flatNoticeUntil)
+            {
+                return;
+            }
+            var style = new GUIStyle(GUI.skin.box) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+            style.normal.textColor = Color.white;
+            GUI.Box(new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 90f), "Ravenfield VR\n" + _flatNotice, style);
+        }
+
         private void Update()
         {
             if (!_active)
             {
+                if (_flatNotice != null && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F8))
+                {
+                    _retrying = true;
+                    _retry = true;
+                    _flatNotice = "Starting VR...";
+                    StartCoroutine(Start());
+                }
                 return;
             }
             PerfProbe.Frame();
