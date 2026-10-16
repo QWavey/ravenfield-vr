@@ -2875,9 +2875,21 @@ namespace RavenfieldVR.Weapons
                 yield return null;
             }
             int side = (int)off.Side;
-            RigidPose raw = off.Raw;
-            Vector3 palmFromRaw = raw.InverseTransformPoint(off.Palm.position);
-            RigidPose At(Vector3 palm) => new RigidPose(palm - raw.rotation * palmFromRaw, raw.rotation);
+            RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+            // The hand as a player holds the part (the controller's fixed test pose put the fist sideways beside it, and the
+            // picture review saw the hand off the part on 207 guns): the palm against the part's outer side; on a part on top,
+            // the fingers across it toward the far side, on a part on the side, up and over it.
+            Vector3 aimW = Rig.AimWorld, upW = Rig.DirToWorld(Data.Up).normalized, rightW = Vector3.Cross(upW, aimW).normalized;
+            Vector3 boreAt = Rig.ToWorld(Data.MuzzlePoint);
+            Vector3 outward = Vector3.ProjectOnPlane(RackPointWorld - boreAt, aimW);
+            outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : upW;
+            Vector3 intoPart = -outward;
+            Vector3 fingers = Vector3.Dot(outward, upW) > 0.7f ? (off.IsLeft ? rightW : -rightW) : upW;
+            Vector3 palmX = -intoPart * off.Mirror;
+            fingers = Vector3.ProjectOnPlane(fingers, palmX);
+            fingers = fingers.sqrMagnitude > 1e-6f ? fingers.normalized : aimW;
+            Quaternion palmRot = Quaternion.LookRotation(fingers, Vector3.Cross(fingers, palmX));
+            RigidPose At(Vector3 palm) => new RigidPose(palm - intoPart * 0.02f, palmRot).Multiply(rawFromPalm);
             VRInput.SimulatedGrab[side] = true;
             try
             {
