@@ -63,7 +63,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
         public float CrossHalf { get; private set; }
         /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held index-point instead of in the fist.</summary>
-        public bool PistolSized => Kind == PropKind.Magazine && CrossHalf < 0.022f;
+        public bool PistolSized => Kind == PropKind.Magazine && (CrossHalf < 0.022f || _pistolGun && CrossHalf < 0.04f);
+
+        /// <summary>A pistol's magazine: held and seated as one even when its base plate makes it wider (AUTOMATICO 4.8 cm, FNX-45 6.5).</summary>
+        private bool _pistolGun;
         /// <summary>
         /// A machine gun's box or drum: wider across than a hand closes round (over 11 cm), or thicker than any stick
         /// magazine (over 5 cm). Held in the box pose, further out along the fingers.
@@ -391,6 +394,7 @@ namespace RavenfieldVR.Weapons
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
+            prop._pistolGun = d.IsPistol;
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
             Cull();

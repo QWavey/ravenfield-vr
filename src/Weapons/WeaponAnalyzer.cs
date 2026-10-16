@@ -761,6 +761,14 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (d.SlidePath != null && d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
+            {
+                // The model's own charging handle, found from the reload, already comes back with the hand, taken at its
+                // back end: the rule's place on the receiver (5 cm behind the grip) put the hand 3.3 cm from it, on an added
+                // knob, and the M4A1's own handle seemed not to move (user, 2026-10-16).
+                d.SlideMethod += " (AR-pattern: its own handle)";
+                return;
+            }
             Vector3 boreAboveGrip = d.MuzzlePoint + d.AimAxis * Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
             d.RackPoint = boreAboveGrip - d.AimAxis * 0.05f + d.Up * 0.03f;
             d.RackOnSurface = true; // onto the top of the receiver once the model is measured
