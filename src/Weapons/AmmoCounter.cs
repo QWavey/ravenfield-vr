@@ -64,6 +64,7 @@ namespace RavenfieldVR.Weapons
             if (_go.activeSelf != show)
             {
                 _go.SetActive(show);
+                _refitFrames = 2; // shown again: refit once it is laid out
             }
             if (!show)
             {
@@ -72,8 +73,8 @@ namespace RavenfieldVR.Weapons
             if (_flash != null && Time.unscaledTime < _flashUntil)
             {
                 Show(_flash);
-                _text.color = Empty;
-                _plate.Fit();
+                SetColor(Empty);
+                Refit();
                 return;
             }
             _flash = null;
@@ -85,8 +86,32 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Show(ammo.CounterText());
-            _text.color = ammo.Loaded == 0 ? Empty : (ammo.SlideLocked || !ammo.CanFire) ? Warn : Normal;
-            _plate.Fit();
+            SetColor(ammo.Loaded == 0 ? Empty : (ammo.SlideLocked || !ammo.CanFire) ? Warn : Normal);
+            Refit();
+        }
+
+        // The plate is fitted to the text only when the text changed or the counter came back (and the frame after, when the
+        // text has been laid out), and the colour is set only when it changes (it is baked into the text mesh): both ran
+        // every frame a gun was held.
+        private int _refitFrames = 2;
+        private Color _color = new Color(-1f, 0f, 0f, 0f);
+
+        private void Refit()
+        {
+            if (_refitFrames > 0)
+            {
+                _refitFrames--;
+                _plate.Fit();
+            }
+        }
+
+        private void SetColor(Color c)
+        {
+            if (c.r != _color.r || c.g != _color.g || c.b != _color.b || c.a != _color.a)
+            {
+                _color = c;
+                _text.color = c;
+            }
         }
 
         // TextMesh.text's getter builds a new string on every read, so the last value set is remembered instead.
@@ -98,6 +123,7 @@ namespace RavenfieldVR.Weapons
             {
                 _text.text = text;
                 _shown = text;
+                _refitFrames = 2;
             }
         }
 
