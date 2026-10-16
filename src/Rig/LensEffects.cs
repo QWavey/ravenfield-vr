@@ -378,7 +378,9 @@ namespace RavenfieldVR.Rig
                 {
                     for (int e = 0; e < 2; e++)
                     {
-                        _tex[e].SetPixels32(_out[e]);
+                        // A raw copy of the Color32 buffer into the RGBA32 texture (same byte layout): no per-pixel
+                        // managed-to-native conversion, which SetPixels32 did on the main thread each shown frame.
+                        _tex[e].SetPixelData(_out[e], 0);
                         _tex[e].Apply(false, false);
                         _shownPower[e] = _resultPower[e];
                         _shownGlow[e] = _resultGlow[e];
