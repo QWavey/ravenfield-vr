@@ -609,10 +609,25 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             string shader = m.shader != null ? m.shader.name : "";
+            // The size test on the mesh's own bounds at its scale, not the world box: a long launcher tube (about 1.5 m, and its
+            // world box larger again when tilted across the axes) was dropped from the hands' solid and the stand-in by a
+            // 1.5 m limit on the world box. The 4 m holo quad this test was for is additive and caught by the shader above.
             return m.renderQueue > 2500 || shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0
                    || shader.IndexOf("HUD", System.StringComparison.OrdinalIgnoreCase) >= 0
                    || shader.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) >= 0
-                   || r.bounds.size.sqrMagnitude > 1.5f * 1.5f;
+                   || MeshSize(r).sqrMagnitude > 3.5f * 3.5f;
+        }
+
+        /// <summary>The renderer's mesh size in metres (its local bounds at its scale): the same in any pose.</summary>
+        private static Vector3 MeshSize(Renderer r)
+        {
+            Mesh mesh = r is SkinnedMeshRenderer skinned ? skinned.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+            if (mesh == null)
+            {
+                return r.bounds.size;
+            }
+            Vector3 s = r.transform.lossyScale;
+            return Vector3.Scale(mesh.bounds.size, new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)));
         }
 
         /// <summary>The renderer belongs to something the mod attached to the weapon (its objects are all named "RavenfieldVR ...").</summary>
