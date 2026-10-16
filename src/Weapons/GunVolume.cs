@@ -21,7 +21,10 @@ namespace RavenfieldVR.Weapons
         public const float Grow = 0.0072f;
         private const float FineTexel = 0.0015f;
         private const int MaxTexels = 448;
-        private const int CacheSize = 12;
+        // A held weapon alone keeps three or four (itself, its seated magazine, its moving part, the magazine in the hand)
+        // and every dropped weapon type one: with twelve, three weapons in turn measured each of them again on every switch
+        // (about 12 ms on the main thread and 11 MB of garbage each; perf review 2026-10-16). Dropped weapons go first.
+        private const int CacheSize = 24;
 
         private static readonly Dictionary<string, GunVolume> Cache = new Dictionary<string, GunVolume>();
         private static readonly List<string> CacheOrder = new List<string>();
@@ -316,6 +319,40 @@ namespace RavenfieldVR.Weapons
             });
         }
 
+        private static readonly Dictionary<int, Stack<Color32[]>> PixelPool = new Dictionary<int, Stack<Color32[]>>();
+
+        /// <summary>A picture buffer of this many pixels: pooled (rented on the main thread, given back by the worker).</summary>
+        private static Color32[] RentPixels(int length)
+        {
+            lock (PixelPool)
+            {
+                if (PixelPool.TryGetValue(length, out Stack<Color32[]> free) && free.Count > 0)
+                {
+                    return free.Pop();
+                }
+            }
+            return new Color32[length];
+        }
+
+        private static void ReturnPixels(Color32[] pixels)
+        {
+            if (pixels == null)
+            {
+                return;
+            }
+            lock (PixelPool)
+            {
+                if (!PixelPool.TryGetValue(pixels.Length, out Stack<Color32[]> free))
+                {
+                    free = PixelPool[pixels.Length] = new Stack<Color32[]>();
+                }
+                if (free.Count < 12)
+                {
+                    free.Push(pixels);
+                }
+            }
+        }
+
         private static GunVolume Cached(string key, Func<GunVolume> build)
         {
             if (Cache.TryGetValue(key, out GunVolume cached))
@@ -345,8 +382,10 @@ namespace RavenfieldVR.Weapons
             CacheOrder.Add(key);
             while (CacheOrder.Count > CacheSize)
             {
-                Cache.Remove(CacheOrder[0]);
-                CacheOrder.RemoveAt(0);
+                int oldest = CacheOrder.FindIndex(k => k.StartsWith("tp:", StringComparison.Ordinal));
+                oldest = oldest >= 0 && oldest < CacheOrder.Count - 1 ? oldest : 0;
+                Cache.Remove(CacheOrder[oldest]);
+                CacheOrder.RemoveAt(oldest);
             }
             return v;
         }
@@ -549,7 +588,15 @@ namespace RavenfieldVR.Weapons
                 {
                     AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
                     {
-                        Color32[] pixels = request.hasError ? null : request.GetData<Color32>().ToArray();
+                        Color32[] pixels = null;
+                        if (!request.hasError)
+                        {
+                            // Into a pooled buffer (2 MB a picture, ten a weapon: new arrays every measure were large-object
+                            // garbage); back to the pool once decoded.
+                            Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
+                            pixels = RentPixels(data.Length);
+                            data.CopyTo(pixels);
+                        }
                         RenderTexture.ReleaseTemporary(rt);
                         job.Arrived(index, pixels);
                     });
@@ -612,6 +659,11 @@ namespace RavenfieldVR.Weapons
                             Decode(Views[d], Front[d], Back[d], MinZ[d], MaxZ[d], Far[d], out float[] near, out float[] far);
                             GrowView(Views[d], near, far);
                             CloseRecesses(Views[d]);
+                        }
+                        for (int d = 0; d < Views.Length; d++)
+                        {
+                            ReturnPixels(Front[d]);
+                            ReturnPixels(Back[d]);
                         }
                         Front = Back = null;
                         if (Volume.WantsHull)
