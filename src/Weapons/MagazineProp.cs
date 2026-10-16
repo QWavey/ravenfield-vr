@@ -844,8 +844,10 @@ namespace RavenfieldVR.Weapons
             {
                 return true;
             }
+            // A rocket whose analysed box came out empty (the scoped RPG-7V's sits under a material-less container) is copied
+            // too: the copy measures itself, and one that is not rocket-sized still falls back to the made one.
             float length = Longest(rig.Data.MagBounds);
-            return kind == PropKind.Rocket && length > 0.15f && length < 1.4f;
+            return kind == PropKind.Rocket && (length < 0.001f || length > 0.15f && length < 1.4f);
         }
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));

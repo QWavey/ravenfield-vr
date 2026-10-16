@@ -39,6 +39,8 @@ namespace RavenfieldVR.Weapons
             + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9])\d+(\.\d+)?x($|[^a-z0-9])|倍镜|瞄",
             RegexOptions.IgnoreCase);
 
+        private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
         /// <summary>A single round, case or shell (never a slide, bolt or handle).</summary>
@@ -2067,6 +2069,27 @@ namespace RavenfieldVR.Weapons
                     d.Warnings.Add("no magazine found: insertion uses an invisible magazine well");
                 }
                 return;
+            }
+
+            if (d.Action == ActionType.SingleShot && Longest(sampler.LocalBounds(mag)) < 0.12f)
+            {
+                // A launcher's rocket found as a near-empty part (the scoped RPG-7V's "RPG-7_Rocket" holds only its 3 mm
+                // safety pin; the rocket's mesh is its sibling): the container above it that moves with it in the reload
+                // and holds a rocket-sized mesh, never the launcher itself. The rocket in the hand was the made stand-in.
+                for (Transform up = mag.parent; up != null && up != gunBody && up != root; up = up.parent)
+                {
+                    float size = Longest(sampler.LocalBounds(up));
+                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up))
+                    {
+                        d.Notes += $"rocket taken as '{up.name}', {size * 100f:0} cm (its part '{mag.name}' is too small for one) ";
+                        mag = up;
+                        break;
+                    }
+                    if (size >= 1.6f)
+                    {
+                        break;
+                    }
+                }
             }
 
             int mi = index[mag];
