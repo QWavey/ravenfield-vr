@@ -62,9 +62,10 @@ namespace RavenfieldVR.Core
             }
             _flatNotice = null;
 
-            bool inputReady = VRInput.Initialize();
+            bool inputReady;
             try
             {
+                inputReady = VRInput.Initialize();
                 Rig = new VRRig();
                 Weapons = new WeaponSystem(Rig);
                 UI = new UISystem(Rig);
@@ -74,6 +75,9 @@ namespace RavenfieldVR.Core
             {
                 Log.Exception("Creating VR systems failed; shutting VR down", e);
                 Shutdown();
+                // Re-arm the on-screen notice and the F6 retry: without this the game ran flat with the failure only in the
+                // log (and VRInput.Initialize, which had been outside the try, left SteamVR up and unpumped if it threw).
+                FlatNotice("VR could not be set up: " + e.Message + "\nPress F6 to try again.");
                 yield break;
             }
 
