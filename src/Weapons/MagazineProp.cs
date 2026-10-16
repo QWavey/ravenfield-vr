@@ -604,22 +604,26 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Dictionary<string, GameObject> LoadedLooks = new Dictionary<string, GameObject>();
         private static readonly Dictionary<string, float> LoadedLookTried = new Dictionary<string, float>();
+        private static readonly Dictionary<string, int> LoadedLookTries = new Dictionary<string, int>();
         private static GameObject _loadedLooksHolder;
 
         /// <summary>
         /// While a loaded launcher is held: a copy of its rocket as it shows now, kept when it measures as the analysis did
         /// (its size within half again, its middle within 3 cm; rocket-sized when the analysis found no box). Tried at most
-        /// twice a second until one is kept, then never again for that launcher.
+        /// twice a second until one is kept, then never again for that launcher; ten tries at most (a copy is meshes made
+        /// and thrown away: a launcher whose rocket never measures right would make them for as long as it is held).
         /// </summary>
         internal static void KeepLoadedLook(WeaponRig rig)
         {
             string key = rig.Data.Key;
             if (LoadedLooks.ContainsKey(key) || !CopiesModel(rig, PropKind.Rocket)
-                || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + 0.5f)
+                || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + 0.5f
+                || LoadedLookTries.TryGetValue(key, out int tries) && tries >= 10)
             {
                 return;
             }
             LoadedLookTried[key] = Time.unscaledTime;
+            LoadedLookTries[key] = tries + 1;
             GameObject go = CopyVisuals(rig);
             if (go == null)
             {
