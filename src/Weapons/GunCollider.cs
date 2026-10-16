@@ -391,7 +391,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _boxes.Clear();
-            _restIgnored.Clear(); // the new pieces start colliding with everything: resting props are ignored again below
+            _restIgnored.Clear(); // the new pieces start colliding with everything
             ShapeFit.Bake(pieces);
             _pieces = pieces;
             _boxes.AddRange(ShapeFit.AddColliders(_go, pieces));
@@ -407,6 +407,7 @@ namespace RavenfieldVR.Weapons
             {
                 b.enabled = _enabled;
             }
+            _nextRestCheck = 0f; // re-ignore the resting props at once with the new boxes, not up to 0.1 s later (they were shoved)
         }
 
         /// <summary>
