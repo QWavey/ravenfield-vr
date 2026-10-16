@@ -23,6 +23,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Rounds loaded (-1 = default) and in reserve (-1 = default) for whoever picks it up.</summary>
         public int Ammo = -1;
         public int Spare = -1;
+        /// <summary>The player's own weapon put down in a swap: the only copy of it, never culled.</summary>
+        public bool Keep;
         /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
         public int[] SubAmmo;
         /// <summary>The key the weapon's rig is analysed under (magazines name it), when known.</summary>
@@ -781,6 +783,7 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 swapped.SubAmmo = SubAmmoOf(current);
+                swapped.Keep = true; // your rifle, swapped for a fallen enemy's shotgun, was deleted 90 s later (85-agent review)
                 swapped.Key = WeaponAnalyzer.KeyOf(current);
                 swapped.Semi = FireSelector.IsSemiByPlayer(current);
             }
@@ -835,7 +838,7 @@ namespace RavenfieldVR.Weapons
                     d.ReturnAt = 0f;
                     continue;
                 }
-                if (expired)
+                if (expired && !d.Keep)
                 {
                     Remove(d);
                 }
@@ -844,11 +847,11 @@ namespace RavenfieldVR.Weapons
             int count = 0;
             foreach (DroppedWeapon d in _drops)
             {
-                count += d.OwnerSlot < 0 ? 1 : 0;
+                count += d.OwnerSlot < 0 && !d.Keep ? 1 : 0;
             }
             for (int i = 0; i < _drops.Count && count > max; i++)
             {
-                if (_drops[i].OwnerSlot < 0)
+                if (_drops[i].OwnerSlot < 0 && !_drops[i].Keep)
                 {
                     Remove(_drops[i]);
                     i--;

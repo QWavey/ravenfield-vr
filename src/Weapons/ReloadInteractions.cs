@@ -1150,20 +1150,20 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// A rocket at the launcher's mouth however it is held: its end nearer the mouth within 12 cm of the tube's line, its
-        /// length within 60 degrees of the tube either way round. <paramref name="depth"/>: how far in that end already is.
+        /// A rocket at the launcher's mouth, loosely held: its tail (the end that goes in) within 12 cm of the tube's line
+        /// at the muzzle, the rocket pointing into the tube within 60 degrees. Tail first only, as an RPG is loaded and as the
+        /// rocket is drawn on the line: taken by its warhead end it was drawn a rocket's length away from the hand, or
+        /// turned over (85-agent review). <paramref name="depth"/>: how far in its tail already is.
         /// </summary>
         private static bool LooselyLined(MagazineProp prop, RigidPose hold, RigidPose seat, Vector3 insert, out float depth)
         {
             Vector3 mouth = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
-            Vector3 a = hold.TransformPoint(prop.TipLocal), b = hold.TransformPoint(prop.BaseLocal);
-            Vector3 near = (a - mouth).sqrMagnitude <= (b - mouth).sqrMagnitude ? a : b;
-            Vector3 rel = near - mouth;
-            depth = Mathf.Max(0f, Vector3.Dot(rel, insert));
+            Vector3 tail = hold.TransformPoint(prop.TipLocal), nose = hold.TransformPoint(prop.BaseLocal);
+            Vector3 rel = tail - mouth;
             float along = Vector3.Dot(rel, insert);
+            depth = Mathf.Max(0f, along);
             float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
-            float angle = Vector3.Angle(a - b, insert);
-            angle = Mathf.Min(angle, 180f - angle);
+            float angle = Vector3.Angle(tail - nose, insert);
             return lateral < 0.12f && along > -0.12f && along < prop.RailLength && angle < 60f;
         }
 

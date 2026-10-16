@@ -25,11 +25,31 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             Seat seat = actor.seat;
-            if (seat.HasAnyMountedWeapons())
+            if (HasGun(seat))
             {
                 return false;
             }
             return !seat.IsDriverSeat() || seat.vehicle is Car || seat.vehicle is ArcadeCar;
+        }
+
+        /// <summary>
+        /// The seat has a gun of its own. Not the car horn: the game keeps it among a car's mounted weapons, and every
+        /// car and Humvee driver was refused a weapon (85-agent review).
+        /// </summary>
+        private static bool HasGun(Seat seat)
+        {
+            if (seat.weapons == null)
+            {
+                return false;
+            }
+            foreach (MountedWeapon w in seat.weapons)
+            {
+                if (w != null && !(w is CarHorn))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static void Draw(Actor actor, Weapon weapon)

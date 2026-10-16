@@ -367,21 +367,34 @@ namespace RavenfieldVR.Weapons
             return ok;
         }
 
+        /// <summary>
+        /// The way a prop goes in and its front (gun-body space), for the prop in the hand and the one shown on the pouch
+        /// alike. A rocket goes into the launcher's muzzle, tail first, back along the bore (an RPG is always loaded from
+        /// the front; user, 2026-10-16: the reload animation's first motion is not that on every launcher), and its front
+        /// is the launcher's up (the bore, its old front, lay along its insert and left its roll in the hand to chance).
+        /// </summary>
+        private static void Axes(WeaponRigData d, PropKind kind, out Vector3 insertGun, out Vector3 frontGun)
+        {
+            insertGun = -d.MagEjectAxis;
+            frontGun = d.AimAxis;
+            if (kind == PropKind.Rocket)
+            {
+                if (Vector3.Dot(insertGun.normalized, -d.AimAxis.normalized) < 0.7f)
+                {
+                    insertGun = -d.AimAxis.normalized;
+                }
+                frontGun = d.Up;
+            }
+        }
+
         /// <summary>Creates a prop for <paramref name="rig"/>'s ammunition at the magazine's seated pose.</summary>
         public static MagazineProp Create(WeaponRig rig, PropKind kind, int rounds)
         {
             WeaponRigData d = rig.Data;
-            Vector3 insertGun = -d.MagEjectAxis;
-            if (kind == PropKind.Rocket && Vector3.Dot(insertGun, -d.AimAxis) < 0.7f)
-            {
-                // A rocket goes into the launcher's muzzle, tail first, back along the bore (an RPG is always loaded from the
-                // front; user, 2026-10-16). The reload animation's first motion is not that on every launcher, and the
-                // rocket was taken in at the back or across.
-                insertGun = -d.AimAxis.normalized;
-            }
+            Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);
             Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
             Vector3 insertLocal = seatInv * insertGun;
-            Vector3 frontLocal = seatInv * d.AimAxis;
+            Vector3 frontLocal = seatInv * frontGun;
 
             GameObject go = null;
             Bounds bounds = d.MagBounds;
@@ -434,8 +447,9 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = rig.Data;
             Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
-            insertLocal = (seatInv * -d.MagEjectAxis).normalized;
-            frontLocal = seatInv * d.AimAxis;
+            Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);
+            insertLocal = (seatInv * insertGun).normalized;
+            frontLocal = seatInv * frontGun;
             GameObject go = null;
             bounds = d.MagBounds;
             if (CopiesModel(rig, kind))

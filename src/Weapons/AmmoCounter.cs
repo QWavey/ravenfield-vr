@@ -57,7 +57,10 @@ namespace RavenfieldVR.Weapons
 
         public void BeforeRender(AmmoState ammo)
         {
-            bool show = VRConfig.GunAmmoCounter.Value && (ammo != null && ammo.Participates || _flash != null);
+            // A message (NO AMMO, FULL, OPEN COVER) shows even with the gun counter off: it was the only way to tell them
+            // apart, and with the option off none ever showed (85-agent review).
+            bool flashing = _flash != null && Time.unscaledTime < _flashUntil;
+            bool show = flashing || VRConfig.GunAmmoCounter.Value && ammo != null && ammo.Participates;
             if (_go.activeSelf != show)
             {
                 _go.SetActive(show);
