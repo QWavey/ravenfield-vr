@@ -2223,17 +2223,6 @@ namespace RavenfieldVR.Weapons
                 MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
                 _slideMoved = true;
             }
-            if (boltAlone)
-            {
-                // Its place under the handle: back by what the handle is short of its full travel.
-                MovePart(Rig.Bolt, d.BoltRestLocal, d.SlideTravel * (1f - Mathf.Clamp01(slideShare)));
-                _boltMoved = true;
-            }
-            else if (_boltMoved)
-            {
-                MovePart(Rig.Bolt, d.BoltRestLocal, Vector3.zero); // rides on the handle again
-                _boltMoved = false;
-            }
             else
             {
                 if (_slideMoved)
@@ -2248,6 +2237,19 @@ namespace RavenfieldVR.Weapons
                 {
                     MovePart(Rig.Handle, d.HandleRestLocal, Vector3.zero);
                 }
+            }
+            // (Its own statement: hung as an "else if" between the two above, the slide was sent home every frame it was
+            // moved, and no slide, bolt or handle could be pulled back by hand: Tasks 254.)
+            if (boltAlone)
+            {
+                // Its place under the handle: back by what the handle is short of its full travel.
+                MovePart(Rig.Bolt, d.BoltRestLocal, d.SlideTravel * (1f - Mathf.Clamp01(slideShare)));
+                _boltMoved = true;
+            }
+            else if (_boltMoved)
+            {
+                MovePart(Rig.Bolt, d.BoltRestLocal, Vector3.zero); // rides on the handle again
+                _boltMoved = false;
             }
             _boltPiece?.SetOffset(Rig, d.SlideTravel * ((d.CarveHandle || d.AddedHandle) && d.SlidePath != null ? handle : fraction));
             ApplyHinge(d);
