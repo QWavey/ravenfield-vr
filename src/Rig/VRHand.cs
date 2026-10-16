@@ -31,6 +31,12 @@ namespace RavenfieldVR.Rig
 
         /// <summary>World-space linear velocity including the rig's own motion.</summary>
         public Vector3 Velocity { get; private set; }
+
+        /// <summary>
+        /// The hand's velocity against the player's body (the rig carried by walking, jumping, a vehicle left out): what a
+        /// held weapon's weight lags behind (a jump or a landing pitched a one-handed heavy gun; 85-agent regression guard).
+        /// </summary>
+        public Vector3 BodyRelativeVelocity { get; private set; }
         public Vector3 AngularVelocity { get; private set; }
 
         public HandRole Role = HandRole.Free;
@@ -121,11 +127,13 @@ namespace RavenfieldVR.Rig
             _lastRigPosition = rigRoot.position;
             _hasLastRig = true;
 
-            Velocity = (raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero) + rigVelocity;
+            Vector3 own = raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero;
             if (TestVelocityNoise > 0f)
             {
-                Velocity += Random.insideUnitSphere * TestVelocityNoise;
+                own += Random.insideUnitSphere * TestVelocityNoise;
             }
+            BodyRelativeVelocity = own;
+            Velocity = own + rigVelocity;
             AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             _velHistory[_historyIndex] = Velocity;
             _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;

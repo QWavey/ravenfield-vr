@@ -36,7 +36,7 @@ namespace RavenfieldVR.Weapons
             @"release|catch|button|latch|controll?er|控制器|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
             // Optics: a magnifier's "Mag 2x" glass is not a magazine; a calibre is not a magnification ("mag_9x19",
             // "7.62x39 mag" were taken for optics and their magazines lost).
-            + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9])\d+(\.\d+)?x($|[^a-z0-9])|倍镜|瞄",
+            + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9.])(?!(\d+\.\d+|9|10)x(1[7-9]|[2-9]\d|1\d\d)(?!\d))\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
             RegexOptions.IgnoreCase);
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));

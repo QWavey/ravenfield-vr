@@ -633,7 +633,7 @@ namespace RavenfieldVR.Weapons
                 _lagInit = false;
                 return;
             }
-            Vector3 v = main.Velocity;
+            Vector3 v = main.BodyRelativeVelocity;
             if (!_lagInit)
             {
                 _handVelPrev = v;
@@ -1241,6 +1241,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The gun's solid for a hand racking the action: recesses (an ejection port) closed over.</summary>
         private bool ClosedGunSolid(Vector3 p) => _volume.SolidClosed(p) || _magSolidShown && _magVolume.Solid(p);
+
+        /// <summary>Self-test: the point is between the gun's two sides as seen from the side (inside a grip, not beside it).</summary>
+        internal bool InsideGunFromSide(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideSideView(world);
 
         /// <summary>The point is inside the drawn gun (its measured shape, not grown): what hides a muzzle flash from an eye.</summary>
         internal bool InsideDrawnGun(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideModel(world);

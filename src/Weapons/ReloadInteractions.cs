@@ -2058,6 +2058,91 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// A magazine on its way into the well, measured: how far the hand has turned into the push on its base plate, how
+        /// much of the free glove is inside the gun hand, and how much of what has gone in lies outside the gun's own shape
+        /// (a magazine going up beside the grip instead of into it: drawn over the grip's outside on the 1911, GLOCK 43X,
+        /// P320s; user, 2026-10-16; the line check could not see it: it measured the magazine against its own rail).
+        /// </summary>
+        private string SeatingState(VRHand off, MagazineProp prop)
+        {
+            var sb = new System.Text.StringBuilder();
+            float frac = prop.OnRail ? prop.RailDepth / Mathf.Max(prop.RailLength, 1e-4f) : 0f;
+            sb.Append($"rail {frac * 100f:0}%, push {(off.Model != null ? off.Model.PushWeight : 0f):0.00}");
+            HandModel gunHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
+            if (off.Model != null && gunHand != null)
+            {
+                off.Model.Measure(p => gunHand.NearSkin(p, 0f), p => false, out int inHand, out int samples, out _);
+                if (inHand >= 0)
+                {
+                    sb.Append($", glove in the gun hand {inHand}/{samples}{(inHand > 4 ? " (GLOVES OVERLAP)" : "")}");
+                    Core.AutoTest.Metric("magazine (deep): free glove points inside the gun hand while seating", inHand);
+                }
+            }
+            if (prop.Go != null && prop.OnRail && prop.RailDepth > 0.01f)
+            {
+                // What has gone in: the magazine's top, as deep as it is along the rail, sampled inside its body (a box 70%
+                // of its size); each point should be inside the gun's drawn shape.
+                Transform t = prop.Go.transform;
+                Vector3 side = Vector3.Cross(prop.InsertDirLocal, prop.FrontLocal).normalized;
+                float inDepth = Mathf.Min(prop.RailDepth, Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal));
+                Bounds box = MagBoxLocal(prop);
+                int inside = 0, total = 0;
+                for (int a = 0; a < 5; a++)
+                {
+                    for (int f = -1; f <= 1; f++)
+                    {
+                        for (int s = -1; s <= 1; s++)
+                        {
+                            Vector3 local = prop.TipLocal - prop.InsertDirLocal * (inDepth * (0.1f + 0.8f * a / 4f))
+                                            + prop.FrontLocal * (f * Mathf.Abs(Vector3.Dot(box.extents, Abs(prop.FrontLocal))) * 0.7f)
+                                            + side * (s * Mathf.Abs(Vector3.Dot(box.extents, Abs(side))) * 0.7f);
+                            total++;
+                            inside += _held.InsideGunFromSide(t.TransformPoint(local)) ? 1 : 0;
+                        }
+                    }
+                }
+                float outside = total > 0 ? 1f - inside / (float)total : 0f;
+                Core.AutoTest.Metric("magazine (deep): share of what has gone in that shows beside the gun's sides", outside * 100f);
+                sb.Append($", {outside * 100f:0}% of what has gone in shows beside the gun's sides{(outside > 0.25f ? " (GOES IN BESIDE THE WELL)" : "")}");
+            }
+            return sb.ToString();
+        }
+
+        private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+        private static Bounds MagBoxLocal(MagazineProp prop)
+        {
+            Vector3 mid = (prop.TipLocal + prop.BaseLocal) * 0.5f;
+            Vector3 size = new Vector3(0.03f, 0.03f, 0.03f);
+            if (prop.Go != null)
+            {
+                Matrix4x4 toRoot = prop.Go.transform.worldToLocalMatrix;
+                bool any = false;
+                var b = new Bounds(mid, Vector3.zero);
+                foreach (MeshFilter mf in prop.Go.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (mf.sharedMesh == null)
+                    {
+                        continue;
+                    }
+                    Bounds mb = mf.sharedMesh.bounds;
+                    Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3 c = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                        b.Encapsulate(m.MultiplyPoint3x4(c));
+                        any = true;
+                    }
+                }
+                if (any)
+                {
+                    return b;
+                }
+            }
+            return new Bounds(mid, size);
+        }
+
+        /// <summary>
         /// Whether the rocket in the hand is drawn with the launcher's own meshes (those it shows loaded): "the launcher's own
         /// rocket", or NOT THE LAUNCHER'S ROCKET with what it is instead.
         /// </summary>
@@ -2566,12 +2651,20 @@ namespace RavenfieldVR.Weapons
                 sideShot("mag-5-lined-up", freshTip - outWorld * 0.07f, 0.5f);
                 // In until it is half way along its rail (a long magazine only meets the rail near the well).
                 float halfIn = 0.03f;
+                bool shot30 = false, shot60 = false, shot85 = false;
                 for (float below = 0.03f; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && !Ammo.MagInserted
                                           && !(fresh.OnRail && fresh.RailDepth >= fresh.RailLength * 0.5f); below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
                 {
                     PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.3f);
                     halfIn = below;
                     yield return null;
+                    if (!shot30 && fresh.OnRail && fresh.RailDepth >= fresh.RailLength * 0.3f)
+                    {
+                        shot30 = true;
+                        yield return new WaitForEndOfFrame();
+                        lines.Add("30% in: " + SeatingState(off, fresh));
+                        sideShot("mag-6a-30-in", fresh.Go.transform.TransformPoint(fresh.TipLocal), 0.22f);
+                    }
                 }
                 yield return new WaitForEndOfFrame();
                 if (fresh.Go != null && !Ammo.MagInserted && DrawnBounds(fresh.Go.transform, out Bounds half))
@@ -2584,11 +2677,30 @@ namespace RavenfieldVR.Weapons
                     Core.AutoTest.Metric("magazine (deep): cm off the magwell line half way in", off1 * 100f);
                     lines.Add($"half way in ({(fresh.OnRail ? "on the rail" : "NOT ON THE RAIL")}): {off1 * 100f:0.0} cm off the magwell line{(ownDrawn && off1 > 0.012f ? " (SLIDES IN BESIDE THE WELL)" : "")}");
                 }
+                lines.Add("half in: " + SeatingState(off, fresh));
                 sideShot("mag-6-half-in", Rig.ToWorld(ownGun), 0.32f);
                 for (float below = halfIn; below > -length - 0.03f && ReferenceEquals(off.Held, fresh) && fresh.Go != null && !Ammo.MagInserted; below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
                 {
                     PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.3f);
                     yield return null;
+                    if (fresh.Go == null || Ammo.MagInserted)
+                    {
+                        break;
+                    }
+                    float frac = fresh.OnRail ? fresh.RailDepth / Mathf.Max(fresh.RailLength, 1e-4f) : 0f;
+                    if (!shot60 && frac >= 0.6f || !shot85 && frac >= 0.85f)
+                    {
+                        string which = !shot60 && frac < 0.85f ? "60" : "85";
+                        shot60 = true;
+                        shot85 |= which == "85";
+                        yield return new WaitForEndOfFrame();
+                        if (fresh.Go == null)
+                        {
+                            break;
+                        }
+                        lines.Add(which + "% in: " + SeatingState(off, fresh));
+                        sideShot($"mag-6{(which == "60" ? "b" : "c")}-{which}-in", fresh.Go.transform.TransformPoint(fresh.BaseLocal), 0.22f);
+                    }
                 }
                 for (int wait = 0; wait < 30 && !Ammo.MagInserted; wait++)
                 {

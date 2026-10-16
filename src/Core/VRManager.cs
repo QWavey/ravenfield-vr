@@ -50,14 +50,14 @@ namespace RavenfieldVR.Core
                 Log.Info("Not starting VR: " + reason + " Launch with -vr to force it.");
                 if (reason != null && !reason.StartsWith("-novr", StringComparison.Ordinal))
                 {
-                    FlatNotice("VR not started: " + reason + "\nStart SteamVR (with the headset connected), then press F8 here, or start the game after SteamVR.");
+                    FlatNotice("VR not started: " + reason + "\nStart SteamVR (with the headset connected), then press F6 here, or start the game after SteamVR.");
                 }
                 yield break;
             }
             if (!OpenVRRuntime.Start())
             {
                 Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError);
-                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nCheck SteamVR and the headset, then press F8 to try again.");
+                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nCheck SteamVR and the headset, then press F6 to try again.");
                 yield break;
             }
             _flatNotice = null;
@@ -137,7 +137,7 @@ namespace RavenfieldVR.Core
         }
 
         // Flat play because VR did not start: said on the screen (it was only a log line, and the game simply came up flat
-        // when SteamVR had not been started first), with F8 to try again once SteamVR runs.
+        // when SteamVR had not been started first), with F6 to try again once SteamVR runs (F7-F11 are the game's own).
         private string _flatNotice;
         private float _flatNoticeUntil;
         private bool _retry, _retrying;
@@ -164,7 +164,7 @@ namespace RavenfieldVR.Core
         {
             if (!_active)
             {
-                if (_flatNotice != null && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F8))
+                if (_flatNotice != null && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F6))
                 {
                     _retrying = true;
                     _retry = true;

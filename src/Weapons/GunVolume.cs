@@ -211,6 +211,29 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        /// <summary>
+        /// Between the model's two sides as the side view sees it (the first view looks along the gun's right axis and keeps
+        /// both of its surfaces): a magazine inside a grip is, one going up beside it or in front of it is not. The other views
+        /// leave a magazine well open from below, so this asks the side view alone (self-test).
+        /// </summary>
+        public bool InsideSideView(Vector3 world)
+        {
+            if (!_ready || _views.Length == 0)
+            {
+                return false;
+            }
+            View v = _views[0];
+            Vector3 q = v.ToView * (_inv * (world - _pos));
+            int i = Mathf.FloorToInt((q.x - v.MinX) / v.Texel);
+            int j = Mathf.FloorToInt((q.y - v.MinY) / v.Texel);
+            if (i < 0 || j < 0 || i >= v.W || j >= v.H)
+            {
+                return false;
+            }
+            int k = j * v.W + i;
+            return q.z >= v.BareNear[k] && q.z <= v.BareFar[k];
+        }
+
         /// <summary>Inside the model itself, not grown (self-test: how deep a hand sinks into the gun).</summary>
         public bool InsideModel(Vector3 world) => _ready && Test(_inv * (world - _pos), false);
 

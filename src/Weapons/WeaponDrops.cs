@@ -843,6 +843,21 @@ namespace RavenfieldVR.Weapons
                     Remove(d);
                 }
             }
+            // Weapons kept after a swap pile up only so far: past six, the oldest of them goes (the drop cap left them out).
+            int kept = 0;
+            foreach (DroppedWeapon d in _drops)
+            {
+                kept += d.Keep ? 1 : 0;
+            }
+            for (int i = 0; i < _drops.Count && kept > 6; i++)
+            {
+                if (_drops[i].Keep && _drops[i].OwnerSlot < 0)
+                {
+                    Remove(_drops[i]);
+                    i--;
+                    kept--;
+                }
+            }
             // Oldest first when over the cap; your own weapon waiting to go back to its holster is never one of them.
             int count = 0;
             foreach (DroppedWeapon d in _drops)

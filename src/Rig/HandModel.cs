@@ -440,6 +440,9 @@ namespace RavenfieldVR.Rig
         public int PushBlendFrame = -10;
         private float _push;
 
+        /// <summary>Self-test: how far the hand has turned into the push on a magazine's base plate now (0..1).</summary>
+        internal float PushWeight => _push;
+
         // The push: thumb away, the fingers loosely curled under the gun hand's (thumb, index, middle, ring, little).
         private static float[] PushCurls => HandPoses.Get(HandPoseId.PalmPush).Curls;
 
