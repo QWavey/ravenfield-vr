@@ -841,7 +841,20 @@ namespace RavenfieldVR.Weapons
             d.HandsMethod = handR != null && handL != null ? "arm rig" : handR != null ? "right hand only" : "estimated";
             if (Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis) < 0.07f)
             {
-                d.IsPistol = true; // support hand cups the grip: no foregrip steering
+                float reach = Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis);
+                if (!d.Handgun && reach > 0.3f)
+                {
+                    // A long gun's support hand is never behind its grip: the PPSh-41's reload rests the left hand on the
+                    // magazine, and taken as a pistol the support hand cupped a gun hand that was not there, the gun held in
+                    // the air (user, 2026-10-16). On the forend instead, as the estimate without a left hand.
+                    d.SupportPoint = d.GripPoint + d.AimAxis * Mathf.Min(0.24f, reach * 0.45f);
+                    d.HasSupportPoint = true;
+                    d.Notes += "support hand on the forend (the animation's left hand was behind the grip) ";
+                }
+                else
+                {
+                    d.IsPistol = true; // support hand cups the grip: no foregrip steering
+                }
             }
         }
 
