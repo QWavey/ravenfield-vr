@@ -77,6 +77,10 @@ namespace RavenfieldVR.Weapons
                 _armed = true;
                 hand.Haptic(0.02f, 100f, 0.3f);
             }
+            if (_armed && GameContextBlocksThrow())
+            {
+                _armed = false; // armed, then a menu opened: letting go in the menu must not throw it (85-agent review)
+            }
             if (_armed && VRInput.GetReleased(DigitalAction.Fire, hand.Side))
             {
                 _armed = false;

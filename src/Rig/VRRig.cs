@@ -491,6 +491,9 @@ namespace RavenfieldVR.Rig
                 return;
             }
             bool allowed = Mode == RigMode.OnFoot || (Mode == RigMode.Anchored && !VehicleInput.BlocksTurning(GameContext.SeatKind));
+            // Not while a hand holds a car's wheel or a flight stick: the turn swings the hand round the head (a 30 degree
+            // snap about 30 cm), which read as tens of degrees of steering and held the car at full lock (85-agent review).
+            allowed &= !(Hands[0] != null && Hands[0].Role == HandRole.Cockpit || Hands[1] != null && Hands[1].Role == HandRole.Cockpit);
             if (!allowed)
             {
                 return;

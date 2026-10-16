@@ -1339,8 +1339,12 @@ namespace RavenfieldVR.Weapons
             }
             if (d.SlidePath != null)
             {
-                // A moving part was found. A separate charging handle, or a pistol's slide, is where the hand takes it.
-                if (d.HandlePath != null || d.IsPistol || Vector3.Distance(bestStart, d.RackPoint) < 0.03f)
+                // A moving part was found. A separate charging handle, or a pistol's slide, is where the hand takes it; so is
+                // a part found as the very thing the reload hand pulls (its bone sits a few centimetres off the handle it
+                // holds, and the handle was taken for a carrier inside: a knob was added there while the model's own handle
+                // moved elsewhere, on the f2000s, MG3s, MRADs, RK-44 and M4A1s; user, 2026-10-16).
+                if (d.HandlePath != null || d.IsPistol || Vector3.Distance(bestStart, d.RackPoint) < 0.03f
+                    || d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
                 {
                     return;
                 }
