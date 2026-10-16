@@ -92,7 +92,7 @@ namespace RavenfieldVR.Weapons
             {
                 return Kind.Shell;
             }
-            if (d.IsPistol)
+            if (d.Handgun)
             {
                 return Kind.Pistol;
             }

@@ -187,7 +187,7 @@ namespace RavenfieldVR.Weapons
                 _lagPitch = 6f;
             }
             _weaponClass = ClassOf(rig, weapon);
-            if (!rig.Data.IsPistol && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
+            if (!rig.Data.Handgun && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
             {
                 // The rearmost part of the drawn gun, 12 cm or more behind the grip, is a stock's butt.
                 Bounds b = GunCollider.VisibleBounds(rig, out bool measured);
@@ -920,7 +920,7 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                strength *= fd.IsPistol ? oneHand : oneHand * (1f - VRConfig.TwoHandRecoilReduction.Value);
+                strength *= fd.Handgun ? oneHand : oneHand * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
             float kick = ShotKick(c, fd, kind, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
@@ -991,7 +991,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal void Nudge(Vector3 velocityWorld, float dip = 0f)
         {
-            float mass = Rig.Data.IsPistol ? 1.3f : Rig.Data.IsMachineGun ? 0.6f : 1f;
+            float mass = Rig.Data.Handgun ? 1.3f : Rig.Data.IsMachineGun ? 0.6f : 1f;
             Vector3 local = Quaternion.Inverse(GripWorld.rotation) * velocityWorld;
             _recoilPosVel += Vector3.ClampMagnitude(local * mass, 0.5f);
             _recoilRotVel.x += dip * mass;
@@ -1048,7 +1048,7 @@ namespace RavenfieldVR.Weapons
             // climbs more: the kick is stronger one-handed, see _oneHandRecoil).
             // Softer than before (260 / 150): the kick stays in view long enough to be seen and felt, and comes back in about
             // a quarter second.
-            bool oneHandLong = VRConfig.WeaponWeight.Value && !Rig.Data.IsPistol && !Supported && !Shouldered;
+            bool oneHandLong = VRConfig.WeaponWeight.Value && !Rig.Data.Handgun && !Supported && !Shouldered;
             float stiffness = oneHandLong ? 90f : 150f, damping = 2f * Mathf.Sqrt(stiffness);
             _recoilPosVel += (-stiffness * _recoilPos - damping * _recoilPosVel) * dt;
             _recoilPos += _recoilPosVel * dt;

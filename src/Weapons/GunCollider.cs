@@ -514,8 +514,10 @@ namespace RavenfieldVR.Weapons
         {
             Quaternion inv = Quaternion.Inverse(frame);
             float muzzle = (inv * (d.MuzzlePoint - origin)).z;
-            float halfWidth = d.IsPistol ? 0.035f : 0.07f;
-            envMin = new Vector3(-halfWidth, -0.22f, d.IsPistol ? -0.07f : -0.45f);
+            // A handgun's by its slot: a rifle whose support hand cups the grip is held like a pistol but is as long as a
+            // rifle (its shape was cut to a pistol's box; bug hunt 251.2).
+            float halfWidth = d.Handgun ? 0.035f : 0.07f;
+            envMin = new Vector3(-halfWidth, -0.22f, d.Handgun ? -0.07f : -0.45f);
             envMax = new Vector3(halfWidth, 0.16f, Mathf.Max(muzzle, 0.1f) + 0.03f);
             if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Action == ActionType.NoAmmo)
             {
@@ -557,7 +559,7 @@ namespace RavenfieldVR.Weapons
             if (kept.Count == 0)
             {
                 // No measurable mesh: a slim box from just behind the grip to the muzzle.
-                var min = new Vector3(-0.025f, -0.1f, d.IsPistol ? -0.04f : -0.25f);
+                var min = new Vector3(-0.025f, -0.1f, d.Handgun ? -0.04f : -0.25f);
                 var max = new Vector3(0.025f, 0.07f, envMax.z);
                 kept.Add(ShapeFit.BoxPiece((min + max) * 0.5f, max - min));
             }
