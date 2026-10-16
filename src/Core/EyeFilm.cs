@@ -76,7 +76,8 @@ namespace RavenfieldVR.Core
         internal System.Collections.IEnumerator Finish()
         {
             _recording = false;
-            for (float until = Time.realtimeSinceStartup + 3f; _pending > 0 && Time.realtimeSinceStartup < until;)
+            // Every read-back back first (a slow one at the end was lost after 3 s and enqueued after the writer stopped).
+            for (float until = Time.realtimeSinceStartup + 120f; _pending > 0 && Time.realtimeSinceStartup < until;)
             {
                 yield return null;
             }
@@ -115,6 +116,7 @@ namespace RavenfieldVR.Core
 
         private CommandBuffer _copy;
         private bool _mono;
+        private int _skipFrame = -1;
 
         private void OnPostRender()
         {
@@ -128,6 +130,18 @@ namespace RavenfieldVR.Core
                 return;
             }
             int eye = _mono || e == Camera.MonoOrStereoscopicEye.Left ? 0 : 1;
+            // The writer behind (half a megabyte a picture): this frame is left out, both eyes of it, instead of the queue
+            // growing by tens of megabytes a second (85-agent review).
+            if (_skipFrame == Time.frameCount)
+            {
+                return;
+            }
+            if (eye == 0 && Queued + _pending > 48)
+            {
+                _skipFrame = Time.frameCount;
+                _frames.Append(Time.frameCount).Append('\t').AppendLine("skipped (the writer is behind)");
+                return;
+            }
             int sw = Mathf.Max(1, _cam.pixelWidth), sh = Mathf.Max(1, _cam.pixelHeight);
             int w = Width, h = Mathf.Max(2, Mathf.RoundToInt(Width * (float)sh / sw));
             RenderTexture rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
