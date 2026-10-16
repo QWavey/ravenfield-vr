@@ -1721,6 +1721,10 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
+            if (weapon is MeleeWeapon)
+            {
+                return false; // a blade is held in the glove: a 'Medic Knife' (no projectile) matched the name below
+            }
             return System.Text.RegularExpressions.Regex.IsMatch(weapon.name, @"\b(bag|kit|medkit|medic|ammo ?box|first ?aid)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
