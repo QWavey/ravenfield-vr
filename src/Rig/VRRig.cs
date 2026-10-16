@@ -988,7 +988,10 @@ namespace RavenfieldVR.Rig
 
         private void UpdatePostProcessing(Camera reference)
         {
-            bool want = VRConfig.PostProcessing.Value;
+            // The game's night vision is a post-process profile (its green grade) on a volume the goggles switch on: drawn in
+            // the headset only with post-processing, which is off by default, so the eyes got only the grey actor glow
+            // (user, 2026-10-16: "it's just grey, and on the flat screen"). On while the goggles are.
+            bool want = VRConfig.PostProcessing.Value || NightVision.isEnabled;
             PostProcessLayer source = reference.GetComponent<PostProcessLayer>();
             if (!want || source == null || PpResources == null)
             {
@@ -1085,6 +1088,22 @@ namespace RavenfieldVR.Rig
             }
             rig.AddYaw(input.x);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// The goggles' tube vignette is a flat screen picture: in VR it became a 72-degree frame floating in front of the eyes.
+    /// Hidden there; the green grade (VRRig.UpdatePostProcessing) covers the whole view.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(NightVision), nameof(NightVision.ToggleEnable))]
+    internal static class NightVisionVignettePatch
+    {
+        private static void Postfix(NightVision __instance)
+        {
+            if (VRManager.Active && __instance != null && __instance.vignette != null)
+            {
+                __instance.vignette.enabled = false;
+            }
         }
     }
 }
