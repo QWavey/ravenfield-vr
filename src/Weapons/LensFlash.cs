@@ -348,17 +348,19 @@ namespace RavenfieldVR.Weapons
 
         private void UpdateGlow(float now, float dt)
         {
-            LensEffects fx = LensEffects.Instance;
-            if (fx == null)
-            {
-                return;
-            }
+            // Prune the shot times first, before the no-effects return: OnShot keeps adding to them, so with the lens off
+            // (no additive shader) the list would otherwise grow all session.
             for (int i = _shots.Count - 1; i >= 0; i--)
             {
                 if (now - _shots[i] > 0.5f)
                 {
                     _shots.RemoveAt(i);
                 }
+            }
+            LensEffects fx = LensEffects.Instance;
+            if (fx == null)
+            {
+                return;
             }
             Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
