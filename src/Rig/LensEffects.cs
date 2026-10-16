@@ -90,7 +90,7 @@ namespace RavenfieldVR.Rig
         private readonly Color32[][] _out = { new Color32[CW * CH], new Color32[CW * CH] };
         private readonly float[][] _acc = { new float[CW * CH * 3], new float[CW * CH * 3] };
         private readonly GameObject[] _quads = new GameObject[3];
-        private readonly bool _ok;
+        private bool _ok;
 
         // Inputs, main thread.
         private readonly List<Flash>[] _flashes = { new List<Flash>(), new List<Flash>() };
@@ -105,7 +105,7 @@ namespace RavenfieldVR.Rig
         // The worker.
         // Four bands drawn at once (each eye's top and bottom half): band 0 on the worker itself, 1-3 on threads of their own.
         private const int Bands = 4;
-        private readonly Thread _thread;
+        private Thread _thread;
         private readonly Thread[] _bandThreads = new Thread[Bands];
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private readonly AutoResetEvent[] _bandWake = new AutoResetEvent[Bands], _bandDone = new AutoResetEvent[Bands];
@@ -154,6 +154,10 @@ namespace RavenfieldVR.Rig
         private float[] _dropField, _dropShade;
         private int _dropsMadeFor;
         private readonly float[][] _washX = { new float[CW], new float[CW], new float[CW], new float[CW] }, _washY = { new float[CH], new float[CH], new float[CH], new float[CH] };
+        // One stopwatch for the worker (it is the only thread that times a frame), reused each frame instead of allocating.
+        private readonly System.Diagnostics.Stopwatch _workWatch = new System.Diagnostics.Stopwatch();
+        // The last IPD the three quads were placed for: their local transforms only change with it (depth is fixed).
+        private float _lastQuadIpd = float.NaN;
 
         public LensEffects(VRRig rig)
         {
@@ -167,6 +171,30 @@ namespace RavenfieldVR.Rig
                 Instance = null; // nothing to draw on: shots no longer add flashes that are never drawn (85-agent review)
                 return;
             }
+            try
+            {
+                Build(rig, additive);
+                _ok = true;
+            }
+            catch
+            {
+                // A throw while making the textures, quads or threads: do not stay the Instance with _ok false, or shots pile
+                // flashes into lists nothing prunes and the quads never show. Tear the quads down and let the caller log it.
+                for (int q = 0; q < 3; q++)
+                {
+                    if (_quads[q] != null)
+                    {
+                        UnityEngine.Object.Destroy(_quads[q]);
+                        _quads[q] = null;
+                    }
+                }
+                Instance = null;
+                throw;
+            }
+        }
+
+        private void Build(VRRig rig, Shader additive)
+        {
             Mesh quad = QuadMesh();
             for (int e = 0; e < 2; e++)
             {
@@ -212,7 +240,6 @@ namespace RavenfieldVR.Rig
                 _bandThreads[b].Start();
             }
             _thread.Start();
-            _ok = true;
         }
 
         private static Shader FindAdditive()
@@ -260,6 +287,10 @@ namespace RavenfieldVR.Rig
 
         internal void AddFlash(int eye, Flash f)
         {
+            if (!_ok)
+            {
+                return; // a half-built instance (a throw during construction) must not pile flashes into a list nothing prunes
+            }
             f.Drawn = -1f;
             f.Serial = ++_nextSerial;
             _flashes[eye].Add(f);
@@ -409,10 +440,20 @@ namespace RavenfieldVR.Rig
                 j.HitDirX = -Mathf.Sin(rad);
                 j.HitDirY = -Mathf.Cos(rad);
                 j.HitBalance = _hitBalance;
-                // Both eyes, the one on the hit's side at full strength, the other down to 0.55.
+                // Both eyes, the one on the hit's side at full strength, the other down to 0.55. In single-pass stereo only
+                // the one centred picture (the right eye's) is shown to both eyes, so it must not be dimmed to one side: a
+                // hit from the left used to glow at 55% because that is the eye whose picture is displayed.
                 float side = j.HitDirX;
-                j.HitEye[0] = side > 0f ? 1f - 0.45f * side : 1f;
-                j.HitEye[1] = side < 0f ? 1f + 0.45f * side : 1f;
+                if (LensEye.SinglePass)
+                {
+                    j.HitEye[0] = 1f;
+                    j.HitEye[1] = 1f;
+                }
+                else
+                {
+                    j.HitEye[0] = side > 0f ? 1f - 0.45f * side : 1f;
+                    j.HitEye[1] = side < 0f ? 1f + 0.45f * side : 1f;
+                }
                 j.LowHealth = dead ? 0f : _lowHealth;
                 j.Drops = dead || !(VRConfig.WaterDrops.Value || TestDrops) ? 0f : DropsFade(now);
                 j.DropsSeed = _dropsSeed;
@@ -438,15 +479,20 @@ namespace RavenfieldVR.Rig
             if (_shownAny)
             {
                 float ipd = Ipd;
-                for (int q = 0; q < 3; q++)
+                // The quads sit at a fixed depth under the camera, so their local transforms only change when the IPD does.
+                if (!Mathf.Approximately(ipd, _lastQuadIpd))
                 {
-                    // Single-pass stereo draws the one centred quad for both eyes: far off (20 m, the same size in view), so
-                    // each eye sees it straight ahead of itself. At a hand's width it sat about 7 degrees off in each eye.
-                    float d = q == 2 && LensEye.SinglePass ? 20f : Distance;
-                    Transform t = _quads[q].transform;
-                    t.localPosition = new Vector3(q == 0 ? -ipd / 2f : q == 1 ? ipd / 2f : 0f, 0f, d);
-                    t.localRotation = Quaternion.identity;
-                    t.localScale = new Vector3(CW / Focal * d, CH / Focal * d, 1f);
+                    _lastQuadIpd = ipd;
+                    for (int q = 0; q < 3; q++)
+                    {
+                        // Single-pass stereo draws the one centred quad for both eyes: far off (20 m, the same size in view),
+                        // so each eye sees it straight ahead of itself. At a hand's width it sat about 7 degrees off per eye.
+                        float d = q == 2 && LensEye.SinglePass ? 20f : Distance;
+                        Transform t = _quads[q].transform;
+                        t.localPosition = new Vector3(q == 0 ? -ipd / 2f : q == 1 ? ipd / 2f : 0f, 0f, d);
+                        t.localRotation = Quaternion.identity;
+                        t.localScale = new Vector3(CW / Focal * d, CH / Focal * d, 1f);
+                    }
                 }
             }
         }
@@ -549,7 +595,7 @@ namespace RavenfieldVR.Rig
                 {
                     return;
                 }
-                var watch = System.Diagnostics.Stopwatch.StartNew();
+                _workWatch.Restart();
                 bool madeDrops = false;
                 try
                 {
@@ -588,7 +634,7 @@ namespace RavenfieldVR.Rig
                     _workerError = ex;
                     _failed = true; // half drawn: not shown
                 }
-                float ms = (float)watch.Elapsed.TotalMilliseconds;
+                float ms = (float)_workWatch.Elapsed.TotalMilliseconds;
                 _workMs = ms;
                 if (ms > _workMsMax && !madeDrops)
                 {
@@ -626,9 +672,27 @@ namespace RavenfieldVR.Rig
             int eye = band >> 1;
             int y0 = (band & 1) == 0 ? 0 : CH / 2, y1 = (band & 1) == 0 ? CH / 2 : CH;
             float[] acc = _acc[eye];
-            Array.Clear(acc, y0 * CW * 3, (y1 - y0) * CW * 3);
             bool flash = false;
             float side = j.Side[eye], strongest = 0f;
+            // The accumulator is read only under the flash branch of the tone loop. On a hit-only or low-health-only frame
+            // nothing writes or reads it, so clearing ~775 KB a band is wasted: clear it only when a glow or a live flash
+            // will actually use it.
+            bool willFlash = j.Glow[eye] > 1e-3f;
+            if (!willFlash)
+            {
+                foreach (Flash f in j.Flashes[eye])
+                {
+                    if (f.Age >= 0f && f.Age <= Life)
+                    {
+                        willFlash = true;
+                        break;
+                    }
+                }
+            }
+            if (willFlash)
+            {
+                Array.Clear(acc, y0 * CW * 3, (y1 - y0) * CW * 3);
+            }
             if (j.Glow[eye] > 1e-3f)
             {
                 LensFlash(band, y0, y1, acc, j.GlowX[eye], j.GlowY[eye], j.Glow[eye], 0f, side, false, j.GlowVis[eye]);
@@ -926,7 +990,9 @@ namespace RavenfieldVR.Rig
             _dropShade = _dropShade ?? new float[CW * S * CH * S * 3];
             for (int e = 0; e < 2; e++)
             {
-                float shift = e == 0 ? 2.5f : -2.5f;
+                // No stereo shift in single-pass: both eyes are shown the one centred picture, so a per-eye shift would
+                // displace the drops rather than give them depth.
+                float shift = LensEye.SinglePass ? 0f : (e == 0 ? 2.5f : -2.5f);
                 DropField(drops, shift, _dropField);
                 ShadeDrops(_dropField, _dropShade, _drops[e]);
             }
@@ -1177,6 +1243,9 @@ namespace RavenfieldVR.Rig
         public Camera Head;
         public Texture Picture;
         private MaterialPropertyBlock _block;
+        private bool _applied;
+        private bool _lastShow;
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
         internal static readonly bool SinglePass = UnityEngine.XR.XRSettings.stereoRenderingMode != UnityEngine.XR.XRSettings.StereoRenderingMode.MultiPass;
 
         private void OnWillRenderObject()
@@ -1205,10 +1274,16 @@ namespace RavenfieldVR.Rig
             {
                 show = Eye == 2 && e == Camera.MonoOrStereoscopicEye.Mono && Head != null && (cam.transform.position - Head.transform.position).sqrMagnitude < 1e-4f;
             }
-            // The other eyes get black, which adds nothing (whatever tint the additive shader has, or lacks).
-            _block = _block ?? new MaterialPropertyBlock();
-            _block.SetTexture("_MainTex", show ? Picture : Texture2D.blackTexture);
-            Renderer.SetPropertyBlock(_block);
+            // The other eyes get black, which adds nothing (whatever tint the additive shader has, or lacks). The texture only
+            // changes when show flips, so the property block is resent only then (every frame in single-pass it is steady).
+            if (!_applied || show != _lastShow)
+            {
+                _applied = true;
+                _lastShow = show;
+                _block = _block ?? new MaterialPropertyBlock();
+                _block.SetTexture(MainTexId, show ? Picture : Texture2D.blackTexture);
+                Renderer.SetPropertyBlock(_block);
+            }
         }
     }
 }
