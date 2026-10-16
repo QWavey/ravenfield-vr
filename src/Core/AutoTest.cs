@@ -917,10 +917,18 @@ namespace RavenfieldVR.Core
                 Runtime.RigidPose g = held.GripWorld;
                 Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
                 Vector3 well = held.Rig.ToWorld(held.Rig.Data.MagSeat.position);
-                Vector3 from = well - right * 0.42f - up * 0.06f;
+                float away = 0.42f;
+                if (held.Rig.Data.Action == ActionType.SingleShot)
+                {
+                    // A launcher: the tube's mouth and the 20 cm in front of it, where the rocket goes in, from 1.1 m off its
+                    // side (42 cm off the seat the camera sat inside a HYDRA's tube and filmed a red wall).
+                    well = held.Rig.ToWorld(held.Rig.Data.MuzzlePoint) + held.Rig.AimWorld * 0.2f;
+                    away = 1.1f;
+                }
+                Vector3 from = well - right * away - up * 0.06f;
                 if (InsideWeapon(held, from))
                 {
-                    from = well + right * 0.42f - up * 0.06f;
+                    from = well + right * away - up * 0.06f;
                 }
                 Vector3 fromGun = held.Rig.ToGun(from), wellGun = held.Rig.ToGun(well), upGun = Quaternion.Inverse(held.Rig.GunBody.rotation) * up;
                 var lines = new List<string>();
