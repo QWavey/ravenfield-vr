@@ -318,7 +318,10 @@ namespace RavenfieldVR.Weapons
             Vector3 outward = fromBore.sqrMagnitude > 1e-6f ? fromBore.normalized : d.Up;
             _knobBase = rackGun + outward * 0.004f;
             _knobRotation = Quaternion.LookRotation(d.AimAxis, outward);
-            go.AddComponent<MeshFilter>().sharedMesh = KnobMesh(d.Handgun);
+            // An AR's charging handle is a T at the back of the receiver: a cube there read as a black block, not a handle
+            // (user, 2026-10-16, mwii-m4holo).
+            bool arT = !d.Handgun && d.SlideMethod != null && d.SlideMethod.Contains("AR-pattern");
+            go.AddComponent<MeshFilter>().sharedMesh = arT ? TMesh() : KnobMesh(d.Handgun);
             MeshRenderer mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
             _pieces.Add(new Piece { T = go.transform });
@@ -329,7 +332,48 @@ namespace RavenfieldVR.Weapons
         private Vector3 _knobBase;
         private Quaternion _knobRotation = Quaternion.identity;
 
-        private static Mesh _knob, _knobPistol;
+        private static Mesh _knob, _knobPistol, _tHandle;
+
+        /// <summary>An AR charging handle's T: a bar across the bore at the back with a short stem forward, low and flat.</summary>
+        private static Mesh TMesh()
+        {
+            if (_tHandle != null)
+            {
+                return _tHandle;
+            }
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Mesh cube = go.GetComponent<MeshFilter>().sharedMesh;
+            Object.Destroy(go);
+            Vector3[] cv = cube.vertices;
+            int[] ct = cube.triangles;
+            Vector2[] cu = cube.uv;
+            var verts = new System.Collections.Generic.List<Vector3>();
+            var tris = new System.Collections.Generic.List<int>();
+            var uvs = new System.Collections.Generic.List<Vector2>();
+            // (centre z along the bore, width x across, length z, height y); the bar's back edge at the rack point.
+            void Box(float z, float wide, float len, float tall)
+            {
+                int start = verts.Count;
+                foreach (Vector3 v in cv)
+                {
+                    verts.Add(new Vector3(v.x * wide, (v.y + 0.5f) * tall, z + v.z * len));
+                }
+                foreach (int t in ct)
+                {
+                    tris.Add(start + t);
+                }
+                uvs.AddRange(cu);
+            }
+            Box(0.006f, 0.042f, 0.012f, 0.008f); // the latch bar, 4.2 cm across
+            Box(0.024f, 0.009f, 0.026f, 0.006f); // the stem into the receiver
+            _tHandle = new Mesh { name = "RavenfieldVR charging handle" };
+            _tHandle.SetVertices(verts);
+            _tHandle.SetTriangles(tris, 0);
+            _tHandle.SetUVs(0, uvs);
+            _tHandle.RecalculateNormals();
+            _tHandle.RecalculateBounds();
+            return _tHandle;
+        }
 
         private static Mesh KnobMesh(bool pistol)
         {

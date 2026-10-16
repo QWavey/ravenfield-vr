@@ -26,6 +26,9 @@ namespace RavenfieldVR.Weapons
         // transliterated) and Chinese (characters and pinyin abbreviations such as DX = 弹匣, QJ = 枪机).
         private static readonly Regex MagName = new Regex(
             @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|missile|warhead|projectile|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
+            // A machine gun's ammunition box (弹箱: the PKM's "PKM d弹箱" scored as an unnamed part against its belt).
+            // (Not a bare "box": modelling tools name every primitive "Box001".)
+            + @"|ammo[ _]?(box|can)|box[ _]?mag|弹箱"
             // (a launcher's missile or warhead: 导弹, 火箭, 战斗部)
             + @"|магазин|патрон|лента|ракета|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳|导弹|火箭|战斗部",
             RegexOptions.IgnoreCase);
@@ -2083,9 +2086,15 @@ namespace RavenfieldVR.Weapons
             d.Notes += $"magazine axis {tilt:0} deg out of the side plane, put back into it ";
         }
 
+        /// <summary>A belt or a piece of one by its name (a plain "ammo" part on a belt-fed gun is its belt: the PKM's AMMO.001).</summary>
+        private static bool IsBeltPiece(string name) => BeltName.IsMatch(name) || Regex.IsMatch(name, @"^ammo([ ._]?\d+)?$", RegexOptions.IgnoreCase)
+                                                        && !Regex.IsMatch(name, @"box|can|弹箱", RegexOptions.IgnoreCase);
+
         private static void AnalyzeMagazine(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
         {
+            // Belt-fed by its size (the feed cover is found after this): a box of 40 rounds or more on an automatic gun.
+            bool beltFed = w.configuration != null && w.configuration.ammo >= 40 && w.configuration.auto;
             Transform mag = null;
             bool toggles = false;
             if (sampler.HasReload)
@@ -2141,7 +2150,18 @@ namespace RavenfieldVR.Weapons
                     // where the flat view's other hand waits, a few tens of centimetres off.
                     // (A launcher's rocket sits out at the tube's mouth, far from the grip: not counted against it.)
                     float inGun = launcher ? 1f : Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
-                    float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * inGun;
+                    float named = IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f;
+                    if (beltFed && IsBeltPiece(t.name))
+                    {
+                        // A belt-fed gun's belt (or a link of it) is never its box: taken for it, only the belt came out into the
+                        // hand, or a link too small to see and only the round count showed (user, 2026-10-16).
+                        if (Longest(sampler.LocalBounds(t)) < 0.06f)
+                        {
+                            continue;
+                        }
+                        named = 0.5f;
+                    }
+                    float score = Mathf.Min(m, 0.4f) * named * inGun;
                     if (score > best)
                     {
                         best = score;
