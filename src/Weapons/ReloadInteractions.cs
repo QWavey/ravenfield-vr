@@ -405,7 +405,8 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            return off.Held is MagazineProp fresh && fresh.Kind == PropKind.Magazine && fresh.Go != null
+            // This gun's kind of magazine only: one picked up from another weapon was taken as the fresh one.
+            return off.Held is MagazineProp fresh && fresh.Kind == PropKind.Magazine && fresh.Go != null && fresh.WeaponKey == Data.Key
                    && fresh.DistanceTo(SeatedMagBaseWorld) < 0.2f;
         }
 

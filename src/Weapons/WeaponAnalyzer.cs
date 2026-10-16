@@ -34,8 +34,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Regex NotMagName = new Regex(
             @"release|catch|button|latch|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
-            // Optics: a magnifier's "Mag 2x" glass is not a magazine.
-            + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9])\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
+            // Optics: a magnifier's "Mag 2x" glass is not a magazine; a calibre is not a magnification ("mag_9x19",
+            // "7.62x39 mag" were taken for optics and their magazines lost).
+            + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9])\d+(\.\d+)?x($|[^a-z0-9])|倍镜|瞄",
             RegexOptions.IgnoreCase);
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
