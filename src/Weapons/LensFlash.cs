@@ -216,8 +216,11 @@ namespace RavenfieldVR.Weapons
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
             {
-                Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
-                                                        + $"(muzzle '{muzzle.name}', particles {MuzzleFlashInfo.Of(w).Particles}, light {MuzzleFlashInfo.Of(w).Light}).");
+                if (MuzzleFlashInfo.Of(w).Any) // a smoke grenade or a knife has no flash to miss
+                {
+                    Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
+                                                            + $"(muzzle '{muzzle.name}', particles {MuzzleFlashInfo.Of(w).Particles}, light {MuzzleFlashInfo.Of(w).Light}).");
+                }
                 return; // no flash on this shot (none on this weapon, or its particles skipped this one)
             }
             Transform head = _rig.Camera.transform;
