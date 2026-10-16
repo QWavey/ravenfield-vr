@@ -551,16 +551,38 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
+        /// Where the glove goes before it settles onto what it holds: the tracked hand, eased onto the palm that holds a
+        /// magazine on the well's line, carried along with a heavy weapon that lags. One function for the glove and the arm
+        /// (the arm's copy left out the held palm and could aim at another point than the glove gripped).
+        /// </summary>
+        private RigidPose PlacedTarget()
+        {
+            // Always the tracked hand: held objects follow the hand, never the reverse.
+            RigidPose target = TrackedTarget();
+            if (_heldPalmWeight > 0f)
+            {
+                Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
+                posOffset.x *= _hand.Mirror;
+                Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
+                RigidPose over = _heldPalmLast.Multiply(new RigidPose(posOffset, rotOffset));
+                float kh = _heldPalmWeight * _heldPalmWeight * (3f - 2f * _heldPalmWeight);
+                target = new RigidPose(Vector3.Lerp(target.position, over.position, kh), Quaternion.Slerp(target.rotation, over.rotation, kh));
+            }
+            // Carried along with a heavy weapon that lags the hand (set every frame by the weapon; a stale one is none).
+            if (Time.frameCount - FollowFrame <= 1)
+            {
+                target = new RigidPose(target.position + FollowOffset, target.rotation);
+            }
+            return target;
+        }
+
+        /// <summary>
         /// <see cref="GraspPointWorld"/> as it will be this frame, from the tracked hand now: the arm is solved before the
         /// glove is placed, and on last frame's point it sat a frame of hand travel off the bolt the glove held (bug hunt).
         /// </summary>
         internal Vector3 GraspPointNow()
         {
-            RigidPose target = TrackedTarget();
-            if (Time.frameCount - FollowFrame <= 1)
-            {
-                target = new RigidPose(target.position + FollowOffset, target.rotation);
-            }
+            RigidPose target = PlacedTarget();
             Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
             return target.TransformPoint(graspLocal);
         }
@@ -577,12 +599,7 @@ namespace RavenfieldVR.Rig
             SetVisible(!Suppressed && !HiddenByHeld);
             float dt = Time.unscaledDeltaTime;
 
-            // The fist closes around the controller's handle (the grip pose), so the palm sits beside it.
-            Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
-            posOffset.x *= _hand.Mirror;
-            Quaternion rotOffset = Quaternion.Euler(_hand.MirrorEuler(VRConfig.ParseVector(VRConfig.HandModelRotation, Vector3.zero)));
-            // Always the tracked hand: held objects follow the hand, never the reverse.
-            RigidPose target = TrackedTarget();
+            // The fist closes around the controller's handle (the grip pose), so the palm sits beside it (TrackedTarget).
             // Holding a magazine on the well's line: the palm where it holds that magazine (eased over the magazine's own
             // 80 ms switch onto and off the line).
             bool heldPalm = Time.frameCount - HeldPalmFrame <= 1;
@@ -591,17 +608,7 @@ namespace RavenfieldVR.Rig
                 _heldPalmLast = HeldPalm;
             }
             _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, dt / 0.08f);
-            if (_heldPalmWeight > 0f)
-            {
-                RigidPose over = _heldPalmLast.Multiply(new RigidPose(posOffset, rotOffset));
-                float kh = _heldPalmWeight * _heldPalmWeight * (3f - 2f * _heldPalmWeight);
-                target = new RigidPose(Vector3.Lerp(target.position, over.position, kh), Quaternion.Slerp(target.rotation, over.rotation, kh));
-            }
-            // Carried along with a heavy weapon that lags the hand (set every frame by the weapon; a stale one is none).
-            if (Time.frameCount - FollowFrame <= 1)
-            {
-                target = new RigidPose(target.position + FollowOffset, target.rotation);
-            }
+            RigidPose target = PlacedTarget();
 
             // Settling onto a held part: a small, smoothed offset, released as soon as the hand lets go.
             Vector3 want = Vector3.zero;

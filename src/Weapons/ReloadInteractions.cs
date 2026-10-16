@@ -2008,7 +2008,7 @@ namespace RavenfieldVR.Weapons
                 Quaternion r = Quaternion.LookRotation(axisW, frontW) * toLocalFrame;
                 return new RigidPose(mid - r * midLocal, r).Multiply(holdToPalm);
             };
-            Vector3 tubeMid = seatedPose.TransformPoint(rocket.TipLocal); // the seated tail: inside the tube, behind its mouth
+            Vector3 seatedTail = seatedPose.TransformPoint(rocket.TipLocal); // inside the tube, behind its mouth: where the probe crosses it
             RigidPose start = off.Palm;
             bool watchBack = false, linedSeen = false;
             // Into the launcher's side (beside the tube, then across it from above): how much of the drawn rocket is inside the
@@ -2103,10 +2103,10 @@ namespace RavenfieldVR.Weapons
                     offRail2.OnRail = false;
                 }
                 start = off.Palm;
-                RigidPose above = palmHolding(tubeMid + upW * 0.35f, rightW, aimW);
+                RigidPose above = palmHolding(seatedTail + upW * 0.35f, rightW, aimW);
                 yield return Move(s => new RigidPose(Vector3.Lerp(start.position, above.position, s), Quaternion.Slerp(start.rotation, above.rotation, s)), 0.5f, "across the tube");
                 watchSide = true;
-                yield return Move(s => palmHolding(tubeMid + upW * (0.35f * (1f - s)), rightW, aimW), 0.6f, "down across the tube");
+                yield return Move(s => palmHolding(seatedTail + upW * (0.35f * (1f - s)), rightW, aimW), 0.6f, "down across the tube");
                 watchSide = false;
                 if (off.Held is MagazineProp offRail3)
                 {

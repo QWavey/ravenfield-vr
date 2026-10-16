@@ -293,7 +293,9 @@ namespace RavenfieldVR.Weapons
             ApplySection(frontHalf, sideHalf);
         }
 
-        private Vector3 _sectionGoal; // front half, side half, cross half
+        private Vector3 _sectionGoal, _sectionFrom; // front half, side half, cross half
+        private float _sectionAt;
+        private int _sectionFrame = -1;
         private bool _sectionEasing;
 
         /// <summary>
@@ -306,7 +308,9 @@ namespace RavenfieldVR.Weapons
             bool wasBox = BoxSized, wasPistol = PistolSized;
             if (HeldBy != null)
             {
+                _sectionFrom = new Vector3(_frontHalf, _sideHalf, CrossHalf);
                 _sectionGoal = goal;
+                _sectionAt = Time.unscaledTime;
                 _sectionEasing = true;
             }
             else
@@ -323,19 +327,23 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Once a frame (the hand's shape is updated once per magazine it holds), linear over 0.1 s; at once when it is not
+        /// held (let go half way it kept the in-between widths until it was picked up again).
+        /// </summary>
         private void EaseSection()
         {
-            if (!_sectionEasing)
+            if (!_sectionEasing || _sectionFrame == Time.frameCount)
             {
                 return;
             }
-            var now = new Vector3(_frontHalf, _sideHalf, CrossHalf);
-            float step = Time.unscaledDeltaTime / 0.1f * Mathf.Max((_sectionGoal - now).magnitude, 1e-4f);
-            now = HeldBy != null ? Vector3.MoveTowards(now, _sectionGoal, Mathf.Max(step, 1e-4f)) : _sectionGoal;
+            _sectionFrame = Time.frameCount;
+            float k = HeldBy != null ? Mathf.Clamp01((Time.unscaledTime - _sectionAt) / 0.1f) : 1f;
+            Vector3 now = Vector3.Lerp(_sectionFrom, _sectionGoal, k);
             _frontHalf = now.x;
             _sideHalf = now.y;
             CrossHalf = now.z;
-            _sectionEasing = (now - _sectionGoal).sqrMagnitude > 1e-10f;
+            _sectionEasing = k < 1f;
         }
 
         /// <summary>
@@ -610,15 +618,16 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// While a loaded launcher is held: a copy of its rocket as it shows now, kept when it measures as the analysis did
         /// (its size within half again, its middle within 3 cm; rocket-sized when the analysis found no box). Tried at most
-        /// twice a second until one is kept, then never again for that launcher; ten tries at most (a copy is meshes made
-        /// and thrown away: a launcher whose rocket never measures right would make them for as long as it is held).
+        /// twice a second for the first five tries, then every ten seconds, until one is kept; thirty tries at most (a copy
+        /// is meshes made and thrown away: a launcher whose rocket never measures right would make them for as long as it is
+        /// held; ten tries half a second apart were all spent in the first five seconds).
         /// </summary>
         internal static void KeepLoadedLook(WeaponRig rig)
         {
             string key = rig.Data.Key;
             if (LoadedLooks.ContainsKey(key) || !CopiesModel(rig, PropKind.Rocket)
-                || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + 0.5f
-                || LoadedLookTries.TryGetValue(key, out int tries) && tries >= 10)
+                || LoadedLookTries.TryGetValue(key, out int tries) && tries >= 30
+                || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + (tries < 5 ? 0.5f : 10f))
             {
                 return;
             }
@@ -673,9 +682,9 @@ namespace RavenfieldVR.Weapons
             foreach (MeshRenderer r in prefab.GetComponentsInChildren<MeshRenderer>(true))
             {
                 MeshFilter mf = r.GetComponent<MeshFilter>();
-                if (!r.enabled || mf == null || mf.sharedMesh == null || GunCollider.SeeThrough(r))
+                if (!r.enabled || mf == null || mf.sharedMesh == null || GunCollider.SeeThrough(r) || !WeaponAnalyzer.ActiveUpTo(r.transform, prefab.transform))
                 {
-                    continue;
+                    continue; // (switched off in the prefab: a flame or a glow it turns on in flight)
                 }
                 Matrix4x4 m = toRoot * r.transform.localToWorldMatrix;
                 parts.Add((r, mf.sharedMesh, m));
@@ -1863,6 +1872,13 @@ namespace RavenfieldVR.Weapons
 
         public void Drop(Vector3 velocity, Vector3 angularVelocity)
         {
+            if (_sectionEasing)
+            {
+                _frontHalf = _sectionGoal.x;
+                _sideHalf = _sectionGoal.y;
+                CrossHalf = _sectionGoal.z;
+                _sectionEasing = false;
+            }
             if (HeldBy != null)
             {
                 if (ReferenceEquals(HeldBy.Held, this))
