@@ -1094,15 +1094,16 @@ namespace RavenfieldVR.Weapons
                     // A rocket held like a stick (along the fist, either end first) at the launcher's mouth: onto the line
                     // as it is, and from there it follows the hand along the tube. It had to be held with its tail out of
                     // the top of the fist within 40 degrees of the tube, and scoped RPGs "could not be reloaded" (Tasks 231).
+                    // Where the hand has it: the line reaches out in front of the mouth. Taken onto the mouth itself, a rocket
+                    // taken 10 cm out jumped 10 cm and stayed ahead of the hand, loaded at 80% of the push (rocket film).
                     lined = true;
-                    prop.RailHandOffset = along - looseDepth;
+                    prop.RailHandOffset = 0f;
                     prop.RailLateral0 = lateral;
-                    along = looseDepth;
                 }
                 if (lined)
                 {
                     prop.OnRail = true;
-                    prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
+                    prop.RailDepth = Mathf.Clamp(along, rocket ? -RocketLineAhead : 0f, prop.RailLength);
                     prop.LastTick = prop.RailDepth;
                     prop.MovingIn = false;
                     prop.TurnDepth = prop.RailDepth;
@@ -1133,7 +1134,8 @@ namespace RavenfieldVR.Weapons
             // A rocket in the tube is held by the tube: it comes out only the way it went in, back out of the mouth. The hand
             // off its line leaves it on the line (it came off sideways through the tube's wall) until the hand is 35 cm off.
             bool inTube = prop.Kind == PropKind.Rocket && prop.RailDepth > 0.03f;
-            if (along < -0.03f || lateral > (inTube ? 0.35f : 0.07f) + prop.RailLateral0)
+            float offLine = prop.Kind == PropKind.Rocket ? -RocketLineAhead - 0.03f : -0.03f;
+            if (along < offLine || lateral > (inTube ? 0.35f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
                 prop.RailHandOffset = 0f;
@@ -1142,7 +1144,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             prop.PrevDepth = prop.RailDepth;
-            prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
+            prop.RailDepth = Mathf.Clamp(along, prop.Kind == PropKind.Rocket ? -RocketLineAhead : 0f, prop.RailLength);
             // Which way it is going, with 3 mm of play: a slow push still turns the hand into the push and a slow pull lets
             // go of it (a millimetre a frame was a speed: slower than 9 cm/s neither ever happened; bug hunt 2026-10-16).
             if (prop.MovingIn ? prop.RailDepth > prop.TurnDepth : prop.RailDepth < prop.TurnDepth)
@@ -1187,6 +1189,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How far past the tube's mouth a rocket's tail may be when it is taken onto the line (it goes in at the front).</summary>
         private const float RocketTakenIn = 0.08f;
+
+        /// <summary>How far in front of the mouth a rocket's line reaches (where it is taken onto it, loosely held).</summary>
+        private const float RocketLineAhead = 0.12f;
 
         /// <summary>
         /// A rocket at the launcher's mouth, loosely held: its tail (the end that goes in) within 12 cm of the tube's line
@@ -1952,8 +1957,11 @@ namespace RavenfieldVR.Weapons
             }
             if (Ammo.MagRounds > 0)
             {
-                report("rocket film: skipped (still loaded)");
-                yield break;
+                // Not fired in the film (a lock-on launcher with nothing to lock on): unloaded, as if fired, rather than
+                // skipped (HYDRA, SCALPEL and AT-1K were never loaded by hand).
+                Ammo.ReturnSpare(Ammo.MagRounds);
+                Ammo.MagRounds = 0;
+                yield return null;
             }
             int side = (int)off.Side;
             // The launcher's measured shape is what the rocket is kept out of: up to 6 s for it (measured a moment after the

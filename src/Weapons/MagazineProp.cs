@@ -641,10 +641,13 @@ namespace RavenfieldVR.Weapons
             Bounds analysed = rig.Data.MagBounds;
             Bounds b = MeasureCopy(go, out bool any);
             float size = b.size.magnitude, expected = analysed.size.magnitude;
+            // Only a copy shrunk or moved away is refused (after the shot the game left it at 3% and up to 60 cm off):
+            // within half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept.
             bool fits = any && Longest(b) >= 0.12f && Longest(b) < 1.6f
-                        && (expected < 0.02f || size > expected / 1.5f && size < expected * 1.5f && (b.center - analysed.center).magnitude < 0.03f);
+                        && (expected < 0.02f || size > expected / 2f && size < expected * 2f && (b.center - analysed.center).magnitude < 0.08f);
             if (!fits)
             {
+                Log.InfoOnce("rocketlook-no:" + key, $"Rocket of {key} not copied as it sits loaded (try {tries + 1}): {(any ? $"{Longest(b) * 100f:0} cm long, {size * 100f:0} cm across against {expected * 100f:0} analysed, middle {(b.center - analysed.center).magnitude * 100f:0.0} cm off" : "nothing drawn")}.");
                 Object.Destroy(go);
                 return;
             }

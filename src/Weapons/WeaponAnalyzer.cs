@@ -2078,9 +2078,15 @@ namespace RavenfieldVR.Weapons
                 // A launcher's rocket found as a near-empty part (the scoped RPG-7V's "RPG-7_Rocket" holds only its 3 mm
                 // safety pin; the rocket's mesh is its sibling): the container above it that moves with it in the reload
                 // and holds a rocket-sized mesh, never the launcher itself. The rocket in the hand was the made stand-in.
+                Vector3 gripWorld = gunBody != null ? sampler.Idle(gunBody).TransformPoint(d.GripPoint) : Vector3.zero;
                 for (Transform up = mag.parent; up != null && up != gunBody && up != root; up = up.parent)
                 {
-                    float size = Longest(sampler.LocalBounds(up));
+                    Bounds upBounds = sampler.LocalBounds(up);
+                    if (gunBody != null && (gunBody.IsChildOf(up) || upBounds.Contains(sampler.Idle(up).Inverse().TransformPoint(gripWorld))))
+                    {
+                        break; // the launcher itself (it holds the grip or the gun body): the Panzerfaust 3 handed out its whole launcher
+                    }
+                    float size = Longest(upBounds);
                     if (size > 0.15f && size < 1.6f && index.ContainsKey(up))
                     {
                         d.Notes += $"rocket taken as '{up.name}', {size * 100f:0} cm (its part '{mag.name}' is too small for one) ";
