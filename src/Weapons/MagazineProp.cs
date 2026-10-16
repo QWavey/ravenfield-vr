@@ -127,6 +127,8 @@ namespace RavenfieldVR.Weapons
         }
         /// <summary>How far along the rail (0 = at the well entry, RailLength = seated).</summary>
         public float RailDepth;
+        /// <summary>How far off the line the held end was when it went onto the rail (a rocket taken loosely): the hand may keep it.</summary>
+        public float RailLateral0;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
         public readonly float RailLength;
         public float LastTick;

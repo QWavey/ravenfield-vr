@@ -960,6 +960,10 @@ namespace RavenfieldVR.Weapons
             }
             if (rounds <= 0)
             {
+                if (kind == PropKind.Rocket)
+                {
+                    Log.InfoOnce("rocketnone:" + Data.Key, $"No rocket from the pouch for {Data.Key}: {(Ammo.MagRounds > 0 ? "it is still loaded" : "no rockets left")} (spare {Ammo.SpareAmmo}).");
+                }
                 off.Haptic(0.15f, 35f, 0.7f);
                 _sys.FlashMessage(Ammo.SpareAmmo <= 0 && !Ammo.InfiniteSpare ? "NO AMMO" : "FULL");
                 return;
@@ -969,6 +973,22 @@ namespace RavenfieldVR.Weapons
             prop.Owner = Ammo;
             prop.Attach(off);
             prop.FollowHand();
+            if (kind == PropKind.Rocket && prop.Go != null)
+            {
+                // What the hand holds, once per launcher (a rocket in the hand was reported invisible).
+                int drawn = 0;
+                float size = 0f;
+                foreach (Renderer r in prop.Go.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && !r.forceRenderingOff)
+                    {
+                        drawn++;
+                        size = Mathf.Max(size, r.bounds.size.magnitude);
+                    }
+                }
+                Log.InfoOnce("rocketheld:" + Data.Key, $"Rocket from the pouch for {Data.Key}: {drawn} drawn renderer(s), {size * 100f:0} cm across, "
+                                                       + $"{Vector3.Distance(prop.Go.transform.position, off.Palm.position) * 100f:0} cm from the palm, layer {prop.Go.layer}.");
+            }
             _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.6f);
             off.Haptic(0.03f, 140f, 0.45f);
         }
@@ -1031,6 +1051,7 @@ namespace RavenfieldVR.Weapons
             if (!prop.OnRail)
             {
                 prop.RailHandOffset = 0f;
+                prop.RailLateral0 = 0f;
                 prop.FromSeat = false;
                 float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
                 // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
@@ -1041,6 +1062,16 @@ namespace RavenfieldVR.Weapons
                 bool rocket = prop.Kind == PropKind.Rocket;
                 bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f && along < prop.RailLength
                              && angle < (grip || rocket ? 40f : 35f);
+                if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
+                {
+                    // A rocket held like a stick (along the fist, either end first) at the launcher's mouth: onto the line
+                    // as it is, and from there it follows the hand along the tube. It had to be held with its tail out of
+                    // the top of the fist within 40 degrees of the tube, and scoped RPGs "could not be reloaded" (Tasks 231).
+                    lined = true;
+                    prop.RailHandOffset = along - looseDepth;
+                    prop.RailLateral0 = lateral;
+                    along = looseDepth;
+                }
                 if (lined)
                 {
                     prop.OnRail = true;
@@ -1068,10 +1099,11 @@ namespace RavenfieldVR.Weapons
             }
             // On the rail: the hand pushes the prop along the axis only (from where it took it, when pulled out).
             along -= prop.RailHandOffset;
-            if (along < -0.03f || lateral > 0.07f)
+            if (along < -0.03f || lateral > 0.07f + prop.RailLateral0)
             {
                 prop.OnRail = false;
                 prop.RailHandOffset = 0f;
+                prop.RailLateral0 = 0f;
                 prop.FromSeat = false;
                 return;
             }
@@ -1105,6 +1137,24 @@ namespace RavenfieldVR.Weapons
                 _pullingIn = prop;
                 off.Haptic(0.012f, 160f, 0.35f);
             }
+        }
+
+        /// <summary>
+        /// A rocket at the launcher's mouth however it is held: its end nearer the mouth within 12 cm of the tube's line, its
+        /// length within 60 degrees of the tube either way round. <paramref name="depth"/>: how far in that end already is.
+        /// </summary>
+        private static bool LooselyLined(MagazineProp prop, RigidPose hold, RigidPose seat, Vector3 insert, out float depth)
+        {
+            Vector3 mouth = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
+            Vector3 a = hold.TransformPoint(prop.TipLocal), b = hold.TransformPoint(prop.BaseLocal);
+            Vector3 near = (a - mouth).sqrMagnitude <= (b - mouth).sqrMagnitude ? a : b;
+            Vector3 rel = near - mouth;
+            depth = Mathf.Max(0f, Vector3.Dot(rel, insert));
+            float along = Vector3.Dot(rel, insert);
+            float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            float angle = Vector3.Angle(a - b, insert);
+            angle = Mathf.Min(angle, 180f - angle);
+            return lateral < 0.12f && along > -0.12f && along < prop.RailLength && angle < 60f;
         }
 
         /// <summary>
@@ -1858,6 +1908,11 @@ namespace RavenfieldVR.Weapons
             rocket.RailDepth = depth0;
             RigidPose palmAtEntry = entry.Multiply(rocket.HoldPose(off).Inverse().Multiply(off.Palm));
             Vector3 insert = SeatPose.TransformDirection(rocket.InsertDirLocal);
+            // As a real hand holds it: 45 degrees off the tube's line, turned about the rocket's tail at the mouth (the
+            // strict line-up wanted 40 degrees at most; the loose one takes it).
+            Vector3 tailAtMouth = entry.TransformPoint(rocket.TipLocal);
+            Quaternion tilt = Quaternion.AngleAxis(45f, Vector3.Cross(insert, Vector3.up).sqrMagnitude > 1e-4f ? Vector3.Cross(insert, Vector3.up).normalized : Vector3.right);
+            palmAtEntry = new RigidPose(tailAtMouth + tilt * (palmAtEntry.position - tailAtMouth), tilt * palmAtEntry.rotation);
             float rail = rocket.RailLength;
             System.Func<float, RigidPose> along = d => new RigidPose(palmAtEntry.position + insert * d, palmAtEntry.rotation);
             RigidPose start = off.Palm;
