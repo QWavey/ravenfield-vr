@@ -173,6 +173,33 @@ namespace RavenfieldVR.Weapons
     [HarmonyPatch(typeof(Weapon), nameof(Weapon.Shoot))]
     internal static class WeaponShootPatch
     {
+        private static Weapon _firedBy;
+        private static Transform _firedMuzzle;
+
+        /// <summary>
+        /// The muzzle <paramref name="w"/>'s last shot left from: Shoot fires the current muzzle and then moves on to the next
+        /// barrel (NextMuzzle), so after it CurrentMuzzle names the barrel that has not fired yet. Null when not recorded.
+        /// </summary>
+        internal static Transform FiredMuzzleOf(Weapon w) => w != null && ReferenceEquals(w, _firedBy) ? _firedMuzzle : null;
+
+        private static void Prefix(Weapon __instance)
+        {
+            if (!WeaponHooks.PlayerWeaponInVR(__instance))
+            {
+                return;
+            }
+            try
+            {
+                _firedBy = __instance;
+                _firedMuzzle = __instance.CurrentMuzzle();
+            }
+            catch (System.Exception e)
+            {
+                _firedBy = null;
+                Log.ExceptionOnce("Weapon.Shoot prefix (VR)", e); // never into the game's own shot
+            }
+        }
+
         private static void Postfix(Weapon __instance, bool __result)
         {
             // Not a grenade let go or a melee swing (both run Shoot too): they got a gunshot's kick, view jolt and buzz.

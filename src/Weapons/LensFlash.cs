@@ -59,6 +59,10 @@ namespace RavenfieldVR.Weapons
         // The gun now (for the glow of sustained fire).
         private readonly List<float> _shots = new List<float>();
         private Weapon _gun;
+        /// <summary>The barrel the last flashed shot left from (a multi-barrel gun has moved on to the next by then).</summary>
+        private Transform _gunMuzzle;
+        /// <summary>The barrel the pending shot left from; null for all-muzzle weapons or when not recorded.</summary>
+        private Transform _pendingMuzzle;
         private float _gunSize;
         private bool _gunAuto;
 
@@ -111,6 +115,14 @@ namespace RavenfieldVR.Weapons
             _pendingFrame = Time.frameCount;
             // Read now, before the shot's particles are simulated (the game has only asked them to play).
             _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
+            // Only the barrel this shot left from counts (unless the weapon fires all its muzzles at once): another barrel's
+            // particles, or this one's from an earlier shot when its burst skipped this time, drew a flash on a shot the game
+            // played none for. The flash is also placed there: CurrentMuzzle has already moved on to the next barrel.
+            _pendingMuzzle = weapon.configuration != null && !weapon.configuration.fireFromAllMuzzles ? WeaponShootPatch.FiredMuzzleOf(weapon) : null;
+            if (_pendingMuzzle != null && _pendingSystems.Length > 0)
+            {
+                _pendingSystems = System.Array.FindAll(_pendingSystems, ps => ps != null && ps.transform.IsChildOf(_pendingMuzzle));
+            }
             _pendingInfo = MuzzleFlashInfo.Of(weapon); // read once: it walks the muzzle tree, and five or six reads followed per shot
             _pendingEveryShot = _pendingInfo.Chance >= 0.999f;
             _pendingCounts = new int[_pendingSystems.Length];
@@ -131,7 +143,7 @@ namespace RavenfieldVR.Weapons
                 bool later = Time.frameCount == _pendingFrame && _pendingInfo.Particles && !ParticlesOut();
                 if (!later)
                 {
-                    TryFlash(_pendingHeld, _pendingWeapon, _pendingInfo, now);
+                    TryFlash(_pendingHeld, _pendingWeapon, _pendingInfo, _pendingMuzzle, now);
                     _pendingWeapon = null;
                     _pendingHeld = null;
                 }
@@ -198,14 +210,14 @@ namespace RavenfieldVR.Weapons
 
         // ---- a shot ------------------------------------------------------------------------------------------------
 
-        private void TryFlash(HeldWeapon held, Weapon w, MuzzleFlashInfo info, float now)
+        private void TryFlash(HeldWeapon held, Weapon w, MuzzleFlashInfo info, Transform fired, float now)
         {
             LensEffects fx = LensEffects.Instance;
             if (!VRConfig.LensFlash.Value || fx == null || held == null || w == null || w.configuration == null)
             {
                 return;
             }
-            Transform muzzle = w.CurrentMuzzle();
+            Transform muzzle = fired != null ? fired : w.CurrentMuzzle();
             if (muzzle == null)
             {
                 return;
@@ -214,6 +226,7 @@ namespace RavenfieldVR.Weapons
             float size = FlashSize(held, w, info, ParticlesOut());
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
+            _gunMuzzle = muzzle; // the glow of sustained fire sits on the barrel that fired last
             // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
             // flash-less set it to nothing, and the glow went out in the middle of a burst).
             float gunSize = info.Particles ? FlashSize(held, w, info, true) : size;
@@ -362,7 +375,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gun.CurrentMuzzle() : null;
+            Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
             Vector3 m = muzzle != null ? head.InverseTransformPoint(muzzle.position) : Vector3.forward;
             Vector3 dir = muzzle != null ? head.InverseTransformDirection(muzzle.forward) : Vector3.forward;
