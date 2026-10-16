@@ -2628,7 +2628,11 @@ namespace RavenfieldVR.Weapons
             var parts = new System.Collections.Generic.List<Bounds>();
             foreach (Renderer r in t.GetComponentsInChildren<Renderer>(false))
             {
-                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer) && r.transform.lossyScale.sqrMagnitude >= 1e-6f)
+                // Drawn at a size that shows: the part's own scale said nothing on a model scaled up from centimetres (a
+                // magazine shrunk to 1/10000 still had a scale of 1/100 there, and the m4 pack's M4A1s read "STILL SHOWS"
+                // with nothing in the well in the picture).
+                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer) && r.transform.lossyScale.sqrMagnitude >= 1e-6f
+                    && r.bounds.size.sqrMagnitude >= 0.002f * 0.002f)
                 {
                     parts.Add(r.bounds);
                 }
