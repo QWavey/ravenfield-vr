@@ -125,6 +125,10 @@ namespace RavenfieldVR.Weapons
                     if (action != null)
                     {
                         d.Action = (ActionType)Enum.Parse(typeof(ActionType), action);
+                        // Cycled by hand as the overridden action is (as the analysis decides it): a gun made Manual kept
+                        // cycling by itself, one made SelfLoading still asked for a hand on every shot (85-agent review).
+                        d.CyclesByHand = d.Action == ActionType.Manual
+                                         || d.Action == ActionType.ShellFed && w.configuration != null && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
                     }
                     else
                     {
