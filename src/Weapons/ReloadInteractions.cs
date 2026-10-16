@@ -1949,9 +1949,21 @@ namespace RavenfieldVR.Weapons
                 }
                 VRHand.Scripted[side] = pose(1f).Multiply(rawFromPalm);
             }
-            bool onLine = false, loaded = false;
+            bool onLine = false, loaded = false, fromBehind = false;
+            // Where the rocket is lined up, against the muzzle: an RPG is loaded from the front (user, 2026-10-16).
+            float mouthAhead = Vector3.Dot(tailAtMouth - Rig.ToWorld(Data.MuzzlePoint), Rig.AimWorld);
             try
             {
+                // At the back first: the rocket's tail held 40 cm behind where it sits seated must not be taken.
+                RigidPose behind = along(rail + 0.4f);
+                yield return Move(s => new RigidPose(Vector3.Lerp(start.position, behind.position, s), Quaternion.Slerp(start.rotation, behind.rotation, s)), 0.6f, "at the back");
+                yield return Move(s => along(rail + 0.4f - 0.1f * s), 0.3f, "at the back");
+                fromBehind = off.Held is MagazineProp atBack && atBack.OnRail || Ammo.MagRounds > 0;
+                if (off.Held is MagazineProp offRail)
+                {
+                    offRail.OnRail = false;
+                }
+                start = off.Palm;
                 RigidPose before = along(-0.25f);
                 yield return Move(s => new RigidPose(Vector3.Lerp(start.position, before.position, s), Quaternion.Slerp(start.rotation, before.rotation, s)), 0.8f, "to the launcher");
                 yield return Move(s => along(-0.25f + 0.25f * s), 0.45f, "lining up");
@@ -1974,6 +1986,8 @@ namespace RavenfieldVR.Weapons
                 left.Destroy();
             }
             report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, "
+                   + $"lined up {mouthAhead * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "behind")} the muzzle{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}, "
+                   + $"{(fromBehind ? "TAKEN FROM THE BACK" : "not taken at the back")}, "
                    + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, {(loaded ? "loaded" : "NOT LOADED")}");
         }
 

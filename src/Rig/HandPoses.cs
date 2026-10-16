@@ -15,7 +15,8 @@ namespace RavenfieldVR.Rig
         PistolSlide, BoltHandle, ChargingHandle, Pump,
         RifleMagazine, PistolMagazine, BoxMagazine, TwoMagazines, Shell, Rocket,
         CoverLift, PinPull, BeltPinch, OpticFlip,
-        SteeringWheel, FlightStick
+        SteeringWheel, FlightStick,
+        PalmPush
     }
 
     /// <summary>
@@ -76,6 +77,9 @@ namespace RavenfieldVR.Rig
             new GripPose(HandPoseId.PistolMagazine, 0.3f, false, 0.5f, 0.68f, 0.74f, 0.78f, 0.8f),
             new GripPose(HandPoseId.BoxMagazine, 0.35f, false, 0.35f, 0.5f, 0.55f, 0.58f, 0.6f),
             new GripPose(HandPoseId.TwoMagazines, 0.5f, false, 0.5f, 0.65f, 0.7f, 0.72f, 0.75f),
+            // Pushing a pistol magazine's base plate home with the palm's heel: the thumb away, the fingers loose under the
+            // gun hand's (blended in as the magazine slides up the grip; HandModel.PushBlend).
+            new GripPose(HandPoseId.PalmPush, 0f, false, 0.08f, 0.32f, 0.4f, 0.46f, 0.52f),
             new GripPose(HandPoseId.Shell, 0.55f, false, 0.55f, 0.55f, 0.85f, 0.9f, 0.9f),
             new GripPose(HandPoseId.Rocket, 0.3f, false, 0.3f, 0.45f, 0.5f, 0.52f, 0.55f),
 

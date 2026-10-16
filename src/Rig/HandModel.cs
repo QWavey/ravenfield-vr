@@ -441,7 +441,7 @@ namespace RavenfieldVR.Rig
         private float _push;
 
         // The push: thumb away, the fingers loosely curled under the gun hand's (thumb, index, middle, ring, little).
-        private static readonly float[] PushCurls = { 0.08f, 0.32f, 0.4f, 0.46f, 0.52f };
+        private static float[] PushCurls => HandPoses.Get(HandPoseId.PalmPush).Curls;
 
         // A change of pose (one magazine to two, the second promoted, a magazine to the push) fades over this long instead
         // of snapping: the fingers' easing is slowed for a moment after the pose changes.

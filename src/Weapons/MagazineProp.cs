@@ -138,7 +138,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Speed along the rail while it is drawn home by itself (a damped spring, as Boneworks drives its insert).</summary>
         public float DepthVel;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
-        public readonly float RailLength;
+        public float RailLength { get; private set; }
         public float LastTick;
 
         private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front, bool machineGun, string fitKey)
@@ -372,6 +372,13 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = rig.Data;
             Vector3 insertGun = -d.MagEjectAxis;
+            if (kind == PropKind.Rocket && Vector3.Dot(insertGun, -d.AimAxis) < 0.7f)
+            {
+                // A rocket goes into the launcher's muzzle, tail first, back along the bore (an RPG is always loaded from the
+                // front; user, 2026-10-16). The reload animation's first motion is not that on every launcher, and the
+                // rocket was taken in at the back or across.
+                insertGun = -d.AimAxis.normalized;
+            }
             Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
             Vector3 insertLocal = seatInv * insertGun;
             Vector3 frontLocal = seatInv * d.AimAxis;
@@ -397,6 +404,19 @@ namespace RavenfieldVR.Weapons
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
             prop._pistolGun = d.IsPistol;
+            if (kind == PropKind.Rocket)
+            {
+                // Its rail runs from the launcher's mouth to where its tail sits seated: lined up at the muzzle, in front of
+                // the launcher, where a rocket is put in. It began a few tenths of the rocket's length back from the seat,
+                // inside the tube, and a rocket held at the muzzle was never taken.
+                Vector3 tailSeated = d.MagSeat.TransformPoint(prop.TipLocal);
+                float depth = Vector3.Dot(tailSeated - d.MuzzlePoint, insertGun.normalized);
+                if (depth > 0.05f && depth < 1.2f)
+                {
+                    prop.RailLength = depth + 0.01f;
+                }
+                Log.InfoOnce("rocketrail:" + d.Key, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the muzzle to the seated tail (muzzle to tail {depth * 100f:0} cm).");
+            }
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
             Cull();
