@@ -88,6 +88,8 @@ namespace RavenfieldVR.Weapons
             Instance = this;
             _rig = rig;
             _fireball = new MuzzleFireball();
+            // Without a shader for the core in the world it is drawn on the lens, as before (it was drawn nowhere).
+            LensEffects.CoreInWorld = _fireball.Ready;
         }
 
         // The flash's hot core in the world, hidden by the gun where it covers it (Tasks 237).

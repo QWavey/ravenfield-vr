@@ -164,6 +164,7 @@ namespace RavenfieldVR.Rig
             if (additive == null)
             {
                 Log.WarnOnce("lenseffects-shader", "No additive particle shader found: the on-screen effects are off.");
+                Instance = null; // nothing to draw on: shots no longer add flashes that are never drawn (85-agent review)
                 return;
             }
             Mesh quad = QuadMesh();
@@ -602,6 +603,7 @@ namespace RavenfieldVR.Rig
                 _bandWake[band].WaitOne();
                 if (_stop)
                 {
+                    _bandDone[band].Set(); // a frame waiting on this band at teardown is let go
                     return;
                 }
                 try

@@ -471,9 +471,11 @@ namespace RavenfieldVR.Rig
                     return s;
                 }
             }
-            // Nowhere clear within reach: as far back as it may go. Back at 0, a seated pistol magazine's hand snapped into
-            // the grip (36 points of it inside, tools/hands/grip_check.py).
-            return max;
+            // Nowhere clear within reach: the shift it already has, or (with none yet) as far back as it may go. Back at 0, a
+            // seated pistol magazine's hand snapped into the grip (36 points of it inside, tools/hands/grip_check.py); always
+            // the full 12 cm, a glove caught sideways in the well floated away from the magazine in one step (85-agent review).
+            float already = Mathf.Clamp(Vector3.Dot(_keepOut, -dir), 0f, max);
+            return already > 0.001f ? already : max;
         }
 
         private static readonly Vector3[] WayOutDirs = new Vector3[7];

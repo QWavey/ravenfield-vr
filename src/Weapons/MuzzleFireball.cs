@@ -30,11 +30,15 @@ namespace RavenfieldVR.Weapons
         private readonly Dictionary<int, KeyValuePair<Texture2D, float>> _textures = new Dictionary<int, KeyValuePair<Texture2D, float>>();
         private readonly Mesh _quad;
         private readonly bool _ok;
+
+        /// <summary>It can draw the core in the world (else the lens draws it).</summary>
+        internal bool Ready => _ok;
         private int _next;
 
         public MuzzleFireball()
         {
-            Shader shader = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Particles/Additive");
+            Shader shader = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Particles/Additive")
+                            ?? Shader.Find("Mobile/Particles/Additive");
             if (shader == null)
             {
                 Log.WarnOnce("fireball-shader", "No additive particle shader: the muzzle flash's core stays on the lens.");
