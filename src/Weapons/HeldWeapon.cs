@@ -841,6 +841,10 @@ namespace RavenfieldVR.Weapons
                 float angle = Vector3.Angle(head.forward, axis);
                 aim = Aiming ? best < 0.09f && angle < 35f : best < 0.06f && angle < 25f;
             }
+            if (aim && !Aiming)
+            {
+                _system.Rig.Dominant.Haptic(0.012f, 160f, 0.18f); // the sight taken: a light tick (85-agent review)
+            }
             Aiming = aim;
         }
 

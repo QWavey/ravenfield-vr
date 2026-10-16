@@ -60,6 +60,9 @@ namespace RavenfieldVR.Rig
             _vignetteAt = Time.unscaledTime;
         }
 
+        private Input.Hand _directionHand;
+        private float _directionBuzzAt = -10f;
+
         /// <summary>The game's hit-direction arrow: angle in the view (0 in front, 90 to the left).</summary>
         public void OnHitDirection(float angle, bool balanceOnly)
         {
@@ -75,7 +78,9 @@ namespace RavenfieldVR.Rig
             VRRig rig = VRRig.Instance;
             if (rig != null && !balanceOnly && Mathf.Abs(side) > 0.3f)
             {
-                rig.Hand(side > 0f ? Input.Hand.Right : Input.Hand.Left).Haptic(0.07f, 70f, Mathf.Clamp01(0.4f + Mathf.Abs(side) * 0.5f));
+                _directionHand = side > 0f ? Input.Hand.Right : Input.Hand.Left;
+                _directionBuzzAt = Time.unscaledTime;
+                rig.Hand(_directionHand).Haptic(0.07f, 70f, Mathf.Clamp01(0.4f + Mathf.Abs(side) * 0.5f));
             }
         }
 
@@ -89,9 +94,16 @@ namespace RavenfieldVR.Rig
             VRRig rig = VRRig.Instance;
             if (rig != null)
             {
+                // Just after a hit from one side, that hand keeps its own buzz and the other gets a softer one: the even buzz
+                // on both laid over it and the side could not be felt (85-agent review).
+                bool sided = Time.unscaledTime - _directionBuzzAt < 0.15f;
                 foreach (VRHand h in rig.Hands)
                 {
-                    h.Haptic(0.06f + amp * 0.08f, 55f, amp);
+                    if (sided && h.Side == _directionHand)
+                    {
+                        continue;
+                    }
+                    h.Haptic(0.06f + amp * 0.08f, 55f, sided ? amp * 0.5f : amp);
                 }
             }
         }
