@@ -643,7 +643,7 @@ namespace RavenfieldVR.Weapons
             float size = b.size.magnitude, expected = analysed.size.magnitude;
             // Only a copy shrunk or moved away is refused (after the shot the game left it at 3% and up to 60 cm off):
             // within half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept.
-            bool fits = any && Longest(b) >= 0.12f && Longest(b) < 1.6f
+            bool fits = any && Longest(b) >= 0.12f && Longest(b) < 2f
                         && (expected < 0.02f || size > expected / 2f && size < expected * 2f && (b.center - analysed.center).magnitude < 0.08f);
             if (!fits)
             {
@@ -1087,7 +1087,8 @@ namespace RavenfieldVR.Weapons
             // A rocket whose analysed box came out empty (the scoped RPG-7V's sits under a material-less container) is copied
             // too: the copy measures itself, and one that is not rocket-sized still falls back to the made one.
             float length = Longest(rig.Data.MagBounds);
-            return kind == PropKind.Rocket && (length < 0.001f || length > 0.15f && length < 1.4f);
+            // Up to 2 m: the RPG-7V's tandem PG-7VR is 1.7 m with its booster, and at 1.4 m it got the flying projectile.
+            return kind == PropKind.Rocket && (length < 0.001f || length > 0.15f && length < 2f);
         }
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));

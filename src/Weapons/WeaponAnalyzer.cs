@@ -2013,10 +2013,21 @@ namespace RavenfieldVR.Weapons
                     int i = index[t];
                     float m = sampler.ReloadMax[i];
                     float fromGrip = Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint);
-                    if (m < 0.03f || m > 1.5f && fromGrip > 0.3f)
+                    bool launcher = d.Action == ActionType.SingleShot;
+                    // A launcher's rocket by its name may be parked away by the reload (that is how its animation hides it:
+                    // the Panzerfaust 3's warhead "弹药" waits 30 m off while a new tube comes in).
+                    bool parkedRocket = launcher && IsMagName(t.name) && m > 1.5f;
+                    if (m < 0.03f || m > 1.5f && fromGrip > 0.3f && !parkedRocket)
                     {
                         // Still, or parked far away (belt links, spare rounds). A magazine sitting in the gun may well fly
                         // far in the reload: a G17's is thrown 1.6 m, and the spare one in the other hand was taken instead.
+                        continue;
+                    }
+                    if (launcher && (gunBody != null && gunBody.IsChildOf(t) || sampler.LocalBounds(t).Contains(sampler.Idle(t).Inverse().TransformPoint(
+                            gunBody != null ? sampler.Idle(gunBody).TransformPoint(d.GripPoint) : d.GripPoint))))
+                    {
+                        // Never the launcher's grip unit or what holds its tube: the Panzerfaust 3's reload moves its grip
+                        // and sight onto a new tube, and that unit was taken for the rocket (the whole launcher in the hand).
                         continue;
                     }
                     if (!ShownAtIdle(t, sampler))
@@ -2035,7 +2046,8 @@ namespace RavenfieldVR.Weapons
                     }
                     // In the gun at rest: a reload with two magazines (the old one out, a fresh one in) keeps the fresh one
                     // where the flat view's other hand waits, a few tens of centimetres off.
-                    float inGun = Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
+                    // (A launcher's rocket sits out at the tube's mouth, far from the grip: not counted against it.)
+                    float inGun = launcher ? 1f : Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
                     float score = Mathf.Min(m, 0.4f) * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f) * inGun;
                     if (score > best)
                     {
@@ -2070,6 +2082,7 @@ namespace RavenfieldVR.Weapons
                     for (Transform p = mag.parent; !roundsMagazine && p != null && p != gunBody && p != root; p = p.parent)
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
+                            || gunBody != null && gunBody.IsChildOf(p) // never up into what holds the gun body (the launcher itself)
                             || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p)
                             || OpticName.IsMatch(p.name) && !MagName.IsMatch(p.name))
                         {
