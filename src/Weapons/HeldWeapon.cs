@@ -780,6 +780,70 @@ namespace RavenfieldVR.Weapons
             UpdateAim();
             Reload.Update();
             HoldSlideLockPose();
+            LeaveEmptyPose();
+        }
+
+        /// <summary>The animator's state (layer 0) last seen at rest with a round loaded, and the one it sat in empty.</summary>
+        private int _loadedRestState, _emptyState;
+        /// <summary>When the game's round count last went from none to some (-1: not waiting to check the pose).</summary>
+        private float _refilledAt = -1f;
+        private bool _wasEmpty;
+        private float _lastShotAt = -10f;
+
+        /// <summary>
+        /// Many pistols' animators go to an empty pose (slide back) when the last round is fired and leave it only through
+        /// the game's reload animation, which a hand reload never plays: racked or released, the slide stayed back until the
+        /// first shot (FNX-45 family; user, 2026-10-16). A third of a second after the count goes from none to some, an
+        /// animator still in the pose it held empty is sent to the one it last rested in loaded. Guns whose animator leaves
+        /// that pose by itself, or never had one, are left alone (the states differ, or they are the same).
+        /// </summary>
+        private void LeaveEmptyPose()
+        {
+            Weapon w = ActiveWeapon;
+            AmmoState ammo = ActiveAmmo;
+            if (w == null || ammo == null || !ammo.Participates || !ammo.UsesChamber || !w.HasActiveAnimator() || w.animator.layerCount == 0)
+            {
+                return;
+            }
+            Animator a = w.animator;
+            if (a.IsInTransition(0) || w.reloading || Reload.IsRacking)
+            {
+                return;
+            }
+            int now = a.GetCurrentAnimatorStateInfo(0).fullPathHash;
+            if (w.ammo <= 0)
+            {
+                if (Time.unscaledTime - _lastShotAt > 0.4f)
+                {
+                    _emptyState = now;
+                }
+                _wasEmpty = true;
+                _refilledAt = -1f;
+                return;
+            }
+            if (_wasEmpty)
+            {
+                _wasEmpty = false;
+                _refilledAt = Time.unscaledTime;
+            }
+            if (_refilledAt >= 0f)
+            {
+                if (Time.unscaledTime - _refilledAt < 0.3f)
+                {
+                    return;
+                }
+                _refilledAt = -1f;
+                if (now == _emptyState && _loadedRestState != 0 && _loadedRestState != now && a.HasState(0, _loadedRestState))
+                {
+                    a.CrossFadeInFixedTime(_loadedRestState, 0.08f, 0);
+                    Log.InfoOnce($"empty-pose:{Rig.Data.Key}", $"{Rig.Data.Key}: the animator stayed in its empty pose with a round loaded; sent back to its loaded rest pose.");
+                }
+                return;
+            }
+            if (Time.unscaledTime - _lastShotAt > 0.6f)
+            {
+                _loadedRestState = now;
+            }
         }
 
         /// <summary>
@@ -895,6 +959,7 @@ namespace RavenfieldVR.Weapons
         /// <param name="fired">The weapon that fired: this one or its under-barrel / sub weapon (which kicks as itself).</param>
         public void OnShot(Weapon fired)
         {
+            _lastShotAt = Time.unscaledTime;
             // A sub weapon kicks as itself: its own rig, class and one-handed multiplier, not the parent's (an under-barrel
             // launcher on a rifle got the rifle's gentle floor and climb; a fire-mode variant shares the parent rig and so
             // reads the same as it did).
@@ -1969,11 +2034,25 @@ namespace RavenfieldVR.Weapons
             // A charging handle apart from the bolt (a separate part, or one cut out of an AR's receiver) comes back only with
             // the hand: when the bolt locks open on an empty magazine, the handle stays forward (it showed pulled back).
             float handle = Reload != null && !Reload.IsRacking && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
+            // Locked open with the bolt under the racked handle: the handle home (or where the hand has it), the bolt back.
+            bool boltAlone = BoltLockedAlone;
+            float slideShare = boltAlone && !Reload.IsRacking ? 0f : fraction;
             if (SlideOffset > 0.0005f)
             {
-                MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * fraction);
+                MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * slideShare);
                 MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
                 _slideMoved = true;
+            }
+            if (boltAlone)
+            {
+                // Its place under the handle: back by what the handle is short of its full travel.
+                MovePart(Rig.Bolt, d.BoltRestLocal, d.SlideTravel * (1f - Mathf.Clamp01(slideShare)));
+                _boltMoved = true;
+            }
+            else if (_boltMoved)
+            {
+                MovePart(Rig.Bolt, d.BoltRestLocal, Vector3.zero); // rides on the handle again
+                _boltMoved = false;
             }
             else
             {
@@ -2117,6 +2196,14 @@ namespace RavenfieldVR.Weapons
         }
 
         private bool _slideMoved;
+        private bool _boltMoved;
+
+        /// <summary>
+        /// The action is locked open and the slide part is a handle carrying the bolt: the bolt alone stays back, the handle
+        /// is home (an M4's charging handle on an empty magazine).
+        /// </summary>
+        internal bool BoltLockedAlone => Rig.Bolt != null && Rig.Slide != null && Reload != null && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked
+                                         && ReferenceEquals(ActiveRig, Rig);
 
         /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
         private void ApplyHinge(WeaponRigData d)

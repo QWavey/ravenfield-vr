@@ -1753,6 +1753,8 @@ namespace RavenfieldVR.Weapons
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         internal Vector3 KeptOut => OnRail && _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
+        /// <summary>How much bigger than the magazine its well is left open (the whole size: half of it a side).</summary>
+        private const float WellPlay = 0.008f;
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
         private static readonly Vector3[] SlideAxes = new Vector3[3];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
@@ -1780,7 +1782,9 @@ namespace RavenfieldVR.Weapons
                 WeaponRigData d = gun.Rig.Data;
                 RigidPose seat = gun.Rig.GunBodyPose.Multiply(d.MagSeat);
                 Bounds well = d.MagBounds;
-                well.Expand(0.03f);
+                // Open only on the well's own line, 4 mm round the magazine: at 1.5 cm a side a magazine held off the line went
+                // into a pistol's grip through its 4 mm wall and showed through its sides (user, 2026-10-16, many pistols).
+                well.Expand(WellPlay);
                 // Points over the magazine: five along it, each at its middle and four edges. A rocket every 6 cm along it
                 // (a launcher's tube is a few centimetres thick: five points over a metre of rocket would pass it between
                 // them), half way out to its edges (its box is the warhead's: the thin tail would stop short of the tube).
@@ -1914,7 +1918,7 @@ namespace RavenfieldVR.Weapons
             }
             RigidPose seat = gun.Rig.GunBodyPose.Multiply(gun.Rig.Data.MagSeat);
             Bounds well = gun.Rig.Data.MagBounds;
-            well.Expand(0.03f);
+            well.Expand(WellPlay);
             Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             Transform t = Go.transform;
             int inside = 0;

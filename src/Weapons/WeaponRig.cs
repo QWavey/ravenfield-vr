@@ -162,6 +162,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>Handle travel vector at full rack (gun-body space).</summary>
         public Vector3 HandleTravel;
         /// <summary>
+        /// The bolt under a racked handle that carries it (the slide part is the handle: an M4's bolt under its charging
+        /// handle, a PKM's under its 拉机柄). Locked open on an empty magazine only this stays back; the handle goes home.
+        /// </summary>
+        public int[] BoltPath;
+        public Vector3 BoltRestLocal;
+        /// <summary>
         /// No part of the model moves when the action is worked (bolt baked into the receiver): the rack point and
         /// travel come from where the mod's own hand racks in its reload animation.
         /// </summary>
@@ -267,6 +273,8 @@ namespace RavenfieldVR.Weapons
         public readonly Transform Muzzle;
         public readonly Transform Slide;
         public readonly Transform Handle;
+        /// <summary>The bolt a racked handle carries (<see cref="WeaponRigData.BoltPath"/>); null if none.</summary>
+        public readonly Transform Bolt;
         public readonly Transform Hinge;
         public readonly Transform Magazine;
         public readonly Renderer[] ArmRenderers;
@@ -286,6 +294,7 @@ namespace RavenfieldVR.Weapons
             Muzzle = Resolve(root, data.MuzzlePath);
             Slide = Resolve(root, data.SlidePath);
             Handle = Resolve(root, data.HandlePath);
+            Bolt = Resolve(root, data.BoltPath);
             Hinge = Resolve(root, data.HingePath);
             Magazine = Resolve(root, data.MagazinePath);
             var arms = new List<Renderer>();

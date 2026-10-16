@@ -33,6 +33,8 @@ namespace RavenfieldVR.Weapons
         private Vector3 _pumpGraspRestGun;
         private float _rackBase;
         private bool _rackedBack;
+        /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
+        private bool _rackFromBoltLock;
         private bool _returning;
         private float _lastTick;
 
@@ -538,7 +540,11 @@ namespace RavenfieldVR.Weapons
             // The hand took it wherever it grabbed (the grab zone is large): the magazine follows the hand's pull from
             // here. Taken from the palm's depth, a grip a little up the magazine read as pushed home and seated it again
             // on the same frame: pulling a magazine out by hand did nothing.
-            prop.RailHandOffset = HandAlongRail(off, prop, out _) - prop.RailLength;
+            prop.RailHandOffset = HandAlongRail(off, prop, out float lateral0) - prop.RailLength;
+            // And wherever across it: the grab zone is large, so the hand is often several centimetres off the well's line.
+            // Measured from no offset, a hand 7 cm off knocked it off the rail on the first frame and it jumped to the hand
+            // through the receiver (user, 2026-10-16: "it always needs to exit how it entered").
+            prop.RailLateral0 = lateral0;
             prop.FromSeat = true;
             prop.MovingIn = false;
             prop.TurnDepth = prop.RailDepth;
@@ -1134,8 +1140,10 @@ namespace RavenfieldVR.Weapons
             // A rocket in the tube is held by the tube: it comes out only the way it went in, back out of the mouth. The hand
             // off its line leaves it on the line (it came off sideways through the tube's wall) until the hand is 35 cm off.
             bool inTube = prop.Kind == PropKind.Rocket && prop.RailDepth > 0.03f;
+            // A magazine still in its well is held by the well the same way: it slides out along it, never sideways out of it.
+            bool inWell = prop.Kind == PropKind.Magazine && prop.RailDepth > 0.01f;
             float offLine = prop.Kind == PropKind.Rocket ? -RocketLineAhead - 0.03f : -0.03f;
-            if (along < offLine || lateral > (inTube ? 0.35f : 0.07f) + prop.RailLateral0)
+            if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
                 prop.RailHandOffset = 0f;
@@ -1494,7 +1502,7 @@ namespace RavenfieldVR.Weapons
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
         /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
-        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * Fraction));
+        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * (_held.BoltLockedAlone && !_racking ? 0f : Fraction)));
 
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
@@ -1511,7 +1519,8 @@ namespace RavenfieldVR.Weapons
             Vector3 a = RackPointWorld;
             float along = Data.IsPistol && !HandleStroke ? 0.05f : HandleStroke ? 0.012f : 0.03f;
             // A charging handle at the back of the receiver is taken by its T behind the rack point, not inside the gun.
-            Vector3 b = a + Rig.AimWorld * (Data.CarveHandle && !Data.IsPistol ? -0.025f : along);
+            bool tBehind = !Data.IsPistol && (Data.CarveHandle || Data.SlideMethod != null && Data.SlideMethod.Contains("(AR-pattern: its own handle)"));
+            Vector3 b = a + Rig.AimWorld * (tBehind ? -0.025f : along);
             Vector3 ab = b - a;
             float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
             return Vector3.Distance(palm, a + ab * t);
@@ -1534,7 +1543,9 @@ namespace RavenfieldVR.Weapons
             Vector3 palmNormal = off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f);
             _rackPalm = Data.IsPistol && !HandleStroke && !IsPump && Mathf.Abs(Vector3.Dot(palmNormal, Rig.AimWorld)) < 0.6f
                         && Vector3.Dot(palmNormal, RackPointWorld - off.Palm.position) > -0.01f;
-            _rackBase = Ammo.SlideLocked ? 1f : Fraction;
+            // Locked open with only the bolt back (an M4's handle home): the handle is taken where it is, at home.
+            _rackFromBoltLock = _held.BoltLockedAlone;
+            _rackBase = _rackFromBoltLock ? 0f : Ammo.SlideLocked ? 1f : Fraction;
             // An open bolt with an empty chamber (the case already out) feeds when pushed home, however far it was left open:
             // pulled back, half closed and let go, it closed later without feeding and the gun said RACK.
             _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && (Fraction >= 0.8f || !Ammo.Chambered && !Ammo.SpentInChamber);
@@ -1630,6 +1641,15 @@ namespace RavenfieldVR.Weapons
             if (!chamber)
             {
                 _returning = true;
+                return;
+            }
+            bool fromBoltLock = _rackFromBoltLock;
+            _rackFromBoltLock = false;
+            if (fromBoltLock && Ammo.SlideLocked && Fraction < 0.8f)
+            {
+                // Let go short of the back: the bolt is still on its catch, and the handle springs home alone.
+                _rackedBack = false;
+                _returning = false;
                 return;
             }
             if (_rackedBack)

@@ -187,7 +187,10 @@ namespace RavenfieldVR.Weapons
                 // and a charge-time weapon with one never charged (the game starts the charge only with ammo -1 or above 0).
                 return;
             }
-            int loaded = Loaded;
+            // Locked open nothing is chambered: the game is told no round is loaded, a fresh magazine in or not. Told the
+            // magazine's rounds, many pistols' animators or scripts ran the slide forward on their own as the magazine went
+            // in (the mwii-g17 family; user, 2026-10-16), while the gun still had to be released or racked.
+            int loaded = SlideLocked && !Chambered ? 0 : Loaded;
             if (Weapon.ammo != loaded)
             {
                 Weapon.ammo = loaded;

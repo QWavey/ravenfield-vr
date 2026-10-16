@@ -1180,6 +1180,14 @@ namespace RavenfieldVR.Weapons
             {
                 float along = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z))));
                 d.RackPoint = b.center - d.AimAxis * along * 0.6f;
+                if (!d.Handgun && d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)
+                    && ArPattern.IsMatch(d.Key ?? ""))
+                {
+                    // An AR's own charging handle is taken by its T, at the handle's very back, behind the upper receiver:
+                    // 60% back along it put the place to take it 3-4 cm inside the receiver, out of reach of a hand kept
+                    // out of the gun (M4A1 [SQUAD] family; user, 2026-10-16).
+                    d.RackPoint = b.center - d.AimAxis * (along + 0.005f);
+                }
             }
             else
             {
@@ -1204,6 +1212,10 @@ namespace RavenfieldVR.Weapons
                     Bounds cb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
                     d.RackPoint = cb.size.sqrMagnitude > 1e-6f ? cb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
                     d.SlideMethod = "reload motion (charging handle carrying the bolt)";
+                    // The bolt itself, for the action locked open: it alone stays back, the handle goes home (an M4's
+                    // charging handle stayed back on an empty magazine; user, 2026-10-16).
+                    d.BoltPath = WeaponRig.PathOf(root, slide);
+                    d.BoltRestLocal = sampler.IdleLocalPosition(slide);
                     handle = null;
                 }
                 if (handle != null && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)
