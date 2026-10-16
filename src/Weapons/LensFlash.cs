@@ -34,6 +34,24 @@ namespace RavenfieldVR.Weapons
         // put out count as its flash (not an earlier shot's still in the air, or another barrel's).
         private ParticleSystem[] _pendingSystems = new ParticleSystem[0];
         private int[] _pendingCounts = new int[0];
+        private ParticleSystem[][] _pendingTrees = new ParticleSystem[0][];
+
+        /// <summary>
+        /// Particles alive in a muzzle's system and the systems under it: an RPG-7's top system emits nothing itself, its
+        /// children make the flash and the smoke, and the shot was judged flash-less (no lens flash on the RPG-7 and RPG-7V).
+        /// </summary>
+        private static int TreeCount(ParticleSystem[] tree)
+        {
+            int n = 0;
+            foreach (ParticleSystem p in tree)
+            {
+                if (p != null)
+                {
+                    n += p.particleCount;
+                }
+            }
+            return n;
+        }
         // The gun's flash plays on every shot (no burst chance): any of its particles out is this shot's flash.
         private bool _pendingEveryShot;
         // The gun now (for the glow of sustained fire).
@@ -91,9 +109,11 @@ namespace RavenfieldVR.Weapons
             _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
             _pendingEveryShot = MuzzleFlashInfo.Of(weapon).Chance >= 0.999f;
             _pendingCounts = new int[_pendingSystems.Length];
+            _pendingTrees = new ParticleSystem[_pendingSystems.Length][];
             for (int i = 0; i < _pendingSystems.Length; i++)
             {
-                _pendingCounts[i] = _pendingSystems[i] != null ? _pendingSystems[i].particleCount : 0;
+                _pendingTrees[i] = _pendingSystems[i] != null ? _pendingSystems[i].GetComponentsInChildren<ParticleSystem>(false) : new ParticleSystem[0];
+                _pendingCounts[i] = TreeCount(_pendingTrees[i]);
             }
         }
 
@@ -196,6 +216,8 @@ namespace RavenfieldVR.Weapons
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
             {
+                Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
+                                                        + $"(muzzle '{muzzle.name}', particles {MuzzleFlashInfo.Of(w).Particles}, light {MuzzleFlashInfo.Of(w).Light}).");
                 return; // no flash on this shot (none on this weapon, or its particles skipped this one)
             }
             Transform head = _rig.Camera.transform;
@@ -211,6 +233,8 @@ namespace RavenfieldVR.Weapons
             Vector3 dir = head.InverseTransformDirection(muzzle.forward);
             if (m.z < 0.02f)
             {
+                Log.InfoOnce("lensnone-behind:" + w.name, $"No lens flash for {w.name}: its muzzle '{muzzle.name}' is {m.z * 100f:0} cm in front of the eyes "
+                                                          + $"(behind them; muzzle points {(Vector3.Dot(muzzle.forward, head.forward) > 0f ? "forward" : "back")}).");
                 return; // behind the eyes
             }
             _gunHeld = held;
@@ -288,7 +312,8 @@ namespace RavenfieldVR.Weapons
                 ParticleSystem ps = _pendingSystems[i];
                 // More particles than at the shot; or, for a flash that plays on every shot, any: a machine gun's system is
                 // full and playing through sustained fire, its count never rises, and only the first of 120 rounds flashed.
-                if (ps != null && (ps.particleCount > _pendingCounts[i] || _pendingEveryShot && ps.particleCount > 0))
+                int now = ps != null && i < _pendingTrees.Length ? TreeCount(_pendingTrees[i]) : 0;
+                if (ps != null && (now > _pendingCounts[i] || _pendingEveryShot && now > 0))
                 {
                     return true;
                 }

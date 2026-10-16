@@ -71,4 +71,23 @@ namespace RavenfieldVR.Input
         private static bool Prefix(MountedStabilizedTurret __instance, ref Vector2 __result) =>
             TurretAim.Steer(__instance, __instance.pitchTransform, 5f, 3f, ref __result);
     }
+
+    /// <summary>
+    /// A deployed sentry gun's aim blend (the game's AimTransform) with its idle or aim transform missing threw a
+    /// NullReferenceException every frame for as long as the turret stood (seven sentry kits in the weapons run): it is
+    /// skipped then, the turret keeps its pose.
+    /// </summary>
+    [HarmonyPatch(typeof(AimTransform), "LateUpdate")]
+    internal static class AimTransformGuardPatch
+    {
+        private static bool Prefix(AimTransform __instance)
+        {
+            if (__instance.idleTransform != null && __instance.aimTransform != null)
+            {
+                return true;
+            }
+            Log.WarnOnce("aimtransform:" + __instance.name, $"'{__instance.name}' blends its aim between transforms that are gone: left as it is.");
+            return false;
+        }
+    }
 }

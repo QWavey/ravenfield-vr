@@ -2403,6 +2403,13 @@ namespace RavenfieldVR.Weapons
                     Core.AutoTest.Metric("magazine (deep): cm from the palm to the magazine in the hand", gap * 100f);
                     lines.Add($"in the hand: {gap * 100f:0.0} cm from the palm{(gap > 0.04f ? " (FLOATS BESIDE THE HAND)" : "")}");
                 }
+                // How the fingers hold it (the review saw an open hand with the magazine on its knuckles on 91 guns).
+                string held = MagazineProp.HandClipping(off, out _, out _, out int fingersOn);
+                if (fingersOn >= 0)
+                {
+                    Core.AutoTest.Metric("magazine (deep): fingers on the magazine in the hand (of 4)", fingersOn);
+                }
+                lines.Add($"held: {held}; {fresh.SizeText}; {(off.Model != null ? off.Model.CurlsText : "no hand model")}{(fingersOn == 0 ? " (NO FINGER ON THE MAGAZINE)" : "")}");
                 sideShot("mag-4-in-hand", off.PalmCentre, 0.32f);
 
                 // 3. Lined up under the well, half way in on the rail, home.

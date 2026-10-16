@@ -90,12 +90,14 @@ namespace RavenfieldVR.Weapons
             // Only from the handle's own mesh when it is known (the receiver round a side handle's slot stays whole).
             Transform only = d.CarveFromPath != null ? WeaponRig.Resolve(rig.Weapon.transform, d.CarveFromPath) : null;
             var skip = new HashSet<Renderer>(rig.ArmRenderers);
+            int unreadable = 0, far = 0, nothing = 0, moving = 0;
             foreach (MeshFilter mf in rig.Weapon.GetComponentsInChildren<MeshFilter>(false))
             {
                 MeshRenderer mr = mf.GetComponent<MeshRenderer>();
                 if (mf.sharedMesh == null || mr == null || !mr.enabled || skip.Contains(mr) || IsMagazine(rig, mf.transform)
                     || rig.Slide != null && mf.transform.IsChildOf(rig.Slide) || rig.Handle != null && mf.transform.IsChildOf(rig.Handle))
                 {
+                    moving += rig.Slide != null && mf.transform.IsChildOf(rig.Slide) || rig.Handle != null && mf.transform.IsChildOf(rig.Handle) ? 1 : 0;
                     continue; // the parts that move by themselves already (a carrier inside, a handle) are not cut again
                 }
                 if (only != null && mf.transform != only)
@@ -110,6 +112,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (!mf.sharedMesh.isReadable)
                 {
+                    unreadable++;
                     continue;
                 }
                 Vector3 center = mf.transform.InverseTransformPoint(rackWorld);
@@ -117,6 +120,7 @@ namespace RavenfieldVR.Weapons
                 float r = radius / scale;
                 if ((mf.sharedMesh.bounds.ClosestPoint(center) - center).magnitude > r)
                 {
+                    far++;
                     continue;
                 }
                 string key = mf.sharedMesh.GetInstanceID() + "@" + center.ToString("F4") + "/" + r.ToString("F4");
@@ -127,6 +131,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (result.Cut == null)
                 {
+                    nothing++;
                     continue;
                 }
                 var go = new GameObject("RavenfieldVR Bolt Piece");
@@ -148,6 +153,9 @@ namespace RavenfieldVR.Weapons
             }
             if (!piece.Carved)
             {
+                // Said once per weapon: the added knob is what moves, the model's own handle (if it has one) stays put.
+                Log.InfoOnce("boltknob:" + d.Key, $"{d.Key}: nothing cut out at the rack point, a knob added instead ({unreadable} mesh(es) unreadable, "
+                                                  + $"{far} too far, {nothing} with no triangles there, {moving} moving by themselves{(only != null ? ", only '" + only.name + "' asked" : "")}).");
                 piece.AddKnob(rig, rackGun);
             }
         }

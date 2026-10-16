@@ -294,6 +294,10 @@ namespace RavenfieldVR.Rig
 
         /// <summary>Self-test: the glove posed the way it was before hands closed on the model (by their pose alone).</summary>
         internal static bool ClosingDisabled;
+
+        /// <summary>Self-test: each finger's curl now (thumb first, 0 straight, 1 closed), the pose's name and whether it closes on a solid.</summary>
+        internal string CurlsText => $"curls {_curl[0]:0.00}/{_curl[1]:0.00}/{_curl[2]:0.00}/{_curl[3]:0.00}/{_curl[4]:0.00}, pose {_pose.Id}, "
+                                     + (Closing ? "closing on the held shape" : "not closing (no solid)");
         /// <summary>Self-test: the pulled trigger finger the earlier way (all joints to the trigger curl, through what they touch).</summary>
         internal static bool LegacyTriggerFinger;
 

@@ -2242,6 +2242,18 @@ namespace RavenfieldVR.Weapons
                     d.Notes += $"magazine axis from its vertices ({Vector3.Angle(principal, axisLocal) % 180f:0}° off its box) ";
                 }
                 axisLocal = principal;
+                // A curved magazine (an AK's, a QBZ's) goes into its well along its top, not along the chord of its curve:
+                // slid on the chord, the fresh one came in 20 degrees too flat, in front of the well (QBZ 95-1 family).
+                Vector3 intoGunLocal = Quaternion.Inverse(d.MagSeat.rotation) * -outward;
+                if (TopTangent(magPart, principal, intoGunLocal, out Vector3 top))
+                {
+                    float bend = Vector3.Angle(top, Vector3.Dot(top, principal) < 0f ? -principal : principal);
+                    if (bend > 5f && bend < 35f)
+                    {
+                        d.Notes += $"curved magazine: in along its top ({bend:0}° off its chord) ";
+                        axisLocal = top;
+                    }
+                }
             }
             else if (s[longest] < 0.05f || s[longest] < second * 1.5f)
             {
@@ -2289,6 +2301,95 @@ namespace RavenfieldVR.Weapons
             // From the meshes shown at rest near the part, as its bounds are (PoseSampler.LocalBounds): a PKM box's belt
             // links parked 25 m away under it turned the axis toward them. All of them when none is shown.
             return PrincipalAxis(part, true, out axisLocal, out elongation) || PrincipalAxis(part, false, out axisLocal, out elongation);
+        }
+
+        /// <summary>
+        /// The direction of a magazine's centreline at its top end (the end toward <paramref name="intoGunLocal"/>): the
+        /// centroids of thin slices across its long axis, from a quarter of its length to its top. Same as the long axis
+        /// for a straight magazine. False when its meshes cannot be read.
+        /// </summary>
+        internal static bool TopTangent(Transform part, Vector3 axisLocal, Vector3 intoGunLocal, out Vector3 tangentLocal)
+        {
+            tangentLocal = axisLocal;
+            List<Vector3> points = MeshPoints(part, true);
+            if (points.Count < 8)
+            {
+                points = MeshPoints(part, false);
+            }
+            if (points.Count < 32)
+            {
+                return false;
+            }
+            Vector3 axis = Vector3.Dot(axisLocal, intoGunLocal) >= 0f ? axisLocal.normalized : -axisLocal.normalized; // toward the top
+            float lo = float.MaxValue, hi = float.MinValue;
+            foreach (Vector3 p in points)
+            {
+                float t = Vector3.Dot(p, axis);
+                lo = Mathf.Min(lo, t);
+                hi = Mathf.Max(hi, t);
+            }
+            float length = hi - lo;
+            if (length < 0.05f)
+            {
+                return false;
+            }
+            // Slices well inside the ends: the top round and the feed lips (and a base plate's lip) are left out.
+            bool Centroid(float from, float to, out Vector3 c)
+            {
+                c = Vector3.zero;
+                int n = 0;
+                foreach (Vector3 p in points)
+                {
+                    float f = (hi - Vector3.Dot(p, axis)) / length; // 0 at the top, 1 at the base
+                    if (f >= from && f < to)
+                    {
+                        c += p;
+                        n++;
+                    }
+                }
+                if (n < 4)
+                {
+                    return false;
+                }
+                c /= n;
+                return true;
+            }
+            if (!Centroid(0.08f, 0.2f, out Vector3 upper) || !Centroid(0.3f, 0.42f, out Vector3 lower))
+            {
+                return false;
+            }
+            Vector3 dir = upper - lower;
+            if (dir.sqrMagnitude < 1e-8f)
+            {
+                return false;
+            }
+            tangentLocal = dir.normalized;
+            return true;
+        }
+
+        /// <summary>The vertices of a part's meshes in its frame (a few thousand at most), as <see cref="PrincipalAxis(Transform, bool, out Vector3, out float)"/> takes them.</summary>
+        private static List<Vector3> MeshPoints(Transform part, bool shownNearOnly)
+        {
+            var points = new List<Vector3>();
+            foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable || m.vertexCount == 0)
+                {
+                    continue;
+                }
+                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f))
+                {
+                    continue;
+                }
+                Vector3[] v = m.vertices;
+                int step = Mathf.Max(1, v.Length / 4000);
+                for (int i = 0; i < v.Length; i += step)
+                {
+                    points.Add(part.InverseTransformPoint(mf.transform.TransformPoint(v[i])));
+                }
+            }
+            return points;
         }
 
         private static bool PrincipalAxis(Transform part, bool shownNearOnly, out Vector3 axisLocal, out float elongation)

@@ -57,11 +57,11 @@ namespace RavenfieldVR.Weapons
         /// <summary>Bottom end (base plate of a magazine, rim of a shell) in prop space.</summary>
         public readonly Vector3 BaseLocal;
         /// <summary>Half the magazine's thickness across the hand (side to side), for holding a second one beside it.</summary>
-        private readonly float _sideHalf;
+        private float _sideHalf;
         /// <summary>Half the magazine's size front to back (along the hand's pointing direction when held).</summary>
-        private readonly float _frontHalf;
+        private float _frontHalf;
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
-        public readonly float CrossHalf;
+        public float CrossHalf { get; private set; }
         /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held index-point instead of in the fist.</summary>
         public bool PistolSized => Kind == PropKind.Magazine && CrossHalf < 0.022f;
         /// <summary>
@@ -69,6 +69,9 @@ namespace RavenfieldVR.Weapons
         /// magazine (over 5 cm). Held in the box pose, further out along the fingers.
         /// </summary>
         public bool BoxSized => Kind == PropKind.Magazine && (CrossHalf > 0.055f || _sideHalf > 0.025f);
+
+        /// <summary>Self-test: its size across where the hand holds it, and how it is held.</summary>
+        internal string SizeText => $"{_frontHalf * 200f:0.0} x {_sideHalf * 200f:0.0} cm across, held as {(BoxSized ? "a box" : PistolSized ? "a pistol magazine" : "a rifle magazine")}";
         private readonly Rigidbody _body;
         /// <summary>The magazine's own shape (convex pieces of its mesh: a curved or drum magazine is not a crate).</summary>
         private Collider[] _colliders;
@@ -147,9 +150,20 @@ namespace RavenfieldVR.Weapons
             TipLocal = bounds.center + InsertDirLocal * extent;
             BaseLocal = bounds.center - InsertDirLocal * extent;
             Vector3 sideLocal = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
-            _sideHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), 0.006f, 0.04f);
-            _frontHalf = Mathf.Clamp(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal))), 0.006f, 0.1f);
-            CrossHalf = Mathf.Clamp(Mathf.Max(Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal))), Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal)))), 0.006f, 0.1f);
+            float sideBox = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), frontBox = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal)));
+            _sectionKey = key + "|" + InsertDirLocal.ToString("F3");
+            _boxHalf = new Vector2(frontBox, sideBox);
+            if (kind == PropKind.Magazine && GripSection(go, key, InsertDirLocal, FrontLocal, sideLocal, out float frontGrip, out float sideGrip))
+            {
+                // Where the hand holds it, not its box: the box of a raked or curved magazine counted part of its length
+                // as width (a 25 cm magazine tipped 20 degrees, an AK's bend), and most rifle and pistol magazines were
+                // taken for a machine gun's box and held out on the fingers, on the back of the hand (91 guns' pictures).
+                frontBox = frontGrip;
+                sideBox = sideGrip;
+            }
+            _sideHalf = Mathf.Clamp(sideBox, 0.006f, 0.04f);
+            _frontHalf = Mathf.Clamp(frontBox, 0.006f, 0.1f);
+            CrossHalf = Mathf.Clamp(Mathf.Max(frontBox, sideBox), 0.006f, 0.1f);
             switch (kind)
             {
                 case PropKind.Shell:
@@ -201,6 +215,152 @@ namespace RavenfieldVR.Weapons
         }
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+        private static readonly Dictionary<string, Vector2> GripSections = new Dictionary<string, Vector2>();
+        private string _sectionKey;
+        private Vector2 _boxHalf;
+        private bool _sectionMeasured;
+
+        /// <summary>
+        /// A magazine whose meshes cannot be read had its grip thickness from its box (a raked or curved one too wide): once
+        /// its shape is measured (rendered), the band where the hand holds it is measured on that, and kept for its type.
+        /// </summary>
+        private void MeasureSectionFromVolume()
+        {
+            if (_sectionMeasured || Kind != PropKind.Magazine || _volume == null || !_volume.Ready || Go == null)
+            {
+                return;
+            }
+            _sectionMeasured = true;
+            if (GripSections.TryGetValue(_sectionKey, out Vector2 known) && known.x > 0f)
+            {
+                return; // from its vertices, or measured on an earlier one
+            }
+            Vector3 insert = InsertDirLocal, front = FrontLocal, side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+            float length = Vector3.Dot(TipLocal - BaseLocal, insert);
+            if (length < 0.03f)
+            {
+                return;
+            }
+            Transform t = Go.transform;
+            Quaternion inv = Quaternion.Inverse(t.rotation);
+            float reachF = Mathf.Clamp(_boxHalf.x + 0.01f, 0.02f, 0.12f), reachS = Mathf.Clamp(_boxHalf.y + 0.01f, 0.02f, 0.06f);
+            const float step = 0.004f;
+            float fMin = float.MaxValue, fMax = float.MinValue, sMin = float.MaxValue, sMax = float.MinValue;
+            int hits = 0;
+            for (float u = 0.12f; u <= 0.3f; u += 0.03f)
+            {
+                Vector3 c = BaseLocal + insert * (length * u);
+                for (float f = -reachF; f <= reachF; f += step)
+                {
+                    for (float s = -reachS; s <= reachS; s += step)
+                    {
+                        Vector3 local = c + front * f + side * s;
+                        Vector3 frame = inv * (t.TransformPoint(local) - t.position);
+                        if (!_volume.InsideModelLocal(frame))
+                        {
+                            continue;
+                        }
+                        hits++;
+                        fMin = Mathf.Min(fMin, f);
+                        fMax = Mathf.Max(fMax, f);
+                        sMin = Mathf.Min(sMin, s);
+                        sMax = Mathf.Max(sMax, s);
+                    }
+                }
+            }
+            if (hits < 8)
+            {
+                return;
+            }
+            float frontHalf = (fMax - fMin) * 0.5f + step * 0.5f, sideHalf = (sMax - sMin) * 0.5f + step * 0.5f;
+            GripSections[_sectionKey] = new Vector2(frontHalf, sideHalf);
+            bool wasBox = BoxSized, wasPistol = PistolSized;
+            _sideHalf = Mathf.Clamp(sideHalf, 0.006f, 0.04f);
+            _frontHalf = Mathf.Clamp(frontHalf, 0.006f, 0.1f);
+            CrossHalf = Mathf.Clamp(Mathf.Max(frontHalf, sideHalf), 0.006f, 0.1f);
+            if (wasBox != BoxSized || wasPistol != PistolSized)
+            {
+                Log.InfoOnce("magsection:" + WeaponKey, $"Magazine of {WeaponKey}: {SizeText} where the hand holds it (its box said {_boxHalf.x * 200f:0.0} x {_boxHalf.y * 200f:0.0} cm).");
+            }
+        }
+
+        /// <summary>
+        /// The magazine's half thickness front to back and side to side where a hand holds it (a band 12-30% of its length
+        /// up from the base plate), from its vertices, across its insertion axis. False when its meshes cannot be read (the
+        /// box is used then). Kept per weapon.
+        /// </summary>
+        private static bool GripSection(GameObject go, string key, Vector3 insert, Vector3 front, Vector3 side, out float frontHalf, out float sideHalf)
+        {
+            frontHalf = sideHalf = 0f;
+            string cacheKey = key + "|" + insert.ToString("F3");
+            if (key != null && GripSections.TryGetValue(cacheKey, out Vector2 known))
+            {
+                frontHalf = known.x;
+                sideHalf = known.y;
+                return known.x > 0f;
+            }
+            var pts = new List<Vector3>();
+            Matrix4x4 toRoot = go.transform.worldToLocalMatrix;
+            foreach (MeshFilter mf in go.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable || m.vertexCount == 0)
+                {
+                    continue;
+                }
+                Matrix4x4 toProp = toRoot * mf.transform.localToWorldMatrix;
+                Vector3[] v = m.vertices;
+                int step = Mathf.Max(1, v.Length / 3000);
+                for (int i = 0; i < v.Length; i += step)
+                {
+                    pts.Add(toProp.MultiplyPoint3x4(v[i]));
+                }
+            }
+            bool ok = false;
+            if (pts.Count >= 16)
+            {
+                float lo = float.MaxValue, hi = float.MinValue;
+                foreach (Vector3 p in pts)
+                {
+                    float t = Vector3.Dot(p, insert);
+                    lo = Mathf.Min(lo, t);
+                    hi = Mathf.Max(hi, t);
+                }
+                float length = hi - lo;
+                if (length > 0.02f)
+                {
+                    float a = lo + length * 0.12f, b = lo + length * 0.3f;
+                    float fMin = float.MaxValue, fMax = float.MinValue, sMin = float.MaxValue, sMax = float.MinValue;
+                    int n = 0;
+                    foreach (Vector3 p in pts)
+                    {
+                        float t = Vector3.Dot(p, insert);
+                        if (t < a || t > b)
+                        {
+                            continue;
+                        }
+                        float f = Vector3.Dot(p, front), s = Vector3.Dot(p, side);
+                        fMin = Mathf.Min(fMin, f);
+                        fMax = Mathf.Max(fMax, f);
+                        sMin = Mathf.Min(sMin, s);
+                        sMax = Mathf.Max(sMax, s);
+                        n++;
+                    }
+                    if (n >= 8)
+                    {
+                        frontHalf = (fMax - fMin) * 0.5f;
+                        sideHalf = (sMax - sMin) * 0.5f;
+                        ok = frontHalf > 0.003f && sideHalf > 0.003f;
+                    }
+                }
+            }
+            if (key != null)
+            {
+                GripSections[cacheKey] = ok ? new Vector2(frontHalf, sideHalf) : Vector2.zero;
+            }
+            return ok;
+        }
 
         /// <summary>Creates a prop for <paramref name="rig"/>'s ammunition at the magazine's seated pose.</summary>
         public static MagazineProp Create(WeaponRig rig, PropKind kind, int rounds)
@@ -918,6 +1078,7 @@ namespace RavenfieldVR.Weapons
             {
                 return; // until it is measured the fingers keep their usual grip instead of closing on nothing
             }
+            MeasureSectionFromVolume();
             int side = (int)hand.Side;
             if (HandSolids[side] == null || !ReferenceEquals(HandSolidOwners[side], hand))
             {
