@@ -1773,6 +1773,26 @@ namespace RavenfieldVR.Weapons
         /// A rocket the same against its launcher (user, 2026-10-16: it went through the tube): it goes in only at the
         /// tube's mouth, on its line, where it is no longer kept out.
         /// </summary>
+        /// <summary>
+        /// The magazine held beside the one in the hand (palmed): kept out of the gun the same way, on its own (it borrowed
+        /// the first one's keep-out only, and went through the gun wherever the first one was clear; user, 2026-10-16).
+        /// With the first one on its rail the glove is left to that one (<paramref name="moveHand"/> false).
+        /// </summary>
+        internal RigidPose KeptOffGun(RigidPose target, bool moveHand)
+        {
+            _keepHand = moveHand;
+            try
+            {
+                return KeepOffGun(target);
+            }
+            finally
+            {
+                _keepHand = true;
+            }
+        }
+
+        private bool _keepHand = true;
+
         private RigidPose KeepOffGun(RigidPose target)
         {
             HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
@@ -1897,7 +1917,7 @@ namespace RavenfieldVR.Weapons
             {
                 return target;
             }
-            if (HeldBy != null && HeldBy.Model != null)
+            if (_keepHand && HeldBy != null && HeldBy.Model != null)
             {
                 Rig.HandModel model = HeldBy.Model;
                 bool setThisFrame = model.KeepOutFrame == Time.frameCount;

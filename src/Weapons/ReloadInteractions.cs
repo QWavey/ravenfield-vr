@@ -1883,6 +1883,8 @@ namespace RavenfieldVR.Weapons
                     else
                     {
                         _palmedAt = -1f;
+                        // In the hand (not still easing out of the well): it stays out of the gun on its own as well.
+                        palmedPose = _palmed.KeptOffGun(palmedPose, moveHand: !(off.Held is MagazineProp onRail && onRail.OnRail));
                     }
                     palmedPose.ApplyTo(_palmed.Go.transform);
                 }
