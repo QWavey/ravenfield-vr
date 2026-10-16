@@ -353,6 +353,13 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Drops every measured shape (the weapon overrides changed the grip frames they were measured in).</summary>
+        internal static void ClearCache()
+        {
+            Cache.Clear();
+            CacheOrder.Clear();
+        }
+
         private static GunVolume Cached(string key, Func<GunVolume> build)
         {
             if (Cache.TryGetValue(key, out GunVolume cached))

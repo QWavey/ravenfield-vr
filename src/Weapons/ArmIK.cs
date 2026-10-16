@@ -90,6 +90,17 @@ namespace RavenfieldVR.Weapons
                 Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
                 Vector3 palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
                 Vector3 at = off.PalmCentre;
+                if (off.Model != null)
+                {
+                    // Where the glove is placed off the tracked hand (holding a magazine on the well's line, kept out of the
+                    // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
+                    // was not (bug hunt 251.7).
+                    off.Model.PlacedFromTracked(out RigidPose tracked, out RigidPose placed);
+                    Quaternion turn = placed.rotation * Quaternion.Inverse(tracked.rotation);
+                    at = placed.position + turn * (at - tracked.position);
+                    rot = turn * rot;
+                    palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
+                }
                 // Settled onto the part it works the way the VR glove is: eased (it jumped up to 5 cm when racking began
                 // and ended).
                 bool anchored = off.Model != null && off.Model.GraspAnchor.HasValue;

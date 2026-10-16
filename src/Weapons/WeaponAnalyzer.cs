@@ -95,7 +95,28 @@ namespace RavenfieldVR.Weapons
         {
             string prefab = w.name.Replace("(Clone)", "").Trim();
             entry = entry ?? w.weaponEntry;
-            return entry != null ? entry.name + "#" + prefab : prefab;
+            string key = entry != null ? entry.name + "#" + prefab : prefab;
+            // A sub weapon (a fire mode or an attachment on its parent's model) also by its place under the topmost weapon:
+            // two subs of one name under one entry shared one analysis (bug hunt 251.19). The path is the same on the prefab
+            // and on its clone.
+            Transform top = null;
+            for (Transform t = w.transform.parent; t != null; t = t.parent)
+            {
+                if (t.GetComponent<Weapon>() != null)
+                {
+                    top = t;
+                }
+            }
+            if (top != null)
+            {
+                var path = new System.Text.StringBuilder();
+                for (Transform t = w.transform; t != null && t != top; t = t.parent)
+                {
+                    path.Insert(0, "/" + t.GetSiblingIndex());
+                }
+                key += path.ToString();
+            }
+            return key;
         }
 
         public static WeaponRigData Get(Weapon w) => Get(w, null);
@@ -162,7 +183,7 @@ namespace RavenfieldVR.Weapons
             {
                 return ActionType.ShellFed;
             }
-            if (!c.auto && c.cooldown >= 0.45f)
+            if (!AuthoredAuto(w) && c.cooldown >= 0.45f)
             {
                 return ActionType.Manual;
             }
@@ -218,7 +239,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            d.Action = !c.auto && c.cooldown >= 0.45f ? ActionType.Manual : ActionType.SelfLoading;
+            d.Action = !AuthoredAuto(w) && c.cooldown >= 0.45f ? ActionType.Manual : ActionType.SelfLoading;
             d.Notes += "magazine-fed advanced reload ";
         }
 
@@ -536,7 +557,7 @@ namespace RavenfieldVR.Weapons
                 DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
                 FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
                 d.CyclesByHand = d.Action == ActionType.Manual
-                                 || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
+                                 || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
                 {
                     RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
@@ -1538,9 +1559,10 @@ namespace RavenfieldVR.Weapons
             Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w, RigidPose gunIdle)
         {
             Weapon.Configuration c = w.configuration;
-            bool breakCandidate = !c.auto && c.ammo >= 1 && c.ammo <= 4 && d.Action != ActionType.SelfLoading
-                                  || !c.auto && c.ammo == 2;
-            bool revolverCandidate = d.Handgun && !c.auto && c.ammo >= 4 && c.ammo <= 9;
+            bool authoredAuto = AuthoredAuto(w);
+            bool breakCandidate = !authoredAuto && c.ammo >= 1 && c.ammo <= 4 && d.Action != ActionType.SelfLoading
+                                  || !authoredAuto && c.ammo == 2;
+            bool revolverCandidate = d.Handgun && !authoredAuto && c.ammo >= 4 && c.ammo <= 9;
             Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
             Transform slide = WeaponRig.Resolve(root, d.SlidePath);
             Transform handle = WeaponRig.Resolve(root, d.HandlePath);
@@ -1660,7 +1682,7 @@ namespace RavenfieldVR.Weapons
                     d.SlideMethod = "none (break action)";
                 }
             }
-            d.IsMachineGun = d.Hinge == HingeKind.FeedCover || c.auto && c.ammo >= 60 && !d.Handgun;
+            d.IsMachineGun = d.Hinge == HingeKind.FeedCover || authoredAuto && c.ammo >= 60 && !d.Handgun;
 
             if (hinge == null)
             {
@@ -1763,6 +1785,35 @@ namespace RavenfieldVR.Weapons
 
         // A rifle's carrier up to 23 cm on a shot (the ak12h 1p87's runs 21 cm straight back and was taken for a casing
         // flying off: the gun got an added knob instead of it; Tasks 245). Casings and flashes go sideways and much farther.
+        /// <summary>
+        /// One of its own meshes is rocket-sized (15-160 cm along its longest side): the container holds a rocket, not only
+        /// pieces that add up to that size round it (bug hunt 251.13).
+        /// </summary>
+        private static bool HoldsRocketSizedMesh(Transform t)
+        {
+            foreach (Renderer r in t.GetComponentsInChildren<Renderer>(true))
+            {
+                Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : r.GetComponent<MeshFilter>() is MeshFilter mf ? mf.sharedMesh : null;
+                if (mesh == null)
+                {
+                    continue;
+                }
+                Vector3 size = Vector3.Scale(mesh.bounds.size, r.transform.lossyScale);
+                float longest = Mathf.Max(Mathf.Abs(size.x), Mathf.Max(Mathf.Abs(size.y), Mathf.Abs(size.z)));
+                if (longest > 0.15f && longest < 1.6f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The weapon's authored fire mode: the player's selector switches an automatic weapon to single fire at runtime
+        /// (configuration.auto false), and analysed then it read as a manual or non-machine gun (bug hunt 251.12).
+        /// </summary>
+        internal static bool AuthoredAuto(Weapon w) => w != null && w.configuration != null && (w.configuration.auto || FireSelector.IsSemiByPlayer(w));
+
         private static float MaxBoltTravel(WeaponRigData d) => d.Handgun ? 0.07f : 0.23f;
 
         /// <summary>
@@ -2113,7 +2164,7 @@ namespace RavenfieldVR.Weapons
                         break; // the launcher itself (it holds the grip or the gun body): the Panzerfaust 3 handed out its whole launcher
                     }
                     float size = Longest(upBounds);
-                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up))
+                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up) && HoldsRocketSizedMesh(up))
                     {
                         d.Notes += $"rocket taken as '{up.name}', {size * 100f:0} cm (its part '{mag.name}' is too small for one) ";
                         mag = up;

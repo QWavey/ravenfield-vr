@@ -577,6 +577,17 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
+        /// The tracked hand's target and where the glove is placed from it (on a magazine held on the well's line, carried with
+        /// a heavy gun's lag, kept out of the gun): the weapon's own arm goes where the glove goes.
+        /// </summary>
+        internal void PlacedFromTracked(out RigidPose tracked, out RigidPose placed)
+        {
+            tracked = TrackedTarget();
+            RigidPose p = PlacedTarget();
+            placed = new RigidPose(p.position + _keepOut, p.rotation);
+        }
+
+        /// <summary>
         /// <see cref="GraspPointWorld"/> as it will be this frame, from the tracked hand now: the arm is solved before the
         /// glove is placed, and on last frame's point it sat a frame of hand travel off the bolt the glove held (bug hunt).
         /// </summary>
@@ -714,13 +725,22 @@ namespace RavenfieldVR.Rig
                 thumbGoal = Quaternion.Slerp(thumbGoal, _thumbFist, 0.5f); // in across the frame, onto the release
             }
             _thumbBase = Quaternion.Slerp(_thumbBase, thumbGoal, k);
+            Vector3 handInSolid = Vector3.zero;
+            Quaternion handInSolidRot = Quaternion.identity;
+            if (SolidAnchor != null)
+            {
+                Quaternion anchorInv = Quaternion.Inverse(SolidAnchor.rotation);
+                handInSolid = anchorInv * (_root.position - SolidAnchor.position);
+                handInSolidRot = anchorInv * _root.rotation;
+            }
             for (int f = 0; f < 5; f++)
             {
                 _curl[f] = Mathf.Lerp(_curl[f], goal[f], k);
                 float pullNow = f == 1 && _hand.Role == HandRole.Weapon ? VRInput.GetTrigger(_hand.Side) : 0f;
                 bool reuse = closing && !moved && _fingerValid[f] && !_settling
                              && Mathf.Abs(_curl[f] - _fingerGoal[f]) < 0.004f && Mathf.Abs(pullNow - _fingerPull[f]) < 0.01f
-                             && (f != 0 || Quaternion.Angle(_thumbBase, thumbGoal) < 0.5f); // the thumb's base eases in too
+                             && (f != 0 || Quaternion.Angle(_thumbBase, thumbGoal) < 0.5f) // the thumb's base eases in too
+                             && (handInSolid - _fingerAtPos[f]).sqrMagnitude < 0.003f * 0.003f && Quaternion.Angle(handInSolidRot, _fingerAtRot[f]) < 2f;
                 if (reuse)
                 {
                     _solved[0] = _fingerSolved[f, 0];
@@ -752,6 +772,8 @@ namespace RavenfieldVR.Rig
                         }
                     }
                     _fingerValid[f] = true;
+                    _fingerAtPos[f] = handInSolid;
+                    _fingerAtRot[f] = handInSolidRot;
                     _fingerGoal[f] = _curl[f];
                     _fingerPull[f] = pullNow;
                     _fingerSolved[f, 0] = _solved[0];
@@ -874,6 +896,10 @@ namespace RavenfieldVR.Rig
         private readonly float[] _fingerGoal = new float[5];
         private readonly float[] _fingerPull = new float[5];
         private readonly float[,] _fingerSolved = new float[5, 3];
+        // Where the hand was against the held solid when each finger was solved (reused only within 3 mm and 2 degrees of
+        // it: against the moving search reference a solve was reused up to 6 mm away; bug hunt 251.8).
+        private readonly Vector3[] _fingerAtPos = new Vector3[5];
+        private readonly Quaternion[] _fingerAtRot = new Quaternion[5];
         private float _palmTarget;
         private bool _palmTargetValid;
         /// <summary>The palm or the slide along the grip is still easing toward its place: the fingers follow it every frame.</summary>

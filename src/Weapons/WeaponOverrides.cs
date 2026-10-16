@@ -72,10 +72,13 @@ namespace RavenfieldVR.Weapons
                 _loadedStamp = stamp;
                 if (changed)
                 {
-                    // Edited while the game runs: weapons analysed already are analysed again (from their next draw), or the
-                    // edit reached none of them.
+                    // Edited while the game runs: weapons not analysed yet this scene take it; the measured shapes of the hand
+                    // volume and the stand-in go too (they sat in the old grip frame; bug hunt 251.14). A weapon already
+                    // drawn this scene keeps its rig until the next scene (bug hunt 251.11: the log said otherwise).
                     WeaponAnalyzer.ClearCache();
-                    Log.Info("Weapon overrides changed: weapons are analysed again with them.");
+                    GunVolume.ClearCache();
+                    ShapeFit.ClearCache();
+                    Log.Info("Weapon overrides changed: weapons analysed from now on (and every weapon from the next map) use them.");
                 }
             }
             catch (Exception e)
@@ -128,7 +131,7 @@ namespace RavenfieldVR.Weapons
                         // Cycled by hand as the overridden action is (as the analysis decides it): a gun made Manual kept
                         // cycling by itself, one made SelfLoading still asked for a hand on every shot (85-agent review).
                         d.CyclesByHand = d.Action == ActionType.Manual
-                                         || d.Action == ActionType.ShellFed && w.configuration != null && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
+                                         || d.Action == ActionType.ShellFed && w.configuration != null && !WeaponAnalyzer.AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
                     }
                     else
                     {

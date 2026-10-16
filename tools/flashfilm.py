@@ -38,7 +38,7 @@ def read_film(d):
     for line in open(os.path.join(d, 'frames.txt'), encoding='utf-8').read().splitlines()[1:]:
         p = line.split('\t')
         if len(p) >= 5:
-            rows.append({'frame': int(p[0]), 'eye': p[1], 'time': float(p[2]), 'note': p[3], 'lens': p[4]})
+            rows.append({'frame': int(p[0]), 'eye': p[1], 'time': num(p[2]), 'note': p[3], 'lens': p[4]})
     eyes = {'L': [r for r in rows if r['eye'] == 'L'], 'R': [r for r in rows if r['eye'] == 'R']}
     n = min(len(eyes['L']), len(eyes['R']))
     frames = []
@@ -50,8 +50,8 @@ def read_film(d):
 
 
 def lens_num(s, key):
-    m = re.search(key + r' ([0-9.]+)', s)
-    return float(m.group(1)) if m else 0.0
+    m = re.search(key + r' ([0-9.,]+)', s)
+    return num(m.group(1)) if m else 0.0
 
 
 def pair(lp, rp, label, scale=1.0):
@@ -109,7 +109,7 @@ def film(d, summary):
                            f'brighter (99%) L {dl:.2f} R {dr:.2f}')
             label = f'{note}  {dt:+.0f} ms   L flash {fl:.2f} glow {gl:.2f}   R flash {fr:.2f} glow {gr:.2f}'
             strip_rows.append(pair(lp, rp, label, 0.75))
-        worker = re.search(r'worker ([0-9.]+) ms \(most ([0-9.]+)\)', frames[k][1]['lens'])
+        worker = re.search(r'worker ([0-9.,]+) ms \(most ([0-9.,]+)\)', frames[k][1]['lens'])
         if worker:
             summary.append(f'    lens worker {worker.group(1)} ms a frame, most {worker.group(2)} ms')
     if strip_rows:
@@ -173,7 +173,7 @@ def reload_film(d, summary):
         out.paste(im, (0, 0))
         ImageDraw.Draw(out).text((4, im.height + 3), f'{name[7:]}   {r[3]}', fill=(255, 230, 120))
         pics.append(out)
-        times.append(float(r[2]))
+        times.append(num(r[2]))
     if len(pics) < 3:
         summary.append(f'{name}: only {len(pics)} frame(s)')
         return
@@ -187,6 +187,11 @@ def reload_film(d, summary):
             vw.write(cv2.cvtColor(np.asarray(p), cv2.COLOR_RGB2BGR))
         vw.release()
     summary.append(f'== {name}: {len(pics)} close-up frames over {times[-1] - times[0]:.1f} s -> {name}.gif')
+
+
+def num(text):
+    """A number from the game's logs, with a decimal point or a comma (a German Windows wrote 12,3456)."""
+    return float(text.replace(',', '.'))
 
 
 def main(root):

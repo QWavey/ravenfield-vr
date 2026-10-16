@@ -62,6 +62,12 @@ namespace RavenfieldVR.Weapons
         }
 
         public int Capacity => Mathf.Max(1, Weapon.configuration.ammo);
+
+        /// <summary>
+        /// Rounds the magazine or tube still takes. Without chamber +1 the chambered round counts in the capacity: shells and
+        /// tube loading filled to capacity on top of it (9 in an 8-round gun; bug hunt 251.4).
+        /// </summary>
+        public int TubeRoom => Mathf.Max(0, Capacity - MagRounds - (!VRConfig.ChamberPlusOne.Value && Chambered ? 1 : 0));
         public int Loaded => (MagInserted || !UsesDetachableMag ? MagRounds : 0) + (Chambered ? 1 : 0);
 
         public bool UsesDetachableMag => Rig.Action == ActionType.SelfLoading || (Rig.Action == ActionType.Manual && Rig.MagazinePath != null);
@@ -253,7 +259,7 @@ namespace RavenfieldVR.Weapons
         public void InsertMagazine(int rounds)
         {
             MagInserted = true;
-            MagRounds = Mathf.Clamp(rounds, 0, Capacity);
+            MagRounds = Mathf.Clamp(rounds, 0, Mathf.Max(0, Capacity - (!VRConfig.ChamberPlusOne.Value && Chambered ? 1 : 0)));
             ReturnSpare(rounds - MagRounds); // more than this weapon's magazine holds: the rest goes to the reserve
             // A new box's belt still has to be laid on the feed tray under the cover. Without belt laying by hand, a box
             // seated under a cover already shut counts as laid, as shutting the cover over it would (nothing else would
@@ -297,7 +303,7 @@ namespace RavenfieldVR.Weapons
         /// <returns>How many were accepted.</returns>
         public int LoadRounds(int count)
         {
-            int room = Capacity - MagRounds;
+            int room = TubeRoom;
             int accepted = Mathf.Clamp(count, 0, room);
             MagRounds += accepted;
             Sync();
@@ -351,7 +357,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Size of one loading motion for shell-fed weapons (largest allowed chunk that fits).</summary>
         public int ShellChunk()
         {
-            int room = Capacity - MagRounds;
+            int room = TubeRoom;
             int available = InfiniteSpare ? room : Mathf.Min(room, SpareAmmo);
             int best = 0;
             int[] allowed = Weapon.configuration.allowedReloads;

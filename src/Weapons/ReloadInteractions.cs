@@ -972,7 +972,7 @@ namespace RavenfieldVR.Weapons
                 kind = PropKind.Shell;
                 rounds = Data.Action == ActionType.ShellFed || Breaks
                     ? Ammo.ShellChunk()
-                    : Mathf.Min(Ammo.Capacity - Ammo.MagRounds, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
+                    : Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
             }
             if (rounds <= 0)
             {
@@ -1024,7 +1024,7 @@ namespace RavenfieldVR.Weapons
                 case PropKind.Rocket:
                     return Ammo.MagRounds == 0;
                 default:
-                    return Ammo.MagRounds < Ammo.Capacity && (!Breaks || Ammo.Open);
+                    return Ammo.TubeRoom > 0 && (!Breaks || Ammo.Open);
             }
         }
 
@@ -2448,7 +2448,7 @@ namespace RavenfieldVR.Weapons
             }
             if (off.Held is MagazineProp left)
             {
-                // Not seated again: back into the pouch.
+                // Still in the hand (the real grip held it): back into the pouch. One let go unseated has fallen, as in play.
                 Ammo.ReturnSpare(left.Rounds);
                 left.Rounds = 0;
                 left.Destroy();
@@ -3497,10 +3497,16 @@ namespace RavenfieldVR.Weapons
             {
                 FinishEject();
             }
-            if (_palmed != null)
+            MagazineProp palmed = _palmed;
+            _palmed = null;
+            if (off.Model != null)
             {
-                _palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
-                _palmed = null;
+                off.Model.Palming = false;
+            }
+            if (palmed != null && palmed.Go != null)
+            {
+                // (Not one a scene change already destroyed: dropping it threw and skipped everything below; bug hunt 251.6.)
+                palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
             }
             if (_racking)
             {

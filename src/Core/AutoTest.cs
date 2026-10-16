@@ -1050,7 +1050,17 @@ namespace RavenfieldVR.Core
                               + (tooFew ? " (TOO FEW LENS FLASHES)" : !expected ? " (no muzzle flash of its own: no lens flash by design)" : "")
                               + (shots == 0 ? " (DID NOT FIRE)" : "");
                 Results.Add(line);
-                Metric("lens flash check: share of shots that flashed (weapons with a muzzle flash)", expected && shots > 0 ? (double)flashes / shots : 1.0);
+                if (expected && shots > 0)
+                {
+                    Metric("lens flash check: share of shots that flashed (weapons with a muzzle flash)", (double)flashes / shots);
+                }
+                Weapon fired = held.Weapon != null ? held.Weapon.GetActiveSubWeapon() ?? held.Weapon : null;
+                if (shots == 0 && !(fired != null && fired.targetTracker != null && !fired.targetTracker.CanFire()))
+                {
+                    // (A lock-on launcher fires only at a locked target: none in front of the test.) Counted as 1.0 before
+                    // and never a problem (bug hunt 251.17).
+                    Problem($"[{entry.name}] flash check: did not fire");
+                }
                 if (!expected)
                 {
                     none.Add(entry.name);

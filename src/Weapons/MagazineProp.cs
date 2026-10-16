@@ -1640,7 +1640,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How far the magazine in the hand is drawn away from the hand to stay out of the gun now.</summary>
         private Vector3 _keptOut;
-        internal Vector3 KeptOut => _keptOut;
+        // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
+        // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
+        internal Vector3 KeptOut => OnRail && _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
         private static readonly Vector3[] SlideAxes = new Vector3[3];
