@@ -121,8 +121,8 @@ namespace RavenfieldVR.Rig
         private volatile float _workMs, _workMsMax;
 
         /// <summary>Autotest film: this eye's shown flash and glow strength and the worker's time for a frame.</summary>
-        internal string FilmState(int eye) =>
-            $"flash {_shownPower[eye]:0.00} glow {_shownGlow[eye]:0.00} worker {_workMs:0.0} ms (most {_workMsMax:0.0})";
+        internal string FilmState(int eye) => // invariant: a German Windows wrote 0,25 and tools/flashfilm.py failed on frames.txt
+            FormattableString.Invariant($"flash {_shownPower[eye]:0.00} glow {_shownGlow[eye]:0.00} worker {_workMs:0.0} ms (most {_workMsMax:0.0})");
 
         /// <summary>The worker's time for the last frame and the most so far (ms): it must stay under a frame.</summary>
         internal float WorkMs => _workMs;

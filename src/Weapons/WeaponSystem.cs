@@ -452,6 +452,9 @@ namespace RavenfieldVR.Weapons
                 _lastDryFire = Time.unscaledTime;
                 Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f);
                 Rig.Dominant.Haptic(0.01f, 250f, 0.25f);
+                // The trigger was pulled on an empty gun: the finger presses as on a shot (a controller that reports the
+                // trigger only as a click showed no pull at all on the click).
+                Rig.Dominant.Model?.TriggerShot();
             }
         }
 

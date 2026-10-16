@@ -66,14 +66,23 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                // In within 12 cm of the pocket, out past 15: a stock held at the edge does not flick in and out.
-                float distance = Vector3.Distance(Rig.ToWorld(_stockButt.Value), _system.Zones.DomShoulder);
+                // In within 12 cm of the pocket, out past 15: a stock held at the edge does not flick in and out. Measured where
+                // the player holds the stock (the tracked hands' pose), not where the droop, the weight's lag and the recoil
+                // draw it: on the drawn pose the droop this switches lifted or lowered the butt across the pocket's edge, the
+                // stock left the shoulder, the droop came back, the butt went back in, and a launcher (its tube's end some
+                // 50 cm behind the grip, moved about 7 cm by an 8 degree droop, more than the 3 cm band) rocked in a still
+                // hand without being fired (Tasks 203).
+                Vector3 butt = _buttFromHandSet ? _buttFromHand : Rig.ToWorld(_stockButt.Value);
+                float distance = Vector3.Distance(butt, _system.Zones.DomShoulder);
                 _shouldered = distance < (_shouldered ? 0.15f : 0.12f);
                 return _shouldered;
             }
         }
 
         private bool _shouldered;
+        /// <summary>The stock's butt where the tracked hands hold it this frame (before droop, weight lag and recoil).</summary>
+        private Vector3 _buttFromHand;
+        private bool _buttFromHandSet;
 
         // Visual overrides.
         public float SlideOffset;
@@ -92,6 +101,14 @@ namespace RavenfieldVR.Weapons
         public Vector3 RackPointGun { get; private set; }
         private bool _rackSnapped;
         private readonly ArmIK _armIK;
+        /// <summary>The weapon's own right / left arm bones as ArmIK resolves them (root, upper, lower, hand); null: no chain.</summary>
+        private readonly Transform[] _armRightBones, _armLeftBones;
+
+        private static Transform[] ResolveArm(Transform root, ArmChain chain) => chain == null ? null
+            : new[] { WeaponRig.Resolve(root, chain.Root), WeaponRig.Resolve(root, chain.Upper), WeaponRig.Resolve(root, chain.Lower), WeaponRig.Resolve(root, chain.Hand) };
+
+        /// <summary>That arm is drawn by ArmIK (the same test as its Arm.Valid: all four bones found).</summary>
+        private static bool ArmDrawn(Transform[] bones) => bones != null && bones[0] != null && bones[1] != null && bones[2] != null && bones[3] != null;
         /// <summary>The weapon's own right and left hands (bones still animated under the hidden arm meshes).</summary>
         private readonly ModHand _gripHand, _supportHand;
 
@@ -188,6 +205,8 @@ namespace RavenfieldVR.Weapons
             if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
             {
                 _armIK = new ArmIK(system, this);
+                _armRightBones = ResolveArm(weapon.transform, rig.Data.ArmRight);
+                _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
             }
             _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
             _isKit = IsKit(weapon);
@@ -1087,6 +1106,12 @@ namespace RavenfieldVR.Weapons
                     gunRot = Quaternion.Slerp(gunRot, twoHand, e);
                 }
             }
+            if (_stockButt.HasValue)
+            {
+                // Where the player puts the stock, for the shoulder check below (the gun body on the grip at the hand).
+                _buttFromHand = hand.position + gunRot * (_stockButt.Value - d.GripPoint);
+                _buttFromHandSet = true;
+            }
 
             // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly. The droop
             // comes and goes over a quarter of a second: switched on and off at once, setting the stock in the shoulder or
@@ -1184,7 +1209,16 @@ namespace RavenfieldVR.Weapons
             if (_armIK != null && _armIK.Active)
             {
                 _armIK.Solve();
-                SetHandModelsSuppressed(true);
+                // Only the glove whose arm the weapon draws gives way to it (the model's right arm is the gun arm): a model
+                // with one arm chain hid both gloves, and the other hand was invisible for the whole hold.
+                if (main.Model != null)
+                {
+                    main.Model.Suppressed = ArmDrawn(_armRightBones);
+                }
+                if (off.Model != null)
+                {
+                    off.Model.Suppressed = ArmDrawn(_armLeftBones);
+                }
             }
             else
             {
@@ -1241,7 +1275,8 @@ namespace RavenfieldVR.Weapons
         /// weapon's support pose on the handguard (slid to wherever you hold it) or on the pistol grip it cups.
         /// </summary>
         private GunVolume _volume;
-        private bool _volumeTried;
+        private int _volumeTries;
+        private float _volumeRetryAt;
         private bool _hullApplied;
         private System.Func<Vector3, bool> _supportSolid;
         private HandModel _supportGunHand;
@@ -1281,10 +1316,24 @@ namespace RavenfieldVR.Weapons
             // stays in its shape for the session. A gun that never comes to rest (empty, slide locked) is measured anyway.
             float held = Time.unscaledTime - _heldSince;
             bool atRest = Weapon.unholstered && !Weapon.reloading && SlideOffset < 0.002f && HingeOpenness < 0.01f;
-            if (_volume == null && !_volumeTried && held > 0.25f && (atRest || held > 5f) && Rig.Data.Action != ActionType.NoAmmo)
+            if (_volume != null && _volume.Failed)
             {
-                _volumeTried = true;
+                // Its read-back or measuring failed: measured again a second later (GunVolume keeps no failed entry). Latched
+                // before, the hands never got a solid for the rest of the hold.
+                _volume = null;
+                _volumeRetryAt = Time.unscaledTime + 1f;
+            }
+            // An infinite-magazine gun (ammo -1) is analysed as NoAmmo but is a gun all the same: it gets a hand solid too.
+            // A kit keeps its hidden glove, and a tool with no ammo stays unmeasured as before.
+            bool measurable = !_isKit && (Rig.Data.Action != ActionType.NoAmmo || Weapon.configuration != null && Weapon.configuration.ammo == -1);
+            if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && held > 0.25f && (atRest || held > 5f) && measurable)
+            {
+                _volumeTries++;
                 _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
+                if (_volume == null)
+                {
+                    _volumeRetryAt = Time.unscaledTime + 1f; // not built (an exception, a degenerate box): tried again, three times at most
+                }
             }
             if (_volume == null || !_volume.Ready || Rig.GunBody == null)
             {
@@ -1705,6 +1754,10 @@ namespace RavenfieldVR.Weapons
             if (projectile != null && projectile.GetComponentInChildren<Projectile>(true) != null && weapon.configuration.ammo > 1)
             {
                 return false;
+            }
+            if (weapon is MeleeWeapon)
+            {
+                return false; // a blade is held in the glove: a 'Medic Knife' (no projectile) matched the name below
             }
             return System.Text.RegularExpressions.Regex.IsMatch(weapon.name, @"\b(bag|kit|medkit|medic|ammo ?box|first ?aid)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }

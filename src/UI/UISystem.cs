@@ -325,7 +325,7 @@ namespace RavenfieldVR.UI
             _go = new GameObject("RavenfieldVR Laser");
             UnityEngine.Object.DontDestroyOnLoad(_go);
             _go.layer = 5;
-            _material = new Material(Shader.Find("Sprites/Default"));
+            _material = new Material(Shader.Find("Sprites/Default")) { color = Color.white }; // the line's colours tint it; set once
             _line = _go.AddComponent<LineRenderer>();
             _line.sharedMaterial = _material;
             _line.positionCount = 2;
@@ -354,7 +354,14 @@ namespace RavenfieldVR.UI
             {
                 return;
             }
-            Color c = VRConfig.ParseColor(VRConfig.LaserColor, new Color(0.91f, 0.71f, 0.29f));
+            // Parsed once per value of the setting (it was parsed from its text every frame the laser showed).
+            string colorText = VRConfig.LaserColor.Value;
+            if (!ReferenceEquals(colorText, _colorText))
+            {
+                _colorText = colorText;
+                _color = VRConfig.ParseColor(VRConfig.LaserColor, new Color(0.91f, 0.71f, 0.29f));
+            }
+            Color c = _color;
             Color start = c;
             start.a = hit ? 0.9f : 0.35f;
             Color tail = c;
@@ -363,15 +370,20 @@ namespace RavenfieldVR.UI
             _line.endColor = tail;
             _line.SetPosition(0, origin);
             _line.SetPosition(1, end);
-            _dot.SetActive(hit);
+            if (_dot.activeSelf != hit)
+            {
+                _dot.SetActive(hit);
+            }
             if (hit)
             {
                 _dot.transform.position = end;
                 float scale = overInteractive ? 0.014f : 0.009f;
                 _dot.transform.localScale = Vector3.one * scale;
-                _material.color = Color.white;
             }
         }
+
+        private string _colorText;
+        private Color _color;
 
         public void Destroy()
         {

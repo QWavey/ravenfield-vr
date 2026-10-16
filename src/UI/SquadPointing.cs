@@ -171,6 +171,7 @@ namespace RavenfieldVR.UI
             if (_label.activeSelf != show)
             {
                 _label.SetActive(show);
+                _refitFrames = 2; // shown again: refit once it is laid out
             }
             if (!show)
             {
@@ -187,13 +188,31 @@ namespace RavenfieldVR.UI
             Vector3 at = palm + Vector3.up * 0.075f;
             _label.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - head.position, Vector3.up));
             string order = Pointing ? (ui.text != null ? ui.text.text : "GO TO") : "POINT WITH A HAND";
-            if (_text.text != order)
+            // The label is refitted only when its text changed or it came back (and the frame after, once laid out), and its
+            // colours are set only when they change: all of it ran every frame the squad button was held (and TextMesh.text's
+            // getter builds a new string on every read, so the last text set is remembered).
+            if (!string.Equals(order, _shownOrder))
             {
                 _text.text = order;
+                _shownOrder = order;
+                _refitFrames = 2;
             }
-            _text.color = Pointing ? new Color(0.88f, 0.95f, 1f, _alpha) : new Color(1f, 0.75f, 0.35f, _alpha);
-            _plate.Fit();
-            _plate.SetAlpha(_alpha);
+            Color col = Pointing ? new Color(0.88f, 0.95f, 1f, _alpha) : new Color(1f, 0.75f, 0.35f, _alpha);
+            if (col.r != _textColor.r || col.g != _textColor.g || col.b != _textColor.b || col.a != _textColor.a)
+            {
+                _textColor = col;
+                _text.color = col;
+            }
+            if (_refitFrames > 0)
+            {
+                _refitFrames--;
+                _plate.Fit();
+            }
+            if (_alpha != _plateAlpha)
+            {
+                _plateAlpha = _alpha;
+                _plate.SetAlpha(_alpha);
+            }
 
             Vector3? target = Pointing ? Target(ui) : null;
             bool arrow = target.HasValue;
@@ -206,11 +225,20 @@ namespace RavenfieldVR.UI
                 Vector3 to = target.Value - palm;
                 Vector3 start = palm + Vector3.up * 0.035f;
                 _arrow.transform.SetPositionAndRotation(start, Quaternion.LookRotation(to.sqrMagnitude > 1e-6f ? to : Line.direction, Vector3.up));
-                Color c = _arrowMaterial.color;
-                c.a = 0.9f * _alpha;
-                _arrowMaterial.color = c;
+                if (_alpha != _arrowAlpha)
+                {
+                    _arrowAlpha = _alpha;
+                    Color c = _arrowMaterial.color;
+                    c.a = 0.9f * _alpha;
+                    _arrowMaterial.color = c;
+                }
             }
         }
+
+        private string _shownOrder;
+        private int _refitFrames = 2;
+        private Color _textColor = new Color(-1f, 0f, 0f, 0f);
+        private float _plateAlpha = -1f, _arrowAlpha = -1f;
 
         /// <summary>Where the order would go: the flag picked, the soldier picked, or the ground the line meets.</summary>
         private static Vector3? Target(SquadPointUi ui)
