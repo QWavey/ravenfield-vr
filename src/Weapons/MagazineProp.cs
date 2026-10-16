@@ -454,6 +454,10 @@ namespace RavenfieldVR.Weapons
                     bounds = d.MagBounds;
                 }
             }
+            if (go == null && kind == PropKind.Rocket)
+            {
+                go = ProjectileCopy(rig, insertLocal, frontLocal, out bounds);
+            }
             if (go == null)
             {
                 go = new GameObject("RavenfieldVR " + kind);
@@ -505,6 +509,10 @@ namespace RavenfieldVR.Weapons
                 {
                     bounds = d.MagBounds;
                 }
+            }
+            if (go == null && kind == PropKind.Rocket)
+            {
+                go = ProjectileCopy(rig, insertLocal, frontLocal, out bounds);
             }
             if (go == null)
             {
@@ -637,6 +645,75 @@ namespace RavenfieldVR.Weapons
             go.name = "rocket " + key;
             LoadedLooks[key] = go;
             Log.InfoOnce("rocketlook:" + key, $"Rocket of {key} copied as it sits loaded: {go.GetComponentsInChildren<MeshFilter>(true).Length} mesh(es), {Longest(b) * 100f:0} cm long.");
+        }
+
+        /// <summary>
+        /// A launcher that shows no rocket of its own (a missile tube: HYDRA, SCALPEL, a signal launcher): the rocket in the
+        /// hand is the projectile it fires, its own meshes, seated inside the tube with its nose at the mouth. It was a
+        /// made-up 75 cm olive capsule. Null when the projectile has no mesh to show or is not rocket-sized.
+        /// </summary>
+        private static GameObject ProjectileCopy(WeaponRig rig, Vector3 insertLocal, Vector3 frontLocal, out Bounds bounds)
+        {
+            WeaponRigData d = rig.Data;
+            bounds = d.MagBounds;
+            GameObject prefab = rig.Weapon != null && rig.Weapon.configuration != null ? rig.Weapon.configuration.projectilePrefab : null;
+            if (prefab == null)
+            {
+                return null;
+            }
+            // Its meshes in its own space (it flies along its forward), without trails, flames or glow.
+            Matrix4x4 toRoot = prefab.transform.worldToLocalMatrix;
+            var parts = new List<(MeshRenderer r, Mesh mesh, Matrix4x4 m)>();
+            bool any = false;
+            var b = new Bounds();
+            foreach (MeshRenderer r in prefab.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                MeshFilter mf = r.GetComponent<MeshFilter>();
+                if (!r.enabled || mf == null || mf.sharedMesh == null || GunCollider.SeeThrough(r))
+                {
+                    continue;
+                }
+                Matrix4x4 m = toRoot * r.transform.localToWorldMatrix;
+                parts.Add((r, mf.sharedMesh, m));
+                Bounds mb = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 c = m.MultiplyPoint3x4(mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f)));
+                    if (!any)
+                    {
+                        b = new Bounds(c, Vector3.zero);
+                        any = true;
+                    }
+                    else
+                    {
+                        b.Encapsulate(c);
+                    }
+                }
+            }
+            float length = b.size.z;
+            if (!any || length < 0.12f || length > 2f || Mathf.Max(b.size.x, b.size.y) > length)
+            {
+                Log.InfoOnce("rocketprojectile:" + d.Key, $"Rocket of {d.Key}: its projectile {prefab.name} has {(any ? $"a {b.size.x * 100f:0} x {b.size.y * 100f:0} x {length * 100f:0} cm model, not a rocket's" : "no model")}: the made one is used.");
+                return null;
+            }
+            // Into seat space: its forward along the bore (out of the tube), its up the launcher's up, its nose at the tube's
+            // front on the bore's line through the seat.
+            Vector3 aimLocal = -insertLocal.normalized;
+            Quaternion q = Quaternion.LookRotation(aimLocal, frontLocal);
+            Vector3 aimGun = d.AimAxis.normalized;
+            float seatAlong = Vector3.Dot(d.MagSeat.position, aimGun);
+            float noseAlong = TubeFront(rig, aimGun, out float front) ? front - seatAlong : Vector3.Dot(d.MuzzlePoint, aimGun) - seatAlong;
+            Vector3 nosePoint = new Vector3(b.center.x, b.center.y, b.max.z);
+            var root = new GameObject("rocket");
+            foreach ((MeshRenderer r, Mesh mesh, Matrix4x4 m) in parts)
+            {
+                Vector3 p = aimLocal * noseAlong + q * (m.MultiplyPoint3x4(Vector3.zero) - nosePoint);
+                Quaternion rot = q * m.rotation;
+                AddPart(root.transform, r.name, mesh, r.sharedMaterials, p, rot, m.lossyScale);
+            }
+            bounds = MeasureCopy(root, out _); // its own size (the analysis had a 14 cm stand-in box for a missile tube)
+            Log.InfoOnce("rocketprojectile:" + d.Key, $"Rocket of {d.Key}: its projectile's own model ({prefab.name}, {parts.Count} mesh(es), {length * 100f:0} cm), seated in the tube.");
+            return root;
         }
 
         /// <summary>A new copy of the launcher's rocket as it looked loaded; null when none was kept (or its meshes are gone).</summary>
@@ -1480,6 +1557,12 @@ namespace RavenfieldVR.Weapons
                 // A pistol magazine going in: as it slides up the grip the hand lets go of it and turns into a push on its
                 // base plate, the thumb coming away (the user's pictures: more satisfying than a fist all the way in).
                 float push = PistolSized && !FromSeat && MovingIn && RailLength > 1e-4f ? Mathf.InverseLerp(0.2f, 0.75f, RailDepth / RailLength) : 0f;
+                if (Kind == PropKind.Rocket && GoesAllTheWayIn && !FromSeat && MovingIn)
+                {
+                    // A missile that goes all the way into its tube: the hand cannot follow it in, so for the last of it the
+                    // hand turns into a push on its nose, as on a pistol magazine's base plate.
+                    push = Mathf.InverseLerp(0.45f, 0.8f, RailDepth / RailLength);
+                }
                 if (push > 0f)
                 {
                     push = push * push * (3f - 2f * push);
@@ -1493,6 +1576,9 @@ namespace RavenfieldVR.Weapons
                 HeldShapesFrame[(int)HeldBy.Side] = -1; // moved: the fingers' solid is measured again from where it is now
             }
         }
+
+        /// <summary>A rocket whose whole length goes into the tube (within 10 cm): nothing of it is left for the hand at the end.</summary>
+        internal bool GoesAllTheWayIn => Kind == PropKind.Rocket && RailLength > Vector3.Dot(TipLocal - BaseLocal, InsertDirLocal) - 0.1f;
 
         /// <summary>
         /// The palm pushing this magazine's base plate home: the palm flat under it, facing up the magazine, its heel on the

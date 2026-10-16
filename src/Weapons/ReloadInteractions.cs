@@ -2299,6 +2299,23 @@ namespace RavenfieldVR.Weapons
                     own.Add(mesh);
                 }
             }
+            string ownIs = "the launcher's own rocket";
+            if (own.Count == 0)
+            {
+                // A missile tube shows nothing loaded: its rocket is the projectile it fires.
+                GameObject projectile = Rig.Weapon != null && Rig.Weapon.configuration != null ? Rig.Weapon.configuration.projectilePrefab : null;
+                if (projectile != null)
+                {
+                    foreach (MeshFilter mf in projectile.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf.sharedMesh != null)
+                        {
+                            own.Add(mf.sharedMesh.name);
+                        }
+                    }
+                    ownIs = "the launcher's own projectile";
+                }
+            }
             var held = new List<string>();
             foreach (MeshFilter mf in rocket.Go.GetComponentsInChildren<MeshFilter>(true))
             {
@@ -2315,7 +2332,7 @@ namespace RavenfieldVR.Weapons
             bool extra = held.Any(h => !own.Contains(h) && !h.StartsWith("Capsule", System.StringComparison.Ordinal));
             if (match && !extra)
             {
-                return $"the launcher's own rocket ({string.Join(", ", held.Distinct().ToArray())})";
+                return $"{ownIs} ({string.Join(", ", held.Distinct().ToArray())})";
             }
             return match ? $"NOT THE LAUNCHER'S ROCKET alone (also {string.Join(", ", held.Where(h => !own.Contains(h)).Distinct().ToArray())})"
                          : $"NOT THE LAUNCHER'S ROCKET ({string.Join(", ", held.Distinct().ToArray())}; it shows {string.Join(", ", own.ToArray())})";
