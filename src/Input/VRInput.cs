@@ -67,6 +67,7 @@ namespace RavenfieldVR.Input
         private static readonly float[][] Curl = { new float[5], new float[5] };
         private static readonly bool[] SkeletonValid = new bool[2];
         private static readonly string[] ControllerTypes = { "", "" };
+        private static readonly bool[] HapticOkLogged = new bool[2];
         private static float _nextTypeRefresh;
 
         private static readonly uint DigitalSize = (uint)Marshal.SizeOf(typeof(InputDigitalActionData_t));
@@ -550,9 +551,12 @@ namespace RavenfieldVR.Input
             {
                 Log.WarnOnce("haptic:" + h + err, $"Vibration on the {h} controller failed: {err}");
             }
-            else
+            else if (!HapticOkLogged[(int)h])
             {
-                Log.InfoOnce("haptic-ok:" + h, $"Vibration on the {h} controller works ({ControllerTypes[(int)h]}).");
+                // Latched here instead of InfoOnce, which built the key and message string on every pulse (two per shot) only
+                // to drop them.
+                HapticOkLogged[(int)h] = true;
+                Log.Info($"Vibration on the {h} controller works ({ControllerTypes[(int)h]}).");
             }
         }
 
