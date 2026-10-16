@@ -33,8 +33,6 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 198. Weapon review: magazine axis from the shape far off the animated pull on whole families (1911 ~80 deg, P220 78, asval 92, ak12 57, mwii-ak105 78, QJB2...
 - 199. Weapon review (minor): reload timelines without mag-in or slide-home on several families (sound timing), FNX-45 family sights only estimated, launcher...
 - 203. RPGs shake in the hand without being fired
-- 248. Performance findings (5 Haiku agents, 30 findings, list under "For 248")
-- 249. Bug hunt findings (5 Haiku agents, 22 findings, list under "For 249")
 - 250. Rockets by hand on every launcher: collide with the launcher, in at the front, slide in with the hand; the launcher's own rocket in the hand
 - 210. More hand poses on guns and free-hand gestures: pick from the suggestions (pictures) and build them
 - 218. M1 Garand (vanilla): make it work like a real Garand
@@ -420,8 +418,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 245. [ ] Racking moves an added knob instead of the gun's own handle on 27 guns (M4A1 x3, mwii M4s, f2000s, AS Vals, AK-24s, MG3s, MRADs, RK-44, SIGNAL DMR, ak12h): their meshes cannot be read, so the handle cannot be cut out (user saw it on the M4A1 ACOG, 2026-10-16). M4A1: fixed (its own handle part is kept). Others: rig dumps queued to find their handle parts (2026-10-16 evening, knob dump: RK-44, f2000, mrad, mg3, M4A1s now use their own handle; AS Val and AK-24 no longer add a knob over their moving carrier; ak12h's 21 cm carrier accepted (874b6cf); SIGNAL DMR, the squad AS Val and the mwii M4s keep the knob: nothing of theirs moves and their meshes cannot be read)
 246. [ ] Rack picture check (24 Haiku agents on the 290-gun run, reports/agents/rack-check-2026-10-16): a part visibly comes back with the hand on 53 of 233 guns, no on 123, unclear 52. Partly the test: the hand was put under the gun when the rack point lay a few mm under the bore, the close-ups centred on the wrist, and the distance measured from the rack point (all fixed); to run and check again
 247. [x] Exceptions in the weapons run: seven sentry kits threw in the game's AimTransform every frame, three RPG-7V variants asked their SoundBank for a missing clip; both guarded (2026-10-16)
-248. [ ] Performance findings of 5 read-only Haiku agents on the per-frame paths (hands, lens, held weapon, reloads, rig and UI; 2026-10-16): verify each against the code, fix the real ones, measure (30 findings: 2 major, 15 minor, 13 tiny; list under "For 248") (lead's files: KeepOffGun array fixed (254d1a9); HandModel NearSkin caching and keep-out warm start not done (only matter on re-solve frames); the cupped-pistol skin key needs HandModel + HeldWeapon: after merging the helper's branch)
-249. [ ] General bug hunt of 5 read-only Haiku agents, one area each (reload and magazines, held weapon, hands, world, effects and UI; 2026-10-16): verify each against the code and fix the real ones (22 findings: 4 major, 15 minor, 3 tiny; list under "For 249") (lead's files fixed in 254d1a9 and bf8e0cb: MovingIn with 3 mm of play, cached grip section applied and eased, null volume retried, DepthVel seed capped, ArmIK on this frame's grip point and the glove's time step)
+248. [x] Performance findings of 5 read-only Haiku agents on the per-frame paths (hands, lens, held weapon, reloads, rig and UI; 2026-10-16): verify each against the code, fix the real ones, measure (30 findings: 2 major, 15 minor, 13 tiny; list under "For 248") (lead's files: KeepOffGun array fixed (254d1a9); HandModel NearSkin caching and keep-out warm start not done (only matter on re-solve frames); the cupped-pistol skin key needs HandModel + HeldWeapon: after merging the helper's branch) Done 2026-10-16 evening: 21 fixed, 4 left open on purpose (profile first or behaviour change), 248.8 and 248.10 open (GunVolume, lead).
+249. [x] General bug hunt of 5 read-only Haiku agents, one area each (reload and magazines, held weapon, hands, world, effects and UI; 2026-10-16): verify each against the code and fix the real ones (22 findings: 4 major, 15 minor, 3 tiny; list under "For 249") (lead's files fixed in 254d1a9 and bf8e0cb: MovingIn with 3 mm of play, cached grip section applied and eased, null volume retried, DepthVel seed capped, ArmIK on this frame's grip point and the glove's time step) Done 2026-10-16 evening: 20 fixed, 1 not real, 249.11 open (changes how scope steadying feels: headset).
 250. [ ] Rockets by hand on every launcher (user, 2026-10-16): the rocket collides with the launcher (it cannot pass through it), it goes in at the tube's front only and slides in with the hand the whole way (no letting go, no drawing in by itself); the rocket in the hand is the launcher's own model on every launcher (the five RPG-7V variants and the scoped RPG-7V held the made-up olive stand-in: the game had shrunk and moved its rocket after the shot when it was copied). Launchers: 010 DAGGER, 014 HYDRA, 027 SCALPEL, 031 SLAM-R, 065-069 RPG-7V, 123 Helo Signal Smoke (All), 134 RPG-7, 135 RPG-7V, 142 AT-1K, 152 Panzerfaust 3 (code done 2026-10-16 evening: bf8e0cb, 670b6db, 4e05efe: kept out of the launcher, taken only at the mouth, slides with the hand, held by its front part, the loaded rocket copied while it sits loaded, missile tubes hand out their own projectile and the hand pushes its nose for the last of it; rocket film of all 14 launchers queued)
 
 ## Notes
@@ -1374,6 +1372,33 @@ Read with care: the agents are often wrong on a single picture (a correct half-i
   Change: Store the last string (or the last underlying value) per row, and assign text only when the formatted value differs. Or compare the config value first and format only when it changed.
   Risk: None to behaviour. Each refresh still compares against the current config value, so changes made by another control still show. This file is outside the listed files; it is UI-only.
 
+Results (2026-10-16 evening; helper = Opus helper on helper-248-249, merged in b07604f; lead = tasks-98-113), in the order above:
+- 248.1 LensEffects.cs:203: fixed by the helper (156716d): the band threads run at Normal, the worker stays AboveNormal.
+- 248.2 VRScope.cs:283: fixed by the helper (156716d): the scope camera's copied settings and FOV are written only when they change; the second scene render itself stays.
+- 248.3 / 248.11 HeldWeapon.cs:1735: fixed by the lead (288f492 HandModel.SkinKey, f8ed393 wired): the support hand is solved again only when the gun hand's skin moves against the gun.
+- 248.4 HandModel.cs:793 (NearSkin matrices): not done; it only matters on re-solve frames, which 248.3 made rare.
+- 248.5 HandModel.cs:491 (keep-out warm start): not done; it changes behaviour, and the finding asks for a profile first.
+- 248.6 / 248.14 LensEffects.cs:348: fixed by the helper (2e28ade): a raw SetPixelData copy instead of SetPixels32.
+- 248.7 LensFlash.cs:211: fixed by the helper (9e7c2e8): MuzzleFlashInfo.Of is read once per shot.
+- 248.8 LensFlash.cs:188: open (lead, GunVolume): an InsideModel that takes gun-local points, so the flash's visibility ray is transformed once.
+- 248.9 LensEffects.cs:560: skipped: rebalancing the bands is a concurrency rewrite for a worker-only gain.
+- 248.10 GunVolume.cs:24 (cache of 12 keys thrashing): open (lead).
+- 248.12 BeltStrip.cs:83: fixed by the helper (715ebaf): nothing is rebuilt while unmoved; the bounds are set once.
+- 248.13 WeaponDrops.cs:750: fixed by the helper (2abbb8a): a reach radius per drop is checked before its colliders.
+- 248.15 WristHud.cs:148: fixed by the helper (56cf90d): the text is fitted and coloured again only on change.
+- 248.16 VRInputModule.cs:154: skipped: the cut belongs in ReloadInteractions.KeepEmptyHandOut, and the finding asks for a profile first.
+- 248.17 VRInput.cs:555: fixed by the helper (56cf90d): no strings are built per haptic pulse.
+- 248.18 HeldWeapon.cs:1732: fixed by the helper (6684bf0): no closure object per frame.
+- 248.19 HandModel.cs:884 (grip search spread over frames): not done; it changes timing for under 0.03 ms a frame.
+- 248.20 / 248.22 LensEffects: fixed by the helper (6f3c862): the accumulator is cleared only when read; the eye's property block and quads are set only on change.
+- 248.21 LensFlash.cs:437: fixed by the helper (9e7c2e8): no closure in the limiter.
+- 248.23 MuzzleFireball, 248.24 MudSplash, 248.27 Casings: fixed by the helper (715ebaf).
+- 248.25 HeldWeapon.cs:1915: fixed by the helper (6684bf0): parts are written only on change.
+- 248.26 MagazineProp.cs:1481: fixed by the lead (254d1a9): no array per frame. The HoldPose caching part is not done (3-6 us).
+- 248.28 VRInput.cs:222: skipped: an input-path change that a rebind to a non-hand device would break.
+- 248.29 CanvasManager.cs:156: skipped: it asks for a profile first, and it would show a new HUD canvas flat for up to 1 s.
+- 248.30 VRSettingsPanel.cs:318: skipped: menu only, and Unity already skips an unchanged text.
+
 ### For 249: bug hunt findings (5 Haiku agents, 2026-10-16)
 
 - [ ] [major, held] src/Weapons/HeldWeapon.cs:1922: Fire-mode variant's magazine flag drives the parent's magazine geometry.
@@ -1464,3 +1489,23 @@ Read with care: the agents are often wrong on a single picture (a correct half-i
   What: _ring.positionCount = n; _ring.SetPositions(_ringPoints); (lines 93-94), where _ringPoints is sized RingSegments + 1 = 49 (line 26) and n can be as small as 2 (line 87).
   Trigger: If Unity's SetPositions takes the array length rather than positionCount, a ring filled to about 10% would draw about 43 extra stale or zero points, which would show as a spike line to the ring's centre on the wrist. If Unity honours positionCount, there is no bug. Not verified against the Unity 2020.3 API here.
   Change: Keep a Vector3[] of exactly n entries (or call SetPosition(i, p) for each point) so the array length and positionCount always agree.
+
+Results (2026-10-16 evening), in the order above:
+- 249.1 HeldWeapon.cs:1922 (fire-mode variant drives the magazine): fixed by the lead (f8ed393): AmmoState.MagazineOf, so a variant on its parent's model reads and moves the parent's magazine.
+- 249.2 WeaponDrops.cs:1077: fixed by the helper (2abbb8a): an own weapon whose slot is taken is kept as the only copy.
+- 249.3 WeaponDrops.cs:852: fixed by the helper (2abbb8a): the six-cap turns the oldest kept weapon into an ordinary drop instead of deleting it.
+- 249.4 CanvasManager.cs:429: fixed by the helper (69ae586): the aspect comes from the largest HUD canvas.
+- 249.5 MovingIn, 249.6 cached grip section, 249.7 grip pop, 249.8 DepthVel seed, 249.9 null volume: fixed by the lead (254d1a9, bf8e0cb, 1787b91).
+- 249.10 HeldWeapon.cs:889: fixed by the helper (6684bf0): a sub weapon kicks with its own rig and class.
+- 249.11 HeldWeapon.cs:994 (scope steadying speed is filter lag / dt): open. It is real, but the fix changes how steadying feels (Task 230). The fix: an angle-per-dt hand speed, low-passed at about 2 Hz, driving the cutoff. Check it in the headset.
+- 249.12 HeldWeapon.cs:135: fixed by the helper (6684bf0): the physics stand-in is destroyed on release and on a failed setup.
+- 249.13 / 249.21 ArmIK: fixed by the lead (254d1a9, 1787b91).
+- 249.14 ThrowAndMelee.cs:334: fixed by the helper (0583a2d): the pin pull is measured from the grab point.
+- 249.15 LensEffects.cs:412: fixed by the helper (6f3c862): both eyes are weighted the same in single-pass (see 225).
+- 249.16 VRManager.cs:73: fixed by the helper (81ce1d8): VRInput.Initialize is inside the try, and a failure shows the notice and re-arms F6.
+- 249.17 LensEffects.cs:160: fixed by the helper (6f3c862, 13db87a).
+- 249.18 CanvasManager.cs:119: fixed by the helper (69ae586).
+- 249.19 LensFlash.cs:394: fixed by the helper (9e7c2e8): the world glow is off when the player is dead.
+- 249.20 GunCollider.cs:394: fixed by the helper (0583a2d).
+- 249.22 WristHud.cs:93: not real (positionCount limits what is drawn).
+To check in the headset (helper): flashes under heavy CPU load (156716d), hit glow and water drops in each eye (6f3c862), menus that flip between HUD and menu (69ae586), the 7th weapon swap and an own rifle left over 90 s (2abbb8a).
