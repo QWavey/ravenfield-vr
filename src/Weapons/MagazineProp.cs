@@ -46,6 +46,11 @@ namespace RavenfieldVR.Weapons
         public bool FromSeat;
         /// <summary>The rail depth last frame (whether it is going in or coming out).</summary>
         public float PrevDepth;
+        /// <summary>
+        /// It last moved into the well (set going in, cleared going out by more than a millimetre): the hand turns into a
+        /// push only seating it, never pulling one out (it snapped into the push 1.5 cm out of a pistol's grip).
+        /// </summary>
+        public bool MovingIn;
         public VRHand HeldBy { get; private set; }
 
         /// <summary>Insertion end (top of a magazine, nose of a shell/rocket) in prop space.</summary>
@@ -427,7 +432,7 @@ namespace RavenfieldVR.Weapons
                 bool tube = TubeFront(rig, aim, out float front);
                 float mouth = tube ? front : Vector3.Dot(d.MuzzlePoint, aim);
                 float depth = mouth - Vector3.Dot(tailSeated, aim);
-                if (depth > 0.05f && depth < 1.2f)
+                if (depth > 0.05f && depth < 1.8f)
                 {
                     prop.RailLength = depth + 0.01f;
                 }
@@ -1316,7 +1321,7 @@ namespace RavenfieldVR.Weapons
                 RigidPose heldPalm = RigidPose.Of(Go.transform).Multiply(hold.Inverse().Multiply(palm));
                 // A pistol magazine going in: as it slides up the grip the hand lets go of it and turns into a push on its
                 // base plate, the thumb coming away (the user's pictures: more satisfying than a fist all the way in).
-                float push = PistolSized && !FromSeat && RailLength > 1e-4f ? Mathf.InverseLerp(0.2f, 0.75f, RailDepth / RailLength) : 0f;
+                float push = PistolSized && !FromSeat && MovingIn && RailLength > 1e-4f ? Mathf.InverseLerp(0.2f, 0.75f, RailDepth / RailLength) : 0f;
                 if (push > 0f)
                 {
                     push = push * push * (3f - 2f * push);

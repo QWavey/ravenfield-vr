@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
@@ -534,6 +536,7 @@ namespace RavenfieldVR.Weapons
             // on the same frame: pulling a magazine out by hand did nothing.
             prop.RailHandOffset = HandAlongRail(off, prop, out _) - prop.RailLength;
             prop.FromSeat = true;
+            prop.MovingIn = false;
             prop.PrevDepth = prop.RailDepth;
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
@@ -1131,6 +1134,14 @@ namespace RavenfieldVR.Weapons
             }
             prop.PrevDepth = prop.RailDepth;
             prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);
+            if (prop.RailDepth > prop.PrevDepth + 0.001f)
+            {
+                prop.MovingIn = true;
+            }
+            else if (prop.RailDepth < prop.PrevDepth - 0.001f)
+            {
+                prop.MovingIn = false;
+            }
             if (prop.FromSeat && prop.RailDepth < prop.RailLength - 0.015f)
             {
                 prop.FromSeat = false; // out a little: pushed back now, it seats again
@@ -1903,6 +1914,18 @@ namespace RavenfieldVR.Weapons
         /// 25 cm in front of it and pushed in, the way a player does. Reports whether the rocket in the hand is drawn, whether
         /// it went onto the line and whether it loaded (Tasks 231: scoped RPGs could not be reloaded, the rocket invisible).
         /// </summary>
+        /// <summary>Autotest (-rfvr-deep): the launcher emptied and reloaded by hand, as the rocket film does, without filming.</summary>
+        internal IEnumerator RocketCheck(System.Action<string> report)
+        {
+            if (Ammo.MagRounds > 0 && Manual)
+            {
+                Ammo.ReturnSpare(Ammo.MagRounds); // as if fired: the rocket goes back to the pouch
+                Ammo.MagRounds = 0;
+                yield return null;
+            }
+            yield return RocketFilm(report, _ => { });
+        }
+
         private IEnumerator RocketFilm(System.Action<string> report, System.Action<string> frame)
         {
             VRHand off = _sys.Rig.Off;
@@ -1934,6 +1957,9 @@ namespace RavenfieldVR.Weapons
                     drawnSize = Mathf.Max(drawnSize, r.bounds.size.magnitude);
                 }
             }
+            // The rocket in the hand is the launcher's own: its meshes are those the launcher shows loaded (an RPG-7V
+            // variant's held all five warheads, the scoped one a made stand-in; user, 2026-10-16).
+            string model = RocketModel(rocket);
             // The palm that holds the rocket lined up at the mouth (depth 0 on the line), as the hand holds it.
             float depth0 = rocket.RailDepth;
             rocket.RailDepth = 0f;
@@ -1949,6 +1975,28 @@ namespace RavenfieldVR.Weapons
             float rail = rocket.RailLength;
             System.Func<float, RigidPose> along = d => new RigidPose(palmAtEntry.position + insert * d, palmAtEntry.rotation);
             RigidPose start = off.Palm;
+            bool watchBack = false, linedSeen = false;
+            float linedAhead = float.NaN;
+            Vector3 aimG = Data.AimAxis.normalized;
+            float tubeFrontG = MagazineProp.TubeFront(Rig, aimG, out float tfG) ? tfG : Vector3.Dot(Data.MuzzlePoint, aimG);
+            bool fromBehind = false;
+            void Watch()
+            {
+                if (!(off.Held is MagazineProp held))
+                {
+                    return;
+                }
+                if (watchBack && (held.OnRail || Ammo.MagRounds > 0))
+                {
+                    fromBehind = true; // every frame of the probe at the back, not only its end
+                }
+                if (!watchBack && !linedSeen && held.OnRail)
+                {
+                    // Where the hand's rocket tail was when it went onto the line, against the tube's front end.
+                    linedSeen = true;
+                    linedAhead = Vector3.Dot(Rig.ToGun(held.HoldPose(off).TransformPoint(held.TipLocal)), aimG) - tubeFrontG;
+                }
+            }
             IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note)
             {
                 float t0 = Time.unscaledTime;
@@ -1957,12 +2005,13 @@ namespace RavenfieldVR.Weapons
                     float s = k * k * (3f - 2f * k);
                     VRHand.Scripted[side] = pose(s).Multiply(rawFromPalm);
                     yield return new WaitForEndOfFrame();
+                    Watch();
                     frame(note);
                     yield return null;
                 }
                 VRHand.Scripted[side] = pose(1f).Multiply(rawFromPalm);
             }
-            bool onLine = false, loaded = false, fromBehind = false;
+            bool onLine = false, loaded = false;
             // Where the rocket is lined up, against the tube's front end: an RPG is loaded from the front (user, 2026-10-16).
             Vector3 aimGun = Data.AimAxis.normalized;
             float tubeFront = MagazineProp.TubeFront(Rig, aimGun, out float tf) ? tf : Vector3.Dot(Data.MuzzlePoint, aimGun);
@@ -1971,9 +2020,10 @@ namespace RavenfieldVR.Weapons
             {
                 // At the back first: the rocket's tail held 40 cm behind where it sits seated must not be taken.
                 RigidPose behind = along(rail + 0.4f);
+                watchBack = true;
                 yield return Move(s => new RigidPose(Vector3.Lerp(start.position, behind.position, s), Quaternion.Slerp(start.rotation, behind.rotation, s)), 0.6f, "at the back");
                 yield return Move(s => along(rail + 0.4f - 0.1f * s), 0.3f, "at the back");
-                fromBehind = off.Held is MagazineProp atBack && atBack.OnRail || Ammo.MagRounds > 0;
+                watchBack = false;
                 if (off.Held is MagazineProp offRail)
                 {
                     offRail.OnRail = false;
@@ -2000,10 +2050,52 @@ namespace RavenfieldVR.Weapons
                 left.Rounds = 0;
                 left.Destroy();
             }
-            report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, "
-                   + $"lined up {Mathf.Abs(mouthAhead) * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "inside")} the tube's front{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}, "
+            string atHand = float.IsNaN(linedAhead) ? "" : $" (the hand's rocket {Mathf.Abs(linedAhead) * 100f:0} cm {(linedAhead >= 0f ? "in front of" : "inside")} it as it went on)";
+            report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, {model}, "
+                   + $"lined up {Mathf.Abs(mouthAhead) * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "inside")} the tube's front{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}{atHand}, "
                    + $"{(fromBehind ? "TAKEN FROM THE BACK" : "not taken at the back")}, "
                    + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, {(loaded ? "loaded" : "NOT LOADED")}");
+        }
+
+        /// <summary>
+        /// Whether the rocket in the hand is drawn with the launcher's own meshes (those it shows loaded): "the launcher's own
+        /// rocket", or NOT THE LAUNCHER'S ROCKET with what it is instead.
+        /// </summary>
+        private string RocketModel(MagazineProp rocket)
+        {
+            var own = new HashSet<string>();
+            IEnumerable<Renderer> loaded = Rig.MagShownLoaded != null && Rig.MagShownLoaded.Count > 0
+                ? (IEnumerable<Renderer>)Rig.MagShownLoaded
+                : Rig.MagazineParts.Where(p => p != null).SelectMany(p => p.GetComponentsInChildren<Renderer>(true));
+            foreach (Renderer r in loaded)
+            {
+                MeshFilter mf = r != null ? r.GetComponent<MeshFilter>() : null;
+                string mesh = mf != null && mf.sharedMesh != null ? mf.sharedMesh.name : r is SkinnedMeshRenderer smr && smr.sharedMesh != null ? smr.sharedMesh.name : null;
+                if (mesh != null)
+                {
+                    own.Add(mesh);
+                }
+            }
+            var held = new List<string>();
+            foreach (MeshFilter mf in rocket.Go.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh != null)
+                {
+                    held.Add(mf.sharedMesh.name.Replace(" (baked)", ""));
+                }
+            }
+            if (held.Count == 0)
+            {
+                return "NOT THE LAUNCHER'S ROCKET (nothing drawn)";
+            }
+            bool match = held.Any(own.Contains);
+            bool extra = held.Any(h => !own.Contains(h) && !h.StartsWith("Capsule", System.StringComparison.Ordinal));
+            if (match && !extra)
+            {
+                return $"the launcher's own rocket ({string.Join(", ", held.Distinct().ToArray())})";
+            }
+            return match ? $"NOT THE LAUNCHER'S ROCKET alone (also {string.Join(", ", held.Where(h => !own.Contains(h)).Distinct().ToArray())})"
+                         : $"NOT THE LAUNCHER'S ROCKET ({string.Join(", ", held.Distinct().ToArray())}; it shows {string.Join(", ", own.ToArray())})";
         }
 
         /// <summary>

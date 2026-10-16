@@ -928,7 +928,7 @@ namespace RavenfieldVR.Core
                 Results.Add($"film {name}: {string.Join("; ", lines)}, {film.Frames} close-up frames in {dir}");
                 foreach (string l in lines)
                 {
-                    if (l.Contains("NOT"))
+                    if (Failure.IsMatch(l))
                     {
                         Problem($"[{name}] {l}");
                     }
@@ -2882,6 +2882,12 @@ namespace RavenfieldVR.Core
                         {
                             yield return SlideLockPoseCheck(held, lines.Add);
                         }
+                        if (Deep && held.Rig.Data.Action == ActionType.SingleShot && held.ActiveAmmo != null && !held.ActiveAmmo.UsesDetachableMag)
+                        {
+                            // Every launcher loaded by hand from the pouch at its muzzle (it ran only in the film, on a few,
+                            // and the self-check seats the rocket with no hand at all).
+                            yield return held.Reload.RocketCheck(lines.Add);
+                        }
                         if (Deep && want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {
                             int magIndex = index;
@@ -3321,8 +3327,11 @@ namespace RavenfieldVR.Core
             ammo?.AdoptWeaponAmmo();
         }
 
-        /// <summary>Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, DROPPED MAGAZINE NOT GRABBABLE...</summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO) [A-Z]");
+        /// <summary>
+        /// Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE
+        /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them).
+        /// </summary>
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)");
 
         private static string FirstFrames(Exception e)
         {
