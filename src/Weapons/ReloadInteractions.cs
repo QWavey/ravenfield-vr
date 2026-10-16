@@ -2186,30 +2186,62 @@ namespace RavenfieldVR.Weapons
             }
             if (prop.Go != null && prop.OnRail && prop.RailDepth > 0.01f)
             {
-                // What has gone in: the magazine's top, as deep as it is along the rail, sampled inside its body (a box 70%
-                // of its size); each point should be inside the gun's drawn shape.
-                Transform t = prop.Go.transform;
-                Vector3 side = Vector3.Cross(prop.InsertDirLocal, prop.FrontLocal).normalized;
-                float inDepth = Mathf.Min(prop.RailDepth, Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal));
-                Bounds box = MagBoxLocal(prop);
-                int inside = 0, total = 0;
-                for (int a = 0; a < 5; a++)
+                // Which way it comes in: its line tipped out of the gun's side plane comes up beside the grip, not into it.
+                Vector3 insertW = SeatPose.TransformDirection(prop.InsertDirLocal).normalized;
+                Vector3 rightW = Vector3.Cross(Rig.UpWorld, Rig.AimWorld).normalized;
+                float tilt = Mathf.Asin(Mathf.Clamp01(Mathf.Abs(Vector3.Dot(insertW, rightW)))) * Mathf.Rad2Deg;
+                sb.Append($", its line {tilt:0} deg out of the gun's side plane{(tilt > 8f ? " (COMES IN FROM THE SIDE)" : "")}");
+                // What has gone in: the part past the well's mouth. Where the mouth is comes from the magazine seated (how
+                // far down from its top it is still inside the gun from the side); the part of it that is in now should be
+                // inside the gun's drawn shape. Counted as all the rail had gone in, a rifle magazine's top still under the
+                // well read as beside it (100% on rifles whose magazines went in straight).
+                RigidPose seated = SeatPose;
+                float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
+                float inSeated = 0f;
+                for (float s = 0f; s <= length; s += 0.002f)
                 {
-                    for (int f = -1; f <= 1; f++)
+                    if (!_held.InsideGunFromSide(seated.TransformPoint(prop.TipLocal - prop.InsertDirLocal * s)))
                     {
-                        for (int s = -1; s <= 1; s++)
+                        break;
+                    }
+                    inSeated = s;
+                }
+                float inDepth = inSeated - (prop.RailLength - prop.RailDepth);
+                if (inSeated < 0.005f)
+                {
+                    sb.Append(", seated it is not inside the gun from the side (SIDE TEST OR SEAT WRONG)");
+                }
+                else if (inDepth > 0.005f)
+                {
+                    Transform t = prop.Go.transform;
+                    Vector3 side = Vector3.Cross(prop.InsertDirLocal, prop.FrontLocal).normalized;
+                    Bounds box = MagBoxLocal(prop);
+                    int inside = 0, total = 0, insideSeated = 0;
+                    for (int a = 0; a < 5; a++)
+                    {
+                        for (int f = -1; f <= 1; f++)
                         {
-                            Vector3 local = prop.TipLocal - prop.InsertDirLocal * (inDepth * (0.1f + 0.8f * a / 4f))
-                                            + prop.FrontLocal * (f * Mathf.Abs(Vector3.Dot(box.extents, Abs(prop.FrontLocal))) * 0.7f)
-                                            + side * (s * Mathf.Abs(Vector3.Dot(box.extents, Abs(side))) * 0.7f);
-                            total++;
-                            inside += _held.InsideGunFromSide(t.TransformPoint(local)) ? 1 : 0;
+                            for (int s = -1; s <= 1; s++)
+                            {
+                                Vector3 local = prop.TipLocal - prop.InsertDirLocal * (inDepth * (0.1f + 0.8f * a / 4f))
+                                                + prop.FrontLocal * (f * Mathf.Abs(Vector3.Dot(box.extents, Abs(prop.FrontLocal))) * 0.6f)
+                                                + side * (s * Mathf.Abs(Vector3.Dot(box.extents, Abs(side))) * 0.6f);
+                                total++;
+                                inside += _held.InsideGunFromSide(t.TransformPoint(local)) ? 1 : 0;
+                                insideSeated += _held.InsideGunFromSide(seated.TransformPoint(local)) ? 1 : 0;
+                            }
                         }
                     }
+                    float outside = total > 0 ? 1f - inside / (float)total : 0f;
+                    float outsideSeated = total > 0 ? 1f - insideSeated / (float)total : 0f;
+                    Core.AutoTest.Metric("magazine (deep): share of what has gone in that shows beside the gun's sides", outside * 100f);
+                    sb.Append($", {inDepth * 100f:0.0} cm in past the well's mouth ({inSeated * 100f:0.0} cm seated): {outside * 100f:0}% of it shows beside the gun's sides "
+                              + $"(the same points seated: {outsideSeated * 100f:0}%){(outside > 0.25f && outside > outsideSeated + 0.15f ? " (GOES IN BESIDE THE WELL)" : "")}");
                 }
-                float outside = total > 0 ? 1f - inside / (float)total : 0f;
-                Core.AutoTest.Metric("magazine (deep): share of what has gone in that shows beside the gun's sides", outside * 100f);
-                sb.Append($", {outside * 100f:0}% of what has gone in shows beside the gun's sides{(outside > 0.25f ? " (GOES IN BESIDE THE WELL)" : "")}");
+                else
+                {
+                    sb.Append($", not past the well's mouth yet ({inSeated * 100f:0.0} cm of it goes in)");
+                }
             }
             return sb.ToString();
         }
@@ -2805,7 +2837,10 @@ namespace RavenfieldVR.Weapons
                             break;
                         }
                         lines.Add(which + "% in: " + SeatingState(off, fresh));
-                        sideShot($"mag-6{(which == "60" ? "b" : "c")}-{which}-in", fresh.Go.transform.TransformPoint(fresh.BaseLocal), 0.22f);
+                        // Between the base plate and the gun hand's grip, wide enough for the gun: centred on the base plate the
+                        // pictures showed the free hand alone and nothing of where the magazine went.
+                        Vector3 basePlate = fresh.Go.transform.TransformPoint(fresh.BaseLocal);
+                        sideShot($"mag-6{(which == "60" ? "b" : "c")}-{which}-in", Vector3.Lerp(basePlate, Rig.ToWorld(Data.GripPoint), 0.5f), 0.32f);
                     }
                 }
                 for (int wait = 0; wait < 30 && !Ammo.MagInserted; wait++)
