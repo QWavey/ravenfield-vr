@@ -233,6 +233,7 @@ namespace RavenfieldVR.Weapons
             d.AimAxis = Vector3.forward;
             d.Up = Vector3.up;
             d.IsPistol = w.slot == 1;
+            d.Handgun = d.IsPistol;
             d.GripPoint = new Vector3(0f, -0.04f, d.IsPistol ? -0.12f : -0.32f);
             d.SupportPoint = d.GripPoint + new Vector3(0f, 0f, d.IsPistol ? 0.01f : 0.22f);
             d.HasSupportPoint = true;
@@ -579,7 +580,7 @@ namespace RavenfieldVR.Weapons
         private static void NamedChargingHandle(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
             Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
         {
-            if (d.IsPistol || d.HandlePath != null || d.IsMachineGun || d.Action != ActionType.SelfLoading)
+            if (d.Handgun || d.HandlePath != null || d.IsMachineGun || d.Action != ActionType.SelfLoading)
             {
                 return;
             }
@@ -639,7 +640,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void BoltInsideOnSurface(WeaponRigData d)
         {
-            if (d.IsPistol || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null || d.CarveHandle
+            if (d.Handgun || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null || d.CarveHandle
                 || d.RackFromHand || d.SlideMethod == null || !d.SlideMethod.StartsWith("fire motion", StringComparison.Ordinal))
             {
                 return;
@@ -654,7 +655,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void SideKnobByName(WeaponRigData d, Transform[] all, Transform root, PoseSampler sampler, RigidPose gunIdle)
         {
-            if (d.IsPistol || d.Action != ActionType.SelfLoading || !Bren2Pattern.IsMatch(d.Key ?? ""))
+            if (d.Handgun || d.Action != ActionType.SelfLoading || !Bren2Pattern.IsMatch(d.Key ?? ""))
             {
                 return;
             }
@@ -714,7 +715,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void ForwardSideHandle(WeaponRigData d)
         {
-            if (d.IsPistol || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null
+            if (d.Handgun || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath == null || d.HandlePath != null
                 || !Bren2Pattern.IsMatch(d.Key ?? ""))
             {
                 return;
@@ -761,7 +762,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void ArChargingHandle(WeaponRigData d)
         {
-            if (d.IsPistol || d.Action != ActionType.SelfLoading || d.HandlePath != null || d.IsMachineGun || !ArPattern.IsMatch(d.Key ?? ""))
+            if (d.Handgun || d.Action != ActionType.SelfLoading || d.HandlePath != null || d.IsMachineGun || !ArPattern.IsMatch(d.Key ?? ""))
             {
                 return;
             }
@@ -790,6 +791,7 @@ namespace RavenfieldVR.Weapons
         private static void AnalyzeHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, RigidPose gunIdle, Weapon w)
         {
             d.IsPistol = w.slot == 1;
+            d.Handgun = d.IsPistol;
             if (handR != null)
             {
                 d.GripPoint = gunIdle.InverseTransformPoint(PalmOf(handR, sampler));
@@ -1029,7 +1031,7 @@ namespace RavenfieldVR.Weapons
                 // keep the line and put the eye where a shooter's eye goes behind this kind of gun.
                 Vector3 overBore = Vector3.ProjectOnPlane(eye - d.MuzzlePoint, d.AimAxis);
                 float gripAlong = Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
-                d.EyePoint = d.MuzzlePoint + overBore + d.AimAxis * (gripAlong - (d.IsPistol ? 0.35f : 0.12f));
+                d.EyePoint = d.MuzzlePoint + overBore + d.AimAxis * (gripAlong - (d.Handgun ? 0.35f : 0.12f));
                 d.EyeDirection = d.AimAxis;
                 d.HasEyePoint = true;
                 d.EyeFromLine = true;
@@ -1139,8 +1141,8 @@ namespace RavenfieldVR.Weapons
 
             d.SlidePath = WeaponRig.PathOf(root, slide);
             d.SlideRestLocal = sampler.IdleLocalPosition(slide);
-            float travel = slideVec.sqrMagnitude > 0f ? slideVec.magnitude * 1.15f : (d.IsPistol ? 0.035f : 0.07f);
-            travel = Mathf.Clamp(travel, d.IsPistol ? 0.02f : 0.03f, 0.15f);
+            float travel = slideVec.sqrMagnitude > 0f ? slideVec.magnitude * 1.15f : (d.Handgun ? 0.035f : 0.07f);
+            travel = Mathf.Clamp(travel, d.Handgun ? 0.02f : 0.03f, 0.15f);
             Vector3 dir = slideVec.sqrMagnitude > 0f ? slideVec.normalized : -d.AimAxis;
             if (Vector3.Dot(dir, -d.AimAxis) < 0.5f)
             {
@@ -1346,7 +1348,7 @@ namespace RavenfieldVR.Weapons
                 // a part found as the very thing the reload hand pulls (its bone sits a few centimetres off the handle it
                 // holds, and the handle was taken for a carrier inside: a knob was added there while the model's own handle
                 // moved elsewhere, on the f2000s, MG3s, MRADs, RK-44 and M4A1s; user, 2026-10-16).
-                if (d.HandlePath != null || d.IsPistol || Vector3.Distance(bestStart, d.RackPoint) < 0.03f
+                if (d.HandlePath != null || d.Handgun || Vector3.Distance(bestStart, d.RackPoint) < 0.03f
                     || d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
                 {
                     return;
@@ -1366,7 +1368,7 @@ namespace RavenfieldVR.Weapons
             d.RackOnSurface = true;
             d.RackPoint = bestStart;
             // A hand keeps moving a little after the bolt stops: cap at real bolt travel.
-            d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.IsPistol ? 0.02f : 0.03f, d.IsPistol ? 0.045f : 0.11f);
+            d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.Handgun ? 0.02f : 0.03f, d.Handgun ? 0.045f : 0.11f);
             d.SlideMethod = "reload hand motion (bolt is part of the receiver mesh)";
             d.TSlideBack = bestEnd;
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
@@ -1538,7 +1540,7 @@ namespace RavenfieldVR.Weapons
             Weapon.Configuration c = w.configuration;
             bool breakCandidate = !c.auto && c.ammo >= 1 && c.ammo <= 4 && d.Action != ActionType.SelfLoading
                                   || !c.auto && c.ammo == 2;
-            bool revolverCandidate = d.IsPistol && !c.auto && c.ammo >= 4 && c.ammo <= 9;
+            bool revolverCandidate = d.Handgun && !c.auto && c.ammo >= 4 && c.ammo <= 9;
             Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
             Transform slide = WeaponRig.Resolve(root, d.SlidePath);
             Transform handle = WeaponRig.Resolve(root, d.HandlePath);
@@ -1658,7 +1660,7 @@ namespace RavenfieldVR.Weapons
                     d.SlideMethod = "none (break action)";
                 }
             }
-            d.IsMachineGun = d.Hinge == HingeKind.FeedCover || c.auto && c.ammo >= 60 && !d.IsPistol;
+            d.IsMachineGun = d.Hinge == HingeKind.FeedCover || c.auto && c.ammo >= 60 && !d.Handgun;
 
             if (hinge == null)
             {
@@ -1761,7 +1763,7 @@ namespace RavenfieldVR.Weapons
 
         // A rifle's carrier up to 23 cm on a shot (the ak12h 1p87's runs 21 cm straight back and was taken for a casing
         // flying off: the gun got an added knob instead of it; Tasks 245). Casings and flashes go sideways and much farther.
-        private static float MaxBoltTravel(WeaponRigData d) => d.IsPistol ? 0.07f : 0.23f;
+        private static float MaxBoltTravel(WeaponRigData d) => d.Handgun ? 0.07f : 0.23f;
 
         /// <summary>
         /// Many rifles never move their bolt in the fire clip; their charging handle only moves in the reload.
@@ -2375,7 +2377,7 @@ namespace RavenfieldVR.Weapons
             {
                 return; // lies along the gun rather than hanging off it: trust the animation
             }
-            if (!fromVertices && d.IsPistol && d.GripDown.sqrMagnitude > 0.5f && Vector3.Angle(axis, d.GripDown) < 45f)
+            if (!fromVertices && d.Handgun && d.GripDown.sqrMagnitude > 0.5f && Vector3.Angle(axis, d.GripDown) < 45f)
             {
                 // A pistol whose magazine cannot be read: it runs up the grip, along the line of the gun hand's knuckles
                 // (its box stands upright: a dropped GLOCK 43X or P320s magazine slid straight down, out through the front
@@ -3101,27 +3103,27 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Where a handle that was not found is guessed: above the grip (put onto the receiver once it is measured).</summary>
         internal static Vector3 RackEstimate(WeaponRigData d) =>
-            d.GripPoint + d.Up * (d.IsPistol ? 0.07f : 0.08f) + d.AimAxis * (d.IsPistol ? -0.02f : 0.03f);
+            d.GripPoint + d.Up * (d.Handgun ? 0.07f : 0.08f) + d.AimAxis * (d.Handgun ? -0.02f : 0.03f);
 
         /// <summary>Fills in grab points for parts that were not found so every interaction still works.</summary>
         private static void FinishVirtualParts(WeaponRigData d)
         {
             if (d.SlidePath == null && !d.RackFromHand)
             {
-                bool pump = d.Action == ActionType.Manual && d.HasSupportPoint && !d.IsPistol;
+                bool pump = d.Action == ActionType.Manual && d.HasSupportPoint && !d.Handgun;
                 d.RackPoint = pump ? d.SupportPoint : RackEstimate(d);
-                d.SlideTravel = -d.AimAxis * (d.IsPistol ? 0.035f : 0.07f);
+                d.SlideTravel = -d.AimAxis * (d.Handgun ? 0.035f : 0.07f);
                 d.RackOnSurface = !pump; // an estimate above the grip: put on top of the receiver once the model is measured
             }
             if (d.MagazinePath == null)
             {
                 Vector3 seat = d.Action == ActionType.SingleShot
                     ? d.MuzzlePoint - d.AimAxis * 0.05f
-                    : d.GripPoint + d.AimAxis * (d.IsPistol ? 0.0f : 0.1f) - d.Up * (d.IsPistol ? 0.02f : 0.05f);
+                    : d.GripPoint + d.AimAxis * (d.Handgun ? 0.0f : 0.1f) - d.Up * (d.Handgun ? 0.02f : 0.05f);
                 d.MagSeat = new RigidPose(seat, Quaternion.LookRotation(d.AimAxis, d.Up));
                 d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : -d.Up;
             }
-            d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.IsPistol);
+            d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.Handgun);
             if (d.Action == ActionType.BreakOpen)
             {
                 d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));

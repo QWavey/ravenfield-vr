@@ -227,6 +227,13 @@ namespace RavenfieldVR.Weapons
         public ActionType Action;
         public bool LockOnEmpty;
         public bool IsPistol;
+
+        /// <summary>
+        /// A handgun by its slot. <see cref="IsPistol"/> also marks a long gun whose support hand cups the grip (held like a
+        /// pistol, no handguard to steer by); what the gun is (its bolt travel, its handle rules, a revolver, a machine gun)
+        /// goes by this: such a rifle got a pistol's 7 cm bolt travel and no AR or named charging handle (bug hunt 251).
+        /// </summary>
+        public bool Handgun;
         public bool Animated;
         public string Notes = "";
 

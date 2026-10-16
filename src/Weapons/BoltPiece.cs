@@ -85,7 +85,7 @@ namespace RavenfieldVR.Weapons
                 piece.AddKnob(rig, rackGun); // a handle of its own, nothing cut out of the receiver
                 return;
             }
-            float radius = d.IsPistol ? 0.022f : 0.03f;
+            float radius = d.Handgun ? 0.022f : 0.03f;
             Vector3 rackWorld = rig.ToWorld(rackGun);
             // Only from the handle's own mesh when it is known (the receiver round a side handle's slot stays whole).
             Transform only = d.CarveFromPath != null ? WeaponRig.Resolve(rig.Weapon.transform, d.CarveFromPath) : null;
@@ -318,7 +318,7 @@ namespace RavenfieldVR.Weapons
             Vector3 outward = fromBore.sqrMagnitude > 1e-6f ? fromBore.normalized : d.Up;
             _knobBase = rackGun + outward * 0.004f;
             _knobRotation = Quaternion.LookRotation(d.AimAxis, outward);
-            go.AddComponent<MeshFilter>().sharedMesh = KnobMesh(d.IsPistol);
+            go.AddComponent<MeshFilter>().sharedMesh = KnobMesh(d.Handgun);
             MeshRenderer mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
             _pieces.Add(new Piece { T = go.transform });
