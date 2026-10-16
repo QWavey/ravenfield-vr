@@ -2186,6 +2186,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private string SeatingState(VRHand off, MagazineProp prop)
         {
+            LogCopyPieces(prop);
             var sb = new System.Text.StringBuilder();
             float frac = prop.OnRail ? prop.RailDepth / Mathf.Max(prop.RailLength, 1e-4f) : 0f;
             sb.Append($"rail {frac * 100f:0}%, push {(off.Model != null ? off.Model.PushWeight : 0f):0.00}");
@@ -2260,6 +2261,38 @@ namespace RavenfieldVR.Weapons
             }
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Once per weapon: each piece the magazine in the hand is drawn with, its size and how far its middle sits to the side
+        /// of the bore's plane when seated, against the gun's own magazine pieces (the 1911's copy showed over the outside of
+        /// its grip panel while the gun's own magazine did not; its analysed box was 7 x 6 cm across).
+        /// </summary>
+        private void LogCopyPieces(MagazineProp prop)
+        {
+            if (prop.Go == null || !_copyLogged.Add(Data.Key))
+            {
+                return;
+            }
+            Vector3 aimW = Rig.AimWorld, rightW = Vector3.Cross(Rig.UpWorld, aimW).normalized;
+            Vector3 bore = Rig.ToWorld(Data.MuzzlePoint);
+            var sb = new System.Text.StringBuilder($"Magazine pieces of {Data.Key} (sideways from the bore's plane, cm):");
+            foreach (Renderer r in prop.Go.GetComponentsInChildren<Renderer>(false))
+            {
+                Bounds b = r.bounds;
+                sb.Append($" copy '{r.name}' {Vector3.Dot(b.center - bore, rightW) * 100f:0.0} ({b.size.magnitude * 100f:0} cm);");
+            }
+            foreach (Transform part in Rig.MagazineParts)
+            {
+                foreach (Renderer r in part != null ? part.GetComponentsInChildren<Renderer>(true) : new Renderer[0])
+                {
+                    Bounds b = r.bounds;
+                    sb.Append($" gun '{r.name}' {(r.enabled && r.gameObject.activeInHierarchy ? "" : "hidden ")}{Vector3.Dot(b.center - bore, rightW) * 100f:0.0} ({b.size.magnitude * 100f:0} cm);");
+                }
+            }
+            Log.Info(sb.ToString());
+        }
+
+        private readonly HashSet<string> _copyLogged = new HashSet<string>();
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
