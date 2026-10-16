@@ -10,6 +10,11 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - In progress: 13
 - Still to do: 26
 
+### Split between two branches (user, 2026-10-16)
+
+- Helper (Opus 5.5) on branch `helper-248-249` in its own worktree (../Ravenfield-VR-helper): 248 and 249 in its files, then 215, 203, 225, 202, 229 (its files), 152. Its files: HeldWeapon, WeaponDrops, WeaponSystem, ThrowAndMelee, GunCollider, VRScope, LensFlash, MuzzleFireball, Casings, BeltStrip, DrivingWeapons, TurretAim, AmmoCounter, LensEffects, MudSplash, EyeFilm, DamageFeedback, src/UI, src/Input, VRManager. No game runs; compile checks only.
+- Lead on `tasks-98-113`: everything else (rockets 250, pistol magazines, racking, reloads, weapon analysis, hands, autotest, tools, test runs) and the findings of 248/249 in MagazineProp, ReloadInteractions, HandModel and ArmIK. Only the lead writes Tasks.md and merges the helper's branch.
+
 ### Still to do
 
 - 132. Optional: hook a bolt knob or charging handle with the fingers when the hand reaches over the gun (now always a thumb-and-index pinch)
