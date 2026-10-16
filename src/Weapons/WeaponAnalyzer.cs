@@ -1758,7 +1758,9 @@ namespace RavenfieldVR.Weapons
             };
         }
 
-        private static float MaxBoltTravel(WeaponRigData d) => d.IsPistol ? 0.07f : 0.2f;
+        // A rifle's carrier up to 23 cm on a shot (the ak12h 1p87's runs 21 cm straight back and was taken for a casing
+        // flying off: the gun got an added knob instead of it; Tasks 245). Casings and flashes go sideways and much farther.
+        private static float MaxBoltTravel(WeaponRigData d) => d.IsPistol ? 0.07f : 0.23f;
 
         /// <summary>
         /// Many rifles never move their bolt in the fire clip; their charging handle only moves in the reload.

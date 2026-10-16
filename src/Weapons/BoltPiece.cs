@@ -151,6 +151,15 @@ namespace RavenfieldVR.Weapons
                 mf.sharedMesh = result.Remaining;
                 piece.Carved = true;
             }
+            if (!piece.Carved && !d.AddedHandle && d.CarveHandle && d.SlidePath != null && rig.Slide != null)
+            {
+                // Nothing could be cut out (the receiver's mesh cannot be read), but the gun's own carrier moves with the
+                // hand's stroke and its handle with it: no knob added. The knob was a second handle 3 cm off the carrier's own
+                // that moved while the user watched the real one (AS Val, AK-24; Tasks 245).
+                Log.InfoOnce("boltknob:" + d.Key, $"{d.Key}: nothing cut out at the rack point ({unreadable} mesh(es) unreadable, {far} too far, {nothing} with no triangles "
+                                                  + $"there); its own carrier '{rig.Slide.name}' moves with the hand, no knob added.");
+                return;
+            }
             if (!piece.Carved)
             {
                 // Said once per weapon: the added knob is what moves, the model's own handle (if it has one) stays put.
