@@ -320,6 +320,9 @@ namespace RavenfieldVR.Weapons
             {
                 keep[i] = pts[(int)((long)i * pts.Length / max)];
             }
+            // The last point too (the stride never reached it): it is the top end of the piece along its slices, and a
+            // tapered end stopped up to a slice short (night bug hunt, 229).
+            keep[max - 1] = pts[pts.Length - 1];
             return keep;
         }
 

@@ -88,7 +88,9 @@ namespace RavenfieldVR.Weapons
                 ArmChain c = _left.Chain;
                 RigidPose palm = off.Palm;
                 Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
-                Vector3 palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
+                // PalmPoint is in metres already (measured on the unscaled idle pose): scaled by the hand bone's scale again, a
+                // rig built at 1/100 put its hand a palm's length off the controller (night bug hunt, 229).
+                Vector3 palmPoint = rot * c.PalmPoint;
                 Vector3 at = off.PalmCentre;
                 if (off.Model != null)
                 {
@@ -99,7 +101,7 @@ namespace RavenfieldVR.Weapons
                     Quaternion turn = placed.rotation * Quaternion.Inverse(tracked.rotation);
                     at = placed.position + turn * (at - tracked.position);
                     rot = turn * rot;
-                    palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);
+                    palmPoint = rot * c.PalmPoint;
                 }
                 // Settled onto the part it works the way the VR glove is: eased (it jumped up to 5 cm when racking began
                 // and ended).
