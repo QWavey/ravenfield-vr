@@ -1,0 +1,218 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks physics hands, weight and two-handed holding (decompiled class structure; logic inferred from member names, types and enums because method bodies are IL2CPP stubs)
+
+MECHANICS
+- Scope: all logic is inferred from member names, types, enums and field lists. The IL2CPP method bodies are interop stubs, so no numeric spring, force or break values are visible. Only the decompiled game folder was read, not the mods.
+- Hand driving (PhysHand): the hand is a Rigidbody (rb) pulled toward the tracked controller pose every physics step by UpdateHand(targetLocalPos, targetRotation, armlength, joint, shoulderWorld, bodyDominance, gripInput). Two paths exist, selected by forceViaJoint: a joint-drive path, and a direct path through ApplyForce/ApplyTorque. The joint argument is most likely Hand.joint (inferred).
+- Force units are newtons: names such as newtonDamp, newtonsDamped, divByNewtons and newtonSecond suggest a PD-like controller with damping in newtons (inferred).
+- Strength is asymmetric and frame-based: six per-direction limits (xPosForce, xNegForce, yPosForce, yNegForce, zPosForce, zNegForce) are clamped by MuscleClamp and MuscleMax, expressed in the _muscleSpace frame (inferred). Torque is capped by maxTorque and shaped by the TorqueMultiplier curve, and RelaxTorqueMult(grip) reduces it as the grip closes.
+- Grip-dependent strength: Hand.SetGripStrength(perc) and PhysHand.gripMult scale force. SetFriction(grip) swaps between lowFriction and _highFriction PhysicMaterials (inferred).
+- Safety layers: ReadSensors reads joint force and velocity. CheckStuck flags a blocked hand (_stuck). ClearJerk and _jerkedMult/angJerkMult reduce force after a sudden acceleration (inferred). Together these stop explosions and jitter.
+- Forearm contact: forearmCol plus CollisionRelay and the _forearmCollision fields detect the arm hitting geometry. SLZ_Body.Arms exposes forearmLfColliding and collisionLfInfluence, which feed this back into the arm solve (inferred).
+- Weight is felt through the object's RigidbodyData.mass, drag and inertia (InteractableHost._rbData), and through joint break limits. Grip.minBreakForce and maxBreakForce set the range, Hand.OnJointBreak handles a break, and SetGripStrength probably maps grip strength into that range (inferred). A heavy load therefore pulls the object out of the hand.
+- Load read-back: JointConfiguration.currentForce and currentTorque are read-only joint reaction forces. PhysHand.ReadSensors(joint, ref divByNewtons) probably reads them as the load signal for weight and recoil (inferred).
+- Body-side weight: PhysBody.totalMass is static and PhysBody.SetBodyMassDistribution splits mass across rbHead, rbPelvis, rbKnee and rbFeet. PhysGrounder.totalMass and _totalImpulse sum what the feet touch. PhysBody.footSupported and PhysHand.handSupported report how body weight is shared between ground and hands (inferred).
+- Two-handed holding has explicit states: HandPhysState (Empty, RbOneHand, RbTwoHand, StaticOneHand, StaticTwoHand). RefreshHandStates(thisJ, otherJ) updates them from both hands' joints. InteractableHost.IsTwoHanded() and the onTwoHandAttachDelegate and onTwoHandDetachDelegate events announce the second hand (decoded from names).
+- Two-hand pose merge: Grip.CalculateFinalOverride(current HandGripPair, other HandGripPair, root, ref final) blends both hands' grip targets into one final pose (inferred). Grip.bodyDominance is passed into UpdateHand and ApplyForce, so it probably decides how much load the dominant hand takes (inferred). Grip.GetSwingCircleConstraints and GetTwistConstraints limit hand rotation about the grip (inferred).
+- Grip roles: Grip.Type is OVERRIDE, PRIMARY or SECONDARY. A gun has a triggerGrip (primary) and an otherGrips array (secondary). Grip.VirtualControllerModes (GENERIC, HANDGUN, RIFLE, SLIDE, SLIDELOOK) probably selects a different two-hand controller pose for rifle versus handgun (inferred).
+- No dedicated stabiliser class exists. Searching Rig, Interaction and VRMK for stabil only hits unrelated classes (Enemy_Turret.stability, HoverPlate, FlightStabilizer). Two-handed steadiness probably emerges from two grip joints on one gun Rigidbody, a spring at each hand anchor, and the shared grip targets with swing and twist limits (inferred).
+- Recoil: Gun.kickForce and GunGrip.kickForce are the recoil magnitude, applied when Gun.Fire, GunGrip.Fire or OnFire runs. MuzzleBreakVariables.RecoilCompensation and MuzzleRiseCompensation reduce it. The likely path is an impulse on the gun body, transmitted through the grip joints to each PhysHand (appliedForce, appliedTorque, _lastForce) (inferred).
+- Recoil into the body: gun.shoulderPointTransform (and GunGrip's) plus PhysHand.shoulder and PrepShoulderMuscle(handVelocity, newtonsDamped) probably let the shoulder absorb the kick by damping hand velocity (inferred). If the impulse exceeds the grip's break force, Hand.OnJointBreak releases the gun (inferred).
+- Throws and release: Grip.SaveHistory fills a velocity ring buffer, and GetAverageHistory(startDelayTime, sampleTime) averages it after a delay. That gives clean release velocity (decoded from names).
+- Body and visuals: SLZ_Body is the physics skeleton (the 'mk' body). SLZ_BodyBlender.BlendPos and BlendRot blend the visual bones toward it. PhysicsRig tracks pelvisVelocity, pelvisAccel and headDelta (decoded from names).
+
+LESSONS
+- Make each hand a physical body pulled toward the tracked pose by a damped spring with a force cap. Grabs then collide and feel weighted, instead of teleporting or following the controller exactly.
+- Use asymmetric per-direction force limits in a local frame. Pushing, pulling and lateral motion then feel different, which reads as a real arm.
+- Scale hand force with grip input and swap friction with grip, rather than a binary attach. Light grips slip and hard grips hold.
+- Give each held object a break force and map grip strength onto it. The object drops when the load exceeds the grip, and that gives weight feel for free.
+- Read the constraint reaction force from the grip joint each step. Use it for weight feedback (haptics, arm sag) and for recoil feedback, instead of faking them.
+- Track the two hands with explicit states (one-hand, two-hand, dynamic, static). Blend the two grip targets into one pose and give one hand a dominance weight. This avoids the two hands fighting over the same object.
+- For a gun, apply recoil as an impulse on the gun body and let the grip joints transmit it. Let a shoulder anchor damp hand velocity, so the body absorbs the kick. A muscle or brake compensation value reduces it.
+- Add anti-explosion safeguards: detect blocked hands and reduce force, and after a sudden acceleration (a jerk or a shot) reduce force for a short window.
+- Keep a velocity history ring buffer for throws, and average it after a short delay so release does not spike.
+- Store per-object joint presets and per-hand-pose overrides, and sleep the drives when the object is at rest to cut jitter and cost.
+
+CLASSES
+* PhysHand (game/StressLevelZero.VRMK/PhysHand.cs): Per-hand physics controller. The hand is a Rigidbody (rb) pulled toward the tracked controller pose. Holds per-axis force limits, torque limits, damping, jerk and stuck sensors, and the hand-state machine used for one-hand and two-hand holding.
+    field rb: Rigidbody - the physical hand body
+    field bodyJ: ConfigurableJoint - hand-to-body link (inferred)
+    field physBody: PhysBody - owning body
+    field otherHand: PhysHand - the opposite hand, used for two-hand state
+    field handPhysState: HandPhysState - Empty / RbOneHand / RbTwoHand / StaticOneHand / StaticTwoHand
+    field xPosForce, xNegForce, yPosForce, yNegForce, zPosForce, zNegForce: float - asymmetric max force per direction (inferred: pushing and pulling have different limits)
+    field _muscleSpace: Quaternion - frame in which the per-axis limits apply (inferred)
+    field maxTorque, angDampening, dampening, newtonDamp: float - torque cap and damping terms in newton units
+    field additionalMass, forceMultiplier, gripMult: float - virtual mass and gain terms (inferred)
+    field TorqueMultiplier: AnimationCurve - torque scaling curve (inferred: by angle or effort)
+    field forceViaJoint: bool - choose joint-drive path vs direct force path (inferred)
+    field _jerkedMult, angJerkMult: float - force reduction after a sudden acceleration (inferred)
+    field _stuck: float - blocked-hand accumulator (inferred)
+    field _armlength: float; shoulder, wrist, t1Vert: Transform - arm chain anchors
+    field forearmCol: Collider; _forearmCollidingCount: int; _forearmCollisionPoint, _forearmCollisionNormal: Vector3 - forearm contact data
+    field appliedForce, appliedTorque, _lastForce, _lastVel, _lastTorque, _lastAngVel: Vector3 - force bookkeeping
+    field handSupported: float - share of body weight carried by this hand (inferred)
+    field lowFriction, _highFriction: PhysicMaterial; _isHighFriction: bool - grip-dependent friction swap
+    field rbOffset: Vector3; forceViaJoint, drawMaxForceDebug, drawAccuracyDebug: debug flags
+    method UpdateHand(Vector3 targetLocalPos, Quaternion targetRotation, float armlength, ConfigurableJoint joint, Vector3 shoulderWorld, float bodyDominance, float gripInput) - per-step driver
+    method ApplyForce(Vector3 targetLocalPos, ConfigurableJoint joint, float bodyDom) - direct force path
+    method ApplyTorque(Quaternion targetRotation, float maxTor, ConfigurableJoint joint)
+    method MuscleClamp(Vector3 desiredForce) and MuscleMax(Vector3 direction) - per-axis clamp
+    method PrepShoulderMuscle(Vector3 handVelocity, Vector3 newtonsDamped) - shoulder-side damping
+    method SetFriction(float grip), RelaxTorqueMult(float grip)
+    method RefreshHandStates(ConfigurableJoint thisJ, ConfigurableJoint otherJ) - updates HandPhysState from both joints
+    method ReadSensors(ConfigurableJoint joint, ref float divByNewtons)
+    method CheckStuck(float divByNewtons), ClearJerk()
+    method ArmMantle() : float
+    method CollisionRelay(Collision c), ReadAndClearForearmCollision(out Vector3, out Vector3)
+    method SetHand(Vector3 worldPosition, Quaternion worldRotation, bool zeroVelocity)
+* PhysicsRig (game/StressLevelZero.Rig/PhysicsRig.cs): Top-level physics player rig (extends Rig). Owns the left and right Hand objects, tracks pelvis and head motion, and resets hands after teleports.
+    field leftHand, rightHand: Hand
+    field physBody: PhysBody
+    field pelvisVelocity, groundVelocity, pelvisAccel, headDelta, _avgVel: Vector3 - body motion tracking
+    field leftHandResetTransform, rightHandResetTransform: Transform
+    field resetHandsCoroutine: Coroutine
+    field _ballLocoEnabled: bool - alternate locomotion flag
+    method OnFixedUpdate(), OnAfterFixedUpdate()
+    method StaticVirtualController(Grip leftGrip, Grip rightGrip, ref Vector3 lfHand, ref Vector3 rtHand) - computes two-hand targets from two grips (inferred)
+    method ResetHands(Handedness), CoResetHand(Handedness)
+    method Teleport(Vector3 displace, bool zeroVelocity)
+    method EnableBallLoco(), DisableBallLoco()
+* PhysBody (game/StressLevelZero.VRMK/PhysBody.cs): Physical body: joints, colliders and mass distribution for head, pelvis, knees and feet, plus support sharing and impact and jump handling.
+    field headJoint, pelvisJoint, FeetJoint, _kneeJoint: ConfigurableJoint
+    field rbHead, rbPelvis, rbKnee, rbFeet: Rigidbody - per-segment bodies
+    field footSupported: float - share of weight on feet (inferred)
+    field footballRadius, _footballCircum: float; _football: SphereCollider - ball-of-foot sphere (inferred)
+    field _kneeFender: SphereCollider; kneeFenderMult: static float
+    field totalMass: static float - body mass
+    field bodyMassNaturalHold, _bodyMassNatural: bool; _forceToAdd: Vector3
+    field _monoVel, _monoRemainder, _doubleCooldown: float - mono and double-jump bookkeeping (inferred)
+    field physG: PhysGrounder; body: SLZ_Body; onLadder: int; ladderFade: float
+    field lfFingersCol, rtFingersCol: BoxCollider; fingerColCheckMask, footballColCheckMask: LayerMask
+    method UpdateSupporteds(float divByNewtons, out Vector3 groundVelocity, out float groundAngVel)
+    method UpdateColliders(float lfCurl, float rtCurl, ref SLZ_Body.References refs)
+    method UpdateKnee(float feetTar)
+    method UpdateTargetPosWorld(Vector3 worldPos, ConfigurableJoint joint, Quaternion jointSpace)
+    method ApplyForce(Vector3), AddImpulseForce(Vector3), AddVelocityChange(Vector3)
+    method SetBodyMassDistribution() - splits mass across segment bodies
+    method SetFootballRadius(bool runCheck)
+    method CheckDoubleJump(float newtonSecond), DischargeMono()
+    method AddImpact(float impactMag)
+    method LadderForce(), UpdateLadderInfo(LadderInfo info)
+* PhysGrounder (game/StressLevelZero.VRMK/PhysGrounder.cs): Contact tracker under the body. Accumulates collision impulses, mass and ground velocity from whatever the feet or body touch.
+    field isGrounded, ungroundedThisFrame, ladderCheck: bool
+    field groundNormal: Vector3; _groundVel, _lastGroundVel, _deltaVel: Vector3
+    field _totalImpulse: Vector3; totalMass: float (contact mass sum, inferred)
+    field _groundAngVel, _groundMultSum, _highestImpulse: float; _count: int
+    field _groundedCollider: Collider; _rb: Rigidbody
+    field feetSkidSlime: AudioClip; slimeMats: PhysicMaterial[]; highFallClips: AudioClip[]; highFallVolumeMult: float
+    method OnCollisionEnter(Collision), OnCollisionStay(Collision)
+    method ProcessCollision(Collision c, bool isEnter)
+    method FeetGrounded(float footballRadius, out Vector3 groundVelocity, out float groundAngVel, out Vector3 skidVelocity, out float skidMag, out Vector3 impulse)
+    method UpdateSkid(float skidMag), CheckMat()
+* PhysLimb (game/StressLevelZero.VRMK/PhysLimb.cs): One physical arm segment (upper, lower, carpal) driven by a ConfigurableJoint with separate spring and damper pairs for the two axis groups.
+    field rb: Rigidbody; j: ConfigurableJoint
+    field xSpring, xDamp, sSpring, sDamp: float (x and s axis groups, meaning inferred)
+    field upper, lower, carpal: Transform; upperCol, lowerCol, carpalCol: Collider
+    field _initialRotation, _lastTargetRot, _lastTargetRotWorld: Quaternion; _lastTargetX: float
+    method UpdateLimb(Vector3 targetPosition)
+    method UpdateJoint(Vector3 tarPos), UpdateX(Vector3 tarPos)
+    method UpdateColliders()
+* PhysImpactSensor (game/StressLevelZero.VRMK/PhysImpactSensor.cs): Collision-impulse threshold sensor, used to trigger impacts and sounds.
+    field impulseThreshold: float; _impulseThresholdSqr: float (cached squared value)
+    field _rb: Rigidbody; collisionLayer: int; physBody: PhysBody
+    method OnCollisionEnter(Collision), ProcessCollision(Collision c)
+* SLZ_Body / SLZ_BodyBlender / BodyBuilder (game/StressLevelZero.VRMK/SLZ_Body.cs (also SLZ_BodyBlender.cs, BodyBuilder.cs)): SLZ_Body is the solver for the physical skeleton (Spine, Clavicles, Arms, Legs, Locomotion, Grounder). SLZ_BodyBlender blends the visual bones toward the physics body. BodyBuilder holds the body References and Hardpoints.
+    field SLZ_Body.Arms: armLengthFactor, maxStretchFactor, stretchThreshold, stretchRatio, forearmLfColliding, collisionLfInfluence, leftHandVector3, rightHandVector3 - arm IK and stretch limits
+    field SLZ_Body.Legs / Locomotion: stepSpeed, stepHeight and heelHeight curves, gear, upshiftVel, downshiftVel
+    field SLZ_Body.Grounder: maxStep, maxFootRotationAngle, footSpeed, footRotationSpeed, layers, quality
+    field SLZ_BodyBlender.BlendPos(Vector3 bonePos, Vector3 mkPos, Quaternion mkRot, float weight, Vector3 posOffset) and BlendRot(...) - blend toward the physics ('mk') body
+    method SLZ_BodyBlender.UpdateBlender(), Read(), Write()
+    method SLZ_BodyBlender.WristTwist(...)
+    method SLZ_Body.Solve(...) inside Locomotion
+    method BodyBuilder.AutoBuildTransforms(), AutoBuildHardpoints()
+* Hand (game/StressLevelZero.Interaction/Hand.cs): Player hand interaction controller. Owns the grip joint to the held object, the PhysHand, the other hand reference and the break and attach logic.
+    field joint: ConfigurableJoint - grip joint to the held object (inferred from type and name)
+    field rb: Rigidbody; collider: Collider; physHand: PhysHand; manager: RigManager
+    field handedness: Handedness; otherHand: Hand; attachedInteractable: Interactable
+    field jointStartRotation: Quaternion; lastHandRotation: Quaternion; m_LastWristToForearmAngle: float
+    field m_IgnoredColliders: List<Collider>; m_HandColliders: Collider[]
+    field m_IsWarmup: bool
+    method CreateConfigurableJoint(), UpdateAnchor(Vector3 connectedAnchor, Vector3 anchor)
+    method AttachJoint(GameObject), AttachObject(GameObject), DetachJoint(bool isQuick, Grip lastGrip)
+    method OnJointBreak(float breakForce)
+    method SetGripStrength(float perc)
+    method CoJointBreakCooldown(), IgnoreOtherHand()
+    method UpdateRealtimeSkeletonRigOnFixedUpdate(), OrderedFixedUpdate()
+* Grip (game/StressLevelZero.Interaction/Grip.cs): Per-grip definition on an object. Holds break-force range, body dominance, per-hand target and state, swing and twist limits, velocity history for throws, and the two-hand pose merge.
+    field type: Grip.Type - OVERRIDE, PRIMARY or SECONDARY
+    field minBreakForce, maxBreakForce: float - joint break range
+    field bodyDominance: float - passed to PhysHand.UpdateHand
+    field defaultGripDistance, gripDistance, gripDistanceSqr: float
+    field isThrowable, orientToHand, hasStartedToGrip: bool
+    field velocityHistory, angVelocityHistory: Il2CppStructArray<Vector3>; velocityHistoryIndex: int
+    field gripTargets: Dictionary<Hand, SimpleTransform>; handStates: Dictionary<Hand, HandToGripState>; attachedHands: List<Hand>
+    field virtualController: VirtualController; virtualControllerMode: Grip.VirtualControllerModes - GENERIC, HANDGUN, RIFLE, SLIDE, SLIDELOOK
+    field handleAmplifyCurve: AnimationCurve; handPose: HandPose; gripOptions: InteractionOptions
+    method CalculateFinalOverride(HandGripPair current, HandGripPair other, SimpleTransform root, ref SimpleTransform final) - merges both hands into one pose
+    method CalculateNewGripTransform(Hand hand)
+    method GetJointLimitsInWorld(Hand hand, out Vector3 rotationLimits, out Vector3 positionLimits)
+    method GetAngleLimits(Hand), GetPrimaryAxis(Hand), GetSecondaryAxis(Hand)
+    method GetSwingCircleConstraints(Quaternion localTargetRotation, float limit)
+    method GetTwistConstraints(Quaternion localTwistRotation, Vector3 axis, Vector3 secondaryAxis, float lowLimit, float highLimit)
+    method SetupConfiguration(JointConfiguration config), UpdateJointConfiguration(Hand hand)
+    method SaveHistory(Vector3 velocity, Vector3 angVelocity)
+    method GetAverageHistory(float startDelayTime, float sampleTime, out Vector3 angVelocity)
+    method CoSnatch(Hand hand, bool isQuick), ValidateGripScore(Hand hand, Vector3 worldPoint)
+* HandToGripState / HandGripPair / GripFlags (game/StressLevelZero.Interaction/HandToGripState.cs (also HandGripPair.cs, GripFlags.cs)): Per-hand, per-grip state. HandGripPair is a (hand, grip) struct. GripFlags is a bit flag set of HOVER=1, FARHOVER=2, ATTACH=4, PULLING=8.
+    field HandToGripState.isStatic: bool; isActive: bool; isFlipped: bool; flippedTargetRotation: Quaternion
+    field HandToGripState.isJointAngleOverride: bool; jointAngleOverrideRotation: Quaternion
+    field HandToGripState.gripFlags: GripFlags; poseRadius: float; dynamicFloat: float; handPose: HandPose
+    field HandGripPair.hand: Hand; HandGripPair.grip: Grip
+    method HandGripPair(Hand h, Grip g)
+* JointConfiguration (game/StressLevelZero.Interaction/JointConfiguration.cs): Serializable snapshot of a ConfigurableJoint: drives, limits, motion, break thresholds and read-back forces. Applied per object and per hand pose.
+    field xDrive, yDrive, zDrive, angularXDrive, angularYZDrive, slerpDrive: JointDrive
+    field rotationDriveMode: RotationDriveMode; targetPosition, targetRotation, targetVelocity, targetAngularVelocity
+    field xMotion, yMotion, zMotion, angularXMotion, angularYMotion, angularZMotion: ConfigurableJointMotion
+    field linearLimit, lowAngularXLimit, highAngularXLimit, angularYLimit, angularZLimit: SoftJointLimit; linearLimitSpring, angularXLimitSpring, angularYZLimitSpring: SoftJointLimitSpring
+    field breakForce, breakTorque: float; massScale, connectedMassScale: float
+    field currentForce, currentTorque: Vector3 - read-back of the constraint force
+    field projectionMode, projectionAngle, projectionDistance; enablePreprocessing, enableCollision, swapBodies, configuredInWorldSpace
+    method ApplyConfiguration(ConfigurableJoint joint)
+    method ApplyConfiguration(string handPoseName, Hand hand, ConfigurableJoint joint) - per hand-pose presets
+    method CopyConfiguration(ConfigurableJoint joint)
+    method SleepDrives(ConfigurableJoint joint, Rigidbody rb), WakeupDrives(ConfigurableJoint joint, Rigidbody rb)
+* RigidbodyData and InteractableHost / Interactable (game/StressLevelZero.Interaction/RigidbodyData.cs (also InteractableHost.cs, Interactable.cs)): RigidbodyData is a per-object rigidbody preset (mass and drag, plus inertia and centre of mass). InteractableHost is the per-object host that owns it and the two-hand events. Interactable holds the object's JointConfiguration.
+    field RigidbodyData: mass, drag, angularDrag, useGravity, isKinematic, interpolate, collisionDetection, constraints, centerOfMass, maxAngularVelocity, inertiaTensor
+    field InteractableHost._rbData: RigidbodyData
+    field InteractableHost.onTwoHandAttachDelegate, onTwoHandDetachDelegate: Il2CppSystem.Action
+    field Interactable._jointConfig / jointConfig: JointConfiguration
+    method InteractableHost.IsTwoHanded()
+* Gun (and GunGrip / HandGunGrip) (game/StressLevelZero.Props.Weapons/Gun.cs (also StressLevelZero.Interaction/GunGrip.cs, HandGunGrip.cs)): Gun behaviour and its grip. Recoil magnitude, the trigger grip, the secondary (off-hand) grips, shoulder anchor, and the slide and cycle state machines.
+    field kickForce: float - recoil impulse magnitude (both Gun and GunGrip)
+    field triggerGrip: Grip; otherGrips: Il2CppReferenceArray<Grip> - secondary grips for the off-hand
+    field shoulderPointTransform, firePointTransform: Transform
+    field roundsPerMinute, muzzleVelocity: float; isAutomatic, isTriggerPulled, isFiring, hasFiredOnce: bool
+    field slideGrip: Grip; isSlideOverride, _isSlideGrabbed, isSlideLocked: bool
+    field slideState: SlideStates; hammerState: HammerStates; cartridgeState: CartridgeStates; GunGrip.cycleState: FireCycleState
+    method Gun.Fire(), Gun.CeaseFire(), Gun.OnFire(), BroadcastGunFiredEvent()
+    method GunGrip.Fire(Hand hand), GunGrip.CeaseFire(), GunGrip.CoFire(Hand hand)
+    method OnTriggerGripAttached(Hand hand), OnTriggerGripDetached(Hand hand)
+    method SlideGrabbed(), SlideGrabbedReleased(), UpdateSlidePercentage(float perc), SlidePull(), SlideRelease()
+* MuzzleBreakVariables (game/StressLevelZero.Combat/MuzzleBreakVariables.cs): Struct describing a muzzle brake: how much recoil and muzzle rise it removes.
+    field muzzleBreakType: MuzzleBreakType
+    field RecoilCompensation: float
+    field MuzzleRiseCompensation: float
+    method BoxIl2CppObject()
+* LiteLoco (game/StressLevelZero.VRMK/LiteLoco.cs): Simpler step-group locomotion for the body. Contains StepGroup, Gear, Grounder and Footstep classes.
+    field weight: float; root, neutralRoot: Transform; stepGroups: StepGroup[]
+    field _velocity, accelOffset: Vector3
+    method UpdateLiteLoco(Vector3 worldVelocity, float rotDelta)
+    method GetMuscleUsage(int stepGroup, int step) : float
+    method Initiate(HashSet<Rigidbody> selfRbs)
+* Muscle (PuppetMasta folder) (game/PuppetMasta/Muscle.cs): Generic per-joint muscle model (PuppetMaster-style). No reference from the Rig folder was found, so it is probably used for ragdolls or enemies rather than the player hands (inferred).
+    field Props: muscleWeight, muscleDamper, mappingWeight, mapPosition, group
+    field State: mappingWeightMlp, muscleWeightMlp, muscleDamperMlp, maxForceMlp, muscleDamperAdd, immunity, impulseMlp
+    field joint: ConfigurableJoint; slerpDrive: JointDrive; _lastSlerpSpring, _lastSlerpDamper, _lastSlerpMaxF: float
+    method Muscle drive, mapping and broadcast members (not decoded further)
+* Weight (enum) (game/StressLevelZero.Combat/Weight.cs): Enum LIGHT, MEDIUM, HEAVY. Only used as AmmoPickup.ammoWeight; not part of hand physics.
+    field LIGHT, MEDIUM, HEAVY

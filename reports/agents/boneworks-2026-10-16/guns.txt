@@ -1,0 +1,214 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks guns: slide/bolt state machine, hand racking, firing cycle, magazine socket, kick, sound and haptics (decompiled IL2CPP stubs, names and types only)
+
+MECHANICS
+- Caveat: method bodies are IL2CPP stubs, so all ordering, timing and transitions below are inferred from names, enum order, and signatures. Verified facts are the enum members, field names and types, method signatures, and which class holds which field. Haptic callers and gun call sites are not visible in the dump.
+- Two state enums on Gun, one for logic and one for animation. Gun.SlideStates is the logical slide position: RETURNING, RETURNED, PULLING, PULLED, LOCKED. Gun.AnimationStates is the clip being played: NONE, NEUTRAL, SLIDEPULL, SLIDEPULLREVERSED, SLIDERETURN, SLIDERETURNREVERSED, SLIDELOCKED, SLIDELOCKEDREVERSED. The REVERSED variants are most likely the same clips played backward via the isReversed flag on CoPlayAnimation (inferred).
+- Inferred slide cycle: RETURNED (at rest) to PULLING (SlidePull, clip SLIDEPULL) to PULLED (CompleteSlidePull after the clip ends) to LOCKED (SlideLocked, clip SLIDELOCKED, when the magazine is empty or the slide is held back) to RETURNING (SlideRelease, clip SLIDERETURN or the reversed lock clip) to RETURNED (CompleteSlideReturn). ForceCompleteSlidePull is the escape hatch so a state cannot get stuck.
+- Hand racking: SlideGrip, PumpSlideGrip and CylinderSlideGrip project the hand onto slideDirection and measure slideDistance against lastDistance, using SimpleTransform parentToSlide and initalTransformToRoot as the frame. They set slideIsPulled and isSlideReleased. While the grip is held, Gun.SlideGrabbed() sets _isSlideGrabbed and the grip scrubs the animator through Gun.UpdateSlidePercentage(float perc), with isManualSlideMovement true. SlideOverride() with overridePerc and isSlideOverride is an alternative path that forces the percentage. On release, SlideGrabbedReleased() and SlideRelease() let the clip finish the return.
+- Interruption and reversal: CoPlayAnimation(state, isReversed, startPerc, duration, AnimationCurve curve) starts from the current percentage and eases with a curve. leftOverTime, lastCompletedAnimation and playAnimationStateCoroutine (stopped and replaced) carry the state so a reversed clip can begin mid-way without snapping (inferred).
+- Trigger and fire modes: Gun.isTriggerPressed is the raw button; isTriggerPulled is a threshold past it. isTriggerPulledOnAttach and GunGrip.isTriggerDownOnAttach block accidental fire when the trigger is already down on grab. Fire() is virtual and calls OnFire(); CeaseFire() ends it. GunGrip.Fire(Hand) starts the CoFire(Hand) coroutine, which loops while held when isAutomatic is set. isManual is the semi-auto counterpart. Two bool flags select the mode, and GunOptionSelect's FIREMODE entry toggles them through canChangeFiremode. Rate fields are roundsPerMinute, roundsPerSecond and fireDuration; fireSpeedHash sets the animator speed.
+- Per-shot cycle on GunGrip: FireCycleState EMPTY, CHAMBER, FIRE, EJECT, advanced by NextCycleState() and SetCycleState(); cycleStateCount is the step count. Inferred pipeline: chamber a round, fire it, eject the case, then return to EMPTY or the next CHAMBER. percForNextState: float gates advancing (inferred). GetNextBullet() pulls the next round from the socket, and EjectBullet(bool HasBullet, bool isSilent) handles the spent or empty case.
+- Chambering and cartridge state: Gun.chamberedCartridge (BulletObject) with cartridgeState NONE, UNSPENT, SPENT. Inferred: a live round goes UNSPENT on chamber and SPENT after firing. EjectCartridge() throws the case out of shellSpawnTransform, oriented by shellOrientationTransform. PullCartridge() loads the next round during slide return (CompleteSlideReturn). chamberedBulletGameObject, chamberedCartridgeGameObject and nextShellGameObject are the visible rounds. isChargedOnStart means the gun starts with a round chambered. RequiresChargingHandle() and chargingHandleHelperRenderer suggest guns that need a charging-handle rack before the first shot (inferred). Note that DuckSeason/Cartridge.cs is a minigame cartridge and unrelated to the gun chamber.
+- Hammer: HammerStates UNCOCKED and COCKED on Gun.hammerState and GunGrip.isHammerRaised. It is separate from the slide state; cocking on pull and release on fire is inferred.
+- Slide lock and release: the slide locks when the magazine runs dry (slideLockDuration is the hold). Magazine insert and remove (Gun.OnMagazineInserted, OnMagazineRemoved, MagazineSocket events) likely call SlideRelease (inferred). isSlideReleaseOnCollision lets the slide drop when the gun hits something (inferred). GunSFX.SlideLock with slideLockFire and slideLockFireSlow plays the lock sound. MagReleaseToGrab.UpdateMagGripPriority(int ammoCount) changes mag-grab priority with ammo count.
+- Magazine socket state machine: MagazineSocket.m_States and MagazineSocketReciever.m_States are both EMPTY, SWITCHING, EJECTING, HOVERING, INSERTED, SLIDING. On the Props side, insertion progress is a spring-like 0 to 1 value (m_MovingPerc and m_PercVelocity, with m_ActivePerc and m_ActivePercVel). It runs in two phases, MoveTowardsStartInsertTarget() then SlideTowardsEndInsertTarget(). The hand transform is handed off between SimpleTransform m_HandToInsertTarget and m_InsertTargetToHand. The magazine is carried by a ConfigurableJoint (m_MagazineJoint from m_JointConfig, created by CreateJoint and removed by DestroyJoint or CoSelfDestructJoint). It is latched by MagazinePlug (OnPlugLocked, OnPlugUnlocked) and CoWaitLockMagazine().
+- Insert guards: the insert distance is compared as a squared value (m_SqInsertDistance). requireExit and _requireExit make the magazine leave the socket before it can latch again. _cooldown and m_MagazineGrabbedTime add timing guards. DisableInteraction and EnableInteraction gate grabbing.
+- Magazine grab selection: MagazineReciever.ValidateGripScore(Hand hand, Vector3 worldPoint) returns a score per candidate grip, and priority: float breaks ties. MagReleaseToGrab tracks m_IsPrimaryGrabbed and primaryGrip, so the grab picks the primary hand by score rather than by nearest distance (inferred).
+- Kick and recoil: none of these classes has a hand or camera recoil field. Kick fields are Gun.kickForce (float), GunGrip.kickForce (float), Gun.muzzleVelocity and GunGrip.muzzleVelocity (float), and GunGrip.roundsPerMinute (float). The physical kick is on the slide: GunAnimationManager.slideJoint (ConfigurableJoint), slideTransform, rb (Rigidbody) and initialConnectedAnchor (Vector3), driven by the timed coroutine CoFireAnimation (duration and time locals, both float). Haptor.Haptic_WepFire(float kickForce) takes the same kick value, so haptic strength is derived from kick.
+- Sounds: GunSFX has one slot per event: fire, fireSlow, dryFire, dryFireSlow, slideLockFire, slideLockFireSlow, slidePull, slideRelease, magazineInsert, magazineDrop, grab, secondGrip. Methods are GunShot(), GunError(), DryFire(), SlideLock() and so on. Two output mixers (gunshotOutputMixer, interactionOutputMixer) separate gunshots from interaction sounds. _gunshotAp and _gunshotTimer suggest pooled audio with a throttle (inferred). The fireSlow and dryFireSlow variants are most likely for slowed time (inferred; a Chronos folder exists in the dump). MagazineReciever.grabClips holds the magazine grab sounds.
+- Haptics: Haptor (root namespace) is a per-controller engine. HapStack {hap_Add, hap_Override, hap_Ignore, hap_Duck} sets how a new event mixes with one already playing. hapticking, noDoubleHaptic and otherHaptor stop both hands buzzing at once. Weapon events: Haptic_WepFire(kickForce), Haptic_WepMagInsert(), Haptic_WepChargeHandle(), Haptic_WepClang(). Interaction events: Haptic_Click(bool down), Haptic_Tap(), Haptic_Knock(), Haptic_Subtle(), Haptic_Sliding(), Haptic_SlideFriction(), Haptic_Hit(float amp), Haptic_SoftSin and Haptic_HardSin (gateCount, length). The waveform is co_HapticSine with length, min and max amplitude, frequency and gate.
+- In-gun UI: GunOptionSelect has SelectOptions NONE, FIREMODE, EJECT. It runs a cursor and a colour fade (CoFadeToColor, CoFade) and shows the panel with OnOptionsActive and OnOptionsDeactive.
+- Multiplayer and UI hooks: BroadcastGunFiredEvent() with _hasFiredSinceLastBroadcast and _lastTimeEventWasBroadcasted (time-throttled), and _poolee: Poolee ties the gun to pooled networking. The static OnWeaponCeaseFire event carries (int ammoCount, string wepName) for the UI. AggroItem(TriggerRefProxy, SceneZone, bool) alerts AI zones when the gun fires.
+
+LESSONS
+- Pistol magazine insert (the thumb-lets-go-then-push request): model the insert as one continuous 0 to 1 progress with a spring and damper, as Boneworks does with m_MovingPerc and m_PercVelocity. Blend the hand pose from the grab pose toward the push pose over that progress instead of switching at a threshold. Carry the pose as a transform that lerps, similar to the m_HandToInsertTarget and m_InsertTargetToHand handoff.
+- Split the insert into two phases: first align to a start point at the magwell, then slide along the insert axis to the end point, then latch. Thumb release can be the phase boundary, with the first phase driven by grab state and the second by insert progress.
+- Latch with a short lock step (a plug or lock object plus a short wait, like CoWaitLockMagazine) before the magazine counts as inserted. Compare insert distance as a squared value to keep it cheap.
+- Prevent instant re-insert after a release: require the magazine to leave the socket zone first (requireExit) and add a short cooldown.
+- Double-mag reload pose fades: keep one pose and drive a blend weight (the slideBlend idea in PumpSlideGrip) with an AnimationCurve and a duration, instead of swapping poses. Fade the old pose out while the new one fades in. CoPlayAnimation's curve, duration and startPerc parameters show the pattern.
+- When a fade or slide animation is reversed mid-way, start the reverse from the current percentage and keep the remaining time (leftOverTime, startPerc, isReversed). That way it never snaps.
+- Keep logical state separate from animation state, as SlideStates and AnimationStates do. Logic stays correct when an animation is interrupted or reversed, and you author one clip and reuse its reversed variant.
+- Racking hysteresis: use distinct pulled and returned thresholds (pullAnimationPerc, returnAnimationPerc), let the hand override the animation while it is on the slide, and add a force-complete path so states cannot get stuck.
+- Put the kick on the gun, not the hand: animate the slide with a timed coroutine against a joint (GunAnimationManager style) and feed the same kickForce value into haptics so visual kick and buzz stay in sync.
+- Haptics: keep a named library of events (WepFire, WepMagInsert, WepChargeHandle, WepClang, Click down and up, Tap, Knock) with a stacking policy (Boneworks HapStack: Add, Override, Ignore, Duck). A fire buzz should override a grab tap, not stack on it. Add a guard so the two hands do not double-buzz.
+- Sound: keep separate clips for normal and slowed time (fire and fireSlow, dryFire and dryFireSlow), a dedicated dry-fire or error sound for invalid actions, and a separate mixer for gunshots.
+- Model the fire cycle as explicit steps (EMPTY, CHAMBER, FIRE, EJECT). Gating each step makes it easy to stop fire when the slide is locked or the chamber is empty.
+- Trigger: separate the raw press from the pull threshold, and ignore fire when the trigger was already down on grab (isTriggerPulledOnAttach).
+- Mag grab choice: score candidate grip points (ValidateGripScore(Hand, worldPoint)) instead of picking the nearest, and change grip priority with ammo count (UpdateMagGripPriority).
+- In VR, put fire mode and eject options on an in-gun panel with a fading cursor (GunOptionSelect: FIREMODE, EJECT), not on button combos.
+
+CLASSES
+* Gun (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Props.Weapons\Gun.cs): Weapon root MonoBehaviour. Owns the animator-driven slide/bolt state machine (SlideStates + AnimationStates), hammer and cartridge state, trigger flags, fire-rate and kick values, chamber visuals, magazine socket reference, auto/phantom reload, and the gun-fired broadcast and UI event.
+    field animationState: AnimationStates - clip currently requested
+    field slideState: SlideStates - logical slide position (RETURNING, RETURNED, PULLING, PULLED, LOCKED)
+    field lastCompletedAnimation: AnimationStates; leftOverTime: float; playAnimationStateCoroutine: Coroutine
+    field hammerState: HammerStates (UNCOCKED, COCKED)
+    field cartridgeState: CartridgeStates (NONE, UNSPENT, SPENT)
+    field pullAnimationPerc, returnAnimationPerc: float - progress thresholds (inferred)
+    field pullAnimationSpeed, returnAnimationSpeed, slideLockDuration, fireDuration: float
+    field overridePerc: float; isSlideOverride: bool; _isSlideGrabbed: bool
+    field slidePullHash, slideReturnHash, slideLockedHash, fireSpeedHash, neutralHash: int - Animator parameter hashes
+    field isAutomatic, isManual: bool - fire mode flags; isTriggerPressed, isTriggerPulled, isTriggerPulledOnAttach, isFiring, hasFiredOnce: bool
+    field roundsPerMinute, roundsPerSecond: float; fireCurve, returnCurve: CurveData
+    field kickForce: float; muzzleVelocity: float
+    field chamberedCartridge: BulletObject; chamberedBulletGameObject, chamberedCartridgeGameObject, nextShellGameObject: GameObject
+    field startFireAmmoCount, endFireAmmoCount: int; isAutoReload (backed by bool); isSlideReleaseOnCollision, isChargedOnStart, isSilenced: bool
+    field magazineSocket: MagazineSocket; triggerGrip: Grip; otherGrips: Grip[]; gunSFX: GunSFX; animator: Animator
+    field shellSpawnTransform, shellOrientationTransform, firePointTransform, shoulderPointTransform: Transform
+    field static OnWeaponCeaseFire: WeaponCeaseFire delegate (Action<int ammoCount, string wepName>)
+    field _hasFiredSinceLastBroadcast: bool; _lastTimeEventWasBroadcasted: float; _poolee: Poolee
+    method Fire() virtual; OnFire() protected virtual; CeaseFire()
+    method SlidePull(); SlideRelease(); SlideLocked() private; SlideGrabbed(); SlideGrabbedReleased(); UpdateSlidePercentage(float perc)
+    method SlideOverride(); SlideOverrideReleased(); ForceCompleteSlidePull(); CompleteSlidePull(); CompleteSlideReturn()
+    method SetAnimationState(AnimationStates state, float perc); PlayAnimationState(AnimationStates state, float startPerc); CoPlayAnimation(AnimationStates state, bool isReversed, float startPerc, float duration, AnimationCurve curve)
+    method OnAnimationComplete(AnimationStates); CoOnAnimationComplete(AnimationStates)
+    method PullCartridge(); EjectCartridge(); UpdateArt()
+    method OnMagazineInserted(); OnMagazineRemoved(); RequiresChargingHandle(): bool; CheckGunRequirements()
+    method AutoReloadWeapon(); SetAutoReload(bool enable); PhantomLoad(); CoPhantomReload()
+    method OnTriggerPressUp(); OnTriggerGripAttached(Hand) and OnTriggerGripDetached(Hand) protected virtual
+    method AggroItem(TriggerRefProxy proxy, SceneZone zone, bool isSubZone); BroadcastGunFiredEvent(); OnCollisionEnter(Collision); CoBlinkHighlight(Renderer)
+* GunGrip (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\GunGrip.cs): Trigger grip (derives from TargetGrip). Holds the per-shot cycle state machine, auto-fire coroutine, ammo fetch, bullet and casing spawn points, and a link to GunAnimationManager and GunSFX.
+    field cycleState: FireCycleState (EMPTY, CHAMBER, FIRE, EJECT); cycleStateCount: int
+    field isFiring, isTriggerDownOnAttach, nextBullet, isSlideLocked, isHammerRaised: bool
+    field percForNextState: float - gate for advancing cycle (inferred)
+    field kickForce: float; roundsPerMinute: float; muzzleVelocity: float; barrelLength: float
+    field isAutomatic: bool; isInfiniteAmmo: bool
+    field gunProjectileType: GunProjectileType (Bullet, SpawnPrefab); PrefabToSpawn: GameObject
+    field bulletSpawnTransform, muzzleSpawnTransform, casingSpawnTransform, casingSpawnOrientationTransform, shoulderPointTransform: Transform
+    field slideGrip: Grip; slideCurve: CurveData; currentBullet: BulletObject
+    field gunSFX: GunSFX; gam: GunAnimationManager; animator: Animator; fireCoroutine: Coroutine
+    field bulletArt, bulletNext, bulletExp: GameObject
+    method Fire(Hand hand); CeaseFire()
+    method CoFire(Hand hand) IEnumerator - compiler class <CoFire>d__47
+    method EjectBullet(bool HasBullet, bool isSilent = false)
+    method GetNextBullet(): bool
+    method NextCycleState() private; SetCycleState(FireCycleState newCycleState)
+* GunAnimationManager (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero\GunAnimationManager.cs): Physical slide kick. Drives the slide rigidbody through a ConfigurableJoint on each shot, with a timed coroutine, separate from the Animator clips.
+    field slideJoint: ConfigurableJoint
+    field slideTransform: Transform
+    field rb: Rigidbody
+    field initialConnectedAnchor: Vector3 - rest anchor to return to (inferred)
+    field animator: Animator
+    field fireAnimationCoroutine: Coroutine
+    method Awake() private; Starter() IEnumerator
+    method FireAnimation(); CoFireAnimation() IEnumerator (locals _duration_5__2: float, _time_5__3: float)
+* GunOptionSelect (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\GunOptionSelect.cs): In-gun option panel (VR UI on the weapon) for choosing FIREMODE or EJECT, with a cursor and colour-fade feedback. Toggles canChangeFiremode and canEjectMag.
+    field enum SelectOptions: NONE, FIREMODE, EJECT
+    field m_SelectOption: SelectOptions; m_IsOptionsActive: bool; displayUI: bool
+    field canChangeFiremode: bool; canEjectMag: bool
+    field uiColor, uiHighlightColor: Color
+    field gun, grip, reciever: object refs; uiCursorObject, uiBorderObject, uiEjectText, uiFireModeText
+    field m_UiFireModeTextMesh, m_UiEjectTextMesh, m_UiBorderMat, m_UiCursorMat
+    field m_FireModeColorCoroutine, m_EjectColorCoroutine: Coroutine
+    method Awake(); Start(); Update()
+    method OnOptionsActive(); OnOptionsDeactive()
+    method CoFadeToColor(TextMeshPro text, Color targetColor, float duration)
+    method CoFade(TextMeshPro text, float targetOpac, float duration); CoFade(Material mat, float targetOpac, float duration)
+* GunSFX (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.SFX\GunSFX.cs): One sound slot per gun event, with two output mixers, a throttled gunshot path, and a fast/slow variant for each key sound.
+    field fire, fireSlow: fire sound and slow-time variant
+    field dryFire, dryFireSlow: empty-click sound and slow-time variant
+    field slideLockFire, slideLockFireSlow
+    field slidePull, slideRelease, magazineInsert, magazineDrop, grab, secondGrip
+    field gunshotOutputMixer, interactionOutputMixer: audio mixer outputs
+    field _gunshotAp, _gunshotTimer: pooled gunshot audio and throttle timer (inferred)
+    field _host: InteractableHost
+    method Start(); GunShot(); GunError(); DryFire()
+    method SlideLock(); SlidePull(); SlideRelease(); MagazineInsert(); MagazineDrop()
+    method Grab(); SecondGrip()
+* Slide (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\Slide.cs): Generic axis-limited slider MonoBehaviour. Constrains a moving part along slideAxis up to limit, with a Grip that drives it (inferred to be a generic physical slide).
+    field slideAxis: Vector3
+    field limit: float
+    field slideGrip: Grip
+    method Update()
+    method Slide() ctor
+* SlideGrip (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\SlideGrip.cs): Hand-racking grip on the pistol slide. Projects the hand onto slideDirection, measures slideDistance, sets the pulled and released flags, and feeds Gun. Also swaps between normal and flipped hand poses.
+    field gun: Gun
+    field isManualSlideMovement: bool; slideDistance: float; lastDistance: float
+    field slideDirection, upDirection, offsetRotation: Vector3
+    field parentToSlide, initalTransformToRoot: SimpleTransform
+    field slideIsPulled: bool; isSlideReleased: bool
+    field normalHandPose, flippedHandPose: HandPose; isFlippable: bool
+    method OnHostAttach(InteractableHost host, Hand hand); OnHostDetach(InteractableHost host, Hand hand)
+    method SelectHandPose(Hand hand)
+* PumpSlideGrip (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\PumpSlideGrip.cs): Racking grip for pump-style slides. Same pattern as SlideGrip plus a blend value and a flip offset, so the hand can switch sides.
+    field gun: Gun; isManualSlideMovement: bool
+    field slideBlend: float - blend weight (inferred for pose fade)
+    field slideDistance, lastDistance, initialDirection: float or Vector3 as named
+    field gripToHandle: SimpleTransform; grabOffset, flippedControllerOffset, offsetRotation: Vector3
+    field flippedHandPose, normalHandPose: HandPose; isFlippable: bool
+    field slideIsPulled, isSlideReleased: bool
+    method SelectHandPose(Hand hand)
+    method PumpSlideGrip() ctor
+* CylinderSlideGrip (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\CylinderSlideGrip.cs): Sibling of SlideGrip for a cylinder-type slide (name-based inference; not confirmed which weapon uses it).
+    field gun: Gun; isManualSlideMovement: bool; slideDistance: float; lastDistance: float
+    field slideDirection, upDirection: Vector3; parentToSlide, initalTransformToRoot: SimpleTransform
+    field slideIsPulled: bool; isSlideReleased: bool
+    method OnHostAttach(InteractableHost host, Hand hand); OnHostDetach(InteractableHost host, Hand hand)
+* MagReleaseToGrab (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\MagReleaseToGrab.cs): Grip on the magazine release that lets a hand pull the mag out. Tracks which grip is primary and changes grip priority with ammo count.
+    field magazineSlotReciever: MagazineSocket
+    field primaryGrip: Grip; m_Grip: Grip
+    field m_IsPrimaryGrabbed: bool; m_IsMagazineInserted: bool
+    method UpdateMagazineGrab(Hand hand); OnHandAttached(Hand hand)
+    method OnAttachedHandDelegate(Hand hand); OnDetachedHandDelegate(Hand hand)
+    method OnMagazineInserted(); OnMagazineRemoved(); OnGetNextBullet()
+    method UpdateMagGripPriority(int ammoCount)
+* MagazineSocket (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Interaction\MagazineSocket.cs): Gun-side socket (derives from Socket). Runs the socket state machine, feeds rounds to the gun, handles eject and hover-eject, and manages the plug lock.
+    field enum m_States: EMPTY, SWITCHING, EJECTING, HOVERING, INSERTED, SLIDING
+    field m_State: m_States; isActive, hasMagazine, isInfiniteAmmo, requireExit/_requireExit: bool
+    field m_SqInsertDistance: float - squared insert threshold
+    field magazineData: MagazineData; defaultBullet: BulletObject; spawnableMagazine: SpawnableObject
+    field _magazinePlug: MagazinePlug - lock object
+    field OnMagazineInserted, OnMagazineRemoved, onGetNextBulletDelegate: Action events
+    field primaryGrip: Grip; m_Host: InteractableHost; sfx: GunSFX
+    method GetNextBullet(): BulletObject; GetAmmoCount(): int; GetMagazine(): Magazine; GetHost()
+    method OnPlugLocked(Plug plug); OnPlugUnlocked()
+    method EjectMagazine(Action callback); ClearMagazine(); MagazineRelease(); SetHoverEject()
+    method UpdateProxyGripState(Hand hand); UpdateMagGripPriority(bool setToOne)
+    method OnAttachedHandDelegate(InteractableHost host, Hand hand); OnDetachedHandDelegate(InteractableHost host, Hand hand)
+* MagazineSocketReciever (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Props.Weapons\MagazineSocketReciever.cs): Props-side socket (derives from HandInteractionReciever). Animates the magazine insertion with a spring-like 0..1 progress, two insert phases, a hand-to-target transform handoff, and a ConfigurableJoint carrying the magazine. Same six-value m_States enum as MagazineSocket.
+    field enum m_States: EMPTY, SWITCHING, EJECTING, HOVERING, INSERTED, SLIDING
+    field m_MovingPerc: float; m_PercVelocity: float - spring progress and velocity
+    field m_ActivePerc: float; m_ActivePercVel: float
+    field m_MagazineGrabbedTime: float; m_WasMagazineGrabbed: bool; _cooldown: bool; _requireExit: bool
+    field m_InsertTargetToHand, m_HandToInsertTarget, m_HandTargetTransform: SimpleTransform
+    field startInsertTarget, endInsertTarget: Transform
+    field m_MagazineJoint: ConfigurableJoint; m_JointConfig: JointConfiguration; m_SphereCollider: SphereCollider
+    field m_Magazine: Magazine; _magazineHost: InteractableHost; m_IsHoverEject, isActive, disableMagazineGrab, isInfiniteAmmo, requireExit: bool
+    field defaultBullet: BulletObject; sfx: GunSFX
+    method MoveTowardsStartInsertTarget(); SlideTowardsEndInsertTarget()
+    method CreateJoint(Rigidbody rb); DestroyJoint(); CreateJointConfig(); CoSelfDestructJoint(GameObject source, Rigidbody target, float time)
+    method CoWaitLockMagazine(); OnMagazineLocked(); OnMagazineUnlocked(); MakeStatic(); MakeDynamic()
+    method CalculateMagazineRig(Transform insert, InteractableHost host)
+    method UpdateMagazineGrab(Hand hand); OnMagazineGrabbed(Hand hand); OnAttachedHandDelegate(Hand); OnDetachedHandDelegate(Hand)
+    method ForceInsertMagazine(InteractableHost magHost, Magazine mag); EjectMagForPool(Action callback); CoEjectMagazine(Action callback)
+    method MagazineRelease(); MagazineRelease(Action callback); EnableInteraction(); DisableInteraction(); UpdateMagGripPriority(bool setToOne)
+* Magazine (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Props.Weapons\Magazine.cs): Magazine MonoBehaviour. Holds ammo count and visible round art (firstBullet, secondBullet), exposes the next round to the socket, and handles ammo claim and reset.
+    field magazineData: MagazineData; reloadOnEject: bool; saveItem: SaveItem
+    field grip: Grip; insertPointTransform: Transform; interactableHost: InteractableHost
+    field firstBullet, secondBullet: GameObject - visible rounds
+    field parentInventory: PlayerInventory; IsAmmoClaimed: bool
+    field _ammoCount: int; _isArtHidden: bool; isMagazineInserted: bool
+    method GetCurrentBullet(); GetNextBullet(); GetAmmoCount(); SetAmmoCount(int ammount); EmptyMagazine(int subAmt); ResetMagazine()
+    method ClaimAmmo(PlayerInventory playerInventory)
+    method OnGrab(Hand hand); OnEject(); OnInsert(Hand hand)
+    method HideBulletArt(); ShowBulletArt(); CheckBulletArt()
+* MagazineReciever (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Props.Weapons\MagazineReciever.cs): Hand-side receiver on a magazine. Scores each candidate grip against the hand to decide which grip takes the mag.
+    field priority: float
+    field grabClips: Il2CppReferenceArray<AudioClip>
+    field parentRig: StressLevelZero.Rig.Rig; _playerInventory: PlayerInventory
+    method ValidateGripScore(Hand hand, Vector3 worldPoint): float
+    method Start(); OnDestroy()
+* Haptor (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\Haptor.cs): Per-controller haptic engine (root namespace). Holds the named haptic events for weapons and interaction, the sine-burst generator, and anti-double-buzz flags for the two hands.
+    field enum HapStack: hap_Add, hap_Override, hap_Ignore, hap_Duck
+    field hapticsAllowed: bool; hapticking: bool; noDoubleHaptic: bool; usingRumbleHap: bool
+    field otherHaptor: Haptor - the other hand's haptor
+    field device_Controller; mod_globalPer; mod_viveWand; low_thr_freq
+    field hap_duration, hap_frequency, hap_amplitude, hap_delay, hap_calc_t; hap_subtle_*; hap_click_down_*; hap_click_up_*
+    method Haptic_WepFire(float kickForce); Haptic_WepMagInsert(); Haptic_WepChargeHandle(); Haptic_WepClang()
+    method Haptic_Click(bool down = true); Haptic_Tap(); Haptic_Knock(); Haptic_Subtle(); Haptic_Hit(float amp)
+    method Haptic_Sliding(); Haptic_SlideFriction(); Haptic_SoftSin(int gateCount, float length); Haptic_HardSin(int gateCount, float length)
+    method co_HapticSine IEnumerator (length, min_amplitude, max_amplitude, frequency, gate); co_HapHit IEnumerator
+* MagazineData and BulletObject (StressLevelZero.Combat) (C:\Users\Flo\AppData\Local\Temp\claude\C--Users-Flo-Downloads-NewApps\0e09ca53-5ca1-4aff-891b-722d450226ca\scratchpad\boneworks\game\StressLevelZero.Combat\MagazineData.cs and BulletObject.cs): Data for a magazine (capacity, slots, cartridge type, platform) and for a single round (ammoVariables).
+    field MagazineData: spawnableObject: SpawnableObject; weight: Weight; cartridgeType: Cart; platform: Platform; AmmoSlots: Il2CppReferenceArray<BulletObject>; MaxAmmo: int
+    field BulletObject: ammoVariables: AmmoVariables
+    method MagazineData() ctor; BulletObject() ctor

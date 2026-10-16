@@ -1,0 +1,285 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks magazines and sockets: well alignment, insertion, ejection, pouch, haptics (decompiled class structure; method bodies are interop stubs, so logic is inferred from names, types, enums and coroutine locals)
+
+MECHANICS
+- Scope: only the decompiled unhollowed Assembly-CSharp classes were read. No mod sources were opened and the game was not launched. Every mechanic below is inferred from names, types, enums and coroutine locals, since method bodies are stubs.
+- Well geometry: a Socket is a trigger zone (OnTriggerEnter/Stay/Exit) with influenceRadius, endDistance and cutoffDirection. Plugs are tracked in _hoveredPlugs, _plugStays and _plugExits and processed in FixedUpdate (inferred). Thresholds are squared: Plug._effectiveRadiusSqr, MagazineSocket.m_SqInsertDistance, AlignPlug._deadZoneDistanceSqr, and sqrDistance locals in the coroutines (inferred: avoids sqrt per frame).
+- Insert axis: MagazineSocketReciever defines it with startInsertTarget and endInsertTarget (Transforms). Insertion progress is one scalar, m_MovingPerc, with a paired damped velocity m_PercVelocity (inferred: SmoothDamp-style, not a timed lerp). A second pair, m_ActivePerc and m_ActivePercVel, likely covers the active/hover state (inferred).
+- Hand projection: m_HandTargetTransform, m_HandToInsertTarget and m_InsertTargetToHand are SimpleTransforms. They convert the hand pose into insert-target space, so hand motion along the axis drives progress (inferred).
+- Two-phase insert: phase 1 aligns the plug rotation via a ConfigurableJoint (AlignPlug._joint, MagazineSocketReciever.m_MagazineJoint, m_JointConfig) using ConfigurableJointExtensions.SetTargetRotation toward the socket orientation. Phase 2 slides along the axis (MoveTowardsStartInsertTarget, SlideTowardsEndInsertTarget). AlignPlug flags _isEnterTransition, _isExitTransition and _isStageTwoAnimation mark the phase boundaries (inferred).
+- Temporary joint: CreateJoint(Rigidbody) builds the joint and CoSelfDestructJoint(source, target, time) destroys it after a timer. DestroyJoint() is the explicit path (inferred: the joint only pulls the mag in and then goes away).
+- State machine: MagazineSocket.m_State and MagazineSocketReciever.m_State use the same enum {EMPTY, SWITCHING, EJECTING, HOVERING, INSERTED, SLIDING}. Likely path is EMPTY to HOVERING (plug enters the trigger) to SLIDING (past the squared distance threshold) to INSERTED (locked), with EJECTING for removal and SWITCHING for swapping mag type (inferred).
+- Seated trigger (inferred chain): AlignPlug.OnPlugInsertComplete() -> MagazineSocket.OnPlugLocked(Plug) -> Socket.Lock(Plug) (sets LockedPlug and IsLocked, fires onPlugLockDelegate) -> MagazineSocketReciever.OnMagazineLocked() and MakeStatic(). Then MagazineSocket.OnMagazineInserted fires to Gun.OnMagazineInserted, MagReleaseToGrab.OnMagazineInserted and PlayerInventory.RegisterMagazine. CoWaitLockMagazine is a coroutine that waits on a distance check before the lock (inferred).
+- Proxy grip: once inserted, MagazineSocket.UpdateProxyGripState(Hand) and _isProxyGripState hand grabs to the socket's proxyGrip (Socket.proxyGrip, AlignPlug.proxyGrip). OnProxyGrab/OnProxyRelease handle the hand (inferred: avoids re-grabbing the mag mid-slide).
+- Grip scoring and priority: MagazineReciever.ValidateGripScore(Hand, Vector3 worldPoint) returns a float per grip candidate. MagazineReciever.priority, UpdateMagGripPriority(bool setToOne) and UpdateMagGripPriority(int) on MagReleaseToGrab change which grip wins (inferred). disableMagazineGrab, DisableInteraction() and EnableInteraction() gate grabbing during animation.
+- Ejection: MagazineSocket.EjectMagazine(Action callback) forwards to MagazineSocketReciever.CoEjectMagazine(callback). The coroutine moves the host from localEnd back toward localStart along endToStart with increasing speed and acceleration, stops on sqrDistance, then calls the callback. EjectMagForPool(Action) is the variant that returns the mag to a pool (inferred). MagazineRelease() and MakeDynamic() give physics back.
+- Release to hand: MagReleaseToGrab (gun-side release button) with m_IsPrimaryGrabbed and m_IsMagazineInserted, plus MagazineSocketReciever.UpdateMagazineGrab(Hand) and OnMagazineGrabbed(Hand). m_WasMagazineGrabbed and m_MagazineGrabbedTime suggest a timed grab window (inferred). SetHoverEject() and m_IsHoverEject suggest a hover-to-eject state (inferred).
+- Ammo model: a global pool in PlayerInventory keyed by Weight (LIGHT, MEDIUM, HEAVY) with AddAmmo, RemoveAmmo, DecrementAmmo and GetAmmo. Magazine.ClaimAmmo(PlayerInventory) with IsAmmoClaimed means a mag takes rounds from the pool on first use. Per-mag rounds are _ammoCount, with GetNextBullet, EmptyMagazine(subAmt) and onGetNextBulletDelegate for the gun (inferred). The top rounds are shown via firstBullet, secondBullet and CheckBulletArt.
+- Compatibility: MagazineData.platform (Platform enum) is the likely gate against the gun platform. Gun.overrideMagazine can force a MagazineData (inferred).
+- Pouch: AmmoPouch spawns mags from a SpawnGrip (OnSpawnGrab(Hand)). It cycles Platform through _platformStack (SwitchMagazine), shows per-platform art (MagazineArt[] with GameObject arrays, UpdateArt(Weight)), and shows light/medium/heavy counts on TextMeshPro. It reacts to hand slots via OnHandItemSlot and OnHandItemSlotRemoved. Inventory.RegisterSlot(name, slot) and the SubscribeTo/UnSubscribeFrom Insert and Remove helpers wire these by name.
+- Reload variants: Gun has SetAutoReload(bool), AutoReloadWeapon(), PhantomLoad() and CoPhantomReload() (the coroutine has a local MagazinePlug, _plug_5__4). This suggests a scripted reload that takes the plug directly without the hand path (inferred). CheckGunRequirements and RequiresChargingHandle gate the slide when empty.
+- Haptics: Haptor has per-event presets: Haptic_WepMagInsert(), Haptic_Click(bool down) for press and release, Haptic_Tap, Haptic_Knock, Haptic_Hit(float), Haptic_SlideFriction and Haptic_Sliding. Timed buzz uses co_HapticSine(gate, length, frequency, max_amplitude, min_amplitude) and Haptic_SoftSin/HardSin (gate count and length). SENDHAPTIC(delay, duration, frequency, amplitude) is the generic call. noDoubleHaptic suppresses duplicates.
+- Sounds: GunSFX.magazineInsert and magazineDrop are AudioClip arrays, played by MagazineInsert() and MagazineDrop(). Grab sounds come from MagazineReciever.grabClips and AmmoPouch.grabClips.
+- Timing: almost all motion is in IEnumerator coroutines (CoEjectMagazine, CoWaitLockMagazine, CoSelfDestructJoint, CoAutoGrab, ClipInteractionCooldown, CoPhantomReload, CoPlayAnimation). Timing is by frame yields with speed and acceleration, not animation clips (inferred from the coroutine locals).
+
+LESSONS
+- Drive the whole insert and eject from one progress scalar (0 to 1) along a start-to-end axis, and smooth it with a damped velocity instead of a timed lerp. This is the m_MovingPerc and m_PercVelocity pattern. A mid-slide reversal then stays continuous, which fits the slow release-to-push feel the user described.
+- Project the hand pose onto the insert axis at grab time (the m_HandToInsertTarget idea) and convert hand motion along that axis into progress. A push gesture can then read as continuing the same slide, rather than as a separate control.
+- Make the thumb-to-push hand-off a state change, not a boolean. Use explicit states (HOVERING, SLIDING, INSERTED, EJECTING, SWITCHING) and switch when the squared distance crosses a threshold, blending the old pose out over a short window instead of snapping.
+- Split insertion into two stages with explicit enter and exit transition flags: stage one aligns the rotation, stage two slides on the axis. Blend the gesture weight between the stages. This is the fade-in and fade-out behaviour requested for the double mag reload.
+- Add a dead zone near the seat (the _deadZoneDistanceSqr idea) so the mag does not jitter once it is almost home. Use squared distances for the checks to keep per-frame cost low.
+- Eject as an accelerating reverse slide along the same axis, with a completion callback that hands the mag back to hand or physics only after the motion ends (CoEjectMagazine pattern).
+- For a seat that finishes itself, use a temporary spring that exists only for a few seconds (CoSelfDestructJoint), so the mag is not left permanently physical.
+- While the mag is sliding or inserted, lower its grip priority or redirect grabs to a proxy grip on the well, so the hand cannot re-grab it mid-motion.
+- Use one haptic preset per event (insert, click on lock, tap on eject) plus one gated buzz during the slide. Keep separate press and release clicks (Haptic_Click(bool down)).
+- For double mag reloads, run a scripted coroutine that takes over the plug (the CoPhantomReload pattern). Keep the current pose for the old mag, fade the new pose in, and use a SWITCHING state so the two poses never run together.
+
+CLASSES
+* Magazine (game/StressLevelZero.Props.Weapons/Magazine.cs): The physical magazine MonoBehaviour. Holds ammo state and references to its data, grip, alignment transform and bullet-art objects.
+    field magazineData: MagazineData - per-type stats (weight, cartridge, platform, ammo slots, MaxAmmo)
+    field insertPointTransform: Transform - alignment point the plug/socket lines up on
+    field grip: Grip and interactableHost: InteractableHost - hand interaction
+    field _ammoCount: int - rounds currently in the mag
+    field IsAmmoClaimed: bool - whether the mag has pulled rounds from the global pool yet
+    field firstBullet / secondBullet: GameObject - visible top rounds
+    field reloadOnEject: bool - reload flag used when ejected
+    field isMagazineInserted: bool
+    field parentInventory: PlayerInventory
+    method ClaimAmmo(PlayerInventory)
+    method GetNextBullet() -> BulletObject
+    method GetAmmoCount() -> int
+    method SetAmmoCount(int)
+    method EmptyMagazine(int subAmt)
+    method ResetMagazine()
+    method CheckBulletArt() / ShowBulletArt() / HideBulletArt()
+    method OnGrab(Hand) / OnInsert(Hand) / OnEject()
+* MagazinePlug (game/StressLevelZero.Interaction/MagazinePlug.cs): Magazine-side plug. Derives from AlignPlug and links back to the Magazine it represents.
+    field magazine: Magazine
+    method OnPlugInsertComplete() (override)
+    method OnPlugExitComplete() (override)
+    method Awake()
+    method OnDestroy()
+* AlignPlug (game/StressLevelZero.Interaction/AlignPlug.cs): Generic align-and-insert plug (base of MagazinePlug). Runs the alignment/insert state with a percentage and a ConfigurableJoint, and tracks candidate sockets.
+    field _perc: float - insertion percentage
+    field _speed: float
+    field _exitTime: float
+    field _isEnterTransition / _isExitTransition / _isStageTwoAnimation / _isExitComplete / _isPhysicsGrip / _isLocked / _isActive: bool - stage and transition flags
+    field _deadZoneDistanceSqr: float - squared dead zone near the seat
+    field _sockets: List<Socket>
+    field _lastSocket: Socket
+    field _joint: ConfigurableJoint
+    field proxyGrip: Grip
+    method InsertPlug(Socket)
+    method ClearFromSocket()
+    method EjectPlug()
+    method Update()
+    method FixedUpdate()
+    method OnPlugHoverBegin(Socket) / OnPlugHoverEnd(Socket) (virtual)
+    method OnPlugInsertComplete() / OnPlugExitComplete() (virtual)
+    method OnProxyGrab(Hand) / OnProxyRelease(Hand)
+    method OnHostGrab(InteractableHost, Hand) / OnHostRelease(InteractableHost, Hand)
+* Plug (game/StressLevelZero.Interaction/Plug.cs): Base MonoBehaviour for anything that plugs into a Socket. Carries a hover radius (cached squared) and a pool reference.
+    field host: InteractableHost
+    field effectiveRadius: float
+    field _effectiveRadiusSqr: float - cached squared radius
+    field _poolee: Poolee - pooled-object link
+    field EffectiveRadiusSqr: float (getter)
+    method OnPlugHoverBegin(Socket)
+    method OnPlugHoverEnd(Socket)
+    method OnPlugHoverUpdate(Socket)
+    method Reset()
+    method Awake()
+    method OnDestroy()
+* Socket (game/StressLevelZero.Interaction/Socket.cs): The well/receptacle. A trigger-driven zone that detects plugs, tracks hovered and staying/exiting plugs, and locks one plug at a time.
+    field influenceRadius: float
+    field endDistance: float
+    field cutoffDirection: Transform - approach-direction gate (inferred)
+    field host: InteractableHost
+    field proxyGrip: Grip
+    field _hoveredPlugs: HashSet<Plug>
+    field _plugStays / _plugExits: List<Plug>
+    field LockedPlug: Plug
+    field IsLocked: bool
+    field onPlugLockDelegate: Action<Plug>
+    field onPlugUnlockDelegate: Action
+    method OnTriggerEnter(Collider) / OnTriggerStay(Collider) / OnTriggerExit(Collider)
+    method FixedUpdate()
+    method OnPlugEnter(Plug) / OnPlugExit(Plug) (virtual)
+    method Lock(Plug)
+    method Unlock()
+    method Reset()
+    method Awake()
+* MagazineSocket (game/StressLevelZero.Interaction/MagazineSocket.cs): Gun-side magazine well (a Socket subclass). Owns the state enum, the squared insert threshold, the magazine plug, and the insert/remove events the gun listens to.
+    field m_State: m_States {EMPTY, SWITCHING, EJECTING, HOVERING, INSERTED, SLIDING}
+    field m_SqInsertDistance: float - squared insert threshold
+    field _magazinePlug: MagazinePlug
+    field magazineData: MagazineData
+    field spawnableMagazine: SpawnableObject
+    field primaryGrip: Grip
+    field defaultBullet: BulletObject
+    field sfx: GunSFX
+    field isInfiniteAmmo / requireExit: bool
+    field OnMagazineInserted / OnMagazineRemoved: Action
+    field onGetNextBulletDelegate: Action
+    field _isMagazineInserted / _isProxyGripState / _isHostGrabbed: bool
+    field m_Host: InteractableHost
+    method hasMagazine (getter)
+    method GetMagazine() / GetHost() / GetNextBullet() / GetAmmoCount()
+    method OnPlugLocked(Plug) / OnPlugUnlocked()
+    method OnPlugEnter(Plug) / OnPlugExit(Plug) (overrides)
+    method UpdateProxyGripState(Hand)
+    method SetHoverEject()
+    method EjectMagazine(Action callback)
+    method ClearMagazine() / MagazineRelease()
+    method UpdateMagGripPriority(bool setToOne)
+    method OnAttachedHandDelegate(InteractableHost, Hand) / OnDetachedHandDelegate(InteractableHost, Hand)
+* MagazineSocketReciever (game/StressLevelZero.Props.Weapons/MagazineSocketReciever.cs): Hand-interaction receiver that does the real insert/eject motion. Holds the insert axis, the progress and velocity pair, the temporary joint and the hand-to-axis transforms. Contains three coroutine state machines: _CoEjectMagazine_d__48, _CoWaitLockMagazine_d__49, _CoSelfDestructJoint_d__50, plus its own m_States enum.
+    field startInsertTarget / endInsertTarget: Transform - the insert axis endpoints
+    field m_MovingPerc: float - insertion progress (0 to 1, inferred)
+    field m_PercVelocity: float - damped velocity paired with m_MovingPerc
+    field m_ActivePerc / m_ActivePercVel: float - second damped pair (inferred)
+    field m_InsertTargetToHand / m_HandToInsertTarget / m_HandTargetTransform: SimpleTransform - hand pose mapped into insert-target space
+    field m_MagazineJoint: ConfigurableJoint
+    field m_JointConfig: JointConfiguration
+    field m_SphereCollider: SphereCollider
+    field m_Magazine: Magazine / _magazineHost: InteractableHost
+    field m_IsHoverEject / m_WasMagazineGrabbed / _cooldown / disableMagazineGrab: bool
+    field m_MagazineGrabbedTime: float
+    field m_SqInsertDistance: float / m_State: m_States
+    field priority-related: UpdateMagGripPriority(bool setToOne = false)
+    field OnMagazineInserted / OnMagazineRemoved / OnGetNextBullet: events
+    method ForceInsertMagazine(InteractableHost, Magazine)
+    method CalculateMagazineRig(Transform insert, InteractableHost host)
+    method EjectMagForPool(Action) / CoEjectMagazine(Action) / CoWaitLockMagazine() / CoSelfDestructJoint(GameObject source, Rigidbody target, float time)
+    method CreateJoint(Rigidbody rb) / CreateJointConfig() / DestroyJoint()
+    method MoveTowardsStartInsertTarget() / SlideTowardsEndInsertTarget()
+    method OnMagazineLocked() / OnMagazineUnlocked() / OnMagazineGrabbed(Hand) / UpdateMagazineGrab(Hand)
+    method MagazineRelease(Action) / MagazineRelease() / MakeStatic() / MakeDynamic()
+    method SetHoverEject() / DisableInteraction() / EnableInteraction()
+    method OnAttachedHandDelegate(Hand) / OnDetachedHandDelegate(Hand)
+    method OnInteractableHostEnter/Exit/Stay(InteractableHost) / OnPreRealtimeRig()
+* MagazineReciever (game/StressLevelZero.Props.Weapons/MagazineReciever.cs): Interaction receiver on the magazine body (grab side). Scores grips and carries a grip priority.
+    field priority: float
+    field parentRig: Rig
+    field grabClips: AudioClip[]
+    field _playerInventory: PlayerInventory
+    method ValidateGripScore(Hand, Vector3 worldPoint) -> float
+    method OnInteractableHostDrop(InteractableHost)
+    method Awake() / Start() / OnDestroy()
+* MagReleaseToGrab (game/StressLevelZero.Interaction/MagReleaseToGrab.cs): Gun-side mag release that lets the hand pull the mag out of the well (MonoBehaviour).
+    field magazineSlotReciever: MagazineSocket
+    field primaryGrip: Grip / m_Grip: Grip
+    field m_IsPrimaryGrabbed / m_IsMagazineInserted: bool
+    method UpdateMagazineGrab(Hand)
+    method OnAttachedHandDelegate(Hand) / OnDetachedHandDelegate(Hand)
+    method OnMagazineInserted() / OnMagazineRemoved() / OnGetNextBullet()
+    method OnHandAttached(Hand)
+    method UpdateMagGripPriority(int)
+* Gun (game/StressLevelZero.Props.Weapons/Gun.cs): The pistol component. Owns the MagazineSocket, reacts to insert/remove, runs slide and reload logic including phantom and auto reload.
+    field magazineSocket: MagazineSocket
+    field spawnableMagazine: SpawnableObject
+    field overrideMagazine: MagazineData
+    field magazineInsert / magazineDrop audio via GunSFX (indirect)
+    method OnMagazineInserted() / OnMagazineRemoved()
+    method EjectCartridge() / PullCartridge()
+    method SetAutoReload(bool) / AutoReloadWeapon() / PhantomLoad()
+    method CoPhantomReload() (coroutine with a local MagazinePlug)
+    method PlayAnimationState(AnimationStates, float) / CoPlayAnimation(AnimationStates, bool isReversed, float startPerc, float duration, AnimationCurve curve)
+    method SlidePull() / SlideLocked() / SlideRelease() / RequiresChargingHandle() / CheckGunRequirements()
+    method OnTriggerGripAttached(Hand) / OnTriggerGripDetached(Hand) / Fire()
+* AmmoPouch (game/StressLevelZero.Props.Weapons/AmmoPouch.cs): Body-worn magazine pouch. Spawns magazines from a grip, cycles platform types, shows per-type art and light/medium/heavy ammo counts.
+    field spawnGrip: SpawnGrip
+    field _selectedSpawnable: int
+    field _platformStack: List<Platform>
+    field defaultPlatform: Platform
+    field magazineArt: MagazineArt[] (nested struct: data: MagazineData, objects: GameObject[])
+    field lightAmmoText / mediumAmmoText / heavyAmmoText: TextMeshPro
+    field uiTransform: Transform
+    field grabClips: AudioClip[]
+    field _playerInventory: PlayerInventory
+    field parentRig: Rig
+    method OnSpawnGrab(Hand)
+    method OnHandItemSlot(InventorySlot) / OnHandItemSlotRemoved(InventorySlot)
+    method SwitchMagazine(Platform)
+    method UpdateArt(Weight activeWeight)
+    method HasPlatform(Platform) -> bool
+* InventoryInteractionVolume (game/StressLevelZero.Interaction/InventoryInteractionVolume.cs): Storage/auto-grab zone (InteractionVolume subclass) for items and clips, with a cooldown after clip insert.
+    field itemGrip: Grip / moveToGrip: Grip
+    field recieverCollider: Collider
+    field isClipInserted: bool
+    field _CoAutoGrab_d__8 (hand field)
+    field _ClipInteractionCooldown_d__11 (isInserted field)
+    method CoAutoGrab(Hand) -> IEnumerator
+    method InsertItem(InteractableHost) / RemoveItem(InteractableHost)
+    method ClipInteractionCooldown(bool isInserted) -> IEnumerator
+    method OnHoverStart / OnHoverEnd / OnHoverUpdate(InteractableHost)
+    method Awake()
+* InventorySlot (game/StressLevelZero.Player/InventorySlot.cs): A named slot holding one item, with insert/remove events that pouches and holsters subscribe to.
+    field slotInsertEvent / slotRemoveEvent: SlotDelegate (Action<InventorySlot>)
+    field itemGameObject: GameObject
+    method Insert(GameObject go)
+    method Remove()
+    method add_/remove_ slotInsertEvent / slotRemoveEvent
+* PlayerInventory (game/StressLevelZero.Player/PlayerInventory.cs): Singleton global ammo pool, keyed by Weight, plus the registry of live magazines per weight class.
+    field Instance: PlayerInventory (static)
+    field _activeMagazines: Dictionary<Weight, List<Magazine>>
+    field _lightAmmo / _mediumAmmo / _heavyAmmo: int (backed by private properties)
+    field _tempLightAmmo / _tempMediumAmmo / _tempHeavyAmmo: int
+    field onAmmoUpdate: Action<Weight>
+    field dataManager: Data_Manager
+    field ignoreSaveFile: bool
+    method RegisterMagazine(Magazine) / UnregisterMagazine(Magazine)
+    method AddAmmo(Weight, int) / RemoveAmmo(Weight, int)
+    method DecrementAmmo(Weight, int) -> bool
+    method CheckAmmo(Weight) / GetAmmo(Weight) -> int
+    method ClearAmmo() / Awake() / Update()
+* Inventory (game/StressLevelZero.Player/Inventory.cs): Registry of named InventorySlots (hands, holsters, pouch) with subscribe helpers for insert and remove.
+    field (named slot registry; fields not listed in the dump)
+    method RegisterSlot(string name, InventorySlot slot)
+    method SubscribeToInsert(string, SlotDelegate) / UnSubscribeFromInsert(string, SlotDelegate)
+    method SubscribeToRemove(string, SlotDelegate) / UnSubscribeFromRemove(string, SlotDelegate)
+* WeaponSlot (game/StressLevelZero.Props.Weapons/WeaponSlot.cs): Holster slot for a weapon (MonoBehaviour). Typed by a flags enum and wired to Unity events for insert and remove.
+    field slotType: SlotType flags {SIDEARM=1, PRIMARY=2, SECONDARY=4, HEAD=8}
+    field magazineSocket: MagazineSocket (on the slot, inferred role)
+    field grip: Grip / interactableHost: InteractableHost
+    field onSlotInsert / onSlotRemove: UnityEvent
+    method Awake()
+    method OnDestroy()
+* SocketTester (game/StressLevelZero.Interaction/SocketTester.cs): Empty Socket subclass with only a constructor. Likely a debug/test socket (inferred).
+    method SocketTester() (ctor)
+* MagazineData (game/StressLevelZero.Combat/MagazineData.cs): ScriptableObject describing one magazine type. Data-driven: weight class, cartridge, compatible platform, ammo slots.
+    field spawnableObject: SpawnableObject
+    field weight: Weight
+    field cartridgeType: Cart
+    field platform: Platform
+    field AmmoSlots: BulletObject[]
+    method MaxAmmo (getter) -> int
+* Haptor (game/Haptor.cs): Per-hand haptic presets. Event-named haptics (mag insert, click, fire) plus sine-gated buzz coroutines.
+    field noDoubleHaptic: bool - duplicate-suppression flag
+    field co_HapticSine params: gate, length, frequency, max_amplitude, min_amplitude
+    method Haptic_WepMagInsert()
+    method Haptic_WepChargeHandle() / Haptic_WepFire(float kickForce)
+    method Haptic_Click(bool down = true)
+    method Haptic_Tap() / Haptic_Knock() / Haptic_Subtle() / Haptic_Hit(float amp)
+    method Haptic_Sliding() / Haptic_SlideFriction()
+    method Haptic_SoftSin(int gateCount, float length) / Haptic_HardSin(int gateCount, float length)
+    method co_HapticSine(int gate, float length, float frequency, float max_amplitude, float min_amplitude) (coroutine)
+    method co_HapHit(float amp) (coroutine)
+    method SENDHAPTIC(float delay, float duration, float frequency, float amplitude)
+* GunSFX (game/StressLevelZero.SFX/GunSFX.cs): Per-gun audio clip banks and playback entry points for the magazine and slide events.
+    field magazineInsert: AudioClip[]
+    field magazineDrop: AudioClip[]
+    field grab / secondGrip / slidePull / slideRelease / slideLockFire / fire / fireSlow / dryFire / dryFireSlow: AudioClip[]
+    method MagazineInsert()
+    method MagazineDrop()
+* ConfigurableJointExtensions (game/ConfigurableJointExtensions.cs): Static helpers that drive a ConfigurableJoint toward a target rotation. Used by the physics-driven alignment (inferred from the joint fields on AlignPlug and MagazineSocketReciever).
+    field (static class; no fields)
+    method GetJointSpace(this ConfigurableJoint) -> Quaternion
+    method SetTargetRotation(this ConfigurableJoint, Quaternion targetWorld, Quaternion startWorld)
+    method SetTargetRotationLocal(this ConfigurableJoint, Quaternion targetLocal, Quaternion startLocal)
+    method SetupAsCharacterJoint(this ConfigurableJoint)
+* Weight (enum) (game/StressLevelZero.Combat/Weight.cs): Ammo and magazine weight class. Three values only.
+    field LIGHT
+    field MEDIUM
+    field HEAVY
+* Platform (enum) (game/StressLevelZero.Combat/Platform.cs): Weapon platform id used for magazine compatibility and pouch cycling.
+    field NONE, CX8, M16, AKM, MP5, Uzi, Eder22, C1911, Shot, BalloonRevovler, STG, P350, PT8Alaris, M1Garand, Staplegun

@@ -1,0 +1,301 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks MelonLoader mods (C:/Users/Flo/AppData/Local/Temp/claude/C--Users-Flo-Downloads-NewApps/0e09ca53-5ca1-4aff-891b-722d450226ca/scratchpad/boneworks/mods): what each mod does and how it wires into the game's gun, magazine, ammo, and hand systems. Coverage: about 72 of the 185 mod files were read in full (all gun, magazine, ammo, hook, pool, spawn, input, preference, FieldInjector, and CustomMaps core files). The rest were inventoried by class name or grep only: CustomMaps Newtonsoft.Json.UnityConverters copies, EasyMenu/BoneMenu UI element classes, PlayerModels Mara/MiscFunctions/UIGeneration, CustomMaps MapLoader/MapInfo/MapProgress, and small helpers (Notifications, Ad, UI, Shaders, Extensions, ModConsole, LegacyItem*). Game-side files under .../boneworks/game are interop stubs, so all game behaviour below is inferred from member names and types, not from logic.
+
+MECHANICS
+- Hooking model: every mod patches the game through Hooking.CreateHook (HarmonyLib underneath). It picks the caller's own HarmonyInstance, queues hooks made before Harmony exists, and exposes the patches as static events (OnPreFireGun, OnPostFireGun, OnGripAttached, OnGripDetached, OnGrabObject, OnReleaseObject, OnPlayerDeath, OnReloadScene, OnSaveSpotCheckpoint). Features subscribe to those events.
+- Game methods that the mods patch (grep of typeof(...).GetMethod and HarmonyPatch): Gun.OnFire, Gun.Fire, Gun.PullCartridge, Gun.EjectCartridge, Gun.CompleteSlidePull, Gun.UpdateArt, CaseEject.ForceInDirection, MagazineSocket.OnPlugLocked, AmmoPouch.OnSpawnGrab, Hand.AttachObject/DetachObject, Grip.OnAttachedToHand/OnDetachedFromHand, GunSFX.SlideRelease, PumpSlideGrip.OnAttachedToHand, SpawnGun.OnFire, SpawnablesPanelView.PopulateMenu, PoolSpawner.SpawnMuzzleFlare, PlayerInventory.CheckAmmo (postfix, Infinite Reserve Ammo), LevelsPanelView.CalculateSceneList/SelectItem, SLZ_BodyBlender.AutoFillBones and SLZ_BodyBlender.Brett (prefix returns false), Data_Manager.RELOADSCENE/SAVESPOTCHECKPOINT, LogSupport.Warning.
+- Mag-insert event: the game fires MagazineSocket.OnPlugLocked when a mag locks. ShellLoadingController postfixes it. Polling alternatives are Magazine.isMagazineInserted and MagazineSocket.hasMagazine. No mod changes the mag-insert animation or hand pose. Confirmed from code.
+- Ammo model (confirmed): ammo lives in PlayerInventory as one pool per Weight class (_lightAmmo, _mediumAmmo, _heavyAmmo) with AddAmmo, RemoveAmmo, GetAmmo, CheckAmmo. A mag carries its own _ammoCount, and magazineData.weight decides which pool it draws from. RegisterMagazine tracks the mags the player owns.
+- Has-ammo test (inferred from code): GunFireModes and MultipleFirePoints both stop firing when gun.overrideMagazine == null && chamberedCartridge == null && (!magazineSocket.hasMagazine || magazineSocket.GetMagazine().GetAmmoCount() == 0). So a non-null overrideMagazine is an infinite-ammo flag. InfiniteAmmoGuns sets overrideMagazine on a cloned gun. The Infinite Reserve Ammo mod instead forces the three pools to 500000 after each CheckAmmo.
+- Mag-from-pouch swap (AmmoPouchGrabbing, confirmed): on AmmoPouch.OnSpawnGrab the mod compares the grabbed mag's magazineData.spawnableObject.title with the one the other-hand gun needs. If they differ it instantiates the needed mag prefab, RegisterMagazine, sets IsAmmoClaimed, aligns the mag so grip.targetTransform's local offset sits on hand.palmPositionTransform, rotates it to GetRotatedGripTargetTransformWorld(hand), destroys the original, and calls grip.Snatch(hand, isQuick: true). This is the game's own way to place a grip in the hand without a visible jump.
+- Mag eject (BetterMagEject, confirmed): two triggers. (a) A 0.15s-stepped coroutine checks each hand's gun and ejects when chamberedCartridge is null and the mag is empty. (b) Menu-button quick taps are counted (release within 0.2s, count resets 0.5s after the last press), and at pressesToEjectMag taps it calls magazineSocket.EjectMagazine(). Per-gun overrides come from MagEjectSettings through HashSets.
+- Shell-feed trick (ShellLoadingController, confirmed): a magazine socket is repurposed as a counter. The plug locking adds a shell, the magazine is hidden and immediately ejected, and PullCartridge is blocked at zero shells. Gun.PlayAnimationState(SLIDELOCKED) is used when empty.
+- Hand pose detection (BoneMenu MenuManager.OnUpdate, confirmed): open pose = palm.up dot worldUp in (0, 0.6), palm.forward dot head.forward in (0.5, 1), and thumb-out test dot(head.right, palm.up) < -0.8 for left or > 0.8 for right. It requires both hands. Close pose = palm pointing down plus the opposite thumb test. Closing needs 0.1s of the close pose (hysteresis). All timing uses Time.unscaledTime. This is the only gesture recognition in the set and the closest analogue to a thumb-away check.
+- Pose and grip API (game, confirmed names): Grip.handPose, SetHandPose(hand, pose), RemoveHandPose(hand), GetHandPose(hand), GetHandPoseTarget(hand). BoxGrip has sandwich, edge, corner, and face HandPose fields. AdManager finds HandPose assets by name through Resources.FindObjectsOfTypeAll<HandPose>() and assigns them. So grab poses are assets assigned per grip, not bones animated in code. PumpSlideGrip and SlideGrip hold normalHandPose and flippedHandPose with SelectHandPose(hand) and a slideBlend float (PumpSlideGrip), which is the game's own blend between two poses.
+- Animation and fade API (game, confirmed names; behaviour inferred): Gun has coroutines CoPlayAnimation (fields duration, startPerc, isReversed, state, curve), CoOnAnimationComplete, and CoBlinkHighlight. Reverse is a flag (SLIDEPULL vs SLIDEPULLREVERSED), not a separate clip. GunGrip has FireCycleState {EMPTY, CHAMBER, FIRE, EJECT}, slideGrip, slideCurve (CurveData wrapping an AnimationCurve), and percForNextState. Inference: slide progress is mapped through slideCurve and the state advances when percForNextState is passed. Fade helpers exist too: GunOptionSelect.CoFade (material or text, targetOpacity, duration), CoFadeToColor, InteractableIcon.CoBlendIconScaleFromTo, and VirtualController.positionBlend/rotationBlend.
+- Pump-slide fix (GunSlideFixes, confirmed): a round chambered means PumpSlideGrip.slideDistance is zeroed during OnSlideRelease. It is restored after firing and on grab, so the pump locks while loaded. Gun.isFiring is cleared on a slide grab (not for burst).
+- Burst and charge (GunFireModes and SimpleGunModifiers, confirmed): burst calls gun.Fire() repeatedly from Update while shouldFire, counts shots in OnPostFireGun, and blocks re-fire via gun._isSlideGrabbed for 0.2s. Charge-to-fire holds PreFireGun false until hand.controller.GetPrimaryInteractionButton() has been held for chargingTime. Dry-fire via GunSFX.DryFire() is the feedback.
+- Custom items: ItemLoading reads .melon asset bundles from UserData/CustomItems (MD5 hash for reloads). The bundle's CustomItems GameObject has a LocalizedText key holding ItemSettings JSON. Each child becomes a SpawnableObject (CreateSpawnableObject, then PoolManager.RegisterPool, then SpawnMenu.AddItem). Shaders named SDK/* or Standard are remapped to SLZ/* or Valve/vr_standard.
+- Per-gun config without code: (a) CustomMonoBehaviourHandler stores field values as JSON in LocalizedText keys (CUSTOM_MONOBEHAVIOUR-::-Type-::-json) and applies them with reflection on Awake. (b) FieldInjector makes real serialized fields on IL2CPP classes, with compiled Expression-tree serializers in the ISerializationCallbackReceiver vtable. (c) Naming conventions: 'FirePoint (n)', 'BurstFire/3', 'AngleVariation/5', 'MultipleFirePoints' child objects.
+- Cross-mod hooks: Stats finds the Custom Maps MelonMod and attaches to its static OnCustomMapLoad event by reflection (EventInfo.AddEventHandler). CustomMaps subscribes to SpawnMenu.OnItemAddedToMenu. BoneworksModdingToolkit.BoneHook is an [Obsolete] forwarding layer kept for old mods.
+- Embedded code: ItemLoading.LoadAssemblyFromMelon calls Assembly.Load on a 'ModAssembly' asset found inside a .melon bundle, logs a [NOTICE] that it contains executable code, writes the DLL to UserData/ExportedAssemblies, and instantiates any EmbeddedMod subclass. Defaults: allowEmbeddedCode = true, exportEmbeddedAssemblies = true. Worth knowing before installing third-party .melon files.
+- Outbound network (confirmed in code): Stats.ReportStats GETs stats.extraes.xyz on startup (version, bonemenu mode, feature flags; custom map names when a custom map loads) unless DisableStats is set (default false). VersionChecking GETs boneworks.thunderstore.io/api/v1/package/. AdManager (HappyFunTime, off by default) fetches random images from dog.ceo/api.
+- Scene and startup order (Main.cs): Preferences.Initialize, BackwardsCompatibility, Hooking.SetHarmony, WarningSilencers, Hooking.InitHooks, HookingHelpers.Setup, SpawnMenu.HookPopulateSpawnMenu, then the feature Setup() calls, then MenuManager.InitialSetup. OnSceneWasInitialized runs Player.FindObjectReferences and the first-level .melon load. OnUpdate drives BetterMagEject, MenuManager, and Notifications every frame.
+- Limits of this analysis: the decompiled game files are interop stubs. The mag-slide gesture logic, the double-reload timing, and pose blend curves are not in them, so the thresholds and timings above are only what the mods use, not what the official game does. The mods are the only source of concrete numbers.
+
+LESSONS
+- Thumb-away detection: reuse the BoneMenu approach. Compute dot(head.right, palm.up) and gate with a threshold (about 0.8 in the mod), then require the state to hold for a short time (0.1s in the mod) before switching. This gives a clean thumb-slides-away trigger for the push phase without flicker.
+- Prototype the push as a two-pose blend: keep a normal and a flipped (or pushed) HandPose, drive a 0-1 blend value the way PumpSlideGrip.slideBlend does, and switch the grip's pose through the game's SetHandPose/RemoveHandPose path rather than moving bones by hand.
+- For the grab pose (image 3), assign a HandPose asset to the mag's Grip and use the same snap math as AmmoPouchGrabbing: place the mag so grip.targetTransform's local offset sits on palm.position, rotate with GetRotatedGripTargetTransformWorld(hand), then Snatch(hand, isQuick: true). This avoids a visible jump when the mag is grabbed.
+- Double-mag reload as a double tap: copy the BetterMagEject pattern (count taps only when released within about 0.2s, reset the count about 0.5s after the last press). Keep the pose state separate from the tap counter so that a single reload pose is never mistaken for a double.
+- Fade-in and fade-out between poses: follow the game's own pattern of a coroutine with duration, startPerc, isReversed, and an AnimationCurve (see Gun.CoPlayAnimation and CurveData). Fade-out is the same curve played in reverse, not a second clip. Use time-based interpolation (dt-scaled), not the fixed 0.8 per-frame Lerp used in BoneMenu, so the fade is frame-rate independent.
+- Expose every threshold (thumb dot cutoff, hysteresis time, tap windows, blend duration) as a MelonPreferences entry with a ModPref-style wrapper, and add a BoneMenu-style in-VR menu to tune them. The mod's Preferences and DefaultMenu show this works well for tuning gestures on the headset.
+- Hook the mag lock event instead of polling: ShellLoadingController shows that MagazineSocket.OnPlugLocked (postfix) is the reliable 'mag just seated' moment. Use it to trigger the slide-release or chamber animation at the right time.
+- Keep ammo data on the mag and the pool on the player: magazineData.weight decides the pool, PlayerInventory owns the counts, and Magazine.IsAmmoClaimed plus RegisterMagazine stop double counting. Follow that split for any custom reload logic.
+- Architecture: a single hooking facade (Hooking) that wraps the patches, gives each mod its own Harmony instance, and forwards to events is a clean base for a VR mod. It also makes unpatching per feature possible.
+- Data-driven per-gun settings: the JSON-in-LocalizedText approach (CustomMonoBehaviourHandler) or child-name conventions (MultipleFirePoints) let the user tune each pistol's gesture without code. Start with the naming-convention approach if the project has no bundle pipeline.
+
+CLASSES
+* Hooking (facade over HarmonyLib) (mods/ModThatIsNotMod/ModThatIsNotMod/Hooking.cs): Central patch facade for the whole mod. Wraps game methods and re-exposes them as static C# events, so features subscribe to events instead of writing their own Harmony patches. Each calling MelonMod gets its own Harmony instance, so its patches can be undone per mod.
+    field OnPreFireGun / OnPostFireGun: Action<Gun>
+    field OnGrabObject / OnReleaseObject: Action<GameObject,Hand>
+    field OnGripAttached / OnGripDetached: Action<Grip,Hand>
+    field OnPlayerDeath, OnPlayerDeathImminent, OnPlayerDamageRecieved, OnReloadScene, OnSaveSpotCheckpoint
+    field delayedHooks: Queue<DelayedHookData> (hooks requested before Harmony exists)
+    method InitHooks(): patches Gun.OnFire (prefix+postfix), Hand.AttachObject/DetachObject, Grip.OnAttachedToHand/OnDetachedFromHand, Data_Manager.RELOADSCENE/SAVESPOTCHECKPOINT, Player_Health events
+    method CreateHook(MethodInfo original, MethodInfo hook, bool isPrefix): picks the caller's HarmonyInstance by assembly name
+    method OnFirePrefix / OnFirePostfix forward to the events
+* HookingHelpers (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/HookingHelpers.cs): Shares one game hook between several feature controllers. Its prefix on Gun.Fire can cancel a shot.
+    field none (static patch relay)
+    method PreFireGun(Gun): returns GunModifiersController.PreFireGun && ShellLoadingController.PreFireGun (false cancels the shot)
+    method EjectCartridgePrefix on Gun.EjectCartridge
+    method ForceInDirectionPostfx on CaseEject.ForceInDirection
+    method OnCompleteSlidePull on Gun.CompleteSlidePull
+* Player (static accessor) (mods/ModThatIsNotMod/ModThatIsNotMod/Player.cs): Finds hands, controllers, rig and head, and returns the object held in a hand. Every feature uses it to find the gun or mag in a hand.
+    field leftHand / rightHand: Hand (chosen by name containing left/right in FindObjectsOfType<Hand>)
+    field leftBaseController / rightBaseController: BaseController
+    field rigManagerName = [RigManager (Default Brett)]
+    field playerHeadPath = [PhysicsRig]/Head/PlayerTrigger
+    method FindObjectReferences(): rerun on each scene
+    method GetComponentInHand<T>(Hand): reads hand.m_CurrentAttachedObject, then GetComponentInParent, then GetComponentInChildren
+    method GetGunInHand(Hand)
+    method RotatePlayer(float): sets ControllerRig._rotationDebt and calls ApplyRotation
+* BetterMagEject (mods/ModThatIsNotMod/ModThatIsNotMod.MiniMods/BetterMagEject.cs): Mag eject by quick menu-button taps, plus auto-eject of empty mags. Most directly relevant to the user's mag handling.
+    field timeBetweenEmptyChecks = 0.15s (each hand checked about every 0.3s)
+    field timeToResetPresses = 0.5s, timeToReleaseButton = 0.2s
+    field leftPresses / rightPresses: int
+    field neverAutoEjectGuns / alwaysAutoEjectGuns / disableEjectButtonGuns: HashSet<int> keyed by gun instance ID
+    method OnUpdate(): called every frame from Main.OnUpdate
+    method UpdateInputValues(): counts taps on BaseController.GetMenuButtonDown/Up (secondary button excluded); a tap counts if released within 0.2s; the count resets 0.5s after the last press
+    method EjectMags(): ejects when presses equal Preferences.pressesToEjectMag
+    method EjectEmptyMags() coroutine
+    method TryEjectMagazine(Gun, bool hadInput): ejects when gun.magazineSocket.hasMagazine and (input, or chamberedCartridge==null and magazine GetAmmoCount()==0); skips SpawnGun and BalloonGun
+* MagEjectSettings (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/MagEjectSettings.cs): Per-gun config component, set through the JSON custom-MonoBehaviour path. On Awake it registers its gun in BetterMagEject's sets.
+    field autoEjectMode: enum AutoEjectMode {Default, Never, Always}
+    field disableMagEjectButton: bool
+    method Awake(): CustomMonoBehaviourHandler.SetFieldValues(this), then adds gun InstanceID to the matching set
+* AmmoPouchGrabbing (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/AmmoPouchGrabbing.cs): When a mag is pulled from the ammo pouch, swaps it for the mag type the gun in the other hand uses, then snaps it into the hand. The closest existing code to the user's grab problem.
+    field spawnedMags: List<Magazine>
+    field playerInventory: PlayerInventory
+    method Setup(): postfix on AmmoPouch.OnSpawnGrab
+    method OnSpawnGrabPostfix(Hand): compares magazineData.spawnableObject.title; instantiates the gun's magazineSocket.magazineData.spawnableObject.prefab; RegisterMagazine; IsAmmoClaimed = true; positions it so grip.targetTransform's local offset sits on hand.palmPositionTransform, rotated to grip.GetRotatedGripTargetTransformWorld(hand); destroys the original; grip.Snatch(hand, isQuick: true)
+    method CleanupMags(): every 10s destroys unclaimed spawned mags more than 1m from the head
+* GunSlideFixes (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/GunSlideFixes.cs): Locks a pump shotgun's pump while a round is chambered. Makes slide-release sound always play. Keeps burst guns from being slide-blocked.
+    field regularSlideGuns / pumpSlideGuns: HashSet<int>
+    field pumpSlideDistances: Dictionary<int,float>
+    field potentialBurstGuns: Dictionary<int,GunFireModes>
+    method Setup(): postfix on GunSFX.SlideRelease, prefix on PumpSlideGrip.OnAttachedToHand, Hooking.OnPostFireGun
+    method OnSlideRelease(GunSFX): if chamberedCartridge != null, stores PumpSlideGrip.slideDistance and sets it to 0
+    method OnPostFireGun: restores slideDistance after firing
+    method PreAttachedToHand: restores slideDistance on grab
+    method OnCompleteSlidePull(Gun): sets gun.isFiring = false when pump or slide grabbed (not burst)
+* ShellLoadingController (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/ShellLoadingController.cs): Turns a magazine socket into a shell feeder. A shell 'loads' when the plug locks, then the socket ejects it so it stays empty. Also the only mod hook on MagazineSocket.OnPlugLocked, the game's mag-locked event.
+    field shellLoaders / shellLoadersMagSocket: Dictionary<int, ShellLoader>
+    field enableEjectedCasesQueue: Queue<bool>
+    method PostOnPlugLocked(MagazineSocket) postfix: InsertShell(), hides mag meshes and colliders, then EjectMagazine()
+    method PreFireGun(Gun): blocks and dry-fires when shells == 0
+    method PrePullCartridge(Gun) prefix on Gun.PullCartridge: returns false when shells == 0
+    method OnPostFireGun: PlayAnimationState(SLIDELOCKED) when empty
+    method UpdateArtPostfix(Gun): shows the chambered bullet only if shells > 0 or a shell is pending eject
+* ShellLoader and ShellVisualizer (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/ShellLoader.cs): ShellLoader is the shell counter component (ammoPerShell, maxShells, shells). ShellVisualizer (ShellVisualizer.cs in the same folder) shows loaded shells by toggling child objects.
+    field ammoPerShell: int = 1
+    field maxShells: int = 6
+    field shells: int (private set)
+    field visualizer: ShellVisualizer
+    method InsertShell(): clamps shells and returns whether it fit
+    method OnGunFired(): decrements shells
+    method SetChamberedBulletActive(bool)
+    method ShellVisualizer.OnShellInserted(int) / OnGunFired(int)
+* GunModifiersController (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/GunModifiersController.cs): Dispatcher for per-gun SimpleGunModifiers: charge-to-fire, ammo per shot, muzzle flash type, slide lock, cartridge scale.
+    field gunMods: Dictionary<int, SimpleGunModifiers>
+    field nextMuzzleFlashType
+    field ejectedCartridgeScales: Queue<Vector3>
+    method PreFireGun(Gun): CheckChargeStatus (BeginCharge with triggerGrip's hand) and CheckAmmoCountStatus (PlayerInventory.GetAmmo(weight) >= ammoPerShot-1); starts gun.CoBlinkHighlight when short on ammo
+    method PreOnFireGun(Gun) (Hooking.OnPreFireGun): sets flash type and PlayerInventory.RemoveAmmo(weight, ammoPerShot-1)
+    method SpawnMuzzleFlarePrefix: prefix on PoolSpawner.SpawnMuzzleFlare; Silenced spawns a small flare, None suppresses it
+    method OnCompleteSlidePull: calls gun.SlideRelease() when disableSlideLock and chamber empty
+    method EjectCartridgePrefix / OnCaseEjectSpawned: scale the ejected case
+* SimpleGunModifiers (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/SimpleGunModifiers.cs): Per-gun config component: muzzle flash, case scale, ammo per shot, slide lock, charge-to-fire (charge while the trigger hand holds the primary button).
+    field muzzleFlashType: enum {Default, Silenced, None}
+    field ejectedCartridgeScale: Vector3
+    field ammoPerShot: int = 1
+    field disableSlideLock: bool
+    field requiresCharging: bool, chargingTime: float = 1
+    field magazineData: MagazineData (from overrideMagazine or magazineSocket)
+    method Update(): while charging, fires at chargeCompleteTime if hand.controller.GetPrimaryInteractionButton() is still held
+    method BeginCharge(Hand): starts charge and instantiates the charge effect
+* GunFireModes (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/GunFireModes.cs): Adds full-auto, semi, and burst modes by driving gun.Fire and gun.isAutomatic directly.
+    field enum FireMode {FullAuto, SemiAuto, Burst}
+    field allowedFireModes: FireMode[]
+    field burstShots: int = 3, burstTimeout: float = 0.2
+    method Update(): in Burst, calls gun.Fire() while shouldFire; sets gun._isSlideGrabbed for burstTimeout as a re-fire lock
+    method OnGunFire(Gun) on Hooking.OnPostFireGun: counts burst shots
+    method CycleFireMode(): advances mode and plays gunSFX.DryFire() as feedback
+    method CheckToStopBursts(): coroutine every 0.15s, stops bursts when there is no ammo
+* CycleFireModeGrip (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/CycleFireModeGrip.cs): Makes a Grip work as a button: each time that grip attaches to a hand, the fire mode cycles.
+    field uuid: int (grip InstanceID)
+    field fireModes: GunFireModes (found via GetComponentInParent)
+    method Awake(): stores grip InstanceID, subscribes Hooking.OnGripAttached
+    method OnGripAttached(Grip, Hand): if the ID matches, calls fireModes.CycleFireMode()
+* Shotgun, InstantiateOnFire, InstantiateOnGunCharge (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/Shotgun.cs): Shotgun is multi-pellet fire. InstantiateOnFire and InstantiateOnGunCharge clone child objects (muzzle FX, casings, charge FX) on fire or charge.
+    field Shotgun: shots = 8, maxSpreadAngle = 2
+    field InstantiateOnGunCharge: objectsFollowGun: bool
+    method Shotgun.OnGunFire on Hooking.OnPreFireGun: spawns shots-1 extra PoolSpawner.SpawnProjectile calls with random cone spread, reusing gun.chamberedCartridge
+    method InstantiateOnFire.OnGunFire on OnPostFireGun: clones children at their world transform
+    method InstantiateOnGunCharge.OnGunCharge(): returns a new parent with cloned children
+* CustomMonoBehaviourHandler (mods/ModThatIsNotMod/ModThatIsNotMod.MonoBehaviours/CustomMonoBehaviourHandler.cs): Registers custom MonoBehaviours with IL2CPP and stores their field values as JSON inside LocalizedText keys. This is how per-gun config gets attached to prefabs without code.
+    field identifier = CUSTOM_MONOBEHAVIOUR
+    field splitter = -::-
+    field customMonoBehaviours: Dictionary<string, Type>
+    field typeValues: type -> uuid -> field dictionary
+    method RegisterAllInAssembly(Assembly): ClassInjector.RegisterTypeInIl2Cpp for every MonoBehaviour subclass
+    method AddMonoBehavioursFromJson(GameObject): reads the LocalizedText keys, deserializes with Newtonsoft, AddComponent
+    method SetFieldValues(MonoBehaviour): applies saved values by reflection on Awake
+    method SaveCustomMonoBehaviour<T>(GameObject): the reverse, for authoring
+* CustomItems (registry) (mods/ModThatIsNotMod/ModThatIsNotMod/CustomItems.cs): Registry of custom items. Builds SpawnableObjects from prefabs and registers their pools. Also fixes shaders on imported prefabs.
+    field customSpawnables: Dictionary<string, CustomSpawnableData>
+    field customItemInstances: List<GameObject>
+    field dummyShaderReplacements: Dictionary<string,string> (SDK/* and Standard mapped to SLZ/* or Valve/vr_standard)
+    field events OnItemLoaded, OnSpawnableCreated
+    method CreateSpawnableObject(prefab, name, CategoryFilters, PoolMode, pooledAmount, isHidden, registerPool): ScriptableObject SpawnableObject + PoolManager.RegisterPool
+    method FixObjectShaders(GameObject)
+    method GetCustomGameObject(name), SpawnFromPool(name, pos, rot), GetCustomItemInstances(name)
+    method OnLevelWasInitialized(): clears instances and RecreatePools()
+* ItemLoading and ItemSettings (.melon loader) (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/ItemLoading.cs): Loads .melon asset bundles from UserData/CustomItems. Parses per-item settings and builds spawnables. Can also load an embedded .NET assembly from a bundle.
+    field customItemsExt = .melon, ignoreFolderSuffix = _ignore, embeddedAssemblyName = ModAssembly
+    field ItemSettings { author, items: [name, category: CategoryFilters, poolMode: PoolMode, pooledAmount, hideInMenu] }
+    method LoadMelons(isReload): recursive scan; MelonHashChecking (MD5) decides reload
+    method LoadFromBundle(AssetBundle): reads the CustomItems GameObject's LocalizedText key as ItemSettings JSON
+    method LoadItemsFromMelon: per child: InfiniteAmmoGuns check, SetAudioMixers, AddComponent<CustomItem>, CreateSpawnableObject, SpawnMenu.AddItem
+    method LoadAssemblyFromMelon(bytes): Assembly.Load, logs a [NOTICE] about executable code, writes the DLL to ExportedAssemblies, instantiates any EmbeddedMod subclass
+* InfiniteAmmoGuns (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/InfiniteAmmoGuns.cs): Adds a '<name> Infinite' spawn variant for every gun whose name is in the infiniteAmmoGuns preference.
+    field infiniteAmmoGuns preference: string[] of gun names (case-sensitive match)
+    method CheckForInfiniteAmmoVersion(...): Instantiate; sets gun.overrideMagazine = magazineSocket.magazineData; SpawnMenu.AddItem
+* SpawnMenu (mods/ModThatIsNotMod/ModThatIsNotMod/SpawnMenu.cs): Injects custom items into the vanilla spawn menu and tracks the last spawned object.
+    field customSpawnables: List<SpawnableObject>
+    field lastSpawnedPoolee: GameObject
+    field OnItemAddedToMenu event
+    method AddItem / RemoveItem(title)
+    method HookPopulateSpawnMenu: prefix on SpawnablesPanelView.PopulateMenu (adds to SpawnablesQuickMap by category), postfix on SpawnGun.OnFire
+    method CoSetLastSpawnedPoolee: reads PoolManager.DynamicPools[title]._spawnedObjects after 1/45s
+* MenuManager, HeldItemMenuManager, DefaultMenu (BoneMenu) (mods/ModThatIsNotMod/ModThatIsNotMod.BoneMenu/MenuManager.cs): In-VR palm menu (BoneMenu), per-held-item menus, and the default option list. This is the only hand-gesture recognition in the set.
+    field palmUpRange = (0, 0.6); palmForwardRange = (0.5, 1)
+    field leftThumbOutThreshold = -0.8; rightThumbOutThreshold = 0.8
+    field timeToWaitBeforeMenuClose = 0.1s
+    field menuMovementSmoothing = 0.8
+    field menuOffset: Vector3 (from Preferences)
+    method OnUpdate(): opens when both hands are in IsHandInOpenMenuPose; closes when IsHandInCloseMenuPose has held for 0.1s; uses Time.unscaledTime
+    method IsHandInOpenMenuPose(Hand): dot(worldUp, palm.up) in range, dot(head.forward, palm.forward) in range, and thumb test dot(head.right, palm.up) < -0.8 (left) or > 0.8 (right)
+    method FollowPlayer(): Vector3.Lerp / Quaternion.Lerp to palm + offset each frame
+    method SetHeldItemMenuEnabled(bool, Grip, Hand): reparents the menu to a held item
+    method HeldItemMenuManager: subscribes Hooking.OnGripAttached/Detached to toggle item menus
+    method DefaultMenu.CreateDefaultElements(): spawn utility gun, random custom item (skips Magazine components), add ammo via PlayerInventory.AddAmmo, mag-eject toggles
+* Preferences and ModPref<T> (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/Preferences.cs): Typed MelonPreferences wrapper. Defines every tunable: mag eject, menu offsets, infinite ammo list, stats opt-out.
+    field enableMagEjectButton = true, pressesToEjectMag = 1, autoEjectEmptyMags = false, overrideMagEjectSettings = false
+    field boneMenuGestureEnabled = false, boneMenuRadialButtonEnabled = true, menuOnRightHand = false
+    field infiniteAmmoGuns: string[], disableReportingStats = false, allowEmbeddedCode = true, exportEmbeddedAssemblies = true
+    method Initialize(): writes UserData/ModThatIsNotMod.cfg
+    method ModPref<T>.CreateEntry / ReadValue / SetValue, with implicit conversion to T
+* Stats and VersionChecking (outbound network) (mods/ModThatIsNotMod/ModThatIsNotMod.Internals/Stats.cs): Usage counters sent to stats.extraes.xyz, and a version check against boneworks.thunderstore.io. Both are visible to the user and should be known before shipping or running.
+    field modName = mtinm, version key 0.3.6
+    field client: HttpClient (static)
+    field DisableStats preference gates all reporting
+    method Stats.ReportStats(): GetAsync register and increment calls (version, bonemenu mode, debug/tabloid/ad flags), unless DisableStats is set (default false)
+    method Stats.ReportItemStats(count)
+    method Stats.SetupCustomMapsHook(): attaches to CustomMaps.OnCustomMapLoad by reflection and sends custom map names
+    method VersionChecking.CheckModVersion(): GET boneworks.thunderstore.io/api/v1/package/
+* AdManager and TabloidMode (off by default) (mods/ModThatIsNotMod/ModThatIsNotMod.RandomShit/AdManager.cs): Joke ads and a fake-news overlay. AdManager also shows a clear example of building a grippable prefab in code and assigning HandPose assets to it.
+    field ads: List<string> (joke text)
+    field chanceForDogAd = 0.25, chanceForSpecialDog = 0.1
+    field baseAd: GameObject (built in code)
+    method CreateBaseAd(): Resources.FindObjectsOfTypeAll<HandPose>() by name (BoxSandwichGrip, BoxEdgeGrip, BoxCornerGrip, BoxFaceGrip) assigned to a BoxGrip; adds Rigidbody, InteractableHost, ImpactSFX, ObjectDestructable
+    method GetDogBytes: WebClient GET dog.ceo/api/breeds/image/random or embedded PNGs
+    method CoSpawnAds: timed spawn if autoSpawnAds is on
+* SimplePool and SimplePoolManager (mods/ModThatIsNotMod/ModThatIsNotMod.Pooling/SimplePool.cs): Standalone object pool (ReuseOldest or Grow) that does not use the vanilla PoolManager.
+    field despawnedPoolees / spawnedPoolees: Queue<SimplePoolee>
+    field poolMode: ReuseOldest or Grow
+    field pooledAmount: int
+    method SpawnPoolee(): reuses or grows
+    method ReturnPoolee(p): resets parent, position, velocity and disables
+* RadialMenuEverywhere and AutomaticSpawnGuns (mods/ModThatIsNotMod/ModThatIsNotMod.MiniMods/RadialMenuEverywhere.cs): Adds a Utility Gun radial entry on some levels and a 2500-round Ammo Box to the spawn menu. AutomaticSpawnGuns makes spawn guns full-auto.
+    field utilGunSpawnable / nimbusSpawnable / poofBallSpawnable: SpawnableObject
+    field popUpMenu: PopUpMenuView
+    field radial entry shown only on levels 16, 18, 19, 22, 23
+    method OnSceneWasInitialized(level): BodyVitals.quickmenuEnabled and slowTimeEnabled = true; clones 'Ammo Box' SpawnableObject with ammoCount 2500
+    method AutomaticSpawnGuns.Setup(): prefix on SpawnGun.OnFire sets isAutomatic = true
+* MultipleFirePoints (Legacy.MFP), GunInfo, FirePoints (mods/ModThatIsNotMod/ModThatIsNotMod.Legacy.MFP/MultipleFirePoints.cs): Multi-firepoint, burst count, and angle variation, configured by child object names (no code needed per gun).
+    field GunInfo: timesToFire, timesFired, angleVariation, firePoints: Queue<FirePoint>, shouldBeManual / shouldBeAutomatic
+    method OnGunFired(Gun) postfix on OnPostFireGun: rotates gun.firePointTransform from a queue, and for bursts calls PullCartridge + Fire
+    method Child naming convention: 'FirePoint (n)', 'MultipleFirePoints' parent, 'BurstFire/<int>', 'AngleVariation/<float>'
+    method Setup(harmony): Harmony prefix returns false on an external MultipleFirePoints mod's methods (kill-switch)
+* BoneworksModdingToolkit compatibility layer (mods/ModThatIsNotMod/BoneworksModdingToolkit.BoneHook/PlayerHooks.cs): Old public API kept alive. Its events are [Obsolete] forwarders into ModThatIsNotMod.Hooking (GunHooks, MiscHooks, CustomHooks, PlayerHooks, SimpleFixes).
+    field [Obsolete] public static events: OnDeathImminent, OnPlayerDamageReceived, OnPlayerDeath, OnPlayerGrabObject, OnPlayerReleaseObject, OnSceneReload, OnSavespotSave, OnGunFire
+    method PlayerHooks.OnPlayerDeath / OnPlayerGrabObject / OnPlayerReleaseObject forwarders
+    method CustomHooks.CreateHook -> Hooking.CreateHook
+    method SimpleFixes.FixObjectShader -> CustomItems.FixObjectShaders
+* Main (MelonMod entry) and WarningSilencers (mods/ModThatIsNotMod/ModThatIsNotMod/Main.cs): Setup order and per-frame/per-scene fan-out. WarningSilencers is a prefix on Unhollower LogSupport.Warning that drops 'unsupported return type/parameter' spam.
+    field levelsLoaded: int (the first level triggers ItemLoading.LoadMelons)
+    field packageUrl: Thunderstore package URL for the version check
+    method OnApplicationStart(): Preferences.Initialize, BackwardsCompatibility, Hooking.SetHarmony, WarningSilencers, Hooking.InitHooks, HookingHelpers.Setup, SpawnMenu.HookPopulateSpawnMenu, then the feature Setup() calls, then MenuManager.InitialSetup
+    method OnSceneWasInitialized(): Player.FindObjectReferences, RadialMenuEverywhere, ItemLoading.LoadMelons on the first level, GunModifiersController.SceneSetup, MenuManager.SceneSetup
+    method OnUpdate(): BetterMagEject.OnUpdate, MenuManager.OnUpdate, Notifications, EmbeddedModController.OnUpdate
+* AmmoOnSpawnSpawner (Infinite Reserve Ammo mod) (mods/Infinite Reserve Ammo/AmmoOnSpawnSpawner/patch.cs): Infinite reserve ammo with the smallest possible code: a postfix that resets the three ammo pools after every check.
+    field AmmoCount = 500000 (const)
+    method patch: [HarmonyPatch(typeof(PlayerInventory), 'CheckAmmo')] Postfix calls AmmoOnSpawnSpawner.SetAmmo(__instance)
+    method SetAmmo(PlayerInventory): sets _lightAmmo, _mediumAmmo, _heavyAmmo to 500000
+* FieldInjector (library) (mods/FieldInjector/FieldInjector/SerialisationHandler.cs): Adds real serialized fields to IL2CPP classes at runtime, so Unity serialization works for custom MonoBehaviour fields. Used by CustomMaps for map scripts.
+    field MyIl2CppClass / MyIl2CppFieldInfo / MyIl2CppType: mirrored native struct layouts
+    field SerializeField attribute (OverrideInjectionName)
+    field serialisationCache: Dictionary<Type, List<SerialisedField>>
+    method Inject<T>(debugLevel) / Inject(Type): recurses base types
+    method InjectClassImpl: RegisterTypeInIl2CppWithInterfaces(ISerializationCallbackReceiver); appends field infos after base size; bumps InstanceSize/ActualSize; writes OnBeforeSerialize / OnAfterDeserialize vtable slots with compiled Expression-tree lambdas
+    method SerialisedField subclasses ObjectField, StringField, StructField, ArrayField, ListField
+* CustomMaps (loader, checkpoints, unlocks) (mods/CustomMaps/CustomMaps/CustomMaps.cs): Loads custom maps from .cma zip archives or .bcm bundles. Handles scenes, per-map progress, checkpoints, and unlockable items. Also the largest consumer of the game's HandWeaponSlotReciever and Player_Health.
+    field static events OnCustomMapLoad, BeforeCustomMapLoad
+    field Utilities.weaponSlots: HandWeaponSlotReciever[]
+    field Utilities.lockedItems / lockedModels: List<string>
+    method RegisterAddons(): reads info.json, progress JSON, map.dll (protocol 1 -> CustomMonoBehaviourHandler; otherwise SerialisationHandler.Inject), .melon items, .body models
+    method Utilities.SaveCheckpoint / LoadCheckpoint: holster slots by parent name (BackLf, BackRt, prop_handGunHolster L/R, BackCt), Light and Medium ammo, position; RefillSlot(SpawnableObject), rigManager.Teleport
+    method Utilities.DeathHook -> DelayedRespawn (about 1.04s) -> TeleportToSpawnpoints from CUSTOM_PLAYER_SPAWN children
+    method CustomItemReclaimer.OnTriggerEnter: a Fizzler trigger unlocks the item by pool name
+    method MapLoader: BoneworksSceneManager.LoadScene(21) (Blank Box) then loads the custom map scene
+* PlayerModels (body skins) (mods/PlayerModels/PlayerModels/SkinLoading.cs): Replaces the Brett body with a skin from a .body asset bundle, copying the SLZ_BodyBlender and animator setup.
+    field PlayerModels: skinned: bool, currentskinPath: string, rigmanager: RigManager, character: CharacterAnimationManager, body: SLZ_Body
+    field BrettManager: brett_body, brett_l_hand, brett_r_hand, shoulderStraps (SkinnedMeshRenderer)
+    method ApplyPlayerModel(path): AssetBundle.LoadFromFile; loads Assets/PlayerModels/PlayerModel.prefab; re-points CharacterAnimationManager hand transforms by hierarchy path; copies SLZ_BodyBlender; sets mesh refs; MatchSFX
+    method BrettPatch: [HarmonyPatch(typeof(SLZ_BodyBlender),'Brett')] Prefix returns false (skips the original)
+    method BrettManager.FindParts(): caches skinned mesh refs under geoGrp
+* SandboxesInSceneMenu (mods/SandboxesInSceneMenu/SandboxesInSceneMenu/Core.cs): Adds sandbox scenes to the level select.
+    field scenesToAdd: List<(display name, scene id)> (8 entries)
+    method AddSandboxesToMenu: postfix on LevelsPanelView.CalculateSceneList (appends to m_SceneNames and m_TotalScenes)
+    method HandleSceneSelect: prefix on LevelsPanelView.SelectItem, calls BoneworksSceneManager.LoadScene(id) and returns false
+* Gun (game, stub) (game/StressLevelZero.Props.Weapons/Gun.cs): The magazine-based gun. The mods hook it heavily.
+    field magazineSocket: MagazineSocket
+    field overrideMagazine: MagazineData (non-null means no physical mag needed)
+    field chamberedCartridge: BulletObject, chamberedCartridgeGameObject, chamberedBulletGameObject
+    field triggerGrip: Grip, firePointTransform, shellSpawnTransform, gunSFX: GunSFX
+    field isAutomatic, isManual, isFiring, _isSlideGrabbed, cartridgeState (NONE/UNSPENT/SPENT)
+    field enum AnimationStates (SLIDEPULL, SLIDEPULLREVERSED, SLIDERETURN(REVERSED), SLIDELOCKED(REVERSED), ...)
+    method Fire(), OnFire(), PullCartridge(), EjectCartridge(), CompleteSlidePull(), SlideRelease(), UpdateArt()
+    method PlayAnimationState(AnimationStates state, float startPerc)
+    method CoPlayAnimation: state machine fields duration, startPerc, isReversed, state, curve
+    method CoBlinkHighlight(Renderer), CoOnAnimationComplete(AnimationStates)
+* Magazine and MagazineSocket (game, stub) (game/StressLevelZero.Props.Weapons/Magazine.cs): Magazine is the carried mag item. MagazineSocket is the gun's well that it locks into.
+    field Magazine: magazineData, grip, insertPointTransform, parentInventory, _ammoCount, isMagazineInserted, IsAmmoClaimed, saveItem, reloadOnEject, firstBullet/secondBullet
+    field MagazineSocket (game/StressLevelZero.Interaction/MagazineSocket.cs): magazineData, hasMagazine
+    method Magazine: GetAmmoCount(), SetAmmoCount(int), EmptyMagazine(int), ResetMagazine(), ClaimAmmo(PlayerInventory), OnGrab(Hand), OnInsert(Hand), OnEject(), GetCurrentBullet(), GetNextBullet()
+    method MagazineSocket: GetMagazine(), OnPlugLocked(Plug), EjectMagazine(Action callback)
+* AmmoPouch, PlayerInventory (game, stub) (game/StressLevelZero.Player/PlayerInventory.cs): PlayerInventory is one ammo pool per Weight class. AmmoPouch is the belt pouch that spawns mags on grab.
+    field PlayerInventory: _lightAmmo, _mediumAmmo, _heavyAmmo (int)
+    field AmmoPouch (game/StressLevelZero.Props.Weapons/AmmoPouch.cs): spawnGrip, magazineArt, grabClips, _playerInventory
+    method PlayerInventory: RegisterMagazine / UnregisterMagazine, AddAmmo / RemoveAmmo / GetAmmo / CheckAmmo(Weight)
+    method AmmoPouch: OnSpawnGrab(Hand), SwitchMagazine(Platform), UpdateArt(Weight), HasPlatform
+* Hand, Grip, GunGrip, PumpSlideGrip, GunSFX, PoolSpawner, CurveData (game, stub) (game/StressLevelZero.Interaction/Hand.cs): Hand (Interaction/Hand.cs): holds objects, has the palm transform and controller. Grip (Interaction/Grip.cs): grab points with a target transform and pose. GunGrip (Interaction/GunGrip.cs): a second, cycle-state gun model. PumpSlideGrip (Interaction/PumpSlideGrip.cs): pump with normal and flipped hand poses and slideBlend. GunSFX (SFX/GunSFX.cs): SlideRelease, DryFire. PoolSpawner (Pool/PoolSpawner.cs): SpawnProjectile, SpawnMuzzleFlare. CurveData (Data/CurveData.cs): ScriptableObject wrapping AnimationCurve.
+    field Hand: m_CurrentAttachedObject, otherHand, palmPositionTransform, controller: BaseController, handedness: Handedness
+    field Grip: targetTransform, interactable, handPose: HandPose
+    field GunGrip: enum FireCycleState {EMPTY, CHAMBER, FIRE, EJECT}, slideGrip: Grip, slideCurve: CurveData, percForNextState, isSlideLocked, isHammerRaised, currentBullet
+    field PumpSlideGrip: slideDistance, slideBlend, normalHandPose, flippedHandPose
+    method Hand: AttachObject(GameObject), DetachObject(GameObject, bool), DetachJoint(bool isQuick, Grip)
+    method Grip: Snatch(Hand, bool isQuick), GetRotatedGripTargetTransformWorld(Hand), GetHand(), SetHandPose(Hand, HandPose), RemoveHandPose(Hand), GetHandPose(Hand)
+    method GunGrip: Fire(Hand), CeaseFire(), EjectBullet(bool, bool), NextCycleState(), SetCycleState(FireCycleState)
+    method PumpSlideGrip / SlideGrip: SelectHandPose(Hand)
+    method PoolSpawner: SpawnProjectile(pos, rot, BulletObject, weaponName, proxy), SpawnMuzzleFlare(pos, rot, MuzzleFlareType), SpawnConfettiBlast, SpawnDigitizeBlast

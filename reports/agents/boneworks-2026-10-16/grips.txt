@@ -1,0 +1,221 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks grip system (StressLevelZero.Interaction): hover, attach, snatch, two-hand, force pull, release. All behavior is inferred from names, types, fields and signatures because method bodies are IL2CPP stubs.
+
+MECHANICS
+- Hierarchy (explicit): Grip : MonoBehaviour. GenericGrip : Grip and TargetGrip : Grip. TargetGrip is the base of CylinderGrip, BoxGrip, BarrelGrip, SphereGrip, SlideGrip, PumpSlideGrip, GunGrip, MeshGrip, GravityGun and SightFlipGrip. CylinderGrip is the base of CylinderSlideGrip, CylinderFuseGrip and CylinderElectronicGrip. GunGrip is the base of HandGunGrip. UIInteractionVolume and SpawnGrip are other Grip-family classes. ForcePullGrip and PullDevice are standalone MonoBehaviours.
+- Ownership (inferred): InteractableHost owns the object's Rigidbody and joints, its List<Grip> and List<ForcePullGrip>, and the HandGripPair list. Hand owns the hover search and the hold joint. Interactable sits between the two and provides the fallback score.
+- Hover discovery (inferred from Hand.cs): each Hand runs an overlap sphere (static _hoverSphereRadius, m_OverlappingColliders sized by static m_ColliderArraySize, filtered by hoverLayerMask and m_IgnoredColliders). It resolves Interactable -> InteractableHost -> grips, tracks near hover in m_HoveringInteractable and far hover in m_FarHoveringInteractable, and can lock hover with HoverLock/HoverUnlock.
+- Candidate choice (inferred): each candidate grip returns ValidateGripScore(hand, worldPoint) as a float. Interactable.defaulGripScore is the fallback, and Grip.priority breaks ties. Subclasses override scoring: GenericGrip uses a raycast from the hand (genericHandStates: isRaycastHit, raycastPoint, raycastNormal, backOfHandNormal); BoxGrip and BarrelGrip pick a zone with CheckZones(hand); MeshGrip uses GetRaycastHit.
+- Hover state per hand per grip is a bitmask in HandToGripState.gripFlags: HOVER=1, FARHOVER=2, ATTACH=4, PULLING=8. Hover callbacks take an isOverride flag (inferred: lets a grip take over default hover handling, paired with Grip.Type OVERRIDE). Far-hover has a parallel OnFarHandHover* set.
+- Free vs snapped placement: GenericGrip is free placement (the hand goes where the ray meets the surface). TargetGrip family is fixed placement: gripTargets[hand] holds a SimpleTransform that the hand targets, changeable with SetGripTargetTransform(hand, pos, rot). Pose is chosen by name (SetHandPose / GetHandPoseTarget string) and blends in within a per-zone radius (poseRadius, edgeHandPoseRadius, faceHandPoseRadius and so on, inferred).
+- Attach / snatch (inferred from coroutine locals): Snatch(hand, isQuick) starts CoSnatch, which loops per fixed update (WaitForFixedUpdate, index i, handState, handPoseTarget name). It then runs CoMoveHandToTarget(hand, localPosition, localRotation), which eases the hand with progress perc, jerk, accel, pSpeed and rSpeed, and finalPosition and finalRotation. isQuick presumably skips the eased move. CoUpdateHandAnimations(hand) animates pose while attached. GripEvents.AttachedEvent fires on attach.
+- Hold physics (inferred): the hand creates a ConfigurableJoint (CreateConfigurableJoint, UpdateAnchor) between the hand Rigidbody and the object body (InteractableHost._rb). Motion is set by JointConfiguration, per pose via ApplyConfiguration(handPoseName, hand, joint). Grip strength scales the drive via Hand.SetGripStrength(perc). Break thresholds come from Grip.minBreakForce / maxBreakForce (per zone in BoxGrip and BarrelGrip). OnJointBreak(breakForce) followed by CoJointBreakCooldown suggests a re-grab cooldown. Non-joint hold uses Hand.AttachedObject (isParentedToHand, originalParent).
+- Sliding and rotating along a grip: (a) CylinderGrip: the contact point moves on a circle around the axis, GetPointOnPerimeter(radius, theta, limit, perc), where perc is position along the length and limit is an angle limit. Friction is curve-driven (PositionFrictionCurve, SweetGrabCurve around rotationalSweetSpot, RadiusCurve for tapered parts). fauxMovingGrip with fauxGripVelocity suggests a fake slide. UpdateHandOrientation(hand, force, torque) rotates the hand from applied force and torque. (b) TargetGrip rotation limits: rotationLimit, rotationPriorityBuffer and cosine variants applied as joint angular limits via GetSwingCircleConstraints, GetTwistConstraints and GetJointLimitsInWorld. (c) BoxGrip and BarrelGrip: discrete zones, each with its own pose, radius and break force, so the hand slides between zones via CheckZones. (d) Slide family: the hand follows a constrained slide axis (slideDirection, upDirection, slideDistance, lastDistance). isFlippable with flippedHandPose vs normalHandPose swaps the pose when flipped, and slideIsPulled and isSlideReleased track release. (e) SphereGrip: CalculateHandOrientation rolls the hand over the sphere.
+- Two hands on one object: InteractableHost keeps HandGripPairs (hand + grip). FetchGrips(out primary, out secondary) -> bool and IsTwoHanded() gate two-hand logic. onTwoHandAttachDelegate and onTwoHandDetachDelegate fire on transitions. Grip.Type (PRIMARY, SECONDARY, OVERRIDE) assigns roles. Grip.CalculateFinalOverride(current, other, root, ref final) lets the primary grip compute the object pose from both hands; SlideGrip, PumpSlideGrip and GunGrip override it (inferred). InteractionOptions.MultipleHands and SwitchHands gate second-hand attach and role swap. bodyDominance weights body vs hand.
+- Force pull (ForcePullGrip, inferred from fields and method names): far hover calls OnFarHandHoverBegin/Update/End on both the Grip and the ForcePullGrip. GripState moves IDELING -> LONGHOVERING -> PULLING, and LONGHOVERING suggests a dwell timer before pull is allowed. Pull(hand) starts CoPull, which uses a temporary joint (tempJoint) to draw the object to pullToHand, capped by maxForce and maxSpeed. absorbForceToBody sets how much the object's own body resists. perc tracks progress, and finger fields (startThumb through startPinky, fingerLimit) pre-curl the hand while the object flies in. On arrival, _isStartAttaching leads to OnStartAttach (a normal snatch), then OnForcePullComplete fires forcePullCompleteDelegate. CancelPull(hand) aborts. Gated by IsFarHoverDisabled / EnableFarHover and registered via AddForcePullGrip.
+- Ranged gravity gun (GravityGun, inferred): selects PullPoint candidates from cone and sphere queries (pullPointsInCone, pullPointsInSphere, pullSphereRadius, maxDistance, pullableLayerMask) and then pulls, grabs, pushes or fires them. This is a separate system from ForcePullGrip.
+- Release (inferred from Hand and InteractableHost): Grip.ForceDetach(isQuick) calls Hand.DetachJoint(isQuick, lastGrip), which calls CoDelayDestroyJoint(myJoint, isQuick, lastGrip). That coroutine has locals _wait, _drive (JointDrive), _time and _duration, which suggests the joint drive is eased out over a duration before the joint is destroyed, and isQuick skips the ease. GripEvents.DetachEvent fires on release. Throw velocity: Grip.SaveHistory(velocity, angVelocity) writes each frame into a ring buffer (velocityHistory, angVelocityHistory, velocityHistoryIndex). GetAverageHistory(startDelayTime, sampleTime, out angVelocity) averages a past window, which suggests the throw uses an averaged window rather than the last frame. isThrowable gates this.
+- Magazine (MagReleaseToGrab, inferred): the magazine grip's priority depends on state. UpdateMagGripPriority(ammoCount) scales it, and m_IsMagazineInserted and m_IsPrimaryGrabbed track whether the mag is in the gun or is the primary grab. OnMagazineInserted, OnMagazineRemoved and OnGetNextBullet hook into MagazineSocket (magazineSlotReciever). So the mag becomes preferred only when out of the gun and scales with ammo count.
+- Limitations: all method bodies are IL2CPP stubs, so no numeric values, curve shapes or branch logic are visible. Mods in the MelonLoader folder were not in the scoped game folder and were not analyzed. Assertions marked inferred should be verified in-game or with the mod code.
+
+LESSONS
+- Give each pistol several discrete grab zones (grip, slide, magazine, rear sight) with separate hand poses, pose radii and strength or break values, following the BoxGrip and BarrelGrip zone model. Choose the zone each frame from hand position (CheckZones pattern).
+- Pick grab candidates by a per-grip score function (ValidateGripScore) with a priority tie-break, instead of nearest collider. Let each weapon part override its scoring, as GenericGrip does with a surface raycast.
+- Use a two-stage attach: a short timed snatch that eases the hand from its current pose to the grip target with accel and speed limits (CoMoveHandToTarget style), plus a quick-grab flag that skips the ease. The eased move is most of what makes a grab feel satisfying.
+- Make release soft: ramp the hold joint's drive down over a short duration before destroying the joint (CoDelayDestroyJoint pattern), and keep a separate quick-release path.
+- Compute throw velocity from an averaged, slightly delayed window of past frames (SaveHistory / GetAverageHistory pattern), not the last frame, to avoid jitter.
+- For the pistol slide and thumb-push idea: model the slide as a one-axis constrained slide with min and max travel and a release threshold (slideIsPulled / isSlideReleased). Swap the hand pose when the slide is flipped (isFlippable + flippedHandPose / normalHandPose).
+- Magazine grip: make its priority a function of state. It should be preferred only when out of the gun and should scale with ammo count (MagReleaseToGrab pattern).
+- Use animation curves for friction and sweet spots (SweetGrabCurve, PositionFrictionCurve) rather than constants, and use rotation limits with a priority buffer so the hand can't spin freely.
+- For two-hand holds: use primary, secondary and override roles, plus a hook that lets the primary grip compute the object pose from both hands (CalculateFinalOverride), instead of fighting two joints.
+- Force pull: far hover, then a dwell state, then a pull with capped force and speed through a temporary joint, then a normal snatch on arrival. Pre-curl the fingers while the object flies in. Usable for pulling a pistol off a holster.
+- Track per-hand, per-grip state as a small bitmask (HOVER, FARHOVER, ATTACH, PULLING) so the hover and attach logic stays a simple state machine.
+- Caveat: every behavior above is inferred from names and signatures. Test feel in the real game or a mod before copying the design, and do not copy the names as if they were verified code.
+
+CLASSES
+* Grip (game/StressLevelZero.Interaction/Grip.cs): MonoBehaviour base for every grabbable grip point. Owns per-hand state, the hover/attach/snatch callbacks, the hand target transforms, the release velocity history and the joint configuration hooks. Nested: Grip.Type, Grip.VirtualControllerModes, Grip.HandDelegate and the coroutine state machines _CoSnatch_d__145, _CoMoveHandToTarget_d__147, _CoUpdateHandAnimations_d__66.
+    field type: Grip.Type (OVERRIDE, PRIMARY, SECONDARY) - the grip role in a two-hand hold (inferred)
+    field radius: float - hover radius of this grip point (inferred)
+    field priority: float - tie-break between competing grips (inferred)
+    field gripOptions: InteractionOptions - MultipleHands, ToggledGrip, FarHover, SwitchHands flags
+    field handPose: HandPose, with pose-by-name via SetHandPose / GetHandPoseTarget (string)
+    field minBreakForce / maxBreakForce: float - joint break thresholds, likely lerped by grip strength (inferred)
+    field bodyDominance: float - weight of object vs hand when moved together (inferred)
+    field gripTargets: Dictionary<Hand,SimpleTransform>; handStates: Dictionary<Hand,HandToGripState>; attachedHands: List<Hand>
+    field velocityHistory / angVelocityHistory (Il2CppStructArray<Vector3>) + velocityHistoryIndex - ring buffer for release velocity; isThrowable: bool
+    field gripColliders / additionalGripColliders: Collider arrays - the grip surface
+    field handleAmplifyCurve: AnimationCurve; defaultGripDistance, gripDistanceSqr, gripDistance: float - grab distance threshold
+    field virtualControllerMode: VirtualControllerModes (GENERIC, HANDGUN, RIFLE, SLIDE, SLIDELOOK) - input mapping while held (inferred)
+    field attachedUpdateDelegate, attachedFixedUpdateDelegate, hover{Begin,End,Update}HandDelegate, farHover{Begin,End,Update}HandDelegate, attachedHandDelegate, detachedHandDelegate, forcePullCompleteDelegate: HandDelegate (Action<Hand>)
+    method OnHandHoverBegin(Hand, bool isOverride) / OnHandHoverUpdate(Hand) / OnHandHoverUpdate(Hand, bool) -> bool / OnHandHoverEnd(Hand)
+    method OnFarHandHoverBegin / OnFarHandHoverUpdate / OnFarHandHoverEnd(Hand)
+    method ValidateGripScore(Hand, Vector3 worldPoint) -> float (virtual; candidate score)
+    method Snatch(Hand, bool isQuick), CancelSnatch(Hand), CoSnatch(Hand, bool isQuick), CoMoveHandToTarget(Hand, Vector3 localPosition, Quaternion localRotation), CoUpdateHandAnimations(Hand)
+    method OnAttachedToHand, OnHandAttachedUpdate, OnHandAttachedFixedUpdate, OnJointAttached, OnDetachedFromHand, OnRealtimeSkeletonRig (all Hand)
+    method CalculateNewGripTransform(Hand), CalculateFinalOverride(HandGripPair current, HandGripPair other, SimpleTransform root, ref SimpleTransform final), CalculateSolveable(...)
+    method GetGripTargetTransform / GetGripTargetTransformWorld / SetGripTargetTransform(Hand, pos, rot) / RemoveGripTargetTransform
+    method HasGripFlag / AddGripFlag / RemoveGripFlag(Hand, GripFlags)
+    method GetAngleLimits / GetPrimaryAxis / GetSecondaryAxis / GetControllerOffset / GetForcePullTransform / GetGripNeutral(Hand)
+    method SetupConfiguration(JointConfiguration), UpdateJointConfiguration(Hand), OverrideJointTargetAngle(Hand, Quaternion), UpdateJointTargetAngle(Hand), GetJointLimitsInWorld(Hand, out rot, out pos), GetSwingCircleConstraints, GetTwistConstraints
+    method SaveHistory(Vector3 velocity, Vector3 angVelocity), GetAverageHistory(float startDelayTime, float sampleTime, out Vector3 angVelocity)
+    method ForceDetach(bool isQuick) / ForceDetach(Hand), EnableInteraction / DisableInteraction, HasAttachedHands, GetHand, GetHandState(Hand), GetController(out BaseController)
+    method SetHandPose(Hand, HandPose) / GetHandPose / RemoveHandPose / GetHandPoseTarget(Hand)
+* GripFlags (enum) and HandToGripState (game/StressLevelZero.Interaction/HandToGripState.cs): GripFlags is a [Flags] bitmask: HOVER=1, FARHOVER=2, ATTACH=4, PULLING=8 (GripFlags.cs). HandToGripState is the per-hand, per-grip runtime record stored in Grip.handStates.
+    field gripFlags: GripFlags (per hand, per grip)
+    field isFlipped: bool + flippedTargetRotation: Quaternion (used by flip-able grips such as slides)
+    field isJointAngleOverride: bool + jointAngleOverrideRotation: Quaternion
+    field handPose: HandPose; poseRadius: float (pose blends in within this radius, inferred)
+    field isActive, virtualControllerRan, useUpdatedTargetForSnatch: bool
+    field animUpdateCoroutine: Coroutine; coroutines: List<Coroutine>; isStatic: bool; dynamicFloat: float
+    method Grip.GetHandState(Hand) accessor
+    method Grip.HasGripFlag / AddGripFlag / RemoveGripFlag(Hand, GripFlags) read and write the bits
+* HandGripPair (value struct) (game/StressLevelZero.Interaction/HandGripPair.cs): Binds one Hand to one Grip for an InteractableHost. The two-hand logic is built on lists of these pairs.
+    field hand: Hand
+    field grip: Grip
+    method ctor HandGripPair(Hand h, Grip g)
+    method passed as arguments to Grip.CalculateFinalOverride(current, other, ...)
+* InteractableHost (game/StressLevelZero.Interaction/InteractableHost.cs): Owns the physics side of one grabbable object: its grips, its Rigidbody and joints, which hands hold it, and the grab/throw state. Static _cache is a ComponentCache.
+    field _grips: List<Grip>; _fpGrips: List<ForcePullGrip>
+    field HandGripPairs: List<HandGripPair> (set via _HandGripPairs_k__BackingField)
+    field _lastHand: Hand; _bodyJoint, _headJoint: ConfigurableJoint; _rb: Rigidbody; _rbData: RigidbodyData
+    field ignoreBodyOnGrab, isStatic, hasRigidbody, IsInteractionDisabled, IsFarHoverDisabled: bool
+    field LastGrabbedProxy: TriggerRefProxy; SetProxy / RemoveProxy (_isProxyRemove)
+    field onHandAttachedDelegate / onHandDetachedDelegate: Action<InteractableHost,Hand>; onTwoHandAttachDelegate / onTwoHandDetachDelegate: Action
+    field manager: InteractableHostManager
+    method AttachPair(Hand, Grip), AttachHand(Hand, Grip), DetachHand(Hand), Drop(), GetGrip()
+    method GetPrimaryGrip() (protected) -> HandGripPair; FetchGrips(out primary, out secondary) -> bool; IsTwoHanded() -> bool
+    method GetHand(int idx), GetLastHand(), HandCount()
+    method AddGrip / RemoveGrip(Grip); AddForcePullGrip / RemoveForcePullGrip(ForcePullGrip)
+    method CreateRigidbody / DestroyRigidbody / DestroyJoints; DisableColliders / EnableColliders
+    method DisableInteraction / EnableInteraction; DisableFarHover / EnableFarHover; ClearAttachedHandsForDespawn()
+    method CoCheckForSleep() coroutine
+* Hand (game/StressLevelZero.Interaction/Hand.cs): The VR hand. Does the hover search (overlap sphere), resolves interactables, and creates and breaks the hold joint. Contains the AttachedObject value struct and coroutines _CoDelayDestroyJoint_d__56, _CoJointBreakCooldown_d__75.
+    field static _hoverSphereRadius: float; static m_ColliderArraySize: int
+    field m_OverlappingColliders, m_HandColliders: Collider arrays; m_IgnoredColliders: List<Collider>
+    field hoverLayerMask, playerLayerMask: LayerMask; hoverLocked: bool
+    field m_HoveringInteractable, m_FarHoveringInteractable, attachedInteractable: Interactable
+    field joint: ConfigurableJoint; jointStartRotation, lastHandRotation: Quaternion; palmPositionTransform: Transform
+    field triggerRefProxy: TriggerRefProxy; handedness: Handedness; otherHand: Hand; physHand: PhysHand; controller: BaseController; skeleton: SkeletonHand
+    field AttachedObject struct: attachedObject, originalParent, isParentedToHand, isAttachedToJoint
+    method UpdateHovering(), UpdateRealtimeSkeletonRigOnFixedUpdate(), OrderedUpdate(), OrderedFixedUpdate()
+    method AttachObject(GameObject), AttachJoint(GameObject), CreateConfigurableJoint(), UpdateAnchor(connectedAnchor, anchor)
+    method DetachJoint(bool isQuick, Grip lastGrip); CoDelayDestroyJoint(ConfigurableJoint, bool isQuick, Grip lastGrip)
+    method SetGripStrength(float perc); OnJointBreak(float breakForce); CoJointBreakCooldown(); IgnoreOtherHand()
+    method HoverLock() / HoverUnlock(Interactable); GetHandleTransform(); WristToForearmAngle(); HasAttachedObject()
+* Interactable (game/StressLevelZero.Interaction/Interactable.cs): Per-object component that sits between Hand hover and the grip list. Holds the fallback score and the default joint config.
+    field defaulGripScore: float (fallback score when no grip wins, inferred)
+    field jointConfig / _jointConfig: JointConfiguration
+    field isEnabled, isFarHoverDisabled: bool
+    method ValidateGripScore(Hand, Vector3 worldPoint) -> float
+    method OnRealtimeSkeletonRig(Hand), Awake(), OnDestroy()
+* InteractionOptions (enum, flags) (game/StressLevelZero.Interaction/InteractionOptions.cs): Per-grip behaviour switches. MultipleHands=1, ToggledGrip=2, FarHover=4, SwitchHands=8.
+    field MultipleHands, ToggledGrip, FarHover, SwitchHands
+    method Grip.gripOptions carries these flags
+* JointConfiguration (game/StressLevelZero.Interaction/JointConfiguration.cs): Serializable full definition of the ConfigurableJoint used to hold an object, one per grip or per pose.
+    field xMotion, yMotion, zMotion, angularX/Y/ZMotion: ConfigurableJointMotion
+    field xDrive, yDrive, zDrive, slerpDrive, angularXDrive, angularYZDrive: JointDrive
+    field linearLimit, low/highAngularXLimit, angularYLimit, angularZLimit: SoftJointLimit; linearLimitSpring, angularXLimitSpring, angularYZLimitSpring
+    field targetPosition, targetRotation, targetVelocity, secondaryAxis, projectionMode/Distance/Angle, rotationDriveMode
+    field breakForce, breakTorque, connectedBody, currentForce, currentTorque
+    method ApplyConfiguration(ConfigurableJoint)
+    method ApplyConfiguration(string handPoseName, Hand, ConfigurableJoint) - per-pose configuration
+    method CopyConfiguration(joint); SleepDrives / WakeupDrives(joint, rb)
+* GenericGrip (game/StressLevelZero.Interaction/GenericGrip.cs): Free-placement grip: no fixed target, the hand is placed where a ray from the hand meets the surface. Nested HandToGenericGripState.
+    field genericHandStates: Dictionary<Hand,HandToGenericGripState>
+    field HandToGenericGripState: isRaycastHit, raycastPoint, raycastNormal, worldHandleTransform (SimpleTransform), backOfHandNormal
+    field _targetColliders: List<Collider>
+    method OnHandHoverUpdate(Hand), ValidateGripScore(Hand, Vector3) (override), SetupConfiguration(JointConfiguration), Awake(), Start()
+* TargetGrip (game/StressLevelZero.Interaction/TargetGrip.cs): Base for fixed-target grips: the hand snaps to a target transform, with cosine-based rotation limits. Parent of CylinderGrip, BoxGrip, BarrelGrip, SphereGrip, SlideGrip, PumpSlideGrip, GunGrip, MeshGrip, GravityGun, SightFlipGrip, and the Grip-derived UIInteractionVolume is a sibling.
+    field rotationLimit, rotationPriorityBuffer, rotationBufferCos, rotationLimitCos, _rotLimitCos, _rotBufferCos: float
+    method GetPointOnPerimeter(float radius, float theta, float limit, float perc)
+    method DrawBodyGizmo(length, radius), OnDrawGizmosSelected()
+    method SetupConfiguration(JointConfiguration), UpdateJointConfiguration(Hand)
+* CylinderGrip (+ CylinderFuseGrip, CylinderElectronicGrip) (game/StressLevelZero.Interaction/CylinderGrip.cs): Cylindrical handle (barrels, rods). Friction and radius vary along the length. CylinderFuseGrip.cs and CylinderElectronicGrip.cs extend it for inserts (fuse volume; battery insert with CoAnimateTo, insertTransform, ejectTransform).
+    field dynamicFriction, staticFriction, rotationalFrictionMult, aspectRatio, limit: float
+    field rotationalSweetSpot: bool + SweetGrabCurve: AnimationCurve
+    field varyPositionalFriction: bool + PositionFrictionCurve: AnimationCurve
+    field variableRadius: bool + RadiusCurve: AnimationCurve
+    field fauxMovingGrip: bool + fauxGripVelocity: float (fake sliding without physics, inferred)
+    field multiHandSeperation: float (distance between two hands on the grip)
+    method UpdateHandOrientation(Hand, Vector3 force, Vector3 torque)
+    method UpdateHover(Hand); GetPointOnPerimeter(radius, theta, limit, perc)
+    method UpdateJointConfiguration(Hand), GetJointLimitsInWorld(Hand, out rot, out pos), SetupConfiguration(JointConfiguration)
+    method OnHandHoverUpdate(Hand) and OnHandHoverUpdate(Hand, bool), OnSnatchUpdate(Hand), OnHandAttachedFixedUpdate(Hand)
+* CylinderSlideGrip (and SlideGrip, PumpSlideGrip) (game/StressLevelZero.Interaction/SlideGrip.cs): Gun slides, pump actions and cylindrical slides. The hand follows a constrained slide axis. SlideGrip.cs and PumpSlideGrip.cs are TargetGrip subclasses; CylinderSlideGrip.cs extends CylinderGrip.
+    field gun: Gun; slideDistance, lastDistance: float; slideDirection, upDirection: Vector3; parentToSlide, initalTransformToRoot: SimpleTransform
+    field isFlippable: bool + flippedHandPose / normalHandPose: HandPose (pose swap when flipped)
+    field slideIsPulled, isSlideReleased, isManualSlideMovement: bool
+    field PumpSlideGrip adds slideBlend, gripToHandle, grabOffset, initialDirection, offsetRotation, flippedControllerOffset
+    method SelectHandPose(Hand), OnHostAttach(InteractableHost, Hand), OnHostDetach(InteractableHost, Hand)
+    method CalculateFinalOverride(HandGripPair current, HandGripPair other, SimpleTransform root, ref SimpleTransform overrideTransform)
+    method OnAttachedToHand / OnDetachedFromHand / OnHandHoverUpdate(Hand); ValidateGripScore(Hand, Vector3)
+* BoxGrip (+ GrabConfiguration, Faces, Edges, Corners, HandToBoxGripState) (game/StressLevelZero.Interaction/BoxGrip.cs): Box with discrete grab zones: sandwich (two opposite faces), edge, corner and face. Each zone has its own pose, radius, break forces and on/off switch.
+    field sandwitchSize, edgePadding, faceInsetdistance, faceDepth: float
+    field sandwichHandPose, edgeHandPose, cornerHandPose, faceHandPose: HandPose + *HandPoseRadius: float
+    field sandwhichMin/MaxBreakForce, edgeMin/MaxBreakForce, cornerMin/MaxBreakForce, faceMin/MaxBreakForce: float
+    field canBeSandwichedGrabbed, canBeEdgeGrabbed, canBeCornerGrabbed, canBeFaceGrabbed: bool
+    field enabledFaces: Faces; enabledEdges: Edges; enabledCorners: Corners; forceGrabFace, forceGrabTop: Faces
+    field _grabConfig: Dictionary<Hand,GrabConfiguration>; boxHandStates: Dictionary<Hand,HandToBoxGripState>
+    method CheckZones(Hand) -> bool (zone selection, inferred)
+    method GetDistanceBetweenFace(Faces), FaceToVector(Faces), GetEdgePadding()
+    method UpdateForcePullTransform(Hand), GetForcePullTransform(Hand)
+    method OnFarHandHoverBegin(Hand), OnHandHoverUpdate(Hand), OnHandAttachedUpdate(Hand), UpdateJointConfiguration(Hand), ValidateGripScore(Hand, Vector3)
+* BarrelGrip (+ Caps, HandToBarrelGripState) (game/StressLevelZero.Interaction/BarrelGrip.cs): Capsule-shaped barrel with ring, side, edge and cap zones, each with its own pose and break forces. Height and radius can follow a curve.
+    field ringThickness: float; ringHandPose, sideHandPose, edgeHandPose, capHandPose: HandPose
+    field ring/side/edge/cap Min/MaxBreakForce: float
+    field isCurveOverride: bool + heightAndRadiusCurve: AnimationCurve
+    field enabledCaps: Caps; barrelHandStates: Dictionary<Hand,HandToBarrelGripState>
+    field static _grabDistance, _maxCapHeight, _ringPadding: float
+    method CheckZones(Hand) -> bool
+    method UpdateForcePullTransform(Hand); ValidateGripScore(Hand, Vector3); OnHandHoverUpdate(Hand); OnHandAttachedUpdate(Hand)
+    method UpdateJointConfiguration(Hand)
+* SphereGrip (game/StressLevelZero.Interaction/SphereGrip.cs): Sphere grip. Hand orientation is computed from the sphere, so the hand rolls over it (inferred).
+    field autoConfigure: bool; dynamicFriction, staticFriction: float
+    method CalculateHandOrientation(Hand), CalculateNewGripTransform(Hand), GetForcePullTransform(Hand)
+    method OnHandAttachedFixedUpdate(Hand), OnHandHoverUpdate(Hand), ValidateGripScore(Hand, Vector3)
+* GunGrip (+ HandGunGrip) (game/StressLevelZero.Interaction/GunGrip.cs): Gun body grip. Links the secondary-hand grips (otherGrips) and the slide grip, and runs the fire cycle. HandGunGrip.cs extends it with no extra members visible.
+    field otherGrips: Il2CppReferenceArray<Grip>; slideGrip: Grip
+    field cycleState: FireCycleState; cycleStateCount: int; isAutomatic: bool; roundsPerMinute, kickForce, muzzleVelocity, barrelLength: float
+    field gunProjectileType: GunProjectileType; PrefabToSpawn, bulletSpawnTransform, muzzleSpawnTransform, casingSpawnTransform, shoulderPointTransform: GameObject/Transform
+    field isTriggerDownOnAttach, isFiring, nextBullet, isSlideLocked, isHammerRaised: bool; animator: Animator; gunSFX: GunSFX
+    method Fire(Hand), CeaseFire(), CoFire(Hand), GetNextBullet(), NextCycleState(), SetCycleState(FireCycleState)
+    method OnAttachedToHand(Hand), OnDetachedFromHand(Hand), OnHandAttachedUpdate(Hand)
+* MeshGrip (game/StressLevelZero.Interaction/MeshGrip.cs): Grip on arbitrary geometry: a raycast from the hand finds the surface point, and the hand is placed on it.
+    field layers: LayerMask; _localTarget, _localNormal: Vector3
+    field autoConfigure: bool; dynamicFriction, staticFriction: float
+    method GetRaycastHit(Vector3 origin, Vector3 direction) -> RaycastHit
+    method UpdateHandOrientation(Hand), CalculateHandOrientation(Hand)
+    method OnHandHoverUpdate(Hand), OnAttachedToHand(Hand), ValidateGripScore(Hand, Vector3)
+* ForcePullGrip (game/StressLevelZero.Interaction/ForcePullGrip.cs): MonoBehaviour (not a Grip subclass) that pulls an object to the hand from a distance. Holds GripState enum IDELING, LONGHOVERING, PULLING and coroutine _CoPull_d__43.
+    field grip: Grip; pullToHand: Hand; _state: GripState; perc: float (progress)
+    field absorbForceToBody, maxForce, maxSpeed: float
+    field targetPosition: Vector3; targetRotation: Quaternion; tempJoint: ConfigurableJoint; pullCoroutine: Coroutine
+    field fingerLimit, startThumb, startIndex, startMiddle, startRing, startPinky: float (finger curl while pulled, inferred)
+    field _isStartAttaching, _isDoneSnatching: bool
+    method OnFarHandHoverBegin(Hand), OnFarHandHoverUpdate(Hand), OnFarHandHoverEnd(Hand)
+    method Pull(Hand), CoPull(Hand), CancelPull(Hand)
+    method OnStartAttach(Hand), OnForcePullComplete(Hand) (fires Grip.forcePullCompleteDelegate), Enable(), Disable()
+* GravityGun (game/StressLevelZero.Interaction/GravityGun.cs): Ranged pull weapon (TargetGrip subclass). Picks pullable physics bodies with cone and sphere queries, then pulls, grabs, pushes or fires them. Separate from ForcePullGrip (inferred).
+    field pullPoints, pullPointsInCone, pullPointsInSphere (arrays + lengths); pullSphereRadius, maxDistance: float
+    field pullableLayerMask: LayerMask; isAutomatic: bool; selectedPullPoint: PullPoint (struct)
+    field targetPF: PhysicalFollow; blastVFXObject, lockVFXObject, linePool, gunSfx, quadline
+    method AddPullPoint(...), EditPullPoint(...), ClearPullPoints(), UpdatePullPointPhysics(PullPoint)
+    method Pull(), Grab(), Push(), CoPull(), CoFire()
+    method OnHandHoverBegin(Hand), OnAttachedToHand(Hand), OnHandAttachedUpdate(Hand)
+* PullDevice (game/StressLevelZero.Interaction/PullDevice.cs): Lever or handle pull: a joint-driven handle with a travel distance and pull/return events. Not a ForcePullGrip.
+    field grip: Grip; joint: ConfigurableJoint; rb: Rigidbody; distance: float
+    field _startPosition: Vector3; _isPulled: bool; _distanceSqr, _halfDistanceSqr: float
+    field OnHandlePull, OnHandleReturn: UnityEvent; pullClips, releaseClips: AudioClip arrays
+    method OnGripAttached(Hand), OnGripAttachedUpdate(Hand), OnGripDetached(Hand)
+    method Awake()
+* GripEvents (game/StressLevelZero.Interaction/GripEvents.cs): Per-grip MonoBehaviour that maps grip and trigger input to UnityEvents for scripting and audio.
+    field AttachedEvent, DetachEvent: UnityEvent
+    field PrimaryButtonEventDown, PrimaryButtonEvent, PrimaryButtonEventUp: UnityEvent
+    field isTriggerDownOnAttach: bool (trigger already held when attached)
+    method private OnAttachedToHand(Hand), OnDetachedFromHand(Hand), OnHandAttachedUpdate(Hand)
+    method PrimaryButtonDown(), PrimaryButton(), PrimaryButtonUp() (all private)
+* MagReleaseToGrab (game/StressLevelZero.Interaction/MagReleaseToGrab.cs): Magazine grab logic. Connects the magazine's grip to the gun's MagazineSocket and sets grip priority from the ammo count. Directly relevant to the user's pistol magazine question.
+    field magazineSlotReciever: MagazineSocket; primaryGrip, m_Grip: Grip
+    field m_IsPrimaryGrabbed, m_IsMagazineInserted: bool
+    method UpdateMagGripPriority(int ammoCount)
+    method UpdateMagazineGrab(Hand), OnHandAttached(Hand), OnAttachedHandDelegate(Hand), OnDetachedHandDelegate(Hand)
+    method OnMagazineInserted(), OnMagazineRemoved(), OnGetNextBullet()

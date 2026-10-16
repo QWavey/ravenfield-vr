@@ -1,0 +1,270 @@
+Boneworks study (read-only Haiku agent, 2026-10-16): Boneworks hand poses and finger posing, from the decompiled IL2CPP class surface. Method bodies are interop stubs, so behaviour is inferred from field names, types, enums and signatures. Inferences are labelled.
+
+MECHANICS
+- Storage is per finger. Each finger has one base joint Quaternion (thumb1, index1, middle1, ring1, pinky1) and two distal curl values. In PoseData these are floats (thumb2/thumb3, index2/index3 and so on). In HandPoseData and LocalPoseData they are packed in a Vector3 (thumb23, index23 and so on). The thumb has the same shape as the other fingers. Extra fields are PoseData.cup (palm cup, inferred), angle and nativePry (the pitch/roll/yaw sample), and gripPoint and gripRotation.
+- There are three pose formats. HandPoseData and LocalPoseData are flat single poses, used by the AI system and as the output of CapturePose. HandPose2 is the runtime pose space, a grid. Data.HandPose is a constraint asset with no finger data, which Grip references. All three share a name string (handPoseName, name, animationName) that works as the join key (inferred).
+- The pose space is a grid. HandPose2.poseData is an array of PoseDataGroup, one per radius step (PoseDataGroup.radius). Each group has a neutral PoseData, six sample arrays along pitch, roll and yaw (positive and negative), and a poseArray. The runtime pose is therefore a point (radius, pitch, roll, yaw) inside sampled data, read with GetPitch, GetRoll and GetYaw(radius, index). The meaning of pitch, roll and yaw as hand orientation relative to the handle is inferred.
+- Per-frame solve (HandPoseAnimator.SolvePose, from member names): DetermineMinMax picks the two bracketing radius groups and a blend factor t (_radMinIndex, _radMaxIndex, _radiusT). GenerateDataPoints builds a Vector3 point cloud for the group. CalculateWeights gives the weights of the current (pitch, roll, yaw) sample against that cloud (inferred scattered-data or simplex interpolation). BlendPose sums PoseData by weights, and quaternions are accumulated with QuatTimesFloat into a Vector4, which is a weighted quaternion average (inferred). RefreshRadius applies the radius blend to the weights. BlendOpenPose mixes the result with _openPose.
+- Inputs to the solve: the grip radius comes from Grip.radius, goes through HandToGripState.poseRadius, and reaches the manager via SetCylinderRadius(handedness, radius). pitch, roll and yaw go in through ApplyPitchRollYaw(handedness, pitch, roll, yaw). The source of those three angles is inferred to be the hand orientation relative to the handle, computed from the GetHandleInHand* transforms.
+- How a grip picks a pose: Grip.GetHandPoseTarget(hand) returns a pose name string. That string goes to SetHandPose(handedness, name) on HandPose2AnimationManager or CharacterAnimationManager (or SkeletonHand.SetHandPose(string)). The name resolves to a HandPose2, and the manager calls HandPoseAnimator.SetHandPose(pose, transitionTime). The exact name-to-asset lookup is not visible in the stubs. Per-hand overrides go through Grip.SetHandPose(Hand, HandPose) and RemoveHandPose. Per-hand state lives in HandToGripState (handPose, poseRadius, isFlipped). The handle placement table HandPoseHandleData.handleTransforms uses the same name as its key (inferred).
+- Fade and transitions: HandPoseAnimator.SetHandPose copies the last applied PoseData into _transitionCache, resets _transitionFloat, sets _transitionTime from the optional argument, and stores the new target in pose. Update then advances _transitionFloat and LerpPose runs from the cache toward the new blended pose. A switch is therefore a timed lerp starting from wherever the hand currently is, not a snap (member names confirm the structure, behaviour inferred). Closing and opening use HandClose(perc) and HandCloseBlend(controller, blendPerc, closePerc), which mix open and closed reference hands by a 0..1 value.
+- Per-finger timing: SubBehaviourHandPose.PoseFingerCurl takes thumbT, indexT, middleT, ringT and pinkyT and blends each finger between an open and a closed HandPoseData with its own parameter. The same class keeps _leftSnapshot, _leftTarget, _leftCurrent, _blendingWeightLeft and _deltaMultLeft, and steps at updateFps (inferred: snapshot-to-target blend at a fixed rate). HandPoseAnimator keeps per-finger _minX, _maxX and _currentX values, so each finger has its own clamp.
+- Controller to finger curl: BaseController exposes GetIndexCurlAxis, GetMiddleCurlAxis, GetRingCurlAxis, GetPinkyCurlAxis and GetThumbCurlAxis (float per finger). OculusController and Controller compute these in ProcessFingers(), which writes _processed<finger> and _splay<finger> (finger spread) values. The _sim fields (_simIndexTouch, _simThumbAxis, _simGripAxisVive) look like simulated inputs for devices without the sensor (inferred). The index trigger analog is probably GetPrimaryInteractionButtonAxis, backed by _primaryAxis (inferred). Grip is GetGripAxis, GetGripForce and the solved _solvedGrip value from SolveGrip().
+- Curl integration: FingerCurl holds fingers[5] (current values), overrides[5] and curlsPerSecond. Curl() moves each current value toward its target at no more than curlsPerSecond (inferred from the name). CurlOverride(thumb, index, middle, ring, pinky) writes explicit targets, probably used by scripted or gun grips (inferred). The five values then go to ApplyFingerCurl(handedness, thumb, index, middle, ring, pinky) on the manager or on SkeletonHand. They are stored as leftFinalFingerValues and rightFinalFingerValues and drive the open and closed finger reference transforms (inferred).
+- No finger tracking: no skeletal finger-tracking types exist in this decompile (no OVRSkeleton, OVRHand, SteamVR_Skeleton, HandTracking or FingerTracking matches). Fingers are driven only by analog controller axes. OculusController.DrawSkeletonHand(Vector3[], Quaternion[]) is a draw helper (inferred).
+- Gestures: BaseController.GetGesturePose(out poseIntensity, forceUpdate) classifies the hand into one of seven GesturePose values (OpenHand, IndexPoint, MiddleFinger, PeaceSign, ThumbsUp, ThumbsDown, Fist) with an intensity. It is refreshed on a timer (_nextGestureUpdateTime). Inferred use: picking an empty-hand or point pose.
+- Thumb handling: the thumb has no special data shape (base quaternion plus two distal floats, like the other fingers). It is special in input and in clamping. It has its own GetThumbCurlAxis, _splayThumb, _processedThumb and _simThumbAxis. HandPoseAnimator has _minThumb, _maxThumb and _currentThumb. PoseFingerCurl has its own thumbT. The rig has separate Lthumb1 to Lthumb3 and Rthumb1 to Rthumb3 bones. ThumbsUp and ThumbsDown are dedicated GesturePose values, and ThumbsUp is a preset in SubBehaviourHandPose.HandPose.
+- Hand placement: HandPoseTarget.GetHandRotationOffset(ControllerInfo.Type) gives a per-controller-model rotation offset (types UNDEFINED, OCCULUS_TOUCH, KNUCKLES, VIVE_WANDS, HOLOGRAPHIC). PhysHand.UpdateHand pulls a physics hand toward the controller target with forces and torques, with gripInput feeding SetFriction and RelaxTorqueMult. OverrideHand.MoveTo moves a transform at capped linear and angular speed (maxSpeed, maxAngularSpeed).
+- Two-handed items: Grip.virtualControllerMode (GENERIC, HANDGUN, RIFLE, SLIDE, SLIDELOOK) selects a VirtualController routine (Gun, RifleShoulder, Slide, SlideLook) that computes the off-hand target. Grip.type (OVERRIDE, PRIMARY, SECONDARY) marks which hand owns the grip. The Pistol and PistolOffhand HandPoseData assets sit on SubBehaviourHandPose (AI side).
+- Mirroring and flipping: HandPoseAsset.Mirror() and HandPose2AnimationManager.CopyLeft and CopyRight(out PoseData, angle, nativePry) build one hand's pose from the other (inferred). HandPose2AnimationManager.HandPose stores default and reverse position and rotation, and HandToGripState.isFlipped with flippedTargetRotation covers reversed grips (inferred).
+- Other details: leftHandSpace and rightHandSpace are static quaternions (purpose inferred as a shared hand space). CoCalculateHandPoseRefs with isWarmup computes reference transforms over several frames at startup (inferred). Grip.handleAmplifyCurve and PhysHand.TorqueMultiplier are AnimationCurve fields, so response shaping uses curves rather than linear values. EnemyPoseData (StressLevelZero.Data) holds per-bone position and rotation arrays and is not hand-specific.
+- Name collision: StressLevelZero.Data.HandPose (grip constraints), SubBehaviourHandPose.HandPose (enum) and HandPose2AnimationManager.HandPose (struct) share the name HandPose. Grip.cs imports StressLevelZero.Data, so Grip's HandPose is the constraint asset.
+
+LESSONS
+- Store each pose per finger (base quaternion plus distal curl floats), as PoseData and HandPoseData do. That lets the thumb move independently of the four fingers.
+- Thumb slide-off then push: give the thumb its own blend factor and its own timer, longer than the fingers (compare PoseFingerCurl thumbT). The thumb can then lift off the mag slowly and ease into a push pose while the other fingers stay on their own schedule. Give the thumb its own clamp as well (compare _minThumb and _maxThumb).
+- Fade, never snap: when the target changes, snapshot the currently applied pose (compare _transitionCache) and lerp from that snapshot to the new target over a duration (compare _transitionTime). If a new target arrives mid-fade, re-snapshot the in-flight pose rather than the old target (compare _leftSnapshot and _leftTarget). This answers the request for double-mag reloads to fade rather than switch abruptly.
+- Fade out to open: blend toward an open pose instead of a separate release pose (compare BlendOpenPose and HandClose(perc)). Drive the whole blend from one 0..1 closedness value, so the trigger or grip axis, or the mag state, can fade the hand smoothly.
+- Rate-limit finger motion: move each finger toward its target at a capped speed (compare FingerCurl.curlsPerSecond). Use a lower cap for the thumb to get the slow slide-off, and reuse the same mechanism for the closing motion of the mag grab.
+- Use an override channel: let scripted reload gestures write explicit finger targets (compare CurlOverride and overrides) and release back to controller input with a fade, rather than disabling input entirely.
+- Use an animation curve for the ease (compare Grip.handleAmplifyCurve and PhysHand.TorqueMultiplier) rather than a linear t. An ease-in suits the thumb lift and an ease-out suits the push.
+- Blend rotations as quaternions (weighted sums with normalisation, compare QuatTimesFloat), not Euler lerps, when mixing grips or reload poses.
+- For a continuous mag grab, derive the pose from how the hand wraps the mag (a radius plus wrap angles) and interpolate across sampled radius groups, as HandPose2 does. Only do this if the pose needs to vary continuously. Otherwise a few discrete poses with a blend between them is simpler.
+- Mirror the offhand: author the pose once and mirror it for the second hand (compare HandPoseAsset.Mirror and CopyLeft and CopyRight) for double-mag reloads.
+- Key every pose by a name string shared between the grip constraint, the pose data and the handle placement (handPoseName, name, animationName). Then the mag-grab, push and reload-hold poses can be swapped with one key.
+- Add a per-controller-model hand rotation offset (compare HandPoseTarget.GetHandRotationOffset with ControllerInfo.Type). Otherwise the grip sits differently on Touch, Index and Vive controllers.
+- Use the gesture classifier idea (GesturePose with intensity) to decide when the empty hand should push, for example from ThumbsUp, OpenHand or Fist states with an intensity, instead of ad hoc button checks.
+- If several weapons solve poses every frame, run the solve at a fixed rate and interpolate between results (compare SubBehaviourHandPose.updateFps).
+
+CLASSES
+* StressLevelZero.Data.HandPoseData (game/StressLevelZero.Data/HandPoseData.cs): Flat per-finger hand pose asset (ScriptableObject). Used by the AI pose system as OpenHand, Fist, Pistol and PistolOffhand. Stores one whole-hand rotation, the handle-in-hand transform and, per finger, one base rotation plus one Vector3 for the two distal curl values.
+    field hand2: Quaternion - whole-hand rotation
+    field handleInHandPos: Vector3 and handleInHandRot: Quaternion - handle pose relative to the hand
+    field thumb1, index1, middle1, ring1, pinky1: Quaternion - base joint rotation per finger
+    field thumb23, index23, middle23, ring23, pinky23: Vector3 - two distal curl values packed in a Vector3 (layout matches SubBehaviourHandPose.LocalPoseData, so this is inferred to be x/y curls)
+    method ctor() - no logic visible
+* StressLevelZero.Data.HandPose2 (nested PoseData, PoseDataGroup) (game/StressLevelZero.Data/HandPose2.cs): Runtime pose-space asset (ScriptableObject). It is a grid: an array of PoseDataGroup, one per radius step, each with a neutral pose and sampled poses along pitch, roll and yaw in both directions. HandPoseAnimator solves and blends against this grid.
+    field handPoseName: string - join key shared with HandPose and HandPoseHandleData
+    field angleLimits, primaryAxis, secondaryAxis, wristOffset: Vector3
+    field poseData: Il2CppReferenceArray<PoseDataGroup>
+    field PoseDataGroup.radius: float; neutral: PoseData; pitchPositive, pitchNegative, rollPositive, rollNegative, yawPositive, yawNegative, poseArray: Il2CppStructArray<PoseData>
+    field PoseData.angle: float; nativePry: Vector3 (pitch/roll/yaw sample)
+    field PoseData base rotations: thumb1, index1, middle1, ring1, pinky1 as Quaternion
+    field PoseData distal curls: thumb2/thumb3, index2/index3, middle2/middle3, ring2/ring3, pinky2/pinky3 as float
+    field PoseData.cup: float (palm cup, inferred); gripPoint: Vector3; gripRotation: Quaternion
+    method GetPitch(int radius, int pitch) -> PoseData
+    method GetRoll(int radius, int roll) -> PoseData
+    method GetYaw(int radius, int yaw) -> PoseData
+* StressLevelZero.Data.HandPose (game/StressLevelZero.Data/HandPose.cs): Grip-side constraint asset (ScriptableObject). Holds no finger data. Grip.handPose and HandToGripState.handPose are this type. Nested enum HandPoseType {ALL, TARGET, CYLINDER, SPHERE} is probably the grip shape (inferred).
+    field handPoseName: string
+    field angleLimits: Vector3 - joint limits
+    field primaryAxis, secondaryAxis: Vector3 - grip frame axes
+    field wristOffset: Vector3
+    method ctor() only
+* StressLevelZero.Data.HandPoseHandleData (nested NeutralHandleTransform, NeutralHandleTransformCache) (game/StressLevelZero.Data/HandPoseHandleData.cs): Per named pose table of where the handle sits relative to the hand, for the neutral and open states, plus the handle direction. Serialized as a list and turned into a dictionary at runtime.
+    field handleTransforms: Dictionary<string, NeutralHandleTransform> - keyed by pose name
+    field transformCache: List<NeutralHandleTransformCache> - serialized source
+    field NeutralHandleTransform: animationHash: int; localTransform, inverseLocalTransform, localOpenTransform: SimpleTransform; direction: Vector3
+    method PrepareDictionary() - builds handleTransforms from transformCache
+    method Add(string name, SimpleTransform localTransform, SimpleTransform inverseLocalTransform, SimpleTransform localOpenTransform, Vector3 direction)
+* StressLevelZero.Utilities.HandPose2AnimationManager (nested HandPose struct, _CoCalculateHandPoseRefs_d__60) (game/StressLevelZero.Utilities/HandPose2AnimationManager.cs): Two-hand pose driver for the player rig (MonoBehaviour). Owns open and closed reference hands, the per-finger rig bones, the finger curl input, the named-pose lookup, the grip cylinder radius and hand mirroring.
+    field leftOpenHandTransform, leftClosedHandTransform: Transform; leftOpenFingers, leftClosedFingers: Transform[] (rightX equivalents exist)
+    field leftFinalFingerValues, rightFinalFingerValues: float[] - final per-finger curl values
+    field Lthumb1..Lthumb3, Lindex1..Lindex3, ... Lpinky3, Lgrip (and R-prefixed) - rig finger bones
+    field data: HandPoseHandleData; ASSETPATH: string; animator: Animator; isWarmup: bool
+    field nextLeftHandPose, nextRightHandPose, lastLeftName, lastRigthName: string - queued and last applied pose names
+    field static leftHandSpace, rightHandSpace: Quaternion
+    field animationGroups: Il2CppReferenceArray<AnimationGroup>
+    field nested HandPose struct: id: int; name: string; defaultPosition, reversePosition: Vector3; defaultRotation, reverseRotation: Quaternion
+    method SetHandPose(Handedness, string handPoseName)
+    method SetCylinderRadius(Handedness, float radius)
+    method ApplyPitchRollYaw(Handedness, float pitch, float roll, float yaw)
+    method HandClose(float perc, Handedness)
+    method HandCloseBlend(BaseController controller, float blendPerc, float closePerc, Handedness)
+    method ApplyFingerCurl(Handedness, float thumb, index, middle, ring, pinky)
+    method GetHandleInHandNeutralTransform / GetHandInHandleTransform / GetHandleInHandOpenTransform overloads; GetLocalHandleDirection(Handedness, string)
+    method CopyLeft / CopyRight(out PoseData, float angle, Vector3 nativePry)
+    method CoCalculateHandPoseRefs() coroutine; CalculateHandPoseRefs(); InitiateFingerCurl(ref Transform, out Transform[])
+    method Awake, OnEnable, Update, OnLateUpdate, AutoFillTransforms, BuildAnimationController
+* StressLevelZero.Player.CharacterAnimationManager (game/StressLevelZero.Player/CharacterAnimationManager.cs): Second MonoBehaviour with the same two-hand pose API as HandPose2AnimationManager (same finger fields, same SetHandPose, ApplyFingerCurl, HandClose, HandCloseBlend, SetCylinderRadius). It has no ASSETPATH or animationGroups members. Probably the character or avatar variant (inferred).
+    field same left/right open and closed hand and finger fields as HandPose2AnimationManager
+    field data: HandPoseHandleData; animator: Animator; isWarmup: bool
+    method SetHandPose(Handedness, string)
+    method ApplyFingerCurl(Handedness, thumb, index, middle, ring, pinky)
+    method HandCloseBlend(BaseController, blendPerc, closePerc, Handedness)
+    method SetCylinderRadius(Handedness, float)
+    method OnLateUpdate()
+* HandPoseAnimator (global namespace) (game/HandPoseAnimator.cs): Per-hand pose solver and blender (MonoBehaviour). It takes radius, pitch, roll and yaw, samples the HandPose2 grid, blends the result, and fades between poses. This is the core of the system.
+    field radius, pitch, roll, yaw: float - input sample
+    field pose: HandPose2 (target); _lastPose: HandPose2 (previous)
+    field _transitionCache: HandPose2.PoseData - snapshot taken when the target changes
+    field _currentPoseData: HandPose2.PoseData - last applied blend
+    field _transitionFloat: float (progress); _transitionTime: float (duration)
+    field _radMinIndex, _radMaxIndex: int - bracketing radius groups; _radiusT: float; _variableRadius: bool
+    field _minThumb.._maxPinky and _currentThumb.._currentPinky: float - per-finger clamps and current values
+    field _datapoints: Vector3[] - sample point cloud; _dataArray: PoseData[]; _openPose: PoseData; weights: float[]
+    field thumbArt, indexArt, middleArt, ringArt, pinkyArt, handle: Transform
+    method SetHandPose(HandPose2 newPose, [Optional] float transitionTime)
+    method ApplyPitchRollYaw(float pitch, float roll, float yaw)
+    method SolvePose()
+    method DetermineMinMax(float value, PoseDataGroup[] radiusGroup, ref int min, ref int max, out float t) -> bool
+    method GenerateDataPoints(PoseDataGroup) -> Vector3[]
+    method CalculateWeights(Vector3 sample, Vector3[] points, ref float[] weights) -> bool
+    method BlendPose(PoseData[], float[]) -> PoseData
+    method QuatTimesFloat(Quaternion, float) -> Vector4
+    method LerpPose(PoseData from, PoseData to, float t)
+    method BlendOpenPose(PoseData closed, PoseData open)
+    method RefreshRadius(float[] weights, float radiusT)
+    method ApplyPoseToTransforms(PoseData)
+    method Start(), Update()
+* StressLevelZero.Player.FingerCurl (game/StressLevelZero.Player/FingerCurl.cs): Per-hand finger state. Five float values (thumb, index, middle, ring, pinky) move toward targets at a capped rate. Explicit overrides can replace the controller targets.
+    field curlsPerSecond: float - rate cap per finger
+    field hand: Hand
+    field fingers: float[5] - current values
+    field overrides: float[5] - explicit targets from CurlOverride
+    field axis: float[] - purpose not determinable from the stub (inferred per-finger curl axis or weight)
+    field thumb, index, middle, ring, pinky: float (getters)
+    method Curl() - moves fingers toward targets (inferred)
+    method CurlOverride(float thumb, float index, float middle, float ring, float pinky)
+    method Update(), OnEnable()
+* StressLevelZero.Interaction.Hand (game/StressLevelZero.Interaction/Hand.cs): Hand actor (MonoBehaviour). Owns the controller, skeleton, finger curl and the physics joint. Pose selection itself is not in this class; it goes through Grip.
+    field controller: BaseController; skeleton: SkeletonHand; fingerCurl: FingerCurl (m_ backing fields)
+    field handedness: Handedness; otherHand: Hand; physHand: PhysHand; joint: ConfigurableJoint
+    field attachedInteractable, hoveringInteractable: Interactable
+    field m_LastWristToForearmAngle: float; lastHandRotation: Quaternion
+    method SetGripStrength(float perc)
+    method AttachObject(GameObject), AttachJoint(GameObject), DetachJoint(bool isQuick, Grip lastGrip)
+    method WristToForearmAngle() -> float
+    method UpdateRealtimeSkeletonRigOnFixedUpdate(), UpdateAnchor(Vector3, Vector3)
+    method OrderedUpdate(), OrderedFixedUpdate()
+* StressLevelZero.Interaction.Grip (nested VirtualControllerModes, Type; GripFlags is a separate enum) (game/StressLevelZero.Interaction/Grip.cs): Grab point definition. Decides which pose a hand uses, holds per-hand state, and runs timed hand animations as a coroutine.
+    field handPose: StressLevelZero.Data.HandPose (constraint asset)
+    field radius: float - grip cylinder radius, passed on as the pose radius
+    field bodyDominance, priority, orientToHand, gripDistance: float / bool
+    field virtualController: VirtualController; virtualControllerMode: Grip.VirtualControllerModes {GENERIC, HANDGUN, RIFLE, SLIDE, SLIDELOOK}
+    field type: Grip.Type {OVERRIDE, PRIMARY, SECONDARY}
+    field handleAmplifyCurve: AnimationCurve
+    field attachedHands: List<Hand>
+    method SetHandPose(Hand, HandPose); GetHandPose(Hand) -> HandPose; RemoveHandPose(Hand)
+    method GetHandPoseTarget(Hand) -> string - the pose name the hand should use
+    method GetHandState(Hand) -> HandToGripState
+    method GetAngleLimits / GetPrimaryAxis / GetSecondaryAxis(Hand) -> Vector3; GetControllerOffset(Hand) -> Vector3
+    method UpdateHandAnimations(Hand); CoUpdateHandAnimations(Hand) - coroutine (timed motion, inferred)
+    method AddGripFlag / RemoveGripFlag / HasGripFlag(Hand, GripFlags)
+    method SetGripTargetTransform / GetGripTargetTransform / RemoveGripTargetTransform(Hand, ...)
+    method CoSnatch(Hand, bool isQuick), CoMoveHandToTarget(Hand, Vector3, Quaternion)
+* StressLevelZero.Interaction.HandToGripState (game/StressLevelZero.Interaction/HandToGripState.cs): Per (hand, grip) state: the active pose, the radius used for it, and the flip state.
+    field handPose: StressLevelZero.Data.HandPose; poseRadius: float
+    field isFlipped: bool; flippedTargetRotation: Quaternion
+    field isJointAngleOverride: bool; jointAngleOverrideRotation: Quaternion
+    field animUpdateCoroutine: Coroutine; coroutines: List<Coroutine>
+    field isStatic: bool; dynamicFloat: float; gripFlags: GripFlags; isActive: bool
+    method ctor() only
+* StressLevelZero.Interaction.GripFlags (game/StressLevelZero.Interaction/GripFlags.cs): Flags enum for grip state: HOVER=1, FARHOVER=2, ATTACH=4, PULLING=8.
+    field HOVER, FARHOVER, ATTACH, PULLING
+* StressLevelZero.Interaction.VirtualController (game/StressLevelZero.Interaction/VirtualController.cs): Off-hand target solver for two-handed items (guns, rifle shoulder, slide). It computes a virtual target the second hand is pulled toward.
+    field enhanceIntensity, angleThreshold, positionBlend, rotationBlend: float
+    field upAxis, rightAxis, initialUpAxis, initialRightAxis, initialForwardAxis: Vector3
+    field lastPrimaryTargetRotation, lastSecondaryTargetRotation: Quaternion
+    method UpdateVirtualController(Grip.VirtualControllerModes mode)
+    method Gun(...), Generic(), Slide(...), SlideLook(...), RifleShoulder(...)
+    method CalculateFinalOverride(HandGripPair primary, HandGripPair secondary, SimpleTransform root, ref ...)
+    method FindUpAxis(...), AimEnhancer(...), EyePoint(...)
+* StressLevelZero.Rig.BaseController (game/StressLevelZero.Rig/BaseController.cs): Abstract controller input. Provides per-finger analog curl, grip and trigger axes, and a seven-value gesture classifier.
+    field handedness: Handedness; hand: Transform; wristOffset: Quaternion
+    field controllerType: ControllerInfo.Type
+    field _gesturePose: GesturePose; _gesturePoseIntensity: float; _nextGestureUpdateTime: float
+    field enum GesturePose { OpenHand, IndexPoint, MiddleFinger, PeaceSign, ThumbsUp, ThumbsDown, Fist }
+    method GetIndexCurlAxis(), GetMiddleCurlAxis(), GetRingCurlAxis(), GetPinkyCurlAxis(), GetThumbCurlAxis() -> float
+    method GetGesturePose(out float poseIntensity, bool forceUpdate = false) -> GesturePose
+    method GetGripAxis(), GetGripForce(), GetGripVelocity() -> float
+    method GetPrimaryInteractionButtonAxis(), GetSecondaryInteractionButtonAxis() -> float
+    method GetThumbStickAxis(), GetTouchpadAxis() -> Vector2
+    method HapticAction(...), Haptic(float)
+* StressLevelZero.Rig.OculusController (game/StressLevelZero.Rig/OculusController.cs): Concrete Touch-style controller. Turns raw inputs into processed finger curls and splay values, and solves the grip value. The _sim fields look like stand-ins for missing sensors (inferred).
+    field _processedIndex, _processedMiddle, _processedRing, _processedPinky, _processedThumb: float
+    field _splayIndex, _splayMiddle, _splayRing, _splayPinky, _splayThumb: float
+    field _simIndexTouch, _simThumbAxis, _simGripAxisVive: float (simulated inputs, inferred)
+    field _primaryAxis, _gripForce, _solvedGrip, _solvedGripVelocity: float; _thumbstickAxis, _touchPadAxis: Vector2
+    field wristTransform, oculusWristTransform: Transform
+    method CacheInputs(), ProcessFingers(), SolveGrip()
+    method CalculateWristOffset(), GetWristInfo() -> ControllerInfo
+    method DrawSkeletonHand(Vector3[] positions, Quaternion[] rotations) - draw helper
+* StressLevelZero.Rig.Controller (derives from BaseController) (game/StressLevelZero.Rig/Controller.cs): Sibling concrete controller with the same finger processing surface as OculusController (ProcessFingers, _processedThumb, _simThumbAxis, GetGesturePose overrides, DrawSkeletonHand).
+    field _simThumbAxis: float; _processedThumb: float
+    method ProcessFingers()
+    method GetGesturePose(out float poseIntensity, bool forceUpdate)
+    method GetIndexCurlAxis() ... GetThumbCurlAxis() (overrides)
+* StressLevelZero.Rig.SkeletonHand (game/StressLevelZero.Rig/SkeletonHand.cs): Per-hand skeleton driver. It has the same pose API as the animation managers, plus stepped blend tables for position and rotation.
+    field positionSteps: Il2CppStructArray<PositionBlendStep> (perc: float, position: Vector3); rotationSteps: Il2CppStructArray<RotationBlendStep> (perc: float, rotation: Quaternion)
+    field lastPositionTime, lastPositionDuration, lastRotationTime, lastRotationDuration: float
+    field controller: BaseController; handedness: Handedness; manager: RigManager
+    field offsetRotation: Quaternion; overridePosition: Vector3; overrideRotation: Quaternion
+    method SetHandPose(string handPoseName)
+    method HandClose(float perc); HandCloseBlend(float blendPerc, float closePerc)
+    method ApplyFingerCurl(float thumb, float index, float middle, float ring, float pinky)
+    method SetCylinderRadius(float radius)
+    method GetHandleInHandNeutralTransform(string, ...), GetHandleInHandOpenTransform(string, ...), GetLocalHandleDirection(string)
+    method ApplyRotationAnimationBlend(Vector3, Quaternion, Quaternion), ResetRotationAnimationBlend()
+    method OverrideTransform(...) overloads; ProccessPosition(Vector3); ProcessRotation(Quaternion)
+* StressLevelZero.Rig.OverrideHand (game/StressLevelZero.Rig/OverrideHand.cs): Speed-capped move-to-target for a hand transform. This is movement, not a finger pose.
+    field maxSpeed, maxAngularSpeed: float
+    field m_OverrideTransform: Transform; m_OverrideTransformOffset: SimpleTransform
+    field m_Velocity, m_AngularVelocity: Vector3; m_AngularSpeed: float
+    method MoveTo(Transform target, Vector3 startVelocity)
+    method MoveTo(Transform target, SimpleTransform localTargetOffset, Vector3 startVelocity)
+    method OnOverrideFixedUpdate(Transform targetTransform)
+* StressLevelZero.Player.HandPoseTarget (game/StressLevelZero.Player/HandPoseTarget.cs): Maps a controller model to the hand's visual rotation offset and local hand transform.
+    field handedness, sourceHandedness: Handedness
+    field handTransform: Transform; handPoseTarget: string
+    field controllerInfos: List<ControllerInfo>
+    method GetHandRotationOffset([Optional] ControllerInfo.Type) -> Quaternion
+    method GetLocalHandTransform(Handedness, out Vector3 position, out Quaternion rotation)
+* StressLevelZero.Player.ControllerInfo (nested enum Type) (game/StressLevelZero.Player/ControllerInfo.cs): Per controller-model data: palm and wrist transforms plus a model enum used to pick hand offsets.
+    field type: ControllerInfo.Type; palmPosition: Vector3; palmRotation, wristRotation: Quaternion; wristDirection: Vector3
+    field enum Type { UNDEFINED = -1, OCCULUS_TOUCH, KNUCKLES, VIVE_WANDS, HOLOGRAPHIC }
+    method ctor(Type t)
+* StressLevelZero.VRMK.PhysHand (game/StressLevelZero.VRMK/PhysHand.cs): Physics hand. A rigidbody is pulled toward the controller target by forces and torques, and grip input modulates friction and torque. It governs hand-follows-controller, not finger poses.
+    field handPhysState: HandPhysState {Empty, RbOneHand, RbTwoHand, StaticOneHand, StaticTwoHand}
+    field forceMultiplier, maxTorque, gripMult, dampening, angDampening: float
+    field TorqueMultiplier: AnimationCurve; handSupported: float
+    field bodyJ: ConfigurableJoint; physBody: PhysBody; otherHand: PhysHand
+    method UpdateHand(Vector3 targetLocalPos, Quaternion targetRotation, float armlength, ConfigurableJoint joint, Vector3 shoulderWorld, float bodyDominance, float gripInput)
+    method ApplyForce(...), ApplyTorque(...)
+    method SetFriction(float grip), RelaxTorqueMult(float grip)
+    method CheckStuck(float), ArmMantle()
+* PuppetMasta.SubBehaviourHandPose (nested enum HandPose, struct LocalPoseData) (game/PuppetMasta/SubBehaviourHandPose.cs): AI or NPC hand pose behaviour. Keeps snapshot, target and current LocalPoseData per hand, updates at a fixed rate, and blends with per-finger parameters. The only Pistol and PistolOffhand pose assets in the decompile are here.
+    field enum HandPose { Fist, LooseFist, RelaxedOpen, WideOpen, ThumbsUp, IndexPoint, FingerGun, MiddleFinger, Custom }
+    field OpenHand, Fist, Pistol, PistolOffhand: HandPoseData
+    field leftHandRefs, rightHandRefs: Transform[]
+    field _leftCurrent, _leftSnapshot, _leftTarget (and right): LocalPoseData
+    field _blendingWeightLeft/Right, _deltaMultLeft/Right, _deltaTime, _updateSeconds, updateFps: float
+    field _fingerCurls: float[]
+    field LocalPoseData: same field layout as HandPoseData
+    method SetHandPose(HandPose targetPose, int handIndex, float blendTime, float thumb, index, middle, ring, pinky)
+    method SetTargetPose(HandPoseData targetPose, int handIndex, float blendTime)
+    method CapturePose(Transform[] captureRefs, HandPoseData storeDataTo) - authoring capture
+    method PoseFingerCurl(HandPoseData open, HandPoseData closed, ref LocalPoseData saveTo, float thumbT, indexT, middleT, ringT, pinkyT)
+    method LerpPose(LocalPoseData from, LocalPoseData to, ref LocalPoseData saveTo, float t)
+    method CopyPoseData(HandPoseData, ref LocalPoseData); OnUpdate(); ApplyPoseToTransforms(LocalPoseData, Transform[])
+* Boneworks.HandPoseAsset (game/Boneworks/HandPoseAsset.cs): Full-skeleton hand snapshot (SaveableObject): one local transform per bone plus index links for the hierarchy. It is a separate library format, not the StressLevelZero.Data pose types.
+    field tag: string
+    field joints: HandPoseJoint[]
+    field links: IndexLink[]; indexLinks: List<IndexLink>
+    method Generate(string tag, Transform t)
+    method Mirror() - builds the opposite hand (inferred)
+    method GenerateLinksRecursive(Transform, Transform[]); GetTransformIndex(Transform, Transform[]) -> int
+* Boneworks.HandPoseLibrary (game/Boneworks/HandPoseLibrary.cs): Container (SaveableObject) of HandPoseAsset entries.
+    field handPoseAssets: List<HandPoseAsset>
+    method GetPoseNames(ref string[] names)
+    method Add(HandPoseAsset)
+* Boneworks.HandPoseJoint and Boneworks.IndexLink (structs) (game/Boneworks/HandPoseJoint.cs): HandPoseJoint is one bone as explicit-layout local position (offset 0) and rotation (offset 12). IndexLink is an int parent and int child pair that describes the hierarchy. IndexLink.cs is in the same folder.
+    field HandPoseJoint: localPosition: Vector3; localRotation: Quaternion
+    field IndexLink: parent: int; child: int
+    method IndexLink(int parent, int child)
+* Boneworks.HandPoseGenerator (game/Boneworks/HandPoseGenerator.cs): MonoBehaviour with no visible members beyond its constructor. Probably an editor-side helper for building HandPoseAssets (inferred).
+    method ctor() only
+* StressLevelZero.Utilities.AnimationGroup (AnimationRadius not located) (game/StressLevelZero.Utilities/AnimationGroup.cs): Named animation group with per-radius entries. Referenced by HandPose2AnimationManager.animationGroups. The AnimationRadius type was not found in the game folder.
+    field animationName: string
+    field radii: Il2CppReferenceArray<AnimationRadius>
+    method ctor() only
