@@ -2027,15 +2027,93 @@ namespace RavenfieldVR.Weapons
                 // few centimetres against the gun: a fresh magazine went in beside the well (an M1911's 4 cm, a P220's 4.4).
                 Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
-            else if (Rig.Magazine != null && ammo != null && d.Action == ActionType.SingleShot && !ammo.UsesDetachableMag && ammo.MagRounds > 0
-                     && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading)
-                     && (d.MagSeat.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f)
+            bool rocketLoaded = Rig.Magazine != null && ammo != null && d.Action == ActionType.SingleShot && !ammo.UsesDetachableMag && ammo.MagRounds > 0
+                                && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading)
+                                && (d.MagSeat.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f;
+            if (rocketLoaded)
             {
                 // A launcher loaded by hand shows its rocket on its seat: the game parks a fired one away (the Panzerfaust 3's
                 // warhead 30 m off) and only its own reload animation, which a hand-loaded launcher never plays, brings it
                 // back; the launcher looked empty once loaded.
                 Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
+            ShowLoadedRocket(rocketLoaded);
+        }
+
+        private readonly HashSet<Renderer> _rocketRenderersOn = new HashSet<Renderer>();
+        private readonly HashSet<GameObject> _rocketObjectsOn = new HashSet<GameObject>();
+        private readonly Dictionary<Transform, Vector3> _rocketScalesRestored = new Dictionary<Transform, Vector3>();
+
+        /// <summary>
+        /// While a launcher is loaded, its rocket as it shows loaded is drawn: parts the game shrank to nothing get their scale
+        /// back, renderers and objects it switched off after the shot are switched on (the Panzerfaust 3's warhead stayed
+        /// hidden on a launcher loaded by hand: placing it on its seat was not enough). What this switched on is switched
+        /// off again once it is fired, so the game's own hiding is left as it was (it hides nothing a second time).
+        /// </summary>
+        private void ShowLoadedRocket(bool loaded)
+        {
+            if (loaded)
+            {
+                for (int i = 0; i < Rig.MagazineParts.Length && i < Rig.MagazinePartScales.Length; i++)
+                {
+                    Transform p = Rig.MagazineParts[i];
+                    if (p == null || Rig.MagazineHideOnly.Contains(p) || p.localScale.sqrMagnitude > 1e-6f || Rig.MagazinePartScales[i].sqrMagnitude < 1e-6f)
+                    {
+                        continue;
+                    }
+                    if (!_rocketScalesRestored.ContainsKey(p))
+                    {
+                        _rocketScalesRestored[p] = p.localScale;
+                    }
+                    p.localScale = Rig.MagazinePartScales[i];
+                }
+                foreach (Renderer r in Rig.MagShownLoaded)
+                {
+                    if (r == null)
+                    {
+                        continue;
+                    }
+                    if (!r.gameObject.activeSelf)
+                    {
+                        r.gameObject.SetActive(true);
+                        _rocketObjectsOn.Add(r.gameObject);
+                    }
+                    if (!r.enabled)
+                    {
+                        r.enabled = true;
+                        _rocketRenderersOn.Add(r);
+                    }
+                }
+                return;
+            }
+            if (_rocketRenderersOn.Count == 0 && _rocketObjectsOn.Count == 0 && _rocketScalesRestored.Count == 0)
+            {
+                return;
+            }
+            foreach (Renderer r in _rocketRenderersOn)
+            {
+                if (r != null)
+                {
+                    r.enabled = false;
+                }
+            }
+            foreach (GameObject g in _rocketObjectsOn)
+            {
+                if (g != null)
+                {
+                    g.SetActive(false);
+                }
+            }
+            foreach (KeyValuePair<Transform, Vector3> kv in _rocketScalesRestored)
+            {
+                if (kv.Key != null)
+                {
+                    kv.Key.localScale = kv.Value;
+                }
+            }
+            _rocketRenderersOn.Clear();
+            _rocketObjectsOn.Clear();
+            _rocketScalesRestored.Clear();
         }
 
         private bool _slideMoved;
