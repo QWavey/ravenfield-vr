@@ -86,6 +86,10 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual)
             {
+                if (Data.Action == ActionType.SingleShot && !Ammo.UsesDetachableMag && Ammo.MagRounds > 0)
+                {
+                    MagazineProp.KeepLoadedLook(Rig); // its rocket as it sits loaded: the one from the pouch is drawn with it
+                }
                 if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side))
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);
@@ -1079,8 +1083,10 @@ namespace RavenfieldVR.Weapons
                 bool grip = prop.Kind == PropKind.Magazine && WellInGrip;
                 // A rocket is lined up at the launcher's mouth, an arm's length out on a shouldered launcher: taken more
                 // loosely too (it was close to impossible to start).
+                // Only at the tube's mouth: a rocket goes in at the front, its tail first (user, 2026-10-16); held beside the
+                // tube with its tail level with the middle, it was taken into the tube from the side.
                 bool rocket = prop.Kind == PropKind.Rocket;
-                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f && along < prop.RailLength
+                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f && along < (rocket ? RocketTakenIn : prop.RailLength)
                              && angle < (grip || rocket ? 40f : 35f);
                 if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
                 {
@@ -1111,10 +1117,7 @@ namespace RavenfieldVR.Weapons
                 // Started straight into a well inside the grip: the rail takes it home (see below), whatever the hand does.
                 // A damped spring (about a third of a second, at most 0.6 m/s), not a constant 0.9 m/s: the hand turning
                 // from holding it into pushing it home (PushPalm) was over in a tenth of a second and never seen.
-                // A rocket's 30-70 cm in the tube quicker (at 0.6 m/s a Panzerfaust's took over a second and was let go short).
-                bool rocketIn = prop.Kind == PropKind.Rocket;
-                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, rocketIn ? 0.12f : 0.09f, rocketIn ? 1.6f : 0.6f,
-                    Mathf.Min(Time.unscaledDeltaTime, 0.05f));
+                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, 0.09f, 0.6f, Mathf.Min(Time.unscaledDeltaTime, 0.05f));
                 if (prop.RailDepth >= prop.RailLength - 0.001f)
                 {
                     _pullingIn = null;
@@ -1124,7 +1127,10 @@ namespace RavenfieldVR.Weapons
             }
             // On the rail: the hand pushes the prop along the axis only (from where it took it, when pulled out).
             along -= prop.RailHandOffset;
-            if (along < -0.03f || lateral > 0.07f + prop.RailLateral0)
+            // A rocket in the tube is held by the tube: it comes out only the way it went in, back out of the mouth. The hand
+            // off its line leaves it on the line (it came off sideways through the tube's wall) until the hand is 35 cm off.
+            bool inTube = prop.Kind == PropKind.Rocket && prop.RailDepth > 0.03f;
+            if (along < -0.03f || lateral > (inTube ? 0.35f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
                 prop.RailHandOffset = 0f;
@@ -1160,24 +1166,28 @@ namespace RavenfieldVR.Weapons
             {
                 SeatProp(off, prop);
             }
-            else if (goingIn && (prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f
-                     || prop.Kind == PropKind.Rocket && prop.RailDepth >= prop.RailLength * 0.15f))
+            else if (goingIn && prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
             {
-                // (A rocket started into the tube slides home the same way: pushing it the whole way in front of a
-                // shouldered launcher was out of reach.)
                 // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
-                // the way in. A quarter of the way in and straight, it is drawn home the rest of the way.
+                // the way in. A quarter of the way in and straight, it is drawn home the rest of the way. A rocket is not:
+                // it slides into the tube with the hand the whole way, the hand never letting go of it (user, 2026-10-16).
                 _pullingIn = prop;
-                prop.DepthVel = Mathf.Max(0f, (prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f)); // on from the hand's speed
+                // On from the hand's speed, but no faster than the spring's own 0.6 m/s (a 2 m/s push seated it in a frame or
+                // two; bug hunt 2026-10-16).
+                prop.DepthVel = Mathf.Clamp((prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f), 0f, 0.6f);
                 off.Haptic(0.012f, 160f, 0.35f);
             }
         }
+
+        /// <summary>How far past the tube's mouth a rocket's tail may be when it is taken onto the line (it goes in at the front).</summary>
+        private const float RocketTakenIn = 0.08f;
 
         /// <summary>
         /// A rocket at the launcher's mouth, loosely held: its tail (the end that goes in) within 12 cm of the tube's line
         /// at the muzzle, the rocket pointing into the tube within 60 degrees. Tail first only, as an RPG is loaded and as the
         /// rocket is drawn on the line: taken by its warhead end it was drawn a rocket's length away from the hand, or
-        /// turned over (85-agent review). <paramref name="depth"/>: how far in its tail already is.
+        /// turned over (85-agent review). At the mouth only, no deeper than <see cref="RocketTakenIn"/>: held beside the tube
+        /// it was taken in from the side. <paramref name="depth"/>: how far in its tail already is.
         /// </summary>
         private static bool LooselyLined(MagazineProp prop, RigidPose hold, RigidPose seat, Vector3 insert, out float depth)
         {
@@ -1188,7 +1198,7 @@ namespace RavenfieldVR.Weapons
             depth = Mathf.Max(0f, along);
             float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
             float angle = Vector3.Angle(tail - nose, insert);
-            return lateral < 0.12f && along > -0.12f && along < prop.RailLength && angle < 60f;
+            return lateral < 0.12f && along > -0.12f && along < RocketTakenIn && angle < 60f;
         }
 
         /// <summary>
@@ -1974,8 +1984,25 @@ namespace RavenfieldVR.Weapons
             palmAtEntry = new RigidPose(tailAtMouth + tilt * (palmAtEntry.position - tailAtMouth), tilt * palmAtEntry.rotation);
             float rail = rocket.RailLength;
             System.Func<float, RigidPose> along = d => new RigidPose(palmAtEntry.position + insert * d, palmAtEntry.rotation);
+            // The palm that holds the rocket at a pose of its own (the hand holds it as HoldPose puts it).
+            RigidPose holdToPalm = rocket.HoldPose(off).Inverse().Multiply(off.Palm);
+            RigidPose seatedPose = SeatPose;
+            Vector3 aimW = Rig.AimWorld, upW = Rig.UpWorld, rightW = Vector3.Cross(upW, aimW).normalized;
+            Vector3 midLocal = (rocket.TipLocal + rocket.BaseLocal) * 0.5f;
+            Quaternion toLocalFrame = Quaternion.Inverse(Quaternion.LookRotation(rocket.InsertDirLocal, rocket.FrontLocal));
+            System.Func<Vector3, Vector3, Vector3, RigidPose> palmHolding = (mid, axisW, frontW) =>
+            {
+                Quaternion r = Quaternion.LookRotation(axisW, frontW) * toLocalFrame;
+                return new RigidPose(mid - r * midLocal, r).Multiply(holdToPalm);
+            };
+            Vector3 tubeMid = seatedPose.TransformPoint(rocket.TipLocal); // the seated tail: inside the tube, behind its mouth
             RigidPose start = off.Palm;
             bool watchBack = false, linedSeen = false;
+            // Into the launcher's side (beside the tube, then across it from above): how much of the drawn rocket is inside the
+            // launcher, and whether it was taken in from there (user, 2026-10-16: it went through the launcher).
+            bool watchSide = false, fromSide = false, pushing = false, loadedWhilePushing = false;
+            int sideInside = 0, sideSamples = 0;
+            float lead = 0f, handAtLoad = -1f;
             float linedAhead = float.NaN;
             Vector3 aimG = Data.AimAxis.normalized;
             float tubeFrontG = MagazineProp.TubeFront(Rig, aimG, out float tfG) ? tfG : Vector3.Dot(Data.MuzzlePoint, aimG);
@@ -1989,6 +2016,24 @@ namespace RavenfieldVR.Weapons
                 if (watchBack && (held.OnRail || Ammo.MagRounds > 0))
                 {
                     fromBehind = true; // every frame of the probe at the back, not only its end
+                }
+                if (watchSide)
+                {
+                    fromSide |= held.OnRail || Ammo.MagRounds > 0;
+                    int inside = 0;
+                    const int k = 24;
+                    for (int i = 0; i <= k; i++)
+                    {
+                        inside += _held.InsideDrawnGun(held.Go.transform.TransformPoint(Vector3.Lerp(held.BaseLocal, held.TipLocal, i / (float)k))) ? 1 : 0;
+                    }
+                    sideInside = Mathf.Max(sideInside, inside);
+                    sideSamples = k + 1;
+                }
+                if (pushing && held.OnRail)
+                {
+                    // The rocket goes in with the hand: never ahead of where the hand has pushed it.
+                    float hand = Mathf.Clamp(HandAlongRail(off, held, out _) - held.RailHandOffset, 0f, held.RailLength);
+                    lead = Mathf.Max(lead, held.RailDepth - hand);
                 }
                 if (!watchBack && !linedSeen && held.OnRail)
                 {
@@ -2028,16 +2073,65 @@ namespace RavenfieldVR.Weapons
                 {
                     offRail.OnRail = false;
                 }
+                // Beside the tube, lying along it as it sits seated, pushed sideways into it; then held across the tube and
+                // brought down onto it from above.
+                start = off.Palm;
+                RigidPose besideOut = seatedPose.Multiply(new RigidPose(Quaternion.Inverse(seatedPose.rotation) * (rightW * 0.3f), Quaternion.identity)).Multiply(holdToPalm);
+                yield return Move(s => new RigidPose(Vector3.Lerp(start.position, besideOut.position, s), Quaternion.Slerp(start.rotation, besideOut.rotation, s)), 0.6f, "beside the tube");
+                watchSide = true;
+                yield return Move(s =>
+                {
+                    RigidPose p = seatedPose.Multiply(new RigidPose(Quaternion.Inverse(seatedPose.rotation) * (rightW * (0.3f * (1f - s))), Quaternion.identity));
+                    return p.Multiply(holdToPalm);
+                }, 0.7f, "into the tube's side");
+                watchSide = false;
+                if (off.Held is MagazineProp offRail2)
+                {
+                    offRail2.OnRail = false;
+                }
+                start = off.Palm;
+                RigidPose above = palmHolding(tubeMid + upW * 0.35f, rightW, aimW);
+                yield return Move(s => new RigidPose(Vector3.Lerp(start.position, above.position, s), Quaternion.Slerp(start.rotation, above.rotation, s)), 0.5f, "across the tube");
+                watchSide = true;
+                yield return Move(s => palmHolding(tubeMid + upW * (0.35f * (1f - s)), rightW, aimW), 0.6f, "down across the tube");
+                watchSide = false;
+                if (off.Held is MagazineProp offRail3)
+                {
+                    offRail3.OnRail = false;
+                }
                 start = off.Palm;
                 RigidPose before = along(-0.25f);
                 yield return Move(s => new RigidPose(Vector3.Lerp(start.position, before.position, s), Quaternion.Slerp(start.rotation, before.rotation, s)), 0.8f, "to the launcher");
                 yield return Move(s => along(-0.25f + 0.25f * s), 0.45f, "lining up");
                 onLine = off.Held is MagazineProp lined && lined.OnRail;
-                yield return Move(s => along(rail * s + 0.01f), 0.7f, "pushing in");
+                pushing = true;
+                float pushT0 = Time.unscaledTime;
+                for (float k = 0f; k < 1f && !loadedWhilePushing; k = (Time.unscaledTime - pushT0) / 1.0f)
+                {
+                    float s = k * k * (3f - 2f * k);
+                    VRHand.Scripted[side] = along(rail * s + 0.01f).Multiply(rawFromPalm);
+                    yield return new WaitForEndOfFrame();
+                    Watch();
+                    frame("pushing in");
+                    yield return null;
+                    if (Ammo.MagRounds > 0)
+                    {
+                        loadedWhilePushing = true; // loaded with the grip still closed: where the hand was then
+                        handAtLoad = s;
+                    }
+                }
+                pushing = false;
+                if (!loadedWhilePushing)
+                {
+                    yield return Move(s => along(rail + 0.01f), 0.2f, "pushing in");
+                    loadedWhilePushing = Ammo.MagRounds > 0;
+                    handAtLoad = loadedWhilePushing ? 1f : -1f;
+                }
                 onLine |= Ammo.MagRounds > 0;
                 loaded = Ammo.MagRounds > 0;
+                yield return Move(s => along(rail + 0.01f), 0.25f, "loaded, still held");
                 VRInput.SimulatedGrab[side] = false;
-                yield return Move(s => along(rail - 0.15f * s), 0.35f, "let go");
+                yield return Move(s => along(rail - 0.15f * s), 0.35f, "hand away");
             }
             finally
             {
@@ -2054,7 +2148,13 @@ namespace RavenfieldVR.Weapons
             report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, {model}, "
                    + $"lined up {Mathf.Abs(mouthAhead) * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "inside")} the tube's front{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}{atHand}, "
                    + $"{(fromBehind ? "TAKEN FROM THE BACK" : "not taken at the back")}, "
-                   + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, {(loaded ? "loaded" : "NOT LOADED")}");
+                   + $"pushed into the launcher's side: {sideInside}/{sideSamples} points of it inside the launcher{(sideInside > 2 ? " (PASSES THROUGH THE LAUNCHER)" : "")}"
+                   + $"{(fromSide ? ", TAKEN IN FROM THE SIDE" : ", not taken in from the side")}, "
+                   + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, "
+                   + $"slid in {(lead > 0.03f ? $"AHEAD OF THE HAND by up to {lead * 100f:0} cm" : $"with the hand (at most {lead * 100f:0.0} cm ahead)")}, "
+                   + $"{(loaded ? loadedWhilePushing ? $"loaded with the hand on it ({handAtLoad * 100f:0}% of the push)" : "loaded" : "NOT LOADED")}");
+            Core.AutoTest.Metric("rocket: points of a rocket pushed into the launcher's side that are inside it", sideInside);
+            Core.AutoTest.Metric("rocket: how far ahead of the hand it slid in (cm)", lead * 100f);
         }
 
         /// <summary>

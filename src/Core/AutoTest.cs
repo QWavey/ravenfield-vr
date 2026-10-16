@@ -3331,7 +3331,7 @@ namespace RavenfieldVR.Core
         /// Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE
         /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them).
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)");
 
         private static string FirstFrames(Exception e)
         {

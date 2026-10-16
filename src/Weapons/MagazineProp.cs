@@ -495,7 +495,13 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = rig.Data;
             bounds = d.MagBounds;
-            GameObject go = CopyVisuals(rig);
+            GameObject go = kind == PropKind.Rocket ? LoadedLook(d.Key) : null;
+            if (go != null)
+            {
+                bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                return go;
+            }
+            go = CopyVisuals(rig);
             if (go == null)
             {
                 return null;
@@ -535,6 +541,101 @@ namespace RavenfieldVR.Weapons
             {
                 Object.Destroy(go); // not a rocket (a fuse, a cap): the made one instead
                 return null;
+            }
+            return go;
+        }
+
+        /// <summary>
+        /// Each launcher's rocket as it looks seated and loaded (key: the weapon), copied while it shows so. A rocket from the
+        /// pouch comes after the shot, and by then the game has shrunk the launcher's rocket to a few percent and moved it
+        /// half a metre (the five RPG-7V variants, the scoped RPG-7V): that copy failed its check and the hand held the made
+        /// olive stand-in instead of the launcher's own warhead (user, 2026-10-16).
+        /// </summary>
+        private static readonly Dictionary<string, GameObject> LoadedLooks = new Dictionary<string, GameObject>();
+        private static readonly Dictionary<string, float> LoadedLookTried = new Dictionary<string, float>();
+        private static GameObject _loadedLooksHolder;
+
+        /// <summary>
+        /// While a loaded launcher is held: a copy of its rocket as it shows now, kept when it measures as the analysis did
+        /// (its size within half again, its middle within 3 cm; rocket-sized when the analysis found no box). Tried at most
+        /// twice a second until one is kept, then never again for that launcher.
+        /// </summary>
+        internal static void KeepLoadedLook(WeaponRig rig)
+        {
+            string key = rig.Data.Key;
+            if (LoadedLooks.ContainsKey(key) || !CopiesModel(rig, PropKind.Rocket)
+                || LoadedLookTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + 0.5f)
+            {
+                return;
+            }
+            LoadedLookTried[key] = Time.unscaledTime;
+            GameObject go = CopyVisuals(rig);
+            if (go == null)
+            {
+                return;
+            }
+            Bounds analysed = rig.Data.MagBounds;
+            Bounds b = MeasureCopy(go, out bool any);
+            float size = b.size.magnitude, expected = analysed.size.magnitude;
+            bool fits = any && Longest(b) >= 0.12f && Longest(b) < 1.6f
+                        && (expected < 0.02f || size > expected / 1.5f && size < expected * 1.5f && (b.center - analysed.center).magnitude < 0.03f);
+            if (!fits)
+            {
+                Object.Destroy(go);
+                return;
+            }
+            if (_loadedLooksHolder == null)
+            {
+                _loadedLooksHolder = new GameObject("RavenfieldVR loaded rockets");
+                _loadedLooksHolder.SetActive(false); // kept, never drawn
+                Object.DontDestroyOnLoad(_loadedLooksHolder);
+            }
+            go.transform.SetParent(_loadedLooksHolder.transform, false);
+            go.name = "rocket " + key;
+            LoadedLooks[key] = go;
+            Log.InfoOnce("rocketlook:" + key, $"Rocket of {key} copied as it sits loaded: {go.GetComponentsInChildren<MeshFilter>(true).Length} mesh(es), {Longest(b) * 100f:0} cm long.");
+        }
+
+        /// <summary>A new copy of the launcher's rocket as it looked loaded; null when none was kept (or its meshes are gone).</summary>
+        private static GameObject LoadedLook(string key)
+        {
+            if (!LoadedLooks.TryGetValue(key, out GameObject look))
+            {
+                return null;
+            }
+            bool whole = look != null;
+            if (whole)
+            {
+                foreach (MeshFilter mf in look.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    whole &= mf.sharedMesh != null;
+                }
+            }
+            if (!whole)
+            {
+                // Its meshes unloaded with their content pack: copied again the next time it shows loaded.
+                if (look != null)
+                {
+                    Object.Destroy(look);
+                }
+                LoadedLooks.Remove(key);
+                return null;
+            }
+            GameObject go = Object.Instantiate(look);
+            foreach (OwnedMesh owned in go.GetComponentsInChildren<OwnedMesh>(true))
+            {
+                if (owned.Mesh != null)
+                {
+                    // A baked mesh is the kept copy's own: this one gets its own, or dropping it would take the kept one's.
+                    Mesh own = Object.Instantiate(owned.Mesh);
+                    own.name = owned.Mesh.name;
+                    MeshFilter mf = owned.GetComponent<MeshFilter>();
+                    if (mf != null)
+                    {
+                        mf.sharedMesh = own;
+                    }
+                    owned.Mesh = own;
+                }
             }
             return go;
         }
@@ -1018,15 +1119,18 @@ namespace RavenfieldVR.Weapons
             Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
             // pinky, which lay flat along it and stuck out straight (the "pinky bug"); now the pinky curls toward the base
-            // plate in line with the others (tools/hands/grip_check.py). Shells and rockets are pinched in the middle.
-            float gripAt = Kind == PropKind.Magazine ? (PistolSized ? 0.12f : 0.15f) : 0.5f;
+            // plate in line with the others (tools/hands/grip_check.py). Shells are pinched in the middle. A rocket is held
+            // by its front part, 6 cm out past what goes into the tube: the hand pushes it in up to the mouth and stays out
+            // (it slides in with the hand now, and by its middle the glove went 11 cm into an RPG-7's tube).
+            float length = Vector3.Distance(BaseLocal, TipLocal);
+            float gripAt = Kind == PropKind.Magazine ? (PistolSized ? 0.12f : 0.15f)
+                           : Kind == PropKind.Rocket && length > 0.05f ? Mathf.Clamp(1f - (RailLength + 0.06f) / length, 0.12f, 0.5f) : 0.5f;
             Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
             Vector3 pos = palm.position - rot * held;
             // Resting against the palm, not half inside it. The grip point (the fist hollow) lies at the palm's skin, so a
             // prop centred on it was half in the hand, and the glove, settling onto it, left the real hand: 1.8 cm for a
             // rifle magazine, 2.0 for an AK's, the full 4 cm for a machine gun's box (tools/hands/grip_check.py). Out along
             // the palm's normal by the palm's skin over the part it covers, plus its own half thickness.
-            float length = Vector3.Distance(BaseLocal, TipLocal);
             float zHold = VRHand.FistHollow.z, yHold = VRHand.FistHollow.y;
             float rest = Rig.HandModel.PalmSurfaceFromGrip(zHold - _frontHalf, zHold + _frontHalf, yHold - gripAt * length, yHold + (1f - gripAt) * length) + _sideHalf;
             pos += palm.rotation * new Vector3(-hand.Mirror, 0f, 0f) * rest;
@@ -1313,6 +1417,14 @@ namespace RavenfieldVR.Weapons
             ShapeHand();
             TakeRenderedShape();
             ShowAt(railPose);
+            // Off the line again it goes from here toward the hand (from where it was drawn before it went on, a rocket
+            // pulled out of the tube's mouth went back through the launcher to its side).
+            HeldWeapon gunNow = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            if (gunNow != null && gunNow.Rig.GunBody != null)
+            {
+                _drawnInGun = gunNow.Rig.ToGun(railPose.position);
+                _drawnFor = gunNow;
+            }
             if (HeldBy != null && HeldBy.Model != null)
             {
                 // The palm such that this magazine, at its pose on the line, sits in the hand as HoldPose puts it.
@@ -1382,6 +1494,7 @@ namespace RavenfieldVR.Weapons
         private Vector3 _keptOut;
         internal Vector3 KeptOut => _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
+        private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
         private Vector3 _drawnInGun;
         private HeldWeapon _drawnFor;
@@ -1392,38 +1505,49 @@ namespace RavenfieldVR.Weapons
         /// open to it (the rail takes it from there, and a fresh one pushed into the seated one kicks it out: those go by
         /// the hand). Only checking where the hand is now let a hard or fast push through: a magazine past the middle of
         /// the receiver came out the far side, and one buried deeper than the search reached went straight through.
+        /// A rocket the same against its launcher (user, 2026-10-16: it went through the tube): it goes in only at the
+        /// tube's mouth, on its line, where it is no longer kept out.
         /// </summary>
         private RigidPose KeepOffGun(RigidPose target)
         {
             HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
             Vector3 drawn = target.position;
-            if (solid != null && HeldBy != null && Kind == PropKind.Magazine && gun.Rig.GunBody != null
-                && (target.position - gun.GripWorld.position).sqrMagnitude < 0.7f * 0.7f)
+            bool rocket = Kind == PropKind.Rocket;
+            if (solid != null && HeldBy != null && (Kind == PropKind.Magazine || rocket) && gun.Rig.GunBody != null
+                && (target.position - gun.GripWorld.position).sqrMagnitude < (rocket ? 1.6f * 1.6f : 0.7f * 0.7f))
             {
                 WeaponRigData d = gun.Rig.Data;
                 RigidPose seat = gun.Rig.GunBodyPose.Multiply(d.MagSeat);
                 Bounds well = d.MagBounds;
                 well.Expand(0.03f);
-                // Points over the magazine: five along it, each at its middle and four edges.
+                // Points over the magazine: five along it, each at its middle and four edges. A rocket every 6 cm along it
+                // (a launcher's tube is a few centimetres thick: five points over a metre of rocket would pass it between
+                // them), half way out to its edges (its box is the warhead's: the thin tail would stop short of the tube).
                 Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+                Vector3[] points = rocket ? RocketSamples : Samples;
+                int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : 5;
+                float edge = rocket ? 0.5f : 0.8f;
                 int n = 0;
-                for (int a = 0; a < 5; a++)
+                for (int a = 0; a < along; a++)
                 {
-                    Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / 4f);
-                    Samples[n++] = c;
-                    Samples[n++] = c + FrontLocal * (_frontHalf * 0.8f);
-                    Samples[n++] = c - FrontLocal * (_frontHalf * 0.8f);
-                    Samples[n++] = c + side * (_sideHalf * 0.8f);
-                    Samples[n++] = c - side * (_sideHalf * 0.8f);
+                    Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(along - 1));
+                    points[n++] = c;
+                    points[n++] = c + FrontLocal * (_frontHalf * edge);
+                    points[n++] = c - FrontLocal * (_frontHalf * edge);
+                    points[n++] = c + side * (_sideHalf * edge);
+                    points[n++] = c - side * (_sideHalf * edge);
                 }
+                int count = n;
                 Quaternion rot = target.rotation;
                 bool BlockedAt(Vector3 at)
                 {
-                    for (int i = 0; i < Samples.Length; i++)
+                    for (int i = 0; i < count; i++)
                     {
-                        Vector3 p = at + rot * Samples[i];
-                        if (solid(p) && !well.Contains(seat.InverseTransformPoint(p)))
+                        Vector3 p = at + rot * points[i];
+                        // A rocket has no well open to it from the side: where it sits seated is the tube's front itself,
+                        // and left open, a rocket held across the launcher went straight through the tube there.
+                        if (solid(p) && (rocket || !well.Contains(seat.InverseTransformPoint(p))))
                         {
                             return true;
                         }
