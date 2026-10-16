@@ -35,6 +35,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Regex NotMagName = new Regex(
             @"release|catch|button|latch|controll?er|控制器|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
+            // A safety, a cap or lid, a carry handle or sling (保险, 桶盖, 提把): the AT-1K's controller unit with its safety
+            // was taken for its rocket.
+            + @"|safety|(^|[^a-z])(end ?)?caps?($|[^a-z])|(^|[^a-z])lid($|[^a-z])|sling|carry ?handle|保险|桶盖|提把"
             // Optics: a magnifier's "Mag 2x" glass is not a magazine; a calibre is not a magnification ("mag_9x19",
             // "7.62x39 mag" were taken for optics and their magazines lost).
             + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9.])(?!(\d+\.\d+|9|10)x(1[7-9]|[2-9]\d|1\d\d)(?!\d))\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
@@ -2078,6 +2081,10 @@ namespace RavenfieldVR.Weapons
                     // A launcher's rocket by its name may be parked away by the reload (that is how its animation hides it:
                     // the Panzerfaust 3's warhead "弹药" waits 30 m off while a new tube comes in).
                     bool parkedRocket = launcher && IsMagName(t.name) && m > 1.5f;
+                    if (launcher && NotMagName.IsMatch(t.name))
+                    {
+                        continue; // a launcher's controller, sight, safety or cap that its tube swap moves is never its rocket
+                    }
                     if (m < 0.03f || m > 1.5f && fromGrip > 0.3f && !parkedRocket)
                     {
                         // Still, or parked far away (belt links, spare rounds). A magazine sitting in the gun may well fly
@@ -2144,6 +2151,7 @@ namespace RavenfieldVR.Weapons
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
                             || gunBody != null && gunBody.IsChildOf(p) // never up into what holds the gun body (the launcher itself)
+                            || d.Action == ActionType.SingleShot && NotMagName.IsMatch(p.name) // nor a launcher's controller or sight
                             || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p)
                             || OpticName.IsMatch(p.name) && !MagName.IsMatch(p.name))
                         {
@@ -2238,7 +2246,7 @@ namespace RavenfieldVR.Weapons
                         break; // the launcher itself (it holds the grip or the gun body): the Panzerfaust 3 handed out its whole launcher
                     }
                     float size = Longest(upBounds);
-                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up) && HoldsRocketSizedMesh(up))
+                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up) && HoldsRocketSizedMesh(up) && !NotMagName.IsMatch(up.name))
                     {
                         d.Notes += $"rocket taken as '{up.name}', {size * 100f:0} cm (its part '{mag.name}' is too small for one) ";
                         mag = up;
