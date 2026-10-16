@@ -25,6 +25,8 @@ namespace RavenfieldVR.Weapons
         public int Spare = -1;
         /// <summary>The player's own weapon put down in a swap: the only copy of it, never culled.</summary>
         public bool Keep;
+        /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
+        public float Reach;
         /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
         public int[] SubAmmo;
         /// <summary>The key the weapon's rig is analysed under (magazines name it), when known.</summary>
@@ -168,6 +170,7 @@ namespace RavenfieldVR.Weapons
             PropPhysics.IgnorePlayer(boxes);
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
+            drop.Reach = ReachOf(root.transform, boxes);
             // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
             // step, or that step pushes the weapon out of them and it skids or floats away.
             PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
@@ -733,6 +736,34 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// A radius about the drop's root that holds every one of its colliders. The colliders are rigidly parented to the
+        /// root at unit scale, so the distance from the root to a collider's centre does not change as the drop tumbles; the
+        /// world-box extent over-bounds the collider in any orientation. Over-estimating only skips less, never a reachable
+        /// drop, so <see cref="Nearest"/> stays exact.
+        /// </summary>
+        private static float ReachOf(Transform root, List<Collider> colliders)
+        {
+            float reach = 0f;
+            if (colliders != null)
+            {
+                Vector3 origin = root.position;
+                foreach (Collider c in colliders)
+                {
+                    if (c == null)
+                    {
+                        continue;
+                    }
+                    float r = (c.bounds.center - origin).magnitude + c.bounds.extents.magnitude;
+                    if (r > reach)
+                    {
+                        reach = r;
+                    }
+                }
+            }
+            return reach;
+        }
+
         private DroppedWeapon Nearest(Vector3 palm)
         {
             DroppedWeapon best = null;
@@ -740,6 +771,12 @@ namespace RavenfieldVR.Weapons
             foreach (DroppedWeapon d in _drops)
             {
                 if (d.Go == null || d.Colliders == null)
+                {
+                    continue;
+                }
+                // One native read for the whole drop first: its root cannot have a collider within bestDist of the palm when
+                // the root is farther than bestDist + its reach (every collider lies within reach of the root).
+                if (d.Reach > 0f && (d.Go.transform.position - palm).sqrMagnitude > (bestDist + d.Reach) * (bestDist + d.Reach))
                 {
                     continue;
                 }
@@ -843,7 +880,9 @@ namespace RavenfieldVR.Weapons
                     Remove(d);
                 }
             }
-            // Weapons kept after a swap pile up only so far: past six, the oldest of them goes (the drop cap left them out).
+            // Weapons kept after a swap pile up only so far: past six, the oldest of them stops being kept. It is the only
+            // copy of that weapon, so it is not deleted outright (that lost the first swapped-away gun of a long fight on the
+            // seventh swap); it becomes an ordinary drop with a fresh lifetime, still grabbable, and goes on the normal timer.
             int kept = 0;
             foreach (DroppedWeapon d in _drops)
             {
@@ -853,8 +892,8 @@ namespace RavenfieldVR.Weapons
             {
                 if (_drops[i].Keep && _drops[i].OwnerSlot < 0)
                 {
-                    Remove(_drops[i]);
-                    i--;
+                    _drops[i].Keep = false;
+                    _drops[i].DropTime = Time.time;
                     kept--;
                 }
             }
@@ -977,6 +1016,7 @@ namespace RavenfieldVR.Weapons
                 OwnedMeshes = baked,
                 Semi = FireSelector.IsSemiByPlayer(w)
             };
+            drop.Reach = ReachOf(root.transform, colliders);
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);
             return drop;
@@ -1074,7 +1114,11 @@ namespace RavenfieldVR.Weapons
                 }
                 if (actor.dead || d.OwnerSlot >= actor.weapons.Length || actor.weapons[d.OwnerSlot] != null)
                 {
-                    d.OwnerSlot = -1; // its place is taken: an ordinary drop from now on
+                    // Its slot is taken (you picked something else up into it), so it cannot go back to the holster. It is
+                    // still the only copy of that weapon, though, so it is kept like a swapped-away one rather than left to
+                    // expire and vanish from both the ground and the loadout 90 s after the drop (85-agent review).
+                    d.OwnerSlot = -1;
+                    d.Keep = true;
                     continue;
                 }
                 // Into the holster, not the hand: the slot must not look like the active one while it is spawned.
