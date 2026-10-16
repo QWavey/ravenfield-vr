@@ -101,6 +101,14 @@ namespace RavenfieldVR.Weapons
         public Vector3 RackPointGun { get; private set; }
         private bool _rackSnapped;
         private readonly ArmIK _armIK;
+        /// <summary>The weapon's own right / left arm bones as ArmIK resolves them (root, upper, lower, hand); null: no chain.</summary>
+        private readonly Transform[] _armRightBones, _armLeftBones;
+
+        private static Transform[] ResolveArm(Transform root, ArmChain chain) => chain == null ? null
+            : new[] { WeaponRig.Resolve(root, chain.Root), WeaponRig.Resolve(root, chain.Upper), WeaponRig.Resolve(root, chain.Lower), WeaponRig.Resolve(root, chain.Hand) };
+
+        /// <summary>That arm is drawn by ArmIK (the same test as its Arm.Valid: all four bones found).</summary>
+        private static bool ArmDrawn(Transform[] bones) => bones != null && bones[0] != null && bones[1] != null && bones[2] != null && bones[3] != null;
         /// <summary>The weapon's own right and left hands (bones still animated under the hidden arm meshes).</summary>
         private readonly ModHand _gripHand, _supportHand;
 
@@ -197,6 +205,8 @@ namespace RavenfieldVR.Weapons
             if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
             {
                 _armIK = new ArmIK(system, this);
+                _armRightBones = ResolveArm(weapon.transform, rig.Data.ArmRight);
+                _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
             }
             _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
             _isKit = IsKit(weapon);
@@ -1199,7 +1209,16 @@ namespace RavenfieldVR.Weapons
             if (_armIK != null && _armIK.Active)
             {
                 _armIK.Solve();
-                SetHandModelsSuppressed(true);
+                // Only the glove whose arm the weapon draws gives way to it (the model's right arm is the gun arm): a model
+                // with one arm chain hid both gloves, and the other hand was invisible for the whole hold.
+                if (main.Model != null)
+                {
+                    main.Model.Suppressed = ArmDrawn(_armRightBones);
+                }
+                if (off.Model != null)
+                {
+                    off.Model.Suppressed = ArmDrawn(_armLeftBones);
+                }
             }
             else
             {
