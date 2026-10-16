@@ -1757,7 +1757,7 @@ namespace RavenfieldVR.Weapons
         internal Vector3 KeptOut => OnRail && _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : _keptOut;
         private static readonly Vector3[] Samples = new Vector3[25];
         /// <summary>How much bigger than the magazine its well is left open (the whole size: half of it a side).</summary>
-        private const float WellPlay = 0.008f;
+        internal const float WellPlay = 0.008f;
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
         private static readonly Vector3[] SlideAxes = new Vector3[3];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>

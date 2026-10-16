@@ -1483,7 +1483,106 @@ namespace RavenfieldVR.Weapons
                 SnapRackPoint();
             }
             UpdateSeatedMagSolid();
+            FitMagazineLine();
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
+        }
+
+        /// <summary>Analyses whose magazine line has been fitted to the measured shape (once each; a new analysis again).</summary>
+        private static readonly HashSet<WeaponRigData> MagLineFitted = new HashSet<WeaponRigData>();
+
+        /// <summary>
+        /// The line a magazine slides in on, fitted to the gun as it is drawn: from the analysed line, tilted up to 24 degrees
+        /// either way in the gun's side plane, the one along which the least of the magazine (its own drawn shape, a third
+        /// to a quarter of the way out down to the whole rail) passes through the gun outside its well. The analysed line
+        /// came from the reload animation's pull or the magazine's box and was off on whole families: magazines went into
+        /// pistol grips, the HK416-D's and CZ Bren 2's through the trigger guard (user, 2026-10-16: "could be for all
+        /// weapons"). Kept only when clearly better (at most 60% of the points through the gun, 3 fewer at least).
+        /// </summary>
+        private void FitMagazineLine()
+        {
+            WeaponRigData d = Rig.Data;
+            if (MagLineFitted.Contains(d) || _volume == null || !_volume.Ready || _magVolume == null || !_magVolume.Ready
+                || !_magSolidShown || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || d.Action == ActionType.SingleShot
+                || d.MagBounds.size.sqrMagnitude < 1e-6f || d.MagEjectAxis.sqrMagnitude < 0.5f || SlideOffset > 0.002f || Weapon.reloading
+                || !ReferenceEquals(ActiveRig, Rig))
+            {
+                return;
+            }
+            MagLineFitted.Add(d);
+            RigidPose seat = Rig.GunBodyPose.Multiply(d.MagSeat);
+            Bounds mb = d.MagBounds;
+            var points = new List<Vector3>();
+            const int n = 6;
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    for (int k = 0; k < n; k++)
+                    {
+                        Vector3 q = mb.min + Vector3.Scale(mb.size, new Vector3((i + 0.5f) / n, (j + 0.5f) / n, (k + 0.5f) / n));
+                        if (_magVolume.InsideModel(seat.TransformPoint(q)))
+                        {
+                            points.Add(q);
+                        }
+                    }
+                }
+            }
+            if (points.Count < 10)
+            {
+                Log.Info($"{d.Key}: magazine line not fitted (only {points.Count} points of the magazine's drawn shape).");
+                return;
+            }
+            Bounds well = mb;
+            well.Expand(MagazineProp.WellPlay);
+            Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            Vector3 in0 = -d.MagEjectAxis.normalized;
+            int Through(Vector3 inGun)
+            {
+                Vector3 inLocal = (seatInv * inGun).normalized;
+                float half = Mathf.Abs(Vector3.Dot(mb.extents, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
+                float rail = Mathf.Clamp(half * 0.9f, 0.03f, 0.09f); // as MagazineProp's rail
+                int hits = 0;
+                for (int s = 1; s <= 3; s++)
+                {
+                    float back = rail * (0.25f + 0.375f * (s - 1)); // a quarter, five eighths and the whole rail out
+                    foreach (Vector3 q in points)
+                    {
+                        Vector3 p = q - inLocal * back;
+                        if (!well.Contains(p) && _volume.InsideModel(seat.TransformPoint(p)))
+                        {
+                            hits++;
+                        }
+                    }
+                }
+                return hits;
+            }
+            int before = Through(in0), best = before;
+            float bestAngle = 0f;
+            for (int step = 1; step <= 8; step++)
+            {
+                for (int sign = -1; sign <= 1; sign += 2)
+                {
+                    float angle = sign * step * 3f;
+                    int hits = Through(Quaternion.AngleAxis(angle, right) * in0);
+                    if (hits < best)
+                    {
+                        best = hits;
+                        bestAngle = angle;
+                    }
+                }
+            }
+            int total = points.Count * 3;
+            if (bestAngle != 0f && best <= before * 0.6f && before - best >= 3)
+            {
+                d.MagEjectAxis = -(Quaternion.AngleAxis(bestAngle, right) * in0).normalized;
+                d.Notes += $"magazine line fitted to the drawn gun ({bestAngle:0} deg) ";
+                Log.Info($"{d.Key}: magazine line fitted to the drawn gun, turned {bestAngle:0} deg in its side plane: {before}/{total} magazine points went through the gun on the way in, now {best}.");
+            }
+            else
+            {
+                Log.Info($"{d.Key}: magazine line kept ({before}/{total} magazine points through the gun on the way in; the best tilt, {bestAngle:0} deg, {best}).");
+            }
         }
 
         /// <summary>
