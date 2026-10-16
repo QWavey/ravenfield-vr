@@ -1229,6 +1229,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The gun's solid the hands close on, as posed this frame (grown by a finger's radius); null until measured.</summary>
         internal System.Func<Vector3, bool> HandsSolid => _solid;
 
+        /// <summary>The gun's solid for a hand racking the action: recesses (an ejection port) closed over.</summary>
+        private bool ClosedGunSolid(Vector3 p) => _volume.SolidClosed(p) || _magSolidShown && _magVolume.Solid(p);
+
         /// <summary>The point is inside the drawn gun (its measured shape, not grown): what hides a muzzle flash from an eye.</summary>
         internal bool InsideDrawnGun(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideModel(world);
 
@@ -1593,7 +1596,7 @@ namespace RavenfieldVR.Weapons
                 _drawnHandleAt = Rig.ToWorld(RackPointGun + dir * SlideOffset);
                 _drawnHandleAcross = Rig.DirToWorld(Vector3.Cross(dh.Up, dh.AimAxis).normalized);
                 _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
-                return _drawnHandleSolid ?? (_drawnHandleSolid = p => OnDrawnHandle(p) || _solid(p)
+                return _drawnHandleSolid ?? (_drawnHandleSolid = p => OnDrawnHandle(p) || ClosedGunSolid(p)
                                                                      || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
             }
             if (part == null || gun == null)
@@ -1612,7 +1615,7 @@ namespace RavenfieldVR.Weapons
             _partRestInv = Quaternion.Inverse(worked.rotation);
             _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
             return _rackSolid ?? (_rackSolid = p => _partSolid(p)
-                                                     || _solid(p) && !_partVolume.SolidAt(p, _partRestPos, _partRestInv)
+                                                     || ClosedGunSolid(p) && !_partVolume.SolidAt(p, _partRestPos, _partRestInv)
                                                      || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
         }
 

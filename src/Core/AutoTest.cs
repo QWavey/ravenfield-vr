@@ -1088,12 +1088,22 @@ namespace RavenfieldVR.Core
         private static void MagazineSideShot(HeldWeapon held, string file, Vector3 at, float distance)
         {
             Runtime.RigidPose g = held.GripWorld;
-            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
-            // Only the sides whose camera is clear of the weapon's meshes, the left first; both taken: the left.
+            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right, fwd = g.rotation * Vector3.forward;
+            // Only the sides whose camera is clear of the weapon's meshes and sees the spot (no glove right in front of the
+            // lens, no wall between: 35 of the review's pictures showed only the back of the free glove or a building), the
+            // left first, then the right, then from below and ahead on either side.
             var poses = new List<(Vector3?, Quaternion?)>();
-            foreach (Vector3 from in new[] { at - right * distance + up * 0.03f, at + right * distance + up * 0.03f })
+            Vector3[] candidates =
             {
-                if (!InsideWeapon(held, from))
+                at - right * distance + up * 0.03f,
+                at + right * distance + up * 0.03f,
+                at + (-right * 0.8f - up * 0.45f + fwd * 0.4f).normalized * distance,
+                at + (right * 0.8f - up * 0.45f + fwd * 0.4f).normalized * distance,
+                at + (-right * 0.7f + fwd * 0.7f).normalized * distance,
+            };
+            foreach (Vector3 from in candidates)
+            {
+                if (!InsideWeapon(held, from) && !SightBlocked(from, at))
                 {
                     poses.Add((from, Quaternion.LookRotation(at - from, up)));
                 }
@@ -1104,6 +1114,46 @@ namespace RavenfieldVR.Core
                 poses.Add((from, Quaternion.LookRotation(at - from, up)));
             }
             Shots.CaptureFirstClear(file, poses.ToArray(), 45f);
+        }
+
+        /// <summary>
+        /// Something stands between a picture camera and the spot it shows: a glove along the line (all but the last 4 cm,
+        /// where a hand holding the magazine is what the picture is of) or level geometry (a wall, a tree).
+        /// </summary>
+        private static bool SightBlocked(Vector3 from, Vector3 at)
+        {
+            Vector3 d = at - from;
+            float length = d.magnitude;
+            if (length < 1e-3f)
+            {
+                return false;
+            }
+            Vector3 dir = d / length;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig != null)
+            {
+                foreach (Rig.VRHand hand in rig.Hands)
+                {
+                    if (hand == null || hand.Model == null)
+                    {
+                        continue;
+                    }
+                    for (float t = 0f; t < length - 0.04f; t += 0.01f)
+                    {
+                        if (hand.Model.NearSkin(from + dir * t, 0.01f))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            int mask = Physics.DefaultRaycastLayers & ~((1 << 2) | (1 << 5) | (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17) | (1 << 18));
+            int props = Weapons.PropPhysics.Layer;
+            if (props >= 0)
+            {
+                mask &= ~(1 << props);
+            }
+            return Physics.Linecast(from, at - dir * 0.05f, mask, QueryTriggerInteraction.Ignore);
         }
 
         /// <summary>

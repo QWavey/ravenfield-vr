@@ -3,12 +3,12 @@
 One list again (2026-10-15): Tasks.md (1-199, 213-217) and Tasks2.md (200-229) merged. At the top a short status;
 under "All tasks" every task as written; the notes ("For NNN") at the end.
 
-## At a glance (2026-10-15)
+## At a glance (2026-10-16)
 
 - Done: 145
-- Code done, to check in the headset: 53
+- Code done, to check in the headset: 61
 - In progress: 10
-- Still to do: 31
+- Still to do: 23
 
 ### Still to do
 
@@ -33,16 +33,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 225. One eye drawn brighter than the other on Island, on some runs (user, 2026-10-15). Not reproduced: the film's standing-still check on Island has both e...
 - 227. The part under the hand does not move when racking (the test's measurement): BUNDLE O' BUSS, ARS Glock 19 / HK416 / M500 / MP9 (Bot Friendly), K13 ACO...
 - 229. Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit...
-- 230. Stabilisation when aiming through strongly magnifying scopes (snipers, ACOG M4s, scoped RPGs)
-- 231. RPGs with a scope: not reloadable, the rocket in the hand invisible
 - 232. ARS HK416 / MP9: the gun still draws its magazine while it is out
-- 233. Vector family: a fingertip in the ejection port when racking
 - 234. Fix what the per-gun review found (gun by gun at the end); 69 guns not reviewed
-- 235. CZ Bren 2 BR: the bolt pull is still wrong
-- 236. Some M4s: the charging handle / bolt pull is still wrong
-- 237. The muzzle flash renders through the gun (aimed): hide what the gun covers
-- 238. Guns have almost no noticeable recoil
-- 239. A camera flash when firing, sometimes
 
 ### In progress
 
@@ -112,6 +104,14 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 - 217. Fix the 27 bugs the Haiku bug hunt confirmed 2026-10-14 (10 areas, each finding checked by a skeptic; full report: scratchpad bugs27.json):
 - 222. The muzzle lens flash looks behind the gun when aiming, and is too big on rifles; a little smaller for all guns (user, 2026-10-15). Code done: the fla...
 - 224. Pulling a magazine out by hand: the hand is inside the magazine and the hand pose snaps when it comes off the well, on almost every gun (user, 2026-10...
+- 230. Stabilisation when aiming through strongly magnifying scopes (snipers, ACOG M4s, scoped RPGs)
+- 231. RPGs with a scope: not reloadable, the rocket in the hand invisible
+- 233. Vector family: a fingertip in the ejection port when racking
+- 235. CZ Bren 2 BR: the bolt pull is still wrong
+- 236. Some M4s: the charging handle / bolt pull is still wrong
+- 237. The muzzle flash renders through the gun (aimed): hide what the gun covers
+- 238. Guns have almost no noticeable recoil
+- 239. A camera flash when firing, sometimes
 
 ### Done
 
@@ -387,16 +387,16 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 227. [ ] The part under the hand does not move when racking (the test's measurement): BUNDLE O' BUSS, ARS Glock 19 / HK416 / M500 / MP9 (Bot Friendly), K13 ACOG S
 228. [ ] More GIFs (user, 2026-10-15): the flash film as GIFs per gun (done: reports/shots/film/*-slow.gif, flash-demo.gif), and a reload GIF per gun (a close-up while the magazine is pulled out by hand and seated again; in progress)
 229. [ ] Bug hunt (Haiku, night, code): 38 confirmed + 22 plausible, most fixed (d5a1423 and before; reports/agents/bughunt-2026-10-15-night/). Open: shape-fit slices stretched by far-off renderers, renderers switched off counted as shown, slice ends dropped by Thin, tapering parts split, fire sampling misses audio objects, override values case-sensitive and not reloaded, ArmIK palm point scaled twice (to test on a scaled rig first)
-230. [ ] Stabilisation when aiming through scopes that magnify a lot (snipers, M4s with an ACOG, RPGs with a scope, others): the magnified picture shakes with every small hand movement; steady it while aiming (user, 2026-10-15)
-231. [ ] RPGs with a scope: still not reloadable, and the rocket in the hand is still invisible (user, 2026-10-15; see 180 and 205, whose code did not fix it for these)
+230. [ ] Stabilisation when aiming through scopes that magnify a lot (snipers, M4s with an ACOG, RPGs with a scope, others): the magnified picture shakes with every small hand movement; steady it while aiming (user, 2026-10-15) (code done 2026-10-16, 66d9c5d: a one-euro style filter on the gun's turn while aiming through a sight of more than 1.8x, stronger the stronger the zoom; a swing follows at once, at most 5 degrees behind the hand; recoil added after it; setting Weapons/ScopeSteadying 0-1 and a stepper in the VR settings)
+231. [ ] RPGs with a scope: still not reloadable, and the rocket in the hand is still invisible (user, 2026-10-15; see 180 and 205, whose code did not fix it for these) (code done 2026-10-16, d077bdd: a rocket lines up however it is held (either end within 12 cm of the tube's line and 60 degrees of it); the rocket film loads both RPG-7Vs by hand, the rocket drawn in the hand 5 cm from the palm; every launcher filmed next)
 232. [ ] (per-gun review) ARS HK416 / ARS MP9: with the magazine out, the gun still draws its own magazine (it is part of one mesh on these models: no separate magazine part to hide); cut it out like the bolt piece, or hide it another way
-233. [ ] (per-gun review) Vector family (vector, mw-vector, mw-vector rds): racking, a fingertip goes into the ejection port (the port is open space in the measured shape); keep the fingers on the receiver's surface there
+233. [ ] (per-gun review) Vector family (vector, mw-vector, mw-vector rds): racking, a fingertip goes into the ejection port (the port is open space in the measured shape); keep the fingers on the receiver's surface there (code done 2026-10-16: the racking hand closes on the gun's shape with recesses up to about 3.4 cm closed over (an ejection port, a lightening cut); holes through the model stay open)
 234. [ ] Fix what the per-gun review found, gun by gun (list under "For 226 / 234" at the end); all 290 guns reviewed (2026-10-16)
-235. [ ] CZ Bren 2 BR (and its variants): pulling the bolt / charging handle is still wrong (user, 2026-10-15 night, in the Quest 3; see 186 and 214)
-236. [ ] Some M4s: pulling the charging handle / bolt is still wrong (user, 2026-10-15 night; which M4s to find out: the mwii M4s, the M4A1 family, the custom AR-15s; see 157, 167, 168, 170)
-237. [ ] The muzzle lens flash renders through the weapon model: aimed, it is drawn over the gun and its sights (the user's screenshot 2026-10-15 night, an aimed machine gun). Make it realistic: the flash's source (core and fireball) in the world in front of the muzzle, so the gun and its sights hide what they cover; the eye's own effects (starburst, haze) weaker when the source is hidden from that eye; the light on the face (the wash) stays
-238. [ ] Guns have almost no noticeable recoil (user, Quest 3, 2026-10-15 night): make it felt, by gun (see 137 and 208)
-239. [ ] No camera flash when firing: sometimes (not on every shot) the view should flash for a moment when a gun fires (user, 2026-10-15 night)
+235. [ ] CZ Bren 2 BR (and its variants): pulling the bolt / charging handle is still wrong (user, 2026-10-15 night, in the Quest 3; see 186 and 214) (code done 2026-10-16: the Bren 2's own side charging handle is found by its mesh ("Charging Handle", its left-most vertices) and taken as the rack point; only that mesh is cut)
+236. [ ] Some M4s: pulling the charging handle / bolt is still wrong (user, 2026-10-15 night; which M4s to find out: the mwii M4s, the M4A1 family, the custom AR-15s; see 157, 167, 168, 170) (code done 2026-10-16: a long handle found from the reload motion is taken near its rear (the T of an AR's handle), not its middle; the full picture run checks every M4)
+237. [ ] The muzzle lens flash renders through the weapon model: aimed, it is drawn over the gun and its sights (the user's screenshot 2026-10-15 night, an aimed machine gun). Make it realistic: the flash's source (core and fireball) in the world in front of the muzzle, so the gun and its sights hide what they cover; the eye's own effects (starburst, haze) weaker when the source is hidden from that eye; the light on the face (the wash) stays (code done 2026-10-16: the flash core is a fireball in the world in front of the muzzle, depth tested, so the gun and its sights hide it; each eye's star, rings and haze scale with how much of the source that eye sees; the wash on the face stays)
+238. [ ] Guns have almost no noticeable recoil (user, Quest 3, 2026-10-15 night): make it felt, by gun (see 137 and 208) (code done 2026-10-16: kick impulse 180 deg/s and 0.9 m/s per unit, softer spring (150; 90 one-handed long guns), two-handed reduction 0.4 (was 0.6), pistols climb more; setting migrated)
+239. [ ] No camera flash when firing: sometimes (not on every shot) the view should flash for a moment when a gun fires (user, 2026-10-15 night) (code done 2026-10-16: a short view flash on 35% of loud shots, within the photosensitivity limiter; setting ShotViewFlash)
 
 ## Notes
 

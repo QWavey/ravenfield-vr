@@ -2393,8 +2393,9 @@ namespace RavenfieldVR.Weapons
                     report("magazine (deep): " + string.Join("; ", lines));
                     yield break;
                 }
-                yield return null;
-                yield return null;
+                // The fingers close and the palm settles over about a fifth of a second (two frames after the grab the
+                // picture showed an open hand with the magazine above its knuckles on 91 guns).
+                yield return new WaitForSecondsRealtime(0.35f);
                 yield return new WaitForEndOfFrame();
                 if (DrawnBounds(fresh.Go.transform, out Bounds inHand))
                 {

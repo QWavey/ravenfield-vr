@@ -37,7 +37,14 @@ namespace RavenfieldVR.Weapons
             public int W, H;
             public float[] Near, Far; // per texel, along the view's z; empty where Near > Far
             public float[] BareNear, BareFar; // the same before growing: the model itself
+            public float[] ClosedNear, ClosedFar; // the grown span with narrow recesses filled (through-holes kept)
         }
+
+        /// <summary>
+        /// Half-width of the recesses <see cref="SolidClosed"/> fills, in the grown shape: a groove up to twice this wide
+        /// there (about 3.4 cm in the model: an ejection port, a lightening cut, a handguard slot) is closed over.
+        /// </summary>
+        public const float RecessFill = 0.010f;
 
         private readonly View[] _views;
 
@@ -171,6 +178,38 @@ namespace RavenfieldVR.Weapons
         }
 
         public bool SolidLocal(Vector3 p) => Test(p, true);
+
+        /// <summary>
+        /// Like <see cref="Solid"/>, with narrow recesses closed over: a hand racking the action rests on the receiver's
+        /// skin instead of a fingertip sinking into an ejection port (the Vector family, Tasks 233). Holes that go through
+        /// the model (a trigger guard) stay open.
+        /// </summary>
+        public bool SolidClosed(Vector3 world)
+        {
+            if (!_ready)
+            {
+                return false;
+            }
+            Vector3 d = world - _pos;
+            View[] views = _views;
+            for (int n = 0; n < views.Length; n++)
+            {
+                View v = views[n];
+                float[] near = v.ClosedNear ?? v.Near, far = v.ClosedFar ?? v.Far;
+                Vector3 q = v.WorldToView * d;
+                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
+                {
+                    return false;
+                }
+                int k = (int)fy * v.W + (int)fx;
+                if (q.z < near[k] || q.z > far[k])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         /// <summary>Inside the model itself, not grown (self-test: how deep a hand sinks into the gun).</summary>
         public bool InsideModel(Vector3 world) => _ready && Test(_inv * (world - _pos), false);
@@ -549,6 +588,7 @@ namespace RavenfieldVR.Weapons
                         {
                             Decode(Views[d], Front[d], Back[d], MinZ[d], MaxZ[d], Far[d], out float[] near, out float[] far);
                             GrowView(Views[d], near, far);
+                            CloseRecesses(Views[d]);
                         }
                         Front = Back = null;
                         if (Volume.WantsHull)
@@ -636,6 +676,79 @@ namespace RavenfieldVR.Weapons
             {
                 RenderTexture.active = prev;
                 UnityEngine.Object.Destroy(tex);
+            }
+        }
+
+        /// <summary>
+        /// The grown span with recesses narrower than twice <see cref="RecessFill"/> filled: a grey-scale closing of the
+        /// near and far depth (the nearest surface spread over a square, then the farthest of that over the same square),
+        /// kept only where the grown span has a surface (a hole through the model stays a hole) and only ever moving a
+        /// surface outward.
+        /// </summary>
+        private static void CloseRecesses(View v)
+        {
+            int r = Mathf.Max(1, Mathf.RoundToInt(RecessFill / v.Texel));
+            int w = v.W, h = v.H;
+            float[] near = v.Near, far = v.Far;
+            float[] a = new float[w * h], b = new float[w * h];
+            // Near: dilate the surface toward the viewer (minimum), then erode it back (maximum); empty texels are +inf.
+            Filter(near, a, w, h, r, true, false);
+            Filter(a, b, w, h, r, true, true);
+            Filter(b, a, w, h, r, false, false);
+            Filter(a, b, w, h, r, false, true);
+            var closedNear = new float[w * h];
+            for (int k = 0; k < closedNear.Length; k++)
+            {
+                closedNear[k] = near[k] > far[k] ? near[k] : Mathf.Min(near[k], b[k]);
+            }
+            // Far: the same mirrored (maximum, then minimum; empty texels are -inf).
+            var fa = new float[w * h];
+            var fb = new float[w * h];
+            for (int k = 0; k < far.Length; k++)
+            {
+                fa[k] = -far[k];
+            }
+            Filter(fa, fb, w, h, r, true, false);
+            Filter(fb, fa, w, h, r, true, true);
+            Filter(fa, fb, w, h, r, false, false);
+            Filter(fb, fa, w, h, r, false, true);
+            var closedFar = new float[w * h];
+            for (int k = 0; k < closedFar.Length; k++)
+            {
+                closedFar[k] = near[k] > far[k] ? far[k] : Mathf.Max(far[k], -fa[k]);
+            }
+            v.ClosedNear = closedNear;
+            v.ClosedFar = closedFar;
+        }
+
+        /// <summary>
+        /// One pass of a separable square filter: the minimum (or maximum) over 2r+1 texels along the rows (or the columns).
+        /// </summary>
+        private static void Filter(float[] src, float[] dst, int w, int h, int r, bool min, bool columns)
+        {
+            int outer = columns ? w : h, inner = columns ? h : w;
+            for (int o = 0; o < outer; o++)
+            {
+                for (int i = 0; i < inner; i++)
+                {
+                    float best = min ? float.PositiveInfinity : float.NegativeInfinity;
+                    int lo = Mathf.Max(0, i - r), hi = Mathf.Min(inner - 1, i + r);
+                    for (int t = lo; t <= hi; t++)
+                    {
+                        float x = src[columns ? t * w + o : o * w + t];
+                        if (min ? x < best : x > best)
+                        {
+                            best = x;
+                        }
+                    }
+                    // Past the picture's edge counts as empty for the erosion (the maximum): a surface at the border is
+                    // not filled toward it.
+                    if (!min && (i - r < 0 || i + r > inner - 1))
+                    {
+                        best = float.PositiveInfinity;
+                    }
+                    dst[columns ? i * w + o : o * w + i] = best;
+                }
             }
         }
 
