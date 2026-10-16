@@ -48,6 +48,9 @@ namespace RavenfieldVR.Weapons
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
 
+        /// <summary>Rifles loaded with an en-bloc clip, by name.</summary>
+        private static readonly Regex EnBlocName = new Regex(@"garand|garret|(^|[^a-z])m1 ?rifle", RegexOptions.IgnoreCase);
+
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
         /// <summary>A single round, case or shell (never a slide, bolt or handle).</summary>
@@ -3311,6 +3314,16 @@ namespace RavenfieldVR.Weapons
                 d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : -d.Up;
             }
             d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.Handgun);
+            if (d.MagazinePath != null && !d.Handgun && EnBlocName.IsMatch(d.Key ?? "") && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual && !d.CyclesByHand))
+            {
+                // An M1 Garand (the vanilla "M1 GARRET"): its clip goes in from the top, through the open action, and the
+                // bolt locks open after the last round (user, 2026-10-16: it did not lock open, a clip could not be put in).
+                d.EnBloc = true;
+                d.Action = ActionType.SelfLoading;
+                d.LockOnEmpty = true;
+                d.MagEjectAxis = d.Up;
+                d.Notes += "en-bloc clip (from the top, the bolt locks open, the empty clip flies out) ";
+            }
             if (d.Action == ActionType.BreakOpen)
             {
                 d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));

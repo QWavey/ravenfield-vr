@@ -1791,6 +1791,20 @@ Results (2026-10-16 night):
 - (n) Machine gun boxes: no belt-fed gun has an in-hand test picture (MagazineDeepCheck skips a box locked under a shut cover, and "pulled out by hand: stays in the hand" only checks a prop exists). Likeliest cause of both symptoms: a belt part wins the magazine pick (MagName has belt / ammo / 弹链, weight 3, while a box named 弹箱 scored 1): a long belt is "only the belt comes out", a link a few centimetres long is "only the number shows". Done: on a belt-fed gun (40+ rounds, automatic) a belt piece (BeltName, or a plain "ammo"/"AMMO.001" part) is never the box (under 6 cm skipped, otherwise weight 0.5); ammo box / ammo can / box mag / 弹箱 count as magazine names. To do: log the chosen magazine part and copy-or-stand-in at the first eject; let the deep check open the cover and take the box (and check something visible is in the hand); MK46 ET's analysed box is 65 cm against a 31 cm copy (belt start from the wrong height); the tall black block at mg3's feed end (weapon-153).
 - (ac) The mwii M4s' charging handle cannot be cut out (their meshes are unreadable) and no shader can clip it at draw time without a shader bundle built in a Unity 2020.3 editor (none on this PC). Done: the added piece on an AR-pattern gun is a slim T latch, not a cube.
 
+- (e) M1 GARRET en-bloc mode coded (untested): by name (garand / garret), the clip goes in from the top only with the action open, seating it sends the bolt home, the last shot throws the empty clip up with the gun's own ping (its "Bank Audio Source", garand_clip) and the bolt stays open.
+
+#### Still open in 252 (as of 2026-10-17 00:00, user's limit; everything above is built into dist, untested in the headset)
+- (z) hands glitch while walking or running, reloading almost impossible: not investigated yet (the scout was stopped).
+- (p) two weapons at once (one per hand): the design is above; not started.
+- (o) the machine gun reload as a whole (after the rest).
+- (n) machine gun boxes: log the chosen box part, let the deep check take the box out, MK46 ET's box height, mg3's black block.
+- (v) the gun's own shell model for shells in the hand, dropped and in the chamber.
+- (g) remaining keep-out gaps: the free hand swept from its last clear place, the magazine hand's fingers closing on the gun off the well line, no keep-out before the solid is measured, parts outside the collider envelope.
+- (ac) moving the real charging handle of unreadable meshes needs a clip shader (a shader bundle from a Unity 2020.3 editor).
+- (h) check the magazine line fit's log lines per gun ("magazine line fitted ... / kept ...") and the seating pictures; the PPSh's pull axis runs along the bore (90 degrees off, beyond the fit).
+- Autotest to add: an empty reload per pistol and rifle (slide locked, magazine in, released / racked: the drawn slide back, then home), the pump worked by the support hand's trigger, an en-bloc clip.
+- Verify in the headset: everything in 252 a-ab.
+
 ### For 253: review of the night's analysis and rocket changes (4 Haiku reviewers, each finding checked by 2 Haiku skeptics, 2026-10-16 night)
 
 18 findings: 4 confirmed, 9 plausible, 5 refuted. Read with care: the skeptics often agreed on the mechanism but not on whether it shows on a real gun.

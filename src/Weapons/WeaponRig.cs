@@ -232,6 +232,12 @@ namespace RavenfieldVR.Weapons
 
         public ActionType Action;
         public bool LockOnEmpty;
+        /// <summary>
+        /// Loaded with an en-bloc clip through the open action from the top (the M1 Garand): the clip goes in only while the
+        /// action is open and the bolt then closes on its own; after the last round the empty clip flies out with its ping
+        /// and the bolt stays open.
+        /// </summary>
+        public bool EnBloc;
         public bool IsPistol;
 
         /// <summary>

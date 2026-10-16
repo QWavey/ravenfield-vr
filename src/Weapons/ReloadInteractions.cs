@@ -1266,7 +1266,8 @@ namespace RavenfieldVR.Weapons
             switch (prop.Kind)
             {
                 case PropKind.Magazine:
-                    return Ammo.UsesDetachableMag && !Ammo.MagInserted;
+                    // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber).
+                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || Ammo.SlideLocked || !Ammo.Chambered);
                 case PropKind.Rocket:
                     return Ammo.MagRounds == 0;
                 default:
@@ -1654,6 +1655,13 @@ namespace RavenfieldVR.Weapons
                     Ammo.InsertMagazine(prop.Rounds);
                     _held.Sounds.Play(MechSound.MagIn, at);
                     _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
+                    if (Data.EnBloc && prop.Rounds > 0 && (Ammo.SlideLocked || !Ammo.Chambered))
+                    {
+                        // The clip pressed home releases the bolt: it slams forward on its own and chambers the first round.
+                        ReleaseSlide();
+                        _held.Nudge(Rig.AimWorld * 0.12f, 12f);
+                        off.Haptic(0.06f, 100f, 0.9f);
+                    }
                     break;
                 case PropKind.Shell:
                 {
@@ -1940,10 +1948,58 @@ namespace RavenfieldVR.Weapons
 
         public void OnShot()
         {
+            if (Ammo != null && Data.EnBloc && Ammo.MagInserted && Ammo.MagRounds == 0 && !Ammo.Chambered)
+            {
+                ThrowEmptyClip();
+                return;
+            }
             if (Ammo != null && Ammo.SlideLocked)
             {
                 _held.Sounds.Play(MechSound.SlideBack, RackPointWorld, 0.4f);
             }
+        }
+
+        private AudioSource _pingSource;
+        private bool _pingLooked;
+
+        /// <summary>
+        /// The last round of an en-bloc clip fired: the empty clip flies up out of the open action with the gun's own ping
+        /// (the vanilla Garand's "Bank Audio Source" holds garand_clip), and the bolt stays open (AmmoState locked it).
+        /// </summary>
+        private void ThrowEmptyClip()
+        {
+            if (_ejecting != null)
+            {
+                FinishEject();
+            }
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp clip = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            clip.Owner = Ammo;
+            Vector3 up = Rig.UpWorld, right = Rig.DirToWorld(Vector3.Cross(Data.Up, Data.AimAxis).normalized);
+            clip.Drop(_sys.Rig.Dominant.Velocity + up * Random.Range(2.6f, 3.4f) + right * Random.Range(0.2f, 0.6f) - Rig.AimWorld * 0.4f,
+                Random.insideUnitSphere * 12f + right * 15f);
+            if (!_pingLooked)
+            {
+                _pingLooked = true;
+                foreach (AudioSource a in _held.Weapon.GetComponentsInChildren<AudioSource>(true))
+                {
+                    if (a.clip != null && System.Text.RegularExpressions.Regex.IsMatch(a.clip.name, @"ping|_clip$|clip.?(eject|out|ping)|enbloc", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    {
+                        _pingSource = a;
+                        break;
+                    }
+                }
+                Log.Info($"{Data.Key}: the empty clip's ping is {(_pingSource != null ? $"the gun's own '{_pingSource.clip.name}'" : "not found (a plain eject sound)")}.");
+            }
+            if (_pingSource != null)
+            {
+                _pingSource.PlayOneShot(_pingSource.clip);
+            }
+            else
+            {
+                _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            }
+            _sys.Rig.Dominant.Haptic(0.04f, 160f, 0.5f);
         }
 
         // ---- per-frame visuals -----------------------------------------------------------------------
