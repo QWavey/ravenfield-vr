@@ -71,10 +71,9 @@ namespace RavenfieldVR.Rig
 
             // The thumb's base less turned in (0.55 went through the magazine's back edge): along the magazine's side.
             new GripPose(HandPoseId.RifleMagazine, 0.3f, false, 0.55f, 0.7f, 0.75f, 0.78f, 0.8f),
-            // Index-point, the way a pistol magazine comes out of the pouch: the index straight along its front (held there,
-            // see HandModel.IndexAlongPistolMagazine), middle, ring and little finger round its back, the thumb on its side
-            // (MagazineProp.HoldPose; tools/hands/grip_check.py).
-            new GripPose(HandPoseId.PistolMagazine, 0.5f, false, 0.6f, 0.18f, 0.75f, 0.8f, 0.82f),
+            // A pistol magazine by its base, in the fist, the thumb along its side and the magazine out between thumb and
+            // index (the user's picture; MagazineProp.HoldPose). Seating it, the hand opens into a push (PalmPush).
+            new GripPose(HandPoseId.PistolMagazine, 0.3f, false, 0.5f, 0.68f, 0.74f, 0.78f, 0.8f),
             new GripPose(HandPoseId.BoxMagazine, 0.35f, false, 0.35f, 0.5f, 0.55f, 0.58f, 0.6f),
             new GripPose(HandPoseId.TwoMagazines, 0.5f, false, 0.5f, 0.65f, 0.7f, 0.72f, 0.75f),
             new GripPose(HandPoseId.Shell, 0.55f, false, 0.55f, 0.55f, 0.85f, 0.9f, 0.9f),

@@ -77,6 +77,24 @@ namespace RavenfieldVR.Input
     /// NullReferenceException every frame for as long as the turret stood (seven sentry kits in the weapons run): it is
     /// skipped then, the turret keeps its pose.
     /// </summary>
+    /// <summary>
+    /// A weapon's own animation event asking its sound bank for a clip it does not have (three RPG-7V variants in the
+    /// rocket film) threw IndexOutOfRangeException from the game's SoundBank: skipped, said once per bank.
+    /// </summary>
+    [HarmonyPatch(typeof(SoundBank), "PlaySoundBank")]
+    internal static class SoundBankIndexGuardPatch
+    {
+        private static bool Prefix(SoundBank __instance, int index)
+        {
+            if (__instance.clips != null && index >= 0 && index < __instance.clips.Length)
+            {
+                return true;
+            }
+            Log.WarnOnce("soundbank:" + __instance.name, $"'{__instance.name}' asked its sound bank for clip {index} of {(__instance.clips != null ? __instance.clips.Length : 0)}: skipped.");
+            return false;
+        }
+    }
+
     [HarmonyPatch(typeof(AimTransform), "LateUpdate")]
     internal static class AimTransformGuardPatch
     {

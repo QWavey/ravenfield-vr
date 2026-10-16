@@ -430,6 +430,24 @@ namespace RavenfieldVR.Rig
         /// </summary>
         public RigidPose HeldPalm;
         public int HeldPalmFrame = -10;
+
+        /// <summary>
+        /// Seating a pistol magazine: how far the hand has turned from holding it into pushing its base plate home (0..1),
+        /// set with <see cref="PushBlendFrame"/> every frame it applies. The thumb comes away and the fingers open into a
+        /// loose push as the magazine slides in (the user's pictures); eased in and out.
+        /// </summary>
+        public float PushBlend;
+        public int PushBlendFrame = -10;
+        private float _push;
+
+        // The push: thumb away, the fingers loosely curled under the gun hand's (thumb, index, middle, ring, little).
+        private static readonly float[] PushCurls = { 0.08f, 0.32f, 0.4f, 0.46f, 0.52f };
+
+        // A change of pose (one magazine to two, the second promoted, a magazine to the push) fades over this long instead
+        // of snapping: the fingers' easing is slowed for a moment after the pose changes.
+        private const float PoseFade = 0.3f;
+        private HandPoseId _fadePose = HandPoseId.Relaxed;
+        private float _poseChangedAt = -10f;
         private RigidPose _heldPalmLast;
         private float _heldPalmWeight;
 
@@ -627,8 +645,23 @@ namespace RavenfieldVR.Rig
             }
 
             float[] goal = TargetCurls();
-            float k = 1f - Mathf.Exp(-25f * dt);
-            float kJoint = 1f - Mathf.Exp(-40f * dt);
+            float pushWant = Time.frameCount - PushBlendFrame <= 1 ? PushBlend : 0f;
+            _push = Mathf.MoveTowards(_push, pushWant, dt / 0.12f);
+            if (_push > 0f)
+            {
+                for (int f = 0; f < 5; f++)
+                {
+                    goal[f] = Mathf.Lerp(goal[f], PushCurls[f], _push);
+                }
+            }
+            if (_pose.Id != _fadePose)
+            {
+                _fadePose = _pose.Id;
+                _poseChangedAt = Time.unscaledTime;
+            }
+            float fade = Mathf.Clamp01((Time.unscaledTime - _poseChangedAt) / PoseFade);
+            float k = 1f - Mathf.Exp(-Mathf.Lerp(7f, 25f, fade) * dt);
+            float kJoint = 1f - Mathf.Exp(-Mathf.Lerp(9f, 40f, fade) * dt);
             _pointBlend = Mathf.MoveTowards(_pointBlend, _pointRotations != null && Pointing(goal) ? 1f : 0f, dt * 8f);
             // The pose turns the thumb's base between its rest and the fist: along the frame of a held gun or the side of a
             // handguard (Valve's relaxed thumb stood up through it), wrapped round a knife's handle, up beside a pinch.
@@ -636,6 +669,10 @@ namespace RavenfieldVR.Rig
             // tracking makes from grip and trigger: its thumb has nothing tracked and wraps over the fingers.
             bool restThumb = _hand.Role == HandRole.Free && _pose.Id != HandPoseId.Fist;
             Quaternion thumbGoal = restThumb ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
+            if (_push > 0f)
+            {
+                thumbGoal = Quaternion.Slerp(thumbGoal, _thumbRest, _push); // the thumb comes away from the magazine
+            }
             if (ThumbPressing && !restThumb)
             {
                 thumbGoal = Quaternion.Slerp(thumbGoal, _thumbFist, 0.5f); // in across the frame, onto the release
@@ -1232,10 +1269,8 @@ namespace RavenfieldVR.Rig
                                  || _hand.Role == HandRole.Slide && WorkedPart == WorkedPart.Slide && GraspAnchor.HasValue && !GraspPinch;
                     Minimum(wraps || ThumbPressing ? 0.9f : 0.55f, 0.9f, 0.95f, 0.95f, 0.95f);
                 }
-                IndexAlongPistolMagazine(p);
                 return _goal;
             }
-            IndexAlongPistolMagazine(p);
             // Wrapping fingers stop on the held object instead of closing through it: at 0.85 the fist leaves about the
             // 3 cm of a pistol grip, magazine or wheel rim, at 0.75 the 4 cm of a handguard.
             float cap = HoldCap(_hand.Role);
@@ -1244,18 +1279,6 @@ namespace RavenfieldVR.Rig
                 _goal[f] = Mathf.Min(_goal[f], cap);
             }
             return _goal;
-        }
-
-        /// <summary>
-        /// A pistol magazine is held index-point: the index lies straight along its front whatever the trigger or the
-        /// tracked finger does (closed round it, the hand was the full fist nobody holds one with).
-        /// </summary>
-        private void IndexAlongPistolMagazine(float[] p)
-        {
-            if (_pose.Id == HandPoseId.PistolMagazine)
-            {
-                _goal[1] = p[1];
-            }
         }
 
         private static float HoldCap(HandRole role)

@@ -901,16 +901,13 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// World pose the prop takes in the hand: the fist closed around its lower body (a third of the way up from
-        /// the base plate, as you hold a magazine to seat it), tip up-forward, front forward.
+        /// World pose the prop takes in the hand: the fist closed around its lower body (just up from the base plate, as you
+        /// hold a magazine to seat it), tip up-forward out between the thumb and the index, front forward. A pistol magazine
+        /// the same way, its base plate in the fist (the user's picture; it was held index-point, the index along its front).
         /// </summary>
         public RigidPose HoldPose(VRHand hand)
         {
             RigidPose palm = hand.Palm;
-            if (PistolSized)
-            {
-                return IndexPointPose(hand, palm);
-            }
             if (Kind == PropKind.Shell && hand.Model != null)
             {
                 return ShellPinchPose(hand, palm);
@@ -920,7 +917,7 @@ namespace RavenfieldVR.Weapons
             // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
             // pinky, which lay flat along it and stuck out straight (the "pinky bug"); now the pinky curls toward the base
             // plate in line with the others (tools/hands/grip_check.py). Shells and rockets are pinched in the middle.
-            float gripAt = Kind == PropKind.Magazine ? 0.15f : 0.5f;
+            float gripAt = Kind == PropKind.Magazine ? (PistolSized ? 0.12f : 0.15f) : 0.5f;
             Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
             Vector3 pos = palm.position - rot * held;
             // Resting against the palm, not half inside it. The grip point (the fist hollow) lies at the palm's skin, so a
@@ -940,34 +937,6 @@ namespace RavenfieldVR.Weapons
                 pos += palm.rotation * Vector3.forward * (BoxSized ? 0.03f : 0.01f);
             }
             return new RigidPose(pos, rot);
-        }
-
-        // Index-point (tools/hands/grip_check.py, "pistol magazine"): the magazine's axis turned 34 degrees from the fingers
-        // toward the thumb, its front facing the back of the hand turned 20 degrees round that axis, the index (at curl 0.1)
-        // lying on the front 4 mm toward the palm side of its middle, the top level with the fingertip.
-        private static readonly Vector3 IndexPointAxis = new Vector3(0f, 0.5592f, 0.8290f);
-        private static readonly Vector3 IndexPointFront = Quaternion.AngleAxis(-20f, IndexPointAxis) * Vector3.right;
-        private const float IndexPointCurl = 0.1f, IndexPointSide = -0.004f;
-
-        /// <summary>
-        /// A pistol magazine the way it is drawn from the pouch to be seated: diagonally across the palm, the index straight
-        /// along its front with the fingertip at its top, middle, ring and little finger round its back, the thumb on its
-        /// side. Not the full fist a rifle magazine takes (nobody holds a pistol magazine like that).
-        /// </summary>
-        private RigidPose IndexPointPose(VRHand hand, RigidPose palm)
-        {
-            Rig.HandModel.IndexFinger(IndexPointCurl, out Vector3 pad, out Vector3 tip);
-            Vector3 axis = IndexPointAxis, front = IndexPointFront, side = Vector3.Cross(axis, front);
-            float length = Vector3.Distance(BaseLocal, TipLocal);
-            // Right hand, palm frame: the front face on the index's pad, the top level with its tip.
-            Vector3 centre = pad - front * _frontHalf + side * IndexPointSide;
-            centre += axis * (Vector3.Dot(tip - centre, axis) - length * 0.5f);
-            float m = hand.Mirror;
-            centre.x *= m;
-            Quaternion inPalm = Quaternion.LookRotation(new Vector3(front.x * m, front.y, front.z), new Vector3(axis.x * m, axis.y, axis.z));
-            Quaternion rot = palm.rotation * inPalm * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
-            Vector3 middle = (BaseLocal + TipLocal) * 0.5f;
-            return new RigidPose(palm.TransformPoint(centre) - rot * middle, rot);
         }
 
         // Shell pinch (tools/hands/grip_check.py, "shell (pinch)"): along the fingers, tipped 22 degrees toward the palm's
@@ -1247,10 +1216,39 @@ namespace RavenfieldVR.Weapons
                 // The palm such that this magazine, at its pose on the line, sits in the hand as HoldPose puts it.
                 RigidPose palm = HeldBy.Palm;
                 RigidPose hold = HoldPose(HeldBy);
-                HeldBy.Model.HeldPalm = RigidPose.Of(Go.transform).Multiply(hold.Inverse().Multiply(palm));
+                RigidPose heldPalm = RigidPose.Of(Go.transform).Multiply(hold.Inverse().Multiply(palm));
+                // A pistol magazine going in: as it slides up the grip the hand lets go of it and turns into a push on its
+                // base plate, the thumb coming away (the user's pictures: more satisfying than a fist all the way in).
+                float push = PistolSized && !FromSeat && RailLength > 1e-4f ? Mathf.InverseLerp(0.2f, 0.75f, RailDepth / RailLength) : 0f;
+                if (push > 0f)
+                {
+                    push = push * push * (3f - 2f * push);
+                    RigidPose pushPalm = PushPalm(HeldBy);
+                    heldPalm = new RigidPose(Vector3.Lerp(heldPalm.position, pushPalm.position, push), Quaternion.Slerp(heldPalm.rotation, pushPalm.rotation, push));
+                    HeldBy.Model.PushBlend = push;
+                    HeldBy.Model.PushBlendFrame = Time.frameCount;
+                }
+                HeldBy.Model.HeldPalm = heldPalm;
                 HeldBy.Model.HeldPalmFrame = Time.frameCount;
                 HeldShapesFrame[(int)HeldBy.Side] = -1; // moved: the fingers' solid is measured again from where it is now
             }
+        }
+
+        /// <summary>
+        /// The palm pushing this magazine's base plate home: the palm flat under it, facing up the magazine, its heel on the
+        /// base plate and the fingers forward toward the muzzle, under the gun hand's.
+        /// </summary>
+        private RigidPose PushPalm(VRHand hand)
+        {
+            Transform t = Go.transform;
+            Vector3 up = t.TransformDirection(InsertDirLocal).normalized;
+            Vector3 front = Vector3.ProjectOnPlane(t.TransformDirection(FrontLocal), up).normalized;
+            Vector3 right = -hand.Mirror * up; // the palm's normal (-Mirror * right) points up the magazine
+            Vector3 handUp = Vector3.Cross(front, right);
+            Quaternion rot = Quaternion.LookRotation(front, handUp);
+            // The palm's skin about 1.7 cm out from its centre; the heel (2.5 cm toward the wrist) under the base plate.
+            Vector3 basePlate = t.TransformPoint(BaseLocal);
+            return new RigidPose(basePlate - up * 0.017f + front * 0.025f, rot);
         }
 
         public void FollowHand()

@@ -603,7 +603,9 @@ namespace RavenfieldVR.Core
         {
             Transform body = held.Rig.GunBody;
             Rig.VRHand rackHand = Rig.VRRig.Instance.Off;
-            Vector3 c = onGun.HasValue && body != null ? body.TransformPoint(onGun.Value) : rackHand.Model.Root.position;
+            // On what the hand holds (its grasp point), not its wrist: the cameras showed the cuff and the gun's grip.
+            Vector3 grasp = rackHand.Model.GraspPointWorld != Vector3.zero ? rackHand.Model.GraspPointWorld : rackHand.Model.Root.position;
+            Vector3 c = onGun.HasValue && body != null ? body.TransformPoint(onGun.Value) : grasp;
             if (!onGun.HasValue && body != null)
             {
                 onGun = body.InverseTransformPoint(c);

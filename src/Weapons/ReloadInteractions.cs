@@ -417,10 +417,16 @@ namespace RavenfieldVR.Weapons
             prop.Owner = Ammo;
             prop.AttachPalmed(off);
             _palmed = prop;
+            // From the well into the hand over a moment (it was beside the fresh one the next frame).
+            _palmedFrom = prop.Go != null ? RigidPose.Of(prop.Go.transform) : default;
+            _palmedAt = prop.Go != null ? Time.unscaledTime : -1f;
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
             off.Haptic(0.04f, 120f, 0.55f);
         }
+
+        private RigidPose _palmedFrom;
+        private float _palmedAt = -1f;
 
         /// <summary>The fresh magazine is gone from the hand (seated or dropped): the palmed one becomes the one it holds.</summary>
         private void PromotePalmed(VRHand off)
@@ -1674,6 +1680,16 @@ namespace RavenfieldVR.Weapons
                     {
                         palmedPose = new RigidPose(palmedPose.position + first.KeptOut, palmedPose.rotation); // with the first one, out of the gun
                     }
+                    float into = _palmedAt >= 0f ? Mathf.Clamp01((Time.unscaledTime - _palmedAt) / 0.18f) : 1f;
+                    if (into < 1f)
+                    {
+                        float e = into * into * (3f - 2f * into);
+                        palmedPose = new RigidPose(Vector3.Lerp(_palmedFrom.position, palmedPose.position, e), Quaternion.Slerp(_palmedFrom.rotation, palmedPose.rotation, e));
+                    }
+                    else
+                    {
+                        _palmedAt = -1f;
+                    }
                     palmedPose.ApplyTo(_palmed.Go.transform);
                 }
             }
@@ -2889,8 +2905,12 @@ namespace RavenfieldVR.Weapons
             // the fingers across it toward the far side, on a part on the side, up and over it.
             Vector3 aimW = Rig.AimWorld, upW = Rig.DirToWorld(Data.Up).normalized, rightW = Vector3.Cross(upW, aimW).normalized;
             Vector3 boreAt = Rig.ToWorld(Data.MuzzlePoint);
-            Vector3 outward = Vector3.ProjectOnPlane(RackPointWorld - boreAt, aimW);
-            outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : upW;
+            // A handle clearly off to the side (an AK's bolt handle, a side charging handle) is taken from that side; any
+            // other part over the top (a pistol slide, a bolt whose rack point lay a few millimetres under the bore put the
+            // hand under the gun, at the trigger guard: P320, the PKM family).
+            Vector3 offBore = Vector3.ProjectOnPlane(RackPointWorld - boreAt, aimW);
+            Vector3 sideways = offBore - upW * Vector3.Dot(offBore, upW);
+            Vector3 outward = sideways.magnitude > 0.025f ? sideways.normalized : upW;
             Vector3 intoPart = -outward;
             Vector3 fingers = Vector3.Dot(outward, upW) > 0.7f ? (off.IsLeft ? rightW : -rightW) : upW;
             Vector3 palmX = -intoPart * off.Mirror;
@@ -2947,7 +2967,8 @@ namespace RavenfieldVR.Weapons
                         // How far it is from the hand now (to a mesh's surface, a bone's point): a part that came back
                         // with the hand is still right there.
                         movedCount++;
-                        Vector3 handAt = RackPointWorld;
+                        // From the hand itself (the rack point lies on the part by definition: every gun read 0.0 cm).
+                        Vector3 handAt = off.Model != null ? off.Model.GraspPointWorld : RackPointWorld;
                         float gap = kv.Key is Renderer r ? Mathf.Sqrt(r.bounds.SqrDistance(handAt))
                             : kv.Key is Transform b ? Vector3.Distance(b.position, handAt) : float.MaxValue;
                         nearestMoving = Mathf.Min(nearestMoving, gap);
