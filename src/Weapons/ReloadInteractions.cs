@@ -2252,7 +2252,7 @@ namespace RavenfieldVR.Weapons
                     float outsideSeated = total > 0 ? 1f - insideSeated / (float)total : 0f;
                     Core.AutoTest.Metric("magazine (deep): share of what has gone in that shows beside the gun's sides", outside * 100f);
                     sb.Append($", {inDepth * 100f:0.0} cm in past the well's mouth ({inSeated * 100f:0.0} cm seated): {outside * 100f:0}% of it shows beside the gun's sides "
-                              + $"(the same points seated: {outsideSeated * 100f:0}%){(outside > 0.25f && outside > outsideSeated + 0.15f ? " (GOES IN BESIDE THE WELL)" : "")}");
+                              + $"(the same points seated: {outsideSeated * 100f:0}%){(inDepth > 0.025f && outside > 0.25f && outside > outsideSeated + 0.15f ? " (GOES IN BESIDE THE WELL)" : "")}");
                 }
                 else
                 {
