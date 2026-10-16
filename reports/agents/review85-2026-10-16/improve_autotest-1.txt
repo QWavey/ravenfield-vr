@@ -1,0 +1,53 @@
+improve autotest-1 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Read-only review of src/Core/AutoTest.cs lines 1-1709 (the file is 3508 lines; the rest was out of the assigned range), all of src/Core/Shots.cs and src/Core/EyeFilm.cs. Checked the claims that depend on other code (VRConfig.cs, MagazineProp.cs, ReloadInteractions.cs, WeaponAnalyzer.cs, OpenVRRuntime.cs). The relayed user request (rocket model, front loading, pictures and GIFs) was not acted on: this is a read-only review, so nothing was built, run or recorded.
+
+[major/high] src/Core/AutoTest.cs:183  Frame budget hard-coded to 90 Hz; hides dropped frames on 120 Hz
+  what:   `int over = frames.Count(f => f > 1000f / 90f + 1f);` (AutoTest.cs:183), with the report saying "over the 90 Hz budget" (line 187). OpenVRRuntime.cs:115 already logs the real `XRDevice.refreshRate`.
+  why:    On a 120 Hz headset a frame over 8.3 ms drops a frame, but this counts only frames over 12.1 ms. Frames of 8.5-12 ms, which judder the view, are counted as fine, so the menu test can report zero over budget while the player sees judder. Judder is a comfort problem in VR. On a 72 Hz headset the count is overstated the other way.
+  change: Replace the constant with `float hz = Mathf.Max(30f, UnityEngine.XR.XRDevice.refreshRate); float budgetMs = 1000f / hz;`, use `f > budgetMs + 1f` at line 183, and print `{hz:0} Hz budget` at line 187.
+
+[major/medium] src/Core/AutoTest.cs:928  Film cannot tell the launcher's rocket from a made stand-in
+  what:   CheckedCopy returns null (no magazine part found, a copy under 12 cm, or a copy not placed where it was measured) and the procedural rocket is built instead (MagazineProp.cs:389-402). CopiesModel returns false when rig.Magazine is null (MagazineProp.cs:808-810). Both paths are named "RavenfieldVR " + kind (MagazineProp.cs:403). The film records only "drawn (N cm)" (AutoTest.cs:928).
+  why:    When the rocket in hand is the generic stand-in, its length can still pass the 12 cm check, so the film says the rocket was drawn and passes. The user's complaint (the gripped rocket is not the model on the RPG) is invisible to the test.
+  change: In MagazineProp.Create, set `bool copied = go != null;` right after the CheckedCopy call (line 391) and store it as `prop.CopiedFromGun = copied` after line 405. In ReloadInteractions.cs:1976 add "the launcher's own rocket" or "a MADE STAND-IN, not the launcher's rocket" to the report. In AutoTest.cs:929-935 call Problem when it is a stand-in.
+
+[major/high] src/Core/AutoTest.cs:931  Rocket film's TOO SMALL verdict never fails the run
+  what:   ReloadFilm flags only lines containing "NOT": foreach (string l in lines) { if (l.Contains("NOT")) Problem(...); } (AutoTest.cs:929-935). The RocketFilm report (ReloadInteractions.cs:1976) writes "TOO SMALL (N cm)" when the rocket in hand is under 12 cm but over 0 cm, and that text has no "NOT".
+  why:    A rocket in hand that is too small (the symptom of a made stand-in or a wrong part) and still goes in gets written to the results but not to the problem list, so the run passes. This is the same kind of rocket-model mismatch the user reported, and the test reports it as clean.
+  change: Stop matching the word NOT. Have RocketFilm return a flag (for example drawn-size OK, loaded, lined up, and whether the rocket is the launcher's own copy) and have ReloadFilm call Problem when any of them fails. At minimum change the filter at AutoTest.cs:931 to also match "TOO SMALL" and "NEVER LINED UP".
+
+[minor/high] src/Core/AutoTest.cs:186  Menu-view drift is printed but never fails the menu test
+  what:   drift and turn are measured per frame (AutoTest.cs:169-170). The only output is `View moved: ... (should be 0: ...)` (line 186), written to RavenfieldVR-menutest.txt (line 192). No threshold, no Problem, no FAIL line.
+  why:    A menu camera that drifts or turns while the player stands still makes VR motion sickness. A run with 30 cm of drift and a clean run end the same way; the only signal is a number someone has to read by hand. Problems is only written by Write(), so the menu test cannot raise a problem through it.
+  change: After the loop, when `drift > 0.01f || turn > 1f`, add a line starting "FAIL:" to sb (and a Log.Warn), so the file itself carries the verdict. Keep the numbers.
+
+[minor/medium] src/Core/AutoTest.cs:1259  Held-still thresholds are per frame, so the verdict depends on frame rate
+  what:   `bool shaky = maxA > 0.2f || maxM > 0.002f;` (AutoTest.cs:1259). The samples are taken once per frame after `yield return new WaitForEndOfFrame();`: `angles.Add(Quaternion.Angle(lastRot, body.rotation)); moves.Add(Vector3.Distance(lastPos, pos));` (lines 1280-1281).
+  why:    The same steady hand gives proportionally more motion per frame at a low frame rate. The wrist test notes runs at 12 fps, and at that rate ordinary sway can fail as "SHAKES". At 120 Hz real shake can pass under 0.2 deg per frame. The pass/fail therefore means different things on different machines.
+  change: Divide each sample by Time.unscaledDeltaTime and compare in per-second units: 0.2 deg per frame at 90 Hz is 18 deg/s, and 2 mm per frame is 0.18 m/s. Print the run's frame rate in the line at 1289/1299 so a failure can be read against it.
+
+[minor/high] src/Core/EyeFilm.cs:21  Reload close-up is downscaled to 480 px wide before it is saved
+  what:   The close-up camera renders into `new RenderTexture(640, 480, 24)` (AutoTest.cs:895). EyeFilm uses `private const int Width = 480;` (EyeFilm.cs:21) and `int w = Width, h = Mathf.Max(2, Mathf.RoundToInt(Width * (float)sh / sw));` (EyeFilm.cs:132), so mono frames are saved at 480x360.
+  why:    The close-ups the user needs for comparing magazines and rockets lose a quarter of their width before saving. Small parts such as a rocket's nose or the seat lose the detail needed to tell two models apart.
+  change: In EyeFilm.OnPostRender use the camera's own width for mono films: `int w = _mono ? _cam.pixelWidth : Width;` (keep h derived from sh/sw). That keeps the 640 px close-ups at full size.
+
+[tiny/low] src/Core/AutoTest.cs:913  Rocket reload close-up aimed at the rest pose, not the mouth
+  what:   `Vector3 well = held.Rig.ToWorld(held.Rig.Data.MagSeat.position);` (AutoTest.cs:913). MagSeat is the muzzle only when no magazine part was found (WeaponAnalyzer.cs:3024-3026). When a rocket part is found by name, MagSeat is that part's rest pose (WeaponAnalyzer.cs:2081 `d.MagSeat = sampler.RelIdle[mi];`). The rocket is loaded at the mouth (ReloadInteractions.cs:1927, `rocket.RailPose(SeatPose)` at RailDepth 0).
+  why:    For a launcher whose rocket is found by name, the close-up is centred on the rocket's rest pose, which may be the middle of the tube. The picture meant to show loading from the front may not show the front, depending on the launcher.
+  change: For launchers aim the close-up at the mouth: `Vector3 well = held.Rig.ToWorld(held.Rig.Data.Action == ActionType.SingleShot ? held.Rig.Data.MuzzlePoint : held.Rig.Data.MagSeat.position);`. Check on a launcher whose rocket is found by name before relying on it.
+
+[tiny/low] src/Core/Shots.cs:73  Stills rendered at a fixed 1280x800, not the headset's eye size
+  what:   `rt = new RenderTexture(1280, 800, 24);` (Shots.cs:73). The real eye size is logged at OpenVRRuntime.cs:114 and the render scale is applied at OpenVRRuntime.cs:131. EyeFilm sizes its frames from `_cam.pixelWidth` (EyeFilm.cs:131).
+  why:    Every still is 16:10 at 1280x800 whatever the headset renders. If the copied camera keeps the eye's aspect, the still is stretched or squashed; either way it does not match what the headset shows, which is the purpose of the file. I did not confirm how CopyFrom treats the aspect.
+  change: Size the target from the source camera: `rt = new RenderTexture(Mathf.Max(1, source.pixelWidth), Mathf.Max(1, source.pixelHeight), 24);`. Line 75 already uses rt.width/height for the readback.
+
+CHECKED AND FINE:
+  - AutoTest.cs Install/WaitForMatch/Safely: the exception wrapper and quit paths are sound; an exception in a check ends the run with a report.
+  - AutoTest.cs LensBurstCheck (1061-1128): the sliding 1.1 s window and the budget of 6 match the flash limiter; ReduceFlashing defaults to true (VRConfig.cs:325), so the check is live by default.
+  - AutoTest.cs ReloadFilm guard (888-889): the && inside || is unparenthesised but behaves as intended.
+  - ReloadInteractions.RocketFilm (1893-1978) loads the rocket from the front: the hand starts 25 cm out in front of the mouth and pushes along the bore (1924-1957), and MagazineProp.Create (375-381) forces the insert axis to the bore. This matches the front-loading the user asked for.
+  - EyeFilm readback and writer: _pending/Queued/Writing counters and Finish waits are consistent; the writer decrements Writing on exit.
+  - Shots.CaptureFirstClear: RenderTexture.active is restored and the temporary objects are destroyed in finally.
+  - LensBurstCheck, MeleeCheck, SupportCloseups, MagHandCloseups, SteadyCheck, WeightCheck, PassHandCheck and SlideLockPoseCheck are all called (AutoTest.cs 2773-3068), so none is dead code.
+  - Tidy-up only, not reported: stacked orphan doc comments at AutoTest.cs:548-557 (a 'left-handed' summary with no method) and 663-667.

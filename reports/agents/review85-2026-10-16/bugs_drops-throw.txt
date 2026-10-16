@@ -1,0 +1,33 @@
+bugs drops-throw (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: Bug review of src/Weapons/WeaponDrops.cs, src/Weapons/GrenadeDud.cs and src/Weapons/ThrowAndMelee.cs (dropped weapons, duds and pins, throws, melee). Read-only; game behaviour checked against .ref/decompiled. WeaponDrops.cs changed in commit 0f83c14 during the review (Nearest() only); line numbers are current. Not covered: the user's m4a1 ACOG question, which belongs to the main session.
+
+[major/medium] src/Weapons/ThrowAndMelee.cs:80  Trigger release is not gated by the menu block, so a grenade armed before a menu opened is thrown inside it
+  what:   Lines 75-78 arm only when `!GameContextBlocksThrow()` (`GameMenuOpen || PanelOpen && PointerOverUI`, line 117). Line 80 is `if (_armed && VRInput.GetReleased(DigitalAction.Fire, hand.Side))` with no such check, and nothing clears `_armed` when the block turns on (`_armed` is reset only at line 61 for non-throwables, lines 81/104, and in Release()). `Throw()` (line 120) has no menu check either. WeaponSystem.Update (WeaponSystem.cs:127) calls `_throwables.Update(Held)` regardless of menu state, so the release event reaches this code.
+  why:    Hold the trigger on a grenade (armed), open the game menu or drag the hand over an open dashboard panel while still holding it, then release with hand speed above 1.1 m/s: the grenade leaves the hand while the menu is up. With the pin pulled that is a live grenade launched during the menu, whose fuse runs when the game resumes. With the pin in it is a dud dropped at the hand. The grip path (line 91) already checks the block, so the two throw paths disagree.
+  change: Before line 80 add `if (GameContextBlocksThrow()) { _armed = false; }`, so an arm made before the block cannot fire on release. Optionally also require `!GameContextBlocksThrow()` in the release condition.
+
+[minor/medium] src/Weapons/ThrowAndMelee.cs:325  Pin-holding branch never checks the off hand's tracking, so a lost hand can pull the pin
+  what:   The grab start (line 315) requires `off.Tracked`, but the holding branch (lines 323-332) only checks `off.GrabHeld` and the palm-to-pin distance: `if (!off.GrabHeld) {...} else if (Vector3.Distance(off.Palm.position, pin) > PinPullDistance) PullPin(off);`. VRHand keeps the last raw pose when tracking is lost (src/Rig/VRHand.cs:85-87: `Tracked = false` with `rawLocal = _lastRawLocal`), so the off palm freezes while the dominant hand moves the grenade.
+  why:    Pin grabbed with the off hand, then the off controller loses tracking (hand behind the body) while its grip still reads as held: moving the grenade more than 5.5 cm from the frozen palm calls PullPin(off) (line 332). That sets _pinPulled and _ringHand = off; the next UpdatePin pass sees `!_ringHand.Tracked` (line 341) and drops the ring on the floor. The grenade is armed without the player pulling the pin, and its next throw is live.
+  change: At line 325 use `if (!off.GrabHeld || !off.Tracked)` so a lost hand lets go of the pin (the existing branch at lines 326-329 then clears _holdingPin and sets the role back to Free).
+
+[tiny/high] src/Weapons/WeaponDrops.cs:832  Own-weapon drop comment promises 90 s deletion, but the code never deletes it
+  what:   Lines 830-836: `if (expired && d.OwnerSlot >= 0) { // ... Deleted after 90 s (in a vehicle, where it is not returned) or after falling out of the world, it was gone from the loadout for good. d.ReturnAt = 0f; continue; }`. No path removes an expired owner drop; grep for '90' in WeaponDrops.cs finds only the comment. VRConfig.DroppedWeaponLifetime (WeaponDrops.cs:819) is used only to mark the drop expired.
+  why:    Expired owner drops stay as physical rigidbodies, outside both the lifetime and MaxDroppedWeapons cap. While seated, Update() returns early (line 562, !PlayerOnFoot), so ReturnOwnDrops never runs and the drop waits until the player is back on foot, then returns to the holster. The documented behaviour (removed after 90 s in a vehicle, gone after falling out of the world) does not happen. The impact is small (owner drops are bounded by loadout slots), but the code and comment disagree.
+  change: Pick one. Either implement the removal in that branch, e.g. `if (Time.time - d.DropTime > lifetime + 90f) { Remove(d); continue; }` before `d.ReturnAt = 0f;`, or rewrite the comment to say the drop is kept and returned on foot.
+
+CHECKED AND FINE:
+  - MeleeWeapon.SphereCast (.ref/decompiled MeleeWeapon.cs:75-98) initialises every out distance to float.MaxValue, so Cast()'s `blocking` and the enemy/ally comparisons are sound.
+  - Melee hit order (enemy, ally, vehicle, wall) matches the game's ShootMeleeRay (MeleeWeapon.cs:181-208); the vehicle-before-wall order is inherited, not a mod bug.
+  - Melee body-relative swing speed, the MaxSweep carry guard and the rig-space tip bookkeeping are consistent.
+  - Gun-space vs world: VisibleBounds (GunCollider.cs:559) returns gun-space bounds, so _pinLocal in SetupPin is consistent; MeasureBlade's frame conversion is consistent.
+  - Weapon switch, death and scene change: ReleaseHeld (WeaponSystem.cs:319-325) calls _throwables.Release() and _melee.Release(); ForgetPulledPins runs on death; GrenadeDud.DestroyAll runs on scene change.
+  - PickUp swap: Weapon.Drop() (.ref Weapon.cs:1917) destroys the game object, so the swapped-out weapon is not duplicated. SpawnWeapon returns null only for a null entry or prefab, which ModelFor already excludes.
+  - Grab consumption: VRHand.GrabPressed reads VRInput.GetPressed, which honours Consume, so a loose-prop pickup and a drop pickup in the same frame do not double-take.
+  - Prepare() destroys its root right after GunVolume.Measure: Build renders synchronously and only the readback is deferred, so the destroy is safe.
+  - BakeMesh assumed to apply the renderer scale (GrenadeDud.cs:115, WeaponDrops.cs:1005): consistent with ShapeFit.cs:171 and MagazineProp, not reported.
+  - AmmoCounter copied into duds: not reachable, because AmmoState.Participates excludes Throwable and flash messages never reach a held grenade.
+  - ShapeFit cache keys ('heldmag:' + Key, 'dud:' + KeyOf) are never null, since KeyOf always returns a string.
+  - Commit 0f83c14 changed Nearest(): the AABB early-out is a valid lower bound on the exact distance, so no regression.
+  - GrenadeDud Refund, Cull, Expire and Procedural; PinRing creation and drop; ReturnOwnDrops and RestoreAmmo clamps; DropHeld shape and ammo: no defect found.

@@ -1,0 +1,43 @@
+improve analyzer-1 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: src/Weapons/WeaponAnalyzer.cs lines 1-1750 (weapon analysis, first half), read-only. Also read the uncommitted diff and commit 4e718cb (the M4A1 charging-handle change), because the user asked whether the M4A1 ACOG handle was verified to go back. Code reading only; the game was not run, so findings 1 and 2 are code-level and need an in-game check. From the code, 4e718cb only stops ArChargingHandle from adding a knob (lines 764-771). The handle's travel still comes from the reload trajectory (AnalyzeSlide, lines 1136-1145), which the commit did not change.
+
+[major/medium] src/Weapons/WeaponAnalyzer.cs:1342  RackStrokeFromHands can re-place the M4A1 reload handle and switch it to a carved knob
+  what:   RackStrokeFromHands (called at line 537) runs its SlidePath branch for the M4A1 handle, which AnalyzeSlide set up as the slide (SlideMethod "reload motion (charging handle)", line 1103). The guard at line 1342 is `if (d.HandlePath != null || d.IsPistol || Vector3.Distance(bestStart, d.RackPoint) < 0.03f) return;`, so the early return that 4e718cb added in ArChargingHandle (lines 764-771) is not respected here. Lines 1351-1353 then set `d.RackPoint = bestStart;` and `d.CarveHandle = !onPart;`, where onPart requires the reload hand to be within 1.5 cm of the handle's bounds.
+  why:    When the reload hand's grasp is 3 cm or more from the handle's rack point and more than 1.5 cm off the handle's bounds, CarveHandle becomes true. HeldWeapon.cs:1883 and 1905 then drive the carved piece with the racking fraction, and it is held at zero outside racking (`handle = 0f` when not racking), so the piece the hand holds can stay forward while the handle moves. That is the "handle does not come back with the hand" symptom the commit was meant to fix. I could not confirm from code alone which branch the M4A1 takes.
+  change: In RackStrokeFromHands, add `|| d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)` to the return at line 1342, so a reload-found handle is never re-placed. More robust: store a bool (for example `d.SlideIsReloadHandle = true` set at line 1103) and test it in ArChargingHandle (line 764), RackStrokeFromHands (line 1342) and BoltInsideOnSurface (line 638), instead of matching SlideMethod text in three places.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:620  AR charging-handle pull is a fixed 7.5 cm, and three caps disagree
+  what:   `d.HandleTravel = -d.AimAxis * 0.075f;` (line 620) and `d.SlideTravel = -d.AimAxis * 0.075f;` (line 779). The caps are `Mathf.Clamp(travel, ..., 0.15f)` (line 1139), `Mathf.Clamp(bestLen, ..., d.IsPistol ? 0.045f : 0.11f)` (line 1361), and `MaxBoltTravel = d.IsPistol ? 0.07f : 0.2f` (line 1754).
+  why:    Every AR with no measured handle travel pulls its handle 7.5 cm, whatever its receiver length. The same rifle racked through the reload-hand path is capped at 11 cm, while one racked through the fire animation may move up to 15 cm, so the pull length depends on which detector found the bolt.
+  change: Derive the default travel from the receiver's measured length along the bore (for example a fraction of its bounds), and use one shared cap for all three sites, consistent with MaxBoltTravel.
+
+[minor/medium] src/Weapons/WeaponAnalyzer.cs:796  Fallback grip and support points are fixed distances, not sized to the gun
+  what:   `d.GripPoint = d.MuzzlePoint - d.AimAxis * (d.IsPistol ? 0.13f : 0.36f) - d.Up * 0.05f;` (line 796) and `d.SupportPoint = d.GripPoint + d.AimAxis * (d.IsPistol ? 0.01f : 0.24f);` (line 806). The Fallback() method repeats the constants at lines 233-234 (`-0.32f`, `0.22f`).
+  why:    When no right-hand bone is found (HandsMethod "estimated", line 809), every rifle gets a grip 36 cm behind the muzzle and a support point 24 cm further back, whatever its size. A 25 cm SMG's grip lands over its stock, and a 70 cm sniper's grip is about 30 cm too far back. In VR the hand floats off the gun or clips into it.
+  change: Derive the grip and support points from the measured gun body: take the gun body's bounds with GunSpaceBoundsNear(gunBody, gunIdle, ...), put the grip near its rear and the support point a fraction of the body length toward the muzzle. Keep the constants only when the bounds are empty.
+
+[minor/high] src/Weapons/WeaponAnalyzer.cs:1150  Commit 4e718cb says the M4A1 handle is taken at its back end; this path uses 0.6, not 0.8
+  what:   AnalyzeSlide sets `d.RackPoint = b.center - d.AimAxis * along * 0.6f;` (lines 1146-1151). The back-end block using `half * 0.8f` (line 1182) sits inside the branch guarded at line 1162 by `!d.SlideMethod.StartsWith("reload motion (charging handle)", ...)`, so it never runs for a handle found by the reload. This path also has no size check: the separate-handle path rejects a handle more than 0.45 m from the grip (line 1165) and the name path rejects bounds longer than 0.3 m (line 603).
+  why:    The grab sits at 60% of the half length, not the 80% that the commit message and the comment at lines 1174-1176 describe. On a 5 cm T-handle the difference is under 1 cm, so the discrepancy is high confidence but the size of the effect is low. If a mesh under the handle transform (a sight rail, part of the receiver) inflates its bounds, the hand is placed at the centre of those bounds with no check.
+  change: For the slide-is-handle case (SlideMethod "reload motion (charging handle)"), compute the grab point with the back-end rule (`center - AimAxis * half * 0.8f`) and the same `above` check as lines 1177-1184. Reject bounds longer than 0.3 m, as the name path does at line 603.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:1692  Break-action close sound is dropped silently when the barrel never drops below 30%
+  what:   `d.TSlideForward = close >= 0 ? (close + 1) * PoseSampler.Dt : -1f;` (line 1692). `close` is only set once the angle falls below 30% of the peak after opening (lines 1682-1685). WeaponAnalyzer.cs line 2826 adds the close sound only `if (d.TSlideForward >= 0f)`.
+  why:    If the sampled reload ends while the barrel is still above 30% of its peak, no close sound is placed and the barrel shuts silently. The player hears the open click but gets no closing feedback.
+  change: When `close < 0` but `open >= 0`, use the last sample time (`angle.Length * PoseSampler.Dt`) instead of -1. First confirm that ReloadAngle covers the whole reload.
+
+[tiny/low] src/Weapons/WeaponAnalyzer.cs:122  WeaponOverrides.Apply runs outside the try, so a throw is never cached
+  what:   `WeaponOverrides.Apply(w, data);` (line 122) comes after the try/catch (lines 112-121) and before `Cache[key] = data;` (line 123).
+  why:    An exception from Apply escapes Get() without caching, so each call re-runs the full analysis (sampler clones) and rethrows, and the geometric fallback is bypassed. WeaponSystem.cs:344 calls Get on every rig construction. I did not confirm that Apply can throw.
+  change: Move the Apply call inside the try block, before the catch, or assign `Cache[key] = data` before applying overrides and wrap Apply in its own try that logs and continues.
+
+CHECKED AND FINE:
+  - Name regexes (ArmName, MagName, NotMagName, SlideName, ScopeName, FingerPatterns, ChargingName, BeltName, CoverName) read. The uncommitted NotMagName calibre change (lines 36-38) is sound.
+  - FingerCurls (lines 1380-1451): the constants match the comment (thumb 40 deg per joint, about 120 full; 90/190/260 for other fingers), and the middle and ring lerp is consistent.
+  - ClassifyAction, MagazineSizedReload and ReclassifyAdvancedReload: the && / || precedence is intended.
+  - Analyze() ordering (lines 267-564), AlignEyeToScopeModel and AnalyzeSights thresholds, AnalyzeSightModes and AnalyzeSightParts: no defect found.
+  - DetectHinge (lines 1527-1693): break-action and cylinder logic and the open/close threshold scan read as intended apart from the close-sound finding above.
+  - ArChargingHandle early return (lines 762-771) from 4e718cb reads as intended; the problems are in the paths next to it (findings 1 and 2).
+  - Cosmetic only: MagazineSizedReload has two stacked summary blocks (lines 169-177).
+  - Sound and haptic output is not produced in this half; the only feedback data here are the TSlideBack / TSlideForward timings (finding 5).

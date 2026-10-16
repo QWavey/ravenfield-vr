@@ -1,0 +1,47 @@
+improve weapon-system (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Read-only review of the weapon system area of the Ravenfield-VR BepInEx mod: src/Weapons/WeaponSystem.cs, WeaponPatches.cs, WeaponRig.cs, WeaponOverrides.cs, WeaponWarmup.cs, FireSelector.cs and Casings.cs, read in full, with cross-checks in WeaponAnalyzer.cs, HeldWeapon.cs, VRInput.cs, ProceduralSounds.cs and WeaponDrops.cs. Nothing was edited, built or run. The relayed user request to continue building (rocket grip model, PNG/GIF recordings) was not acted on because this run is read-only.
+
+[major/high] src/Weapons/HeldWeapon.cs:844  Aim-down-sights engage and release give no haptic or sound
+  what:   UpdateAim decides the aim state with hysteresis (lines 824 and 842) and stores it at line 844 (`Aiming = aim;`). AimingPatch (WeaponPatches.cs:272) and GameInputBridge read it. No Haptic or Sounds.Play call is tied to the change. The haptics in src/Weapons cover shots, reload handling, holsters, grabs and wall knocks, and none fires when the sight comes up.
+  why:    In VR the player brings the stock to the eye and the sight picture locks or drops with no tick. Nothing tells them the eye is on the line; they have to look through the lens to know. Aiming is the most repeated action in a fight, so every shot is affected.
+  change: After `Aiming = aim;` (HeldWeapon.cs:844), when the value changed and the last change was more than about 0.15 s ago, call `_system.Rig.Dominant.Haptic(0.02f, 160f, 0.35f)` on engage and a lighter pulse (about 0.015 s, 140 Hz, 0.25) on release, and play a short sight click through a new MechSound entry (see the fire-mode finding). The cooldown stops buzzing when the eye hovers at the threshold.
+
+[major/high] src/Weapons/WeaponSystem.cs:494  Fire-mode toggle plays the empty-trigger click
+  what:   HandleFireModePress plays `Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.5f);` (line 494) after a SEMI/AUTO toggle. That is the same clip as the empty-gun click at line 447, and the mode name is shown only as text through FlashMessage (line 493). The DryFire clip is a 60 ms click plus a 2600 Hz ring (ProceduralSounds.cs:33-34).
+  why:    A player who switches to semi hears a dead trigger and may reach for a magazine that is not empty. Telling 'switched' from 'empty' then depends on a small text readout in the gun that a VR player may not be looking at.
+  change: Add `Selector` to the MechSound enum (ProceduralSounds.cs:7) and build it next to DryFire (ProceduralSounds.cs:33): two short clicks about 25 ms apart, lower for SEMI and higher for AUTO. Play it at line 494 instead of DryFire. Also strengthen the empty-gun haptic at WeaponSystem.cs:448, which is 0.01 s at amplitude 0.25 and the weakest pulse in the file, to about 0.02 s at 0.4.
+
+[minor/medium] src/Weapons/Casings.cs:66  Ejected case speed and spin are the same for every gun
+  what:   Eject sets `velocity = hand + right * Random.Range(1.8f, 2.6f) + up * Random.Range(0.8f, 1.5f) + back * Random.Range(0.1f, 0.5f)` (line 66) and spin `Random.insideUnitSphere * 25f` (line 68) for every kind. Kind changes only the mesh (line 129) and, for shells, the mass (line 136: `kind == Kind.Shell ? 0.03f : 0.012f`).
+  why:    A 9 mm pistol case and a rifle or LMG case leave the port with the same speed range and the same tumble, so the pistol's brass flies as far and spins as hard as a rifle's. Players who handle these guns notice the generic behaviour.
+  change: Give each Kind (Pistol, Rifle, Heavy, Shell) its own speed and spin factor, for example Pistol 0.7x, Rifle 1.0x, Heavy 1.25x, Shell 0.8x with a heavier, slower tumble, applied to the two Random ranges and the spin at lines 66-68. Keep the hand-velocity term. The small table can sit next to the meshes in EnsureAssets. The numbers are a starting point to tune by eye.
+
+[minor/high] src/Weapons/WeaponOverrides.cs:65  Edits to the override file never reach weapons already analysed
+  what:   The file-change check (GetLastWriteTimeUtc and ClearCache, lines 65-79) lives in EnsureLoaded, which only Apply calls (line 109). Apply runs only on a WeaponAnalyzer.Get cache miss (WeaponAnalyzer.cs:108-111 return early; Apply at :123). The warm-up analyses every installed weapon in the menu (WeaponWarmup.cs:148), and RigFor keeps each WeaponRig in `_rigs` until a scene change (WeaponSystem.cs:340-348, cleared at 805). After the warm-up nothing calls EnsureLoaded. The comment at lines 75-76 ('weapons analysed already are analysed again (from their next draw)') does not happen.
+  why:    A tuner who edits RavenfieldVR.weapons.json while the game runs sees no effect until a restart or until a new weapon loads. The documented behaviour is not what the code does.
+  change: Expose the stamp check as `WeaponOverrides.Refresh()` returning whether it changed, and call it at the top of WeaponSystem.AttachHeld (WeaponSystem.cs:297; Held is null there). When it returns true, clear `_rigs` so the next draw rebuilds the rig through WeaponAnalyzer.Get. The first draw of each edited weapon then pays one analysis hitch, which is the intended effect.
+
+[minor/medium] src/Weapons/WeaponOverrides.cs:138  Magazine override changes the path but keeps the detected magazine parts
+  what:   The `magazine` branch sets only `d.MagazinePath` (line 143). MagazinePartPaths (WeaponRig.cs:79), MagazineIsSkinned (WeaponRig.cs:81) and MagazineToggles (WeaponRig.cs:83) keep the values detected for the original magazine: parts that move 'together' with it (WeaponAnalyzer.cs:2725) and the toggle and skinned flags (WeaponAnalyzer.cs:2075-2076).
+  why:    With an override that names a different transform, the rounds, follower or base plate detected for the old magazine stay tied to the wrong piece, and a skinned-bone flag can make the mod move the wrong object when the magazine is drawn. The player sees parts left in the gun or moving with the wrong part.
+  change: When the magazine override resolves, re-run the magazine-part detection for the new transform (the pass around WeaponAnalyzer.cs:2690-2729), or at minimum clear MagazinePartPaths and reset MagazineIsSkinned and MagazineToggles, so no part of the other magazine is carried over.
+
+[minor/low] src/Weapons/WeaponOverrides.cs:170  Pitch override turns the aim axis but not the sight line
+  what:   The pitch block (lines 170-175) rotates AimAxis and Up only. EyeDirection (WeaponRig.cs:110) and each SightLine.EyeDirection (WeaponRig.cs:47) keep their pre-override values. HeldWeapon.cs:811 uses the sight line's EyeDirection for the eye check, and the analysis set those from the bore (WeaponAnalyzer.cs:880, 1020).
+  why:    With pitch set, the sight line and the barrel direction disagree by the pitch angle, so a lined-up eye no longer points down the bore the mod now uses. Whether this is a bug depends on intent: the doc on WeaponOverride.pitch (WeaponOverrides.cs:27-28) says 'barrel pitch', which could mean bore-only.
+  change: If pitch should move the whole gun, apply the same rotation q to d.EyeDirection and to every d.Sights[i].EyeDirection in that block. If it is bore-only, say so in the WeaponOverride.pitch doc comment and leave the code as it is.
+
+[minor/medium] src/Weapons/WeaponWarmup.cs:171  Warm-up pacing cap breaks the 6 ms budget for long analyses
+  what:   `int rest = Mathf.Clamp(Mathf.CeilToInt((float)watch.Elapsed.TotalMilliseconds / 6f), 1, 45);`. The header (lines 13 and 170) promises about 6 ms per frame on average. Once an analysis takes more than about 270 ms, the rest is capped at 45 frames, so the cost per frame grows with the analysis time.
+  why:    An analysis of 600 ms (the comment says detailed models are slow) is followed by 45 idle frames, which is about 13 ms per frame over that span: above the roughly 11 ms budget of a 90 Hz headset. The analysis itself is one unbroken frame (lines 148-149 call WeaponAnalyzer.Get and PrefitShape with no yield), so a very large model is one long hitch in the menu either way.
+  change: Remove the upper bound so the rest is `Mathf.Max(1, Mathf.CeilToInt(ms / 6f))`, which keeps the average at the promised 6 ms. Keep the one-frame cost in mind: it cannot be paused inside WeaponAnalyzer.Get or PrefitShape.
+
+CHECKED AND FINE:
+  - All seven listed files read completely: WeaponSystem.cs (834 lines), WeaponPatches.cs, WeaponRig.cs, WeaponOverrides.cs, WeaponWarmup.cs, FireSelector.cs, Casings.cs.
+  - WeaponPatches: spawn-empty-handed, laser-without-user, unholster animator stepping, CanFire dry-fire, Shoot, Reload, ReloadDone, scope hide, Aiming and swim patches. No defects beyond the findings above.
+  - Dry-fire click: the comment at WeaponSystem.cs:443 says once per pull. VRInput.GetPressed is an edge (VRInput.cs:226 sets Pressed = state && !was; GetPressed at :409-410), so the 0.15 s gate only merges repeats within one pull. Consistent, not a finding.
+  - FireSelector: Toggle, OnShot cut and fade, Update and Clear are consistent. RestoreSemi (called from WeaponDrops.cs:680) and FireSelector.Clear (WeaponSystem.cs:804, 824) match the lifetimes they are used for.
+  - Casings pool (Max 40, Idle reuse, Cull at 172-189) and CaseSound rearm are sound.
+  - WeaponWarmup: pausing while the menu is in use, loadout-first ordering and the rescan loop behave as their comments say. No unguarded exception path found that would leave _running stuck.
+  - WeaponSystem grip-to-hold, pass-to-other-hand and holster hover haptics are internally consistent.

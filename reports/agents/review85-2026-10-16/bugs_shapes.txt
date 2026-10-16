@@ -1,0 +1,51 @@
+bugs shapes (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: Bugs in the gun's measured shape and physics: src/Weapons/GunCollider.cs, GunVolume.cs, ShapeFit.cs, BoltPiece.cs (read in full, read-only). Callers in HeldWeapon.cs, WeaponSystem.cs, WeaponDrops.cs, MagazineProp.cs were checked where a finding depends on them. The rocket model and PNG/GIF recording in the relayed request are not part of this review and were not done.
+
+[major/high] src/Weapons/GunCollider.cs:588  Measured solid and volume hull omit the charging handle BoltPiece carved out
+  what:   BoltPiece.Build cuts the handle's triangles out of the receiver (BoltPiece.cs:151 `mf.sharedMesh = result.Remaining;`) and names the moved piece "RavenfieldVR Bolt Piece" (BoltPiece.cs:137). GunCollider.VisibleRenderers then drops every renderer under a RavenfieldVR-named object: `!AddedByMod(r.transform, rig.Weapon.transform)` (GunCollider.cs:588, AddedByMod at 618-628). GunVolume.For/Build measure VisibleRenderers (GunVolume.cs:263, 284). Order is fixed: BoltPiece.Create runs in the HeldWeapon constructor (HeldWeapon.cs:204) and the volume is measured later in HandSolid (HeldWeapon.cs:1256). The AddKnob handle (BoltPiece.cs:305, "RavenfieldVR Bolt Handle") is excluded the same way.
+  why:    The drawn model has a handle at the rack point, but the measured solid has a hole where the cut triangles were (carve radius 3 cm rifles, 2.2 cm pistols, BoltPiece.cs:88, 201-202). Hands and fingers can close into the receiver where the handle is. GunVolume.cs:11-12 says the solid is the shape "exactly as it is drawn", which this violates. When ChooseShape prefers the volume hull (HeldWeapon.cs:1423-1438), the physics stand-in loses that region too. The stand-in itself is fitted in the constructor before the carve (HeldWeapon.cs:135 vs 204), so only the volume path is affected.
+  change: In GunCollider.VisibleRenderers keep the bolt parts: `(!AddedByMod(r.transform, rig.Weapon.transform) || IsBoltPart(r.transform))`, where IsBoltPart checks the names "RavenfieldVR Bolt Piece" and "RavenfieldVR Bolt Handle". Measure with the handle at rest (BoltPiece.SetOffset zero travel first); the `held > 5f` fallback at HeldWeapon.cs:1253 can measure while it is displaced. Alternatively measure the volume before BoltPiece.Create.
+
+[major/medium] src/Weapons/GunCollider.cs:928  Stand-in keeps driving to its last hand pose after GunCollider.Update stops
+  what:   GunProxyBody.FixedUpdate drives the body whenever HasTarget is true (GunCollider.cs:928-933). HasTarget and TargetPos are set in GunCollider.Update (725-727) and never cleared. Update returns early when `_rig.GunBody == null` (680-682) and is only called from HeldWeapon.Update (HeldWeapon.cs:722). The stand-in is destroyed only in HeldWeapon.Release (HeldWeapon.cs:2140), after many statements, and WeaponSystem.ReleaseHeld wraps Release in Log.Guard (WeaponSystem.cs:321), which swallows exceptions. The object is DontDestroyOnLoad (GunCollider.cs:276).
+  why:    If the held weapon's rig dies or Release throws before line 2140, an invisible physics body stays frozen at the hand's last pose on the prop layer. It shoves nearby loose magazines and casings and survives scene loads. It is only removed when the next weapon is created (Current?.Destroy() at GunCollider.cs:494).
+  change: Add a staleness guard to GunProxyBody: clear HasTarget when no SetHandPose has arrived for about 0.25 s. Also set `_driver.HasTarget = false` in the GunCollider.Update early return and in Destroy. Move `_gunCollider?.Destroy()` (HeldWeapon.cs:2140) to the top of Release, or into a finally, so an exception earlier in Release cannot skip it.
+
+[minor/low] src/Weapons/GunCollider.cs:535  Fit falls back to every renderer when none is near the envelope
+  what:   `ShapeFit.Fit("held:" + d.Key, near.Count > 0 ? near : renderers, frameFromWorld);`. The near filter (GunCollider.cs:529-534) was added so a mesh parked 25 m away does not stretch the slices (comment at 525-526). The fallback reintroduces that case whenever no mesh centre is inside the envelope plus 5 cm.
+  why:    The slice count is capped at 80 (ShapeFit.cs:442), so with a 25 m span each slice is about 30 cm. The envelope-clamped pieces become coarse slabs or are dropped to the crate fallback. Rigs with a mis-set grip point or pivot hit this path.
+  change: Fit only `near`. When it is empty, return no pieces (box fallback at GunCollider.cs:548-554) instead of falling back to all renderers.
+
+[minor/low] src/Weapons/GunVolume.cs:594  Hull flags are written after the read-back job is already queued (race on the sync path)
+  what:   For sets `v.WantsHull = true` after Build returns (GunVolume.cs:264-267). Measure sets HullSlice, HullMaxPieces and WantsHull after Build (285-290). On platforms without async readback Build calls job.Arrived synchronously (533-538), and the last arrival queues the worker (583). The worker then reads `Volume.WantsHull` (594) and `HullSlice`/`HullMaxPieces` (597) with no barrier.
+  why:    Only on the synchronous readback path. If the worker runs first it skips the hull (WantsHull false) or fits with the defaults 0.03 m / 16 pieces instead of the 0.04 m / 12 that WeaponDrops.cs:445 asks for. The hull is then missing or differs from the one requested.
+  change: Pass WantsHull, HullSlice and HullMaxPieces into Build (or into the Job) before any readback is requested, so the worker never reads fields the caller is still writing.
+
+[minor/medium] src/Weapons/ShapeFit.cs:105  A failed or empty shape fit is cached for the whole session
+  what:   Fit returns `new Piece[0]` when fewer than 8 points were collected (ShapeFit.cs:92) and also on exception (94-98). Both results are then stored: `if (key != null) Cache[key] = pieces;` (103-106). The top of Fit returns the cached value without retry (80-82). GunVolume deliberately keeps failures out of its cache (GunVolume.cs:317-320, "tried again the next time it is held").
+  why:    If the first Create for a weapon type runs while its meshes are disabled (VisibleRenderers filters r.enabled, GunCollider.cs:586-588) or throws, every later stand-in of that type falls back to the crate box (GunCollider.cs:548-554) for the session. Recovery depends on ChooseShape replacing it with the volume hull (HeldWeapon.cs:1262-1266, 1418-1455), so the impact is limited when the volume measures.
+  change: Store only non-empty results: `if (key != null && pieces.Length > 0) Cache[key] = pieces;`, and do not cache when the catch at 94-98 fired.
+
+[minor/medium] src/Weapons/ShapeFit.cs:297  Hull thinning keeps every n-th point, not the extremes, despite its comment
+  what:   `Vector3[] pts = Solid(Thin(Dedupe(g.Hull), 180));` and Thin (ShapeFit.cs:312-324) keeps `pts[(int)((long)i * pts.Length / max)]`. Its doc says "extremes are spread evenly through the list", but it is an index stride. The hull candidates are 18 outermost points per slice segment (ShapeFit.cs:563-584), so a group of several hundred points is cut to 180 without regard to which are outermost.
+  why:    The convex hull of the kept points lies inside the true surface by the chord sag of the dropped directions, a few millimetres on a barrel or grip. The physics stand-in ends up a few mm inside the drawn gun, so props and magazines get closer to the gun than the hand does.
+  change: Reduce to the cap by keeping, per direction bucket or per slice, the outermost point (the extremes), rather than by index. Fix the Thin doc to match.
+
+[minor/low] src/Weapons/ShapeFit.cs:297  Solid() can push a piece past the 180-point cap that the cap is meant to respect
+  what:   `Solid(Thin(Dedupe(g.Hull), 180))`: Solid (ShapeFit.cs:333-372) appends a shifted copy of every point for each principal axis thinner than 4 mm (363-369). One thin axis doubles the list to 360, two quadruple it to 720. The cap is applied before this step.
+  why:    The cap exists to keep the cooked convex hull under the PhysX vertex limit (the hull is cooked in Bake, ShapeFit.cs:120-137). The exact Unity/PhysX limit is not verified in this repo. If a flat part (a sight plate, a thin side panel) exceeds it, the cook fails and AddColliders silently turns that piece into a box (ShapeFit.cs:599-623).
+  change: Apply the cap after Solid, or cap the input to 255 divided by 2^(number of thin axes), so the final vertex count is bounded.
+
+CHECKED AND FINE:
+  - GunVolume depth views: camera placement along view z, back-view mirroring (back column w-1-i), depth decode and far-plane normalisation, and the grow/closing spans are consistent (GunVolume.cs:458-495, 620-653, 727-818).
+  - ShapeFit.PrincipalAxes Jacobi rotation update matches the standard formulation (ShapeFit.cs:375-424).
+  - GunCollider.HideFromPlayer nesting (GunCollider.cs:305-326) is correct for the nested CharacterController.Move and FirstPersonController.FixedUpdate patches; Update restores a leaked hide (665-679).
+  - GunCollider.TryBlockedPose inverts the hand pose correctly (337-348), and the rotation lerp and angle wrap in GunProxyBody are correct (945-953).
+  - Drop timing units match: MagazineProp.DroppedFor (MagazineProp.cs:1571) and DroppedWeapon.DropTime (WeaponDrops.cs:168) are both seconds since drop, so UpdateRestingProps has no unit mismatch.
+  - OnPropDropped is called for every collider of a magazine (MagazineProp.cs:1554-1557), not just one, so the bodies are not left unignored; Casings and GrenadeDud pass single colliders by design.
+  - GunVolume.OnReady runs on a worker thread, but WeaponDrops.RenderedShapes is a ConcurrentDictionary (WeaponDrops.cs:416), so that write is safe.
+  - Held magazines have their colliders disabled (MagazineProp.cs:217, 922, 995), so the stand-in cannot be held back by the magazine in the other hand.
+  - BoltPiece re-carve after a rack-point move is preceded by Destroy (HeldWeapon.cs:1310-1313), so the receiver is not carved twice; Destroy restores Original meshes (BoltPiece.cs:375-389).
+  - GunCollider.Destroy only nulls Current when Current == this, so a new weapon's Create does not clobber state when the old HeldWeapon's cleanup runs afterwards.
+  - Seat toggling in GunCollider.Update (686-705) and the PropPhysics player-collider generation logic (126-155) are consistent with their comments.

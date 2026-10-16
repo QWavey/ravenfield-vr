@@ -1,0 +1,141 @@
+85-agent read-only review of the Ravenfield VR mod (2026-10-16): 20 performance, 20 bug hunt, 20 improvements,
+20 regression guards (changes since 2026-10-15), 5 special audits. Findings by phase and severity:
+
+  Performance       critical 0, major 20, minor 53, tiny 37
+  Bug hunt          critical 0, major 22, minor 68, tiny 16
+  Improvements      critical 0, major 46, minor 89, tiny 18
+  Regression guard  critical 0, major 12, minor 48, tiny 16
+  Special           critical 2, major 26, minor 15, tiny 5
+
+Status column: FIXED = changed in the code today (see git log 2026-10-16), NOTED = known/kept, blank = to look at.
+
+All critical and major findings, highest first:
+
+[critical/high] Special          src/Weapons/ReloadInteractions.cs:2000  RocketFilm passes a rocket of any model that is over 12 cm
+[critical/high] Special          src/Weapons/ReloadInteractions.cs:2248  Launcher load in SelfCheck seats the rocket straight into the tube with no hand
+[major/high] Performance      src/Core/EyeFilm.cs:151  Film allocates and copies a ~1 MB array on the main thread for every eye frame
+[major/high] Performance      src/Weapons/WeaponSelfTest.cs:225  Self-test time slice is 50 ms, so VR frames run at 10-20 fps while it analyses
+[major/high] Performance      src/Rig/LensEffects.cs:416  Low health keeps the full lens picture recomputed and uploaded every frame
+[major/high] Performance      src/Weapons/WeaponDrops.cs:168  Each new drop runs its body and player ignore pass twice, the second time the next frame
+[major/high] Performance      src/Weapons/WeaponWarmup.cs:145  Warm-up runs a whole weapon's analysis, shape fit and drop copy in one frame
+[major/high] Performance      src/Weapons/VRScope.cs:252  Scope lens renders a full extra scene frame while its picture is blacked out
+[major/high] Bug hunt         src/Weapons/WeaponAnalyzer.cs:38  Caliber in a magazine name (9x19, 7.62x39) makes it an optic
+[major/high] Bug hunt         src/Weapons/WeaponAnalyzer.cs:2079  Skinned magazines keep the 12 cm default MagBounds box
+[major/high] Bug hunt         src/Weapons/ReloadInteractions.cs:408  CanPalm accepts another weapon's magazine as the fresh one
+[major/high] Bug hunt         src/Core/AutoTest.cs:249  A thrown exception ends Run(): no Write and no Quit, the game stays open at the match
+[major/high] Bug hunt         src/Core/AutoTest.cs:2937  Drop block leaves a released HeldWeapon in use, faking a no-recoil problem
+[major/high] Bug hunt         src/Rig/CockpitControls.cs:164  Turning the view in a car swings the gripped rim and steers the car
+[major/high] Bug hunt         src/Rig/CockpitControls.cs:208  Level-horizon option makes aircraft bank read as stick input
+[major/high] Bug hunt         src/Weapons/GunCollider.cs:588  Measured solid and volume hull omit the charging handle BoltPiece carved out
+[major/high] Bug hunt         src/Weapons/WeaponOverrides.cs:66  Edits to weapons.json are never re-read after warm-up; live rigs stay stale
+[major/high] Bug hunt         src/Weapons/WeaponOverrides.cs:121  Action override leaves CyclesByHand from the detected action
+[major/high] Bug hunt         src/Weapons/DrivingWeapons.cs:28  Car and Humvee drivers can never draw: the car horn counts as a mounted weapon
+[major/high] Improvements     src/Weapons/ReloadInteractions.cs:1043  A magazine, round or shell pushed into a well that refuses it gets no feedback
+[major/high] Improvements     src/Weapons/ReloadInteractions.cs:1647  A slide or bolt that closes on its own is silent and unfelt
+[major/high] Improvements     src/Weapons/HeldWeapon.cs:893  Support hand gets no shot buzz when it is on the gun but TwoHanded is off
+[major/high] Improvements     src/Core/AutoTest.cs:183  Frame budget hard-coded to 90 Hz; hides dropped frames on 120 Hz
+[major/high] Improvements     src/Core/AutoTest.cs:931  Rocket film's TOO SMALL verdict never fails the run
+[major/high] Improvements     src/Core/AutoTest.cs:242  One throwing check stops the whole run; later weapons never get tested
+[major/high] Improvements     src/Core/AutoTest.cs:2222  Reaching-grab check reports a pass when the drop never spawned
+[major/high] Improvements     src/Weapons/WeaponDrops.cs:884  Dropped weapons and gun-on-wall contacts make no sound at all
+[major/high] Improvements     src/Weapons/AmmoCounter.cs:60  Flash messages (NO AMMO, FULL, OPEN COVER) vanish when the gun counter option is off
+[major/high] Improvements     src/Weapons/MagazineProp.cs:380  Rocket insert override makes front parallel to insert: held roll and stand-in orientation become arbitrary
+[major/high] Improvements     src/Weapons/MagazineProp.cs:431  Pouch display of a rocket ignores the insert override, so the shown and grabbed rocket differ
+[major/high] Improvements     src/Weapons/MagazineProp.cs:1490  A contact that begins inside the shared 0.25 s throttle never knocks
+[major/high] Improvements     src/Weapons/ThrowAndMelee.cs:319  Grenade pin gives no hover cue when the off hand reaches it
+[major/high] Improvements     src/Weapons/ThrowAndMelee.cs:716  A blade hitting a static wall gives no haptic, animation or sound
+[major/high] Improvements     src/Weapons/WeaponDrops.cs:159  Dropped weapons and duds hit the ground silently
+[major/high] Improvements     src/Weapons/WeaponDrops.cs:777  The player's displaced weapon becomes an ordinary drop and can be culled
+[major/high] Improvements     src/Rig/CockpitControls.cs:168  No haptic when the steering rim reaches its stop
+[major/high] Improvements     src/Weapons/GunCollider.cs:32  Prop layer is picked without checking the first-person ground-cast mask
+[major/high] Improvements     src/Weapons/GunCollider.cs:915  Gun shoving a loose prop makes no sound and no haptic
+[major/high] Improvements     src/Weapons/HeldWeapon.cs:844  Aim-down-sights engage and release give no haptic or sound
+[major/high] Improvements     src/Weapons/WeaponSystem.cs:494  Fire-mode toggle plays the empty-trigger click
+[major/high] Improvements     src/Weapons/WeaponSounds.cs:82  Caller volume is dropped for weapon-owned and donor sounds
+[major/high] Improvements     src/Input/GameInputBridge.cs:216  Seat exit completes with no confirming haptic
+[major/high] Improvements     src/UI/UiKit.cs:20  Button hover state is almost invisible (about 1.25:1)
+[major/high] Improvements     src/UI/VRInputModule.cs:163  Hover tick feels as strong as a click on Oculus Touch
+[major/high] Improvements     src/UI/VRInputModule.cs:315  Menu clicks have no sound and no release feedback
+[major/high] Improvements     src/UI/VRSettingsPanel.cs:50  Settings panel is about 2.2 m tall, so header and footer sit 36-42 degrees off the view centre
+[major/high] Improvements     src/Core/VRManager.cs:50  Headset idle because SteamVR is off: flat game, only a log line
+[major/high] Improvements     src/Core/VRPlugin.cs:29  VR install problems and flat fallbacks reach only the BepInEx log
+[major/high] Improvements     src/Weapons/WeaponSystem.cs:520  Car holsters give no hover tick; the empty-holster buzz can never fire
+[major/high] Regression guard src/Weapons/ReloadInteractions.cs:1078  Loose rocket capture uses the near end's depth as the tip's depth
+[major/high] Regression guard src/Weapons/WeaponOverrides.cs:77  Edited weapons.json is only re-read on a cache miss, so after the menu warm-up edits never apply
+[major/high] Regression guard src/Weapons/WeaponDrops.cs:841  Swapped-away weapons never expire and bypass the drop cap
+[major/high] Regression guard src/Core/VRManager.cs:167  F8 retry key is the game's photo-mode key and re-runs OpenVR init on every press
+[major/high] Special          src/Weapons/WeaponAnalyzer.cs:36  HK416 magazine is picked as its controller (task 196)
+[major/high] Special          src/Weapons/WeaponSystem.cs:34  Only one held weapon exists, so a second weapon in the free hand is impossible (task 152 step two)
+[major/high] Special          src/Core/AutoTest.cs:347  Hand reload of launchers runs only in flash-film mode, on about four guns; a loaded launcher skips silently
+[major/high] Special          src/Core/AutoTest.cs:931  Failure markers that never fail: the two filters disagree and miss the reload's own wording
+[major/high] Special          src/Core/AutoTest.cs:2762  A weapon that fails to equip or leaves the hand is skipped with no Problem
+[major/high] Special          src/Weapons/ReloadInteractions.cs:70  The player's saved ReloadMode silently turns off every hand-reload check
+[major/high] Special          src/Weapons/ReloadInteractions.cs:1944  The rocket's grip is never checked, and the film drives only one grip
+[major/high] Special          src/Weapons/ReloadInteractions.cs:1965  'Lined up N cm in front of the tube' is set by the rail, not measured on the hand
+[major/high] Special          src/Weapons/ReloadInteractions.cs:1973  A rocket seated from behind passes RocketFilm; the back result is never flagged
+[major/high] Special          src/Weapons/ReloadInteractions.cs:2954  Rack grip check puts the hand on the code's own rack point and calls BeginRack directly
+[major/high] Special          src/Weapons/ReloadInteractions.cs:2933  Rack self-check put the free fist beside the part (207 guns hand_not_on_part)
+[major/high] Special          src/Weapons/WeaponRig.cs:1  Gun's own second magazine drawn in its place (ARS guns, duplicate or missing magazine)
+[major/medium] Performance      src/Weapons/WeaponAnalyzer.cs:104  First analysis of a weapon runs synchronously in a match; never persisted
+[major/medium] Performance      src/Weapons/SoundDonors.cs:73  First in-match sound lookup can run a full vanilla analysis in one frame
+[major/medium] Performance      src/Weapons/WeaponAnalyzer.cs:3105  SampleFromRigidBody re-runs the full animation sampling up to five times
+[major/medium] Performance      src/Weapons/HeldWeapon.cs:1177  Magnified sight re-renders the whole scene a second time every frame while aiming
+[major/medium] Performance      src/Core/AutoTest.cs:94  Picture and film frames count in the frame-time stats the autotest reports
+[major/medium] Performance      src/Core/EyeFilm.cs:155  Frame queue is unbounded and Finish can freeze the main thread for 15 s
+[major/medium] Performance      src/Rig/LensEffects.cs:696  Hit glow evaluates two Gaussians and three tone curves on every pixel of both eyes for 0.5 s per hit
+[major/medium] Performance      src/Rig/LensEffects.cs:813  Full-resolution per-pixel composition of both eyes on four threads for every flash frame
+[major/medium] Performance      src/Weapons/WeaponDrops.cs:621  Player re-ignore runs for every drop in one frame, twice per state change
+[major/medium] Performance      src/Weapons/WeaponDrops.cs:746  Nearest() calls ClosestPoint on every collider of every drop, both hands, every frame
+[major/medium] Performance      src/Weapons/GunCollider.cs:707  Player-state change re-ignores every pair in one frame; player collider list has duplicates
+[major/medium] Performance      src/Weapons/HeldWeapon.cs:1437  Two main-thread shape comparisons and a hull cook run on the first hold of every weapon
+[major/medium] Performance      src/Weapons/SoundDonors.cs:73  Donor weapon fully analysed on the match frame that needs its sound
+[major/medium] Performance      src/Core/Log.cs:80  Log.Guard keeps retrying a section that throws every frame
+[major/medium] Bug hunt         src/Weapons/WeaponAnalyzer.cs:2038  Name fallback can pick the other gun's magazine in dual rigs
+[major/medium] Bug hunt         src/Core/AutoTest.cs:816  FlashFilm's finally never stops the eye film, so a thrown exception leaves it recording every frame
+[major/medium] Bug hunt         src/Weapons/MagazineProp.cs:839  Procedural magazine box rotated to insert axis but sized in magazine-box axes
+[major/medium] Bug hunt         src/Weapons/ThrowAndMelee.cs:80  Trigger release is not gated by the menu block, so a grenade armed before a menu opened is thrown inside it
+[major/medium] Bug hunt         src/Weapons/GunCollider.cs:928  Stand-in keeps driving to its last hand pose after GunCollider.Update stops
+[major/medium] Bug hunt         src/Weapons/PoseSampler.cs:729  Animation event at a clip's time 0 is dropped on the step the clip starts
+[major/medium] Bug hunt         src/UI/CanvasManager.cs:429  Game camera aspect follows whichever visible canvas came last
+[major/medium] Bug hunt         src/Core/VRManager.cs:261  Headset-off pause is undone by the game's own UnpauseGame calls
+[major/medium] Improvements     src/Weapons/WeaponAnalyzer.cs:1342  RackStrokeFromHands can re-place the M4A1 reload handle and switch it to a carved knob
+[major/medium] Improvements     src/Weapons/WeaponAnalyzer.cs:2853  Hand-cycled shell-fed guns lose their own action sounds
+[major/medium] Improvements     src/Weapons/ReloadInteractions.cs:1078  Loose rocket lock draws it from the wrong end, shifting it by its length or flipping it
+[major/medium] Improvements     src/Core/AutoTest.cs:928  Film cannot tell the launcher's rocket from a made stand-in
+[major/medium] Improvements     src/Core/AutoTest.cs:2250  Gun-into-wall test puts the wall at a fixed 0.75 m, which for rifles can sit inside the gun
+[major/medium] Improvements     src/Core/PerfProbe.cs:71  The VR bench's 'frame' figure is the vsync interval, so CPU headroom cannot be seen
+[major/medium] Improvements     src/Weapons/WeaponSelfTest.cs:250  Drop-cost timing omits most of a real drop and has no VR frame budget
+[major/medium] Improvements     src/Rig/HandModel.cs:696  No haptic when the fingers close on the held weapon
+[major/medium] Improvements     src/Rig/DamageFeedback.cs:76  Directional hit buzz is issued first, then overlapped by the symmetric buzz
+[major/medium] Improvements     src/Rig/VRRig.cs:314  Comfort vignette is off in seats, vehicles and ladders
+[major/medium] Improvements     src/Weapons/ThrowAndMelee.cs:605  A fast swing that connects with nothing is silent
+[major/medium] Improvements     src/Rig/CockpitControls.cs:186  Visible flight stick lags the hand that holds it
+[major/medium] Improvements     src/Rig/IntroStage.cs:75  Title scan stops about 0.65 s into the intro
+[major/medium] Improvements     src/Weapons/GunCollider.cs:816  Resting props stay ignored while the gun passes through them
+[major/medium] Improvements     src/Weapons/ProceduralSounds.cs:112  Synthesised sounds ignore the weapon: one clip set and +-6% pitch for every gun
+[major/medium] Improvements     src/Weapons/BodyZones.cs:32  Holster hit spheres overlap: belt gear and pouch share the same area
+[major/medium] Regression guard src/Weapons/WeaponAnalyzer.cs:39  Magnifier names with NxNN (Mag 4x32, Mag 3x9) lost their optic exclusion
+[major/medium] Regression guard src/Weapons/HeldWeapon.cs:660  Muzzle dip follows body motion: jumps and falls now pitch a one-handed heavy gun
+[major/medium] Regression guard src/Weapons/MagazineProp.cs:382  Rocket rail runs along an oblique insert but its depth is measured along the bore
+[major/medium] Regression guard src/Weapons/GunCollider.cs:611  SeeThrough drops solid parts from the held gun's volume and physics fit
+[major/medium] Regression guard src/Weapons/PoseSampler.cs:444  Visible() reads only the part's own renderer, so parts whose child meshes show are dropped
+[major/medium] Regression guard src/Input/VRInput.cs:341  Outage timeout drops release edges and re-presses still-held buttons (d5a1423)
+[major/medium] Regression guard src/UI/CanvasManager.cs:127  Flatten and re-place keyed only to opening; a menu that becomes Menu while visible is never flattened
+[major/medium] Special          src/Rig/HandModel.cs:476  Keep-out falls back to a full 12 cm push when nothing is clear (task 126)
+[major/medium] Special          src/Weapons/BoltPiece.cs:83  Racking adds a knob on 27 guns instead of moving their own handle transform
+[major/medium] Special          src/Weapons/HeldWeapon.cs:564  Sub-weapons with another action keep a static rig with virtual magazine and bolt
+[major/medium] Special          src/Weapons/HeldWeapon.cs:643  Launcher jitter: hand acceleration differenced twice from reported velocity feeds a 12/s spring
+[major/medium] Special          src/Weapons/ReloadInteractions.cs:1180  Loosely held rocket lines up tail-first only; task 231's either-end line-up was reverted
+[major/medium] Special          src/Core/AutoTest.cs:2841  Launcher features that no check drives: rocket pouch grab, rocket drop and catch, foregrip, spare-round accounting
+[major/medium] Special          src/Weapons/WeaponSelfTest.cs:351  WeaponSelfTest cannot fail: shape errors are not counted, and the rocket's model source is not reported
+[major/medium] Special          src/Rig/VRHand.cs:158  Free glove drawn with no arm, idle at a fixed spot in the grass
+[major/medium] Special          src/Weapons/GunVolume.cs:1  Fingertip pushed into the ejection port (hand_or_finger_clipping, 19 guns)
+[major/medium] Special          src/Weapons/HeldWeapon.cs:1540  Racking fingers stay straight when no part solid is measured
+[major/medium] Special          src/Weapons/ReloadInteractions.cs:2445  Magazine picture taken before the fingers closed (mag_not_in_hand, 91 guns)
+[major/low] Bug hunt         src/Weapons/WeaponAnalyzer.cs:327  Gun skinned to arm-chain bones is hidden when the arms rig has any arm-named bone
+[major/low] Bug hunt         src/Weapons/PoseSampler.cs:138  Audio objects switched on by the fire animation are never sampled
+[major/low] Bug hunt         src/UI/VRInputModule.cs:115  Click target comes from every GraphicRaycaster, not only the menus
+[major/low] Regression guard src/Weapons/WeaponAnalyzer.cs:1346  Any reload-moved part skips the on-part test and is taken as the handle
+[major/low] Special          src/Weapons/WeaponAnalyzer.cs:1140  Racking: stroke clamp and grab latch leave many bolts with no visible motion (task 139)
+[major/low] Special          src/Weapons/WeaponAnalyzer.cs:3035  Racking a gun with no slide or handle part moves nothing visible
+[major/low] Special          src/Weapons/ReloadInteractions.cs:2467  Lined-up and half-in magazine frames show no magwell (mag_floating / mag_not_into_magwell)

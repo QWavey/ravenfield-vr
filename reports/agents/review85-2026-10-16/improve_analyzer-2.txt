@@ -1,0 +1,48 @@
+improve analyzer-2 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: src/Weapons/WeaponAnalyzer.cs lines 1750-3598 (second half), read-only review with the game's decompiled SoundBank.cs and the callers that consume these fields. Not addressed here: the relayed question about whether the M4A1 ACOG test went back and the background-test guidance. Those belong to the main session, not to this read-only review.
+
+[major/medium] src/Weapons/WeaponAnalyzer.cs:2853  Hand-cycled shell-fed guns lose their own action sounds
+  what:   Post-shot fire cues only become SlideBack/SlideForward when `else if (d.Action == ActionType.Manual && c.Function != "EmitParticles")` (line 2853). But CyclesByHand is also set for ShellFed guns: `d.CyclesByHand = d.Action == ActionType.Manual || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;` (lines 534-535, and 226). WeaponSystem.cs:421-431 cancels the FIRE trigger for every CyclesByHand weapon in Manual reload mode, and plays only ShotCues. VRConfig.cs:211 makes Manual the default.
+  why:    For a shell-fed hand-cycled gun (the MW M870 named in the reload-round comment at line 2145 is the likely case), the fire clip's cycle sound is never recorded as an action cue. When the player racks the gun, the sound falls through to SoundDonors.cs:19 (the Rifle list, RK-44 first), so a rifle bolt sound plays on a shotgun. The gun's own action sound is missing.
+  change: At line 2853 replace `d.Action == ActionType.Manual` with `d.CyclesByHand`, so every hand-cycled gun takes the same rule. Confirm TFireSlideBack/TFireSlideForward (set at line 1206) are still set for those guns.
+
+[minor/medium] src/Weapons/WeaponAnalyzer.cs:2134  Spare magazines beyond the 4th are dropped with no warning
+  what:   `if (underAnother || d.SparePartPaths.Count >= 4) { continue; }` silently drops every further spare magazine. The reload-prop cap at lines 2204-2206 adds a Warning when it is hit, but this one does not. Both caps share the same SparePartPaths list.
+  why:    HeldWeapon.cs:478-481 hides only SparePartPaths while the gun is held. Any magazine past the 4th therefore stays drawn at its rest spot beside the gun, hanging in the air in VR. That is the bug this function's doc comment (lines 2094-2097) says it prevents, and nothing in the report tells a developer it happened.
+  change: At line 2134, when the cap is reached, add `d.Warnings.Add($"more spare magazines than hidden: '{t.name}' stays drawn")`. Raise the cap to 8 to match the shared reload-prop budget at line 2204, so the shared list does not starve reload props.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:2386  Unreadable magazine meshes silently disable the vertex-based axis
+  what:   MeshPoints (line 2386) and PrincipalAxis (line 2412) skip any mesh with `!m.isReadable` without a Note. PrincipalAxis returns false below 8 points (2427-2429), and TopTangent returns false below 32 (2328-2331). MagAxisFromShape then falls back silently to the bounding box.
+  why:    If the magazine meshes are not readable, the curved-magazine correction (lines 2254-2265, which the comment says fixed QBZ-family magazines going in 20 degrees flat) and the vertex axis are skipped with no trace in d.Notes. A developer chasing a crooked insert on that gun sees nothing in the self-test report.
+  change: In MagAxisFromShape, when magPart has MeshFilters with sharedMesh != null and none readable, add `d.Notes += "magazine meshes not readable: axis from its box/animation "`. Keep the fallback behaviour unchanged.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:2849  Shot cues cut at a fixed 0.1 s from the clip start
+  what:   `if (c.Time <= 0.1f) d.ShotCues.Add(ToCue(c));` treats any fire-clip sound before 0.1 s (3 samples at PoseSampler.Dt = 1/30 s) as the shot. Everything later goes to the action logic at 2853-2861.
+  why:    For a CyclesByHand gun the animation's FIRE trigger is cancelled (WeaponSystem.cs:421-431), so the shot cue list is the only source of the shot sound. A shot event placed after 0.1 s is then dropped (shell-fed) or turned into a SlideBack/SlideForward sound at the shot (manual). The muzzle-flash EmitParticles cue is present in FireCues but used only as a filter, though it marks when the shot happens.
+  change: Anchor the shot on the first EmitParticles cue in FireCues, not on the clip start: treat cues within about 0.1 s after that flash as ShotCues, falling back to the 0.1 s cut only when no flash cue exists. Alternatively cut at d.TFireSlideBack minus a margin when that is set. Verify against a real clip before shipping, since the event timings are not visible in this file.
+
+[minor/medium] src/Weapons/WeaponAnalyzer.cs:2975  PlayNext and PlayRandom lose their order and never-repeat rule
+  what:   `else if (c.Function == "PlayRandom" || c.Function == "PlayNext") { ... cue.Clips = clips.ToArray(); }` gives every such cue the whole bank. PlayClip then picks `cue.Clips[... UnityEngine.Random.Range(0, cue.Clips.Length)]` (WeaponSounds.cs:186). The game's SoundBank.PlayNext steps `lastIndex = (lastIndex + 1) % clips.Length` (SoundBank.cs:52-55), and PlayRandom picks an offset so it never repeats the last clip (SoundBank.cs:46-49).
+  why:    A PlayNext cue loses its fixed sequence. Both functions can repeat the same clip back to back, which the game avoids. With a small bank, two identical clips in a row are audible on reloads and cycling.
+  change: In ToCue keep the bank order, and give PlayNext a per-weapon step index advanced on each play. In PlayClip (WeaponSounds.cs:186) skip the previously played index for PlayRandom, as SoundBank.PlayRandom does. The PlayClip part is outside this file.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:3015  Virtual slide stroke is a fixed 7 cm for every gun without a found slide
+  what:   `d.SlideTravel = -d.AimAxis * (d.IsPistol ? 0.035f : 0.07f);` (in FinishVirtualParts, when SlidePath is null). The same analyzer clamps measured travel to 0.03-0.11 m for non-pistols and 0.02-0.045 m for pistols (line 1362), and uses 0.075 m at line 780.
+  why:    A pump or bolt with no detected slide moves a fixed 7 cm whatever its length. ReloadInteractions.cs:73 uses SlideTravel as the full stroke (`Travel => Mathf.Max(0.005f, Data.SlideTravel.magnitude)`), so the visible action and the hand's pull disagree on long-stroke guns.
+  change: Reuse the measured range from line 1362 (Mathf.Clamp to 0.03-0.11 m for non-pistols, 0.02-0.045 m for pistols) and scale the virtual stroke with the gun's length (grip-to-muzzle distance), so the constants live in one place.
+
+[tiny/high] src/Weapons/WeaponAnalyzer.cs:3105  Doc comments stacked on the wrong functions
+  what:   Line 3105 `/// <summary>Weapons without a configured muzzle: the mesh with the largest extent hosts the barrel.</summary>` sits directly above a second summary for SampleFromRigidBody. The same happens at 3167-3171 over HoldsShownGunParts (its text describes HoldsTheOnlyGunModel at 3220), at 3259-3260 (a stale duplicate over ActiveUpTo), and at 3491-3492 ("Palm centre ≈ halfway between the hand bone and its finger roots" over GripDownOf, but it describes PalmOf at 3530, which lerps 0.55 at line 3543, not halfway).
+  why:    No runtime effect. The stacked summaries make the generated XML docs and IDE hovers attach the wrong text to these methods, so a future reader reads the wrong contract.
+  change: Move each orphan summary onto the function it describes (3105 to GeometricMuzzleHost at 3414, 3167 to HoldsTheOnlyGunModel, 3491 to PalmOf), delete the duplicate at 3259, and correct the 'halfway' wording to 0.55.
+
+CHECKED AND FINE:
+  - Read the full second half, lines 1750-3598, including the reload-helper, slide keyframe, magazine, spare/round collection, axis, sound-cue and virtual-part code.
+  - Haptics: this half emits sound cues only. Haptic calls come from ReloadInteractions.cs, MagazineProp.cs, HeldWeapon.cs and BodyZones.cs, so no haptic gap is claimed here.
+  - Per-weapon overrides exist: WeaponOverrides.cs:153-163 applies slideTravel, lockOnEmpty and magKick after analysis, so the name-based MagKickRule (2544-2572) is not the only control and its doc comment holds.
+  - Analysis timing: WeaponWarmup.cs:141-166 pre-analyses weapons, so the repeated GetComponentsInChildren calls in LooksLikeAWeapon (2626-2646) are not flagged as a gameplay hitch.
+  - TryEyeInRoot (3555-3596) reads the desktop prefab's first-person camera offset and feeds sight lines and VRScope lens placement (VRScope.cs:54-65). I could not confirm from this file that this is wrong in VR, so it is not flagged.
+  - MaxBoltTravel (1755, 0.07 pistol / 0.2 rifle) is a pistol/rifle split, not a per-weapon size, but I found no concrete player consequence beyond the 1.2x acceptance bound at 1782, so it is not flagged.
+  - The SlideKeyframes peak rule, MatchCues lead/lag (0.6 s / 0.15 s), MagKeyframes, the PrincipalAxis power iteration and GeometricAxis matched their comments and showed no defect.
+  - Magazine thresholds (5 cm grip band at 2561, 2.2 m size at 1945, 0.28 m at 2108, 0.15 m at 2190) are tied to measured geometry, so they are not flagged.

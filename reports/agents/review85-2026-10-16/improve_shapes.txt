@@ -1,0 +1,54 @@
+improve shapes (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Held gun's measured shape and physics: src/Weapons/GunCollider.cs, GunVolume.cs, ShapeFit.cs, BoltPiece.cs (read in full), with the game's first-person controller and the mod's haptic/sound call sites checked. Read-only: nothing was built, run or changed. Runtime behaviour (layer selection, feel) was inferred from code, not played.
+
+[major/high] src/Weapons/GunCollider.cs:32  Prop layer is picked without checking the first-person ground-cast mask
+  what:   PropPhysics.Candidates = { 2, 9, 11, 22, 24 } (line 17) and Layer takes the first one drawn by the VR camera that collides with level layers (line 32: if ((drawn & (1 << l)) != 0 && !Physics.GetIgnoreLayerCollision(...))). The game's first-person ground probe is Physics.SphereCast(..., 0.6f, -12945153) (.ref/decompiled/firstpass/UnityStandardAssets.Characters.FirstPerson/FirstPersonController.cs:360). -12945153 is ~12945152, so the probe excludes layers 8, 9, 10, 15, 16, 18, 22, 23 and includes 2, 11, 24. With default camera and collision settings, layer 2 is the one chosen.
+  why:    The probe takes any hit with an attached Rigidbody as a moving platform (FirstPersonController.cs:366-371) and steers sliding from the hit normal (lines 365, 373-379). Magazines, casings (Casings.cs:126) and dropped weapons (WeaponDrops.cs:150, 903) all use PropPhysics.Layer, so one that lands under the player's feet carries the player or makes them slide. This contradicts the class doc at GunCollider.cs:10-12 ('never confuses a ground check'). The stand-in is hidden from the probe on layer 22 (line 46), but the props are not.
+  change: Add `private const int GroundProbeMask = -12945153;` and require each candidate to be excluded from the probe in Layer (line 32): `&& (GroundProbeMask & (1 << l)) == 0`. Layers 9 and 22 qualify, so the default becomes 9. Confirm layer 9 is not used by the game's own collision rules before relying on it.
+
+[major/medium] src/Weapons/GunCollider.cs:816  Resting props stay ignored while the gun passes through them
+  what:   In SetRestIgnored: `bool want = ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (...)` (line 816). Once a resting prop is ignored it only becomes solid again when its own speed passes 0.8 m/s. The gun's position is never checked. The decision is re-run only every 0.1 s (UpdateRestingProps throttle, lines 763-767).
+  why:    A magazine or dropped weapon lying still is ignored by every gun box, so the drawn gun goes straight through it: no push, no sound, no haptic, and it stays ignored while the gun is inside it. A resting prop never speeds up on its own, so the state persists. At 1 m/s the gun crosses 10 cm between checks.
+  change: Keep the ignore for reaching down, but test penetration per frame (Update, not the 0.1 s throttle): when any enabled box penetrates the ignored prop by more than about 1-2 cm, set want to false so the prop is pushed like any other (with the feedback from the finding above). The comment at lines 756-759 says pushing made items float away, so decide on penetration depth, not on contact.
+
+[major/high] src/Weapons/GunCollider.cs:915  Gun shoving a loose prop makes no sound and no haptic
+  what:   GunProxyBody.Touch returns early for every light non-kinematic body: `if (other != null && !other.isKinematic && other.mass < HeavyMass) { return; // loose props and ragdoll limbs are pushed ...}` (lines 915-918). Nothing is raised to the player. Held magazines do get feedback (MagazineProp.cs:1481-1498: MechSound.MagKnock plus HeldBy.Haptic), and the gun gets a knock when the world blocks it (HeldWeapon.cs:1123-1135).
+  why:    The gun is the biggest object in the hand. Sweeping it across a magazine, casing or dropped rifle moves the prop with no sound and no vibration, so the push feels unreal in VR. Contact against walls is felt; contact with props is not.
+  change: In GunProxyBody, handle OnCollisionEnter (not Stay) for light non-kinematic bodies that are not on the BodyMask layers (8, 10, 16, 17, GunCollider.cs:67) with c.relativeVelocity.magnitude above about 0.3 m/s. Raise an event with the speed and c.contacts[0].point. GunCollider forwards it to HeldWeapon, which plays MechSound.MagKnock at that point (loudness from the speed) and calls main.Haptic(0.015f, 150f, 0.1f + 0.3f * loudness). Rate-limit it the same way as the blocked-knock (HeldWeapon.cs:1123, 0.25 s).
+
+[minor/medium] src/Weapons/GunCollider.cs:508  Hard-coded envelope hides bipods, tall optics and wide stocks from hand and stand-in
+  what:   Envelope uses fixed numbers for all weapons: `float halfWidth = d.IsPistol ? 0.035f : 0.07f;`, envMin.y = -0.22f, envMax.y = 0.16f (lines 508-510). GunVolume.Build clips its box to it (GunVolume.cs:408: box.SetMinMax(Vector3.Max(box.min, envMin), Vector3.Min(box.max, envMax))), and Fit drops any piece wholly outside (GunCollider.cs:541-546).
+  why:    Outside the box GunVolume.Solid returns false, so the fingers close on air over a bipod leg, a rail or a scope above 16 cm. The stand-in has no collider there, so magazines and casings pass through those parts. The same constants apply to every long gun, so the affected weapons are the ones with parts outside these bounds (I did not measure the game's weapon meshes to confirm which).
+  change: Build the envelope from the weapon's measured extents: GunCollider.VisibleBounds(rig, out measured) (line 559, already used for weapon class at HeldWeapon.cs:176 and 226), padded by about 3 cm, never narrower than the current constants, and capped near 0.25 m half-width and -0.35/+0.3 m height. VisibleRenderers already drops the large additive reticle quads (lines 591-599), so the stray-geometry reason for the constants is mostly covered.
+
+[minor/low] src/Weapons/GunCollider.cs:588  Charging handle and knob are in neither the stand-in nor the hand volume
+  what:   VisibleRenderers skips anything under a 'RavenfieldVR' object (line 588; AddedByMod at lines 618-628). BoltPiece names its carved piece 'RavenfieldVR Bolt Piece' (BoltPiece.cs:137) and its knob 'RavenfieldVR Bolt Handle' (BoltPiece.cs:305). WeaponDrops keeps 'RavenfieldVR Bolt' parts for dropped guns (WeaponDrops.cs:991), so held and dropped shapes disagree. The knob size is fixed: `float l = pistol ? 0.014f : 0.02f, w = pistol ? 0.008f : 0.011f, h = pistol ? 0.007f : 0.012f;` (BoltPiece.cs:333). The carve radius is fixed too: `float radius = d.IsPistol ? 0.022f : 0.03f;` (BoltPiece.cs:88).
+  why:    The handle the player racks is not a solid for props, and it is not in the hand volume, which is measured once per weapon type (GunVolume.cs:260-268) and cannot follow a moving part anyway. The knob is about 1.2 cm high on every rifle, whatever the receiver size. I did not run the racking interaction, so the player-side effect is inferred.
+  change: Give the handle its own volume the way the worked part does (HeldWeapon.cs:1543-1561) and include its piece in the stand-in shape, so both follow the handle. Size the knob and the carve radius from the measured handle or receiver bounds instead of two constants. Check the racking in play before changing it.
+
+[minor/medium] src/Weapons/GunCollider.cs:847  Touch test uses axis-aligned boxes, so near misses count as touching
+  what:   Touches: `if (b != null && b.enabled && cb.Intersects(b.bounds))` (line 847), using the bounds of the prop and of each box. The bounds of a diagonal convex piece are much larger than the piece. Used by OnPropDropped (line 864) and by the passing-release check in Update (line 735).
+  why:    A magazine or casing dropped beside the barrel or stock, but not touching its hull, is marked passing: every box ignores it until the bounds separate (lines 864-875), so it falls through the gun it was next to. A passing prop also stays ignored longer than needed.
+  change: Keep the bounds test only as a broad-phase filter. For the real test, use Physics.ComputePenetration against each enabled box (the boxes are convex by construction; the prop side must be convex or primitive for this call), or test the prop's vertices against the box's Points.
+
+[minor/high] src/Weapons/WeaponOverrides.cs:77  Overrides edits do not reach the held-shape caches
+  what:   WeaponOverrides.cs:77 calls only WeaponAnalyzer.ClearCache() and then logs 'weapons are analysed again with them' (line 78). ShapeFit.ClearCache() (ShapeFit.cs:648) has no callers. The held caches are keyed by weapon type only: ShapeFit.Fit("held:" + d.Key) (GunCollider.cs:535) and GunVolume.Cache (GunVolume.cs:26, 296-329).
+  why:    After editing the overrides file during a session, a weapon's held physics shape and hand volume keep the envelope and frame built from the old data (action, grip, muzzle) until restart, while the log says they are analysed again. Impact is limited to someone editing the file during play.
+  change: At WeaponOverrides.cs:77 also call ShapeFit.ClearCache() and a new GunVolume.ClearCache() that clears Cache and CacheOrder.
+
+[tiny/high] src/Weapons/GunCollider.cs:485  GunCollider.Create returns null with no log when no prop layer qualifies
+  what:   `int layer = PropPhysics.Layer; if (layer < 0 || rig.GunBody == null) { return null; }` (lines 485-488). Layer's doc says props then 'stay on Default' (line 22).
+  why:    The held gun then has no stand-in at all, and nothing in the logs says why. The self-test would only show zero pieces.
+  change: Log a WarnOnce naming the weapon and the layer result when layer is -1.
+
+CHECKED AND FINE:
+  - GunVolume's worker-thread OnReady callback is safe: WeaponDrops.RenderedShapes is a ConcurrentDictionary (WeaponDrops.cs:416), so the Keep callback does not race.
+  - Wall-contact feedback already exists (HeldWeapon.cs:1123-1135 knock, rate-limited); it is not a gap.
+  - TryBlockedPose (GunCollider.cs:337-348) inverts the grip frame correctly against SetHandPose; the caller null-guards _gunCollider (HeldWeapon.cs:1114).
+  - Layer 22 as the hidden layer is correct: the probe mask excludes bit 22 (-12945153), and the hide/unhide nesting in HideFromPlayer (lines 305-326) and the two Harmony postfixes is consistent.
+  - Player-collider collection and ignore logic (GunCollider.cs:157-231) and the PlayerGeneration tracking (136-155) read correctly.
+  - GunVolume depth decoding (GunVolume.cs:620-653) uses the b-high / a-low layout; I did not verify the shader itself.
+  - The separable min/max filters and CloseRecesses/GrowView (GunVolume.cs:688-818) are arithmetically consistent.
+  - ShapeFit slicing, PCA thickening (Solid) and Jacobi eigen-solver (PrincipalAxes) are self-consistent; no defect found.
+  - ChooseShape's double UseShape call on first draw (HeldWeapon.cs:1438, 1451) causes a one-off hitch at most, so I left it out.

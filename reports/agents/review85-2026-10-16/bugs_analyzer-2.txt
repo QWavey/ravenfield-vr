@@ -1,0 +1,42 @@
+bugs analyzer-2 (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: src/Weapons/WeaponAnalyzer.cs, lines 1750 to end (bug hunt, read-only). The file grew by 8 lines above line 1757 while I was reviewing (an unrelated ArmChain insertion); the content of this range did not change, and every line number below is the current one. Also read for context: PoseSampler.cs (Record, Idle/RelIdle, LocalBounds, GunSpaceBounds*, sample-time convention), WeaponRig.cs defaults, the MagBounds consumers in ReloadInteractions.cs and MagazineProp.cs, FpsActorController weapon placement, and the WeaponSlot enum in .ref/decompiled.
+
+[major/medium] src/Weapons/WeaponAnalyzer.cs:2038  Name fallback can pick the other gun's magazine in dual rigs
+  what:   Line 2038: `mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones);`. FindMagByName (line 3078) tests only `IsMagName(t.name) && IsPartCandidate(...)`. The reload searches use MagCandidate (line 2591), which rejects parts under a SecondWeaponName ancestor ("dual|akimbo|off hand|second pistol") and parts where LooksLikeAWeapon is true. The MagCandidate comment ("part of the other gun of a pair... Taking it for the magazine dropped the second pistol on every reload") describes this exact failure.
+  why:    In a dual/akimbo rig where this gun's magazine is neither moved nor hidden by the reload, the fallback returns the first magazine-named part in hierarchy order. If the second pistol's branch comes first, that magazine becomes this gun's MagPath and MagSeat. The wrong magazine is then ejected, copied and used for insertion, and this gun's real magazine never moves.
+  change: Pass `slide` into FindMagByName and test `MagCandidate(t, root, gunBody, muzzle, slide, armRelated, gunBones)` (keep the IsMagName check) instead of `IsPartCandidate(...)` in its loop at line 3078-3085.
+
+[major/high] src/Weapons/WeaponAnalyzer.cs:2079  Skinned magazines keep the 12 cm default MagBounds box
+  what:   Line 2071: `d.MagazineIsSkinned = !HasRendererInSubtree(mag) && gunBones.Contains(mag);`. Lines 2079-2082: `Bounds mb = sampler.LocalBounds(mag); if (mb.size.sqrMagnitude > 1e-6f) { d.MagBounds = mb; ... }`. A skinned magazine has no MeshRenderer or SkinnedMeshRenderer under its bone, so LocalBounds (PoseSampler.cs MeshBounds) returns an empty box and MagBounds is never assigned. WeaponRig.cs:212 keeps the default `new Bounds(Vector3.zero, new Vector3(0.025f, 0.12f, 0.06f))`. The comment at ~2525 ("its measured bounds at the seat for skinned magazines") describes a path that the early return at 2487 (`if (d.MagazineIsSkinned) return;`) prevents.
+  why:    Every gun whose magazine is a skinned bone (the "reload motion (skinned bone)" case) gets a 12 cm box centred on the bone pivot, whatever the real magazine length. Consumers: ReloadInteractions.cs:514-516 and 805-807 (insert lead point along the eject axis) and 2318-2322 (AnalysedMagWorld). MagazineProp.cs:463-466 (CheckedCopy) uses this box as the analysed size, so a copy longer than about 42 cm or shorter than about 5 cm is rescaled to it. MagAxisFromShape never runs for these guns because it is inside the same guarded block.
+  change: After line 2079, when `mb.size.sqrMagnitude <= 1e-6f && d.MagazineIsSkinned`, measure the bounds of the skinned vertices the magazine bone drives (same weight selection as MagazineProp.ExtractBoneTriangles, mapped into the bone's space through the mesh bindPose) and assign d.MagBounds from them. If that also yields nothing, add `d.Warnings.Add("magazine is a skinned bone with no measurable shape: default box used")` so the self-test reports it.
+
+[minor/medium] src/Weapons/WeaponAnalyzer.cs:1826  Handle climb can walk up to the slide's own carrier
+  what:   Lines 1826-1830: `for (Transform p = best.parent; p != null && p != gunBody && p != root; p = p.parent) { if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || sampler.ReloadMax[pi] < m0 * 0.8f || MagName.IsMatch(p.name)) break; best = p; }`. The climb never checks `exclude`, although the candidate filter a few lines above rejects `t == exclude || t.IsChildOf(exclude) || exclude.IsChildOf(t)`.
+  why:    When the charging handle and the slide sit under a shared carrier that moves the same way in the reload, the climb returns that carrier, which contains the slide that was excluded. The returned handle's grab point and travel then belong to the whole carrier, not the handle, and the hand is placed on the wrong pivot.
+  change: Add `|| (exclude != null && (p == exclude || exclude.IsChildOf(p)))` to the break condition of that climb loop.
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:1883  0.15 s window treats an early rack as a locked-open crossfade
+  what:   Line 1883: `bool lockedAtStart = start * PoseSampler.Dt <= 0.15f;`. `start` is the first sample where the slide is past 25% of its travel. Any rack whose slide passes 25% before 0.15 s gets `strokeBack = -1f` (line 1886).
+  why:    A genuine slide rack that begins in the first ~0.12 s of a short clip loses its back time, so no TSlideBack keyframe and no SlideBack sound are set. The comment describes a crossfade that starts with the slide already back, which is the condition `start == 0`, not a time window.
+  change: Replace with `bool lockedAtStart = start == 0;` (or `start == 0 && along[0] >= low`).
+
+[minor/low] src/Weapons/WeaponAnalyzer.cs:2790  Second-magazine search accepts the magazine's own parents
+  what:   Line 2790: `if (t == mag || t.IsChildOf(mag) || !MagCandidate(t, root, gunBody, muzzle, slide, armRelated, gunBones)) continue;`. There is no `mag.IsChildOf(t)` test here, while CollectSpareMagazines (line 2105) and CollectMagazineParts (line 2672) both have it.
+  why:    An ancestor holder of the magazine that moves in the reload (ReloadMax >= 0.03) and whose pivot comes within 1.5 cm of the seat while visible is taken as a magazine arriving at the seat. TMagIn is then set when that holder returns, not when a magazine does, which moves the MagIn sound keyframe.
+  change: Add `|| mag.IsChildOf(t)` to the skip condition at line 2790.
+
+CHECKED AND FINE:
+  - SlideKeyframes: stroke, peak and home detection, NaN handling, and the max >= 0.008 guard against divide/zero-motion cases.
+  - Sample-time convention: PoseSampler.Record stores sample k at (k+1)*Dt, and TMagOut, TMagIn, TSlideBack/Forward, HiddenSeconds and ReloadDuration all use the same convention.
+  - Index safety: every index[...] lookup in the range uses a transform taken from `all`, and index is built over the same array (WeaponAnalyzer.cs:272-276). Parent climbs that skip the TryGetValue check stay inside root and are themselves in `all`.
+  - HasReload guards: MagKeyframes, CollectMagazineParts and CollectReloadRounds are only reached when the reload was sampled, and ReloadVisible/ReloadTrajectory rows have equal length (PoseSampler.cs:236-243).
+  - MagAxisFromShape, TopTangent, PrincipalAxis: frames are consistent (LocalBounds is in the magazine's own space and MagSeat is the gun-space pose). Divisions are guarded (length < 0.05, l2 > 1e-12, n > 0, dot-product normalisation).
+  - Operator precedence in the mixed &&/|| conditions in AnalyzeMagazine, CollectSpareMagazines, MagKeyframes and MeasureMagazineProtrusion matches the stated intent.
+  - MagKickRule: the handgun expression matches the WeaponSlot enum (0 Primary, 1 Secondary, 2 Gear, 3 LargeGear). Virtual magazine seat is set in FinishVirtualParts before MagKickRule runs.
+  - MatchCues and BuildSoundMap: lead/lag window, greedy one-cue-per-keyframe assignment, and EmitParticles filtering. ShotCues may contain particle entries, and WeaponSounds.PlayShotCues handles them.
+  - TryEyeInRoot: the chain ends at weaponParent, and FpsActorController (lines 2817-2819) places weapons at zero local offset, so the eye-point space is correct. The prefab-derived eye point is a rest-pose design choice, not a bug.
+  - SampleFromRigidBody: gunBody reassignment, the attempt cap, and Dispose ordering on retry.
+  - CheckSanity and the HasOwnRenderer/HasRendererInSubtree helpers: null-safe.
+  - No exception paths in the range that run per frame; everything here is analysis-time.

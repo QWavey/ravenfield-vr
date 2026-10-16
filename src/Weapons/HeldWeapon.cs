@@ -643,7 +643,13 @@ namespace RavenfieldVR.Weapons
             Vector3 raw = dt > 1e-4f ? (v - _handVelPrev) / dt : Vector3.zero;
             _handVelPrev = v;
             raw = Vector3.ClampMagnitude(raw, 40f); // a tracking jump is no acceleration
-            _handAcc = Vector3.Lerp(_handAcc, raw, 1f - Mathf.Exp(-25f * dt));
+            // The controller's reported velocity jitters a few cm/s from frame to frame: differenced, that is several m/s^2
+            // of acceleration nobody made, and the lag spring shook a heavy launcher held still (Tasks 203, "RPGs shake in
+            // the hand without being fired"). A soft dead band under 1.2 m/s^2 and a slower smoothing: a real lift is
+            // still felt, the tremor of the tracking is not.
+            float rawMag = raw.magnitude;
+            raw = rawMag > 1.2f ? raw * ((rawMag - 1.2f) / rawMag) : Vector3.zero;
+            _handAcc = Vector3.Lerp(_handAcc, raw, 1f - Mathf.Exp(-12f * dt));
             bool supported = Supported || Shouldered;
             float omega = _inertiaOmega * (supported ? 2.2f : 1f);
             float zeta = supported ? 0.8f : 0.55f;

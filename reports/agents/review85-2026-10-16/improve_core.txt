@@ -1,0 +1,47 @@
+improve core (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Read-only improvement review of the core area: src/Core/VRManager.cs, VRConfig.cs, GraphicsPresets.cs, src/Runtime/OpenVRMath.cs, OpenVRRuntime.cs, src/Core/Log.cs, src/Util/GameContext.cs, src/Util/MaterialFix.cs. Cross-checked against .ref/decompiled Assembly-CSharp/Options.cs, src/Rig/VRHand.cs, src/Input/VRInput.cs, src/Rig/VRRig.cs, src/UI/VRSettingsPanel.cs, src/Core/VRPlugin.cs and installer/Launcher.cs. The relayed request about the rocket model, the RPG front grip and recording PNG/GIF was not acted on: this review agent is read-only and cannot edit, build, run the game or record anything.
+
+[major/high] src/Core/VRManager.cs:50  Headset idle because SteamVR is off: flat game, only a log line
+  what:   ShouldStartVR returns false when vrserver is not running and AutoStartSteamVR is off (VRManager.cs:111-130). The caller then does Log.Info("Not starting VR: " + reason + " Launch with -vr to force it.") and yield break (lines 48-52). The OpenVRRuntime.Start failure path is also Log.Warn only (lines 53-56). Nothing is shown in the game or the headset, and VRManager never retries.
+  why:    A player who starts the game through Steam with SteamVR not running gets a flat screen with no explanation, and the headset stays idle. The only clue is a line in the BepInEx console. Starting SteamVR after the game does nothing until the game is restarted. The mod has no notification helper (grep finds none), so the message needs a new small UI element.
+  change: On this branch and the OpenVRRuntime.Start failure branch, show a visible in-game notice (flat-screen text) saying SteamVR is not running: start it, then restart the game, or enable AutoStartSteamVR. Use Log.Warn instead of Log.Info. Optionally poll for the vrserver process every few seconds while flat, and start VR when it appears.
+
+[minor/medium] src/Core/GraphicsPresets.cs:95  Switching to Game restores launch-time quality, not the menu's
+  what:   _gameQuality is captured once, in ApplyProfile (lines 157-167: if (_gameQuality == null) { _gameQuality = new Profile { ... } }). The Game branch (lines 95-98) calls RestoreGameQuality() (lines 135-153), which writes that launch-time snapshot back, then sets _gameQuality = null. Nothing refreshes the snapshot when the game's own quality level changes: Options.Save does SetQualityLevel outside gameplay (Options.cs:295-300) and then Apply(isLevelStart: false), which reaches GraphicsPresets.Apply through the Harmony postfix (GraphicsPresets.cs:254-268).
+  why:    A player who changes the game's Quality level after VR starts, then picks Game in the VR panel, gets the launch-time quality back. That contradicts the Game preset's own description, that it leaves graphics to the game's menu (VRConfig.cs:151-152).
+  change: Record QualitySettings.GetQualityLevel() when the snapshot is taken. In ApplyProfile, if the current level differs from the recorded one, re-take _gameQuality before the preset overwrites any fields (at that point they still hold the game's new level values), and record the new level.
+
+[minor/medium] src/Core/VRManager.cs:273  Putting the headset back on resumes the match at once
+  what:   OnHeadsetWorn(true) calls GameManager.UnpauseGame() in the same call as the worn event: if (_pausedForHeadset && !_pausedForDashboard && GameManager.instance != null && GameManager.IsPaused() && !menuOpen) { GameManager.UnpauseGame(); } (lines 272-277).
+  why:    The match restarts the instant the headset is seated, while the player is still settling the lenses, strap or view. Enemies can fire in that moment and the player gets no beat to re-orient. The pause itself is well guarded, so only the resume is abrupt.
+  change: On worn=true, store _resumeAt = Time.unscaledTime + 3f instead of unpausing, and call UnpauseGame from Update once that time has passed. Cancel the countdown if the headset comes off again or a menu opens. Leave the dashboard path as it is.
+
+[minor/medium] src/Runtime/OpenVRRuntime.cs:118  Exception after the XR display starts leaves it running; Stop() skips it
+  what:   Display is created at line 85 and started at line 100 (Display.Start(); InputSubsystem?.Start();). Running is only set to true at line 112. The catch blocks (lines 118-125) call Fail() and do not destroy Display or InputSubsystem. Stop() returns at line 161 when !Running, so it never tears them down. The init-failure branch at lines 91-96 does call Display.Destroy(), so the cleanup is inconsistent.
+  why:    If Display.Start, InputSubsystem.Start or TrySetTrackingOriginMode throws, the game continues flat (VRManager.cs:53-56) while the XR display and the SteamVR session stay open. Shutdown at quit calls Stop(), which returns early, so nothing releases them.
+  change: Add a TearDown() helper that stops and destroys InputSubsystem and Display and nulls both. Call it from both catch blocks and from Stop(). Alternatively, make Stop() tear down whenever Display or InputSubsystem is non-null instead of checking Running.
+
+[minor/low] src/Util/../Core/VRConfig.cs:196  One global gun-to-barrel tilt for every weapon in Manual mode
+  what:   GunRotationOffset defaults to "35, 0, 0" (VRConfig.cs:196-197). VRHand.cs:193 applies it to every held weapon when GunAngle is Manual or the tip pose is missing: rot = Raw.rotation * Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.GunRotationOffset, ...))). The same offset is used for all weapons, and GunPitchTrim (VRConfig.cs:200-201) is also global.
+  why:    Each weapon's rig already reports its aim axis and up (Rig.Data.AimAxis / Rig.Data.Up, used at HeldWeapon.cs:1248), but the fallback ignores them. A pistol and a rocket launcher get the same 35 degree tilt, so a Manual-mode player has to pick one trim for every gun.
+  change: In the fallback branch of VRHand.GunFrame, derive the default frame from the weapon's rig data and use GunRotationOffset only as a trim on top. Alternatively, store a per-weapon default offset in the rig analysis. Verify on a pistol and a long gun before adopting it.
+
+[tiny/medium] src/Core/GraphicsPresets.cs:83  Preset render scale is applied only on a live change, not at start
+  what:   Apply() (lines 83-104) never assigns VRConfig.RenderScale. Profile.RenderScale is used only in OnPresetChanged (lines 187-194) and ApplyForBench (lines 110-130). At start, OpenVRRuntime.ApplyLiveSettings (OpenVRRuntime.cs:131) uses the saved VRConfig.RenderScale. VRConfig.cs:151-153 says "Picking a preset also sets RenderScale".
+  why:    A config with GraphicsPreset = High and RenderScale still at 1.0 (hand-edited, or the file default) starts at 1.0 eye scale instead of 1.2, while the panel shows High. The Launcher keeps the two in step only when it changes the preset (installer/Launcher.cs:235-243).
+  change: Before OpenVRRuntime.Start, apply the preset's RenderScale once when the preset differs from the one that last set it. Store that preset in a hidden config entry, using the same rule as the Launcher. Alternatively, correct the description to say the file must set both values.
+
+CHECKED AND FINE:
+  - OpenVRMath.ToUnity, ToUnityVector and ToUnityAngular: Z-mirror and axial sign rules are correct (OpenVRMath.cs:9-21). RigidPose.Multiply, Inverse and the transform helpers are correct (OpenVRMath.cs:59-71).
+  - Pose validity is checked before conversion at the real call sites (VRInput.cs:503, VRRig.cs:170-174). VRInput.cs:320 is a diagnostic string only.
+  - VRInput.Initialize catches its own exceptions (VRInput.cs:87-89), so the unguarded call at VRManager.cs:59 is safe.
+  - VRManager.Shutdown undoes all seven subscriptions made in Start (VRManager.cs:77-83 against 288-296), and Shutdown is idempotent.
+  - Dashboard and headset pause logic guards open menus and avoids a double unpause (VRManager.cs:228-278).
+  - The game's Options.Apply rewrites terrain values only at level start (Options.cs:383-432), so the GraphicsPresets terrain-originals cache (GraphicsPresets.cs:196-233) is consistent with the normal options path. Not a finding.
+  - HapticStrength is applied in VRInput.cs:528, so the setting works.
+  - MinFarClip, FarClipCap and ForceMsaa are consumed correctly in VRRig.cs:962-965.
+  - Config migrations run once and are monotonic (VRConfig.cs:344-390). The forced GripToHoldWeapon default is a documented choice, not a bug.
+  - Log.Guard and ExceptionOnce locking is correct (Log.cs:36-47, 80-103).
+  - MaterialFix handles null and destroyed materials (MaterialFix.cs:19-35, 122-135).
+  - The Launcher's preset-to-RenderScale table matches the GraphicsPresets profiles (installer/Launcher.cs:224-228).

@@ -1287,6 +1287,20 @@ namespace RavenfieldVR.Core
             var m1 = new List<float>();
             yield return Sample(a1, m1);
             string line = "steady: " + Measure("one hand", a1, m1);
+            // The same with a real controller's tracking noise in its velocity (2 cm/s): the scripted hand reports none, and
+            // the shake a player saw on the RPGs never showed here (Tasks 203).
+            var a3 = new List<float>();
+            var m3 = new List<float>();
+            Rig.VRHand.TestVelocityNoise = 0.02f;
+            try
+            {
+                yield return Sample(a3, m3);
+            }
+            finally
+            {
+                Rig.VRHand.TestVelocityNoise = 0f;
+            }
+            line += "; " + Measure("one hand, tracking noise", a3, m3);
             Rig.VRHand off = rig.Off;
             if (held.Rig.Data.HasSupportPoint && off.Role == Rig.HandRole.Free)
             {

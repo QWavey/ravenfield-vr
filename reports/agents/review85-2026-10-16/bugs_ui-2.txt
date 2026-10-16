@@ -1,0 +1,48 @@
+bugs ui-2 (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: Read-only bug review of the eight UI, holster and pouch files (VRSettingsPanel, SquadPointing, ModKeysPanel, VRKeyboard, WristHud, SeatSights, HolsterDisplay, PouchDisplay), cross-checked against UiKit, UISystem, ScriptKeys, WeaponDrops, BodyZones, ReloadInteractions, VRManager and the decompiled FpsActorController and SquadPointUi. Nothing was edited, built or run. The relayed user request (rocket model match, grab from the front, PNG/GIF recording) was not performed because this pass is read-only.
+
+[minor/medium] src/UI/ModKeysPanel.cs:189  Press on a stale weapon row taps the previous weapon's script for up to 0.75 s
+  what:   KeyRow's Press handler (ModKeysPanel.cs:187-195) guards only `target.Script == null` (line 189), then calls ScriptKeys.Tap(target.Key, target.Script) (line 193). Rows are rebuilt only when Time.unscaledTime - _lastBuild exceeds RebuildSeconds (0.75 s, lines 20 and 63-66).
+  why:    After a weapon switch the old weapon's rows stay on screen until the next rebuild. The old script is non-null and ScriptKey.Alive (src/Input/ScriptKeys.cs) stays true for 3 s after its last poll, so the tap is accepted and is delivered only to that holstered weapon's script (ScriptKeys.Query drops taps whose Target differs). The key then does nothing on the gun in hand.
+  change: For rows listed under 'This weapon', before Tap check that target.Script.transform.IsChildOf(current activeWeapon.transform); if not, call Rebuild(force: true) and return. Leave mutator rows unchanged.
+
+[minor/low] src/UI/SeatSights.cs:39  Sights are captured once per seat entry with no retry when the seat camera is not ready
+  what:   Lines 39-44: `if (seat != _seat) { Restore(); _seat = seat; Capture(); }`. Capture() returns early at lines 61-64 when _seat.camera or _seat.vehicle is null, and nothing calls it again until the seat changes.
+  why:    If the seat's camera or HUD reticle is set up a frame after entry, that seat's sights are never moved to the collimated layer and show the real-distance parallax this class exists to remove for the whole stay in that seat.
+  change: Leave _seat unset while Capture finds no camera, or retry Capture each frame while the seat is set and _sights is empty.
+
+[minor/high] src/UI/UISystem.cs:127  Settings and mod-keys hotkeys never close each other, so both panels can stack
+  what:   UISystem.cs:124-133: the VRMenu hotkey runs Settings.Toggle() and the ModKeys hotkey runs ModKeys.Toggle(); neither closes the other. The in-panel Mod keys button does close first: VRSettingsPanel.cs:259-261 `Close(); // in its place, not half over it`.
+  why:    Settings is placed 0.85 x MenuDistance ahead and 0.18 m right (VRSettingsPanel.cs:303), 0.95 m wide (:315). ModKeys is 0.8 x MenuDistance ahead and 0.2 m left (ModKeysPanel.cs:205), 0.8 m wide (:217). The centres are about 0.38 m apart, so opening the second panel by hotkey draws one over the other, which the footer button was written to avoid.
+  change: Before Settings.Toggle() add `if (!Settings.IsOpen) ModKeys.Close();`. Before ModKeys.Toggle() add `if (!ModKeys.IsOpen) Settings.Close();`.
+
+[minor/medium] src/UI/VRKeyboard.cs:136  TMP Digit validation is treated as Integer, so a minus sign is accepted
+  what:   Line 136 passes `tmp.characterValidation == Integer || tmp.characterValidation == Digit` as the `integer` argument of Filter. Filter line 169 `else if ((integer || decimalNumber) && ch == '-' && sb.Length == 0)` then keeps a leading '-'.
+  why:    A TMP field set to Digit (digits only) given '-5' on the SteamVR keyboard commits '-5'. Reachability depends on whether any game prefab uses TMP Digit validation; the legacy InputField path is not affected.
+  change: Give Filter an allowSign argument that is true only for Integer and Decimal (false for Digit), and gate the '-' branch at line 169 on it.
+
+[minor/low] src/Weapons/HolsterDisplay.cs:90  Holstered copy scale is a clamped average, not the drop path's exact scale vector
+  what:   Lines 90-92: Vector3 scale = tpParent.lossyScale; float uniform = Mathf.Clamp((|x|+|y|+|z|)/3f, 0.5f, 2f); model.transform.localScale = Vector3.one * uniform. The drop path passes the exact vector: WeaponDrops.cs:95 takes tp.parent.lossyScale and WeaponDrops.cs:155 assigns it unchanged.
+  why:    A third-person parent scale below 0.5, or non-uniform (for example 1,1,0.5), gives a holstered copy with a different size or shape from the same gun dropped on the ground. Length (line 137) also uses the uniform value.
+  change: Use the drop path's vector: `Vector3 scale = tpParent != null ? tpParent.lossyScale : Vector3.one; model.transform.localScale = scale.sqrMagnitude > 1e-6f ? scale : Vector3.one;`, and compute Length from Vector3.Scale(size, scale)[axis].
+
+[minor/low] src/Weapons/HolsterDisplay.cs:128  Barrel axis is the bounds end farther from the model origin, which can flip long-stock models
+  what:   Line 130: `dir[axis] = bounds.max[axis] >= -bounds.min[axis] ? 1f : -1f;`, with the comment at lines 120-122 that the muzzle is the end farther from the pivot.
+  why:    When the origin sits nearer the stock end, the stock is taken as the muzzle and the holstered model is drawn with its barrel pointing back at the hand. This cannot be verified without running the game.
+  change: Take the muzzle end from something that does not depend on the origin: an explicit per-entry sign, or the weapon's own muzzle transform if HolsterDisplay can reach it through live.
+
+[minor/high] src/Weapons/PouchDisplay.cs:10  Pouch comments say the grab is answered at the shown magazine top; the grab ignores it
+  what:   PouchDisplay.cs:10-11 says the top is 'the end you grab ... where the grab is answered', and line 95-96 says GrabPoint is 'where a hand takes the shown magazine'. GrabPoint (set at line 73) is read only by the self-test (AutoTest.cs:2599). The real grab is a sphere: Zones.InPouch(palm) is distance to Zones.Pouch < PouchRadius (BodyZones.cs:418), used at ReloadInteractions.cs:291-292 and 1383.
+  why:    Which end of the pouched magazine or rocket faces up has no effect on whether a grab is answered; any hand inside the sphere gets it. The front-versus-back orientation the user raised is therefore not represented in the grab logic at all, and a fix for it belongs in ReloadInteractions, not this display.
+  change: Correct the comments, or, if orientation should matter, make the grab test in ReloadInteractions.cs:291-297 use GrabPoint and the insert axis instead of the isotropic sphere.
+
+CHECKED AND FINE:
+  - VRSettingsPanel: the reversed Choice loop is intentional because UiKit.MakeButton anchors x from the right edge (UiKit.cs:84-93), so labels read Snap/Smooth/Off left to right; ToggleHalf offsets and label stretches do not overlap (verified for both halves); Stepper and ActionRow positions do not overlap; steppers clamp and round consistently with their units; Place() right = Cross(up, fwd) is the correct Unity convention; the settings panel refreshes 5 times a second while open (UISystem.cs:134-137), so stepper values update.
+  - SquadPointing: Aim/Restore pair up across the Prefix/Postfix patches and the Restore path runs on exceptions; Compute runs in a try/catch; the regroup threshold of -0.7 matches the game (FpsActorController.cs:1665); the game sets default text every Update while Call is held (FpsActorController.cs:1665-1666, SquadPointUi.cs:139-141), so the VR override is harmless; the label faces the eye correctly for a TextMesh; the arrow mesh winding and indices are valid; open requires a living actor and an enabled canvas; the Target() raycast mask (layer 1) is cosmetic only.
+  - WristHud: ring progress is Clamp01 (BodyZones.cs:200), so no index overflow in UpdateRing; the counter string is cached (AmmoState.cs:386-393), so the ReferenceEquals check does not allocate per frame; destroyed-object and menu and death checks are present.
+  - VRKeyboard: the event pump runs on the main thread (VRManager.cs:140, OpenVRRuntime.PumpEvents), so Commit is not called off-thread; Dispose unsubscribes; the retry and open latch logic is consistent across Done, Closed and failure paths; Filter returns null to keep the field's text.
+  - ModKeysPanel: Signature is null-safe because OtherKeys filters on Alive and KeysOn null-checks the weapon; Rebuild destroys and recreates rows without referencing destroyed objects; Place and BeforeRender are consistent with the settings panel.
+  - SeatSights: Range is guarded at 0.02 before the division; Restore resets transforms and layers on exit, on a seat change, and in UISystem.Dispose (UISystem.cs:292).
+  - HolsterDisplay: ModelFor returns a fresh Instantiate (WeaponDrops.cs:134), so Clear() cannot destroy a shared model; Build handles empty bounds (any=false); the frame, centre and Place math is consistent (Frame and its inverse, centre offset in local units); Boneworks and LeftHanded are live getters (BodyZones.cs:29, VRConfig.cs:392); visibility logic matches its comment.
+  - PouchDisplay: BuildDisplay never returns null (it falls back to a procedural model), so the _model deref in Build is safe; Destroy resets the cache fields and the label is rebuilt when _root is null; teardown is called (WeaponSystem.cs:820 and :822); PouchText guards division with Max(1, capacity); the held-rig deref is non-null because HeldWeapon's constructor always sets ActiveRig.

@@ -1,0 +1,38 @@
+improve hands (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Hands area (glove, poses, IK): read in full src/Rig/HandModel.cs, HandShape.cs, GloveMesh.cs, HandPoses.cs, VRHand.cs, src/Weapons/ArmIK.cs, ModHand.cs. Cross-checked the callers and config they depend on: HeldWeapon.cs (ArmIK.Solve order, SetHandModelsSuppressed), WeaponSystem.cs and ReloadInteractions.cs (haptic calls, GraspAnchor/GraspReach), VRConfig.cs (glove style, size, ParseVector cache), MagazineProp.cs (HoldPose, rocket path). Read-only run: the relayed request's rocket and gif work was not performed. Pointers for it are below the findings.
+
+[major/medium] src/Rig/HandModel.cs:696  No haptic when the fingers close on the held weapon
+  what:   In Apply the closing branch calls `SolveFinger(f, _curl[f]);` (line 696). SolveFinger stops a joint on the model and sets `_touched` (line 1019), but nothing in HandModel.cs calls `_hand.Haptic` (grep finds no haptic call in src/Rig/HandModel.cs). Other systems pulse on their own events: WeaponSystem.cs:214 on a magazine grab, WeaponSystem.cs:613 on a holster.
+  why:    The grab pulse fires when the grip is pressed, but nothing fires when the fingers and palm actually reach the grip. Wrapping a pistol or rifle grip is silent, so the player cannot feel where the hand has landed on it.
+  change: Add `private readonly bool[] _fingerTouch = new bool[5];` beside `_fingerSolved` (lines 721-723). Right after `SolveFinger(f, _curl[f])` at line 696, read `bool t = _touched;` (SlideOnGrip at line 883 also writes it, so read it immediately). On a rising edge (`t && !_fingerTouch[f]`) call `_hand.Haptic(0.012f, 160f, 0.2f)`, about the size of the finger taps at ReloadInteractions.cs:720. Store `_fingerTouch[f]` with `_fingerSolved` and restore it on the reuse path so the pulse does not repeat. For the palm, add the same rising-edge test on `PalmTouches(n, 0f)` in SettlePalm (lines 814-826).
+
+[minor/low] src/Rig/HandModel.cs:540  Glove looks live while its controller is lost
+  what:   VRHand.UpdatePose keeps the last tracked pose when the controller drops out: `else if (_hasLastRaw) { rawLocal = _lastRawLocal; Tracked = false; }` (VRHand.cs:82-86). HandModel.Apply never reads `_hand.Tracked`; the only reads in the hands area are in ArmIK.cs:85.
+  why:    While the controller is out of view the hand moves with the body and holds its last finger pose, drawn exactly like a tracked hand. The player cannot tell that the hand has frozen, and a held gun keeps its grip with no sign of the loss.
+  change: In Apply, record when `!_hand.Tracked` began and, after about 0.3 s, dim the glove toward grey. Use a per-renderer MaterialPropertyBlock colour multiplier, not the shared material: HandShape.Material is shared by both hands (HandModel.SetGloveColor, lines 373-380), so changing it would dim both gloves.
+
+[minor/medium] src/Rig/HandModel.cs:581  Hidden glove freezes its fingers, so they pop back on reshow
+  what:   `if (Suppressed || HiddenByHeld) { _graspOffset = Vector3.zero; return; }` returns before the thumb base (line 680), the palm push (650-656) and the finger loop (681-739). So `_curl`, `_joint`, `_thumbBase` and `_push` stop updating while the glove is hidden.
+  why:    With the weapon's own arms shown, the glove is suppressed (HeldWeapon.cs:1157-1161). When it comes back, the palm snaps to the tracked hand at once (`_root.SetPositionAndRotation`, line 612), but the fingers ease from the pose they had before hiding (k 7-25/s, joints 9-40/s). The player sees a palm already in place with fingers still closing or opening.
+  change: Stop returning early for the finger loop. Keep only the root placement and the grasp-offset reset skipped while hidden (the renderer is already disabled by SetVisible), and let lines 647-741 run every frame. Nothing is drawn while hidden, so there is no visual cost.
+
+[minor/low] src/Rig/HandModel.cs:1276  Fixed finger cap ignores grip size for unmeasured weapons
+  what:   `float cap = HoldCap(_hand.Role);` then fingers 2-4 are clamped to it (lines 1276-1280). HoldCap (lines 1288-1296) returns 0.85 for Weapon, Magazine, Throwable and Cockpit and 0.75 for Foregrip. The comment at 1274-1275 says these leave about 3 cm of a pistol grip and 4 cm of a handguard.
+  why:    The cap is used only when there is no measured solid (`Closing` is false, line 1256). Every such weapon then closes to the same curl whatever its grip diameter. A thick grip is passed through by the fingers, and a slim handle is left with a gap of several centimetres.
+  change: Take the cap from the weapon when its grip width is known: add a `public float GripCap = -1f;` set by HeldWeapon from the measured grip, and use `float cap = GripCap >= 0f ? GripCap : HoldCap(_hand.Role);` at line 1276. Keep HoldCap as the fallback for weapons with nothing measured.
+
+[tiny/high] src/Rig/HandModel.cs:36  Dead _thumbWeapon field
+  what:   `private readonly Quaternion _thumbRest, _thumbWeapon, _thumbFist;` (line 36) and `_thumbWeapon = HandShape.MirrorRotation(_shape.ThumbWeapon, m);` (line 155). Nothing reads `_thumbWeapon` after the constructor.
+  why:    No player-visible effect. It is misleading, since the weapon-thumb pose is now `_pose.Thumb` = 0.35 (HandPoses.cs:47, HandModel.cs:671).
+  change: Delete the field and its assignment at lines 36 and 155. HandShape.ThumbWeapon stays, because Procedural() uses it to derive ThumbFist (HandShape.cs:127-128).
+
+CHECKED AND FINE:
+  - GloveMesh.Build mirrored fingers: MirrorRotation (HandShape.cs:407) is a true reflection (M*R*M), so the left-hand finger winding is consistent. I worked the triangle orientation through by hand and found no inversion, so no finding.
+  - SteamVR glove mirroring: triangle winding flipped for the left hand (HandShape.cs:316-324) and normals mirrored, which is correct.
+  - Thumb/finger pose tables (HandPoses.cs): every pose has five curls and a thumb base; For() covers every HandRole. No missing mapping found.
+  - VRConfig.ParseVector is cached per entry (VRConfig.cs:413-427), so the per-frame parses in HandModel.Apply and PinchInPalm cost nothing extra.
+  - Update order: HeldWeapon.cs:1156-1159 runs SnapHands then ArmIK.Solve. HandModel.Apply sets GraspPointWorld (line 580) before its early return, so ArmIK.cs:98 reads a current value.
+  - ArmIK literal 0.05f clamp (ArmIK.cs:98) against GraspReach (ReloadInteractions.cs:1780, SupportLetGo = 0.6 for a non-pistol foregrip): no present defect, because the free-hand path is only used where GraspReach is 0.05, and a foregrip uses the authored grip.
+  - Glove style and size are config-only (VRConfig.cs:229, 232, no settings-panel reference) and are read once when the shape first loads (HandShape.cs:62, 250). Changes need a restart; noted, not reported as a finding.
+  - Rocket pointers, outside the seven files and not acted on: the held rocket is aligned to palm.Forward with gripAt 0.5 (MagazineProp.cs:941-946, HoldPose 934-966). It is inserted tail-first, with the RPG-front comment at MagazineProp.cs:375-378. The Rocket pose curls are at HandPoses.cs:80 and selected at HandPoses.cs:156-158. The held rocket is a copy of the weapon's model only when CopiesModel passes (MagazineProp.cs:806-818 and CheckedCopy at 511-514). Otherwise the olive procedural capsule is used (MagazineProp.cs:850-853), which matches the 'not the same model' complaint.

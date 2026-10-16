@@ -1,0 +1,29 @@
+bugs reload-2 (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: src/Weapons/ReloadInteractions.cs, lines 1500 to end (self-checks, films, Release, BeforeRender). Read in full at HEAD 32af006 (3129 lines). The file changed during the review: HEAD moved from 2467c07 (3108 lines) to 32af006 (3129 lines, palm easing near 1680 and rack-grip edits near 2905). Line numbers below are for 32af006.
+
+[minor/low] src/Weapons/ReloadInteractions.cs:1658  BeforeRender dereferences Ammo unguarded for break-action and feed-cover guns
+  what:   Inside `if (!_coverHeld && Data.Hinge != HingeKind.None)` (1656): `float target = Breaks ? (Ammo.Open ? 1f : 0f) : Data.Hinge == HingeKind.FeedCover && Ammo.CoverOpen ? 1f : 0f;`. The other Ammo reads in BeforeRender are guarded (1621, 1626, 1659).
+  why:    Ammo is _held.ActiveAmmo. WeaponSystem.cs:307 builds HeldWeapon from StateFor(weapon, create: true), which returns null when !weapon.UserIsPlayer() (WeaponSystem.cs:406). For a break-action or feed-cover weapon in that state, this throws a NullReferenceException every render frame. HeldWeapon calls Reload.BeforeRender() at HeldWeapon.cs:1039 and 1167, before the rest of its per-frame visuals, so those are skipped each frame. Likelihood is low: it needs a held weapon with no player-owned ammo state.
+  change: Guard the condition: `if (!_coverHeld && Data.Hinge != HingeKind.None && Ammo != null)`.
+
+[minor/medium] src/Weapons/ReloadInteractions.cs:2519  TacticalSelfCheck leaves the simulated grip closed if the body throws or stops
+  what:   `VRInput.SimulatedGrab[(int)off.Side] = true;` (2519) and `MagReadout.TestTarget = fresh;` (2531) are cleared at 2549 and 2556 on the normal path only. There is no try/finally, unlike H3vrReloadSelfCheck and MagazineKeepOutCheck. Between them are four yields (2532-2538) and several shot(...) calls.
+  why:    An exception in shot() or report, or a stop of the coroutine, leaves SimulatedGrab[off] true. VRInput.cs:239 then refuses to release the Grab while SimulatedGrab[slot] is set, and VRInput.cs:404 reports it held, so the off hand's grip stays closed until another self-check clears the flag. MagReadout.TestTarget keeps a magazine reference for the readout (MagReadout.cs:66).
+  change: Wrap lines 2520-2556 in try { ... } finally { VRInput.SimulatedGrab[(int)off.Side] = false; MagReadout.TestTarget = null; }, and move the leftover-magazine cleanup into the finally.
+
+[minor/medium] src/Weapons/ReloadInteractions.cs:3045  Static LegacySupportSolid flag left set if the self-check stops
+  what:   TwoHandSelfCheck (3026-3057): `HeldWeapon.LegacySupportSolid = true;` (3045), `yield return new WaitForSecondsRealtime(0.35f);` (3046), `HeldWeapon.LegacySupportSolid = false;` (3048). The flag is `internal static bool LegacySupportSolid;` (HeldWeapon.cs:1222) and is read at HeldWeapon.cs:1720 inside the support-hand solid: `_supportSolid = p => _solid(p) || !LegacySupportSolid && gunHand.NearSkin(p, GunVolume.Grow)`. The method has no try/finally; the grab (3033, 3054) and the Foregrip role (3034) are restored only on the normal path.
+  why:    If the coroutine is stopped or throws during the 0.35 s window, the static stays true for the rest of the session. Every pistol's support-hand solid then stops excluding the gun hand's skin, so on later weapons the off hand can sink into the gun hand. Only the autotest path sets it, and nothing else resets it.
+  change: Wrap lines 3033-3054 in try { ... } finally { HeldWeapon.LegacySupportSolid = false; VRInput.SimulatedGrab[(int)off.Side] = false; }, the same pattern H3vrReloadSelfCheck and MagazineKeepOutCheck already use.
+
+CHECKED AND FINE:
+  - SelfCheck, SelfCheckSteps, H3vrReloadSelfCheck, MagazineKeepOutCheck, RackGripSelfCheck, ReloadFilm and RocketFilm: the SimulatedGrab and VRHand.Scripted resets sit in finally blocks, and the kick and seat loops always terminate (speeds are nonzero, dt is clamped).
+  - EndRack HandDriven path leaves _rackedBack set, but BeginRack (1491) recomputes it, so the next rack starts clean.
+  - KeepEmptyHandOut and KeepOutOfGun: a stale KeepOut cannot persist, because HandModel.cs:595 ignores it unless KeepOutFrame is within one frame.
+  - TacticalSelfCheck calls TacticalEject unconditionally, while gameplay palms only when CanPalm (lines 109-115). The report labels that case '(simulated hand)', and SeatProp promotes the palmed magazine (1370-1372), so the round count still adds up. Deliberate, not a bug.
+  - TakeFromPouch (946) does not guard off.Held. Every test call site seats first (AcceptsNow for magazines only needs !MagInserted), so the overwrite is not reached. Latent only.
+  - A partially run MagazineDeepCheck sets VRHand.Scripted at 2366 and clears it at 2399 with no finally. Only an exception in the window leaves it pinned, so I did not report it.
+  - Release(): clearing _pullingIn without seating matches ReleaseProp's policy; the magazine stays in hand with OnRail cleared. Palmed, ejecting, cover, belt and optic state are all handled.
+  - Division and denominators: Travel is floored at 5 mm, StrokeLength is at least 1 cm for handles, HandguardPoint clamps ab.sqrMagnitude, and DrawnBounds and PalmOnPart are guarded. No division-by-zero found.
+  - Sub-weapon ammo: Weapon.cs:2321 sets user on sub-weapons, so ActiveAmmo is normally non-null. The Ammo-null path needs an unowned weapon.

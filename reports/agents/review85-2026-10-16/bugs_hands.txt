@@ -1,0 +1,52 @@
+bugs hands (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: Hands area at HEAD 32af006: src/Rig/HandModel.cs, HandShape.cs, GloveMesh.cs, HandPoses.cs, VRHand.cs, src/Weapons/ArmIK.cs, ModHand.cs. HandModel.cs was modified at 19:20 during the review, so it was re-read at the committed version. Callers checked: HeldWeapon.cs, ReloadInteractions.cs, VRManager.cs, VRRig.cs, MagazineProp.cs, WeaponSystem.cs. No critical or major bug found in this area: nothing crashes per frame and nothing sticks across weapon switch, death, vehicle seat or scene change. The findings below are minor or tiny.
+
+[minor/low] src/Rig/HandModel.cs:382  Weapon-arm mode disables the glove solid that keep-out and support wrap rely on
+  what:   SetVisible(false) sets `_skinValid = false` (line 386), and UpdateSkin returns early when not visible (line 750). In weapon-arm mode HeldWeapon.cs:1160 calls SetHandModelsSuppressed(true) for every hand, so ShortestWayOut (line 488) and ClearanceAlong (line 462) return zero and NearSkin is false for the glove skin. NearSkin is used by the support-hand wrap (HeldWeapon.cs:1720) and the magazine keep-out (ReloadInteractions.cs:1845).
+  why:    In this mode the drawn hand is the weapon's arm, but the collision logic that keeps a magazine and the support hand out of the gun hand cannot see it. A magazine can pass through the hand during insertion, and the support hand can close through the gun hand. The comment at line 386 suggests this is deliberate ('a hidden glove is no solid'), so confidence is low.
+  change: If it is not intended, base `_skinValid` on whether the palm was placed this frame, not on `_visible`, so that the glove's skin keeps existing when Suppressed. Keep the gate for HiddenByHeld.
+
+[minor/medium] src/Rig/VRHand.cs:106  Held gun and glove jump to constants when a controller loses tracking
+  what:   Lines 106-110: `HandPose grip = raw.valid ? VRInput.GetPose(Side, PoseKind.Grip) : default;` then `Vector3 palmPos = grip.valid ? rig.TransformPoint(grip.pose.position) : Raw.TransformPoint(new Vector3(0f, -0.025f, -0.055f));` and `Palm = new RigidPose(palmPos, Pointer.rotation)`. Lines 100-104 do the same for the tip: `Pointer = tip.valid ? rig.Multiply(tip.pose) : Raw.Multiply(new RigidPose(Vector3.zero, Quaternion.Euler(MirrorEuler(...LaserRotationOffset...))))`. GunFrame (line 187) switches from Pointer.rotation to `Raw.rotation * Euler(GunRotationOffset)` when `_hasTip` is false.
+  why:    The class comment at lines 23-26 says a held gun stays put while its controller is out of view. Instead, on the frame tracking drops, Palm and Pointer are rebuilt from hard-coded offsets instead of the last tracked grip and tip. The held gun and glove therefore step by the difference between the constants and the real poses, and step back on regain. Raw itself is held (lines 82-86), so only the grip and tip pop. The size of the step is not measured here.
+  change: In the valid branches cache `_gripInRaw = rawLocal.Inverse().Multiply(grip.pose)` when grip.valid and `_tipInRaw = rawLocal.Inverse().Multiply(tip.pose)` when tip.valid. When invalid, use `Raw.Multiply(_gripInRaw)` and `Raw.Multiply(_tipInRaw)` once a sample exists, keeping the constants only for the first frames before any sample. Keep `_hasTip` true while the cached tip is in use so GunFrame does not switch formula.
+
+[minor/low] src/Weapons/ArmIK.cs:89  Off-hand arm solves against a default (zero) palm before first tracking
+  what:   Lines 89-92 read `RigidPose palm = off.Palm;`, then `Quaternion.LookRotation(palm.Forward, palm.Up)` and `Vector3 at = off.PalmCentre;` every frame. VRHand.Palm is `{ get; private set; }` with no initialiser (VRHand.cs:29), so it stays default(RigidPose), with a zero quaternion, until UpdatePose has produced one valid pose. `off.HasPose` is never checked here.
+  why:    With weapon-arm mode on and an off controller that never reports a pose, the free-hand branch is evaluated on zero vectors and a zero quaternion every frame. The onGun blend (line 104) only hides this after it settles, and the zero-vector LookRotation calls may log errors each frame.
+  change: Skip the free-hand branch when `!off.HasPose` (use target = grip), or initialise Palm to an identity pose in the VRHand constructor.
+
+[minor/medium] src/Weapons/ArmIK.cs:98  Off-hand anchor correction uses last frame's grip point
+  what:   Line 98: `Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - off.Model.GraspPointWorld, 0.05f) : Vector3.zero;`, while line 92 takes `at = off.PalmCentre` from this frame's palm. GraspPointWorld is written only in HandModel.Apply (HandModel.cs:580). VRManager.OnBeforeRender runs Weapons.BeforeRender (which calls ArmIK.Solve, HeldWeapon.cs:1159 inside HeldWeapon.BeforeRender at line 1028) before the hand Apply loop (VRManager.cs:203-208).
+  why:    The arm's anchor correction is one frame old. While racking a bolt or charging a handle with the off hand (weapon-arm mode, where the drawn arm is the one ArmIK solves), the arm's grip trails the glove's grip by one frame of hand travel: about 5 mm at 0.5 m/s and 1.7 cm at 1.5 m/s at 90 Hz.
+  change: Compute the grip point from this frame's palm before ArmIK.Solve. Either move the target computation of HandModel.Apply (lines 552-580: posOffset, rotOffset, held-palm easing, FollowOffset, graspLocal) into a HandModel method that takes `off.Palm`, and call it at line 98, or recompute GraspPointWorld in VRHand.UpdatePose so it is current when ArmIK reads it.
+
+[minor/medium] src/Weapons/ModHand.cs:43  Proximity fallback overwrites finger roles already matched by name
+  what:   Lines 34-41 assign `_index` and `_pinky` from names. Lines 43-64 then run `if (_index == null || _pinky == null) { ... _index = near; _pinky = far != near ? far : null; }`, which reassigns both roles even when one of them was matched by name.
+  why:    On a rig where only one finger is named (for example 'Index' plus 'Finger_4'), the named index is replaced by the finger nearest the thumb bone, and the pinky is replaced by the farthest finger whatever its name. `across` (line 143, `_index.position - _pinky.position`) then spans the wrong fingers, so the palm roll of the snap pose (line 157) is off, and a pistol grip can turn the glove palm the wrong way.
+  change: Fill only the missing role, from the unassigned fingers: `if (_index == null)` take the finger nearest the thumb that is not `_pinky`; `if (_pinky == null)` take the farthest finger that is not `_index`. Leave name matches untouched.
+
+[tiny/high] src/Rig/HandModel.cs:454  ClearanceAlong doc says 0 when no step is clear, code returns max
+  what:   Doc lines 457-458: '...and 0 when no step is clear (then it is not in the way along dir but stuck in something beside it...)'. Code line 476: `return max;`, with the inline comment at lines 474-475 saying it returns as far back as it may go.
+  why:    A caller that trusts the doc would treat 0 as 'not in the way'. The only caller (ReloadInteractions.cs:1867-1868) relies on max to push the glove back.
+  change: Correct the summary to say the farthest shift (max) is returned when no step is clear.
+
+[tiny/medium] src/Weapons/ArmIK.cs:98  HandModelPosition/HandModelRotation reach the glove but not the arm's palm placement
+  what:   HandModel.Apply includes VRConfig.HandModelPosition and HandModelRotation in its target (HandModel.cs:552-556). VRHand.PalmCentre (VRHand.cs:176) and ArmIK's free target (ArmIK.cs:92) do not. The anchor correction (ArmIK.cs:98) uses GraspPointWorld, which does include them. ReloadInteractions.cs:1732 takes the palm normal as `off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f)`, without HandModelRotation.
+  why:    Only with a non-zero config (the defaults are 0,0,0): an anchored arm is offset from its base by the configured amount, and the rack palm placement samples the wrong normal when the glove is tilted.
+  change: Use one helper, with the same posOffset and rotOffset as Apply, for the grip point, the palm normal and PalmCentre. Or make the arm ignore the glove tuning consistently, by excluding the config term from the arm's anchor correction.
+
+CHECKED AND FINE:
+  - Mirror helpers (MirrorPoint, MirrorAxis, MirrorRotation, MirrorEuler) are correct reflections: axes are pseudovectors, rotations are conjugated. GloveMesh left-hand joint frames stay proper, so winding is correct without a flip.
+  - PinchInPalm and Apply's graspLocal/posOffset/rotOffset agree, so the pinch and fist grip points match.
+  - ClearanceAlong and ShortestWayOut subtract _graspOffset and _keepOut consistently with the skin they test (their skin includes both).
+  - Lifecycle: VRManager clears _active before Rig.Dispose (VRManager.cs:297), and _handApply is cached only right after a new VRRig is built (VRManager.cs:65, 177). No per-frame call reaches destroyed hands.
+  - Solid closure is cached per HeldWeapon (HandSolid, HeldWeapon.cs:1274), so GripMoved does not churn. Solid is null until the volume is ready.
+  - HeldWeapon.Release (HeldWeapon.cs:2021-2031 and 2108-2123) clears Solid, SnapPose, WeaponGripCurls, WeaponSupportCurls, HiddenByHeld and the suppression flag on both hands. GunHand is a live getter (VRInput.cs:593), so Release covers the current pair.
+  - GraspPinch is rewritten on every UpdateGraspAnchor call (ReloadInteractions.cs:1777), so it cannot go stale.
+  - The new PushBlend and pose-fade code (HandModel.cs:646-675) is consistent with the finger reuse cache and with Apply's ordering.
+  - ArmIK.SolveArm: the elbow law of cosines is right, d is clamped above zero, and the root and upper corrections are idempotent when the animator does not rewrite the arm.
+  - SolveFinger and FirstTouch loops are bounded (guard and Steps+4). No division by zero found: SolveArm d is positive, ReadQuaternion and WithoutCurl guard length, GloveMesh.Ring guards a and b, ModHand divides nothing unguarded.
+  - Teleport threshold in VRHand.UpdatePose (50 m/s, line 116): decompiled ArcadeCar topSpeed values are far below that, so vehicle motion is not zeroed in practice. Checked car speeds only, not every vehicle.
+  - Dead code, not a bug: HandModel.IndexFinger (line 272) has no callers, and _thumbWeapon (lines 36, 155) is never read.

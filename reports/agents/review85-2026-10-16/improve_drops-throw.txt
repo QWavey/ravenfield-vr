@@ -1,0 +1,71 @@
+improve drops-throw (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Dropped weapons, grenades, throwing and melee: src/Weapons/WeaponDrops.cs, src/Weapons/GrenadeDud.cs, src/Weapons/ThrowAndMelee.cs (all read in full). Game reference checked for melee hits and weapon weight. Read-only improvement review.
+
+[major/high] src/Weapons/ThrowAndMelee.cs:319  Grenade pin gives no hover cue when the off hand reaches it
+  what:   UpdatePin acts only on the grab: `if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed && Vector3.Distance(off.Palm.position, pin) < PinGrabRadius)`. Nothing buzzes when the palm enters the 0.07 m radius (PinGrabRadius, line 22). WeaponDrops.cs:583-586 does buzz on entering reach ('you can grab this').
+  why:    The pin is a 1.6 mm wire ring on a grenade, and the only sign it can be grabbed is an invisible 7 cm sphere. The hand passes it with no response, and the player keeps closing the fist until it happens to catch the pin.
+  change: Add `private bool _pinHover;`. In UpdatePin compute `bool near = !_holdingPin && off.Tracked && off.Role == HandRole.Free && Vector3.Distance(off.Palm.position, pin) < PinGrabRadius;` then `if (near && !_pinHover) off.Haptic(0.01f, 160f, 0.2f); _pinHover = near;`. Reset `_pinHover = false` in ResetVisuals and PullPin. Same pattern as WeaponDrops.cs:583-587.
+
+[major/medium] src/Weapons/ThrowAndMelee.cs:605  A fast swing that connects with nothing is silent
+  what:   BeforeRender detects the swing (`speed > VRConfig.MeleeSwingSpeed.Value`, line 605) and calls Swing only. Nothing plays a whoosh: MeleeHandler has no Sounds.Play, the only swing output is PlaySwingAnimation on a hit (line 679), and MechSound (ProceduralSounds.cs:7) has no whoosh entry.
+  why:    Air swings make no sound and no haptic. The player cannot tell a registered swing from a miss, and the blade has no weight in sound.
+  change: Track `_swinging`: on the frame speed rises above the threshold while !_swinging, call `_sys.Sounds.Play(MechSound.Whoosh, tip, Mathf.Clamp01(speed / 6f))` and set _swinging = true; clear it when speed < 0.5 x threshold. Add Whoosh to the MechSound enum (ProceduralSounds.cs:7) and synthesize it in the constructor from the existing Burst/Scrape helpers: about 0.2 s of band-passed noise with a falling pitch.
+
+[major/high] src/Weapons/ThrowAndMelee.cs:716  A blade hitting a static wall gives no haptic, animation or sound
+  what:   Cast returns `body != null || destructible != null` for a wall hit (line 716). A static wall has neither, so Cast returns false; Swing (lines 676-680) then skips the haptic and PlaySwingAnimation, and _lastHit is not set, so Cast re-runs every frame of the swing. The game's own ShootMeleeRay (MeleeWeapon.cs:197-208) also plays nothing for a static wall.
+  why:    In VR a sword or axe swung into a concrete wall passes through with no response. A solid stop is the main thing that makes a melee hit feel real.
+  change: Return a hit kind from Cast (Flesh, Body, Destructible, Vehicle, Wall) instead of bool. For Wall: `_sys.Rig.Dominant.Haptic(0.06f, 110f, 0.8f)`, play a clang, and set `_lastHit = Time.time` so one swing gives one jolt. The clang needs a sound (see the whoosh finding) or can reuse MechSound.Casing at higher volume.
+
+[major/high] src/Weapons/WeaponDrops.cs:159  Dropped weapons and duds hit the ground silently
+  what:   Spawn adds a plain Rigidbody (`var body = root.AddComponent<Rigidbody>();`, line 159; same in DropHeld at line 939 and GrenadeDud.cs:72) with no collision handler. The only collision sound in the weapon code is Casings.cs:488-499 (OnCollisionEnter, speed >= 0.6, rate-limited). Pin rings (PinRing.Drop, GrenadeDud.cs:385-399) are silent too.
+  why:    A rifle sliding off a tailgate, or a dud bouncing off a wall, makes no sound. In VR, audio is the main cue that an object has hit something, and the mod already does this for casings.
+  change: Add a small MonoBehaviour with the Casings.cs:488 pattern: OnCollisionEnter skips when c.relativeVelocity.magnitude < 0.8 or within 0.25 s of the last sound, otherwise `WeaponSystem.Instance.Sounds.Play(MechSound.MagKnock, transform.position, Mathf.Clamp01(speed / 4f) * 0.5f)`. Attach it to the root in Spawn (after line 149), DropHeld (after line 894) and GrenadeDud.Spawn (after line 46). A dedicated clip can be added to ProceduralSounds.cs later.
+
+[major/high] src/Weapons/WeaponDrops.cs:777  The player's displaced weapon becomes an ordinary drop and can be culled
+  what:   PickUp swaps with `DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, ...)` and never sets OwnerSlot or any keep flag, so swapped.OwnerSlot stays -1. Cull then removes it when expired (`if (expired)` at line 838, DroppedWeaponLifetime = 90 s, VRConfig.cs:290) or as the oldest drop when over MaxDroppedWeapons = 16 (lines 849-857). The comment at lines 832-834 says the player's own weapon is 'the only copy of it' and must never go away.
+  why:    Swap your rifle for a fallen enemy's shotgun and walk on: the rifle, with its rounds, is deleted 90 s later, or sooner when 16 other drops exist. Nothing tells the player; the weapon is just gone from the loadout.
+  change: Add `public bool Keep;` to DroppedWeapon. Set `swapped.Keep = true;` after line 785. In Cull use `if (expired && !d.Keep)` at line 838, `count += d.OwnerSlot < 0 && !d.Keep ? 1 : 0` at line 847, and `if (_drops[i].OwnerSlot < 0 && !_drops[i].Keep)` at line 851. The weapon then lies until picked up (swap back) or the map is cleared.
+
+[minor/high] src/Weapons/GrenadeDud.cs:48  Spawn ignores its rotation argument
+  what:   `public static GrenadeDud Spawn(WeaponRig rig, Weapon weapon, Vector3 position, Quaternion rotation, ...)` never reads `rotation`. Line 48 uses `gun.rotation` (the GunBody rotation). The caller passes `hand.Palm.rotation` (ThrowAndMelee.cs:189).
+  why:    The dud's physics body starts at the gun's orientation, not the hand's as the caller intends. The difference is small, but the parameter is dead and misleads the next reader.
+  change: Use it: `root.transform.SetPositionAndRotation(gun.position, rotation);` (the copied parts keep their world poses because they are placed relative to root). Or delete the parameter and fix the call at ThrowAndMelee.cs:189.
+
+[minor/medium] src/Weapons/GrenadeDud.cs:317  An expiring dud is destroyed silently when the pouch is full
+  what:   `private void Expire() { if (!Refund(LocalPlayer.actor)) { Destroy(); } }` (lines 317-320). Refund returns false when ammo and spare are both at maximum (lines 250-261), and the dud is destroyed without any message. The on-ground pickup in WeaponSystem.cs:199-203 shows 'FULL' with a haptic for the same case.
+  why:    A grenade the player left lying can vanish after 60 s (MagPropLifetime) with nothing to explain it. The class comment (lines 11-12) promises a fumbled throw never costs a grenade.
+  change: When the refund fails at expiry, do not destroy the dud: leave it lying and let the next Cull retry (skip non-refundable duds in the cap loop at lines 309-312), or flash 'FULL' through WeaponSystem as the pickup path does before destroying.
+
+[minor/medium] src/Weapons/ThrowAndMelee.cs:75  Arming buzzes every frame of the hold instead of once
+  what:   `if (VRInput.GetPressed(DigitalAction.Fire, hand.Side) && !GameContextBlocksThrow()) { _armed = true; hand.Haptic(0.02f, 100f, 0.3f); }` runs every frame the trigger is down. VRInput.Haptic raises Touch pulses to at least 45 ms and 0.35 amplitude (VRInput.cs:538-539), so the hand hums for the whole hold.
+  why:    There is no moment that says 'armed': the rumble is the same from first frame to last, so arming, holding and the release pulse (line 176) blur together, and the constant hum tires the hand.
+  change: Buzz on the edge only: `bool pressed = VRInput.GetPressed(...) && !GameContextBlocksThrow(); if (pressed) { if (!_armed) hand.Haptic(0.04f, 120f, 0.5f); _armed = true; }`. Do not write `_armed = pressed` every frame: that clears _armed before the release check at line 84. Keep the blocked-menu reset at lines 80-83.
+
+[minor/medium] src/Weapons/ThrowAndMelee.cs:84  A soft trigger release does nothing and says nothing
+  what:   `if (_armed && VRInput.GetReleased(...)) { _armed = false; ... if (v.magnitude > 1.1f && Throw(weapon, hand, v)) {...} }`. A release at or under 1.1 m/s clears the arm and does nothing else: no haptic, no sound, and the pin stays out. The grip path uses a different limit (1.6 m/s on the body velocity, line 106).
+  why:    The player throws, nothing happens, and nothing says why, so they swing harder and try again. The two throw paths also disagree on how hard a throw must be.
+  change: Add an else branch for the sub-threshold release: `else hand.Haptic(0.02f, 60f, 0.15f);`. Move the 1.1 m/s and 1.6 m/s limits into VRConfig next to ThrowVelocityMultiplier (VRConfig.cs:271) so they can be tuned together.
+
+[minor/medium] src/Weapons/WeaponDrops.cs:160  Every dropped weapon has the same 3 kg mass
+  what:   `body.mass = 3f;` at line 160 (Spawn) and line 940 (DropHeld); duds use `body.mass = 0.45f;` (GrenadeDud.cs:73). Weapon type is not used. The decompiled game has no weight data (grep finds no weight field), so the mod must decide.
+  why:    A pistol knocked by a ragdoll or a soldier flies like a 3 kg rifle, and a launcher weighs the same as a pistol. Ragdolls and props react to these masses when weapons get kicked around.
+  change: Add `static float MassFor(WeaponManager.WeaponEntry e) => e.slot == WeaponManager.WeaponSlot.Secondary ? 1f : e.slot == WeaponManager.WeaponSlot.LargeGear ? 6f : 3.5f;` and use `body.mass = MassFor(entry);` at lines 160 and 940. Keep the dud value. WeaponSlot is already used in SlotFor (line 803).
+
+[minor/medium] src/Weapons/WeaponDrops.cs:1052  The timed return takes a weapon out of a reaching hand
+  what:   ReturnOwnDrops runs at the top of the pickup code (line 566, before the grab loop at 574-593) and returns the drop when `Time.time >= d.ReturnAt` (line 1052; ReturnAt = WeaponReturnSeconds = 8 s, VRConfig.cs:267), whatever the hands are doing.
+  why:    A player reaching for their own dropped rifle at the 8 s mark sees it vanish from under the hand: a holster sound and an empty grab, with no warning.
+  change: In ReturnOwnDrops, hold the timed return while a free tracked hand is reaching for this drop: loop over `_sys.Rig.Hands`, and if a hand is Tracked, Role == HandRole.Free, (GrabPressed || GrabReaching) and `Nearest(h.Palm.position) == d`, skip. Use `due = (Time.time >= d.ReturnAt && !reached) || distance > 400f`.
+
+[tiny/high] src/Weapons/WeaponDrops.cs:829  Cull comment promises deletions the code never does
+  what:   Lines 832-834 say the owner's drop is 'Deleted after 90 s (in a vehicle, where it is not returned) or after falling out of the world'. The branch at 830-837 only sets `d.ReturnAt = 0f; continue;`, so an owner's drop is never removed by Cull.
+  why:    A drop left in a vehicle stays until the player is on foot, then returns to its holster whatever the 90 s says. A weapon that fell out of the world is returned too, not deleted. This may be the right behaviour, but the comment states a spec the code does not follow.
+  change: Either correct the comment to say owner drops are kept until returned to the holster on foot, or add the deletion explicitly (for example `if (d.Go.transform.position.y < -500f) { Remove(d); continue; }`) if a fall-out should be final.
+
+CHECKED AND FINE:
+  - WeaponDrops: OnActorDying scale and velocity, Spawn/DropHeld colliders and body setup, IgnoreBodies throttling, RestoreAmmo clamps, swap ammo transfer and hover/pickup haptics (583-586, 767, 797): fine.
+  - WeaponDrops Cull cap loop index handling (849-857, i-- after Remove) is correct.
+  - GrenadeDud: pickup path in WeaponSystem.UpdateLooseProps (191-205) already gives sound, haptic and FULL on failure; Prune and Cull iteration is safe; Refund logic matches the pouch model.
+  - ThrowAndMelee: spoon sound on a pinned throw (174), pin pull sound and haptic (372-373), ring drop, grip-throw double-fire guard (95-96), melee cooldown read from the weapon's own configuration (603), carried-jump guard (604).
+  - Melee hit ordering (enemy, ally, vehicle, wall) matches the game's ShootMeleeRay (MeleeWeapon.cs:175-214).
+  - Decompiled game has no weapon weight field, so per-weapon mass has to come from the mod.

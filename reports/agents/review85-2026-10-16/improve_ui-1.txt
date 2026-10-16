@@ -1,0 +1,53 @@
+improve ui-1 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Read-only review of the six world-space UI files: src/UI/CanvasManager.cs, UISystem.cs, VRInputModule.cs, LoadingView.cs, UiKit.cs, TextPlate.cs, read in full, with the Haptic, input and game-side references they depend on. Nothing was edited, built or run. The relayed request in this run (keep building the rocket model and record PNG/GIF captures) is outside this read-only review, so it was not acted on.
+
+[major/high] src/UI/UiKit.cs:20  Button hover state is almost invisible (about 1.25:1)
+  what:   `ButtonColor = (42,46,51)` (line 19), `ButtonHover = (56,61,67)` (line 20), applied as `colors.highlightedColor = ButtonHover;` (line 100). The panel is `PanelColor = (27,30,33,240)` (line 15).
+  why:    Relative luminance of hover against resting button is about 1.25:1, and resting buttons are about 1.2:1 against the panel. In the headset, the only cue for which button the laser is on is a faint grey shift; buttons barely read as buttons. The Accent colour (201,160,74) is about 6.9:1 on the panel, so the palette already has a clear option.
+  change: Raise ButtonHover to about (115,121,128), which gives roughly 3:1 against ButtonColor, and lift ButtonColor off PanelColor as well. Optionally add an Accent border on the highlighted state (ColorBlock cannot draw a border, so a child Outline or Image toggled by an IPointerEnter handler).
+
+[major/high] src/UI/VRInputModule.cs:163  Hover tick feels as strong as a click on Oculus Touch
+  what:   HoverTick fires `VRInput.Haptic(PointerHand, 0.006f, 180f, 0.12f);` up to 20 times a second (lines 160-163). The press fires `VRInput.Haptic(PointerHand, 0.01f, 200f, 0.25f);` (line 296). VRInput.Haptic floors every pulse on Touch controllers: duration to 0.045 s, amplitude to 0.35 x strength, frequency to 320 Hz (src/Input/VRInput.cs:538-540).
+  why:    On Quest/Rift Touch a hover pulse becomes a 45 ms, 0.35, 320 Hz buzz, the same as the click pulse. Sweeping the laser across a menu gives up to 20 buzzes a second, and hovering feels exactly like pressing. On Index-type controllers the same call stays faint, so the feel differs by headset.
+  change: Skip the hover pulse for Touch hands: make VRInput.IsTouch (src/Input/VRInput.cs:560, currently private) internal and add `!VRInput.IsTouch(PointerHand)` to the condition in HoverTick. Keep the press pulse. Alternatively cut the hover rate for Touch to about 8 a second.
+
+[major/high] src/UI/VRInputModule.cs:315  Menu clicks have no sound and no release feedback
+  what:   Release() executes the click at line 315 (`ExecuteEvents.Execute(_data.pointerPress, _data, ExecuteEvents.pointerClickHandler);`) with no haptic and no sound. Press has a single haptic (line 296). No UI code in src/UI plays audio (no AudioSource or PlayOneShot). The mod's sound player ProceduralSounds has MechSound (src/Weapons/ProceduralSounds.cs:7) with no UI entry, and `Play(MechSound, Vector3, float)` at line 103.
+  why:    A headset click is silent and only confirmed by the press buzz. Nothing happens on release, and nothing marks opening or closing a panel. Players coming from Boneworks or Hot Dogs, Horseshoes & Hand Grenades expect a click sound and a release tick.
+  change: When the click branch at line 315 runs, call `VRInput.Haptic(_pressHand, 0.012f, 220f, 0.2f)` and play a short click at HitPoint through ProceduralSounds.Play with MechSound.MagLip (ProceduralSounds.cs:67-68, a small click already built) or a new UiClick entry at volume about 0.4. Use a lower-volume tick for hover if wanted. Check how ProceduralSounds is reached from the UI namespace.
+
+[minor/medium] src/UI/CanvasManager.cs:429  Game camera aspect is set by whichever visible canvas comes last
+  what:   `float aspect = 16f / 9f;` (line 419) is overwritten inside the loop over every visible tracked canvas, menus included: `if (t.Size.x > 1f && t.Size.y > 1f) { aspect = t.Size.x / t.Size.y; }` (lines 427-430). The final value sets `vfov` and `player.fpCamera.aspect = aspect;` (lines 457-459).
+  why:    A HUD frame's height comes from its own canvas aspect (line 436), but the game places squad markers with the active camera's projection (src/UI/../.ref/decompiled/Assembly-CSharp/SquadPointUi.cs:233, `activeCamera.WorldToScreenPoint`). So markers move vertically against the HUD depending on which non-16:9 game canvas was last in Dictionary order, and that order changes as canvases show and hide. Example: the loadout's separate weapon-list canvas (line 652 comment). The mod's own Settings and Mod keys panels are registered as own and never tracked (UISystem.cs:107-109, CanvasManager.cs:158), so they do not affect it.
+  change: Remove the assignment from the loop. Compute aspect once before the loop from a visible Hud-role canvas (for example the largest), defaulting to 16/9, and never take it from a Menu-role canvas.
+
+[minor/low] src/UI/LoadingView.cs:115  Loading picture ends after 20 s even if the map is not ready
+  what:   `if (ready && now - _readySince > 0.4f || now - _levelSince > 20f)` calls FadeThenEnd (line 117). The class comment (lines 16-18) says the picture must stay up until the map has something to show, because the map's first camera clears to a cyan-blue sky.
+  why:    If the map scene is active for 20 s with no player, loadout or menu yet (slow load or spawn), the view ends and the headset shows the cleared sky until the game is ready. That is the artefact this class was written to avoid.
+  change: Let the 20 s cap end the view only once the map has rendered a frame, or raise it to about 60 s and log when the cap fires, so a slow load keeps the last loading picture.
+
+[minor/medium] src/UI/UISystem.cs:61  One-Euro laser filter estimates speed from filter lag, so its cutoff depends on frame rate
+  what:   `_laserDirVelocity = Vector3.Lerp(_laserDirVelocity, (raw - _laserDir) / dt, SmoothingAlpha(1f, dt));` (line 61). `_laserDir` is the filtered direction (line 63), so `raw - _laserDir` is the filter lag, which is about v x tau with tau = 1/(2 pi cutoff), not the change since the last sample. The cutoff at line 62 is `LaserMinCutoff + LaserBeta * _laserDirVelocity.magnitude * Mathf.Rad2Deg`.
+  why:    The speed estimate is inflated by tau/dt, so the cutoff follows the square root of the frame rate. At 1 deg/s the filter runs at about 4 Hz at 90 Hz (designed value 2 Hz), and the value changes between 72 and 120 Hz headsets. The tuning in the comment at lines 39-46 was measured with this code at one rate, so re-measure after changing it.
+  change: Keep the previous raw sample (`_laserRawPrev`), use `(raw - _laserRawPrev) / dt` as the derivative (standard One-Euro), and reset it wherever `_laserDir` resets (lines 55-58). Then re-run the tremor measurement from the comment at lines 39-41 at 72, 90 and 120 Hz.
+
+[minor/medium] src/UI/UISystem.cs:148  Firing the gun hand while a panel is open moves the laser onto that hand
+  what:   `if (_module.TriggerPressed(other) && _rig.Hand(other).Tracked) { _pointerHand = other; }` (lines 147-151) takes the pointer from any tracked hand that pulls its trigger, including the hand holding the gun. Fire is only blocked over a panel (src/Input/GameInputBridge.cs:121: `!((menu || PanelOpen) && PointerOverUI)`).
+  why:    With a game menu or the Settings or Mod keys panel open, shooting with the gun hand moves the laser onto that hand (the other hand's pointer role is reset at UISystem.cs:160-163). The laser jumps mid-fight to the hand holding the weapon, and a trigger pull meant to fire becomes a click target.
+  change: Only let a free hand take the pointer: `if (_module.TriggerPressed(other) && _rig.Hand(other).Tracked && _rig.Hand(other).Role == HandRole.Free)`. Leave the fallback at line 152 as is.
+
+[minor/high] src/UI/UISystem.cs:266  Laser dot grows over any panel, not only over clickable things
+  what:   `_laser.Update(show, pointer.Pointer.position, end, hit, _module != null && _module.HoveredObject != null);` (line 266). HoveredObject is the first raycast hit (VRInputModule.cs:31: `_data?.pointerCurrentRaycast.gameObject`). The panel root has an Image with the default raycastTarget on (UiKit.cs:133, `root.AddComponent<Image>().color = PanelColor;`). The dot scales to 0.014 when overInteractive, otherwise 0.009 (UISystem.cs:370).
+  why:    The big dot is meant to say this can be clicked. The click-handler test in HoverTick (VRInputModule.cs:152-166, `_hoveredTarget`) is not what is passed, so the dot is big over every point of a panel background and the cue carries no information.
+  change: Add `public bool HoveredInteractive => _hoveredTarget != null;` to VRInputModule and pass it at UISystem.cs:266 instead of `HoveredObject != null`.
+
+CHECKED AND FINE:
+  - FpFovPatch (CanvasManager.cs:665-679) blocks the game's aim zoom (PlayerFpParent.cs:232 sets FOV from zoomFov), but VRScope.cs:260-263 does magnification with its own lens, so this is intended and not reported.
+  - TextPlate.Fit (TextPlate.cs:48-66): measuring bounds with identity rotation and converting with lossyScale gives the correct local offset and size. Quad winding faces the viewer.
+  - VRInput.Haptic signature (VRInput.cs:522) matches all callers in the module.
+  - Trigger hysteresis (VRInputModule.cs:69) and the steady-click wobble check (line 312) are sound.
+  - Menu placement and recentering (CanvasManager.cs:463-526): a menu recenters only after the player has turned 75 degrees away for 2 s, which is outside the 36-degree half-FOV, so the snap is not seen.
+  - Canvas scan skips own canvases (CanvasManager.cs:158), so the Settings and Mod keys panels are never converted or fed into the aspect loop.
+  - Laser One-Euro smoothing is documented and measured; the frame-rate issue above is the only concern raised.
+  - No Haptic or sound calls exist in LoadingView, CanvasManager, TextPlate or UiKit, so there is no feedback gap in those beyond what is listed.

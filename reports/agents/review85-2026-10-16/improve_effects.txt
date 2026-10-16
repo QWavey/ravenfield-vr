@@ -1,0 +1,58 @@
+improve effects (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Screen effects and muzzle flash, read-only review of the seven assigned files, plus the call sites and game code they depend on (VRRig.cs, VRInput.cs, HeldWeapon.cs, GunVolume.cs, and the decompiled FpsActorController.cs, Actor.cs, DamageUI.cs). No edits or builds. The user's wider request (rocket model, building, PNG/GIF capture) is outside what this read-only pass can do.
+
+[major/medium] src/Rig/DamageFeedback.cs:76  Directional hit buzz is issued first, then overlapped by the symmetric buzz
+  what:   OnHitDirection buzzes the side hand: rig.Hand(side > 0f ? Input.Hand.Right : Input.Hand.Left).Haptic(0.07f, 70f, Mathf.Clamp01(0.4f + Mathf.Abs(side) * 0.5f)) (lines 76-78). The game calls ShowDamageIndicator synchronously inside ReceivedDamage (FpsActorController.cs:658; DamageUI.cs:68-72 applies it at once). The Harmony postfix of ReceivedDamage then calls OnDamage in the same frame, which buzzes every hand with h.Haptic(0.06f + amp * 0.08f, 55f, amp) (line 94). VRInput.Haptic issues one TriggerHapticVibrationAction per call with no merging (VRInput.cs:547).
+  why:    The directional pulse is not the last one sent to the side hand. If a later haptic call on the same controller replaces an earlier one (the code does not show SteamVR's rule), the side hand loses its 70 Hz directional pulse and every hit feels symmetric. Hits from straight ahead or behind (|side| <= 0.3) never get a directional pulse. The directional pulse is also a fixed 0.07 s whatever the damage, while OnDamage scales by damage (line 88).
+  change: Have OnHitDirection store the hit's side instead of buzzing. OnDamage, which runs right after it in the same call, then gives the side hand one directional pulse (0.07 s, 70 Hz, amplitude from |side| and the damage amp) and the other hand the symmetric pulse. Each hand gets one pulse. Front and back hits keep the symmetric pulse only.
+
+[major/medium] src/Rig/VRRig.cs:314  Comfort vignette is off in seats, vehicles and ladders
+  what:   float moving = Mode == RigMode.OnFoot ? VRGameInput.MoveStick.magnitude : 0f; then _vignette.Update(Mathf.Max(moving * (...), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value) (line 315). RigMode.Anchored is 'Seat, ladder or vehicle camera: rig rigidly attached, head moves freely' (VRRig.cs:22-23), so in a vehicle the motion term is always 0.
+  why:    In a jeep, helicopter or plane the view turns and accelerates with the vehicle for minutes at a time, the classic vection case, and the tunnel vignette, the only comfort aid in the rig, never comes on there. Follow mode (kill cam, spectator) has the same gap.
+  change: For Anchored mode, drive motion from the vehicle or seat transform the rig is attached to, not from the head: keep its last world position and yaw, compute speed (m/s) and yaw rate (deg/s) each frame, and pass clamp01(max(speed / 8f, yawRate / 90f)) as motion. Keep the existing OnFoot formula and the VRConfig.Vignette strength.
+
+[minor/high] src/Rig/DamageFeedback.cs:82  Shoves that cost no health get an amber glow and no buzz
+  what:   public void OnDamage(float damage) { if (damage <= 0.5f) { return; } ... } (lines 82-87). The directional haptic is also skipped for balance-only hits (!balanceOnly, line 76). PlayerDamagePatch.Postfix(float damage) (line 213) passes only the health damage.
+  why:    A blow that knocks or shoves the player but deals at most 0.5 health lights the amber glow (LensEffects.Hit with balanceOnly) and sends nothing to the hands. Knockdowns are among the most physical things the game does, and the player feels none of them.
+  change: Add float balanceDamage to PlayerDamagePatch.Postfix (Harmony matches parameters by name) and call a new OnBalance(balanceDamage) when damage <= 0.5. It buzzes both hands briefly (about 0.05 s, 45 Hz, amplitude 0.3 + 0.5 * Mathf.Clamp01(balanceDamage / 50f)). Use the same pulse for the side hand when OnHitDirection is balance-only.
+
+[minor/high] src/Rig/DamageFeedback.cs:116  Low-health heartbeat is drawn but never felt
+  what:   _beatPhase = (_beatPhase + ...) % 1f (line 117) and float beat = Mathf.Exp(...) + 0.6f * Mathf.Exp(...) (line 118) drive only the red edge (line 121) and the veil alpha (line 129). Update() makes no haptic call.
+  why:    Below half health the player sees a pulsing edge but feels nothing in the controllers. A heartbeat in the hands is the most direct cue of low health, and the beat timing is already computed here.
+  change: Keep the previous _beatPhase in a field and detect a beat peak when the phase crosses 0.08 or 0.30. If _lowHealth > 0.2f, buzz both hands: Haptic(0.03f, 60f, 0.2f + 0.3f * _lowHealth) on the first beat and about 0.6 of that on the second, looping over VRRig.Instance.Hands as OnDamage does.
+
+[minor/low] src/Rig/LensEffects.cs:406  A hit from straight ahead lights the top edge, from behind the bottom edge
+  what:   j.HitDirX = -Mathf.Sin(rad); j.HitDirY = -Mathf.Cos(rad); (lines 406-407). At angle 0 (front) dy = -1, so the glow centre cy = CY + dy * t (line 659) lies above the view, the top edge. At 180 (behind) it is the bottom edge. The side mapping (left and right, eye dimming at lines 411-412) is correct.
+  why:    In the headset the top edge reads as from above and the bottom as from below, so a shot from the enemy in front seems to come from the sky. Front and back are the only hits that do not match their direction.
+  change: For hits within about 45 degrees of front or back, put one glow on each of the top and bottom edges, or a soft centred glow, instead of a single top or bottom edge. Keep the side mapping. Check the approved picture first, because this mapping comes from screen_effects.py F.
+
+[minor/medium] src/Rig/MudSplash.cs:213  Blast dirt on the visor comes with no haptic
+  what:   Dirty() calls Splash(info.point, range, water) (line 213). Splash puts spots on the visor (lines 217-268) with strength = Mathf.Clamp01(1f - distance / (range * 1.4f)) (line 227). The only explosion haptic comes from DamageFeedback.OnDamage, which runs only when the player takes more than 0.5 damage.
+  why:    Dirt reaches 1.4 times the blast's damage range, so between the damage radius and that edge the visor is splashed while the controllers stay silent. A nearby blast looks like a hit with none of the rumble.
+  change: At the end of Splash, when strength > 0.25f, buzz both hands with Haptic(0.05f, 45f, 0.5f * strength) through VRRig.Instance, as DamageFeedback does. Scale the amplitude by big as well, so a bigger blast rumbles more. Skip it when OnDamage already buzzed this frame if you want to avoid doubling.
+
+[minor/low] src/Weapons/LensFlash.cs:110  A continuously emitting child can make every shot count as a flash
+  what:   _pendingEveryShot = MuzzleFlashInfo.Of(weapon).Chance >= 0.999f; (line 110). Chance is the maximum EmitChance over every playable system under the muzzle (MuzzleFlashInfo.cs:49-64), and EmitChance returns 1 for any system with rateOverTime > 0 (MuzzleFlashInfo.cs:116-117). ParticlesOut then returns true on any shot where any particle in the tree is alive (LensFlash.cs:319).
+  why:    A weapon whose own flash plays on 30 percent of shots, but which also has a continuously emitting smoke or spark child, gets Chance = 1. It then shows a lens flash on every shot, including shots the game shows no flash for, and each one spends the limiter's budget. The test is per tree, not per the flash's own system.
+  change: Take the flash's emission from the child system that makes the flash (the largest startSize or the one MuzzleSystems returns first), not the maximum over the whole tree. Keep the any-particle rule for the machine gun case, which depends on its system playing continuously, and check it against the RPG-7 children the comment at MuzzleFlashInfo describes.
+
+[minor/medium] src/Weapons/LensFlash.cs:270  World core fades from the shot, lens glare starts one to three frames later
+  what:   TryFlash calls _fireball.Add(muzzle, ahead, strongest, phase) at the shot (line 270). MuzzleFireball.Add sets b.Born = Time.unscaledTime (MuzzleFireball.cs:87), and the fade is Decay = 0.016 (LensEffects.cs:38). The lens picture gets its clock only when it is shown: f.Drawn = now in LensEffects.Present (LensEffects.cs:358), after the worker finishes.
+  why:    The core is at full strength at the shot and is below 10 percent by about 37 ms (exp(-age/0.016)). The glare of the same flash arrives one to three frames later (11-33 ms at 90 Hz), by which time the core is nearly gone. The flash arrives in two halves and the core reads as a separate pop, not the flash's hot centre.
+  change: Start the world core when the flash is first drawn: keep the core request with the flash's Serial in LensFlash and call _fireball.Add from the LensEffects.Present branch that sets f.Drawn, or pass the Drawn time into MuzzleFireball so Born matches it. Keep the shot-time call for the case where no picture is shown.
+
+[tiny/high] src/Rig/ComfortVignette.cs:83  Teardown leaks the vignette's material and mask texture
+  what:   public void Destroy() { if (_quad != null) { Object.Destroy(_quad); } } (lines 83-89). _material, created at line 35 with mainTexture = BuildMask(128), its mask texture and the mesh are never destroyed. DamageFeedback.Destroy (lines 133-143) also skips _veilMaterial (created line 40). MudSplash.Destroy (lines 366-392) destroys its material, mesh and atlas.
+  why:    Each teardown of the rig leaks one material and one 128x128 texture (about 64 KB). Small, but it adds up if the rig is rebuilt during a session.
+  change: In ComfortVignette.Destroy, also destroy _material, its mainTexture and the quad's MeshFilter.sharedMesh. In DamageFeedback.Destroy, destroy _veilMaterial, as MudSplash.Destroy already does.
+
+CHECKED AND FINE:
+  - Shot haptic already exists (HeldWeapon.cs:891, Rig.Dominant.Haptic on each shot), so there is no missing-shot-haptic finding.
+  - Hit side convention is consistent: DamageFeedback.cs:74 side = -sin(angle) selects Left for 90 degrees, and LensEffects.cs:406 HitDirX = -sin(angle) puts the glow on the left, with the same-side eye at full strength (lines 411-412).
+  - LensEffects threading: the job is written only while !_busy (LensEffects.cs:370-427), the two bands of an eye write identical _resultPower and _resultGlow values, and no data race was found. Destroy ordering is fine.
+  - Limiter (LensFlash.cs:428-457) matches its comment: at most 6 steps in 1.1 s, cost 2 or 3, soft fallback below the threshold. ReduceFlashing is on by default (VRConfig.cs:325).
+  - Visibility's per-shot and every-3-frames sampling is cheap: InsideDrawnGun is a texel lookup (GunVolume.cs:215, InsideModel), so it is not a finding.
+  - MuzzleFlashInfo.Of is called four or five times per shot (LensFlash.cs:110, 214, 219, 248, 283), each walking the muzzle hierarchy with GetComponentsInChildren. Cheap enough per shot, so not reported.
+  - RPG-7 relevance in these files: the only RPG-specific gate is the muzzle-behind-eyes drop (LensFlash.cs:237-242), which logs and returns. Whether the RPG's muzzle sits in front of or behind the head depends on the rig and is not decided by this code.
+  - MudSplash OnExplosion subscription, the try/catch around the event, and Destroy are fine.

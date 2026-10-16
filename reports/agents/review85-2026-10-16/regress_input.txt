@@ -1,0 +1,34 @@
+regress input (Regression guard), read-only Haiku agent, 2026-10-16
+
+SCOPE: Controller input and game input bridge (src/Input: BindingsWriter, GameInputBridge, ScriptKeys, TurretAim, VehicleInput, VRInput). Changes since 2026-10-15 are in d5a1423, 2467c07 and 32af006. BindingsWriter.cs and VehicleInput.cs have no commits in that range.
+
+[major/medium] src/Input/VRInput.cs:341  Outage timeout drops release edges and re-presses still-held buttons (d5a1423)
+  what:   The timeout branch `else if (Time.unscaledTime - _noDataSince > 0.5f) { Array.Clear(Held, 0, Held.Length); ... }` (VRInput.cs:341-344) clears Held without setting Released. Before d5a1423, ClearEdges only cleared Pressed and Released, so a hold survived the outage and a release that happened during it arrived as one Released edge on recovery. On the next good frame the edge code reads `bool was = Held[a, slot];` (224), then sets `Pressed[a, slot] = state && !was;` (226) and `Released[a, slot] = !state && was;` (227).
+  why:    A grip or trigger released during an outage longer than 0.5 s never produces Released. WeaponSystem.cs:674 (`if (dom.GrabReleased)`) therefore never starts the grip-to-hold let-go, so the gun stays in the hand; ThrowAndMelee.cs:84 misses the trigger release that throws a grenade. A button still physically down when data returns gets a fresh press: Pause opens the menu (GameInputBridge.cs:107), FireMode flips semi/auto through FireSelector.Toggle (GameInputBridge.cs:245 to WeaponSystem.cs:486), Sprint toggles (GameInputBridge.cs:309-311), and GrabPressed fires again (VRHand.cs:259).
+  change: In the timeout branch, for every action and slot that is Held, set Released to true, set Held to false and set a Ghost flag for that slot. In the edge loop, while Ghost is set, keep Held, Pressed and Released false (the button reads as up) and clear Ghost only once state is false. Keep clearing Move, TurnStick, Trigger and Grip so the sticks still stop after 0.5 s. Alternative: go back to freezing Held through the outage and keep only the stick and analog clearing, accepting that a held button stays down during the outage.
+
+[minor/low] src/Input/TurretAim.cs:87  SoundBank guard misses PlayRandom and PlayNext on an empty bank (32af006)
+  what:   SoundBankIndexGuardPatch only wraps PlaySoundBank(int) (TurretAim.cs:87-95). PlayRandom (SoundBank.cs:46-50) and PlayNext (SoundBank.cs:52-56) compute `% clips.Length` before calling it, and Start (SoundBank.cs:31) calls Random.Range(0, clips.Length).
+  why:    For a bank with no clips assigned, an animation event naming PlayRandom or PlayNext (both whitelisted in UnityEventSanitization.cs:16) still throws DivideByZeroException, or NullReferenceException when clips is null, on every call. That is the same per-event exception 32af006 was meant to stop. How often a bank is empty is unknown.
+  change: Add the same bounds check as a Harmony Prefix on PlayRandom and PlayNext, returning false (and logging once through Log.WarnOnce) when clips is null or empty.
+
+[minor/low] src/Input/VRInput.cs:207  NoData frames skip the 0.5 s hold the doc comment describes (d5a1423)
+  what:   `if (err != EVRInputError.None && err != EVRInputError.NoData)` (VRInput.cs:207) sends only hard errors to ClearEdges. NoData falls through, and `_noDataSince = -1f;` (214) resets the timer. The doc comment (328-332) says a frame without fresh action data keeps held state through a short gap, but on NoData the digital reads (222-223) report each action as up whenever bActive is false.
+  why:    On NoData frames the hold-through-a-gap rule never applies, so a brief NoData gap releases the grip, trigger and fire mode mid-hold. This is not a regression (the same happened before d5a1423), but the comment and the code disagree. I could not confirm from the repo whether NoData is a transient gap or a steady no-controller state.
+  change: Check in openvr.h what EVRInputError.NoData means. If it is a transient gap, route it into ClearEdges (drop NoData from line 207) and reset _noDataSince only when err is None (line 214).
+
+[tiny/high] src/Input/TurretAim.cs:75  Sentry guard doc comment sits on the SoundBank class (2467c07 / 32af006)
+  what:   The sentry-guard summary (75-79) sits directly above the SoundBank guard summary (80-83) and SoundBankIndexGuardPatch (84-85). AimTransformGuardPatch (98-99) has no summary. 2467c07 added the sentry text; 32af006 inserted the SoundBank block between it and the class it describes.
+  why:    IDE tooltips show the sentry description on the SoundBank class, and the AimTransform guard is undocumented. No runtime effect.
+  change: Move the sentry paragraph (lines 75-79) directly above line 98 [HarmonyPatch(typeof(AimTransform), LateUpdate)], and leave only the SoundBank summary (80-83) above line 84.
+
+CHECKED AND FINE:
+  - BindingsWriter.cs and VehicleInput.cs: no commit since 2026-10-15 touches them (git log and diff --stat).
+  - GameInputBridge.cs:261 (d5a1423) removed the VRConfig.FireSelector check. HandleFireModePress (WeaponSystem.cs:482-485) already returns false when the setting is off, so non-scripted presses behave as before. The only change: a weapon's scripted fire-mode key is now tapped with the selector off, which the new comment states on purpose. VRConfig.cs:286-287 still describes the setting as governing only automatic weapons.
+  - GameInputBridge.cs:125, 132, 140 (d5a1423): the _leaveHeldSince resets are correct and stop a stale hold from ejecting the player on the next seat entry.
+  - ScriptKeys.cs:264-270 (d5a1423): the word boundary stops KeyCode.F1 matching F10 and KeyCode.E matching KeyCode.Escape. Match.Empty is valid. Classify runs once per script/key pair, so the uncached Regex.Match cost is negligible.
+  - TurretAim.cs:40-42 (d5a1423): the muzzle fallback removes the NullReferenceException a null muzzle threw inside the Prefix. Pitch is then measured from the turret root, which only affects empty slots.
+  - AimTransformGuardPatch (2467c07): AimTransform.cs:15 declares private void LateUpdate and idleTransform and aimTransform are public fields (lines 5, 7), so the name-based patch resolves and the guard logic is correct.
+  - SoundBankIndexGuardPatch (32af006): PlaySoundBank(int) is the only overload (SoundBank.cs:58). Log.WarnOnce exists (src/Core/Log.cs:50) and TurretAim.cs imports RavenfieldVR.Core.
+  - VRInput.cs Move, TurnStick and analog zeroing after 0.5 s: consumed by VRGameInput.Compute (GameInputBridge.cs:97-98) and VehicleInput.cs, so zeroing the sticks after a long outage is the intended stop.
+  - Threading: all changed code runs on the main thread in the SteelInput.Update prefix or in Harmony postfixes/prefixes. The Log.WarnOnce set is locked for worker-thread use.

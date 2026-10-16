@@ -1,0 +1,32 @@
+regress ui-1 (Regression guard), read-only Haiku agent, 2026-10-16
+
+SCOPE: World-space UI regression review (CanvasManager.cs, UISystem.cs, VRInputModule.cs, LoadingView.cs, UiKit.cs, TextPlate.cs). The --since=2026-10-15 query returned only 0df7b82 (a 6-line PlaceMenu change in CanvasManager.cs), but the path history also has 3a342d1, 3eac51b and 1831507 dated 2026-10-15 plus earlier 2026-10-14 commits (2bb5632 onward). I therefore reviewed the full range 2bb5632~1..HEAD (5 files, 336 insertions; UiKit.cs unchanged in the window). Note: the relayed user request (rocket model, PNG/GIF recording, continuing the build) needs edits, builds or game runs, which this read-only review cannot do; I did not act on it.
+
+[major/medium] src/UI/CanvasManager.cs:127  Flatten and re-place keyed only to opening; a menu that becomes Menu while visible is never flattened
+  what:   Line 118: `bool opening = visible && !t.Visible;` Lines 119-126 recompute `t.Role` on `opening || visible && (Time.unscaledTime >= t.NextRoleCheck || gameplayChanged)`. Lines 127-131: `if (opening && t.Role == CanvasRole.Menu) { t.Placed = false; CollectFlat(t); }`. CollectFlat (lines 228-249) is the only writer of t.Flat, and KeepFlat (line 280) only acts on t.Flat.
+  why:    A canvas that is already visible but classified Hud (its buttons not yet active or interactable on the first visible frame, or GameMenuOpen flips while it is already showing) becomes Menu on the 0.5 s recheck or the gameplayChanged path. Because opening is false, CollectFlat never runs, t.Flat stays empty, and deep children (the options Game page case from 077d751, 150 units deep) are never flattened, so that panel draws behind its background. The 3a342d1 rewrite narrowed this window but did not close it; the gate on opening was already there before the change.
+  change: Capture `CanvasRole before = t.Role;` before the recheck block (before line 119). Replace line 127 with `if (t.Role == CanvasRole.Menu && (opening || before != CanvasRole.Menu)) { t.Placed = false; CollectFlat(t); }`. The Placed reset is harmless on a Hud-to-Menu flip.
+
+[minor/low] src/UI/CanvasManager.cs:352  Match-bar fade silently skipped when the game canvas already has a CanvasGroup
+  what:   Line 352: `_matchBar = existing == null ? c.gameObject.AddComponent<CanvasGroup>() : null; // someone else's group: left alone`, then lines 358-361 `if (_matchBar == null) { return; }`, so no fade is ever applied in that case.
+  why:    If the game's match-bar canvas already has a CanvasGroup, the bar (battalions, tickets, flags) is drawn all the time in normal play, against the intent in the summary at lines 334-337 and task 189 (Tasks.md:317, still marked 'verify'). The repo cannot show whether the prefab has a CanvasGroup (decompiled GameModeBase.cs:145 only does GetComponentInChildren<Canvas>()), so this is unverified.
+  change: When existing != null, still drive that group: store its alpha and blocksRaycasts on first use, set alpha from the fade each frame, and restore the stored values when the mode canvas changes. Alternatively, add a CanvasGroup to each direct child that lacks one and fade those.
+
+[tiny/high] src/UI/VRInputModule.cs:123  Dead local left behind by the press-hand release change
+  what:   Line 123: `bool release = _triggerReleased[(int)PointerHand];`. Line 135 now reads `if (_pressed && (_triggerReleased[(int)_pressHand] || !_triggerDown[(int)_pressHand]))`, so `release` is no longer used.
+  why:    No behaviour change, but the leftover reads as if the release check still follows the pointer hand, which is the bug the change fixed.
+  change: Delete line 123.
+
+CHECKED AND FINE:
+  - 0df7b82 PlaceMenu rig-relative anchor (CanvasManager.cs:476-484): RigidPose.Multiply is this*other (src/Runtime/OpenVRMath.cs:59), so a later-opened menu lands on the first menu's current pose. KeepMenusInView (489-514) uses the same rig-local _menuLocalAnchor, and _menuAnchor has no other readers. Consistent, no breakage found.
+  - 3a342d1 opening/role logic: hidden canvases are no longer re-classified. The only reader of a hidden canvas's Role is IsMenuCanvas (CanvasManager.cs:528), which has no callers, plus the self-test Describe (AutoTest.cs:1617-1619). No gameplay effect.
+  - 3a342d1 MatchBarAlpha and Describe are self-test hooks only (AutoTest.cs:1533, 1545).
+  - 3eac51b settings refresh throttled to 5 Hz (UISystem.cs:134): VRSettingsPanel.Open() calls Refresh() immediately (VRSettingsPanel.cs:286-291), so the only effect is up to 0.2 s lag for values changed by hand. No breakage.
+  - 3eac51b EventSystem search throttle (UISystem.cs:198-205): EventSystem.current still attaches immediately; only the scene-wide FindObjectOfType is throttled. No breakage.
+  - 1831507 UISystem.OnSceneChanged closes Settings and ModKeys: Close() only deactivates the root (VRSettingsPanel.cs:293, ModKeysPanel.cs:59). The 'Mod keys' button calls Close() before ModKeys.Open() (VRSettingsPanel.cs:~268), which is unaffected.
+  - TextPlate starts hidden until Fit (TextPlate.cs:43, 58): all four users call Fit() every shown frame (AmmoCounter.cs:76,89; MagReadout.cs:111; SquadPointing.cs:195; WristHud.cs:148). No plate is lost.
+  - VRInputModule Press/Release rework (2bb5632 range): traced the cancel paths, the _pressHand release check, the steady-click tolerance and the 3-degree drag threshold. No breakage found beyond the dead local above.
+  - CollectVisible(menusOnly) (UISystem.cs:174): the only caller. HUD canvases are no longer laser targets, and the laser still hits menus and the settings/mod-key panels. No regression found.
+  - LoadingView: Spectating() try/catch, and RegisterOwn of loading-scene root canvases with pruning in CanvasManager.OnSceneChanged. No regression found.
+  - CanvasManager.BeforeRender aspect loop (lines 427-430) was introduced in f293998 (2026-10-12), outside this window; not reviewed further.
+  - No config keys, migrations, threading or frame-order changes found in the window beyond what is listed above.

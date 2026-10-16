@@ -1,0 +1,48 @@
+regress effects (Regression guard), read-only Haiku agent, 2026-10-16
+
+SCOPE: Screen effects and muzzle flash, git range 9db2f56~1..HEAD (HEAD aa03500; first change 9db2f56, last 2026-10-16 commit cbd4b28). Files: src/Rig/LensEffects.cs, src/Weapons/LensFlash.cs, src/Weapons/MuzzleFireball.cs, src/Weapons/MuzzleFlashInfo.cs, src/Rig/DamageFeedback.cs, src/Rig/ComfortVignette.cs (unchanged since base), src/Rig/MudSplash.cs. Read-only review; no regression of the frame order, config migrations, threading or the Harmony patches was found beyond the items below.
+
+[minor/high] src/Rig/DamageFeedback.cs:69  Hit glow and low-health edge now depend entirely on LensEffects
+  what:   OnHitDirection calls LensEffects.Instance?.Hit(angle, balanceOnly) (line 72) and Update calls LensEffects.Instance?.SetLowHealth(...) (line 121). The old ring mesh drawn with Sprites/Default (removed in 9db2f56, see git diff 9db2f56~1 HEAD) no longer exists.
+  why:    LensEffects is created in a try/catch (src/Rig/VRRig.cs:110-115) and stays inactive when no additive shader is found (src/Rig/LensEffects.cs:163-168). Then the hit-direction glow and the low-health red edge silently disappear and only the hand buzz remains. The pre-9db2f56 ring needed only Sprites/Default, which the veil and ComfortVignette already use, so damage direction was independent of LensEffects before this range.
+  change: Keep a fallback: when LensEffects.Instance is null or not set up, draw the hit glow with a Sprites/Default quad (restore the old ring from git show 9db2f56~1:src/Rig/DamageFeedback.cs), or expose a LensEffects.Ready flag and route the hit through the fallback when it is false.
+
+[minor/high] src/Weapons/MuzzleFireball.cs:37  Core has fewer shader fallbacks; with no Legacy additive the core vanishes from both places
+  what:   MuzzleFireball uses Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Particles/Additive") (line 37) and warns 'the muzzle flash's core stays on the lens' (line 40). LensEffects.CoreInWorld is a static true (src/Rig/LensEffects.cs:46), so coreHere = !CoreInWorld is false (LensEffects.cs:761) and LensFlash adds the core only when CoreInWorld (src/Weapons/LensFlash.cs:268, 390). LensEffects.FindAdditive also accepts Mobile/Particles/Additive (LensEffects.cs:217).
+  why:    On a build where only the Mobile additive shader exists, the lens effects still draw, but MuzzleFireball returns with _ok false and the core is drawn nowhere. The log says it stays on the lens, which it does not. Commit 10a2c2d.
+  change: Add internal bool Ready => _ok; to MuzzleFireball, and in the LensFlash constructor after _fireball = new MuzzleFireball(); set LensEffects.CoreInWorld = _fireball.Ready;. Use the same three shader names as LensEffects.FindAdditive (one shared helper) and correct the warning text.
+
+[tiny/medium] src/Rig/DamageFeedback.cs:208  NoDirection flag can stay true after an exception in ReceivedDamage
+  what:   PlayerDamagePatch.Prefix sets DamageFeedback.NoDirection = direction.sqrMagnitude < 1e-6f; (line 210) and Postfix clears it (line 215).
+  why:    A Harmony postfix does not run when the original throws. If FpsActorController.ReceivedDamage throws before its ShowDamageIndicator call (src/.ref/decompiled/Assembly-CSharp/FpsActorController.cs:658), the flag stays true. The next indicator, OnVehicleWasDamaged (FpsActorController.cs:638, which does not go through ReceivedDamage), is then treated as having no direction: glow from below and no hand buzz.
+  change: Clear the flag in a [HarmonyFinalizer] (finalizers run after an exception), so NoDirection is reset on both paths.
+
+[tiny/high] src/Rig/LensEffects.cs:160  LensEffects keeps Instance and accepts flashes after a failed setup
+  what:   Instance = this; (line 160) runs before the additive-shader check, which returns with _ok false (lines 163-168). LensFlash.TryFlash checks only fx == null (src/Weapons/LensFlash.cs:198-199), so AddFlash keeps appending (LensEffects.cs:258-263). Present returns at lines 316-318, before the trimming loop at lines 328-340.
+  why:    With no additive shader, every shot appends two Flash entries that are never removed. The growth is small (tens of bytes per shot) but unbounded for the session, and the autotest counters keep running against a dead effect.
+  change: Set Instance = null in the early-return branch (or assign Instance = this only after _ok = true), so the LensFlash null check stops the appends.
+
+[tiny/high] src/Rig/LensEffects.cs:603  BandLoop exits without signalling _bandDone, so a Destroy mid-frame hangs the worker
+  what:   BandLoop returns on _stop (lines 602-606) before _bandDone[band].Set() (line 615). WorkerLoop waits on every band's _bandDone (line 572), and Destroy (lines 500-504) sets _stop without waiting.
+  why:    If Destroy runs while a frame is in flight (rig disposed mid-frame), the worker thread blocks forever in WaitOne. The threads are background threads, so the process still exits; this is a teardown leak only.
+  change: In BandLoop: if (_stop) { _bandDone[band].Set(); return; }.
+
+[tiny/low] src/Weapons/LensFlash.cs:361  Lens glow is projected from the bare muzzle, world glow from the plume point
+  what:   UpdateGlow sets Vector3 m = head.InverseTransformPoint(muzzle.position); (line 361) and projects it with LensEffects.Project(m, ex) (line 386). The same function measures visibility from muzzle.position + muzzle.forward * _gunAhead (line 380), and the world glow uses _gunAhead (line 392). Commit 650a1a6 moved the shot's flash 8-16 cm out (TryFlash, lines 230-234).
+  why:    The lens glow and the world glow sit at different points, and the offset grows the further the barrel points off the eye's line. Visual impact is small.
+  change: Compute m and dir from muzzle.position + muzzle.forward * _gunAhead (lines 361-362) so the lens glow matches the world glow and the shot. If the bare muzzle is intended, change the visibility point at line 380 to match. The SetGlow doc (LensEffects.cs:265, 'at the muzzle's pixel') conflicts with the world glow, so the author should confirm which is wanted.
+
+CHECKED AND FINE:
+  - Harmony patch parameter names match the decompiled signatures: ReceivedDamage(direction, damage), ShowDamageIndicator(angle, onlyBalanceDamage), ShowVignette(intensity, duration).
+  - Damage ordering: Actor.cs:2178 calls ReceivedDamage (which calls ShowDamageIndicator at FpsActorController.cs:658) before ShowVignette at Actor.cs:2239 in the same synchronous call, so the 0.25 s vignette-only fallback in DamageFeedback.Update does not misfire on ordinary hits.
+  - Frame order (src/Core/VRManager.cs:197-200): WeaponSystem.BeforeRender (LensFlash.BeforeRender, fireball placement) runs before LensEffects.Present; DamageFeedback.Update and MudSplash.Update run from VRRig.Update before render. Present reads the glow and hit state after it is set.
+  - Threading: the worker and bands only run while _busy is set by the main thread; band rows are disjoint (LensFlash ghost loop clamps to y0..y1); _done is volatile and publishes _out; _job is written only when idle.
+  - Layers: the head camera mask includes layer 18 (VRRig.cs:933) and the game sets weapon parts to 18 (Weapon.cs:2113), so the fireball is depth-tested behind the gun; scope cameras exclude 18 (VRScope.cs:18); the UI camera far clip is 200 (UISystem.cs:87), which covers the 20 m single-pass quad.
+  - Game muzzle lookup: Weapon.cs:710-724 caches the active muzzle system at init and Weapon.cs:1583-1585 plays it with children; MuzzleFlashInfo.Playable checks active state at shot time. The two agree in the normal case; no finding.
+  - OnShot timing (WeaponSystem.cs:435-437) reads the particle baseline before simulation, consistent with the comment; per-shot MuzzleFlashInfo.Of calls are a few GetComponentsInChildren and are negligible.
+  - Config migrations (VRConfig.cs:362-378) are gated by revision, run once, and do not overwrite saved values on later launches. Fresh installs (default 1.5) are unaffected.
+  - Removed members (EyeStrength, FlashPart, DamageEyeTint, HitSide) have no remaining references. Public members still used by AutoTest.cs and EyeFilm.cs (Splash, OnVignette, OnHitDirection, TestLog, LastPower, FilmState, DropsShown, WaterDrops) still exist with matching signatures.
+  - HandSolid/InsideDrawnGun occlusion: SnapHands (HeldWeapon.cs:1160, 1691) runs in the per-frame pose path, so the gun volume is built after about 0.25 s at rest and the glare is occluded as designed.
+  - Uncommitted working-tree changes in MagazineProp.cs, ReloadInteractions.cs, WeaponAnalyzer.cs and WeaponRig.cs do not touch the symbols these files use (ActiveUpTo, InsideDrawnGun, IsPistol, GripPoint, MuzzlePoint, CurrentMuzzle). The review covers HEAD.
+  - Not a regression: the low-health heartbeat (DamageFeedback.cs:116-121) gives 2.3-3.7 red pulses per second at 70-110 bpm and is not gated by ReduceFlashing. The old ring had the same pulse, so it is pre-existing rather than introduced in this range.
+  - ComfortVignette.cs is unchanged since 9db2f56~1 and has no interaction with the changed code beyond sharing layer 5 and the Sprites/Default shader.

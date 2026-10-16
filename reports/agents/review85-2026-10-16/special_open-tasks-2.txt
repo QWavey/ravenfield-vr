@@ -1,0 +1,90 @@
+special open-tasks-2 (Special), read-only Haiku agent, 2026-10-16
+
+SCOPE: Second half of the open tasks in C:/Users/Flo/Downloads/NewApps/Ravenfield-VR/Tasks.md. The open set is the 36 numbers under "Still to do" and "In progress"; the second half in order is 197-246, and 230 and 231 were added as the task asked, so 20 tasks were audited (197, 198, 199, 202, 203, 210, 215, 218, 225, 226, 227, 228, 229, 230, 231, 232, 234, 244, 245, 246). Read-only: no builds, edits, GIFs or game runs. HEAD is 644773c with a clean working tree. Git history was read to check claims in the notes.
+
+[major/medium] src/Weapons/BoltPiece.cs:83  Racking adds a knob on 27 guns instead of moving their own handle transform
+  what:   Build(): `if (d.AddedHandle) { piece.AddKnob(rig, rackGun); return; }`, and the fallback at line 157 logs "nothing cut out at the rack point, a knob added instead (... mesh(es) unreadable ...)". The carve needs a readable mesh (`isReadable`, WeaponAnalyzer.cs:669), but moving a named transform needs no carve.
+  why:    On the unreadable-mesh guns (task 245: 27 guns) the gun shows an added knob that the hand racks, instead of its own charging handle (the M4A1 fix kept its own handle part, which is the pattern to copy).
+  change: When the handle was found by name (the ChargingHandleFromReload path that sets d.HandlePath, WeaponAnalyzer.cs:1167-1173), keep HandlePath and move that transform even when its mesh is unreadable, instead of setting AddedHandle. Add a knob only when no named transform exists. Test on the M4A1 family and f2000s, MG3s, MRADs, RK-44 and AS Vals.
+
+[major/medium] src/Weapons/HeldWeapon.cs:564  Sub-weapons with another action keep a static rig with virtual magazine and bolt
+  what:   SubWeaponRig: `bool noMagazine = d.MagazinePath == null && d.SlidePath == null; bool sameAction = d.Action == Rig.Data.Action; if (noMagazine && sameAction && Rig.Data.MagazinePath != null) return Rig; return own;`. A sub-weapon's analysis is static when its animator is not on its root (WeaponAnalyzer.cs:485-496: "parts found by name only"), and FinishVirtualParts (WeaponAnalyzer.cs:3033-3049) then fills in a virtual MagSeat, RackPoint and SlideTravel.
+  why:    Any sub-weapon with another action (the PATRIOT GL, THUMPER and Helo smoke, the JOLT sub) reloads and racks against estimated points on its own static rig, not the parent's model, so its hands and magazine sit wrong (task 197). The parent fallback applies only to the same action.
+  change: In SubWeaponRig, when `!own.Data.Animated` and the sub's GunBodyPath lies under the parent's root, use the parent's GunBodyPath, GripPoint and hand paths (and shared slide or handle paths when the sub has none), and keep only the sub's own action and ammo. Check the Bren Semi case first: it may already take the parent's rig through the same-action branch.
+
+[major/medium] src/Weapons/HeldWeapon.cs:643  Launcher jitter: hand acceleration differenced twice from reported velocity feeds a 12/s spring
+  what:   StepInertia: `Vector3 raw = dt > 1e-4f ? (v - _handVelPrev) / dt : Vector3.zero;` then `_handAcc = Vector3.Lerp(_handAcc, raw, 1f - Mathf.Exp(-25f * dt));`, which drives the position spring (line 654) and the pitch spring (line 660: `wr * wr * _inertiaLever * ... * Vector3.Dot(_handAcc, Vector3.up)`). Launchers take this path in one hand: `omega = 12f; lever = 0.6f; // launchers` (line 605). `v` is main.Velocity, the runtime's reported controller velocity (VRHand.cs:124).
+  why:    Frame-to-frame noise in the reported velocity becomes an acceleration of order 1 m/s^2 after differencing. At 0.6 degrees of pitch per m/s^2 and about 1/omega^2 of position, a still hand gets a sustained wobble of a few tenths of a degree and millimetres, which is the RPG shake of 203 with no firing. The candidates listed in 203 do not produce frame-to-frame motion: the droop is a static offset (line 685, `sag = 8f`) and the trail is a low-pass (line 1084, Slerp at `_followRate`). The shouldered check has hysteresis (lines 70-71).
+  change: Add a deadband to raw (zero it below about 0.5 m/s^2) and lower the 25/s cut-off in line 646 for launchers, or gate the inertia off while the hand's speed stays below about 0.05 m/s for 0.3 s. Confirm with the autotest's held-still measurement against the 203 target (under 0.2 degrees and 2 mm).
+
+[major/medium] src/Weapons/ReloadInteractions.cs:1180  Loosely held rocket lines up tail-first only; task 231's either-end line-up was reverted
+  what:   LooselyLined(): `Vector3 tail = hold.TransformPoint(prop.TipLocal), nose = hold.TransformPoint(prop.BaseLocal);` ... `return lateral < 0.12f && along > -0.12f && along < prop.RailLength && angle < 60f;`, with the doc at 1167 saying "Tail first only". Commit d077bdd (2026-10-16) made either end count; the later commit b0a99c2 (ancestor check confirmed) restored tail-first only, citing a rocket drawn a rocket's length away or turned over when taken warhead-first.
+  why:    A rocket held warhead-first at the mouth never lines up, so an RPG whose rocket is held that way still cannot be loaded. Tasks.md 231 says 'code done d077bdd: either end', which is no longer true at HEAD.
+  change: Decide with the user. Either reinstate the either-end test (accept the nose within the same 12 cm and 60 degrees, and re-anchor the hold so the rail depth starts from that end, which avoids the drawn-a-rocket's-length-away fault b0a99c2 fixed), or correct the 231 note to say tail-first stands and verify the RPG-7V reload with the tail first. Either way, add a RocketFilm case with the warhead first (ReloadInteractions.cs:1934-1940 only ever holds the tail first).
+
+[major/low] src/Weapons/WeaponAnalyzer.cs:3035  Racking a gun with no slide or handle part moves nothing visible
+  what:   FinishVirtualParts: `if (d.SlidePath == null && !d.RackFromHand) { ... d.RackPoint = pump ? d.SupportPoint : RackEstimate(d); d.SlideTravel = -d.AimAxis * (d.IsPistol ? 0.035f : 0.07f); d.RackOnSurface = !pump; }`. A visible part is created only when `d.CarveHandle || d.AddedHandle` (HeldWeapon.cs:198), and RackGripSelfCheck (ReloadInteractions.cs:2976-2995) reports the moved parts from DrawnLayout.
+  why:    Where no slide part is found and no handle is added, the hand racks a virtual slide and nothing visible moves. That matches the 227 list (BUNDLE O' BUSS, ARS Glock 19, HK416, M500, MP9, K13 ACOG S): the part under the hand does not move.
+  change: For SelfLoading or Manual guns with SlidePath null and no HandlePath, set AddedHandle so a visible knob moves with the hand, or mark the gun as having no moving part and do not let the rack move the gun. Confirm on one of the 227 guns with the rack self-check's moved-parts list.
+
+[minor/high] src/Rig/HandPoses.cs:12  Hand poses and free-hand gestures from task 210 are not in the library
+  what:   enum HandPoseId (lines 10-19) has no C-clamp, vertical foregrip or magwell grip. A grep of src for thumbs, beckon, OK, finger gun, rock on and palm halt finds nothing. Free-hand pointing exists only as HandPoseId.LaserPoint (line 53).
+  why:    Only the poses already listed are in the pose sheet, and none of the squad gestures (thumbs-up, open palm, beckon) exist, so 210 is open.
+  change: Add the enum entries and GripPose rows (C-clamp, vertical foregrip, magwell grip). Add gesture classification from VRInput.GetCurl in HandModel.TargetCurls (HandModel.cs:1154-1206) mapped to the squad orders.
+
+[minor/low] src/Weapons/HeldWeapon.cs:1122  World block on the drawn gun has no hysteresis (possible launcher flicker)
+  what:   `bool blocked = VRConfig.WorldCollision.Value && _gunCollider.TryBlockedPose(out held);` (line 1122), then `_blockBlend = Mathf.MoveTowards(_blockBlend, blocked ? 1f : 0f, dt * (blocked ? 25f : 10f));` (line 1141).
+  why:    A launcher that touches the body or the ground and flips `blocked` from frame to frame moves between the hand pose and the stand-in pose, and the contact knock fires on each flip (lines 1127-1139, limited to one per 0.25 s). This is a candidate for the 203 shake; not proven.
+  change: Hold `blocked` true for about 0.1 s after it last read true before easing the blend out.
+
+[minor/medium] src/Weapons/MagazineProp.cs:848  Rocket copy cap at 1.4 m lets a 135 cm Panzerfaust rocket be copied (the note expects the made rocket)
+  what:   CopiesModel: `return kind == PropKind.Rocket && length > 0.15f && length < 1.4f;` with `length = Longest(rig.Data.MagBounds)`.
+  why:    Task 199 says the Panzerfaust 3 rocket (135 cm) is too long for a copy and the made rocket should be used. At 1.35 m it passes the 1.4 m cap, so it is copied. Only the 264 cm AT-1K falls back.
+  change: Lower the cap to just under the longest rocket that should be copied (about 1.2 m), or first confirm the 135 cm figure, since the note may measure something else.
+
+[minor/medium] src/Weapons/ShapeFit.cs:268  Far-off renderers stretch the shape-fit slicing box
+  what:   FitPoints: `foreach (Vector3 p in points) { min = Vector3.Min(min, p); max = Vector3.Max(max, p); }` over all points from AddPoints, which skips only disabled renderers (ShapeFit.cs:154: `if (r == null || !r.enabled || ...) return;`).
+  why:    One active renderer far from the gun (a reticle quad, a flash mesh, a stray child) enlarges `ext`, so the slices along the long axis are thicker than the gun and the hull fits empty space. That is the 'shape-fit slices stretched by far-off renderers' item of 229 (not fixed).
+  change: Before computing min and max, drop points farther than about 0.35 m from the median point (or from the gun body's bounds plus 0.1 m). Test on a gun that has a reticle quad.
+
+[minor/high] src/Weapons/ShapeFit.cs:321  Thin drops the last points of each slice (slice ends lost)
+  what:   Thin(): `keep[i] = pts[(int)((long)i * pts.Length / max)];` The doc at line 311 says "extremes are spread evenly through the list". FitPoints (lines 297-302) then recomputes each piece's Bounds from the thinned points.
+  why:    The largest index sampled is about n - n/max, so the last points of the list are never kept and each piece's bounds shrink at its end. This is the 'slice ends dropped by Thin' item of 229.
+  change: `keep[i] = pts[(int)System.Math.Round((long)i * (pts.Length - 1) / (double)(max - 1))];` (for max of 2 or more), so index 0 and the last index are both kept.
+
+[minor/medium] src/Weapons/VRScope.cs:283  Scope camera re-renders the scene every frame while the lens is visible; the canvas scan runs full-scene
+  what:   `_camera.enabled = brightness > 0.004f;` (VRScope.cs:283) renders a second full picture each frame, into an MSAA-2 target (`antiAliasing = 2`, line 77) that copies the VR camera's `depthTextureMode` (line 269). CanvasManager.Update runs `Scan()` every 0.4 s, which calls `UnityEngine.Object.FindObjectsOfType<Canvas>()` (CanvasManager.cs:95-98, 156).
+  why:    These are the likely GPU and hitch costs in 215. The note says the mod's CPU work is about 0.6 ms, so the GPU cost is probably the second scene render, and the scan allocates and walks the scene every 0.4 s. Neither is measured yet.
+  change: First measure the compositor GPU time (215). Then render the scope camera every second frame or at a lower resolution while brightness is under 1, set depthTextureMode to None unless the scope needs depth, and track canvases with enable and disable events instead of FindObjectsOfType.
+
+[minor/high] src/Weapons/WeaponAnalyzer.cs:167  M1 Garand: no en-bloc clip; classified as an ordinary detachable-magazine semi-auto
+  what:   ClassifyAction returns `ActionType.SelfLoading` for a semi-auto (line 167; the Manual branch at line 219 needs a slow cooldown). AmmoState.cs:45: `public bool UsesDetachableMag => Rig.Action == ActionType.SelfLoading || (Rig.Action == ActionType.Manual && Rig.MagazinePath != null);`. A grep of src for en-bloc, clip ejection and Garand finds nothing.
+  why:    The Garand reloads as a detachable box magazine. Its en-bloc clip (top-loaded, ejected with the ping when the last round is fired) cannot be represented, so task 218 is not started.
+  change: Add a per-weapon override (WeaponOverrides action, or a new en-bloc flag): UsesDetachableMag false, rounds fed from a top-loaded clip, and the clip ejected when the last round fires. Low priority, as the task says.
+
+[tiny/low] src/Rig/../Weapons/ArmIK.cs:91  Palm point may be scaled twice by the hand's lossy scale
+  what:   `Vector3 palmPoint = rot * Vector3.Scale(c.PalmPoint, _left.Hand.lossyScale);` where PalmPoint = `handInv.TransformPoint(PalmOf(hand, sampler))` (WeaponAnalyzer.cs:1741, 1755), a rigid transform into hand-bone space.
+  why:    If PalmPoint already carries the hand's scale, the factor is applied again. On unscaled rigs the lossy scale is about 1, so there is no effect today. This is the 229 item to test on a scaled rig first.
+  change: Remove the lossyScale multiply here, or divide by the hand's lossy scale where PalmPoint is stored, then test on a scaled rig.
+
+CHECKED AND FINE:
+  - 197: SubWeaponRig (HeldWeapon.cs:560-572) and static analysis (WeaponAnalyzer.cs:485-496, 3033-3049). Still in code for other-action sub-weapons; finding above. Bren Semi may already use the parent rig.
+  - 198: MagAxisFromShape (WeaponAnalyzer.cs:2263-2345). Shape axis overrides the animated pull by design (2340-2344 only logs). The 60-degree guard (2319) compares to the outward direction, not to the pull. Still open: needs the deep magazine check on AK-12, AS Val and QJB201 MG. No code change proven.
+  - 199: rocket copy cap is the finding at MagazineProp.cs:848. The FNX-45 sight and reload-timeline items were not checked in code.
+  - 202: HandModel.TargetCurls (HandModel.cs:1154-1161: 0.09 s pulse to at least 0.85) and the finger solve (684-720) with WeaponSystem.cs:436 calling TriggerShot. The code exists and no defect was found. The close-up check is still open.
+  - 203: HeldWeapon.cs droop and trail (685, 1072-1085) are static or low-pass, and the shouldered fade has hysteresis (70-71). Candidates producing shake: the inertia differencing (finding) and the blocked flicker (low). The autotest held-still measure is what settles it.
+  - 210: HandPoses.cs enum and library; no gesture code. Finding above.
+  - 215: no code change; per-frame CPU stays small (see the PerfProbe note). Hot spots listed in the finding. The GPU cost has to be measured first.
+  - 218: no Garand code (grep for en-bloc, clip and Garand is empty). Finding above.
+  - 225: no eye-asymmetric path found. VRScope.cs:281-284 gives both eyes one brightness from the aiming eye's offset; LensEffects.cs:243 uses the single-pass centre for both eyes by design. LensEffects.cs:124 (FilmState) logs per-eye flash and glow, so the next Island film will show it. Not reproduced in code.
+  - 226: AutoTest.cs:646-661 (RackCloseUps) pins the close-up camera to the gun's point on the first call. The 'camera followed the hand' artefact is fixed in code. The other kinds (the 87-gun 'free hand not on the slide' category) need fresh pictures: reports/agents/gun-review-2026-10-15 exists. BeginRack and UpdateRack are at ReloadInteractions.cs:1495-1530.
+  - 227: measured by RackGripSelfCheck (ReloadInteractions.cs:2921-2995). Cause is in the finding on FinishVirtualParts, low confidence.
+  - 228: reports/shots/film has 8 reload-*.gif and 8 *-slow.gif (of 290 guns), 16 film directories, and no flash-demo.gif, so the per-gun GIF item is far from done. tools/showcase.py (commit 644773c) collects reload GIFs. Not a code defect.
+  - 229: Sub-items checked. FIXED: disabled renderers are skipped (ShapeFit.cs:154, HeldWeapon.cs:1501); override file reload on timestamp (WeaponOverrides.cs:53-66); case-insensitive matching (WeaponOverrides.cs:95, 114, 124, 184). OPEN: Thin (finding), far-off renderers (finding), ArmIK palm (low). Not checked: tapering parts split, fire sampling misses audio objects.
+  - 230: HeldWeapon.SteadyThroughScope (968-1001) applied at 1105 before recoil. Setting ScopeSteadying default 1 (VRConfig.cs:242) with the stepper (VRSettingsPanel.cs:87-88). The filter matches the note; no defect found. Headset check still open.
+  - 231: see the first finding. The rocket film (ReloadInteractions.cs:1899-2015) and the rail from the muzzle (commit aa03500) are present.
+  - 232: FIXED in commit 77953a0 (2026-10-16 20:04, after the Tasks.md note): hide-only magazine bones (WeaponAnalyzer.cs block near line 2096 for skinned guns with a 'mag' bone within 3 cm; WeaponRig.cs MagHideOnlyPaths and MagazineHideOnly around lines 86-90 and 313-345). Hidden with the magazine by HeldWeapon.cs:1920-1931 and never copied (MagazineProp.cs:639-669). Tasks.md is stale; verify on the ARS HK416 and MP9 pictures.
+  - 234: all 290 guns reviewed (Tasks.md 925-1213). The per-gun fixes are not verifiable from code reading; the 'free hand not on the slide' and 'magazine not in the hand' categories are the largest.
+  - 244: study done. reports/agents/boneworks-2026-10-16 has grips.txt, guns.txt, hand-poses.txt, magazines.txt, mods.txt and physics-hands.txt.
+  - 245: M4A1 fixed (its own handle kept); the other 27 guns use the knob fallback (BoltPiece.cs:83-86). Finding above.
+  - 246: reports/agents/rack-check-2026-10-16/SUMMARY.txt exists. The measurement fixes are in RackGripSelfCheck (ReloadInteractions.cs:2928-2953: the palm placement and waiting for the part shape). The rerun is still open.

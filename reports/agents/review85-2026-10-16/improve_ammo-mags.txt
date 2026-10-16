@@ -1,0 +1,68 @@
+improve ammo-mags (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Ammo, magazines, belts and counters: src/Weapons/MagazineProp.cs, AmmoState.cs, AmmoCounter.cs, MagReadout.cs and BeltStrip.cs, all read in full. MagazineProp.cs has uncommitted working-tree edits (rocket insert override and muzzle-based rocket rail, per git diff) and those are reviewed as they stand; line numbers are the current working tree. Read-only review: nothing built or run. The other requested work (rocket model match, recordings) is outside this review.
+
+[major/high] src/Weapons/AmmoCounter.cs:60  Flash messages (NO AMMO, FULL, OPEN COVER) vanish when the gun counter option is off
+  what:   bool show = VRConfig.GunAmmoCounter.Value && (ammo != null && ammo.Participates || _flash != null); (line 60). Flashes reach this class only through HeldWeapon.FlashCounter (HeldWeapon.cs:856), fed by WeaponSystem.FlashMessage (WeaponSystem.cs:455-458) and direct calls at ReloadInteractions.cs:100 (OPEN COVER), 781 (a name flash) and 975 (NO AMMO / FULL).
+  why:    With the option off, show is always false, so none of these messages ever display. The only feedback left for a refused pouch take is a 0.15 s haptic (ReloadInteractions.cs:974). The player cannot tell NO AMMO from FULL, or why the box will not come off under an open cover.
+  change: Show a live flash regardless of the option: bool flashing = _flash != null && Time.unscaledTime < _flashUntil; bool show = flashing || VRConfig.GunAmmoCounter.Value && ammo != null && ammo.Participates; Also, line 72 tints every flash with the red Empty colour, so FULL reads as an error; use Normal for non-error flashes.
+
+[major/high] src/Weapons/MagazineProp.cs:380  Rocket insert override makes front parallel to insert: held roll and stand-in orientation become arbitrary
+  what:   Create() (lines 375-380) sets insertGun = -d.AimAxis.normalized when a rocket's eject axis is off the barrel, but line 384 still sets frontLocal = seatInv * d.AimAxis. The constructor does FrontLocal = Vector3.ProjectOnPlane(front, InsertDirLocal) (lines 151-153); with front parallel to the insert the projection is about zero, so the fallback Vector3.Cross(InsertDirLocal, Vector3.right) is used. BuildProcedural then calls Quaternion.LookRotation(frontLocal, insertLocal) (line 865) with forward parallel to up.
+  why:    HoldPose (line 942) rotates the rocket by LookRotation(FrontLocal, InsertDirLocal), so every rocket taken from the pouch or the well is held at a fixed roll that is not the barrel's (for a barrel along +z in seat space the fallback is -y, 90 degrees off). Fins and warhead sit wrong in the fist, which is the orientation the user is asking about. On a launcher with no rocket model the made stand-in capsule gets a degenerate LookRotation.
+  change: In Create, choose a front perpendicular to the insert when the override applies: Vector3 frontGun = d.AimAxis; if (kind == PropKind.Rocket && Vector3.Dot(insertGun, -d.AimAxis) < 0.7f) { insertGun = -d.AimAxis.normalized; frontGun = d.Up; } and use Vector3 frontLocal = seatInv * frontGun; (d.Up is already used by AmmoCounter.cs:35). Put this selection in one static helper shared with BuildDisplay (next finding).
+
+[major/high] src/Weapons/MagazineProp.cs:431  Pouch display of a rocket ignores the insert override, so the shown and grabbed rocket differ
+  what:   BuildDisplay sets insertLocal = (seatInv * -d.MagEjectAxis).normalized (line 431) and frontLocal = seatInv * d.AimAxis (line 432). The override added to Create (lines 375-380) is not applied here. PouchDisplay.cs:61-72 orients and grabs the shown rocket from these axes.
+  why:    On a launcher where the override applies (the case reported), the rocket in the pouch is drawn along its eject axis and the grab point is taken from that, but the rocket TakeFromPouch creates (ReloadInteractions.cs:979, Attach with _fresh so no blend) is oriented along the barrel. The rocket visibly turns over as it leaves the pouch.
+  change: Move the insert and front selection from Create (lines 375-384 as changed in the previous finding) into a shared static helper and call it from both Create and BuildDisplay so the pouch display and the held prop agree.
+
+[major/high] src/Weapons/MagazineProp.cs:1490  A contact that begins inside the shared 0.25 s throttle never knocks
+  what:   ContactSounds gates the whole block on touching && now - _lastContactSound >= 0.25f (line 1490); the knock branch sits inside it (if (!_touchingGun) ...), and then line 1511 sets _touchingGun = touching unconditionally. _lastContactSound is static (line 1475), so all magazines share it.
+  why:    A contact starting inside the window is skipped, yet _touchingGun becomes true. Every later frame of that contact takes the scrape branch, so the knock sound and the 0.02-0.05 s hand buzz are never played for it. A magazine that bounces off the gun and touches again within a quarter second, or a palmed second magazine meeting the gun while the first one has just knocked, gives no knock and no haptic.
+  change: Make the knock an edge event with its own per-magazine debounce and keep the shared throttle only for scrapes. Add instance fields _lastKnockAt and _lastScrapeTime. Knock when touching && !_touchingGun && now - _lastKnockAt >= 0.12f (then set _lastKnockAt = now). Scrape when touching && _touchingGun && now - _lastScrapeTime >= 0.25f and the movement and speed tests pass. Keep _touchingGun = touching at the end.
+
+[minor/low] src/Weapons/AmmoCounter.cs:40  On-gun round counter is fixed in size and placement for every weapon, and much smaller than the magazine readout
+  what:   _text.characterSize = 0.0009f (line 40) with fontSize 64; the offset GripPoint + Up*0.045f - right*0.035f + AimAxis*0.02f (line 36) is also a constant. MagReadout uses characterSize 0.0024 and says in its comment (MagReadout.cs:49) that this gives about 1.5 cm digits.
+  why:    Scaling that comment linearly, the gun counter's digits are about 0.5 cm, roughly 0.5 degrees tall from a rifle held at arm's length. That is the main count during a fight and it is harder to read than the readout that is shown on the magazine. The offset is also a fixed distance regardless of receiver size, so it can sit off the body on small or large guns.
+  change: Derive characterSize and the offset from the weapon (for example from the receiver's bounds in WeaponRigData) so the digits keep a fixed angular size, or raise the constant toward about 0.0015 and check on a pistol and a rifle with the self-test.
+
+[minor/medium] src/Weapons/MagReadout.cs:66  Readout jumps between two magazines in the cone with no hysteresis or fade
+  what:   BeforeRender takes best = ... Find(head) each frame (line 66) and assigns _target = best immediately (line 69). Find (lines 116-148) starts bestAngle at LookCone and picks the smallest angle with no preference for the current _target. _alpha stays at 1, so the label and its position switch instantly.
+  why:    A palmed second magazine sits 2-8 cm beside the first (PalmedPose, ShowOnRail's PalmedPose spacing). Both tips can be within a few degrees of the gaze, so as the head crosses the pair the readout flips between their counts with no fade. The player reads the count of the wrong magazine.
+  change: Make Find an instance method and bias toward the current target: float a = Vector3.Angle(head.forward, toTip) - (p == _target ? 3f : 0f); keep the existing LookCone check on the raw angle. When the target does change while _alpha is above zero, fade out before switching (or lerp the position over about 0.1 s).
+
+[minor/medium] src/Weapons/MagazineProp.cs:214  Magazine mass is fixed by kind and ignores the rounds it holds
+  what:   _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f; is set once in the constructor. Rounds changes later (SeatProp, ReturnRounds, Despawn at line 1607), but the mass never does.
+  why:    A full 30-round magazine and an empty one both weigh 0.4 kg on the drop, and a pistol magazine is as heavy as a rifle magazine. Throws and bounces feel the same whatever is loaded, which the player will notice when a full box and an empty one land.
+  change: For magazines use a mass that follows the rounds, for example mass = 0.12f + 0.012f * Rounds (placeholder estimate; tune to the weapon), and recompute it in Drop() and wherever Rounds is changed for a dropped prop. Keep the fixed values for rockets and shells.
+
+[minor/medium] src/Weapons/MagazineProp.cs:1524  Dropped magazines, shells and rockets hit the floor silently
+  what:   Drop() (lines 1524-1560) enables colliders and makes the body non-kinematic with no impact handling. The only collision components in the weapons code are CaseSound on casings (Casings.cs:166 and OnCollisionEnter at 488-499, which plays a tink scaled by relativeVelocity) and GunCollider.OnCollisionEnter (GunCollider.cs:909). Nothing handles MagazineProp colliders.
+  why:    A 0.4 kg magazine dropped from hand height, or a 75 cm rocket, lands with no sound; the only audio is the physics result that is never heard. Casings get a landing tink while magazines, which are heavier and louder in the real thing, do not.
+  change: Add a small MonoBehaviour modelled on CaseSound and attach it to Go once in Drop(). Its OnCollisionEnter ignores relativeVelocity below about 0.5 m/s, plays MechSound.MagKnock (already loaded in ProceduralSounds.cs:61; rockets at lower volume) with volume Mathf.Clamp01(speed / 3f) * 0.5f, and limits itself to two sounds per drop like CaseSound._tinks.
+
+[minor/medium] src/Weapons/ReloadInteractions.cs:266  An empty belt box can be grabbed; the strip draws nothing and gives no other feedback
+  what:   The belt-grab condition (line 266) checks BeltByHand, HasCover, CoverOpen, MagInserted and !BeltLaid but not MagRounds. BeginBelt (lines 815-827) plays a sound and a 20 ms haptic. BeltStrip.Place caps the count with Mathf.Max(0, rounds) (BeltStrip.cs:76), so with 0 rounds every round is folded to Vector3.zero (lines 86-93) and nothing is drawn.
+  why:    Pulling a belt out of a spent box shows nothing and gives no message that the box is empty. The player finds out only later from the counter.
+  change: Add Ammo.MagRounds > 0 to the grab condition at ReloadInteractions.cs:266, and flash EMPTY with a short buzz when the belt is grabbed from an empty box (_held.FlashCounter("EMPTY"); off.Haptic(0.15f, 35f, 0.6f)). Leave BeltStrip as it is.
+
+[tiny/high] src/Weapons/AmmoState.cs:68  Doc summary for HoldFireUntilTriggerUp is misplaced above it
+  what:   Lines 68-70: the summary "Whether the trigger can drop the hammer on a round right now." sits above the field HoldFireUntilTriggerUp, and the field's own summary is the second comment line, so the field has two summaries and CanFire's description is attached to the wrong member.
+  why:    Documentation only; the code is fine. It can mislead a reader into thinking the flag decides whether the hammer can drop.
+  change: Delete the stray summary line at line 68 and keep the summary above HoldFireUntilTriggerUp; the CanFire doc sits above line 72 already.
+
+[tiny/low] src/Weapons/BeltStrip.cs:14  Belt round and link pitch are fixed for every belt-fed gun
+  what:   Pitch = 0.0115f (line 14) and BuildRound() profile z = {-0.026, ..., 0.036} with radius 0.006 (lines 156-157) are the same for every gun. Casings.MakeRound only takes shotgunShell, so no calibre is passed through.
+  why:    A .50 cal or a 5.56 belt shows the same 7.62-sized round at the same pitch while the belt is laid by hand. The player sees the wrong calibre on the feed belt.
+  change: Pass the round length, radius and pitch in from the weapon (for example a calibre value on WeaponRigData or the configuration) to BeltStrip's constructor and into BuildRound, falling back to the current numbers when nothing is known.
+
+CHECKED AND FINE:
+  - AmmoState.CounterKey (AmmoState.cs:379-384): the packed key is unique for one weapon while MagRounds is below 4096, so the cached counter text cannot go stale through a collision.
+  - AmmoState.Reconcile vs OnShot (AmmoState.cs:119-152, 172-206; WeaponSystem.cs:418): OnShot runs after the game's decrement and Sync records the expected count, so the lost-rounds branch does not double-count a shot.
+  - AmmoState.CanFire, RackBack, RackForward, LoadRounds, ShellChunk, ReturnSpareCapped: consistent with the counter text and the reserve cap; no defect found.
+  - MagazineProp.Cull, Despawn, Destroy and DestroyAll (MagazineProp.cs ~1600-1700): backwards iteration with Remove is safe; expiry and the dropped-count cap are consistent.
+  - Latch feedback exists: ReloadInteractions.cs:1087-1090 (lip sound and haptic), 1148, and SeatProp at 1355 and 1372 (seat sound and haptic), so a missing seat click is not reported.
+  - BeltStrip.Place (BeltStrip.cs:72-107): with BeltReach 0.32 m (ReloadInteractions.cs:794) the held span stays under the 32-round cap, so the held strip reaches the hand with no gap; the stretch factor only applies beyond that.
+  - MagReadout: fade timing, rocket and on-rail exclusion, and the gaze-facing rotation: no defect found; shell chunks are labelled with their carried count, which is accurate, so not reported.
+  - Uncommitted rocket rail (MagazineProp.cs ~407-418, RailLength from muzzle to seated tail): depth is computed in rig space consistently with MagSeat and MuzzlePoint; no defect found beyond the orientation issues above.

@@ -1,0 +1,47 @@
+improve ui-2 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: UI panels and weapon displays: src/UI/VRSettingsPanel.cs, SquadPointing.cs, ModKeysPanel.cs, VRKeyboard.cs, WristHud.cs, SeatSights.cs, src/Weapons/HolsterDisplay.cs, PouchDisplay.cs (all 8 read in full; decompiled game code checked where a finding depends on it). Read-only, nothing edited or run.
+
+[major/high] src/UI/VRSettingsPanel.cs:50  Settings panel is about 2.2 m tall, so header and footer sit 36-42 degrees off the view centre
+  what:   `rect.sizeDelta = new Vector2(CanvasWidth, _height + 36f);` with `_height` ending at about 2230 px (31 rows at 58 px plus headers, Build() lines 57-109) and `_root.transform.localScale = Vector3.one * (0.95f / CanvasWidth)` (line 315) make the panel roughly 2266 x 0.00097 m = 2.2 m tall. It is placed at `MenuDistance * 0.85` = 1.275 m (line 303) with its centre at head height minus 0.1 m. The comment at line 192 still says 'about 1.5 m tall'. Nothing scrolls or pages.
+  why:    Measured from the centre of view, the header is about 36 degrees up and the Close / Mod keys / Recenter / SteamVR bindings footer about 42 degrees down. Those are well outside a comfortable gaze range (about +/-20-25 degrees), so reading or pressing the top or bottom rows means tilting the head every time, and the most used buttons are the farthest away.
+  change: Split Comfort+Weapons and Display into two pages with a page toggle in the header, and move Close, Recenter and Mod keys into the header row. Alternatively make the content scroll with the thumbstick. Aim for a total height near 1.1 m (about 1150 px at this scale) and update the stale comment at line 192.
+
+[minor/medium] src/UI/SquadPointing.cs:94  Pointing has no hysteresis, so a hand drifting past 32 degrees on release cancels the order
+  what:   `float bend = Vector3.Angle(h.Pointer.Forward, fromEye); if (bend > Straight) continue;` with `Straight = 32f` (line 30). `Pointing` and `PointingHand` are reset every frame (lines 72-73). On release, the same frame's state decides: the IssueSquadPointOrder prefix (lines 315-318) calls `CancelPointSquadOrder()` when `!SquadPointing.Pointing`.
+  why:    A single frame over 32 degrees at the moment the squad button is let go throws the order away. The label also swaps between 'GO TO' and 'POINT WITH A HAND' on hand tremor. The game plays a cancel sound (FpsActorController.cs:1704), so the player hears a cancel they did not intend.
+  change: Remember the previous state before the reset: `bool was = Pointing; VRHand prev = PointingHand;`. Then use `float limit = was && prev != null ? Straight + 10f : Straight;` and `if (bend > limit) continue;`, preferring `prev` when both hands qualify.
+
+[minor/high] src/UI/VRSettingsPanel.cs:230  Stepper buttons step once per press, so throw strength from 1.0x to 4.0x needs 30 trigger presses
+  what:   `MakeButton(row, "+", 34f, 56f, () => step(1), out _);` (line 230), and the same for the minus button at line 237: one step per click, no repeat while held. Step sizes are 0.1 for throw strength (lines 89-90) and render scale (line 95), and 0.25 for recoil and lens flash (lines 86, 102-103).
+  why:    In VR each step is a separate trigger pull at a 56 px target, so long ranges are tiring and easy to overshoot. The stepper's values also go through BepInEx config, which saves on every set (the note at AutoTest.cs:464 says so), so a naive hold-repeat would rewrite the file many times a second.
+  change: Repeat while held: step on press, then after about 0.4 s repeat about every 0.1 s until release (an EventTrigger PointerDown/PointerUp on the button, or an Update-polled hold timer). While a hold is in progress, turn off ConfigFile.SaveOnConfigSet and save once on release.
+
+[minor/high] src/UI/WristHud.cs:150  Health colours use fixed 60/30 HP, but the Katana rage raises max health to 150
+  what:   `float hp = Mathf.Max(0f, actor.health);` (line 135) and `_text.color = hp > 60f ? light : hp > 30f ? amber : red;` (line 150). The text is `hpWhole + " HP"` (line 146) with no max, and the cache key at lines 140-145 ignores max. The game's Katana sets `rageMaxHeatlhMultiplier = 1.5f` (Katana.cs:137) and `player.maxHealth = defaultMaxHealth * rageMaxHeatlhMultiplier` (Katana.cs:328). The game's own bar divides by max (IngameUI.cs:693).
+  why:    At a max of 150, the healthy colour holds down to 61 HP (about 41%) and amber only starts below 60 HP (40%). Red appears at 30 HP (20%). On the normal 100 max those colours appear at 60% and 30%. A player at 90 of 150 HP, which is 60%, still sees the healthy colour.
+  change: Compute `float frac = actor.health / Mathf.Max(1f, actor.maxHealth);` and use 0.6 and 0.3 as the thresholds. Show `hpWhole + " / " + Mathf.RoundToInt(actor.maxHealth) + " HP"`, and add the max to the cache check at line 140 so a max change refreshes the text.
+
+[minor/medium] src/Weapons/HolsterDisplay.cs:69  Holster hide test uses only the copy's centre, so a long gun's muzzle can reach the eye
+  what:   `Vector3 centre = s.Go.transform.TransformPoint(s.Centre); bool visible = Vector3.Distance(centre, head.position) > 0.2f + s.Length * 0.25f || Vector3.Dot(head.forward, (centre - head.position).normalized) < 0.2f;` (lines 69-71). `s.Length` is the full barrel length (line 137), so the barrel's ends lie up to `Length * 0.5` from the centre. The comment at lines 14-15 says a copy that comes within a few centimetres of the eyes is hidden.
+  why:    With a 1 m rifle, the test stays visible once the centre is 0.45 m away, and at that point the muzzle can be about 5 cm from the eye. The Classic layout puts the muzzle 'beside the head' (lines 173-174), so looking down over a shouldered rifle can draw the barrel across the view.
+  change: Store the barrel direction that Place() computes (`barrel`, line 161) on the Shown object. Test the nearest point of the segment `centre +/- barrel * s.Length * 0.5f` to head.position against the 0.2 m threshold, and drop the `Length * 0.25` term.
+
+[minor/high] src/Weapons/PouchDisplay.cs:57  Off hand entering the magazine pouch gets no haptic, only a small visual lift
+  what:   `bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);` then `_hover = Mathf.MoveTowards(_hover, reaching ? 1f : 0f, ...)` (lines 57-58). Nothing calls Haptic in this file. The same kind of cue for dropped weapons exists on the rising edge: `hand.Haptic(0.01f, 160f, 0.2f); // "you can grab this"` (WeaponDrops.cs:583-585). The grab itself gives a haptic and sound (ReloadInteractions.cs:999-1000).
+  why:    The only sign that the hand has reached the pouch is a 1.5 cm lift, a 6% scale-up and a colour change on a magazine held at the hip. With the hand down by the hip that is easy to miss, so the player does not know they are in reach until they commit.
+  change: Keep a `bool _reachingLast` field. After computing `reaching` in BeforeRender, add `if (reaching && !_reachingLast) off.Haptic(0.01f, 160f, 0.2f); _reachingLast = reaching;` (`off` is already `_sys.Rig.Off`, line 56).
+
+[tiny/medium] src/UI/SquadPointing.cs:107  No haptic when the pointing hand locks on, or when a squad order is given or cancelled
+  what:   `Pointing = true;` (line 107) has no haptic. The IssueSquadPointOrder patch (lines 313-328) cancels or issues with no haptic. Grep finds no Haptic call anywhere in SquadPointing.cs. The game does play sounds on these events (FpsActorController.cs:1704 PlayCancelOrderUi, 2427 PlayCommitOrderQuick).
+  why:    In VR the only sign that the hand has locked on is a text change on the hand. An order is issued or cancelled with a sound that is hard to hear in combat and nothing felt in the hand.
+  change: On the rising edge of `Pointing` in Compute(), call `PointingHand.Haptic(0.01f, 160f, 0.2f)` (VRHand.Haptic, VRHand.cs:267). In the patch, give a short tick on commit (0.02f, 120f, 0.3f) and a dull buzz on cancel (0.04f, 60f, 0.4f).
+
+CHECKED AND FINE:
+  - SeatSights.cs: collimation scale `localScale = LocalScale * (Distance / Range)` (line 55) keeps the same angular size, so the math is right. Restore() tolerates destroyed children (lines 107-121). No finding.
+  - WristHud.cs: the ammo counter string is cached by key (AmmoState.cs:386-395), so the ReferenceEquals check at line 140 works and does not allocate every frame. The look-complete haptic exists (BodyZones.cs:205).
+  - HolsterDisplay.cs: a template that cannot be built is cached in WeaponDrops NoModel (WeaponDrops.cs:109-116), so the per-frame re-Build path at lines 57-66 is cheap.
+  - VRKeyboard.cs: the retry/latch logic (lines 37-72) and Filter behave as written for the cases read. A latch with no fallback is possible if SteamVR never sends KeyboardClosed, but I could not confirm that behaviour from the code, so I did not report it.
+  - VRSettingsPanel.cs: the panel refreshes at 5 Hz while open (UISystem.cs:134-137), so highlights and values catch up within 0.2 s of a click. Hover and click haptics come from VRInputModule.cs:163 and 296.
+  - ModKeysPanel.cs: the Press path guards against a script that has gone (lines 189-192) and gives a haptic (line 194). Rebuilds are gated on a signature (lines 69-80).
+  - SquadPointing.cs: the raycast layer mask 1 matches the game's own squad raycast (FpsActorController.cs:2506), and the -0.7 regroup threshold matches the game (FpsActorController.cs:1665).

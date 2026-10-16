@@ -122,6 +122,10 @@ namespace RavenfieldVR.Rig
             _hasLastRig = true;
 
             Velocity = (raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero) + rigVelocity;
+            if (TestVelocityNoise > 0f)
+            {
+                Velocity += Random.insideUnitSphere * TestVelocityNoise;
+            }
             AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             _velHistory[_historyIndex] = Velocity;
             _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;
@@ -136,6 +140,12 @@ namespace RavenfieldVR.Rig
         /// <summary>Autotest: a scripted world pose (and velocity) for a simulated hand, instead of where it rests.</summary>
         internal static readonly RigidPose?[] Scripted = new RigidPose?[2];
         internal static readonly Vector3[] ScriptedVelocity = new Vector3[2];
+
+        /// <summary>
+        /// Self-test: random noise added to every hand's reported velocity (m/s), as a real controller's tracking has; the
+        /// null driver's hands report none, and a weapon shaking from it went unseen (Tasks 203).
+        /// </summary>
+        internal static float TestVelocityNoise;
 
         private bool SimulatedLocal(Transform rigRoot, out RigidPose local)
         {

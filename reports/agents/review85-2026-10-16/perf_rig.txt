@@ -1,0 +1,46 @@
+perf rig (Performance), read-only Haiku agent, 2026-10-16
+
+SCOPE: VR rig, cameras, vehicles, intro: per-frame performance review of src/Rig/VRRig.cs, CameraSuppressor.cs, GroundCheck.cs, CockpitControls.cs, IntroStage.cs, HandPreview.cs (read-only; nothing measured, all costs are estimates from code). Headline: this area is already lean. No per-frame heap allocations, no per-frame Find calls on the hot path, and most earlier perf items are fixed. The one real per-frame cost is the rig's CharacterController.Move while the head moves (finding 1). Everything else is microseconds or a one-off at startup or in the menu. The relayed m4a1/ACOG question is outside this review and was not investigated.
+
+[minor/medium] src/Rig/VRRig.cs:582  Roomscale step calls CharacterController.Move on every frame the head moves over 0.3 mm
+  what:   RoomscaleFollow gates the move with `if (sq > 1e-7f && sq < 0.1225f && player.controller != null && player.IsMovementEnabled())` (VRRig.cs:572) and then calls `player.controller.Move(d);` (582). Lines 565-570 return early while sq <= 1e-7f, so sub-0.3 mm motion accumulates in _lastHeadLocal. FirstPersonController.Move (.ref/decompiled/firstpass/UnityStandardAssets.Characters.FirstPerson/FirstPersonController.cs:215) is a CharacterController.Move sweep.
+  why:    Runs once per render frame (up to 90 per second) whenever head motion exceeds 0.3 mm, on top of the game's own CharacterController.Move (FirstPersonController.cs:452). A sweep typically costs tens of microseconds (not measured), so up to about 0.1 ms of the 11 ms budget. Each Move also runs the GunCollider Harmony hooks on CharacterController.Move (reports/agents/perf-verified.txt #5, not re-read here).
+  change: Raise the 1e-7f in lines 565 and 572 to 2e-6f (about 1.4 mm). Motion below the gate keeps accumulating in _lastHeadLocal, as the early return already does, so nothing is lost; the body trails the head by at most about 1.4 mm. Capture a -rfvr-perf run before and after, and drop the change if the Move cost is small.
+
+[tiny/low] src/Rig/GroundCheck.cs:55  Ground cast fills a fixed 64-entry buffer and never checks for overflow
+  what:   `int n = Physics.SphereCastNonAlloc(ray, radius, Hits, maxDistance, mask);` (55), with `Hits = new RaycastHit[64]` (22) and a loop to n (59) that never checks n against Hits.Length.
+  why:    Runs once per FixedUpdate, not per frame. The all-hits query is probably dearer than the closest-hit SphereCast it replaces, so tens of microseconds per physics step (not measured). When a dense pile returns more than 64 hits, the nearest ground can be cut off and Cast returns false for that step, so moving-platform carry is lost for that step.
+  change: If n == Hits.Length, grow a static buffer once (for example to 256) and repeat the cast before picking the nearest hit.
+
+[tiny/low] src/Rig/IntroStage.cs:278  Intro title scan runs scene-wide Find calls about 7 times at startup
+  what:   Update gates the scan on `_isIntro && _phase != Phase.Done && Time.unscaledTime >= _nextTitleScan` (IntroStage.cs:75) with `_nextTitleScan = Time.unscaledTime + 0.1f` (78). PlaceTitleInWorld then calls FindObjectsOfType<Canvas>() (278), FindObjectsOfType<TextMesh>() (317), and GameCamera(), which calls Camera.allCameras (330, allocates an array).
+  why:    Phase reaches Done after about 0.65 s (Measuring 0.25 s, Verifying 0.4 s), so this is about seven scans with allocations in the first second of the intro, not a per-frame cost. Magnitude not measured. The comment at line 76 says the scan also catches text that switches on later in the intro; the Done gate stops that after about 0.65 s, so such text stays screen-space.
+  change: If later text must be placed, keep a cached list of canvases and check for new ones about every 0.5 s instead of FindObjectsOfType at 10 Hz. Otherwise correct the comment at IntroStage.cs:76 to match the gate.
+
+[tiny/medium] src/Rig/VRRig.cs:407  Menu after Quit to menu throws every frame through the GameMainCamera fallback
+  what:   FollowTarget guards the spectator and LocalPlayer lookups with Unity's null test (VRRig.cs:388-396), then falls back to `cam = GameContext.GameMainCamera;` (407). That calls GameManager.GetMainManagedCamera, which does `LocalPlayer.controller?.GetActiveCamera()` (.ref/decompiled/Assembly-CSharp/GameManager.cs:392). GetActiveCamera reads `tpCamera.enabled` (.ref/decompiled/Assembly-CSharp/FpsActorController.cs:1095). The game never clears LocalPlayer.controller (its only assignment is LocalPlayer.cs:13), so once the player is destroyed the `?.` passes and the read throws MissingReferenceException, which GameContext.cs:163 swallows.
+  why:    One managed throw and catch per frame in the main menu after Quit to menu, the case the comment at VRRig.cs:386-387 says was fixed. The catch is silent, so no log shows it. Tens of microseconds per frame, menu only, nothing during play.
+  change: Before line 407, skip the game getter when the stored controller is destroyed: `cam = !ReferenceEquals(LocalPlayer.controller, null) && LocalPlayer.controller == null ? Camera.main : GameContext.GameMainCamera;`.
+
+[tiny/high] src/Rig/VRRig.cs:742  Head pose fetched and written to every head camera twice per frame
+  what:   UpdateHeadPose() runs in Update (VRRig.cs:281) and again at the top of BeforeRender (742). Each run calls OpenVR.Compositor.GetLastPoseForTrackedDeviceIndex and writes localPosition and localRotation on every head camera (166-184).
+  why:    Two native pose reads and transform writes per frame, a few microseconds. The Update call feeds same-frame game logic, so only the BeforeRender call is redundant.
+  change: In BeforeRender, skip UpdateHeadPose when it already ran this frame (store Time.frameCount in UpdateHeadPose and compare). Keep the _neutralPending handling in BeforeRender (743-747) intact.
+
+[tiny/high] src/Rig/VRRig.cs:989  UpdatePostProcessing looks up the PostProcessLayer every frame
+  what:   `PostProcessLayer source = reference.GetComponent<PostProcessLayer>();` runs in every BeforeRender (VRRig.cs:989), followed by five property writes to _postProcess (1011-1017).
+  why:    A GetComponent is well under a microsecond and the writes are cheap. The path only runs when PostProcessing is on, which is off by default (VRConfig.cs:160).
+  change: Cache `source` with the same throttle used for layerCullDistances (VRRig.cs:971-974): look it up when the reference camera changes or every 45 frames.
+
+CHECKED AND FINE:
+  - No per-frame heap allocations in the Update, BeforeRender, LateUpdate or FixedUpdate paths of these six files. RigidPose is a struct (src/Runtime/OpenVRMath.cs:38). CameraBuffer (VRRig.cs:379, 412-418), GoneCameras and GoneLayers (CameraSuppressor.cs:37-38, 86-111) and Hits (GroundCheck.cs:22) are reused. The layerCullDistances copy is throttled to every 45 frames (VRRig.cs:971-982). The float? assignment in CockpitControls.cs:80 does not box.
+  - CopyCameraSettings (VRRig.cs:927-984) is about 20 property copies per frame, microseconds. The expensive part (layerCullDistances) is already throttled.
+  - CameraSuppressor.Refresh (CameraSuppressor.cs:41-112) is a per-frame loop of native getters over all cameras, a few microseconds. The PostProcessLayer lookup (line 72) and the dictionary pruning run every 15 frames (lines 45, 86-111). reports/agents/perf-verified.txt #8 is therefore already fixed. OnPreCull and OnPostRender (114-131) are one Dictionary write and one read per culled camera.
+  - IntroStage per frame is SceneManager.GetActiveScene and a comparison (IntroStage.cs:63-73). The title scan stops at Done (75), so reports/agents/perf-verified.txt #6 is already fixed. Probe and Dump are diagnostics only (31, 54-56, 361-402).
+  - CockpitControls: FindControls (two GetComponentsInChildren calls at lines 91 and 99) runs only on seat change (46-51) and on destroyed-control recovery (57-61). The per-frame path reads hand fields. GameMenuOpen is short-circuited on foot (52).
+  - GameContext getters are static reads (src/Util/GameContext.cs:11-77). IsCursorFree tests four UI flags (.ref/decompiled/Assembly-CSharp/FpsActorController.cs:1247-1254). That is sub-microsecond and read several times per frame, not worth caching.
+  - Input reads in VRRig (314, 315, 489, 498) hit fields set once per frame (src/Input/GameInputBridge.cs:51, 96-98). No OpenVR calls come from these files.
+  - HandPreview.CloseupsRequested allocates on each read (HandPreview.cs:29), but its only caller runs once at content load (src/Weapons/WeaponSelfTest.cs:595), so it is not per frame. The Capture functions are self-test only.
+  - Physics per frame: the rig's CharacterController.Move (finding 1) and the GroundCheck cast (finding 6). No other physics query in these files.
+  - Not measurable from code: the game's screen cameras stay enabled and clear to the desktop backbuffer each frame (CameraSuppressor.cs:64-67, 120-121; only HMD output and culling are removed). That may cost GPU time. It needs the -rfvr-perf GPU numbers and a check of how MirrorMode reads the window before anything changes.
+  - reports/agents/perf-verified.txt #17 and #21 still apply (findings 4 and 3 here). #6 and #8 are already fixed in the current code.

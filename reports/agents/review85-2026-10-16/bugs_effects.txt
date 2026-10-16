@@ -1,0 +1,49 @@
+bugs effects (Bug hunt), read-only Haiku agent, 2026-10-16
+
+SCOPE: Screen effects and muzzle flash: src/Rig/LensEffects.cs, src/Weapons/LensFlash.cs, src/Weapons/MuzzleFireball.cs, src/Weapons/MuzzleFlashInfo.cs, src/Rig/DamageFeedback.cs, src/Rig/ComfortVignette.cs, src/Rig/MudSplash.cs (read in full), checked against the decompiled game in .ref/decompiled (Weapon.cs, FpsActorController.cs, Actor.cs, DamageUI.cs, ActorManager.cs) and the mod's own WeaponPatches.cs, WeaponSystem.cs, VRRig.cs, VRManager.cs.
+
+[minor/high] src/Rig/LensEffects.cs:160  Instance published before the shader check, so flashes are never pruned
+  what:   The constructor sets `Instance = this;` (line 160) before `if (additive == null) { ...; return; }` (lines 164-168). Present() returns early on `if (!_ok) return;` (lines 316-319), so the flash pruning loop (lines 328-340) never runs. LensFlash.TryFlash only checks `fx == null` (src/Weapons/LensFlash.cs:198-199) and still calls `fx.AddFlash` (LensFlash.cs:257 -> LensEffects.cs:258-263). The same happens if the constructor throws after line 160: VRRig catches it (src/Rig/VRRig.cs:110-117) and `Instance` still points at the half-built object.
+  why:    With no additive shader (or a failed setup), every shot appends two Flash entries that are never removed, and every shot still runs the Visibility raycasts (LensFlash.cs:253). Memory and CPU cost grow for the whole session.
+  change: Move `Instance = this;` to just before `_ok = true;` (line 212) so a failed or shader-less setup never publishes an instance. Optionally also expose `_ok` and have TryFlash return early when it is false.
+
+[minor/high] src/Weapons/LensFlash.cs:203  Lens flash and fireball use the barrel after the one that fired
+  what:   TryFlash reads `Transform muzzle = w.CurrentMuzzle();` (line 203) and places the flash at `muzzle.position` / `muzzle.forward` (lines 231-233), `_fireball.Add(muzzle, ...)` (line 267); UpdateGlow reads `_gun.CurrentMuzzle()` (line 356). TryFlash runs after the shot's postfix: WeaponShootPatch.Postfix (src/Weapons/WeaponPatches.cs:173-186) -> WeaponSystem.OnPlayerShot -> `_lensFlash?.OnShot(Held, weapon)` (src/Weapons/WeaponSystem.cs:437). But Weapon.Shoot fires from `currentMuzzleIndex` (decompiled Weapon.cs:1468) and then calls `NextMuzzle()` (Weapon.cs:1525), so by then CurrentMuzzle() already returns the next barrel.
+  why:    On any weapon with two or more configuration.muzzles and fireFromAllMuzzles off, the lens flash, plume direction, world fireball and sustained glow are drawn on the barrel that did NOT fire, while the game's own particles play on the one that did. The offset is the barrel spacing, so it is minor on normal guns and larger on mod rigs with widely spaced muzzles.
+  change: Add a Harmony Prefix to the Weapon.Shoot patch in src/Weapons/WeaponPatches.cs (it runs before NextMuzzle) that passes `__instance.CurrentMuzzle()` to LensFlash (e.g. a new `NoteFiredMuzzle` call guarded by the same PlayerWeaponInVR check). Store it in a `_firedMuzzle` field in OnShot, use `_firedMuzzle ?? w.CurrentMuzzle()` in TryFlash (line 203) and for the glow in UpdateGlow (line 356).
+
+[minor/medium] src/Weapons/LensFlash.cs:440  Sub-threshold flashes consume the strobe budget and weaken real flashes
+  what:   Limiter.Shot charges budget for every flash that reaches it, whatever its power: `int cost = power <= one ? 2 : 3;` then `if (left >= cost) { _full.Add(new KeyValuePair<float,int>(t, cost)); ... }` (lines 439-443). Power is not checked against the threshold. A suppressed weapon's flash is size 0.15 x real (lines 288-290), and EyePower can drop to about 0.01-0.1 (facing min 0.5, dist min 0.5, side min 0.5). The class doc (lines 408-413) says a soft flash is one 'below the flash threshold', i.e. the Soft table's range (0.22-0.34, line 417) is the threshold.
+  why:    Three suppressed shots within 1.1 s use the whole 6-step budget (line 420). A loud weapon fired in that window then gets only the soft branch (`Mathf.Min(power, Interp(_glow, Soft))`, line 453), so its real flash is cut to about 0.22-0.34 for the rest of the window. Glints that are below the visibility threshold should not count as visible flashes.
+  change: In Limiter.Shot, after the purge on line 432 and before the cost is charged, add: `float threshold = Interp(_glow, Soft); if (power <= threshold) { steps = 0; return power; }`. Sub-threshold flashes then pass through unchanged, as the soft branch already leaves them, and charge nothing.
+
+[tiny/low] src/Rig/DamageFeedback.cs:213  NoDirection stays set if ReceivedDamage throws
+  what:   PlayerDamagePatch sets `DamageFeedback.NoDirection = direction.sqrMagnitude < 1e-6f;` in the Prefix (line 210) and clears it only in the Postfix (line 215: `DamageFeedback.NoDirection = false;`).
+  why:    If the original FpsActorController.ReceivedDamage throws, Harmony skips the Postfix and the flag stays true. The next arrow from FpsActorController.OnVehicleWasDamaged (decompiled FpsActorController.cs:638), which does not go through ReceivedDamage, is then treated as 'no direction': glow from below and no hand buzz (src/Rig/DamageFeedback.cs:67-70).
+  change: Replace the Postfix reset with a `[HarmonyFinalizer]` method in PlayerDamagePatch that sets `DamageFeedback.NoDirection = false;`. Finalizers run even when the original method throws.
+
+[tiny/medium] src/Rig/LensEffects.cs:603  Worker can block forever when Destroy races a job
+  what:   BandLoop returns on `if (_stop) { return; }` (lines 603-606) without `_bandDone[band].Set()`. WorkerLoop waits on every band with `_bandDone[b].WaitOne();` (line 572) and no timeout. Destroy (lines 500-536) sets `_stop` and calls `_bandWake[b]?.Set()`.
+  why:    If Destroy runs after the worker has woken the bands for a job but before a band checks `_stop`, the worker thread waits forever. It is a background thread, so the process still exits, but each rig rebuild during a flash leaks one blocked thread.
+  change: In BandLoop, call `_bandDone[band].Set();` before the `return` in the `if (_stop)` branch (line 604-605).
+
+[tiny/low] src/Weapons/LensFlash.cs:389  World muzzle glow is not gated on death
+  what:   UpdateGlow (lines 342-391) never checks the player's death. LensEffects gates its own glow with `dead` (src/Rig/LensEffects.cs:390), but `_fireball.SetGlow(muzzle, _gunAhead, glowMost);` (line 389) is not gated.
+  why:    After a death while the trigger is held, the world-space glow at the dead player's muzzle keeps decaying for up to about 0.6 s (the 0.5 s shot window plus the 0.04 x power per-frame ease), as long as the muzzle is still active and in view. Visual only.
+  change: At the top of UpdateGlow compute `bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;`. When dead, set `shown` to 0, call `_limiters[e].ClearGlow()`, and pass `glowMost = 0` to `_fireball.SetGlow`, as LensEffects.Present already does for its own glow.
+
+CHECKED AND FINE:
+  - LensEffects picture pipeline: double buffering (Present upload only when _done, dispatch after upload), per-band row ranges (no overlap between the four bands), Serial/Drawn bookkeeping so a flash fades from its first shown picture, and flash removal timing. No race found beyond the Destroy case above.
+  - LensEffects.Hit precedence (balance-only amber never overrides a red hit still showing) and the 0.5 s hit timer, which starts when first drawn.
+  - Hit direction sign convention: FpsActorController.ReceivedDamage (decompiled FpsActorController.cs:656-657) gives 90 = left, -90 = right, matching DamageFeedback's buzz side and LensEffects' HitDirX/HitDirY.
+  - DamageFeedback vignette fallback (Update, lines 103-107): Actor.Damage calls controller.ReceivedDamage (Actor.cs:2178) before ShowVignette (Actor.cs:2239), so the 180-degree fallback does not fire for normal player damage. Not a bug in practice.
+  - Harmony patch parameter names match the game signatures: ReceivedDamage(direction, damage), DamageUI.ShowVignette(intensity, duration), DamageUI.ShowDamageIndicator(angle, onlyBalanceDamage).
+  - MudSplash explosion handling: damageRange and balanceRange are metres (ExplodingProjectile.cs:18-22), and ActorManager fires OnExplosion before damage (ActorManager.cs:2128). Listener is re-attached per scene (Subscribe). Dirt placement, Free() reuse, and the water-drop surfacing check that ignores death under water all hold.
+  - MuzzleFlashInfo: handles null muzzle entries and counts particles across all muzzles, so ParticlesOut is correct for multi-barrel guns.
+  - Division by zero: EyePower (d clamped to 1e-3), Ipd (clamped to 0.04-0.09), Visibility (d < 1e-3 guard), DropField radii (always > 0), FastAtan2 (zero guard). ExpNeg arguments are non-negative (Petals minimum 0.44), so no NaN index crash found.
+  - Glow limiter: ClearGlow when power <= 0 (LensFlash.cs:369-371) prevents the slow 1e-4-per-frame decay trap.
+  - Weapon switch: _gunHeld/_gun staleness only affects the glow for a fraction of a second because rate goes to 0 once holdingFire is false; not reported.
+  - Camera and object lifetime: VRRig root is DontDestroyOnLoad (VRRig.cs:94), so the head camera and the child quads (LensEffects, DamageFeedback veil, MudSplash, ComfortVignette) persist across scene loads. No destroyed-parent MissingReference per frame.
+  - Single-pass 20 m quad (LensEffects.cs:442): whether world geometry occludes it depends on the clear flags of the layer-5 UI camera, which I could not confirm in the decompiled game. Not reported.
+  - Enclosed-vehicle dirt (MudSplash.Blocked, lines 300-311): a Linecast from inside a hull may not report the hull, but this depends on vehicle collider layers I could not verify. Not reported.
+  - Resource leaks on Dispose only: ComfortVignette.Destroy does not release its material, mesh or mask texture, and DamageFeedback.Destroy does not release _veilMaterial. VR shutdown only, so not reported.

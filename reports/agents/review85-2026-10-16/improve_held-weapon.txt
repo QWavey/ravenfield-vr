@@ -1,0 +1,44 @@
+improve held-weapon (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: src/Weapons/HeldWeapon.cs, read in full (2157 lines), read-only review of the weapon in the dominant hand (grip, recoil, weight, parts). Cross-checked against WeaponSystem.cs, ReloadInteractions.cs and VRConfig.cs. The rocket-model and PNG/GIF work in the relayed user message is not part of this read-only review and was not done.
+
+[major/high] src/Weapons/HeldWeapon.cs:893  Support hand gets no shot buzz when it is on the gun but TwoHanded is off
+  what:   OnShot gates the off-hand haptic on `if (TwoHanded) { _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f); }` (lines 893-896). The contact knock does the same at lines 1130-1133. But `Supported` (line 52) is `TwoHanded || _system.Rig.Off.Role == HandRole.Foregrip`, and ReloadInteractions.cs:346 sets `_held.SetTwoHanded(VRConfig.TwoHandedAiming.Value && !GripData.IsPistol)` while the off hand's role is Foregrip. So a cupped pistol, and any foregrip with TwoHandedAiming off, is Supported with TwoHanded false.
+  why:    Every shot from a cupped pistol (and from any gun with two-hand steering disabled) buzzes only the dominant hand. The support hand is on the gun and the recoil reduction at lines 870-874 already applies to it, but it feels nothing. A wall or crate knock is felt in one hand only. The support hand already buzzes on release (ReloadInteractions.cs:188), so the cue is missing only on fire and contact.
+  change: Replace `if (TwoHanded)` with `if (Supported)` at line 893 (shot) and at line 1130 (contact knock). Two-handed steering is unchanged because Supported includes TwoHanded.
+
+[minor/medium] src/Weapons/HeldWeapon.cs:61  Stock seating in the shoulder gives no tactile cue
+  what:   `Shouldered` (lines 61-74) switches with 12 cm in and 15 cm out hysteresis. When it flips, the shot kick drops to 75 percent (lines 866-868), the one-hand droop and spring stiffness change (lines 1005, 1068) and the inertia stiffness doubles (lines 647-648). Nothing is felt at the moment it happens. The getter also mutates `_shouldered` on every read.
+  why:    The player seats the stock and the gun quietly becomes steadier and recoils less. A Boneworks-style lock-in is not confirmed by touch, so the player cannot tell whether the stock is set.
+  change: In BeforeRender, after the HasPose check, read `bool sh = Shouldered;` once and keep a `_wasShouldered` field. On `sh && !_wasShouldered`, call `main.Haptic(0.02f, 120f, 0.3f);` then store `_wasShouldered = sh`. Reading the getter once per frame also makes its hysteresis state easier to follow.
+
+[minor/high] src/Weapons/HeldWeapon.cs:873  Pistol foregrip recoil factor is hard-coded 0.6 and ignores the slider
+  what:   `strength *= Rig.Data.IsPistol ? 0.6f : 1f - VRConfig.TwoHandRecoilReduction.Value;` (line 873). VRConfig.cs:239-240 describes TwoHandRecoilReduction as the "Fraction of recoil removed while holding the foregrip" (default 0.4).
+  why:    Moving the Weapons/TwoHandRecoilReduction slider does nothing for a cupped pistol, which stays at 40 percent off however it is set. The setting does not match its own description.
+  change: Replace the expression with `strength *= 1f - VRConfig.TwoHandRecoilReduction.Value;`. The default still gives 0.6 for pistols, so nothing changes at default. Leave the one-handed pistol branch at line 877 alone: it uses its own multiplier and changing it would alter the one-hand value.
+
+[minor/high] src/Weapons/HeldWeapon.cs:879  Under-barrel or sub-weapon shots take the parent gun's kick class and geometry
+  what:   WeaponSystem.cs:435 calls `Held.OnShot(weapon)` with the fired weapon, which can be a sub weapon. HeldWeapon.cs:864 takes `c` from the fired weapon, but line 879 calls `ShotKick(c, Rig.Data, _weaponClass, out float climbShare)`, passing the parent's Data and class. Line 901 correctly uses ActiveRig.
+  why:    An under-barrel launcher on a rifle is kicked with the rifle's floor (0.7) and climb share (1.0) instead of the launcher's (1.2 and 0.8). On a bolt-action parent (CyclesByHand) it takes the bolt-rifle floor of 1.5. The fired gun's own kick numbers are used, but its class is not.
+  change: In OnShot, compute `WeaponRig firedRig = fired == null || fired == Weapon ? Rig : _system.RigFor(fired);` and call `ShotKick(c, firedRig.Data, ClassOf(firedRig, fired ?? Weapon), out float climbShare);`. _system.RigFor is already used in SubWeaponRig (line 562). The one-hand multiplier and the Supported state still come from the parent, which is acceptable.
+
+[minor/medium] src/Weapons/HeldWeapon.cs:890  Shot buzz is identical for every class and ignores suppression
+  what:   Line 890 `float amp = Mathf.Clamp01(0.35f + kick * 0.15f);` and line 891 `_system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);` use the same 180 Hz frequency for every weapon. Line 892 scales the view shake by `c.loud ? 1f : 0.6f`, but the haptic does not. The class floors (0.9 pistol, 0.7 rifle, 1.2 launcher, lines 928-937) map to amplitudes of about 0.49, 0.46 and 0.53.
+  why:    A suppressed pistol buzzes as hard as a loud one, while its view jolt is cut. A pistol, an SMG burst, a shotgun and a launcher feel almost the same in the hand, though the game draws them as different guns.
+  change: Multiply `amp` by `(c.loud ? 1f : 0.6f)`, matching the view shake at line 892. Choose frequency and duration by `kind` in the existing switch (lines 928-937), for example a short high pulse for a pistol and a longer low one for a launcher or machine gun, and return those from ShotKick or a small helper.
+
+[tiny/low] src/Weapons/HeldWeapon.cs:844  Aim engaging gives no tactile cue
+  what:   `Aiming = aim;` (line 844) toggles the scope steadying (line 972-974) and the scope view. The hysteresis at lines 817-842 already prevents chatter.
+  why:    The player cannot feel the moment the eye lines up with the sight, so the aim lock is easy to miss.
+  change: In UpdateAim, when `aim && !Aiming`, call `main.Haptic(0.012f, 200f, 0.2f)` on the dominant hand. Keep it very light, since the hysteresis makes this edge clean.
+
+CHECKED AND FINE:
+  - Recoil spring StepRecoil (lines 999-1016): critically damped, clamps at 0.12 m and 25 degrees. A strong pistol shot can reach the 25 degree clamp, but the flattening lasts only tens of milliseconds, so not reported.
+  - ShotKick numbers (lines 914-939) match the comments at lines 881-885 and 908-913.
+  - Inertia and Handling class tables (lines 592-699) and the pickup lag set in the constructor (lines 166-171) are consistent with the comments.
+  - Two-hand steering (lines 1042-1062) and the blend (lines 1042, 1059): eased, and it only applies to non-pistols with a support point.
+  - Shouldered hysteresis and its use in Supported / recoil / sag (lines 61-74, 647, 866, 1005, 1068).
+  - Release() (lines 2018-2154) restores every visual change, scope lens, shadow and casing state it touches.
+  - configuration null: most of the codebase assumes it is non-null (AmmoState.cs:42), so the unguarded reads at lines 237, 603, 683 are not reported.
+  - ShakeView (VRRig.cs:210-222) already respects the ViewShake setting and is not part of this file's findings.
+  - Launcher classification (ClassOf line 236-237) keys off ammo <= 1 and the muzzle more than 0.4 m in front of the grip. The rocket-in-front request is about the held-rocket model, which is not in this file, so it is not reviewed here.

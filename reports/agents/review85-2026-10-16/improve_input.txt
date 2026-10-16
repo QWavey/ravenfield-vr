@@ -1,0 +1,52 @@
+improve input (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Controller input and game input bridge: src/Input/BindingsWriter.cs, GameInputBridge.cs, ScriptKeys.cs, TurretAim.cs, VehicleInput.cs, VRInput.cs (read in full), checked against the decompiled game code in .ref/decompiled and the call sites in src/. Read-only review.
+
+[major/high] src/Input/GameInputBridge.cs:216  Seat exit completes with no confirming haptic
+  what:   HeldToLeaveSeat: `float t = (Time.unscaledTime - _leaveHeldSince) / LeaveSeatHold; if (t >= 1f) { return true; }` (lines 216-219) runs before the tick haptic. The tick haptic (lines 220-225) only fires for t < 1, so ticks 1..4 land at t=0.2/0.4/0.6/0.8 s and the hold completes silently. A grep of src/ shows the only haptic on this path is line 224.
+  why:    A seated player feels four buzzes, the last one about 0.2 s before the exit, then is ejected with no pulse at the moment it happens. Hold-to-exit is the one interaction here whose feedback stops short of its result.
+  change: Immediately before the `return true` at line 218, add `if (_leaveTicks < 5) { _leaveTicks = 5; hand?.Haptic(0.08f, 160f, 0.9f); }`. The reset at line 213 gives one pulse per hold. Keep the tick loop as it is.
+
+[minor/low] src/Input/GameInputBridge.cs:179  Second lower-button press opens the menu silently and swallows a slide release
+  what:   On a second lower-face press within 0.4 s, `VRInput.Consume(DigitalAction.SlideRelease, hand)` (line 179) and `Consume(Squad)` (line 180) run, and `open = true` raises TogglePauseMenu (line 107). Nothing signals the menu opening.
+  why:    A deliberate second slide release within 0.4 s opens the pause menu mid-fight, and that release is lost. Nothing in the hand says the menu opened, so the player cannot tell why the view changed. How often this happens depends on how players rack slides, so confidence is low.
+  change: Add a pulse when the menu opens, for example `VRInput.Haptic(hand, 0.03f, 160f, 0.5f)` in the `open = true` branch at line 181. Decide whether the second slide release should still count (line 179); if it should, stop consuming SlideRelease there and keep only the Squad consume.
+
+[minor/medium] src/Input/GameInputBridge.cs:309  Sprint, stance and scope toggles give no haptic
+  what:   The sprint toggle (lines 309-318, `SprintActive = !SprintActive`), the stick-flick crouch and prone toggles (lines 378-396), and the magnifier tap and NextScope set (lines 252-259) call no haptic. Sprint is signalled only by the vignette (VRRig.cs:315), and crouch by the view lowering (VRRig.cs:837). Fire-mode presses do pulse (WeaponSystem.cs:475 and 495).
+  why:    A scope change or a sprint or stance flip is silent in the hand. The feedback that exists is visual, and the controller gives nothing.
+  change: Add a short low pulse, `VRInput.Haptic(VRInput.Dominant, 0.02f, 180f, 0.3f)`, when sprint turns on (line 311) and when CrouchToggled or ProneToggled flips (lines 378-396). Add `VRInput.Haptic(VRInput.GunHand, 0.02f, 200f, 0.5f)` after the magnifier tap (line 254) and the NextScope set (line 259), matching WeaponSystem.cs:475.
+
+[minor/low] src/Input/ScriptKeys.cs:240  Magnifier rule matches before Laser, so a laser key can be typed as a magnifier
+  what:   The Rules array tests Magnifier (`magnif|zoom|scope|sight`, line 240) before Laser (`laser`, line 241) and Light (line 242). Classify returns the first rule matching the behaviour name (lines 278-288).
+  why:    A laser toggle in a script named e.g. 'LaserSight' is typed Magnifier. While aiming, the fire-mode press taps `ScriptKeys.Find(weapon, Magnifier)` (GameInputBridge.cs:251-255), so it taps the laser instead of the scope. Script names are not in the repo, so this is unverified.
+  change: Move the Laser, Light, Bipod and Suppressor rules above Magnifier, or remove `sight` from the Magnifier pattern.
+
+[minor/medium] src/Input/TurretAim.cs:22  Turret aims with the settings hand, not the gun hand
+  what:   Hand mode uses `rig.SetDominant.Tracked` (line 22) and `rig.SetDominant.Pointer.Forward` (line 24). `SetDominant` is `Hands[(int)VRInput.Dominant]` (src/Rig/VRRig.cs:64), the handedness setting. The turret's trigger comes from `VRInput.GunHand` (GameInputBridge.cs:102 and 121).
+  why:    After a weapon is passed to the off hand (VRInput.cs:617 GunHandSwapped), the turret is aimed by the hand that is not on the trigger. The player fires with one hand and steers with the other.
+  change: Replace `rig.SetDominant` with `rig.Hand(VRInput.GunHand)` on lines 22 and 24. VRRig.Hand(Hand) already exists at VRRig.cs:65.
+
+[minor/low] src/Input/TurretAim.cs:49  Turret slew is per rendered frame, so VR turn speed depends on frame rate
+  what:   Steer returns `Mathf.Clamp(yaw * gain, ...)` (line 49), a fixed amount per call. The game adds that amount in Update with no Time.deltaTime: `localEulerAngles.y += vector.x` (MountedTurret.cs:96-103; TankTurret.cs:25-33; MountedStabilizedTurret.cs:195-200).
+  why:    Turret speed per second scales with the render rate. A 120 Hz headset, or reprojection dropping to 45 Hz, makes the same error turn the turret at a different speed than the 60 fps tuning. The game's AI path has the same dependency (MountedTurret.cs:131-132), so this is not a clear VR-only bug.
+  change: Scale the result inside Steer by `Time.deltaTime * 60f`, which keeps the 60 fps feel and makes slew independent of frame rate. Check it against the game's own feel before shipping.
+
+[minor/medium] src/Input/TurretAim.cs:58  Turret steer gains ignore per-turret sensitivity fields
+  what:   Steering uses fixed gains per patch class: `Steer(__instance, ..., 5f, 10f, ...)` (line 58), `3f, 10f` for TankTurret (line 65), `5f, 3f` for MountedStabilizedTurret (line 72). The game's human aim path scales input by each turret's public `sensitivityX`/`sensitivityY` (MountedTurret.cs:129 with fields at lines 33 and 35; MountedStabilizedTurret.cs:73/75; TankTurret.cs:7/9). The AI path does not (MountedTurret.cs:131-132 uses a constant 5).
+  why:    In VR every turret slews at the same rate, whatever the designer set. A turret with sensitivity below 1 is faster in VR than in flat play. The effect depends on prefab values, which are not in the repo, and is zero where they are 1.
+  change: Pass the turret's sensitivity into Steer as separate yaw and pitch multipliers. Multiply yaw by sensitivityX and pitch by sensitivityY, matching the mapping at MountedTurret.cs:129, so the gains at lines 58/65/72 become base * sensitivity per axis.
+
+CHECKED AND FINE:
+  - BindingsWriter.cs: the regex covers every input path in bindings_oculus_touch, bindings_knuckles, bindings_hpmotioncontroller and bindings_vive_controller. Skeleton paths are correctly not mirrored. Letter swap is applied only to Touch and HP, where X/Y sit on the left and A/B on the right. Knuckles has A/B on both hands, so no swap is correct there.
+  - bindings_rift.json is an empty placeholder with no buttons (src/Input/SteamVR/bindings_rift.json), so the 'rift' controller type needing no letter swap is correct.
+  - VRInput.Haptic: the Touch minimum-amplitude floor scales with HapticStrength and the 0..1 clamp holds. Haptic call sites elsewhere (VRHand.cs:267, UI, weapons) are consistent.
+  - ApplyDeadzone: radial dead zone, output clamped to 0..1, no division by zero when the dead zone is 1 because m <= deadzone returns early.
+  - ScriptKeys Query/Deliver: each script gets one edge per frame; Tap and SetHeld interaction does not leave a key stuck (a hold blocked by an in-flight tap recovers the next frame).
+  - ScriptedBehaviour.ResolveCurrent (ScriptedBehaviour.cs:82-93) is an event-stack check, not a stack walk, so per-poll cost is fine.
+  - ResetToggles runs on respawn (VRRig.cs:308-311) and on seat and ladder transitions (VRRig.cs:456-461), so toggles do not carry into a vehicle.
+  - Fire-mode press already gives haptics (WeaponSystem.cs:475, 490, 495), so that is not a gap.
+  - VehicleInput Postfixes add unclamped values, but the game clamps downstream (Car.cs:89, ArcadeCar.cs:424, Airplane.cs:152, AnimationDrivenVehicle.cs:58-62), so no bug.
+  - WheelSteer is cleared on release (CockpitControls.cs:80 and 284), so steering does not stick after letting go of the wheel.
+  - The game's own fire path checks !IsCursorFree() (FpsActorController.cs:501), so the Fire bind held in menus does not fire the weapon through the game.
+  - TankTurret clamp of 10 in TurretAim.cs:65 exceeds the game's own 5-per-frame clamp (TankTurret.cs:33-34), so the constant is misleading but has no effect. Not reported.

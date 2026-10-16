@@ -1,0 +1,42 @@
+perf hands (Performance), read-only Haiku agent, 2026-10-16
+
+SCOPE: Hands (glove, poses, IK), per-frame performance in src/Rig/HandModel.cs, HandShape.cs, GloveMesh.cs, HandPoses.cs, VRHand.cs, src/Weapons/ArmIK.cs and ModHand.cs, with the callers that set their per-frame inputs (HeldWeapon.cs, VRManager.cs, ReloadInteractions.cs, MagazineProp.cs). Read-only; costs are counted from the code, not profiled. Overall: nothing here is above minor, and this area is unlikely to be the cause of 45-fps dips.
+
+[minor/medium] src/Rig/HandModel.cs:831  Grip search runs 13 synchronous probes every 0.2 s while the hand moves
+  what:   SlideOnGrip: `if (_searchPending && Time.unscaledTime >= _nextSlideSearch) { ... foreach (float step in SlideSteps) { _root.position = start + down * step; _root.position += n * PalmOffset(n); SolveFinger(2, 1f); ... } }` (lines 835-853). PalmOffset (794-815) scans linearly: up to 20 negative and 10 positive PalmTouches calls (lines 798-813), each PalmTouches (893-905) reads _root.localToWorldMatrix and calls Solid() on 12 skin points.
+  why:    `_searchPending |= moved` (line 834) arms the scan on any 3 mm hand motion on the grip, so while the hand moves the whole scan runs in one frame 5 times a second. Counting, that is roughly 2k-5k Solid() calls plus about 26 root position writes per search, estimated at 0.2-0.4 ms per hitch. Small against the 11 ms budget, but it recurs every 200 ms.
+  change: (a) Spread the scan: run one SlideSteps entry per frame and keep _slideGoal until the scan completes, instead of all 13 in one call. (b) Replace PalmOffset's two linear scans with a bisection over [-0.04, +0.02] at 2 mm resolution (about 5 PalmTouches calls instead of up to 21), seeded from the last _palmTarget. Check that PalmTouches is monotone along the normal over that range before relying on it.
+
+[minor/medium] src/Weapons/HeldWeapon.cs:1722  Pistol support hand is forced to re-solve every frame
+  what:   `off.Model.SolidVersion = Time.frameCount; // the gun hand's fingers move: no reusing last frame's solve` (HeldWeapon.cs:1722). GripMoved() (HandModel.cs:872-891) compares `_slideAtVersion != SolidVersion` (lines 881-882), so it is true every frame. With moved true, Apply runs PalmOffset via SettlePalm (lines 781-785) and all five SolveFinger calls (lines 648-687) instead of the reuse path.
+  why:    While a pistol is cupped, the support hand does its full solve every frame even when the gun hand is still. Estimated 0.1-0.3 ms per frame. The gun hand's skin only needs to invalidate the support solve when it actually moves.
+  change: Give HandModel a skin version that UpdateSkin (HandModel.cs:711-729) bumps when any capsule end or palm point has moved more than about 0.5 mm since the last bump. For the support hand, set SolidVersion from the gun hand's version when Apply reads it. VRManager.cs:202-203 runs the gun hand's Apply first, so the value is current. Keep the SolidAnchor pose check in GripMoved unchanged.
+
+[tiny/medium] src/Rig/HandModel.cs:121  Glove mesh is never destroyed when the hand model is torn down
+  what:   `Mesh mesh = _shape.BuildMesh(_root, _joints, m);` (line 121) creates a Mesh that only the SkinnedMeshRenderer references. Destroy() (lines 1298-1304) destroys _root and nothing else. VRRig.cs:1056-1058 calls VRHand.Destroy on each hand.
+  why:    Not a per-frame cost. If a rig is torn down and built again in a session, each old glove mesh stays loaded until a full unload. Its size depends on the glove model (vertex, normal, uv and bone-weight arrays).
+  change: Keep the mesh in a field and call Object.Destroy(_mesh) in Destroy() after the root is destroyed.
+
+[tiny/low] src/Rig/HandModel.cs:442  Keep-out scans restart from zero every frame during a magazine seat
+  what:   ClearanceAlong (lines 449-455) steps from s = 0 in 5 mm increments up to max (0.12 m, so up to 25 GloveIn calls) and returns the first clear step. ShortestWayOut (lines 487-496) does the same over 7 directions. Callers: ReloadInteractions.cs:1851 (KeepOutOfGun, every frame during a seat on the rail) and :1833.
+  why:    GloveIn returns early on the first blocked point, so the cost is about 0.02-0.1 ms in practice, bounded by 25 x 42 samples. The answer moves by millimetres per frame, so the scan repeats nearly the same work each frame.
+  change: Warm-start from last frame's result: keep the last back distance in a field, test that step first, then try plus and minus one 5 mm step. Fall back to the full scan only when those fail.
+
+[tiny/medium] src/Rig/HandModel.cs:735  NearSkin does a native transform call and 15 capsule tests per sample
+  what:   NearSkin runs the capsule loop (lines 741-750) over all 15 capsules first, then `Vector3 l = _root.InverseTransformPoint(p);` (line 751) for every point that misses. It is the inner test of the support hand's Solid (HeldWeapon.cs:1720), the rack handle (HeldWeapon.cs:1599, 1617-1619) and the reload keep-out (ReloadInteractions.cs:1829).
+  why:    Each call costs 15 capsule tests plus a native call, and the support hand's solve calls it once per sample, about 1-2k samples on a moving frame. Estimated 0.05-0.15 ms per frame while a pistol is cupped. Most samples are far from the gun hand, so a bounding box would reject them in one comparison.
+  change: In UpdateSkin, store _root.worldToLocalMatrix once and an axis-aligned box over the capsule ends plus their radii. In NearSkin, return false first when p lies outside that box grown by `grow`. Replace InverseTransformPoint with the stored matrix's MultiplyPoint3x4.
+
+CHECKED AND FINE:
+  - Per-frame allocations: none found in the seven files. RigidPose and HandPose are structs (src/Runtime/OpenVRMath.cs:38, src/Input/VRInput.cs:25). Solid delegates are created once and cached (HeldWeapon.cs:1274, 1561, 1720; MagazineProp.cs:1087; ReloadInteractions.cs:1829). Scratch arrays (_chain, _goal, WayOutDirs, SlideSteps) are preallocated. The only foreach loops are over arrays.
+  - String formatting (CurlsText HandModel.cs:299, Describe 361, ModHand.Describe 92) runs only in self-test or HandReport paths. ReloadInteractions.cs:2412 is inside a yield-based self-test; HeldWeapon.cs:1804-1806 is inside HandReport, which AutoTest.cs:2107 calls.
+  - No GetComponent, Find or Physics query on any per-frame path in these files. ModHand.Find and the ArmIK constructor run once per held weapon (HeldWeapon.cs:190-194).
+  - VRConfig.ParseVector (src/Core/VRConfig.cs:413-426) caches by string identity, so the per-frame ParseVector calls in Apply (HandModel.cs:534-536) are a dictionary lookup each.
+  - HandModel.Apply runs once per frame from onBeforeRender (VRManager.cs:177, 203-209). It returns before the finger solve and skin when the hand is suppressed or hidden (HandModel.cs:563-569).
+  - Renderer work: SetVisible writes enabled only on change (HandModel.cs:392-394). The SkinnedMeshRenderer has fixed localBounds, updateWhenOffscreen = false and skinnedMotionVectors = false (HandModel.cs:137-142). Nothing instantiates a material per frame. SetGloveColor (HandModel.cs:373) has no callers.
+  - Solve reuse works: finger solves are skipped when nothing moved (HandModel.cs:648-656), the palm target is cached (781-785), and GripMoved is edge-triggered against the last search pose (872-891).
+  - GunVolume.Solid (src/Weapons/GunVolume.cs:148-178) is a loop over at most five views on a sealed class, with no allocation. HeldShapesOf already caches per frame (MagazineProp.cs:1106-1125).
+  - ArmIK.Solve (src/Weapons/ArmIK.cs:64-111): about 40 transform reads and writes plus two two-bone solves per frame, well under 0.05 ms.
+  - Glove mesh build, glove JPEG decode (HandShape.cs:198-372) and the weave texture (GloveMesh.cs:196-230) run once per process or per HandModel, not per frame. The first HandShape.Current access is a one-time startup hitch.
+  - VRHand.UpdatePose makes three OpenVR pose calls per hand per frame (VRHand.cs:67, 100, 106), roughly 30-60 us in total. Not worth changing.
+  - Overall estimate, counted from the code and not profiled: about 0.1-0.2 ms on a frame where a held gun's hand moves, 0.2-0.4 ms on the 5 Hz search frame, and near zero when the hand rests. That is a few percent of the 11 ms budget. To confirm, wrap HandModel.Apply in a Stopwatch or capture it in the Unity profiler during a session.

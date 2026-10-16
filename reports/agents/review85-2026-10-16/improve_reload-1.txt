@@ -1,0 +1,44 @@
+improve reload-1 (Improvements), read-only Haiku agent, 2026-10-16
+
+SCOPE: Manual reloading, first half: src/Weapons/ReloadInteractions.cs lines 1-1500 (read in full). Checked against MagazineProp.cs, HeldWeapon.cs and VRHand.cs for the behaviour the code depends on.
+
+[major/high] src/Weapons/ReloadInteractions.cs:1043  A magazine, round or shell pushed into a well that refuses it gets no feedback
+  what:   `if (!AcceptsNow(prop)) { prop.OnRail = false; if (_pullingIn == prop) _pullingIn = null; return; }` (lines 1043-1051) has no haptic, sound or flash. Refusals come from AcceptsNow (1005-1020: other weapon's WeaponKey, a magazine while Ammo.MagInserted, a rocket while MagRounds > 0, a shell when full or breech closed) and from TryMagKick's `if (!Data.MagKickable) return false;` (1258-1261), which turns a second magazine pushed into a deep-well pistol into a plain pass-through.
+  why:    The player drives a magazine into the well, it slides past the mouth and nothing happens. They cannot tell whether the gun is full, the magazine is the wrong one, or the grab simply missed. The only cue for an accepted magazine is the lip sound and haptic at 1087-1091, so a refusal feels like a dropped input.
+  change: In the `!AcceptsNow` branch at 1043, when the prop is inside the well window (same geometry as LinedUpUnderWell at 1185-1194 but without its AcceptsNow gate: along > -0.03, lateral < 0.06, angle < 40) and a throttle has passed (a new `_refusedAt` float, about 1 s), call `off.Haptic(0.03f, 90f, 0.35f)` and `_held.FlashCounter(reason)`. Reason: "WRONG MAG" when prop.WeaponKey != Data.Key, "FULL" for rocket or shell (same text as line 975), "LOADED" for a magazine when Ammo.MagInserted.
+
+[major/medium] src/Weapons/ReloadInteractions.cs:1078  Loose rocket lock draws it from the wrong end, shifting it by its length or flipping it
+  what:   On a loose lock: `prop.RailHandOffset = along - looseDepth;` (1078) then `along = looseDepth;` (1080) and `prop.RailDepth = Mathf.Clamp(along, 0f, prop.RailLength);` (1085). looseDepth is the depth of whichever end is nearer the mouth (LooselyLined, 1156-1168). But RailPose (MagazineProp.cs:1495-1499) always places TipLocal at RailDepth with seat.rotation, so the drawn rocket is always tip-in.
+  why:    A rocket held base-first, with its far end deeper, is drawn with its tip at the base's depth, so it sits back from the hand by about its own length (RailHandOffset = length times cos of its tilt). ShowOnRail (ReloadInteractions.cs:1700-1705 and 1220-1239) then re-seats the glove onto the drawn rocket, so the hand jumps. A rocket held reversed (near end is the tip, axis about 180 degrees from the insert; `Mathf.Min(angle, 180f - angle)` at 1166 accepts it) is drawn turned 180 degrees on lock. ShowAt's 0.08 s blend (MagazineProp.cs:94-132) softens the snap but not the offset or the flip. This is the rocket-orientation path the user asked about.
+  change: Make the drawn pose match the hand on loose locks. Add a per-prop flag (e.g. `RailReversed`) set at the loose lock (1078-1085) when the near end is the base or the axis is reversed. Have MagazineProp.RailPose (1495-1499) rotate the seat by 180 degrees about an axis perpendicular to InsertDirLocal and measure depth from BaseLocal, so the end the hand holds is the end drawn at the mouth. Do not simply substitute the near-end depth into RailDepth without that, because RailPose draws the tip there.
+
+[minor/high] src/Weapons/ReloadInteractions.cs:90  Magazine release with no magazine in the well gives no feedback
+  what:   Lines 90-93 only log (`Log.InfoOnce("magrel-no:...")`). The if/else chain at 94-117 has no final else, so with `Ammo.UsesDetachableMag && !Ammo.MagInserted` (empty well) the press produces no haptic, sound or flash. Only the BoxLocked branch (98-102) gives feedback.
+  why:    The player presses the release on an empty gun and nothing happens: no click, no buzz, no counter message. They cannot tell whether the press registered or the gun is simply empty.
+  change: After the chain at line 117 add `else if (Ammo.UsesDetachableMag) { dom.Haptic(0.03f, 60f, 0.25f); _held.Sounds.Play(MechSound.DryFire, SeatPose.position, 0.5f); _held.FlashCounter("NO MAG"); }`, following the empty-pouch pattern at lines 974-975.
+
+[minor/low] src/Weapons/ReloadInteractions.cs:1070  Lock-on tolerances are fixed per kind and ignore prop size, unlike the kick reach
+  what:   `bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f ...` (1070-1071), `lateral > 0.07f + prop.RailLateral0` (1111) and `lateral < 0.06f` in LinedUpUnderWell (1193) are constants. The kick reach uses `prop.CrossHalf` (1244-1245), and MagazineProp has size classes BoxSized (MagazineProp.cs:74) and PistolSized (66).
+  why:    A box or drum magazine (CrossHalf > 0.055) must have its centre within the same 3.5 cm of the well axis as a rifle magazine, though it is much wider, so starting one is relatively harder and the feel differs by magazine size. The kick already scales with size, so the lock is inconsistent with it.
+  change: Derive the lock tolerance from prop.CrossHalf, for example `float lockReach = Mathf.Clamp(prop.CrossHalf + 0.015f, 0.035f, 0.07f);`, use it at 1070 and 1193 and set the leave-rail limit at 1111 to about twice that. Check the real CrossHalf values (MagazineProp.cs:171, 286) before tuning, since these numbers are estimates.
+
+[minor/high] src/Weapons/ReloadInteractions.cs:1088  Rocket lock-on onto the tube has no lip sound; only magazines get one
+  what:   `if (prop.Kind == PropKind.Magazine) { _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.5f); }` (1088-1091). A rocket that locks at 1082-1087 gets only the 15 ms haptic at 1087.
+  why:    A magazine clicks onto the lip, but a rocket, the object the player most needs to line up under a shouldered launcher, locks silently. The lock is felt but not heard.
+  change: Change the condition at 1088 to `prop.Kind == PropKind.Magazine || prop.Kind == PropKind.Rocket` so MechSound.MagLip plays for rockets too, optionally at a lower volume (about 0.35).
+
+[minor/high] src/Weapons/ReloadInteractions.cs:1262  Mag kick 'on the base' tick is lost after the hand slides out sideways
+  what:   `if (lateral > strikeReach || angle > MaxKickAngle) { _kickPushSince = -1f; return false; }` (1262-1266) returns before the code at 1277-1280 that clears `_kickTicked` when the hand is outside the window. `_kickTicked` is only cleared by `else if (!inWindow) _kickTicked = false;`.
+  why:    After the hand has ticked on the old base and then leaves sideways (or tilts past 75 degrees), it returns into the window without the 'you are on the old magazine's base' buzz (1272-1276), because `_kickTicked` is still true. The player gets that cue only on the first approach.
+  change: Add `_kickTicked = false;` inside the early-return branch at 1262-1266, before `return false`.
+
+CHECKED AND FINE:
+  - VRHand.AngularVelocity comes from OpenVR vAngularVelocity (VRHand.cs:125, VRInput.cs:511), which is rad/s, so the 9 rad/s flick threshold for snapping a break-action shut (ReloadInteractions.cs:120) is plausible. No finding.
+  - Rail lock is eased: OnRail's setter captures _switchFrom and ShowAt blends over 0.08 s (MagazineProp.cs:94-132), so the lock itself does not snap. Only the geometric offset in finding 2 remains.
+  - HeldWeapon.Nudge scales by weapon class (HeldWeapon.cs:946-952), so fixed nudge magnitudes at 539, 568, 631, 1337, 1356 and 1368 are acceptable. No finding.
+  - Foregrip let-go hysteresis and buzz (184-198) and the 60 cm support slack (SupportLetGo, 1197): reasonable. No sound is played when the support hand lets go, but the haptic at 188 is present, so not reported.
+  - TryGrab scoring and pouch gating (224-298) including the _pressPalm squeeze rule: no defect found.
+  - Magazine palming, tactical eject and KickOut (401-450, 1312-1338): no defect found.
+  - Pulling a magazine out (522-541), the seat path (1347-1378) and ReleaseProp (1385-1435): no defect found.
+  - Feed cover, break-action hinge and belt start (585-659, 787-943 partly): reviewed, no defect in this half. Optic switching (663-783): reviewed, no defect.
+  - Rocket loose-lock acceptance (1072-1081, LooselyLined 1156-1168): the thresholds are as described; the depth bookkeeping problem is reported as finding 2.
