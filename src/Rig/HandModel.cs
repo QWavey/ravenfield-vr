@@ -795,6 +795,38 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
+        /// A number that changes when this glove's skin moves against <paramref name="frame"/> by about half a millimetre
+        /// (its finger capsules and its palm): what a support hand cupping it on a pistol re-solves on, instead of every
+        /// frame (it re-solved all five fingers each frame, about 0.2 ms, with nothing moved; perf review 2026-10-16). The
+        /// frame is the gun body: in world space the key would change all the time the gun swings.
+        /// </summary>
+        internal int SkinKey(Transform frame)
+        {
+            if (!_skinValid || frame == null)
+            {
+                return Time.frameCount;
+            }
+            Matrix4x4 m = frame.worldToLocalMatrix;
+            Matrix4x4 palm = m * _root.localToWorldMatrix;
+            unchecked
+            {
+                int h = 17;
+                for (int i = 0; i < _skinA.Length; i++)
+                {
+                    h = h * 31 + Quantized(m.MultiplyPoint3x4(_skinA[i]));
+                    h = h * 31 + Quantized(m.MultiplyPoint3x4(_skinB[i]));
+                }
+                h = h * 31 + Quantized(palm.MultiplyPoint3x4(Vector3.zero));
+                h = h * 31 + Quantized(palm.MultiplyVector(Vector3.forward * 0.1f)); // half a millimetre at 10 cm: a third of a degree
+                h = h * 31 + Quantized(palm.MultiplyVector(Vector3.up * 0.1f));
+                return h;
+            }
+        }
+
+        private static int Quantized(Vector3 v) =>
+            unchecked(Mathf.RoundToInt(v.x * 2000f) * 73856093 ^ Mathf.RoundToInt(v.y * 2000f) * 19349663 ^ Mathf.RoundToInt(v.z * 2000f) * 83492791);
+
+        /// <summary>
         /// Within <paramref name="grow"/> of this glove's skin (as last posed): for a support hand cupping this hand on a
         /// pistol, so its fingers wrap round these fingers instead of going through them.
         /// </summary>
