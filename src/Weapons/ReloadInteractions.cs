@@ -426,6 +426,7 @@ namespace RavenfieldVR.Weapons
             off.Haptic(0.04f, 120f, 0.55f);
         }
 
+        private float _refusedAt = -10f;
         private RigidPose _palmedFrom;
         private float _palmedAt = -1f;
 
@@ -1046,6 +1047,15 @@ namespace RavenfieldVR.Weapons
                 if (_pullingIn == prop)
                 {
                     _pullingIn = null;
+                }
+                // Pushed into a well that will not take it (a magazine still seated, a full tube, a loaded launcher): a short
+                // blocked knock, at most once a second, instead of nothing at all (85-agent review).
+                float refusedAlong = HandAlongRail(off, prop, out float refusedLateral);
+                if (refusedLateral < 0.05f && refusedAlong > -0.02f && refusedAlong < prop.RailLength && Time.unscaledTime > _refusedAt + 1f)
+                {
+                    _refusedAt = Time.unscaledTime;
+                    off.Haptic(0.04f, 70f, 0.55f);
+                    _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.35f);
                 }
                 return;
             }

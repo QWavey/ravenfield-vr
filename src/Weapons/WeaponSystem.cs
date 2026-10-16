@@ -491,7 +491,8 @@ namespace RavenfieldVR.Weapons
                 return true;
             }
             FlashMessage(mode);
-            Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.5f);
+            // The selector's own short click, not the hammer falling on an empty chamber (85-agent review).
+            Sounds.Play(MechSound.MagLip, Rig.Dominant.Palm.position, 0.4f);
             Rig.Dominant.Haptic(0.02f, 200f, 0.5f);
             return true;
         }
