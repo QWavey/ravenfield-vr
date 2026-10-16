@@ -493,11 +493,12 @@ namespace RavenfieldVR.Weapons
                     _spareScales[i] = _spareParts[i] != null ? _spareParts[i].localScale : Vector3.one;
                 }
             }
+            Vector3 tiny = Vector3.one * 1e-4f;
             foreach (Transform t in _spareParts)
             {
-                if (t != null)
+                if (t != null && t.localScale != tiny) // re-hidden only when an animation has scaled it back up
                 {
-                    t.localScale = Vector3.one * 1e-4f; // every frame: an animation that scales it would bring it back
+                    t.localScale = tiny;
                 }
             }
         }
@@ -871,6 +872,18 @@ namespace RavenfieldVR.Weapons
         /// <param name="fired">The weapon that fired: this one or its under-barrel / sub weapon (which kicks as itself).</param>
         public void OnShot(Weapon fired)
         {
+            // A sub weapon kicks as itself: its own rig, class and one-handed multiplier, not the parent's (an under-barrel
+            // launcher on a rifle got the rifle's gentle floor and climb; a fire-mode variant shares the parent rig and so
+            // reads the same as it did).
+            Weapon sub = fired != null && fired != Weapon ? fired : null;
+            WeaponRig firedRig = sub != null ? SubWeaponRig(sub) : Rig;
+            WeaponRigData fd = firedRig.Data;
+            WeaponClass kind = sub != null ? ClassOf(firedRig, sub) : _weaponClass;
+            float oneHand = _oneHandRecoil;
+            if (sub != null)
+            {
+                Handling(fd, sub, out oneHand, out _, out _);
+            }
             Weapon.Configuration c = (fired != null ? fired : Weapon).configuration;
             float strength = VRConfig.RecoilStrength.Value;
             if (Shouldered)
@@ -880,13 +893,13 @@ namespace RavenfieldVR.Weapons
             if (Supported)
             {
                 // Long guns: the support hand takes part of it; a pistol cupped in two hands a good part.
-                strength *= Rig.Data.IsPistol ? 0.6f : 1f - VRConfig.TwoHandRecoilReduction.Value;
+                strength *= fd.IsPistol ? 0.6f : 1f - VRConfig.TwoHandRecoilReduction.Value;
             }
             else
             {
-                strength *= Rig.Data.IsPistol ? _oneHandRecoil : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value);
+                strength *= fd.IsPistol ? oneHand : oneHand * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
-            float kick = ShotKick(c, Rig.Data, _weaponClass, out float climbShare);
+            float kick = ShotKick(c, fd, kind, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
             // Critically damped spring peak = v0 / (omega * e), omega ~ 12 (StepRecoil): ~0.9 m/s per kick unit gives ~2.7 cm
             // back, ~180 deg/s per kick unit ~5.4 degrees of muzzle climb per shot, before the hand factors (a rifle in two
@@ -1227,6 +1240,7 @@ namespace RavenfieldVR.Weapons
         private bool _volumeTried;
         private bool _hullApplied;
         private System.Func<Vector3, bool> _supportSolid;
+        private HandModel _supportGunHand;
 
         /// <summary>Self-test: the support hand on a pistol closes on the gun only, as before (to compare).</summary>
         internal static bool LegacySupportSolid;
@@ -1729,8 +1743,10 @@ namespace RavenfieldVR.Weapons
                 if (off.Role == HandRole.Foregrip && solid != null && Rig.Data.IsPistol && main.Model != null)
                 {
                     // Cupping a pistol: the support hand closes on the gun and on the gun hand's fingers round its grip.
-                    HandModel gunHand = main.Model;
-                    off.Model.Solid = _supportSolid ?? (_supportSolid = p => _solid(p) || !LegacySupportSolid && gunHand.NearSkin(p, GunVolume.Grow));
+                    // The gun hand's model is read through a field so the solid lambda captures only this, not a fresh
+                    // closure object every frame this branch runs.
+                    _supportGunHand = main.Model;
+                    off.Model.Solid = _supportSolid ?? (_supportSolid = p => _solid(p) || !LegacySupportSolid && _supportGunHand.NearSkin(p, GunVolume.Grow));
                     off.Model.SolidAnchor = Rig.GunBody;
                     off.Model.SolidVersion = Time.frameCount; // the gun hand's fingers move: no reusing last frame's solve
                 }
@@ -1929,11 +1945,12 @@ namespace RavenfieldVR.Weapons
                 bool hide = !ammo.MagInserted;
                 if (hide)
                 {
+                    Vector3 tiny = Vector3.one * 1e-4f;
                     foreach (Transform part in Rig.MagazineParts)
                     {
-                        if (part != null) // a mod may swap or destroy magazine pieces at runtime
+                        if (part != null && part.localScale != tiny) // a mod may swap or destroy magazine pieces at runtime
                         {
-                            part.localScale = Vector3.one * 1e-4f;
+                            part.localScale = tiny;
                         }
                     }
                     _magHidden = true;
@@ -1990,7 +2007,11 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 worldTravel = Rig.DirToWorld(travelGun);
             Transform parent = part.parent;
-            part.localPosition = restLocal + (parent != null ? parent.InverseTransformVector(worldTravel) : worldTravel);
+            Vector3 target = restLocal + (parent != null ? parent.InverseTransformVector(worldTravel) : worldTravel);
+            if (part.localPosition != target) // a slide or handle at rest holds the same value every frame
+            {
+                part.localPosition = target;
+            }
         }
 
         private void RestoreMagazine()
@@ -2042,6 +2063,9 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Model.Solid = null;
                 _system.Rig.Off.Model.SnapPose = null;
             }
+            // The physics stand-in with the hands: whatever throws below, it must not be left at the gun's last pose, where
+            // dropped weapons and magazines would bounce off an invisible gun-shaped box (it is DontDestroyOnLoad).
+            _gunCollider?.Destroy();
             try
             {
                 Reload.Release();
@@ -2150,7 +2174,6 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _counter.Destroy();
-            _gunCollider?.Destroy();
             DestroyDebug();
             TwoHanded = false;
             VRHand main = _system.Rig.Dominant;
