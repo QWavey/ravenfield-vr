@@ -33,6 +33,18 @@ namespace RavenfieldVR.Weapons
         private Vector3 _pumpGraspRestGun;
         private float _rackBase;
         private bool _rackedBack;
+        /// <summary>This stroke is a pump worked by the support hand's trigger: it ends when the trigger is let go.</summary>
+        private bool _rackByTrigger;
+
+        /// <summary>
+        /// The support hand on a pump squeezes its trigger: it works the pump (only then; held without the trigger the pump
+        /// is the support grip and stays where it is). Within 20 cm of the pump's grasp: a short pump far down a long tube.
+        /// </summary>
+        private bool PumpByTrigger(VRHand off)
+        {
+            return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Fire, off.Side)
+                   && !Util.GameContext.GameMenuOpen && Vector3.Distance(off.Palm.position, RackPointWorld) < 0.2f;
+        }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
         private bool _rackFromBoltLock;
         private bool _returning;
@@ -181,6 +193,13 @@ namespace RavenfieldVR.Weapons
             {
                 case HandRole.Foregrip:
                 {
+                    if (PumpByTrigger(off))
+                    {
+                        // The trigger squeezed on the pump: the hand takes the pump and works it for as long as it is held.
+                        BeginRack(off);
+                        _rackByTrigger = true;
+                        break;
+                    }
                     // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
                     // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
                     // a clear knock. At 35 cm it slipped off in a hard pull.
@@ -251,7 +270,7 @@ namespace RavenfieldVR.Weapons
             {
                 Consider(1, caught.DistanceTo(palm) / 0.13f * 0.4f, ref choice, ref best);
             }
-            if (Manual && Ammo.UsesChamber)
+            if (Manual && Ammo.UsesChamber && !IsPump) // a pump is worked by the support hand's trigger (PumpByTrigger)
             {
                 float rackRadius = radius * 1.3f;
                 float d = RackZoneDistance(palm);
@@ -321,12 +340,9 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
-            // A pump gun's support hand is on the pump: a grab there works the pump (the gun is held two-handed while it
-            // does). Taken as the foregrip instead, pulling it back did nothing ("the pump does not move at all").
-            if (choice == 4 && IsPump && Manual && Ammo.UsesChamber && Vector3.Distance(palm, RackPointWorld) < 0.15f)
-            {
-                choice = 2;
-            }
+            // A pump gun's support hand on the pump holds the gun there; it works the pump only while its trigger is held
+            // (see the foregrip below). Taken as the pump at once, a hand resting on it racked it with every move (user,
+            // 2026-10-16: "you rack it the whole time because you're holding it").
 
             switch (choice)
             {
@@ -1628,8 +1644,10 @@ namespace RavenfieldVR.Weapons
         private bool HandDriven => Data.CyclesByHand;
 
         /// <summary>A pump at the handguard: holding it is also the support grip, so both hands aim while pumping.</summary>
+        // A shotgun's pump up to 22 cm from the support point (one analysed as a charging handle is taken at its back end:
+        // the R870 CQC's and the ARS M500's could not be worked from the pump; user, 2026-10-16).
         private bool IsPump => Data.CyclesByHand && GripData.HasSupportPoint && !GripData.IsPistol
-                               && Vector3.Distance(Rig.ToWorld(Data.RackPoint), GripRig.ToWorld(GripData.SupportPoint)) < 0.15f;
+                               && Vector3.Distance(Rig.ToWorld(Data.RackPoint), GripRig.ToWorld(GripData.SupportPoint)) < (Data.Action == ActionType.ShellFed ? 0.22f : 0.15f);
 
         private void BeginRack(VRHand off)
         {
@@ -1663,6 +1681,14 @@ namespace RavenfieldVR.Weapons
             if (!_racking)
             {
                 off.Role = HandRole.Free;
+                return;
+            }
+            if (_rackByTrigger && off.GrabHeld && !VRInput.GetHeld(DigitalAction.Fire, off.Side))
+            {
+                // The trigger let go: the pump stays where the hand left it and the hand holds the gun by the pump again.
+                EndRack(off, chamber: true);
+                off.Role = HandRole.Foregrip;
+                _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
                 return;
             }
             Vector3 handGun = Rig.ToGun(off.Palm.position);
@@ -1723,6 +1749,7 @@ namespace RavenfieldVR.Weapons
         private void EndRack(VRHand off, bool chamber)
         {
             _racking = false;
+            _rackByTrigger = false;
             off.Role = HandRole.Free;
             if (IsPump)
             {
