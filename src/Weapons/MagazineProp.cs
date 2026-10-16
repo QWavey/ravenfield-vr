@@ -435,9 +435,30 @@ namespace RavenfieldVR.Weapons
             frontGun = d.AimAxis;
             if (kind == PropKind.Rocket)
             {
-                // Along the bore exactly (a slightly oblique animated axis kept a rail whose depth is measured along the bore).
+                // Along the bore (a slightly oblique animated axis kept a rail whose depth is measured along the bore), or
+                // better along the rocket's own length as it sits loaded, which is the tube's axis: the muzzle's aim can be a
+                // few degrees off the tube, and over a 50-70 cm rail the booster rode along the top of an RPG-7's tube instead
+                // of going into it (the user's picture, 2026-10-16: "the same bug as with pistol mags").
                 insertGun = -d.AimAxis.normalized;
                 frontGun = d.Up;
+                Bounds mb = d.MagBounds;
+                Vector3 size = mb.size;
+                if (size.sqrMagnitude > 1e-6f)
+                {
+                    Vector3 longLocal = size.x >= size.y && size.x >= size.z ? Vector3.right : size.y >= size.z ? Vector3.up : Vector3.forward;
+                    float longest = Vector3.Dot(size, longLocal), next = Mathf.Max(Vector3.Dot(size, Vector3.one - longLocal) - Mathf.Min(size.x, Mathf.Min(size.y, size.z)), 1e-4f);
+                    Vector3 longGun = (d.MagSeat.rotation * longLocal).normalized;
+                    if (Vector3.Dot(longGun, insertGun) < 0f)
+                    {
+                        longGun = -longGun;
+                    }
+                    // A rocket clearly longer than wide, its length within 15 degrees of the bore: that is the line it goes in on.
+                    if (longest > next * 3f && Vector3.Angle(longGun, insertGun) < 15f)
+                    {
+                        insertGun = longGun;
+                        frontGun = Vector3.ProjectOnPlane(d.Up, longGun).normalized;
+                    }
+                }
             }
         }
 
@@ -492,7 +513,7 @@ namespace RavenfieldVR.Weapons
                     prop.RailLength = depth + 0.01f;
                 }
                 Log.InfoOnce("rocketrail:" + d.Key, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the {(tube ? "tube's front" : "muzzle point")} to the seated tail "
-                                                    + $"({depth * 100f:0} cm measured).");
+                                                    + $"({depth * 100f:0} cm measured), along the rocket's length {Vector3.Angle(insertGun, -aim):0.0} deg off the aim.");
             }
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
