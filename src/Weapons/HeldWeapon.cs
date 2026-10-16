@@ -2027,6 +2027,15 @@ namespace RavenfieldVR.Weapons
                 // few centimetres against the gun: a fresh magazine went in beside the well (an M1911's 4 cm, a P220's 4.4).
                 Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
+            else if (Rig.Magazine != null && ammo != null && d.Action == ActionType.SingleShot && !ammo.UsesDetachableMag && ammo.MagRounds > 0
+                     && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading)
+                     && (d.MagSeat.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f)
+            {
+                // A launcher loaded by hand shows its rocket on its seat: the game parks a fired one away (the Panzerfaust 3's
+                // warhead 30 m off) and only its own reload animation, which a hand-loaded launcher never plays, brings it
+                // back; the launcher looked empty once loaded.
+                Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
+            }
         }
 
         private bool _slideMoved;
