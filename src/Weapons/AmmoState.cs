@@ -15,7 +15,29 @@ namespace RavenfieldVR.Weapons
 
         public int MagRounds;
         public bool Chambered;
-        public bool MagInserted = true;
+        private bool _magInserted = true;
+
+        /// <summary>
+        /// A fire-mode variant drawn on its parent's model has no magazine of its own: it reads and moves the parent's. With
+        /// the magazine out, switching to the variant drew the magazine again and fired without one (bug hunt 249).
+        /// </summary>
+        public AmmoState MagazineOf;
+
+        public bool MagInserted
+        {
+            get => MagazineOf != null && !ReferenceEquals(MagazineOf, this) ? MagazineOf.MagInserted : _magInserted;
+            set
+            {
+                if (MagazineOf != null && !ReferenceEquals(MagazineOf, this))
+                {
+                    MagazineOf.MagInserted = value;
+                }
+                else
+                {
+                    _magInserted = value;
+                }
+            }
+        }
         public bool SlideLocked;
         /// <summary>Break-action / revolver: open for loading (cannot fire).</summary>
         public bool Open;

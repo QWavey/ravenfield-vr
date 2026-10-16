@@ -753,6 +753,10 @@ namespace RavenfieldVR.Weapons
                 ActiveWeapon = active;
                 ActiveRig = active == Weapon ? Rig : SubWeaponRig(active);
                 ActiveAmmo = active == Weapon ? Ammo : _system.StateFor(active, create: true);
+                if (active != Weapon && ReferenceEquals(ActiveRig, Rig) && ActiveAmmo != null && !ReferenceEquals(ActiveAmmo, Ammo))
+                {
+                    ActiveAmmo.MagazineOf = Ammo; // a fire-mode variant on this model: this gun's magazine is its magazine
+                }
             }
             UpdateAim();
             Reload.Update();
@@ -1748,7 +1752,9 @@ namespace RavenfieldVR.Weapons
                     _supportGunHand = main.Model;
                     off.Model.Solid = _supportSolid ?? (_supportSolid = p => _solid(p) || !LegacySupportSolid && _supportGunHand.NearSkin(p, GunVolume.Grow));
                     off.Model.SolidAnchor = Rig.GunBody;
-                    off.Model.SolidVersion = Time.frameCount; // the gun hand's fingers move: no reusing last frame's solve
+                    // Solved again when the gun hand's skin moves against the gun (or the seated magazine comes or goes), not
+                    // every frame: all five fingers were solved again each frame with nothing moved (about 0.2 ms; Tasks 248).
+                    off.Model.SolidVersion = unchecked(main.Model.SkinKey(Rig.GunBody) * 2 + (_magSolidShown ? 1 : 0));
                 }
                 else if (off.Role == HandRole.Foregrip)
                 {
