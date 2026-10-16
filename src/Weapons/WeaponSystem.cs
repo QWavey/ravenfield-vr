@@ -269,6 +269,10 @@ namespace RavenfieldVR.Weapons
                 {
                     _melee.BeforeRender(Held);
                 }
+                else
+                {
+                    _melee.Bash(Held); // a gun swung into someone hits them (user, 2026-10-16)
+                }
             }
             foreach (VRHand h in Rig.Hands)
             {

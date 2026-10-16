@@ -725,6 +725,137 @@ namespace RavenfieldVR.Weapons
         {
             _hasLast = false;
             _weapon = null;
+            _bashHas = false;
+        }
+
+        // ---- a gun swung into someone ---------------------------------------------------------------
+
+        private Vector3 _bashMuzzle, _bashButt, _bashMuzzleInRig, _bashButtInRig;
+        private bool _bashHas;
+        private Weapon _bashWeapon;
+        private float _lastBash = -10f;
+        private static readonly RaycastHit[] BashHits = new RaycastHit[16];
+
+        /// <summary>
+        /// A gun (not a melee weapon) swung into an enemy hits them, with its muzzle end or its butt: a muzzle strike or a
+        /// butt stroke (user, 2026-10-16: "hitting enemies with weapons doesn't do damage"). Its speed against the player's
+        /// own body, as a knife's (walking or turning is no swing); the harder and the heavier, the more damage. Once every
+        /// half second at most.
+        /// </summary>
+        public void Bash(HeldWeapon held)
+        {
+            Weapon w = held.Weapon;
+            Actor user = w != null ? w.user : null;
+            WeaponRig rig = held.Rig;
+            if (user == null || rig.GunBody == null || held.Rig.Data.Action == ActionType.Throwable)
+            {
+                _bashHas = false;
+                return;
+            }
+            if (_bashWeapon != w)
+            {
+                _bashWeapon = w;
+                _bashHas = false;
+            }
+            WeaponRigData d = rig.Data;
+            Vector3 muzzle = rig.ToWorld(d.MuzzlePoint);
+            // The butt: the stock's end on a long gun, the grip's heel on a handgun.
+            Vector3 butt = rig.ToWorld(d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f);
+            Transform body = _sys.Rig.Root;
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            if (_bashHas && Time.time - _lastBash > 0.5f && !Util.GameContext.GameMenuOpen)
+            {
+                float muzzleSpeed = (muzzle - body.TransformPoint(_bashMuzzleInRig)).magnitude / dt;
+                float buttSpeed = (butt - body.TransformPoint(_bashButtInRig)).magnitude / dt;
+                bool carried = (muzzle - _bashMuzzle).sqrMagnitude > MaxSweep * MaxSweep;
+                float need = Mathf.Max(3f, VRConfig.MeleeSwingSpeed.Value + 0.5f);
+                if (!carried && (muzzleSpeed > need || buttSpeed > need))
+                {
+                    bool byMuzzle = muzzleSpeed >= buttSpeed;
+                    Vector3 from = byMuzzle ? _bashMuzzle : _bashButt, to = byMuzzle ? muzzle : butt;
+                    float speed = byMuzzle ? muzzleSpeed : buttSpeed;
+                    if (BashCast(w, user, from, to, speed, d))
+                    {
+                        _lastBash = Time.time;
+                        _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
+                        if (held.TwoHanded)
+                        {
+                            _sys.Rig.Off.Haptic(0.08f, 60f, 0.8f);
+                        }
+                        held.Nudge(-(to - from).normalized * 0.6f, 20f); // the blow jars the gun back
+                    }
+                }
+            }
+            _bashMuzzle = muzzle;
+            _bashButt = butt;
+            _bashMuzzleInRig = body.InverseTransformPoint(muzzle);
+            _bashButtInRig = body.InverseTransformPoint(butt);
+            _bashHas = true;
+        }
+
+        private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, WeaponRigData d)
+        {
+            Vector3 sweep = to - from;
+            float length = sweep.magnitude;
+            if (length < 1e-4f)
+            {
+                return false;
+            }
+            Vector3 dir = sweep / length;
+            bool disabled = user.DisableHitboxColliders();
+            try
+            {
+                const float radius = 0.06f;
+                int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, 70913);
+                Hitbox best = null;
+                RaycastHit bestHit = default;
+                float bestDistance = float.MaxValue;
+                for (int i = 0; i < n; i++)
+                {
+                    RaycastHit h = BashHits[i];
+                    if (h.collider == null || !Hitbox.IsHitboxLayer(h.collider.gameObject.layer) || h.distance >= bestDistance)
+                    {
+                        continue;
+                    }
+                    Hitbox hb = h.collider.GetComponent<Hitbox>();
+                    if (hb == null || hb.parent == null || hb.parent == user || hb.parent is Actor a && a.dead || hb.parent.team == user.team)
+                    {
+                        continue;
+                    }
+                    best = hb;
+                    bestHit = h;
+                    bestDistance = h.distance;
+                }
+                if (best == null)
+                {
+                    return false;
+                }
+                // A heavy gun hits harder: a pistol about a knife's light blow, a rifle a butt stroke, a machine gun more.
+                float weight = d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f;
+                var info = new DamageInfo(DamageInfo.DamageSourceType.Melee, user, w)
+                {
+                    healthDamage = Mathf.Clamp(speed * 9f * weight, 20f, 90f),
+                    balanceDamage = Mathf.Clamp(speed * 30f * weight, 60f, 250f),
+                    point = bestHit.point.sqrMagnitude > 0f ? bestHit.point : to,
+                    direction = dir,
+                    impactForce = dir * (150f * weight * Mathf.Min(speed, 8f))
+                };
+                best.parent.Damage(info);
+                Log.InfoOnce("bash:" + d.Key, $"{w.name}: swung into {best.parent.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("gun bash", e);
+                return false;
+            }
+            finally
+            {
+                if (disabled)
+                {
+                    user.EnableHitboxColliders();
+                }
+            }
         }
     }
 }
