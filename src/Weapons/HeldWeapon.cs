@@ -1323,7 +1323,9 @@ namespace RavenfieldVR.Weapons
                 _volume = null;
                 _volumeRetryAt = Time.unscaledTime + 1f;
             }
-            bool measurable = Rig.Data.Action != ActionType.NoAmmo;
+            // An infinite-magazine gun (ammo -1) is analysed as NoAmmo but is a gun all the same: it gets a hand solid too.
+            // A kit keeps its hidden glove, and a tool with no ammo stays unmeasured as before.
+            bool measurable = !_isKit && (Rig.Data.Action != ActionType.NoAmmo || Weapon.configuration != null && Weapon.configuration.ammo == -1);
             if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && held > 0.25f && (atRest || held > 5f) && measurable)
             {
                 _volumeTries++;
