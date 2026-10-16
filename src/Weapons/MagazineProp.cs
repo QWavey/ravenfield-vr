@@ -379,10 +379,8 @@ namespace RavenfieldVR.Weapons
             frontGun = d.AimAxis;
             if (kind == PropKind.Rocket)
             {
-                if (Vector3.Dot(insertGun.normalized, -d.AimAxis.normalized) < 0.7f)
-                {
-                    insertGun = -d.AimAxis.normalized;
-                }
+                // Along the bore exactly (a slightly oblique animated axis kept a rail whose depth is measured along the bore).
+                insertGun = -d.AimAxis.normalized;
                 frontGun = d.Up;
             }
         }
