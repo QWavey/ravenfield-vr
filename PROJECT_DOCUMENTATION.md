@@ -3,9 +3,12 @@
 A SteamVR mod for Ravenfield (Steam build, Unity 2020.3.49, Mono) delivered as a BepInEx 5 plugin with its own OpenVR
 XR loader. It turns the flat shooter into a hands-on VR game: tracked hands that close on what they hold, manual
 reloading of every vanilla and workshop weapon, physical magazines, holsters, a VR HUD and menus, vehicles and an
-automated test harness that plays the game by itself. Written 2026-10-13 (last refreshed: 2026-10-13, commit
-`6e063e8`), after the session that added model-accurate hand posing, model-shaped physics, H3VR-style reloads and the
-measurement tooling described below.
+automated test harness that plays the game by itself. Written 2026-10-13 (commit `6e063e8`), after the session that
+added model-accurate hand posing, model-shaped physics, H3VR-style reloads and the measurement tooling described below.
+**Last refreshed: 2026-10-16** (commit `8e6eec8`): rockets loaded by hand (Task 250), pistol magazine hold, push and
+pose fades (240-242), the magazine seating check, `Handgun` against `IsPistol`, the bug hunts 248/249/251 and the
+split of the work between a lead and a helper branch, the 24-entry gun-shape cache, the dropped-weapon changes and the
+picture/film tools. Sections not about these are as written on 2026-10-13.
 
 Repository: private `QWavey/ravenfield-vr` (this folder). The user-facing manual is `README.md`; the task checklist with
 a "For N." paragraph per item is `Tasks.md`; the improve-run log is `Improve20.md`. This document is the engineering
@@ -24,10 +27,13 @@ view: how it works, why, what was tried and what was learned.
   weapon's structure at runtime and make it physically usable without per-weapon authoring.
 - **Who it is for.** The repository owner, who plays on a Quest 3 and reports bugs from headset sessions (screenshots,
   short descriptions), and anyone installing the packaged release (Setup.exe / launcher).
-- **Status (2026-10-13).** Tasks 1–97 of `Tasks.md` done except 33 (measured performance pass), 37 (weapon's own arms
-  with IK as an option — partially present as `Hands = WeaponArms`) and 94 (this document). The latest VR quick
-  autotest (60 weapons) reports 2 problems, both a workshop weapon's own `LaserSight.LateUpdate` null reference, not the
-  mod. The full flat self-test analyses 308 weapons with 0 failures.
+- **Status (2026-10-16).** `Tasks.md` runs to Task 251; its top lists what is still to do, in progress and code-done
+  awaiting a headset check. Open work on 2026-10-16 included rockets by hand on all 14 launchers (250, code done, film
+  queued), pistol magazine seating (126/240-243), racking parts that do not move on some guns (139/227/245/246), the
+  per-gun review fixes (234), one eye drawn brighter on Island (225, not reproduced), weapons in either hand step two
+  (152) and the trigger finger landing on the blade (202). (On 2026-10-13: tasks 1–97 done except 33, 37 and 94; the VR
+  quick autotest reported 2 problems, both a workshop weapon's own laser script; the flat self-test analysed 308
+  weapons with 0 failures.)
 
 ---
 
@@ -81,7 +87,8 @@ GunVolume                      (the drawn model as depth from 5 directions: a so
   Unity discovered from `ravenfield_Data/UnitySubsystems/XRSDKOpenVR/UnitySubsystemsManifest.json` (checked by
   `InstallCheck`). It also pumps OpenVR events (quit, dashboard, keyboard, device changes).
 - VR starts when SteamVR is running or `-vr` is given; `-novr` forces flat. The launcher (`installer/Launcher.cs`)
-  sets the choice from Steam's Play button.
+  sets the choice from Steam's Play button. When VR does not start (SteamVR not running, the runtime or the VR systems
+  failing), the flat game shows a notice saying what to do, and **F6** tries again (F8 is the game's photo mode).
 - `VRManager` owns the fixed update order shown above. Every section is called through `Log.Guard(name, action)`,
   which catches exceptions (logged once) and, when `PerfProbe.Enabled`, times the section and counts allocations.
 
@@ -134,8 +141,15 @@ the right-hand pose is reflected across the gun's vertical middle plane (`HeldWe
   radius** (`Grow = 7.2 mm`, sphere-shaped per texel) on a `ThreadPool` worker. A point is solid if it lies between
   the near and far surface in every view (a visual hull that keeps trigger-guard openings and gaps open).
 - Optionally fits a physics hull from the measured surface on the worker (`HullPieces`, see 3.6).
-- Cached per key in a 12-entry LRU; a failed build is not kept (measured again next time). `InFlight` counts builds
-  waiting for read-back (the menu warm-up waits while more than 4 are in flight).
+- Cached per key in a **24-entry LRU** (was 12; 2026-10-16, `5c9af24`). A held weapon alone keeps three or four
+  entries (the gun, its seated magazine, worked parts), so with 12 three weapons used in turn were measured again on
+  every switch (about 12 ms on the main thread and 11 MB of garbage each). Dropped weapons' entries are evicted first,
+  and the read-back pictures go into pooled buffers. A failed build is not kept (measured again next time). `InFlight`
+  counts builds waiting for read-back (the menu warm-up waits while more than 4 are in flight).
+- `HeldWeapon.HandSolid` asks for the gun's volume a moment after the draw (at rest, or after 5 s anyway). A request
+  that returns nothing or whose read-back fails is retried a second later, three times at most per hold (it used to
+  latch the failure for the whole hold; 251.16). Infinite-magazine guns (`ammo` −1, analysed as `NoAmmo`) are measured
+  too (251.15); kits are not (their glove is hidden).
 - Query: `Solid(world)` (grown, per-view combined world→view rotation, multiplies instead of divides, early out),
   `InsideModel(world)` (not grown, self-test), `SolidAt/InsideModelAt` (explicit pose, for several props sharing one
   volume).
@@ -161,12 +175,16 @@ Who provides solids:
 - `HeldWeapon` (gun hand on a Weapon/Throwable, support hand on the handguard): the gun volume **plus the seated
   magazine's own volume** while it is in the gun (`UpdateSeatedMagSolid`, 3 views, follows the magazine transform).
 - Two-handed pistols: the support hand's solid is the gun **or the gun hand's skin** (`HandModel.NearSkin`: finger
-  capsules + palm box, published at the end of the gun hand's `Apply`; the dominant hand is now posed first).
+  capsules + palm box, published at the end of the gun hand's `Apply`; the dominant hand is now posed first). Its
+  solve is redone only when `HandModel.SkinKey` changes (the gun hand's skin moved against the gun body by about half a
+  millimetre, or the seated magazine came or went), not every frame (248, `288f492`/`f8ed393`).
 - Working the action (`HandRole.Slide`): the **worked part's own volume** (charging handle if separate, else the slide /
   bolt / pump), measured the first time it is taken, moving with the part (`HeldWeapon.PartSolid`).
 - `MagazineProp` in a hand: each held magazine's volume at its own pose (the palmed second magazine too).
-- Kits carried like a bag (`HeldWeapon.IsKit`: a projectile with `Ammobox`/`Medipack`/`ResupplyCrate`, or the name)
-  hide the glove instead (`HandModel.HiddenByHeld`).
+- Kits carried like a bag (`HeldWeapon.IsKit`: a projectile with `Ammobox`/`Medipack`/`ResupplyCrate`, or the name for
+  something that fires no bullets; never a `MeleeWeapon`) hide the glove instead (`HandModel.HiddenByHeld`).
+- `Hands = WeaponArms`: each VR glove gives way only to an arm the weapon actually draws (the gun hand to the model's
+  right arm chain, the free hand to its left one); a model with one arm chain used to hide both gloves (251.1).
 
 Without a solid (volume not ready, depth shader missing) the glove falls back to the earlier fixed curls with a cap.
 
@@ -185,6 +203,13 @@ inside such a part, or holding two kinds of gun parts (slide, bolt, barrel, trig
 longer taken, and a name-found "magazine" measured under 5 cm is rejected. Only the three P220 akimbo variants changed
 (their "P220 DUAL" — the second pistol, 128 cm with its laser beam — became an invisible magazine).
 
+**`Handgun` and `IsPistol`** (2026-10-16, bug hunt 251.2, `daccda3`/`479f066`). `WeaponRigData.IsPistol` says how the
+gun is *held*: it is also set for a long gun whose support hand cups the grip (no handguard to steer by). What the gun
+*is* goes by `WeaponRigData.Handgun`, taken from its loadout slot: bolt travel (a rifle held like a pistol kept a
+pistol's 7 cm instead of 23 cm), the AR, named and side charging-handle rules, eye distance, virtual parts, the
+machine-gun class, and in the held weapon the shape envelope, casings, the stock check, one-handed recoil, mass and
+one-handed lag. A rifle held like a pistol had its hand solid cut to a pistol's box before this split.
+
 Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 
 ### 3.6 Physics shapes (`Weapons/ShapeFit.cs`, `Weapons/GunCollider.cs`)
@@ -199,15 +224,30 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
   share of the shape outside it, coarse sampling) and the better one is kept (`HeldWeapon.ChooseShape`).
 - `PropPhysics` (in `GunCollider.cs`) puts loose props on a layer bullets skip, ignores the player's colliders, and now
   `IgnoreBodiesNear` (hitboxes 8, ragdolls 10, seated 16, actor colliders 17) so lying props are not pushed.
+  `TrackPlayer` (noticing the player's colliders switched off and on) runs once a frame.
+- `GunCollider.SeeThrough` keeps reticles, glows and glass out of the stand-in and the hands' solid (render queue above
+  2500, additive/HUD/particle shaders). Its size test uses the mesh's own bounds at its scale with a 3.5 m limit; on
+  the world box with 1.5 m it dropped long launcher tubes, and depended on the pose (251.21).
+- The stand-in is destroyed at the start of `HeldWeapon.Release` and when the `HeldWeapon` constructor throws after
+  creating it, so it is never left at a stale pose or the world origin (249).
 
 ### 3.7 Holding, reloading, recoil (`Weapons/HeldWeapon.cs`, `Weapons/ReloadInteractions.cs`, `Weapons/AmmoState.cs`, `Weapons/MagazineProp.cs`)
 
 - `HeldWeapon` re-anchors the animated weapon each frame so its gun body sits in the hand (grip point from the
   analysis), adds two-handed steering, droop and trailing for long guns held in one hand, sight-to-eye aiming detection,
-  arm hiding, part overrides and **recoil**: a critically damped spring on position and rotation. Per shot: kick =
-  max(0.5, game kickback) × strength; two hands on a long gun 0.4×, one hand `oneHandRecoil` × 0.4 (1.9 for rifles,
-  2.6 machine guns, 2.2 shotguns, 1.5 SMGs); pistols 1.15 one-handed, 0.8 cupped. About 150°/s and 0.6 m/s per kick unit
-  (≈ 3.4° climb before hand factors).
+  arm hiding, part overrides and **recoil**: a critically damped spring on position and rotation (stiffness 150, 90
+  for a long gun in one hand). Per shot (`ShotKick`, Tasks 238): the largest of the game's kickback, the round's own
+  push (damage, muzzle speed and pellets) and a floor by class (pistol 0.9, machine gun 0.7, launcher 1.2, shotgun 1.6,
+  bolt rifle 1.5, other long guns 0.7), with a climb share (pistol 1.8, launcher 0.8, bolt rifle 0.85). About 180°/s and
+  0.9 m/s per kick unit; then × the strength setting, × 0.75 against the shoulder, × the support hand's share, or ×
+  the class's one-handed factor (1.15 handgun, 1.9 rifles, 2.6 machine guns, 2.2 shotguns, 1.5 SMGs, 1.6 launchers). A
+  sub weapon (an under-barrel launcher) kicks with its own rig, class and one-handed factor (249).
+- **Weight** (Tasks 204/208/203): an unsupported long gun droops (3–11° by class) and trails the wrist; a spring on
+  position and pitch, driven by the hand's acceleration against the body, makes a heavy gun lag a quick lift. The
+  acceleration goes through a soft 1.2 m/s² dead band and 12/s smoothing (controller velocity jitter, differenced, shook
+  a still launcher). Whether the stock is in the shoulder pocket (12 cm in, 15 out) is read from where the tracked hands
+  hold the gun, before droop, lag and recoil: read from the drawn gun, the droop it switches moved a launcher's tube end
+  (about 50 cm behind the grip) by some 7 cm across the band, and the launcher rocked without being fired (`b22ddd7`).
 - `ReloadInteractions`: magazines ride a rail into the well and seat at full depth; B ejects (with a fresh magazine near
   the well it is a **tactical eject** into the same hand — H3VR palming); a fresh magazine driven into the seated one
   knocks it out (**mag kick**, swept window, smoothed hand speed, a light tick on the old base, no kick for 0.4 s after
@@ -217,7 +257,49 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 - `MagazineProp`: magazines, shells and rockets as props (copies of the weapon's own magazine meshes, baked if skinned),
   held, palmed, dropped, caught; colliders from `ShapeFit`, or from the rendered model once measured if the meshes are
   unreadable (`TakeRenderedShape`; later magazines of the type start with it).
-- `AmmoState` keeps the physical ammo (magazine, chamber, seated, slide lock) and syncs `weapon.ammo`.
+- `AmmoState` keeps the physical ammo (magazine, chamber, seated, slide lock) and syncs `weapon.ammo`. A fire-mode
+  variant on its parent's model reads and moves the parent's magazine (`MagazineOf`): with the magazine out, switching
+  to it used to draw the magazine again and fire without one (249.1).
+
+**Holding and seating magazines (2026-10-16, Tasks 240-242, `2467c07`, `32af006`, `9ca386f`).**
+- The grip thickness is measured where the hand holds the magazine (a band near the base plate, from the vertices,
+  else from the magazine's rendered shape once measured), not from a box tilted by the insert axis. That box made most
+  rifle and pistol magazines a machine gun's box held out on the fingers (on the back of the hand on 91 guns). The
+  measured thickness applies to every magazine of the type, palmed ones too, and eases in over 0.1 s.
+- Pistol magazines are held by the base in the fist, out between thumb and index (the user's pictures; the index-point
+  hold is gone). Sliding up the grip, the glove turns from the grip into a push on the base plate with an opening hand,
+  the thumb coming away, eased with the depth (20–75 % of the way). The push applies only while the magazine moves in;
+  its direction is tracked with 3 mm of play, so a slow push still turns into the push and a slow pull lets go of it.
+- Pose changes (one magazine to two, a palmed one promoted, the push) fade over 0.3 s instead of snapping; a
+  tactically ejected magazine eases from the well into the hand.
+- A magazine started straight into a well inside the grip is drawn home by the rail on a damped spring (about a third
+  of a second, at most 0.6 m/s, its start speed capped at that), not at a constant 0.9 m/s: the hand's turn into the
+  push was over in a tenth of a second and never seen.
+- Magazines go in along the gun's side plane: an insert axis tipped sideways by less than 45° is put back into it (the
+  1911's came in 23° from the side, up beside the grip); side-feeders keep theirs (`772658a`).
+
+**Rockets by hand (2026-10-16, Task 250, `aa03500`, `96667e6`, `b0a99c2`, `bf8e0cb`, `670b6db`, `e883241`).**
+- The rocket in the hand collides with the launcher: it is kept out of the launcher's measured shape the way a
+  magazine is kept out of a gun, sampled every 6 cm along it, with no well open to it from the side.
+- It is loaded at the **front**: the rail runs from the muzzle to where the tail sits seated, and the rocket always goes
+  in back along the bore whatever the reload animation's first motion. It is taken onto the line only at the tube's
+  mouth (its tail at most 8 cm in, within 12 cm of the tube's line in front of the mouth, pointing into the tube within
+  60°, tail first only). A rocket held at the back or beside the tube is not taken.
+- It slides in **with the hand** the whole way (no drawing in by itself, no letting go) and stays on the line until it
+  is pulled back out of the mouth. The hand holds it by its front part, 6 cm past what goes in. A rocket that goes all
+  the way into its tube turns the hand into a push on its nose for the last of it.
+- **The launcher's own rocket**: the analysis keeps which of the rocket's renderers show while it sits loaded (an
+  RPG-7V's rocket holds five warheads and shows one), and `MagazineProp.KeepLoadedLook` copies the rocket while it sits
+  loaded (after the shot the game shrinks and moves it, so the RPG-7V variants held a made-up olive stand-in). A copy is
+  refused when shrunk or moved away; tries back off (twice a second for five tries, then every 10 s, 30 at most). A
+  near-empty rocket part is replaced by the container above it that holds a rocket-sized mesh, never the launcher itself
+  (the Panzerfaust 3 once handed out its whole launcher).
+- **Missile tubes** that show no rocket of their own (HYDRA, SCALPEL, the signal launcher) hand out the projectile they
+  fire, its own meshes, seated in the tube with its nose at the mouth (it was a 75 cm olive capsule).
+- Inside the tube the rocket is held by it: it comes out only back through the mouth, and stays on the line until the
+  hand is 35 cm off it. A rocket's rail is accepted only between 5 cm and 1.8 m deep. (Earlier the same day a rocket
+  started into its tube was drawn home on its own by a spring, up to 1.6 m/s; that was replaced by sliding with the
+  hand.)
 
 ### 3.8 Drops, holsters, pouch, throws (`Weapons/WeaponDrops.cs`, `Weapons/WeaponSystem.cs`, `Weapons/HolsterDisplay.cs`, `Weapons/PouchDisplay.cs`, `Weapons/ThrowAndMelee.cs`, `Weapons/GrenadeDud.cs`, `Weapons/BodyZones.cs`)
 
@@ -228,8 +310,16 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
   them. The player's own gun let go away from the body drops with the velocity **taken when the hand opened** and
   returns to its holster after `WeaponReturnSeconds`; its collider is the held stand-in's current shape plus the inserted
   magazine.
+- **Kept weapons** (`DroppedWeapon.Keep`, 2026-10-16): picking a weapon up into a full slot puts the one you had there
+  down where the picked-up one lay; it is the only copy of it, so it does not expire with ordinary drops. Your own
+  dropped weapon whose holster slot you have filled since (it cannot go back) becomes kept too; it used to expire after
+  90 s and was lost from both the ground and the loadout (249). Past six kept weapons the oldest stops being kept and
+  becomes an ordinary drop with a fresh lifetime, still grabbable; the cap (added `303be9d`) first deleted it outright
+  (249). Ordinary drops are capped at `MaxDroppedWeapons` (16), oldest first.
 - **Picking up** uses `GrabPressed || GrabReaching` (a squeeze up to 0.25 s before the weapon is in reach still takes
-  it).
+  it). The nearest drop is found per hand per frame: a drop is skipped with one read of its root when the root is
+  farther than the best distance plus the drop's reach (a radius over all its colliders, computed at spawn), and each
+  collider's box is tested before its exact closest point (248, `0f83c14`).
 - **Holsters** by weapon type (`BodyZones`), shown as copies (`HolsterDisplay`; a type without a third-person model is
   remembered as missing instead of rebuilt every frame). The pouch sits a hand's width from every holster spot (it used
   to overlap the off-hip holster).
@@ -242,7 +332,10 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 
 `CanvasManager` converts canvases (HUD frame head-locked and frustum-matched; menus placed in front), `VRInputModule`
 laser pointer, `VRKeyboard` (SteamVR overlay keyboard), `VRSettingsPanel` (double-click left stick), `WristHud`,
-`ModKeysPanel`, `SeatSights` (vehicle sights collimated at infinity), `UiKit` shared look.
+`ModKeysPanel`, `SeatSights` (vehicle sights collimated at infinity), `UiKit` shared look. The game camera's aspect
+(and so its vertical FOV, which places the screen-projected markers) is taken from the largest visible HUD canvas;
+it used to follow whichever canvas was enumerated last, so a small or 4:3 panel shifted the markers (249). A canvas
+that turns back into a menu without reopening is placed and flattened again like a fresh opening.
 
 ### 3.10 Test tooling (`Core/AutoTest.cs`, `Weapons/WeaponSelfTest.cs`, `Core/Shots.cs`, `Core/PerfProbe.cs`, `Rig/HandPreview.cs`)
 
@@ -271,6 +364,47 @@ laser pointer, `VRKeyboard` (SteamVR overlay keyboard), `VRSettingsPanel` (doubl
   Writes `BepInEx/RavenfieldVR-autotest.txt` progressively and quits.
 - **`Shots.Capture`** renders mono pictures from the VR head (or any pose) to `BepInEx/RavenfieldVR-shots/`.
 - **`-rfvr-perf`** enables `PerfProbe` in any session (per-section ms, allocations, frame-time percentiles).
+- **Other autotest switches**: `-rfvr-deep` (the full weapons run: every launcher is emptied and reloaded by hand, the
+  magazine seating pictures), `-rfvr-flashfilm` / `-rfvr-flashcheck` (the eye film of shots), `-rfvr-filmonemag`,
+  `-rfvr-grabshots`, `-rfvr-uishots`, `-rfvr-menutest`, `-rfvr-perfbench`. Self-check lines put failures in capitals
+  (NOT SEATED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE BACK, BESIDE THE WELL, STILL SHOWS, SHAKES, …) and the run
+  collects them into one failure list.
+
+Added up to 2026-10-16:
+- **Rocket film / checks** (`ReloadInteractions` self-check, in every weapons run with or without pictures): per
+  launcher, the rocket from the pouch is pushed into the launcher's side and down across the tube (it must stay out),
+  probed at the back (must not be taken), lined up at the mouth (how far in front it is taken), slid in (it must not get
+  ahead of the hand) and loaded with the hand on it; whether the rocket in the hand is the launcher's own model (its
+  meshes against those the launcher shows loaded). It waits up to 6 s for the launcher's measured shape and says when
+  there is none. A launcher that did not fire is unloaded instead of skipped.
+- **Magazine seating check**: pictures at 30, 60 and 85 % in (between the base plate and the grip, wide enough to show
+  the gun), how far the hand has turned into the push, glove points inside the gun hand, and how much of the magazine
+  that has gone **past the well's mouth** shows beside the gun's sides (from the side view of its measured shape,
+  compared with the same points seated), plus the insert line's tilt out of the gun's side plane. Counted from the whole
+  rail, rifle magazines still under their well read as beside it on almost every gun (`35f9f8a`).
+- **Eye film** (`Core/EyeFilm.cs`, `-rfvr-flashfilm`): each eye's finished picture per frame, read back without
+  stalling and written as PNGs on a thread of its own (a frame is skipped for both eyes while the writer is behind),
+  with `frames.txt` (frame, eye, time, note, the lens flash and glow in that eye; invariant numbers since 251.18).
+- **Steady check** (Tasks 203): a still hand held 1.5 s one-handed, with 2 cm/s of tracking noise in its velocity, and
+  two-handed; the most the gun body turns and moves between frames (fails above 0.2° or 2 mm).
+- **Rack picture check** (Tasks 246): read-only Haiku agents compare each gun's rack close-ups at rest and pulled half
+  way (does the gun's own part come back with the hand). First run 53 of 233 guns; after fixing the test pose and the
+  close-up camera, 116 of 233 move their own part, 54 do not, 7 an added knob, 56 unclear
+  (`reports/agents/rack-check-2026-10-16/SUMMARY.txt`, per gun under "For 246" in `Tasks.md`).
+
+Tools (`tools/`, Python, local files only):
+- `vrshots.py`: runs the game under SteamVR's null driver, lets the autotest take pictures, and always restores the
+  user's SteamVR settings (hash-checked backup); `--weapons`, `--weapon NAME|ID|mod:TEXT|=NAME`, `--ui`, `--hands`,
+  `--bench`, `--autotest`, `--film [GUN]`, `--dumprig`. Output under `reports/shots/<mode>/`.
+- `flashfilm.py`: the eye films as side-by-side MP4, a slow GIF and a per-shot strip per gun, plus `film-summary.txt`
+  (each eye's brightness standing still, which must match, and the lens flash per shot and eye). Reads comma decimals
+  too (a German Windows).
+- `seqgif.py`: GIFs from a weapons run's stills per gun: the magazine sequence (seated, out, in the hand, lined up, 30 /
+  half / 60 / 85 % in, seated again) and racking (rest and half pulled, both sides).
+- `showcase.py`: one folder with an index page of reload GIFs, the pose sheet and before/after pairs of two runs.
+- `montage.py`: one MP4/GIF montage of a run's pictures, weapon by weapon; `shots_categories.py`: sorts a run's weapon
+  sheets into folders by kind (action, pistol grip, machine gun) for review; `inspect_weapon_bundles.py`: prints how the
+  guns in workshop `.rfc` bundles are rigged and which transforms each reload animation moves.
 
 ---
 
@@ -296,8 +430,13 @@ laser pointer, `VRKeyboard` (SteamVR overlay keyboard), `VRSettingsPanel` (doubl
 | `src/Weapons/WeaponDrops.cs` | dropped weapons, pickup, return, warm-up prep | drops |
 | `src/Weapons/WeaponSystem.cs` | owner of held weapon, holsters, let-go, equip take-over | weapon lifecycle |
 | `src/Weapons/WeaponSelfTest.cs` | all-weapons report | analysis regressions |
+| `src/Weapons/WeaponPatches.cs` | Harmony hooks on the game's weapons (CanFire, Shoot, Reload, Update, aiming) | where a shot reaches the mod; the Shoot prefix records the muzzle that fires (the game moves on to the next barrel before the postfix) |
+| `src/Rig/LensEffects.cs`, `src/Weapons/LensFlash.cs`, `src/Weapons/MuzzleFireball.cs` | on-lens flash, hit, low health, drops (worker threads); the flash per shot; its core in the world | screen effects (Tasks 209/237) |
+| `src/Core/EyeFilm.cs` | per-eye frames to PNG for the films | flash and eye-brightness checks |
 | `src/Input/VRInput.cs` | SteamVR input, edges, haptics, test hooks | input semantics |
 | `build.ps1`, `tools/fetch-deps.ps1` | Roslyn build without an SDK, packaging | building |
+| `tools/vrshots.py`, `flashfilm.py`, `seqgif.py`, `showcase.py` | headless picture runs and what is made of them | checking by eye (and by agents) |
+| `reports/agents/*` | read-only agent reports (bug hunts, reviews, rack check) with their skeptics | finding history |
 | `Tasks.md`, `Improve20.md` | task history and the improve run | intent and results |
 
 ---
@@ -331,8 +470,8 @@ Command-line flags: `-vr`, `-novr`, `-nointro`, `-map <name>`, `-rfvr-selftest`,
 `-rfvr-perf`, `-rfvr-shots` (pictures outside the autotest, e.g. of the intro), `-rfvr-introdump`,
 `-rfvr-dumprig=<name>`.
 
-In-code constants worth knowing: `GunVolume.Grow` 7.2 mm, `FineTexel` 1.5 mm, `MaxTexels` 448, `CacheSize` 12, in-flight
-limit 4 (warm-up); `HandModel.HandScale` 0.9, slide steps 0…3 cm down / 1 cm up, palm settle range −4…+2 cm;
+In-code constants worth knowing: `GunVolume.Grow` 7.2 mm, `FineTexel` 1.5 mm, `MaxTexels` 448, `CacheSize` 24 (12 until
+2026-10-16), in-flight limit 4 (warm-up); `HandModel.HandScale` 0.9, slide steps 0…3 cm down / 1 cm up, palm settle range −4…+2 cm;
 `ShapeFit.MaxPointsPerMesh` 8000; drop body check radius 1.5 m (magazines 1 m).
 
 ---
@@ -401,6 +540,19 @@ reload checks, one-handed recoil impulse above two-handed on every measured weap
   same-run comparisons do not.
 - **Drops ignore bodies per collider pair, not by layer matrix**: the prop layer may be shared with game objects
   (e.g. triggers on layer 2); changing the global collision matrix could break capture zones.
+- **Bug hunts by read-only finders, each finding checked by skeptics** (2026-10-15/16): Haiku agents read one area each
+  and report findings with file, line, trigger and fix; two more Haiku agents try to refute each one. Only confirmed (or
+  plausible, with the doubt written down) findings are fixed, and the reasons are kept (`Tasks.md` "For 248/249/251",
+  `reports/agents/`). Line numbers from the finders are often a few lines off and some suggested fixes were wrong as
+  written (an early return that would have dropped palm hits; a muzzle index read after the game had advanced it), so
+  every fix is checked against the code first.
+- **Two branches split by files** (2026-10-16): a lead session on `tasks-98-113` and a helper session on its own branch
+  and worktree (`helper-248-249`, `../Ravenfield-VR-helper`), each owning a fixed set of files (the helper: held weapon,
+  drops, weapon system, throws, stand-in, scope, lens effects and flash, casings, belt, UI, input, `VRManager`,
+  `VRRig`, `WeaponPatches`, this document; the lead: analysis, rig data, magazines, reloads, ammo, gun volume, hands,
+  autotest, tools, `Tasks.md`). Only the lead writes `Tasks.md` and merges; the helper commits one finished item at a
+  time, each building cleanly, and never runs the game while the user plays. With no file edited by both, the merges
+  are conflict-free.
 
 ---
 
@@ -426,6 +578,16 @@ reload checks, one-handed recoil impulse above two-handed on every measured weap
   sentry guns) whose bounds read 0; the minimum now applies only to measured sizes.
 - **Pump-only part solids** — generalised to every worked part (charging handle, slide, bolt, pump).
 - **The fine (7³ / 400-point) shape comparison in play** — moved to the self-test only (saved 5–14 ms per first draw).
+- **Rockets drawn into the tube by a spring** (2026-10-16, up to 1.6 m/s) — replaced the same day by the rocket sliding
+  with the hand the whole way (the user's request: no drawing in by itself, no letting go).
+- **Rockets taken onto the line inside the tube, or from any side** — replaced by loading at the front only, tail
+  first.
+- **The index-point hold for pistol magazines** — replaced by the base in the fist (the user's pictures).
+- **A magazine's grip thickness from its box tilted by the insert axis** — made most magazines a machine gun's box held
+  on the fingers; replaced by measuring where the hand holds it.
+- **Seating counted along the whole rail** — read rifle magazines still under their well as beside it; replaced by
+  measuring only what has gone past the well's mouth.
+- **The 1.5 m world-box limit in `SeeThrough`** — dropped long launcher tubes; replaced by mesh bounds and 3.5 m.
 - **Rejected review findings**: melee "misses are distance 0" (the game's `SphereCast` returns `float.MaxValue` for
   misses, and its own code relies on that) and "fire stays suppressed after a grenade" (reset every frame).
 
@@ -476,21 +638,37 @@ Other discoveries:
   draw (mostly cooking colliders).
 - **Volumes are measured once at rest** (drawn, not reloading, slide home, hinge shut; after 5 s anyway): an empty gun
   drawn with its slide locked back keeps that shape for the session.
-- **Rack grips** were measured on rifles (charging handles, bolts); pistol slides and pump shotguns have not been
-  pictured by the autotest yet.
+- **Rack grips** are pictured on every gun of the weapons run since 2026-10-16 (pistol slides held overhand, the hand
+  over the top unless the handle is clearly to the side); see the rack picture check below.
 - **Left-handed play** is verified only with simulated hands.
 - **Equip flash**: the frame-order gap is closed (0 frames counted); if a flash of the soldier body (rather than the
   flat arms) remains, the counter does not cover it.
 - **First drop of a heavy model** can still cost ~40 ms when the menu warm-up did not reach that weapon type.
 - **AT-1K** keeps an odd magazine analysis ("AK", 1060 cm) that predates this session.
 - **Depth shader dependency**: without `Hidden/Internal-DepthNormalsTexture` the hands fall back to fixed curls.
-- **Memory**: 12 cached volumes keep their maps (a few MB each).
+- **Memory**: up to 24 cached volumes keep their maps (a few MB each; 12 before 2026-10-16).
+- **One eye brighter on Island** (225, some runs, not reproduced; the film's still check had both eyes within 0.5 %):
+  the mod's two headset cameras (world and UI) are set the same for both eyes. Suspects outside the mod's code: map
+  shaders without instancing support when `StereoMode` is single-pass instanced (they draw in one eye), post-processing
+  auto exposure keeping a separate history per eye in multi-pass (only when `PostProcessing` is on; off by default),
+  and per-eye water reflections or shadow cascades.
+- **Rack**: on the 2026-10-16 evening run the gun's own part moved with the hand on 116 of 233 guns; 54 do not, 7 move
+  an added knob (`Tasks.md` "For 246"). 27 guns with unreadable meshes needed an added knob (245); some still do.
+- **Trigger finger** curls until it touches; there is no trigger point in the analysis, so it does not aim at the
+  trigger blade (202). The finger also presses visibly on each shot and on a dry click.
+- **Weapons in either hand**: passing the weapon to the other hand works (152 step one); holding a second weapon at the
+  same time (step two) needs a second held weapon next to the game's single active weapon and is not started.
 - Long-standing (README): night vision and camera effects not copied to the headset; third-person/death cameras turn
   only around the vertical axis; magenta materials replaced by approximations.
 
 ---
 
 ## 11. Open Questions & Next Steps
+
+The current list is the top of `Tasks.md` ("Still to do", "In progress", "Code done, to check in the headset"). On
+2026-10-16 the headset checks waiting were: rockets by hand on the 14 launchers (250), the pistol magazine push and
+fades (240-242), launchers held still (203), the gloves with `Hands = WeaponArms` on one-arm models (251.1), long
+launchers in the hand's solid (251.21) and the per-eye brightness on Island (225). The list below is from 2026-10-13.
 
 1. Headset session on the Quest 3 to judge the new grips, rack grips (pistol slides, pumps), recoil strength and the
    equip flash in person.
@@ -527,3 +705,36 @@ Other discoveries:
    rendering (task 97).
 
 Commits of the session: `b219cfc` … `6e063e8` (see `git log`).
+
+## 13. Work Log (2026-10-16)
+
+About 80 commits, from `10a2c2d` to `8e6eec8`; the lead on `tasks-98-113`, the helper on `helper-248-249` from the
+evening on (merged twice the same night).
+
+1. **Screen and feel** (Tasks 230, 237-239): the muzzle flash's hot core drawn in the world and hidden by the gun, recoil
+   that is seen and felt (`ShotKick`), a whole-view flash now and then, aim steadied through magnifying scopes (a
+   one-euro style filter on the gun's turn above 1.8x).
+2. **Magazines** (240-242, 241 seating, 232): grip thickness where the hand holds it, pistol magazines by the base and
+   pushed home with an opening hand, pose fades, the rail's damped draw-in, insert axes put back into the gun's side
+   plane, the seating check measured from the well's mouth; skinned guns' second magazine bones hidden with the
+   magazine.
+3. **Rockets by hand** (231, 250): loaded at the front, taken only at the mouth, kept out of the launcher, sliding with
+   the hand, the launcher's own rocket copied while it sits loaded, missile tubes handing out their projectile; the
+   rocket film and checks in every weapons run.
+4. **Racking** (233, 243, 245, 246): the racking hand rests on the receiver over an ejection port (recesses up to 3.4 cm
+   closed over in the shape it closes on), pistol slides held overhand in the self-check, guns' own charging handles
+   kept instead of added knobs where they can be found, the rack picture check (53 → 116 of 233 guns moving their own
+   part).
+5. **Weight** (203, 204, 208): the hand's acceleration through a dead band; the shoulder check read from where the hands
+   hold the gun.
+6. **Bug hunts and reviews**: an 85-agent review and regression guards (F6 retry, optics vs calibre names, kept-weapon
+   cap, weight against the body's motion); 248 (30 performance findings) and 249 (22 bugs) by 5 Haiku finders each;
+   251 (8 finders, 2 skeptics per finding: 20 confirmed, 3 plausible, 9 refuted). Each finding's result and reason is
+   in `Tasks.md` "For 248", "For 249", "For 251". Notable fixes: the 24-entry shape cache with pooled read-back buffers,
+   `Handgun` by slot, lens band threads at normal priority, kept weapons that are never silently deleted, the HUD
+   camera's aspect from the main HUD, the stand-in never orphaned, sub weapons kicking as themselves, the flash read on
+   the barrel that fired, a failed hand-solid measurement retried, invariant numbers in the film log.
+7. **Helper's follow-ups** (215, 203, 202, 229): per-frame UI writes only on change (ammo counter, squad label, canvas
+   scales, laser colour), the trigger press on a dry click, a melee weapon never taken for a kit.
+8. **Work split** between the lead and the helper by files (see Decisions); the Boneworks study (244, read-only agents
+   on its decompiled class structure; the game never launched).
