@@ -450,7 +450,7 @@ namespace RavenfieldVR.UI
                     float scale = width / t.Size.x;
                     float depth = d - 0.001f * d / distance * Mathf.Clamp(t.Order, -100, 100);
                     t.Rect.SetPositionAndRotation(hud.position + hud.Forward * depth, hud.rotation);
-                    t.Rect.localScale = Vector3.one * scale;
+                    SetScale(t.Rect, Vector3.one * scale);
                 }
                 else
                 {
@@ -461,7 +461,7 @@ namespace RavenfieldVR.UI
                     }
                     RigidPose world = RigidPose.Of(_rig.Root).Multiply(t.LocalPose);
                     world.ApplyTo(t.Rect);
-                    t.Rect.localScale = Vector3.one * (VRConfig.MenuWidth.Value / Mathf.Max(1f, t.Size.x));
+                    SetScale(t.Rect, Vector3.one * (VRConfig.MenuWidth.Value / Mathf.Max(1f, t.Size.x)));
                 }
             }
 
@@ -471,6 +471,18 @@ namespace RavenfieldVR.UI
                 float vfov = 2f * Mathf.Atan(Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad) / aspect) * Mathf.Rad2Deg;
                 player.fpCamera.fieldOfView = vfov;
                 player.fpCamera.aspect = aspect;
+            }
+        }
+
+        /// <summary>
+        /// Written only when it differs: the same every frame for each shown canvas (its size and the settings rarely
+        /// change), while anything that does change it (the game, a setting) is still put right the next frame.
+        /// </summary>
+        private static void SetScale(Transform t, Vector3 scale)
+        {
+            if (t.localScale != scale)
+            {
+                t.localScale = scale;
             }
         }
 

@@ -131,10 +131,18 @@ namespace RavenfieldVR.Weapons
         private static Actor _trackedActor;
         private static int _trackedState = -1;
         private static float _bumpAgainAt = -1f;
+        private static int _trackedFrame = -1;
 
         /// <summary>Per frame: notices when the player's colliders were (or are about to be) switched off and on.</summary>
         public static void TrackPlayer()
         {
+            // Once a frame: the held gun's stand-in and the drops both call it from the weapon system's Update, and the
+            // player's state does not change between the two.
+            if (_trackedFrame == Time.frameCount)
+            {
+                return;
+            }
+            _trackedFrame = Time.frameCount;
             Actor actor = LocalPlayer.actor;
             FpsActorController controller = LocalPlayer.controller;
             int state = actor == null ? 0

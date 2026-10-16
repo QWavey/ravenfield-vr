@@ -214,7 +214,11 @@ namespace RavenfieldVR.UI
                 return;
             }
             RigidPose.Of(_rig.Root).Multiply(_localPose).ApplyTo(_root.transform);
-            _root.transform.localScale = Vector3.one * (0.8f / CanvasWidth);
+            Vector3 scale = Vector3.one * (0.8f / CanvasWidth);
+            if (_root.transform.localScale != scale) // a constant: written once, not every frame the panel is open
+            {
+                _root.transform.localScale = scale;
+            }
         }
 
         public void Dispose()

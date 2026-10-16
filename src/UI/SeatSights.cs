@@ -52,7 +52,11 @@ namespace RavenfieldVR.UI
                     continue;
                 }
                 s.T.SetPositionAndRotation(head.position + basis * (s.Direction * Distance), basis * s.Rotation);
-                s.T.localScale = s.LocalScale * (Distance / s.Range);
+                Vector3 scale = s.LocalScale * (Distance / s.Range);
+                if (s.T.localScale != scale) // the same every frame (captured once); the game changing it is still put right
+                {
+                    s.T.localScale = scale;
+                }
             }
         }
 
