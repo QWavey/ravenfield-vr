@@ -1950,8 +1950,10 @@ namespace RavenfieldVR.Weapons
                 VRHand.Scripted[side] = pose(1f).Multiply(rawFromPalm);
             }
             bool onLine = false, loaded = false, fromBehind = false;
-            // Where the rocket is lined up, against the muzzle: an RPG is loaded from the front (user, 2026-10-16).
-            float mouthAhead = Vector3.Dot(tailAtMouth - Rig.ToWorld(Data.MuzzlePoint), Rig.AimWorld);
+            // Where the rocket is lined up, against the tube's front end: an RPG is loaded from the front (user, 2026-10-16).
+            Vector3 aimGun = Data.AimAxis.normalized;
+            float tubeFront = MagazineProp.TubeFront(Rig, aimGun, out float tf) ? tf : Vector3.Dot(Data.MuzzlePoint, aimGun);
+            float mouthAhead = Vector3.Dot(Rig.ToGun(tailAtMouth), aimGun) - tubeFront;
             try
             {
                 // At the back first: the rocket's tail held 40 cm behind where it sits seated must not be taken.
@@ -1986,7 +1988,7 @@ namespace RavenfieldVR.Weapons
                 left.Destroy();
             }
             report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, "
-                   + $"lined up {mouthAhead * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "behind")} the muzzle{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}, "
+                   + $"lined up {Mathf.Abs(mouthAhead) * 100f:0} cm {(mouthAhead >= 0f ? "in front of" : "inside")} the tube's front{(mouthAhead < -0.05f ? " (NOT AT THE MUZZLE)" : "")}, "
                    + $"{(fromBehind ? "TAKEN FROM THE BACK" : "not taken at the back")}, "
                    + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, {(loaded ? "loaded" : "NOT LOADED")}");
         }

@@ -2093,6 +2093,26 @@ namespace RavenfieldVR.Weapons
                 CollectMagazineParts(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
                 MagKeyframes(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
             }
+            // What of it shows while it sits loaded, at rest (one warhead of five on an RPG-7V made for all of them).
+            var magTransforms = new List<Transform> { mag };
+            foreach (int[] p in d.MagazinePartPaths)
+            {
+                Transform part = WeaponRig.Resolve(root, p);
+                if (part != null && !magTransforms.Contains(part))
+                {
+                    magTransforms.Add(part);
+                }
+            }
+            foreach (Transform part in magTransforms)
+            {
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (!(r is ParticleSystemRenderer) && sampler.IdleVisible(r.transform))
+                    {
+                        d.MagShownAtIdle.Add(WeaponRig.PathOf(root, r.transform));
+                    }
+                }
+            }
         }
 
         /// <summary>

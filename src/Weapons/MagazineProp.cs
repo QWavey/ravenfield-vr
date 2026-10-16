@@ -409,13 +409,19 @@ namespace RavenfieldVR.Weapons
                 // Its rail runs from the launcher's mouth to where its tail sits seated: lined up at the muzzle, in front of
                 // the launcher, where a rocket is put in. It began a few tenths of the rocket's length back from the seat,
                 // inside the tube, and a rocket held at the muzzle was never taken.
+                // The mouth is the tube's front end (the launcher's own meshes, not its rocket): its "muzzle" point is where
+                // the projectile starts, 1.1 m in front of the grip on an RPG-7, past the warhead.
                 Vector3 tailSeated = d.MagSeat.TransformPoint(prop.TipLocal);
-                float depth = Vector3.Dot(tailSeated - d.MuzzlePoint, insertGun.normalized);
+                Vector3 aim = d.AimAxis.normalized;
+                bool tube = TubeFront(rig, aim, out float front);
+                float mouth = tube ? front : Vector3.Dot(d.MuzzlePoint, aim);
+                float depth = mouth - Vector3.Dot(tailSeated, aim);
                 if (depth > 0.05f && depth < 1.2f)
                 {
                     prop.RailLength = depth + 0.01f;
                 }
-                Log.InfoOnce("rocketrail:" + d.Key, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the muzzle to the seated tail (muzzle to tail {depth * 100f:0} cm).");
+                Log.InfoOnce("rocketrail:" + d.Key, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the {(tube ? "tube's front" : "muzzle point")} to the seated tail "
+                                                    + $"({depth * 100f:0} cm measured).");
             }
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
@@ -635,11 +641,14 @@ namespace RavenfieldVR.Weapons
                     anyShown |= r.enabled && r.gameObject.activeInHierarchy && !(r is ParticleSystemRenderer);
                 }
             }
+            // Nothing shows (a launcher's rocket after the shot): what showed while it sat loaded, not every model under
+            // it (an RPG-7V's rocket holds five warheads and shows one; the copy of all five was the rocket in the hand).
+            HashSet<Renderer> loadedLook = !anyShown && rig.MagShownLoaded != null && rig.MagShownLoaded.Count > 0 ? rig.MagShownLoaded : null;
             foreach (Transform part in rig.MagazineParts)
             {
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy))
+                    if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy) || loadedLook != null && !loadedLook.Contains(r))
                     {
                         continue;
                     }
@@ -818,6 +827,46 @@ namespace RavenfieldVR.Weapons
         }
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+
+        /// <summary>
+        /// How far forward (gun-body space, along <paramref name="aim"/>) the launcher's own meshes reach: its tube's front
+        /// end. Not its rocket (the magazine parts), not see-through lenses or sight overlays (queue 3000 and up), nothing
+        /// over 2.5 m (a sight's far plane). False when it has no mesh of its own to measure (a skinned tube).
+        /// </summary>
+        internal static bool TubeFront(WeaponRig rig, Vector3 aim, out float front)
+        {
+            front = float.MinValue;
+            if (rig.GunBody == null)
+            {
+                return false;
+            }
+            bool any = false;
+            foreach (MeshFilter mf in rig.GunBody.GetComponentsInChildren<MeshFilter>(false))
+            {
+                Renderer r = mf.GetComponent<Renderer>();
+                if (mf.sharedMesh == null || r == null || !r.enabled || r.sharedMaterial != null && r.sharedMaterial.renderQueue >= 3000)
+                {
+                    continue;
+                }
+                bool rocket = false;
+                foreach (Transform part in rig.MagazineParts)
+                {
+                    rocket |= part != null && mf.transform.IsChildOf(part);
+                }
+                if (rocket || Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale).magnitude > 2.5f)
+                {
+                    continue;
+                }
+                Bounds mb = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    front = Mathf.Max(front, Vector3.Dot(rig.ToGun(mf.transform.TransformPoint(corner)), aim));
+                    any = true;
+                }
+            }
+            return any;
+        }
 
         /// <summary>A shotgun's rounds are shells; any other gun loaded round by round takes rifle rounds.</summary>
         private static bool ShotgunShells(WeaponRig rig) =>

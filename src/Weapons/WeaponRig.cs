@@ -77,6 +77,12 @@ namespace RavenfieldVR.Weapons
         public int[] MagazinePath;
         /// <summary>Pieces that travel with the magazine (rounds, follower, base plate) when they are separate objects.</summary>
         public readonly List<int[]> MagazinePartPaths = new List<int[]>();
+        /// <summary>
+        /// The magazine's (or rocket's) renderers that show while it sits loaded, at rest: a launcher made for several
+        /// warheads keeps all of them under its rocket and shows one; after the shot none shows, and a copy of all five
+        /// was the rocket in the hand (RPG-7V variants; user, 2026-10-16).
+        /// </summary>
+        public readonly List<int[]> MagShownAtIdle = new List<int[]>();
         /// <summary>True when the magazine is a bone of a skinned gun mesh rather than its own object.</summary>
         public bool MagazineIsSkinned;
         /// <summary>True when the reload animation hides and shows the magazine instead of moving it.</summary>
@@ -299,12 +305,26 @@ namespace RavenfieldVR.Weapons
                 }
             }
             MagazineParts = parts.ToArray();
+            var shown = new HashSet<Renderer>();
+            foreach (int[] p in data.MagShownAtIdle)
+            {
+                Transform t = Resolve(root, p);
+                Renderer r = t != null ? t.GetComponent<Renderer>() : null;
+                if (r != null)
+                {
+                    shown.Add(r);
+                }
+            }
+            MagShownLoaded = shown;
             MagazinePartScales = new Vector3[MagazineParts.Length];
             for (int i = 0; i < MagazineParts.Length; i++)
             {
                 MagazinePartScales[i] = MagazineParts[i].localScale;
             }
         }
+
+        /// <summary>The magazine's renderers that show while it sits loaded (<see cref="WeaponRigData.MagShownAtIdle"/>).</summary>
+        public HashSet<Renderer> MagShownLoaded { get; private set; } = new HashSet<Renderer>();
 
         /// <summary>
         /// Shows the magazine at its real size for a moment (it is scaled to nothing while out of the gun) so it can be
