@@ -54,6 +54,8 @@ namespace RavenfieldVR.Weapons
         }
         // The gun's flash plays on every shot (no burst chance): any of its particles out is this shot's flash.
         private bool _pendingEveryShot;
+        /// <summary>The fired weapon's flash reading, taken once at the shot (its muzzle tree does not change within a shot).</summary>
+        private MuzzleFlashInfo _pendingInfo;
         // The gun now (for the glow of sustained fire).
         private readonly List<float> _shots = new List<float>();
         private Weapon _gun;
@@ -109,7 +111,8 @@ namespace RavenfieldVR.Weapons
             _pendingFrame = Time.frameCount;
             // Read now, before the shot's particles are simulated (the game has only asked them to play).
             _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
-            _pendingEveryShot = MuzzleFlashInfo.Of(weapon).Chance >= 0.999f;
+            _pendingInfo = MuzzleFlashInfo.Of(weapon); // read once: it walks the muzzle tree, and five or six reads followed per shot
+            _pendingEveryShot = _pendingInfo.Chance >= 0.999f;
             _pendingCounts = new int[_pendingSystems.Length];
             _pendingTrees = new ParticleSystem[_pendingSystems.Length][];
             for (int i = 0; i < _pendingSystems.Length; i++)
@@ -125,10 +128,10 @@ namespace RavenfieldVR.Weapons
             if (_pendingWeapon != null && Time.frameCount - _pendingFrame <= 1)
             {
                 // A shot fired after this frame's particle update shows its particles next frame: decided then.
-                bool later = Time.frameCount == _pendingFrame && MuzzleFlashInfo.Of(_pendingWeapon).Particles && !ParticlesOut();
+                bool later = Time.frameCount == _pendingFrame && _pendingInfo.Particles && !ParticlesOut();
                 if (!later)
                 {
-                    TryFlash(_pendingHeld, _pendingWeapon, now);
+                    TryFlash(_pendingHeld, _pendingWeapon, _pendingInfo, now);
                     _pendingWeapon = null;
                     _pendingHeld = null;
                 }
@@ -195,7 +198,7 @@ namespace RavenfieldVR.Weapons
 
         // ---- a shot ------------------------------------------------------------------------------------------------
 
-        private void TryFlash(HeldWeapon held, Weapon w, float now)
+        private void TryFlash(HeldWeapon held, Weapon w, MuzzleFlashInfo info, float now)
         {
             LensEffects fx = LensEffects.Instance;
             if (!VRConfig.LensFlash.Value || fx == null || held == null || w == null || w.configuration == null)
@@ -208,20 +211,20 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             // The gun's own flash size places the plume; the player's strength setting only scales how bright it is.
-            float size = FlashSize(held, w, ParticlesOut());
+            float size = FlashSize(held, w, info, ParticlesOut());
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
             // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
             // flash-less set it to nothing, and the glow went out in the middle of a burst).
-            float gunSize = MuzzleFlashInfo.Of(w).Particles ? FlashSize(held, w, true) : size;
+            float gunSize = info.Particles ? FlashSize(held, w, info, true) : size;
             _gunSize = gunSize * strength;
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
             {
-                if (MuzzleFlashInfo.Of(w).Any) // a smoke grenade or a knife has no flash to miss
+                if (info.Any) // a smoke grenade or a knife has no flash to miss
                 {
                     Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
-                                                            + $"(muzzle '{muzzle.name}', particles {MuzzleFlashInfo.Of(w).Particles}, light {MuzzleFlashInfo.Of(w).Light}).");
+                                                            + $"(muzzle '{muzzle.name}', particles {info.Particles}, light {info.Light}).");
                 }
                 return; // no flash on this shot (none on this weapon, or its particles skipped this one)
             }
@@ -247,7 +250,7 @@ namespace RavenfieldVR.Weapons
             float strongest = 0f, seenMost = 0f;
             // Now and then (about one shot in three) the whole view flashes with it, a loud gun's more: the same in both eyes,
             // only where the limiter gives this shot a full flash (Tasks 239).
-            bool viewFlash = VRConfig.ShotViewFlash.Value && Random.value < 0.35f && MuzzleFlashInfo.Of(w).Light;
+            bool viewFlash = VRConfig.ShotViewFlash.Value && Random.value < 0.35f && info.Light;
             float viewAmount = Random.Range(0.10f, 0.22f) * Mathf.Clamp(size * strength / 1.7f, 0.4f, 1.3f);
             for (int e = 0; e < 2; e++)
             {
@@ -280,9 +283,8 @@ namespace RavenfieldVR.Weapons
         /// The gun's flash size on this shot, as flash_sim.py's guns (pistol 1.0, SMG 1.1, rifle 1.7, machine gun 2.0,
         /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot.
         /// </summary>
-        private static float FlashSize(HeldWeapon held, Weapon w, bool particlesOut)
+        private static float FlashSize(HeldWeapon held, Weapon w, MuzzleFlashInfo info, bool particlesOut)
         {
-            MuzzleFlashInfo info = MuzzleFlashInfo.Of(w);
             float size;
             // The gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.
             WeaponRigData d = (w == held.Weapon ? held.Rig : held.ActiveRig ?? held.Rig).Data;
@@ -391,7 +393,9 @@ namespace RavenfieldVR.Weapons
             }
             if (LensEffects.CoreInWorld)
             {
-                _fireball.SetGlow(muzzle, _gunAhead, glowMost);
+                // Gone out when the player is dead, like the lens glow (Present zeroes j.Glow on death). The world fireball
+                // used to keep glowing at the muzzle of a gun left visible after death until the last shot left the window.
+                _fireball.SetGlow(muzzle, _gunAhead, Util.GameContext.PlayerAlive ? glowMost : 0f);
             }
         }
 
@@ -434,7 +438,13 @@ namespace RavenfieldVR.Weapons
                 {
                     return power;
                 }
-                _full.RemoveAll(s => t - s.Key >= Window);
+                for (int i = _full.Count - 1; i >= 0; i--) // drop entries older than the window in place (no per-call closure)
+                {
+                    if (t - _full[i].Key >= Window)
+                    {
+                        _full.RemoveAt(i);
+                    }
+                }
                 int left = Budget;
                 foreach (var s in _full)
                 {
