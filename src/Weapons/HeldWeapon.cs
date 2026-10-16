@@ -66,14 +66,23 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                // In within 12 cm of the pocket, out past 15: a stock held at the edge does not flick in and out.
-                float distance = Vector3.Distance(Rig.ToWorld(_stockButt.Value), _system.Zones.DomShoulder);
+                // In within 12 cm of the pocket, out past 15: a stock held at the edge does not flick in and out. Measured where
+                // the player holds the stock (the tracked hands' pose), not where the droop, the weight's lag and the recoil
+                // draw it: on the drawn pose the droop this switches lifted or lowered the butt across the pocket's edge, the
+                // stock left the shoulder, the droop came back, the butt went back in, and a launcher (its tube's end some
+                // 50 cm behind the grip, moved about 7 cm by an 8 degree droop, more than the 3 cm band) rocked in a still
+                // hand without being fired (Tasks 203).
+                Vector3 butt = _buttFromHandSet ? _buttFromHand : Rig.ToWorld(_stockButt.Value);
+                float distance = Vector3.Distance(butt, _system.Zones.DomShoulder);
                 _shouldered = distance < (_shouldered ? 0.15f : 0.12f);
                 return _shouldered;
             }
         }
 
         private bool _shouldered;
+        /// <summary>The stock's butt where the tracked hands hold it this frame (before droop, weight lag and recoil).</summary>
+        private Vector3 _buttFromHand;
+        private bool _buttFromHandSet;
 
         // Visual overrides.
         public float SlideOffset;
@@ -1086,6 +1095,12 @@ namespace RavenfieldVR.Weapons
                     float e = _twoHandBlend * _twoHandBlend * (3f - 2f * _twoHandBlend);
                     gunRot = Quaternion.Slerp(gunRot, twoHand, e);
                 }
+            }
+            if (_stockButt.HasValue)
+            {
+                // Where the player puts the stock, for the shoulder check below (the gun body on the grip at the hand).
+                _buttFromHand = hand.position + gunRot * (_stockButt.Value - d.GripPoint);
+                _buttFromHandSet = true;
             }
 
             // Weight: unsupported long guns droop and trail the wrist a little; supported they follow it exactly. The droop
