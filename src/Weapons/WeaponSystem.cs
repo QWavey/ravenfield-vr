@@ -108,6 +108,9 @@ namespace RavenfieldVR.Weapons
             Casings.Cull();
             GrenadeDud.Cull();
             VRGameInput.SuppressFire = false;
+            // Set again below while the support hand's trigger fires an under-barrel launcher, or is the gun's.
+            VRGameInput.SupportFire = false;
+            VRGameInput.SupportTriggerOwned = false;
 
             Weapon weapon = GameContext.HeldPersonalWeapon;
             if (Held != null && (weapon != Held.Weapon || Held.Weapon == null))

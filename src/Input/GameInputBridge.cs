@@ -53,6 +53,18 @@ namespace RavenfieldVR.Input
         /// <summary>Weapon systems set this while the dominant trigger must not fire (e.g. holding a grenade pin).</summary>
         public static bool SuppressFire { get; set; }
 
+        /// <summary>
+        /// The support hand's trigger fires the weapon's active sub weapon (an under-barrel launcher switched to while that
+        /// trigger is held; ReloadInteractions). Set every frame it applies.
+        /// </summary>
+        public static bool SupportFire { get; set; }
+
+        /// <summary>
+        /// The support hand holds a gun whose parts its trigger works (a pump, an under-barrel launcher, lights and lasers):
+        /// that trigger is not the game's Use meanwhile (it entered vehicles). Set every frame it applies.
+        /// </summary>
+        public static bool SupportTriggerOwned { get; set; }
+
         public static Vector2 MoveStick { get; private set; }
         public static Vector2 TurnStickRaw { get; private set; }
 
@@ -118,7 +130,7 @@ namespace RavenfieldVR.Input
             // scoreboard, match bar, wrist display) came and went every other frame.
             Set(KeyBinds.PeekScoreboard, _scoreboardWithMap && !menu && WristLookGesture && GameContext.InGame);
             // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
-            Set(KeyBinds.Fire, VRInput.GetHeld(DigitalAction.Fire, dom) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
+            Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) || SupportFire) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
 
             if (menu)
             {
@@ -139,7 +151,7 @@ namespace RavenfieldVR.Input
             {
                 _leaveHeldSince = -1f;
             }
-            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off)));
+            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));

@@ -36,13 +36,128 @@ namespace RavenfieldVR.Weapons
         /// <summary>This stroke is a pump worked by the support hand's trigger: it ends when the trigger is let go.</summary>
         private bool _rackByTrigger;
 
+        /// <summary>The under-barrel launcher's sub weapon index (-1 none, -2 not looked for yet).</summary>
+        private int _launcherSub = -2;
+        /// <summary>The sub weapon that was active before the support hand's trigger switched to the launcher (null: not firing it).</summary>
+        private int? _launcherFrom;
+        /// <summary>Lights and lasers: 0 off, 1 laser, 2 light, 3 both (as the support hand's trigger last left them).</summary>
+        private int _lightMode;
+
+        /// <summary>
+        /// The support hand's trigger, the hand on the gun (user, 2026-10-16): on an under-barrel launcher it fires the
+        /// launcher (switched to while the trigger is held, back when it is let go: the HK416-D's); elsewhere on the gun it
+        /// steps through the lights and lasers the gun's scripts offer: laser, light, both, off (a gun with one key taps it).
+        /// </summary>
+        private void SupportTrigger(VRHand off)
+        {
+            Weapon w = _held.Weapon;
+            int launcher = UnderBarrelLauncher(w);
+            if (_launcherFrom.HasValue)
+            {
+                if (VRInput.GetHeld(DigitalAction.Use, off.Side) && off.GrabHeld && w.activeSubWeaponIndex == launcher)
+                {
+                    VRGameInput.SupportFire = true;
+                    return;
+                }
+                // Let go: the gun goes back to what it was firing before (after the shot has gone: the trigger was held a
+                // frame at least).
+                VRGameInput.SupportFire = false;
+                if (launcher >= 0 && w.activeSubWeaponIndex == launcher && !w.GetActiveSubWeapon().reloading)
+                {
+                    w.EquipSubWeapon(_launcherFrom.Value);
+                }
+                _launcherFrom = null;
+                return;
+            }
+            if (!VRInput.GetPressed(DigitalAction.Use, off.Side) || Util.GameContext.GameMenuOpen)
+            {
+                return;
+            }
+            if (launcher >= 0 && OnLauncher(w.alternativeWeapons[launcher], off.Palm.position))
+            {
+                VRInput.Consume(DigitalAction.Use, off.Side);
+                _launcherFrom = w.activeSubWeaponIndex;
+                if (w.activeSubWeaponIndex != launcher)
+                {
+                    w.EquipSubWeapon(launcher);
+                }
+                VRGameInput.SupportFire = true;
+                off.Haptic(0.02f, 140f, 0.3f);
+                return;
+            }
+            Input.ScriptKey laser = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Laser);
+            Input.ScriptKey light = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Light);
+            if (laser == null && light == null)
+            {
+                return;
+            }
+            VRInput.Consume(DigitalAction.Use, off.Side);
+            if (laser != null && light != null && laser.Key != light.Key)
+            {
+                // Off -> laser -> light -> both -> off: the laser every step, the light every other.
+                Input.ScriptKeys.Tap(laser.Key, laser.Script);
+                if (_lightMode == 1 || _lightMode == 3)
+                {
+                    Input.ScriptKeys.Tap(light.Key, light.Script);
+                }
+                _lightMode = (_lightMode + 1) % 4;
+            }
+            else
+            {
+                Input.ScriptKey only = laser ?? light; // one key: the gun's own script steps its modes
+                Input.ScriptKeys.Tap(only.Key, only.Script);
+            }
+            off.Haptic(0.015f, 200f, 0.25f);
+            _held.Sounds.Play(MechSound.SlideForward, off.Palm.position, 0.15f); // a small click of the switch
+        }
+
+        /// <summary>The weapon's under-barrel launcher (a sub weapon firing an exploding round, a few at most), or -1.</summary>
+        private int UnderBarrelLauncher(Weapon w)
+        {
+            if (_launcherSub != -2)
+            {
+                return _launcherSub;
+            }
+            _launcherSub = -1;
+            for (int i = 0; w.alternativeWeapons != null && i < w.alternativeWeapons.Count; i++)
+            {
+                Weapon sub = w.alternativeWeapons[i];
+                if (sub == null || sub.configuration == null || sub.configuration.projectilePrefab == null || sub.configuration.ammo < 1 || sub.configuration.ammo > 6)
+                {
+                    continue;
+                }
+                Projectile p = sub.configuration.projectilePrefab.GetComponent<Projectile>();
+                if (p is ExplodingProjectile || p is GrenadeProjectile)
+                {
+                    _launcherSub = i;
+                    Log.InfoOnce("ubgl:" + Data.Key, $"{w.name}: its under-barrel launcher '{sub.name}' is fired by the support hand's trigger.");
+                    break;
+                }
+            }
+            return _launcherSub;
+        }
+
+        /// <summary>The palm is on the launcher: up to 30 cm behind its muzzle along the barrel, within 12 cm of its line.</summary>
+        private bool OnLauncher(Weapon sub, Vector3 palm)
+        {
+            Transform m = sub.configuration.muzzles != null && sub.configuration.muzzles.Length > 0 ? sub.configuration.muzzles[0] : null;
+            if (m == null)
+            {
+                return true; // nowhere to measure from: the support hand anywhere on the gun
+            }
+            Vector3 aim = Rig.AimWorld;
+            Vector3 rel = palm - m.position;
+            float back = -Vector3.Dot(rel, aim);
+            return back > -0.05f && back < 0.3f && (rel + aim * back).magnitude < 0.12f;
+        }
+
         /// <summary>
         /// The support hand on a pump squeezes its trigger: it works the pump (only then; held without the trigger the pump
         /// is the support grip and stays where it is). Within 20 cm of the pump's grasp: a short pump far down a long tube.
         /// </summary>
         private bool PumpByTrigger(VRHand off)
         {
-            return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Fire, off.Side)
+            return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Use, off.Side)
                    && !Util.GameContext.GameMenuOpen && Vector3.Distance(off.Palm.position, RackPointWorld) < 0.2f;
         }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
@@ -189,6 +304,16 @@ namespace RavenfieldVR.Weapons
             {
                 TryGrab(off);
             }
+            if (_launcherFrom.HasValue && off.Role != HandRole.Foregrip)
+            {
+                // The support hand left the launcher with its trigger still held: back to what the gun fired before.
+                Weapon gun = _held.Weapon;
+                if (gun.activeSubWeaponIndex == _launcherSub && !gun.GetActiveSubWeapon().reloading)
+                {
+                    gun.EquipSubWeapon(_launcherFrom.Value);
+                }
+                _launcherFrom = null;
+            }
             switch (off.Role)
             {
                 case HandRole.Foregrip:
@@ -200,6 +325,10 @@ namespace RavenfieldVR.Weapons
                         _rackByTrigger = true;
                         break;
                     }
+                    VRGameInput.SupportTriggerOwned = IsPump && Manual || UnderBarrelLauncher(_held.Weapon) >= 0
+                                                      || Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Laser) != null
+                                                      || Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Light) != null;
+                    SupportTrigger(off);
                     // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
                     // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
                     // a clear knock. At 35 cm it slipped off in a hard pull.
@@ -226,6 +355,10 @@ namespace RavenfieldVR.Weapons
                     break;
                 }
                 case HandRole.Slide:
+                    if (_rackByTrigger)
+                    {
+                        VRGameInput.SupportTriggerOwned = true; // the pump's trigger is the gun's while it works it
+                    }
                     UpdateRack(off);
                     break;
                 case HandRole.Magazine:
@@ -1683,7 +1816,7 @@ namespace RavenfieldVR.Weapons
                 off.Role = HandRole.Free;
                 return;
             }
-            if (_rackByTrigger && off.GrabHeld && !VRInput.GetHeld(DigitalAction.Fire, off.Side))
+            if (_rackByTrigger && off.GrabHeld && !VRInput.GetHeld(DigitalAction.Use, off.Side))
             {
                 // The trigger let go: the pump stays where the hand left it and the hand holds the gun by the pump again.
                 EndRack(off, chamber: true);
