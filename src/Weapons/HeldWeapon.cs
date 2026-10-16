@@ -1275,7 +1275,8 @@ namespace RavenfieldVR.Weapons
         /// weapon's support pose on the handguard (slid to wherever you hold it) or on the pistol grip it cups.
         /// </summary>
         private GunVolume _volume;
-        private bool _volumeTried;
+        private int _volumeTries;
+        private float _volumeRetryAt;
         private bool _hullApplied;
         private System.Func<Vector3, bool> _supportSolid;
         private HandModel _supportGunHand;
@@ -1315,10 +1316,22 @@ namespace RavenfieldVR.Weapons
             // stays in its shape for the session. A gun that never comes to rest (empty, slide locked) is measured anyway.
             float held = Time.unscaledTime - _heldSince;
             bool atRest = Weapon.unholstered && !Weapon.reloading && SlideOffset < 0.002f && HingeOpenness < 0.01f;
-            if (_volume == null && !_volumeTried && held > 0.25f && (atRest || held > 5f) && Rig.Data.Action != ActionType.NoAmmo)
+            if (_volume != null && _volume.Failed)
             {
-                _volumeTried = true;
+                // Its read-back or measuring failed: measured again a second later (GunVolume keeps no failed entry). Latched
+                // before, the hands never got a solid for the rest of the hold.
+                _volume = null;
+                _volumeRetryAt = Time.unscaledTime + 1f;
+            }
+            bool measurable = Rig.Data.Action != ActionType.NoAmmo;
+            if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && held > 0.25f && (atRest || held > 5f) && measurable)
+            {
+                _volumeTries++;
                 _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
+                if (_volume == null)
+                {
+                    _volumeRetryAt = Time.unscaledTime + 1f; // not built (an exception, a degenerate box): tried again, three times at most
+                }
             }
             if (_volume == null || !_volume.Ready || Rig.GunBody == null)
             {
