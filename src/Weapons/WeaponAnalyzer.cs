@@ -1191,6 +1191,18 @@ namespace RavenfieldVR.Weapons
             if (d.Animated && sampler.HasReload && !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
             {
                 Transform handle = ChargingHandleFromReload(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, out Vector3 handleVec, slide);
+                if (handle != null && slide.IsChildOf(handle) && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)
+                {
+                    // The handle carries the bolt (a PKM's 拉机柄 is its bolt's parent): it is what the hand racks, the bolt
+                    // rides on it. As a separate handle the bolt would move twice (the handle's travel plus its own).
+                    d.SlidePath = WeaponRig.PathOf(root, handle);
+                    d.SlideRestLocal = sampler.IdleLocalPosition(handle);
+                    d.SlideTravel = -d.AimAxis * Mathf.Clamp(handleVec.magnitude, 0.03f, 0.15f);
+                    Bounds cb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
+                    d.RackPoint = cb.size.sqrMagnitude > 1e-6f ? cb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
+                    d.SlideMethod = "reload motion (charging handle carrying the bolt)";
+                    handle = null;
+                }
                 if (handle != null && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)
                 {
                     d.HandlePath = WeaponRig.PathOf(root, handle);
@@ -1822,6 +1834,19 @@ namespace RavenfieldVR.Weapons
         /// Many rifles never move their bolt in the fire clip; their charging handle only moves in the reload.
         /// It is the visible part near the receiver that goes straight back along the bore and returns home.
         /// </summary>
+        /// <summary>Its own mesh is the size of a cocking handle (2-30 cm), not a receiver or a bolt group's housing.</summary>
+        private static bool HandleSized(Transform t)
+        {
+            MeshFilter mf = t.GetComponent<MeshFilter>();
+            if (mf == null || mf.sharedMesh == null)
+            {
+                return false;
+            }
+            Vector3 size = Vector3.Scale(mf.sharedMesh.bounds.size, t.lossyScale);
+            float longest = Mathf.Max(Mathf.Abs(size.x), Mathf.Max(Mathf.Abs(size.y), Mathf.Abs(size.z)));
+            return longest > 0.02f && longest < 0.3f;
+        }
+
         private static Transform ChargingHandleFromReload(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
             Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, out Vector3 travel,
             Transform exclude = null)
@@ -1835,7 +1860,9 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (exclude != null && (t == exclude || t.IsChildOf(exclude) || exclude.IsChildOf(t)))
+                // (A part above the slide only when it is handle-sized itself: a PKM's charging handle carries its bolt as a
+                // child, and taken for "the bolt's own hierarchy" it was never found; a receiver is far longer.)
+                if (exclude != null && (t == exclude || t.IsChildOf(exclude) || exclude.IsChildOf(t) && !HandleSized(t)))
                 {
                     continue;
                 }
@@ -3583,6 +3610,12 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 float size = Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale).magnitude;
+                if (size > 2.5f || mr != null && GunCollider.SeeThrough(mr))
+                {
+                    // A laser's beam, a sight's glow or glass is not the gun: the HK416-B/D's 10 m laser beam was taken for
+                    // the gun body, and every part's motion was measured against the laser sight.
+                    continue;
+                }
                 if (size > bestSize)
                 {
                     bestSize = size;
