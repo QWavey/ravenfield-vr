@@ -45,7 +45,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Autotest: one eye's flash as the limiter let it through (the steps it was charged; 0 for a soft one).</summary>
         internal struct TestFlash
         {
-            public float Time, Asked, Shown;
+            public float Time, Asked, Shown, Visible;
             public int Eye, Steps;
         }
 
@@ -55,15 +55,29 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: flashes shown, and the last one's strength (the stronger eye).</summary>
         internal int Shown { get; private set; }
 
+        /// <summary>Self-test: eyes whose picture flashed the whole view with a shot.</summary>
+        internal int ViewFlashes { get; private set; }
+
         /// <summary>Self-test: the player's shots seen (each may or may not flash).</summary>
         internal int ShotsSeen { get; private set; }
         internal float LastPower { get; private set; }
+
+        /// <summary>Self-test: how much of the last flash the eye that saw most of it saw past the gun (0..1).</summary>
+        internal float LastVisible { get; private set; } = 1f;
 
         public LensFlash(VRRig rig)
         {
             Instance = this;
             _rig = rig;
+            _fireball = new MuzzleFireball();
         }
+
+        // The flash's hot core in the world, hidden by the gun where it covers it (Tasks 237).
+        private readonly MuzzleFireball _fireball;
+        private HeldWeapon _gunHeld;
+        private float _gunAhead = 0.1f;
+        private readonly float[] _glowVis = { 1f, 1f };
+        private int _glowVisFrame = -10;
 
         /// <summary>The player's weapon fired (Weapon.Shoot): the flash is decided before the frame is drawn.</summary>
         public void OnShot(HeldWeapon held, Weapon weapon)
@@ -89,16 +103,72 @@ namespace RavenfieldVR.Weapons
             if (_pendingWeapon != null && Time.frameCount - _pendingFrame <= 1)
             {
                 // A shot fired after this frame's particle update shows its particles next frame: decided then.
-                if (Time.frameCount == _pendingFrame && MuzzleFlashInfo.Of(_pendingWeapon).Particles && !ParticlesOut())
+                bool later = Time.frameCount == _pendingFrame && MuzzleFlashInfo.Of(_pendingWeapon).Particles && !ParticlesOut();
+                if (!later)
                 {
-                    UpdateGlow(now, Time.unscaledDeltaTime);
-                    return;
+                    TryFlash(_pendingHeld, _pendingWeapon, now);
+                    _pendingWeapon = null;
+                    _pendingHeld = null;
                 }
-                TryFlash(_pendingHeld, _pendingWeapon, now);
-                _pendingWeapon = null;
-                _pendingHeld = null;
             }
             UpdateGlow(now, Time.unscaledDeltaTime);
+            _fireball.BeforeRender(_rig.Camera != null ? _rig.Camera.transform : null);
+        }
+
+        /// <summary>
+        /// How much of a flash at <paramref name="source"/> (about <paramref name="radius"/> across) the eye at
+        /// <paramref name="eye"/> sees past the gun: the share of seven points over it whose line to the eye clears the
+        /// drawn gun. Aiming, the front sight post hides part of it, the receiver all of it.
+        /// </summary>
+        internal static float Visibility(HeldWeapon held, Vector3 source, Vector3 eye, float radius)
+        {
+            if (held == null)
+            {
+                return 1f;
+            }
+            Vector3 toEye = eye - source;
+            float d = toEye.magnitude;
+            if (d < 1e-3f)
+            {
+                return 1f;
+            }
+            Vector3 dir = toEye / d;
+            Vector3 a = Vector3.Cross(dir, Vector3.up);
+            if (a.sqrMagnitude < 1e-4f)
+            {
+                a = Vector3.Cross(dir, Vector3.right);
+            }
+            a.Normalize();
+            Vector3 b = Vector3.Cross(dir, a);
+            int seen = 0;
+            for (int k = 0; k < 7; k++)
+            {
+                Vector3 s = source;
+                if (k > 0)
+                {
+                    float ang = k * Mathf.PI / 3f;
+                    s += (a * Mathf.Cos(ang) + b * Mathf.Sin(ang)) * radius;
+                }
+                if (!Blocked(held, s, eye))
+                {
+                    seen++;
+                }
+            }
+            return seen / 7f;
+        }
+
+        private static bool Blocked(HeldWeapon held, Vector3 from, Vector3 to)
+        {
+            Vector3 v = to - from;
+            int steps = Mathf.Clamp(Mathf.CeilToInt(v.magnitude / 0.006f), 1, 160);
+            for (int i = 1; i < steps; i++)
+            {
+                if (held.InsideDrawnGun(from + v * (i / (float)steps)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // ---- a shot ------------------------------------------------------------------------------------------------
@@ -136,24 +206,44 @@ namespace RavenfieldVR.Weapons
             float jx = Gauss() * 0.8f * Mathf.Deg2Rad, jy = Gauss() * 0.8f * Mathf.Deg2Rad;
             float sizeK = Random.Range(0.85f, 1.15f);
             float phase = Random.Range(0f, 6.28f);
-            Vector3 m = head.InverseTransformPoint(muzzle.position + muzzle.forward * ahead);
+            Vector3 source = muzzle.position + muzzle.forward * ahead;
+            Vector3 m = head.InverseTransformPoint(source);
             Vector3 dir = head.InverseTransformDirection(muzzle.forward);
             if (m.z < 0.02f)
             {
                 return; // behind the eyes
             }
-            float strongest = 0f;
+            _gunHeld = held;
+            _gunAhead = ahead;
+            float strongest = 0f, seenMost = 0f;
+            // Now and then (about one shot in three) the whole view flashes with it, a loud gun's more: the same in both eyes,
+            // only where the limiter gives this shot a full flash (Tasks 239).
+            bool viewFlash = VRConfig.ShotViewFlash.Value && Random.value < 0.35f && MuzzleFlashInfo.Of(w).Light;
+            float viewAmount = Random.Range(0.10f, 0.22f) * Mathf.Clamp(size * strength / 1.7f, 0.4f, 1.3f);
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);
                 float asked = EyePower(size * strength, m, dir, ex, fx.Ipd) * sizeK;
                 float p = _limiters[e].Shot(now, asked, out int steps);
-                TestLog?.Add(new TestFlash { Time = now, Asked = asked, Shown = p, Eye = e, Steps = steps });
+                // The eye's glare from it: as much of the flash as this eye sees past the gun.
+                float vis = LensEffects.CoreInWorld ? Visibility(held, source, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(size)) : 1f;
+                TestLog?.Add(new TestFlash { Time = now, Asked = asked, Shown = p, Eye = e, Steps = steps, Visible = vis });
                 Vector2 at = LensEffects.Project(m, ex) + new Vector2(LensEffects.Focal * Mathf.Tan(jx), -LensEffects.Focal * Mathf.Tan(jy));
-                fx.AddFlash(e, new LensEffects.Flash { X = at.x, Y = at.y, Power = p, Phase = phase, Born = now });
+                float view = viewFlash && (steps > 0 || !VRConfig.ReduceFlashing.Value) ? viewAmount : 0f;
+                fx.AddFlash(e, new LensEffects.Flash { X = at.x, Y = at.y, Power = p, Phase = phase, Born = now, Vis = vis, View = view });
+                if (view > 0f)
+                {
+                    ViewFlashes++;
+                }
                 strongest = Mathf.Max(strongest, p);
+                seenMost = Mathf.Max(seenMost, vis);
+            }
+            if (LensEffects.CoreInWorld)
+            {
+                _fireball.Add(muzzle, ahead, strongest, phase); // the core in the world, behind what covers it
             }
             LastPower = strongest;
+            LastVisible = seenMost;
             Shown++;
         }
 
@@ -245,6 +335,7 @@ namespace RavenfieldVR.Weapons
             // Only while the trigger is held on an automatic (flash_sim.py: full auto): taps of an automatic left a faint glow
             // sitting at the muzzle between the shots.
             float rate = _gunAuto && _gun != null && _gun.holdingFire ? _shots.Count / 0.5f : 0f;
+            float glowMost = 0f;
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);
@@ -254,8 +345,23 @@ namespace RavenfieldVR.Weapons
                     _limiters[e].ClearGlow(); // no gun to glow at
                 }
                 float glow = _limiters[e].Step(dt, rate, power);
+                float shown = muzzle != null && m.z > 0.02f ? glow : 0f;
+                if (shown > 0.001f && LensEffects.CoreInWorld && Time.frameCount - _glowVisFrame >= 3)
+                {
+                    // Seen past the gun, measured every third frame while it glows.
+                    _glowVis[e] = Visibility(_gunHeld, muzzle.position + muzzle.forward * _gunAhead, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(Mathf.Max(0.1f, _gunSize)));
+                    if (e == 1)
+                    {
+                        _glowVisFrame = Time.frameCount;
+                    }
+                }
                 Vector2 at = m.z > 0.02f ? LensEffects.Project(m, ex) : new Vector2(LensEffects.W / 2f, LensEffects.H);
-                fx.SetGlow(e, muzzle != null && m.z > 0.02f ? glow : 0f, at, at.x >= LensEffects.W / 2f ? 1f : -1f);
+                fx.SetGlow(e, shown, at, at.x >= LensEffects.W / 2f ? 1f : -1f, _glowVis[e]);
+                glowMost = Mathf.Max(glowMost, shown);
+            }
+            if (LensEffects.CoreInWorld)
+            {
+                _fireball.SetGlow(muzzle, _gunAhead, glowMost);
             }
         }
 
@@ -267,6 +373,7 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy()
         {
+            _fireball.Destroy();
             if (Instance == this)
             {
                 Instance = null;

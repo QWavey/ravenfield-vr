@@ -195,7 +195,7 @@ namespace RavenfieldVR.Weapons
             ActionType action = rig.Data.Action;
             RackPointGun = rig.Data.RackPoint;
             if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
-                || rig.Data.CarveHandle)
+                || rig.Data.CarveHandle || rig.Data.AddedHandle)
             {
                 // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
                 // it a handle that does.
@@ -869,8 +869,8 @@ namespace RavenfieldVR.Weapons
             }
             if (Supported)
             {
-                // Long guns: the support hand takes most of it; a pistol cupped in two hands a little.
-                strength *= Rig.Data.IsPistol ? 0.8f : 1f - VRConfig.TwoHandRecoilReduction.Value;
+                // Long guns: the support hand takes part of it; a pistol cupped in two hands a good part.
+                strength *= Rig.Data.IsPistol ? 0.6f : 1f - VRConfig.TwoHandRecoilReduction.Value;
             }
             else
             {
@@ -878,12 +878,14 @@ namespace RavenfieldVR.Weapons
             }
             float kick = ShotKick(c, Rig.Data, _weaponClass, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
-            // Critically damped spring peak = v0 / (omega * e), omega ~ 16: ~0.6 m/s per kick unit gives ~1.4 cm back,
-            // ~150 deg/s per kick unit gives ~3.4 degrees of muzzle climb per shot (before the hand factors). A pistol's
-            // kick is more flip than push, a heavy rifle's more push than flip.
-            _recoilPosVel += new Vector3(0f, 0.08f * kick, -0.6f * kick * (2f - climbShare)) * strength;
-            _recoilRotVel += new Vector2(-(150f * kick * climbShare + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
-            PeakShotImpulse = Mathf.Max(PeakShotImpulse, 150f * kick * climbShare * strength);
+            // Critically damped spring peak = v0 / (omega * e), omega ~ 12 (StepRecoil): ~0.9 m/s per kick unit gives ~2.7 cm
+            // back, ~180 deg/s per kick unit ~5.4 degrees of muzzle climb per shot, before the hand factors (a rifle in two
+            // hands about 3.5 degrees and 2 cm, in one hand about 9; a pistol in one hand about 10). The stiffer spring and
+            // smaller impulses before made it a 1-degree flick hardly anyone saw in the headset (Tasks 238). A pistol's kick is
+            // more flip than push, a heavy rifle's more push than flip.
+            _recoilPosVel += new Vector3(0f, 0.1f * kick, -0.9f * kick * Mathf.Max(0.3f, 2f - climbShare)) * strength;
+            _recoilRotVel += new Vector2(-(180f * kick * climbShare + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
+            PeakShotImpulse = Mathf.Max(PeakShotImpulse, 180f * kick * climbShare * strength);
 
             float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
             _system.Rig.Dominant.Haptic(0.03f + kick * 0.01f, 180f, amp);
@@ -925,7 +927,7 @@ namespace RavenfieldVR.Weapons
             float floor;
             switch (kind)
             {
-                case WeaponClass.Pistol: floor = 0.9f; climbShare = 1.35f; break;
+                case WeaponClass.Pistol: floor = 0.9f; climbShare = 1.8f; break; // flips up in the hand
                 case WeaponClass.MachineGun: floor = 0.7f; climbShare = 0.9f; break;
                 case WeaponClass.Launcher: floor = 1.2f; climbShare = 0.8f; break;
                 default:
@@ -956,8 +958,10 @@ namespace RavenfieldVR.Weapons
         {
             // Critically damped springs: snappy kick, quick settle. A long gun in one hand comes back down more slowly (and
             // climbs more: the kick is stronger one-handed, see _oneHandRecoil).
+            // Softer than before (260 / 150): the kick stays in view long enough to be seen and felt, and comes back in about
+            // a quarter second.
             bool oneHandLong = VRConfig.WeaponWeight.Value && !Rig.Data.IsPistol && !Supported && !Shouldered;
-            float stiffness = oneHandLong ? 150f : 260f, damping = 2f * Mathf.Sqrt(stiffness);
+            float stiffness = oneHandLong ? 90f : 150f, damping = 2f * Mathf.Sqrt(stiffness);
             _recoilPosVel += (-stiffness * _recoilPos - damping * _recoilPosVel) * dt;
             _recoilPos += _recoilPosVel * dt;
             _recoilRotVel += (-stiffness * _recoilRot - damping * _recoilRotVel) * dt;
@@ -1180,6 +1184,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The gun's solid the hands close on, as posed this frame (grown by a finger's radius); null until measured.</summary>
         internal System.Func<Vector3, bool> HandsSolid => _solid;
+
+        /// <summary>The point is inside the drawn gun (its measured shape, not grown): what hides a muzzle flash from an eye.</summary>
+        internal bool InsideDrawnGun(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideModel(world);
 
         /// <summary>
         /// The model's solid for the hands to close on, measured a moment after the weapon is in hand (its idle pose, every
@@ -1826,7 +1833,7 @@ namespace RavenfieldVR.Weapons
             float fraction = SlideOffset / Mathf.Max(d.SlideTravel.magnitude, 1e-4f);
             // A charging handle apart from the bolt (a separate part, or one cut out of an AR's receiver) comes back only with
             // the hand: when the bolt locks open on an empty magazine, the handle stays forward (it showed pulled back).
-            float handle = Reload != null && !Reload.IsRacking && (Rig.Handle != null || d.CarveHandle && d.SlidePath != null) ? 0f : fraction;
+            float handle = Reload != null && !Reload.IsRacking && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
             if (SlideOffset > 0.0005f)
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * fraction);
@@ -1848,7 +1855,7 @@ namespace RavenfieldVR.Weapons
                     MovePart(Rig.Handle, d.HandleRestLocal, Vector3.zero);
                 }
             }
-            _boltPiece?.SetOffset(Rig, d.SlideTravel * (d.CarveHandle && d.SlidePath != null ? handle : fraction));
+            _boltPiece?.SetOffset(Rig, d.SlideTravel * ((d.CarveHandle || d.AddedHandle) && d.SlidePath != null ? handle : fraction));
             ApplyHinge(d);
             ApplySightParts();
 

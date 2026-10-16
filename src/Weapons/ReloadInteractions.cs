@@ -1816,12 +1816,104 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Autotest film of a launcher's reload by hand: a rocket from the pouch, carried to the launcher's mouth, lined up
+        /// 25 cm in front of it and pushed in, the way a player does. Reports whether the rocket in the hand is drawn, whether
+        /// it went onto the line and whether it loaded (Tasks 231: scoped RPGs could not be reloaded, the rocket invisible).
+        /// </summary>
+        private IEnumerator RocketFilm(System.Action<string> report, System.Action<string> frame)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
+            {
+                report("rocket film: skipped (manual reloading off, or the hand is busy)");
+                yield break;
+            }
+            if (Ammo.MagRounds > 0)
+            {
+                report("rocket film: skipped (still loaded)");
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+            VRInput.SimulatedGrab[side] = true;
+            TakeFromPouch(off);
+            if (!(off.Held is MagazineProp rocket) || rocket.Go == null)
+            {
+                VRInput.SimulatedGrab[side] = false;
+                report("rocket film: NO ROCKET FROM THE POUCH");
+                yield break;
+            }
+            float drawnSize = 0f;
+            foreach (Renderer r in rocket.Go.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r.enabled && !r.forceRenderingOff)
+                {
+                    drawnSize = Mathf.Max(drawnSize, r.bounds.size.magnitude);
+                }
+            }
+            // The palm that holds the rocket lined up at the mouth (depth 0 on the line), as the hand holds it.
+            float depth0 = rocket.RailDepth;
+            rocket.RailDepth = 0f;
+            RigidPose entry = rocket.RailPose(SeatPose);
+            rocket.RailDepth = depth0;
+            RigidPose palmAtEntry = entry.Multiply(rocket.HoldPose(off).Inverse().Multiply(off.Palm));
+            Vector3 insert = SeatPose.TransformDirection(rocket.InsertDirLocal);
+            float rail = rocket.RailLength;
+            System.Func<float, RigidPose> along = d => new RigidPose(palmAtEntry.position + insert * d, palmAtEntry.rotation);
+            RigidPose start = off.Palm;
+            IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note)
+            {
+                float t0 = Time.unscaledTime;
+                for (float k = 0f; k < 1f; k = (Time.unscaledTime - t0) / seconds)
+                {
+                    float s = k * k * (3f - 2f * k);
+                    VRHand.Scripted[side] = pose(s).Multiply(rawFromPalm);
+                    yield return new WaitForEndOfFrame();
+                    frame(note);
+                    yield return null;
+                }
+                VRHand.Scripted[side] = pose(1f).Multiply(rawFromPalm);
+            }
+            bool onLine = false, loaded = false;
+            try
+            {
+                RigidPose before = along(-0.25f);
+                yield return Move(s => new RigidPose(Vector3.Lerp(start.position, before.position, s), Quaternion.Slerp(start.rotation, before.rotation, s)), 0.8f, "to the launcher");
+                yield return Move(s => along(-0.25f + 0.25f * s), 0.45f, "lining up");
+                onLine = off.Held is MagazineProp lined && lined.OnRail;
+                yield return Move(s => along(rail * s + 0.01f), 0.7f, "pushing in");
+                onLine |= Ammo.MagRounds > 0;
+                loaded = Ammo.MagRounds > 0;
+                VRInput.SimulatedGrab[side] = false;
+                yield return Move(s => along(rail - 0.15f * s), 0.35f, "let go");
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            if (off.Held is MagazineProp left)
+            {
+                Ammo.ReturnSpare(left.Rounds);
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            report($"rocket film: rocket in the hand {(drawnSize > 0.12f ? $"drawn ({drawnSize * 100f:0} cm)" : drawnSize > 0f ? $"TOO SMALL ({drawnSize * 100f:0} cm)" : "NOT DRAWN")}, "
+                   + $"{(onLine ? "went onto the launcher's line" : "NEVER LINED UP at the mouth")}, {(loaded ? "loaded" : "NOT LOADED")}");
+        }
+
+        /// <summary>
         /// Autotest film (-rfvr-flashfilm): the off hand pulls the seated magazine out of the well by hand, holds it, and
         /// pushes it back in, the way a player does: the hand a little turned and off the well's line, as a real hand is.
         /// <paramref name="frame"/> is called on every frame (it films the close-up).
         /// </summary>
         internal IEnumerator ReloadFilm(System.Action<string> report, System.Action<string> frame)
         {
+            if (Data.Action == ActionType.SingleShot && !Ammo.UsesDetachableMag)
+            {
+                yield return RocketFilm(report, frame);
+                yield break;
+            }
             VRHand off = _sys.Rig.Off;
             if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
             {
@@ -1858,8 +1950,9 @@ namespace RavenfieldVR.Weapons
             RigidPose hand = new RigidPose(holding.position + aside * 0.015f, Quaternion.AngleAxis(18f, insert) * holding.rotation);
             // Out of the gun, as a real hand is: a seated pistol magazine is held inside the grip (only its base shows), and
             // the hand pushing it home stays under the grip.
-            System.Func<Vector3, bool> gunSolid = _held.HandsSolid;
-            for (int k = 0; k < 25 && gunSolid != null && gunSolid(hand.position + insert * 0.02f); k++)
+            // The drawn gun only (not the seated magazine's own solid: a rifle's hand round its magazine was pushed 20 cm
+            // under it, the magazine held there never lined up again).
+            for (int k = 0; k < 25 && _held.InsideDrawnGun(hand.position); k++)
             {
                 hand = new RigidPose(hand.position - insert * 0.01f, hand.rotation);
             }

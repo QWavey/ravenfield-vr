@@ -537,6 +537,7 @@ namespace RavenfieldVR.Weapons
                     RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                SideKnobByName(d, all, root, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
@@ -642,6 +643,62 @@ namespace RavenfieldVR.Weapons
             d.RackOnSurface = true;
         }
 
+        /// <summary>
+        /// A CZ Bren 2 whose model has its charging handle (a part named so, the knob in its slot on the left with its rod
+        /// and the bolt under it): the knob is the left-most part of that mesh. The name search above leaves it out (the bolt
+        /// is its child, and with its rod it is longer than a handle), and the hand was put 10 cm behind the knob.
+        /// </summary>
+        private static void SideKnobByName(WeaponRigData d, Transform[] all, Transform root, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.IsPistol || d.Action != ActionType.SelfLoading || !Bren2Pattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Vector3 left = -Vector3.Cross(d.Up.normalized, d.AimAxis.normalized).normalized;
+            RigidPose gunInv = gunIdle.Inverse();
+            foreach (Transform t in all)
+            {
+                if (!ChargingName.IsMatch(t.name) || MagName.IsMatch(t.name))
+                {
+                    continue;
+                }
+                MeshFilter mf = t.GetComponent<MeshFilter>();
+                if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable || mf.sharedMesh.vertexCount == 0)
+                {
+                    continue;
+                }
+                Vector3[] v = mf.sharedMesh.vertices;
+                RigidPose idle = sampler.Idle(t);
+                Vector3 scale = t.lossyScale;
+                var pts = new Vector3[v.Length];
+                float most = float.MinValue;
+                for (int i = 0; i < v.Length; i++)
+                {
+                    pts[i] = gunInv.TransformPoint(idle.TransformPoint(Vector3.Scale(v[i], scale)));
+                    most = Mathf.Max(most, Vector3.Dot(pts[i], left));
+                }
+                // The knob: the points within 12 mm of the left-most.
+                Vector3 sum = Vector3.zero;
+                int n = 0;
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    if (Vector3.Dot(pts[i], left) > most - 0.012f)
+                    {
+                        sum += pts[i];
+                        n++;
+                    }
+                }
+                if (n == 0 || Vector3.Distance(sum / n, d.GripPoint) > 0.45f)
+                {
+                    continue;
+                }
+                d.SideKnob = sum / n;
+                d.HasSideKnob = true;
+                d.CarveFromPath = WeaponRig.PathOf(root, t);
+                return;
+            }
+        }
+
         /// <summary>CZ Bren 2 (805 Bren) by name: its charging handle sits on the left side at the front of the receiver.</summary>
         private static readonly Regex Bren2Pattern = new Regex(@"(?<![a-z])(cz ?bren|bren ?2|cz ?805)(?![a-z0-9])", RegexOptions.IgnoreCase);
 
@@ -667,10 +724,22 @@ namespace RavenfieldVR.Weapons
             {
                 along = Mathf.Min(along, Vector3.Dot(d.SupportPoint - d.MuzzlePoint, aim) - 0.06f);
             }
+            if (d.HasSideKnob)
+            {
+                // The model's own knob, cut out of the handle's mesh (not the receiver), comes back with the hand; the bolt
+                // under it moves with the stroke as before (Tasks 235: the hand was 10 cm behind the knob, the knob still).
+                d.RackPoint = d.SideKnob;
+                d.CarveHandle = true;
+                d.SlideMethod += " + its own side handle (left, front of the receiver)";
+                return;
+            }
             Vector3 bore = d.MuzzlePoint + aim * along;
             d.RackPoint = bore + up * 0.015f + left * 0.03f;
             d.RackOnSurface = true;
-            d.SlideMethod += " + handle at the Bren 2's place (left, front of the receiver)";
+            // A handle there that comes back with the hand: only the bolt inside moved, and the hand pulled at a smooth
+            // receiver ("the bolt is wrong", Tasks 235).
+            d.AddedHandle = true;
+            d.SlideMethod += " + handle added at the Bren 2's place (left, front of the receiver)";
         }
 
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
@@ -1092,7 +1161,28 @@ namespace RavenfieldVR.Weapons
                     d.HandleTravel = handleVec;
                     Bounds hb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
                     d.RackPoint = hb.size.sqrMagnitude > 1e-6f ? hb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
-                    d.SlideMethod += " + handle";
+                    if (hb.size.sqrMagnitude > 1e-6f)
+                    {
+                        // A long handle on top of the receiver (an AR's T with its rod, a G36's under the carry handle) is
+                        // taken at its back end, as the name rule does: at its middle the hand took an M4 over the ejection
+                        // port (Tasks 236). A side knob (short across the bore) stays where it is.
+                        Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+                        float half = Mathf.Abs(Vector3.Dot(hb.extents, aimAbs));
+                        float above = Vector3.Dot(hb.center - d.MuzzlePoint, d.Up);
+                        if (half > 0.04f && above > -0.005f)
+                        {
+                            d.RackPoint = hb.center - d.AimAxis * half * 0.8f;
+                            d.SlideMethod += " + handle (taken at its back end)";
+                        }
+                        else
+                        {
+                            d.SlideMethod += " + handle";
+                        }
+                    }
+                    else
+                    {
+                        d.SlideMethod += " + handle";
+                    }
                 }
             }
 

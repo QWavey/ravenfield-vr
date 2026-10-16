@@ -37,6 +37,14 @@ namespace RavenfieldVR.Rig
         /// <summary>flash_sim.py: x0.5 a frame at 90 fps, gone after 60 ms.</summary>
         internal const float Decay = 0.016f, Life = 0.06f;
 
+        /// <summary>
+        /// The flash's hot core (core, fire, ember) is drawn in the world in front of the muzzle (<see cref="Weapons.MuzzleFireball"/>),
+        /// where the gun and its sights hide what they cover; the lens pictures keep only the eye's glare (starburst,
+        /// haze, ring, ghosts, veil, scaled by how much of the flash each eye sees) and the light on the face (the wash).
+        /// Drawn on the lens, the core showed through the gun when aiming (Tasks 237).
+        /// </summary>
+        internal static bool CoreInWorld = true;
+
         private static readonly float[] Hot = { 1f, 0.93f, 0.78f }, Fire = { 1f, 0.62f, 0.22f }, Ember = { 0.95f, 0.38f, 0.12f };
         // (t, radius, colour, strength) of the lens ghosts on the line from the flash through the lens centre.
         private static readonly float[,] Ghosts =
@@ -57,6 +65,10 @@ namespace RavenfieldVR.Rig
             /// <summary>Its age in the picture being made (set when handed to the worker).</summary>
             public float Age;
             public int Serial;
+            /// <summary>How much of the flash this eye sees past the gun (0..1): the eye's glare from it is that much.</summary>
+            public float Vis;
+            /// <summary>The whole view flashing with it (0: not this shot): the muzzle flash lighting everything up for a moment.</summary>
+            public float View;
         }
 
         /// <summary>One frame's inputs, copied for the worker (only while it is idle).</summary>
@@ -65,6 +77,7 @@ namespace RavenfieldVR.Rig
             public float Now;
             public readonly List<Flash>[] Flashes = { new List<Flash>(), new List<Flash>() };
             public readonly float[] Glow = new float[2], GlowX = new float[2], GlowY = new float[2], Side = { 1f, 1f };
+            public readonly float[] GlowVis = { 1f, 1f };
             public float Hit, HitDirX, HitDirY;
             public bool HitBalance;
             public readonly float[] HitEye = { 1f, 1f };
@@ -82,6 +95,7 @@ namespace RavenfieldVR.Rig
         // Inputs, main thread.
         private readonly List<Flash>[] _flashes = { new List<Flash>(), new List<Flash>() };
         private readonly float[] _glow = new float[2], _glowX = new float[2], _glowY = new float[2], _side = { 1f, 1f };
+        private readonly float[] _glowVis = { 1f, 1f };
         private float _hitAt = -10f, _hitAngle;
         private bool _hitBalance, _hitNew;
         private float _lowHealth;
@@ -249,8 +263,9 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The steady glow of sustained fire (flash_sim.py Limiter.step) at the muzzle's pixel now, and the gun's side.</summary>
-        internal void SetGlow(int eye, float glow, Vector2 at, float side)
+        internal void SetGlow(int eye, float glow, Vector2 at, float side, float vis = 1f)
         {
+            _glowVis[eye] = Mathf.Clamp01(vis);
             _glow[eye] = glow;
             _glowX[eye] = at.x;
             _glowY[eye] = at.y;
@@ -376,6 +391,7 @@ namespace RavenfieldVR.Rig
                     j.GlowX[e] = _glowX[e];
                     j.GlowY[e] = _glowY[e];
                     j.Side[e] = _side[e];
+                    j.GlowVis[e] = _glowVis[e];
                     any |= j.Flashes[e].Count > 0 || j.Glow[e] > 1e-3f;
                 }
                 // F: half a second, in at once and fading (screen_effects.py F is its first frame).
@@ -611,20 +627,24 @@ namespace RavenfieldVR.Rig
             float side = j.Side[eye], strongest = 0f;
             if (j.Glow[eye] > 1e-3f)
             {
-                LensFlash(band, y0, y1, acc, j.GlowX[eye], j.GlowY[eye], j.Glow[eye], 0f, side, false);
+                LensFlash(band, y0, y1, acc, j.GlowX[eye], j.GlowY[eye], j.Glow[eye], 0f, side, false, j.GlowVis[eye]);
                 flash = true;
             }
+            float view = 0f;
             foreach (Flash f in j.Flashes[eye])
             {
                 float age = f.Age;
                 if (age >= 0f && age <= Life)
                 {
                     float p = f.Power * Mathf.Exp(-age / Decay);
-                    LensFlash(band, y0, y1, acc, f.X, f.Y, p, f.Phase, side, true);
+                    LensFlash(band, y0, y1, acc, f.X, f.Y, p, f.Phase, side, true, f.Vis);
                     strongest = Mathf.Max(strongest, p);
                     flash = true;
+                    // The view's flash fades a little slower than the flash on the lens (a pulse of light, about 50 ms).
+                    view += f.View * Mathf.Exp(-age / 0.025f);
                 }
             }
+            float viewR = Mathf.Min(0.3f, view), viewG = viewR * 0.85f, viewB = viewR * 0.62f;
             _resultPower[eye] = strongest;
             _resultGlow[eye] = j.Glow[eye];
             float hit = j.Hit * j.HitEye[eye];
@@ -664,9 +684,9 @@ namespace RavenfieldVR.Rig
                     float r = 0f, g = 0f, b = 0f;
                     if (flash)
                     {
-                        r = ToneFlash(acc[k]);
-                        g = ToneFlash(acc[k + 1]);
-                        b = ToneFlash(acc[k + 2]);
+                        r = ToneFlash(acc[k]) + viewR;
+                        g = ToneFlash(acc[k + 1]) + viewG;
+                        b = ToneFlash(acc[k + 2]) + viewB;
                     }
                     if (hit > 0.001f)
                     {
@@ -693,25 +713,65 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>
+        /// The flash's hot core as a picture for <see cref="Weapons.MuzzleFireball"/>: flash_sim.py's core, fire and ember
+        /// terms at strength <paramref name="p"/> and starburst turn <paramref name="phase"/>, toned, <paramref name="size"/>
+        /// pixels square; <paramref name="radiusPx"/> is how far out it reaches in the tested eye view's pixels (the world
+        /// size: radiusPx / <see cref="Focal"/> radians).
+        /// </summary>
+        internal static Color32[] Fireball(float p, float phase, int size, out float radiusPx)
+        {
+            MakeTables();
+            float sCore = 2.5f + 3.5f * p, sFire = 8f + 15f * p, sEmber = 16f + 26f * p;
+            float invCore = 1f / (sCore * sCore), invFire = 1f / (sFire * sFire), invEmber = 1f / (sEmber * sEmber);
+            radiusPx = 2.7f * sEmber;
+            float px = 2f * radiusPx / size;
+            float phaseSteps = phase / (2f * Mathf.PI) * AngleSteps;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x + 0.5f) * px - radiusPx, dy = (y + 0.5f) * px - radiusPx;
+                    float r2 = dx * dx + dy * dy;
+                    // Faded out over the last fifth, so the quad's square never shows.
+                    float edge = Mathf.Clamp01((radiusPx - Mathf.Sqrt(r2)) / (0.2f * radiusPx));
+                    float pet = Petals[AngleIndex(dy, dx, phaseSteps)];
+                    float ip2 = 1f / (pet * pet);
+                    float core = ExpNeg(r2 * invCore) * 2.4f * p;
+                    float fire = ExpNeg(r2 * invFire * ip2) * p;
+                    float ember = ExpNeg(r2 * invEmber * ip2) * 0.35f * p;
+                    float r = core * Hot[0] + fire * Fire[0] + ember * Ember[0];
+                    float g = core * Hot[1] + fire * Fire[1] + ember * Ember[1];
+                    float b = core * Hot[2] + fire * Fire[2] + ember * Ember[2];
+                    pixels[y * size + x] = new Color32(To8(ToneFlash(r) * edge), To8(ToneFlash(g) * edge), To8(ToneFlash(b) * edge), 255);
+                }
+            }
+            return pixels;
+        }
+
         /// <summary>flash_sim.py lens_flash: one flash added at (mx, my) with strength p (0..1.6).</summary>
-        private void LensFlash(int band, int y0, int y1, float[] acc, float mx, float my, float p, float phase, float side, bool extras)
+        private void LensFlash(int band, int y0, int y1, float[] acc, float mx, float my, float p, float phase, float side, bool extras, float vis)
         {
             float[] washX = _washX[band], washY = _washY[band];
             if (p <= 1e-4f)
             {
                 return;
             }
+            bool coreHere = !CoreInWorld; // else the core is the world fireball's
+            vis = Mathf.Clamp01(vis);
             float sCore = 2.5f + 3.5f * p, sFire = 8f + 15f * p, sEmber = 16f + 26f * p, sTail = 35f + 45f * p, sStar = 9f + 22f * p;
             float ringR = 55f + 30f * p;
             float invCore = 1f / (sCore * sCore), invFire = 1f / (sFire * sFire), invEmber = 1f / (sEmber * sEmber), invTail = 1f / (sTail * sTail);
             // The starburst out to 4.5 of its widths (6.5 before): further out it adds under one step in 255, and it was
             // most of the area drawn.
             float bloom2 = 2.7f * sEmber * 2.7f * sEmber, star2 = extras ? 4.5f * sStar * 4.5f * sStar : 0f;
-            float near2 = Mathf.Max(bloom2, star2);
+            float near2 = coreHere ? Mathf.Max(bloom2, star2) : vis > 0f ? star2 : 0f;
             float ringLo = Mathf.Max(0f, ringR - 13f), ringHi = ringR + 13f;
             float ringLo2 = extras ? ringLo * ringLo : 0f, ringHi2 = extras ? ringHi * ringHi : -1f;
-            float tailA = p * 0.10f;
-            float veil = extras && p > 1f ? 0.05f * (p - 1f) / 0.6f : 0f;
+            // The eye's glare from the flash: as much of it as the eye sees past the gun.
+            float tailA = p * 0.10f * vis;
+            float veil = extras && p > 1f ? 0.05f * (p - 1f) / 0.6f * vis : 0f;
             float washA = extras ? 0.42f * p : 0f;
             if (extras)
             {
@@ -756,18 +816,21 @@ namespace RavenfieldVR.Rig
                         if (r2 < near2)
                         {
                             int ai = AngleIndex(dy, dx, phaseSteps);
-                            float pet = Petals[ai];
-                            float ip2 = 1f / (pet * pet);
-                            float core = ExpNeg(r2 * invCore) * 2.4f * p;
-                            float fire = ExpNeg(r2 * invFire * ip2) * p;
-                            float ember = ExpNeg(r2 * invEmber * ip2) * 0.35f * p;
-                            ar += core * Hot[0] + fire * Fire[0] + ember * Ember[0];
-                            ag += core * Hot[1] + fire * Fire[1] + ember * Ember[1];
-                            ab += core * Hot[2] + fire * Fire[2] + ember * Ember[2];
+                            if (coreHere)
+                            {
+                                float pet = Petals[ai];
+                                float ip2 = 1f / (pet * pet);
+                                float core = ExpNeg(r2 * invCore) * 2.4f * p;
+                                float fire = ExpNeg(r2 * invFire * ip2) * p;
+                                float ember = ExpNeg(r2 * invEmber * ip2) * 0.35f * p;
+                                ar += core * Hot[0] + fire * Fire[0] + ember * Ember[0];
+                                ag += core * Hot[1] + fire * Fire[1] + ember * Ember[1];
+                                ab += core * Hot[2] + fire * Fire[2] + ember * Ember[2];
+                            }
                             if (extras && r2 < star2)
                             {
                                 // A faint, short starburst: the eye's own (lashes, the pupil), not a camera's star filter.
-                                float st = Star[ai] * ExpNeg(r / sStar) * 0.35f * p;
+                                float st = Star[ai] * ExpNeg(r / sStar) * 0.35f * p * vis;
                                 ar += st * Hot[0];
                                 ag += st * Hot[1];
                                 ab += st * Hot[2];
@@ -776,7 +839,7 @@ namespace RavenfieldVR.Rig
                         if (extras && r2 > ringLo2 && r2 < ringHi2)
                         {
                             float d = (r - ringR) / 4f;
-                            float ring = ExpNeg(d * d) * 0.05f * p;
+                            float ring = ExpNeg(d * d) * 0.05f * p * vis;
                             ar += ring;
                             ag += ring * 0.8f;
                             ab += ring * 0.55f;
@@ -795,7 +858,7 @@ namespace RavenfieldVR.Rig
             float vx = CX - mx, vy = CY - my;
             for (int gi = 0; gi < 4; gi++)
             {
-                float t = Ghosts[gi, 0], rad = Ghosts[gi, 1], a = Ghosts[gi, 5] * p * 3f;
+                float t = Ghosts[gi, 0], rad = Ghosts[gi, 1], a = Ghosts[gi, 5] * p * 3f * vis;
                 float gx = mx + vx * t + MX, gy = my + vy * t + MY; // in the picture drawn
                 int x0 = Mathf.Max(0, Mathf.FloorToInt(gx - rad - 1f)), x1 = Mathf.Min(CW - 1, Mathf.CeilToInt(gx + rad + 1f));
                 int gy0 = Mathf.Max(y0, Mathf.FloorToInt(gy - rad - 1f)), gy1 = Mathf.Min(y1 - 1, Mathf.CeilToInt(gy + rad + 1f));

@@ -127,6 +127,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> ViewShake;
         public static ConfigEntry<float> LensFlashStrength;
         public static ConfigEntry<bool> ReduceFlashing;
+        public static ConfigEntry<bool> ShotViewFlash;
         public static ConfigEntry<bool> WorldCollision;
 
         // Debug
@@ -234,7 +235,7 @@ namespace RavenfieldVR.Core
                 "Skip the weapon's draw animation in VR (you draw it with your hand); the game's draw delay before firing stays.");
             WeaponWeight = cfg.Bind("Weapons", "WeaponWeight", true,
                 "Long and heavy guns held in one hand droop a little and trail the wrist; supported by the other hand they follow it exactly.");
-            TwoHandRecoilReduction = cfg.Bind("Weapons", "TwoHandRecoilReduction", 0.6f,
+            TwoHandRecoilReduction = cfg.Bind("Weapons", "TwoHandRecoilReduction", 0.4f,
                 new ConfigDescription("Fraction of recoil removed while holding the foregrip.", new AcceptableValueRange<float>(0f, 1f)));
             TwoHandedAiming = cfg.Bind("Weapons", "TwoHandedAiming", true, "Gripping the foregrip steers the barrel with both hands.");
             VRScopes = cfg.Bind("Weapons", "VRScopes", true,
@@ -319,6 +320,8 @@ namespace RavenfieldVR.Core
                     new AcceptableValueRange<float>(0f, 3f)));
             ReduceFlashing = cfg.Bind("UI", "ReduceFlashing", true,
                 "Photosensitivity safety: never more than three visible flashes a second (a steady glow instead on full auto).");
+            ShotViewFlash = cfg.Bind("UI", "ShotViewFlash", true,
+                "Now and then a shot flashes the whole view for a moment (the muzzle flash lighting everything up). Only on shots the flash limiter lets through.");
 
             DebugLogging = cfg.Bind("Debug", "VerboseLogging", false, "Log extra diagnostics.");
             ShowGrabZones = cfg.Bind("Debug", "ShowGrabZones", false, "Draw spheres at mag wells, slides, foregrips, pouches and holsters.");
@@ -370,6 +373,15 @@ namespace RavenfieldVR.Core
                     LensFlashStrength.Value = 1.5f;
                 }
                 revision.Value = 4;
+            }
+            if (revision.Value < 5)
+            {
+                // Recoil was hardly felt in the headset: two hands take 40% of it (60% before).
+                if (Mathf.Approximately(TwoHandRecoilReduction.Value, 0.6f))
+                {
+                    TwoHandRecoilReduction.Value = 0.4f;
+                }
+                revision.Value = 5;
             }
         }
 

@@ -164,6 +164,17 @@ namespace RavenfieldVR.Weapons
         /// of the receiver's mesh: that piece is cut out and moves with the pull.
         /// </summary>
         public bool CarveHandle;
+        /// <summary>
+        /// A handle is added at the rack point (a knob sticking out the side), not cut out of the receiver: for a model whose
+        /// charging handle is not modelled at all (the CZ Bren 2's side handle). Like a cut-out handle it only comes back
+        /// with the hand; the bolt inside moves with it.
+        /// </summary>
+        public bool AddedHandle;
+        /// <summary>A side charging handle's knob found on the model (gun space; the CZ Bren 2's): where the hand takes it.</summary>
+        public Vector3 SideKnob;
+        public bool HasSideKnob;
+        /// <summary>The part a cut-out handle is cut from (null: any mesh at the rack point): the handle's own mesh, not the receiver round it.</summary>
+        public int[] CarveFromPath;
         /// <summary>A part the reload swings open: break-action barrels, a cylinder crane or a feed cover.</summary>
         public HingeKind Hinge;
         public int[] HingePath;

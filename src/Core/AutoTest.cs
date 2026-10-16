@@ -839,9 +839,10 @@ namespace RavenfieldVR.Core
         private static IEnumerator ReloadFilm(HeldWeapon held, int index, string name)
         {
             Rig.VRRig rig = Rig.VRRig.Instance;
-            if (rig == null || held == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag)
+            if (rig == null || held == null || held.ActiveAmmo == null
+                || !held.ActiveAmmo.UsesDetachableMag && held.Rig.Data.Action != ActionType.SingleShot)
             {
-                yield break;
+                yield break; // a magazine pulled by hand, or a launcher's rocket put in by hand
             }
             string dir = Path.Combine(Shots.Dir, $"reload-{index:000}-{Regex.Replace(name, "[^A-Za-z0-9_.-]+", "_")}");
             var go = new GameObject("RavenfieldVR Film Camera");

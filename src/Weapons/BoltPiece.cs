@@ -80,8 +80,15 @@ namespace RavenfieldVR.Weapons
         private static void Build(BoltPiece piece, WeaponRig rig, Vector3 rackGun)
         {
             WeaponRigData d = rig.Data;
+            if (d.AddedHandle)
+            {
+                piece.AddKnob(rig, rackGun); // a handle of its own, nothing cut out of the receiver
+                return;
+            }
             float radius = d.IsPistol ? 0.022f : 0.03f;
             Vector3 rackWorld = rig.ToWorld(rackGun);
+            // Only from the handle's own mesh when it is known (the receiver round a side handle's slot stays whole).
+            Transform only = d.CarveFromPath != null ? WeaponRig.Resolve(rig.Weapon.transform, d.CarveFromPath) : null;
             var skip = new HashSet<Renderer>(rig.ArmRenderers);
             foreach (MeshFilter mf in rig.Weapon.GetComponentsInChildren<MeshFilter>(false))
             {
@@ -90,6 +97,10 @@ namespace RavenfieldVR.Weapons
                     || rig.Slide != null && mf.transform.IsChildOf(rig.Slide) || rig.Handle != null && mf.transform.IsChildOf(rig.Handle))
                 {
                     continue; // the parts that move by themselves already (a carrier inside, a handle) are not cut again
+                }
+                if (only != null && mf.transform != only)
+                {
+                    continue;
                 }
                 if (mf.name.StartsWith("RavenfieldVR ", System.StringComparison.Ordinal))
                 {
