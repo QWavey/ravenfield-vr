@@ -16,6 +16,7 @@ namespace RavenfieldVR.Weapons
     internal sealed class MuzzleFireball
     {
         private const int Pool = 6, Size = 64;
+        private static readonly int TintColorId = Shader.PropertyToID("_TintColor");
 
         private sealed class Ball
         {
@@ -104,7 +105,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             KeyValuePair<Texture2D, float> t = TextureFor(power, 0f);
-            _glow.Material.mainTexture = t.Key;
+            if (_glow.Material.mainTexture != t.Key)
+            {
+                _glow.Material.mainTexture = t.Key;
+            }
             _glow.RadiusPx = t.Value;
             _glow.Muzzle = muzzle;
             _glow.Ahead = ahead;
@@ -149,11 +153,15 @@ namespace RavenfieldVR.Weapons
             }
             // The same angular size as the approved lens picture's core: its pixels over the eye view's focal length.
             float radius = b.RadiusPx / LensEffects.Focal * dist;
-            b.Go.layer = b.Muzzle.gameObject.layer; // drawn with the gun, in the head camera's pass
+            int layer = b.Muzzle.gameObject.layer; // drawn with the gun, in the head camera's pass (the gun's layer can change)
+            if (b.Go.layer != layer)
+            {
+                b.Go.layer = layer;
+            }
             b.Go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(toward / dist, head.up));
             b.Go.transform.localScale = new Vector3(2f * radius, 2f * radius, 1f);
             // The legacy particle shaders double the tint: 0.5 is the picture as it is, faded by k.
-            b.Material.SetColor("_TintColor", new Color(0.5f * k, 0.5f * k, 0.5f * k, 0.5f));
+            b.Material.SetColor(TintColorId, new Color(0.5f * k, 0.5f * k, 0.5f * k, 0.5f));
         }
 
         private KeyValuePair<Texture2D, float> TextureFor(float power, float phase)

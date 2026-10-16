@@ -168,10 +168,19 @@ namespace RavenfieldVR.Weapons
             return c;
         }
 
+        private static float _nextFallCheck;
+
         /// <summary>Puts away cases past their time (also called per frame by the weapon system).</summary>
         public static void Cull()
         {
             float now = Time.time;
+            // The out-of-the-world fall-out is a transform read per live case: it only matters when a case drops below the
+            // map, so it is tested twice a second rather than every frame. A case is then put away up to 0.5 s late (unseen).
+            bool checkFall = now >= _nextFallCheck;
+            if (checkFall)
+            {
+                _nextFallCheck = now + 0.5f;
+            }
             for (int i = Alive.Count - 1; i >= 0; i--)
             {
                 Case c = Alive[i];
@@ -179,7 +188,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Alive.RemoveAt(i); // gone with its scene
                 }
-                else if (now - c.Born > Lifetime || c.Go.transform.position.y < -500f)
+                else if (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f))
                 {
                     c.Go.SetActive(false);
                     Alive.RemoveAt(i);
