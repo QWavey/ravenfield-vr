@@ -271,10 +271,11 @@ namespace RavenfieldVR.Weapons
             }
             if (Manual && (Data.Hinge == HingeKind.FeedCover || Data.Hinge == HingeKind.BreakAction && Breaks))
             {
-                float d = Vector3.Distance(palm, CoverGrabWorld);
+                float d = CoverZoneDistance(palm);
                 if (d < radius)
                 {
-                    Consider(5, d / radius * 0.9f, ref choice, ref best);
+                    // Weighed as the rack is: at 0.9 a charging handle under the cover's edge won where both were in reach.
+                    Consider(5, d / radius * 0.65f, ref choice, ref best);
                 }
             }
             if (Manual && VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid)
@@ -595,6 +596,29 @@ namespace RavenfieldVR.Weapons
 
         private Vector3 CoverGrabWorld => Rig.ToWorld(HingeRotate(new RigidPose(Data.HingeGrabPoint, Quaternion.identity), _held.HingeOpenness).position);
 
+        /// <summary>
+        /// Distance to where a feed cover is taken: along its rear half, from its latch forward toward the hinge (a point at
+        /// the latch alone missed a hand on the cover's top a little further forward: the QJB's covers "could not be
+        /// opened"; user, 2026-10-16). Barrels are taken at their one point.
+        /// </summary>
+        private float CoverZoneDistance(Vector3 palm)
+        {
+            Vector3 a = CoverGrabWorld;
+            if (Data.Hinge != HingeKind.FeedCover)
+            {
+                return Vector3.Distance(palm, a);
+            }
+            float toHinge = Vector3.Dot(Data.HingePivot - Data.HingeGrabPoint, Data.AimAxis);
+            Vector3 forward = Data.HingeGrabPoint + Data.AimAxis * (toHinge * 0.6f);
+            Vector3 b = Rig.ToWorld(HingeRotate(new RigidPose(forward, Quaternion.identity), _held.HingeOpenness).position);
+            Vector3 ab = b - a;
+            float t = ab.sqrMagnitude > 1e-8f ? Mathf.Clamp01(Vector3.Dot(palm - a, ab) / ab.sqrMagnitude) : 0f;
+            return Vector3.Distance(palm, a + ab * t);
+        }
+
+        /// <summary>How far a feed cover must be lifted (share of its swing) to stay open: past half way it falls open.</summary>
+        private const float CoverStaysOpen = 0.5f;
+
         private float CoverAngle(Vector3 palmWorld)
         {
             Vector3 axis = Data.HingeAxis;
@@ -640,7 +664,9 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            if (!Ammo.CoverOpen && openness > 0.85f)
+            // Past half way it is open and falls the rest of the way when let go: at 85% of a swing of up to 110 degrees the
+            // hand had to sweep 94 degrees round the hinge, and the QJB's covers seemed not to open at all (user, 2026-10-16).
+            if (!Ammo.CoverOpen && openness > CoverStaysOpen)
             {
                 Ammo.SetCoverOpen(true);
                 _held.Sounds.Play(MechSound.SlideBack, CoverGrabWorld);
@@ -654,9 +680,68 @@ namespace RavenfieldVR.Weapons
                 off.Haptic(0.05f, 110f, 0.75f);
                 _sys.Rig.Dominant.Haptic(0.04f, 110f, 0.5f);
             }
-            if (!off.GrabHeld || Vector3.Distance(off.Palm.position, CoverGrabWorld) > 0.35f)
+            if (!off.GrabHeld || CoverZoneDistance(off.Palm.position) > 0.35f)
             {
                 EndCover(off);
+            }
+        }
+
+        /// <summary>
+        /// Autotest: the simulated off hand takes a feed cover at its latch and lifts it round its hinge, as a hand would, to
+        /// 60% of its swing; reports whether it opened and stays open when let go, then shuts it again by hand.
+        /// </summary>
+        internal IEnumerator CoverSelfCheck(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || Data.Hinge != HingeKind.FeedCover || off.Role != HandRole.Free || off.Held != null || Ammo.CoverOpen)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+            Quaternion palmDown = Quaternion.LookRotation(Rig.AimWorld, -Rig.UpWorld);
+            RigidPose At(float openness) => new RigidPose(
+                Rig.ToWorld(HingeRotate(new RigidPose(Data.HingeGrabPoint + Data.Up * 0.02f, Quaternion.identity), openness).position), palmDown).Multiply(rawFromPalm);
+            VRInput.SimulatedGrab[side] = true;
+            bool opened = false, stayed = false, shut = false;
+            try
+            {
+                VRHand.Scripted[side] = At(0f);
+                yield return null;
+                yield return null;
+                yield return null; // the grab is taken (a reach, then the press)
+                bool took = off.Role == HandRole.Hinge;
+                for (int i = 1; i <= 15; i++)
+                {
+                    VRHand.Scripted[side] = At(0.6f * i / 15f);
+                    yield return null;
+                }
+                opened = Ammo.CoverOpen;
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.4f);
+                stayed = Ammo.CoverOpen && _held.HingeOpenness > 0.9f;
+                VRHand.Scripted[side] = At(_held.HingeOpenness);
+                yield return null;
+                VRInput.SimulatedGrab[side] = true;
+                yield return null;
+                yield return null;
+                for (int i = 1; i <= 15; i++)
+                {
+                    VRHand.Scripted[side] = At(Mathf.Lerp(1f, 0f, i / 15f));
+                    yield return null;
+                }
+                shut = !Ammo.CoverOpen;
+                report($"feed cover by hand: {(took ? "taken at its latch" : "NOT TAKEN at its latch")}, lifted to 60%: {(opened ? "open" : "DID NOT OPEN")}, let go: {(stayed ? "falls open" : "DID NOT STAY OPEN")}, pushed down: {(shut ? "shut" : "DID NOT SHUT")}");
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            if (Ammo.CoverOpen)
+            {
+                Ammo.SetCoverOpen(false); // left as it was found
             }
         }
 
@@ -672,7 +757,7 @@ namespace RavenfieldVR.Weapons
             {
                 return; // barrels settle where they were left: open if opened, shut otherwise
             }
-            if (Ammo.CoverOpen && _held.HingeOpenness < 0.4f)
+            if (Ammo.CoverOpen && _held.HingeOpenness < 0.35f)
             {
                 Ammo.SetCoverOpen(false);
                 _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);

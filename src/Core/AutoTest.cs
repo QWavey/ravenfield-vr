@@ -2876,6 +2876,10 @@ namespace RavenfieldVR.Core
                                 RackCloseUps($"{name}-{rackIndex:000}-{entry.name}", held, ref rackCam);
                             });
                         }
+                        if (want && held.Rig.Data.Hinge == HingeKind.FeedCover)
+                        {
+                            yield return held.Reload.CoverSelfCheck(lines.Add); // every feed cover opened by hand (the QJBs' could not be)
+                        }
                         if (want && action == ActionType.SelfLoading)
                         {
                             int shotIndex = index;
