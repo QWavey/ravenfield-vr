@@ -280,6 +280,8 @@ namespace RavenfieldVR.Weapons
             float push = Mathf.Max(0f, offAxis - 0.008f) / 0.03f;
             SetShadow(offAxis > 1e-5f ? -side / offAxis * push : Vector2.zero);
             float brightness = Mathf.Clamp01(1f - (offAxis - 0.03f) / 0.04f);
+            // Black through the lens (the eye 7 cm off its line): no second picture of the whole scene for it.
+            _camera.enabled = brightness > 0.004f;
             _lensMaterial.color = new Color(brightness, brightness, brightness, 1f);
         }
 

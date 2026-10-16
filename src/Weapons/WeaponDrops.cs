@@ -743,7 +743,13 @@ namespace RavenfieldVR.Weapons
                 }
                 foreach (Collider c in d.Colliders)
                 {
-                    float dist = c != null ? Vector3.Distance(c.ClosestPoint(palm), palm) : float.MaxValue;
+                    // Its box first (cheap): the exact closest point only for a collider within reach (every collider of
+                    // every drop, for both hands, every frame).
+                    if (c == null || c.bounds.SqrDistance(palm) > bestDist * bestDist)
+                    {
+                        continue;
+                    }
+                    float dist = Vector3.Distance(c.ClosestPoint(palm), palm);
                     if (dist < bestDist)
                     {
                         bestDist = dist;
