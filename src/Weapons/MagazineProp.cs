@@ -752,12 +752,27 @@ namespace RavenfieldVR.Weapons
             Quaternion q = Quaternion.LookRotation(aimLocal, frontLocal);
             Vector3 aimGun = d.AimAxis.normalized;
             float seatAlong = Vector3.Dot(d.MagSeat.position, aimGun);
-            float noseAlong = TubeFront(rig, aimGun, out float front) ? front - seatAlong : Vector3.Dot(d.MuzzlePoint, aimGun) - seatAlong;
+            bool tube = TubeFront(rig, aimGun, out float front);
+            float noseAlong = tube ? front - seatAlong : Vector3.Dot(d.MuzzlePoint, aimGun) - seatAlong;
             Vector3 nosePoint = new Vector3(b.center.x, b.center.y, b.max.z);
+            // On the tube's own axis when the muzzle point is off it (within 15 cm).
+            Vector3 across = Vector3.zero;
+            if (tube && TubeCentre(rig, aimGun, front, out Vector3 tubeCentre))
+            {
+                Vector3 offGun = Vector3.ProjectOnPlane(tubeCentre - d.MagSeat.position, aimGun);
+                if (offGun.magnitude < 0.15f)
+                {
+                    across = Quaternion.Inverse(d.MagSeat.rotation) * offGun;
+                    if (offGun.magnitude > 0.01f)
+                    {
+                        Log.InfoOnce("rocketcentre:" + d.Key, $"Rocket of {d.Key}: on the tube's axis, {offGun.magnitude * 100f:0.0} cm off the muzzle point's line.");
+                    }
+                }
+            }
             var root = new GameObject("rocket");
             foreach ((MeshRenderer r, Mesh mesh, Matrix4x4 m) in parts)
             {
-                Vector3 p = aimLocal * noseAlong + q * (m.MultiplyPoint3x4(Vector3.zero) - nosePoint);
+                Vector3 p = aimLocal * noseAlong + across + q * (m.MultiplyPoint3x4(Vector3.zero) - nosePoint);
                 Quaternion rot = q * m.rotation;
                 AddPart(root.transform, r.name, mesh, r.sharedMaterials, p, rot, m.lossyScale);
             }
@@ -1165,6 +1180,65 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return any;
+        }
+
+        /// <summary>
+        /// The middle, across the bore, of the launcher's own meshes that reach its front end (within 12 cm of it), in gun-body
+        /// space: where a missile goes into a tube whose muzzle point is not on the tube's axis (the HYDRA's missile slid in on
+        /// the muzzle point's line, over the side of its box). False when nothing reaches the front.
+        /// </summary>
+        internal static bool TubeCentre(WeaponRig rig, Vector3 aim, float front, out Vector3 centre)
+        {
+            centre = Vector3.zero;
+            if (rig.GunBody == null)
+            {
+                return false;
+            }
+            Vector3 up = Vector3.ProjectOnPlane(rig.Data.Up, aim).normalized, right = Vector3.Cross(up, aim).normalized;
+            float upMin = float.MaxValue, upMax = float.MinValue, rightMin = float.MaxValue, rightMax = float.MinValue;
+            var corners = new Vector3[8];
+            foreach (MeshFilter mf in rig.GunBody.GetComponentsInChildren<MeshFilter>(false))
+            {
+                Renderer r = mf.GetComponent<Renderer>();
+                if (mf.sharedMesh == null || r == null || !r.enabled || r.sharedMaterial != null && r.sharedMaterial.renderQueue >= 3000)
+                {
+                    continue;
+                }
+                bool rocket = false;
+                foreach (Transform part in rig.MagazineParts)
+                {
+                    rocket |= part != null && mf.transform.IsChildOf(part);
+                }
+                if (rocket || Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale).magnitude > 2.5f)
+                {
+                    continue;
+                }
+                Bounds mb = mf.sharedMesh.bounds;
+                float reach = float.MinValue;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    corners[i] = rig.ToGun(mf.transform.TransformPoint(corner));
+                    reach = Mathf.Max(reach, Vector3.Dot(corners[i], aim));
+                }
+                if (reach < front - 0.12f)
+                {
+                    continue;
+                }
+                foreach (Vector3 c in corners)
+                {
+                    upMin = Mathf.Min(upMin, Vector3.Dot(c, up));
+                    upMax = Mathf.Max(upMax, Vector3.Dot(c, up));
+                    rightMin = Mathf.Min(rightMin, Vector3.Dot(c, right));
+                    rightMax = Mathf.Max(rightMax, Vector3.Dot(c, right));
+                }
+            }
+            if (upMin > upMax)
+            {
+                return false;
+            }
+            centre = up * ((upMin + upMax) * 0.5f) + right * ((rightMin + rightMax) * 0.5f) + aim * front;
+            return true;
         }
 
         /// <summary>A shotgun's rounds are shells; any other gun loaded round by round takes rifle rounds.</summary>
