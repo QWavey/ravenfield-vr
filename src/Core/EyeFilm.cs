@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -153,7 +154,8 @@ namespace RavenfieldVR.Core
             int n = _count[eye]++;
             string path = Path.Combine(_dir, (_mono ? "C-" : eye == 0 ? "L-" : "R-") + n.ToString("0000") + ".png");
             Rig.LensEffects lens = Rig.LensEffects.Instance;
-            _frames.Append(Time.frameCount).Append('\t').Append(_mono ? 'C' : eye == 0 ? 'L' : 'R').Append('\t').Append(Time.unscaledTime.ToString("0.0000"))
+            // Invariant numbers: on a comma-decimal Windows (German) the time read 12,3456 and tools/flashfilm.py failed on frames.txt.
+            _frames.Append(Time.frameCount).Append('\t').Append(_mono ? 'C' : eye == 0 ? 'L' : 'R').Append('\t').Append(Time.unscaledTime.ToString("0.0000", CultureInfo.InvariantCulture))
                    .Append('\t').Append(_note).Append('\t').AppendLine(lens != null ? lens.FilmState(eye) : "-");
             _pending++;
             AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, req =>
