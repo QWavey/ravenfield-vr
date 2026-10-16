@@ -1096,8 +1096,10 @@ namespace RavenfieldVR.Weapons
             if (_pullingIn == prop)
             {
                 // Started straight into a well inside the grip: the rail takes it home (see below), whatever the hand does.
-                prop.RailDepth = Mathf.MoveTowards(prop.RailDepth, prop.RailLength, 0.9f * Mathf.Min(Time.unscaledDeltaTime, 0.05f));
-                if (prop.RailDepth >= prop.RailLength * 0.999f)
+                // A damped spring (about a third of a second, at most 0.6 m/s), not a constant 0.9 m/s: the hand turning
+                // from holding it into pushing it home (PushPalm) was over in a tenth of a second and never seen.
+                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, 0.09f, 0.6f, Mathf.Min(Time.unscaledDeltaTime, 0.05f));
+                if (prop.RailDepth >= prop.RailLength - 0.001f)
                 {
                     _pullingIn = null;
                     SeatProp(off, prop);
@@ -1142,6 +1144,7 @@ namespace RavenfieldVR.Weapons
                 // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
                 // the way in. A quarter of the way in and straight, it is drawn home the rest of the way.
                 _pullingIn = prop;
+                prop.DepthVel = Mathf.Max(0f, (prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f)); // on from the hand's speed
                 off.Haptic(0.012f, 160f, 0.35f);
             }
         }

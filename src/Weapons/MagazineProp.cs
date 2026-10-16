@@ -135,6 +135,8 @@ namespace RavenfieldVR.Weapons
         public float RailDepth;
         /// <summary>How far off the line the held end was when it went onto the rail (a rocket taken loosely): the hand may keep it.</summary>
         public float RailLateral0;
+        /// <summary>Speed along the rail while it is drawn home by itself (a damped spring, as Boneworks drives its insert).</summary>
+        public float DepthVel;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
         public readonly float RailLength;
         public float LastTick;
