@@ -264,8 +264,26 @@ namespace RavenfieldVR.Weapons
             {
                 return WeaponClass.MachineGun;
             }
-            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
-            return d.Action == ActionType.SingleShot && weapon.configuration.ammo <= 1 && length > 0.4f ? WeaponClass.Launcher : WeaponClass.Rifle;
+            return IsLauncher(d, weapon) ? WeaponClass.Launcher : WeaponClass.Rifle;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex LauncherName = new System.Text.RegularExpressions.Regex(
+            @"rocket|missile|launcher|rpg|panzer|bazooka|at-?4|smaw|javelin|stinger|carl|law|grenade|thumper|m79|(^|[^a-z])gl($|[^a-z])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A launcher: one round, a long tube, and a round that explodes (a rocket, missile or grenade) or a launcher's name.
+        /// Any one-round long gun was one, and a single-shot rifle got a launcher's hold and kick (255.I5-2).
+        /// </summary>
+        internal static bool IsLauncher(WeaponRigData d, Weapon w)
+        {
+            if (d.Action != ActionType.SingleShot || w == null || w.configuration == null || w.configuration.ammo > 1
+                || Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis)) <= 0.4f)
+            {
+                return false;
+            }
+            GameObject prefab = w.configuration.projectilePrefab;
+            Projectile p = prefab != null ? prefab.GetComponent<Projectile>() : null;
+            return p == null || p is ExplodingProjectile || p is GrenadeProjectile || LauncherName.IsMatch(w.name);
         }
 
         /// <summary>Parts a sight mode moves (a flip magnifier), kept where the selected mode puts them, aimed or not.</summary>
@@ -632,7 +650,7 @@ namespace RavenfieldVR.Weapons
             {
                 omega = 11f; lever = 0.7f;
             }
-            else if (d.Action == ActionType.SingleShot && w.configuration.ammo <= 1 && length > 0.4f)
+            else if (IsLauncher(d, w))
             {
                 omega = 12f; lever = 0.6f; // launchers
             }
@@ -721,7 +739,7 @@ namespace RavenfieldVR.Weapons
             {
                 oneHandRecoil = 2.6f; sag = 11f; follow = 7f;
             }
-            else if (d.Action == ActionType.SingleShot && w.configuration.ammo <= 1 && length > 0.4f)
+            else if (IsLauncher(d, w))
             {
                 oneHandRecoil = 1.6f; sag = 8f; follow = 8f; // launchers
             }

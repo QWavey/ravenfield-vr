@@ -57,7 +57,7 @@ namespace RavenfieldVR.Weapons
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
 
         /// <summary>Rifles loaded with an en-bloc clip, by name.</summary>
-        private static readonly Regex EnBlocName = new Regex(@"garand|garret|(^|[^a-z])m1 ?rifle", RegexOptions.IgnoreCase);
+        private static readonly Regex EnBlocName = new Regex(@"garand|garret(?!t)|(^|[^a-z])m1 ?rifle", RegexOptions.IgnoreCase);
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
@@ -627,7 +627,9 @@ namespace RavenfieldVR.Weapons
         private static void NamedChargingHandle(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
             Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
         {
-            if (d.Handgun || d.HandlePath != null || d.IsMachineGun || d.Action != ActionType.SelfLoading)
+            // (Machine guns too: their named charging or cocking handle was never taken, and the hand worked the bolt
+            // carrier inside; user, 2026-10-16: "MG charging handles don't work"; 255.I4-2.)
+            if (d.Handgun || d.HandlePath != null || d.Action != ActionType.SelfLoading)
             {
                 return;
             }
@@ -813,7 +815,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (d.SlidePath != null && d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
+            // (Also "... carrying the bolt": the closing bracket in the test sent that one to the estimate and an added knob;
+            // 255.B4-2.)
+            if (d.SlidePath != null && d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle", StringComparison.Ordinal))
             {
                 // The model's own charging handle, found from the reload, already comes back with the hand, taken at its
                 // back end: the rule's place on the receiver (5 cm behind the grip) put the hand 3.3 cm from it, on an added
@@ -1171,7 +1175,7 @@ namespace RavenfieldVR.Weapons
             }
             if (slide == null)
             {
-                slide = FindByName(all, SlideName, root, gunBody, muzzle, armRelated, gunBones);
+                slide = FindSlideByName(all, root, gunBody, muzzle, armRelated, gunBones);
                 if (slide != null)
                 {
                     d.SlideMethod = "name '" + slide.name + "'";
@@ -1245,6 +1249,16 @@ namespace RavenfieldVR.Weapons
                     d.SlideTravel = -d.AimAxis * Mathf.Clamp(handleVec.magnitude, 0.03f, 0.15f);
                     Bounds cb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
                     d.RackPoint = cb.size.sqrMagnitude > 1e-6f ? cb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
+                    if (cb.size.sqrMagnitude > 1e-6f)
+                    {
+                        // A long handle on top is taken at its back end, as a separate one is (255.B4-2).
+                        Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+                        float half = Mathf.Abs(Vector3.Dot(cb.extents, aimAbs));
+                        if (half > 0.04f && Vector3.Dot(cb.center - d.MuzzlePoint, d.Up) > -0.005f)
+                        {
+                            d.RackPoint = cb.center - d.AimAxis * half * 0.8f;
+                        }
+                    }
                     d.SlideMethod = "reload motion (charging handle carrying the bolt)";
                     // The bolt itself, for the action locked open: it alone stays back, the handle goes home (an M4's
                     // charging handle stayed back on an empty magazine; user, 2026-10-16).
@@ -1579,7 +1593,7 @@ namespace RavenfieldVR.Weapons
             var found = new List<Transform>();
             foreach (Transform t in all)
             {
-                if (!BeltName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !ShownAtIdle(t, sampler))
+                if (!IsBeltPiece(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !ShownAtIdle(t, sampler))
                 {
                     continue;
                 }
@@ -1600,6 +1614,8 @@ namespace RavenfieldVR.Weapons
                 found.RemoveAll(f => f.IsChildOf(t));
                 found.Add(t);
             }
+            // A belt piece is not also a spare magazine: hidden every frame as a spare, the laid belt never showed (255.I3-3).
+            d.SparePartPaths.RemoveAll(p => found.Any(f => Related(f, WeaponRig.Resolve(root, p))));
             foreach (Transform t in found)
             {
                 d.BeltPartPaths.Add(WeaponRig.PathOf(root, t));
@@ -1610,7 +1626,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static readonly Regex CoverName = new Regex(@"cover|lid|tray|feed|deckel|couvercle|tapa|крышк|盖", RegexOptions.IgnoreCase);
+        // As words: "lid" inside "Slide" or "Solid" made rifles feed-cover guns (255.I3-6).
+        private static readonly Regex CoverName = new Regex(@"cover|(^|[^a-z])lid($|[^a-z])|(^|[^a-z])tray($|[^a-z])|feed ?(cover|tray|lid)|deckel|couvercle|tapa|крышк|盖", RegexOptions.IgnoreCase);
         private static readonly Regex CylinderName = new Regex(@"cylinder|crane|drum|trommel|barillet|tambor|барабан|弹巢|转轮", RegexOptions.IgnoreCase);
 
         /// <summary>
@@ -1692,7 +1709,9 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 else if (!carriesMuzzle && acrossBore > 0.75f && rot >= 30f && aboveBore > -0.01f
-                         && (c.ammo >= 40 || CoverName.IsMatch(t.name)))
+                         // A belt-fed gun by its size (50 or more, automatic) or a part named a cover: at 40 rounds, a rifle's
+                         // flip sight or dust cover made it a feed-cover gun that needed a laid belt to fire (255.I4-5).
+                         && (c.ammo >= 50 && authoredAuto || CoverName.IsMatch(t.name)))
                 {
                     float score = rot * (CoverName.IsMatch(t.name) ? 2f : 1f);
                     if (score > coverRot)
@@ -2111,8 +2130,8 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A belt or a piece of one by its name (a plain "ammo" part on a belt-fed gun is its belt: the PKM's AMMO.001).</summary>
-        private static bool IsBeltPiece(string name) => BeltName.IsMatch(name) || Regex.IsMatch(name, @"^ammo([ ._]?\d+)?$", RegexOptions.IgnoreCase)
-                                                        && !Regex.IsMatch(name, @"box|can|弹箱", RegexOptions.IgnoreCase);
+        private static bool IsBeltPiece(string name) => (BeltName.IsMatch(name) || Regex.IsMatch(name, @"^ammo([ ._]?\d+)?$", RegexOptions.IgnoreCase))
+                                                        && !Regex.IsMatch(name, @"box|can|弹箱", RegexOptions.IgnoreCase); // a "belt box" is the box (255.I3-7)
 
         private static void AnalyzeMagazine(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
@@ -2180,12 +2199,13 @@ namespace RavenfieldVR.Weapons
                     if (beltFed && IsBeltPiece(t.name))
                     {
                         // A belt-fed gun's belt (or a link of it) is never its box: taken for it, only the belt came out into the
-                        // hand, or a link too small to see and only the round count showed (user, 2026-10-16).
-                        if (Longest(sampler.LocalBounds(t)) < 0.06f)
-                        {
-                            continue;
-                        }
-                        named = 0.5f;
+                        // hand, or a link too small to see and only the round count showed (user, 2026-10-16). Demoted, a belt
+                        // near the grip still beat a box 45 cm out (255.I4-1).
+                        continue;
+                    }
+                    if (!launcher && sampler.LocalBounds(t).size.magnitude < 0.05f)
+                    {
+                        continue; // nothing a hand holds: a sub-centimetre box was an invisible stand-in (255.I3-2)
                     }
                     float score = Mathf.Min(m, 0.4f) * named * inGun;
                     if (score > best)
@@ -2248,6 +2268,10 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
+                        if (beltFed && IsBeltPiece(t.name) || d.Action != ActionType.SingleShot && sampler.LocalBounds(t).size.magnitude < 0.05f)
+                        {
+                            continue; // a belt piece, or a speck (255.I4-1, I3-2)
+                        }
                         float hidden = HiddenSeconds(sampler.ReloadVisible[i]);
                         bool single = d.Action == ActionType.SingleShot;
                         float score = hidden * (IsMagName(t.name, single) ? 3f : IsNotMag(t.name, single) ? 0.3f : 1f);
@@ -2275,7 +2299,7 @@ namespace RavenfieldVR.Weapons
             }
             if (mag == null)
             {
-                mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot);
+                mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot, beltFed);
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
                     mag = null;
@@ -3357,12 +3381,15 @@ namespace RavenfieldVR.Weapons
                 d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : -d.Up;
             }
             d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.Handgun);
-            if (d.MagazinePath != null && !d.Handgun && EnBlocName.IsMatch(d.Key ?? "") && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual && !d.CyclesByHand))
+            // (A Garand classed Manual too: every Manual gun cycles by hand in the analysis, so "Manual && !CyclesByHand" never
+            // held; 255.B4-3.)
+            if (d.MagazinePath != null && !d.Handgun && EnBlocName.IsMatch(d.Key ?? "") && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
             {
                 // An M1 Garand (the vanilla "M1 GARRET"): its clip goes in from the top, through the open action, and the
                 // bolt locks open after the last round (user, 2026-10-16: it did not lock open, a clip could not be put in).
                 d.EnBloc = true;
                 d.Action = ActionType.SelfLoading;
+                d.CyclesByHand = false; // a self-loader: it cycles itself
                 d.LockOnEmpty = true;
                 d.MagEjectAxis = d.Up;
                 d.Notes += "en-bloc clip (from the top, the bolt locks open, the empty clip flies out) ";
@@ -3420,16 +3447,44 @@ namespace RavenfieldVR.Weapons
         }
 
         private static Transform FindMagByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle,
-            HashSet<Transform> armRelated, HashSet<Transform> gunBones, bool launcher)
+            HashSet<Transform> armRelated, HashSet<Transform> gunBones, bool launcher, bool beltFed = false)
         {
             foreach (Transform t in all)
             {
-                if (IsMagName(t.name, launcher) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                if (IsMagName(t.name, launcher) && !(beltFed && IsBeltPiece(t.name)) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     return t;
                 }
             }
             return null;
+        }
+
+        /// <summary>Named like a slide but not one: a catch, release, stop, button, selector, safety, carry handle, sling.</summary>
+        private static readonly Regex NotSlideName = new Regex(@"release|catch|stop|button|latch|selector|safety|switch|carry ?handle|sling|保险", RegexOptions.IgnoreCase);
+        private static readonly Regex StrongSlideName = new Regex(@"slide|bolt|charg|cocking|carrier|schlitten|verschluss|culasse|corredera|cerrojo|затвор|枪机|套筒|拉机柄", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// The slide by its name when no motion found it: never a bolt catch, a bolt release, a magazine-release lever or a
+        /// carry handle (the first name in the tree used to be taken, whatever it was; 255.I4-3); a slide, bolt or charging
+        /// name before a plain lever or handle.
+        /// </summary>
+        private static Transform FindSlideByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle,
+            HashSet<Transform> armRelated, HashSet<Transform> gunBones)
+        {
+            Transform weak = null;
+            foreach (Transform t in all)
+            {
+                if (!SlideName.IsMatch(t.name) || NotSlideName.IsMatch(t.name) || MagName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    continue;
+                }
+                if (StrongSlideName.IsMatch(t.name))
+                {
+                    return t;
+                }
+                weak = weak ?? t;
+            }
+            return weak;
         }
 
         private static Transform FindByName(Transform[] all, Regex rx, Transform root, Transform gunBody, Transform muzzle,
