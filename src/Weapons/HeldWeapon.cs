@@ -750,6 +750,9 @@ namespace RavenfieldVR.Weapons
         internal bool HeldBackByWorld => _blockBlend > 0.5f;
 
         private bool _wasBlocked;
+        /// <summary>Where the weapon's root was drawn last (world), for the next Update's checks (see Update).</summary>
+        private RigidPose _renderedRoot;
+        private bool _renderedRootSet;
         private float _contactKnockAt = -1f;
         /// <summary>Self-test: knocks felt when the held gun met the world.</summary>
         internal static int ContactKnocks { get; private set; }
@@ -760,6 +763,15 @@ namespace RavenfieldVR.Weapons
 
         public void Update()
         {
+            if (_renderedRootSet && Weapon != null && Weapon.transform.parent != null)
+            {
+                // The weapon hangs under the game's player, which moved since the weapon was drawn (walking 4 cm a frame,
+                // running 8): the hands are still where they were drawn, so the grabs, the magazine's rail and the rack
+                // compared a hand against a gun carried on by the step, and while walking or running magazines fell off
+                // their rail and grabs missed (user, 2026-10-16: "when walking or running the hands glitch and it's almost
+                // impossible to reload"). Back where it was drawn for this frame's checks; BeforeRender places it again.
+                _renderedRoot.ApplyTo(Weapon.transform);
+            }
             _gunCollider?.Update();
             VRHand main = _system.Rig.Dominant;
             if (main.Held is MagazineProp inHand && inHand.HeldBy == main)
@@ -1347,6 +1359,8 @@ namespace RavenfieldVR.Weapons
             RigidPose rootNow = RigidPose.Of(root);
             RigidPose gunInRoot = rootNow.Inverse().Multiply(RigidPose.Of(Rig.GunBody));
             desiredGunBody.Multiply(gunInRoot.Inverse()).ApplyTo(root);
+            _renderedRoot = RigidPose.Of(root);
+            _renderedRootSet = true;
 
             ApplyPartOverrides();
             SnapHands(main, off);

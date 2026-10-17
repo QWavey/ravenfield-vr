@@ -1800,7 +1800,9 @@ Results (2026-10-16 night):
 - (ad) the fire-mode switch (full auto / single) per gun, on a button that works.
 - (ae) every gun's charging handle / bolt worked by hand: rack pictures of every gun, the hand on and moving the right part (machine guns first).
 - (af) the machine gun reload by hand does not work (cover opens, firing works; the automatic reload works): first in the morning, with (n) and (o).
-- (z) hands glitch while walking or running, reloading almost impossible: not investigated yet (the scout was stopped).
+- (z) hands glitch while walking or running, reloading almost impossible: cause found 2026-10-17 (code, to check in the headset): the rig and the tracked hands are placed only at render time, but the weapon hangs under the game's player and is carried on by every step before the next Update, where the grabs, the magazine rail and the rack compare a hand (where it was drawn) with a gun 4 cm (walking) to 8 cm (running) further on. The weapon's root is now put back where it was drawn at the start of each Update.
+- (ad) done 2026-10-17 (to check): a plain A press switches the fire mode when no slide is locked.
+- 254: fixed (the misplaced else), and the added handle sits on the surface; the empty-reload autotest check is new (runs on every self-loader in a full run).
 - (p) two weapons at once (one per hand): the design is above; not started.
 - (o) the machine gun reload as a whole (after the rest).
 - (n) machine gun boxes: log the chosen box part, let the deep check take the box out, MK46 ET's box height, mg3's black block.
