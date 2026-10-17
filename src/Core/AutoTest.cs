@@ -2783,7 +2783,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, secondChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, secondChecks = 0, keepOutChecks = 0, pumpChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -2873,11 +2873,14 @@ namespace RavenfieldVR.Core
                         lines.Add("NO VISIBLE MODEL");
                     }
                     yield return held.Reload.SelfCheck(lines.Add);
-                    if (VRManager.Active && GrabShots)
+                    // The picture runs take the grab pictures, and then every other per-gun check too: they skipped them all,
+                    // so the full runs never ran the empty-reload, cover, second-weapon or keep-out checks (255.I6-3).
+                    bool pictured = VRManager.Active && GrabShots;
+                    if (pictured)
                     {
                         yield return GrabPictures(held, index, entry.name, lines);
                     }
-                    else if (VRManager.Active)
+                    if (VRManager.Active)
                     {
                         // A picture of the weapon in the (simulated) hands: a spread across the list, plus melee, grenades
                         // and pistols.
@@ -2888,7 +2891,7 @@ namespace RavenfieldVR.Core
                                     || held.Rig.Data.IsPistol && action == ActionType.SelfLoading && pistolShots++ < 4
                                     || action == ActionType.SingleShot && launcherShots++ < 8
                                     || action == ActionType.Manual && manualShots++ < 3; // pump and bolt guns: their rack grip too
-                        if (want)
+                        if (want && !pictured)
                         {
                             yield return new WaitForEndOfFrame();
                             Shots.Capture($"weapon-{index:000}-{entry.name}");
@@ -2942,7 +2945,7 @@ namespace RavenfieldVR.Core
                             }
                         }
                         // Rack grips on rifles, pistols and pump / bolt guns (a few of each), not only the first rifles.
-                        if (want && (Deep ? action == ActionType.Manual || action == ActionType.SelfLoading
+                        if (!pictured && want && (Deep ? action == ActionType.Manual || action == ActionType.SelfLoading
                                 : action == ActionType.Manual ? rackManual++ < 3
                                 : action == ActionType.SelfLoading && (held.Rig.Data.IsPistol ? rackPistols++ < 3 : rackRifles++ < 4)))
                         {
@@ -2953,6 +2956,10 @@ namespace RavenfieldVR.Core
                                 Shots.Capture($"{name}-{rackIndex:000}-{entry.name}");
                                 RackCloseUps($"{name}-{rackIndex:000}-{entry.name}", held, ref rackCam);
                             });
+                        }
+                        if (held.Reload.WorksByPump && (Deep || pumpChecks++ < 3))
+                        {
+                            yield return held.Reload.PumpTriggerSelfCheck(lines.Add); // the pump by the support hand's trigger (255.I6-2)
                         }
                         if (want && held.Rig.Data.Hinge == HingeKind.FeedCover)
                         {
@@ -2994,13 +3001,13 @@ namespace RavenfieldVR.Core
                             // comes home when released, and follows a hand rack (Tasks 252, 254).
                             yield return held.Reload.EmptyReloadSelfCheck(lines.Add);
                         }
-                        if (Deep && held.Rig.Data.Action == ActionType.SingleShot && held.ActiveAmmo != null && !held.ActiveAmmo.UsesDetachableMag)
+                        if (!pictured && Deep && held.Rig.Data.Action == ActionType.SingleShot && held.ActiveAmmo != null && !held.ActiveAmmo.UsesDetachableMag)
                         {
                             // Every launcher loaded by hand from the pouch at its muzzle (it ran only in the film, on a few,
                             // and the self-check seats the rocket with no hand at all).
                             yield return held.Reload.RocketCheck(lines.Add);
                         }
-                        if (Deep && want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                        if (!pictured && Deep && want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {
                             int magIndex = index;
                             HeldWeapon magHeld = held;
@@ -3447,7 +3454,7 @@ namespace RavenfieldVR.Core
         /// Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE
         /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them).
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK");
 
         private static string FirstFrames(Exception e)
         {

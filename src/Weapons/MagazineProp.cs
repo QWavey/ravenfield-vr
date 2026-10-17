@@ -1993,7 +1993,8 @@ namespace RavenfieldVR.Weapons
 
         private bool _touchingGun;
         private Vector3 _lastScrapeAt;
-        private static float _lastContactSound = -1f;
+        // Each magazine's own: shared, the palmed one's knock silenced the fresh one's in the same frame (255.I1-6).
+        private float _lastContactSound = -1f;
 
         /// <summary>
         /// A held magazine meeting the gun knocks, louder the faster it came in, and scrapes while it slides along; both

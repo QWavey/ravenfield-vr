@@ -1627,6 +1627,8 @@ namespace RavenfieldVR.Weapons
         }
 
         // As words: "lid" inside "Slide" or "Solid" made rifles feed-cover guns (255.I3-6).
+        /// <summary>Covers that are no feed cover: a rifle's dust or ejection-port cover, a sight's or scope's lens cap.</summary>
+        private static readonly Regex NotFeedCoverName = new Regex(@"dust|port|eject|lens|scope|sight|optic|防尘", RegexOptions.IgnoreCase);
         private static readonly Regex CoverName = new Regex(@"cover|(^|[^a-z])lid($|[^a-z])|(^|[^a-z])tray($|[^a-z])|feed ?(cover|tray|lid)|deckel|couvercle|tapa|крышк|盖", RegexOptions.IgnoreCase);
         private static readonly Regex CylinderName = new Regex(@"cylinder|crane|drum|trommel|barillet|tambor|барабан|弹巢|转轮", RegexOptions.IgnoreCase);
 
@@ -1711,7 +1713,8 @@ namespace RavenfieldVR.Weapons
                 else if (!carriesMuzzle && acrossBore > 0.75f && rot >= 30f && aboveBore > -0.01f
                          // A belt-fed gun by its size (50 or more, automatic) or a part named a cover: at 40 rounds, a rifle's
                          // flip sight or dust cover made it a feed-cover gun that needed a laid belt to fire (255.I4-5).
-                         && (c.ammo >= 50 && authoredAuto || CoverName.IsMatch(t.name)))
+                         // A dust, port or lens cover by name is not a feed cover either.
+                         && (c.ammo >= 50 && authoredAuto || CoverName.IsMatch(t.name) && !NotFeedCoverName.IsMatch(t.name)))
                 {
                     float score = rot * (CoverName.IsMatch(t.name) ? 2f : 1f);
                     if (score > coverRot)

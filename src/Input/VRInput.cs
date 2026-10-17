@@ -402,10 +402,17 @@ namespace RavenfieldVR.Input
         // ---- digital ------------------------------------------------------------------------------
 
         public static bool GetHeld(DigitalAction a) => Held[Slot(a), 2];
-        public static bool GetHeld(DigitalAction a, Hand h) => Held[Slot(a), (int)h] || a == DigitalAction.Grab && (int)h < 2 && SimulatedGrab[(int)h];
+        public static bool GetHeld(DigitalAction a, Hand h) => Held[Slot(a), (int)h]
+                                                               || (int)h < 2 && (a == DigitalAction.Grab && SimulatedGrab[(int)h] || a == DigitalAction.Use && SimulatedUse[(int)h]);
 
         /// <summary>Autotest: a closed grip on a simulated hand (the virtual headset has no controllers to squeeze).</summary>
         internal static readonly bool[] SimulatedGrab = new bool[2];
+
+        /// <summary>
+        /// Autotest: the trigger of a simulated hand held as its Use action (the support hand's trigger: the pump, the
+        /// under-barrel launcher, lights; 255.I6-2). Its pressed edge comes from <see cref="SimulatePress"/>.
+        /// </summary>
+        internal static readonly bool[] SimulatedUse = new bool[2];
 
         public static bool GetPressed(DigitalAction a) => Pressed[Slot(a), 2] && !Consumed[Slot(a), 2];
         public static bool GetPressed(DigitalAction a, Hand h) => Pressed[Slot(a), (int)h] && !Consumed[Slot(a), (int)h];

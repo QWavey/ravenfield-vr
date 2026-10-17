@@ -480,7 +480,10 @@ namespace RavenfieldVR.Weapons
                 if (d < radius)
                 {
                     // Weighed as the rack is: at 0.9 a charging handle under the cover's edge won where both were in reach.
-                    Consider(5, d / radius * 0.65f, ref choice, ref best);
+                    // With the box in and its belt still to lay, the belt is the next step: the cover weighs full, so a belt
+                    // end about as near wins (the cover's latch was taken instead; 255.I3-8).
+                    bool beltNext = VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid;
+                    Consider(5, d / radius * (beltNext ? 1f : 0.65f), ref choice, ref best);
                 }
             }
             if (Manual && VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid)
@@ -2949,8 +2952,12 @@ namespace RavenfieldVR.Weapons
             if (Breaks)
             {
                 // A shot, then opened twice: the fired case falls out the first time only (every opening dropped
-                // "capacity minus loaded" cases once, out of nothing).
-                if (Ammo.MagRounds > 0)
+                // "capacity minus loaded" cases once, out of nothing). Shut first: left open (break actions stay open),
+                // opening again did nothing and the check read "0 cases" as a pass (255.I6-8).
+                SetBreakOpen(false);
+                yield return new UnityEngine.WaitForSecondsRealtime(0.1f);
+                bool fired = Ammo.MagRounds > 0;
+                if (fired)
                 {
                     Ammo.OnShot();
                 }
@@ -2962,7 +2969,7 @@ namespace RavenfieldVR.Weapons
                 cases = Casings.Spawned;
                 SetBreakOpen(true);
                 int again = Casings.Spawned - cases;
-                report($"break-open: opened after a shot, {first} case(s) fell out; opened again, {again}{(again > 0 ? " (NOT ONLY ONCE: cases out of nothing)" : "")}");
+                report($"break-open: opened after a shot, {first} case(s) fell out{(fired && first == 0 ? " (NO CASE FELL OUT OF THE FIRED ONE)" : fired ? "" : " (nothing loaded to fire)")}; opened again, {again}{(again > 0 ? " (NOT ONLY ONCE: cases out of nothing)" : "")}");
                 yield return new UnityEngine.WaitForSecondsRealtime(0.2f);
                 TakeFromPouch(off);
                 if (off.Held is MagazineProp shells && AcceptsNow(shells))
@@ -3768,23 +3775,11 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Autotest: the simulated off hand is put on the rack point (slide, bolt, charging handle or pump) and takes it the
-        /// way a grab there does; pictured and measured on the part at rest and pulled half way, then let go.
+        /// Autotest: the scripted off hand's pose for a palm at a point on the rack part (slide, bolt, charging handle or
+        /// pump), held as a player holds it. Shared by the rack checks.
         /// </summary>
-        internal IEnumerator RackGripSelfCheck(System.Action<string> report, System.Action<string> shot)
+        private System.Func<Vector3, RigidPose> RackHandPose(VRHand off)
         {
-            VRHand off = _sys.Rig.Off;
-            if (!Manual || !Ammo.UsesChamber || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null)
-            {
-                yield break;
-            }
-            // The rack point is put on the model's surface once the gun is measured (HeldWeapon.SnapRackPoint): waited
-            // for, or the hand was put at the analysis's point and the pictures showed it where the point had been.
-            for (float until = Time.unscaledTime + 2f; _held.HandsSolid == null && Time.unscaledTime < until;)
-            {
-                yield return null;
-            }
-            int side = (int)off.Side;
             RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
             // The hand as a player holds the part (the controller's fixed test pose put the fist sideways beside it, and the
             // picture review saw the hand off the part on 207 guns): the palm against the part's outer side; on a part on top,
@@ -3803,7 +3798,28 @@ namespace RavenfieldVR.Weapons
             fingers = Vector3.ProjectOnPlane(fingers, palmX);
             fingers = fingers.sqrMagnitude > 1e-6f ? fingers.normalized : aimW;
             Quaternion palmRot = Quaternion.LookRotation(fingers, Vector3.Cross(fingers, palmX));
-            RigidPose At(Vector3 palm) => new RigidPose(palm - intoPart * 0.02f, palmRot).Multiply(rawFromPalm);
+            return palm => new RigidPose(palm - intoPart * 0.02f, palmRot).Multiply(rawFromPalm);
+        }
+
+        /// <summary>
+        /// Autotest: the simulated off hand is put on the rack point (slide, bolt, charging handle or pump) and takes it the
+        /// way a grab there does; pictured and measured on the part at rest and pulled half way, then let go.
+        /// </summary>
+        internal IEnumerator RackGripSelfCheck(System.Action<string> report, System.Action<string> shot)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesChamber || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null)
+            {
+                yield break;
+            }
+            // The rack point is put on the model's surface once the gun is measured (HeldWeapon.SnapRackPoint): waited
+            // for, or the hand was put at the analysis's point and the pictures showed it where the point had been.
+            for (float until = Time.unscaledTime + 2f; _held.HandsSolid == null && Time.unscaledTime < until;)
+            {
+                yield return null;
+            }
+            int side = (int)off.Side;
+            System.Func<Vector3, RigidPose> At = RackHandPose(off);
             VRInput.SimulatedGrab[side] = true;
             try
             {
@@ -3942,6 +3958,120 @@ namespace RavenfieldVR.Weapons
             report($"two hands: support hand {(snapped ? "on the weapon's own handguard pose" : "on the tracked hand (no support pose)")}");
         }
 
+        /// <summary>Autotest: the gun is worked by a pump the support hand's trigger takes (<see cref="PumpTriggerSelfCheck"/>).</summary>
+        internal bool WorksByPump => Ammo != null && Manual && Ammo.UsesChamber && IsPump;
+
+        /// <summary>
+        /// Autotest: the pump worked by the support hand's trigger, as the player does it (user, 2026-10-16: "only rackable
+        /// if the trigger finger on the rack was pressed and held"; 255.I6-2): the support hand holds the pump, the trigger
+        /// squeezed takes it, a full stroke back and home cycles a round, the trigger let go leaves the hand holding the gun
+        /// by the pump again. Also: the grip alone (no trigger) does not work the pump.
+        /// </summary>
+        internal IEnumerator PumpTriggerSelfCheck(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!WorksByPump || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null || _racking)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            bool chambered = Ammo.Chambered, spent = Ammo.SpentInChamber;
+            int rounds = Ammo.MagRounds;
+            System.Func<Vector3, RigidPose> at = RackHandPose(off);
+            Vector3 start = RackPointWorld;
+            Vector3 pull = Rig.DirToWorld(StrokeDir) * StrokeLength;
+            bool held = false, taken = false, backOnGrip = false, freeAfter = false;
+            float gripOnly = 0f, back = 0f;
+            int cycledFrom = -1;
+            try
+            {
+                // The support hand on the pump (a grab there is the foregrip, as for any handguard).
+                VRHand.Scripted[side] = at(start);
+                yield return null;
+                yield return null;
+                VRInput.SimulatedGrab[side] = true;
+                off.Role = HandRole.Foregrip;
+                _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                yield return new WaitForSecondsRealtime(0.3f);
+                held = off.Role == HandRole.Foregrip;
+                // The grip alone, pulled back: the pump must not move (it was worked by any grab).
+                float before = _held.SlideOffset;
+                for (int i = 1; i <= 8; i++)
+                {
+                    VRHand.Scripted[side] = at(start + pull * (0.5f * i / 8f));
+                    yield return null;
+                }
+                gripOnly = Mathf.Abs(_held.SlideOffset - before);
+                VRHand.Scripted[side] = at(start);
+                yield return new WaitForSecondsRealtime(0.2f);
+                // Make the chamber's state known: a live round in it, the tube with rounds behind it.
+                Ammo.Chambered = true;
+                Ammo.SpentInChamber = false;
+                if (Ammo.MagRounds == 0)
+                {
+                    Ammo.MagRounds = Mathf.Max(1, Mathf.Min(2, Ammo.Capacity));
+                }
+                cycledFrom = Ammo.MagRounds;
+                // The trigger squeezed: the hand takes the pump.
+                VRInput.SimulatedUse[side] = true;
+                VRInput.SimulatePress(DigitalAction.Use, off.Side);
+                yield return null;
+                yield return null;
+                taken = _racking && _rackByTrigger && off.Role == HandRole.Slide;
+                // All the way back, then home.
+                for (int i = 1; i <= 12; i++)
+                {
+                    VRHand.Scripted[side] = at(start + pull * (i / 12f));
+                    yield return null;
+                }
+                back = Travel > 1e-4f ? _held.SlideOffset / Travel : 0f;
+                for (int i = 11; i >= 0; i--)
+                {
+                    VRHand.Scripted[side] = at(start + pull * (i / 12f));
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.1f);
+                // The trigger let go: the hand holds the gun by the pump again.
+                VRInput.SimulatedUse[side] = false;
+                yield return null;
+                yield return null;
+                backOnGrip = !_racking && off.Role == HandRole.Foregrip;
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.3f);
+                freeAfter = off.Role == HandRole.Free;
+            }
+            finally
+            {
+                VRInput.SimulatedUse[side] = false;
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.Scripted[side] = null;
+                if (_racking)
+                {
+                    EndRack(off, chamber: false);
+                }
+                if (off.Role != HandRole.Free)
+                {
+                    _held.SetTwoHanded(false);
+                    off.Role = HandRole.Free;
+                }
+            }
+            // A full stroke ejects the round and feeds the next: one round fewer in the tube, one chambered.
+            bool cycled = cycledFrom > 0 && Ammo.Chambered && Ammo.MagRounds == cycledFrom - 1;
+            Core.AutoTest.Metric("pump by trigger: share of the stroke at the full pull", back);
+            report($"pump by trigger: {(held ? "held by the pump" : "NOT HELD BY THE PUMP")}, the grip alone moved it {gripOnly * 1000f:0} mm{(gripOnly > 0.005f ? " (THE GRIP ALONE WORKS THE PUMP)" : "")}; "
+                   + $"{(taken ? "the trigger took the pump" : "THE TRIGGER DID NOT TAKE THE PUMP")}, full pull {back * 100f:0}% of the stroke{(taken && back < 0.8f ? " (NOT ALL THE WAY BACK)" : "")}, "
+                   + $"{(cycled ? "cycled a round" : taken ? "DID NOT CYCLE A ROUND" : "not cycled")}; "
+                   + $"trigger let go: {(backOnGrip ? "the hand holds the pump again" : "NOT BACK ON THE PUMP")}, grip let go: {(freeAfter ? "free" : "NOT FREE")}");
+            // Back as it was.
+            _rackedBack = false;
+            _held.SlideOffset = 0f;
+            Ammo.BoltOpen = false;
+            Ammo.Chambered = chambered;
+            Ammo.SpentInChamber = spent;
+            Ammo.MagRounds = rounds;
+            Ammo.Sync();
+        }
+
         /// <summary>
         /// Autotest: an empty reload as the player does it (Tasks 252 c/d/i, 254): the last round fired leaves the slide or
         /// bolt locked back; a fresh magazine goes in and the drawn slide must stay back (it ran forward on its own on the
@@ -3989,25 +4119,61 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.8f);
             float leftBack = Moved(home, _held.DrawnLayout());
             bool fed = Ammo.Chambered;
-            // A hand rack: half way back, the drawn part must follow.
-            _racking = true;
-            _held.SlideOffset = Travel * 0.5f;
-            yield return null;
-            yield return new WaitForEndOfFrame();
-            float racked = Moved(home, _held.DrawnLayout());
-            _racking = false;
-            _returning = true;
-            yield return new WaitForSecondsRealtime(0.5f);
+            // A hand rack: the off hand takes the part and pulls it half way back; the drawn part must follow. Through the
+            // hand's own path (BeginRack, UpdateRack, EndRack): the offset set directly left a reset in that path unseen
+            // (255.I6-1).
+            float racked = -1f;
+            VRHand off = _sys.Rig.Off;
+            if (off.Role == HandRole.Free && off.Held == null)
+            {
+                int side = (int)off.Side;
+                System.Func<Vector3, RigidPose> at = RackHandPose(off);
+                Vector3 start = RackPointWorld;
+                Vector3 pull = Rig.DirToWorld(StrokeDir) * (StrokeLength * 0.5f);
+                VRInput.SimulatedGrab[side] = true;
+                try
+                {
+                    VRHand.Scripted[side] = at(start);
+                    yield return null;
+                    yield return null;
+                    BeginRack(off);
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    for (int i = 1; i <= 10; i++)
+                    {
+                        VRHand.Scripted[side] = at(start + pull * (i / 10f));
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(0.1f);
+                    yield return new WaitForEndOfFrame();
+                    racked = _racking ? Moved(home, _held.DrawnLayout()) : -2f;
+                    VRInput.SimulatedGrab[side] = false;
+                    yield return new WaitForSecondsRealtime(0.5f); // let go: it goes home
+                }
+                finally
+                {
+                    VRHand.Scripted[side] = null;
+                    VRInput.SimulatedGrab[side] = false;
+                }
+                if (_racking)
+                {
+                    EndRack(off, chamber: false);
+                }
+            }
             Core.AutoTest.Metric("empty reload: mm the drawn slide ran forward on a fresh magazine", ranForward * 1000f);
             Core.AutoTest.Metric("empty reload: mm the drawn slide stayed back after the release", leftBack * 1000f);
-            Core.AutoTest.Metric("empty reload: mm the drawn slide moved at half a hand rack", racked * 1000f);
+            if (racked >= 0f)
+            {
+                Core.AutoTest.Metric("empty reload: mm the drawn slide moved at half a hand rack", racked * 1000f);
+            }
             float tol = Mathf.Max(0.003f, lockTravel * 0.25f);
             string verdict = lockTravel < 0.003f ? "the drawn slide does not show the lock (nothing moved when locked)"
                 : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm)"
                 : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home)"
                 : "stayed back with the fresh magazine, home when released";
             report($"empty reload: locked back {lockTravel * 1000f:0} mm, {(stillLocked ? "still locked" : "NOT LOCKED")} with a fresh magazine, {verdict}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
-                   + $"half a hand rack moves the drawn gun {racked * 1000f:0} mm{(racked < Mathf.Max(0.002f, Travel * 0.15f) ? " (THE HAND RACK MOVES NOTHING)" : "")}");
+                   + (racked == -1f ? "hand rack not checked (the off hand was busy)"
+                       : racked == -2f ? "THE HAND LET GO OF THE RACK during the pull"
+                       : $"half a hand rack moves the drawn gun {racked * 1000f:0} mm{(racked < Mathf.Max(0.002f, Travel * 0.15f) ? " (THE HAND RACK MOVES NOTHING)" : "")}"));
             // Back as it was.
             Ammo.SlideLocked = locked;
             Ammo.Chambered = chambered;

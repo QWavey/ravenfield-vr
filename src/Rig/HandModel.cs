@@ -454,12 +454,6 @@ namespace RavenfieldVR.Rig
         private RigidPose _heldPalmLast;
         private float _heldPalmWeight;
 
-        /// <summary>
-        /// How far the glove, where the tracked hand alone puts it, has to move back against <paramref name="dir"/> to keep
-        /// its bones and palm out of <paramref name="blocked"/>: in 5 mm steps up to <paramref name="max"/>. The glove as last
-        /// posed (its fingers round what it holds); 0 while it is not shown, and 0 when no step is clear (then it is not
-        /// in the way along <paramref name="dir"/> but stuck in something beside it, which moving back does not cure).
-        /// </summary>
         /// <summary>The tracked hand at the last pose, the one the stored skin belongs to.</summary>
         private Vector3 _skinTargetPos;
 
@@ -470,6 +464,12 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private Vector3 TrackedShift => PlacedTarget().position - _skinTargetPos - _graspOffset - _keepOut;
 
+        /// <summary>
+        /// How far the glove, where the tracked hand alone puts it, has to move back against <paramref name="dir"/> to keep
+        /// its bones and palm out of <paramref name="blocked"/>: in 5 mm steps up to <paramref name="max"/>. The glove as last
+        /// posed (its fingers round what it holds); 0 while it is not shown, and 0 when no step is clear (then it is not
+        /// in the way along <paramref name="dir"/> but stuck in something beside it, which moving back does not cure).
+        /// </summary>
         internal float ClearanceAlong(Vector3 dir, System.Func<Vector3, bool> blocked, float max)
         {
             if (!_skinValid)

@@ -626,10 +626,6 @@ namespace RavenfieldVR.Weapons
             return own;
         }
 
-        /// <summary>
-        /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
-        /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
-        /// </summary>
         // ---- weight: inertia (Tasks 208 / 204) -------------------------------------------------------
 
         /// <summary>How quickly the weapon follows the hand's accelerations (rad/s; 0: at once). Heavier is slower.</summary>
@@ -735,6 +731,10 @@ namespace RavenfieldVR.Weapons
             _lagPitch = Mathf.Clamp(_lagPitch, -10f, 10f);
         }
 
+        /// <summary>
+        /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
+        /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
+        /// </summary>
         private static void Handling(WeaponRigData d, Weapon w, out float oneHandRecoil, out float sag, out float follow)
         {
             float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
