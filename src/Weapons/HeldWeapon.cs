@@ -690,7 +690,9 @@ namespace RavenfieldVR.Weapons
                 _handAcc = Vector3.zero;
                 _lagInit = true;
             }
-            Vector3 raw = dt > 1e-4f ? (v - _handVelPrev) / dt : Vector3.zero;
+            // Over the real frame time: the clamped step (for the spring's stability) overstated the change on a long frame
+            // (255.B1-3).
+            Vector3 raw = (v - _handVelPrev) / Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
             _handVelPrev = v;
             raw = Vector3.ClampMagnitude(raw, 40f); // a tracking jump is no acceleration
             // The controller's reported velocity jitters a few cm/s from frame to frame: differenced, that is several m/s^2
@@ -2535,6 +2537,11 @@ namespace RavenfieldVR.Weapons
             if (Rig.Handle != null)
             {
                 Rig.Handle.localPosition = Rig.Data.HandleRestLocal;
+            }
+            if (Rig.Bolt != null)
+            {
+                Rig.Bolt.localPosition = Rig.Data.BoltRestLocal; // a bolt left locked back stayed back (255.B1-2, B7-1)
+                _boltMoved = false;
             }
             if (_hingeOverridden && Rig.Hinge != null)
             {

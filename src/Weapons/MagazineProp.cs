@@ -1366,6 +1366,7 @@ namespace RavenfieldVR.Weapons
             _fresh = false;
             HeldBy = hand;
             _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
+            LostByHand = false; // (a stale flag let go of the next grip at once; 255.B3-1)
             _drawnFor = null;
             hand.Role = HandRole.Magazine;
             hand.Held = this;
@@ -1938,6 +1939,7 @@ namespace RavenfieldVR.Weapons
             else
             {
                 _drawnFor = null;
+                LostByHand = false;
             }
             _keptOut = drawn - target.position;
             ContactSounds(gun, drawn, _keptOut.sqrMagnitude > 1e-6f);
@@ -1949,7 +1951,9 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.HandModel model = HeldBy.Model;
                 bool setThisFrame = model.KeepOutFrame == Time.frameCount;
-                model.KeepOut = setThisFrame && model.KeepOut.sqrMagnitude > _keptOut.sqrMagnitude ? model.KeepOut : _keptOut;
+                // Both shifts keep the glove out (backed out of the well, and to where the magazine is drawn): added, not the
+                // longer one kept, which dropped the magazine's sideways offset (255.I2-3).
+                model.KeepOut = setThisFrame ? model.KeepOut + _keptOut : _keptOut;
                 model.KeepOutFrame = Time.frameCount;
             }
             return new RigidPose(drawn, target.rotation);
@@ -2039,6 +2043,7 @@ namespace RavenfieldVR.Weapons
 
         public void Drop(Vector3 velocity, Vector3 angularVelocity)
         {
+            LostByHand = false;
             if (_sectionEasing)
             {
                 _frontHalf = _sectionGoal.x;

@@ -300,7 +300,9 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A belt-fed gun's box stays put while the belt runs through the closed cover.</summary>
-        public bool BoxLocked => HasCover && MagInserted && BeltLaid && !CoverOpen;
+        // Shut over a box without its belt laid too: the box came out through the closed cover (255.B6-2). Firing stays gated
+        // by CanFire and FeedReady.
+        public bool BoxLocked => HasCover && MagInserted && !CoverOpen;
 
         /// <summary>Pushes individual rounds into an internal magazine/tube.</summary>
         /// <returns>How many were accepted.</returns>

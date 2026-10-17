@@ -802,18 +802,34 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             Vector3 dir = sweep / length;
-            bool disabled = user.DisableHitboxColliders();
+            // The player's own hitboxes are skipped by their owner below, not switched off and on every fast frame (255.P7-1).
+            const bool disabled = false;
             try
             {
                 const float radius = 0.06f;
                 int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, 70913);
                 Hitbox best = null;
                 RaycastHit bestHit = default;
-                float bestDistance = float.MaxValue;
+                float bestDistance = float.MaxValue, wall = float.MaxValue;
                 for (int i = 0; i < n; i++)
                 {
                     RaycastHit h = BashHits[i];
-                    if (h.collider == null || !Hitbox.IsHitboxLayer(h.collider.gameObject.layer) || h.distance >= bestDistance)
+                    if (h.collider == null)
+                    {
+                        continue;
+                    }
+                    if (!Hitbox.IsHitboxLayer(h.collider.gameObject.layer))
+                    {
+                        // A wall or vehicle in the way stops the blow, as a knife's (an enemy behind a wall was hit; 255.B3-2);
+                        // never the held gun's own stand-in or the player's body.
+                        Rigidbody body = h.collider.attachedRigidbody;
+                        if (h.collider.gameObject.layer != 18 && !PropPhysics.IsPlayerCollider(h.collider) && (body == null || body.GetComponent<GunProxyBody>() == null))
+                        {
+                            wall = Mathf.Min(wall, h.distance);
+                        }
+                        continue;
+                    }
+                    if (h.distance >= bestDistance)
                     {
                         continue;
                     }
@@ -826,7 +842,7 @@ namespace RavenfieldVR.Weapons
                     bestHit = h;
                     bestDistance = h.distance;
                 }
-                if (best == null)
+                if (best == null || bestDistance > wall)
                 {
                     return false;
                 }

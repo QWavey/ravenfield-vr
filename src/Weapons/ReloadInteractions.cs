@@ -40,8 +40,64 @@ namespace RavenfieldVR.Weapons
         private int _launcherSub = -2;
         /// <summary>The sub weapon that was active before the support hand's trigger switched to the launcher (null: not firing it).</summary>
         private int? _launcherFrom;
-        /// <summary>Lights and lasers: 0 off, 1 laser, 2 light, 3 both (as the support hand's trigger last left them).</summary>
-        private int _lightMode;
+        /// <summary>The sub weapon to go back to once the under-barrel launcher is not reloading (null: none).</summary>
+        private int? _launcherReturn;
+
+        /// <summary>
+        /// Back from the under-barrel launcher to what the gun fired before, once it is not reloading: switched mid-reload it
+        /// would cancel the reload, and dropped then, the rifle stayed on the launcher (255.B2-1). Left alone when the player
+        /// switched it meanwhile.
+        /// </summary>
+        private void LauncherReturn()
+        {
+            if (!_launcherReturn.HasValue)
+            {
+                return;
+            }
+            Weapon gun = _held.Weapon;
+            if (gun == null || _launcherSub < 0 || gun.activeSubWeaponIndex != _launcherSub)
+            {
+                _launcherReturn = null;
+                return;
+            }
+            if (!gun.GetActiveSubWeapon().reloading)
+            {
+                gun.EquipSubWeapon(_launcherReturn.Value);
+                _launcherReturn = null;
+            }
+        }
+
+        /// <summary>Lights and lasers per weapon type: 0 off, 1 laser, 2 light, 3 both (as the support hand's trigger left them).</summary>
+        private static readonly Dictionary<string, int> LightModes = new Dictionary<string, int>();
+
+        private int _lightMode
+        {
+            // Kept per weapon type, not per draw: drawn again, the cycle restarted at "off" while the gun's light was still
+            // on, and stayed out of step with it (255.B2-5).
+            get => Data.Key != null && LightModes.TryGetValue(Data.Key, out int m) ? m : 0;
+            set
+            {
+                if (Data.Key != null)
+                {
+                    LightModes[Data.Key] = value;
+                }
+            }
+        }
+
+        /// <summary>The weapon's laser and light keys, looked up twice a second (each lookup sorts a new list; 255.P1.3).</summary>
+        private Input.ScriptKey _laserKey, _lightKey;
+        private float _supportKeysAt = -10f;
+
+        private void RefreshSupportKeys()
+        {
+            if (Time.unscaledTime - _supportKeysAt < 0.5f)
+            {
+                return;
+            }
+            _supportKeysAt = Time.unscaledTime;
+            _laserKey = Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Laser);
+            _lightKey = Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Light);
+        }
 
         /// <summary>
         /// The support hand's trigger, the hand on the gun (user, 2026-10-16): on an under-barrel launcher it fires the
@@ -60,13 +116,11 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 // Let go: the gun goes back to what it was firing before (after the shot has gone: the trigger was held a
-                // frame at least).
+                // frame at least), as soon as the launcher is not reloading.
                 VRGameInput.SupportFire = false;
-                if (launcher >= 0 && w.activeSubWeaponIndex == launcher && !w.GetActiveSubWeapon().reloading)
-                {
-                    w.EquipSubWeapon(_launcherFrom.Value);
-                }
+                _launcherReturn = _launcherFrom;
                 _launcherFrom = null;
+                LauncherReturn();
                 return;
             }
             if (!VRInput.GetPressed(DigitalAction.Use, off.Side) || Util.GameContext.GameMenuOpen)
@@ -85,8 +139,9 @@ namespace RavenfieldVR.Weapons
                 off.Haptic(0.02f, 140f, 0.3f);
                 return;
             }
-            Input.ScriptKey laser = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Laser);
-            Input.ScriptKey light = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Light);
+            RefreshSupportKeys();
+            Input.ScriptKey laser = _laserKey;
+            Input.ScriptKey light = _lightKey;
             if (laser == null && light == null)
             {
                 return;
@@ -158,7 +213,7 @@ namespace RavenfieldVR.Weapons
         private bool PumpByTrigger(VRHand off)
         {
             return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Use, off.Side)
-                   && !Util.GameContext.GameMenuOpen && Vector3.Distance(off.Palm.position, RackPointWorld) < 0.2f;
+                   && !Util.GameContext.GameMenuOpen && Vector3.Distance(off.Palm.position, RackPointWorld) < (Data.Action == ActionType.ShellFed ? 0.25f : 0.2f);
         }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
         private bool _rackFromBoltLock;
@@ -258,9 +313,11 @@ namespace RavenfieldVR.Weapons
                 }
                 // A machine gun's feed cover slapped shut with the open hand, as it is closed in a hurry: a quick downward hit
                 // on it (it had to be taken and pushed down all the way).
+                // (Over the cover's rear half, as the grab; a hit of 1.5 m/s, not any brisk move down; not in the half second
+                // after the cover was let go: a hand dropping away from it shut it again; 255.B2-4, B6-4.)
                 if (Ammo.HasCover && Ammo.CoverOpen && !_coverHeld && off.Tracked && off.Role == HandRole.Free && !off.GrabHeld
-                    && Vector3.Distance(off.Palm.position, CoverGrabWorld) < 0.1f
-                    && Vector3.Dot(off.Velocity - dom.Velocity, -Rig.UpWorld) > 0.8f)
+                    && Time.unscaledTime - _coverLetGoAt > 0.5f && CoverZoneDistance(off.Palm.position) < 0.1f
+                    && Vector3.Dot(off.Velocity - dom.Velocity, -Rig.UpWorld) > 1.5f)
                 {
                     Ammo.SetCoverOpen(false);
                     _held.Nudge(-Rig.UpWorld * 0.08f, 8f);
@@ -307,17 +364,16 @@ namespace RavenfieldVR.Weapons
             if (_launcherFrom.HasValue && off.Role != HandRole.Foregrip)
             {
                 // The support hand left the launcher with its trigger still held: back to what the gun fired before.
-                Weapon gun = _held.Weapon;
-                if (gun.activeSubWeaponIndex == _launcherSub && !gun.GetActiveSubWeapon().reloading)
-                {
-                    gun.EquipSubWeapon(_launcherFrom.Value);
-                }
+                _launcherReturn = _launcherFrom;
                 _launcherFrom = null;
             }
+            LauncherReturn();
             switch (off.Role)
             {
                 case HandRole.Foregrip:
                 {
+                    RefreshSupportKeys();
+                    VRGameInput.SupportTriggerOwned = IsPump && Manual || UnderBarrelLauncher(_held.Weapon) >= 0 || _laserKey != null || _lightKey != null;
                     if (PumpByTrigger(off))
                     {
                         // The trigger squeezed on the pump: the hand takes the pump and works it for as long as it is held.
@@ -325,9 +381,6 @@ namespace RavenfieldVR.Weapons
                         _rackByTrigger = true;
                         break;
                     }
-                    VRGameInput.SupportTriggerOwned = IsPump && Manual || UnderBarrelLauncher(_held.Weapon) >= 0
-                                                      || Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Laser) != null
-                                                      || Input.ScriptKeys.Find(_held.Weapon, Input.ScriptKeyPurpose.Light) != null;
                     SupportTrigger(off);
                     // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
                     // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
@@ -455,7 +508,10 @@ namespace RavenfieldVR.Weapons
             }
             // The pouch only answers a squeeze made at it: a squeeze that found nothing elsewhere must not pull a magazine
             // out when the hand passes the hip a moment later. Parts of the gun win when about as close.
+            // (Not when the seated magazine is within reach: the pouch won, spent a magazine's rounds from the reserve and
+            // the fresh one could not go in; 255.I1-1.)
             if (Manual && _sys.Zones.InPouch(palm)
+                && !(Ammo.UsesDetachableMag && Ammo.MagInserted && Vector3.Distance(palm, SeatedMagBaseWorld) < radius * 1.1f)
                 && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f)
                 && !_sys.Zones.HolsterNearerThanPouch(palm, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1))
             {
@@ -894,9 +950,12 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private float _coverLetGoAt = -10f;
+
         private void EndCover(VRHand off)
         {
             _coverHeld = false;
+            _coverLetGoAt = Time.unscaledTime;
             if (off.Role == HandRole.Hinge)
             {
                 off.Role = HandRole.Free;
@@ -1091,7 +1150,10 @@ namespace RavenfieldVR.Weapons
             }
             if (!off.GrabHeld)
             {
-                EndBelt(off); // let go: it falls back into the box
+                // Let go short of the tray: it hangs from the box, still there to take (it vanished; 255.I3-1).
+                EndBelt(off);
+                _beltHanging = true;
+                _belt?.Show(true);
                 return;
             }
             if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)
@@ -1168,6 +1230,13 @@ namespace RavenfieldVR.Weapons
             else
             {
                 _beltShownLaid = false;
+                if (!_beltHeld && VRConfig.BeltByHand.Value)
+                {
+                    // A fresh box under an open cover: its belt hangs from it, to be taken and laid. Drawn only after a slip,
+                    // the belt was nowhere to be seen and the hand reload stopped at LAY BELT (255.B6-1).
+                    _belt = _belt ?? new BeltStrip();
+                    _beltHanging = true;
+                }
             }
             bool show = _beltHeld || _beltHanging || _beltShownLaid;
             if (_belt == null || Rig.GunBody == null)
@@ -1341,7 +1410,7 @@ namespace RavenfieldVR.Weapons
                 // Only at the tube's mouth: a rocket goes in at the front, its tail first (user, 2026-10-16); held beside the
                 // tube with its tail level with the middle, it was taken into the tube from the side.
                 bool rocket = prop.Kind == PropKind.Rocket;
-                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > -0.03f && along < (rocket ? RocketTakenIn : prop.RailLength)
+                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > (rocket ? -0.03f : -0.005f) && along < (rocket ? RocketTakenIn : prop.RailLength)
                              && angle < (grip || rocket ? 40f : 35f);
                 if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
                 {
@@ -1948,7 +2017,7 @@ namespace RavenfieldVR.Weapons
 
         public void OnShot()
         {
-            if (Ammo != null && Data.EnBloc && Ammo.MagInserted && Ammo.MagRounds == 0 && !Ammo.Chambered)
+            if (Manual && Data.EnBloc && Ammo.MagInserted && Ammo.MagRounds == 0 && !Ammo.Chambered)
             {
                 ThrowEmptyClip();
                 return;
@@ -2072,9 +2141,10 @@ namespace RavenfieldVR.Weapons
                     else
                     {
                         _palmedAt = -1f;
-                        // In the hand (not still easing out of the well): it stays out of the gun on its own as well.
-                        palmedPose = _palmed.KeptOffGun(palmedPose, moveHand: !(off.Held is MagazineProp onRail && onRail.OnRail));
                     }
+                    // It stays out of the gun on its own, easing out of the well too (it went through the gun meanwhile;
+                    // 255.I1-2); the glove follows it only once it is in the hand and the fresh one is not on its rail.
+                    palmedPose = _palmed.KeptOffGun(palmedPose, moveHand: into >= 1f && !(off.Held is MagazineProp onRail && onRail.OnRail));
                     palmedPose.ApplyTo(_palmed.Go.transform);
                 }
             }
