@@ -589,6 +589,7 @@ namespace RavenfieldVR.Weapons
                     RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 SideKnobByName(d, all, root, sampler, gunIdle);
                 RackOnOutstandingPiece(d, root, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
@@ -2509,6 +2510,66 @@ namespace RavenfieldVR.Weapons
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
             }
+        }
+
+        /// <summary>
+        /// An AR whose reload animation moves its bolt carrier, not its T charging handle (the model's T never moves in its
+        /// animations): the carrier was taken for "its own handle", and racked, the carrier slid back in the ejection port
+        /// while the T stood still (the M4A1 [SQUAD] family, prefab M4A1squad; user, 2026-10-16; picture review of
+        /// weapons-1017). The T is the small part at the moving part's rear top that the reload leaves where it is: it is the
+        /// handle now, moved by the stroke, and the carrier follows.
+        /// </summary>
+        private static void ArStaticHandle(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Handgun || d.HandlePath != null || d.SlidePath == null || d.SlideMethod == null || !sampler.HasReload
+                || !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal) || !ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+            Bounds sb = slide != null ? sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f) : new Bounds();
+            if (sb.size.sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+            Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
+            Vector3 rearTop = sb.center - d.AimAxis * Mathf.Abs(Vector3.Dot(sb.extents, aimAbs)) + d.Up * Mathf.Abs(Vector3.Dot(sb.extents, upAbs));
+            Transform best = null;
+            Bounds bestBounds = default;
+            float bestGap = 0.05f;
+            foreach (Transform t in all)
+            {
+                if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] > 0.01f || t == slide || t.IsChildOf(slide) || slide.IsChildOf(t)
+                    || MagName.IsMatch(t.name) || OpticName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
+                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f)
+                {
+                    continue; // a T is a few centimetres long and sits just over the bore, under the sights
+                }
+                float gap = Mathf.Sqrt(b.SqrDistance(rearTop));
+                if (gap < bestGap)
+                {
+                    bestGap = gap;
+                    best = t;
+                    bestBounds = b;
+                }
+            }
+            if (best == null)
+            {
+                return;
+            }
+            d.HandlePath = WeaponRig.PathOf(root, best);
+            d.HandleRestLocal = sampler.IdleLocalPosition(best);
+            d.HandleTravel = -d.AimAxis * Mathf.Min(0.075f, d.SlideTravel.magnitude > 1e-4f ? d.SlideTravel.magnitude : 0.075f);
+            d.RackPoint = bestBounds.center - d.AimAxis * Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs)) * 0.8f;
+            d.SlideMethod += $" + its T handle '{best.name}' (still in the animations)";
         }
 
         /// <summary>
