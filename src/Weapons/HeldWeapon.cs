@@ -1578,7 +1578,7 @@ namespace RavenfieldVR.Weapons
             RigidPose seat = Rig.GunBodyPose.Multiply(d.MagSeat);
             Bounds mb = d.MagBounds;
             var points = new List<Vector3>();
-            const int n = 6;
+            const int n = 5; // (6 cubed, 17 tilts and 3 depths were some 11 000 volume tests in one frame; 255.P1.5)
             for (int i = 0; i < n; i++)
             {
                 for (int j = 0; j < n; j++)
@@ -1625,17 +1625,33 @@ namespace RavenfieldVR.Weapons
             }
             int before = Through(in0), best = before;
             float bestAngle = 0f;
-            for (int step = 1; step <= 8; step++)
+            // Coarse to fine: every 6 degrees out to 24, then 3 degrees either side of the best.
+            for (int step = 1; step <= 4; step++)
             {
                 for (int sign = -1; sign <= 1; sign += 2)
                 {
-                    float angle = sign * step * 3f;
+                    float angle = sign * step * 6f;
                     int hits = Through(Quaternion.AngleAxis(angle, right) * in0);
                     if (hits < best)
                     {
                         best = hits;
                         bestAngle = angle;
                     }
+                }
+            }
+            float coarse = bestAngle;
+            for (int sign = -1; sign <= 1; sign += 2)
+            {
+                float angle = coarse + sign * 3f;
+                if (Mathf.Abs(angle) > 24.01f || Mathf.Abs(angle) < 0.01f)
+                {
+                    continue;
+                }
+                int hits = Through(Quaternion.AngleAxis(angle, right) * in0);
+                if (hits < best)
+                {
+                    best = hits;
+                    bestAngle = angle;
                 }
             }
             int total = points.Count * 3;

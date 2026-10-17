@@ -24,6 +24,8 @@ namespace RavenfieldVR.Weapons
             public Bounds Bounds;
             /// <summary>PhysX could not make a hull of it once: it is a box from then on.</summary>
             public bool CookFailed;
+            /// <summary>Its hull is cooked (the pieces are kept per weapon type: cooked again on every draw before; 255.P6-1).</summary>
+            public bool Baked;
             private Mesh _mesh;
 
             /// <summary>Hull source mesh (shared by every copy of the model).</summary>
@@ -121,13 +123,14 @@ namespace RavenfieldVR.Weapons
         {
             foreach (Piece p in pieces)
             {
-                if (p.Points.Length < 4 || p.CookFailed)
+                if (p.Points.Length < 4 || p.CookFailed || p.Baked)
                 {
                     continue;
                 }
                 try
                 {
                     Physics.BakeMesh(p.Mesh.GetInstanceID(), true);
+                    p.Baked = true;
                 }
                 catch (Exception)
                 {

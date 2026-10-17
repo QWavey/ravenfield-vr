@@ -1619,11 +1619,12 @@ namespace RavenfieldVR.Weapons
             float below = Mathf.Clamp(length * 0.25f, 0.04f, 0.08f);
             float into = Mathf.Clamp(length * 0.45f, 0.06f, 0.12f);
             bool near = along > -0.12f && along < into + 0.04f && lateral < strikeReach + 0.04f;
-            if (near && Time.unscaledTime - _kickLogAt > 0.3f)
+            if (near && Data.MagKickable && Time.unscaledTime - _kickLogAt > 0.3f)
             {
-                // Numbers for tuning in the headset: which condition holds a kick back.
+                // Numbers for tuning in the headset: which condition holds a kick back (debug logging only: three lines a
+                // second flooded the log while a magazine was near the well; 255.P2-5).
                 _kickLogAt = Time.unscaledTime;
-                Log.Info($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm (reach {strikeReach * 100f:0.0}), angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
+                Log.Debug($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm (reach {strikeReach * 100f:0.0}), angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
             }
             // Passing the old magazine's base between two frames counts even when no single frame was inside the window.
             bool crossed = !float.IsNaN(_kickPrevAlong) && _kickPrevAlong < 0f && along >= 0f;

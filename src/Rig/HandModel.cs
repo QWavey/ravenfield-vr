@@ -862,9 +862,13 @@ namespace RavenfieldVR.Rig
         /// </summary>
         internal int SkinKey(Transform frame)
         {
-            if (!_skinValid || frame == null)
+            if (frame == null)
             {
                 return Time.frameCount;
+            }
+            if (!_skinValid)
+            {
+                return int.MinValue; // a hidden glove does not move: a support hand on it is not solved again every frame (255.P4-2)
             }
             Matrix4x4 m = frame.worldToLocalMatrix;
             Matrix4x4 palm = m * _root.localToWorldMatrix;

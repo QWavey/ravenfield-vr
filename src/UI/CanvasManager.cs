@@ -94,7 +94,8 @@ namespace RavenfieldVR.UI
         {
             if (Time.unscaledTime >= _nextScan)
             {
-                _nextScan = Time.unscaledTime + 0.4f;
+                // Once a second in a match with no menu open (a scene-wide canvas search; 255.P5-1), a few times a second otherwise.
+                _nextScan = Time.unscaledTime + (Util.GameContext.InGame && !Util.GameContext.GameMenuOpen ? 1f : 0.4f);
                 Scan();
             }
             bool menu = false, anyVisible = false;
