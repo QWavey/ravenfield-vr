@@ -4096,9 +4096,11 @@ namespace RavenfieldVR.Weapons
             // A handle clearly off to the side (an AK's bolt handle, a side charging handle) is taken from that side; any
             // other part over the top (a pistol slide, a bolt whose rack point lay a few millimetres under the bore put the
             // hand under the gun, at the trigger guard: P320, the PKM family).
+            // From the side the part faces, once it is clearly off the bore (1.5 cm): the PKM's lever 2.3 cm to the right at
+            // the bore's height was taken over the top, the glove 2.5 cm above it (check-1017f); a knob up and to the side
+            // (M1014) is taken from that diagonal.
             Vector3 offBore = Vector3.ProjectOnPlane(RackPointWorld - boreAt, aimW);
-            Vector3 sideways = offBore - upW * Vector3.Dot(offBore, upW);
-            Vector3 outward = sideways.magnitude > 0.025f ? sideways.normalized : upW;
+            Vector3 outward = offBore.magnitude > 0.015f ? offBore.normalized : upW;
             Vector3 intoPart = -outward;
             Vector3 fingers = Vector3.Dot(outward, upW) > 0.7f ? (off.IsLeft ? rightW : -rightW) : upW;
             Vector3 palmX = -intoPart * off.Mirror;
