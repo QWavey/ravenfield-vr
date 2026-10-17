@@ -17,8 +17,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ### Still to do
 
-- 255. 30-agent hunt (2026-10-17): 91 confirmed findings to fix (list under "For 255")
-- 254. PRIORITY: pistols' slides cannot be pulled back by hand any more (regression from 252, 2026-10-16 night); some charging handles stand out and their bolt does not move
+- (255 and 254 are done: 2026-10-17. Current work: 252 ae, the open guns, see "For 252 (ae): the reviewers' plans".)
 - 132. Optional: hook a bolt knob or charging handle with the fingers when the hand reaches over the gun (now always a thumb-and-index pinch)
 - 134. Test the hand work in the headset (checklist under "For 134")
 - 139. Racking: the bolt, charging handle or slide does not visibly move for many weapons: check every weapon one by one, with pictures
@@ -1877,6 +1876,12 @@ Done for it (commit 9f6c75a, 2026-10-17 14:15; built, installed by the run):
 - Fixes: AmmoState.InsertMagazine returns a still-seated magazine's rounds to the reserve before the new one goes in (they vanished); the mag kick's crossing speed is compared at 0.075 (the test pushes at exactly 0.08: a coin flip); the mag-kick / tactical pictures carry the gun's number and name.
 - Measuring run started 2026-10-17 14:17: vrshots --out check-1017e, deep, 31 guns (vector rds, vector, K13 ACOG, GLOCK 43X, M1014, SIGNAL DMR, f2000, R870 CQC, PKM, the 1911 family incl. D1911 and FA1911 20R, JOLT-20-S, PATRIOT, PATRIOT GL, M1 GARRET, M4A1 CCO, QUICKSILVER, INGRESS 700, 76 EAGLE, PPSh-41, BUNDLE O' BUSS, xm8, ARS MP9, RECON LRR, SUPERNOVA, GREASER) with rig dumps. NOTE: the earlier MG-reload run that was in check-1017e is moved to check-1017e-previous by it. Next session: read this run's rig-dump.txt / autotest.txt / game-log.txt (the new lines above), then build the fixes the numbers support, gun by gun, each checked in a targeted run.
 - check-1017e finished 14:30 (13 min, 868 files, 30 gun sections in rig-dump.txt, 17 problems, no exceptions, SteamVR restored with a matching hash). Not read yet. First lines seen: FA1911 20R's empty reload leaves the slide 52 mm back after the release (the same check as the ARS MP9's 44 mm); the 1911 10R / FA1911 10R deep magazine checks flagged.
+- 2026-10-17 evening (work-until-limit run): check-1017e turned out to have run the PREVIOUS DLL (vrshots --no-build skipped the install too: fixed, it installs the built DLL now), so it is a baseline only; check-1017f re-ran the same 31 guns with the diagnostics. Built since (to verify in the next targeted run):
+  - Vector family: slide companions (WeaponAnalyzer.FindSlideCompanions): a part carrying all the slide's name words plus one or two more (not release / catch / magazine / sight / lod...), still in every animation, no bigger than the slide and touching it (3 cm) moves with the slide (HeldWeapon.MoveCompanions, home and on release) and is where the hand takes it (its outer face); a name match that fails the rest is noted ("left out (...)"). The knob's travel is the slide's (7 cm default): check the pulled picture for overshoot.
+  - INGRESS 700: a small piece moving most in the fire animation on a much bigger part moving the same way (3x its size, 1.5 cm or more) gives way to that part as the slide ('Charge port' 4 cm on 'Slide_high' 24 cm).
+  - xm8 family (and every piece-sticking-out pick): the piece's box is its own mesh's (a 0.0 cm piece took its child cap's box), the point on its outer face.
+  - Task 232 diagnostic: the deep magazine check lists, while the magazine is out, the gun's skinned vertices in the magazine's place by bone (hidden bones apart).
+  - mg3 / MK46 ET first latch squeeze: a squeeze that takes nothing is logged in autotest runs with every zone's distance.
 - Stopped unfinished (user, 95% limit): the workflow designing the break-action guns' own shell model (252 v); start it again later.
 
 Per gun, as read:

@@ -551,6 +551,17 @@ namespace RavenfieldVR.Weapons
             // (see the foregrip below). Taken as the pump at once, a hand resting on it racked it with every move (user,
             // 2026-10-16: "you rack it the whole time because you're holding it").
 
+            if (choice == 0 && off.GrabPressed && Core.AutoTest.Requested)
+            {
+                // Autotest: a squeeze that took nothing, with how far each zone was (mg3 and MK46 ET: the first squeeze at the
+                // cover's latch was not taken in the machine gun reload check, the cover check's at the same spot was).
+                Log.Info($"Grab on {Data.Key} took nothing (radius {radius * 100f:0.0} cm): "
+                         + $"{(Data.Hinge != HingeKind.None ? $"cover {CoverZoneDistance(palm) * 100f:0.0} cm, " : "")}"
+                         + $"{(Manual && Ammo.UsesChamber ? $"rack {RackZoneDistance(palm) * 100f:0.0} cm, " : "")}"
+                         + $"{(Ammo.UsesDetachableMag && Ammo.MagInserted ? $"seated magazine {Vector3.Distance(palm, SeatedMagBaseWorld) * 100f:0.0} cm, " : "")}"
+                         + $"manual {Manual}, cover {(Ammo.HasCover ? Ammo.CoverOpen ? "open" : "shut" : "none")}, openness {_held.HingeOpenness:0.00}");
+            }
+
             switch (choice)
             {
                 case 1:
@@ -3525,6 +3536,11 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.6f);
             yield return new WaitForEndOfFrame();
             sideShot("mag-3-out", Rig.ToWorld(ownGun), 0.32f);
+            string skinnedLeft = _held.SkinnedInMagazineSpace();
+            if (skinnedLeft.Length > 0)
+            {
+                lines.Add($"while out, the gun's skinned meshes in the magazine's place: {skinnedLeft}");
+            }
             VRHand.Scripted[(int)off.Side] = null;
 
             // 2. A fresh one from the pouch, in the hand.

@@ -97,6 +97,13 @@ namespace RavenfieldVR.Weapons
         public bool MagazineToggles;
         public readonly List<int[]> ArmRendererPaths = new List<int[]>();
 
+        /// <summary>
+        /// Parts that move with the slide without being its children: named after it, beside it in the model (the Vector's
+        /// cocking knob). Their paths and rest places; moved by the slide's travel and put back with it.
+        /// </summary>
+        public readonly List<int[]> SlideCompanionPaths = new List<int[]>();
+        public readonly List<Vector3> SlideCompanionRest = new List<Vector3>();
+
         // How each part was found, for the self-test report: motion, visibility, name, bones or virtual.
         public string MagMethod = "virtual";
         public string SlideMethod = "virtual";
@@ -298,6 +305,8 @@ namespace RavenfieldVR.Weapons
         public readonly Transform Bolt;
         public readonly Transform Hinge;
         public readonly Transform Magazine;
+        /// <summary>The slide's companions (<see cref="WeaponRigData.SlideCompanionPaths"/>), same order.</summary>
+        public readonly Transform[] SlideCompanions;
         public readonly Renderer[] ArmRenderers;
         public readonly Renderer[] MagazineRenderers;
         /// <summary>Magazine plus any co-moving pieces; all of them are hidden while the magazine is out.</summary>
@@ -314,6 +323,11 @@ namespace RavenfieldVR.Weapons
             GunBody = Resolve(root, data.GunBodyPath) ?? root;
             Muzzle = Resolve(root, data.MuzzlePath);
             Slide = Resolve(root, data.SlidePath);
+            SlideCompanions = new Transform[data.SlideCompanionPaths.Count];
+            for (int i = 0; i < SlideCompanions.Length; i++)
+            {
+                SlideCompanions[i] = Resolve(root, data.SlideCompanionPaths[i]);
+            }
             Handle = Resolve(root, data.HandlePath);
             Bolt = Resolve(root, data.BoltPath);
             Hinge = Resolve(root, data.HingePath);

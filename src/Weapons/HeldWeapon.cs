@@ -1835,6 +1835,74 @@ namespace RavenfieldVR.Weapons
             return at;
         }
 
+        /// <summary>
+        /// Self-test (Task 232): with the magazine out, the gun's skinned meshes as drawn now, and their vertices that lie in
+        /// the seated magazine's box (grown 1 cm): how many, by the bone that carries most of each. The leftover magazine
+        /// the ARS MP9 / HK416 still draw is among them. A bone the mod hid (scaled to nothing) folds its vertices onto its
+        /// pivot: counted apart. Empty when nothing is drawn there.
+        /// </summary>
+        internal string SkinnedInMagazineSpace()
+        {
+            if (Rig.GunBody == null || Weapon == null)
+            {
+                return "";
+            }
+            RigidPose seat = Rig.GunBodyPose.Multiply(Rig.Data.MagSeat);
+            Bounds box = Rig.Data.MagBounds;
+            box.Expand(0.02f);
+            var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+            var shown = new Dictionary<string, int>();
+            int folded = 0;
+            foreach (SkinnedMeshRenderer smr in Weapon.GetComponentsInChildren<SkinnedMeshRenderer>(false))
+            {
+                if (!smr.enabled || arms.Contains(smr) || smr.sharedMesh == null || !smr.sharedMesh.isReadable)
+                {
+                    continue;
+                }
+                var baked = new Mesh();
+                try
+                {
+                    smr.BakeMesh(baked); // with the renderer's scale: only its position and rotation are left to apply
+                    Vector3[] v = baked.vertices;
+                    BoneWeight[] w = smr.sharedMesh.boneWeights;
+                    Transform[] bones = smr.bones;
+                    Vector3 at = smr.transform.position;
+                    Quaternion rot = smr.transform.rotation;
+                    for (int i = 0; i < v.Length; i++)
+                    {
+                        if (!box.Contains(seat.InverseTransformPoint(at + rot * v[i])))
+                        {
+                            continue;
+                        }
+                        Transform bone = i < w.Length && w[i].boneIndex0 >= 0 && w[i].boneIndex0 < bones.Length ? bones[w[i].boneIndex0] : null;
+                        if (bone != null && bone.lossyScale.sqrMagnitude < 1e-6f)
+                        {
+                            folded++;
+                            continue;
+                        }
+                        string key = $"'{smr.name}' bone '{(bone != null ? bone.name : "?")}'";
+                        shown[key] = shown.TryGetValue(key, out int c) ? c + 1 : 1;
+                    }
+                }
+                finally
+                {
+                    Object.Destroy(baked);
+                }
+            }
+            if (shown.Count == 0)
+            {
+                return folded > 0 ? $"nothing drawn ({folded} vertices of hidden bones folded there)" : "";
+            }
+            var list = new List<KeyValuePair<string, int>>(shown);
+            list.Sort((a, b) => b.Value.CompareTo(a.Value));
+            var parts = new List<string>();
+            for (int i = 0; i < list.Count && i < 4; i++)
+            {
+                parts.Add($"{list[i].Value} vertices of {list[i].Key}");
+            }
+            return string.Join(", ", parts.ToArray()) + (folded > 0 ? $" ({folded} of hidden bones folded there)" : "");
+        }
+
         /// <summary>Self-test: what the hand sees move when it works the action.</summary>
         internal string VisibleHandle =>
             Rig.Handle != null ? "the charging handle"
@@ -2338,6 +2406,7 @@ namespace RavenfieldVR.Weapons
             if (SlideOffset > 0.0005f)
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * slideShare);
+                MoveCompanions(d.SlideTravel * slideShare);
                 MovePart(Rig.Handle, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
                 _slideMoved = true;
             }
@@ -2349,6 +2418,7 @@ namespace RavenfieldVR.Weapons
                     // switched mid-slam): the slide kept its last drawn place, up to 1.5 cm back. Only once: after that the
                     // gun's own animation moves it again (its shots).
                     MovePart(Rig.Slide, d.SlideRestLocal, Vector3.zero);
+                    MoveCompanions(Vector3.zero);
                     _slideMoved = false;
                 }
                 if (Rig.Handle != null)
@@ -2532,6 +2602,16 @@ namespace RavenfieldVR.Weapons
             hinge.localRotation = Quaternion.AngleAxis(d.HingeOpenAngle * HingeOpenness, axisLocal) * _hingeRestLocal;
         }
 
+        /// <summary>The slide's companions (a knob beside it in the model) moved by the slide's travel, each from its own rest.</summary>
+        private void MoveCompanions(Vector3 travelGun)
+        {
+            Transform[] parts = Rig.SlideCompanions;
+            for (int i = 0; i < parts.Length && i < Rig.Data.SlideCompanionRest.Count; i++)
+            {
+                MovePart(parts[i], Rig.Data.SlideCompanionRest[i], travelGun);
+            }
+        }
+
         private void MovePart(Transform part, Vector3 restLocal, Vector3 travelGun)
         {
             if (part == null)
@@ -2617,6 +2697,7 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.Slide.localPosition = Rig.Data.SlideRestLocal;
             }
+            MoveCompanions(Vector3.zero);
             if (Rig.Handle != null)
             {
                 Rig.Handle.localPosition = Rig.Data.HandleRestLocal;

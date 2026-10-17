@@ -593,6 +593,7 @@ namespace RavenfieldVR.Weapons
                 ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 SideKnobByName(d, all, root, sampler, gunIdle);
                 RackOnOutstandingPiece(d, root, sampler, gunIdle);
+                FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
@@ -1179,6 +1180,24 @@ namespace RavenfieldVR.Weapons
                             break;
                         }
                         slide = p;
+                    }
+                    // A small piece riding on a much bigger part that moves the same way when it fires is not the slide, the
+                    // bigger part is: INGRESS 700's 'Charge port' (a 4 cm mesh, 8.3 cm of fire travel) sits on its 24 cm
+                    // 'Slide_high' (4.4 cm), was taken for the slide, and moved alone, unseen (252 ae review).
+                    Transform up = slide.parent;
+                    if (up != null && up != gunBody && up != root && index.TryGetValue(up, out int ui) && !armRelated.Contains(up)
+                        && HasOwnRenderer(up) && sampler.IdleVisible(up) && sampler.FireMax[ui] >= 0.015f && sampler.FireMax[ui] <= MaxBoltTravel(d)
+                        && Vector3.Dot(sampler.FireVec[ui].normalized, slideVec.normalized) > 0.8f)
+                    {
+                        Transform piece = slide;
+                        float pieceSize = sampler.GunSpaceBoundsWhere(piece, gunIdle, x => x != piece).size.magnitude;
+                        float upSize = sampler.GunSpaceBoundsWhere(up, gunIdle, x => x != up).size.magnitude;
+                        if (pieceSize > 1e-4f && upSize >= pieceSize * 3f)
+                        {
+                            d.Notes += $"slide: '{up.name}' ({upSize * 100f:0} cm) carries the piece '{piece.name}' ({pieceSize * 100f:0} cm) that moved most ";
+                            slide = up;
+                            slideVec = sampler.FireVec[ui];
+                        }
                     }
                     d.SlideMethod = gunBones.Contains(slide) && !HasOwnRenderer(slide) ? "fire motion (skinned bone)" : "fire motion";
                 }
@@ -2641,7 +2660,10 @@ namespace RavenfieldVR.Weapons
             Vector3 at = d.RackPoint;
             foreach (MeshFilter mf in slide.GetComponentsInChildren<MeshFilter>(true))
             {
-                Bounds b = sampler.GunSpaceBounds(mf.transform, gunIdle);
+                // Its own mesh only: with its children's, a 0.0 cm piece took the box of the cap under it and the point
+                // sat in the air beside both (xm8 family, 252 ae review).
+                Transform self = mf.transform;
+                Bounds b = sampler.GunSpaceBoundsWhere(self, gunIdle, t => t != self);
                 if (b.size.sqrMagnitude < 1e-8f || b.size.magnitude > 0.12f)
                 {
                     continue; // only a piece a hand takes (not the carrier or a long rod)
@@ -2650,8 +2672,11 @@ namespace RavenfieldVR.Weapons
                 if (off > best)
                 {
                     best = off;
-                    piece = mf.transform;
-                    at = b.center;
+                    piece = self;
+                    // On its outer face (away from the bore), where the fingers take it, not at its middle.
+                    Vector3 n = Vector3.ProjectOnPlane(b.center - d.MuzzlePoint, d.AimAxis);
+                    n = n.sqrMagnitude > 1e-8f ? n.normalized : d.Up;
+                    at = b.center + n * Vector3.Dot(b.extents, new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z)));
                 }
             }
             if (piece != null)
@@ -2659,6 +2684,107 @@ namespace RavenfieldVR.Weapons
                 d.RackPoint = at;
                 d.SlideMethod += $" (taken by '{piece.name}', its piece sticking out)";
             }
+        }
+
+        /// <summary>
+        /// Parts that ride with the slide but hang beside it in the model, named after it: the Vector's cocking knob
+        /// ('..._vector_slide_rotation_9x19...') is a sibling of its bolt ('..._vector_slide_9x19...') and no animation moves
+        /// either, so the bolt slid unseen inside the receiver while the knob the hand held stood still (252 ae). Such a part
+        /// carries every word of the slide's name and one or two more (not a release, catch, magazine, sight or level of
+        /// detail), stays still in every animation, is no bigger than the slide and touches it. It moves with the slide, and
+        /// the hand takes it (its outer face). A name match that fails the rest is said in the notes.
+        /// </summary>
+        private static void FindSlideCompanions(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            PoseSampler sampler, RigidPose gunIdle)
+        {
+            d.SlideCompanionPaths.Clear();
+            d.SlideCompanionRest.Clear();
+            Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+            if (slide == null || gunBody == null || d.HandlePath != null || d.BoltPath != null || d.CarveHandle || d.AddedHandle
+                || !StrongSlideName.IsMatch(slide.name))
+            {
+                return;
+            }
+            HashSet<string> slideWords = NameWords(slide.name);
+            Bounds sb = sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f);
+            if (slideWords.Count == 0 || sb.size.sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            Bounds reach = sb;
+            reach.Expand(0.06f); // 3 cm each way
+            Transform first = null;
+            Bounds firstBox = default;
+            foreach (Transform t in all)
+            {
+                if (t == slide || t == gunBody || !t.IsChildOf(gunBody) || t.IsChildOf(slide) || slide.IsChildOf(t)
+                    || t.GetComponent<MeshRenderer>() == null || !index.TryGetValue(t, out int i) || !sampler.IdleVisible(t))
+                {
+                    continue;
+                }
+                HashSet<string> words = NameWords(t.name);
+                if (!words.IsSupersetOf(slideWords))
+                {
+                    continue;
+                }
+                var extra = words.Where(w => !slideWords.Contains(w)).ToList();
+                if (extra.Count == 0 || extra.Count > 2 || extra.Any(w => CompanionBlocked.IsMatch(w)))
+                {
+                    continue; // a copy of it (another level of detail) or a release, catch or sight named after it
+                }
+                Transform self = t;
+                Bounds b = sampler.GunSpaceBoundsWhere(t, gunIdle, x => x != self);
+                string why = sampler.FireMax[i] > 0.002f || sampler.FireRotMax[i] > 2f || sampler.HasReload && (sampler.ReloadMax[i] > 0.005f || sampler.ReloadRotMax[i] > 5f)
+                        ? "an animation moves it"
+                    : b.size.magnitude < 0.01f ? "too small"
+                    : b.size.magnitude > sb.size.magnitude * 1.05f || b.size.magnitude > 0.25f ? "bigger than the slide"
+                    : !reach.Intersects(b) ? $"{Mathf.Sqrt(sb.SqrDistance(b.ClosestPoint(sb.center))) * 100f:0.0} cm from the slide"
+                    : null;
+                if (why != null)
+                {
+                    d.Notes += $"slide companion '{t.name}' left out ({why}) ";
+                    continue;
+                }
+                d.SlideCompanionPaths.Add(WeaponRig.PathOf(root, t));
+                d.SlideCompanionRest.Add(sampler.IdleLocalPosition(t));
+                d.Notes += $"slide companion '{t.name}' (moves with the slide) ";
+                if (first == null)
+                {
+                    first = t;
+                    firstBox = b;
+                }
+                if (d.SlideCompanionPaths.Count >= 3)
+                {
+                    break;
+                }
+            }
+            if (first != null)
+            {
+                // The hand takes the companion (a knob on the outside), not the slide inside the receiver.
+                Vector3 n = Vector3.ProjectOnPlane(firstBox.center - d.MuzzlePoint, d.AimAxis);
+                n = n.sqrMagnitude > 1e-8f ? n.normalized : d.Up;
+                d.RackPoint = firstBox.center + n * Vector3.Dot(firstBox.extents, new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z)));
+                d.SlideMethod += $" + '{first.name}' moving with it (named after it; taken there)";
+            }
+        }
+
+        /// <summary>Words a slide companion may add to the slide's name: not these.</summary>
+        private static readonly Regex CompanionBlocked = new Regex(
+            @"^(release|catch|stop|button|latch|selector|safety|switch|mag|magazine|sight|scope|optic|light|laser|trigger|spring|pin|screw|lod\d*)$",
+            RegexOptions.IgnoreCase);
+
+        /// <summary>A part name's words (lower case; numbers alone and level-of-detail tags left out).</summary>
+        private static HashSet<string> NameWords(string name)
+        {
+            var words = new HashSet<string>();
+            foreach (string w in Regex.Split(name.ToLowerInvariant(), @"[^a-z0-9\u0400-\u04ff\u4e00-\u9fff]+"))
+            {
+                if (w.Length >= 2 && !Regex.IsMatch(w, @"^\d+$") && !Regex.IsMatch(w, @"^lod\d*$"))
+                {
+                    words.Add(w);
+                }
+            }
+            return words;
         }
 
         /// <summary>

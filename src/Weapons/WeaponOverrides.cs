@@ -148,6 +148,9 @@ namespace RavenfieldVR.Weapons
                 }
                 if (!string.IsNullOrEmpty(o.slide))
                 {
+                    // The analysed companions belonged to the analysed slide.
+                    d.SlideCompanionPaths.Clear();
+                    d.SlideCompanionRest.Clear();
                     Transform t = FindChild(w.transform, o.slide);
                     if (t != null)
                     {
