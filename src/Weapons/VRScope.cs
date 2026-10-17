@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using UnityEngine;
@@ -26,7 +27,7 @@ namespace RavenfieldVR.Weapons
         private readonly float _fov;
         private bool _shown = true;
         private readonly Camera _camera;
-        private readonly RenderTexture _texture;
+        private RenderTexture _texture;
         private readonly GameObject _root;
         private readonly Material _lensMaterial, _reticleMaterial, _shadowMaterial;
         private static Texture2D _reticle, _shadow;
@@ -82,9 +83,7 @@ namespace RavenfieldVR.Weapons
             _eyePoint = eyePoint;
             _eyeDirection = eyeDirection;
             _fov = fov;
-            int res = VRConfig.ScopeResolution.Value;
-            _texture = new RenderTexture(res, res, 24, RenderTextureFormat.Default) { name = "RavenfieldVR Scope", antiAliasing = 2 };
-            _texture.Create();
+            _texture = TakeTexture(VRConfig.ScopeResolution.Value);
 
             _root = new GameObject("RavenfieldVR Scope");
             // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
@@ -333,6 +332,48 @@ namespace RavenfieldVR.Weapons
             return Vector3.ProjectOnPlane(left - eyePoint, axis).sqrMagnitude <= Vector3.ProjectOnPlane(right - eyePoint, axis).sqrMagnitude ? left : right;
         }
 
+        /// <summary>
+        /// Lens pictures kept for the next scope (a few: a scope, a flipped-in magnifier, a second weapon's): one was made and
+        /// released on every draw of a scoped gun, a 768 x 768 picture with its depth and two samples (255.P1.4).
+        /// </summary>
+        private static readonly List<RenderTexture> SpareTextures = new List<RenderTexture>();
+
+        private static RenderTexture TakeTexture(int res)
+        {
+            for (int i = SpareTextures.Count - 1; i >= 0; i--)
+            {
+                RenderTexture t = SpareTextures[i];
+                SpareTextures.RemoveAt(i);
+                if (t != null && t.width == res && t.height == res)
+                {
+                    if (!t.IsCreated())
+                    {
+                        t.Create();
+                    }
+                    return t;
+                }
+                if (t != null)
+                {
+                    t.Release();
+                    Object.Destroy(t);
+                }
+            }
+            var made = new RenderTexture(res, res, 24, RenderTextureFormat.Default) { name = "RavenfieldVR Scope", antiAliasing = 2 };
+            made.Create();
+            return made;
+        }
+
+        private static void GiveBackTexture(RenderTexture t)
+        {
+            if (SpareTextures.Count < 3)
+            {
+                SpareTextures.Add(t);
+                return;
+            }
+            t.Release();
+            Object.Destroy(t);
+        }
+
         public void Destroy()
         {
             if (_root != null)
@@ -341,8 +382,15 @@ namespace RavenfieldVR.Weapons
             }
             if (_texture != null)
             {
-                _texture.Release();
-                Object.Destroy(_texture);
+                // The camera goes with its object only at the end of the frame: off this picture first, which the next
+                // scope may take this frame.
+                if (_camera != null)
+                {
+                    _camera.enabled = false;
+                    _camera.targetTexture = null;
+                }
+                GiveBackTexture(_texture);
+                _texture = null;
             }
             // Made for this lens: they went on living after it (two per draw of a scoped gun, and per magnifier lens).
             if (_lensMaterial != null)

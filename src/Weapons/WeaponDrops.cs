@@ -472,11 +472,13 @@ namespace RavenfieldVR.Weapons
         /// <summary>The rendered-model shape of this type at this scale (the pieces were measured at scale 1).</summary>
         private static ShapeFit.Piece[] ScaledRenderedShape(WeaponManager.WeaponEntry entry, Vector3 scale)
         {
-            if (!RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces))
-            {
-                return null;
-            }
-            string key = entry.name + "@" + scale.ToString("F3");
+            return RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces) ? ScaledPieces(entry.name, pieces, scale) : null;
+        }
+
+        /// <summary><paramref name="pieces"/> (fitted at scale 1) at <paramref name="scale"/>, made once per name and scale.</summary>
+        private static ShapeFit.Piece[] ScaledPieces(string name, ShapeFit.Piece[] pieces, Vector3 scale)
+        {
+            string key = name + "@" + scale.ToString("F3");
             if (ScaledShapes.TryGetValue(key, out ShapeFit.Piece[] scaled))
             {
                 return scaled;
@@ -515,8 +517,14 @@ namespace RavenfieldVR.Weapons
             {
                 return rendered;
             }
-            var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
             string key = "drop:" + entry.name + "@" + scale.x.ToString("F2");
+            if (!ShapeFit.TryCached(key, out _) && ShapeFit.TryCached("drop:" + entry.name + "@1.00", out ShapeFit.Piece[] unit) && unit.Length > 0)
+            {
+                // The warm-up's unit-scale fit, scaled (the same pieces, fitted again on the death frame for any other scale;
+                // 255.P7-2).
+                return ScaledPieces("fit:" + entry.name, unit, scale);
+            }
+            var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
             if (boxes.Length > 0)
             {

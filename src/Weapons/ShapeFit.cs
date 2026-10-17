@@ -77,6 +77,9 @@ namespace RavenfieldVR.Weapons
         /// Convex pieces in the space <paramref name="frameFromWorld"/> maps into, fitted to <paramref name="renderers"/>
         /// (cached under <paramref name="key"/> when given). Empty when there is nothing measurable.
         /// </summary>
+        /// <summary>The pieces fitted earlier under <paramref name="key"/>, if any.</summary>
+        internal static bool TryCached(string key, out Piece[] pieces) => Cache.TryGetValue(key, out pieces);
+
         public static Piece[] Fit(string key, IEnumerable<Renderer> renderers, Matrix4x4 frameFromWorld, float slice = 0.03f, int maxPieces = 16)
         {
             if (key != null && Cache.TryGetValue(key, out Piece[] cached))

@@ -600,6 +600,24 @@ namespace RavenfieldVR.Weapons
         /// <summary>The weapon's own visible meshes: no arms, no magazine (it is a prop of its own), nothing the mod added.</summary>
         internal static List<Renderer> VisibleRenderers(WeaponRig rig)
         {
+            // Once per weapon and frame: a draw walked the whole weapon three or four times over (the collider's fit, the
+            // stock, a throwable's or melee weapon's size; 255.P6-7, P1.4). Callers only read the list.
+            if (ReferenceEquals(_visibleFor, rig) && _visibleFrame == Time.frameCount && _visible != null)
+            {
+                return _visible;
+            }
+            _visibleFor = rig;
+            _visibleFrame = Time.frameCount;
+            _visible = ScanVisibleRenderers(rig);
+            return _visible;
+        }
+
+        private static WeaponRig _visibleFor;
+        private static int _visibleFrame = -1;
+        private static List<Renderer> _visible;
+
+        private static List<Renderer> ScanVisibleRenderers(WeaponRig rig)
+        {
             var skip = new HashSet<Renderer>(rig.ArmRenderers);
             foreach (Transform part in rig.MagazineParts)
             {
@@ -637,15 +655,23 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            string shader = m.shader != null ? m.shader.name : "";
+            // The shader's verdict once per material (its name was read and searched three times for every renderer of every
+            // draw; 255.P6-7).
+            if (!SeeThroughShader.TryGetValue(m.GetInstanceID(), out bool byShader))
+            {
+                string shader = m.shader != null ? m.shader.name : "";
+                byShader = m.renderQueue > 2500 || shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0
+                           || shader.IndexOf("HUD", System.StringComparison.OrdinalIgnoreCase) >= 0
+                           || shader.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                SeeThroughShader[m.GetInstanceID()] = byShader;
+            }
             // The size test on the mesh's own bounds at its scale, not the world box: a long launcher tube (about 1.5 m, and its
             // world box larger again when tilted across the axes) was dropped from the hands' solid and the stand-in by a
             // 1.5 m limit on the world box. The 4 m holo quad this test was for is additive and caught by the shader above.
-            return m.renderQueue > 2500 || shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0
-                   || shader.IndexOf("HUD", System.StringComparison.OrdinalIgnoreCase) >= 0
-                   || shader.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) >= 0
-                   || MeshSize(r).sqrMagnitude > 3.5f * 3.5f;
+            return byShader || MeshSize(r).sqrMagnitude > 3.5f * 3.5f;
         }
+
+        private static readonly Dictionary<int, bool> SeeThroughShader = new Dictionary<int, bool>();
 
         /// <summary>The renderer's mesh size in metres (its local bounds at its scale): the same in any pose.</summary>
         private static Vector3 MeshSize(Renderer r)

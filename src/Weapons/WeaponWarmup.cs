@@ -38,7 +38,7 @@ namespace RavenfieldVR.Weapons
         /// The held weapon's physics shape is fitted from its meshes (tens of thousands of vertices on detailed models): done
         /// here too, so drawing the weapon in a match finds it ready.
         /// </summary>
-        private static void PrefitShape(Weapon weapon, WeaponRigData data)
+        private static void PrefitShape(Weapon weapon, WeaponRigData data, WeaponManager.WeaponEntry entry)
         {
             if (data.Action == ActionType.NoAmmo)
             {
@@ -47,11 +47,22 @@ namespace RavenfieldVR.Weapons
             var rig = new WeaponRig(weapon, data);
             ShapeFit.Bake(GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(data.AimAxis, data.Up), data.GripPoint));
             _fitted++;
+            ActionType action = data.Action;
+            // Only the loadout's weapons: each cut keeps a copy of the receiver's mesh, and hundreds of mod weapons would keep
+            // hundreds of them.
+            if (Loadout.Contains(entry.nameHash)
+                && (data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed) || data.CarveHandle))
+            {
+                BoltPiece.Prewarm(rig); // the handle cut out of the receiver, as the draw makes it (HeldWeapon)
+            }
         }
 
         private static int _fitted;
 
         private static readonly string[] LoadoutKeys = { "primary", "secondary", "gear1", "gear2", "gear3" };
+
+        /// <summary>The saved loadout's weapons (name hashes), as the last pass found them.</summary>
+        private static readonly HashSet<int> Loadout = new HashSet<int>();
 
         /// <summary>
         /// The weapons of the saved loadout go first: with hundreds of mod weapons the warm-up takes a while, and a match
@@ -59,7 +70,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void PutLoadoutFirst(List<WeaponManager.WeaponEntry> entries)
         {
-            var wanted = new HashSet<int>();
+            HashSet<int> wanted = Loadout;
+            wanted.Clear();
             foreach (string key in LoadoutKeys)
             {
                 if (PlayerPrefs.HasKey(key))
@@ -146,7 +158,7 @@ namespace RavenfieldVR.Weapons
                     try
                     {
                         WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
-                        PrefitShape(weapon, data);
+                        PrefitShape(weapon, data, entry);
                         if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
                         {
                             WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)

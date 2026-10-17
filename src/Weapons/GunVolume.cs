@@ -772,7 +772,9 @@ namespace RavenfieldVR.Weapons
             int r = Mathf.Max(1, Mathf.RoundToInt(RecessFill / v.Texel));
             int w = v.W, h = v.H;
             float[] near = v.Near, far = v.Far;
-            float[] a = new float[w * h], b = new float[w * h];
+            // Two scratch pictures per worker thread, reused (four new ones per view, each over the large-object limit, fed the
+            // collector that pauses the game; 255.P6-3). Only the first w*h of each are used.
+            float[] a = Scratch(ref _scratchA, w * h), b = Scratch(ref _scratchB, w * h);
             // Near: dilate the surface toward the viewer (minimum), then erode it back (maximum); empty texels are +inf.
             Filter(near, a, w, h, r, true, false);
             Filter(a, b, w, h, r, true, true);
@@ -783,9 +785,8 @@ namespace RavenfieldVR.Weapons
             {
                 closedNear[k] = near[k] > far[k] ? near[k] : Mathf.Min(near[k], b[k]);
             }
-            // Far: the same mirrored (maximum, then minimum; empty texels are -inf).
-            var fa = new float[w * h];
-            var fb = new float[w * h];
+            // Far: the same mirrored (maximum, then minimum; empty texels are -inf), in the same two scratch pictures.
+            float[] fa = a, fb = b;
             for (int k = 0; k < far.Length; k++)
             {
                 fa[k] = -far[k];
@@ -801,6 +802,17 @@ namespace RavenfieldVR.Weapons
             }
             v.ClosedNear = closedNear;
             v.ClosedFar = closedFar;
+        }
+
+        [ThreadStatic] private static float[] _scratchA, _scratchB;
+
+        private static float[] Scratch(ref float[] buffer, int length)
+        {
+            if (buffer == null || buffer.Length < length)
+            {
+                buffer = new float[length];
+            }
+            return buffer;
         }
 
         /// <summary>
@@ -842,9 +854,12 @@ namespace RavenfieldVR.Weapons
         {
             float r = Grow;
             int reach = Mathf.CeilToInt(r / v.Texel);
-            var di = new List<int>();
-            var dj = new List<int>();
-            var dh = new List<float>();
+            // The disc's offsets in plain arrays (the inner loop below runs some hundred times per texel; 255.P6-3).
+            int side = 2 * reach + 1;
+            var di = new int[side * side];
+            var dj = new int[side * side];
+            var dh = new float[side * side];
+            int count = 0;
             for (int y = -reach; y <= reach; y++)
             {
                 for (int x = -reach; x <= reach; x++)
@@ -852,13 +867,14 @@ namespace RavenfieldVR.Weapons
                     float d = Mathf.Sqrt(x * x + y * y) * v.Texel;
                     if (d <= r)
                     {
-                        di.Add(x);
-                        dj.Add(y);
-                        dh.Add(Mathf.Sqrt(r * r - d * d));
+                        di[count] = x;
+                        dj[count] = y;
+                        dh[count] = Mathf.Sqrt(r * r - d * d);
+                        count++;
                     }
                 }
             }
-            int w = v.W, h = v.H, count = di.Count;
+            int w = v.W, h = v.H;
             var n = new float[w * h];
             var f = new float[w * h];
             for (int j = 0; j < h; j++)

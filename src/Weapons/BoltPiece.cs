@@ -77,12 +77,21 @@ namespace RavenfieldVR.Weapons
             return piece;
         }
 
-        private static void Build(BoltPiece piece, WeaponRig rig, Vector3 rackGun)
+        /// <summary>
+        /// Warm-up: the receiver's cut worked out ahead (on the weapon's prefab, from the menu) and kept, so the first draw in a
+        /// match finds it (it copied and walked the whole receiver mesh in that frame; 255.P6-5). Nothing is made or changed.
+        /// </summary>
+        internal static void Prewarm(WeaponRig rig) => Build(new BoltPiece(), rig, rig.Data.RackPoint, prewarm: true);
+
+        private static void Build(BoltPiece piece, WeaponRig rig, Vector3 rackGun, bool prewarm = false)
         {
             WeaponRigData d = rig.Data;
             if (d.AddedHandle)
             {
-                piece.AddKnob(rig, rackGun); // a handle of its own, nothing cut out of the receiver
+                if (!prewarm)
+                {
+                    piece.AddKnob(rig, rackGun); // a handle of its own, nothing cut out of the receiver
+                }
                 return;
             }
             float radius = d.Handgun ? 0.022f : 0.03f;
@@ -134,6 +143,10 @@ namespace RavenfieldVR.Weapons
                     nothing++;
                     continue;
                 }
+                if (prewarm)
+                {
+                    continue;
+                }
                 var go = new GameObject("RavenfieldVR Bolt Piece");
                 go.layer = mf.gameObject.layer;
                 go.transform.SetParent(mf.transform, false);
@@ -150,6 +163,10 @@ namespace RavenfieldVR.Weapons
                 piece._pieces.Add(new Piece { T = go.transform, Source = mf, Original = mf.sharedMesh });
                 mf.sharedMesh = result.Remaining;
                 piece.Carved = true;
+            }
+            if (prewarm)
+            {
+                return;
             }
             if (!piece.Carved && !d.AddedHandle && d.CarveHandle && d.SlidePath != null && rig.Slide != null)
             {

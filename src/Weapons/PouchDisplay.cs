@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using UnityEngine;
@@ -137,20 +138,90 @@ namespace RavenfieldVR.Weapons
                 _label.characterSize = 0.0028f;
                 _label.anchor = TextAnchor.MiddleLeft;
                 _label.fontStyle = FontStyle.Bold;
+                labelGo.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             if (_model != null)
             {
-                Object.Destroy(_model);
+                _model.SetActive(false); // kept for the next time this weapon is drawn
+            }
+            var key = (rig.Data, kind);
+            if (_kept.TryGetValue(key, out Kept k) && StillDrawable(k.Model))
+            {
+                // Drawn before: the same model again (each switch made a new copy of the magazine's meshes; 255.P3-2).
+                _model = k.Model;
+                _bounds = k.Bounds;
+                _insertLocal = k.Insert;
+                _frontLocal = k.Front;
+                _scale = k.Scale;
+                _model.SetActive(true);
+                _keptOrder.Remove(key);
+                _keptOrder.Add(key);
+                return;
+            }
+            if (k.Model != null)
+            {
+                Object.Destroy(k.Model);
             }
             _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal);
             _model.transform.SetParent(_root.transform, true);
             // A picture of what you can take, not a thing in the world: it casts no shadow on the ground under you.
-            foreach (Renderer r in _root.GetComponentsInChildren<Renderer>(true))
+            foreach (Renderer r in _model.GetComponentsInChildren<Renderer>(true))
             {
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             float size = _bounds.size.magnitude;
             _scale = size > MaxSize ? MaxSize / size : 1f; // a rocket shows smaller than life
+            _kept[key] = new Kept { Model = _model, Bounds = _bounds, Insert = _insertLocal, Front = _frontLocal, Scale = _scale };
+            _keptOrder.Remove(key);
+            _keptOrder.Add(key);
+            while (_keptOrder.Count > KeptModels)
+            {
+                (WeaponRigData, PropKind) oldest = _keptOrder[0];
+                _keptOrder.RemoveAt(0);
+                if (_kept.TryGetValue(oldest, out Kept o) && o.Model != null && o.Model != _model)
+                {
+                    Object.Destroy(o.Model);
+                }
+                _kept.Remove(oldest);
+            }
+        }
+
+        /// <summary>The pouch models of the last few weapons drawn (per weapon type and what it feeds from).</summary>
+        private struct Kept
+        {
+            public GameObject Model;
+            public Bounds Bounds;
+            public Vector3 Insert, Front;
+            public float Scale;
+        }
+
+        private const int KeptModels = 6;
+        private readonly Dictionary<(WeaponRigData, PropKind), Kept> _kept = new Dictionary<(WeaponRigData, PropKind), Kept>();
+        private readonly List<(WeaponRigData, PropKind)> _keptOrder = new List<(WeaponRigData, PropKind)>();
+
+        /// <summary>A kept model whose meshes and materials are all still there (a weapon's own may go with its scene).</summary>
+        private static bool StillDrawable(GameObject model)
+        {
+            if (model == null)
+            {
+                return false;
+            }
+            foreach (Renderer r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                foreach (Material m in r.sharedMaterials)
+                {
+                    if (m == null)
+                    {
+                        return false;
+                    }
+                }
+                if (r is MeshRenderer && (r.GetComponent<MeshFilter>() == null || r.GetComponent<MeshFilter>().sharedMesh == null)
+                    || r is SkinnedMeshRenderer s && s.sharedMesh == null)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void SetVisible(bool visible)
@@ -170,6 +241,8 @@ namespace RavenfieldVR.Weapons
             _root = null;
             _model = null;
             _builtFor = null;
+            _kept.Clear(); // their objects went with the root
+            _keptOrder.Clear();
             _shownSpare = int.MinValue; // a rebuilt label must be written again
             _shownCapacity = -1;
         }

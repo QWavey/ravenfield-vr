@@ -36,8 +36,53 @@ namespace RavenfieldVR.Weapons
         internal bool Ready => _ok;
         private int _next;
 
+        /// <summary>
+        /// Every fireball picture (16 strengths, 8 turns), worked out once on a pool thread (it is pure maths): the first shot of
+        /// each new strength and turn worked out 4096 pixels on the main thread, in the frame of the shot (255.P5-2). Only
+        /// the texture is made on the main thread.
+        /// </summary>
+        private static Color32[][] _pixels;
+        private static float[] _radii;
+        private static volatile bool _pixelsReady;
+        private static bool _pixelsStarted;
+
+        private static void StartPixels()
+        {
+            if (_pixelsStarted)
+            {
+                return;
+            }
+            _pixelsStarted = true;
+            // Once here first: its tables are made by the first call, on this thread.
+            LensEffects.Fireball(1f, 0f, Size, out _);
+            var pixels = new Color32[17 * 8][];
+            var radii = new float[17 * 8];
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    for (int pb = 1; pb <= 16; pb++)
+                    {
+                        for (int ph = 0; ph < 8; ph++)
+                        {
+                            int key = pb * 8 + ph;
+                            pixels[key] = LensEffects.Fireball(pb / 10f, ph * (2f * Mathf.PI / 8f), Size, out radii[key]);
+                        }
+                    }
+                    _pixels = pixels;
+                    _radii = radii;
+                    _pixelsReady = true;
+                }
+                catch (System.Exception)
+                {
+                    // left to the main thread, picture by picture, as before
+                }
+            });
+        }
+
         public MuzzleFireball()
         {
+            StartPixels();
             Shader shader = Shader.Find("Legacy Shaders/Particles/Additive") ?? Shader.Find("Particles/Additive")
                             ?? Shader.Find("Mobile/Particles/Additive");
             if (shader == null)
@@ -172,7 +217,17 @@ namespace RavenfieldVR.Weapons
             int key = pb * 8 + ph;
             if (!_textures.TryGetValue(key, out KeyValuePair<Texture2D, float> t))
             {
-                Color32[] pixels = LensEffects.Fireball(pb / 10f, ph * (2f * Mathf.PI / 8f), Size, out float radiusPx);
+                Color32[] pixels;
+                float radiusPx;
+                if (_pixelsReady)
+                {
+                    pixels = _pixels[key];
+                    radiusPx = _radii[key];
+                }
+                else
+                {
+                    pixels = LensEffects.Fireball(pb / 10f, ph * (2f * Mathf.PI / 8f), Size, out radiusPx);
+                }
                 var tex = new Texture2D(Size, Size, TextureFormat.RGBA32, false)
                 {
                     wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "RavenfieldVR fireball " + key
