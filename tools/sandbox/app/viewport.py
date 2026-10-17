@@ -1,5 +1,6 @@
 """The 3D view: an OpenGL 3.3 renderer for the exported weapon and the two gloves, with an orbit camera, picking and
-dragging (move a hand in the view's plane; Shift turns it)."""
+dragging (move a hand in the view's plane; Shift turns it; Ctrl + drag moves the gun, Ctrl + Shift + drag turns it about
+its grip)."""
 import ctypes
 import math
 
@@ -9,7 +10,7 @@ from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QSurfaceFormat
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
-from mathutil import look_at, norm, perspective, quat_axis_angle, quat_mul, quat_norm, ray_triangles
+from mathutil import look_at, norm, perspective, quat_axis_angle, quat_mul, quat_norm, quat_to_mat3, ray_triangles
 
 LIT_VS = """
 #version 330 core
@@ -85,6 +86,11 @@ def _compile(vs, fs):
     if not GL.glGetProgramiv(p, GL.GL_LINK_STATUS):
         raise RuntimeError(GL.glGetProgramInfoLog(p).decode())
     return p
+
+
+def _normal_matrix(model):
+    """The matrix that turns a part's normals with its model matrix: the inverse transpose, which stays right for a scaled part."""
+    return np.linalg.inv(model[:3, :3]).T
 
 
 class GpuMesh:
@@ -168,12 +174,15 @@ def _texture(image):
 
 
 class Viewport(QOpenGLWidget):
-    """Signals: picked(point_world or None, what) on a laser / Alt click; selected(hand or None); changed() after a drag;
+    """Signals: picked(point_world or None, what) on a laser / Alt click; selected(hand or None); changed(hand) while a hand
+    moves or turns; drag_finished(hand) when that drag ends; weapon_moved() while the gun is moved or turned (Ctrl + drag);
     context(QPoint global) on a right click without a drag."""
     picked = pyqtSignal(object, object)
     selected = pyqtSignal(object)
     changed = pyqtSignal(object)  # the hand moved or turned
-    drag_started = pyqtSignal()  # a hand is about to be moved (an undo step)
+    drag_finished = pyqtSignal(object)  # the hand's drag ended: its job is worked out now, once
+    weapon_moved = pyqtSignal()  # the gun moved or turned: the hands on it went along
+    drag_started = pyqtSignal()  # a hand or the gun is about to be moved (an undo step)
     context = pyqtSignal(QPoint)
     hovered = pyqtSignal(str)
 
@@ -197,6 +206,7 @@ class Viewport(QOpenGLWidget):
         self.part_node = None  # the part chosen in the parts list (kept highlighted)
         self.pick_point = None
         self.pick_line = None  # (from, to) world
+        self.pick_normal = None  # the surface normal under the last laser / Alt click (world, unit, facing the viewer)
         self.show_grid = True
         self.show_markers = True
         self._gpu_nodes = {}
@@ -216,6 +226,11 @@ class Viewport(QOpenGLWidget):
         self._gpu_hands = {}
         self.lit = _compile(LIT_VS, LIT_FS)
         self.flat = _compile(FLAT_VS, FLAT_FS)
+        # The uniform locations are looked up once here: they never change while the program lives, and a name lookup
+        # on every draw is pure overhead (a gun with dozens of parts draws dozens of times per paint).
+        self.lit_loc = {n: GL.glGetUniformLocation(self.lit, n)
+                        for n in ('uMVP', 'uModel', 'uNormal', 'uColor', 'uTint', 'uHasTex', 'uTex', 'uCam')}
+        self.flat_loc = {n: GL.glGetUniformLocation(self.flat, n) for n in ('uMVP', 'uColor')}
         self.line_vao = GL.glGenVertexArrays(1)
         self.line_vbo = GL.glGenBuffers(1)
         GL.glBindVertexArray(self.line_vao)
@@ -299,6 +314,11 @@ class Viewport(QOpenGLWidget):
         self.yaw, self.pitch = {'side': (0.0, 0.0), 'top': (0.0, 89.0), 'front': (90.0, 0.0), 'three': (-25.0, 12.0)}.get(name, (self.yaw, self.pitch))
         self.update()
 
+    def _px_scale(self, depth):
+        """World metres per screen pixel at this depth (the lens is 38 degrees high). The pan, the hands and the gun all use
+        it, so the point under the pointer stays under it whatever the window's size."""
+        return depth * 2 * math.tan(math.radians(19)) / max(1, self.height())
+
     # ---- drawing -------------------------------------------------------------------------------------------------
 
     def paintGL(self):
@@ -314,47 +334,50 @@ class Viewport(QOpenGLWidget):
                 if node.hidden or node.away:
                     continue
                 model = w.node_matrix(node)
+                nm = _normal_matrix(model)  # once per part, not once per mesh of it
                 tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else (0.0, 0.0, 0.0)
                 if self.scene.highlight_role and node.role == self.scene.highlight_role:
                     tint = (0.05, 0.1, 0.22)
                 for g in self._gpu_nodes.get(id(node), []):
-                    (draws_blend if g.blend else draws_opaque).append((g, model, tint, False))
+                    (draws_blend if g.blend else draws_opaque).append((g, model, nm, tint, False))
         for hand in self.scene.hands():
             g = self._hand_mesh(hand)
             tint = (0.1, 0.07, 0.0) if hand is self.selected_hand else (0.0, 0.0, 0.0)
-            draws_opaque.append((g, hand.model_matrix(), tint, hand.mirror < 0))
+            model = hand.model_matrix()
+            draws_opaque.append((g, model, _normal_matrix(model), tint, hand.mirror < 0))
         for node, model in self.scene.extra_draws():
+            nm = _normal_matrix(model)
             for g in self._gpu_nodes.get(id(node), []):
-                (draws_blend if g.blend else draws_opaque).append((g, model, (0, 0, 0), False))
+                (draws_blend if g.blend else draws_opaque).append((g, model, nm, (0, 0, 0), False))
         GL.glUseProgram(self.lit)
-        GL.glUniform3f(GL.glGetUniformLocation(self.lit, 'uCam'), *eye)
+        GL.glUniform3f(self.lit_loc['uCam'], *eye)
         GL.glEnable(GL.GL_CULL_FACE)
-        for g, model, tint, mirrored in draws_opaque:
-            self._draw(g, model, vp, tint, mirrored)
+        for g, model, nm, tint, mirrored in draws_opaque:
+            self._draw(g, model, nm, vp, tint, mirrored)
         if draws_blend:
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glDepthMask(GL.GL_FALSE)
-            for g, model, tint, mirrored in draws_blend:
-                self._draw(g, model, vp, tint, mirrored)
+            for g, model, nm, tint, mirrored in draws_blend:
+                self._draw(g, model, nm, vp, tint, mirrored)
             GL.glDepthMask(GL.GL_TRUE)
             GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_CULL_FACE)
         self._lines(vp)
+        self._axis_gizmo(view)
 
-    def _draw(self, g, model, vp, tint, mirrored):
-        p = self.lit
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(p, 'uMVP'), 1, GL.GL_TRUE, (vp @ model).astype(np.float32))
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(p, 'uModel'), 1, GL.GL_TRUE, model.astype(np.float32))
-        nm = np.linalg.inv(model[:3, :3]).T
-        GL.glUniformMatrix3fv(GL.glGetUniformLocation(p, 'uNormal'), 1, GL.GL_TRUE, nm.astype(np.float32))
-        GL.glUniform4f(GL.glGetUniformLocation(p, 'uColor'), *g.color)
-        GL.glUniform3f(GL.glGetUniformLocation(p, 'uTint'), *tint)
-        GL.glUniform1i(GL.glGetUniformLocation(p, 'uHasTex'), 1 if g.tex else 0)
+    def _draw(self, g, model, nm, vp, tint, mirrored):
+        loc = self.lit_loc
+        GL.glUniformMatrix4fv(loc['uMVP'], 1, GL.GL_TRUE, (vp @ model).astype(np.float32))
+        GL.glUniformMatrix4fv(loc['uModel'], 1, GL.GL_TRUE, model.astype(np.float32))
+        GL.glUniformMatrix3fv(loc['uNormal'], 1, GL.GL_TRUE, nm.astype(np.float32))
+        GL.glUniform4f(loc['uColor'], *g.color)
+        GL.glUniform3f(loc['uTint'], *tint)
+        GL.glUniform1i(loc['uHasTex'], 1 if g.tex else 0)
         if g.tex:
             GL.glActiveTexture(GL.GL_TEXTURE0)
             GL.glBindTexture(GL.GL_TEXTURE_2D, g.tex)
-            GL.glUniform1i(GL.glGetUniformLocation(p, 'uTex'), 0)
+            GL.glUniform1i(loc['uTex'], 0)
         if g.double:
             GL.glDisable(GL.GL_CULL_FACE)
         else:
@@ -382,18 +405,44 @@ class Viewport(QOpenGLWidget):
         if not segs:
             return
         GL.glUseProgram(self.flat)
-        GL.glUniformMatrix4fv(GL.glGetUniformLocation(self.flat, 'uMVP'), 1, GL.GL_TRUE, vp.astype(np.float32))
+        GL.glUniformMatrix4fv(self.flat_loc['uMVP'], 1, GL.GL_TRUE, vp.astype(np.float32))
         GL.glBindVertexArray(self.line_vao)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.line_vbo)
         for pts, color, depth in segs:
             data = np.ascontiguousarray(pts, dtype=np.float32)[:4096]
             GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, data)
-            GL.glUniform4f(GL.glGetUniformLocation(self.flat, 'uColor'), *color)
+            GL.glUniform4f(self.flat_loc['uColor'], *color)
             if not depth:
                 GL.glDisable(GL.GL_DEPTH_TEST)
             GL.glDrawArrays(GL.GL_LINES, 0, len(data))
             GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
+
+    def _axis_gizmo(self, view):
+        """A small key in the bottom-left corner: the world's X (red), Y (green) and Z (blue) axes, turning as the view turns
+        (so the gun's up and aim can be read against them). Drawn in its own square of the window, over the scene."""
+        dpr = self.devicePixelRatioF()
+        full_w, full_h = int(round(self.width() * dpr)), int(round(self.height() * dpr))
+        size, margin = int(round(88 * dpr)), int(round(10 * dpr))
+        rot = np.array(view, dtype=np.float64)
+        rot[:3, 3] = 0.0  # the view turned, not moved: the key stays at its own centre
+        back = np.eye(4)
+        back[2, 3] = -2.0  # the key's origin two units in front of the eye
+        vp = perspective(30.0, 1.0, 0.1, 10.0) @ back @ rot
+        GL.glViewport(margin, margin, size, size)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.flat)
+        GL.glUniformMatrix4fv(self.flat_loc['uMVP'], 1, GL.GL_TRUE, vp.astype(np.float32))
+        GL.glBindVertexArray(self.line_vao)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.line_vbo)
+        for axis, color in ((np.array([1.0, 0, 0]), (0.9, 0.3, 0.3, 1.0)), (np.array([0, 1.0, 0]), (0.4, 0.85, 0.4, 1.0)),
+                            (np.array([0, 0, 1.0]), (0.35, 0.6, 1.0, 1.0))):
+            GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, np.array([[0, 0, 0], axis * 0.8], dtype=np.float32))
+            GL.glUniform4f(self.flat_loc['uColor'], *color)
+            GL.glDrawArrays(GL.GL_LINES, 0, 2)
+        GL.glBindVertexArray(0)
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glViewport(0, 0, full_w, full_h)  # the rest of the window is the scene's again
 
     # ---- picking -------------------------------------------------------------------------------------------------
 
@@ -441,12 +490,12 @@ class Viewport(QOpenGLWidget):
                 ld = (inv @ np.append(d, 0))[:3]
                 if not _ray_box(lo, ld, node.bmin, node.bmax):
                     continue
-                t, _ = ray_triangles(lo, ld, node.tris)
+                t, k = ray_triangles(lo, ld, node.tris)
                 if t is not None:
                     pw = (m @ np.append(lo + ld * t, 1))[:3]
                     dist = np.linalg.norm(pw - o)
                     if best is None or dist < best[3]:
-                        best = ('node', node, pw, dist)
+                        best = ('node', node, pw, dist, _surface_normal(m, node.tris[k], d, o, pw))
         return best
 
     # ---- mouse -----------------------------------------------------------------------------------------------------
@@ -454,11 +503,16 @@ class Viewport(QOpenGLWidget):
     def mousePressEvent(self, e):
         self._mouse = e.position().toPoint()
         self._press = self._mouse
-        self._drag = None
+        self._end_drag()  # (a drag never ended before this press is ended now, its hand worked out)
         alt = bool(e.modifiers() & Qt.KeyboardModifier.AltModifier)
+        ctrl = bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier)
+        shift = bool(e.modifiers() & Qt.KeyboardModifier.ShiftModifier)
         if e.button() == Qt.MouseButton.LeftButton:
             if self.laser or alt:
                 hit = self.pick(self._mouse, hands=False)
+                if ctrl and hit is not None:
+                    self._start_gun_drag(hit, shift)  # Ctrl + drag moves the gun even with the laser on
+                    return
                 self._set_pick(hit)
                 self._drag = ('orbit',)  # (with the laser on, dragging still looks around)
                 return
@@ -468,10 +522,12 @@ class Viewport(QOpenGLWidget):
                 if self.selected_hand is not hit[1]:
                     self.selected_hand = hit[1]
                     self.selected.emit(hit[1])
-                shift = bool(e.modifiers() & Qt.KeyboardModifier.ShiftModifier)
                 self.drag_started.emit()
                 self._drag = ('turn' if shift else 'move', hit[1], hit[2])
                 self.update()
+                return
+            if ctrl and hit is not None:
+                self._start_gun_drag(hit, shift)
                 return
             self._drag = ('orbit',)
         elif e.button() == Qt.MouseButton.RightButton:
@@ -479,13 +535,33 @@ class Viewport(QOpenGLWidget):
         elif e.button() == Qt.MouseButton.MiddleButton:
             self._drag = ('pan',)
 
+    def _start_gun_drag(self, hit, shift):
+        """Ctrl + drag on the gun: it moves in the view's plane; with Shift it turns about its grip. One undo step per drag."""
+        self.drag_started.emit()
+        if shift:
+            self._drag = ('gun_turn',)
+        else:
+            forward = -self.view_matrix()[2, :3]
+            # The depth it is grabbed at: a move in the view's plane keeps it, so the pixel scale stays the same all drag.
+            self._drag = ('gun_move', float(np.dot(hit[2] - self.eye(), forward)))
+        self.update()
+
+    def _end_drag(self):
+        """Ends the drag. A hand that was moved is reported once (drag_finished): its job is worked out then, not on every
+        move."""
+        drag, self._drag = self._drag, None
+        if drag is not None and drag[0] in ('move', 'turn'):
+            self.drag_finished.emit(drag[1])
+
     def _set_pick(self, hit):
         if hit is None or hit[0] != 'node':
             self.pick_point = None
             self.pick_line = None
+            self.pick_normal = None
             self.picked.emit(None, None)
         else:
             self.pick_point = hit[2]
+            self.pick_normal = hit[4]
             src = self.scene.laser_origin()
             if src is None:
                 o, d = self.ray(self._mouse)
@@ -497,7 +573,7 @@ class Viewport(QOpenGLWidget):
     def mouseMoveEvent(self, e):
         pos = e.position().toPoint()
         if self._drag is not None and e.buttons() == Qt.MouseButton.NoButton:
-            self._drag = None  # (the release was lost, outside the window: plain moves no longer drag)
+            self._end_drag()  # (the release was lost, outside the window: plain moves no longer drag)
         if self._mouse is None or self._drag is None:
             if self.laser or e.modifiers() & Qt.KeyboardModifier.AltModifier:
                 hit = self.pick(pos, hands=False)
@@ -521,16 +597,15 @@ class Viewport(QOpenGLWidget):
         elif kind == 'pan':
             view = self.view_matrix()
             right, up = view[0, :3], view[1, :3]
-            s = self.dist * 0.0016
-            self.target += (-right * dx + up * dy) * s
+            # The target is one distance ahead of the eye: the pixel scale there, the same as a hand's drag uses.
+            self.target += (-right * dx + up * dy) * self._px_scale(self.dist)
         elif kind == 'move':
             hand = self._drag[1]
             view = self.view_matrix()
             right, up = view[0, :3], view[1, :3]
             forward = -view[2, :3]
             depth = max(0.01, float(np.dot(hand.position - self.eye(), forward)))  # along the view (it follows the cursor)
-            s = depth * 2 * math.tan(math.radians(19)) / max(1, self.height())
-            hand.position = hand.position + (right * dx - up * dy) * s
+            hand.position = hand.position + (right * dx - up * dy) * self._px_scale(depth)
             self.changed.emit(hand)
         elif kind == 'turn':
             hand = self._drag[1]
@@ -539,6 +614,23 @@ class Viewport(QOpenGLWidget):
             q = quat_mul(quat_axis_angle(up, dx * 0.5), quat_axis_angle(right, dy * 0.5))
             hand.rotation = quat_norm(quat_mul(q, hand.rotation))
             self.changed.emit(hand)
+        elif kind == 'gun_move':
+            view = self.view_matrix()
+            right, up = view[0, :3], view[1, :3]
+            step = np.eye(4)
+            step[:3, 3] = (right * dx - up * dy) * self._px_scale(self._drag[1])
+            self.scene.move_weapon(step)  # the hands on the gun go along
+            self.weapon_moved.emit()
+        elif kind == 'gun_turn':
+            view = self.view_matrix()
+            right, up = view[0, :3], view[1, :3]
+            turn = quat_to_mat3(quat_mul(quat_axis_angle(up, dx * 0.5), quat_axis_angle(right, dy * 0.5)))
+            grip = self.scene.weapon.to_world(self.scene.weapon.grip)
+            step = np.eye(4)
+            step[:3, :3] = turn
+            step[:3, 3] = grip - turn @ grip  # turned about the grip: the grip point does not move
+            self.scene.move_weapon(step)
+            self.weapon_moved.emit()
         self.update()
 
     def leaveEvent(self, e):
@@ -557,13 +649,31 @@ class Viewport(QOpenGLWidget):
                 self._set_pick(self.pick(self._mouse, hands=False))
             self.context.emit(e.globalPosition().toPoint())
         # (A click on the gun or on nothing keeps the selected hand: dropping it left the controls editing the right hand.)
-        self._drag = None
+        self._end_drag()
         self.update()
 
     def wheelEvent(self, e):
-        f = 0.9 if e.angleDelta().y() > 0 else 1.1
+        dy = e.angleDelta().y()
+        if dy == 0:
+            return  # a sideways scroll does not zoom
+        # A notch (120) is 10 % in or out; a touchpad's small steps each count for their size, so a flick does not hit a limit.
+        f = 0.9 ** (dy / 120) if dy > 0 else 1.1 ** (-dy / 120)
         self.dist = max(0.05, min(8.0, self.dist * f))
         self.update()
+
+
+def _surface_normal(m, tri, d, o, p):
+    """The unit normal, in world space, of the triangle a ray hit at p: tri is in its part's own frame and m is the part's
+    matrix. Turned to face the ray's origin o (the side the viewer sees)."""
+    n = np.linalg.inv(m[:3, :3]).T @ np.cross(tri[1] - tri[0], tri[2] - tri[0])
+    length = float(np.linalg.norm(n))
+    if length < 1e-12:  # a sliver with no area: the ray's own direction stands in for it
+        n = -np.asarray(d, dtype=np.float64)
+        length = float(np.linalg.norm(n))
+    n = n / length
+    if np.dot(n, o - p) < 0:
+        n = -n
+    return n
 
 
 def _ray_box(o, d, bmin, bmax):

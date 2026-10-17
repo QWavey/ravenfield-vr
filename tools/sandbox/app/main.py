@@ -248,7 +248,18 @@ class Workbench(QWidget):
         self.view.drag_started.connect(self.push_undo)
         self.view.context.connect(self.on_context)
         self.view.hovered.connect(lambda s: (self.hover.setText(s), self.hover.adjustSize()))
-        self.load_weapon_list()
+        self.view.drag_finished.connect(self._moved)  # a hand's job is worked out when its drag ends, not on every move
+        self.view.weapon_moved.connect(self.sync_numbers)  # the gun moved: the numbers of the hand shown follow
+        # Weapons chosen in quick succession (the arrow keys held down) open once the keys pause: see on_weapon_chosen.
+        self._open_timer = QTimer(self)
+        self._open_timer.setSingleShot(True)
+        self._open_timer.setInterval(120)
+        self._open_timer.timeout.connect(self._open_pending)
+        self._pending_wid = None
+        self._opened_at = 0.0  # when the last weapon opened (monotonic seconds)
+        # The window is shown before the first weapon is parsed: the list fills on the next turn of the event loop.
+        self.items = []
+        QTimer.singleShot(0, self.load_weapon_list)
         self._shortcuts()
 
     # ---- panels ----------------------------------------------------------------------------------------------------
@@ -485,7 +496,26 @@ class Workbench(QWidget):
     def on_weapon_chosen(self, item, _prev=None):
         if item is None:
             return
-        self.open_weapon(item.data(Qt.ItemDataRole.UserRole))
+        wid = item.data(Qt.ItemDataRole.UserRole)
+        # Each open parses the whole gun on the GUI thread, so a key held down (one choice per repeat) queued loads that fell
+        # behind the keys. A choice that comes soon after the last open waits 120 ms and restarts that wait; the last one opens.
+        # The self-test, and a choice after a pause, open at once.
+        if self.selftest or time.monotonic() - self._opened_at > 0.15:
+            self._pending_wid = None
+            self._open_timer.stop()
+            self._open_now(wid)
+            return
+        self._pending_wid = wid
+        self._open_timer.start()
+
+    def _open_pending(self):
+        wid, self._pending_wid = self._pending_wid, None
+        if wid is not None:
+            self._open_now(wid)
+
+    def _open_now(self, wid):
+        self._opened_at = time.monotonic()
+        self.open_weapon(wid)
 
     def open_weapon(self, wid, hands_doc=None):
         self.settle_timeline()
@@ -710,12 +740,16 @@ class Workbench(QWidget):
         self.view.update()
 
     def on_hand_moved(self, hand=None):
-        self._moved(hand if hand is not None else self.current_hand())
+        """A hand is being dragged (on every move): it is no longer on the part it was snapped to, and its numbers follow. Its
+        job is worked out once the drag ends (_moved, through drag_finished)."""
+        h = hand if hand is not None else self.current_hand()
+        h.on_part = ''
+        self.update_selected_label()
         self.sync_numbers()
 
     def _moved(self, h):
-        """A hand moved by hand: no longer on the part it was snapped to; its job is what it touches now (a left hand dragged
-        from the magazine onto the handguard is the support hand again; its stale job dropped it from the saved pose)."""
+        """A hand whose drag ended: its job is what it touches now (a left hand dragged from the magazine onto the handguard is
+        the support hand again; its stale job dropped it from the saved pose)."""
         h.on_part = ''
         h.role = self.scene.contact_role(h)
         self.update_selected_label()
