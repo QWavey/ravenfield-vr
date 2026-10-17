@@ -1276,6 +1276,7 @@ namespace RavenfieldVR.Weapons
             {
                 // Never tracked yet: the game's pose stays, but the magazine, slide and hinge still show their real
                 // state, and time-driven mechanics (a magazine leaving the well) must not freeze mid-air.
+                Reload.StepParts();
                 ApplyPartOverrides();
                 Reload.BeforeRender();
                 return;
@@ -1401,8 +1402,12 @@ namespace RavenfieldVR.Weapons
             _renderedRoot = RigidPose.Of(root);
             _renderedRootSet = true;
 
+            Reload.StepParts();
             ApplyPartOverrides();
             SnapHands(main, off);
+            // The reload first (it sets this frame's keep-out and held palm for the gloves), then the arm: solved before it,
+            // the arm went to last frame's glove placement (255.I2-7).
+            Reload.BeforeRender();
             if (_armIK != null && _armIK.Active)
             {
                 _armIK.Solve();
@@ -1422,7 +1427,6 @@ namespace RavenfieldVR.Weapons
                 HideArms();
             }
 
-            Reload.BeforeRender();
             Sounds.Update();
             if (_scope != null)
             {

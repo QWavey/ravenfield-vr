@@ -1822,6 +1822,9 @@ namespace RavenfieldVR.Weapons
 
         private bool _keepHand = true;
 
+        /// <summary>The rig whose well a held prop goes into: the active sub weapon's when it has a body, else the gun's own.</summary>
+        private static WeaponRig WellRig(HeldWeapon gun) => gun.ActiveRig != null && gun.ActiveRig.GunBody != null ? gun.ActiveRig : gun.Rig;
+
         private RigidPose KeepOffGun(RigidPose target)
         {
             HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
@@ -1832,8 +1835,11 @@ namespace RavenfieldVR.Weapons
                 && (target.position - gun.GripWorld.position).sqrMagnitude < (rocket ? 1.6f * 1.6f : 0.7f * 0.7f))
             {
                 WeaponRigData d = gun.Rig.Data;
-                RigidPose seat = gun.Rig.GunBodyPose.Multiply(d.MagSeat);
-                Bounds well = d.MagBounds;
+                // The well of the weapon in use: a sub weapon's magazine or rocket goes into its own well, and was kept out
+                // of it as the parent's body (255.B3-3).
+                WeaponRig wellRig = WellRig(gun);
+                RigidPose seat = wellRig.GunBodyPose.Multiply(wellRig.Data.MagSeat);
+                Bounds well = wellRig.Data.MagBounds;
                 // Open only on the well's own line, 4 mm round the magazine: at 1.5 cm a side a magazine held off the line went
                 // into a pistol's grip through its 4 mm wall and showed through its sides (user, 2026-10-16, many pistols).
                 well.Expand(WellPlay);
@@ -1970,8 +1976,9 @@ namespace RavenfieldVR.Weapons
             {
                 return -1;
             }
-            RigidPose seat = gun.Rig.GunBodyPose.Multiply(gun.Rig.Data.MagSeat);
-            Bounds well = gun.Rig.Data.MagBounds;
+            WeaponRig wellRig = WellRig(gun);
+            RigidPose seat = wellRig.GunBodyPose.Multiply(wellRig.Data.MagSeat);
+            Bounds well = wellRig.Data.MagBounds;
             well.Expand(WellPlay);
             Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             Transform t = Go.transform;
@@ -2159,15 +2166,16 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Nearest dropped prop within <paramref name="radius"/>, measured to its collider (a long magazine can be taken
-        /// by either end); only props of <paramref name="weaponKey"/> unless it is null.
+        /// by either end); only props of <paramref name="weaponKey"/> unless it is null, and only those <paramref name="accept"/>
+        /// takes when given.
         /// </summary>
-        public static MagazineProp NearestDropped(Vector3 point, float radius, string weaponKey)
+        public static MagazineProp NearestDropped(Vector3 point, float radius, string weaponKey, System.Func<MagazineProp, bool> accept = null)
         {
             MagazineProp best = null;
             float bestDist = radius;
             foreach (MagazineProp p in Alive)
             {
-                if (!p.IsDropped || p.Go == null || weaponKey != null && p.WeaponKey != weaponKey)
+                if (!p.IsDropped || p.Go == null || weaponKey != null && p.WeaponKey != weaponKey || accept != null && !accept(p))
                 {
                     continue;
                 }

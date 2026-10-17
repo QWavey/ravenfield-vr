@@ -606,6 +606,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         internal void PlacedFromTracked(out RigidPose tracked, out RigidPose placed)
         {
+            StepEasing();
             tracked = TrackedTarget();
             RigidPose p = PlacedTarget();
             placed = new RigidPose(p.position + _keepOut, p.rotation);
@@ -617,9 +618,46 @@ namespace RavenfieldVR.Rig
         /// </summary>
         internal Vector3 GraspPointNow()
         {
+            StepEasing();
             RigidPose target = PlacedTarget();
             Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
             return target.TransformPoint(graspLocal);
+        }
+
+        private int _easedFrame = -1;
+
+        /// <summary>
+        /// The glove's eased placement stepped once a frame, by whichever asks first: the weapon's own arm (solved before the
+        /// glove is placed) or <see cref="Apply"/>. Stepped only in Apply, the arm went to last frame's placement while the
+        /// glove was drawn at this frame's (255.I2-7). Asked for after the reload has set this frame's keep-out.
+        /// </summary>
+        private void StepEasing()
+        {
+            if (_easedFrame == Time.frameCount)
+            {
+                return;
+            }
+            _easedFrame = Time.frameCount;
+            float dt = Time.unscaledDeltaTime;
+            // The fist closes around the controller's handle (the grip pose), so the palm sits beside it (TrackedTarget).
+            // Holding a magazine on the well's line: the palm where it holds that magazine (eased over the magazine's own
+            // 80 ms switch onto and off the line).
+            bool heldPalm = Time.frameCount - HeldPalmFrame <= 1;
+            if (heldPalm)
+            {
+                _heldPalmLast = HeldPalm;
+            }
+            _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, dt / 0.08f);
+            // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
+            // the reload while it does; a stale value from a frame that did not set it counts as none).
+            bool keepOut = (_hand.Role == HandRole.Magazine || _hand.Role == HandRole.Free) && Time.frameCount - KeepOutFrame <= 1;
+            Vector3 wantOut = keepOut ? KeepOut : Vector3.zero;
+            // Pushed out at once, let back in eased: eased both ways, a fast shove left the glove up to 7 cm inside the gun
+            // for a few frames while the magazine it held stopped on the gun's face (user, 2026-10-16: "hands and mags
+            // glitch through weapons"). Only growing it is immediate, so a keep-out that flickers does not shake the glove.
+            // Out at up to 4 m/s (4.4 cm a frame keeps up with a fast hand; at once, a full 12 cm clearance or a flip of side
+            // jumped the glove in one frame; 255.I2-2), back in eased.
+            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
         }
 
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
@@ -633,16 +671,7 @@ namespace RavenfieldVR.Rig
             }
             SetVisible(!Suppressed && !HiddenByHeld);
             float dt = Time.unscaledDeltaTime;
-
-            // The fist closes around the controller's handle (the grip pose), so the palm sits beside it (TrackedTarget).
-            // Holding a magazine on the well's line: the palm where it holds that magazine (eased over the magazine's own
-            // 80 ms switch onto and off the line).
-            bool heldPalm = Time.frameCount - HeldPalmFrame <= 1;
-            if (heldPalm)
-            {
-                _heldPalmLast = HeldPalm;
-            }
-            _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, dt / 0.08f);
+            StepEasing();
             RigidPose target = PlacedTarget();
 
             // Settling onto a held part: a small, smoothed offset, released as soon as the hand lets go.
@@ -661,16 +690,6 @@ namespace RavenfieldVR.Rig
                 want = Vector3.ClampMagnitude(GraspAnchor.Value - GraspPointWorld, GraspReach);
             }
             _graspOffset = Vector3.Lerp(_graspOffset, want, 1f - Mathf.Exp(-(GraspAnchor.HasValue ? 30f : 18f) * dt));
-            // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
-            // the reload while it does; a stale value from a frame that did not set it counts as none).
-            bool keepOut = (_hand.Role == HandRole.Magazine || _hand.Role == HandRole.Free) && Time.frameCount - KeepOutFrame <= 1;
-            Vector3 wantOut = keepOut ? KeepOut : Vector3.zero;
-            // Pushed out at once, let back in eased: eased both ways, a fast shove left the glove up to 7 cm inside the gun
-            // for a few frames while the magazine it held stopped on the gun's face (user, 2026-10-16: "hands and mags
-            // glitch through weapons"). Only growing it is immediate, so a keep-out that flickers does not shake the glove.
-            // Out at up to 4 m/s (4.4 cm a frame keeps up with a fast hand; at once, a full 12 cm clearance or a flip of side
-            // jumped the glove in one frame; 255.I2-2), back in eased.
-            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
             // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
             // easing in when the grip is taken and back out to the tracked hand when it is let go.
             _snapBlend = Mathf.MoveTowards(_snapBlend, SnapPose.HasValue ? 1f : 0f, dt / 0.08f);

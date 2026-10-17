@@ -40,6 +40,18 @@ namespace RavenfieldVR.Weapons
         private int _launcherSub = -2;
         /// <summary>The sub weapon that was active before the support hand's trigger switched to the launcher (null: not firing it).</summary>
         private int? _launcherFrom;
+        private static readonly System.Func<MagazineProp, bool> NotEmpty = m => m.Rounds > 0;
+
+        /// <summary>
+        /// Autotest: why the off hand cannot run a check now (null: it can). Written as a skip line: a check that returned
+        /// silently read the same as one that passed (255.I6-4).
+        /// </summary>
+        private string OffHandBusy(VRHand off) =>
+            off.Role != HandRole.Free ? $"the off hand is busy ({off.Role})"
+            : off.Held != null ? "the off hand holds something"
+            : Rig.GunBody == null ? "no gun body"
+            : null;
+
         /// <summary>The sub weapon to go back to once the under-barrel launcher is not reloading (null: none).</summary>
         private int? _launcherReturn;
 
@@ -443,9 +455,12 @@ namespace RavenfieldVR.Weapons
             // This weapon's own magazines first, then anything else lying within reach, whatever this gun's reload mode
             // (picking something up is not a reload). A magazine you are reaching for wins over the pouch and the
             // gun's parts: bending down to pick one up brings the pouch zone (it follows your head) down with you.
+            // (In the pouch an empty one is passed over in the search itself: dropped beside a full one, it hid the full one
+            // and the pouch spent spare rounds; 255.I1-5.)
+            System.Func<MagazineProp, bool> accept = _sys.Zones.InPouch(palm) ? NotEmpty : null;
             MagazineProp caught = _ejecting != null && _ejecting.DistanceTo(palm) < 0.13f
                 ? _ejecting
-                : MagazineProp.NearestDropped(palm, 0.13f, Data.Key) ?? MagazineProp.NearestDropped(palm, 0.13f, null);
+                : MagazineProp.NearestDropped(palm, 0.13f, Data.Key, accept) ?? MagazineProp.NearestDropped(palm, 0.13f, null, accept);
             if (caught != null && caught != _ejecting && caught.Rounds == 0 && _sys.Zones.InPouch(palm))
             {
                 // Reaching into the pouch takes a full one from it, not the empty magazine just dropped by the hip: the
@@ -901,8 +916,14 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator CoverSelfCheck(System.Action<string> report)
         {
             VRHand off = _sys.Rig.Off;
-            if (!Manual || Data.Hinge != HingeKind.FeedCover || off.Role != HandRole.Free || off.Held != null || Ammo.CoverOpen)
+            if (!Manual || Data.Hinge != HingeKind.FeedCover)
             {
+                yield break;
+            }
+            string busy = OffHandBusy(off) ?? (Ammo.CoverOpen ? "the cover is already open" : null);
+            if (busy != null)
+            {
+                report($"feed cover by hand: skipped ({busy})");
                 yield break;
             }
             int side = (int)off.Side;
@@ -2080,7 +2101,12 @@ namespace RavenfieldVR.Weapons
 
         // ---- per-frame visuals -----------------------------------------------------------------------
 
-        public void BeforeRender()
+        /// <summary>
+        /// The slide's and the hinge's offsets for this frame (locked open, a bolt left open, the spring slamming it home, a
+        /// hinge settling). Run before the drawn parts are posed: written after them, each change showed a frame late
+        /// (255.B7-2).
+        /// </summary>
+        internal void StepParts()
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             if (Ammo != null && Ammo.SlideLocked && !_racking)
@@ -2118,7 +2144,11 @@ namespace RavenfieldVR.Weapons
                 float speed = target > _held.HingeOpenness ? 5f : 12f;
                 _held.HingeOpenness = Mathf.MoveTowards(_held.HingeOpenness, target, speed * dt);
             }
+        }
 
+        public void BeforeRender()
+        {
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             UpdateEject(dt);
             // Press check: eased back part way (not far enough to throw it out), the chambered round shows in the port.
             float open = Ammo != null && Ammo.UsesChamber ? Fraction : 0f;
@@ -3808,8 +3838,14 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator RackGripSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
-            if (!Manual || !Ammo.UsesChamber || off.Role != HandRole.Free || off.Held != null || Rig.GunBody == null)
+            if (!Manual || !Ammo.UsesChamber)
             {
+                yield break;
+            }
+            string busy = OffHandBusy(off);
+            if (busy != null)
+            {
+                report($"rack grip: skipped ({busy})");
                 yield break;
             }
             // The rack point is put on the model's surface once the gun is measured (HeldWeapon.SnapRackPoint): waited
@@ -3928,8 +3964,13 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator TwoHandSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
-            if (off.Role != HandRole.Free || !GripData.HasSupportPoint)
+            if (!GripData.HasSupportPoint)
             {
+                yield break;
+            }
+            if (off.Role != HandRole.Free)
+            {
+                report($"two hands: skipped (the off hand is busy: {off.Role})");
                 yield break;
             }
             VRInput.SimulatedGrab[(int)off.Side] = true;
@@ -4073,6 +4114,237 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Autotest: an en-bloc rifle as the player loads and fires it (255.I6-5): with the bolt shut on a round a clip is
+        /// refused; through the open action a full clip goes in, the bolt slams home on its own and chambers; the last round
+        /// fired throws the empty clip and leaves the bolt locked open, ready for the next clip.
+        /// </summary>
+        internal IEnumerator EnBlocSelfCheck(System.Action<string> report)
+        {
+            if (!Manual || Ammo == null || !Data.EnBloc || !Ammo.UsesDetachableMag)
+            {
+                yield break;
+            }
+            VRHand off = _sys.Rig.Off;
+            string busy = OffHandBusy(off);
+            if (busy != null)
+            {
+                report($"en-bloc: skipped ({busy})");
+                yield break;
+            }
+            bool chambered = Ammo.Chambered, inserted = Ammo.MagInserted, locked = Ammo.SlideLocked;
+            int rounds = Ammo.MagRounds;
+            if (Ammo.MagInserted)
+            {
+                Ammo.EjectMagazine();
+            }
+            // The bolt shut on a round, no clip: a clip cannot go in.
+            Ammo.Chambered = true;
+            Ammo.SlideLocked = false;
+            Ammo.Sync();
+            MagazineProp clip = MagazineProp.Create(Rig, PropKind.Magazine, Ammo.Capacity);
+            clip.Owner = Ammo;
+            clip.Attach(off);
+            clip.FollowHand();
+            bool refusedShut = !AcceptsNow(clip);
+            // As after the last round: the bolt locked back over an empty chamber. The clip goes in and releases the bolt.
+            Ammo.Chambered = false;
+            Ammo.SlideLocked = true;
+            Ammo.Sync();
+            yield return new WaitForSecondsRealtime(0.2f);
+            bool accepted = AcceptsNow(clip);
+            if (accepted)
+            {
+                SeatProp(off, clip);
+            }
+            else
+            {
+                clip.Destroy();
+            }
+            yield return new WaitForSecondsRealtime(0.4f);
+            bool seated = Ammo.MagInserted, released = !Ammo.SlideLocked, fed = Ammo.Chambered;
+            // Fired to the last round: the empty clip flies out, the bolt stays open.
+            int shots = 0;
+            while (Ammo.Chambered && shots < Ammo.Capacity + 2)
+            {
+                Ammo.OnShot();
+                OnShot();
+                shots++;
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            bool thrown = !Ammo.MagInserted, lockedOpen = Ammo.SlideLocked;
+            report($"en-bloc: bolt shut on a round: {(refusedShut ? "clip refused" : "CLIP TAKEN WITH THE BOLT SHUT")}; through the open action: "
+                   + $"{(accepted && seated ? "clip in" : "CLIP NOT SEATED")}, {(released ? "bolt home on its own" : "BOLT NOT RELEASED")}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
+                   + $"{shots} shot(s): {(thrown ? "empty clip thrown out" : "EMPTY CLIP NOT THROWN OUT")}, {(lockedOpen ? "bolt locked open" : "BOLT NOT LOCKED OPEN")}{(_pingSource != null ? $", ping '{_pingSource.clip.name}'" : "")}");
+            // Back as it was.
+            Ammo.SlideLocked = locked;
+            Ammo.Chambered = chambered;
+            Ammo.MagInserted = inserted;
+            Ammo.MagRounds = rounds;
+            Ammo.Sync();
+        }
+
+        /// <summary>
+        /// Autotest: an emptied magazine dropped at the hip is not handed back by a squeeze in the pouch (user, 2026-10-16: "I
+        /// grab an empty mag from the pouch"; 255.I6-6): the squeeze goes through the hand's own grab (TryGrab) and must
+        /// bring a full one.
+        /// </summary>
+        internal IEnumerator EmptyAtPouchSelfCheck(System.Action<string> report)
+        {
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || Ammo.BoxLocked)
+            {
+                yield break;
+            }
+            VRHand off = _sys.Rig.Off;
+            string busy = OffHandBusy(off) ?? (_ejecting != null ? "a magazine is coming out" : !Ammo.InfiniteSpare && Ammo.SpareAmmo <= 0 ? "no spare rounds" : null);
+            if (busy != null)
+            {
+                report($"empty magazine at the pouch: skipped ({busy})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            bool chambered = Ammo.Chambered;
+            int rounds = Ammo.MagRounds, spare = Ammo.SpareAmmo;
+            Ammo.MagRounds = 0;
+            EjectMagazine();
+            MagazineProp empty = _ejecting;
+            FinishEject();
+            Vector3 pouch = _sys.Zones.Pouch;
+            if (empty != null && empty.Go != null)
+            {
+                // Lying in the pouch zone, held still there for the squeeze.
+                empty.Go.transform.position = pouch + Vector3.down * 0.03f;
+                if (empty.Body != null)
+                {
+                    empty.Body.velocity = Vector3.zero;
+                    empty.Body.isKinematic = true;
+                }
+            }
+            RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+            MagazineProp got = null;
+            try
+            {
+                VRHand.Scripted[side] = new RigidPose(pouch, off.Palm.rotation).Multiply(rawFromPalm);
+                yield return null;
+                yield return null;
+                VRInput.SimulateGrabPress(off.Side);
+                for (int i = 0; i < 6 && off.Held == null; i++)
+                {
+                    yield return null;
+                }
+                got = off.Held as MagazineProp;
+            }
+            finally
+            {
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.Scripted[side] = null;
+            }
+            bool emptyBack = got != null && got == empty;
+            report($"empty magazine at the pouch: {(empty == null ? "NO MAGAZINE CAME OUT" : emptyBack ? "THE EMPTY MAGAZINE WAS HANDED BACK" : got != null && got.Rounds > 0 ? $"a full one from the pouch ({got.Rounds} rounds)" : got != null ? "AN EMPTY MAGAZINE FROM THE POUCH" : "nothing taken (the pouch did not answer the squeeze)")}");
+            // Back as it was.
+            if (got != null && got != empty)
+            {
+                Ammo.ReturnSpare(got.Rounds);
+                got.Rounds = 0;
+                got.Destroy();
+            }
+            if (empty != null)
+            {
+                empty.Rounds = 0;
+                empty.Destroy();
+            }
+            Ammo.MagInserted = true;
+            Ammo.MagRounds = rounds;
+            Ammo.Chambered = chambered;
+            Ammo.Sync();
+            if (!Ammo.InfiniteSpare && Ammo.SpareAmmo < spare)
+            {
+                Ammo.ReturnSpare(spare - Ammo.SpareAmmo); // the reserve as before the check
+            }
+        }
+
+        /// <summary>
+        /// Autotest: the seated magazine taken 7 cm off the well's line and pulled (255.I6-7): it must stay on its rail and
+        /// slide out along the well, not jump to the hand through the receiver (the hand's offset is kept from the grab:
+        /// RailLateral0). The reload film only pulls 1.5 cm aside.
+        /// </summary>
+        internal IEnumerator OffLinePullSelfCheck(System.Action<string> report)
+        {
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || Ammo.BoxLocked || Rig.GunBody == null)
+            {
+                yield break;
+            }
+            VRHand off = _sys.Rig.Off;
+            string busy = OffHandBusy(off) ?? (_ejecting != null ? "a magazine is coming out" : null);
+            if (busy != null)
+            {
+                report($"magazine pulled 7 cm off the line: skipped ({busy})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            int rounds = Ammo.MagRounds;
+            RigidPose palm0 = off.Palm, rawFromPalm = palm0.Inverse().Multiply(off.Raw);
+            MagazineProp probe = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            probe.RailDepth = probe.RailLength;
+            RigidPose holding = probe.RailPose(SeatPose).Multiply(probe.HoldPose(off).Inverse().Multiply(palm0));
+            float railLength = probe.RailLength;
+            Vector3 insert = SeatPose.TransformDirection(probe.InsertDirLocal);
+            probe.Destroy();
+            Vector3 aside = Vector3.Cross(insert, Rig.AimWorld).normalized;
+            Vector3 hand = holding.position + aside * 0.07f;
+            bool firstFrame = false, halfWay = false;
+            try
+            {
+                VRHand.Scripted[side] = new RigidPose(hand, holding.rotation).Multiply(rawFromPalm);
+                yield return null;
+                yield return null;
+                VRInput.SimulatedGrab[side] = true;
+                PullSeatedMagazine(off);
+                yield return null;
+                firstFrame = off.Held is MagazineProp m1 && m1.OnRail;
+                for (int i = 1; i <= 8; i++)
+                {
+                    VRHand.Scripted[side] = new RigidPose(hand - insert * (railLength * 0.5f * i / 8f), holding.rotation).Multiply(rawFromPalm);
+                    yield return null;
+                }
+                halfWay = off.Held is MagazineProp m2 && m2.OnRail;
+                // Pushed home again.
+                for (int i = 7; i >= -1; i--)
+                {
+                    VRHand.Scripted[side] = new RigidPose(hand - insert * (railLength * 0.5f * i / 8f), holding.rotation).Multiply(rawFromPalm);
+                    yield return null;
+                }
+            }
+            finally
+            {
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.Scripted[side] = null;
+            }
+            yield return null;
+            if (off.Held is MagazineProp left)
+            {
+                if (AcceptsNow(left))
+                {
+                    SeatProp(off, left);
+                }
+                else
+                {
+                    Ammo.ReturnSpare(left.Rounds);
+                    left.Rounds = 0;
+                    left.Destroy();
+                }
+            }
+            if (!Ammo.MagInserted)
+            {
+                Ammo.MagInserted = true;
+                Ammo.MagRounds = rounds;
+                Ammo.Sync();
+            }
+            report($"magazine pulled 7 cm off the well's line: {(firstFrame ? "on its rail on the first frame" : "NOT ON THE RAIL ON THE FIRST FRAME")}, "
+                   + $"{(halfWay ? "still on it half way out" : "NOT ON THE RAIL HALF WAY OUT")}");
+        }
+
+        /// <summary>
         /// Autotest: an empty reload as the player does it (Tasks 252 c/d/i, 254): the last round fired leaves the slide or
         /// bolt locked back; a fresh magazine goes in and the drawn slide must stay back (it ran forward on its own on the
         /// mwii-g17); released, it must come home (it stayed back until the first shot on the FNX-45 and many rifles); then a
@@ -4080,9 +4352,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal IEnumerator EmptyReloadSelfCheck(System.Action<string> report)
         {
-            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.EnBloc
-                || _racking || Rig.GunBody == null || !ReferenceEquals(_held.ActiveRig, _held.Rig))
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.EnBloc)
             {
+                yield break;
+            }
+            if (_racking || Rig.GunBody == null || !ReferenceEquals(_held.ActiveRig, _held.Rig))
+            {
+                report($"empty reload: skipped ({(_racking ? "a rack under way" : Rig.GunBody == null ? "no gun body" : "a sub weapon is active")})");
                 yield break;
             }
             bool chambered = Ammo.Chambered, inserted = Ammo.MagInserted, locked = Ammo.SlideLocked;
@@ -4166,7 +4442,7 @@ namespace RavenfieldVR.Weapons
                 Core.AutoTest.Metric("empty reload: mm the drawn slide moved at half a hand rack", racked * 1000f);
             }
             float tol = Mathf.Max(0.003f, lockTravel * 0.25f);
-            string verdict = lockTravel < 0.003f ? "the drawn slide does not show the lock (nothing moved when locked)"
+            string verdict = lockTravel < 0.003f ? "THE DRAWN SLIDE DOES NOT SHOW THE LOCK (nothing moved when locked)"
                 : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm)"
                 : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home)"
                 : "stayed back with the fresh magazine, home when released";
