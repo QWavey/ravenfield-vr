@@ -123,8 +123,11 @@ namespace RavenfieldVR.Weapons
             return points;
         }
 
-        /// <summary>The part spent on the main thread (rendering and reading back the views): a one-off hitch on drawing.</summary>
+        /// <summary>The part spent on the main thread (rendering and reading back the views), over all its frames.</summary>
         public float RenderMs { get; private set; }
+
+        /// <summary>The longest single frame of it (the views are rendered one a frame): the hitch on drawing.</summary>
+        public float RenderFrameMs { get; private set; }
 
         private GunVolume(string key, View[] views, Bounds box)
         {
@@ -286,7 +289,10 @@ namespace RavenfieldVR.Weapons
             GunCollider.Envelope(rig.Data, frame, origin, out Vector3 envMin, out Vector3 envMax);
             return Cached(rig.Data.Key, () =>
             {
-                GunVolume v = Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax);
+                Runtime.RigidPose? Now() => rig.GunBody != null && rig.Weapon != null && rig.Weapon.unholstered
+                    ? new Runtime.RigidPose(rig.ToWorld(origin), rig.GunBody.rotation * frame)
+                    : (Runtime.RigidPose?)null;
+                GunVolume v = Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax, 5, Now);
                 if (v != null)
                 {
                     v.WantsHull = true;
@@ -299,7 +305,8 @@ namespace RavenfieldVR.Weapons
         /// The volume of any set of renderers (a magazine on the gun or in the hand), in the frame of <paramref name="frame"/>
         /// as it is now; kept under <paramref name="key"/>.
         /// </summary>
-        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5, float hullSlice = 0f, int hullPieces = 0)
+        /// <param name="now">All views at once (the frame is gone at the end of this frame).</param>
+        public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5, float hullSlice = 0f, int hullPieces = 0, bool now = false)
         {
             if (frame == null || renderers.Count == 0)
             {
@@ -307,7 +314,8 @@ namespace RavenfieldVR.Weapons
             }
             return Cached(key, () =>
             {
-                GunVolume v = Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views);
+                Runtime.RigidPose? Now() => frame != null ? new Runtime.RigidPose(frame.position, frame.rotation) : (Runtime.RigidPose?)null;
+                GunVolume v = Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views, now ? null : (Func<Runtime.RigidPose?>)Now);
                 if (v != null && hullSlice > 0f)
                 {
                     // Set before the read-back arrives: the worker fits the hull when it sees it.
@@ -418,6 +426,9 @@ namespace RavenfieldVR.Weapons
         /// A layer nothing in the scene draws on (unnamed and holding no renderer), so the shape camera sees only the
         /// renderers moved onto it. Checked once per scene.
         /// </summary>
+        /// <summary>A new scene: its free layer found now, in the load (on the first hold it scanned every renderer of the map; 255.P3-3).</summary>
+        internal static void OnSceneLoaded() => FreeLayer();
+
         private static int FreeLayer()
         {
             int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
@@ -443,7 +454,10 @@ namespace RavenfieldVR.Weapons
             return _layer;
         }
 
-        private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5)
+        /// <param name="poseNow">Where the frame is now (null: gone), asked once a frame while the views are rendered one a
+        /// frame; null to render them all at once from (<paramref name="fp"/>, <paramref name="fr"/>).</param>
+        private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5,
+            Func<Runtime.RigidPose?> poseNow = null)
         {
             Shader shader = DepthShader();
             if (shader == null || renderers.Count == 0)
@@ -495,6 +509,117 @@ namespace RavenfieldVR.Weapons
             var views = new View[dirs.Length];
             var job = new Job { Views = views, MinZ = new float[dirs.Length], MaxZ = new float[dirs.Length], Far = new float[dirs.Length], Front = new Color32[dirs.Length][], Back = new Color32[dirs.Length][] };
 
+            // Every view's place first (pure arithmetic); the pictures after.
+            var looks = new Quaternion[dirs.Length];
+            var mids = new Vector3[dirs.Length];
+            int texels = 0;
+            for (int d = 0; d < dirs.Length; d++)
+            {
+                Quaternion look = Quaternion.LookRotation(dirs[d].Item1, dirs[d].Item2);
+                Quaternion toView = Quaternion.Inverse(look);
+                Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
+                for (int c = 0; c < 8; c++)
+                {
+                    Vector3 corner = box.center + Vector3.Scale(box.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1));
+                    Vector3 q = toView * corner;
+                    min = Vector3.Min(min, q);
+                    max = Vector3.Max(max, q);
+                }
+                Vector3 size = max - min;
+                float texel = Mathf.Max(FineTexel, Mathf.Max(size.x, size.y) / MaxTexels);
+                int w = Mathf.Max(8, Mathf.CeilToInt(size.x / texel));
+                int h = Mathf.Max(8, Mathf.CeilToInt(size.y / texel));
+                Vector3 mid = (min + max) * 0.5f;
+                views[d] = new View
+                {
+                    ToView = toView,
+                    WorldToView = toView,
+                    InvTexel = 1f / texel,
+                    Texel = texel,
+                    W = w,
+                    H = h,
+                    MinX = mid.x - w * texel * 0.5f,
+                    MinY = mid.y - h * texel * 0.5f
+                };
+                texels += w * h;
+                job.MinZ[d] = min.z;
+                job.MaxZ[d] = max.z;
+                job.Far[d] = size.z + 2f * Gap;
+                looks[d] = look;
+                mids[d] = mid;
+            }
+            GunVolume volume = new GunVolume(key, views, box) { Texels = texels };
+            Interlocked.Increment(ref _inFlight);
+            foreach (Renderer r in renderers)
+            {
+                volume._wantHull |= !ShapeFit.Readable(r);
+            }
+            job.Volume = volume;
+            job.Left = dirs.Length * 2;
+            var staged = new Staged
+            {
+                Job = job, Renderers = renderers, Dirs = dirs, Looks = looks, Mids = mids, Shader = shader, PoseNow = poseNow
+            };
+            if (poseNow == null || VRManager.Instance == null)
+            {
+                // All at once, from the pose given (a model laid out for the warm-up, gone at the end of this frame).
+                RenderViews(staged, 0, dirs.Length, fp, fr);
+                volume.RenderMs = (float)watch.Elapsed.TotalMilliseconds;
+                volume.RenderFrameMs = volume.RenderMs;
+            }
+            else
+            {
+                // One view a frame, each from where the weapon is then: all ten pictures in the frame the weapon was first held
+                // took 11 ms on average and up to 17 (a dropped frame or two on every first hold; 255.P1.1, P6-4).
+                volume.RenderMs = (float)watch.Elapsed.TotalMilliseconds;
+                volume.RenderFrameMs = volume.RenderMs;
+                VRManager.Instance.StartCoroutine(RenderStaged(staged));
+            }
+            return volume;
+        }
+
+        /// <summary>A volume's pictures still to be rendered, one view a frame.</summary>
+        private sealed class Staged
+        {
+            public Job Job;
+            public List<Renderer> Renderers;
+            public (Vector3, Vector3)[] Dirs;
+            public Quaternion[] Looks;
+            public Vector3[] Mids;
+            public Shader Shader;
+            public Func<Runtime.RigidPose?> PoseNow;
+        }
+
+        private static System.Collections.IEnumerator RenderStaged(Staged s)
+        {
+            GunVolume volume = s.Job.Volume;
+            for (int d = 0; d < s.Dirs.Length; d++)
+            {
+                yield return null;
+                Runtime.RigidPose? pose = s.PoseNow();
+                if (pose == null || s.Renderers.Exists(r => r == null))
+                {
+                    // The weapon or magazine went away (holstered, dropped, destroyed) before every view was taken: failed, and
+                    // measured again the next time it is held.
+                    for (int t = 2 * d; t < 2 * s.Dirs.Length; t++)
+                    {
+                        s.Job.Arrived(t, null);
+                    }
+                    yield break;
+                }
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                RenderViews(s, d, d + 1, pose.Value.position, pose.Value.rotation);
+                float ms = (float)watch.Elapsed.TotalMilliseconds;
+                volume.RenderMs += ms;
+                volume.RenderFrameMs = Mathf.Max(volume.RenderFrameMs, ms);
+            }
+        }
+
+        /// <summary>Renders views [from, to) of a volume from the frame at (fp, fr) and asks for their pictures back.</summary>
+        private static void RenderViews(Staged s, int from, int to, Vector3 fp, Quaternion fr)
+        {
+            Job job = s.Job;
+            List<Renderer> renderers = s.Renderers;
             int layer = FreeLayer();
             var oldLayers = new int[renderers.Count];
             for (int i = 0; i < renderers.Count; i++)
@@ -513,64 +638,27 @@ namespace RavenfieldVR.Weapons
             cam.allowHDR = false;
             cam.allowMSAA = false;
             cam.renderingPath = RenderingPath.Forward;
-            var targets = new RenderTexture[dirs.Length * 2];
-            GunVolume volume;
+            var targets = new RenderTexture[(to - from) * 2];
             try
             {
                 for (int i = 0; i < renderers.Count; i++)
                 {
                     renderers[i].gameObject.layer = layer;
                 }
-                int texels = 0;
-                for (int d = 0; d < dirs.Length; d++)
+                for (int d = from; d < to; d++)
                 {
-                    Quaternion look = Quaternion.LookRotation(dirs[d].Item1, dirs[d].Item2);
-                    Quaternion toView = Quaternion.Inverse(look);
-                    Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        Vector3 corner = box.center + Vector3.Scale(box.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1));
-                        Vector3 q = toView * corner;
-                        min = Vector3.Min(min, q);
-                        max = Vector3.Max(max, q);
-                    }
-                    Vector3 size = max - min;
-                    float texel = Mathf.Max(FineTexel, Mathf.Max(size.x, size.y) / MaxTexels);
-                    int w = Mathf.Max(8, Mathf.CeilToInt(size.x / texel));
-                    int h = Mathf.Max(8, Mathf.CeilToInt(size.y / texel));
-                    Vector3 mid = (min + max) * 0.5f;
-                    views[d] = new View
-                    {
-                        ToView = toView,
-                        WorldToView = toView,
-                        InvTexel = 1f / texel,
-                        Texel = texel,
-                        W = w,
-                        H = h,
-                        MinX = mid.x - w * texel * 0.5f,
-                        MinY = mid.y - h * texel * 0.5f
-                    };
-                    texels += w * h;
-                    float far = size.z + 2f * Gap;
-                    job.MinZ[d] = min.z;
-                    job.MaxZ[d] = max.z;
-                    job.Far[d] = far;
-                    cam.orthographicSize = h * texel * 0.5f;
-                    cam.aspect = (float)w / h;
+                    View v = job.Views[d];
+                    Quaternion look = s.Looks[d];
+                    Vector3 mid = s.Mids[d];
+                    cam.orthographicSize = v.H * v.Texel * 0.5f;
+                    cam.aspect = (float)v.W / v.H;
                     cam.nearClipPlane = 0.005f;
-                    cam.farClipPlane = far;
+                    cam.farClipPlane = job.Far[d];
                     // From the near end looking along the direction, then from the far end looking back.
-                    targets[2 * d] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, min.z - Gap)), fr * look, w, h, shader);
-                    targets[2 * d + 1] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, max.z + Gap)), fr * Quaternion.LookRotation(-dirs[d].Item1, dirs[d].Item2), w, h, shader);
+                    targets[2 * (d - from)] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, job.MinZ[d] - Gap)), fr * look, v.W, v.H, s.Shader);
+                    targets[2 * (d - from) + 1] = Render(cam, fp + fr * (look * new Vector3(mid.x, mid.y, job.MaxZ[d] + Gap)),
+                        fr * Quaternion.LookRotation(-s.Dirs[d].Item1, s.Dirs[d].Item2), v.W, v.H, s.Shader);
                 }
-                volume = new GunVolume(key, views, box) { Texels = texels };
-                Interlocked.Increment(ref _inFlight);
-                foreach (Renderer r in renderers)
-                {
-                    volume._wantHull |= !ShapeFit.Readable(r);
-                }
-                job.Volume = volume;
-                job.Left = targets.Length;
             }
             finally
             {
@@ -589,8 +677,13 @@ namespace RavenfieldVR.Weapons
             bool async = SystemInfo.supportsAsyncGPUReadback;
             for (int t = 0; t < targets.Length; t++)
             {
-                int index = t;
+                int index = 2 * from + t;
                 RenderTexture rt = targets[t];
+                if (rt == null)
+                {
+                    job.Arrived(index, null);
+                    continue;
+                }
                 if (async)
                 {
                     AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
@@ -614,8 +707,6 @@ namespace RavenfieldVR.Weapons
                     RenderTexture.ReleaseTemporary(rt);
                 }
             }
-            volume.RenderMs = (float)watch.Elapsed.TotalMilliseconds;
-            return volume;
         }
 
         private const float Gap = 0.05f;
@@ -653,7 +744,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Interlocked.Decrement(ref _inFlight);
                     Volume.Failed = true;
-                    Log.WarnOnce("gunvolume-read:" + Volume.Key, $"Reading back the shape of {Volume.Key} failed: hands close on it by their pose alone.");
+                    Log.WarnOnce("gunvolume-read:" + Volume.Key, $"Measuring the shape of {Volume.Key} failed (put away before every view was taken, or a read-back failed): measured again when held.");
                     return;
                 }
                 // Decoding and growing by a finger's radius is pure arithmetic: off the main thread.

@@ -447,7 +447,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            GunVolume v = GunVolume.Measure("tp:" + entry.name, renderers, root, 5, 0.04f, 12);
+            GunVolume v = GunVolume.Measure("tp:" + entry.name, renderers, root, 5, 0.04f, 12, now: true); // the warm-up's root goes this frame
             if (v == null)
             {
                 return;

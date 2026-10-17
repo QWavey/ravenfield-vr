@@ -97,6 +97,8 @@ namespace RavenfieldVR.Weapons
             camGo.transform.localPosition = new Vector3(0f, 0f, 0.02f);
             _camera = camGo.AddComponent<Camera>();
             _camera.targetTexture = _texture;
+            _noShadows = camGo.AddComponent<ScopeNoShadows>();
+            _noShadows.enabled = false;
             _camera.stereoTargetEye = StereoTargetEyeMask.None;
             _camera.nearClipPlane = 0.05f;
             _camera.enabled = false;
@@ -319,7 +321,20 @@ namespace RavenfieldVR.Weapons
             SetShadow(offAxis > 1e-5f ? -side / offAxis * push : Vector2.zero);
             float brightness = Mathf.Clamp01(1f - (offAxis - 0.03f) / 0.04f);
             // Black through the lens (the eye 7 cm off its line): no second picture of the whole scene for it.
-            _camera.enabled = brightness > 0.004f;
+            bool render = brightness > 0.004f;
+            if (BenchMode == 1)
+            {
+                render = false;
+            }
+            else if (BenchMode == 2)
+            {
+                render &= (Time.frameCount & 1) == 0; // the last picture stays on the lens in between
+            }
+            _camera.enabled = render;
+            if (_noShadows != null && _noShadows.enabled != (BenchMode == 3))
+            {
+                _noShadows.enabled = BenchMode == 3;
+            }
             _lensMaterial.color = new Color(brightness, brightness, brightness, 1f);
         }
 
@@ -330,6 +345,31 @@ namespace RavenfieldVR.Weapons
             Vector3 side = head.right * (ipd * 0.5f);
             Vector3 left = head.position - side, right = head.position + side;
             return Vector3.ProjectOnPlane(left - eyePoint, axis).sqrMagnitude <= Vector3.ProjectOnPlane(right - eyePoint, axis).sqrMagnitude ? left : right;
+        }
+
+        /// <summary>
+        /// Autotest bench of the lens's cost (255.P1.2): 0 as made, 1 its camera off, 2 rendered every other frame, 3 rendered
+        /// without shadows (a camera of its own draws the shadow cascades again).
+        /// </summary>
+        internal static int BenchMode;
+
+        private ScopeNoShadows _noShadows;
+
+        /// <summary>On the lens camera: shadows off while it renders (the shadow distance is global; put back after).</summary>
+        private sealed class ScopeNoShadows : MonoBehaviour
+        {
+            private float _distance;
+
+            private void OnPreRender()
+            {
+                _distance = QualitySettings.shadowDistance;
+                QualitySettings.shadowDistance = 0f;
+            }
+
+            private void OnPostRender()
+            {
+                QualitySettings.shadowDistance = _distance;
+            }
         }
 
         /// <summary>

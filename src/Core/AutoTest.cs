@@ -542,6 +542,7 @@ namespace RavenfieldVR.Core
             if (off.Held is MagazineProp shown && shown.Volume != null)
             {
                 Metric("magazine solid: main-thread ms per magazine type", shown.Volume.RenderMs);
+                Metric("magazine solid: longest main-thread frame ms", shown.Volume.RenderFrameMs);
             }
             report($"{name}: magazine hand {magHand}");
         }
@@ -2021,6 +2022,63 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(0.3f);
         }
 
+        /// <summary>
+        /// Deep run, once: the cost of a scope's lens (255.P1.2). Aimed through the first gun with a lens of the mod's (its eye
+        /// point 7 cm before the right eye, as the sight check holds it), 1 s to settle and 4 s measured with the lens as made,
+        /// its camera off, rendered every other frame, and without shadows: frame and GPU time each.
+        /// </summary>
+        private static IEnumerator ScopeBench(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || held == null || !held.HasLensScope || !held.Rig.Data.HasEyePoint || held.Rig.GunBody == null)
+            {
+                yield break;
+            }
+            Rig.VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            string[] modes = { "lens as made", "lens camera off", "lens every other frame", "lens without shadows" };
+            var line = new System.Text.StringBuilder($"scope bench on {name}:");
+            try
+            {
+                for (int mode = 0; mode < modes.Length; mode++)
+                {
+                    Weapons.VRScope.BenchMode = mode;
+                    float settleUntil = Time.realtimeSinceStartup + 1f, until = settleUntil + 4f;
+                    bool measuring = false;
+                    while (Time.realtimeSinceStartup < until)
+                    {
+                        if (!measuring && Time.realtimeSinceStartup >= settleUntil)
+                        {
+                            measuring = true;
+                            PerfProbe.Reset();
+                        }
+                        Weapons.SightLine sight = held.CurrentSight;
+                        Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
+                        Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
+                        Transform head = rig.Head;
+                        Vector3 eye = head.position + head.right * 0.032f;
+                        Runtime.RigidPose raw = dom.Raw;
+                        Vector3 eyeW = held.Rig.ToWorld(eyeGun);
+                        Quaternion fix = Quaternion.FromToRotation(held.Rig.DirToWorld(dirGun), head.forward);
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(eye + head.forward * 0.07f + fix * (raw.position - eyeW), fix * raw.rotation);
+                        yield return null;
+                    }
+                    string summary = PerfProbe.Summary(out float cpu, out float gpu);
+                    Metric($"scope bench {modes[mode]}: frame ms", cpu);
+                    Metric($"scope bench {modes[mode]}: GPU ms", gpu);
+                    line.Append($" {modes[mode]} {summary}{(mode == 0 ? $" ({(held.Aiming ? "aiming" : "NOT AIMING")})" : "")};");
+                }
+            }
+            finally
+            {
+                Weapons.VRScope.BenchMode = 0;
+                Rig.VRHand.Scripted[side] = null;
+            }
+            report(line.ToString());
+            Results.Add("  " + line);
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
         private static IEnumerator LeftHandCheck(Weapon weapon, string name, Action<string> report)
         {
             Actor actor = LocalPlayer.actor;
@@ -2264,6 +2322,7 @@ namespace RavenfieldVR.Core
                 Metric("gun hand: fingers on the gun (of 4)", touching);
                 Metric(held.Rig.Data.IsPistol ? "gun hand: pistol thumb on the gun (0/1)" : "gun hand: rifle thumb on the grip (0/1)", Rig.VRRig.Instance.Dominant.Model.ThumbTouching ? 1 : 0);
                 Metric("hand solid: main-thread ms per weapon", held.Volume.RenderMs);
+                Metric("hand solid: longest main-thread frame ms", held.Volume.RenderFrameMs); // one view a frame (255.P1.1)
                 Metric("hand solid: total ms per weapon", held.Volume.BuildMs);
                 Metric("physics shape choice: main-thread ms per weapon type", held.ShapeChoiceMs);
             }
@@ -2800,7 +2859,7 @@ namespace RavenfieldVR.Core
                 every = Mathf.Max(1, entries.Count / 28);
             }
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0, lensShots = 0;
-            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false, scopeBenchDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 // The weapon's id (its place in the game's list): the same number on its pictures in every run, however
@@ -2988,6 +3047,11 @@ namespace RavenfieldVR.Core
                         if (Deep && want && held.Rig.Data.HasEyePoint && action != ActionType.Melee && action != ActionType.Throwable)
                         {
                             yield return SightCheck(held, $"sight-{index:000}-{entry.name}", lines.Add);
+                        }
+                        if (Deep && !scopeBenchDone && held.HasLensScope)
+                        {
+                            scopeBenchDone = true;
+                            yield return ScopeBench(held, entry.name, lines.Add); // what the lens's second camera costs (255.P1.2)
                         }
                         // After the rack and two-hand checks: it locks the slide and lets it go again, which must not shape
                         // what they measure.

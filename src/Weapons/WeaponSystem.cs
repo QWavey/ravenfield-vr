@@ -863,6 +863,7 @@ namespace RavenfieldVR.Weapons
 
         public void OnSceneChanged()
         {
+            GunVolume.OnSceneLoaded();
             if (Held != null)
             {
                 ReleaseHeld();

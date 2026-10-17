@@ -380,8 +380,11 @@ namespace RavenfieldVR.Rig
                     {
                         // A raw copy of the Color32 buffer into the RGBA32 texture (same byte layout): no per-pixel
                         // managed-to-native conversion, which SetPixels32 did on the main thread each shown frame.
-                        _tex[e].SetPixelData(_out[e], 0);
-                        _tex[e].Apply(false, false);
+                        if (e != 0 || !OneEye)
+                        {
+                            _tex[e].SetPixelData(_out[e], 0);
+                            _tex[e].Apply(false, false);
+                        }
                         _shownPower[e] = _resultPower[e];
                         _shownGlow[e] = _resultGlow[e];
                         // The flashes in this picture are shown from now: their fade runs from this frame.
@@ -669,9 +672,24 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>One band of one eye's picture: band 0 / 1 the left eye's top / bottom half, 2 / 3 the right eye's.</summary>
+        /// <summary>
+        /// Single-pass stereo shows one picture for both eyes (the right eye's, on the centred quad): the left one is neither
+        /// made nor uploaded (255.P5-4). Both in a test run, whose pictures and film read the left one.
+        /// </summary>
+        private static bool OneEye => LensEye.SinglePass && !Core.AutoTest.Requested;
+
         private void RenderBand(int band, Job j)
         {
             int eye = band >> 1;
+            if (eye == 0 && OneEye)
+            {
+                if ((band & 1) == 0)
+                {
+                    _resultPower[0] = 0f;
+                    _resultGlow[0] = 0f;
+                }
+                return;
+            }
             int y0 = (band & 1) == 0 ? 0 : CH / 2, y1 = (band & 1) == 0 ? CH / 2 : CH;
             float[] acc = _acc[eye];
             bool flash = false;

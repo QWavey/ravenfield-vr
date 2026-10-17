@@ -20,6 +20,9 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _system;
         public readonly ReloadInteractions Reload;
         private readonly VRScope _scope;
+
+        /// <summary>Autotest: the weapon has a lens of the mod's (a second camera when aimed through).</summary>
+        internal bool HasLensScope => _scope != null;
         /// <summary>Lenses for the magnified sight modes (a flip-in magnifier), by mode; shown while that mode is selected.</summary>
         private readonly VRScope[] _modeScopes;
         private readonly AmmoCounter _counter;

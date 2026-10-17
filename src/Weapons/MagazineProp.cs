@@ -1053,6 +1053,20 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Which of a skinned mesh's vertices and triangles a magazine's bones drive (per mesh and bone set): found once. Every
+        /// magazine let go, pulled, taken from the pouch or kicked out on such a gun walked the whole gun mesh's triangles and
+        /// bone weights again (255.P2-1); only the bake (the magazine as posed now) is done each time.
+        /// </summary>
+        private sealed class BoneCut
+        {
+            public int[] Sources;
+            public int[][] Triangles;
+            public Vector2[] Uv;
+        }
+
+        private static readonly Dictionary<string, BoneCut> BoneCuts = new Dictionary<string, BoneCut>();
+
         /// <summary>Triangles whose vertices are driven mostly by the given bones, baked in the renderer's space.</summary>
         private static Mesh ExtractBoneTriangles(SkinnedMeshRenderer smr, HashSet<Transform> bones)
         {
@@ -1064,17 +1078,26 @@ namespace RavenfieldVR.Weapons
             Transform[] smrBones = smr.bones;
             var boneIsMag = new bool[smrBones.Length];
             bool anyBone = false;
+            var key = new System.Text.StringBuilder().Append(shared.GetInstanceID()).Append(':');
             for (int i = 0; i < smrBones.Length; i++)
             {
                 boneIsMag[i] = smrBones[i] != null && bones.Contains(smrBones[i]);
                 anyBone |= boneIsMag[i];
+                if (boneIsMag[i])
+                {
+                    key.Append(i).Append(',');
+                }
             }
             if (!anyBone)
             {
                 return null;
             }
-            BoneWeight[] weights = shared.boneWeights;
-            if (weights == null || weights.Length != shared.vertexCount)
+            if (!BoneCuts.TryGetValue(key.ToString(), out BoneCut cut))
+            {
+                cut = FindBoneCut(shared, boneIsMag);
+                BoneCuts[key.ToString()] = cut; // a null (nothing driven by them) is kept too
+            }
+            if (cut == null)
             {
                 return null;
             }
@@ -1082,10 +1105,40 @@ namespace RavenfieldVR.Weapons
             smr.BakeMesh(baked);
             Vector3[] verts = baked.vertices;
             Vector3[] normals = baked.normals;
+            Object.Destroy(baked);
+            int n = cut.Sources.Length;
+            var newVerts = new Vector3[n];
+            var newNormals = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                int source = cut.Sources[i];
+                newVerts[i] = verts[source];
+                newNormals[i] = normals != null && normals.Length > source ? normals[source] : Vector3.up;
+            }
+            var result = new Mesh { name = shared.name + " (magazine)" };
+            result.indexFormat = n > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            result.vertices = newVerts;
+            result.normals = newNormals;
+            result.uv = cut.Uv;
+            result.subMeshCount = cut.Triangles.Length;
+            for (int sub = 0; sub < cut.Triangles.Length; sub++)
+            {
+                result.SetTriangles(cut.Triangles[sub], sub);
+            }
+            result.RecalculateBounds();
+            return result;
+        }
+
+        private static BoneCut FindBoneCut(Mesh shared, bool[] boneIsMag)
+        {
+            BoneWeight[] weights = shared.boneWeights;
+            if (weights == null || weights.Length != shared.vertexCount)
+            {
+                return null;
+            }
             Vector2[] uv = shared.uv;
             var map = new Dictionary<int, int>();
-            var newVerts = new List<Vector3>();
-            var newNormals = new List<Vector3>();
+            var sources = new List<int>();
             var newUv = new List<Vector2>();
             var subMeshes = new List<int[]>();
             for (int sub = 0; sub < shared.subMeshCount; sub++)
@@ -1103,10 +1156,9 @@ namespace RavenfieldVR.Weapons
                         int source = tris[t + k];
                         if (!map.TryGetValue(source, out int idx))
                         {
-                            idx = newVerts.Count;
+                            idx = sources.Count;
                             map[source] = idx;
-                            newVerts.Add(verts[source]);
-                            newNormals.Add(normals != null && normals.Length > source ? normals[source] : Vector3.up);
+                            sources.Add(source);
                             newUv.Add(uv != null && uv.Length > source ? uv[source] : Vector2.zero);
                         }
                         keep.Add(idx);
@@ -1114,23 +1166,7 @@ namespace RavenfieldVR.Weapons
                 }
                 subMeshes.Add(keep.ToArray());
             }
-            Object.Destroy(baked);
-            if (newVerts.Count == 0)
-            {
-                return null;
-            }
-            var result = new Mesh { name = shared.name + " (magazine)" };
-            result.indexFormat = newVerts.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-            result.SetVertices(newVerts);
-            result.SetNormals(newNormals);
-            result.SetUVs(0, newUv);
-            result.subMeshCount = subMeshes.Count;
-            for (int sub = 0; sub < subMeshes.Count; sub++)
-            {
-                result.SetTriangles(subMeshes[sub], sub);
-            }
-            result.RecalculateBounds();
-            return result;
+            return sources.Count == 0 ? null : new BoneCut { Sources = sources.ToArray(), Triangles = subMeshes.ToArray(), Uv = newUv.ToArray() };
         }
 
         private static bool DrivenBy(BoneWeight w, bool[] boneIsMag)
