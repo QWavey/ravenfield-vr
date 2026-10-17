@@ -202,6 +202,7 @@ class Workbench(QWidget):
         self.settings = QSettings('RavenfieldVR', 'Sandbox')
         self.undo_stack, self.redo_stack = [], []
         self._numbers_undo_at = 0.0
+        self._numbers_shown = {}  # hand side -> (its turn as a quaternion, the position and turn boxes as shown last)
 
         h = QHBoxLayout(self)
         h.setContentsMargins(0, 0, 0, 0)
@@ -354,23 +355,43 @@ class Workbench(QWidget):
         v.setSpacing(10)
 
         self.sel_name = BodyLabel('Selected: right hand')
+        self.sel_name.setWordWrap(True)  # (it names what the hand touches: long; the panel is narrow)
         self.num = []
         grid = QVBoxLayout()
-        for label, unit in (('Position in the gun (cm): forward, up, right', 'cm'), ('Turn (degrees): pitch, yaw, roll', 'deg')):
-            grid.addWidget(CaptionLabel(label))
+        for label, unit in (('Position in cm from the analysed grip point: forward along the barrel, up, right', 'cm'),
+                            ('Turn in degrees, relative to the gun: pitch, yaw, roll', 'deg')):
+            cap = CaptionLabel(label)
+            cap.setWordWrap(True)
+            grid.addWidget(cap)
             boxes = []
             for _ in range(3):
                 b = DoubleSpinBox()
                 b.setRange(-500, 500)
                 b.setDecimals(1)
                 b.setSingleStep(0.5 if unit == 'cm' else 5)
+                # Three in a row in the narrow side panel: the arrows would cut the number off (120 showed as 12), so the keys
+                # and the mouse wheel step the value instead.
+                b.setSymbolVisible(False)
+                b.setMinimumWidth(96)
                 b.valueChanged.connect(self.on_numbers)
                 boxes.append(b)
             self.num.append(boxes)
             grid.addLayout(row(*boxes))
+        numbers_note = CaptionLabel('The laser readout and Copy use back, up, right from the muzzle instead, '
+                                    'so their numbers differ from these.')
+        numbers_note.setWordWrap(True)
+        # What the hand is on or touches, and how far its glove is drawn from its place (the settle).
+        self.touch_text = CaptionLabel('')
+        self.touch_text.setWordWrap(True)
+        # The hand against the saved pose (the file the game reads), and the Revert that goes back to it.
+        self.saved_text = CaptionLabel('')
+        self.saved_text.setWordWrap(True)
+        self.revert_btn = PushButton('Revert to saved')
+        self.revert_btn.setToolTip('Puts both hands and the parts back to the saved pose (Ctrl+Z undoes that)')
+        self.revert_btn.clicked.connect(self.revert_to_saved)
         mirror = PushButton('Copy this pose to the other hand')
         mirror.clicked.connect(self.copy_pose_to_other)
-        v.addWidget(card('Selected hand', self.sel_name, grid, mirror))
+        v.addWidget(card('Selected hand', self.sel_name, grid, numbers_note, self.touch_text, self.saved_text, self.revert_btn, mirror))
 
         self.parts = ListWidget()
         self.parts.setFixedHeight(200)
@@ -609,13 +630,89 @@ class Workbench(QWidget):
         self.sync_hand_controls()
 
     def update_selected_label(self):
+        """The Selected hand card: the hand, what it is on or touches (also after a drag), how its glove is drawn, and how it
+        differs from the saved pose."""
         h = self.current_hand()
-        self.sel_name.setText(f"Selected: {h.side} hand" + (f" (on the {h.on_part})" if h.on_part else ''))
+        w = self.scene.weapon
+        if w is None:  # (Escape with no weapon open still asks for the card)
+            self.sel_name.setText(f'Selected: {h.side} hand')
+            self.touch_text.setText('')
+            self.saved_text.setText('')
+            self.revert_btn.setEnabled(False)
+            return
+        part, dist = w.nearest_part(w.to_gun(h.position)[:3])
+        near = part is not None and dist <= 0.06  # (the reach a hand gets its job by: Scene.contact_role)
+        part_name = f"{ROLE_NAMES.get(part.role, part.role)} '{part.short}'" if part is not None else ''
+        if h.on_part:
+            on = f' (on the {h.on_part})'
+        elif near:
+            on = f' (touches the {ROLE_NAMES.get(part.role, part.role)})'
+        else:
+            on = ' (touches nothing within 6 cm)'
+        self.sel_name.setText(f'Selected: {h.side} hand{on}')
+        lines = []
+        if part is None:
+            lines.append('touches: nothing, the gun has no parts')
+        elif near:
+            lines.append(f'touches: {part_name}, {dist * 100:.1f} cm')
+        else:
+            lines.append(f'touches nothing within 6 cm (nearest: {part_name}, {dist * 100:.1f} cm)')
+        if h.side == 'left' and h.role != 'support':
+            lines.append('the game takes the left hand only as support (on the handguard)')
+        drawn = float(np.linalg.norm(h.drawn_position() - h.position)) * 100
+        lines.append(f'glove drawn {drawn:.1f} cm from its place (settle)' if drawn > 0.005 else 'glove drawn at its place (no settle here)')
+        self.touch_text.setText('\n'.join(lines))
+        text, changed = self.saved_line(h)
+        self.saved_text.setText(text)
+        self.revert_btn.setEnabled(changed)
+
+    def saved_line(self, h):
+        """'as saved', or what differs from the saved pose (the file the game reads) for this hand, and whether anything in the
+        pose differs at all (the Revert button is only useful then)."""
+        w = self.scene.weapon
+        if self.saved_doc is None:
+            return 'No saved pose for this weapon yet.', False
+        try:
+            saved = self.scene.read_pose_document(self.saved_doc)
+        except Exception as e:  # noqa: BLE001 (a saved file cut or changed since it was read)
+            return f'The saved pose cannot be read: {e}', False
+        here = self.pose_changes(h, saved['hands'].get(h.side))
+        others = any(self.pose_changes(o, saved['hands'].get(o.side)) for o in self.scene.hands() if o is not h)
+        p = saved['parts']
+        others = others or any(abs(a - b) > 1e-3 for a, b in ((w.slide, p['slide']), (w.mag, p['magazine']), (w.cover, p['cover'])))
+        elsewhere = ' · the other hand or the parts differ too' if others else ''
+        if here:
+            return f"{', '.join(here)} changed from the saved pose{elsewhere}", True
+        if others:
+            return 'as saved for this hand' + elsewhere, True
+        return 'as saved', False
+
+    def pose_changes(self, h, s):
+        """What differs for one hand from its saved state s (as read), with the tolerances unsaved() uses: a list of words,
+        empty when the hand is as saved (or the saved pose has no place for it)."""
+        if s is None:
+            return []
+        w = self.scene.weapon
+        out = []
+        cm = float(np.linalg.norm(w.to_gun(h.position)[:3] - s['position'])) * 100
+        q = quat_norm(quat_mul(quat_inv(w.Wq), h.rotation))
+        dot = min(1.0, abs(float(np.dot(q, s['rotation']))))
+        if cm > 0.01:
+            out.append(f'{cm:.1f} cm')
+        if 1.0 - dot > 1e-6:
+            out.append(f'{math.degrees(2 * math.acos(dot)):.1f} degrees')
+        fingers = sum(1 for a, b in zip(h.curls, s['curls']) if abs(a - b) > 1e-3)
+        if fingers:
+            out.append(f"{fingers} finger{'s' if fingers > 1 else ''}")
+        if abs(h.thumb - s['thumb']) > 1e-3:
+            out.append('thumb')
+        return out
 
     def show_pose_name(self, h):
         self.pose.blockSignals(True)
         self.pose.setCurrentText(h.pose_name if self.pose.findText(h.pose_name) >= 0 else 'Custom')
         self.pose.blockSignals(False)
+        self.update_selected_label()  # (the comparison with the saved pose follows the fingers as they are moved)
 
     def current_hand(self):
         return self.view.selected_hand or self.scene.right
@@ -688,11 +785,40 @@ class Workbench(QWidget):
         g = w.to_gun(h.position)[:3]
         local = np.array([np.dot(g - w.grip, w.aim), np.dot(g - w.grip, w.up), np.dot(g - w.grip, w.right)]) * 100
         q = quat_mul(quat_inv(w.Wq), h.rotation)
-        e = quat_to_euler_deg(q)
-        for box, val in zip(self.num[0] + self.num[1], list(local) + list(e)):
+        turn = self.turn_numbers(h, q)
+        for box, val in zip(self.num[0] + self.num[1], list(local) + list(turn)):
             box.blockSignals(True)
             box.setValue(float(val))
             box.blockSignals(False)
+        self.remember_numbers(h, q)
+        self.update_selected_label()
+
+    def turn_numbers(self, h, q):
+        """The turn boxes' angles for the turn q (relative to the gun). The angles shown last for this same turn are kept: a
+        typed 120 stays 120 instead of coming back as 60 with yaw and roll 180 (the same turn). After a drag the Euler form
+        nearest the angles shown last is used, so pitch does not jump at 90 degrees."""
+        last = self._numbers_shown.get(h.side)
+        if last is not None and 1.0 - abs(float(np.dot(q, last[0]))) < 1e-9:
+            return last[2].copy()
+        e = quat_to_euler_deg(q)
+        if last is None:
+            return e
+        # The same turn written another way: pitch 180 - p with yaw and roll turned by 180. Each angle may also move by whole
+        # turns (360 degrees is the same turn): the form nearest the angles shown last wins.
+        best, best_d = e, None
+        for c in (e, np.array([180.0 - e[0], e[1] + 180.0, e[2] + 180.0])):
+            c = c + 360.0 * np.round((last[2] - c) / 360.0)
+            d = float(np.sum((c - last[2]) ** 2))
+            if best_d is None or d < best_d:
+                best, best_d = c, d
+        return best
+
+    def remember_numbers(self, h, q):
+        """The boxes as they show now for this hand, with its turn: the next change moves only the box that was changed (the
+        boxes round to 0.1, which must not move the hand), and a drag keeps the angles the numbers were shown with."""
+        pos = np.array([b.value() for b in self.num[0]])
+        turn = np.array([b.value() for b in self.num[1]])
+        self._numbers_shown[h.side] = (np.array(q, dtype=np.float64), pos, turn)
 
     def on_numbers(self):
         w = self.scene.weapon
@@ -702,10 +828,16 @@ class Workbench(QWidget):
         if time.monotonic() - self._numbers_undo_at > 1.5:
             self.push_undo()
         self._numbers_undo_at = time.monotonic()
-        f, u, r = (b.value() / 100 for b in self.num[0])
-        g = w.grip + w.aim * f + w.up * u + w.right * r
-        h.position = w.to_world(g)
-        h.rotation = quat_norm(quat_mul(w.Wq, euler_deg_to_quat([b.value() for b in self.num[1]])))
+        last = self._numbers_shown.get(h.side)
+        pos = np.array([b.value() for b in self.num[0]])
+        turn = np.array([b.value() for b in self.num[1]])
+        if last is None or not np.allclose(pos, last[1], atol=1e-9):
+            f, u, r = pos / 100
+            h.position = w.to_world(w.grip + w.aim * f + w.up * u + w.right * r)
+        if last is None or not np.allclose(turn, last[2], atol=1e-9):
+            # The angles as typed (kept as typed: sync_numbers shows them again while the hand keeps this turn).
+            h.rotation = quat_norm(quat_mul(w.Wq, euler_deg_to_quat(turn)))
+        self.remember_numbers(h, quat_mul(quat_inv(w.Wq), h.rotation))
         self._moved(h)
         self.view.update()
 
