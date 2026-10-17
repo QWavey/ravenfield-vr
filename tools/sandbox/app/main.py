@@ -14,9 +14,9 @@ import time
 
 import numpy as np
 from PIL import Image
-from PyQt6.QtCore import QByteArray, QProcess, QSettings, Qt, QTimer, QUrl
-from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QKeySequence, QShortcut
-from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtCore import QByteArray, QFile, QProcess, QSettings, QSize, Qt, QTimer, QUrl
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QImage, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListView, QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
                             InfoBar, InfoBarPosition, LineEdit, MessageBox, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
                             PushButton, RoundMenu, SearchLineEdit, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel, SwitchButton,
@@ -1426,9 +1426,24 @@ class Workbench(QWidget):
         bar = (InfoBar.error if error else InfoBar.success)(title, content, orient=Qt.Orientation.Vertical, isClosable=True,
                                                             position=InfoBarPosition.BOTTOM_RIGHT, duration=8000, parent=self.win)
         if path:
-            b = PushButton('Show in folder')
-            b.clicked.connect(lambda: subprocess.Popen(['explorer', '/select,', os.path.normpath(path)]))
-            bar.addWidget(b)
+            path = os.path.normpath(path)
+            # The buttons share one row under the text (a vertical stack made the message tall). A picture also gets
+            # Copy picture, so it can go into a chat straight from the message (a GIF copies its first frame).
+            buttons = QWidget()
+            h = QHBoxLayout(buttons)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(6)
+            show = PushButton('Show in folder')
+            show.clicked.connect(lambda: subprocess.Popen(['explorer', '/select,', path]))
+            h.addWidget(show)
+            copy_path = PushButton('Copy path')
+            copy_path.clicked.connect(lambda: QGuiApplication.clipboard().setText(path))
+            h.addWidget(copy_path)
+            if path.lower().endswith(('.png', '.gif')):
+                copy_pic = PushButton('Copy picture')
+                copy_pic.clicked.connect(lambda: Captures.copy_picture(path, self.win))
+                h.addWidget(copy_pic)
+            bar.addWidget(buttons)
 
     # ---- the game (only when really needed) -----------------------------------------------------------------------------
 
@@ -1490,17 +1505,39 @@ class Workbench(QWidget):
 
 
 class Captures(QWidget):
+    THUMB = QSize(192, 108)  # a thumbnail's size; a picture of another shape is fitted inside it
+    CELL = QSize(216, 160)   # a grid cell: the thumbnail, then room for the name on two lines
+
     def __init__(self, folder):
         super().__init__()
         self.setObjectName('captures')
         self.folder = folder
+        self.thumbs = {}  # file -> (modified time, icon): a thumbnail is made once per version of a file, not on each refresh
         v = QVBoxLayout(self)
         v.setContentsMargins(24, 18, 24, 18)
         v.addWidget(TitleLabel('Captures'))
         v.addWidget(CaptionLabel(folder))
         self.list = ListWidget()
+        # Thumbnails in a grid: a file name alone does not show which picture it is.
+        self.list.setViewMode(QListView.ViewMode.IconMode)
+        self.list.setIconSize(self.THUMB)
+        self.list.setGridSize(self.CELL)
+        self.list.setResizeMode(QListView.ResizeMode.Adjust)
+        self.list.setWordWrap(True)
         self.list.itemDoubleClicked.connect(self.open_item)
+        self.list.itemSelectionChanged.connect(self.update_buttons)
+        self.list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list.customContextMenuRequested.connect(self.on_context)
         v.addWidget(self.list, 1)
+        # These act on the selected capture, so they stay off until one is selected.
+        self.item_buttons = []
+        for icon, text, slot in ((FIF.PHOTO, 'Open', self.open_selected), (FIF.COPY, 'Copy picture', self.copy_selected),
+                                 (FIF.LINK, 'Copy path', self.copy_selected_path),
+                                 (FIF.SEARCH, 'Show in folder', self.show_selected), (FIF.DELETE, 'Delete', self.delete_selected)):
+            b = PushButton(icon, text)
+            b.clicked.connect(slot)
+            self.item_buttons.append(b)
+        v.addLayout(row(*self.item_buttons, QWidget(), stretch=[0] * len(self.item_buttons) + [1]))
         open_folder = PushButton(FIF.FOLDER, 'Open the folder')
         open_folder.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(folder)))
         refresh = PushButton(FIF.SYNC, 'Refresh')
@@ -1509,22 +1546,138 @@ class Captures(QWidget):
         self.refresh()
 
     def refresh(self):
+        selected = self.selected_path()  # (the same capture stays selected when the list is read again)
         self.list.clear()
-        if not os.path.isdir(self.folder):
-            return
-        files = sorted((f for f in os.listdir(self.folder) if f.lower().endswith(('.png', '.gif'))),
-                       key=lambda f: os.path.getmtime(os.path.join(self.folder, f)), reverse=True)
-        for f in files:
-            it = QListWidgetItem(f)
-            it.setData(Qt.ItemDataRole.UserRole, os.path.join(self.folder, f))
+        files = []
+        if os.path.isdir(self.folder):
+            for f in os.listdir(self.folder):
+                path = os.path.join(self.folder, f)
+                if f.lower().endswith(('.png', '.gif')):
+                    try:
+                        files.append((os.path.getmtime(path), path))
+                    except OSError:
+                        pass  # (removed while the folder was read)
+        files.sort(reverse=True)  # the newest first
+        for _mtime, path in files:
+            it = QListWidgetItem(self.thumbnail(path), os.path.basename(path))
+            # The list's stylesheet gives every item a 35 px height, which cropped the thumbnails: the item's own size
+            # hint is the grid cell instead.
+            it.setSizeHint(self.CELL)
+            it.setData(Qt.ItemDataRole.UserRole, path)
             self.list.addItem(it)
+            if path == selected:
+                self.list.setCurrentItem(it)
+        # The thumbnails of files that are gone are dropped, so a deleted capture does not stay in memory.
+        live = {path for _mtime, path in files}
+        self.thumbs = {p: hit for p, hit in self.thumbs.items() if p in live}
+        self.update_buttons()
+
+    def thumbnail(self, path):
+        """The small copy of a picture for the grid. A GIF shows its first frame."""
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            return QIcon()
+        hit = self.thumbs.get(path)
+        if hit is not None and hit[0] == mtime:
+            return hit[1]
+        icon = QIcon()
+        img = QImage(path)  # (the full picture is read once here; only the small copy is kept)
+        if not img.isNull():
+            small = img.scaled(self.THUMB, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            icon = QIcon(QPixmap.fromImage(small))
+        self.thumbs[path] = (mtime, icon)
+        return icon
 
     def showEvent(self, e):
         self.refresh()
         super().showEvent(e)
 
+    def selected_item(self):
+        return self.list.currentItem()
+
+    def selected_path(self):
+        item = self.selected_item()
+        return item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+
+    def update_buttons(self):
+        on = self.selected_item() is not None
+        for b in self.item_buttons:
+            b.setEnabled(on)
+
+    def on_context(self, pos):
+        item = self.list.itemAt(pos)
+        if item is None:
+            return
+        self.list.setCurrentItem(item)
+        menu = RoundMenu(parent=self)
+        menu.addAction(Action(FIF.PHOTO, 'Open', triggered=self.open_selected))
+        menu.addAction(Action(FIF.COPY, 'Copy picture', triggered=self.copy_selected))
+        menu.addAction(Action(FIF.LINK, 'Copy path', triggered=self.copy_selected_path))
+        menu.addAction(Action(FIF.SEARCH, 'Show in folder', triggered=self.show_selected))
+        menu.addSeparator()
+        menu.addAction(Action(FIF.DELETE, 'Delete (to the Recycle Bin)', triggered=self.delete_selected))
+        menu.exec(self.list.viewport().mapToGlobal(pos))
+
     def open_item(self, item):
         QDesktopServices.openUrl(QUrl.fromLocalFile(item.data(Qt.ItemDataRole.UserRole)))
+
+    def open_selected(self):
+        item = self.selected_item()
+        if item is not None:
+            self.open_item(item)
+
+    @staticmethod
+    def tell(title, content, parent, error=False):
+        """A short message at the bottom right: the only sign a copy gives, so it goes away by itself."""
+        (InfoBar.error if error else InfoBar.success)(title, content, position=InfoBarPosition.BOTTOM_RIGHT,
+                                                      duration=5000 if error else 2500, parent=parent)
+
+    @staticmethod
+    def copy_picture(path, parent):
+        """Put a picture on the clipboard, so it pastes into a chat. A GIF gives its first frame (QImage reads one frame)."""
+        img = QImage(path)
+        if img.isNull():
+            Captures.tell('Could not copy the picture', f'{os.path.basename(path)} is not a picture this program can read.',
+                          parent, error=True)
+            return
+        QGuiApplication.clipboard().setImage(img)
+        what = 'The picture is on the clipboard.'
+        if path.lower().endswith('.gif'):
+            what = 'The first frame of the GIF is on the clipboard.'
+        Captures.tell('Copied', what, parent)
+
+    def copy_selected(self):
+        path = self.selected_path()
+        if path:
+            self.copy_picture(path, self.window())
+
+    def copy_selected_path(self):
+        path = self.selected_path()
+        if path:
+            QGuiApplication.clipboard().setText(os.path.normpath(path))
+            self.tell('Copied', 'The path is on the clipboard.', self.window())
+
+    def show_selected(self):
+        path = self.selected_path()
+        if path:
+            subprocess.Popen(['explorer', '/select,', os.path.normpath(path)])
+
+    def delete_selected(self):
+        path = self.selected_path()
+        if not path:
+            return
+        box = MessageBox('Move this capture to the Recycle Bin?',
+                         f'{os.path.basename(path)} goes to the Recycle Bin, where it can still be restored.', self.window())
+        box.yesButton.setText('Move to Recycle Bin')
+        if not box.exec():
+            return
+        # Moved to the Recycle Bin, never deleted for good. (QFile.moveToTrash returns (ok, path in the bin).)
+        ok, _in_bin = QFile.moveToTrash(path)
+        if not ok:
+            self.tell('Could not move it to the Recycle Bin', path, self.window(), error=True)
+            return
+        self.refresh()
 
 
 class Help(QWidget):
