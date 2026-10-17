@@ -355,10 +355,16 @@ class Workbench(QWidget):
         self.gif_scale.setRange(0.2, 1.0)
         self.gif_scale.setSingleStep(0.1)
         self.gif_scale.setValue(0.6)
+        self.settle_sw = SwitchButton()
+        self.settle_sw.setChecked(True)
+        self.settle_sw.checkedChanged.connect(lambda c: setattr(self.scene, 'settle_on', c))
         markers_hint = CaptionLabel('Markers: green grip, blue support, orange rack point and its travel, red muzzle and aim, '
                                     'yellow magazine seat and its line, purple cover latch.')
         markers_hint.setWordWrap(True)
+        settle_hint = CaptionLabel("Settle: after a snap the glove is put onto the gun's surface, as it settles in VR (up to 2 cm).")
+        settle_hint.setWordWrap(True)
         v.addWidget(card('View', row(*views), row(BodyLabel('Grid'), self.grid_sw, BodyLabel('Markers'), self.mark_sw),
+                         row(BodyLabel('Settle hands on the gun'), self.settle_sw), settle_hint,
                          markers_hint, row(BodyLabel('GIF fps'), self.gif_fps, BodyLabel('size'), self.gif_scale)))
 
         self.export_names = LineEdit()

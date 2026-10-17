@@ -254,7 +254,7 @@ class Scene:
         if target == 'grip':
             # Exactly as the mod holds a gun (VRHand.GunFrame with the automatic gun angle, HeldWeapon.BeforeRender): the
             # glove's palm frame is the gun's frame at the grip point: the barrel along the fingers' direction, the top along
-            # the thumb's side, the palm centre on the grip point.
+            # the thumb's side, the palm centre on the grip point. Then settled on the grip as the glove does in VR.
             hand.rotation = frame_quat(w.dir_to_world(w.right), w.dir_to_world(w.up))
             hand.position = w.to_world(w.grip)
             curls = r.get('gripCurls')
@@ -263,6 +263,7 @@ class Scene:
             else:
                 hand.set_pose('Machine gun grip' if r.get('machineGun') else 'Pistol grip' if pistol else 'Rifle grip')
             hand.on_part = 'grip'
+            self.settle(hand)
         elif target == 'support':
             at = v3(r['support']) if r.get('hasSupport') else w.grip + w.aim * 0.2
             self.place(hand, at, w.up, w.aim)
@@ -272,6 +273,7 @@ class Scene:
             else:
                 hand.set_pose('Pistol cup' if pistol else 'Handguard')
             hand.on_part = 'handguard'
+            self.settle(hand)
         elif target == 'rack':
             p = w.rack_point()
             off = p - w.muzzle
@@ -295,6 +297,57 @@ class Scene:
             self.place(hand, v3(r['hingeGrab']) + w.up * 0.02, -w.up, -w.aim)
             hand.set_pose('Cover lift')
             hand.on_part = 'cover'
+
+    # ---- the glove settling on what it holds ----------------------------------------------------------------------------
+
+    # The palm's skin (glove.bin's PalmSkin, palm space, right-handed): 12 points about 3 cm out along the palm's side.
+    PALM_SKIN = np.array([[-0.03, -0.028, 0.035], [-0.039, 0.0, 0.035], [-0.039, 0.028, 0.035], [-0.034, -0.028, 0.012],
+                          [-0.036, 0.0, 0.012], [-0.036, 0.028, 0.012], [-0.03, -0.028, -0.012], [-0.027, 0.0, -0.012],
+                          [-0.036, 0.028, -0.012], [-0.026, -0.028, -0.034], [-0.025, 0.0, -0.034], [-0.029, 0.028, -0.034]])
+    settle_on = True
+
+    def ray_weapon(self, o, d, reach):
+        """The nearest hit of a world ray on the weapon within reach, or None."""
+        from mathutil import ray_triangles
+        w = self.weapon
+        best = None
+        for node in w.nodes:
+            if node.hidden or not len(node.tris):
+                continue
+            inv = np.linalg.inv(w.node_matrix(node))
+            lo = (inv @ np.append(o, 1))[:3]
+            ld = (inv @ np.append(d, 0))[:3]
+            n = np.linalg.norm(ld)
+            # Only triangles near the ray's segment (a quick box test first).
+            lo_end = lo + ld * reach
+            if np.any(np.minimum(lo, lo_end) > node.bmax + 0.01) or np.any(np.maximum(lo, lo_end) < node.bmin - 0.01):
+                continue
+            t, _ = ray_triangles(lo, ld, node.tris)
+            if t is not None and t <= reach and (best is None or t < best):
+                best = t
+        return best
+
+    def settle(self, hand):
+        """
+        The glove onto the gun's surface as in VR (HandModel: the palm pushed out while its skin would sink in, drawn in up to
+        2 cm while a gap is left): along the palm's normal by the smallest gap of its skin points, within 2 cm either way.
+        """
+        if self.weapon is None or not self.settle_on:
+            return 0.0
+        m = hand.model_matrix()
+        normal = norm(m[:3, :3] @ np.array([-1.0, 0, 0]))  # the glove's palm side (mirrored for the left hand by its matrix)
+        back = 0.03
+        gaps = []
+        for p in self.PALM_SKIN:
+            pw = (m @ np.append(p, 1.0))[:3]
+            t = self.ray_weapon(pw - normal * back, normal, back + 0.06)
+            if t is not None:
+                gaps.append(t - back)
+        if not gaps:
+            return 0.0
+        move = float(np.clip(min(gaps) - 0.002, -0.02, 0.02))
+        hand.position = hand.position + normal * move
+        return move
 
     # ---- saving --------------------------------------------------------------------------------------------------------
 
