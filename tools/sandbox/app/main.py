@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image
 from PyQt6.QtCore import QByteArray, QFile, QProcess, QSettings, QSize, Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QImage, QKeySequence, QPixmap, QShortcut
-from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListView, QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListView, QListWidgetItem, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
                             InfoBar, InfoBarPosition, LineEdit, MessageBox, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
                             PushButton, RoundMenu, SearchLineEdit, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel, SwitchButton,
@@ -208,7 +208,7 @@ class Workbench(QWidget):
         h.setContentsMargins(0, 0, 0, 0)
         h.setSpacing(0)
         side = QWidget()
-        side.setFixedWidth(360)
+        side.setFixedWidth(380)
         sv = QVBoxLayout(side)
         sv.setContentsMargins(12, 10, 6, 10)
         self.pivot = Pivot()
@@ -219,6 +219,10 @@ class Workbench(QWidget):
         self.advanced = self._scroll(self._advanced_panel())
         self.stack.addWidget(self.easy)
         self.stack.addWidget(self.advanced)
+        # The side panel as wide as its widest card needs (with its margins and the scroll bar): a fixed 360 cut the
+        # Advanced tab's number boxes and texts off on the right.
+        need = max(self.easy.widget().minimumSizeHint().width(), self.advanced.widget().minimumSizeHint().width())
+        side.setFixedWidth(max(380, need + 12 + 6 + 16))
         self.pivot.addItem('easy', 'Easy', lambda: self.stack.setCurrentWidget(self.easy))
         self.pivot.addItem('advanced', 'Advanced', lambda: self.stack.setCurrentWidget(self.advanced))
         self.pivot.setCurrentItem('easy')
@@ -403,7 +407,9 @@ class Workbench(QWidget):
                 # Three in a row in the narrow side panel: the arrows would cut the number off (120 showed as 12), so the keys
                 # and the mouse wheel step the value instead.
                 b.setSymbolVisible(False)
-                b.setMinimumWidth(96)
+                # Three must fit the side panel with its margins and scroll bar: the box's own size hint overflowed it.
+                b.setMinimumWidth(64)
+                b.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
                 b.valueChanged.connect(self.on_numbers)
                 boxes.append(b)
             self.num.append(boxes)
@@ -487,7 +493,7 @@ class Workbench(QWidget):
         self.game_label = CaptionLabel(self.game_folder())
         self.game_label.setWordWrap(True)
         v.addWidget(card('Game (only when really needed)', row(folder, self.game_label, stretch=[0, 1]), self.export_names,
-                         row(export, game), self.job_log))
+                         export, game, self.job_log))
         v.addStretch(1)
         return p
 
