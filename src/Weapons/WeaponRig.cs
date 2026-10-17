@@ -265,8 +265,19 @@ namespace RavenfieldVR.Weapons
         public Quaternion GripRotation = Quaternion.identity;
         public bool HasGripRotation;
 
+        /// <summary>
+        /// The gun hand's thumb from a sandbox pose, when it was set there (-1: the mod's own thumb rule): its base turned this
+        /// far to the fist, and its curl.
+        /// </summary>
+        public float GripThumbBase = -1f;
+        public float GripThumbCurl = -1f;
+
         /// <summary>Sandbox export only: where the magazine part waits at rest (its seat may be elsewhere: parked away).</summary>
         [System.NonSerialized] public Vector3 MagRestPos;
+
+        /// <summary>Sandbox export only: the model and its note, written once the weapon's overrides are applied.</summary>
+        [System.NonSerialized] public byte[] ExportGlb;
+        [System.NonSerialized] public string ExportNote;
 
         /// <summary>Rig dump only (-rfvr-dumprig): lines an analysis step adds to the gun's section.</summary>
         [System.NonSerialized] public string DumpLines = "";

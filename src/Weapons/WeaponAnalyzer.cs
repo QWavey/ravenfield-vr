@@ -171,6 +171,11 @@ namespace RavenfieldVR.Weapons
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
             }
             WeaponOverrides.Apply(w, data);
+            if (data.ExportGlb != null)
+            {
+                SandboxExport.Write(data, w.transform, w, data.ExportGlb, data.ExportNote);
+                data.ExportGlb = null;
+            }
             SandboxPoses.Apply(data); // hands saved in the sandbox (tools/sandbox) for this weapon
             Cache[key] = data;
             if (VRConfig.DumpWeaponRigs.Value)
@@ -633,10 +638,11 @@ namespace RavenfieldVR.Weapons
             BoltInsideOnSurface(d);
             ForwardSideHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
-            if (exportGlb != null)
-            {
-                SandboxExport.Write(d, root, w, exportGlb, exportNote);
-            }
+            // Written in Get, after the weapon's overrides (config gripForward, pitch, slide...): the sandbox holds the gun
+            // where the game does (written here, an overridden gun's sandbox grip was the analysis' and a saved pose undid
+            // the override; sandbox review).
+            d.ExportGlb = exportGlb;
+            d.ExportNote = exportNote;
             if (rigDump != null)
             {
                 // Written once every rule has run: with what they chose (the slide, the handle, the rack point, the magazine).

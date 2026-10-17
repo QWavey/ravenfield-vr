@@ -361,6 +361,13 @@ namespace RavenfieldVR.Weapons
 
             if (!off.Tracked)
             {
+                if (_coverHeld)
+                {
+                    // The hand is gone (tracking lost, or a test hand handed back): the cover is let go where it is. Held on,
+                    // it stayed frozen part way open and its latch out of reach (check-1017h: the mg3's and MK46's covers
+                    // at 59% after the cover check, the machine gun reload's squeeze at the latch took nothing).
+                    EndCover(off);
+                }
                 return;
             }
             // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
@@ -790,6 +797,9 @@ namespace RavenfieldVR.Weapons
             prop.MovingIn = false;
             prop.TurnDepth = prop.RailDepth;
             prop.PrevDepth = prop.RailDepth;
+            // An en-bloc clip under a bolt shut on a round is not taken back, but it still leaves along its line (check-1017h:
+            // the M1's clip was knocked off its rail on the first frame and jumped to the hand through the receiver).
+            prop.RailOutOnly = !AcceptsNow(prop);
             prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _held.Nudge(-SeatPose.TransformDirection(prop.InsertDirLocal) * 0.08f); // the latch gives with a tug
@@ -956,6 +966,15 @@ namespace RavenfieldVR.Weapons
             Vector3 CoverLatchAt(float openness) => Rig.ToWorld(HingeRotate(new RigidPose(Data.HingeGrabPoint + Data.Up * 0.02f, Quaternion.identity), openness).position);
             var steps = new List<string>();
             bool ok = false;
+            // The cover settled shut first (the check before can leave it swinging down).
+            if (_coverHeld)
+            {
+                EndCover(off);
+            }
+            for (float until = Time.unscaledTime + 1f; _held.HingeOpenness > 0.01f && Time.unscaledTime < until;)
+            {
+                yield return null;
+            }
             try
             {
                 // 1. The cover: the hand at its latch, a squeeze, lifted.
@@ -966,7 +985,7 @@ namespace RavenfieldVR.Weapons
                 yield return null;
                 yield return null;
                 bool tookCover = off.Role == HandRole.Hinge;
-                HandRole coverTaker = off.Role;
+                string coverTaker = $"{off.Role}, the palm {CoverZoneDistance(off.Palm.position) * 100f:0.0} cm from the latch, the cover {_held.HingeOpenness:0.00} open";
                 for (int i = 1; i <= 15; i++)
                 {
                     PalmTo(CoverLatchAt(0.8f * i / 15f));
@@ -1177,6 +1196,10 @@ namespace RavenfieldVR.Weapons
                     yield return null;
                 }
                 shut = !Ammo.CoverOpen;
+                // Let go where it is before the hand is handed back (see the tracking note at EndCover's caller).
+                VRInput.SimulatedGrab[side] = false;
+                yield return null;
+                yield return null;
                 report($"feed cover by hand: {(took ? "taken at its latch" : "NOT TAKEN at its latch")}, lifted to 60%: {(opened ? "open" : "DID NOT OPEN")}, let go: {(stayed ? "falls open" : "DID NOT STAY OPEN")}, pushed down: {(shut ? "shut" : "DID NOT SHUT")}");
             }
             finally
@@ -1614,7 +1637,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (!AcceptsNow(prop))
+            bool refused = !AcceptsNow(prop);
+            if (refused && _pullingIn == prop)
+            {
+                _pullingIn = null;
+            }
+            if (refused && !(prop.OnRail && prop.RailOutOnly))
             {
                 prop.OnRail = false;
                 if (_pullingIn == prop)
@@ -1704,6 +1732,7 @@ namespace RavenfieldVR.Weapons
             if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
+                prop.RailOutOnly = false;
                 prop.RailHandOffset = 0f;
                 prop.RailLateral0 = 0f;
                 prop.FromSeat = false;
@@ -1736,6 +1765,13 @@ namespace RavenfieldVR.Weapons
             {
                 return; // just pulled out of its seat: neither seated again nor drawn home until it comes out a little
             }
+            if (refused)
+            {
+                // Out only: pushed back it stops short of its seat (the gun will not take it now).
+                prop.RailDepth = Mathf.Min(prop.RailDepth, prop.RailLength * 0.9f);
+                return;
+            }
+            prop.RailOutOnly = false;
             if (prop.RailDepth >= prop.RailLength * 0.96f)
             {
                 SeatProp(off, prop);

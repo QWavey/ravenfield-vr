@@ -59,7 +59,11 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        public static bool Supported => SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11;
+        /// <summary>
+        /// Direct3D 11 with the rendering on the main thread (-force-gfx-direct, as tools/sandbox/export.py starts the game):
+        /// with a render thread the immediate context is used from two threads at once. Else the stand-in boxes.
+        /// </summary>
+        public static bool Supported => SystemInfo.graphicsDeviceType == GraphicsDeviceType.Direct3D11 && !SystemInfo.graphicsMultiThreaded;
 
         /// <summary>The bytes of a native D3D11 buffer, or null.</summary>
         private static byte[] ReadBuffer(IntPtr buffer)

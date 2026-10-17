@@ -830,6 +830,8 @@ namespace RavenfieldVR.Weapons
             if (main.Model != null)
             {
                 main.Model.WeaponGripCurls = Rig.Data.GripCurls;
+                main.Model.WeaponGripThumbBase = Rig.Data.GripThumbBase;
+                main.Model.WeaponGripThumbCurl = Rig.Data.GripThumbCurl;
                 main.Model.WeaponIsPistol = Rig.Data.IsPistol;
                 main.Model.WeaponClass = _weaponClass;
             }
@@ -1332,7 +1334,9 @@ namespace RavenfieldVR.Weapons
                 Vector3 dirWorld = off.PalmCentre - hand.position; // palm centre to palm centre, as the support point is
                 if (dirWorld.sqrMagnitude > 0.0025f)
                 {
-                    Quaternion gunFrameBase = Quaternion.LookRotation(dirGun, d.Up);
+                    // Up from the gun hand's palm (the thumb's side), as worldFrame takes it from the hand: a palm saved
+                    // rolled on the gun rolled the gun by that much when the off hand took the handguard (sandbox review).
+                    Quaternion gunFrameBase = Quaternion.LookRotation(dirGun, gripInGun.rotation * Vector3.up);
                     Quaternion worldFrame = OpenVRMath.SafeLookRotation(dirWorld.normalized, hand.Up);
                     Quaternion twoHand = worldFrame * Quaternion.Inverse(gunFrameBase);
                     // Eased in and out: taking or letting go of the handguard no longer starts and stops the turn at full speed.
@@ -1386,12 +1390,14 @@ namespace RavenfieldVR.Weapons
 
             gunRot = SteadyThroughScope(gunRot, dt);
 
-            // Recoil rotates the gun about its grip and pushes it back along the barrel.
+            // Recoil rotates the gun about its grip and pushes it back along the barrel: in the bore's frame (the palm's
+            // frame is the same unless a sandbox pose turned the hand on the gun; then the kick followed the fingers).
             Quaternion recoil = Quaternion.Euler(_recoilRot.x, _recoilRot.y, 0f);
+            Quaternion boreInGun = Quaternion.LookRotation(d.AimAxis, d.Up);
+            Quaternion boreFrame = gunRot * boreInGun * recoil;
+            gunRot = boreFrame * Quaternion.Inverse(boreInGun);
             Quaternion aimFrame = gunRot * gripInGun.rotation;
-            aimFrame = aimFrame * recoil;
-            gunRot = aimFrame * Quaternion.Inverse(gripInGun.rotation);
-            Vector3 gripWorld = hand.position + _lagPos + aimFrame * _recoilPos;
+            Vector3 gripWorld = hand.position + _lagPos + boreFrame * _recoilPos;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
 
             // The world holds the gun back (a wall, a crate, the ground, a sandbag it rests on): it is drawn where its physics
@@ -1868,6 +1874,9 @@ namespace RavenfieldVR.Weapons
             return float.PositiveInfinity; // nothing toward the bore: off the model however near it is
         }
 
+        private static readonly System.Text.RegularExpressions.Regex LaserPart =
+            new System.Text.RegularExpressions.Regex(@"laser|beam", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         /// <summary>
         /// Self-test: where everything drawn on the weapon is, in gun space: the middle of each mesh drawn (not the
         /// weapon's own arms) and each bone a drawn skinned mesh hangs on. Two of these, before and after a pull, show
@@ -1886,6 +1895,10 @@ namespace RavenfieldVR.Weapons
                 if (!r.enabled || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f)
                 {
                     continue;
+                }
+                if (LaserPart.IsMatch(r.name))
+                {
+                    continue; // a laser's dot and beam go where the beam hits, not with the gun (check-1017h: the QBZ192-C's "slide" 190 mm back)
                 }
                 if (r is MeshRenderer)
                 {
@@ -2851,6 +2864,8 @@ namespace RavenfieldVR.Weapons
             if (_system.Rig.Dominant.Model != null)
             {
                 _system.Rig.Dominant.Model.WeaponGripCurls = null;
+                _system.Rig.Dominant.Model.WeaponGripThumbBase = -1f;
+                _system.Rig.Dominant.Model.WeaponGripThumbCurl = -1f;
                 _system.Rig.Dominant.Model.WeaponIsPistol = false;
                 _system.Rig.Dominant.Model.WeaponClass = WeaponClass.None;
                 _system.Rig.Dominant.Model.SnapPose = null;

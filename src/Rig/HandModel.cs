@@ -779,7 +779,8 @@ namespace RavenfieldVR.Rig
             // An empty hand keeps the rest (its tracked thumb moves from there), except the fist a controller without finger
             // tracking makes from grip and trigger: its thumb has nothing tracked and wraps over the fingers.
             bool restThumb = _hand.Role == HandRole.Free && _pose.Id != HandPoseId.Fist;
-            Quaternion thumbGoal = restThumb ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, _pose.Thumb);
+            float thumbTurn = _hand.Role == HandRole.Weapon && WeaponGripThumbBase >= 0f ? WeaponGripThumbBase : _pose.Thumb;
+            Quaternion thumbGoal = restThumb ? _thumbRest : Quaternion.Slerp(_thumbRest, _thumbFist, thumbTurn);
             if (_push > 0f)
             {
                 thumbGoal = Quaternion.Slerp(thumbGoal, _thumbRest, _push); // the thumb comes away from the magazine
@@ -1308,6 +1309,12 @@ namespace RavenfieldVR.Rig
         /// animated it while the tracked fingers keep moving on top.
         /// </summary>
         public float[] WeaponGripCurls;
+        /// <summary>
+        /// The gun hand's thumb as posed in the sandbox for this weapon (-1: not posed there; the thumb rule below): its
+        /// base turned this far to the fist, and its curl (the tracked thumb still moves it a little).
+        /// </summary>
+        public float WeaponGripThumbBase = -1f;
+        public float WeaponGripThumbCurl = -1f;
         /// <summary>The held weapon has a pistol grip held in one hand (the thumb lies along the frame).</summary>
         public bool WeaponIsPistol;
 
@@ -1394,7 +1401,8 @@ namespace RavenfieldVR.Rig
                     // The thumb rides along the frame on a pistol and wraps a rifle's grip only a little; the mod's own
                     // thumb curl is measured on its own thumb rest pose and would push ours across the slide. Other grips
                     // (a launcher, a knife, a tool) by their pose.
-                    _goal[0] = WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0])
+                    _goal[0] = WeaponGripThumbCurl >= 0f ? Mathf.Lerp(WeaponGripThumbCurl, Mathf.Min(1f, WeaponGripThumbCurl + 0.15f), _goal[0])
+                        : WeaponIsPistol ? Mathf.Lerp(0.06f, 0.2f, _goal[0])
                         : _pose.Id == HandPoseId.RifleGrip ? Mathf.Lerp(0.25f, 0.45f, _goal[0])
                         : Mathf.Lerp(p[0], Mathf.Min(1f, p[0] + 0.2f), _goal[0]);
                     break;

@@ -144,6 +144,11 @@ namespace RavenfieldVR.Weapons
         public float RailLateral0;
         /// <summary>Speed along the rail while it is drawn home by itself (a damped spring, as Boneworks drives its insert).</summary>
         public float DepthVel;
+        /// <summary>
+        /// Pulled from its seat in a gun that will not take it back now (an en-bloc clip under a bolt shut on a round): it
+        /// slides out along its rail all the same, and is not seated again from it.
+        /// </summary>
+        public bool RailOutOnly;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
         public float RailLength { get; private set; }
         public float LastTick;
@@ -1410,6 +1415,7 @@ namespace RavenfieldVR.Weapons
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
+            RailOutOnly = false;
             SetLayer(Go, HeldLayer);
         }
 
@@ -1486,6 +1492,7 @@ namespace RavenfieldVR.Weapons
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
+            RailOutOnly = false;
             SetLayer(Go, HeldLayer);
         }
 
@@ -2199,6 +2206,7 @@ namespace RavenfieldVR.Weapons
                 HeldBy = null;
             }
             OnRail = false;
+            RailOutOnly = false;
             int layer = PropPhysics.Layer;
             SetLayer(Go, layer >= 0 ? layer : WorldLayer);
             SetCollidersEnabled(true);

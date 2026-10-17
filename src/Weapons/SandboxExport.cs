@@ -67,6 +67,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private static readonly List<string> Written = new List<string>();
+
+        private static readonly Dictionary<string, string> WrittenKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> ExportedKeys = new HashSet<string>();
 
         /// <summary>This weapon was written in this run (or failed to be): not analysed again for the export.</summary>
@@ -233,7 +235,9 @@ namespace RavenfieldVR.Weapons
                     for (int i = 0; i < v.Length; i++)
                     {
                         pos[i] = p.TransformPoint(Vector3.Scale(v[i], s));
-                        nor[i] = n.Length > i ? (p.rotation * Vector3.Scale(n[i], inv)).normalized : Vector3.up;
+                        // (A mesh read back from the graphics card without normals gives zeros: up, as for no normals.)
+                        Vector3 nn = n.Length > i ? p.rotation * Vector3.Scale(n[i], inv) : Vector3.zero;
+                        nor[i] = nn.sqrMagnitude > 1e-12f ? nn.normalized : Vector3.up;
                     }
                 }
                 var prims = new List<(int[] indices, Material mat)>();
@@ -386,6 +390,13 @@ namespace RavenfieldVR.Weapons
                     {
                         Written.Add(name);
                     }
+                    if (WrittenKey.TryGetValue(name, out string other) && other != d.Key)
+                    {
+                        // Two keys with one folder name (characters made '_', or only the case differs): the later one wins.
+                        // None among the 286 weapons of 2026-10-17; said, so it is not silent.
+                        Log.Warn($"Sandbox export: {d.Key} and {other} share the folder {name}; {d.Key} is the one kept.");
+                    }
+                    WrittenKey[name] = d.Key;
                 }
                 Log.Info($"Sandbox export: {d.Key} -> {dir} ({note}).");
             }

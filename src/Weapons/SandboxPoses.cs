@@ -10,7 +10,8 @@ namespace RavenfieldVR.Weapons
     /// Hand poses saved in the sandbox (tools/sandbox, "Save pose"): BepInEx/config/RavenfieldVR/poses/&lt;weapon&gt;.json.
     /// The gun hand's place and turn on the gun become the weapon's grip point and grip frame (the gun is held so that the
     /// glove's palm frame sits where the pose put it), its finger curls the weapon's own grip curls; the support hand's
-    /// palm becomes the support point. A pose saved without changes is the analysis' own: nothing changes.
+    /// palm becomes the support point; a thumb posed there, the gun hand's thumb. A pose saved without changes is the
+    /// analysis' own (with the weapon's overrides): nothing changes.
     /// </summary>
     internal static class SandboxPoses
     {
@@ -27,6 +28,7 @@ namespace RavenfieldVR.Weapons
             public Frame mod;
             public float thumb;
             public float[] curls;
+            public bool thumbSet;
             public string on;
             public string role;
         }
@@ -75,6 +77,12 @@ namespace RavenfieldVR.Weapons
                     if (right.curls != null && right.curls.Length == 5)
                     {
                         d.GripCurls = (float[])right.curls.Clone();
+                        if (right.thumbSet)
+                        {
+                            // Only a thumb posed in the sandbox: else the mod's own thumb rule (along a pistol's frame...).
+                            d.GripThumbBase = Mathf.Clamp01(right.thumb);
+                            d.GripThumbCurl = Mathf.Clamp01(right.curls[0]);
+                        }
                     }
                 }
                 HandDoc left = doc?.hands?.left;
