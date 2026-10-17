@@ -116,6 +116,7 @@ namespace RavenfieldVR.Weapons
                 UpdateThrowable(held);
                 return;
             }
+            CycleForTheHand();
             if (held && !_firing && Ammo != null && Ammo.Participates && VRConfig.ReloadNow == ReloadMode.Manual
                 && !Ammo.Chambered && Ammo.MagRounds == 0 && (Ammo.InfiniteSpare || Ammo.SpareAmmo > 0))
             {
@@ -256,6 +257,29 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private float _cycleReadyAt;
+
+        /// <summary>
+        /// A pump or bolt gun (or any gun with nothing chambered) in the free hand: the other hand holds the main gun and
+        /// cannot work its action, so it is worked for it, the spent case out and the next round in, a moment after each shot
+        /// (a pump shotgun taken as a second weapon never fired: nothing was chambered and nobody could pump it; dump-1017b).
+        /// </summary>
+        private void CycleForTheHand()
+        {
+            if (Ammo == null || !Ammo.Participates || !Ammo.UsesChamber || Ammo.Chambered || Ammo.MagRounds <= 0 || _firing || Time.time < _cycleReadyAt)
+            {
+                return;
+            }
+            Ammo.BoltOpen = false;
+            Ammo.RackBack(); // (the spent case is not thrown: Casings throws from the main gun's port)
+            if (Ammo.RackForward())
+            {
+                _sys.Sounds.Play(MechSound.SlideBack, Hand.Palm.position, 0.6f);
+                _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.6f);
+                Hand.Haptic(0.03f, 120f, 0.4f);
+            }
+        }
+
         private void StartReload()
         {
             int rounds = Ammo.RoundsForFreshMagazine();
@@ -302,6 +326,8 @@ namespace RavenfieldVR.Weapons
             {
                 return; // a throw: no kick in the hand
             }
+            // Worked for the hand a moment after the shot (a pump's or bolt's stroke).
+            _cycleReadyAt = Time.time + (Rig.Data.CyclesByHand ? 0.45f : 0f);
             Weapon.Configuration c = Weapon.configuration;
             float kick = HeldWeapon.ShotKick(c, Rig.Data, Rig.Data.Handgun ? WeaponClass.Pistol : WeaponClass.Rifle, out float climbShare);
             float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? 1.15f : 1.6f); // held in one hand
