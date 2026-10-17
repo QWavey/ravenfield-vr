@@ -1591,6 +1591,10 @@ namespace RavenfieldVR.Weapons
             {
                 _rackSnapped = true;
                 SnapRackPoint();
+            }
+            if (!_knobChecked && SlideOffset < 0.002f && !Weapon.reloading)
+            {
+                _knobChecked = true; // with the slide home: measured with it locked back, it read as seen (rule review)
                 KnobOnHiddenSlide();
             }
             UpdateSeatedMagSolid();
@@ -1724,6 +1728,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
+        private bool _knobChecked;
 
         /// <summary>
         /// A long gun whose slide (found by its fire motion) moves hidden in the receiver, with nothing else of it moving
@@ -1734,7 +1739,7 @@ namespace RavenfieldVR.Weapons
         private void KnobOnHiddenSlide()
         {
             WeaponRigData d = Rig.Data;
-            if (d.Handgun || Rig.Slide == null || _boltPiece != null || d.HandlePath != null || d.CarveHandle || d.AddedHandle
+            if (Rig.Slide == null || _boltPiece != null || d.HandlePath != null || d.CarveHandle || d.AddedHandle
                 || Rig.SlideCompanions.Length > 0 || d.SlideMethod == null || !d.SlideMethod.StartsWith("fire motion", System.StringComparison.Ordinal))
             {
                 return;

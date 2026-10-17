@@ -805,6 +805,14 @@ namespace RavenfieldVR.Weapons
             d.SlideMethod += " + handle added at the Bren 2's place (left, front of the receiver)";
         }
 
+        /// <summary>
+        /// Open-bolt guns by name: their bolt rests back, cocked, and runs forward to fire, so a bolt held back at idle is
+        /// their real rest (the held-back rule flipped the PPSh-41's; rule review, 2026-10-17).
+        /// </summary>
+        private static readonly Regex OpenBoltName = new Regex(
+            @"ppsh|pps-?43|(?<![a-z])sten(?![a-z])|grease ?gun|greaser|(?<![a-z])m3a?1?(?![a-z0-9])|(?<![a-z])uzi|mp ?40|mp ?38|thompson|tommy|sterling|(?<![a-z])mac-?10|ingram|(?<![a-z])m60|(?<![a-z])pkm?(?![a-z])|(?<![a-z])rpk|(?<![a-z])mg ?42|(?<![a-z])mg ?3(?![0-9])|(?<![a-z])bren(?! ?2)|lewis|(?<![a-z])dp-?2?7?(?![a-z])|m249|minimi|negev",
+            RegexOptions.IgnoreCase);
+
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
         private static readonly Regex ArPattern = new Regex(
             // Not inside a word ("19m4mwii holo", "mk18riii" count, "gram4" does not), not a longer number ("m40", "m45").
@@ -1187,7 +1195,8 @@ namespace RavenfieldVR.Weapons
                     Transform up = slide.parent;
                     if (up != null && up != gunBody && up != root && index.TryGetValue(up, out int ui) && !armRelated.Contains(up)
                         && HasOwnRenderer(up) && sampler.IdleVisible(up) && sampler.FireMax[ui] >= 0.015f && sampler.FireMax[ui] <= MaxBoltTravel(d)
-                        && Vector3.Dot(sampler.FireVec[ui].normalized, slideVec.normalized) > 0.8f)
+                        && Vector3.Dot(sampler.FireVec[ui].normalized, slideVec.normalized) > 0.8f
+                        && sampler.FireMax[ui] <= sampler.FireMax[index[slide]] + 0.002f) // the piece rides on it: a body moving more than its bolt is not the slide
                     {
                         Transform piece = slide;
                         float pieceSize = sampler.GunSpaceBoundsWhere(piece, gunIdle, x => x != piece).size.magnitude;
@@ -1251,7 +1260,8 @@ namespace RavenfieldVR.Weapons
                 reloadEnds = tr.Length > 0 ? Vector3.Dot(tr[tr.Length - 1] - sampler.RelIdle[si0].position, d.AimAxis) : 0f;
             }
             if (d.SlideMethod != null && d.SlideMethod.StartsWith("fire motion", StringComparison.Ordinal)
-                && forward > 0.015f && Vector3.Dot(slideVec.normalized, d.AimAxis) > 0.8f && (d.Handgun || reloadEnds >= forward * 0.8f))
+                && forward > 0.015f && Vector3.Dot(slideVec.normalized, d.AimAxis) > 0.8f && (d.Handgun || reloadEnds >= forward * 0.8f)
+                && !OpenBoltName.IsMatch(d.Key ?? ""))
             {
                 // Caught held back at idle: the fire motion takes the slide toward the muzzle from there (and the reload ends
                 // there too). Racked from that rest it went back past its stop: FA1911 20R 82 mm at half a pull and 112 mm
@@ -2508,7 +2518,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             float OffBore(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
-            if (d.Action != ActionType.SingleShot && sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
+            if ((d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual) && sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
             {
                 // Any magazine parked away from the gun at rest is seated where its reload leaves it, on the gun, as a
                 // launcher's rocket is: the M1 GARRET's clip waited 50 cm beside the gun, and the fresh one was seated there,
@@ -2674,6 +2684,7 @@ namespace RavenfieldVR.Weapons
             foreach (Transform t in all)
             {
                 if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] > 0.01f || t == slide || t.IsChildOf(slide) || slide.IsChildOf(t)
+                    || UnderOptic(t, gunBody)
                     || MagName.IsMatch(t.name) || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     continue;
@@ -2702,6 +2713,33 @@ namespace RavenfieldVR.Weapons
             d.HandleTravel = -d.AimAxis * Mathf.Min(0.075f, d.SlideTravel.magnitude > 1e-4f ? d.SlideTravel.magnitude : 0.075f);
             d.RackPoint = bestBounds.center - d.AimAxis * Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs)) * 0.8f;
             d.SlideMethod += $" + its T handle '{best.name}' (still in the animations)";
+        }
+
+        /// <summary>A part under (or itself) a sight or optic by name, up to the gun body: the K13 ACOG's rear sight 'K13_STGHT1'
+        /// (a typo, under 'K13_SIGHT2') was taken for its T handle (check-1017g).</summary>
+        private static bool UnderOptic(Transform t, Transform gunBody)
+        {
+            for (Transform p = t; p != null && p != gunBody; p = p.parent)
+            {
+                if (OpticName.IsMatch(p.name))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The point on a gun-space box's face that looks away from the bore along <paramref name="n"/>: on the face of the
+        /// box's axis most along it (the box's corner along a diagonal lay in the air beside a thin lever; rule review).
+        /// </summary>
+        private static Vector3 OuterFace(Bounds b, Vector3 n)
+        {
+            Vector3 a = new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z));
+            int axis = a.x >= a.y && a.x >= a.z ? 0 : a.y >= a.z ? 1 : 2;
+            Vector3 at = b.center;
+            at[axis] += Mathf.Sign(n[axis]) * b.extents[axis];
+            return at;
         }
 
         /// <summary>
@@ -2745,7 +2783,7 @@ namespace RavenfieldVR.Weapons
                     // On its outer face (away from the bore), where the fingers take it, not at its middle.
                     Vector3 n = Vector3.ProjectOnPlane(b.center - d.MuzzlePoint, d.AimAxis);
                     n = n.sqrMagnitude > 1e-8f ? n.normalized : d.Up;
-                    at = b.center + n * Vector3.Dot(b.extents, new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z)));
+                    at = OuterFace(b, n);
                 }
             }
             if (piece != null)
@@ -2832,7 +2870,7 @@ namespace RavenfieldVR.Weapons
                 // The hand takes the companion (a knob on the outside), not the slide inside the receiver.
                 Vector3 n = Vector3.ProjectOnPlane(firstBox.center - d.MuzzlePoint, d.AimAxis);
                 n = n.sqrMagnitude > 1e-8f ? n.normalized : d.Up;
-                d.RackPoint = firstBox.center + n * Vector3.Dot(firstBox.extents, new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z)));
+                d.RackPoint = OuterFace(firstBox, n);
                 d.SlideMethod += $" + '{first.name}' moving with it (named after it; taken there)";
             }
         }
