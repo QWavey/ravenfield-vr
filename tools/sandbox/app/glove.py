@@ -185,6 +185,23 @@ def _without_curl(open_q, pose_q, axis):
     return quat_norm(quat_mul(pose_q, quat_inv(twist)))
 
 
+def _held(c, fallback):
+    """HandModel.Pose: a curl the game holds is kept between 0.15 and 0.92 (a missing one, below 0, is the fallback)."""
+    return fallback if c < 0 else min(0.92, max(0.15, c))
+
+
+def game_curls(role, curls, thumb_set):
+    """The curls the game draws for a hand on the gun (review B10#2): the grip's fingers kept between 0.15 and 0.92 and its
+    trigger finger at 85% of that (HandModel's grip branch, trigger released); the support hand's all five so. The sliders and
+    the saved file keep the values as set."""
+    c = list(curls)
+    if role == 'grip':
+        return [c[0] if thumb_set else c[0], _held(c[1], 0.3) * 0.85, _held(c[2], 0.7), _held(c[3], 0.72), _held(c[4], 0.74)]
+    if role == 'support':
+        return [_held(c[0], 0.3), _held(c[1], 0.55), _held(c[2], 0.6), _held(c[3], 0.62), _held(c[4], 0.65)]
+    return c
+
+
 class Hand:
     """One glove: a place and turn (its palm centre, in the scene), a pose, and the posed mesh."""
 
@@ -215,16 +232,19 @@ class Hand:
         v = values if values is not None else POSES.get(name)
         if v is None:
             return
+        thumb, curls = float(v[0]), [float(c) for c in v[1:6]]
+        if name == self.pose_name and thumb == self.thumb and curls == self.curls:
+            return  # (the same pose: not skinned again; the reload snapped the hand every frame)
         self.pose_name = name
-        self.thumb = float(v[0])
-        self.curls = [float(c) for c in v[1:6]]
+        self.thumb = thumb
+        self.curls = curls
         self.update_mesh()
 
     def update_mesh(self):
         # Valve's pointing joints only for a free hand, as the mod draws one (HandModel.Pointing); a hand on the gun is drawn
         # from its curls, which are what is saved and what the game holds (review B10#6).
         point = self.pose_name == 'Pointing (laser)' and not self.role
-        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, self.curls, point)
+        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, game_curls(self.role, self.curls, self.thumb_set), point)
         self.dirty = True
 
     def set_settle(self, offset):

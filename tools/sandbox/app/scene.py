@@ -49,6 +49,8 @@ class Weapon:
         self.W[:3, :3] = rot
         self.W[:3, 3] = -rot @ self.grip
         self.Wq = mat3_to_quat(rot)
+        self.W0 = self.W.copy()
+        self.P = np.eye(4)  # where the weapon was moved to in the scene (Ctrl + drag); poses are in gun space, unaffected
         roles = []
         for key, role in (('magazine', 'magazine'), ('hinge', 'hinge'), ('handle', 'handle'), ('bolt', 'bolt'), ('slide', 'slide')):
             if r.get(key):
@@ -89,6 +91,11 @@ class Weapon:
             self.muzzle = self.grip + self.aim * (front - float(np.dot(self.grip, self.aim)))
 
     # ---- spaces ---------------------------------------------------------------------------------------------------
+
+    def set_place(self, P):
+        self.P = np.array(P, dtype=np.float64)
+        self.W = self.P @ self.W0
+        self.Wq = mat3_to_quat(self.W[:3, :3])
 
     def to_world(self, p):
         return (self.W @ np.append(v3(p), 1.0))[:3]
@@ -322,13 +329,20 @@ class Scene:
             else:
                 hand.set_pose('Pistol cup' if pistol else 'Handguard')
             hand.on_part = 'handguard'
+            if not r.get('hasSupport'):
+                hand.role = ''  # (a place of the sandbox's own: not saved as the game's support point)
             self.settle(hand)
         elif target == 'rack':
             p = w.rack_point()
             off = p - w.muzzle
             off = off - w.aim * np.dot(off, w.aim)
             out = norm(off) if np.linalg.norm(off) > 0.015 else w.up
-            thumb = -w.aim if np.dot(out, w.up) > 0.7 else w.up
+            if np.dot(out, w.up) > 0.7:
+                thumb = -w.aim  # on top: the thumb back along the gun, the fingers across it
+            else:
+                # On the side: the fingers go up over the part (ReloadInteractions.RackHandPose: fingers = up for side parts),
+                # the thumb along the barrel. (fingers = palm x cross thumb; the left glove is mirrored.)
+                thumb = np.cross(out, w.up) if hand.side == 'left' else np.cross(w.up, out)
             self.place(hand, p + out * 0.02, -out, thumb)
             pump = r.get('action') == 'ShellFed' and not r.get('handle')
             hand.set_pose('Pistol slide' if pistol else 'Pump' if pump else 'Charging handle' if r.get('handle') else 'Bolt handle')
@@ -347,6 +361,36 @@ class Scene:
             self.place(hand, w.hinge_point(v3(r['hingeGrab']) + w.up * 0.02), w.hinge_dir(-w.up), w.hinge_dir(-w.aim))
             hand.set_pose('Cover lift')
             hand.on_part = 'cover'
+
+    def move_weapon(self, M):
+        """The weapon moved by a world transform M (4x4); the hands on it (with a job there) go with it, so poses stay."""
+        w = self.weapon
+        if w is None:
+            return
+        w.set_place(M @ w.P)
+        q = mat3_to_quat(M[:3, :3])
+        for h in self.hands():
+            if h.role or h.on_part:
+                h.position = (M @ np.append(h.position, 1.0))[:3]
+                h.rotation = quat_norm(quat_mul(q, h.rotation))
+                if h._settled_at is not None:
+                    h.set_settle(M[:3, :3] @ h.settle)
+
+    def put_hand_on(self, hand, point_world, normal_world):
+        """The palm onto the surface at this point (from the laser), facing it, the thumb toward the gun's top (or its back
+        when the surface faces up), then settled as the glove settles."""
+        w = self.weapon
+        n = norm(normal_world)
+        up_w, aim_w = w.dir_to_world(w.up), w.dir_to_world(w.aim)
+        t = up_w - n * np.dot(up_w, n)
+        if np.linalg.norm(t) < 0.3:
+            t = -aim_w - n * np.dot(-aim_w, n)
+        x = -n if hand.side == 'left' else n  # the palm faces the surface: -X (right) / +X (left, mirrored) toward it
+        hand.rotation = frame_quat(x, t)
+        hand.position = np.asarray(point_world, dtype=np.float64) + n * 0.03
+        hand.on_part = ''
+        hand.role = self.contact_role(hand)
+        self.settle(hand)
 
     # ---- the glove settling on what it holds ----------------------------------------------------------------------------
 

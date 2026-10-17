@@ -15,38 +15,6 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal static class SandboxPoses
     {
-        [Serializable]
-        private class Frame
-        {
-            public float[] position;
-            public float[] rotation;
-        }
-
-        [Serializable]
-        private class HandDoc
-        {
-            public Frame mod;
-            public float thumb;
-            public float[] curls;
-            public bool thumbSet;
-            public string on;
-            public string role;
-        }
-
-        [Serializable]
-        private class Hands
-        {
-            public HandDoc right;
-            public HandDoc left;
-        }
-
-        [Serializable]
-        private class Doc
-        {
-            public string key;
-            public Hands hands;
-        }
-
         public static string Dir => Path.Combine(Path.Combine(Paths.ConfigPath, "RavenfieldVR"), "poses");
 
         private static string Fmt(Vector3 v) => string.Format(System.Globalization.CultureInfo.InvariantCulture, "({0:0.#####}, {1:0.#####}, {2:0.#####})", v.x, v.y, v.z);
@@ -66,45 +34,60 @@ namespace RavenfieldVR.Weapons
             }
             try
             {
-                Doc doc = JsonUtility.FromJson<Doc>(File.ReadAllText(path));
-                HandDoc right = doc?.hands?.right;
-                if (right?.mod?.position != null && right.mod.position.Length == 3 && right.mod.rotation != null && right.mod.rotation.Length == 4)
+                // Read with the mod's own JSON reader: JsonUtility left the nested hands empty without a word, and the game
+                // kept the analysed grip (check-1017i, the M4A1 CCO's pose).
+                object doc = MiniJson.Parse(File.ReadAllText(path));
+                var hands = MiniJson.Obj(doc, "hands");
+                var right = MiniJson.Obj(hands, "right");
+                var left = MiniJson.Obj(hands, "left");
+                var rightMod = MiniJson.Obj(right, "mod");
+                float[] rp = MiniJson.Floats(rightMod, "position", 3), rq = MiniJson.Floats(rightMod, "rotation", 4);
+                bool usedRight = false, usedLeft = false;
+                if (rp != null && rq != null)
                 {
-                    d.GripPoint = new Vector3(right.mod.position[0], right.mod.position[1], right.mod.position[2]);
-                    var q = new Quaternion(right.mod.rotation[0], right.mod.rotation[1], right.mod.rotation[2], right.mod.rotation[3]);
+                    d.GripPoint = new Vector3(rp[0], rp[1], rp[2]);
+                    var q = new Quaternion(rq[0], rq[1], rq[2], rq[3]);
                     float len = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
                     if (len > 1e-4f)
                     {
                         d.GripRotation = new Quaternion(q.x / len, q.y / len, q.z / len, q.w / len);
                         d.HasGripRotation = true;
                     }
-                    if (right.curls != null && right.curls.Length == 5)
+                    float[] curls = MiniJson.Floats(right, "curls", 5);
+                    if (curls != null)
                     {
-                        d.GripCurls = (float[])right.curls.Clone();
-                        if (right.thumbSet)
+                        d.GripCurls = curls;
+                        if (MiniJson.Bool(right, "thumbSet"))
                         {
                             // Only a thumb posed in the sandbox: else the mod's own thumb rule (along a pistol's frame...).
-                            d.GripThumbBase = Mathf.Clamp01(right.thumb);
-                            d.GripThumbCurl = Mathf.Clamp01(right.curls[0]);
+                            d.GripThumbBase = Mathf.Clamp01(MiniJson.Num(right, "thumb", 0.35f));
+                            d.GripThumbCurl = Mathf.Clamp01(curls[0]);
                         }
                     }
+                    usedRight = true;
                 }
-                HandDoc left = doc?.hands?.left;
-                if (left?.mod?.position != null && left.mod.position.Length == 3 && left.role == "support")
+                float[] lp = MiniJson.Floats(MiniJson.Obj(left, "mod"), "position", 3);
+                if (lp != null && MiniJson.Str(left, "role") == "support")
                 {
-                    d.SupportPoint = new Vector3(left.mod.position[0], left.mod.position[1], left.mod.position[2]);
+                    d.SupportPoint = new Vector3(lp[0], lp[1], lp[2]);
                     d.HasSupportPoint = true;
-                    if (left.curls != null && left.curls.Length == 5)
+                    float[] curls = MiniJson.Floats(left, "curls", 5);
+                    if (curls != null)
                     {
-                        d.SupportCurls = (float[])left.curls.Clone();
+                        d.SupportCurls = curls;
                     }
+                    usedLeft = true;
+                }
+                if (!usedRight)
+                {
+                    Log.Warn($"The sandbox pose for {d.Key} has no usable right hand (hands.right.mod.position / rotation): the mod's own grip is kept ({path}).");
                 }
                 d.Notes += "hands from the sandbox's saved pose ";
                 // What it set, in the file's numbers (the autotest's check reads it back against the file).
                 Log.Info($"{d.Key}: hand pose from the sandbox ({path}): grip {Fmt(d.GripPoint)}, palm {Fmt(d.GripRotation)}"
                          + $", curls {(d.GripCurls != null ? string.Join(" ", Array.ConvertAll(d.GripCurls, c => c.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))) : "-")}"
                          + $", thumb {(d.GripThumbCurl >= 0f ? $"base {d.GripThumbBase:0.###} curl {d.GripThumbCurl:0.###}" : "the mod's")}"
-                         + $", support {(left?.role == "support" && d.HasSupportPoint ? Fmt(d.SupportPoint) : "the analysis'")}.");
+                         + $", support {(usedLeft ? Fmt(d.SupportPoint) : "the analysis'")}.");
             }
             catch (Exception e)
             {
