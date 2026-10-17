@@ -1683,7 +1683,9 @@ namespace RavenfieldVR.Weapons
                 }
             }
             int total = points.Count * 3;
-            if (bestAngle != 0f && best <= before * 0.6f && before - best >= 3)
+            // (Also a small tilt that clears it completely: 2 points through the trigger guard and none at 3 degrees was kept on
+            // the six CZ Bren 2 BRs and the Q1911, whose magazines the user saw go in through the gun; 2026-10-17.)
+            if (bestAngle != 0f && best <= before * 0.6f && (before - best >= 3 || best == 0 && before >= 2 && Mathf.Abs(bestAngle) <= 6.01f))
             {
                 d.MagEjectAxis = -(Quaternion.AngleAxis(bestAngle, right) * in0).normalized;
                 d.Notes += $"magazine line fitted to the drawn gun ({bestAngle:0} deg) ";
