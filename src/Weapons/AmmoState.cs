@@ -13,7 +13,26 @@ namespace RavenfieldVR.Weapons
         public readonly Weapon Weapon;
         public readonly WeaponRigData Rig;
 
-        public int MagRounds;
+        /// <summary>Rounds in the magazine (a fire-mode variant on its parent's model reads and moves the parent's; 255.B6-3).</summary>
+        public int MagRounds
+        {
+            get => Shared ? MagazineOf.MagRounds : _magRounds;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.MagRounds = value;
+                }
+                else
+                {
+                    _magRounds = value;
+                }
+            }
+        }
+        private int _magRounds;
+
+        /// <summary>This is a fire-mode variant that shares its parent's magazine, cover and belt.</summary>
+        private bool Shared => MagazineOf != null && !ReferenceEquals(MagazineOf, this);
         public bool Chambered;
         private bool _magInserted = true;
 
@@ -43,10 +62,40 @@ namespace RavenfieldVR.Weapons
         public bool Open;
         /// <summary>Bolt / pump / lever left open by hand (manual actions do not spring shut).</summary>
         public bool BoltOpen;
-        /// <summary>Machine gun feed cover lifted (cannot fire).</summary>
-        public bool CoverOpen;
-        /// <summary>Machine gun: the belt of the seated box lies on the feed tray (the cover was closed over it).</summary>
-        public bool BeltLaid = true;
+        /// <summary>Machine gun feed cover lifted (cannot fire). Shared with a fire-mode variant on the same model (255.B6-3).</summary>
+        public bool CoverOpen
+        {
+            get => Shared ? MagazineOf.CoverOpen : _coverOpen;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.CoverOpen = value;
+                }
+                else
+                {
+                    _coverOpen = value;
+                }
+            }
+        }
+        private bool _coverOpen;
+        /// <summary>Machine gun: the belt of the seated box lies on the feed tray (the cover was closed over it). Shared as the cover.</summary>
+        public bool BeltLaid
+        {
+            get => Shared ? MagazineOf.BeltLaid : _beltLaid;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.BeltLaid = value;
+                }
+                else
+                {
+                    _beltLaid = value;
+                }
+            }
+        }
+        private bool _beltLaid = true;
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
         public bool SpentInChamber;
         /// <summary>Break-action / revolver: fired cases still in the chambers (they fall out when it is opened).</summary>
