@@ -4346,7 +4346,7 @@ namespace RavenfieldVR.Weapons
             Vector3 start = RackPointWorld;
             Vector3 pull = Rig.DirToWorld(StrokeDir) * StrokeLength;
             bool held = false, taken = false, backOnGrip = false, freeAfter = false;
-            float gripOnly = 0f, back = 0f;
+            float gripOnly = 0f, back = 0f, drawnMost = 0f;
             int cycledFrom = -1;
             try
             {
@@ -4383,6 +4383,7 @@ namespace RavenfieldVR.Weapons
                 yield return null;
                 yield return null;
                 taken = _racking && _rackByTrigger && off.Role == HandRole.Slide;
+                var drawnHome = _held.DrawnLayout();
                 // All the way back, then home.
                 for (int i = 1; i <= 12; i++)
                 {
@@ -4390,6 +4391,16 @@ namespace RavenfieldVR.Weapons
                     yield return null;
                 }
                 back = Travel > 1e-4f ? _held.SlideOffset / Travel : 0f;
+                // What the eye sees move (the stroke above is the mod's number): 76 EAGLE's pump block moved 15 mm in the
+                // grip-only rack check while the stroke read 80% (252 ae).
+                yield return new WaitForEndOfFrame();
+                foreach (var kv in drawnHome)
+                {
+                    if (_held.DrawnLayout().TryGetValue(kv.Key, out Vector3 now))
+                    {
+                        drawnMost = Mathf.Max(drawnMost, Vector3.Distance(kv.Value, now));
+                    }
+                }
                 for (int i = 11; i >= 0; i--)
                 {
                     VRHand.Scripted[side] = at(start + pull * (i / 12f));
@@ -4423,8 +4434,10 @@ namespace RavenfieldVR.Weapons
             // A full stroke ejects the round and feeds the next: one round fewer in the tube, one chambered.
             bool cycled = cycledFrom > 0 && Ammo.Chambered && Ammo.MagRounds == cycledFrom - 1;
             Core.AutoTest.Metric("pump by trigger: share of the stroke at the full pull", back);
+            Core.AutoTest.Metric("pump by trigger: mm the drawn pump moves at the full pull", drawnMost * 1000f);
             report($"pump by trigger: {(held ? "held by the pump" : "NOT HELD BY THE PUMP")}, the grip alone moved it {gripOnly * 1000f:0} mm{(gripOnly > 0.005f ? " (THE GRIP ALONE WORKS THE PUMP)" : "")}; "
-                   + $"{(taken ? "the trigger took the pump" : "THE TRIGGER DID NOT TAKE THE PUMP")}, full pull {back * 100f:0}% of the stroke{(taken && back < 0.8f ? " (NOT ALL THE WAY BACK)" : "")}, "
+                   + $"{(taken ? "the trigger took the pump" : "THE TRIGGER DID NOT TAKE THE PUMP")}, full pull {back * 100f:0}% of the stroke{(taken && back < 0.8f ? " (NOT ALL THE WAY BACK)" : "")}"
+                   + $" (the drawn gun moved {drawnMost * 1000f:0} mm{(taken && drawnMost < Travel * 0.5f ? ": THE PUMP IS NOT SEEN MOVING" : "")}), "
                    + $"{(cycled ? "cycled a round" : taken ? "DID NOT CYCLE A ROUND" : "not cycled")}; "
                    + $"trigger let go: {(backOnGrip ? "the hand holds the pump again" : "NOT BACK ON THE PUMP")}, grip let go: {(freeAfter ? "free" : "NOT FREE")}");
             // Back as it was.
