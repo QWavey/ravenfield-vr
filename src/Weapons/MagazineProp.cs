@@ -643,6 +643,9 @@ namespace RavenfieldVR.Weapons
         /// is meshes made and thrown away: a launcher whose rocket never measures right would make them for as long as it is
         /// held; ten tries half a second apart were all spent in the first five seconds).
         /// </summary>
+        /// <summary>The last look at each launcher's loaded rocket (gun space) while its far seat waits to be taken over.</summary>
+        private static readonly Dictionary<string, (RigidPose pose, float at)> SeatLooks = new Dictionary<string, (RigidPose pose, float at)>();
+
         internal static void KeepLoadedLook(WeaponRig rig)
         {
             string key = rig.Data.Key;
@@ -652,7 +655,22 @@ namespace RavenfieldVR.Weapons
                 // The analysed rest pose had the rocket parked away (the Panzerfaust 3's warhead waits 30 m off in its empty
                 // idle, and its rocket was "seated" there: taken from the back, a 30 m rail). Loaded, it sits on the gun now.
                 RigidPose live = rig.GunBodyPose.Inverse().Multiply(RigidPose.Of(rig.Magazine));
-                if ((live.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f)
+                // Taken only from a still pose outside the reload: two looks a third of a second apart within 1 cm and 1
+                // degree. One frame mid-animation went into the weapon's shared data for every rig of it (review 253.13).
+                bool still = false;
+                if (!rig.Weapon.reloading && (live.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f)
+                {
+                    if (SeatLooks.TryGetValue(key, out (RigidPose pose, float at) seen) && Time.unscaledTime - seen.at >= 0.3f)
+                    {
+                        still = Vector3.Distance(seen.pose.position, live.position) < 0.01f && Quaternion.Angle(seen.pose.rotation, live.rotation) < 1f;
+                        SeatLooks[key] = (live, Time.unscaledTime);
+                    }
+                    else if (!SeatLooks.ContainsKey(key))
+                    {
+                        SeatLooks[key] = (live, Time.unscaledTime);
+                    }
+                }
+                if (still)
                 {
                     Log.InfoOnce("rocketseat:" + key, $"Rocket of {key}: seated where it sits loaded, {(live.position - d.GripPoint).magnitude * 100f:0} cm from the grip "
                                                       + $"(the analysis had it {(d.MagSeat.position - d.GripPoint).magnitude:0.0} m off).");
@@ -1214,14 +1232,18 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Bounds mb = mf.sharedMesh.bounds;
-                float reach = float.MinValue;
+                float reach = float.MinValue, back = float.MaxValue;
                 for (int i = 0; i < 8; i++)
                 {
                     Vector3 corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
                     corners[i] = rig.ToGun(mf.transform.TransformPoint(corner));
-                    reach = Mathf.Max(reach, Vector3.Dot(corners[i], aim));
+                    float along = Vector3.Dot(corners[i], aim);
+                    reach = Mathf.Max(reach, along);
+                    back = Mathf.Min(back, along);
                 }
-                if (reach < front - 0.12f)
+                // A tube is long along the bore: a sight post, a grip or a handle that reaches the mouth (shorter than 20 cm)
+                // pulled the middle toward itself, and the missile with it (review 253.11).
+                if (reach < front - 0.12f || reach - back < 0.2f || rig.Handle != null && mf.transform.IsChildOf(rig.Handle))
                 {
                     continue;
                 }

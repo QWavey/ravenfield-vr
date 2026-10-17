@@ -25,22 +25,30 @@ namespace RavenfieldVR.Weapons
         // Mod authors name parts in many languages: English, German, French, Spanish, Russian (Cyrillic and
         // transliterated) and Chinese (characters and pinyin abbreviations such as DX = 弹匣, QJ = 枪机).
         private static readonly Regex MagName = new Regex(
-            @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|missile|warhead|projectile|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
+            @"(^|[^a-z])(mag(azine?)?s?($|[^a-z])|clip|drum|shell|rocket|round|ammo|cartridge|belt|cargador|chargeur|patron|lenta|zidan|danxia)|(^|[^a-z])dx($|[^a-z])"
             // A machine gun's ammunition box (弹箱: the PKM's "PKM d弹箱" scored as an unnamed part against its belt).
             // (Not a bare "box": modelling tools name every primitive "Box001".)
             + @"|ammo[ _]?(box|can)|box[ _]?mag|弹箱"
-            // (a launcher's missile or warhead: 导弹, 火箭, 战斗部)
-            + @"|магазин|патрон|лента|ракета|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳|导弹|火箭|战斗部",
+            + @"|магазин|патрон|лента|弹匣|弹夹|弹鼓|弹链|子弹|弹药|弹壳",
             RegexOptions.IgnoreCase);
+        /// <summary>
+        /// A launcher's round by its name: a missile, warhead or projectile (导弹, 火箭, 战斗部, ракета). Launchers only: on any
+        /// other gun a "MissileTube" or "Projectile_FX" part was taken for its magazine by the name fallback (review 253.9).
+        /// </summary>
+        private static readonly Regex LauncherRoundName = new Regex(@"rocket|missile|warhead|projectile|ракета|导弹|火箭|战斗部", RegexOptions.IgnoreCase);
+        /// <summary>
+        /// A launcher's parts that its tube swap moves and are never its rocket: a safety, a cap or lid, a sling, a carry handle
+        /// (保险, 桶盖, 提把; the AT-1K's controller unit with its safety was taken for its rocket). Launchers only: on any other
+        /// gun a "Mag_Cap" lost its magazine name (review 253.7).
+        /// </summary>
+        private static readonly Regex LauncherNotRound = new Regex(
+            @"safety|(^|[^a-z])(end ?)?caps?($|[^a-z])|(^|[^a-z])lid($|[^a-z])|sling|carry ?handle|保险|桶盖|提把", RegexOptions.IgnoreCase);
         /// <summary>
         /// Parts named after the magazine that are not the magazine: its release button or catch, the well it sits in, a
         /// pouch or a spare. Taking one of them for the magazine leaves the real one in the gun when it is ejected.
         /// </summary>
         private static readonly Regex NotMagName = new Regex(
             @"release|catch|button|latch|controll?er|控制器|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
-            // A safety, a cap or lid, a carry handle or sling (保险, 桶盖, 提把): the AT-1K's controller unit with its safety
-            // was taken for its rocket.
-            + @"|safety|(^|[^a-z])(end ?)?caps?($|[^a-z])|(^|[^a-z])lid($|[^a-z])|sling|carry ?handle|保险|桶盖|提把"
             // Optics: a magnifier's "Mag 2x" glass is not a magazine; a calibre is not a magnification ("mag_9x19",
             // "7.62x39 mag" were taken for optics and their magazines lost).
             + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9.])(?!(\d+\.\d+|9|10)x(1[7-9]|[2-9]\d|1\d\d)(?!\d))\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
@@ -52,6 +60,13 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex EnBlocName = new Regex(@"garand|garret|(^|[^a-z])m1 ?rifle", RegexOptions.IgnoreCase);
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
+
+        /// <summary>A magazine (or on a launcher, its rocket) by its name: the launcher words count only on a launcher.</summary>
+        private static bool IsMagName(string name, bool launcher) =>
+            (MagName.IsMatch(name) || launcher && LauncherRoundName.IsMatch(name)) && !IsNotMag(name, launcher);
+
+        /// <summary>Named after the magazine but not it (on a launcher also its safety, caps, lid, sling, carry handle).</summary>
+        private static bool IsNotMag(string name, bool launcher) => NotMagName.IsMatch(name) || launcher && LauncherNotRound.IsMatch(name);
 
         /// <summary>A single round, case or shell (never a slide, bolt or handle).</summary>
         private static readonly Regex RoundName = new Regex(
@@ -1864,10 +1879,6 @@ namespace RavenfieldVR.Weapons
 
         private static float MaxBoltTravel(WeaponRigData d) => d.Handgun ? 0.07f : 0.23f;
 
-        /// <summary>
-        /// Many rifles never move their bolt in the fire clip; their charging handle only moves in the reload.
-        /// It is the visible part near the receiver that goes straight back along the bore and returns home.
-        /// </summary>
         /// <summary>Its own mesh is the size of a cocking handle (2-30 cm), not a receiver or a bolt group's housing.</summary>
         private static bool HandleSized(Transform t)
         {
@@ -1881,6 +1892,10 @@ namespace RavenfieldVR.Weapons
             return longest > 0.02f && longest < 0.3f;
         }
 
+        /// <summary>
+        /// Many rifles never move their bolt in the fire clip; their charging handle only moves in the reload.
+        /// It is the visible part near the receiver that goes straight back along the bore and returns home.
+        /// </summary>
         private static Transform ChargingHandleFromReload(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
             Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, out Vector3 travel,
             Transform exclude = null)
@@ -1951,7 +1966,10 @@ namespace RavenfieldVR.Weapons
                 float m0 = sampler.ReloadMax[index[best]];
                 for (Transform p = best.parent; p != null && p != gunBody && p != root; p = p.parent)
                 {
-                    if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || sampler.ReloadMax[pi] < m0 * 0.8f || MagName.IsMatch(p.name))
+                    // Never up into a part that carries the bolt and is not handle-sized itself (a bolt group's housing):
+                    // taken for the handle, the whole group was racked as one (review 253.6).
+                    if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || sampler.ReloadMax[pi] < m0 * 0.8f || MagName.IsMatch(p.name)
+                        || exclude != null && exclude.IsChildOf(p) && !HandleSized(p))
                     {
                         break;
                     }
@@ -2035,9 +2053,12 @@ namespace RavenfieldVR.Weapons
         // ---- magazine ---------------------------------------------------------------------------------
 
         /// <summary>
-        /// The gun's up from its own model: the model axis nearest the weapon root's up, when within 25 degrees. The root's up
-        /// as the flat idle pose leaves it is canted on many rigs (0-8 degrees on most, the 1911's 22): the gun sat rolled in
-        /// the hand and its magazine came up the grip from the side (the user's pictures, 2026-10-16).
+        /// The gun's up from its gun body's own frame: the body's axis nearest the weapon root's up, when within 25 degrees.
+        /// The root's up as the flat idle pose leaves it is canted on many rigs (0-8 degrees on most, the 1911's 22): the gun
+        /// sat rolled in the hand and its magazine came up the grip from the side (the user's pictures, 2026-10-16). It reads
+        /// the gun body's axes only, not the mesh: a body bone whose rest is rolled against its own mesh would be followed
+        /// (review 253.5; the 1911 and the RPG-7V check out in the pictures). Per-weapon pitch and gripUp overrides pivot in this
+        /// frame (review 253.3).
         /// </summary>
         private static Vector3 UprightByModel(Vector3 up, Vector3 aim, WeaponRigData d)
         {
@@ -2117,8 +2138,9 @@ namespace RavenfieldVR.Weapons
                     bool launcher = d.Action == ActionType.SingleShot;
                     // A launcher's rocket by its name may be parked away by the reload (that is how its animation hides it:
                     // the Panzerfaust 3's warhead "弹药" waits 30 m off while a new tube comes in).
-                    bool parkedRocket = launcher && IsMagName(t.name) && m > 1.5f;
-                    if (launcher && NotMagName.IsMatch(t.name))
+                    // (A rocket's name only: a spare round or shell carried away by the reload is still parked away; review 253.8.)
+                    bool parkedRocket = launcher && LauncherRoundName.IsMatch(t.name) && !IsNotMag(t.name, true) && m > 1.5f;
+                    if (launcher && IsNotMag(t.name, true))
                     {
                         continue; // a launcher's controller, sight, safety or cap that its tube swap moves is never its rocket
                     }
@@ -2152,8 +2174,9 @@ namespace RavenfieldVR.Weapons
                     // In the gun at rest: a reload with two magazines (the old one out, a fresh one in) keeps the fresh one
                     // where the flat view's other hand waits, a few tens of centimetres off.
                     // (A launcher's rocket sits out at the tube's mouth, far from the grip: not counted against it.)
-                    float inGun = launcher ? 1f : Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
-                    float named = IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f;
+                    // (Only a part named as its round: an unnamed far part on a single-round gun keeps the discount; review 253.2.)
+                    float inGun = launcher && IsMagName(t.name, true) ? 1f : Mathf.Lerp(1f, 0.15f, Mathf.InverseLerp(0.22f, 0.45f, fromGrip));
+                    float named = IsMagName(t.name, launcher) ? 3f : IsNotMag(t.name, launcher) ? 0.3f : 1f;
                     if (beltFed && IsBeltPiece(t.name))
                     {
                         // A belt-fed gun's belt (or a link of it) is never its box: taken for it, only the belt came out into the
@@ -2199,7 +2222,7 @@ namespace RavenfieldVR.Weapons
                     {
                         if (!index.TryGetValue(p, out int pi) || armRelated.Contains(p) || (slide != null && p == slide)
                             || gunBody != null && gunBody.IsChildOf(p) // never up into what holds the gun body (the launcher itself)
-                            || d.Action == ActionType.SingleShot && NotMagName.IsMatch(p.name) // nor a launcher's controller or sight
+                            || IsNotMag(p.name, d.Action == ActionType.SingleShot) // nor a launcher's controller, sight or safety
                             || sampler.ReloadMax[pi] < sampler.ReloadMax[index[mag]] * 0.8f || LooksLikeAWeapon(p)
                             || OpticName.IsMatch(p.name) && !MagName.IsMatch(p.name))
                         {
@@ -2226,7 +2249,8 @@ namespace RavenfieldVR.Weapons
                             continue;
                         }
                         float hidden = HiddenSeconds(sampler.ReloadVisible[i]);
-                        float score = hidden * (IsMagName(t.name) ? 3f : NotMagName.IsMatch(t.name) ? 0.3f : 1f);
+                        bool single = d.Action == ActionType.SingleShot;
+                        float score = hidden * (IsMagName(t.name, single) ? 3f : IsNotMag(t.name, single) ? 0.3f : 1f);
                         if (hidden >= 0.15f && score > bestHidden)
                         {
                             bestHidden = score;
@@ -2251,7 +2275,7 @@ namespace RavenfieldVR.Weapons
             }
             if (mag == null)
             {
-                mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones);
+                mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot);
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
                     mag = null;
@@ -2294,7 +2318,7 @@ namespace RavenfieldVR.Weapons
                         break; // the launcher itself (it holds the grip or the gun body): the Panzerfaust 3 handed out its whole launcher
                     }
                     float size = Longest(upBounds);
-                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up) && HoldsRocketSizedMesh(up) && !NotMagName.IsMatch(up.name))
+                    if (size > 0.15f && size < 1.6f && index.ContainsKey(up) && HoldsRocketSizedMesh(up) && !IsNotMag(up.name, true))
                     {
                         d.Notes += $"rocket taken as '{up.name}', {size * 100f:0} cm (its part '{mag.name}' is too small for one) ";
                         mag = up;
@@ -2317,6 +2341,22 @@ namespace RavenfieldVR.Weapons
                 d.MagMethod = "reload motion (skinned bone)";
             }
             d.MagSeat = sampler.RelIdle[mi];
+            if (d.Action == ActionType.SingleShot && sampler.HasReload && (d.MagSeat.position - d.GripPoint).sqrMagnitude > 1.5f * 1.5f)
+            {
+                // A launcher's rocket parked away at rest (the Panzerfaust 3's warhead 30 m off): seated where its reload
+                // leaves it, on the gun. Before, only a live pose taken while it sat loaded seated it, and a launcher first
+                // drawn empty kept a seat 30 m away (review 253.1).
+                Vector3[] path = sampler.ReloadTrajectory[mi];
+                if (path != null && path.Length > 0)
+                {
+                    Vector3 end = path[path.Length - 1];
+                    if ((end - d.GripPoint).sqrMagnitude < 1.5f * 1.5f && !float.IsNaN(end.x))
+                    {
+                        d.MagSeat = new RigidPose(end, d.MagSeat.rotation);
+                        d.Notes += "rocket seated where its reload leaves it (parked away at rest) ";
+                    }
+                }
+            }
             Vector3 eject = sampler.HasReload && !toggles ? sampler.FirstDir[mi] : Vector3.zero;
             d.MagEjectAxis = eject.sqrMagnitude > 0.5f ? eject.normalized : -d.Up;
             Bounds mb = sampler.LocalBounds(mag);
@@ -2364,7 +2404,9 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (!(r is ParticleSystemRenderer) && sampler.IdleVisible(r.transform))
+                    // A static rig's idle is the live pose, whose visibility reads only active objects: a renderer the game
+                    // keeps switched off (four warheads of five) counted as shown and was switched on once loaded (review 253.10).
+                    if (!(r is ParticleSystemRenderer) && sampler.IdleVisible(r.transform) && (d.Animated || r.enabled))
                     {
                         d.MagShownAtIdle.Add(WeaponRig.PathOf(root, r.transform));
                     }
@@ -2397,8 +2439,9 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 float size = sampler.LocalBounds(t).size.magnitude;
-                if (size > 0.6f || !IsMagName(t.name) && (magSize < 0.01f || Mathf.Abs(size - magSize) > magSize * 0.4f)
-                    || NotMagName.IsMatch(t.name) || OpticName.IsMatch(t.name))
+                bool single = d.Action == ActionType.SingleShot;
+                if (size > 0.6f || !IsMagName(t.name, single) && (magSize < 0.01f || Mathf.Abs(size - magSize) > magSize * 0.4f)
+                    || IsNotMag(t.name, single) || OpticName.IsMatch(t.name))
                 {
                     continue;
                 }
@@ -3377,11 +3420,11 @@ namespace RavenfieldVR.Weapons
         }
 
         private static Transform FindMagByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle,
-            HashSet<Transform> armRelated, HashSet<Transform> gunBones)
+            HashSet<Transform> armRelated, HashSet<Transform> gunBones, bool launcher)
         {
             foreach (Transform t in all)
             {
-                if (IsMagName(t.name) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                if (IsMagName(t.name, launcher) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     return t;
                 }
@@ -3677,24 +3720,30 @@ namespace RavenfieldVR.Weapons
             {
                 return best;
             }
-            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            // Twice at most: first only opaque meshes; if there are none, any but a glow, beam or HUD shader (a gun body on a
+            // transparent material was never the host, and a small opaque part or nothing was; review 253.12).
+            MeshFilter[] filters = root.GetComponentsInChildren<MeshFilter>(true);
+            for (int pass = 0; pass < 2 && best == null; pass++)
             {
-                Renderer mr = mf.GetComponent<Renderer>();
-                if (mf.sharedMesh == null || armRelated.Contains(mf.transform) || mr != null && armRenderers.Contains(mr))
+                foreach (MeshFilter mf in filters)
                 {
-                    continue;
-                }
-                float size = Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale).magnitude;
-                if (size > 2.5f || mr != null && GunCollider.SeeThrough(mr))
-                {
-                    // A laser's beam, a sight's glow or glass is not the gun: the HK416-B/D's 10 m laser beam was taken for
-                    // the gun body, and every part's motion was measured against the laser sight.
-                    continue;
-                }
-                if (size > bestSize)
-                {
-                    bestSize = size;
-                    best = mf.transform;
+                    Renderer mr = mf.GetComponent<Renderer>();
+                    if (mf.sharedMesh == null || armRelated.Contains(mf.transform) || mr != null && armRenderers.Contains(mr))
+                    {
+                        continue;
+                    }
+                    float size = Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale).magnitude;
+                    if (size > 2.5f || mr != null && (pass == 0 ? GunCollider.SeeThrough(mr) : GlowShader(mr)))
+                    {
+                        // A laser's beam, a sight's glow or glass is not the gun: the HK416-B/D's 10 m laser beam was taken
+                        // for the gun body, and every part's motion was measured against the laser sight.
+                        continue;
+                    }
+                    if (size > bestSize)
+                    {
+                        bestSize = size;
+                        best = mf.transform;
+                    }
                 }
             }
             if (best != null)
@@ -3705,6 +3754,15 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return best;
+        }
+
+        /// <summary>A beam, glow, HUD or particle shader: never a gun's body, whatever else is see-through.</summary>
+        private static bool GlowShader(Renderer r)
+        {
+            Material m = r.sharedMaterial;
+            string shader = m != null && m.shader != null ? m.shader.name : "";
+            return shader.IndexOf("Additive", StringComparison.OrdinalIgnoreCase) >= 0 || shader.IndexOf("HUD", StringComparison.OrdinalIgnoreCase) >= 0
+                   || shader.IndexOf("Particle", StringComparison.OrdinalIgnoreCase) >= 0 || shader.IndexOf("Glow", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static int Depth(Transform t, Transform root)
