@@ -460,13 +460,23 @@ namespace RavenfieldVR.Rig
         /// posed (its fingers round what it holds); 0 while it is not shown, and 0 when no step is clear (then it is not
         /// in the way along <paramref name="dir"/> but stuck in something beside it, which moving back does not cure).
         /// </summary>
+        /// <summary>The tracked hand at the last pose, the one the stored skin belongs to.</summary>
+        private Vector3 _skinTargetPos;
+
+        /// <summary>
+        /// From the glove as last posed to where the tracked hand alone puts it now: its offsets taken back, and the hand's move
+        /// since that pose added (the skin is last frame's: a fast hand was tested where it had been and went into the gun;
+        /// 255.I2-1).
+        /// </summary>
+        private Vector3 TrackedShift => PlacedTarget().position - _skinTargetPos - _graspOffset - _keepOut;
+
         internal float ClearanceAlong(Vector3 dir, System.Func<Vector3, bool> blocked, float max)
         {
             if (!_skinValid)
             {
                 return 0f;
             }
-            Vector3 tracked = -_graspOffset - _keepOut;
+            Vector3 tracked = TrackedShift;
             for (float s = 0f; s <= max + 1e-4f; s += 0.005f)
             {
                 if (!GloveIn(blocked, tracked - dir * s))
@@ -494,7 +504,7 @@ namespace RavenfieldVR.Rig
             {
                 return Vector3.zero;
             }
-            Vector3 tracked = -_graspOffset - _keepOut;
+            Vector3 tracked = TrackedShift;
             if (!GloveIn(blocked, tracked))
             {
                 return Vector3.zero;
@@ -658,7 +668,9 @@ namespace RavenfieldVR.Rig
             // Pushed out at once, let back in eased: eased both ways, a fast shove left the glove up to 7 cm inside the gun
             // for a few frames while the magazine it held stopped on the gun's face (user, 2026-10-16: "hands and mags
             // glitch through weapons"). Only growing it is immediate, so a keep-out that flickers does not shake the glove.
-            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? wantOut : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
+            // Out at up to 4 m/s (4.4 cm a frame keeps up with a fast hand; at once, a full 12 cm clearance or a flip of side
+            // jumped the glove in one frame; 255.I2-2), back in eased.
+            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
             // Holding a weapon by a grip it was made for: the glove takes the weapon's own hand pose there (Boneworks style),
             // easing in when the grip is taken and back out to the tracked hand when it is let go.
             _snapBlend = Mathf.MoveTowards(_snapBlend, SnapPose.HasValue ? 1f : 0f, dt / 0.08f);
@@ -667,6 +679,7 @@ namespace RavenfieldVR.Rig
                 _lastSnap = SnapPose.Value;
             }
             Vector3 position = target.position + _graspOffset + _keepOut;
+            _skinTargetPos = target.position; // the tracked hand the skin below is posed for (see TrackedShift)
             Quaternion rotation = target.rotation;
             if (_snapBlend > 0f)
             {
