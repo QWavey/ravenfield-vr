@@ -635,7 +635,11 @@ namespace RavenfieldVR.Weapons
         private readonly float _inertiaOmega;
         /// <summary>Degrees the muzzle dips per m/s² the hand accelerates upward (a long, heavy muzzle lags behind the grip).</summary>
         private readonly float _inertiaLever;
-        private Vector3 _lagPos, _lagVel, _handVelPrev, _handAcc;
+        private Vector3 _lagPos, _lagVel, _handAcc;
+        private const int VelHist = 16;
+        private readonly Vector3[] _velHist = new Vector3[VelHist];
+        private readonly float[] _velHistT = new float[VelHist];
+        private int _velHistHead, _velHistCount;
         private float _lagPitch, _lagPitchVel;
         private bool _lagInit;
 
@@ -688,16 +692,30 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 v = main.BodyRelativeVelocity;
+            float now = Time.unscaledTime;
             if (!_lagInit)
             {
-                _handVelPrev = v;
+                _velHistCount = 0;
                 _handAcc = Vector3.zero;
                 _lagInit = true;
             }
-            // Over the real frame time: the clamped step (for the spring's stability) overstated the change on a long frame
-            // (255.B1-3).
-            Vector3 raw = (v - _handVelPrev) / Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
-            _handVelPrev = v;
+            // The change of the hand's velocity over about 50 ms, in real time: from one frame to the next, the few cm/s the
+            // controller's velocity jitters were several m/s^2 and shook a launcher held still (255.I5-4, Tasks 203); over the
+            // clamped step a long frame overstated it (255.B1-3).
+            _velHistHead = (_velHistHead + 1) % VelHist;
+            _velHist[_velHistHead] = v;
+            _velHistT[_velHistHead] = now;
+            _velHistCount = Mathf.Min(_velHistCount + 1, VelHist);
+            int back = -1;
+            for (int k = 1; k < _velHistCount; k++)
+            {
+                back = (_velHistHead - k + VelHist) % VelHist;
+                if (now - _velHistT[back] >= 0.05f)
+                {
+                    break;
+                }
+            }
+            Vector3 raw = back >= 0 && now - _velHistT[back] > 1e-4f ? (v - _velHist[back]) / (now - _velHistT[back]) : Vector3.zero;
             raw = Vector3.ClampMagnitude(raw, 40f); // a tracking jump is no acceleration
             // The controller's reported velocity jitters a few cm/s from frame to frame: differenced, that is several m/s^2
             // of acceleration nobody made, and the lag spring shook a heavy launcher held still (Tasks 203, "RPGs shake in
