@@ -159,15 +159,19 @@ namespace RavenfieldVR.Weapons
             {
                 return cached;
             }
+            // The weapon's slot (primary, secondary...): a prefab's Weapon.slot is -1 until the game equips it, so the menu's
+            // warm-up (and the sandbox export) analysed every pistol as "not a handgun" and the match used that cached result;
+            // the entry knows it.
+            int slot = w.slot >= 0 ? w.slot : entry != null ? (int)entry.slot : -1;
             WeaponRigData data;
             try
             {
-                data = Analyze(w, key);
+                data = Analyze(w, key, slot);
             }
             catch (Exception e)
             {
                 Log.Exception($"Weapon analysis failed for {key}; using geometric fallback", e);
-                data = Fallback(w, key);
+                data = Fallback(w, key, slot);
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
             }
             WeaponOverrides.Apply(w, data);
@@ -276,9 +280,9 @@ namespace RavenfieldVR.Weapons
             d.Notes += "magazine-fed advanced reload ";
         }
 
-        private static WeaponRigData Fallback(Weapon w, string key)
+        private static WeaponRigData Fallback(Weapon w, string key, int slot)
         {
-            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), Notes = "fallback" };
+            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), Notes = "fallback", Slot = slot };
             d.CyclesByHand = d.Action == ActionType.Manual || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
             Transform muzzle = FindMuzzle(w, null, out _);
             Transform root = w.transform;
@@ -286,7 +290,7 @@ namespace RavenfieldVR.Weapons
             d.MuzzlePath = d.GunBodyPath;
             d.AimAxis = Vector3.forward;
             d.Up = Vector3.up;
-            d.IsPistol = w.slot == 1;
+            d.IsPistol = d.Slot == 1;
             d.Handgun = d.IsPistol;
             d.GripPoint = new Vector3(0f, -0.04f, d.IsPistol ? -0.12f : -0.32f);
             d.SupportPoint = d.GripPoint + new Vector3(0f, 0f, d.IsPistol ? 0.01f : 0.22f);
@@ -322,10 +326,10 @@ namespace RavenfieldVR.Weapons
             return w.transform;
         }
 
-        private static WeaponRigData Analyze(Weapon w, string key)
+        private static WeaponRigData Analyze(Weapon w, string key, int slot)
         {
             Transform root = w.transform;
-            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w) };
+            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), Slot = slot };
 
             Transform[] all = root.GetComponentsInChildren<Transform>(true);
             var index = new Dictionary<Transform, int>(all.Length);
@@ -886,7 +890,7 @@ namespace RavenfieldVR.Weapons
 
         private static void AnalyzeHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, RigidPose gunIdle, Weapon w)
         {
-            d.IsPistol = w.slot == 1;
+            d.IsPistol = d.Slot == 1;
             d.Handgun = d.IsPistol;
             if (handR != null)
             {
@@ -3427,7 +3431,7 @@ namespace RavenfieldVR.Weapons
             bool inGrip = gripMeasured && Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
             // A handgun by its slot. A rifle whose support hand holds the magazine well is marked "pistol" (no handguard to
             // steer by), but its magazine still hangs out of the well in front of the grip.
-            bool handgun = w.slot == 1 || d.IsPistol && w.slot != 0 && w.slot != 3;
+            bool handgun = d.Slot == 1 || d.IsPistol && d.Slot != 0 && d.Slot != 3;
             string names = w.name + " " + (w.weaponEntry != null ? w.weaponEntry.name : "");
             bool deepWell = DeepWellName.IsMatch(names);
             d.MagKickable = !handgun && !inGrip && !deepWell && !d.EnBloc; // an en-bloc clip is not knocked out by the next one
@@ -4396,25 +4400,68 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 aim = d.AimAxis.normalized;
-            // What is drawn at rest on the gun: not the arms, not a laser's beam, not a part parked far away.
-            Bounds drawn = sampler.GunSpaceBoundsWhere(root, gunIdle, t => armRelated.Contains(t) || !ShownAtIdle(t, sampler)
+            // What is drawn at rest on the gun: not the arms, not a laser's beam, not a part parked far away; and only what
+            // hangs together with the gun body (the FNX-45's "Sight (1)" waits 27 cm out in front of the pistol: counted, the
+            // muzzle stayed 34 cm ahead of the grip and the pistol stayed "a rifle").
+            List<Bounds> boxes = sampler.GunSpaceBoxes(root, gunIdle, t => armRelated.Contains(t) || !ShownAtIdle(t, sampler)
                 || LaserBeamName.IsMatch(t.name) || (sampler.Idle(t).position - gunIdle.position).sqrMagnitude > 1.5f * 1.5f);
-            if (drawn.size.sqrMagnitude < 1e-6f)
+            if (boxes.Count == 0)
             {
                 return;
             }
-            float front = float.NegativeInfinity;
-            Vector3 lo = drawn.min, hi = drawn.max;
-            for (int i = 0; i < 8; i++)
+            int seed = 0;
+            for (int i = 1; i < boxes.Count; i++)
             {
-                var corner = new Vector3((i & 1) == 0 ? lo.x : hi.x, (i & 2) == 0 ? lo.y : hi.y, (i & 4) == 0 ? lo.z : hi.z);
-                front = Mathf.Max(front, Vector3.Dot(corner, aim));
+                if (boxes[i].SqrDistance(Vector3.zero) < boxes[seed].SqrDistance(Vector3.zero))
+                {
+                    seed = i; // the box at (or nearest) the gun body's origin
+                }
+            }
+            var inGun = new bool[boxes.Count];
+            inGun[seed] = true;
+            for (bool grew = true; grew;)
+            {
+                grew = false;
+                for (int i = 0; i < boxes.Count; i++)
+                {
+                    if (inGun[i])
+                    {
+                        continue;
+                    }
+                    Bounds near = boxes[i];
+                    near.Expand(0.04f); // touching within 2 cm
+                    for (int j = 0; j < boxes.Count && !inGun[i]; j++)
+                    {
+                        if (inGun[j] && near.Intersects(boxes[j]))
+                        {
+                            inGun[i] = grew = true;
+                        }
+                    }
+                }
+            }
+            float front = float.NegativeInfinity;
+            for (int k = 0; k < boxes.Count; k++)
+            {
+                if (!inGun[k])
+                {
+                    continue;
+                }
+                Vector3 lo = boxes[k].min, hi = boxes[k].max;
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = new Vector3((i & 1) == 0 ? lo.x : hi.x, (i & 2) == 0 ? lo.y : hi.y, (i & 4) == 0 ? lo.z : hi.z);
+                    front = Mathf.Max(front, Vector3.Dot(corner, aim));
+                }
             }
             float ahead = Vector3.Dot(d.MuzzlePoint, aim) - front;
             if (ahead > 0.15f)
             {
                 d.MuzzlePoint -= aim * (ahead - 0.01f);
                 d.Notes += $"muzzle {ahead * 100f:0} cm ahead of the drawn barrel: taken at the barrel's end ";
+            }
+            else if (ahead > 0.05f)
+            {
+                d.Notes += $"muzzle {ahead * 100f:0} cm ahead of the drawn barrel (kept: {boxes.Count} meshes, {System.Array.FindAll(inGun, x => x).Length} on the gun) ";
             }
         }
 

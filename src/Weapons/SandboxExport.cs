@@ -441,7 +441,7 @@ namespace RavenfieldVR.Weapons
         {
             var j = new Json();
             j.Str("key", d.Key).Str("name", weapon != null ? weapon.name : d.Key).Str("action", d.Action.ToString())
-                .Num("slot", weapon != null ? weapon.slot : -1).Bool("isPistol", d.IsPistol).Bool("handgun", d.Handgun)
+                .Num("slot", d.Slot).Bool("isPistol", d.IsPistol).Bool("handgun", d.Handgun)
                 .Bool("machineGun", d.IsMachineGun).Bool("enBloc", d.EnBloc).Bool("lockOnEmpty", d.LockOnEmpty).Bool("cyclesByHand", d.CyclesByHand)
                 .Vec("aim", d.AimAxis).Vec("up", d.Up).Vec("grip", d.GripPoint).Vec("gripDown", d.GripDown)
                 .Bool("hasSupport", d.HasSupportPoint).Vec("support", d.SupportPoint).Vec("muzzle", d.MuzzlePoint)

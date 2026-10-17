@@ -560,6 +560,33 @@ namespace RavenfieldVR.Weapons
             return near.size.sqrMagnitude > 1e-8f ? near : GunSpaceBounds(live, gunIdle);
         }
 
+        /// <summary>One gun-space box per mesh under <paramref name="root"/> that <paramref name="skip"/> does not exclude.</summary>
+        public List<Bounds> GunSpaceBoxes(Transform root, RigidPose gunIdle, Func<Transform, bool> skip)
+        {
+            RigidPose gunInv = gunIdle.Inverse();
+            Func<Transform, Vector3, Vector3> toSpace = (t, p) => gunInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale)));
+            var boxes = new List<Bounds>();
+            void Add(Mesh mesh, Transform t)
+            {
+                if (mesh != null && !skip(t))
+                {
+                    bool any = false;
+                    var b = new Bounds();
+                    Encapsulate(ref b, ref any, mesh.bounds, t, toSpace);
+                    boxes.Add(b);
+                }
+            }
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Add(mf.sharedMesh, mf.transform);
+            }
+            foreach (SkinnedMeshRenderer smr in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                Add(smr.sharedMesh, smr.transform);
+            }
+            return boxes;
+        }
+
         /// <summary>Gun-space bounds of the meshes under <paramref name="root"/> that <paramref name="skip"/> does not exclude.</summary>
         public Bounds GunSpaceBoundsWhere(Transform root, RigidPose gunIdle, Func<Transform, bool> skip)
         {

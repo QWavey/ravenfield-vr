@@ -255,6 +255,9 @@ namespace RavenfieldVR.Weapons
         /// goes by this: such a rifle got a pistol's 7 cm bolt travel and no AR or named charging handle (bug hunt 251).
         /// </summary>
         public bool Handgun;
+        /// <summary>The weapon's slot (0 primary, 1 secondary, 2 gear, 3 large gear; -1 unknown): from the weapon entry when the
+        /// prefab has none yet.</summary>
+        public int Slot = -1;
         public bool Animated;
         public string Notes = "";
 
