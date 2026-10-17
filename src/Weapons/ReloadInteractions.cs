@@ -3839,6 +3839,80 @@ namespace RavenfieldVR.Weapons
             report($"two hands: support hand {(snapped ? "on the weapon's own handguard pose" : "on the tracked hand (no support pose)")}");
         }
 
+        /// <summary>
+        /// Autotest: an empty reload as the player does it (Tasks 252 c/d/i, 254): the last round fired leaves the slide or
+        /// bolt locked back; a fresh magazine goes in and the drawn slide must stay back (it ran forward on its own on the
+        /// mwii-g17); released, it must come home (it stayed back until the first shot on the FNX-45 and many rifles); then a
+        /// hand rack must visibly move it (a broken block once reset it every frame). Measured on the drawn model, in gun space.
+        /// </summary>
+        internal IEnumerator EmptyReloadSelfCheck(System.Action<string> report)
+        {
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.EnBloc
+                || _racking || Rig.GunBody == null || !ReferenceEquals(_held.ActiveRig, _held.Rig))
+            {
+                yield break;
+            }
+            bool chambered = Ammo.Chambered, inserted = Ammo.MagInserted, locked = Ammo.SlideLocked;
+            int rounds = Ammo.MagRounds;
+            float Moved(Dictionary<Object, Vector3> a, Dictionary<Object, Vector3> b)
+            {
+                float most = 0f;
+                foreach (var kv in a)
+                {
+                    if (b.TryGetValue(kv.Key, out Vector3 at))
+                    {
+                        most = Mathf.Max(most, Vector3.Distance(kv.Value, at));
+                    }
+                }
+                return most;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            var home = _held.DrawnLayout();
+            // The last round fired: nothing chambered, the magazine empty, the slide caught back.
+            Ammo.Chambered = false;
+            Ammo.MagRounds = 0;
+            Ammo.SlideLocked = true;
+            Ammo.Sync();
+            yield return new WaitForSecondsRealtime(0.5f);
+            var lockedBack = _held.DrawnLayout();
+            float lockTravel = Moved(home, lockedBack);
+            // A fresh magazine in.
+            Ammo.InsertMagazine(Ammo.Capacity);
+            yield return new WaitForSecondsRealtime(0.6f);
+            float ranForward = Moved(lockedBack, _held.DrawnLayout());
+            bool stillLocked = Ammo.SlideLocked;
+            // Released (the slide release, as the A button does).
+            ReleaseSlide();
+            yield return new WaitForSecondsRealtime(0.8f);
+            float leftBack = Moved(home, _held.DrawnLayout());
+            bool fed = Ammo.Chambered;
+            // A hand rack: half way back, the drawn part must follow.
+            _racking = true;
+            _held.SlideOffset = Travel * 0.5f;
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            float racked = Moved(home, _held.DrawnLayout());
+            _racking = false;
+            _returning = true;
+            yield return new WaitForSecondsRealtime(0.5f);
+            Core.AutoTest.Metric("empty reload: mm the drawn slide ran forward on a fresh magazine", ranForward * 1000f);
+            Core.AutoTest.Metric("empty reload: mm the drawn slide stayed back after the release", leftBack * 1000f);
+            Core.AutoTest.Metric("empty reload: mm the drawn slide moved at half a hand rack", racked * 1000f);
+            float tol = Mathf.Max(0.003f, lockTravel * 0.25f);
+            string verdict = lockTravel < 0.003f ? "the drawn slide does not show the lock (nothing moved when locked)"
+                : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm)"
+                : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home)"
+                : "stayed back with the fresh magazine, home when released";
+            report($"empty reload: locked back {lockTravel * 1000f:0} mm, {(stillLocked ? "still locked" : "NOT LOCKED")} with a fresh magazine, {verdict}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
+                   + $"half a hand rack moves the drawn gun {racked * 1000f:0} mm{(racked < Mathf.Max(0.002f, Travel * 0.15f) ? " (THE HAND RACK MOVES NOTHING)" : "")}");
+            // Back as it was.
+            Ammo.SlideLocked = locked;
+            Ammo.Chambered = chambered;
+            Ammo.MagInserted = inserted;
+            Ammo.MagRounds = rounds;
+            Ammo.Sync();
+        }
+
         /// <summary>Autotest: one full manual cycle (back and home), as a hand on the bolt or pump would do.</summary>
         internal void CycleForTest()
         {

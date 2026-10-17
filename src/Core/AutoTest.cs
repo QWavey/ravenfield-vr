@@ -2716,7 +2716,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -2909,6 +2909,12 @@ namespace RavenfieldVR.Core
                         if (want && held.Rig.Data.IsPistol && slideLockChecks++ < (Deep ? 6 : 2))
                         {
                             yield return SlideLockPoseCheck(held, lines.Add);
+                        }
+                        if (want && action == ActionType.SelfLoading && (Deep || emptyReloadChecks++ < 6))
+                        {
+                            // Every self-loader in a full run, a few in a quick one: the slide stays back on a fresh magazine,
+                            // comes home when released, and follows a hand rack (Tasks 252, 254).
+                            yield return held.Reload.EmptyReloadSelfCheck(lines.Add);
                         }
                         if (Deep && held.Rig.Data.Action == ActionType.SingleShot && held.ActiveAmmo != null && !held.ActiveAmmo.UsesDetachableMag)
                         {
@@ -3359,7 +3365,7 @@ namespace RavenfieldVR.Core
         /// Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE
         /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them).
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING");
 
         private static string FirstFrames(Exception e)
         {
