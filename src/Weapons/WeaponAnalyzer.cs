@@ -864,6 +864,16 @@ namespace RavenfieldVR.Weapons
                 d.HasSupportPoint = !d.IsPistol;
             }
             d.HandsMethod = handR != null && handL != null ? "arm rig" : handR != null ? "right hand only" : "estimated";
+            float ahead = Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis), longReach = Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis);
+            if (d.IsPistol && handL != null && ahead > 0.15f && longReach > 0.3f)
+            {
+                // A long gun the animation holds with both hands, the left well forward, is a rifle whatever slot it is in (a
+                // mod's "[Sec]" copy of a rifle): taken for a handgun by its slot, its charging handle was never looked for and
+                // the bolt inside the receiver was taken by its name (the three [Sec] BRN180s moved nothing; weapons-1017).
+                d.IsPistol = false;
+                d.Handgun = false;
+                d.Notes += "a long gun in the secondary slot, held two-handed: a rifle ";
+            }
             if (Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis) < 0.07f)
             {
                 float reach = Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis);
@@ -1447,7 +1457,9 @@ namespace RavenfieldVR.Weapons
                 // holds, and the handle was taken for a carrier inside: a knob was added there while the model's own handle
                 // moved elsewhere, on the f2000s, MG3s, MRADs, RK-44 and M4A1s; user, 2026-10-16).
                 if (d.HandlePath != null || d.Handgun || Vector3.Distance(bestStart, d.RackPoint) < 0.03f
-                    || d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
+                    // (Also "... carrying the bolt": the closing bracket in the test cut a block out of the M4A1 CCO / EOT family's
+                    // receiver while their own handle stood still; weapons-1017.)
+                    || d.SlideMethod != null && d.SlideMethod.StartsWith("reload motion (charging handle", StringComparison.Ordinal))
                 {
                     return;
                 }
@@ -2925,7 +2937,7 @@ namespace RavenfieldVR.Weapons
             bool handgun = w.slot == 1 || d.IsPistol && w.slot != 0 && w.slot != 3;
             string names = w.name + " " + (w.weaponEntry != null ? w.weaponEntry.name : "");
             bool deepWell = DeepWellName.IsMatch(names);
-            d.MagKickable = !handgun && !inGrip && !deepWell;
+            d.MagKickable = !handgun && !inGrip && !deepWell && !d.EnBloc; // an en-bloc clip is not knocked out by the next one
             if (!d.MagKickable)
             {
                 d.Notes += $"mag kick off ({(handgun ? "handgun" : inGrip ? "magazine in the grip" : "deep well")}) ";

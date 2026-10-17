@@ -939,7 +939,7 @@ namespace RavenfieldVR.Weapons
                 VRHand.Scripted[side] = At(0f);
                 yield return null;
                 yield return null;
-                VRInput.SimulatedGrab[side] = true;
+                VRInput.SimulateGrabPress(off.Side); // a press: a grip only held was never taken (the cover check read NOT TAKEN)
                 yield return null;
                 yield return null; // the grab is taken (the press)
                 bool took = off.Role == HandRole.Hinge;
@@ -954,7 +954,7 @@ namespace RavenfieldVR.Weapons
                 stayed = Ammo.CoverOpen && _held.HingeOpenness > 0.9f;
                 VRHand.Scripted[side] = At(_held.HingeOpenness);
                 yield return null;
-                VRInput.SimulatedGrab[side] = true;
+                VRInput.SimulateGrabPress(off.Side); // a press: a grip only held was never taken (the cover check read NOT TAKEN)
                 yield return null;
                 yield return null;
                 for (int i = 1; i <= 15; i++)
@@ -3075,6 +3075,13 @@ namespace RavenfieldVR.Weapons
                     yield return null;
                     // Taken out of its seat by hand, it stays in the hand (it went straight back in on the grab frame).
                     report(!Ammo.MagInserted && off.Held is MagazineProp ? "pulled out by hand: stays in the hand" : "pulled out by hand: NOT KEPT IN THE HAND (seated again at once)");
+                    if (Data.EnBloc)
+                    {
+                        // The clip seated sent the bolt home on a round: open again for it to go back in.
+                        Ammo.Chambered = false;
+                        Ammo.SlideLocked = true;
+                        Ammo.Sync();
+                    }
                     if (off.Held is MagazineProp pulled && AcceptsNow(pulled))
                     {
                         SeatProp(off, pulled);
@@ -3283,6 +3290,13 @@ namespace RavenfieldVR.Weapons
             // 1. Dropped.
             EjectMagazine();
             MagazineProp leaving = _ejecting;
+            if (Data.EnBloc)
+            {
+                // The fresh clip goes in through the open action (seated, the first one sent the bolt home on a round).
+                Ammo.Chambered = false;
+                Ammo.SlideLocked = true;
+                Ammo.Sync();
+            }
             yield return null;
             yield return new WaitForEndOfFrame();
             if (leaving != null && leaving.Go != null && DrawnBounds(leaving.Go.transform, out Bounds copy))
@@ -4380,9 +4394,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal IEnumerator EmptyReloadSelfCheck(System.Action<string> report)
         {
-            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.EnBloc)
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.EnBloc || Ammo.HasCover)
             {
-                yield break;
+                yield break; // (a belt-fed gun's fresh box comes with its belt unlaid: it could not fire after this check)
             }
             if (_racking || Rig.GunBody == null || !ReferenceEquals(_held.ActiveRig, _held.Rig))
             {
