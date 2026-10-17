@@ -113,6 +113,7 @@ class SelfTest:
             self.check(f'the weapon asked for ({self.want}) is in the list', False, f'opened {wid} instead')
         self.wb.weapon_list.setCurrentItem(pick)
         w = self.wb.scene.weapon
+        self.check('a weapon just opened is not marked as changed (closing does not ask for nothing)', not self.wb.unsaved())
         self.check('weapon opened', w is not None and w.id == wid, f"{wid}: {len(w.nodes) if w else 0} parts, {w.stand_ins if w else 0} stand-ins")
 
     def s_hands(self):

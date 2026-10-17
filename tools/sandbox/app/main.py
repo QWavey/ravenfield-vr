@@ -660,6 +660,10 @@ class Workbench(QWidget):
         except Exception as e:  # noqa: BLE001
             self.log_error(f'putting the hands on {wid}', e)
             self.hands_on_gun()
+        # Putting the hands on when a weapon opens is not an edit (closing then asked "Close without saving?" for nothing); hands
+        # brought back from an unsaved draft still count as not saved.
+        self.undo_stack, self.redo_stack = [], []
+        self.opened_with_draft = source is not None and hands_doc is None
         self.sync_sliders()
         self.frame_weapon()
         self.select_hand(self.scene.right)
@@ -1218,7 +1222,7 @@ class Workbench(QWidget):
         if w is None:
             return False
         if self.saved_doc is None:
-            return bool(self.undo_stack)
+            return bool(self.undo_stack) or getattr(self, 'opened_with_draft', False)
         try:
             saved = self.scene.read_pose_document(self.saved_doc)
         except Exception:  # noqa: BLE001
