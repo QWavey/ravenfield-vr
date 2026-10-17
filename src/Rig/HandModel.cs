@@ -488,7 +488,7 @@ namespace RavenfieldVR.Rig
         /// of <paramref name="blocked"/>: <paramref name="preferred"/> first (away from the thing), then up, down and to each
         /// side. Zero when it is not in it; the farthest shift the preferred way when nothing within reach is clear.
         /// </summary>
-        internal Vector3 ShortestWayOut(System.Func<Vector3, bool> blocked, float max, Vector3 preferred)
+        internal Vector3 ShortestWayOut(System.Func<Vector3, bool> blocked, float max, Vector3 preferred, Vector3 cameFrom = default)
         {
             if (!_skinValid)
             {
@@ -498,6 +498,20 @@ namespace RavenfieldVR.Rig
             if (!GloveIn(blocked, tracked))
             {
                 return Vector3.zero;
+            }
+            if (cameFrom.sqrMagnitude > 1e-6f)
+            {
+                // Back the way it came in first, however much nearer another side is: the shortest way took a glove 4 cm into
+                // a 6 cm receiver out through the far side, through the gun (user, 2026-10-16: hands glitch through weapons).
+                Vector3 back = cameFrom.normalized;
+                float reach = Mathf.Min(max, cameFrom.magnitude + 0.03f);
+                for (float s = 0.005f; s <= reach + 1e-4f; s += 0.005f)
+                {
+                    if (!GloveIn(blocked, tracked + back * s))
+                    {
+                        return back * s;
+                    }
+                }
             }
             Quaternion r = _root.rotation;
             WayOutDirs[0] = preferred.sqrMagnitude > 1e-6f ? preferred.normalized : r * Vector3.up;

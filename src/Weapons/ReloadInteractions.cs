@@ -2217,6 +2217,7 @@ namespace RavenfieldVR.Weapons
             if (!off.Tracked || off.Held != null || off.Model == null || Rig.GunBody == null
                 || (off.Palm.position - _held.GripWorld.position).sqrMagnitude > 0.7f * 0.7f)
             {
+                _freeHandClearSet = false; // away from the gun: its last clear place no longer says where it came from
                 return;
             }
             _keepOutGun = _held.HandsSolid;
@@ -2231,9 +2232,20 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 bore = Rig.ToWorld(Data.MuzzlePoint);
             Vector3 away = Vector3.ProjectOnPlane(off.Palm.position - bore, Rig.AimWorld);
-            off.Model.KeepOut = off.Model.ShortestWayOut(_keepOutBlocked, 0.1f, away);
+            // Where the hand last was clear of the gun, in the gun's own space (it moves with the gun): pushed out that way.
+            Vector3 cameFrom = _freeHandClearSet ? Rig.ToWorld(_freeHandClearGun) - off.Palm.position : Vector3.zero;
+            off.Model.KeepOut = off.Model.ShortestWayOut(_keepOutBlocked, 0.1f, away, cameFrom);
             off.Model.KeepOutFrame = Time.frameCount;
+            if (off.Model.KeepOut.sqrMagnitude < 1e-6f)
+            {
+                _freeHandClearGun = Rig.ToGun(off.Palm.position);
+                _freeHandClearSet = true;
+            }
         }
+
+        /// <summary>The free hand's palm where its glove was last clear of the gun (gun space), for the way back out.</summary>
+        private Vector3 _freeHandClearGun;
+        private bool _freeHandClearSet;
 
         private void KeepOutOfGun(VRHand off, MagazineProp prop)
         {
