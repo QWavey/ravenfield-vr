@@ -1515,6 +1515,7 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = Rig.Data;
             if (MagLineFitted.Contains(d) || _volume == null || !_volume.Ready || _magVolume == null || !_magVolume.Ready
                 || !_magSolidShown || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || d.Action == ActionType.SingleShot
+                || d.IsMachineGun || Ammo.HasCover // a machine gun's box hooks on beside the gun, it does not slide up a well
                 || d.MagBounds.size.sqrMagnitude < 1e-6f || d.MagEjectAxis.sqrMagnitude < 0.5f || SlideOffset > 0.002f || Weapon.reloading
                 || !ReferenceEquals(ActiveRig, Rig))
             {
