@@ -27,6 +27,11 @@ namespace RavenfieldVR.Weapons
         private float _reloadDoneAt = -1f;
         private int _reloadRounds;
 
+        /// <summary>Autotest: its trigger held without a hand on it.</summary>
+        internal static bool TestTrigger;
+        /// <summary>Autotest: shots it fired.</summary>
+        internal int Shots { get; private set; }
+
         /// <summary>What kind of weapon this is for pairing: 0 primary, 1 secondary, 2 launcher (large gear), 3 grenade; -1 other.</summary>
         internal static int Kind(Weapon w)
         {
@@ -89,7 +94,7 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            bool held = VRInput.GetHeld(DigitalAction.Use, Hand.Side) && !Util.GameContext.GameMenuOpen;
+            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !Util.GameContext.GameMenuOpen;
             if (held && !_firing && Ammo != null && Ammo.Participates && VRConfig.ReloadNow == ReloadMode.Manual
                 && !Ammo.Chambered && Ammo.MagRounds == 0 && (Ammo.InfiniteSpare || Ammo.SpareAmmo > 0))
             {
@@ -150,6 +155,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>A shot of this weapon: it kicks in its hand (a short spring, as the main gun's) and the hand feels it.</summary>
         public void OnShot()
         {
+            Shots++;
             Weapon.Configuration c = Weapon.configuration;
             float kick = HeldWeapon.ShotKick(c, Rig.Data, Rig.Data.Handgun ? WeaponClass.Pistol : WeaponClass.Rifle, out float climbShare);
             float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? 1.15f : 1.6f); // held in one hand

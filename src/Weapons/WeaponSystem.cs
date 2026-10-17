@@ -173,7 +173,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The free hand takes this holstered weapon as a second one beside the gun in the other hand.</summary>
-        private void BeginSecond(Weapon weapon, VRHand hand)
+        internal void BeginSecond(Weapon weapon, VRHand hand)
         {
             Second = new SecondWeapon(this, weapon, RigFor(weapon), StateFor(weapon, create: true), hand);
             Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);

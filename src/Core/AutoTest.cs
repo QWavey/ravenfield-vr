@@ -1479,6 +1479,73 @@ namespace RavenfieldVR.Core
         /// A pistol's slide locked back with a magazine in: its animator must show no round loaded, or the slide runs
         /// forward while the gun still says RACK.
         /// </summary>
+        /// <summary>
+        /// Two weapons at once (Tasks 252 p): with this gun drawn, the free hand takes another kind of weapon from the loadout
+        /// as a second one. It must show, sit in that hand, fire from that hand's trigger and use its own rounds, go back into
+        /// its holster when the hand lets go, and the drawn gun must stay drawn the whole time.
+        /// </summary>
+        private static IEnumerator SecondWeaponCheck(HeldWeapon held, Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = GameContext.PlayerActor;
+            if (sys == null || actor == null || actor.weapons == null || held.Weapon == null || sys.Second != null)
+            {
+                yield break;
+            }
+            Weapon other = null;
+            foreach (Weapon w in actor.weapons)
+            {
+                if (w != null && w != held.Weapon && SecondWeapon.CanPair(held.Weapon, w))
+                {
+                    other = w;
+                    break;
+                }
+            }
+            if (other == null)
+            {
+                report("second weapon: no other kind of weapon in the loadout to pair with");
+                yield break;
+            }
+            Rig.VRHand off = sys.Rig.Off;
+            if (off.Role != Rig.HandRole.Free || off.Held != null)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            Input.VRInput.SimulatedGrab[side] = true;
+            try
+            {
+                sys.BeginSecond(other, off);
+                yield return new WaitForSecondsRealtime(Mathf.Clamp(other.configuration.unholsterTime, 0.2f, 1.5f) + 0.3f);
+                SecondWeapon second = sys.Second;
+                bool drawn = second != null && other.gameObject.activeInHierarchy && !other.isHidden;
+                WeaponRig r = second != null ? second.Rig : null;
+                float offHand = r != null && r.GunBody != null ? Vector3.Distance(r.ToWorld(r.Data.GripPoint), off.GunFrame.position) : -1f;
+                int ammoBefore = other.ammo;
+                SecondWeapon.TestTrigger = true;
+                yield return new WaitForSecondsRealtime(0.6f);
+                SecondWeapon.TestTrigger = false;
+                yield return null;
+                int shots = second != null ? second.Shots : 0;
+                bool mainStays = sys.Held != null && sys.Held.Weapon == held.Weapon && actor.activeWeapon == held.Weapon;
+                Input.VRInput.SimulatedGrab[side] = false;
+                yield return null;
+                yield return null;
+                bool putAway = sys.Second == null && !other.gameObject.activeSelf;
+                bool mainAfter = sys.Held != null && sys.Held.Weapon == held.Weapon;
+                Metric("second weapon: cm from the free hand's grip", offHand * 100f);
+                report($"second weapon ({other.name}): {(drawn ? "drawn in the free hand" : "NOT DRAWN")}, {offHand * 100f:0.0} cm from the hand's grip{(offHand > 0.03f || offHand < 0f ? " (NOT IN THE HAND)" : "")}, "
+                       + $"{(shots > 0 ? $"fired {shots} shot(s), ammo {ammoBefore} -> {other.ammo}" : "NOT FIRED")}, the drawn gun {(mainStays ? "stays drawn" : "WAS PUT AWAY")}, "
+                       + $"let go: {(putAway ? "back in its holster" : "NOT PUT AWAY")}{(mainAfter ? "" : ", the drawn gun NOT IN THE HAND afterwards")}");
+            }
+            finally
+            {
+                SecondWeapon.TestTrigger = false;
+                Input.VRInput.SimulatedGrab[side] = false;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
         private static IEnumerator SlideLockPoseCheck(HeldWeapon held, Action<string> report)
         {
             Weapon w = held.ActiveWeapon;
@@ -2716,7 +2783,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, secondChecks = 0, keepOutChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -2848,6 +2915,17 @@ namespace RavenfieldVR.Core
                             if (held == null || held.Weapon != weapon)
                             {
                                 lines.Add("left-handed check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
+                                ReportWeapon(entry.name, weapon, lines);
+                                continue;
+                            }
+                        }
+                        if (want && (action == ActionType.SelfLoading || action == ActionType.SingleShot) && secondChecks++ < (Deep ? 6 : 2))
+                        {
+                            yield return SecondWeaponCheck(held, lines.Add); // a second weapon in the free hand (Tasks 252 p)
+                            held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                            if (held == null || held.Weapon != weapon)
+                            {
+                                lines.Add("second weapon check: THE WEAPON WAS NOT BACK IN THE HAND afterwards");
                                 ReportWeapon(entry.name, weapon, lines);
                                 continue;
                             }
