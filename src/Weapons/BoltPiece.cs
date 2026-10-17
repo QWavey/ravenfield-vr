@@ -33,6 +33,9 @@ namespace RavenfieldVR.Weapons
         private readonly List<Piece> _pieces = new List<Piece>();
         public bool Carved { get; private set; }
 
+        /// <summary>Nothing cut and no knob added on purpose: the gun's own carrier, its handle with it, moves with the hand.</summary>
+        internal bool CarrierOnly { get; private set; }
+
         /// <summary>
         /// Self-test: pieces that are really drawn now (alive, switched on, with a mesh and an enabled renderer). A handle
         /// once counted as made while its pieces had gone with an object destroyed at the end of the frame.
@@ -175,6 +178,7 @@ namespace RavenfieldVR.Weapons
                 // that moved while the user watched the real one (AS Val, AK-24; Tasks 245).
                 Log.InfoOnce("boltknob:" + d.Key, $"{d.Key}: nothing cut out at the rack point ({unreadable} mesh(es) unreadable, {far} too far, {nothing} with no triangles "
                                                   + $"there); its own carrier '{rig.Slide.name}' moves with the hand, no knob added.");
+                piece.CarrierOnly = true;
                 return;
             }
             if (!piece.Carved)
