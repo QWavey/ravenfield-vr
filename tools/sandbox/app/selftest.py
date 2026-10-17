@@ -194,7 +194,9 @@ class SelfTest:
         with open(bad, 'w', encoding='utf-8') as f:
             json.dump({'hands': {'right': {'gun': {'position': [0, 0, 0], 'rotation': [0, 0, 0, 1]}, 'curls': 'x'},
                                  'left': {'gun': {'position': [1, 2], 'rotation': [0, 0, 0, 1]}}}}, f)
+        wb.expect_error = 'a broken pose file, on purpose'
         ok = wb.import_pose(bad)
+        wb.expect_error = ''
         same = (np.allclose(before[0], s.right.position) and before[1] == list(s.right.curls) and np.allclose(before[2], s.left.position))
         self.check('a bad pose file is refused and changes nothing', ok is False and same)
 
@@ -330,6 +332,8 @@ class SelfTest:
         path = self._error_log()
         self.error_before = os.path.getsize(path) if path and os.path.exists(path) else 0
 
+        self.wb.expect_error = 'an error on purpose'
+
         def boom():
             raise RuntimeError('self-test: a deliberate error in a button (the program must go on)')
         QTimer.singleShot(0, boom)
@@ -338,6 +342,7 @@ class SelfTest:
     def s_error_check(self):
         path = self._error_log()
         size = os.path.getsize(path) if path and os.path.exists(path) else 0
+        self.wb.expect_error = ''
         self.check('an error in the program is logged and the program goes on', size > self.error_before, path or 'no log path')
 
     def s_cleanup(self):

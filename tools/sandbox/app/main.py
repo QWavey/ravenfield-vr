@@ -1423,6 +1423,10 @@ class Workbench(QWidget):
             pass
 
     def toast(self, title, content, path=None, error=False):
+        if self.selftest:
+            # (The self-test's messages say so: its deliberate bad file and error looked like real faults on screen.)
+            expected = getattr(self, 'expect_error', '')
+            title = 'Self-test: ' + title + (f' (expected: {expected})' if error and expected else '')
         bar = (InfoBar.error if error else InfoBar.success)(title, content, orient=Qt.Orientation.Vertical, isClosable=True,
                                                             position=InfoBarPosition.BOTTOM_RIGHT, duration=8000, parent=self.win)
         if path:
