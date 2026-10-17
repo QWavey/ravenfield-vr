@@ -339,10 +339,15 @@ class Workbench(QWidget):
         remove = PushButton(FIF.DELETE, 'Remove from game')
         remove.clicked.connect(self.remove_from_game)
         shot = PushButton(FIF.CAMERA, 'Screenshot')
-        shot.clicked.connect(self.screenshot)
+        shot.clicked.connect(lambda: self.screenshot())  # (a plain connect would pass the button's checked state as 'clean')
         self.rec_btn = TogglePushButton(FIF.VIDEO, 'Record GIF')
         self.rec_btn.toggled.connect(self.toggle_record)
-        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.rec_btn)))
+        turn = PushButton(FIF.ROTATE, 'Turntable GIF')
+        turn.clicked.connect(lambda: self.turntable_gif())
+        reload_gif = PushButton(FIF.PLAY, 'Record the reload')
+        reload_gif.clicked.connect(lambda: self.record_reload())
+        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.rec_btn),
+                         row(turn, reload_gif)))
         v.addStretch(1)
         return p
 
@@ -411,9 +416,16 @@ class Workbench(QWidget):
         markers_hint.setWordWrap(True)
         settle_hint = CaptionLabel("Settle: after a snap the glove is put onto the gun's surface, as it settles in VR (up to 2 cm).")
         settle_hint.setWordWrap(True)
+        # Pictures and GIFs without the grid, markers, laser line and highlights (off by default: they show the evidence).
+        self.clean_sw = SwitchButton()
+        self.clean_sw.setChecked(False)
+        self.big_sw = SwitchButton()  # screenshots drawn again at twice the view's size, for a post
+        self.big_sw.setChecked(False)
         v.addWidget(card('View', row(*views), row(BodyLabel('Grid'), self.grid_sw, BodyLabel('Markers'), self.mark_sw),
                          row(BodyLabel('Settle hands on the gun'), self.settle_sw), settle_hint,
-                         markers_hint, row(BodyLabel('GIF fps'), self.gif_fps, BodyLabel('size'), self.gif_scale)))
+                         markers_hint, row(BodyLabel('GIF fps'), self.gif_fps, BodyLabel('size'), self.gif_scale),
+                         row(BodyLabel('Pictures without grid and markers'), self.clean_sw),
+                         row(BodyLabel('Screenshots at 2x size'), self.big_sw)))
 
         self.export_names = LineEdit()
         self.export_names.setPlaceholderText('Weapons to export (empty: all)')
@@ -1345,9 +1357,15 @@ class Workbench(QWidget):
             text = 'In the game: the mod\'s own grip' + (' (your saved pose is not sent: Send to game).' if saved else '.')
         self.game_status.setText(text)
 
-    def screenshot(self):
+    def screenshot(self, clean=None):
+        """A picture of the view as it is now (F12 or the Screenshot button). clean=None takes the 'Pictures without grid and
+        markers' switch; the 2x switch draws the same camera again at twice the size, for a post."""
         w = self.scene.weapon
-        img = self.view.grabFramebuffer()
+        if clean is None:
+            clean = self.clean_sw.isChecked()
+        img = self._grab_big(clean) if self.big_sw.isChecked() else None
+        if img is None:  # (also when the 2x picture could not be drawn: the view's own size then)
+            img = self._grab_view(clean)
         path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{stamp()}.png")
         if not img.save(path):
             self.toast('The screenshot could not be saved', path, error=True)
@@ -1355,10 +1373,76 @@ class Workbench(QWidget):
         self.toast('Screenshot saved', path, path)
         return path
 
+    # What a clean picture leaves out: the grid, the markers, the laser line, the hover and part highlights and the hand's tint.
+    OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand')
+    TURN_SECONDS = 4.0  # the turntable GIF: one turn of the view
+
+    def _overlays_off(self):
+        """Turns the overlays off for a clean picture; returns what they were, for _overlays_back."""
+        v = self.view
+        saved = {k: getattr(v, k) for k in self.OVERLAYS}
+        v.show_grid, v.show_markers = False, False
+        v.pick_line, v.hover_node, v.part_node, v.selected_hand = None, None, None, None
+        return saved
+
+    def _overlays_back(self, saved):
+        for k, value in saved.items():
+            setattr(self.view, k, value)
+
+    def _grab_view(self, clean):
+        """The view as a picture at its own size. A clean one has the overlays off for the grab only, put back after it."""
+        if not clean:
+            return self.view.grabFramebuffer()
+        saved = self._overlays_off()
+        try:
+            return self.view.grabFramebuffer()
+        finally:
+            self._overlays_back(saved)
+
+    def _grab_big(self, clean):
+        """The view drawn again into an offscreen buffer at twice its size: the same camera, so the same picture, sharper.
+        None when the buffer cannot be drawn (the caller then takes the picture at the view's own size)."""
+        # (Imported here: these are only needed for a 2x picture.)
+        from OpenGL import GL
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtOpenGL import QOpenGLFramebufferObject, QOpenGLFramebufferObjectFormat
+        v = self.view
+        dpr = v.devicePixelRatioF()  # (the grab is in device pixels, so the 2x is of those)
+        size = QSize(int(round(v.width() * dpr * 2)), int(round(v.height() * dpr * 2)))
+        fmt = QOpenGLFramebufferObjectFormat()
+        fmt.setAttachment(QOpenGLFramebufferObject.Attachment.CombinedDepthStencil)  # the scene is drawn with depth testing
+        fmt.setSamples(4)  # (the view's own antialiasing, so the big picture is not jagged)
+        saved = self._overlays_off() if clean else None
+        v.makeCurrent()
+        try:
+            fbo = QOpenGLFramebufferObject(size, fmt)
+            if not fbo.isValid() or not fbo.bind():
+                return None
+            # Put back what was bound and the viewport, whatever the drawing did, so the view itself is unchanged.
+            prev_fbo = int(np.ravel(GL.glGetIntegerv(GL.GL_FRAMEBUFFER_BINDING))[0])
+            prev_view = [int(x) for x in np.ravel(GL.glGetIntegerv(GL.GL_VIEWPORT))]
+            try:
+                GL.glViewport(0, 0, size.width(), size.height())
+                v.paintGL()  # the same drawing as on screen, into the bigger buffer
+                img = fbo.toImage()
+            finally:
+                fbo.release()
+                GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, prev_fbo)
+                GL.glViewport(*prev_view)
+            del fbo  # (its buffers are freed now, while the view's context is still current)
+            return img
+        except Exception as e:  # (a graphics driver that refuses the buffer: the 1x picture is still taken)
+            self.log_error('drawing the 2x screenshot', e)
+            return None
+        finally:
+            if saved is not None:
+                self._overlays_back(saved)
+            v.doneCurrent()
+
     def toggle_record(self, on):
         if on:
             self.recording = {'frames': [], 'times': [], 'bytes': 0, 'timer': QTimer(), 'scale': float(self.gif_scale.value()),
-                              'fps': int(self.gif_fps.value())}
+                              'fps': int(self.gif_fps.value()), 'clean': self.clean_sw.isChecked()}
             self.recording['timer'].timeout.connect(self._grab_frame)
             self.recording['timer'].start(int(1000 / self.recording['fps']))
             self.rec_btn.setText('Stop recording')
@@ -1368,6 +1452,10 @@ class Workbench(QWidget):
             if not rec:
                 return
             rec['timer'].stop()
+            if 'turn_timer' in rec:  # a turntable: the camera goes back to where its turn began, however the GIF ended
+                rec['turn_timer'].stop()
+                self.view.yaw = rec['turn_yaw']
+                self.view.update()
             if not rec['frames']:
                 return
             w = self.scene.weapon
@@ -1391,12 +1479,22 @@ class Workbench(QWidget):
         rec = self.recording
         if rec is None:
             return
+        if rec.get('reload'):
+            # A reload's GIF runs until 0.3 s after its timeline stops, however it stopped (the end, Reset, another weapon
+            # opened, or the end state taken for a save). A reload started again in that 0.3 s keeps the recording going.
+            if self.timeline.running:
+                rec['reload_end'] = None
+            elif rec.get('reload_end') is None:
+                rec['reload_end'] = time.perf_counter()
+            elif time.perf_counter() - rec['reload_end'] >= 0.3:
+                self.rec_btn.setChecked(False)
+                return
         if rec['bytes'] > 400 * 1024 * 1024:
             # About 400 MB of frames kept (a big view at full size was 3 MB a frame, 2 GB at 600 frames): stopped and saved.
             rec['limit'] = True
             self.rec_btn.setChecked(False)
             return
-        img = self.view.grabFramebuffer()
+        img = self._grab_view(rec.get('clean', False))
         if rec['scale'] < 0.999:
             img = img.scaledToWidth(max(64, int(img.width() * rec['scale'])), Qt.TransformationMode.SmoothTransformation)
         img = img.convertToFormat(img.Format.Format_RGB888)
@@ -1408,6 +1506,47 @@ class Workbench(QWidget):
         rec['times'].append(time.perf_counter())
         rec['bytes'] += frame.width * frame.height
         self.rec_btn.setText(f"Stop recording ({len(rec['frames'])})")
+
+    def turntable_gif(self):
+        """A GIF of the weapon turning once round in about 4 s: the view's yaw goes round with the clock while the recording
+        runs, and the recording stops by itself at the end of the turn (the camera goes back to where it was)."""
+        if self.recording is not None or self.timeline.running:
+            self.toast('Already recording', 'Stop the GIF or the reload that is running first.', error=True)
+            return
+        self.rec_btn.setChecked(True)  # (starts the recording, as the Record GIF button does)
+        rec = self.recording
+        if rec is None:
+            return
+        rec['turn_yaw'] = self.view.yaw
+        rec['turn_start'] = time.perf_counter()
+        rec['turn_timer'] = QTimer()
+        rec['turn_timer'].timeout.connect(self._turn_tick)
+        rec['turn_timer'].start(16)  # about 60 steps a second, so the turn is smooth on screen and in the frames
+
+    def _turn_tick(self):
+        rec = self.recording
+        if rec is None or 'turn_timer' not in rec:
+            return
+        frac = (time.perf_counter() - rec['turn_start']) / self.TURN_SECONDS
+        if frac >= 1.0:
+            self.rec_btn.setChecked(False)  # (ends the GIF; toggle_record stops this timer and puts the view back)
+            return
+        self.view.yaw = rec['turn_yaw'] + 360.0 * frac
+        self.view.update()
+
+    def record_reload(self):
+        """Records one reload: the GIF starts with it and stops by itself 0.3 s after the reload's timeline ends."""
+        if self.recording is not None or self.timeline.running:
+            self.toast('Already recording', 'Stop the GIF or the reload that is running first.', error=True)
+            return
+        self.rec_btn.setChecked(True)  # (starts the recording, as the Record GIF button does)
+        rec = self.recording
+        if rec is None:
+            return
+        rec['reload'] = True
+        self.play_reload()
+        if not self.timeline.running:  # play_reload found nothing to reload (it said why): nothing to record either
+            self.rec_btn.setChecked(False)
 
     def log_error(self, what, exc):
         """A handled error into sandbox-errors.log as well (the message on screen goes after a few seconds)."""
