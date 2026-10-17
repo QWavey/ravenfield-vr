@@ -254,8 +254,16 @@ namespace RavenfieldVR.Input
         /// <summary>Fire mode / sights and the assisted reload for the personal weapon in hand.</summary>
         private static void HandleWeaponButtons(Weapon weapon)
         {
-            if (VRInput.GetPressed(DigitalAction.FireMode))
+            // A plain press of the slide-release button (A on the gun hand) switches the fire mode too, whenever there is no
+            // locked slide for it to release: the long press alone was found by nobody ("no full auto / single switch";
+            // user, 2026-10-16).
+            bool modeByRelease = VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon);
+            if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease)
             {
+                if (modeByRelease)
+                {
+                    VRInput.Consume(DigitalAction.SlideRelease, VRInput.GunHand);
+                }
                 // Looking through the sights: flip the magnifier / alternate sight. Otherwise: the weapon's own
                 // fire-mode script, the mod's sub-weapon modes, else our semi/auto selector (automatic weapons only).
                 Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
@@ -279,6 +287,25 @@ namespace RavenfieldVR.Input
             {
                 Set(KeyBinds.Reload, true);
             }
+        }
+
+        /// <summary>
+        /// The slide-release press may switch the fire mode: a gun with modes to switch (its own fire-mode script, sub weapons,
+        /// or automatic for the selector), not a grenade or a melee weapon (A pulls a pin), and no slide or bolt locked open.
+        /// </summary>
+        private static bool SlideReleaseSwitchesMode(Weapon weapon)
+        {
+            if (weapon == null || weapon is ThrowableWeapon || weapon is MeleeWeapon)
+            {
+                return false;
+            }
+            Weapons.HeldWeapon held = Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Held : null;
+            if (held == null || held.Weapon != weapon || held.ActiveAmmo != null && (held.ActiveAmmo.SlideLocked || held.ActiveAmmo.BoltOpen))
+            {
+                return false;
+            }
+            return ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null || weapon.HasAnySubWeapons()
+                   || VRConfig.FireSelector.Value && Weapons.FireSelector.HasModes(weapon);
         }
 
         private static void ComputeSeated()
