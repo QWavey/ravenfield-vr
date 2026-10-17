@@ -3240,7 +3240,11 @@ namespace RavenfieldVR.Core
                                 // Compared by the impulse each shot gave: a shot that lands late (a revolver's hammer) would
                                 // otherwise be measured before its kick.
                                 recoilLine += $"; impulse per shot one hand {oneImpulse:0} deg/s, two hands {impulse:0} deg/s";
-                                if (oneImpulse <= 0f)
+                                if (VRConfig.RecoilStrength.Value <= 0f)
+                                {
+                                    recoilLine += " - recoil is switched off in the settings (Recoil 0%)"; // not a fault of the gun
+                                }
+                                else if (oneImpulse <= 0f)
                                 {
                                     recoilLine += " - NO RECOIL one-handed (shots fired, none reached the recoil)";
                                 }

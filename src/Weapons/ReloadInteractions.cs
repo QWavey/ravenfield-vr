@@ -907,14 +907,17 @@ namespace RavenfieldVR.Weapons
             Quaternion palmDown = Quaternion.LookRotation(Rig.AimWorld, -Rig.UpWorld);
             RigidPose At(float openness) => new RigidPose(
                 Rig.ToWorld(HingeRotate(new RigidPose(Data.HingeGrabPoint + Data.Up * 0.02f, Quaternion.identity), openness).position), palmDown).Multiply(rawFromPalm);
-            VRInput.SimulatedGrab[side] = true;
             bool opened = false, stayed = false, shut = false;
             try
             {
+                // The hand onto the cover first, then the grip closes there (closed before it got there, the grab was taken
+                // wherever the hand was and the cover "could not be taken").
                 VRHand.Scripted[side] = At(0f);
                 yield return null;
                 yield return null;
-                yield return null; // the grab is taken (a reach, then the press)
+                VRInput.SimulatedGrab[side] = true;
+                yield return null;
+                yield return null; // the grab is taken (the press)
                 bool took = off.Role == HandRole.Hinge;
                 for (int i = 1; i <= 15; i++)
                 {
@@ -2970,6 +2973,14 @@ namespace RavenfieldVR.Weapons
             }
             else if (Ammo.UsesDetachableMag)
             {
+                if (Data.EnBloc)
+                {
+                    // An en-bloc rifle takes a clip only through the open action: as after its last round, the bolt locked
+                    // back over an empty chamber (with a round chambered and the bolt shut the clip cannot go in).
+                    Ammo.Chambered = false;
+                    Ammo.SlideLocked = true;
+                    Ammo.Sync();
+                }
                 if (Data.Hinge == HingeKind.FeedCover)
                 {
                     Ammo.SetCoverOpen(true);
