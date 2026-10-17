@@ -178,7 +178,9 @@ namespace RavenfieldVR.Weapons
                 case BodyZones.SpotKind.Hip:
                     barrel = (-up + fwd * 0.12f).normalized;
                     top = fwd;
-                    centre = at + right * (0.05f * side) - up * 0.04f;
+                    // A long gun in the hip holster (a mod's "[Sec]" rifle) hangs lower, its top at most 20 cm above the hip:
+                    // centred on the hip, an 80 cm rifle stood up past the shoulder into the view (user's screenshot, 2026-10-17).
+                    centre = at + right * (0.05f * side) - up * (0.04f + Mathf.Max(0f, s.Length * 0.5f - 0.2f));
                     break;
                 case BodyZones.SpotKind.Underarm:
                     // A shoulder holster: muzzle down and back along the ribs, grip forward under the arm.
