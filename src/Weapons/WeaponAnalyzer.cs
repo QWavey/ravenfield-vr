@@ -590,6 +590,7 @@ namespace RavenfieldVR.Weapons
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 SideKnobByName(d, all, root, sampler, gunIdle);
+                RackOnOutstandingPiece(d, root, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
@@ -2507,6 +2508,51 @@ namespace RavenfieldVR.Weapons
                 }
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
+            }
+        }
+
+        /// <summary>
+        /// Where a hand takes a long gun's slide when the slide itself is what it racks (no separate handle): on the small
+        /// piece of it that sticks out of the receiver farthest from the bore (a paddle, knob or lever), not at the middle of
+        /// the carrier inside. The grab point sat on the receiver above the carrier, 5-10 cm from the handle the hand would
+        /// take: on the QBZ192 / QBZU191 family's paddle, the PKM / PKP family's and QJB201's levers (picture review of
+        /// weapons-1017).
+        /// </summary>
+        private static void RackOnOutstandingPiece(WeaponRigData d, Transform root, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Handgun || d.SlidePath == null || d.HandlePath != null || d.CarveHandle || d.AddedHandle || d.RackFromHand || d.RackOnSurface
+                || d.SlideMethod == null || d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal) || ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+            if (slide == null)
+            {
+                return;
+            }
+            float Off(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
+            float best = Off(d.RackPoint) + 0.015f;
+            Transform piece = null;
+            Vector3 at = d.RackPoint;
+            foreach (MeshFilter mf in slide.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Bounds b = sampler.GunSpaceBounds(mf.transform, gunIdle);
+                if (b.size.sqrMagnitude < 1e-8f || b.size.magnitude > 0.12f)
+                {
+                    continue; // only a piece a hand takes (not the carrier or a long rod)
+                }
+                float off = Off(b.center);
+                if (off > best)
+                {
+                    best = off;
+                    piece = mf.transform;
+                    at = b.center;
+                }
+            }
+            if (piece != null)
+            {
+                d.RackPoint = at;
+                d.SlideMethod += $" (taken by '{piece.name}', its piece sticking out)";
             }
         }
 
