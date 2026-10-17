@@ -87,7 +87,10 @@ class SelfTest:
         wb.hands_on_gun()
         w = s.weapon
         g = w.to_gun(s.right.position)[:3]
-        self.check('right hand on the grip', np.linalg.norm(g - w.grip) < 0.025, f'{np.linalg.norm(g - w.grip) * 100:.1f} cm from the grip point (settled)')
+        settle = np.linalg.norm(s.right.drawn_position() - s.right.position)
+        self.check('right hand on the grip', np.linalg.norm(g - w.grip) < 1e-6 and settle < 0.041,
+                   f'{np.linalg.norm(g - w.grip) * 1000:.3f} mm from the grip point, the glove drawn {settle * 100:.1f} cm off it (settled)')
+        self.check('a snapped grip keeps the game\'s thumb', not s.right.thumb_set)
         self.check('left hand on the gun', s.left.role == 'support', f'job {s.left.role!r}')
 
     def s_edit(self):
@@ -115,6 +118,7 @@ class SelfTest:
         r = (doc.get('hands') or {}).get('right') or {}
         fields = len((r.get('mod') or {}).get('position', [])) == 3 and len((r.get('mod') or {}).get('rotation', [])) == 4 and len(r.get('curls', [])) == 5
         self.check('pose saved', bool(ok and fields), path or 'no file')
+        self.check('a thumb posed by hand goes to the game', r.get('thumbSet') is True, f"thumbSet {r.get('thumbSet')!r}")
         if game:
             self.check('pose saved for the game', os.path.exists(gpath), gpath)
             self.check('the game copy is the same', json.load(open(gpath, encoding='utf-8')) == doc)
@@ -174,6 +178,11 @@ class SelfTest:
     def s_reload_start(self):
         w = self.wb.scene.weapon
         self.has_reload = bool(w.rig.get('magazine') or w.rig.get('slide'))
+        # A part the user hid stays hidden through the reload (it came back when the magazine seated).
+        self.user_hidden = next((n for n in w.nodes if n.role == 'body'), None) if len(w.nodes) > 1 else None
+        if self.user_hidden is not None:
+            self.user_hidden.hidden = True
+        self.fresh_seen = False
         self.wb.play_reload()
         self.check('reload started', self.wb.timeline.running or not self.has_reload)
         return 300
@@ -181,12 +190,19 @@ class SelfTest:
     def s_reload_wait(self):
         tl = self.wb.timeline
         deadline = time.time() + 8
+        w = self.wb.scene.weapon
         while tl.running and time.time() < deadline:
             self.app.processEvents()
+            if w.fresh is not None and self.wb.scene.extra_draws():
+                self.fresh_seen = True
             time.sleep(0.01)
-        w = self.wb.scene.weapon
-        ok = not tl.running and w.fresh is None and abs(w.mag) < 1e-6 and abs(w.slide) < 1e-6 and not any(n.hidden for n in w.nodes)
-        self.check('reload played to the end, parts home', ok, f'magazine {w.mag:.2f}, slide {w.slide:.2f}, hidden {sum(n.hidden for n in w.nodes)}')
+        ok = not tl.running and w.fresh is None and abs(w.mag) < 1e-6 and abs(w.slide) < 1e-6 and not any(n.away for n in w.nodes)
+        self.check('reload played to the end, parts home', ok, f'magazine {w.mag:.2f}, slide {w.slide:.2f}, away {sum(n.away for n in w.nodes)}')
+        if w.rig.get('magazine'):
+            self.check('the fresh magazine is drawn while it goes in', self.fresh_seen)
+        if self.user_hidden is not None:
+            self.check('a part hidden by the user stays hidden through the reload', self.user_hidden.hidden, self.user_hidden.short)
+            self.user_hidden.hidden = False
 
     def s_laser(self):
         wb = self.wb

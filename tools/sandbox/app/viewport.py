@@ -107,8 +107,10 @@ class GpuMesh:
         GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, np.ascontiguousarray(indices, dtype=np.uint32), GL.GL_STATIC_DRAW)
         GL.glBindVertexArray(0)
         self.tex = 0
+        self.tex_key = None
         if image is not None and uvs is not None:
             self.tex = _texture(image)
+            self.tex_key = id(image)
 
     @staticmethod
     def _buffer(loc, data, size, usage):
@@ -129,15 +131,29 @@ class GpuMesh:
         GL.glDeleteVertexArrays(1, [self.vao])
         GL.glDeleteBuffers(4, [self.vbo_pos, self.vbo_nor, self.vbo_uv, self.ebo])
         if self.tex:
-            GL.glDeleteTextures(1, [self.tex])
+            _release_texture(self.tex_key)
+            self.tex = 0
 
 
+# Textures by image, counted: freed (and the image let go) when the last mesh using one is deleted. Kept forever, every
+# weapon opened stayed in memory; freed per mesh, a second mesh with the same image drew a deleted texture.
 _tex_cache = {}
+
+
+def _release_texture(key):
+    entry = _tex_cache.get(key)
+    if entry is None:
+        return
+    entry[2] -= 1
+    if entry[2] <= 0:
+        GL.glDeleteTextures(1, [entry[0]])
+        del _tex_cache[key]
 
 
 def _texture(image):
     key = id(image)
     if key in _tex_cache:
+        _tex_cache[key][2] += 1
         return _tex_cache[key][0]
     img = image.convert('RGBA')
     data = np.asarray(img, dtype=np.uint8)
@@ -147,7 +163,7 @@ def _texture(image):
     GL.glGenerateMipmap(GL.GL_TEXTURE_2D)
     GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR_MIPMAP_LINEAR)
     GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-    _tex_cache[key] = (t, image)  # the image kept alive with its id
+    _tex_cache[key] = [t, image, 1]  # the image kept alive with its id
     return t
 
 
@@ -192,6 +208,10 @@ class Viewport(QOpenGLWidget):
     # ---- GL setup -----------------------------------------------------------------------------------------------
 
     def initializeGL(self):
+        # (Again for a new context, as Qt does when the view changes window: the old names are gone with the old context.)
+        _tex_cache.clear()
+        self._gpu_nodes = {}
+        self._gpu_hands = {}
         self.lit = _compile(LIT_VS, LIT_FS)
         self.flat = _compile(FLAT_VS, FLAT_FS)
         self.line_vao = GL.glGenVertexArrays(1)
@@ -289,7 +309,7 @@ class Viewport(QOpenGLWidget):
         w = self.scene.weapon
         if w is not None:
             for node in w.nodes:
-                if node.hidden:
+                if node.hidden or node.away:
                     continue
                 model = w.node_matrix(node)
                 tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.0, 0.0, 0.0)
@@ -405,7 +425,7 @@ class Viewport(QOpenGLWidget):
         if weapon and self.scene.weapon is not None:
             w = self.scene.weapon
             for node in w.nodes:
-                if node.hidden:
+                if node.hidden or node.away:
                     continue
                 m = w.node_matrix(node)
                 inv = np.linalg.inv(m)
@@ -433,7 +453,8 @@ class Viewport(QOpenGLWidget):
                 hit = self.pick(self._mouse, hands=False)
                 self._set_pick(hit)
                 return
-            hit = self.pick(self._mouse, weapon=False)
+            # The nearest of hands and gun: a glove behind the gun is not taken through it (the press orbits).
+            hit = self.pick(self._mouse)
             if hit is not None and hit[0] == 'hand':
                 if self.selected_hand is not hit[1]:
                     self.selected_hand = hit[1]
@@ -506,6 +527,13 @@ class Viewport(QOpenGLWidget):
             hand.rotation = quat_norm(quat_mul(q, hand.rotation))
             self.changed.emit()
         self.update()
+
+    def leaveEvent(self, e):
+        if self.hover_node is not None:
+            self.hover_node = None
+            self.hovered.emit('')
+            self.update()
+        super().leaveEvent(e)
 
     def mouseReleaseEvent(self, e):
         moved = self._press is not None and (e.position().toPoint() - self._press).manhattanLength() > 3

@@ -58,9 +58,11 @@ class Weapon:
                 if _prefix(node.path, path) and len(path) > best:
                     best = len(path)
                     node.role = role
-            node.hidden = False
+            node.hidden = False  # hidden by the user (Hide this part)
+            node.away = False  # taken away by the reload (the old magazine, out)
             node.sim = np.eye(4)
             node.tris = node.triangles()
+        self.hinge_m = np.eye(4)
         rest = r.get('magRestPos')
         park = v3(r.get('magSeatPos', [0, 0, 0])) - v3(rest) if rest is not None else np.zeros(3)
         self.mag_parked = park if np.linalg.norm(park) > 0.05 else np.zeros(3)
@@ -110,10 +112,23 @@ class Weapon:
 
     def mag_center(self):
         q = self.rig.get('magSeatRot', [0, 0, 0, 1])
-        return v3(self.rig.get('magSeatPos', [0, 0, 0])) + quat_to_mat3(q) @ v3(self.rig.get('magBoundsCenter', [0, 0, 0]))
+        c = v3(self.rig.get('magSeatPos', [0, 0, 0])) + quat_to_mat3(q) @ v3(self.rig.get('magBoundsCenter', [0, 0, 0]))
+        return (self.hinge_m @ np.append(c, 1.0))[:3] if self.rig.get('seatOnHinge') else c
+
+    def _mag_eject_rest(self):
+        return norm(self.rig.get('magEject', [0, -1, 0]))
 
     def mag_eject(self):
-        return norm(self.rig.get('magEject', [0, -1, 0]))
+        """The magazine's way out now: turned with the barrels when it sits in them (seatOnHinge, as the mod seats it)."""
+        e = self._mag_eject_rest()
+        return norm(self.hinge_m[:3, :3] @ e) if self.rig.get('seatOnHinge') else e
+
+    def hinge_point(self, p):
+        """A gun-space point on the cover or barrels where it is now (turned about the hinge by the cover's openness)."""
+        return (self.hinge_m @ np.append(v3(p), 1.0))[:3]
+
+    def hinge_dir(self, d):
+        return self.hinge_m[:3, :3] @ v3(d)
 
     def set_state(self, slide=None, mag=None, cover=None):
         if slide is not None:
@@ -126,7 +141,7 @@ class Weapon:
         ht = v3(self.rig.get('handleTravel', [0, 0, 0]))
         if np.linalg.norm(ht) < 1e-5:
             ht = st
-        ej = self.mag_eject() * self.mag_length
+        ej = self._mag_eject_rest() * self.mag_length
         pivot = v3(self.rig.get('hingePivot', [0, 0, 0]))
         axis = -v3(self.rig.get('hingeAxis', [1, 0, 0]))  # a rotation axis turned right-handed: (-x, -y, z) of Unity's
         hinge = trs([0, 0, 0], quat_axis_angle(axis, float(self.rig.get('hingeAngle', 0)) * self.cover)) if np.linalg.norm(axis) > 1e-6 else np.eye(4)
@@ -135,6 +150,8 @@ class Weapon:
         back = np.eye(4)
         back[:3, 3] = -pivot
         hinge_m = about @ hinge @ back
+        self.hinge_m = hinge_m
+        on_hinge = bool(self.rig.get('seatOnHinge'))
         for n in self.nodes:
             m = np.eye(4)
             if n.role in ('slide', 'companion', 'bolt'):
@@ -144,7 +161,7 @@ class Weapon:
             elif n.role == 'magazine':
                 # A magazine that waits parked away at rest (the M1's clip) is drawn on its seat.
                 m[:3, 3] = ej * self.mag + self.mag_parked
-            if n.role == 'hinge' or (self.rig.get('hinge') and _prefix(n.path, self.rig.get('hinge'))):
+            if n.role == 'hinge' or (self.rig.get('hinge') and _prefix(n.path, self.rig.get('hinge'))) or (on_hinge and n.role == 'magazine'):
                 m = hinge_m @ m
             n.sim = m
 
@@ -158,7 +175,9 @@ class Weapon:
     def nearest_part(self, p_gun):
         best, bd = None, 1e9
         for n in self.nodes:
-            q = np.clip(p_gun, n.bmin + n.sim[:3, 3], n.bmax + n.sim[:3, 3])
+            # The part's box where it is now (turned with the cover or barrels too, not only moved).
+            c = np.array([(n.sim @ np.append(k, 1.0))[:3] for k in _corners(n.bmin, n.bmax)])
+            q = np.clip(p_gun, c.min(axis=0), c.max(axis=0))
             d = np.linalg.norm(q - p_gun)
             if d < bd:
                 best, bd = n, d
@@ -230,7 +249,7 @@ class Scene:
         cross(seat, (1.0, 0.9, 0.3, 1), 0.008)
         arrow(w.mag_center(), w.mag_eject() * w.mag_length, (1.0, 0.9, 0.3, 0.8))
         if r.get('hingeKind', 'None') != 'None':
-            cross(r['hingeGrab'], (0.8, 0.5, 1.0, 1))
+            cross(w.hinge_point(r['hingeGrab']), (0.8, 0.5, 1.0, 1))
         return out
 
     # ---- putting the hands on the gun -------------------------------------------------------------------------------
@@ -249,6 +268,7 @@ class Scene:
         if w is None:
             return
         hand.role = target
+        hand.thumb_set = False
         r = w.rig
         pistol = r.get('isPistol')
         if target == 'grip':
@@ -294,7 +314,8 @@ class Scene:
         elif target == 'cover':
             if r.get('hingeKind', 'None') == 'None':
                 return
-            self.place(hand, v3(r['hingeGrab']) + w.up * 0.02, -w.up, -w.aim)
+            # The latch where the cover is now: the mod turns its grab point with the cover (CoverGrabWorld).
+            self.place(hand, w.hinge_point(v3(r['hingeGrab']) + w.up * 0.02), w.hinge_dir(-w.up), w.hinge_dir(-w.aim))
             hand.set_pose('Cover lift')
             hand.on_part = 'cover'
 
@@ -312,7 +333,7 @@ class Scene:
         w = self.weapon
         best = None
         for node in w.nodes:
-            if node.hidden or not len(node.tris):
+            if node.hidden or node.away or not len(node.tris):
                 continue
             inv = np.linalg.inv(w.node_matrix(node))
             lo = (inv @ np.append(o, 1))[:3]
@@ -332,6 +353,7 @@ class Scene:
         The glove onto the gun's surface as in VR (HandModel: the palm pushed out while its skin would sink in, drawn in up to
         2 cm while a gap is left): along the palm's normal by the smallest gap of its skin points, within 2 cm either way.
         """
+        hand._settled_at = None
         if self.weapon is None or not self.settle_on:
             return 0.0
         m = hand.model_matrix()
@@ -345,9 +367,27 @@ class Scene:
                 gaps.append(t - back)
         if not gaps:
             return 0.0
-        move = float(np.clip(min(gaps) - 0.002, -0.02, 0.02))
-        hand.position = hand.position + normal * move
+        # In by up to 2 cm, out by up to 4 (HandModel.PalmOffset). Only the drawn glove moves: in VR the hand (the gun's
+        # grip point) stays where it is and the glove is drawn settled; saved, the hand's own place is kept.
+        move = float(np.clip(min(gaps) - 0.002, -0.04, 0.02))
+        hand.set_settle(normal * move)
         return move
+
+    def contact_role(self, hand):
+        """The job of a hand moved by hand: what it is on (the left hand on the gun's body or handguard supports it)."""
+        w = self.weapon
+        if w is None:
+            return ''
+        p = w.to_gun(hand.position)[:3]
+        part, dist = w.nearest_part(p)
+        if part is None or dist > 0.06:
+            return ''
+        if hand.side == 'right':
+            return 'grip'
+        r = w.rig
+        near_support = r.get('hasSupport') and np.linalg.norm(p - v3(r['support'])) < 0.05
+        job = {'magazine': 'magazine', 'slide': 'rack', 'handle': 'rack', 'bolt': 'rack', 'companion': 'rack', 'hinge': 'cover'}.get(part.role)
+        return 'support' if job is None or near_support else job
 
     # ---- saving --------------------------------------------------------------------------------------------------------
 
@@ -362,6 +402,7 @@ class Scene:
             'mod': {'position': Weapon.unity(p).round(5).tolist(), 'rotation': [round(-q[0], 5), round(-q[1], 5), round(q[2], 5), round(q[3], 5)]},
             'fromMuzzleCm': w.from_muzzle(p).round(2).tolist(),
             'pose': hand.pose_name, 'thumb': round(hand.thumb, 4), 'curls': [round(c, 4) for c in hand.curls],
+            'thumbSet': bool(hand.thumb_set),
             'on': hand.on_part or (part.short if part is not None else ''),
             'role': hand.role,
             'nearestPart': {'name': part.name if part else '', 'role': ROLE_NAMES.get(part.role, part.role) if part else '',
@@ -393,9 +434,13 @@ class Scene:
             hand.curls = [float(c) for c in h.get('curls', hand.curls)]
             hand.on_part = h.get('on', '')
             hand.role = h.get('role', '')
+            hand.thumb_set = bool(h.get('thumbSet', False))
             hand.update_mesh()
         parts = doc.get('parts') or {}
         w.set_state(parts.get('slide', 0), parts.get('magazine', 0), parts.get('cover', 0))
+        for hand in (self.right, self.left):
+            if hand.role in ('grip', 'support'):
+                self.settle(hand)
 
 
 def _corners(a, b):

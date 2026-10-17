@@ -4,6 +4,7 @@ poses, screenshots and GIFs, without starting the game.
     python tools/sandbox/app/main.py              (or the built RavenfieldVR-Sandbox.exe)
     python tools/sandbox/app/main.py --shot out.png [--weapon NAME]   render one picture and quit (for checks)
 """
+import codecs
 import json
 import math
 import os
@@ -47,6 +48,16 @@ def find_repo():
 
 def safe(name):
     return ''.join(c if c.isalnum() or c in '-_.' else '_' for c in name).strip('_') or 'capture'
+
+
+def stamp():
+    """A file name's time, to the millisecond (to the second, two screenshots in one second overwrote the first)."""
+    t = time.time()
+    return time.strftime('%Y%m%d-%H%M%S', time.localtime(t)) + f'-{int(t * 1000) % 1000:03d}'
+
+
+def is_repo(folder):
+    return bool(folder) and os.path.exists(os.path.join(folder, 'src', 'Rig', 'Glove', 'glove.bin'))
 
 
 def card(title, *widgets, layout=None):
@@ -257,7 +268,7 @@ class Workbench(QWidget):
             snaps.append(b)
         self.pose = ComboBox()
         self.pose.addItems(list(POSES.keys()))
-        self.pose.currentTextChanged.connect(self.on_pose_chosen)
+        self.pose.textActivated.connect(self.on_pose_chosen)  # (also a re-pick of the text it shows)
         self.finger_sliders = []
         fingers = QVBoxLayout()
         fingers.setSpacing(2)
@@ -439,10 +450,13 @@ class Workbench(QWidget):
             self.scene.load_weapon(os.path.join(self.data, wid))
         except Exception as e:  # a broken export
             self.toast(f'Could not open {wid}', str(e), error=True)
+            self.parts_home()  # the open weapon was stopped where its reload was
             return
         w = self.scene.weapon
         self.view.pick_point = None
         self.view.pick_line = None
+        self.picked_point = None  # (the last weapon's: copied, its part name and point went out with this weapon's name)
+        self.picked_node = None
         self.readout.hide()
         self.view.rebuild()
         r = w.rig
@@ -509,12 +523,18 @@ class Workbench(QWidget):
         self.sel_left.setChecked(hand is self.scene.left)
         h = hand or self.scene.right
         self.hand_label.setText(f"Pose of the {h.side} hand")
-        self.sel_name.setText(f"Selected: {h.side} hand" + (f" (on the {h.on_part})" if h.on_part else ''))
-        self.pose.blockSignals(True)
-        if self.pose.findText(h.pose_name) >= 0:
-            self.pose.setCurrentText(h.pose_name)
-        self.pose.blockSignals(False)
+        self.update_selected_label()
+        self.show_pose_name(h)
         self.sync_hand_controls()
+
+    def update_selected_label(self):
+        h = self.current_hand()
+        self.sel_name.setText(f"Selected: {h.side} hand" + (f" (on the {h.on_part})" if h.on_part else ''))
+
+    def show_pose_name(self, h):
+        self.pose.blockSignals(True)
+        self.pose.setCurrentText(h.pose_name if self.pose.findText(h.pose_name) >= 0 else 'Custom')
+        self.pose.blockSignals(False)
 
     def current_hand(self):
         return self.view.selected_hand or self.scene.right
@@ -530,21 +550,25 @@ class Workbench(QWidget):
                 names.append("weapon's own grip")
             if w.rig.get('supportCurls'):
                 names.append("weapon's own support")
-        names += list(POSES.keys())
+        names += list(POSES.keys()) + ['Custom']
         self.pose.addItems(names)
         self.pose.blockSignals(False)
 
     def on_pose_chosen(self, name):
         h = self.current_hand()
         w = self.scene.weapon
+        if name == 'Custom':
+            return  # (the sliders make a custom pose)
         if w is not None and name in ("weapon's own grip", "weapon's own support"):
             curls = w.rig.get('gripCurls' if 'grip' in name else 'supportCurls')
             if curls:
                 h.set_pose(name, [0.35] + list(curls))
+                h.thumb_set = False  # the weapon's own pose: the game keeps its thumb rule
                 self.sync_hand_controls()
                 self.view.update()
             return
         h.set_pose(name)
+        h.thumb_set = True  # a pose picked by hand: its thumb goes to the game too
         self.sync_hand_controls()
         self.view.update()
 
@@ -552,14 +576,19 @@ class Workbench(QWidget):
         h = self.current_hand()
         h.curls[i] = f
         h.pose_name = 'Custom'
+        if i == 0:
+            h.thumb_set = True
         h.update_mesh()
+        self.show_pose_name(h)
         self.view.update()
 
     def on_thumb_base(self, f):
         h = self.current_hand()
         h.thumb = f
         h.pose_name = 'Custom'
+        h.thumb_set = True
         h.update_mesh()
+        self.show_pose_name(h)
         self.view.update()
 
     def sync_hand_controls(self):
@@ -592,11 +621,19 @@ class Workbench(QWidget):
         g = w.grip + w.aim * f + w.up * u + w.right * r
         h.position = w.to_world(g)
         h.rotation = quat_norm(quat_mul(w.Wq, euler_deg_to_quat([b.value() for b in self.num[1]])))
+        self._moved(h)
         self.view.update()
 
     def on_hand_moved(self):
-        self.current_hand().on_part = ''
+        self._moved(self.current_hand())
         self.sync_numbers()
+
+    def _moved(self, h):
+        """A hand moved by hand: no longer on the part it was snapped to; its job is what it touches now (a left hand dragged
+        from the magazine onto the handguard is the support hand again; its stale job dropped it from the saved pose)."""
+        h.on_part = ''
+        h.role = self.scene.contact_role(h)
+        self.update_selected_label()
 
     def after_hand_change(self):
         self.on_select(self.current_hand())
@@ -605,7 +642,7 @@ class Workbench(QWidget):
     def copy_pose_to_other(self):
         h = self.current_hand()
         o = self.scene.left if h is self.scene.right else self.scene.right
-        o.thumb, o.curls, o.pose_name = h.thumb, list(h.curls), h.pose_name
+        o.thumb, o.curls, o.pose_name, o.thumb_set = h.thumb, list(h.curls), h.pose_name, h.thumb_set
         o.update_mesh()
         self.view.update()
 
@@ -631,12 +668,22 @@ class Workbench(QWidget):
         w = self.scene.weapon
         if w is None:
             return
-        w.fresh = None
+        self.parts_home()
         for n in w.nodes:
             n.hidden = False
+        self.hands_on_gun()
+
+    def parts_home(self):
+        """The parts as the reload leaves them: the magazine in, nothing moved (the parts the user hid stay hidden)."""
+        w = self.scene.weapon
+        if w is None:
+            return
+        w.fresh = None
+        for n in w.nodes:
+            n.away = False
         w.set_state(0, 0, 0)
         self.sync_sliders()
-        self.hands_on_gun()
+        self.view.update()
 
     def _move_hand(self, hand, target):
         """A step taking the hand from where it is to where target() (a snap) would put it."""
@@ -649,6 +696,7 @@ class Workbench(QWidget):
             start['tp'], start['tq'], start['pose'] = hand.position.copy(), hand.rotation.copy(), (hand.pose_name, hand.thumb, list(hand.curls))
             hand.position, hand.rotation = tmp_p, tmp_q
             hand.pose_name, hand.thumb, hand.curls = tmp_pose[0], tmp_pose[1], tmp_pose[2]
+            hand.update_mesh()
 
         def update(t):
             hand.position = start['p'] + (start['tp'] - start['p']) * t
@@ -676,16 +724,20 @@ class Workbench(QWidget):
         steps = []
         if cover:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
-            steps.append(self._follow(left, lambda: s.snap(left, 'cover') if False else None, 0.5, lambda t: w.set_state(cover=t)))
+            steps.append(self._follow(left, lambda: s.snap(left, 'cover'), 0.5, lambda t: w.set_state(cover=t)))
         if has_mag:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'magazine')))
             steps.append(self._follow(left, lambda: s.snap(left, 'magazine'), 0.55, lambda t: w.set_state(mag=t)))
 
+            dip = {}
+
             def hide_old():
+                dip['from'] = left.position.copy()
                 for n in w.nodes:
                     if n.role == 'magazine':
-                        n.hidden = True
-            steps.append((0.3, lambda t: setattr(left, 'position', left.position + np.array([0, -0.004, 0])), hide_old))
+                        n.away = True  # (not hidden: the fresh one, drawn from the same parts, is drawn while it goes in)
+            # The hand with the old magazine dips away, 5 cm over the step (per frame it sank 7.6 cm at 60 fps, more when faster).
+            steps.append((0.3, lambda t: setattr(left, 'position', dip['from'] + np.array([0, -0.05 * t, 0])), hide_old))
             ej = w.mag_eject() * w.mag_length
 
             def fresh_at(t):
@@ -698,11 +750,12 @@ class Workbench(QWidget):
             def seated():
                 w.fresh = None
                 for n in w.nodes:
-                    n.hidden = False
+                    n.away = False  # (a part the user hid stays hidden)
                 w.set_state(mag=0)
             steps.append((0.05, lambda t: None, seated))
         if cover:
-            steps.append(self._follow(left, lambda: None, 0.45, lambda t: w.set_state(cover=1 - t)))
+            steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
+            steps.append(self._follow(left, lambda: s.snap(left, 'cover'), 0.45, lambda t: w.set_state(cover=1 - t)))
         if r.get('rackPoint') is not None and (r.get('slide') or r.get('addedHandle') or r.get('carveHandle')):
             steps.append(self._move_hand(left, lambda: s.snap(left, 'rack')))
             steps.append(self._follow(left, lambda: s.snap(left, 'rack'), 0.35, lambda t: w.set_state(slide=t)))
@@ -843,8 +896,11 @@ class Workbench(QWidget):
         text = path
         game = self.game_poses_dir()
         if game:
-            self._write(os.path.join(game, w.id + '.json'), doc)
-            text += '\nand for the game: ' + os.path.join(game, w.id + '.json')
+            try:
+                self._write(os.path.join(game, w.id + '.json'), doc)
+                text += '\nand for the game: ' + os.path.join(game, w.id + '.json')
+            except OSError as e:
+                self.toast('Saved here, but not for the game', f'{game}\n{e}', error=True)
         self.mark_saved(w.id)
         self.update_game_status()
         self.toast('Pose saved', text, path)
@@ -910,8 +966,12 @@ class Workbench(QWidget):
         if not os.path.exists(src):
             self.toast('No saved pose for this weapon yet', 'Press Save pose first.', error=True)
             return
-        with open(src, encoding='utf-8') as f:
-            self._write(os.path.join(game, w.id + '.json'), json.load(f))
+        try:
+            with open(src, encoding='utf-8') as f:
+                self._write(os.path.join(game, w.id + '.json'), json.load(f))
+        except (OSError, ValueError) as e:
+            self.toast('Could not send it to the game', str(e), error=True)
+            return
         self.update_game_status()
         self.toast('Sent to the game', os.path.join(game, w.id + '.json'))
 
@@ -922,8 +982,12 @@ class Workbench(QWidget):
         if w is None or game is None:
             return
         target = os.path.join(game, w.id + '.json')
-        if os.path.exists(target):
-            os.remove(target)
+        try:
+            if os.path.exists(target):
+                os.remove(target)
+        except OSError as e:
+            self.toast('Could not remove it from the game', str(e), error=True)
+            return
         self.update_game_status()
         self.toast('Removed from the game', 'The game holds this weapon the mod\'s own way again; the pose is still saved here.')
 
@@ -945,14 +1009,17 @@ class Workbench(QWidget):
     def screenshot(self):
         w = self.scene.weapon
         img = self.view.grabFramebuffer()
-        path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{time.strftime('%Y%m%d-%H%M%S')}.png")
-        img.save(path)
+        path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{stamp()}.png")
+        if not img.save(path):
+            self.toast('The screenshot could not be saved', path, error=True)
+            return None
         self.toast('Screenshot saved', path, path)
         return path
 
     def toggle_record(self, on):
         if on:
-            self.recording = {'frames': [], 'timer': QTimer(), 'scale': float(self.gif_scale.value()), 'fps': int(self.gif_fps.value())}
+            self.recording = {'frames': [], 'times': [], 'bytes': 0, 'timer': QTimer(), 'scale': float(self.gif_scale.value()),
+                              'fps': int(self.gif_fps.value())}
             self.recording['timer'].timeout.connect(self._grab_frame)
             self.recording['timer'].start(int(1000 / self.recording['fps']))
             self.rec_btn.setText('Stop recording')
@@ -965,14 +1032,25 @@ class Workbench(QWidget):
             if not rec['frames']:
                 return
             w = self.scene.weapon
-            path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{time.strftime('%Y%m%d-%H%M%S')}.gif")
+            path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{stamp()}.gif")
             frames = [f.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE) for f in rec['frames']]
-            frames[0].save(path, save_all=True, append_images=frames[1:], duration=int(1000 / rec['fps']), loop=0, disposal=2)
+            # Each frame as long as it really lasted: a grab slower than the timer's period played back in slow motion.
+            t = rec['times'] + [rec['times'][-1] + 1.0 / rec['fps']]
+            durations = [max(20, int(round((t[i + 1] - t[i]) * 1000))) for i in range(len(frames))]
+            try:
+                frames[0].save(path, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
+            except (OSError, ValueError) as e:
+                self.toast('The GIF could not be saved', f'{path}\n{e}', error=True)
+                return
             self.toast(f'GIF saved ({len(frames)} frames)', path, path)
 
     def _grab_frame(self):
         rec = self.recording
-        if rec is None or len(rec['frames']) >= 600:
+        if rec is None:
+            return
+        if rec['bytes'] > 400 * 1024 * 1024:
+            # About 400 MB of frames kept (a big view at full size was 3 MB a frame, 2 GB at 600 frames): stopped and saved.
+            self.rec_btn.setChecked(False)
             return
         img = self.view.grabFramebuffer()
         if rec['scale'] < 0.999:
@@ -982,6 +1060,8 @@ class Workbench(QWidget):
         ptr.setsize(img.sizeInBytes())
         arr = np.frombuffer(ptr, np.uint8).reshape(img.height(), img.bytesPerLine())[:, :img.width() * 3].reshape(img.height(), img.width(), 3)
         rec['frames'].append(Image.fromarray(arr.copy()))
+        rec['times'].append(time.perf_counter())
+        rec['bytes'] += arr.nbytes
         self.rec_btn.setText(f"Stop recording ({len(rec['frames'])})")
 
     def toast(self, title, content, path=None, error=False):
@@ -1009,13 +1089,22 @@ class Workbench(QWidget):
         self.process = QProcess(self)
         self.process.setWorkingDirectory(self.repo)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        decoder = codecs.getincrementaldecoder('utf-8')('replace')  # (a character split between two reads was lost)
         self.process.readyReadStandardOutput.connect(
-            lambda: self.job_log.appendPlainText(bytes(self.process.readAllStandardOutput()).decode('utf-8', 'ignore').rstrip()))
+            lambda: self.job_log.appendPlainText(decoder.decode(bytes(self.process.readAllStandardOutput())).rstrip()))
         self.process.finished.connect(lambda code, _s: self._job_done(title, code))
+        self.process.errorOccurred.connect(lambda err: self._job_failed(title, err))
         env = self.process.processEnvironment()
         env.insert('PYTHONIOENCODING', 'utf-8')
         self.process.setProcessEnvironment(env)
         self.process.start(self._python(), args)
+
+    def _job_failed(self, title, err):
+        if err != QProcess.ProcessError.FailedToStart:
+            return  # (a crash or a kill also ends in finished)
+        self.job_log.appendPlainText(f'\n{title}: could not start {self._python()} ({self.process.errorString()}).')
+        self.toast(f'{title}: could not start', f'{self._python()} was not found: Python has to be installed (and on PATH) '
+                                                 'for the game jobs.', error=True)
 
     def _job_done(self, title, code):
         self.job_log.appendPlainText(f'\n{title}: finished ({code}).')
@@ -1152,12 +1241,14 @@ def main():
     setTheme(Theme.DARK)
     setThemeColor('#d79b45')
     repo = find_repo()
-    if repo is None:
+    while repo is None:
         from PyQt6.QtWidgets import QFileDialog
-        repo = QFileDialog.getExistingDirectory(None, 'Where is the Ravenfield-VR folder?')
-        if not repo:
+        chosen = QFileDialog.getExistingDirectory(None, 'Where is the Ravenfield-VR folder? (the one with src\\Rig\\Glove\\glove.bin)')
+        if not chosen:
             return
-        QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
+        if is_repo(chosen):
+            repo = chosen
+            QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
     win = Window(repo)
     args = sys.argv[1:]
     if '--selftest' in args:
@@ -1191,7 +1282,12 @@ def main():
                         v.target = (wb.scene.right if parts[3] == 'right' else wb.scene.left).position.copy()
             whole = '--window' in args
             delay = int(next((a[8:] for a in args if a.startswith('--delay=')), '900'))
-            QTimer.singleShot(delay, lambda: ((win.screen().grabWindow(int(win.winId())) if whole else v.grabFramebuffer()).save(out), app.quit()))
+            def take():
+                ok = (win.screen().grabWindow(int(win.winId())) if whole else v.grabFramebuffer()).save(out)
+                if not ok:
+                    print(f'--shot: could not write {out}', file=sys.stderr)
+                app.exit(0 if ok else 1)
+            QTimer.singleShot(delay, take)
         QTimer.singleShot(900, shoot)
     else:
         win.show()
@@ -1201,8 +1297,12 @@ def main():
 def leave(code):
     """Ends the program once the window is closed and its GPU resources freed. A normal Python exit then tore down Qt and
     PyOpenGL objects in an arbitrary order and crashed now and then (access violation after a clean close)."""
-    sys.stdout.flush()
-    sys.stderr.flush()
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None:  # (None in the exe: it has no console)
+            try:
+                stream.flush()
+            except (OSError, ValueError):
+                pass
     os._exit(code or 0)
 
 

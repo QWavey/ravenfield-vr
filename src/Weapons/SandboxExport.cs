@@ -452,7 +452,7 @@ namespace RavenfieldVR.Weapons
                 .Vec("magSeatPos", d.MagSeat.position).Vec("magRestPos", d.MagRestPos).Quat("magSeatRot", d.MagSeat.rotation).Vec("magEject", d.MagEjectAxis)
                 .Vec("magBoundsCenter", d.MagBounds.center).Vec("magBoundsSize", Abs(d.MagBounds.size)).Str("magMethod", d.MagMethod)
                 .Str("hingeKind", d.Hinge.ToString()).Vec("hingePivot", d.HingePivot).Vec("hingeAxis", d.HingeAxis)
-                .Num("hingeAngle", d.HingeOpenAngle).Vec("hingeGrab", d.HingeGrabPoint)
+                .Num("hingeAngle", d.HingeOpenAngle).Vec("hingeGrab", d.HingeGrabPoint).Bool("seatOnHinge", d.SeatOnHinge)
                 .Floats("gripCurls", d.GripCurls).Floats("supportCurls", d.SupportCurls)
                 .Str("notes", d.Notes).Str("warnings", string.Join("; ", d.Warnings.ToArray())).Str("export", note);
             return j.Done();

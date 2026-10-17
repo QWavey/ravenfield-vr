@@ -108,6 +108,7 @@ class GloveShape:
         opened = [[None] * 3 for _ in range(5)]
         fist = [[None] * 3 for _ in range(5)]
         relaxed = [[None] * 3 for _ in range(5)]
+        self.point = [[None] * 3 for _ in range(5)]
         for fi in range(5):
             for s in range(3):
                 p = _rh_vec(*rd(3))
@@ -123,7 +124,7 @@ class GloveShape:
                 opened[fi][s] = _rh_quat(*rd(4))
                 fist[fi][s] = _rh_quat(*rd(4))
                 relaxed[fi][s] = _rh_quat(*rd(4))
-                rd(4)  # Valve's pointing hand
+                self.point[fi][s] = _rh_quat(*rd(4))  # Valve's pointing hand
         # Curl 0 is Valve's relaxed hand with its curl taken out (HandShape.LoadGlove), the thumb's base apart.
         self.rest = [[opened[fi][s] if fi == 0 and s == 0 else _without_curl(opened[fi][s], relaxed[fi][s], self.curl_axis[fi][s])
                       for s in range(3)] for fi in range(5)]
@@ -148,12 +149,17 @@ class GloveShape:
                 mats.append(parent)
         return mats
 
-    def pose(self, thumb_base, curls):
-        """The skinned vertices and normals (palm space, unscaled) for this pose."""
+    def pose(self, thumb_base, curls, point=False):
+        """The skinned vertices and normals (palm space, unscaled) for this pose. point: Valve's own pointing hand, every
+        joint (the thumb's base too), as the mod draws a pointing hand (HandModel: a curl alone left the thumb sticking out
+        and the index bent like a hook)."""
         thumb = quat_slerp(self.thumb_rest, self.thumb_fist, thumb_base)
         rots = [[None] * 3 for _ in range(5)]
         for fi in range(5):
             for s in range(3):
+                if point:
+                    rots[fi][s] = self.point[fi][s]
+                    continue
                 rest = thumb if fi == 0 and s == 0 else self.rest[fi][s]
                 rots[fi][s] = quat_mul(rest, quat_axis_angle(self.curl_axis[fi][s], self.curl_angle[fi][s] * curls[fi]))
         mats = self._joint_matrices(rots)
@@ -191,7 +197,10 @@ class Hand:
         self.curls = [0.1, 0.12, 0.16, 0.2, 0.24]
         self.pose_name = 'Relaxed'
         self.on_part = ''  # what it holds (set by the snap or found when saved)
-        self.role = ''  # its job on the gun from the last snap (grip, support, rack, magazine, cover); kept when moved
+        self.role = ''  # its job on the gun (grip, support, rack, magazine, cover): from the snap, or what it touches when moved
+        self.thumb_set = False  # the thumb posed by hand here (sent to the game); else the game keeps its own thumb rule
+        self.settle = np.zeros(3)  # where the glove is drawn from its place: settled onto the gun as in VR (drawn only)
+        self._settled_at = None
         self.dirty = True
         self.vertices = None
         self.normals = None
@@ -212,12 +221,23 @@ class Hand:
         self.update_mesh()
 
     def update_mesh(self):
-        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, self.curls)
+        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, self.curls, self.pose_name == 'Pointing (laser)')
         self.dirty = True
+
+    def set_settle(self, offset):
+        """The glove drawn this far from its place while the hand stays where it is (moved, it is drawn at its place)."""
+        self.settle = np.asarray(offset, dtype=np.float64)
+        self._settled_at = (self.position.copy(), self.rotation.copy())
+
+    def drawn_position(self):
+        a = self._settled_at
+        if a is not None and np.allclose(a[0], self.position, atol=1e-9) and np.allclose(a[1], self.rotation, atol=1e-9):
+            return self.position + self.settle
+        return self.position
 
     def model_matrix(self):
         from mathutil import trs
-        return trs(self.position, self.rotation, (self.mirror * GLOVE_SCALE, GLOVE_SCALE, GLOVE_SCALE))
+        return trs(self.drawn_position(), self.rotation, (self.mirror * GLOVE_SCALE, GLOVE_SCALE, GLOVE_SCALE))
 
     def fingertip(self, finger=1):
         """A fingertip in the scene (for the laser: the index finger's tip)."""
@@ -227,7 +247,7 @@ class Hand:
 
     def state(self):
         return {'position': self.position.tolist(), 'rotation': self.rotation.tolist(), 'pose': self.pose_name,
-                'thumb': self.thumb, 'curls': list(self.curls), 'on': self.on_part}
+                'thumb': self.thumb, 'curls': list(self.curls), 'on': self.on_part, 'thumbSet': self.thumb_set}
 
     def load(self, st):
         self.position = np.array(st['position'], dtype=np.float64)
@@ -236,4 +256,5 @@ class Hand:
         self.thumb = float(st.get('thumb', 0))
         self.curls = [float(c) for c in st.get('curls', self.curls)]
         self.on_part = st.get('on', '')
+        self.thumb_set = bool(st.get('thumbSet', False))
         self.update_mesh()

@@ -30,15 +30,23 @@ changing the mod's analysis, or only some weapons: `python tools/sandbox/export.
 - **Save pose** (Ctrl+S): `tools/sandbox/poses/<weapon>.json` with both hands' place and turn on the gun (in the
   mod's gun space and the sandbox's), their finger curls, the part each one holds and its job (grip, handguard...).
   The same file goes to the game (`BepInEx/config/RavenfieldVR/poses/`) and **the mod holds the weapon that way**:
-  the gun hand's place, turn and finger curls, and the handguard hand's place (config `Weapons.UseSandboxPoses`, on).
-  A pose saved without changes is exactly the mod's own, so only what you change changes in the game.
-- **Settle**: after "Hands on the gun" the glove is put onto the gun's surface (within 2 cm), as it settles in VR;
-  Advanced → *Settle hands on the gun* turns it off to see the raw place.
+  the gun hand's place, turn and finger curls, its thumb when you posed it here (a pose from the list, or the thumb
+  sliders), and the handguard hand's place (config `Weapons.UseSandboxPoses`, on). A pose saved without changes is
+  exactly the mod's own (with the weapon's config overrides), so only what you change changes in the game.
+- **Import pose… / Export pose…**: a pose file from anywhere onto this weapon (then Save pose keeps it), or the current
+  pose to any file (to share it or send it to Claude). **Send to game / Remove from game**: the saved pose on or off
+  in the game; the line above them says which the game uses.
+- **Settle**: after "Hands on the gun" the glove is drawn on the gun's surface (in by up to 2 cm, out by up to 4), as
+  it settles in VR. Only the drawing moves: the hand's place (what is saved, the gun's grip point in the game) stays,
+  as in VR. Advanced → *Settle hands on the gun* turns it off to see the raw place.
 - **Screenshot** (F12) and **Record GIF**: into `reports/sandbox/captures/`; the message shows the path with a button
   to open the folder. The **Captures** page lists them.
 - **Advanced**: exact numbers for the selected hand, the parts the mod found (click one to highlight it), the
   analysis (rig.json), views, GIF settings, and the game: export weapons, or *Test this gun in the game* (a
   vrshots run for that gun, only when really needed; never while Ravenfield is running).
+
+Self-test: `python tools/sandbox/app/main.py --selftest report.txt [--weapon NAME]` (or the exe with the same
+arguments) runs every feature as a user would and writes PASS/FAIL per check; pose files it touches are put back.
 
 Mouse: drag to look around, right-drag to pan, wheel to zoom. Keys: 1 / 2 select the right / left hand, Esc none,
 F frame the gun, Space reload, L laser.
