@@ -1591,6 +1591,7 @@ namespace RavenfieldVR.Weapons
             {
                 _rackSnapped = true;
                 SnapRackPoint();
+                KnobOnHiddenSlide();
             }
             UpdateSeatedMagSolid();
             FitMagazineLine();
@@ -1721,6 +1722,66 @@ namespace RavenfieldVR.Weapons
         /// well off the model held no handle (an AS Val's left hand passed 10 cm over the front sight): the estimate above
         /// the grip is used instead.
         /// </summary>
+        /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
+        private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
+
+        /// <summary>
+        /// A long gun whose slide (found by its fire motion) moves hidden in the receiver, with nothing else of it moving
+        /// with the hand, gets a knob where the hand takes it, as a bolt baked into the receiver does: GREASER's bolt was 0%
+        /// seen and PPSh-41's 3% (check-1017f), and racked, nothing visible moved. Measured once per weapon type, from four
+        /// sides with and without the slide (a few small pictures).
+        /// </summary>
+        private void KnobOnHiddenSlide()
+        {
+            WeaponRigData d = Rig.Data;
+            if (d.Handgun || Rig.Slide == null || _boltPiece != null || d.HandlePath != null || d.CarveHandle || d.AddedHandle
+                || Rig.SlideCompanions.Length > 0 || d.SlideMethod == null || !d.SlideMethod.StartsWith("fire motion", System.StringComparison.Ordinal))
+            {
+                return;
+            }
+            if (!SlideSeen.TryGetValue(d.Key, out float seen))
+            {
+                var mine = new List<Renderer>();
+                foreach (Renderer r in Rig.Slide.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                    {
+                        mine.Add(r);
+                    }
+                }
+                if (mine.Count == 0)
+                {
+                    return; // a bone of the gun's skinned mesh: not measured this way
+                }
+                var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+                var gun = new List<Renderer>();
+                foreach (Renderer r in Weapon.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && !arms.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                    {
+                        gun.Add(r);
+                    }
+                }
+                seen = GunVolume.VisibleShare(gun, mine, Rig.AimWorld, Rig.DirToWorld(d.Up), out string views, 0.004f);
+                SlideSeen[d.Key] = seen;
+                Log.Info($"{d.Key}: its slide '{Rig.Slide.name}' is {(seen < 0f ? "not measurable" : $"{seen * 100f:0}% seen from outside ({views})")}.");
+            }
+            if (seen < 0f || seen >= 0.05f)
+            {
+                return;
+            }
+            try
+            {
+                _boltPiece = BoltPiece.CreateKnob(Rig, RackPointGun);
+                Log.InfoOnce("hiddenknob:" + d.Key, $"{d.Key}: its slide moves hidden in the receiver: a knob added where the hand takes it.");
+            }
+            catch (System.Exception e)
+            {
+                _boltPiece = null;
+                Log.WarnOnce("hiddenknob:" + d.Key, $"Could not add a knob for {d.Key}: {e.Message}");
+            }
+        }
+
         private void SnapRackPoint()
         {
             WeaponRigData d = Rig.Data;

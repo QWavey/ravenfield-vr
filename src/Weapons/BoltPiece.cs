@@ -64,6 +64,22 @@ namespace RavenfieldVR.Weapons
 
         public static BoltPiece Create(WeaponRig rig) => Create(rig, rig.Data.RackPoint);
 
+        /// <summary>Only a knob at <paramref name="rackGun"/>, nothing cut out: for a slide that moves hidden in the receiver.</summary>
+        public static BoltPiece CreateKnob(WeaponRig rig, Vector3 rackGun)
+        {
+            var piece = new BoltPiece();
+            try
+            {
+                piece.AddKnob(rig, rackGun);
+            }
+            catch
+            {
+                piece.Destroy();
+                throw;
+            }
+            return piece;
+        }
+
         /// <param name="rackGun">Where the handle is (gun-body space).</param>
         public static BoltPiece Create(WeaponRig rig, Vector3 rackGun)
         {

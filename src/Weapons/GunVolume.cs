@@ -831,7 +831,7 @@ namespace RavenfieldVR.Weapons
         /// when it is left out). A carrier buried in the receiver reads 0, a slide or a knob standing out most of it. The arms
         /// are not drawn. Rendered and read back now: a test-only cost (12 small pictures).
         /// </summary>
-        internal static float VisibleShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, out string perView)
+        internal static float VisibleShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, out string perView, float texel = 0.002f)
         {
             perView = "";
             Shader shader = DepthShader();
@@ -869,7 +869,7 @@ namespace RavenfieldVR.Weapons
                 wb.Encapsulate(r.bounds);
             }
             float radius = Mathf.Max(0.05f, wb.extents.magnitude);
-            int size = Mathf.Clamp(Mathf.CeilToInt(2f * radius / 0.002f), 64, 512);
+            int size = Mathf.Clamp(Mathf.CeilToInt(2f * radius / texel), 64, 512);
             Vector3 aim = aimWorld.normalized, up = upWorld.normalized, right = Vector3.Cross(up, aim).normalized;
             var views = new[] { (right, up, "left"), (-right, up, "right"), (-up, aim, "top"), (up, aim, "bottom") };
             int layer = FreeLayer();
