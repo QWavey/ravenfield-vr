@@ -103,13 +103,16 @@ A problem shows a message and the program goes on. Every error, shown or not, is
 ### Self-test
 
 `python tools/sandbox/app/main.py --selftest report.txt [--weapon NAME]` (or the exe with the same arguments) runs
-every feature as a user would and writes PASS or FAIL for each check, with what it saw. It saves into its own folder,
-`reports/sandbox/selftest`: the weapons' saved poses and the game's copies are not touched.
+every feature as a user would and writes PASS, FAIL or SKIP for each check, with what it saw (about 60 checks per gun).
+`--all` also opens every exported weapon once, puts the hands on, plays its reload and saves it. It saves into its own
+folder, `reports/sandbox/selftest`: the weapons' saved poses and the game's copies are not touched.
 
 ### Keys and mouse
 
-Mouse: drag to look around, right-drag to pan, wheel to zoom. Keys: 1 / 2 select the right / left hand, Esc none,
-F frame the gun, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo.
+Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns
+it (the hands on it go along). Keys: 1 / 2 select the right / left hand, F frame the gun and the hands (Shift+F the gun
+alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save,
+F12 screenshot, Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo.
 
 ## Building the exe
 

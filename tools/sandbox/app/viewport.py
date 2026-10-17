@@ -303,7 +303,20 @@ class Viewport(QOpenGLWidget):
 
     def proj_matrix(self):
         w, h = max(1, self.width()), max(1, self.height())
+        if getattr(self, 'ortho', False):
+            # Orthographic (O, as in Blender): parallel lines stay parallel, for checking a hand against the gun's lines. Its
+            # half height is what the perspective view shows at the target, so dragging and panning keep their scale.
+            half = self.dist * math.tan(math.radians(19))
+            a = w / h
+            m = np.eye(4)
+            m[0, 0], m[1, 1] = 1.0 / (half * a), 1.0 / half
+            m[2, 2], m[2, 3] = -2.0 / (20.0 - 0.005), -(20.0 + 0.005) / (20.0 - 0.005)
+            return m
         return perspective(38.0, w / h, 0.005, 20.0)
+
+    def toggle_ortho(self):
+        self.ortho = not getattr(self, 'ortho', False)
+        self.update()
 
     def frame(self, center, radius):
         self.target = np.array(center, dtype=np.float64)

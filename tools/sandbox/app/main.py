@@ -345,7 +345,7 @@ class Workbench(QWidget):
         rack = PushButton(FIF.PLAY, 'Rack')
         rack.clicked.connect(self.play_rack)
         rack.setToolTip('Plays the rack of the slide or the charging handle. Ctrl+Z undoes it.')
-        reset = PushButton(FIF.SYNC, 'Reset')
+        reset = PushButton(FIF.SYNC, 'Reset parts and hands')
         reset.clicked.connect(self.reset_parts)
         reset.setToolTip('Parts back to rest (magazine in, slide forward, cover shut), every hidden part shown, '
                          'hands back on the gun.')
@@ -514,7 +514,7 @@ class Workbench(QWidget):
                         ('Shift+F', lambda: self.frame_weapon(hands=False)),
                         ('1', lambda: self.select_hand(self.scene.right)), ('2', lambda: self.select_hand(self.scene.left)),
                         ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot),
-                        ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo)):
+                        ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo), ('O', self.view.toggle_ortho)):
             QShortcut(QKeySequence(key), self, activated=fn)
         # Blender-like view keys on the keypad (with Num Lock on). The keypad modifier keeps them apart from the plain 1 and 2
         # keys that select the hands (tested: each key fires only its own shortcut).
@@ -2169,11 +2169,10 @@ class Help(QWidget):
             'the headset) or <b>Test this gun in the game</b> (only when really needed).</p>'
             '<p><b>Problems</b> show a message, and the program goes on. Every error is also written to '
             'reports/sandbox/sandbox-errors.log, with its details.</p>'
-            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom. Keys: 1 / 2 select the right / left hand, Esc none, '
-            'F frame the gun, Space reload, L laser, Ctrl+S save, F12 screenshot.</p>'
+            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns it (the hands on it go along). Keys: 1 / 2 select the right / left hand, F frame the gun and the hands (Shift+F the gun alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z / Ctrl+Y undo / redo.</p>'
             '<p><b>Self-test</b>: <code>python tools/sandbox/app/main.py --selftest report.txt --weapon NAME</code> runs the '
-            'features as a user would and writes PASS or FAIL for each check. The saved poses of the weapons are put back '
-            'afterwards.</p>')
+            'features as a user would and writes PASS, FAIL or SKIP for each check (add --all to open every exported weapon '
+            'once). It saves into a folder of its own: your saved poses and the game copies are never touched.</p>')
         text.setWordWrap(True)
         text.setTextFormat(Qt.TextFormat.RichText)
         body = QWidget()
