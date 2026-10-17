@@ -131,6 +131,7 @@ namespace RavenfieldVR.Weapons
                 }
                 UpdateSubWeaponReloadTarget();
             }
+            UpdateSecond();
             HealHandRoles();
             if (GameContext.PlayerActor == null || GameContext.PlayerActor.dead)
             {
@@ -149,10 +150,44 @@ namespace RavenfieldVR.Weapons
         /// good (no magazine, rack or support grip): the dominant side changed while a weapon was held (the left-handed
         /// setting, the self-test's left-handed pass) and the release freed the new dominant hand, not the one holding it.
         /// </summary>
+        /// <summary>The second weapon in the free hand (null: none), beside the game's active one.</summary>
+        internal SecondWeapon Second { get; private set; }
+
+        private void UpdateSecond()
+        {
+            if (Second == null)
+            {
+                return;
+            }
+            Actor actor = GameContext.PlayerActor;
+            bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
+                        || Second.Weapon == Held.Weapon || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
+            if (gone || !Second.Hand.GrabHeld || !Second.Hand.Tracked)
+            {
+                // Let go (or the gun in the other hand went away, a seat, death): back into its holster.
+                Second.PutAway();
+                Second = null;
+                return;
+            }
+            Second.Update();
+        }
+
+        /// <summary>The free hand takes this holstered weapon as a second one beside the gun in the other hand.</summary>
+        private void BeginSecond(Weapon weapon, VRHand hand)
+        {
+            Second = new SecondWeapon(this, weapon, RigFor(weapon), StateFor(weapon, create: true), hand);
+            Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
+            hand.Haptic(0.05f, 100f, 0.6f);
+        }
+
         private void HealHandRoles()
         {
             foreach (VRHand h in Rig.Hands)
             {
+                if (Second != null && h == Second.Hand)
+                {
+                    continue; // it holds the second weapon
+                }
                 if ((h.Role == HandRole.Weapon || h.Role == HandRole.Throwable) && (h != Rig.Dominant || Held == null))
                 {
                     h.Role = HandRole.Free;
@@ -262,6 +297,7 @@ namespace RavenfieldVR.Weapons
             Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
             _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
             _holsters.BeforeRender();
+            Second?.BeforeRender();
             if (Held != null && Held.Weapon != null)
             {
                 Held.BeforeRender();
@@ -430,6 +466,11 @@ namespace RavenfieldVR.Weapons
             AmmoState state = StateFor(weapon, create: true);
             state?.OnShot();
             FireSelector.OnShot(weapon);
+            if (Second != null && (weapon == Second.Weapon || weapon.parentWeapon == Second.Weapon))
+            {
+                Second.OnShot();
+                return;
+            }
             bool held = Held != null && (weapon == Held.Weapon || weapon.parentWeapon == Held.Weapon);
             if (held && state != null && state.Rig.CyclesByHand && VRConfig.ReloadNow == ReloadMode.Manual)
             {
@@ -622,6 +663,13 @@ namespace RavenfieldVR.Weapons
             {
                 // Putting the weapon back where it lives: holster it and free the hand.
                 HolsterToEmptyHand(actor);
+                return;
+            }
+            if (!gunHand && Second == null && Held != null && Held.Weapon != null && SecondWeapon.CanPair(Held.Weapon, actor.weapons[slot]))
+            {
+                // A second weapon of another kind (primary, secondary, launcher): held in this hand beside the drawn one
+                // (user, 2026-10-16: taking a second weapon made the first disappear).
+                BeginSecond(actor.weapons[slot], hand);
                 return;
             }
             TakeIntoHand(hand); // the free hand takes it: the drawn weapon goes to its holster

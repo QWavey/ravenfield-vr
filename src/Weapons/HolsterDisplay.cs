@@ -47,7 +47,8 @@ namespace RavenfieldVR.Weapons
             {
                 int slot = show ? zones.SlotAtSpot(spot) : -1;
                 Weapon w = slot >= 0 && slot < actor.weapons.Length ? actor.weapons[slot] : null;
-                WeaponManager.WeaponEntry entry = w != null && w != actor.activeWeapon ? w.weaponEntry : null;
+                // (Nor the second weapon held in the free hand.)
+                WeaponManager.WeaponEntry entry = w != null && w != actor.activeWeapon && (_sys.Second == null || w != _sys.Second.Weapon) ? w.weaponEntry : null;
                 Shown s = _shown[spot];
                 if (entry == null || entry.prefab == null)
                 {
