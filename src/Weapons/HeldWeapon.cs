@@ -215,12 +215,17 @@ namespace RavenfieldVR.Weapons
             {
                 // A grenade sits in the fist: its drawn middle where a grip goes. Held by where the throw animation's palm
                 // was, it hung against the side of the glove, in the air (user, 2026-10-16). Hand-sized things only.
-                GrenadeInFist.Add(rig.Data);
-                Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured);
-                if (gMeasured && Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
+                Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured, ThrowableHandler.FindModPin(weapon.transform));
+                if (gMeasured)
                 {
-                    Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");
-                    rig.Data.GripPoint = gb.center;
+                    // Only once it measured something (a failed measure is tried again on the next draw; 255.I5-1), and
+                    // without its pin or ring, which pulled the middle toward the top.
+                    GrenadeInFist.Add(rig.Data);
+                    if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
+                    {
+                        Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");
+                        rig.Data.GripPoint = gb.center;
+                    }
                 }
             }
             ActionType action = rig.Data.Action;
@@ -879,6 +884,11 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The animator's state (layer 0) last seen at rest with a round loaded, and the one it sat in empty.</summary>
         private int _loadedRestState, _emptyState;
+        /// <summary>
+        /// The loaded and empty poses per weapon type, kept past a holster: a gun drawn empty never learned its loaded pose in
+        /// that holding, and the next frames stored the empty pose as the loaded one (255.B1-1).
+        /// </summary>
+        private static readonly Dictionary<WeaponRigData, (int loaded, int empty)> AnimatorPoses = new Dictionary<WeaponRigData, (int loaded, int empty)>();
         /// <summary>When the game's round count last went from none to some (-1: not waiting to check the pose).</summary>
         private float _refilledAt = -1f;
         private bool _wasEmpty;
@@ -904,12 +914,19 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            WeaponRigData key = ActiveRig != null ? ActiveRig.Data : Rig.Data;
+            if (_loadedRestState == 0 && AnimatorPoses.TryGetValue(key, out (int loaded, int empty) known))
+            {
+                _loadedRestState = known.loaded;
+                _emptyState = _emptyState != 0 ? _emptyState : known.empty;
+            }
             int now = a.GetCurrentAnimatorStateInfo(0).fullPathHash;
             if (w.ammo <= 0)
             {
                 if (Time.unscaledTime - _lastShotAt > 0.4f)
                 {
                     _emptyState = now;
+                    AnimatorPoses[key] = (_loadedRestState, now);
                 }
                 _wasEmpty = true;
                 _refilledAt = -1f;
@@ -934,9 +951,11 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            if (Time.unscaledTime - _lastShotAt > 0.6f)
+            // Never the pose it held empty (a gun drawn empty is still in it for a moment after its first round is in).
+            if (Time.unscaledTime - _lastShotAt > 0.6f && now != _emptyState)
             {
                 _loadedRestState = now;
+                AnimatorPoses[key] = (now, _emptyState);
             }
         }
 

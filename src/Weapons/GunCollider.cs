@@ -567,14 +567,14 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Axis-aligned bounds of the weapon's visible meshes in gun space (arms and magazine left out).</summary>
-        internal static Bounds VisibleBounds(WeaponRig rig, out bool measured)
+        internal static Bounds VisibleBounds(WeaponRig rig, out bool measured, Transform leaveOut = null)
         {
             Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
             measured = VisitVisibleCorners(rig, gun =>
             {
                 min = Vector3.Min(min, gun);
                 max = Vector3.Max(max, gun);
-            });
+            }, leaveOut);
             return measured ? new Bounds((min + max) * 0.5f, max - min) : new Bounds(rig.Data.GripPoint, Vector3.one * 0.05f);
         }
 
@@ -654,11 +654,15 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Calls <paramref name="visit"/> with the gun-space corners of each visible weapon mesh; false if there were none.</summary>
-        private static bool VisitVisibleCorners(WeaponRig rig, System.Action<Vector3> visit)
+        private static bool VisitVisibleCorners(WeaponRig rig, System.Action<Vector3> visit, Transform leaveOut = null)
         {
             bool any = false;
             foreach (Renderer r in VisibleRenderers(rig))
             {
+                if (leaveOut != null && r.transform.IsChildOf(leaveOut))
+                {
+                    continue; // (a grenade's pin or ring, left out of its middle)
+                }
                 Bounds local;
                 Transform space;
                 if (r is SkinnedMeshRenderer smr)

@@ -269,7 +269,7 @@ namespace RavenfieldVR.Weapons
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
-        private static Transform FindModPin(Transform root)
+        internal static Transform FindModPin(Transform root)
         {
             foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
             {
