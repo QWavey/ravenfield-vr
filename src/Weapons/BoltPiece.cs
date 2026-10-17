@@ -316,7 +316,8 @@ namespace RavenfieldVR.Weapons
             // Out from the bore toward the side the hand reaches from.
             Vector3 fromBore = Vector3.ProjectOnPlane(rackGun - d.MuzzlePoint, d.AimAxis);
             Vector3 outward = fromBore.sqrMagnitude > 1e-6f ? fromBore.normalized : d.Up;
-            _knobBase = rackGun + outward * 0.004f;
+            // On the surface, not standing off it (4 mm out looked like a part that did not belong; user, 2026-10-16).
+            _knobBase = rackGun + outward * 0.001f;
             _knobRotation = Quaternion.LookRotation(d.AimAxis, outward);
             // An AR's charging handle is a T at the back of the receiver: a cube there read as a black block, not a handle
             // (user, 2026-10-16, mwii-m4holo).
