@@ -1815,6 +1815,19 @@ Results (2026-10-16 night):
 - (n) 2026-10-17: the rig line now names the magazine part (magPart='...') and the belt part count and hinge, so the box a machine gun got is in every log.
 - Verify in the headset: everything in 252 a-ab.
 
+### For 252 (ae): the full picture run weapons-1017 (2026-10-17, 12:07-13:00, build of 12:07: before most of the 255 fixes)
+
+290 weapons, 234 with rack pictures, 4682 pictures (reports/shots/weapons-1017). Problems 391, of which about 190 were only "recoil is switched off in the settings" (the user's Recoil 0%); now said once.
+- Every belt-fed machine gun "DID NOT FIRE (counter LAY BELT)": test order. The deep magazine check (new today: it opens the cover first) swapped the box and left the belt unlaid and the cover open; fixed (it lays the belt and shuts the cover, as a player finishes).
+- M1 GARRET: "PICKED-UP MAGAZINE LOST ROUNDS (6/7)" was the round the clip chambers (counted now); "magazine: NOT SEATED" and "racked: NOTHING CHAMBERED" because the pouch's clip was offered with the bolt shut on that round (the check opens the action again now); the deep check's clip "NOT ON THE RAIL / NOT SEATED" for the same reason (fixed).
+- Magazine line fit: kept with 2 points through the gun on the six CZ Bren 2 BRs and the Q1911 (a 3 degree tilt cleared it but the rule wanted 3 fewer): a tilt of up to 6 degrees that clears it completely is taken now.
+- "SIDE TEST OR SEAT WRONG" on ~43 guns: the machine guns' boxes (new to the deep check, a box sits beside the gun) and side-magazine guns (QUICKSILVER's magazine comes from the left: "COMES IN FROM THE SIDE" is right for it) are expected; the pistols among them (P220, 1911 families) go to a picture review.
+- Rack lines still flagged: only the carrier inside moves ("THE HANDLE IS NOT SHOWN") on PATRIOT x3, AK-24 x2, mwii-ak105 x2; "THE PART UNDER THE HAND DOES NOT MOVE" (the hand 3-12 cm from what moves) on .357 CONDOR, BUNDLE O' BUSS, RECON LRR, S-IND7 [SUP], M4A1 / acog / reddot (3.3 cm), the ARS Bot Friendly guns and the mwii M4s; 76 EAGLE's pump: nothing drawn moves; "the part's shape is not ready" (not measured) on 8. Picture review below.
+- No magazine part found (a made box used) on P220 Double Evil, P220 G AKIMBO, P220 T S AKIMBO and the ARS Bot Friendly guns.
+- Rockets: SCALPEL and AT-1K "NEVER LINED UP at the mouth"; THUMPER's hand rocket includes its smoke shell; Panzerfaust 3 "NO SOLID" (250).
+- Lens pictures of weapons with '/' or colour tags in their names failed to save (MP9 family, QBZ-95, AK-24/OKP-7): fixed.
+- No exceptions or errors in the game log.
+
 ### For 253: review of the night's analysis and rocket changes (4 Haiku reviewers, each finding checked by 2 Haiku skeptics, 2026-10-16 night)
 
 18 findings: 4 confirmed, 9 plausible, 5 refuted. Read with care: the skeptics often agreed on the mechanism but not on whether it shows on a real gun.
