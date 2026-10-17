@@ -293,14 +293,21 @@ class Workbench(QWidget):
 
         on_gun = PrimaryPushButton(FIF.FINGERPRINT, 'Hands on the gun')
         on_gun.clicked.connect(self.hands_on_gun)
+        on_gun.setToolTip('Right hand on the grip, left hand on the handguard. Ctrl+Z undoes it, Ctrl+Y redoes it.')
         self.sel_right = TogglePushButton('Right hand')
         self.sel_left = TogglePushButton('Left hand')
         self.sel_right.clicked.connect(lambda: self.select_hand(self.scene.right))
         self.sel_left.clicked.connect(lambda: self.select_hand(self.scene.left))
+        self.sel_right.setToolTip('Edit the right hand (key 1). Drag a hand to move it, Shift + drag to turn it.')
+        self.sel_left.setToolTip('Edit the left hand (key 2). Drag a hand to move it, Shift + drag to turn it.')
         snaps = []
-        for text, target in (('Handguard', 'support'), ('Slide', 'rack'), ('Magazine', 'magazine'), ('Cover', 'cover')):
+        for text, target, tip in (('Handguard', 'support', 'Left hand onto the handguard'),
+                                  ('Slide', 'rack', 'Left hand onto the slide or the charging handle'),
+                                  ('Magazine', 'magazine', 'Left hand onto the magazine'),
+                                  ('Cover', 'cover', 'Left hand onto the cover latch, where the gun opens')):
             b = PushButton(text)
             b.clicked.connect(lambda _, t=target: self.snap_left(t))
+            b.setToolTip(tip + '. Ctrl+Z undoes it.')
             snaps.append(b)
         self.pose = ComboBox()
         self.pose.addItems(list(POSES.keys()))
@@ -322,10 +329,14 @@ class Workbench(QWidget):
 
         play = PrimaryPushButton(FIF.PLAY, 'Reload')
         play.clicked.connect(self.play_reload)
+        play.setToolTip('Plays the reload with the hands (Space). Ctrl+Z undoes it.')
         rack = PushButton(FIF.PLAY, 'Rack')
         rack.clicked.connect(self.play_rack)
+        rack.setToolTip('Plays the rack of the slide or the charging handle. Ctrl+Z undoes it.')
         reset = PushButton(FIF.SYNC, 'Reset')
         reset.clicked.connect(self.reset_parts)
+        reset.setToolTip('Parts back to rest (magazine in, slide forward, cover shut), every hidden part shown, '
+                         'hands back on the gun.')
         self.s_slide = LabeledSlider('Slide back', lambda f: self.set_part(slide=f), width=110, on_press=self.push_undo)
         self.s_mag = LabeledSlider('Magazine out', lambda f: self.set_part(mag=f), width=110, on_press=self.push_undo)
         self.s_cover = LabeledSlider('Cover open', lambda f: self.set_part(cover=f), width=110, on_press=self.push_undo)
@@ -333,6 +344,8 @@ class Workbench(QWidget):
 
         self.laser_btn = TogglePushButton(FIF.ALIGNMENT, 'Laser pointer  (L)')
         self.laser_btn.toggled.connect(self.set_laser)
+        self.laser_btn.setToolTip('Laser pointer (L). Click a part to see what it is and where; Alt + click does the same without '
+                                  'the laser. Right-click for the menu.')
         laser_hint = CaptionLabel('Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.')
         laser_hint.setWordWrap(True)
         v.addWidget(card('Point', self.laser_btn, laser_hint))
@@ -396,16 +409,21 @@ class Workbench(QWidget):
         v.addWidget(card('Analysis (rig.json)', self.rig_text))
 
         views = []
-        for text, name in (('Side', 'side'), ('Top', 'top'), ('Front', 'front'), ('3/4', 'three')):
+        for text, name, tip in (('Side', 'side', 'Side view (keypad 1, Num Lock on)'), ('Top', 'top', 'Top view (keypad 7)'),
+                                ('Front', 'front', 'Front view (keypad 3)'),
+                                ('3/4', 'three', 'Three-quarter view (keypad 5 or 0)')):
             b = PushButton(text)
             b.clicked.connect(lambda _, n=name: self.view.set_view(n))
+            b.setToolTip(tip)
             views.append(b)
         self.grid_sw = SwitchButton()
         self.grid_sw.setChecked(True)
         self.grid_sw.checkedChanged.connect(lambda c: (setattr(self.view, 'show_grid', c), self.view.update()))
+        self.grid_sw.setToolTip('The floor grid, in the view and in pictures.')
         self.mark_sw = SwitchButton()
         self.mark_sw.setChecked(True)
         self.mark_sw.checkedChanged.connect(lambda c: (setattr(self.view, 'show_markers', c), self.view.update()))
+        self.mark_sw.setToolTip('The markers on the gun (listed below), in the view and in pictures.')
         self.gif_fps = DoubleSpinBox()
         self.gif_fps.setRange(5, 30)
         self.gif_fps.setValue(15)
@@ -417,6 +435,7 @@ class Workbench(QWidget):
         self.settle_sw = SwitchButton()
         self.settle_sw.setChecked(True)
         self.settle_sw.checkedChanged.connect(self.on_settle_switch)
+        self.settle_sw.setToolTip('Settle: the hands are put onto the gun as they settle in VR (up to 2 cm).')
         markers_hint = CaptionLabel('Markers: green grip, blue support, orange rack point and its travel, red muzzle and aim, '
                                     'yellow magazine seat and its line, purple cover latch.')
         markers_hint.setWordWrap(True)
@@ -446,10 +465,17 @@ class Workbench(QWidget):
 
     def _shortcuts(self):
         for key, fn in (('L', lambda: self.laser_btn.toggle()), ('F', self.frame_weapon),
+                        ('Shift+F', lambda: self.frame_weapon(hands=False)),
                         ('1', lambda: self.select_hand(self.scene.right)), ('2', lambda: self.select_hand(self.scene.left)),
                         ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot),
                         ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo)):
             QShortcut(QKeySequence(key), self, activated=fn)
+        # Blender-like view keys on the keypad (with Num Lock on). The keypad modifier keeps them apart from the plain 1 and 2
+        # keys that select the hands (tested: each key fires only its own shortcut).
+        keypad = Qt.KeyboardModifier.KeypadModifier
+        for key, name in ((Qt.Key.Key_1, 'side'), (Qt.Key.Key_3, 'front'), (Qt.Key.Key_7, 'top'),
+                          (Qt.Key.Key_5, 'three'), (Qt.Key.Key_0, 'three')):
+            QShortcut(QKeySequence(keypad | key), self, activated=lambda n=name: self.view.set_view(n))
 
     # ---- weapons -----------------------------------------------------------------------------------------------------
 
@@ -593,12 +619,27 @@ class Workbench(QWidget):
         self.select_hand(self.scene.right)
         self.update_game_status()
 
-    def frame_weapon(self):
+    def frame_weapon(self, hands=True):
+        """F: the camera on the gun and on both hands, so a hand moved away from it is in view too (Shift + F: the gun alone)."""
         w = self.scene.weapon
         if w is None:
             return
         c, r = w.center_world()
-        self.view.frame(c, max(0.12, r))
+        r = max(0.12, r)
+        if hands:
+            for h in self.scene.hands():
+                # The smallest sphere holding the gun's sphere and the hand's (a glove reaches about 10 cm from its palm centre).
+                d = float(np.linalg.norm(h.position - c))
+                rh = 0.1
+                if d + rh <= r:
+                    continue
+                if d < 1e-9:  # the hand sits on the gun's centre: the sphere grows to hold it
+                    r = rh
+                    continue
+                big = (r + d + rh) / 2
+                c = c + (h.position - c) * ((big - r) / d)
+                r = big
+        self.view.frame(c, r)
 
     # ---- hands ----------------------------------------------------------------------------------------------------------
 
@@ -1145,11 +1186,85 @@ class Workbench(QWidget):
             menu.addAction(Action(FIF.TAG, 'Copy the part name',
                                   triggered=lambda: QGuiApplication.clipboard().setText(self.picked_node.name)))
             menu.addAction(Action(FIF.HIDE, 'Hide this part', triggered=self.hide_picked))
+            if self.scene.weapon is not None:
+                menu.addAction(Action(FIF.PIN, 'Put the left hand here', triggered=lambda: self.put_hand_here(self.scene.left)))
+                menu.addAction(Action(FIF.PIN, 'Put the right hand here', triggered=lambda: self.put_hand_here(self.scene.right)))
             menu.addSeparator()
         menu.addAction(Action(FIF.VIEW, 'Show every part', triggered=self.show_all_parts))
         menu.addAction(Action(FIF.FINGERPRINT, 'Hands on the gun', triggered=self.hands_on_gun))
-        menu.addAction(Action(FIF.ZOOM, 'Frame the gun  (F)', triggered=self.frame_weapon))
+        if self.scene.weapon is not None:
+            menu.addAction(Action(FIF.ROBOT, 'Copy the hands for Claude', triggered=self.copy_hands_text))
+            menu.addAction(Action(FIF.RETURN, "Reset the weapon's place", triggered=self.reset_place))
+        menu.addAction(Action(FIF.ZOOM, 'Frame the gun and both hands  (F)', triggered=lambda: self.frame_weapon()))
+        menu.addAction(Action(FIF.ZOOM, 'Frame the gun alone  (Shift+F)', triggered=lambda: self.frame_weapon(hands=False)))
         menu.exec(pos)
+
+    def put_hand_here(self, hand):
+        """The hand's palm onto the part the laser picked, facing it (undo: Ctrl+Z); the part is named on the hand."""
+        if self.scene.weapon is None or self.picked_point is None:
+            return
+        self.push_undo()
+        normal = getattr(self.view, 'pick_normal', None)  # the surface's normal at the pick, when the view has one
+        if normal is None:
+            normal = self.view.eye() - self.picked_point  # else the palm faces the camera
+        self.scene.put_hand_on(hand, self.picked_point, normal)
+        if self.picked_node is not None:
+            hand.on_part = self.picked_node.short  # (the label and the saved pose name the part, as a snap does)
+        self.select_hand(hand)
+
+    def hands_text(self):
+        """The two hands in words for Claude: each hand's job, the part it is on, its palm's place (cm from the grip and from
+        the muzzle), its turn against the gun (degrees), its pose, thumb base and curls."""
+        w = self.scene.weapon
+        if w is None:
+            return ''
+        ref = 'from the muzzle' if w.muzzle_known else "from the gun's front (no muzzle in the export)"
+        state = f'slide {w.slide * 100:.0f}% back, magazine {w.mag * 100:.0f}% out, cover {w.cover * 100:.0f}% open'
+        lines = [f'{w.name} ({w.id}); parts: {state}. Places in cm (the palm centre), turns in degrees (pitch, yaw, roll) '
+                 'against the gun.']
+        jobs = {'grip': 'grip', 'support': 'support (handguard)', 'rack': 'rack (slide or handle)', 'magazine': 'magazine',
+                'cover': 'cover'}
+        for h in self.scene.hands():
+            p = w.to_gun(h.position)[:3]
+            g = p - w.grip
+            fwd, up, right = (float(np.dot(g, a)) * 100 for a in (w.aim, w.up, w.right))
+            back, mup, mright = w.from_muzzle(p)
+            pitch, yaw, roll = quat_to_euler_deg(quat_norm(quat_mul(quat_inv(w.Wq), h.rotation)))
+            part, dist = w.nearest_part(p)
+            bits = [f"job: {jobs.get(h.role, 'none')}"]
+            if h.on_part:
+                bits.append(f'snapped to the {h.on_part}')
+            if part is not None:
+                bits.append(f"nearest part '{part.short}' ({ROLE_NAMES.get(part.role, part.role)}), {dist * 100:.1f} cm away")
+            label = f"{h.side.capitalize()} hand" + (' (the laser hand)' if self.scene.laser_hand is h else '')
+            lines.append(f"{label}: " + '; '.join(bits) + '.')
+            lines.append(f"  Palm {fwd:.1f} cm forward, {up:.1f} up, {right:.1f} right of the grip; "
+                         f"{back:.1f} back, {mup:.1f} up, {mright:.1f} right {ref}.")
+            # (int(round()) keeps a turn of nothing from printing as -0)
+            turn = ', '.join(f'{name} {int(round(v))}' for name, v in (('pitch', pitch), ('yaw', yaw), ('roll', roll)))
+            curls = ', '.join(f'{finger} {c:.2f}' for finger, c in zip(FINGERS, h.curls))
+            lines.append(f"  Turn against the gun: {turn} degrees. Pose: {h.pose_name}; thumb base {h.thumb:.2f} "
+                         f"(0 rest, 1 fist); curls {curls}.")
+        return '\n'.join(lines)
+
+    def copy_hands_text(self):
+        text = self.hands_text()
+        if not text:
+            return
+        QGuiApplication.clipboard().setText(text)
+        self.toast('Copied', 'The hands and where they are on the gun are on the clipboard: paste them to Claude.')
+
+    def reset_place(self):
+        """The weapon back to where it was opened (the hands on it go with it, so their poses stay)."""
+        w = self.scene.weapon
+        if w is None:
+            return
+        if np.allclose(w.P, np.eye(4)):
+            self.toast('The weapon is already in its place', '')
+            return
+        self.push_undo()
+        self.scene.move_weapon(np.linalg.inv(w.P))
+        self.view.update()
 
     def test_pick(self):
         """Self-check: the laser on the slide's (or the first part's) middle, as a click there would."""
