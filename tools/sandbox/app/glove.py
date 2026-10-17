@@ -191,6 +191,7 @@ class Hand:
         self.curls = [0.1, 0.12, 0.16, 0.2, 0.24]
         self.pose_name = 'Relaxed'
         self.on_part = ''  # what it holds (set by the snap or found when saved)
+        self.role = ''  # its job on the gun from the last snap (grip, support, rack, magazine, cover); kept when moved
         self.dirty = True
         self.vertices = None
         self.normals = None

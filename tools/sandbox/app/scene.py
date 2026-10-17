@@ -248,6 +248,7 @@ class Scene:
         w = self.weapon
         if w is None:
             return
+        hand.role = target
         r = w.rig
         pistol = r.get('isPistol')
         if target == 'grip':
@@ -309,6 +310,7 @@ class Scene:
             'fromMuzzleCm': w.from_muzzle(p).round(2).tolist(),
             'pose': hand.pose_name, 'thumb': round(hand.thumb, 4), 'curls': [round(c, 4) for c in hand.curls],
             'on': hand.on_part or (part.short if part is not None else ''),
+            'role': hand.role,
             'nearestPart': {'name': part.name if part else '', 'role': ROLE_NAMES.get(part.role, part.role) if part else '',
                             'cm': round(dist * 100, 2)},
         }
@@ -337,6 +339,7 @@ class Scene:
             hand.thumb = float(h.get('thumb', 0))
             hand.curls = [float(c) for c in h.get('curls', hand.curls)]
             hand.on_part = h.get('on', '')
+            hand.role = h.get('role', '')
             hand.update_mesh()
         parts = doc.get('parts') or {}
         w.set_state(parts.get('slide', 0), parts.get('magazine', 0), parts.get('cover', 0))

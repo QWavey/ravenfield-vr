@@ -258,6 +258,13 @@ namespace RavenfieldVR.Weapons
         public bool Animated;
         public string Notes = "";
 
+        /// <summary>
+        /// The gun hand's palm frame on the gun (gun space) when a sandbox pose set it; else the gun is held with the palm frame
+        /// along the bore and up (LookRotation(AimAxis, Up)) at the grip point.
+        /// </summary>
+        public Quaternion GripRotation = Quaternion.identity;
+        public bool HasGripRotation;
+
         /// <summary>Sandbox export only: where the magazine part waits at rest (its seat may be elsewhere: parked away).</summary>
         [System.NonSerialized] public Vector3 MagRestPos;
 

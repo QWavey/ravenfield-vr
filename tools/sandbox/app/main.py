@@ -799,9 +799,18 @@ class Workbench(QWidget):
         w = self.scene.weapon
         if w is None:
             return
-        path = os.path.join(self.poses_dir, safe(w.id) + '.json')
+        path = os.path.join(self.poses_dir, w.id + '.json')  # the export's folder name: the mod looks for it by that name
         doc = self.scene.pose_document()
         json.dump(doc, open(path, 'w', encoding='utf-8'), indent=1)
+        # And where the mod reads it (BepInEx/config/RavenfieldVR/poses), when the game is where Steam puts it.
+        game = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield', 'BepInEx', 'config')
+        if os.path.isdir(game):
+            target = os.path.join(game, 'RavenfieldVR', 'poses')
+            os.makedirs(target, exist_ok=True)
+            json.dump(doc, open(os.path.join(target, w.id + '.json'), 'w', encoding='utf-8'), indent=1)
+            path += '
+(and for the game: ' + os.path.join(target, w.id + '.json') + ')'
+
         for it in self.items:
             if it.data(Qt.ItemDataRole.UserRole) == w.id and '✓ pose' not in it.text():
                 it.setText(it.text() + '   ✓ pose')

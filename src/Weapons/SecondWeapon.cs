@@ -354,7 +354,7 @@ namespace RavenfieldVR.Weapons
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = Hand.GunFrame;
-            Quaternion gripInGun = Quaternion.LookRotation(d.AimAxis, d.Up);
+            Quaternion gripInGun = d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up);
             Quaternion aimFrame = hand.rotation * Quaternion.Euler(_kickRot.x, _kickRot.y, 0f);
             Quaternion gunRot = aimFrame * Quaternion.Inverse(gripInGun);
             Vector3 gripWorld = hand.position + aimFrame * _kickPos;

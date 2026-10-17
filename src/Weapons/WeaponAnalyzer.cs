@@ -171,6 +171,7 @@ namespace RavenfieldVR.Weapons
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
             }
             WeaponOverrides.Apply(w, data);
+            SandboxPoses.Apply(data); // hands saved in the sandbox (tools/sandbox) for this weapon
             Cache[key] = data;
             if (VRConfig.DumpWeaponRigs.Value)
             {

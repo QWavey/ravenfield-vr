@@ -136,6 +136,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> DebugLogging;
         public static ConfigEntry<bool> ShowGrabZones;
         public static ConfigEntry<bool> DumpWeaponRigs;
+        public static ConfigEntry<bool> UseSandboxPoses;
         public static ConfigEntry<bool> WeaponSelfTest;
 
         public static void Bind(ConfigFile cfg)
@@ -333,6 +334,8 @@ namespace RavenfieldVR.Core
             DebugLogging = cfg.Bind("Debug", "VerboseLogging", false, "Log extra diagnostics.");
             ShowGrabZones = cfg.Bind("Debug", "ShowGrabZones", false, "Draw spheres at mag wells, slides, foregrips, pouches and holsters.");
             DumpWeaponRigs = cfg.Bind("Debug", "DumpWeaponRigs", false, "Log the detected parts of every weapon you equip.");
+            UseSandboxPoses = cfg.Bind("Weapons", "UseSandboxPoses", true,
+                "Hold weapons with the hand poses saved in the sandbox (tools/sandbox, Save pose): BepInEx/config/RavenfieldVR/poses.");
             WeaponSelfTest = cfg.Bind("Debug", "WeaponSelfTest", false,
                 "After content loads, analyse every installed weapon (vanilla and mods) and write BepInEx/RavenfieldVR-weapon-report.txt. Same as launching with -rfvr-selftest.");
 

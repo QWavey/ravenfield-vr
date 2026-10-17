@@ -1323,7 +1323,7 @@ namespace RavenfieldVR.Weapons
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = main.GunFrame;
-            var gripInGun = new RigidPose(d.GripPoint, Quaternion.LookRotation(d.AimAxis, d.Up));
+            var gripInGun = new RigidPose(d.GripPoint, d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
             Quaternion gunRot = (hand.rotation * Quaternion.Inverse(gripInGun.rotation));
 
             if (_twoHandBlend > 0f && d.HasSupportPoint && !d.IsPistol)
