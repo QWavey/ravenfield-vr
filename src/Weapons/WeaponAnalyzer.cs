@@ -610,6 +610,7 @@ namespace RavenfieldVR.Weapons
                 RackOnOutstandingPiece(d, root, sampler, gunIdle);
                 FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
+                ParkedAmmo(d, w, all, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
                 d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
@@ -2674,8 +2675,11 @@ namespace RavenfieldVR.Weapons
                 }
                 // Nothing on the bore line: a suppressor on the muzzle moves in some reloads too (an HK416-B/S's), and is
                 // the size of a magazine.
+                // (Only ahead of the grip, where a suppressor is: the mwii-g17's spare waits 6 cm off the bore's line but 53 cm behind
+                // the muzzle, and was kept drawn, floating beside the gun in the player's view; user, 2026-10-18.)
                 Vector3 at = sampler.RelIdle[i].position;
-                if (Vector3.ProjectOnPlane(at - d.MuzzlePoint, d.AimAxis).magnitude < 0.06f || Regex.IsMatch(t.name, @"suppress|silenc|muzzle|消音|枪口", RegexOptions.IgnoreCase))
+                bool onBore = Vector3.ProjectOnPlane(at - d.MuzzlePoint, d.AimAxis).magnitude < 0.06f && Vector3.Dot(at - d.GripPoint, d.AimAxis) > 0f;
+                if (onBore || Regex.IsMatch(t.name, @"suppress|silenc|muzzle|消音|枪口", RegexOptions.IgnoreCase))
                 {
                     continue;
                 }
@@ -2695,6 +2699,202 @@ namespace RavenfieldVR.Weapons
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
             }
+        }
+
+        private static readonly Regex AmmoPartName = new Regex(@"gauge|guage|loader|follower|弹|patron", RegexOptions.IgnoreCase);
+        private static readonly Regex TwoGunsName = new Regex(@"akimbo|dual|double|bundle", RegexOptions.IgnoreCase);
+        // A part of the gun named with a magazine word all the same (the K13's "416F MAG KEY": its magazine release; the AT-1K's
+        // 提把: its carrying handle), or a round in the gun (the M1014's "12_guage_in_gun").
+        private static readonly Regex NotParkedName = new Regex(
+            @"key|button|release|catch|latch|lever|handle|grip|in_?gun|chamber|把|柄|按钮|卡笋", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Ammunition the reload animation keeps parked beside the gun at rest and only brings in during the reload: a spare
+        /// magazine (the HK416 family's behind the stock, the M417A2's 45 cm away, the FNX-45's "Magazine Tac", the BRN180's drum
+        /// beside the stock), a loose round (the HK416's 子弹), a belt waiting behind the QJB201's stock. The game draws them
+        /// where they wait, so in VR they floated next to the gun (user, 2026-10-18: "the 2nd mag floats"). The rules above take
+        /// a spare only when it moves in the reload and is named or sized as one; these are found by where they are.
+        /// Every drawn part is grouped with the parts it touches (within 2 cm); a group is parked ammunition when it is not the
+        /// gun at the grip, holds a part named as ammunition or of the magazine's size, and nothing in it is the gun's: no part
+        /// already chosen (the magazine, the moving parts, the belt), no mesh over 60 cm (a gun's body in one piece: the PATRIOT
+        /// AR-15's launcher grenade is grouped with it and stays), nothing on the bore's line ahead of the grip (a loaded round,
+        /// a suppressor), nothing where the seated magazine is, no sight, no key, button or handle (the K13's "416F MAG KEY",
+        /// the AT-1K's 提把). Hidden while held, as spares are. Not for a weapon of two guns (an akimbo pair's second pistol
+        /// hangs apart by design).
+        /// </summary>
+        private static void ParkedAmmo(WeaponRigData d, Weapon w, Transform[] all, Transform root, Transform gunBody, Transform muzzle,
+            HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (gunBody == null || d.Action == ActionType.Melee || d.Action == ActionType.Throwable
+                || TwoGunsName.IsMatch(d.Key ?? "") || w.configuration.muzzles != null && w.configuration.muzzles.Length > 1)
+            {
+                return;
+            }
+            // Each drawn mesh at rest with its own gun-space box (not the arms, not a laser's beam, nothing parked metres away).
+            var parts = new List<Transform>();
+            var boxes = new List<Bounds>();
+            foreach (Transform t in all)
+            {
+                bool hasMesh = t.GetComponent<MeshFilter>() != null && t.GetComponent<MeshRenderer>() != null || t.GetComponent<SkinnedMeshRenderer>() != null;
+                if (!hasMesh || armRelated.Contains(t) || !ShownAtIdle(t, sampler) || LaserBeamName.IsMatch(t.name)
+                    || (sampler.Idle(t).position - gunIdle.position).sqrMagnitude > 1.5f * 1.5f)
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBoundsWhere(t, gunIdle, x => x != t);
+                if (b.size.sqrMagnitude < 1e-8f || b.size.magnitude > 2f)
+                {
+                    continue;
+                }
+                parts.Add(t);
+                boxes.Add(b);
+            }
+            if (parts.Count < 2)
+            {
+                return;
+            }
+            // The groups: parts that touch within 2 cm, through each other.
+            int[] group = new int[parts.Count];
+            for (int k = 0; k < parts.Count; k++)
+            {
+                group[k] = k;
+            }
+            int Find(int k)
+            {
+                while (group[k] != k)
+                {
+                    k = group[k] = group[group[k]];
+                }
+                return k;
+            }
+            for (int k = 0; k < parts.Count; k++)
+            {
+                Bounds near = boxes[k];
+                near.Expand(0.04f); // within 2 cm
+                for (int j = k + 1; j < parts.Count; j++)
+                {
+                    if (near.Intersects(boxes[j]))
+                    {
+                        group[Find(j)] = Find(k);
+                    }
+                }
+            }
+            // The gun: the group of the part at (or nearest) the grip.
+            int seed = 0;
+            for (int k = 1; k < boxes.Count; k++)
+            {
+                if (boxes[k].SqrDistance(d.GripPoint) < boxes[seed].SqrDistance(d.GripPoint))
+                {
+                    seed = k;
+                }
+            }
+            int gun = Find(seed);
+            // What is already chosen (the magazine and what goes with it, the belt, the moving parts, the spares).
+            var chosen = new List<Transform>();
+            var paths = new List<int[]> { d.MagazinePath, d.SlidePath, d.HandlePath, d.HingePath };
+            paths.AddRange(d.MagazinePartPaths);
+            paths.AddRange(d.BeltPartPaths);
+            paths.AddRange(d.SparePartPaths);
+            foreach (int[] path in paths)
+            {
+                Transform c = path != null ? WeaponRig.Resolve(root, path) : null;
+                if (c != null)
+                {
+                    chosen.Add(c);
+                }
+            }
+            // Where the seated magazine is (within 2 cm).
+            Bounds seated = default;
+            bool hasSeat = d.MagazinePath != null;
+            if (hasSeat)
+            {
+                Vector3 c = d.MagBounds.center, e = d.MagBounds.extents;
+                seated = new Bounds(d.MagSeat.TransformPoint(c), Vector3.zero);
+                for (int q = 0; q < 8; q++)
+                {
+                    seated.Encapsulate(d.MagSeat.TransformPoint(c + new Vector3((q & 1) == 0 ? -e.x : e.x, (q & 2) == 0 ? -e.y : e.y, (q & 4) == 0 ? -e.z : e.z)));
+                }
+                seated.Expand(0.04f);
+            }
+            Vector3 magSize = Abs(d.MagBounds.size);
+            float[] magDims = { magSize.x, magSize.y, magSize.z };
+            System.Array.Sort(magDims);
+            bool single = d.Action == ActionType.SingleShot;
+            // Each part: the gun's (spoils its group), ammunition, or neither.
+            var gunPart = new bool[parts.Count];
+            var ammo = new bool[parts.Count];
+            for (int k = 0; k < parts.Count; k++)
+            {
+                Transform t = parts[k];
+                Vector3 at = boxes[k].center;
+                bool onBore = Vector3.ProjectOnPlane(at - d.MuzzlePoint, d.AimAxis).magnitude < 0.06f && Vector3.Dot(at - d.GripPoint, d.AimAxis) > 0f;
+                gunPart[k] = boxes[k].size.magnitude > 0.6f || onBore || chosen.Exists(c => t == c || t.IsChildOf(c) || c.IsChildOf(t))
+                             || OpticName.IsMatch(t.name) || NotParkedName.IsMatch(t.name) || hasSeat && seated.Intersects(boxes[k])
+                             || Regex.IsMatch(t.name, @"suppress|silenc|muzzle|消音|枪口", RegexOptions.IgnoreCase);
+                Vector3 sz = boxes[k].size;
+                float[] dims = { sz.x, sz.y, sz.z };
+                System.Array.Sort(dims);
+                bool magSized = magDims[2] > 0.02f && Mathf.Abs(dims[0] - magDims[0]) <= magDims[0] * 0.35f + 0.01f
+                                && Mathf.Abs(dims[1] - magDims[1]) <= magDims[1] * 0.35f + 0.01f && Mathf.Abs(dims[2] - magDims[2]) <= magDims[2] * 0.35f + 0.01f;
+                ammo[k] = magSized || IsMagName(t.name, single) || RoundName.IsMatch(t.name) || AmmoPartName.IsMatch(t.name);
+            }
+            var hide = new List<Transform>();
+            var done = new HashSet<int> { gun };
+            for (int k = 0; k < parts.Count; k++)
+            {
+                int g = Find(k);
+                if (!done.Add(g))
+                {
+                    continue; // (the gun, or a group already judged)
+                }
+                var members = new List<int>();
+                Bounds box = boxes[k];
+                for (int j = 0; j < parts.Count; j++)
+                {
+                    if (Find(j) == g)
+                    {
+                        members.Add(j);
+                        box.Encapsulate(boxes[j]);
+                    }
+                }
+                if (!members.Exists(j => ammo[j]) || members.Exists(j => gunPart[j]) || box.size.magnitude > 0.6f)
+                {
+                    continue;
+                }
+                float gap = float.MaxValue;
+                for (int j = 0; j < parts.Count; j++)
+                {
+                    if (Find(j) == gun)
+                    {
+                        gap = Mathf.Min(gap, Mathf.Sqrt(Gap(box, boxes[j])));
+                    }
+                }
+                foreach (int j in members)
+                {
+                    hide.Add(parts[j]);
+                }
+                d.Notes += $"parked ammunition '{parts[members.Find(j => ammo[j])].name}'{(members.Count > 1 ? $" and {members.Count - 1} part(s) with it" : "")} ({gap * 100f:0} cm from the gun at rest) hidden while held ";
+            }
+            foreach (Transform t in hide)
+            {
+                if (hide.Exists(o => o != t && t.IsChildOf(o)))
+                {
+                    continue; // (hidden with its parent)
+                }
+                if (d.SparePartPaths.Count >= 16)
+                {
+                    d.Warnings.Add($"more parked ammunition than hidden: '{t.name}' and later ones stay drawn");
+                    break;
+                }
+                d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
+            }
+        }
+
+        /// <summary>The squared distance between two boxes (0 when they touch or overlap).</summary>
+        private static float Gap(Bounds a, Bounds b)
+        {
+            Vector3 d = Vector3.Max(Vector3.zero, Vector3.Max(a.min - b.max, b.min - a.max));
+            return d.sqrMagnitude;
         }
 
         /// <summary>

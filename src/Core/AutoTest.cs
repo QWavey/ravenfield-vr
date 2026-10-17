@@ -623,6 +623,10 @@ namespace RavenfieldVR.Core
         {
             yield return new WaitForEndOfFrame();
             Shots.Capture($"weapon-{index:000}-{name}");
+            // The whole gun from its side, a metre around it: what the reload animation parks beside or behind the gun (a
+            // spare magazine, a belt, a drum) floats there, out of the head's view (user, 2026-10-18: "the 2nd mag floats").
+            WeaponRigData rd = held.Rig.Data;
+            MagazineSideShot(held, $"weapon-side-{index:000}-{name}", held.Rig.ToWorld((rd.GripPoint + rd.MuzzlePoint) * 0.5f), 1.3f);
             ActionType action = held.Rig.Data.Action;
             if (action == ActionType.Manual || action == ActionType.SelfLoading || action == ActionType.ShellFed)
             {
