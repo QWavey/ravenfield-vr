@@ -270,6 +270,13 @@ class Workbench(QWidget):
         v.setContentsMargins(0, 8, 8, 8)
         v.setSpacing(10)
 
+        # The first thing a new user reads: the steps, and where the rest is explained (Help is the last item of the left bar).
+        start = BodyLabel('<b>Start here:</b> pick a weapon, press Hands on the gun, drag a hand to move it (Shift + drag turns '
+                          'it), then Save pose. Help in the left bar explains everything.')
+        start.setWordWrap(True)
+        start.setTextFormat(Qt.TextFormat.RichText)
+        v.addWidget(start)
+
         self.search = SearchLineEdit()
         self.search.setPlaceholderText('Search weapons')
         self.search.textChanged.connect(self.filter_weapons)
@@ -767,6 +774,9 @@ class Workbench(QWidget):
         for n in w.nodes:
             n.hidden = False
         self.hands_on_gun()
+        # Reset replaces the hands' poses without a word otherwise: say what it did and that Ctrl+Z gets them back.
+        self.toast('Parts and hands reset (Ctrl+Z undoes it)',
+                   'The parts are home, both hands are back on the gun and the parts you hid are shown again. The saved pose is not changed.')
 
     def parts_home(self):
         """The parts as the reload leaves them: the magazine in, nothing moved (the parts the user hid stay hidden)."""
@@ -1534,26 +1544,60 @@ class Help(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(24, 18, 24, 18)
         v.addWidget(TitleLabel('How to use it'))
+        # Longer than the window at its usual size, so the text scrolls.
         text = BodyLabel(
-            '<p><b>Pick a weapon</b> on the left. The hands go on it the way the mod puts them: the right hand on the grip, '
-            'the left on the handguard. A saved pose comes back when you open the weapon again.</p>'
-            '<p><b>Move a hand</b>: drag it. <b>Turn it</b>: Shift + drag. Pick a <b>pose</b> from the list or drag the finger '
-            'sliders. <b>Left hand to</b> puts the left hand on the handguard, the slide, the magazine or the cover.</p>'
+            '<p><b>Start</b>: pick a weapon on the left (the search box filters the list). The hands go on it the way the mod '
+            'puts them: the right hand on the grip, the left on the handguard. Its saved pose comes back when you open it.</p>'
+            '<p><b>Unsaved hands are kept</b>: when you open another weapon, the hands you left stay as they were and come back '
+            'when you return. A weapon with unsaved hands says <b>not saved</b> in the list. <b>Revert</b> puts the open weapon\'s '
+            'hands back to its saved pose.</p>'
+            '<p><b>Move a hand</b>: drag it. <b>Turn it</b>: Shift + drag. <b>Ctrl + drag</b> moves the weapon itself (Shift turns '
+            'it, as for a hand). <b>Hands on the gun</b> puts both hands on it the way the mod holds it. <b>Left hand to</b> puts '
+            'the left hand on the handguard, the slide, the magazine or the cover. The laser\'s right-click menu can put a hand on '
+            'any part the mod found.</p>'
+            '<p><b>Pose</b>: pick one from the list (the weapon\'s own grip and support poses first, then the mod\'s) or drag the '
+            'finger sliders. <b>Copy this pose to the other hand</b> is under Advanced.</p>'
             '<p><b>Reload</b> and <b>Rack</b> play the parts the mod moves (the slide by its travel, the magazine along its line, '
-            'the cover on its hinge), with the left hand on them. The sliders do it by hand.</p>'
-            '<p><b>Laser pointer</b> (L, or Alt + click): click a part to see what it is and where it is, in cm from the '
-            'muzzle (back, up, right) as the test reports give it. <b>Right-click</b> copies it for Claude.</p>'
-            '<p><b>Save pose</b> (Ctrl+S) writes this weapon\'s hands to tools/sandbox/poses/. <b>Screenshot</b> (F12) and '
-            '<b>Record GIF</b> save into reports/sandbox/captures (the message shows where, with a button to open it).</p>'
+            'the cover on its hinge), with the left hand on them. The sliders do it by hand. <b>Record the reload</b> saves that '
+            'reload as a GIF. <b>Reset</b> puts the parts back home and both hands on the gun; the saved pose is not changed.</p>'
+            '<p><b>Undo and redo</b>: Ctrl+Z goes back and Ctrl+Y (or Ctrl+Shift+Z) forward, for hand moves, poses, fingers, parts, '
+            'snaps and Reset. The history holds up to 100 steps for the open weapon.</p>'
+            '<p><b>Laser pointer</b> (L, or Alt + click): click a part to see what it is and where it is, in cm from the muzzle '
+            '(back, up, right) as the test reports give it, and the mod\'s gun-space x, y, z. <b>Right-click</b> opens a menu '
+            '(Copy coordinates, Hide this part, Hands on the gun and more). <b>Copy the hands for Claude</b> puts both hands (where '
+            'each one is, its pose and the part it holds) on the clipboard as text to paste.</p>'
             '<p>Grey boxes are parts whose mesh the game does not let the mod read: they are at the right place and size.</p>'
+            '<p><b>Save pose</b> (Ctrl+S) writes this weapon\'s hands to tools/sandbox/poses/, and to the game\'s '
+            'BepInEx/config/RavenfieldVR/poses/ folder when Ravenfield is found (that is the copy the mod reads). The game folder '
+            'is looked for in Steam\'s usual place; if Ravenfield is elsewhere, pick it under Advanced, <b>Game folder…</b>. A pose '
+            'file about to be overwritten is first kept in tools/sandbox/poses/history (the last 30 per weapon), so a pose saved '
+            'over by mistake can be got back.</p>'
+            '<p><b>Import pose…</b> and <b>Export pose…</b> move a pose file in and out (to share it or send it to Claude). '
+            '<b>Send to game</b> and <b>Remove from game</b> put the saved pose in the game or take it out.</p>'
+            '<p><b>Screenshot</b> (F12) and <b>Record GIF</b> save into reports/sandbox/captures (the message shows where, with a '
+            'button to open it). <b>Clean pictures</b> leave out the grid, the markers, the laser line and the highlights. A GIF '
+            'can <b>turn</b> the weapon once round for a seamless loop (a turntable; its length is under Advanced, GIF settings).</p>'
+            '<p>The <b>Captures</b> page lists the pictures and GIFs, with what you can do with each one: open it, copy it, show it '
+            'in Explorer, or move it to the Recycle Bin.</p>'
+            '<p><b>Advanced</b>: exact numbers for the selected hand, the parts the mod found (click one to highlight it), its '
+            'analysis, views, GIF settings, and the game: <b>Game folder…</b>, <b>Export weapons</b> (runs Ravenfield once without '
+            'the headset) or <b>Test this gun in the game</b> (only when really needed).</p>'
+            '<p><b>Problems</b> show a message, and the program goes on. Every error is also written to '
+            'reports/sandbox/sandbox-errors.log, with its details.</p>'
             '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom. Keys: 1 / 2 select the right / left hand, Esc none, '
-            'F frame the gun, Space reload.</p>'
-            '<p><b>Advanced</b>: exact numbers for the selected hand, the parts the mod found, its analysis, views, GIF settings, '
-            'and the game: export weapons (runs Ravenfield once without the headset) or test this gun in the game.</p>')
+            'F frame the gun, Space reload, L laser, Ctrl+S save, F12 screenshot.</p>'
+            '<p><b>Self-test</b>: <code>python tools/sandbox/app/main.py --selftest report.txt --weapon NAME</code> runs the '
+            'features as a user would and writes PASS or FAIL for each check. The saved poses of the weapons are put back '
+            'afterwards.</p>')
         text.setWordWrap(True)
         text.setTextFormat(Qt.TextFormat.RichText)
-        v.addWidget(text)
-        v.addStretch(1)
+        body = QWidget()
+        body.setObjectName('panel')
+        bv = QVBoxLayout(body)
+        bv.setContentsMargins(0, 0, 8, 0)
+        bv.addWidget(text)
+        bv.addStretch(1)
+        v.addWidget(Workbench._scroll(body), 1)
 
 
 class Window(FluentWindow):
@@ -1619,6 +1663,17 @@ def error_log_path():
     return os.path.join(base, 'sandbox-errors.log')
 
 
+def set_app_identity():
+    """Windows groups the taskbar button under this name, so the program does not show as python.exe when run from source."""
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('QWavey.RavenfieldVR.Sandbox')
+    except Exception:  # noqa: BLE001 (the taskbar name is cosmetic: the program runs without it)
+        pass
+
+
 def install_error_handler(app):
     """An error in a button's or the view's code is written to sandbox-errors.log and shown, and the program goes on. (Without
     this PyQt6 ends the whole program on any such error: opening a weapon whose export it could not read closed it.)"""
@@ -1647,6 +1702,7 @@ def install_error_handler(app):
 
 
 def main():
+    set_app_identity()  # first: the taskbar takes its group from the process as it starts
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     install_error_handler(app)
