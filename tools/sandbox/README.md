@@ -28,7 +28,12 @@ changing the mod's analysis, or only some weapons: `python tools/sandbox/export.
   *Copy coordinates* puts a line on the clipboard to paste to Claude, e.g.
   `vector rds (vector_rds_vector_rds): 'weapon_tdi_…_slide_rotation…' (moves with the slide) at back 10.5 up 2.9 right -3.2 cm from the muzzle (mod gun space x … y … z …)`.
 - **Save pose** (Ctrl+S): `tools/sandbox/poses/<weapon>.json` with both hands' place and turn on the gun (in the
-  mod's gun space and the sandbox's), their finger curls and the part each one holds.
+  mod's gun space and the sandbox's), their finger curls, the part each one holds and its job (grip, handguard...).
+  The same file goes to the game (`BepInEx/config/RavenfieldVR/poses/`) and **the mod holds the weapon that way**:
+  the gun hand's place, turn and finger curls, and the handguard hand's place (config `Weapons.UseSandboxPoses`, on).
+  A pose saved without changes is exactly the mod's own, so only what you change changes in the game.
+- **Settle**: after "Hands on the gun" the glove is put onto the gun's surface (within 2 cm), as it settles in VR;
+  Advanced → *Settle hands on the gun* turns it off to see the raw place.
 - **Screenshot** (F12) and **Record GIF**: into `reports/sandbox/captures/`; the message shows the path with a button
   to open the folder. The **Captures** page lists them.
 - **Advanced**: exact numbers for the selected hand, the parts the mod found (click one to highlight it), the
@@ -51,6 +56,9 @@ F frame the gun, Space reload, L laser.
 | `build_exe.py` | PyInstaller build into `bin/` |
 | `src/Weapons/SandboxExport.cs` | the mod's side: model.glb + rig.json per weapon |
 | `src/Weapons/GpuMeshReader.cs` | reads meshes the game keeps only on the graphics card (Direct3D 11) |
+
+Skinned guns (one mesh on bones, the ARS family): the triangles on the slide's, handle's, magazine's or cover's bones
+are exported as parts of their own, so they move too.
 
 Grey boxes in a weapon are parts whose mesh could not be read at all (rare now: unreadable meshes are read back
 from the graphics card); they are at the right place and size.
