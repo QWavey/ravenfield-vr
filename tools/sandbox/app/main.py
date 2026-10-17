@@ -17,7 +17,7 @@ from PyQt6.QtCore import QProcess, QSettings, Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
-                            InfoBar, InfoBarPosition, LineEdit, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
+                            InfoBar, InfoBarPosition, LineEdit, MessageBox, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
                             PushButton, RoundMenu, SearchLineEdit, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel, SwitchButton,
                             Theme, TitleLabel, TogglePushButton, setTheme, setThemeColor)
 
@@ -288,13 +288,25 @@ class Workbench(QWidget):
         self.laser_btn.toggled.connect(self.set_laser)
         laser_hint = CaptionLabel('Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.')
         laser_hint.setWordWrap(True)
-        save = PrimaryPushButton(FIF.SAVE, 'Save pose')
+        v.addWidget(card('Point', self.laser_btn, laser_hint))
+
+        save = PrimaryPushButton(FIF.SAVE, 'Save pose  (also for the game)')
         save.clicked.connect(self.save_pose)
+        imp = PushButton(FIF.FOLDER, 'Import pose…')
+        imp.clicked.connect(self.import_pose)
+        exp = PushButton(FIF.SHARE, 'Export pose…')
+        exp.clicked.connect(self.export_pose)
+        self.game_status = CaptionLabel('')
+        self.game_status.setWordWrap(True)
+        send = PushButton(FIF.SEND, 'Send to game')
+        send.clicked.connect(self.send_to_game)
+        remove = PushButton(FIF.DELETE, 'Remove from game')
+        remove.clicked.connect(self.remove_from_game)
         shot = PushButton(FIF.CAMERA, 'Screenshot')
         shot.clicked.connect(self.screenshot)
         self.rec_btn = TogglePushButton(FIF.VIDEO, 'Record GIF')
         self.rec_btn.toggled.connect(self.toggle_record)
-        v.addWidget(card('Point, save, capture', self.laser_btn, laser_hint, save, row(shot, self.rec_btn)))
+        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.rec_btn)))
         v.addStretch(1)
         return p
 
@@ -448,9 +460,10 @@ class Workbench(QWidget):
         pose_file = os.path.join(self.poses_dir, wid + '.json')
         if os.path.exists(pose_file):
             try:
-                self.scene.apply_pose_document(json.load(open(pose_file, encoding='utf-8')))
+                with open(pose_file, encoding='utf-8') as f:
+                    self.scene.apply_pose_document(json.load(f))
                 self.toast('Saved pose loaded', pose_file)
-            except (OSError, ValueError, KeyError) as e:
+            except (OSError, ValueError, KeyError, TypeError) as e:
                 self.toast('The saved pose could not be read', str(e), error=True)
                 self.hands_on_gun()
         else:
@@ -458,6 +471,7 @@ class Workbench(QWidget):
         self.sync_sliders()
         self.frame_weapon()
         self.select_hand(self.scene.right)
+        self.update_game_status()
 
     def frame_weapon(self):
         w = self.scene.weapon
@@ -801,27 +815,132 @@ class Workbench(QWidget):
 
     # ---- saving ------------------------------------------------------------------------------------------------------------
 
-    def save_pose(self):
+    @staticmethod
+    def game_poses_dir():
+        """Where the mod reads saved poses (BepInEx/config/RavenfieldVR/poses), or None when the game is not where Steam puts it."""
+        cfg = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield', 'BepInEx', 'config')
+        return os.path.join(cfg, 'RavenfieldVR', 'poses') if os.path.isdir(cfg) else None
+
+    def pose_path(self):
+        """This weapon's pose file in the repository (named as the export names the weapon: the mod looks for that name)."""
         w = self.scene.weapon
-        if w is None:
-            return
-        path = os.path.join(self.poses_dir, w.id + '.json')  # the export's folder name: the mod looks for it by that name
-        doc = self.scene.pose_document()
+        return os.path.join(self.poses_dir, w.id + '.json') if w else None
+
+    @staticmethod
+    def _write(path, doc):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=1)
-        # And where the mod reads it (BepInEx/config/RavenfieldVR/poses), when the game is where Steam puts it.
-        game = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield', 'BepInEx', 'config')
+
+    def save_pose(self):
+        """Saves the hands for this weapon, in the repository and for the game (the mod holds the weapon that way)."""
+        w = self.scene.weapon
+        if w is None:
+            return None
+        path = self.pose_path()
+        doc = self.scene.pose_document()
+        self._write(path, doc)
         text = path
-        if os.path.isdir(game):
-            target = os.path.join(game, 'RavenfieldVR', 'poses')
-            os.makedirs(target, exist_ok=True)
-            with open(os.path.join(target, w.id + '.json'), 'w', encoding='utf-8') as f:
-                json.dump(doc, f, indent=1)
-            text += '\nand for the game: ' + os.path.join(target, w.id + '.json')
-        for it in self.items:
-            if it.data(Qt.ItemDataRole.UserRole) == w.id and '✓ pose' not in it.text():
-                it.setText(it.text() + '   ✓ pose')
+        game = self.game_poses_dir()
+        if game:
+            self._write(os.path.join(game, w.id + '.json'), doc)
+            text += '\nand for the game: ' + os.path.join(game, w.id + '.json')
+        self.mark_saved(w.id)
+        self.update_game_status()
         self.toast('Pose saved', text, path)
+        return path
+
+    def mark_saved(self, wid):
+        for it in self.items:
+            if it.data(Qt.ItemDataRole.UserRole) == wid and '✓ pose' not in it.text():
+                it.setText(it.text() + '   ✓ pose')
+
+    def import_pose(self, path=None):
+        """A pose file from anywhere (one Claude sent, one exported on another PC) put on this weapon. Save pose keeps it."""
+        w = self.scene.weapon
+        if w is None:
+            return False
+        if not path:
+            from PyQt6.QtWidgets import QFileDialog
+            path, _ = QFileDialog.getOpenFileName(self, 'Import a pose', self.poses_dir, 'Pose files (*.json)')
+            if not path:
+                return False
+        try:
+            with open(path, encoding='utf-8') as f:
+                doc = json.load(f)
+            if not isinstance(doc.get('hands'), dict):
+                raise ValueError('not a pose file (no hands in it)')
+            self.scene.apply_pose_document(doc)
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            self.toast('Could not import the pose', f'{path}\n{e}', error=True)
+            return False
+        self.sync_sliders()
+        self.on_select(self.current_hand())
+        self.view.update()
+        made_for = doc.get('weapon', '')
+        note = '' if made_for in ('', w.id) else f'\nIt was made for {doc.get("name", made_for)}: check it fits this gun.'
+        self.toast('Pose imported', f'{path}{note}\nPress Save pose to keep it for this weapon (and the game).')
+        return True
+
+    def export_pose(self, path=None):
+        """The current pose as a file anywhere (to share it, or to send it to Claude)."""
+        w = self.scene.weapon
+        if w is None:
+            return None
+        if not path:
+            from PyQt6.QtWidgets import QFileDialog
+            start = os.path.join(os.path.expanduser('~'), 'Documents', w.id + '-pose.json')
+            path, _ = QFileDialog.getSaveFileName(self, 'Export the pose', start, 'Pose files (*.json)')
+            if not path:
+                return None
+        self._write(path, self.scene.pose_document())
+        self.toast('Pose exported', path, path)
+        return path
+
+    def send_to_game(self):
+        """This weapon's saved pose copied to the game (after an import, or to put a removed one back)."""
+        w = self.scene.weapon
+        game = self.game_poses_dir()
+        if w is None:
+            return
+        if game is None:
+            self.toast('The game was not found', 'Ravenfield is not in the usual Steam folder.', error=True)
+            return
+        src = self.pose_path()
+        if not os.path.exists(src):
+            self.toast('No saved pose for this weapon yet', 'Press Save pose first.', error=True)
+            return
+        with open(src, encoding='utf-8') as f:
+            self._write(os.path.join(game, w.id + '.json'), json.load(f))
+        self.update_game_status()
+        self.toast('Sent to the game', os.path.join(game, w.id + '.json'))
+
+    def remove_from_game(self):
+        """The game holds this weapon the mod's own way again (the pose stays saved here)."""
+        w = self.scene.weapon
+        game = self.game_poses_dir()
+        if w is None or game is None:
+            return
+        target = os.path.join(game, w.id + '.json')
+        if os.path.exists(target):
+            os.remove(target)
+        self.update_game_status()
+        self.toast('Removed from the game', 'The game holds this weapon the mod\'s own way again; the pose is still saved here.')
+
+    def update_game_status(self):
+        w = self.scene.weapon
+        if w is None:
+            self.game_status.setText('')
+            return
+        game = self.game_poses_dir()
+        saved = os.path.exists(self.pose_path())
+        if game is None:
+            text = 'The game was not found in the Steam folder: poses are saved here only.'
+        elif os.path.exists(os.path.join(game, w.id + '.json')):
+            text = 'In the game: this weapon is held with your saved pose (from the next time it is analysed: restart or reload).'
+        else:
+            text = 'In the game: the mod\'s own grip' + (' (your saved pose is not sent: Send to game).' if saved else '.')
+        self.game_status.setText(text)
 
     def screenshot(self):
         w = self.scene.weapon
@@ -984,6 +1103,24 @@ class Help(QWidget):
 
 
 class Window(FluentWindow):
+    def closeEvent(self, e):
+        wb = self.workbench
+        job = wb.process
+        if job is not None and job.state() != QProcess.ProcessState.NotRunning:
+            box = MessageBox('Something is still running',
+                             'An export or game test is still running. Close anyway? The sandbox stops waiting for it; '
+                             'a game it started closes itself when it is done.', self)
+            if not box.exec():
+                e.ignore()
+                return
+            job.kill()
+            job.waitForFinished(2000)
+        wb.timeline.stop()
+        if wb.recording:
+            wb.recording['timer'].stop()
+        wb.view.cleanup()
+        super().closeEvent(e)
+
     def __init__(self, repo):
         super().__init__()
         self.setWindowTitle(APP_NAME)
@@ -1023,6 +1160,14 @@ def main():
         QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
     win = Window(repo)
     args = sys.argv[1:]
+    if '--selftest' in args:
+        from selftest import SelfTest
+        report = args[args.index('--selftest') + 1]
+        want = args[args.index('--weapon') + 1] if '--weapon' in args else None
+        win.show()
+        test = SelfTest(win, app, report, want)
+        test.start()
+        leave(app.exec())
     if '--shot' in args:
         out = args[args.index('--shot') + 1]
         want = args[args.index('--weapon') + 1].lower() if '--weapon' in args else None
@@ -1050,7 +1195,15 @@ def main():
         QTimer.singleShot(900, shoot)
     else:
         win.show()
-    app.exec()
+    leave(app.exec())
+
+
+def leave(code):
+    """Ends the program once the window is closed and its GPU resources freed. A normal Python exit then tore down Qt and
+    PyOpenGL objects in an arbitrary order and crashed now and then (access violation after a clean close)."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code or 0)
 
 
 if __name__ == '__main__':

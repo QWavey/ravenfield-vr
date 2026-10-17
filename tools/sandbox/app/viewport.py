@@ -224,6 +224,25 @@ class Viewport(QOpenGLWidget):
         self.doneCurrent()
         self.update()
 
+    def cleanup(self):
+        """Frees every GPU resource while the context still exists (freed later, at exit, they crashed the program)."""
+        if not self._ready:
+            return
+        self.makeCurrent()
+        for meshes in self._gpu_nodes.values():
+            for m in meshes:
+                m.delete()
+        for m in self._gpu_hands.values():
+            m.delete()
+        self._gpu_nodes = {}
+        self._gpu_hands = {}
+        GL.glDeleteVertexArrays(1, [self.line_vao])
+        GL.glDeleteBuffers(1, [self.line_vbo])
+        GL.glDeleteProgram(self.lit)
+        GL.glDeleteProgram(self.flat)
+        self._ready = False
+        self.doneCurrent()
+
     def _hand_mesh(self, hand):
         g = self._gpu_hands.get(hand.side)
         if g is None:
