@@ -3398,9 +3398,16 @@ namespace RavenfieldVR.Core
                             if (recoilLine != null)
                             {
                                 lines.Add(recoilLine);
-                                if (recoilLine.Contains(" - "))
+                                // (Recoil switched off in the settings is the player's choice, not the gun's fault: said once at
+                                // the top, not a problem on every gun, where it buried the real ones.)
+                                if (recoilLine.Contains(" - ") && VRConfig.RecoilStrength.Value > 0f)
                                 {
                                     Problem($"[{entry.name}] {recoilLine}");
+                                }
+                                else if (VRConfig.RecoilStrength.Value <= 0f && !_recoilOffSaid)
+                                {
+                                    _recoilOffSaid = true;
+                                    Problem("recoil is switched off in the settings (Recoil 0%): no gun's recoil was measured");
                                 }
                             }
                         }
@@ -3414,6 +3421,8 @@ namespace RavenfieldVR.Core
                 ReportWeapon(entry.name, weapon, lines);
             }
         }
+
+        private static bool _recoilOffSaid;
 
         /// <summary>
         /// One weapon's lines into the results, failures also into the problems. Also called before a check gives up on the

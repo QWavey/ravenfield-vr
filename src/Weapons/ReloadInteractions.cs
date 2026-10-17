@@ -3044,7 +3044,9 @@ namespace RavenfieldVR.Weapons
                         if (AcceptsNow(ejected))
                         {
                             SeatProp(off, ejected);
-                            report(Ammo.MagRounds == before ? $"dropped magazine picked up and seated, {before} rounds kept" : $"PICKED-UP MAGAZINE LOST ROUNDS ({Ammo.MagRounds}/{before})");
+                            // (An en-bloc clip pressed home sends the bolt forward, which chambers its first round: counted.)
+                            int kept = Ammo.MagRounds + (Data.EnBloc && Ammo.Chambered ? 1 : 0);
+                            report(kept == before ? $"dropped magazine picked up and seated, {before} rounds kept" : $"PICKED-UP MAGAZINE LOST ROUNDS ({kept}/{before})");
                         }
                     }
                     if (Ammo.MagInserted)
@@ -3052,6 +3054,14 @@ namespace RavenfieldVR.Weapons
                         EjectMagazine();
                         yield return new UnityEngine.WaitForSecondsRealtime(0.2f);
                     }
+                }
+                if (Data.EnBloc)
+                {
+                    // Open again for the pouch's clip (the seated one sent the bolt home on a round, and a clip cannot go in
+                    // then: "NOT SEATED, 0 rounds").
+                    Ammo.Chambered = false;
+                    Ammo.SlideLocked = true;
+                    Ammo.Sync();
                 }
                 TakeFromPouch(off);
                 if (off.Held is MagazineProp mag && AcceptsNow(mag))
@@ -3230,6 +3240,14 @@ namespace RavenfieldVR.Weapons
             {
                 report("magazine (deep): skipped (no detachable magazine, or the hand is busy)");
                 yield break;
+            }
+            if (Data.EnBloc && !(Ammo.SlideLocked || !Ammo.Chambered))
+            {
+                // An en-bloc clip goes in only through the open action: as after its last round, the bolt locked back over an
+                // empty chamber (with the bolt shut on a round the fresh clip was refused: "NOT ON THE RAIL", "NOT SEATED").
+                Ammo.Chambered = false;
+                Ammo.SlideLocked = true;
+                Ammo.Sync();
             }
             if (!Ammo.MagInserted)
             {
@@ -3412,6 +3430,16 @@ namespace RavenfieldVR.Weapons
                 }
             }
             report("magazine (deep): " + string.Join("; ", lines));
+            if (Ammo.HasCover && Ammo.CoverOpen)
+            {
+                // Finished as a player finishes a belt reload: the belt on the tray, the cover shut. Left open with the belt not
+                // laid, every machine gun's fire test after this check read LAY BELT and did not fire (weapons-1017).
+                if (Ammo.MagInserted && !Ammo.BeltLaid)
+                {
+                    Ammo.LayBelt();
+                }
+                Ammo.SetCoverOpen(false);
+            }
             yield return new WaitForSecondsRealtime(0.2f);
         }
 
