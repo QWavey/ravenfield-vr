@@ -107,18 +107,32 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private static readonly List<Collider> ActivePlayer = new List<Collider>();
+
         public static void IgnorePlayer(IList<Collider> colliders)
         {
+            // Each side checked once, not for every pair (255.P6-2): Unity refuses a pair unless both are enabled and active.
             List<Collider> player = CollectPlayerColliders();
+            ActivePlayer.Clear();
+            foreach (Collider other in player)
+            {
+                if (other != null && other.enabled && other.gameObject.activeInHierarchy)
+                {
+                    ActivePlayer.Add(other);
+                }
+            }
             foreach (Collider c in colliders)
             {
-                if (c == null)
+                if (c == null || !c.enabled || !c.gameObject.activeInHierarchy)
                 {
                     continue;
                 }
-                foreach (Collider other in player)
+                foreach (Collider other in ActivePlayer)
                 {
-                    Ignore(c, other);
+                    if (other != c)
+                    {
+                        Physics.IgnoreCollision(c, other, true);
+                    }
                 }
             }
         }
@@ -220,14 +234,19 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            // Each collider once (the actor's children and the ragdoll's animated colliders overlap: every pair was ignored
+            // twice, each time checking both sides again; 255.P6-2).
             PlayerColliderSet.Clear();
-            foreach (Collider c in PlayerColliders)
+            int kept = 0;
+            for (int i = 0; i < PlayerColliders.Count; i++)
             {
-                if (c != null)
+                Collider c = PlayerColliders[i];
+                if (c != null && PlayerColliderSet.Add(c))
                 {
-                    PlayerColliderSet.Add(c);
+                    PlayerColliders[kept++] = c;
                 }
             }
+            PlayerColliders.RemoveRange(kept, PlayerColliders.Count - kept);
             return PlayerColliders;
         }
 

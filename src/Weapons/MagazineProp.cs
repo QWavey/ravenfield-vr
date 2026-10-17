@@ -1792,6 +1792,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
         private Vector3 _drawnInGun;
         private HeldWeapon _drawnFor;
+        private Vector3 _keptTargetInGun;
+        private Quaternion _keptRotInGun = Quaternion.identity;
+        private System.Func<Vector3, bool> _keptSolid;
+        private bool _keptMagShown;
 
         /// <summary>
         /// A magazine in the hand does not pass through the gun. It goes from where it was drawn toward the hand, stops
@@ -1894,53 +1898,70 @@ namespace RavenfieldVR.Weapons
                 }
 
                 Vector3 from = ReferenceEquals(_drawnFor, gun) ? gun.Rig.ToWorld(_drawnInGun) : target.position;
-                if (BlockedAt(from))
+                // Held against the gun with the hand still against it (within a millimetre and half a degree, in gun space):
+                // last frame's place, without the search's up to a few thousand solid tests a frame (255.P2-3). Only for a
+                // blocked one: a free one is drawn exactly at the hand.
+                Vector3 targetInGun = gun.Rig.ToGun(target.position);
+                Quaternion rotInGun = Quaternion.Inverse(gun.Rig.GunBody.rotation) * target.rotation;
+                if (ReferenceEquals(_drawnFor, gun) && ReferenceEquals(_keptSolid, solid) && _keptMagShown == gun.MagSolidShown && _keptOut.sqrMagnitude > 1e-6f
+                    && (targetInGun - _keptTargetInGun).sqrMagnitude < 1e-6f && Quaternion.Angle(rotInGun, _keptRotInGun) < 0.5f)
                 {
-                    // Already in the gun (taken out of the pouch inside it, the gun swung onto it): out the shortest way,
-                    // from the bore outward first, then up, down and to either side.
-                    Vector3 bore = gun.Rig.ToWorld(d.MuzzlePoint);
-                    Vector3 away = Vector3.ProjectOnPlane(from - bore, gun.Rig.AimWorld);
-                    Vector3 up = gun.Rig.UpWorld, right = Vector3.Cross(up, gun.Rig.AimWorld).normalized;
-                    Vector3[] dirs = { away.sqrMagnitude > 1e-6f ? away.normalized : -up, -up, up, right, -right, -gun.Rig.AimWorld, gun.Rig.AimWorld };
-                    float best = float.MaxValue;
-                    Vector3 freed = target.position;
-                    foreach (Vector3 dir in dirs)
+                    drawn = from;
+                }
+                else
+                {
+                    _keptTargetInGun = targetInGun;
+                    _keptRotInGun = rotInGun;
+                    _keptSolid = solid;
+                    _keptMagShown = gun.MagSolidShown;
+                    if (BlockedAt(from))
                     {
-                        for (float step = 0.005f; step <= 0.25f && step < best; step += 0.005f)
+                        // Already in the gun (taken out of the pouch inside it, the gun swung onto it): out the shortest way,
+                        // from the bore outward first, then up, down and to either side.
+                        Vector3 bore = gun.Rig.ToWorld(d.MuzzlePoint);
+                        Vector3 away = Vector3.ProjectOnPlane(from - bore, gun.Rig.AimWorld);
+                        Vector3 up = gun.Rig.UpWorld, right = Vector3.Cross(up, gun.Rig.AimWorld).normalized;
+                        Vector3[] dirs = { away.sqrMagnitude > 1e-6f ? away.normalized : -up, -up, up, right, -right, -gun.Rig.AimWorld, gun.Rig.AimWorld };
+                        float best = float.MaxValue;
+                        Vector3 freed = target.position;
+                        foreach (Vector3 dir in dirs)
                         {
-                            if (!BlockedAt(from + dir * step))
+                            for (float step = 0.005f; step <= 0.25f && step < best; step += 0.005f)
                             {
-                                best = step;
-                                freed = from + dir * step;
-                                break;
+                                if (!BlockedAt(from + dir * step))
+                                {
+                                    best = step;
+                                    freed = from + dir * step;
+                                    break;
+                                }
+                            }
+                        }
+                        from = freed;
+                    }
+                    drawn = Advance(from, target.position - from);
+                    Vector3 left = target.position - drawn;
+                    if (left.sqrMagnitude > 1e-6f)
+                    {
+                        // Met the gun: what is left of the move slides along it, one of the gun's axes at a time.
+                        Vector3 upW = gun.Rig.UpWorld, aimW = gun.Rig.AimWorld, rightW = Vector3.Cross(upW, aimW).normalized;
+                        SlideAxes[0] = aimW;
+                        SlideAxes[1] = upW;
+                        SlideAxes[2] = rightW;
+                        foreach (Vector3 axis in SlideAxes)
+                        {
+                            Vector3 part = axis * Vector3.Dot(target.position - drawn, axis);
+                            if (part.sqrMagnitude > 1e-8f)
+                            {
+                                drawn = Advance(drawn, part);
                             }
                         }
                     }
-                    from = freed;
+                    // The hand far through or past the gun: the magazine stays outside it, the glove with it (it jumped through the
+                    // gun to the hand 30 cm on; user, 2026-10-16). Pulled more than 45 cm from it, the hand lets go of it.
+                    LostByHand = (drawn - target.position).sqrMagnitude > 0.45f * 0.45f;
+                    _drawnInGun = gun.Rig.ToGun(drawn);
+                    _drawnFor = gun;
                 }
-                drawn = Advance(from, target.position - from);
-                Vector3 left = target.position - drawn;
-                if (left.sqrMagnitude > 1e-6f)
-                {
-                    // Met the gun: what is left of the move slides along it, one of the gun's axes at a time.
-                    Vector3 upW = gun.Rig.UpWorld, aimW = gun.Rig.AimWorld, rightW = Vector3.Cross(upW, aimW).normalized;
-                    SlideAxes[0] = aimW;
-                    SlideAxes[1] = upW;
-                    SlideAxes[2] = rightW;
-                    foreach (Vector3 axis in SlideAxes)
-                    {
-                        Vector3 part = axis * Vector3.Dot(target.position - drawn, axis);
-                        if (part.sqrMagnitude > 1e-8f)
-                        {
-                            drawn = Advance(drawn, part);
-                        }
-                    }
-                }
-                // The hand far through or past the gun: the magazine stays outside it, the glove with it (it jumped through the
-                // gun to the hand 30 cm on; user, 2026-10-16). Pulled more than 45 cm from it, the hand lets go of it.
-                LostByHand = (drawn - target.position).sqrMagnitude > 0.45f * 0.45f;
-                _drawnInGun = gun.Rig.ToGun(drawn);
-                _drawnFor = gun;
             }
             else
             {

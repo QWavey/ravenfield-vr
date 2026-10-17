@@ -79,9 +79,16 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds)
         {
-            // A belt that has not moved (hanging off a gun held still, or laid on a belt-less gun) keeps its last geometry.
-            if (_built && rounds == _lastRounds && Same(from, _lastFrom) && Same(to, _lastTo) && Same(barrel, _lastBarrel))
+            // A belt whose shape has not changed keeps its last geometry: it is built round the box mouth, so a gun carried
+            // along (walking, or held still) only moves it there. Within a millimetre and half a degree: compared exactly, any
+            // move of the gun in the hand rebuilt and re-uploaded the whole strip every frame (255.P1.6).
+            if (_built && rounds == _lastRounds && ((to - from) - (_lastTo - _lastFrom)).sqrMagnitude < 1e-6f
+                && Vector3.Dot(barrel.normalized, _lastBarrel.normalized) > 0.99996f)
             {
+                if (!Same(from, _lastFrom))
+                {
+                    _root.transform.position = from;
+                }
                 return;
             }
             _built = true;

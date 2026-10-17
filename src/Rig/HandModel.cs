@@ -509,6 +509,20 @@ namespace RavenfieldVR.Rig
             {
                 return Vector3.zero;
             }
+            if (Time.frameCount - KeepOutFrame <= 2 && KeepOut.sqrMagnitude > 1e-8f && KeepOut.sqrMagnitude <= max * max + 1e-6f
+                && !GloveIn(blocked, tracked + KeepOut))
+            {
+                // Last frame's way out still clear: kept, shortened along its own line as far as it stays clear (the hand
+                // coming back out), instead of the full search's up to 140 glove placements every frame the hand stayed in the
+                // gun (255.P4-4, P5-3).
+                Vector3 dir = KeepOut.normalized;
+                float len = KeepOut.magnitude;
+                while (len > 0.005f && !GloveIn(blocked, tracked + dir * (len - 0.005f)))
+                {
+                    len -= 0.005f;
+                }
+                return dir * len;
+            }
             if (cameFrom.sqrMagnitude > 1e-6f)
             {
                 // Back the way it came in first, however much nearer another side is: the shortest way took a glove 4 cm into
@@ -874,7 +888,7 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
-        /// A number that changes when this glove's skin moves against <paramref name="frame"/> by about half a millimetre
+        /// A number that changes when this glove's skin moves against <paramref name="frame"/> by more than 1.5 mm
         /// (its finger capsules and its palm): what a support hand cupping it on a pistol re-solves on, instead of every
         /// frame (it re-solved all five fingers each frame, about 0.2 ms, with nothing moved; perf review 2026-10-16). The
         /// frame is the gun body: in world space the key would change all the time the gun swings.
@@ -889,25 +903,48 @@ namespace RavenfieldVR.Rig
             {
                 return int.MinValue; // a hidden glove does not move: a support hand on it is not solved again every frame (255.P4-2)
             }
+            if (_skinKeyFrame == Time.frameCount && ReferenceEquals(_skinKeyIn, frame))
+            {
+                return _skinKey;
+            }
+            _skinKeyFrame = Time.frameCount;
+            // Changed only when a point has moved 1.5 mm from where it was at the last change: hashed in half-millimetre bins,
+            // tracking jitter crossed a bin edge on most frames and the support hand was solved again anyway (255.P4-1).
             Matrix4x4 m = frame.worldToLocalMatrix;
             Matrix4x4 palm = m * _root.localToWorldMatrix;
-            unchecked
+            int n = _skinA.Length;
+            if (_skinKeyRef == null || _skinKeyRef.Length != 2 * n + 3)
             {
-                int h = 17;
-                for (int i = 0; i < _skinA.Length; i++)
-                {
-                    h = h * 31 + Quantized(m.MultiplyPoint3x4(_skinA[i]));
-                    h = h * 31 + Quantized(m.MultiplyPoint3x4(_skinB[i]));
-                }
-                h = h * 31 + Quantized(palm.MultiplyPoint3x4(Vector3.zero));
-                h = h * 31 + Quantized(palm.MultiplyVector(Vector3.forward * 0.1f)); // half a millimetre at 10 cm: a third of a degree
-                h = h * 31 + Quantized(palm.MultiplyVector(Vector3.up * 0.1f));
-                return h;
+                _skinKeyRef = new Vector3[2 * n + 3];
+                _skinKeyIn = null;
             }
+            for (int i = 0; i < n; i++)
+            {
+                SkinKeyNow[2 * i] = m.MultiplyPoint3x4(_skinA[i]);
+                SkinKeyNow[2 * i + 1] = m.MultiplyPoint3x4(_skinB[i]);
+            }
+            SkinKeyNow[2 * n] = palm.MultiplyPoint3x4(Vector3.zero);
+            SkinKeyNow[2 * n + 1] = palm.MultiplyVector(Vector3.forward * 0.1f); // 1.5 mm at 10 cm: under a degree
+            SkinKeyNow[2 * n + 2] = palm.MultiplyVector(Vector3.up * 0.1f);
+            bool moved = !ReferenceEquals(_skinKeyIn, frame);
+            for (int i = 0; i < 2 * n + 3 && !moved; i++)
+            {
+                moved = (SkinKeyNow[i] - _skinKeyRef[i]).sqrMagnitude > 0.0015f * 0.0015f;
+            }
+            if (moved)
+            {
+                System.Array.Copy(SkinKeyNow, _skinKeyRef, 2 * n + 3);
+                _skinKeyIn = frame;
+                _skinKey = _skinKey == int.MaxValue ? 0 : _skinKey + 1;
+            }
+            return _skinKey;
         }
 
-        private static int Quantized(Vector3 v) =>
-            unchecked(Mathf.RoundToInt(v.x * 2000f) * 73856093 ^ Mathf.RoundToInt(v.y * 2000f) * 19349663 ^ Mathf.RoundToInt(v.z * 2000f) * 83492791);
+        private Vector3[] _skinKeyRef;
+        private Transform _skinKeyIn;
+        private int _skinKey, _skinKeyFrame = -1;
+        private static readonly Vector3[] SkinKeyNow = new Vector3[64];
+
 
         /// <summary>
         /// Within <paramref name="grow"/> of this glove's skin (as last posed): for a support hand cupping this hand on a

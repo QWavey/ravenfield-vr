@@ -372,7 +372,12 @@ namespace RavenfieldVR.UI
             {
                 return;
             }
-            SquadPointing.Aim();
+            // The cameras along the pointing line only while the order screen is open: the game's LateUpdate returns at once
+            // when it is closed, and both cameras were turned and put back every frame a hand was held out (255.P5-5).
+            if (__instance.canvas != null && __instance.canvas.enabled)
+            {
+                SquadPointing.Aim();
+            }
             if (SquadPointing.Pointing)
             {
                 // The default line follows the hand (the game set it from where the head looks): down at your feet is REGROUP.

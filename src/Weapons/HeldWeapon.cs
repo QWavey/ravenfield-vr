@@ -1493,6 +1493,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The gun's solid the hands close on, as posed this frame (grown by a finger's radius); null until measured.</summary>
         internal System.Func<Vector3, bool> HandsSolid => _solid;
 
+        /// <summary>Whether <see cref="HandsSolid"/> includes the seated magazine now (its shape changes with it).</summary>
+        internal bool MagSolidShown => _magSolidShown;
+
         /// <summary>The gun's solid for a hand racking the action: recesses (an ejection port) closed over.</summary>
         private bool ClosedGunSolid(Vector3 p) => _volume.SolidClosed(p) || _magSolidShown && _magVolume.Solid(p);
 
