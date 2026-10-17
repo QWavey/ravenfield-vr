@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
@@ -53,14 +54,29 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// The two may be held at once (user, 2026-10-16): primary + secondary, primary + launcher, secondary + launcher (and
-        /// with grenades, in a later step); never two of a kind. The second, for now, is a gun or a launcher.
+        /// The two may be held at once (user, 2026-10-16): primary + secondary, primary + launcher, secondary + launcher, and a
+        /// grenade with any of them; never two of a kind.
         /// </summary>
         internal static bool CanPair(Weapon main, Weapon second)
         {
             int a = Kind(main), b = Kind(second);
-            return a >= 0 && b >= 0 && b != 3 && a != b && second != main && !(second is MeleeWeapon);
+            return a >= 0 && b >= 0 && a != b && second != main && !(second is MeleeWeapon);
         }
+
+        /// <summary>A grenade (or another throwable) in the free hand: thrown, not fired.</summary>
+        internal bool IsThrowable => Weapon is ThrowableWeapon;
+
+        /// <summary>Its pin pulled (the hand's trigger squeezed: the other hand holds the gun and cannot pull it).</summary>
+        internal bool Armed { get; private set; }
+
+        /// <summary>Done with: thrown and nothing left to throw. The weapon system lets it go.</summary>
+        internal bool Done { get; private set; }
+
+        /// <summary>Autotest: live projectiles of its last throw.</summary>
+        internal int LastLiveCount { get; private set; }
+
+        private bool _triggerWas;
+        private readonly List<Projectile> _spawned = new List<Projectile>();
 
         public SecondWeapon(WeaponSystem sys, Weapon weapon, WeaponRig rig, AmmoState ammo, VRHand hand)
         {
@@ -74,7 +90,7 @@ namespace RavenfieldVR.Weapons
                 weapon.gameObject.SetActive(true);
             }
             weapon.Unholster();
-            hand.Role = HandRole.Weapon;
+            hand.Role = weapon is ThrowableWeapon ? HandRole.Throwable : HandRole.Weapon;
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
         }
 
@@ -95,6 +111,11 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !Util.GameContext.GameMenuOpen;
+            if (IsThrowable)
+            {
+                UpdateThrowable(held);
+                return;
+            }
             if (held && !_firing && Ammo != null && Ammo.Participates && VRConfig.ReloadNow == ReloadMode.Manual
                 && !Ammo.Chambered && Ammo.MagRounds == 0 && (Ammo.InfiniteSpare || Ammo.SpareAmmo > 0))
             {
@@ -111,6 +132,127 @@ namespace RavenfieldVR.Weapons
             {
                 Weapon.StopFire();
                 _firing = false;
+            }
+        }
+
+        /// <summary>
+        /// A grenade in the free hand (252 p): the trigger squeezed pulls its pin (the other hand holds the gun); let go of the
+        /// trigger in a throwing motion, it is thrown. The grip let go in a throwing motion throws it too (<see cref="LetGo"/>).
+        /// </summary>
+        private void UpdateThrowable(bool trigger)
+        {
+            if (trigger && !_triggerWas && !Armed)
+            {
+                Armed = true;
+                _sys.Sounds.Play(MechSound.PinPull, Hand.Palm.position, 0.8f);
+                Hand.Haptic(0.03f, 120f, 0.5f);
+            }
+            if (!trigger && _triggerWas && Armed)
+            {
+                Vector3 v = Hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                if (v.magnitude > 1.1f)
+                {
+                    Throw(v);
+                }
+            }
+            _triggerWas = trigger;
+        }
+
+        /// <summary>
+        /// The grip let go: in a throwing motion against the body it is thrown (a dud with its pin in), else it goes back to
+        /// its holster. Then it is put away either way.
+        /// </summary>
+        public void LetGo()
+        {
+            if (IsThrowable && Weapon != null && !Done && !Util.GameContext.GameMenuOpen)
+            {
+                Vector3 body = Hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                Vector3 v = Hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                if (v.magnitude < body.magnitude * 0.7f)
+                {
+                    v = body;
+                }
+                if (body.magnitude > 1.6f)
+                {
+                    Throw(v);
+                }
+            }
+            PutAway();
+        }
+
+        /// <summary>Autotest: thrown now with this velocity.</summary>
+        internal void TestThrow(Vector3 velocity) => Throw(velocity);
+
+        /// <summary>
+        /// Out of the hand through the weapon's own Shoot (ammo, cooldown and resupply stay the game's), from the palm along the
+        /// throw, the projectile given the hand's velocity: as the grenade hand's throw (ThrowableHandler.Throw). With its pin
+        /// in, an inert dud.
+        /// </summary>
+        private void Throw(Vector3 velocity)
+        {
+            var weapon = (ThrowableWeapon)Weapon;
+            LastLiveCount = 0;
+            weapon.isPreparingToThrowProjectile = false;
+            weapon.hasFiredSingleRoundThisTrigger = false;
+            if (!weapon.CanFire() || !weapon.unholstered)
+            {
+                Hand.Haptic(0.08f, 40f, 0.4f);
+                return;
+            }
+            if (!Armed)
+            {
+                // As the grenade hand's dud: one fewer in the pouch (picked up again, it goes back), the next one ready.
+                GrenadeDud.Spawn(Rig, weapon, Hand.Palm.position, Hand.Palm.rotation, velocity, Hand.AngularVelocity);
+                weapon.ammo = Mathf.Max(0, weapon.ammo - 1);
+                weapon.InstantlyReload();
+                Hand.Haptic(0.03f, 70f, 0.4f);
+                Done = true;
+                return;
+            }
+            Transform muzzle = weapon.CurrentMuzzle();
+            Vector3 savedPos = muzzle.localPosition;
+            Quaternion savedRot = muzzle.localRotation;
+            Vector3 dir = velocity.normalized;
+            muzzle.SetPositionAndRotation(Hand.Palm.position + dir * 0.08f, Quaternion.LookRotation(dir));
+            _spawned.Clear();
+            weapon.onSpawnProjectiles.AddListener(OnSpawned);
+            try
+            {
+                weapon.Shoot(Vector3.zero, true);
+            }
+            finally
+            {
+                weapon.onSpawnProjectiles.RemoveListener(OnSpawned);
+                muzzle.localPosition = savedPos;
+                muzzle.localRotation = savedRot;
+            }
+            foreach (Projectile p in _spawned)
+            {
+                if (p != null)
+                {
+                    p.velocity = velocity;
+                    p.transform.rotation = Quaternion.LookRotation(dir);
+                    LastLiveCount++;
+                }
+            }
+            _spawned.Clear();
+            if (LastLiveCount == 0)
+            {
+                return; // nothing left the hand (a script took the throw): still armed, still in the hand
+            }
+            Armed = false; // the next one comes with its pin in
+            _sys.Sounds.Play(MechSound.Spoon, Hand.Palm.position, 0.8f);
+            Hand.Haptic(0.04f, 90f, 0.6f);
+            Log.Info($"Second weapon: {weapon.name} thrown from the {Hand.Side} hand ({velocity.magnitude:0.0} m/s).");
+            // The hand is empty after a throw, as with the grenade hand (the next one waits in its holster).
+            Done = true;
+        }
+
+        private void OnSpawned(Projectile[] projectiles)
+        {
+            if (projectiles != null)
+            {
+                _spawned.AddRange(projectiles);
             }
         }
 
@@ -156,6 +298,10 @@ namespace RavenfieldVR.Weapons
         public void OnShot()
         {
             Shots++;
+            if (IsThrowable)
+            {
+                return; // a throw: no kick in the hand
+            }
             Weapon.Configuration c = Weapon.configuration;
             float kick = HeldWeapon.ShotKick(c, Rig.Data, Rig.Data.Handgun ? WeaponClass.Pistol : WeaponClass.Rifle, out float climbShare);
             float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? 1.15f : 1.6f); // held in one hand

@@ -163,10 +163,17 @@ namespace RavenfieldVR.Weapons
             Actor actor = GameContext.PlayerActor;
             bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
                         || Second.Weapon == Held.Weapon || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
-            if (gone || !Second.Hand.GrabHeld || !Second.Hand.Tracked)
+            if (gone || Second.Done || !Second.Hand.Tracked)
             {
-                // Let go (or the gun in the other hand went away, a seat, death): back into its holster.
+                // The gun in the other hand went away (a seat, death), or a grenade thrown: back into its holster.
                 Second.PutAway();
+                Second = null;
+                return;
+            }
+            if (!Second.Hand.GrabHeld)
+            {
+                // Let go: back into its holster (a grenade let go in a throwing motion is thrown first).
+                Second.LetGo();
                 Second = null;
                 return;
             }

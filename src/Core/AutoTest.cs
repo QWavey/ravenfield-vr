@@ -1493,14 +1493,24 @@ namespace RavenfieldVR.Core
             {
                 yield break;
             }
-            Weapon other = null;
+            Weapon other = null, grenade = null;
             foreach (Weapon w in actor.weapons)
             {
                 if (w != null && w != held.Weapon && SecondWeapon.CanPair(held.Weapon, w))
                 {
-                    other = w;
-                    break;
+                    if (w is ThrowableWeapon)
+                    {
+                        grenade = grenade ?? w;
+                    }
+                    else
+                    {
+                        other = other ?? w;
+                    }
                 }
+            }
+            if (grenade != null)
+            {
+                yield return SecondGrenadeCheck(held, grenade, report); // a grenade in the free hand beside the gun (252 p)
             }
             if (other == null)
             {
@@ -1545,6 +1555,55 @@ namespace RavenfieldVR.Core
                 Input.VRInput.SimulatedGrab[side] = false;
             }
             yield return new WaitForSecondsRealtime(0.3f);
+        }
+
+        /// <summary>
+        /// A grenade taken by the free hand beside the drawn gun (252 p): drawn in that hand, its pin pulled with that hand's
+        /// trigger, thrown live (the projectile leaves with the throw), the hand empty after, and the gun still drawn.
+        /// </summary>
+        private static IEnumerator SecondGrenadeCheck(HeldWeapon held, Weapon grenade, Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = GameContext.PlayerActor;
+            Rig.VRHand off = sys.Rig.Off;
+            if (off.Role != Rig.HandRole.Free || off.Held != null || sys.Second != null || grenade.ammo == 0)
+            {
+                report($"second grenade: skipped ({(grenade.ammo == 0 ? "none left" : "the off hand is busy")})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            Input.VRInput.SimulatedGrab[side] = true;
+            int before = grenade.ammo;
+            try
+            {
+                sys.BeginSecond(grenade, off);
+                yield return new WaitForSecondsRealtime(Mathf.Clamp(grenade.configuration.unholsterTime, 0.2f, 1.5f) + 0.3f);
+                SecondWeapon second = sys.Second;
+                bool drawn = second != null && grenade.gameObject.activeInHierarchy && !grenade.isHidden;
+                SecondWeapon.TestTrigger = true;
+                yield return null;
+                yield return null;
+                bool armed = second != null && second.Armed;
+                // Thrown up and away from the player, over the gun.
+                Transform head = sys.Rig.Head;
+                Vector3 throwV = (Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized + Vector3.up * 0.6f).normalized * 9f;
+                second?.TestThrow(throwV);
+                int live = second != null ? second.LastLiveCount : 0;
+                SecondWeapon.TestTrigger = false;
+                yield return null;
+                yield return null;
+                bool emptied = sys.Second == null;
+                bool mainStays = sys.Held != null && sys.Held.Weapon == held.Weapon && actor.activeWeapon == held.Weapon;
+                report($"second grenade ({grenade.name}): {(drawn ? "drawn in the free hand" : "NOT DRAWN")}, {(armed ? "pin pulled by its trigger" : "PIN NOT PULLED")}, "
+                       + $"{(live > 0 ? $"thrown live ({live} projectile(s)), {before} -> {grenade.ammo} left" : "NOTHING THROWN")}, {(emptied ? "the hand empty after" : "STILL IN THE HAND after the throw")}, "
+                       + $"the drawn gun {(mainStays ? "stays drawn" : "WAS PUT AWAY")}");
+            }
+            finally
+            {
+                SecondWeapon.TestTrigger = false;
+                Input.VRInput.SimulatedGrab[side] = false;
+            }
+            yield return new WaitForSecondsRealtime(3.5f); // the grenade goes off far from the player before the next check
         }
 
         private static IEnumerator SlideLockPoseCheck(HeldWeapon held, Action<string> report)
