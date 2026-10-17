@@ -2095,7 +2095,7 @@ namespace RavenfieldVR.Core
             }
             Rig.VRHand dom = rig.Dominant;
             int side = (int)dom.Side;
-            string[] modes = { "lens as made", "lens camera off", "lens every other frame", "lens without shadows" };
+            string[] modes = { "lens as set", "lens camera off", "lens every other frame", "lens with shadows" };
             var line = new System.Text.StringBuilder($"scope bench on {name}:");
             try
             {

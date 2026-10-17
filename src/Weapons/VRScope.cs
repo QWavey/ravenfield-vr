@@ -331,9 +331,13 @@ namespace RavenfieldVR.Weapons
                 render &= (Time.frameCount & 1) == 0; // the last picture stays on the lens in between
             }
             _camera.enabled = render;
-            if (_noShadows != null && _noShadows.enabled != (BenchMode == 3))
+            // Without shadows unless asked for (the second set of shadow cascades was most of the lens's cost: 14.2 ms frames
+            // aimed through the RECON LRR's lens, 11.3 without its shadows, 10.8 with no lens at all; 255.P1.2). The bench
+            // measures its own modes.
+            bool noShadows = BenchMode == 3 ? false : !VRConfig.ScopeShadows.Value;
+            if (_noShadows != null && _noShadows.enabled != noShadows)
             {
-                _noShadows.enabled = BenchMode == 3;
+                _noShadows.enabled = noShadows;
             }
             _lensMaterial.color = new Color(brightness, brightness, brightness, 1f);
         }
@@ -348,8 +352,8 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Autotest bench of the lens's cost (255.P1.2): 0 as made, 1 its camera off, 2 rendered every other frame, 3 rendered
-        /// without shadows (a camera of its own draws the shadow cascades again).
+        /// Autotest bench of the lens's cost (255.P1.2): 0 as set (shadows as ScopeShadows says), 1 its camera off, 2 rendered
+        /// every other frame, 3 with shadows (a camera of its own draws the shadow cascades again).
         /// </summary>
         internal static int BenchMode;
 
