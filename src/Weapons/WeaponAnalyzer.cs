@@ -808,7 +808,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>AR-pattern rifles by name (M4/M16/AR-15/HK416/MK18/M733 and their kin).</summary>
         private static readonly Regex ArPattern = new Regex(
             // Not inside a word ("19m4mwii holo", "mk18riii" count, "gram4" does not), not a longer number ("m40", "m45").
-            @"(?<![a-z])(m4|m4a1|m16|ar-?15|ar-?10|hk ?416|hk ?417|m ?417|mr ?308|mr ?762|lmt ?308|mk ?18|mk ?12|m733|m727|xm177|car-?15|cqbr|urgi|sr-?25|m110|mcx|honey ?badger|ddm4|m27|g28|lvoa)(?!\d)",
+            @"(?<![a-z])(m4|m4a1|m16|ar-?15|ar-?10|hk ?416|hk ?417|m ?417|mr ?308|mr ?762|lmt ?308|mk ?18|mk ?12|m733|m727|xm177|car-?15|cqbr|urgi|sr-?25|m110|mcx|honey ?badger|ddm4|m27|g28|lvoa|k13)(?!\d)",
             RegexOptions.IgnoreCase);
 
         /// <summary>
@@ -1242,6 +1242,36 @@ namespace RavenfieldVR.Weapons
 
             d.SlidePath = WeaponRig.PathOf(root, slide);
             d.SlideRestLocal = sampler.IdleLocalPosition(slide);
+            Vector3 restShift = Vector3.zero; // gun space: from the idle place to the rest (a pistol caught locked back)
+            float forward = Vector3.Dot(slideVec, d.AimAxis);
+            float reloadEnds = 0f;
+            if (sampler.HasReload && index.TryGetValue(slide, out int si0))
+            {
+                Vector3[] tr = sampler.ReloadTrajectory[si0];
+                reloadEnds = tr.Length > 0 ? Vector3.Dot(tr[tr.Length - 1] - sampler.RelIdle[si0].position, d.AimAxis) : 0f;
+            }
+            if (d.SlideMethod != null && d.SlideMethod.StartsWith("fire motion", StringComparison.Ordinal)
+                && forward > 0.015f && Vector3.Dot(slideVec.normalized, d.AimAxis) > 0.8f && (d.Handgun || reloadEnds >= forward * 0.8f))
+            {
+                // Caught held back at idle: the fire motion takes the slide toward the muzzle from there (and the reload ends
+                // there too). Racked from that rest it went back past its stop: FA1911 20R 82 mm at half a pull and 112 mm
+                // locked back; the ARS MP9's bolt stayed 44 mm back after the release while its animator was in its loaded
+                // pose (check-1017f); the PPSh's bolt was racked 9 cm back from its back place. The rest is the forward place,
+                // racked back from there by the same distance.
+                Vector3 worldDelta = gunIdle.rotation * slideVec;
+                Transform parent = slide.parent;
+                Vector3 localDelta = worldDelta;
+                if (parent != null)
+                {
+                    Vector3 s = parent.lossyScale;
+                    localDelta = Quaternion.Inverse(sampler.Idle(parent).rotation) * worldDelta;
+                    localDelta = new Vector3(localDelta.x / Mathf.Max(Mathf.Abs(s.x), 1e-6f), localDelta.y / Mathf.Max(Mathf.Abs(s.y), 1e-6f), localDelta.z / Mathf.Max(Mathf.Abs(s.z), 1e-6f));
+                }
+                d.SlideRestLocal += localDelta;
+                restShift = slideVec;
+                d.Notes += $"slide held back at idle (the fire motion runs {slideVec.magnitude * 100f:0.0} cm toward the muzzle): its rest is the forward place ";
+                slideVec = -slideVec;
+            }
             float travel = slideVec.sqrMagnitude > 0f ? slideVec.magnitude * 1.15f : (d.Handgun ? 0.035f : 0.07f);
             travel = Mathf.Clamp(travel, d.Handgun ? 0.02f : 0.03f, 0.15f);
             Vector3 dir = slideVec.sqrMagnitude > 0f ? slideVec.normalized : -d.AimAxis;
@@ -1268,6 +1298,7 @@ namespace RavenfieldVR.Weapons
             {
                 d.RackPoint = gunIdle.InverseTransformPoint(sampler.Idle(slide).position);
             }
+            d.RackPoint += restShift;
             if (d.Action == ActionType.Manual && d.HasSupportPoint && Vector3.Distance(d.RackPoint, d.SupportPoint) < 0.12f)
             {
                 d.RackPoint = d.SupportPoint; // pump action: rack where the support hand already is
@@ -1302,6 +1333,20 @@ namespace RavenfieldVR.Weapons
                     d.BoltPath = WeaponRig.PathOf(root, slide);
                     d.BoltRestLocal = sampler.IdleLocalPosition(slide);
                     handle = null;
+                }
+                if (handle != null && d.Handgun)
+                {
+                    // A pistol is racked by its slide's back: a part its reload moves in the slide's front half is the barrel
+                    // or the guide rod (GLOCK 43X: '43X_QG0', 4 cm under the bore at the muzzle), and taken as the handle the
+                    // hand pinched the slide's front with its palm grip switched off (252 ae review, check-1017f).
+                    Transform h = handle;
+                    Bounds hb = sampler.GunSpaceBoundsWhere(h, gunIdle, x => x != h);
+                    Bounds slb = sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f);
+                    if (hb.size.sqrMagnitude > 1e-8f && slb.size.sqrMagnitude > 1e-8f && Vector3.Dot(hb.center - slb.center, d.AimAxis) > 0f)
+                    {
+                        d.Notes += $"'{h.name}' moved by the reload sits in the slide's front half: not a handle ";
+                        handle = null;
+                    }
                 }
                 if (handle != null && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)
                 {
@@ -2585,8 +2630,11 @@ namespace RavenfieldVR.Weapons
         private static void ArStaticHandle(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
         {
+            // Also a bolt found by its fire motion with no handle (K13: its bolt '416F QJ' moved unseen in the receiver while
+            // its T '416F ZG', 6 cm behind the bolt's rear top, stood still; check-1017f).
             if (d.Handgun || d.HandlePath != null || d.SlidePath == null || d.SlideMethod == null || !sampler.HasReload
-                || !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal) || !ArPattern.IsMatch(d.Key ?? ""))
+                || !(d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal) || d.SlideMethod == "fire motion")
+                || !ArPattern.IsMatch(d.Key ?? ""))
             {
                 return;
             }
@@ -2601,18 +2649,21 @@ namespace RavenfieldVR.Weapons
             Vector3 rearTop = sb.center - d.AimAxis * Mathf.Abs(Vector3.Dot(sb.extents, aimAbs)) + d.Up * Mathf.Abs(Vector3.Dot(sb.extents, upAbs));
             Transform best = null;
             Bounds bestBounds = default;
-            float bestGap = 0.05f;
+            // The fire-motion case reaches a little further (the K13's T sits 6 cm behind its bolt), but only for a flat part (a
+            // T is at most 1.5 cm tall; a forward assist beside the bolt is not).
+            bool fireCase = d.SlideMethod == "fire motion";
+            float bestGap = fireCase ? 0.07f : 0.05f;
             foreach (Transform t in all)
             {
                 if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] > 0.01f || t == slide || t.IsChildOf(slide) || slide.IsChildOf(t)
-                    || MagName.IsMatch(t.name) || OpticName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                    || MagName.IsMatch(t.name) || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     continue;
                 }
                 Bounds b = sampler.GunSpaceBounds(t, gunIdle);
                 float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
                 float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
-                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f)
+                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f || fireCase && Vector3.Dot(b.size, upAbs) > 0.015f)
                 {
                     continue; // a T is a few centimetres long and sits just over the bore, under the sights
                 }
@@ -2904,8 +2955,12 @@ namespace RavenfieldVR.Weapons
                 axisLocal = principal;
                 // A curved magazine (an AK's, a QBZ's) goes into its well along its top, not along the chord of its curve:
                 // slid on the chord, the fresh one came in 20 degrees too flat, in front of the well (QBZ 95-1 family).
+                // Not a pistol's: its magazine is straight, and the round and the follower plate at its top skewed the top
+                // slices: the 1911 10R's "top" leaned 24 degrees the other way from its body's own axis, and the fresh one came
+                // in across the front strap (check-1017f; its body, the plain 1911's and the D1911's all rake about 0.2 the
+                // way the vertex axis does).
                 Vector3 intoGunLocal = Quaternion.Inverse(d.MagSeat.rotation) * -outward;
-                if (TopTangent(magPart, principal, intoGunLocal, out Vector3 top))
+                if (!d.Handgun && TopTangent(magPart, principal, intoGunLocal, out Vector3 top))
                 {
                     float bend = Vector3.Angle(top, Vector3.Dot(top, principal) < 0f ? -principal : principal);
                     if (bend > 5f && bend < 35f)

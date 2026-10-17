@@ -1820,7 +1820,19 @@ namespace RavenfieldVR.Weapons
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         internal Vector3 KeptOut => OnRail && _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : _keptOut;
-        private static readonly Vector3[] Samples = new Vector3[25];
+        /// <summary>Rows of points along a magazine for the keep-out (five, 4-5.5 cm apart on a rifle magazine, let a plate of
+        /// the receiver between them: the dense probe found up to 300 points of a PATRIOT magazine in the gun; check-1017f).</summary>
+        internal const int MagRows = 9;
+        private static readonly Vector3[] Samples = new Vector3[MagRows * 5];
+
+        /// <summary>
+        /// The well lets a magazine in only on its own line: within the rail's reach of it sideways (4.5 cm) and turned less
+        /// than 40 degrees from it. Off the line, the well's opening is solid like the rest of the gun: a PKM's box swept
+        /// sideways 13 cm over its seat passed through the receiver, all its points inside the opening's box (check-1017f).
+        /// </summary>
+        private bool OnWellLine(RigidPose seat, Vector3 at, Quaternion rot) =>
+            Vector3.ProjectOnPlane(seat.InverseTransformPoint(at), InsertDirLocal).magnitude <= 0.045f
+            && Quaternion.Angle(rot, seat.rotation) < 40f;
         /// <summary>How much bigger than the magazine its well is left open (the whole size: half of it a side).</summary>
         internal const float WellPlay = 0.008f;
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
@@ -1888,7 +1900,7 @@ namespace RavenfieldVR.Weapons
                 // them), half way out to its edges (its box is the warhead's: the thin tail would stop short of the tube).
                 Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
                 Vector3[] points = rocket ? RocketSamples : Samples;
-                int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : 5;
+                int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : MagRows;
                 float edge = rocket ? 0.5f : 0.8f;
                 int n = 0;
                 for (int a = 0; a < along; a++)
@@ -1904,12 +1916,13 @@ namespace RavenfieldVR.Weapons
                 Quaternion rot = target.rotation;
                 bool BlockedAt(Vector3 at)
                 {
+                    // A rocket has no well open to it from the side: where it sits seated is the tube's front itself, and
+                    // left open, a rocket held across the launcher went straight through the tube there.
+                    bool open = !rocket && OnWellLine(seat, at, rot);
                     for (int i = 0; i < count; i++)
                     {
                         Vector3 p = at + rot * points[i];
-                        // A rocket has no well open to it from the side: where it sits seated is the tube's front itself,
-                        // and left open, a rocket held across the launcher went straight through the tube there.
-                        if (solid(p) && (rocket || !well.Contains(seat.InverseTransformPoint(p))))
+                        if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p))))
                         {
                             return true;
                         }
@@ -2039,14 +2052,15 @@ namespace RavenfieldVR.Weapons
             well.Expand(WellPlay);
             Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             Transform t = Go.transform;
+            bool open = OnWellLine(seat, t.position, t.rotation);
             int inside = 0;
-            for (int a = 0; a < 5; a++)
+            for (int a = 0; a < MagRows; a++)
             {
-                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / 4f);
+                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(MagRows - 1));
                 foreach (Vector3 local in new[] { c, c + FrontLocal * (_frontHalf * 0.8f), c - FrontLocal * (_frontHalf * 0.8f), c + side * (_sideHalf * 0.8f), c - side * (_sideHalf * 0.8f) })
                 {
                     Vector3 p = t.TransformPoint(local);
-                    if (solid(p) && !well.Contains(seat.InverseTransformPoint(p)))
+                    if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p))))
                     {
                         inside++;
                     }
@@ -2074,6 +2088,7 @@ namespace RavenfieldVR.Weapons
             well.Expand(WellPlay);
             Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
             Transform t = Go.transform;
+            bool open = OnWellLine(seat, t.position, t.rotation);
             int na = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.005f) + 1, 2, 80);
             int nf = Mathf.Clamp(Mathf.CeilToInt(2f * _frontHalf / 0.005f) + 1, 2, 20);
             int ns = Mathf.Clamp(Mathf.CeilToInt(2f * _sideHalf / 0.005f) + 1, 2, 20);
@@ -2090,7 +2105,7 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        if (well.Contains(seat.InverseTransformPoint(p)))
+                        if (open && well.Contains(seat.InverseTransformPoint(p)))
                         {
                             inWell++;
                         }
