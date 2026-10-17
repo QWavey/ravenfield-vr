@@ -2507,6 +2507,24 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            float OffBore(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
+            if (d.Action != ActionType.SingleShot && sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
+            {
+                // Any magazine parked away from the gun at rest is seated where its reload leaves it, on the gun, as a
+                // launcher's rocket is: the M1 GARRET's clip waited 50 cm beside the gun, and the fresh one was seated there,
+                // in the air (check-1017f, the seating pictures show the clip alone).
+                Vector3[] path = sampler.ReloadTrajectory[mi];
+                Vector3 end = path != null && path.Length > 0 ? path[path.Length - 1] : d.MagSeat.position;
+                if (!float.IsNaN(end.x) && OffBore(end) < 0.12f)
+                {
+                    d.Notes += $"magazine parked {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest: seated where its reload leaves it ";
+                    d.MagSeat = new RigidPose(end, d.MagSeat.rotation);
+                }
+                else
+                {
+                    d.Warnings.Add($"magazine seat {OffBore(d.MagSeat.position) * 100f:0} cm off the bore (its reload ends {OffBore(end) * 100f:0} cm off)");
+                }
+            }
             Vector3 eject = sampler.HasReload && !toggles ? sampler.FirstDir[mi] : Vector3.zero;
             d.MagEjectAxis = eject.sqrMagnitude > 0.5f ? eject.normalized : -d.Up;
             Bounds mb = sampler.LocalBounds(mag);
