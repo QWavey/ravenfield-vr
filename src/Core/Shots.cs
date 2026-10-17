@@ -21,6 +21,9 @@ namespace RavenfieldVR.Core
 
         public static string Dir => Path.Combine(Paths.BepInExRootPath, "RavenfieldVR-shots");
 
+        /// <summary>The picture file for a name: anything but letters, digits, '_', '.' and '-' made '_' (weapon names carry '/' and colour tags).</summary>
+        internal static string FileFor(string name) => Path.Combine(Dir, Regex.Replace(name, @"[^A-Za-z0-9_.\-]+", "_") + ".png");
+
         private static bool _cleared;
 
         /// <summary>Renders from the VR head (or <paramref name="position"/> / <paramref name="rotation"/>) to a PNG named <paramref name="name"/>.</summary>
@@ -91,7 +94,7 @@ namespace RavenfieldVR.Core
                     }
                     break;
                 }
-                string file = Path.Combine(Dir, Regex.Replace(name, @"[^A-Za-z0-9_.\-]+", "_") + ".png");
+                string file = FileFor(name);
                 File.WriteAllBytes(file, tex.EncodeToPNG());
                 Log.Info("Shot: " + file);
             }

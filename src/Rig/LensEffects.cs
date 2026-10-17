@@ -539,7 +539,7 @@ namespace RavenfieldVR.Rig
                 }
                 sheet.Apply(false, false);
                 System.IO.Directory.CreateDirectory(Shots.Dir);
-                System.IO.File.WriteAllBytes(System.IO.Path.Combine(Shots.Dir, name + ".png"), sheet.EncodeToPNG());
+                System.IO.File.WriteAllBytes(Shots.FileFor(name), sheet.EncodeToPNG()); // (a raw '/' or colour tag in a weapon's name failed)
             }
             catch (Exception e)
             {
