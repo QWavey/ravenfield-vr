@@ -61,12 +61,16 @@ class Weapon:
             node.hidden = False
             node.sim = np.eye(4)
             node.tris = node.triangles()
+        rest = r.get('magRestPos')
+        park = v3(r.get('magSeatPos', [0, 0, 0])) - v3(rest) if rest is not None else np.zeros(3)
+        self.mag_parked = park if np.linalg.norm(park) > 0.05 else np.zeros(3)
         self.slide = 0.0
         self.mag = 0.0
         self.cover = 0.0
         self.fresh = None  # the fresh magazine's place (gun-space 4x4) while one comes in, or None
-        allmin = np.min([n.bmin for n in self.nodes], axis=0) if self.nodes else np.zeros(3)
-        allmax = np.max([n.bmax for n in self.nodes], axis=0) if self.nodes else np.zeros(3)
+        shift = [self.mag_parked if n.role == 'magazine' else np.zeros(3) for n in self.nodes]
+        allmin = np.min([n.bmin + s for n, s in zip(self.nodes, shift)], axis=0) if self.nodes else np.zeros(3)
+        allmax = np.max([n.bmax + s for n, s in zip(self.nodes, shift)], axis=0) if self.nodes else np.zeros(3)
         self.bmin, self.bmax = allmin, allmax
         self.stand_ins = sum(1 for n in self.nodes if n.stand_in)
 
@@ -138,7 +142,8 @@ class Weapon:
             elif n.role == 'handle':
                 m[:3, 3] = ht * self.slide
             elif n.role == 'magazine':
-                m[:3, 3] = ej * self.mag
+                # A magazine that waits parked away at rest (the M1's clip) is drawn on its seat.
+                m[:3, 3] = ej * self.mag + self.mag_parked
             if n.role == 'hinge' or (self.rig.get('hinge') and _prefix(n.path, self.rig.get('hinge'))):
                 m = hinge_m @ m
             n.sim = m

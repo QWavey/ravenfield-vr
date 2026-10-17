@@ -2521,6 +2521,7 @@ namespace RavenfieldVR.Weapons
                 d.MagMethod = "reload motion (skinned bone)";
             }
             d.MagSeat = sampler.RelIdle[mi];
+            d.MagRestPos = d.MagSeat.position;
             if (d.Action == ActionType.SingleShot && sampler.HasReload && (d.MagSeat.position - d.GripPoint).sqrMagnitude > 1.5f * 1.5f)
             {
                 // A launcher's rocket parked away at rest (the Panzerfaust 3's warhead 30 m off): seated where its reload
@@ -2538,22 +2539,38 @@ namespace RavenfieldVR.Weapons
                 }
             }
             float OffBore(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
-            if ((d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual) && sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
+            if ((d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual || EnBlocName.IsMatch(d.Key ?? ""))
+                && sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
             {
                 // Any magazine parked away from the gun at rest is seated where its reload leaves it, on the gun, as a
                 // launcher's rocket is: the M1 GARRET's clip waited 50 cm beside the gun, and the fresh one was seated there,
                 // in the air (check-1017f, the seating pictures show the clip alone).
+                // Where the reload brings it nearest the bore: in the gun (the M1's reload parks the clip away again at its end).
                 Vector3[] path = sampler.ReloadTrajectory[mi];
-                Vector3 end = path != null && path.Length > 0 ? path[path.Length - 1] : d.MagSeat.position;
-                if (!float.IsNaN(end.x) && OffBore(end) < 0.12f)
+                Vector3 end = d.MagSeat.position;
+                if (path != null)
                 {
-                    d.Notes += $"magazine parked {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest: seated where its reload leaves it ";
+                    foreach (Vector3 p in path)
+                    {
+                        if (!float.IsNaN(p.x) && OffBore(p) < OffBore(end))
+                        {
+                            end = p;
+                        }
+                    }
+                }
+                if (OffBore(end) < 0.12f)
+                {
+                    d.Notes += $"magazine parked {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest: seated where its reload brings it into the gun ";
                     d.MagSeat = new RigidPose(end, d.MagSeat.rotation);
                 }
                 else
                 {
-                    d.Warnings.Add($"magazine seat {OffBore(d.MagSeat.position) * 100f:0} cm off the bore (its reload ends {OffBore(end) * 100f:0} cm off)");
+                    d.Warnings.Add($"magazine seat {OffBore(d.MagSeat.position) * 100f:0} cm off the bore (its reload comes no nearer than {OffBore(end) * 100f:0} cm)");
                 }
+            }
+            else if (sampler.HasReload && OffBore(d.MagSeat.position) > 0.25f)
+            {
+                d.Notes += $"magazine {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest, left there ({d.Action}) ";
             }
             Vector3 eject = sampler.HasReload && !toggles ? sampler.FirstDir[mi] : Vector3.zero;
             d.MagEjectAxis = eject.sqrMagnitude > 0.5f ? eject.normalized : -d.Up;

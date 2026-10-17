@@ -346,7 +346,7 @@ namespace RavenfieldVR.Weapons
                 .Str("slideMethod", d.SlideMethod).Bool("addedHandle", d.AddedHandle).Bool("carveHandle", d.CarveHandle)
                 .Path("slide", d.SlidePath).Path("handle", d.HandlePath).Path("bolt", d.BoltPath).Path("hinge", d.HingePath)
                 .Path("magazine", d.MagazinePath).Paths("magazineParts", d.MagazinePartPaths).Paths("slideCompanions", d.SlideCompanionPaths)
-                .Vec("magSeatPos", d.MagSeat.position).Quat("magSeatRot", d.MagSeat.rotation).Vec("magEject", d.MagEjectAxis)
+                .Vec("magSeatPos", d.MagSeat.position).Vec("magRestPos", d.MagRestPos).Quat("magSeatRot", d.MagSeat.rotation).Vec("magEject", d.MagEjectAxis)
                 .Vec("magBoundsCenter", d.MagBounds.center).Vec("magBoundsSize", Abs(d.MagBounds.size)).Str("magMethod", d.MagMethod)
                 .Str("hingeKind", d.Hinge.ToString()).Vec("hingePivot", d.HingePivot).Vec("hingeAxis", d.HingeAxis)
                 .Num("hingeAngle", d.HingeOpenAngle).Vec("hingeGrab", d.HingeGrabPoint)

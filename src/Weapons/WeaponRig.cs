@@ -258,6 +258,9 @@ namespace RavenfieldVR.Weapons
         public bool Animated;
         public string Notes = "";
 
+        /// <summary>Sandbox export only: where the magazine part waits at rest (its seat may be elsewhere: parked away).</summary>
+        [System.NonSerialized] public Vector3 MagRestPos;
+
         /// <summary>Rig dump only (-rfvr-dumprig): lines an analysis step adds to the gun's section.</summary>
         [System.NonSerialized] public string DumpLines = "";
 
