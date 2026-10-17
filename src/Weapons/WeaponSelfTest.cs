@@ -238,6 +238,16 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Exception("Writing the weapon report failed", e);
             }
+            if (SandboxExport.Requested)
+            {
+                // The sandbox's export run (tools/sandbox/export.py): written, then the game closes.
+                SandboxExport.WriteIndex();
+                Running = false;
+                Application.runInBackground = runInBackground;
+                Log.Info("Sandbox export finished: quitting.");
+                Application.Quit();
+                yield break;
+            }
             // Dropped weapons: cost of the first drop of a weapon type (model, shape, cooking) against a drop made from
             // what the menu warm-up prepares.
             float coldSum = 0f, coldMax = 0f, warmSum = 0f, warmMax = 0f;

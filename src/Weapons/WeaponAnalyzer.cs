@@ -153,7 +153,9 @@ namespace RavenfieldVR.Weapons
         public static WeaponRigData Get(Weapon w, WeaponManager.WeaponEntry entry)
         {
             string key = KeyOf(w, entry);
-            if (Cache.TryGetValue(key, out WeaponRigData cached))
+            // (A weapon the sandbox export wants is analysed again once: analysed before by the menu's warm-up, it was
+            // never written.)
+            if (Cache.TryGetValue(key, out WeaponRigData cached) && !(SandboxExport.Wants(key) && !SandboxExport.Exported(key)))
             {
                 return cached;
             }
@@ -529,6 +531,8 @@ namespace RavenfieldVR.Weapons
             PoseSampler sampler = SampleFromRigidBody(w, all, index, muzzle, handR, canSample, d.Action, armRenderers, ref gunBody, out bool sampled);
             d.GunBodyPath = WeaponRig.PathOf(root, gunBody) ?? new int[0];
             string rigDump = null;
+            byte[] exportGlb = null;
+            string exportNote = null;
             try
             {
                 d.Animated = sampled;
@@ -604,6 +608,18 @@ namespace RavenfieldVR.Weapons
                 {
                     rigDump = DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 }
+                if (SandboxExport.Wants(key))
+                {
+                    // The drawn model at rest for the sandbox (tools/sandbox); written with rig.json once every rule has run.
+                    try
+                    {
+                        exportGlb = SandboxExport.BuildGlb(d, root, armRenderers, sampler, gunIdle, out exportNote);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Warn($"Sandbox export of {key} failed: {e.Message}");
+                    }
+                }
             }
             finally
             {
@@ -616,6 +632,10 @@ namespace RavenfieldVR.Weapons
             BoltInsideOnSurface(d);
             ForwardSideHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
+            if (exportGlb != null)
+            {
+                SandboxExport.Write(d, root, w, exportGlb, exportNote);
+            }
             if (rigDump != null)
             {
                 // Written once every rule has run: with what they chose (the slide, the handle, the rack point, the magazine).
