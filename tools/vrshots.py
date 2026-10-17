@@ -22,7 +22,7 @@ Examples
   python tools/vrshots.py --film "GLOCK 43X" --film 54  the same for these guns (name, id, mod:TEXT, =NAME)
 
 Options
-  --no-build          use the DLL already built (default: build.ps1 first, then install it)
+  --no-build          install the DLL already built (default: build.ps1 first, then install it)
   --res 2064x2208     the virtual headset's resolution (default 1440x1584; the Quest 3 over Link is about 2064x2208)
   --timeout MIN       give up after this many minutes (default: 240 for --weapons, 30 otherwise)
   --game DIR          Ravenfield's folder (default: Steam's)
@@ -128,13 +128,16 @@ class NullHeadset:
 
 # ---- the game ------------------------------------------------------------------------------------------------------
 
-def build_and_install(game):
-    log('building the mod')
-    r = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(REPO, 'build.ps1')],
-                       capture_output=True, text=True, errors='ignore', cwd=REPO)
-    if r.returncode != 0:
-        print(r.stdout[-3000:], r.stderr[-2000:])
-        raise SystemExit('build failed')
+def build_and_install(game, build=True):
+    """Builds the mod (unless build is False) and installs build/RavenfieldVR.dll into the game: with --no-build the DLL
+    already built is still installed (a --no-build run once tested the DLL of an earlier run: check-1017e)."""
+    if build:
+        log('building the mod')
+        r = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(REPO, 'build.ps1')],
+                           capture_output=True, text=True, errors='ignore', cwd=REPO)
+        if r.returncode != 0:
+            print(r.stdout[-3000:], r.stderr[-2000:])
+            raise SystemExit('build failed')
     dest = os.path.join(game, 'BepInEx', 'plugins', 'RavenfieldVR')
     for f in ('RavenfieldVR.dll', 'RavenfieldVR.pdb'):
         shutil.copy2(os.path.join(REPO, 'build', f), dest)
@@ -308,8 +311,7 @@ def main():
         raise SystemExit('Ravenfield is running (someone is playing?): not starting.')
     failed = False
     w, h = (int(v) for v in a.res.lower().split('x'))
-    if not a.no_build:
-        build_and_install(a.game)
+    build_and_install(a.game, build=not a.no_build)
     ensure_steam()
     for mode in modes:
         shots = os.path.join(a.game, 'BepInEx', 'RavenfieldVR-shots')
