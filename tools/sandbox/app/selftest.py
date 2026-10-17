@@ -35,7 +35,7 @@ class SelfTest:
                       self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_snap_cover,
                       self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
                       self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
-                      self.s_move_weapon, self.s_put_hand, self.s_later_features, self.s_cleanup]
+                      self.s_move_weapon, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_later_features, self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
         self.root = os.path.join(self.wb.repo, 'reports', 'sandbox', 'selftest')
         shutil.rmtree(self.root, ignore_errors=True)
@@ -375,8 +375,7 @@ class SelfTest:
 
     # The features other branches add now, with the Workbench method each would have. Until that method exists the check is
     # a SKIP line; once it is merged, the check for it is written here (a SKIP still shows it is not checked yet).
-    LATER = (('Copy the hands for Claude', 'copy_hands_for_claude'), ('the turntable GIF', 'record_turntable'),
-             ('clean pictures', 'clean_screenshot'), ('the put-a-hand menu entries', 'put_hand_from_menu'))
+    LATER = (('the turntable GIF', 'record_turntable'), ('clean pictures', 'clean_screenshot'))
 
     def _settle(self):
         """A reload still playing is run to its end first: the checks look at the parts as they are."""
@@ -610,10 +609,15 @@ class SelfTest:
         c, r = w.center_world()
         v.target = c + np.array([0.5, 0.0, 0.0])
         v.dist = 3.0
-        wb.frame_weapon()
+        wb.frame_weapon(hands=False)  # (Shift + F: the gun alone)
         fit = max(0.15, max(0.12, r) / math.sin(math.radians(19)) * 1.05)  # (as the view frames it)
-        self.check('Frame the gun: the view centres on it and backs off to fit', np.allclose(v.target, c) and abs(v.dist - fit) < 1e-9,
+        self.check('Frame the gun alone (Shift + F): the view centres on it and backs off to fit', np.allclose(v.target, c) and abs(v.dist - fit) < 1e-9,
                    f'{v.dist:.3f} m away, fitting {fit:.3f} m')
+        wb.frame_weapon()  # F: the gun and both hands
+        reach = max(float(np.linalg.norm(h.position - v.target)) + 0.1 for h in self.wb.scene.hands())
+        sphere = v.dist * math.sin(math.radians(19)) / 1.05
+        self.check('Frame (F): the gun and both hands in view', reach <= sphere + 1e-6 and v.dist >= fit - 1e-9,
+                   f'hands reach {reach * 100:.0f} cm from the centre, the view fits {sphere * 100:.0f} cm')
 
     def s_keys(self):
         """The keys: L toggles the laser, 1 and 2 pick the right and left hand, F frames the gun. Sent to the Workbench as the
@@ -637,10 +641,11 @@ class SelfTest:
         self._key(wb, Qt.Key.Key_1, '1')
         to_right = v.selected_hand is s.right
         self.check('keys 2 and 1 select the left and right hand', to_left and to_right, f'after 2 left {to_left}, after 1 right {to_right}')
-        c, _ = w.center_world()
-        v.target = c + np.array([0.5, 0.0, 0.0])
+        wb.frame_weapon()
+        want = v.target.copy()
+        v.target = want + np.array([0.5, 0.0, 0.0])
         self._key(wb, Qt.Key.Key_F, 'f')
-        self.check('key F frames the gun', bool(np.allclose(v.target, c)))
+        self.check('key F frames the gun and the hands', bool(np.allclose(v.target, want)))
 
     def s_captures(self):
         """The Captures page's refresh lists the screenshot and the GIF taken in this run."""
@@ -684,7 +689,7 @@ class SelfTest:
 
     def s_put_hand(self):
         """A hand put on a surface of the gun (the point a ray from above finds, as the laser would): the palm lands within
-        5 cm of that point, and the hand gets a job or none."""
+        7 cm of that point (its centre 3 cm off the skin, the drawn glove settled up to 4 cm), and the hand gets a job or none."""
         wb, s = self.wb, self.wb.scene
         w = s.weapon
         self._settle()
@@ -700,10 +705,34 @@ class SelfTest:
         for hand in (s.right, s.left):
             s.put_hand_on(hand, point, up_w)
             d = float(np.linalg.norm(hand.drawn_position() - point))
-            self.check(f'a {hand.side} hand put on the gun: its palm within 5 cm of the point, a job or none',
-                       d < 0.05 and hand.role in ('', 'grip', 'support', 'rack', 'magazine', 'cover'),
+            self.check(f'a {hand.side} hand put on the gun: its palm within 7 cm of the point, a job or none',
+                       d < 0.07 and hand.role in ('', 'grip', 'support', 'rack', 'magazine', 'cover'),
                        f'palm {d * 100:.1f} cm from the point, job {hand.role!r}')
         wb.reset_parts()
+
+    def s_copy_hands(self):
+        """Copy the hands for Claude: the text names the weapon, both hands, their jobs and places."""
+        wb = self.wb
+        wb.copy_hands_text()
+        text = QGuiApplication.clipboard().text()
+        w = wb.scene.weapon
+        ok = w.id in text and 'Right hand' in text and 'Left hand' in text and 'of the grip' in text and 'from the muzzle' in text
+        self.check('Copy the hands for Claude', ok, text.splitlines()[0][:120] if text else 'nothing copied')
+
+    def s_put_hand_menu(self):
+        """The laser's menu entry: a part picked, the left hand put on it (undo puts it back)."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        node = max((n for n in w.nodes if not n.hidden), key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
+        point = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
+        wb.view.pick_normal = w.dir_to_world(w.up)
+        wb.on_pick(point, node)
+        before = s.left.position.copy()
+        wb.put_hand_here(s.left)
+        moved = float(np.linalg.norm(s.left.position - point))
+        wb.undo()
+        self.check('the menu puts the left hand on the picked part, undo puts it back',
+                   moved < 0.07 and np.allclose(s.left.position, before), f'palm {moved * 100:.1f} cm from the point')
 
     def s_later_features(self):
         """The features other branches are adding: SKIP until their Workbench method is merged in."""
