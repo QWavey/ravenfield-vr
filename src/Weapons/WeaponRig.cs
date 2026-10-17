@@ -75,6 +75,8 @@ namespace RavenfieldVR.Weapons
         public int[] MuzzlePath;
         public int[] SlidePath;
         public int[] MagazinePath;
+        /// <summary>The magazine part's name (for the logs: which part a machine gun's box is).</summary>
+        public string MagazineName;
         /// <summary>Pieces that travel with the magazine (rounds, follower, base plate) when they are separate objects.</summary>
         public readonly List<int[]> MagazinePartPaths = new List<int[]>();
         /// <summary>
@@ -257,6 +259,16 @@ namespace RavenfieldVR.Weapons
             sb.Append($" aim={AimAxis:F2} eye={(HasEyePoint ? EyePoint.ToString("F3") : "-")}");
             sb.Append($" travel={SlideTravel.magnitude:0.000}");
             sb.Append($" mag={MagMethod}{(MagazinePartPaths.Count > 0 ? "+" + MagazinePartPaths.Count + " parts" : "")} eject={MagEjectAxis:F2}");
+            // Which part the magazine (a machine gun's box) is, and the belt and cover with it (252 n: which part was taken for
+            // the box was nowhere in the logs).
+            if (MagazineName != null)
+            {
+                sb.Append($" magPart='{MagazineName}'");
+            }
+            if (BeltPartPaths.Count > 0 || Hinge != HingeKind.None)
+            {
+                sb.Append($" belt={BeltPartPaths.Count} hinge={Hinge}");
+            }
             sb.Append($" slideFound={SlideMethod} hands={HandsMethod}");
             foreach (KeyValuePair<MechSound, List<SoundCue>> kv in Cues)
             {

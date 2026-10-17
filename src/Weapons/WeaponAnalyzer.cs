@@ -2360,6 +2360,7 @@ namespace RavenfieldVR.Weapons
 
             int mi = index[mag];
             d.MagazinePath = WeaponRig.PathOf(root, mag);
+            d.MagazineName = mag.name;
             CollectSpareMagazines(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler);
             d.MagazineToggles = toggles;
             d.MagazineIsSkinned = !HasRendererInSubtree(mag) && gunBones.Contains(mag);

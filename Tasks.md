@@ -1809,7 +1809,9 @@ Results (2026-10-16 night):
 - (g) remaining keep-out gaps: the free hand swept from its last clear place, the magazine hand's fingers closing on the gun off the well line, no keep-out before the solid is measured, parts outside the collider envelope.
 - (ac) moving the real charging handle of unreadable meshes needs a clip shader (a shader bundle from a Unity 2020.3 editor).
 - (h) check the magazine line fit's log lines per gun ("magazine line fitted ... / kept ...") and the seating pictures; the PPSh's pull axis runs along the bore (90 degrees off, beyond the fit).
-- Autotest to add: an empty reload per pistol and rifle (slide locked, magazine in, released / racked: the drawn slide back, then home), the pump worked by the support hand's trigger, an en-bloc clip.
+- Autotest to add: an empty reload per pistol and rifle (slide locked, magazine in, released / racked: the drawn slide back, then home), the pump worked by the support hand's trigger, an en-bloc clip. Done 2026-10-17: EmptyReloadSelfCheck (now racked by the scripted hand), PumpTriggerSelfCheck (VRInput.SimulatedUse), EnBlocSelfCheck, EmptyAtPouchSelfCheck, OffLinePullSelfCheck (255.I6).
+- (h) PPSh, 2026-10-17: its pull axis (0.12, 0, -0.99) is in gun-body space, whose z is not the bore on this model: the picture review saw the magazine drop straight down its own axis (165/164 "magazine (deep)"), and this morning's run fitted its line with 0 of 210 magazine points through the gun. Nothing 90 degrees off found; to look at again only if the headset shows it.
+- (n) 2026-10-17: the rig line now names the magazine part (magPart='...') and the belt part count and hinge, so the box a machine gun got is in every log.
 - Verify in the headset: everything in 252 a-ab.
 
 ### For 253: review of the night's analysis and rocket changes (4 Haiku reviewers, each finding checked by 2 Haiku skeptics, 2026-10-16 night)
