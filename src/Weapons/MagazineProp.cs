@@ -2055,6 +2055,57 @@ namespace RavenfieldVR.Weapons
             return inside;
         }
 
+        /// <summary>
+        /// Self-test: the magazine as drawn now, sampled every 5 mm over its whole box (the keep-out tests 25 points): how
+        /// many lie in the gun's solid inside the well's opening (let through by design) and how many outside it. A sideways
+        /// pass that crosses the receiver through the opening, or between the keep-out's rows, shows up here (252 ae).
+        /// </summary>
+        internal void ProbeInside(HeldWeapon gun, out int points, out int inWell, out int outWell)
+        {
+            points = inWell = outWell = 0;
+            System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
+            if (solid == null || Go == null || gun.Rig.GunBody == null)
+            {
+                return;
+            }
+            WeaponRig wellRig = WellRig(gun);
+            RigidPose seat = wellRig.GunBodyPose.Multiply(wellRig.Data.MagSeat);
+            Bounds well = wellRig.Data.MagBounds;
+            well.Expand(WellPlay);
+            Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
+            Transform t = Go.transform;
+            int na = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.005f) + 1, 2, 80);
+            int nf = Mathf.Clamp(Mathf.CeilToInt(2f * _frontHalf / 0.005f) + 1, 2, 20);
+            int ns = Mathf.Clamp(Mathf.CeilToInt(2f * _sideHalf / 0.005f) + 1, 2, 20);
+            for (int a = 0; a < na; a++)
+            {
+                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(na - 1));
+                for (int f = 0; f < nf; f++)
+                {
+                    for (int s = 0; s < ns; s++)
+                    {
+                        Vector3 p = t.TransformPoint(c + FrontLocal * (_frontHalf * (2f * f / (nf - 1) - 1f)) + side * (_sideHalf * (2f * s / (ns - 1) - 1f)));
+                        points++;
+                        if (!solid(p))
+                        {
+                            continue;
+                        }
+                        if (well.Contains(seat.InverseTransformPoint(p)))
+                        {
+                            inWell++;
+                        }
+                        else
+                        {
+                            outWell++;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>Self-test: the keep-out's own box of the magazine (front x side x length, cm).</summary>
+        internal string KeepOutBox => $"{_frontHalf * 200f:0.0} x {_sideHalf * 200f:0.0} x {Vector3.Distance(BaseLocal, TipLocal) * 100f:0.0} cm";
+
         private bool _touchingGun;
         private Vector3 _lastScrapeAt;
         // Each magazine's own: shared, the palmed one's knock silenced the fresh one's in the same frame (255.I1-6).
@@ -2106,8 +2157,14 @@ namespace RavenfieldVR.Weapons
         public Vector3 TipWorld => Go.transform.TransformPoint(TipLocal);
         public Vector3 InsertDirWorld => Go.transform.TransformDirection(InsertDirLocal);
 
-        public void Drop(Vector3 velocity, Vector3 angularVelocity)
+        public void Drop(Vector3 velocity, Vector3 angularVelocity, [System.Runtime.CompilerServices.CallerMemberName] string by = "")
         {
+            if (Core.AutoTest.Requested && HeldBy != null && Rounds > 0)
+            {
+                // Autotest: which branch takes a loaded magazine out of a hand (RECON LRR's fresh magazine left the hand
+                // with its 14 rounds during a slow push, and no branch could be named from the code; 252 ae).
+                Log.Info($"Magazine ({Rounds} rounds) dropped from the {HeldBy.Side} hand by {by}{(LostByHand ? " (lost by the hand)" : "")}.");
+            }
             LostByHand = false;
             if (_sectionEasing)
             {
@@ -2205,8 +2262,12 @@ namespace RavenfieldVR.Weapons
             Destroy();
         }
 
-        public void Destroy()
+        public void Destroy([System.Runtime.CompilerServices.CallerMemberName] string by = "")
         {
+            if (Core.AutoTest.Requested && HeldBy != null && Rounds > 0)
+            {
+                Log.Info($"Magazine ({Rounds} rounds) in the {HeldBy.Side} hand removed by {by}.");
+            }
             if (HeldBy != null && ReferenceEquals(HeldBy.Held, this))
             {
                 HeldBy.Held = null;

@@ -905,6 +905,23 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The animator's state (layer 0) last seen at rest with a round loaded, and the one it sat in empty.</summary>
         private int _loadedRestState, _emptyState;
+
+        /// <summary>Self-test: the animator's state now against the loaded rest and empty poses it learned, and the game's round count.</summary>
+        internal string AnimatorStateText
+        {
+            get
+            {
+                Weapon w = ActiveWeapon;
+                if (w == null || !w.HasActiveAnimator() || w.animator.layerCount == 0)
+                {
+                    return "no animator";
+                }
+                Animator a = w.animator;
+                int now = a.GetCurrentAnimatorStateInfo(0).fullPathHash;
+                string which = now == _loadedRestState ? "the loaded rest pose" : now == _emptyState ? "THE EMPTY POSE" : $"state {now:X8}";
+                return $"animator in {which}{(a.IsInTransition(0) ? " (in a transition)" : "")}, game rounds {w.ammo}";
+            }
+        }
         /// <summary>
         /// The loaded and empty poses per weapon type, kept past a holster: a gun drawn empty never learned its loaded pose in
         /// that holding, and the next frames stored the empty pose as the loaded one (255.B1-1).

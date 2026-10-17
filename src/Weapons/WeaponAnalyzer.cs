@@ -528,6 +528,7 @@ namespace RavenfieldVR.Weapons
             bool canSample = animator != null && animator.runtimeAnimatorController != null && animator.transform == root;
             PoseSampler sampler = SampleFromRigidBody(w, all, index, muzzle, handR, canSample, d.Action, armRenderers, ref gunBody, out bool sampled);
             d.GunBodyPath = WeaponRig.PathOf(root, gunBody) ?? new int[0];
+            string rigDump = null;
             try
             {
                 d.Animated = sampled;
@@ -600,7 +601,7 @@ namespace RavenfieldVR.Weapons
                 BuildSoundMap(d, sampler, w);
                 if (WeaponSelfTest.WantsRigDump(key))
                 {
-                    WeaponSelfTest.AppendRigDump(DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler));
+                    rigDump = DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 }
             }
             finally
@@ -614,6 +615,11 @@ namespace RavenfieldVR.Weapons
             BoltInsideOnSurface(d);
             ForwardSideHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
+            if (rigDump != null)
+            {
+                // Written once every rule has run: with what they chose (the slide, the handle, the rack point, the magazine).
+                WeaponSelfTest.AppendRigDump(rigDump + DumpChoices(d, root));
+            }
             return d;
         }
 
@@ -1325,12 +1331,17 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Every transform of the rig with what the sampler saw it do (for -rfvr-dumprig).</summary>
         private static string DumpRig(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
-            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"=== {d.Key}  action {d.Action}  aim {d.AimAxis:F2} up {d.Up:F2}  grip {d.GripPoint:F3}  muzzle {d.MuzzlePoint:F3}");
             sb.AppendLine("    flags: A arm  G gun body  M muzzle  C part candidate  h hidden at idle  b skinned bone");
             sb.AppendLine("    fire: move cm (along bore) rot deg @axis | reload: move cm, first dir (back, down) rot deg @axis");
+            sb.AppendLine("    @ its own mesh's centre in cm from the muzzle (back along the bore, up, right) and its size (along x up x across)");
+            if (!string.IsNullOrEmpty(d.DumpLines))
+            {
+                sb.Append(d.DumpLines);
+            }
             foreach (Transform t in all)
             {
                 int i = index[t];
@@ -1374,6 +1385,14 @@ namespace RavenfieldVR.Weapons
                     string shape = mesh == null ? ""
                         : $", mesh '{mesh.name}' {Vector3.Scale(mesh.bounds.size, t.lossyScale).magnitude / Mathf.Max(1e-6f, root.lossyScale.x) * 100f:0.0} cm";
                     drawn = $" | {own.GetType().Name}{(own.enabled ? "" : " off")}, shadows {own.shadowCastingMode}, {look}{shape}";
+                    // Where it is (the dump had sizes only: whether a knob touches its carrier, or a T sits at the carrier's
+                    // rear top, could not be told from it; 252 ae reviews).
+                    Transform self = t;
+                    Bounds ob = sampler.GunSpaceBoundsWhere(t, gunIdle, x => x != self);
+                    if (ob.size.sqrMagnitude > 1e-10f)
+                    {
+                        drawn += " " + WhereInGun(d, ob);
+                    }
                 }
                 Camera cam = t.GetComponent<Camera>();
                 if (cam != null)
@@ -1384,6 +1403,31 @@ namespace RavenfieldVR.Weapons
                 }
                 sb.AppendLine($"{new string(' ', 2 + depth * 2)}{t.name} [{flags}]{fire}{reload}{drawn}");
             }
+            return sb.ToString();
+        }
+
+        /// <summary>A gun-space box as the rig dump gives it: its centre from the muzzle (back, up, right) and its size, in cm.</summary>
+        private static string WhereInGun(WeaponRigData d, Bounds b)
+        {
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            Vector3 c = b.center - d.MuzzlePoint;
+            float Across(Vector3 axis) => Vector3.Dot(b.size, new Vector3(Mathf.Abs(axis.x), Mathf.Abs(axis.y), Mathf.Abs(axis.z))) * 100f;
+            return $"@ back {Vector3.Dot(c, -d.AimAxis) * 100f:0.0} up {Vector3.Dot(c, d.Up) * 100f:0.0} right {Vector3.Dot(c, right) * 100f:0.0} "
+                   + $"size {Across(d.AimAxis):0.0}x{Across(d.Up):0.0}x{Across(right):0.0}";
+        }
+
+        /// <summary>The rig dump's last lines: what the rules chose, once all of them ran.</summary>
+        private static string DumpChoices(WeaponRigData d, Transform root)
+        {
+            string Name(int[] path) => path == null ? "none" : "'" + (WeaponRig.Resolve(root, path)?.name ?? "?") + "'";
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            Vector3 rp = d.RackPoint - d.MuzzlePoint;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"    chosen: slide {Name(d.SlidePath)} ({d.SlideMethod}) travel {d.SlideTravel.magnitude * 100f:0.0} cm; handle {Name(d.HandlePath)} travel {d.HandleTravel.magnitude * 100f:0.0} cm; bolt {Name(d.BoltPath)}");
+            sb.AppendLine($"    rack point: back {Vector3.Dot(rp, -d.AimAxis) * 100f:0.0} up {Vector3.Dot(rp, d.Up) * 100f:0.0} right {Vector3.Dot(rp, right) * 100f:0.0} cm from the muzzle; "
+                          + $"on the surface {d.RackOnSurface}, carved {d.CarveHandle}, added knob {d.AddedHandle}; handgun {d.Handgun}, pistol {d.IsPistol}");
+            sb.AppendLine($"    magazine {Name(d.MagazinePath)}: pull {d.MagEjectAxis:F2}, box {d.MagBounds.size * 100f:F1} cm");
+            sb.AppendLine($"    notes: {d.Notes}");
             return sb.ToString();
         }
 
@@ -2710,6 +2754,10 @@ namespace RavenfieldVR.Weapons
                 d.Notes += "magazine pull pointed into the gun (turned around) ";
             }
 
+            if (magPart != null && WeaponSelfTest.WantsRigDump(d.Key))
+            {
+                d.DumpLines += MagAxisDiagnosis(d, magPart, local, animated);
+            }
             Vector3 s = local.size;
             int longest = s.x >= s.y && s.x >= s.z ? 0 : s.y >= s.z ? 1 : 2;
             float second = longest == 0 ? Mathf.Max(s.y, s.z) : longest == 1 ? Mathf.Max(s.x, s.z) : Mathf.Max(s.x, s.y);
@@ -2881,6 +2929,54 @@ namespace RavenfieldVR.Weapons
             return points;
         }
 
+        /// <summary>
+        /// Rig dump: what the magazine's axis is made of. The animated pull, the box's longest side, the vertex axis with and
+        /// without the parked pieces, the top tangent, and every mesh under the magazine with whether it counts (active up to
+        /// the magazine, its renderer on, near it) and its own long axis, in gun space.
+        /// </summary>
+        private static string MagAxisDiagnosis(WeaponRigData d, Transform part, Bounds local, bool animated)
+        {
+            var sb = new System.Text.StringBuilder();
+            Vector3 Gun(Vector3 axisLocal) => (d.MagSeat.rotation * axisLocal).normalized;
+            sb.AppendLine($"    magazine axis of '{part.name}': animated pull {(animated ? d.MagEjectAxis.ToString("F2") : "none")}, box {local.size * 100f:F1} cm");
+            foreach (bool near in new[] { true, false })
+            {
+                if (PrincipalAxis(part, near, out Vector3 p, out float e))
+                {
+                    string top = TopTangent(part, p, Quaternion.Inverse(d.MagSeat.rotation) * d.Up, out Vector3 tt)
+                        ? $", top tangent {Gun(tt):F2} ({Vector3.Angle(tt, Vector3.Dot(tt, p) < 0f ? -p : p):0}° off)" : "";
+                    sb.AppendLine($"      vertex axis ({(near ? "shown near" : "all meshes")}): {Gun(p):F2}, {e:0.0} times longer than wide{top}");
+                }
+            }
+            foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                bool active = ActiveUpTo(mf.transform, part);
+                bool counts = m != null && m.isReadable && active && (mf.transform.position - part.position).sqrMagnitude <= 1.5f * 1.5f;
+                string own = "";
+                if (m != null && m.isReadable && m.vertexCount > 0)
+                {
+                    var pts = new List<Vector3>();
+                    Vector3[] v = m.vertices;
+                    for (int i = 0; i < v.Length; i += Mathf.Max(1, v.Length / 2000))
+                    {
+                        pts.Add(part.InverseTransformPoint(mf.transform.TransformPoint(v[i])));
+                    }
+                    Vector3 mean = Vector3.zero;
+                    foreach (Vector3 q in pts)
+                    {
+                        mean += q;
+                    }
+                    mean /= Mathf.Max(1, pts.Count);
+                    own = AxisOf(pts, out Vector3 a, out float e) ? $", own axis {Gun(a):F2} ({e:0.0}x), centre {d.MagSeat.TransformPoint(mean) * 100f:F1} cm" : "";
+                }
+                sb.AppendLine($"      mesh '{mf.name}' ({(m == null ? "no mesh" : m.isReadable ? m.vertexCount + " vertices" : "unreadable")}): "
+                              + $"{(active ? "active" : "INACTIVE")}, renderer {(mr == null ? "none" : mr.enabled ? "on" : "OFF")}, {(counts ? "counts" : "left out")}{own}");
+            }
+            return sb.ToString();
+        }
+
         private static bool PrincipalAxis(Transform part, bool shownNearOnly, out Vector3 axisLocal, out float elongation)
         {
             axisLocal = Vector3.up;
@@ -2904,6 +3000,14 @@ namespace RavenfieldVR.Weapons
                     points.Add(part.InverseTransformPoint(mf.transform.TransformPoint(v[i])));
                 }
             }
+            return AxisOf(points, out axisLocal, out elongation);
+        }
+
+        /// <summary>The direction a set of points spreads along most, and how much more than across it (ratio of the spreads).</summary>
+        private static bool AxisOf(List<Vector3> points, out Vector3 axisLocal, out float elongation)
+        {
+            axisLocal = Vector3.up;
+            elongation = 0f;
             if (points.Count < 8)
             {
                 return false;

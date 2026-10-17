@@ -825,6 +825,154 @@ namespace RavenfieldVR.Weapons
             return d * far > 0.02f ? d : 0f;
         }
 
+        /// <summary>
+        /// Self-test: how much of <paramref name="part"/> is seen when the gun is looked at from its left, right, top and
+        /// bottom: of the pixels the part covers alone, the share where it is the gun's nearest surface (the picture changes
+        /// when it is left out). A carrier buried in the receiver reads 0, a slide or a knob standing out most of it. The arms
+        /// are not drawn. Rendered and read back now: a test-only cost (12 small pictures).
+        /// </summary>
+        internal static float VisibleShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, out string perView)
+        {
+            perView = "";
+            Shader shader = DepthShader();
+            if (shader == null || part.Count == 0)
+            {
+                return -1f;
+            }
+            var all = new List<Renderer>();
+            foreach (Renderer r in gun)
+            {
+                if (r != null && !part.Contains(r))
+                {
+                    all.Add(r);
+                }
+            }
+            var mine = new List<Renderer>();
+            foreach (Renderer r in part)
+            {
+                if (r != null)
+                {
+                    mine.Add(r);
+                }
+            }
+            if (mine.Count == 0)
+            {
+                return -1f;
+            }
+            Bounds wb = mine[0].bounds;
+            foreach (Renderer r in all)
+            {
+                wb.Encapsulate(r.bounds);
+            }
+            foreach (Renderer r in mine)
+            {
+                wb.Encapsulate(r.bounds);
+            }
+            float radius = Mathf.Max(0.05f, wb.extents.magnitude);
+            int size = Mathf.Clamp(Mathf.CeilToInt(2f * radius / 0.002f), 64, 512);
+            Vector3 aim = aimWorld.normalized, up = upWorld.normalized, right = Vector3.Cross(up, aim).normalized;
+            var views = new[] { (right, up, "left"), (-right, up, "right"), (-up, aim, "top"), (up, aim, "bottom") };
+            int layer = FreeLayer();
+            var owners = new List<GameObject>();
+            foreach (Renderer r in all)
+            {
+                owners.Add(r.gameObject);
+            }
+            foreach (Renderer r in mine)
+            {
+                owners.Add(r.gameObject);
+            }
+            var oldLayers = new int[owners.Count];
+            for (int i = 0; i < owners.Count; i++)
+            {
+                oldLayers[i] = owners[i].layer;
+            }
+            var go = new GameObject("RavenfieldVR Visibility Camera");
+            Camera cam = go.AddComponent<Camera>();
+            cam.enabled = false;
+            cam.orthographic = true;
+            cam.orthographicSize = radius;
+            cam.aspect = 1f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            cam.cullingMask = 1 << layer;
+            cam.stereoTargetEye = StereoTargetEyeMask.None;
+            cam.useOcclusionCulling = false;
+            cam.allowHDR = false;
+            cam.allowMSAA = false;
+            cam.renderingPath = RenderingPath.Forward;
+            cam.nearClipPlane = 0.005f;
+            cam.farClipPlane = 2f * radius + 0.2f;
+            long partPx = 0, seenPx = 0;
+            var parts = new List<string>();
+            void SetLayers(bool rest, bool own)
+            {
+                for (int i = 0; i < all.Count; i++)
+                {
+                    all[i].gameObject.layer = rest ? layer : oldLayers[i];
+                }
+                for (int i = 0; i < mine.Count; i++)
+                {
+                    mine[i].gameObject.layer = own ? layer : oldLayers[all.Count + i];
+                }
+            }
+            Color32[] Shoot(Vector3 dir, Vector3 camUp)
+            {
+                RenderTexture rt = Render(cam, wb.center - dir * (radius + 0.1f), Quaternion.LookRotation(dir, camUp), size, size, shader);
+                try
+                {
+                    return ReadNow(rt);
+                }
+                finally
+                {
+                    RenderTexture.ReleaseTemporary(rt);
+                }
+            }
+            try
+            {
+                foreach (var (dir, camUp, name) in views)
+                {
+                    SetLayers(true, false);
+                    Color32[] without = Shoot(dir, camUp);
+                    SetLayers(true, true);
+                    Color32[] with = Shoot(dir, camUp);
+                    SetLayers(false, true);
+                    Color32[] alone = Shoot(dir, camUp);
+                    long own = 0, seen = 0;
+                    for (int i = 0; i < alone.Length; i++)
+                    {
+                        Color32 a = alone[i];
+                        if (a.r == 0 && a.g == 0 && a.b == 0 && a.a == 0)
+                        {
+                            continue;
+                        }
+                        own++;
+                        Color32 x = with[i], y = without[i];
+                        if (x.r != y.r || x.g != y.g || x.b != y.b || x.a != y.a)
+                        {
+                            seen++;
+                        }
+                    }
+                    partPx += own;
+                    seenPx += seen;
+                    parts.Add($"{name} {(own == 0 ? 0f : 100f * seen / own):0}%");
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < owners.Count; i++)
+                {
+                    if (owners[i] != null)
+                    {
+                        owners[i].layer = oldLayers[i];
+                    }
+                }
+                UnityEngine.Object.Destroy(go);
+            }
+            perView = string.Join(", ", parts.ToArray());
+            return partPx == 0 ? -1f : (float)seenPx / partPx;
+        }
+
         private static RenderTexture Render(Camera cam, Vector3 position, Quaternion rotation, int w, int h, Shader shader)
         {
             cam.transform.SetPositionAndRotation(position, rotation);

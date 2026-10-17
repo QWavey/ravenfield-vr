@@ -251,6 +251,9 @@ namespace RavenfieldVR.Weapons
         public bool Animated;
         public string Notes = "";
 
+        /// <summary>Rig dump only (-rfvr-dumprig): lines an analysis step adds to the gun's section.</summary>
+        [System.NonSerialized] public string DumpLines = "";
+
         public string Describe()
         {
             var sb = new StringBuilder();

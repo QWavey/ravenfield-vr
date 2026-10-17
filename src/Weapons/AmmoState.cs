@@ -310,6 +310,14 @@ namespace RavenfieldVR.Weapons
 
         public void InsertMagazine(int rounds)
         {
+            if (MagInserted && MagRounds > 0)
+            {
+                // A magazine in while one is still in (two seat paths in one frame): the one it replaces keeps its rounds,
+                // back to the reserve, or they were gone from the count (252 ae, RECON LRR's 29 -> 15).
+                Log.Info($"A magazine went in over one still in ({MagRounds} rounds): those back to the reserve.");
+                ReturnSpare(MagRounds);
+                MagRounds = 0;
+            }
             MagInserted = true;
             MagRounds = Mathf.Clamp(rounds, 0, Mathf.Max(0, Capacity - (!VRConfig.ChamberPlusOne.Value && Chambered ? 1 : 0)));
             ReturnSpare(rounds - MagRounds); // more than this weapon's magazine holds: the rest goes to the reserve

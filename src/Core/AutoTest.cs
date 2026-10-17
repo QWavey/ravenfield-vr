@@ -3160,11 +3160,14 @@ namespace RavenfieldVR.Core
                         if ((Deep || !tacticalDone) && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsPistol && held.Rig.Data.MagKickable)
                         {
                             tacticalDone = true;
-                            yield return held.Reload.TacticalSelfCheck(lines.Add, name => Shots.Capture(name));
+                            // Named with the gun (a later gun's pictures overwrote these: RECON LRR's mag-kick pictures were
+                            // the mrad's; 252 ae).
+                            int magIndex = index;
+                            yield return held.Reload.TacticalSelfCheck(lines.Add, name => Shots.Capture($"{name}-{magIndex:000}-{entry.name}"));
                             yield return held.Reload.H3vrReloadSelfCheck(lines.Add, name =>
                             {
-                                Shots.Capture(name);
-                                MagHandCloseups(name, lines.Add);
+                                Shots.Capture($"{name}-{magIndex:000}-{entry.name}");
+                                MagHandCloseups($"{name}-{magIndex:000}-{entry.name}", lines.Add);
                             });
                         }
                         if (!armsDone && want && action == ActionType.SelfLoading && !held.Rig.Data.IsPistol

@@ -1891,7 +1891,8 @@ namespace RavenfieldVR.Weapons
                 _kickPushSince = Time.unscaledTime;
             }
             bool push = pressing && (along >= 0.03f || Time.unscaledTime - _kickPushSince >= 0.12f);
-            bool strike = inWindow && speed >= 0.2f || crossed && speed >= 0.08f;
+            // Crossing at 8 cm/s; compared a little under it (a push at exactly 0.08 m/s was a coin flip: 252 ae).
+            bool strike = inWindow && speed >= 0.2f || crossed && speed >= 0.075f;
             if (!strike && !push)
             {
                 return false;
@@ -3768,9 +3769,16 @@ namespace RavenfieldVR.Weapons
                 Vector3 centre = Data.MuzzlePoint + aim * (Vector3.Dot(seatGun - Data.MuzzlePoint, aim) + 0.03f);
                 var passes = new[] { ("sideways slowly", right, 0.5f), ("sideways hard", right, 2.5f), ("from above hard", -up, 2.5f) };
                 int worstFrames = 0, worstPoints = 0;
+                // What the keep-out works with (252 ae reviews: measured before the keep-out is changed): the magazine's box,
+                // the well's opening, where the seat lies from the sweep's centre, how far the centre is from the grip
+                // (the keep-out is off past 0.7 m).
+                Vector3 seatOff = seatGun - centre;
+                lines.Add($"probe: magazine {mag.KeepOutBox}, well opening {Data.MagBounds.size * 100f:F1} cm, insert {Rig.ToGun(SeatPose.position + SeatPose.rotation * mag.InsertDirLocal) - seatGun:F2}, "
+                          + $"seat {Vector3.Dot(seatOff, right) * 100f:0.0} right {Vector3.Dot(seatOff, up) * 100f:0.0} up {Vector3.Dot(seatOff, -aim) * 100f:0.0} back of the sweep's centre, "
+                          + $"centre {Vector3.Distance(Rig.ToWorld(centre), _held.GripWorld.position) * 100f:0} cm from the grip");
                 foreach (var (name, dirGun, speed) in passes)
                 {
-                    int frames = 0, maxPoints = 0;
+                    int frames = 0, maxPoints = 0, probeFramesOut = 0, probeMaxOut = 0, probeMaxIn = 0, probePoints = 0;
                     float travel = 0f;
                     while (travel <= 0.5f && ReferenceEquals(off.Held, mag) && mag.Go != null && !mag.OnRail)
                     {
@@ -3785,6 +3793,13 @@ namespace RavenfieldVR.Weapons
                             frames++;
                             maxPoints = Mathf.Max(maxPoints, inside);
                         }
+                        mag.ProbeInside(_held, out probePoints, out int pIn, out int pOut);
+                        if (pOut > 0)
+                        {
+                            probeFramesOut++;
+                        }
+                        probeMaxOut = Mathf.Max(probeMaxOut, pOut);
+                        probeMaxIn = Mathf.Max(probeMaxIn, pIn);
                         if (Mathf.Abs(travel - 0.25f) < speed * 0.012f)
                         {
                             yield return new WaitForEndOfFrame();
@@ -3794,7 +3809,8 @@ namespace RavenfieldVR.Weapons
                     }
                     float endSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
                     Core.AutoTest.Metric($"magazine keep-out ({name}): frames with the magazine drawn inside the gun", frames);
-                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/25 points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}");
+                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/25 points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}"
+                              + $" [probe of {probePoints} points: {probeFramesOut} frame(s) with points in the solid outside the well's opening (at most {probeMaxOut}), at most {probeMaxIn} in the solid inside the opening]");
                     worstFrames = Mathf.Max(worstFrames, frames);
                     worstPoints = Mathf.Max(worstPoints, maxPoints);
                     // Back out the way it came before the next pass.
@@ -4137,6 +4153,10 @@ namespace RavenfieldVR.Weapons
                 var layoutPulled = _held.DrawnLayout();
                 float most = 0f, nearestMoving = float.MaxValue, halfStroke = StrokeLength * 0.5f;
                 int movedCount = 0;
+                // Which parts moved, by name, how far, and how far from the rack point (252 ae reviews: the next run must
+                // say which part moved, not only that something did).
+                var movers = new List<(string name, float moved, float fromPoint)>();
+                var movingRenderers = new List<Renderer>();
                 foreach (var kv in layoutRest)
                 {
                     if (!layoutPulled.TryGetValue(kv.Key, out Vector3 now))
@@ -4155,13 +4175,54 @@ namespace RavenfieldVR.Weapons
                         float gap = kv.Key is Renderer r ? Mathf.Sqrt(r.bounds.SqrDistance(handAt))
                             : kv.Key is Transform b ? Vector3.Distance(b.position, handAt) : float.MaxValue;
                         nearestMoving = Mathf.Min(nearestMoving, gap);
+                        float fromPoint = kv.Key is Renderer rr ? Mathf.Sqrt(rr.bounds.SqrDistance(RackPointWorld))
+                            : kv.Key is Transform bb ? Vector3.Distance(bb.position, RackPointWorld) : float.MaxValue;
+                        movers.Add(((kv.Key is Renderer ? "" : "bone ") + kv.Key.name, moved, fromPoint));
+                        if (kv.Key is Renderer mr)
+                        {
+                            movingRenderers.Add(mr);
+                        }
+                    }
+                }
+                movers.Sort((a, b) => b.moved.CompareTo(a.moved));
+                var moverText = new List<string>();
+                for (int i = 0; i < movers.Count && i < 5; i++)
+                {
+                    moverText.Add($"'{movers[i].name}' {movers[i].moved * 1000f:0} mm ({movers[i].fromPoint * 100f:0.0} cm from the rack point)");
+                }
+                if (movers.Count > 5)
+                {
+                    moverText.Add($"{movers.Count - 5} more");
+                }
+                // Whether the moving part is seen at all from outside the gun (a carrier in the receiver moves, unseen).
+                string seenText = "";
+                if (movingRenderers.Count > 0)
+                {
+                    var gunRenderers = new List<Renderer>();
+                    var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+                    foreach (Renderer r in _held.Weapon.GetComponentsInChildren<Renderer>(false))
+                    {
+                        if (r.enabled && !arms.Contains(r) && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                        {
+                            gunRenderers.Add(r);
+                        }
+                    }
+                    float share = GunVolume.VisibleShare(gunRenderers, movingRenderers, Rig.AimWorld, Rig.DirToWorld(Data.Up), out string views);
+                    if (share >= 0f)
+                    {
+                        Core.AutoTest.Metric("rack: % of the moving parts seen from outside the gun at half pull", share * 100f);
+                        seenText = $"; seen from outside: {share * 100f:0}% of the moving parts ({views}){(share < 0.05f ? " (HIDDEN IN THE GUN)" : "")}";
                     }
                 }
                 Core.AutoTest.Metric("rack: mm the drawn gun moves at half pull (most)", most * 1000f);
                 string drawnMoves = movedCount == 0
                     ? $"NOTHING DRAWN MOVES (most {most * 1000f:0} mm for a {halfStroke * 1000f:0} mm half pull)"
                     : $"{movedCount} drawn part(s) move, most {most * 1000f:0} mm; the nearest is {nearestMoving * 100f:0.0} cm from the hand"
-                      + (nearestMoving > 0.03f ? " (THE PART UNDER THE HAND DOES NOT MOVE)" : "");
+                      + (nearestMoving > 0.03f ? " (THE PART UNDER THE HAND DOES NOT MOVE)" : "")
+                      + $" [{string.Join(", ", moverText.ToArray())}]{seenText}";
+                Vector3 rackGun = Rig.ToGun(RackPointWorld) - Data.MuzzlePoint;
+                Vector3 rightGun = Vector3.Cross(Data.Up, Data.AimAxis).normalized;
+                drawnMoves += $"; rack point back {Vector3.Dot(rackGun, -Data.AimAxis) * 100f:0.0} up {Vector3.Dot(rackGun, Data.Up) * 100f:0.0} right {Vector3.Dot(rackGun, rightGun) * 100f:0.0} cm from the muzzle";
                 // All the way back, then let go: a spring-driven slide or bolt slams home and jolts the gun.
                 for (int i = 11; i <= 20; i++)
                 {
@@ -4620,8 +4681,29 @@ namespace RavenfieldVR.Weapons
                 }
                 return most;
             }
+            // Which drawn parts are away from home, by name, and how far back (+) or forward (-) along the bore (ARS MP9: a
+            // part 44 mm off after the release, not named; 252 ae reviews: named before anything is changed).
+            string Away(Dictionary<Object, Vector3> a, Dictionary<Object, Vector3> b)
+            {
+                var away = new List<(string name, float moved, float back)>();
+                foreach (var kv in a)
+                {
+                    if (b.TryGetValue(kv.Key, out Vector3 at) && Vector3.Distance(kv.Value, at) >= 0.003f)
+                    {
+                        away.Add(((kv.Key is Renderer ? "" : "bone ") + kv.Key.name, Vector3.Distance(kv.Value, at), Vector3.Dot(at - kv.Value, -Data.AimAxis)));
+                    }
+                }
+                away.Sort((x, y) => y.moved.CompareTo(x.moved));
+                var parts = new List<string>();
+                for (int i = 0; i < away.Count && i < 3; i++)
+                {
+                    parts.Add($"'{away[i].name}' {away[i].moved * 1000f:0} mm ({away[i].back * 1000f:0} mm back)");
+                }
+                return parts.Count == 0 ? "nothing" : string.Join(", ", parts.ToArray()) + (away.Count > 3 ? $" and {away.Count - 3} more" : "");
+            }
             yield return new WaitForSecondsRealtime(0.3f);
             var home = _held.DrawnLayout();
+            string homeState = _held.AnimatorStateText;
             // The last round fired: nothing chambered, the magazine empty, the slide caught back.
             Ammo.Chambered = false;
             Ammo.MagRounds = 0;
@@ -4638,7 +4720,9 @@ namespace RavenfieldVR.Weapons
             // Released (the slide release, as the A button does).
             ReleaseSlide();
             yield return new WaitForSecondsRealtime(0.8f);
-            float leftBack = Moved(home, _held.DrawnLayout());
+            var released = _held.DrawnLayout();
+            float leftBack = Moved(home, released);
+            string releasedAway = Away(home, released), releasedState = _held.AnimatorStateText;
             bool fed = Ammo.Chambered;
             // A hand rack: the off hand takes the part and pulls it half way back; the drawn part must follow. Through the
             // hand's own path (BeginRack, UpdateRack, EndRack): the offset set directly left a reset in that path unseen
@@ -4689,7 +4773,7 @@ namespace RavenfieldVR.Weapons
             float tol = Mathf.Max(0.003f, lockTravel * 0.25f);
             string verdict = lockTravel < 0.003f ? "THE DRAWN SLIDE DOES NOT SHOW THE LOCK (nothing moved when locked)"
                 : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm)"
-                : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home)"
+                : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home: {releasedAway}; at home {homeState}, released {releasedState})"
                 : "stayed back with the fresh magazine, home when released";
             report($"empty reload: locked back {lockTravel * 1000f:0} mm, {(stillLocked ? "still locked" : "NOT LOCKED")} with a fresh magazine, {verdict}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
                    + (racked == -1f ? "hand rack not checked (the off hand was busy)"
