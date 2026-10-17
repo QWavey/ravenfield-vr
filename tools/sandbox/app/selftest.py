@@ -2,15 +2,16 @@
 step written PASS or FAIL with what it saw. It saves into folders of its own (reports/sandbox/selftest): the user's saved
 poses and the game's are never touched (it deleted them and put them back only at the end before, review B3#0/B8#0)."""
 import json
+import math
 import os
 import shutil
 import time
 
 import numpy as np
 from PyQt6.QtCore import QEvent, QPointF, Qt, QTimer
-from PyQt6.QtGui import QGuiApplication, QMouseEvent
+from PyQt6.QtGui import QGuiApplication, QKeyEvent, QMouseEvent
 
-from mathutil import quat_axis_angle, quat_mul
+from mathutil import quat_axis_angle, quat_mul, v3
 
 
 class SelfTest:
@@ -21,13 +22,20 @@ class SelfTest:
         self.report = report
         self.want = want
         self.lines = []
+        self.passed = 0
         self.failed = 0
+        self.skipped = 0  # checks that could not run here (a part this gun does not have, a feature not built yet): not passed
         self.backups = {}
         self.made = []
+        self.shot = None  # the screenshot and the GIF taken in this run (the Captures page must list them)
+        self.gif = None
         self.steps = [self.s_list, self.s_open, self.s_hands, self.s_edit, self.s_save, self.s_reimport, self.s_export,
                       self.s_send_remove, self.s_bad_import, self.s_undo, self.s_draft, self.s_reload_start, self.s_reload_wait,
                       self.s_laser, self.s_screenshot, self.s_gif_start, self.s_gif_stop, self.s_error_raise, self.s_error_check,
-                      self.s_cleanup]
+                      self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_snap_cover,
+                      self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
+                      self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
+                      self.s_move_weapon, self.s_put_hand, self.s_later_features, self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
         self.root = os.path.join(self.wb.repo, 'reports', 'sandbox', 'selftest')
         shutil.rmtree(self.root, ignore_errors=True)
@@ -41,8 +49,16 @@ class SelfTest:
 
     def check(self, name, ok, detail=''):
         self.lines.append(f"{'PASS' if ok else 'FAIL'}  {name}{(': ' + detail) if detail else ''}")
-        if not ok:
+        if ok:
+            self.passed += 1
+        else:
             self.failed += 1
+
+    def skip(self, name, why):
+        """A check that could not run here: its line says SKIP, and it is counted as neither passed nor failed (a SKIP
+        written as PASS hid the checks that did not run)."""
+        self.lines.append(f'SKIP  {name}: {why}')
+        self.skipped += 1
 
     def start(self):
         QTimer.singleShot(800, self.next)
@@ -63,7 +79,8 @@ class SelfTest:
     def finish(self):
         code = 1 if self.failed else 0
         try:
-            text = f"Ravenfield VR Sandbox self-test, {time.strftime('%Y-%m-%d %H:%M:%S')}: {len(self.lines) - self.failed} passed, {self.failed} failed\n" + '\n'.join(self.lines) + '\n'
+            text = (f"Ravenfield VR Sandbox self-test, {time.strftime('%Y-%m-%d %H:%M:%S')}: {self.passed} passed, {self.failed} failed, "
+                    f"{self.skipped} skipped\n" + '\n'.join(self.lines) + '\n')
             try:
                 with open(self.report, 'w', encoding='utf-8') as f:
                     f.write(text)
@@ -225,7 +242,7 @@ class SelfTest:
         moved = s.weapon.to_gun(h.position)[:3].copy()
         other = next((it for it in wb.items if it.data(Qt.ItemDataRole.UserRole) != w0), None)
         if other is None:
-            self.check('unsaved hands kept when another weapon is opened', True, 'skipped: only one weapon exported')
+            self.skip('unsaved hands kept when another weapon is opened', 'only one weapon exported')
             return
         wb.weapon_list.setCurrentItem(other)
         marked = any(it.data(Qt.ItemDataRole.UserRole) == w0 and 'not saved' in it.text() for it in wb.items)
@@ -245,7 +262,10 @@ class SelfTest:
             self.user_hidden.hidden = True
         self.fresh_seen = False
         self.wb.play_reload()
-        self.check('reload started', self.wb.timeline.running or not self.has_reload)
+        if self.has_reload:
+            self.check('reload started', self.wb.timeline.running)
+        else:
+            self.skip('reload started', 'no magazine or slide that moves on this gun')
         return 300
 
     def s_reload_wait(self):
@@ -261,9 +281,13 @@ class SelfTest:
         self.check('reload played to the end, parts home', ok, f'magazine {w.mag:.2f}, slide {w.slide:.2f}, away {sum(n.away for n in w.nodes)}')
         if w.rig.get('magazine'):
             self.check('the fresh magazine is drawn while it goes in', self.fresh_seen)
+        else:
+            self.skip('the fresh magazine is drawn while it goes in', 'no magazine on this gun')
         if self.user_hidden is not None:
             self.check('a part hidden by the user stays hidden through the reload', self.user_hidden.hidden, self.user_hidden.short)
             self.user_hidden.hidden = False
+        else:
+            self.skip('a part hidden by the user stays hidden through the reload', 'the gun has one part only')
 
     def s_laser(self):
         wb = self.wb
@@ -293,6 +317,7 @@ class SelfTest:
     def s_screenshot(self):
         path = self.wb.screenshot()
         self.made.append(path)
+        self.shot = path
         self.check('screenshot saved', os.path.exists(path) and os.path.getsize(path) > 10000, f'{path} ({os.path.getsize(path) // 1024} KB)')
 
     def s_gif_start(self):
@@ -318,6 +343,7 @@ class SelfTest:
         if ok:
             path = os.path.join(self.wb.captures, new[0])
             self.made.append(path)
+            self.gif = path
             from PIL import Image
             with Image.open(path) as g:
                 frames = getattr(g, 'n_frames', 1)
@@ -344,6 +370,348 @@ class SelfTest:
         size = os.path.getsize(path) if path and os.path.exists(path) else 0
         self.wb.expect_error = ''
         self.check('an error in the program is logged and the program goes on', size > self.error_before, path or 'no log path')
+
+    # ---- the controls and the parts, each as the user reaches them (the buttons and keys call these same methods) -----------
+
+    # The features other branches add now, with the Workbench method each would have. Until that method exists the check is
+    # a SKIP line; once it is merged, the check for it is written here (a SKIP still shows it is not checked yet).
+    LATER = (('Copy the hands for Claude', 'copy_hands_for_claude'), ('the turntable GIF', 'record_turntable'),
+             ('clean pictures', 'clean_screenshot'), ('the put-a-hand menu entries', 'put_hand_from_menu'))
+
+    def _settle(self):
+        """A reload still playing is run to its end first: the checks look at the parts as they are."""
+        self.wb.settle_timeline()
+
+    def _key(self, widget, key, text):
+        """A key pressed and let go, sent to the widget as the keyboard sends it."""
+        QGuiApplication.sendEvent(widget, QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier, text))
+        QGuiApplication.sendEvent(widget, QKeyEvent(QEvent.Type.KeyRelease, key, Qt.KeyboardModifier.NoModifier, text))
+
+    def _hide(self, node):
+        """Hides a part as the context menu's Hide this part does: the part is picked first (as the laser picks it), then hidden."""
+        w = self.wb.scene.weapon
+        point = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
+        self.wb.on_pick(point, node)
+        self.wb.hide_picked()
+
+    def s_reset(self):
+        """Reset: the parts go home, the parts the user hid show again, and the hands go back on the gun."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        wb.s_slide.slider.setValue(60)  # (the sliders move the parts; Reset must bring every one of them back)
+        wb.s_mag.slider.setValue(40)
+        wb.s_cover.slider.setValue(30)
+        self._hide(w.nodes[0])
+        s.right.position = s.right.position + np.array([0.04, 0.0, 0.0])  # the hand taken off the gun
+        wb.reset_parts()
+        home = abs(w.slide) < 1e-9 and abs(w.mag) < 1e-9 and abs(w.cover) < 1e-9 and not any(n.away for n in w.nodes)
+        shown = not any(n.hidden for n in w.nodes)
+        self.check('Reset: the parts go home and every part shows', home and shown,
+                   f'slide {w.slide:.2f}, magazine {w.mag:.2f}, cover {w.cover:.2f}, hidden {sum(n.hidden for n in w.nodes)}')
+        on_grip = bool(np.linalg.norm(w.to_gun(s.right.position)[:3] - w.grip) < 1e-6)
+        self.check('Reset: the right hand back on the grip, the left on the handguard',
+                   on_grip and s.right.on_part == 'grip' and s.left.on_part == 'handguard',
+                   f'right on {s.right.on_part!r}, left on {s.left.on_part!r}')
+
+    def s_snap_support(self):
+        """Left hand to Handguard: on the support point (or, on a gun with none, the spot ahead of the grip)."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        r = w.rig
+        self._settle()
+        wb.snap_left('support')
+        at = v3(r['support']) if r.get('hasSupport') else w.grip + w.aim * 0.2
+        off = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - at))
+        where = 'the support point' if r.get('hasSupport') else 'the spot ahead of the grip'
+        self.check('Left hand to Handguard: on the handguard', s.left.on_part == 'handguard' and off < 1e-6,
+                   f"{off * 1000:.3f} mm from {where}, on {s.left.on_part!r}")
+
+    def s_snap_rack(self):
+        """Left hand to Slide: on the slide or handle, 2 cm off its rack point (as the reload's hand is)."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        if not wb._has_rack():  # (the test main.py makes before it snaps)
+            self.skip('Left hand to Slide: on the slide or handle', 'this gun has no slide or handle that moves')
+            return
+        wb.snap_left('rack')
+        dist = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - w.rack_point()))
+        self.check('Left hand to Slide: on the slide or handle',
+                   s.left.role == 'rack' and s.left.on_part == 'slide / handle' and abs(dist - 0.02) < 1e-4,
+                   f'{dist * 100:.2f} cm from the rack point, job {s.left.role!r}')
+
+    def s_snap_magazine(self):
+        """Left hand to Magazine: at the magazine's place, between its half width and its length from its centre."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        if not w.rig.get('magazine'):
+            self.skip('Left hand to Magazine: on the magazine', 'this gun has no magazine in the analysis')
+            return
+        wb.snap_left('magazine')
+        half = float(np.max(w.mag_size)) * 0.5
+        dist = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - w.mag_center()))
+        self.check('Left hand to Magazine: on the magazine',
+                   s.left.role == 'magazine' and s.left.on_part == 'magazine' and half <= dist <= w.mag_length,
+                   f"{dist * 100:.1f} cm from the magazine's centre, job {s.left.role!r}")
+
+    def s_snap_cover(self):
+        """Left hand to Cover: on the latch of the cover or barrels, where the cover is now (with the cover shut here)."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        r = w.rig
+        self._settle()
+        if r.get('hingeKind', 'None') == 'None':  # (the test snap_left makes before it snaps)
+            self.skip('Left hand to Cover: on the latch', 'this gun has no cover or barrels that open')
+            return
+        wb.snap_left('cover')
+        latch = w.hinge_point(v3(r['hingeGrab']) + w.up * 0.02)
+        off = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - latch))
+        self.check('Left hand to Cover: on the latch', s.left.role == 'cover' and s.left.on_part == 'cover' and off < 1e-6,
+                   f"{off * 1000:.3f} mm from the latch, job {s.left.role!r}")
+
+    def s_slide_slider(self):
+        """The Slide slider at 50% moves the slide, its companions and its handle along their travel."""
+        wb, w = self.wb, self.wb.scene.weapon
+        self._settle()
+        wb.reset_parts()
+        wb.s_slide.slider.setValue(50)
+        movers = [n for n in w.nodes if n.role in ('slide', 'companion', 'bolt', 'handle')]
+        if not movers:
+            self.skip('Slide slider: moves the slide', 'no slide, bolt or handle part in the analysis')
+        else:
+            moved = max(float(np.linalg.norm(n.sim[:3, 3])) for n in movers)
+            self.check('Slide slider at 50% moves the slide', abs(w.slide - 0.5) < 1e-9 and moved > 0.001,
+                       f'slide {w.slide:.2f}, its parts {moved * 100:.1f} cm along their travel')
+        wb.reset_parts()
+
+    def s_mag_slider(self):
+        """The Magazine slider at 50% draws the magazine out along its line, from its seat (and the parked clip's place)."""
+        wb, w = self.wb, self.wb.scene.weapon
+        self._settle()
+        wb.reset_parts()
+        mags = [n for n in w.nodes if n.role == 'magazine']
+        if not w.rig.get('magazine') or not mags:
+            self.skip('Magazine slider: draws the magazine out', 'no magazine part in the analysis')
+            return
+        wb.s_mag.slider.setValue(50)
+        want = w.mag_eject() * w.mag_length * 0.5 + w.mag_parked
+        off = max(float(np.linalg.norm(n.sim[:3, 3] - want)) for n in mags)
+        self.check('Magazine slider at 50% draws the magazine out along its line', abs(w.mag - 0.5) < 1e-9 and off < 1e-6,
+                   f'magazine {w.mag:.2f}, {off * 1000:.3f} mm from its line')
+        wb.reset_parts()
+
+    def s_cover_slider(self):
+        """The Cover slider at 50% opens the cover (or the barrels) on its hinge."""
+        wb, w = self.wb, self.wb.scene.weapon
+        self._settle()
+        wb.reset_parts()
+        if w.rig.get('hingeKind', 'None') == 'None' or not float(w.rig.get('hingeAngle', 0) or 0):
+            self.skip('Cover slider: opens the cover', 'this gun has no cover or barrels that open (or no angle to open them by)')
+            return
+        wb.s_cover.slider.setValue(50)
+        turned = float(np.linalg.norm(w.hinge_m[:3, :3] - np.eye(3)))
+        hinged = [n for n in w.nodes if n.role == 'hinge']
+        parts_turned = not hinged or any(float(np.linalg.norm(n.sim[:3, :3] - np.eye(3))) > 1e-3 for n in hinged)
+        self.check('Cover slider at 50% opens the cover on its hinge',
+                   abs(w.cover - 0.5) < 1e-9 and turned > 1e-3 and parts_turned, f'cover {w.cover:.2f}, turned {turned:.3f}')
+        wb.reset_parts()
+
+    def s_hide_show(self):
+        """Hide this part hides the part picked; Show every part shows all the parts again."""
+        wb, w = self.wb, self.wb.scene.weapon
+        self._settle()
+        wb.reset_parts()
+        node = w.nodes[-1]
+        self._hide(node)
+        hidden = bool(node.hidden) and sum(n.hidden for n in w.nodes) == 1
+        wb.show_all_parts()
+        shown = not any(n.hidden for n in w.nodes)
+        self.check('Hide this part hides it; Show every part shows all again', hidden and shown,
+                   f"'{node.short}' hidden {hidden}, all shown after {shown}")
+
+    def s_parts_list(self):
+        """A part chosen in the parts list is the one the view highlights (the first and the last line)."""
+        wb, w = self.wb, self.wb.scene.weapon
+        self._settle()
+        rows = wb.parts.count()
+        if not rows:
+            self.skip('the parts list', 'no parts listed for this gun')
+            return
+        self.check('the parts list has one line per part', rows == len(w.nodes), f'{rows} lines, {len(w.nodes)} parts')
+        for row in sorted({0, rows - 1}):
+            wb.parts.setCurrentRow(-1)  # (so that choosing the row changes the choice, whatever it was)
+            wb.parts.setCurrentRow(row)
+            item = wb.parts.item(row)
+            node = next((n for n in w.nodes if id(n) == item.data(Qt.ItemDataRole.UserRole)), None)
+            self.check(f'a part chosen in the list (line {row + 1}) is the one the view highlights',
+                       node is not None and wb.view.part_node is node, node.short if node is not None else 'no part for that line')
+
+    def s_numbers(self):
+        """The Advanced number boxes: a typed forward (cm) moves the selected hand along the barrel from the grip, and the
+        up and right boxes keep the hand where it is on those."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        wb.reset_parts()
+        wb.select_hand(s.right)
+        box = wb.num[0][0]
+        target = round(box.value() + 6.0, 1)
+        # Typed in the box's own number format (a German PC takes 6,0, and '6.0' there reads as 60): then taken as the box
+        # takes it when it is left.
+        box.lineEdit().setText(box.locale().toString(float(target), 'f', 1))
+        box.interpretText()
+        p = w.to_gun(s.right.position)[:3] - w.grip
+        along = float(np.dot(p, w.aim)) * 100
+        up = float(np.dot(p, w.up)) * 100
+        right = float(np.dot(p, w.right)) * 100
+        ok = abs(along - target) < 0.01 and abs(up) < 0.01 and abs(right) < 0.01 and abs(box.value() - target) < 1e-9
+        self.check('Advanced: a typed forward (cm) moves the selected hand along the barrel from the grip', ok,
+                   f'typed {target:.1f} cm, the hand {along:.2f} cm forward, {up:.2f} up, {right:.2f} right')
+        wb.reset_parts()
+
+    def s_copy_pose(self):
+        """Copy this pose to the other hand: the selected hand's pose, fingers and thumb go to the other hand."""
+        wb, s = self.wb, self.wb.scene
+        self._settle()
+        wb.reset_parts()
+        wb.select_hand(s.right)
+        wb.on_pose_chosen('Fist')
+        wb.finger_sliders[2].slider.setValue(63)  # a finger of its own, so the copy is not only of a named pose
+        wb.copy_pose_to_other()
+        r, l = s.right, s.left
+        ok = (np.allclose(l.curls, r.curls, atol=1e-9) and abs(l.thumb - r.thumb) < 1e-9 and l.pose_name == r.pose_name
+              and l.thumb_set == r.thumb_set)
+        self.check('Advanced: Copy this pose to the other hand', ok,
+                   f'left {l.pose_name!r}, fingers {[round(c, 2) for c in l.curls]}')
+        wb.reset_parts()
+
+    def s_views(self):
+        """The View card's presets: Side, Top, Front and 3/4 turn the camera; Top looks straight down (the pitch changes)."""
+        v = self.wb.view
+        v.set_view('side')
+        side_pitch = v.pitch
+        v.set_view('top')
+        top_pitch = v.pitch
+        self.check('View: Top looks down (the pitch changes from Side)', top_pitch == 89.0 and top_pitch != side_pitch,
+                   f'pitch {side_pitch:.0f} from Side to {top_pitch:.0f} from Top')
+        good = True
+        for name, yaw, pitch in (('side', 0.0, 0.0), ('top', 0.0, 89.0), ('front', 90.0, 0.0), ('three', -25.0, 12.0)):
+            v.set_view(name)
+            good = good and abs(v.yaw - yaw) < 1e-9 and abs(v.pitch - pitch) < 1e-9
+        self.check('View presets: Side, Top, Front and 3/4 set the camera', good, 'yaw and pitch as the presets give them')
+
+    def s_frame(self):
+        """Frame the gun (F, and the context menu's Frame the gun): the view centres on the gun and backs off to fit it."""
+        wb, v = self.wb, self.wb.view
+        w = self.wb.scene.weapon
+        self._settle()
+        c, r = w.center_world()
+        v.target = c + np.array([0.5, 0.0, 0.0])
+        v.dist = 3.0
+        wb.frame_weapon()
+        fit = max(0.15, max(0.12, r) / math.sin(math.radians(19)) * 1.05)  # (as the view frames it)
+        self.check('Frame the gun: the view centres on it and backs off to fit', np.allclose(v.target, c) and abs(v.dist - fit) < 1e-9,
+                   f'{v.dist:.3f} m away, fitting {fit:.3f} m')
+
+    def s_keys(self):
+        """The keys: L toggles the laser, 1 and 2 pick the right and left hand, F frames the gun. Sent to the Workbench as the
+        keyboard sends them; the shortcuts act only in the active window, so the window is brought to the front first."""
+        wb, s, v = self.wb, self.wb.scene, self.wb.view
+        w = s.weapon
+        self._settle()
+        self.win.activateWindow()
+        self.app.processEvents()
+        if self.app.activeWindow() is not self.win:
+            self.skip('keys L, 1, 2 and F', 'the program is not the active window on this PC, so the keys are not sent to it')
+            return
+        wb.laser_btn.setChecked(False)
+        self._key(wb, Qt.Key.Key_L, 'l')
+        on = bool(wb.laser_btn.isChecked() and v.laser)
+        self._key(wb, Qt.Key.Key_L, 'l')
+        off = bool(not wb.laser_btn.isChecked() and not v.laser)
+        self.check('key L toggles the laser pointer', on and off, f'on after one press {on}, off after the second {off}')
+        self._key(wb, Qt.Key.Key_2, '2')
+        to_left = v.selected_hand is s.left
+        self._key(wb, Qt.Key.Key_1, '1')
+        to_right = v.selected_hand is s.right
+        self.check('keys 2 and 1 select the left and right hand', to_left and to_right, f'after 2 left {to_left}, after 1 right {to_right}')
+        c, _ = w.center_world()
+        v.target = c + np.array([0.5, 0.0, 0.0])
+        self._key(wb, Qt.Key.Key_F, 'f')
+        self.check('key F frames the gun', bool(np.allclose(v.target, c)))
+
+    def s_captures(self):
+        """The Captures page's refresh lists the screenshot and the GIF taken in this run."""
+        cap = self.win.captures
+        cap.refresh()
+
+        def norm(p):  # (the paths compared as Windows writes them)
+            return os.path.normcase(os.path.normpath(p))
+        listed = {norm(cap.list.item(i).data(Qt.ItemDataRole.UserRole)) for i in range(cap.list.count())}
+        taken = [p for p in (self.shot, self.gif) if p and os.path.exists(p)]
+        if not taken:
+            self.skip('Captures lists the screenshot and the GIF', 'no picture or GIF was taken in this run')
+            return
+        missing = [os.path.basename(p) for p in taken if norm(p) not in listed]
+        self.check('Captures lists the screenshot and the GIF taken in this run', not missing,
+                   f'{len(listed)} listed' + (f', not listed: {missing}' if missing else ''))
+
+    def s_move_weapon(self):
+        """Moving the weapon (Ctrl + drag): the weapon and the hands on it move by the same amount, the hands keep their
+        places on the gun, and the weapon goes back the way it came."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        wb.reset_parts()
+        place0 = w.P.copy()
+        grip0 = w.to_world(w.grip)
+        hands0 = [(h, h.position.copy(), w.to_gun(h.position)[:3].copy()) for h in s.hands()]
+        t = np.array([0.08, -0.03, 0.05])
+        step = np.eye(4)
+        step[:3, 3] = t
+        s.move_weapon(step)
+        moved_gun = bool(np.allclose(w.to_world(w.grip) - grip0, t, atol=1e-9))
+        moved_hands = all(np.allclose(h.position - p0, t, atol=1e-9) for h, p0, _ in hands0)
+        same_places = all(np.allclose(w.to_gun(h.position)[:3], g0, atol=1e-6) for h, _, g0 in hands0)
+        s.move_weapon(np.linalg.inv(step))
+        back = bool(np.allclose(w.P, place0, atol=1e-9) and all(np.allclose(h.position, p0, atol=1e-9) for h, p0, _ in hands0))
+        self.check('move the weapon: the hands go with it, keep their places on the gun, and it goes back',
+                   moved_gun and moved_hands and same_places and back,
+                   f'moved {np.linalg.norm(t) * 100:.1f} cm: weapon {moved_gun}, hands {moved_hands}, places kept {same_places}, back {back}')
+        wb.view.update()
+
+    def s_put_hand(self):
+        """A hand put on a surface of the gun (the point a ray from above finds, as the laser would): the palm lands within
+        5 cm of that point, and the hand gets a job or none."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        self._settle()
+        wb.reset_parts()
+        up_w = w.dir_to_world(w.up)
+        c, r = w.center_world()
+        start = c + up_w * (r + 0.1)
+        t = s.ray_weapon(start, -up_w, 2 * (r + 0.1) + 0.05)
+        if t is None:
+            self.skip("a hand put on the gun's surface", 'no surface of the gun under a ray from above')
+            return
+        point = start - up_w * t
+        for hand in (s.right, s.left):
+            s.put_hand_on(hand, point, up_w)
+            d = float(np.linalg.norm(hand.drawn_position() - point))
+            self.check(f'a {hand.side} hand put on the gun: its palm within 5 cm of the point, a job or none',
+                       d < 0.05 and hand.role in ('', 'grip', 'support', 'rack', 'magazine', 'cover'),
+                       f'palm {d * 100:.1f} cm from the point, job {hand.role!r}')
+        wb.reset_parts()
+
+    def s_later_features(self):
+        """The features other branches are adding: SKIP until their Workbench method is merged in."""
+        for name, method in self.LATER:
+            if hasattr(self.wb, method):
+                self.skip(name, f'Workbench.{method} is there, its check is not written yet')
+            else:
+                self.skip(name, f'not in this build (no Workbench.{method})')
 
     def s_cleanup(self):
         removed = 0
