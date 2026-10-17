@@ -41,22 +41,45 @@ def main():
         args.append('-rfvr-only=' + names)
     since = time.time()
     vrshots.log('exporting ' + (names or 'every weapon') + ' (flat, no headset)')
-    vrshots.run_game(a.game, args, a.timeout, vr=False)
+    try:
+        vrshots.run_game(a.game, args, a.timeout, vr=False)
+    finally:
+        # Interrupted (Ctrl+C, an error): the game this run started goes too (it was refused above when one was running),
+        # else the next export or game test is refused with "someone is playing?".
+        if vrshots.running('ravenfield.exe'):
+            vrshots.kill('ravenfield.exe')
     index = os.path.join(out, 'index.json')
-    if not os.path.exists(index) or os.path.getmtime(index) < since - 5:
-        raise SystemExit(f'no export written (see {os.path.join(a.game, "BepInEx", "LogOutput.log")})')
+    complete = os.path.exists(index) and os.path.getmtime(index) >= since - 5
     os.makedirs(DATA, exist_ok=True)
-    copied = 0
-    for name in os.listdir(out):
+    copied, failed = [], []
+    # Every weapon written in this run is copied, also when the run stopped part way (the index is written only at its end).
+    for name in (os.listdir(out) if os.path.isdir(out) else []):
         src = os.path.join(out, name)
-        if os.path.isdir(src) and os.path.getmtime(os.path.join(src, 'rig.json')) >= since - 5:
+        rig, glb = os.path.join(src, 'rig.json'), os.path.join(src, 'model.glb')
+        try:
+            if not (os.path.isdir(src) and os.path.exists(rig) and os.path.exists(glb) and os.path.getmtime(rig) >= since - 5):
+                continue
             dst = os.path.join(DATA, name)
             shutil.rmtree(dst, ignore_errors=True)
             shutil.copytree(src, dst)
-            copied += 1
+            copied.append(name)
+        except OSError as e:
+            failed.append(f'{name}: {e}')
     log = os.path.join(a.game, 'BepInEx', 'LogOutput.log')
-    shutil.copy2(log, os.path.join(os.path.dirname(DATA), 'export-log.txt'))
-    vrshots.log(f'{copied} weapon(s) exported to {DATA}')
+    try:
+        shutil.copy2(log, os.path.join(os.path.dirname(DATA), 'export-log.txt'))
+    except OSError:
+        pass
+    vrshots.log(f'{len(copied)} weapon(s) exported to {DATA}' + ('' if complete else ' (the run did not finish: the weapons written so far)'))
+    for f in failed:
+        vrshots.log('not copied: ' + f)
+    # Each name asked for must have produced a weapon (the game's two filters match names differently: a name only one of
+    # them knew was analysed but never written, and the run said it worked).
+    missing = [n for n in names.split(',') if n and not any(n.lower().replace(' ', '_') in c.lower() or n.lower() in c.lower() for c in copied)]
+    if missing:
+        vrshots.log('nothing exported for: ' + ', '.join(missing) + ' (a part of the weapon\'s name as the game lists it)')
+    if not copied or failed or missing or not complete:
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

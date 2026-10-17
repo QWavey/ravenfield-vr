@@ -14,7 +14,7 @@ import time
 
 import numpy as np
 from PIL import Image
-from PyQt6.QtCore import QProcess, QSettings, Qt, QTimer, QUrl
+from PyQt6.QtCore import QByteArray, QProcess, QSettings, Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
@@ -84,7 +84,7 @@ def row(*widgets, stretch=None):
 
 
 class LabeledSlider(QWidget):
-    def __init__(self, label, on_change, minimum=0, maximum=100, value=0, width=96):
+    def __init__(self, label, on_change, minimum=0, maximum=100, value=0, width=96, on_press=None):
         super().__init__()
         h = QHBoxLayout(self)
         h.setContentsMargins(0, 0, 0, 0)
@@ -100,6 +100,8 @@ class LabeledSlider(QWidget):
         h.addWidget(self.value)
         self._cb = on_change
         self.slider.valueChanged.connect(self._changed)
+        if on_press is not None:
+            self.slider.sliderPressed.connect(on_press)
         self._changed(value, emit=False)
 
     def _changed(self, v, emit=True):
@@ -108,10 +110,11 @@ class LabeledSlider(QWidget):
             self._cb(v / 100.0)
 
     def set(self, f):
+        v = int(round(min(1.0, max(0.0, f)) * 100))
         self.slider.blockSignals(True)
-        self.slider.setValue(int(round(f * 100)))
+        self.slider.setValue(v)
         self.slider.blockSignals(False)
-        self.value.setText(f'{int(round(f * 100))}%')
+        self.value.setText(f'{v}%')
 
 
 class Timeline:
@@ -137,6 +140,20 @@ class Timeline:
 
     def stop(self):
         self.timer.stop()
+
+    def finish(self):
+        """Runs what is left to its end at once (the state the reload ends in), then stops."""
+        if not self.timer.isActive():
+            return
+        self.timer.stop()
+        for i in range(self.index, len(self.steps)):
+            if i > self.index and len(self.steps[i]) > 2:
+                self.steps[i][2]()
+            self.steps[i][1](1.0)
+        self.index = len(self.steps)
+        self.on_frame()
+        if self.on_done:
+            self.on_done()
 
     @property
     def running(self):
@@ -178,6 +195,13 @@ class Workbench(QWidget):
         self.picked_node = None
         self.recording = None
         self.process = None
+        self.selftest = '--selftest' in sys.argv  # the self-test: nothing of the user's is read or written then
+        self.game_dir_override = None  # the self-test's own game poses folder
+        self.drafts = {}  # weapon id -> its hands as left when another weapon was opened (unsaved work is kept)
+        self.saved_doc = None  # the open weapon's saved pose, as read (for Revert and for marking changes)
+        self.settings = QSettings('RavenfieldVR', 'Sandbox')
+        self.undo_stack, self.redo_stack = [], []
+        self._numbers_undo_at = 0.0
 
         h = QHBoxLayout(self)
         h.setContentsMargins(0, 0, 0, 0)
@@ -221,6 +245,7 @@ class Workbench(QWidget):
         self.view.picked.connect(self.on_pick)
         self.view.selected.connect(self.on_select)
         self.view.changed.connect(self.on_hand_moved)
+        self.view.drag_started.connect(self.push_undo)
         self.view.context.connect(self.on_context)
         self.view.hovered.connect(lambda s: (self.hover.setText(s), self.hover.adjustSize()))
         self.load_weapon_list()
@@ -273,10 +298,10 @@ class Workbench(QWidget):
         fingers = QVBoxLayout()
         fingers.setSpacing(2)
         for i, name in enumerate(FINGERS):
-            s = LabeledSlider(name, lambda f, i=i: self.on_finger(i, f))
+            s = LabeledSlider(name, lambda f, i=i: self.on_finger(i, f), on_press=self.push_undo)
             self.finger_sliders.append(s)
             fingers.addWidget(s)
-        self.thumb_base = LabeledSlider('Thumb base', self.on_thumb_base)
+        self.thumb_base = LabeledSlider('Thumb base', self.on_thumb_base, on_press=self.push_undo)
         fingers.addWidget(self.thumb_base)
         hint = CaptionLabel('Drag a hand to move it, Shift + drag to turn it. Drag elsewhere to look around, right-drag to pan, wheel to zoom.')
         hint.setWordWrap(True)
@@ -290,9 +315,9 @@ class Workbench(QWidget):
         rack.clicked.connect(self.play_rack)
         reset = PushButton(FIF.SYNC, 'Reset')
         reset.clicked.connect(self.reset_parts)
-        self.s_slide = LabeledSlider('Slide back', lambda f: self.set_part(slide=f), width=110)
-        self.s_mag = LabeledSlider('Magazine out', lambda f: self.set_part(mag=f), width=110)
-        self.s_cover = LabeledSlider('Cover open', lambda f: self.set_part(cover=f), width=110)
+        self.s_slide = LabeledSlider('Slide back', lambda f: self.set_part(slide=f), width=110, on_press=self.push_undo)
+        self.s_mag = LabeledSlider('Magazine out', lambda f: self.set_part(mag=f), width=110, on_press=self.push_undo)
+        self.s_cover = LabeledSlider('Cover open', lambda f: self.set_part(cover=f), width=110, on_press=self.push_undo)
         v.addWidget(card('Reload', row(play, rack, reset), self.s_slide, self.s_mag, self.s_cover))
 
         self.laser_btn = TogglePushButton(FIF.ALIGNMENT, 'Laser pointer  (L)')
@@ -380,7 +405,7 @@ class Workbench(QWidget):
         self.gif_scale.setValue(0.6)
         self.settle_sw = SwitchButton()
         self.settle_sw.setChecked(True)
-        self.settle_sw.checkedChanged.connect(lambda c: setattr(self.scene, 'settle_on', c))
+        self.settle_sw.checkedChanged.connect(self.on_settle_switch)
         markers_hint = CaptionLabel('Markers: green grip, blue support, orange rack point and its travel, red muzzle and aim, '
                                     'yellow magazine seat and its line, purple cover latch.')
         markers_hint.setWordWrap(True)
@@ -399,19 +424,30 @@ class Workbench(QWidget):
         self.job_log = PlainTextEdit()
         self.job_log.setReadOnly(True)
         self.job_log.setFixedHeight(160)
-        v.addWidget(card('Game (only when really needed)', self.export_names, row(export, game), self.job_log))
+        folder = PushButton(FIF.FOLDER, 'Game folder…')
+        folder.clicked.connect(self.choose_game_folder)
+        self.game_label = CaptionLabel(self.game_folder())
+        self.game_label.setWordWrap(True)
+        v.addWidget(card('Game (only when really needed)', row(folder, self.game_label, stretch=[0, 1]), self.export_names,
+                         row(export, game), self.job_log))
         v.addStretch(1)
         return p
 
     def _shortcuts(self):
-        for key, fn in (('L', lambda: self.laser_btn.toggle()), ('F', self.frame_weapon), ('Escape', lambda: self.select_hand(None)),
+        for key, fn in (('L', lambda: self.laser_btn.toggle()), ('F', self.frame_weapon),
                         ('1', lambda: self.select_hand(self.scene.right)), ('2', lambda: self.select_hand(self.scene.left)),
-                        ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot)):
+                        ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot),
+                        ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo)):
             QShortcut(QKeySequence(key), self, activated=fn)
 
     # ---- weapons -----------------------------------------------------------------------------------------------------
 
-    def load_weapon_list(self):
+    def load_weapon_list(self, keep_open=False):
+        """The exported weapons. keep_open: the weapon open now stays open (opened again from its new files, with the hands as
+        they are); else the one opened last time, or the first."""
+        current = self.scene.weapon.id if self.scene.weapon is not None else None
+        hands = self.scene.pose_document() if keep_open and current else None
+        self.weapon_list.blockSignals(True)
         self.weapon_list.clear()
         self.items = []
         if os.path.isdir(self.data):
@@ -427,12 +463,19 @@ class Workbench(QWidget):
                     it.setData(Qt.ItemDataRole.UserRole, name)
                     self.weapon_list.addItem(it)
                     self.items.append(it)
+        self.weapon_list.blockSignals(False)
+        self.filter_weapons(self.search.text())
         if not self.items:
             self.weapon_info.setText('No weapons exported yet. Advanced → "Export weapons" runs the game once (no headset) '
                                      'and writes them; or run python tools/sandbox/export.py.')
-        else:
-            self.weapon_info.setText(f'{len(self.items)} weapon(s).')
-            self.weapon_list.setCurrentRow(0)
+            return
+        self.weapon_info.setText(f'{len(self.items)} weapon(s).')
+        want = current if keep_open and current else (None if self.selftest else str(self.settings.value('lastWeapon', '') or ''))
+        item = next((it for it in self.items if it.data(Qt.ItemDataRole.UserRole) == want), None) or self.items[0]
+        self.weapon_list.blockSignals(True)
+        self.weapon_list.setCurrentItem(item)
+        self.weapon_list.blockSignals(False)
+        self.open_weapon(item.data(Qt.ItemDataRole.UserRole), hands_doc=hands if item.data(Qt.ItemDataRole.UserRole) == current else None)
 
     def filter_weapons(self, text):
         t = text.lower().strip()
@@ -444,14 +487,27 @@ class Workbench(QWidget):
             return
         self.open_weapon(item.data(Qt.ItemDataRole.UserRole))
 
-    def open_weapon(self, wid):
-        self.timeline.stop()
+    def open_weapon(self, wid, hands_doc=None):
+        self.settle_timeline()
+        old = self.scene.weapon
+        if old is not None and old.id != wid and self.unsaved():
+            self.drafts[old.id] = self.scene.pose_document()  # unsaved hands kept: they come back when it is opened again
+            self.mark_draft(old.id, True)
+        self.parts_home()  # (the open weapon was stopped where its reload was)
         try:
             self.scene.load_weapon(os.path.join(self.data, wid))
-        except Exception as e:  # a broken export
-            self.toast(f'Could not open {wid}', str(e), error=True)
-            self.parts_home()  # the open weapon was stopped where its reload was
+        except Exception as e:  # noqa: BLE001 (a broken export)
+            self.log_error(f'opening {wid}', e)
+            self.toast(f'Could not open {wid}', f'{type(e).__name__}: {e}\nThe weapon shown is still {old.name if old else "none"}.', error=True)
+            if old is not None:  # the list back on the weapon still shown
+                self.weapon_list.blockSignals(True)
+                self.weapon_list.setCurrentItem(next((it for it in self.items if it.data(Qt.ItemDataRole.UserRole) == old.id), None))
+                self.weapon_list.blockSignals(False)
             return
+        if not self.selftest:
+            self.settings.setValue('lastWeapon', wid)
+        self.undo_stack, self.redo_stack = [], []
+        self.view.part_node = None
         w = self.scene.weapon
         self.view.pick_point = None
         self.view.pick_line = None
@@ -463,6 +519,11 @@ class Workbench(QWidget):
         info = f"{r.get('action', '')}{' · pistol' if r.get('isPistol') else ''} · {len(w.nodes)} parts"
         if w.stand_ins:
             info += f' · {w.stand_ins} shown as grey boxes (their mesh could not be read from the game)'
+        if not w.muzzle_known:
+            info += ' · no muzzle in the export: distances are from the gun\'s front'
+        warns = r.get('warnings') or []
+        if warns:
+            info += ' · the analysis warns: ' + '; '.join(str(x) for x in warns[:3]) + (' …' if len(warns) > 3 else '')
         self.weapon_info.setText(info)
         self.rig_text.setPlainText(json.dumps(r, indent=1))
         self.fill_poses()
@@ -472,15 +533,30 @@ class Workbench(QWidget):
             it.setData(Qt.ItemDataRole.UserRole, id(n))
             self.parts.addItem(it)
         pose_file = os.path.join(self.poses_dir, wid + '.json')
+        self.saved_doc = None
         if os.path.exists(pose_file):
             try:
                 with open(pose_file, encoding='utf-8') as f:
-                    self.scene.apply_pose_document(json.load(f))
+                    self.saved_doc = json.load(f)
+                self.scene.read_pose_document(self.saved_doc)
+            except Exception as e:  # noqa: BLE001 (a hand-made or cut file)
+                self.log_error(f'reading the saved pose {pose_file}', e)
+                kept = self.keep_old(pose_file, 'unreadable')
+                self.toast('The saved pose could not be read', f'{pose_file}\n{type(e).__name__}: {e}'
+                           + (f'\nA copy is in {kept}.' if kept else ''), error=True)
+                self.saved_doc = None
+        source = hands_doc or self.drafts.pop(wid, None)
+        self.mark_draft(wid, False)
+        try:
+            if source is not None:
+                self.scene.apply_pose_document(source)
+            elif self.saved_doc is not None:
+                self.scene.apply_pose_document(self.saved_doc)
                 self.toast('Saved pose loaded', pose_file)
-            except (OSError, ValueError, KeyError, TypeError) as e:
-                self.toast('The saved pose could not be read', str(e), error=True)
+            else:
                 self.hands_on_gun()
-        else:
+        except Exception as e:  # noqa: BLE001
+            self.log_error(f'putting the hands on {wid}', e)
             self.hands_on_gun()
         self.sync_sliders()
         self.frame_weapon()
@@ -499,6 +575,7 @@ class Workbench(QWidget):
     def hands_on_gun(self):
         if self.scene.weapon is None:
             return
+        self.push_undo()
         self.scene.snap(self.scene.right, 'grip')
         self.scene.snap(self.scene.left, 'support')
         self.after_hand_change()
@@ -509,6 +586,10 @@ class Workbench(QWidget):
         if target == 'cover' and self.scene.weapon.rig.get('hingeKind', 'None') == 'None':
             self.toast('This weapon has no cover or barrels that open', '')
             return
+        if target == 'rack' and not self._has_rack():
+            self.toast('This weapon has no slide or handle that moves', '')
+            return
+        self.push_undo()
         self.scene.snap(self.scene.left, target)
         self.select_hand(self.scene.left)
         self.after_hand_change()
@@ -559,6 +640,7 @@ class Workbench(QWidget):
         w = self.scene.weapon
         if name == 'Custom':
             return  # (the sliders make a custom pose)
+        self.push_undo()
         if w is not None and name in ("weapon's own grip", "weapon's own support"):
             curls = w.rig.get('gripCurls' if 'grip' in name else 'supportCurls')
             if curls:
@@ -617,6 +699,9 @@ class Workbench(QWidget):
         h = self.current_hand()
         if w is None:
             return
+        if time.monotonic() - self._numbers_undo_at > 1.5:
+            self.push_undo()
+        self._numbers_undo_at = time.monotonic()
         f, u, r = (b.value() / 100 for b in self.num[0])
         g = w.grip + w.aim * f + w.up * u + w.right * r
         h.position = w.to_world(g)
@@ -624,8 +709,8 @@ class Workbench(QWidget):
         self._moved(h)
         self.view.update()
 
-    def on_hand_moved(self):
-        self._moved(self.current_hand())
+    def on_hand_moved(self, hand=None):
+        self._moved(hand if hand is not None else self.current_hand())
         self.sync_numbers()
 
     def _moved(self, h):
@@ -639,7 +724,16 @@ class Workbench(QWidget):
         self.on_select(self.current_hand())
         self.view.update()
 
+    def on_settle_switch(self, on):
+        self.scene.settle_on = on
+        for h in self.scene.hands():
+            if h.role in ('grip', 'support') or not on:
+                self.scene.settle(h)
+        self.sync_numbers()
+        self.view.update()
+
     def copy_pose_to_other(self):
+        self.push_undo()
         h = self.current_hand()
         o = self.scene.left if h is self.scene.right else self.scene.right
         o.thumb, o.curls, o.pose_name, o.thumb_set = h.thumb, list(h.curls), h.pose_name, h.thumb_set
@@ -668,6 +762,7 @@ class Workbench(QWidget):
         w = self.scene.weapon
         if w is None:
             return
+        self.push_undo()
         self.parts_home()
         for n in w.nodes:
             n.hidden = False
@@ -713,21 +808,51 @@ class Workbench(QWidget):
             target()
         return (dur, update)
 
+    def _ease(self, what, to, dur):
+        """A step taking one part from where it is at the step's start to `to` (the reload starts from the parts as they are:
+        a slider left part way snapped back on the first frame)."""
+        w = self.scene.weapon
+        start = {}
+
+        def begin():
+            start['v'] = getattr(w, {'slide': 'slide', 'mag': 'mag', 'cover': 'cover'}[what])
+        return (dur, lambda t: w.set_state(**{what: start['v'] + (to - start['v']) * t}), begin)
+
+    def _follow_ease(self, hand, target, what, to, dur):
+        """A part eased from where it is to `to` with the hand kept on it."""
+        dur, update, begin = self._ease(what, to, dur)
+        return (dur, lambda t: (update(t), target()), begin)
+
+    def _has_rack(self):
+        r = self.scene.weapon.rig
+        return r.get('rackPoint') is not None and bool(r.get('slide') or r.get('handle') or r.get('addedHandle') or r.get('carveHandle'))
+
     def play_reload(self):
         w = self.scene.weapon
         if w is None or self.timeline.running:
             return
+        self.push_undo()
         s, left = self.scene, self.scene.left
         r = w.rig
         has_mag = bool(r.get('magazine'))
-        cover = r.get('hingeKind') == 'FeedCover'
+        cover = r.get('hingeKind') in ('FeedCover', 'BreakAction')  # break-action barrels open to load too (review I7#1)
+        rack = self._has_rack()
+        if not has_mag and not cover and not rack:
+            self.toast('Nothing to reload on this weapon', 'The analysis found no magazine, cover or slide that moves.')
+            return
         steps = []
+        # An empty gun's slide is caught back (lockOnEmpty), and an en-bloc rifle takes its clip only with the bolt back: the
+        # reload starts with the slide back, and ends with it released (review I7#2, I7#6).
+        locked = rack and (bool(r.get('enBloc')) or (bool(r.get('lockOnEmpty')) and w.slide > 0.5))
+        if locked and w.slide < 0.99:
+            steps.append(self._move_hand(left, lambda: s.snap(left, 'rack')))
+            steps.append(self._follow_ease(left, lambda: s.snap(left, 'rack'), 'slide', 1.0, 0.35))
         if cover:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
-            steps.append(self._follow(left, lambda: s.snap(left, 'cover'), 0.5, lambda t: w.set_state(cover=t)))
+            steps.append(self._follow_ease(left, lambda: s.snap(left, 'cover'), 'cover', 1.0, 0.5))
         if has_mag:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'magazine')))
-            steps.append(self._follow(left, lambda: s.snap(left, 'magazine'), 0.55, lambda t: w.set_state(mag=t)))
+            steps.append(self._follow_ease(left, lambda: s.snap(left, 'magazine'), 'mag', 1.0, 0.55))
 
             dip = {}
 
@@ -738,14 +863,21 @@ class Workbench(QWidget):
                         n.away = True  # (not hidden: the fresh one, drawn from the same parts, is drawn while it goes in)
             # The hand with the old magazine dips away, 5 cm over the step (per frame it sank 7.6 cm at 60 fps, more when faster).
             steps.append((0.3, lambda t: setattr(left, 'position', dip['from'] + np.array([0, -0.05 * t, 0])), hide_old))
-            ej = w.mag_eject() * w.mag_length
 
             def fresh_at(t):
-                m = np.eye(4)
-                m[:3, 3] = ej * (1.0 - t)
-                w.fresh = m
+                w.fresh = w.fresh_matrix(1.0 - t)  # from where its parts wait, on the seat's line (review B2#0, B5#2)
                 w.mag = 1.0 - t
-            steps.append((0.6, lambda t: (fresh_at(t), s.snap(left, 'magazine')), lambda: fresh_at(0)))
+
+            def fresh_step(t):
+                fresh_at(t)
+                to_p, to_q = left.position.copy(), left.rotation.copy()
+                s.snap(left, 'magazine')
+                # The hand comes back up from its dip onto the fresh magazine over the first third (it snapped up 5 cm).
+                k = min(1.0, t * 3.0)
+                if k < 1.0:
+                    left.position = to_p + (left.position - to_p) * k
+                    left.rotation = quat_slerp(to_q, left.rotation, k)
+            steps.append((0.6, fresh_step, lambda: fresh_at(0)))
 
             def seated():
                 w.fresh = None
@@ -755,11 +887,16 @@ class Workbench(QWidget):
             steps.append((0.05, lambda t: None, seated))
         if cover:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
-            steps.append(self._follow(left, lambda: s.snap(left, 'cover'), 0.45, lambda t: w.set_state(cover=1 - t)))
-        if r.get('rackPoint') is not None and (r.get('slide') or r.get('addedHandle') or r.get('carveHandle')):
+            steps.append(self._follow_ease(left, lambda: s.snap(left, 'cover'), 'cover', 0.0, 0.45))
+        if rack:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'rack')))
-            steps.append(self._follow(left, lambda: s.snap(left, 'rack'), 0.35, lambda t: w.set_state(slide=t)))
-            steps.append((0.18, lambda t: w.set_state(slide=1 - t)))
+            if locked:
+                steps.append(self._follow_ease(left, lambda: s.snap(left, 'rack'), 'slide', 0.0, 0.18))  # released: it runs home
+            else:
+                steps.append(self._follow_ease(left, lambda: s.snap(left, 'rack'), 'slide', 1.0, 0.35))
+                steps.append(self._ease('slide', 0.0, 0.18))
+        elif w.slide > 0.001:
+            steps.append(self._ease('slide', 0.0, 0.18))
         steps.append(self._move_hand(left, lambda: s.snap(left, 'support')))
         self.timeline.run(steps)
 
@@ -767,11 +904,128 @@ class Workbench(QWidget):
         w = self.scene.weapon
         if w is None or self.timeline.running:
             return
+        if not self._has_rack():
+            self.toast('Nothing to rack on this weapon', 'The analysis found no slide, bolt or handle that moves.')
+            return
+        self.push_undo()
         s, left = self.scene, self.scene.left
         self.timeline.run([self._move_hand(left, lambda: s.snap(left, 'rack')),
-                           self._follow(left, lambda: s.snap(left, 'rack'), 0.4, lambda t: w.set_state(slide=t)),
-                           (0.2, lambda t: w.set_state(slide=1 - t)),
+                           self._follow_ease(left, lambda: s.snap(left, 'rack'), 'slide', 1.0, 0.4),
+                           self._ease('slide', 0.0, 0.2),
                            self._move_hand(left, lambda: s.snap(left, 'support'))])
+
+    # ---- undo / redo, unsaved work ---------------------------------------------------------------------------------------
+
+    _HAND_KEYS = ('position', 'rotation', 'pose_name', 'thumb', 'curls', 'on_part', 'role', 'thumb_set', 'settle', '_settled_at')
+
+    def snapshot(self):
+        w = self.scene.weapon
+        if w is None:
+            return None
+
+        def copy(v):
+            if isinstance(v, np.ndarray):
+                return v.copy()
+            if isinstance(v, (list, tuple)):
+                return type(v)(copy(x) for x in v)
+            return v
+        return {'weapon': w.id, 'hands': [{k: copy(getattr(h, k)) for k in self._HAND_KEYS} for h in self.scene.hands()],
+                'parts': (w.slide, w.mag, w.cover), 'hidden': [n.hidden for n in w.nodes],
+                'place': w.P.copy() if hasattr(w, 'P') else None}
+
+    def restore(self, snap):
+        w = self.scene.weapon
+        if w is None or snap is None or snap['weapon'] != w.id:
+            return
+        if snap.get('place') is not None and hasattr(w, 'set_place'):
+            w.set_place(snap['place'])
+        for h, state in zip(self.scene.hands(), snap['hands']):
+            for k, v in state.items():
+                setattr(h, k, v.copy() if isinstance(v, np.ndarray) else (list(v) if isinstance(v, list) else v))
+            h.update_mesh()
+        w.fresh = None
+        for n, hidden in zip(w.nodes, snap['hidden']):
+            n.hidden, n.away = hidden, False
+        w.set_state(*snap['parts'])
+        self.sync_sliders()
+        self.on_select(self.current_hand())
+        self.view.update()
+
+    def push_undo(self):
+        """The scene as it is now, kept before an edit (Ctrl+Z goes back to it)."""
+        s = self.snapshot()
+        if s is None:
+            return
+        self.undo_stack.append(s)
+        del self.undo_stack[:-100]
+        self.redo_stack.clear()
+
+    def undo(self):
+        self.settle_timeline()
+        if not self.undo_stack:
+            self.toast('Nothing to undo', '')
+            return
+        self.redo_stack.append(self.snapshot())
+        self.restore(self.undo_stack.pop())
+
+    def redo(self):
+        self.settle_timeline()
+        if not self.redo_stack:
+            self.toast('Nothing to redo', '')
+            return
+        self.undo_stack.append(self.snapshot())
+        self.restore(self.redo_stack.pop())
+
+    def unsaved(self):
+        """The hands differ from the saved pose (or were changed at all, when none is saved)."""
+        w = self.scene.weapon
+        if w is None:
+            return False
+        if self.saved_doc is None:
+            return bool(self.undo_stack)
+        try:
+            saved = self.scene.read_pose_document(self.saved_doc)
+        except Exception:  # noqa: BLE001
+            return True
+        for side, h in (('right', self.scene.right), ('left', self.scene.left)):
+            s = saved['hands'].get(side)
+            if s is None:
+                return True
+            p = w.to_gun(h.position)[:3]
+            q = quat_norm(quat_mul(quat_inv(w.Wq), h.rotation))
+            if (np.linalg.norm(p - s['position']) > 1e-4 or 1.0 - abs(float(np.dot(q, s['rotation']))) > 1e-6
+                    or max(abs(a - b) for a, b in zip(h.curls, s['curls'])) > 1e-3 or abs(h.thumb - s['thumb']) > 1e-3):
+                return True
+        return False
+
+    def mark_draft(self, wid, on):
+        """A weapon in the list whose hands were changed and not saved shows it."""
+        for it in self.items:
+            if it.data(Qt.ItemDataRole.UserRole) == wid:
+                text = it.text().replace('   • not saved', '')
+                it.setText(text + ('   • not saved' if on else ''))
+
+    def revert_to_saved(self):
+        if self.scene.weapon is None:
+            return
+        if self.saved_doc is None:
+            self.toast('No saved pose for this weapon', 'Hands on the gun puts them where the mod does.')
+            return
+        self.settle_timeline()
+        self.push_undo()
+        try:
+            self.scene.apply_pose_document(self.saved_doc)
+        except Exception as e:  # noqa: BLE001
+            self.toast('The saved pose could not be read', str(e), error=True)
+            return
+        self.sync_sliders()
+        self.on_select(self.current_hand())
+        self.view.update()
+
+    def settle_timeline(self):
+        """A reload or rack playing is run to its end at once (what is saved or exported is its end state)."""
+        if self.timeline.running:
+            self.timeline.finish()
 
     def _timeline_done(self):
         self.sync_sliders()
@@ -783,11 +1037,12 @@ class Workbench(QWidget):
             return
         nid = item.data(Qt.ItemDataRole.UserRole)
         node = next((n for n in w.nodes if id(n) == nid), None)
-        self.view.hover_node = node
+        self.view.part_node = node
         self.view.update()
 
     def show_all_parts(self):
         if self.scene.weapon:
+            self.push_undo()
             for n in self.scene.weapon.nodes:
                 n.hidden = False
             self.view.update()
@@ -818,15 +1073,29 @@ class Workbench(QWidget):
         w = self.scene.weapon
         n = self.picked_node
         g = w.to_gun(self.picked_point)[:3]
-        b, u, r = w.from_muzzle(g)
-        x, y, z = Weapon.unity(g)
+        moved = np.linalg.norm(n.sim[:3, 3]) > 1e-6 or np.linalg.norm(n.sim[:3, :3] - np.eye(3)) > 1e-6
+        try:
+            rest = np.linalg.solve(n.sim, np.append(g, 1.0))[:3] if moved else g  # the same point on the part at rest
+        except np.linalg.LinAlgError:
+            rest = g
+        b, u, r = w.from_muzzle(rest)
+        x, y, z = Weapon.unity(rest)
         role = ROLE_NAMES.get(n.role, n.role)
         name = n.name[len('[stand-in] '):] if n.stand_in else n.name
+        ref = 'from the muzzle' if w.muzzle_known else "from the gun's front (no muzzle in the export)"
+        state = []
+        if w.slide > 0.001:
+            state.append(f'slide {w.slide * 100:.0f}% back')
+        if w.mag > 0.001:
+            state.append(f'magazine {w.mag * 100:.0f}% out')
+        if w.cover > 0.001:
+            state.append(f'cover {w.cover * 100:.0f}% open')
+        note = (f" (the part at rest; it is moved now: {', '.join(state)})" if moved and state else '')
         if rich:
             return (f"<b>{n.short}</b> — {role}{' (grey stand-in box)' if n.stand_in else ''}<br>"
-                    f"back <b>{b:.1f}</b> · up <b>{u:.1f}</b> · right <b>{r:.1f}</b> cm from the muzzle<br>"
+                    f"back <b>{b:.1f}</b> · up <b>{u:.1f}</b> · right <b>{r:.1f}</b> cm {ref}{note}<br>"
                     f"<span style='color:gray'>gun space x {x:.4f} y {y:.4f} z {z:.4f}</span>")
-        return (f"{w.name} ({w.id}): '{name}' ({role}) at back {b:.1f} up {u:.1f} right {r:.1f} cm from the muzzle "
+        return (f"{w.name} ({w.id}): '{name}' ({role}) at back {b:.1f} up {u:.1f} right {r:.1f} cm {ref}{note} "
                 f"(mod gun space x {x:.4f} y {y:.4f} z {z:.4f})")
 
     def copy_point(self):
@@ -863,16 +1132,38 @@ class Workbench(QWidget):
 
     def hide_picked(self):
         if self.picked_node is not None:
+            self.push_undo()
             self.picked_node.hidden = True
             self.view.update()
 
     # ---- saving ------------------------------------------------------------------------------------------------------------
 
-    @staticmethod
-    def game_poses_dir():
-        """Where the mod reads saved poses (BepInEx/config/RavenfieldVR/poses), or None when the game is not where Steam puts it."""
-        cfg = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield', 'BepInEx', 'config')
+    DEFAULT_GAME = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield')
+
+    def game_folder(self):
+        """Ravenfield's folder: the one chosen in Advanced (Game folder...), else Steam's default."""
+        chosen = '' if self.selftest else str(self.settings.value('gameFolder', '') or '')
+        return chosen if chosen and os.path.isdir(chosen) else self.DEFAULT_GAME
+
+    def game_poses_dir(self):
+        """Where the mod reads saved poses (BepInEx/config/RavenfieldVR/poses), or None when the game (with the mod) is not found."""
+        if self.game_dir_override is not None:
+            return self.game_dir_override
+        cfg = os.path.join(self.game_folder(), 'BepInEx', 'config')
         return os.path.join(cfg, 'RavenfieldVR', 'poses') if os.path.isdir(cfg) else None
+
+    def choose_game_folder(self):
+        from PyQt6.QtWidgets import QFileDialog
+        chosen = QFileDialog.getExistingDirectory(self, 'Where is Ravenfield? (the folder with ravenfield.exe and BepInEx)', self.game_folder())
+        if not chosen:
+            return
+        if not os.path.isdir(os.path.join(chosen, 'BepInEx')):
+            self.toast('That folder has no BepInEx', 'Pick the Ravenfield folder the mod is installed in (it holds ravenfield.exe '
+                       'and BepInEx).', error=True)
+            return
+        self.settings.setValue('gameFolder', chosen)
+        self.game_label.setText(chosen)
+        self.update_game_status()
 
     def pose_path(self):
         """This weapon's pose file in the repository (named as the export names the weapon: the mod looks for that name)."""
@@ -881,29 +1172,68 @@ class Workbench(QWidget):
 
     @staticmethod
     def _write(path, doc):
+        """Written to a temporary file and moved into place: an error part way never leaves a cut file."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as f:
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=1)
+        os.replace(tmp, path)
+
+    def keep_old(self, path, why=''):
+        """A pose file about to be overwritten or removed is copied to tools/sandbox/poses/history first (the last 30 per
+        weapon are kept): a pose saved over by mistake can be got back."""
+        if not path or not os.path.exists(path):
+            return None
+        hist = os.path.join(self.poses_dir, 'history')
+        os.makedirs(hist, exist_ok=True)
+        base = os.path.splitext(os.path.basename(path))[0]
+        where = 'game' if os.path.normcase(os.path.dirname(path)) != os.path.normcase(self.poses_dir) else 'saved'
+        dst = os.path.join(hist, f'{base}--{where}{("-" + why) if why else ""}--{stamp()}.json')
+        try:
+            import shutil
+            shutil.copy2(path, dst)
+            old = sorted((f for f in os.listdir(hist) if f.startswith(base + '--')), key=lambda f: os.path.getmtime(os.path.join(hist, f)))
+            for f in old[:-30]:
+                os.remove(os.path.join(hist, f))
+        except OSError as e:
+            self.log_error(f'keeping the old pose {path}', e)
+            return None
+        return dst
 
     def save_pose(self):
         """Saves the hands for this weapon, in the repository and for the game (the mod holds the weapon that way)."""
         w = self.scene.weapon
         if w is None:
             return None
+        self.settle_timeline()  # (a reload playing: its end state, not the hands half way)
+        warnings = self.scene.pose_warnings()
+        if warnings and not self.selftest:
+            box = MessageBox('Save this pose?', '\n\n'.join(warnings) + '\n\nSave it anyway?', self.win)
+            if not box.exec():
+                return None
         path = self.pose_path()
         doc = self.scene.pose_document()
-        self._write(path, doc)
+        try:
+            self.keep_old(path)
+            self._write(path, doc)
+        except OSError as e:
+            self.toast('The pose could not be saved', f'{path}\n{e}', error=True)
+            return None
         text = path
         game = self.game_poses_dir()
         if game:
+            gpath = os.path.join(game, w.id + '.json')
             try:
-                self._write(os.path.join(game, w.id + '.json'), doc)
-                text += '\nand for the game: ' + os.path.join(game, w.id + '.json')
+                self.keep_old(gpath)
+                self._write(gpath, doc)
+                text += '\nand for the game: ' + gpath
             except OSError as e:
                 self.toast('Saved here, but not for the game', f'{game}\n{e}', error=True)
+        self.saved_doc = doc
+        self.drafts.pop(w.id, None)
         self.mark_saved(w.id)
         self.update_game_status()
-        self.toast('Pose saved', text, path)
+        self.toast('Pose saved', text + ('\n' + '\n'.join(warnings) if warnings else ''), path)
         return path
 
     def mark_saved(self, wid):
@@ -921,19 +1251,20 @@ class Workbench(QWidget):
             path, _ = QFileDialog.getOpenFileName(self, 'Import a pose', self.poses_dir, 'Pose files (*.json)')
             if not path:
                 return False
+        self.settle_timeline()
         try:
             with open(path, encoding='utf-8') as f:
                 doc = json.load(f)
-            if not isinstance(doc.get('hands'), dict):
-                raise ValueError('not a pose file (no hands in it)')
-            self.scene.apply_pose_document(doc)
-        except (OSError, ValueError, KeyError, TypeError) as e:
+            checked = dict(self.scene.read_pose_document(doc), _checked=True)  # all checked before anything changes
+        except Exception as e:  # noqa: BLE001 (a file from anywhere: any error is "could not import")
             self.toast('Could not import the pose', f'{path}\n{e}', error=True)
             return False
+        self.push_undo()
+        self.scene.apply_pose_document(checked)
         self.sync_sliders()
         self.on_select(self.current_hand())
         self.view.update()
-        made_for = doc.get('weapon', '')
+        made_for = str(doc.get('weapon', '') or '')
         note = '' if made_for in ('', w.id) else f'\nIt was made for {doc.get("name", made_for)}: check it fits this gun.'
         self.toast('Pose imported', f'{path}{note}\nPress Save pose to keep it for this weapon (and the game).')
         return True
@@ -949,7 +1280,12 @@ class Workbench(QWidget):
             path, _ = QFileDialog.getSaveFileName(self, 'Export the pose', start, 'Pose files (*.json)')
             if not path:
                 return None
-        self._write(path, self.scene.pose_document())
+        self.settle_timeline()
+        try:
+            self._write(path, self.scene.pose_document())
+        except OSError as e:
+            self.toast('The pose could not be exported', f'{path}\n{e}', error=True)
+            return None
         self.toast('Pose exported', path, path)
         return path
 
@@ -968,7 +1304,9 @@ class Workbench(QWidget):
             return
         try:
             with open(src, encoding='utf-8') as f:
-                self._write(os.path.join(game, w.id + '.json'), json.load(f))
+                doc = json.load(f)
+            self.keep_old(os.path.join(game, w.id + '.json'))
+            self._write(os.path.join(game, w.id + '.json'), doc)
         except (OSError, ValueError) as e:
             self.toast('Could not send it to the game', str(e), error=True)
             return
@@ -984,6 +1322,7 @@ class Workbench(QWidget):
         target = os.path.join(game, w.id + '.json')
         try:
             if os.path.exists(target):
+                self.keep_old(target, 'removed')
                 os.remove(target)
         except OSError as e:
             self.toast('Could not remove it from the game', str(e), error=True)
@@ -999,7 +1338,7 @@ class Workbench(QWidget):
         game = self.game_poses_dir()
         saved = os.path.exists(self.pose_path())
         if game is None:
-            text = 'The game was not found in the Steam folder: poses are saved here only.'
+            text = 'The game (with the mod) was not found: poses are saved here only. Advanced → Game folder… to point to it.'
         elif os.path.exists(os.path.join(game, w.id + '.json')):
             text = 'In the game: this weapon is held with your saved pose (from the next time it is analysed: restart or reload).'
         else:
@@ -1033,16 +1372,20 @@ class Workbench(QWidget):
                 return
             w = self.scene.weapon
             path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{stamp()}.gif")
-            frames = [f.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE) for f in rec['frames']]
-            # Each frame as long as it really lasted: a grab slower than the timer's period played back in slow motion.
+            frames = rec['frames']  # (quantized as they were grabbed)
+            # Each frame as long as it really lasted, rounded on the running time to the GIF's centiseconds (each frame
+            # rounded down on its own played about 10% fast).
             t = rec['times'] + [rec['times'][-1] + 1.0 / rec['fps']]
-            durations = [max(20, int(round((t[i + 1] - t[i]) * 1000))) for i in range(len(frames))]
+            cs = [int(round((x - t[0]) * 100)) for x in t]
+            durations = [max(2, cs[i + 1] - cs[i]) * 10 for i in range(len(frames))]
             try:
-                frames[0].save(path, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
+                frames[0].save(path, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=1)
             except (OSError, ValueError) as e:
+                self.log_error(f'saving the GIF {path}', e)
                 self.toast('The GIF could not be saved', f'{path}\n{e}', error=True)
                 return
-            self.toast(f'GIF saved ({len(frames)} frames)', path, path)
+            self.toast(f'GIF saved ({len(frames)} frames, {sum(durations) / 1000:.1f} s)',
+                       path + ('\nStopped at the 400 MB limit of the recording.' if rec.get('limit') else ''), path)
 
     def _grab_frame(self):
         rec = self.recording
@@ -1050,6 +1393,7 @@ class Workbench(QWidget):
             return
         if rec['bytes'] > 400 * 1024 * 1024:
             # About 400 MB of frames kept (a big view at full size was 3 MB a frame, 2 GB at 600 frames): stopped and saved.
+            rec['limit'] = True
             self.rec_btn.setChecked(False)
             return
         img = self.view.grabFramebuffer()
@@ -1059,10 +1403,24 @@ class Workbench(QWidget):
         ptr = img.constBits()
         ptr.setsize(img.sizeInBytes())
         arr = np.frombuffer(ptr, np.uint8).reshape(img.height(), img.bytesPerLine())[:, :img.width() * 3].reshape(img.height(), img.width(), 3)
-        rec['frames'].append(Image.fromarray(arr.copy()))
+        frame = Image.fromarray(arr.copy()).quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        rec['frames'].append(frame)
         rec['times'].append(time.perf_counter())
-        rec['bytes'] += arr.nbytes
+        rec['bytes'] += frame.width * frame.height
         self.rec_btn.setText(f"Stop recording ({len(rec['frames'])})")
+
+    def log_error(self, what, exc):
+        """A handled error into sandbox-errors.log as well (the message on screen goes after a few seconds)."""
+        import traceback
+        try:
+            main = sys.modules.get('__main__')
+            log = main.error_log_path() if main is not None and hasattr(main, 'error_log_path') else None
+            if log:
+                with open(log, 'a', encoding='utf-8') as f:
+                    f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {what}\n"
+                            + ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__)) + '\n')
+        except OSError:
+            pass
 
     def toast(self, title, content, path=None, error=False):
         bar = (InfoBar.error if error else InfoBar.success)(title, content, orient=Qt.Orientation.Vertical, isClosable=True,
@@ -1109,18 +1467,25 @@ class Workbench(QWidget):
     def _job_done(self, title, code):
         self.job_log.appendPlainText(f'\n{title}: finished ({code}).')
         if 'Export' in title:
-            self.load_weapon_list()
-        self.toast(f'{title}: finished', 'Exit code ' + str(code), error=code != 0)
+            self.load_weapon_list(keep_open=True)
+        if code != 0:
+            tail = [ln for ln in self.job_log.toPlainText().splitlines() if ln.strip()][-6:]
+            self.toast(f'{title}: it did not work', '\n'.join(tail[-5:]) + '\n(the whole output: Advanced, under the Game card)', error=True)
+        else:
+            self.toast(f'{title}: finished', 'The weapons are read again; the open weapon and its hands stay as they were.'
+                       if 'Export' in title else 'Done.')
 
     def export_weapons(self):
         names = self.export_names.text().strip()
-        self._run([os.path.join(self.repo, 'tools', 'sandbox', 'export.py')] + (['--weapons', names] if names else []), 'Export weapons')
+        self._run([os.path.join(self.repo, 'tools', 'sandbox', 'export.py'), '--game', self.game_folder()]
+                  + (['--weapons', names] if names else []), 'Export weapons')
 
     def test_in_game(self):
         w = self.scene.weapon
         if w is None:
             return
-        self._run([os.path.join(self.repo, 'tools', 'vrshots.py'), '--weapon', '=' + w.name, '--out', 'sandbox-' + safe(w.name)],
+        self._run([os.path.join(self.repo, 'tools', 'vrshots.py'), '--game', self.game_folder(), '--weapon', '=' + w.name,
+                   '--out', 'sandbox-' + safe(w.name)],
                   f'Test {w.name} in the game')
 
 
@@ -1204,9 +1569,18 @@ class Window(FluentWindow):
                 return
             job.kill()
             job.waitForFinished(2000)
+        if not wb.selftest and wb.scene.weapon is not None and (wb.unsaved() or wb.drafts):
+            names = ([wb.scene.weapon.name] if wb.unsaved() else []) + [d for d in wb.drafts]
+            box = MessageBox('Close without saving?', 'These weapons have hands that are not saved: ' + ', '.join(names[:6])
+                             + (' …' if len(names) > 6 else '') + '.\n\nClose anyway (they are lost)?', self)
+            if not box.exec():
+                e.ignore()
+                return
         wb.timeline.stop()
         if wb.recording:
-            wb.recording['timer'].stop()
+            wb.rec_btn.setChecked(False)  # (the recording so far is saved, not dropped)
+        if not wb.selftest:
+            wb.settings.setValue('geometry', self.saveGeometry())
         wb.view.cleanup()
         super().closeEvent(e)
 
@@ -1232,6 +1606,9 @@ class Window(FluentWindow):
         avail = QGuiApplication.primaryScreen().availableGeometry()
         self.resize(min(1500, int(avail.width() * 0.94)), min(920, int(avail.height() * 0.92)))
         self.move(avail.x() + (avail.width() - self.width()) // 2, avail.y() + (avail.height() - self.height()) // 2)
+        geometry = QSettings('RavenfieldVR', 'Sandbox').value('geometry')
+        if isinstance(geometry, QByteArray) and '--selftest' not in sys.argv and '--shot' not in sys.argv:
+            self.restoreGeometry(geometry)  # where it was last time (Qt keeps it on a screen that still exists)
 
 
 def error_log_path():
@@ -1278,13 +1655,19 @@ def main():
     setThemeColor('#d79b45')
     repo = find_repo()
     while repo is None:
-        from PyQt6.QtWidgets import QFileDialog
-        chosen = QFileDialog.getExistingDirectory(None, 'Where is the Ravenfield-VR folder? (the one with src\\Rig\\Glove\\glove.bin)')
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        QMessageBox.information(None, APP_NAME, 'The sandbox needs the Ravenfield-VR mod folder (the one that holds src, tools '
+                                'and reports). Pick it in the next window.')
+        chosen = QFileDialog.getExistingDirectory(None, 'Pick the Ravenfield-VR folder')
         if not chosen:
+            QMessageBox.information(None, APP_NAME, 'No folder picked: the sandbox closes. Start it again to pick the folder.')
             return
         if is_repo(chosen):
             repo = chosen
             QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
+        else:
+            QMessageBox.warning(None, APP_NAME, f'{chosen} is not the Ravenfield-VR folder (it has no src\\Rig\\Glove\\glove.bin). '
+                                'Pick the folder again.')
     win = Window(repo)
     args = sys.argv[1:]
     if '--selftest' in args:

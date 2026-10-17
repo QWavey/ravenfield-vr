@@ -1,0 +1,114 @@
+{
+ "weapon": "M4A1_CCO_m4_cco",
+ "key": "M4A1 CCO#m4 cco",
+ "name": "M4A1 CCO",
+ "saved": "2026-10-17 20:52:53",
+ "about": "Hands on this weapon. 'mod' is the mod's gun space (left-handed, as in the rig dumps); a hand's rotation is its palm frame (fingers +Z, thumb side +Y, palm facing -X for the right hand, +X for the mirrored left). 'gun' is the same right-handed (z negated), as the sandbox uses it. fromMuzzleCm = back, up, right.",
+ "hands": {
+  "right": {
+   "gun": {
+    "position": [
+     0.025529,
+     0.183965,
+     0.124323
+    ],
+    "rotation": [
+     -0.7061377159181262,
+     -0.03700710955926796,
+     -0.037007109559268066,
+     0.7061377159181262
+    ]
+   },
+   "mod": {
+    "position": [
+     0.02553,
+     0.18396,
+     -0.12432
+    ],
+    "rotation": [
+     0.70614,
+     0.03701,
+     -0.03701,
+     0.70614
+    ]
+   },
+   "fromMuzzleCm": [
+    72.03,
+    -10.77,
+    3.09
+   ],
+   "pose": "Custom",
+   "thumb": 0.7,
+   "curls": [
+    0.55,
+    0.3246,
+    0.4489,
+    0.5007,
+    0.5318
+   ],
+   "thumbSet": true,
+   "on": "M4",
+   "role": "grip",
+   "nearestPart": {
+    "name": "AK/AR/C8 BODY/M4",
+    "role": "gun body",
+    "cm": 0.0
+   }
+  },
+  "left": {
+   "gun": {
+    "position": [
+     -0.054873000000000005,
+     -0.112788,
+     0.1113
+    ],
+    "rotation": [
+     0.7071067811865476,
+     5.551115123125784e-17,
+     -0.7071067811865476,
+     -5.551115123125784e-17
+    ]
+   },
+   "mod": {
+    "position": [
+     -0.05487,
+     -0.11279,
+     -0.1113
+    ],
+    "rotation": [
+     -0.70711,
+     -0.0,
+     -0.70711,
+     -0.0
+    ]
+   },
+   "fromMuzzleCm": [
+    42.36,
+    -9.47,
+    -4.95
+   ],
+   "pose": "weapon's own support",
+   "thumb": 0.35,
+   "curls": [
+    0.5827,
+    0.6291,
+    0.583,
+    0.5638,
+    0.5523
+   ],
+   "thumbSet": false,
+   "on": "handguard",
+   "role": "support",
+   "nearestPart": {
+    "name": "AK/AR/C8 BODY/M4",
+    "role": "gun body",
+    "cm": 1.74
+   }
+  }
+ },
+ "parts": {
+  "slide": 0.0,
+  "magazine": 0.0,
+  "cover": 0.0
+ }
+}

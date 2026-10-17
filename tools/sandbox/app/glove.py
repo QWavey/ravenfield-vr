@@ -221,7 +221,10 @@ class Hand:
         self.update_mesh()
 
     def update_mesh(self):
-        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, self.curls, self.pose_name == 'Pointing (laser)')
+        # Valve's pointing joints only for a free hand, as the mod draws one (HandModel.Pointing); a hand on the gun is drawn
+        # from its curls, which are what is saved and what the game holds (review B10#6).
+        point = self.pose_name == 'Pointing (laser)' and not self.role
+        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, self.curls, point)
         self.dirty = True
 
     def set_settle(self, offset):

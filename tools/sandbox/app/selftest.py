@@ -1,12 +1,14 @@
 """The sandbox checking itself: every feature run as a user would (`main.py --selftest report.txt [--weapon NAME]`), each
-step written PASS or FAIL with what it saw. Pose files that existed before are put back; the ones it made are removed."""
+step written PASS or FAIL with what it saw. It saves into folders of its own (reports/sandbox/selftest): the user's saved
+poses and the game's are never touched (it deleted them and put them back only at the end before, review B3#0/B8#0)."""
 import json
 import os
+import shutil
 import time
 
 import numpy as np
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtCore import QEvent, QPointF, Qt, QTimer
+from PyQt6.QtGui import QGuiApplication, QMouseEvent
 
 from mathutil import quat_axis_angle, quat_mul
 
@@ -23,8 +25,17 @@ class SelfTest:
         self.backups = {}
         self.made = []
         self.steps = [self.s_list, self.s_open, self.s_hands, self.s_edit, self.s_save, self.s_reimport, self.s_export,
-                      self.s_send_remove, self.s_reload_start, self.s_reload_wait, self.s_laser, self.s_screenshot,
-                      self.s_gif_start, self.s_gif_stop, self.s_error_raise, self.s_error_check, self.s_cleanup]
+                      self.s_send_remove, self.s_bad_import, self.s_undo, self.s_draft, self.s_reload_start, self.s_reload_wait,
+                      self.s_laser, self.s_screenshot, self.s_gif_start, self.s_gif_stop, self.s_error_raise, self.s_error_check,
+                      self.s_cleanup]
+        # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
+        self.root = os.path.join(self.wb.repo, 'reports', 'sandbox', 'selftest')
+        shutil.rmtree(self.root, ignore_errors=True)
+        self.wb.poses_dir = os.path.join(self.root, 'poses')
+        self.wb.game_dir_override = os.path.join(self.root, 'game-poses')
+        os.makedirs(self.wb.poses_dir, exist_ok=True)
+        os.makedirs(self.wb.game_dir_override, exist_ok=True)
+        self.wb.drafts.clear()
         self.index = 0
         self.saved = None
 
@@ -50,13 +61,20 @@ class SelfTest:
         QTimer.singleShot(wait if wait is not None else delay, self.next)
 
     def finish(self):
-        text = f"Ravenfield VR Sandbox self-test, {time.strftime('%Y-%m-%d %H:%M:%S')}: {len(self.lines) - self.failed} passed, {self.failed} failed\n" + '\n'.join(self.lines) + '\n'
-        with open(self.report, 'w', encoding='utf-8') as f:
-            f.write(text)
-        print(text)
         code = 1 if self.failed else 0
-        self.win.close()  # frees the GPU resources as a user's close does
-        self.app.exit(code)
+        try:
+            text = f"Ravenfield VR Sandbox self-test, {time.strftime('%Y-%m-%d %H:%M:%S')}: {len(self.lines) - self.failed} passed, {self.failed} failed\n" + '\n'.join(self.lines) + '\n'
+            try:
+                with open(self.report, 'w', encoding='utf-8') as f:
+                    f.write(text)
+            except OSError as e:
+                code = 2  # (no report: said by the exit code, not a run left hanging)
+                text += f'\nTHE REPORT COULD NOT BE WRITTEN: {e}\n'
+            if __import__('sys').stdout is not None:
+                print(text)
+        finally:
+            self.win.close()  # frees the GPU resources as a user's close does
+            self.app.exit(code)
 
     # ---- steps ---------------------------------------------------------------------------------------------------------
 
@@ -71,13 +89,8 @@ class SelfTest:
             pick = next((it for it in items if self.want.lower() in it.text().lower() or self.want.lower() in str(it.data(Qt.ItemDataRole.UserRole)).lower()), None)
         pick = pick or items[0]
         wid = pick.data(Qt.ItemDataRole.UserRole)
-        # Pose files of this weapon kept aside (put back at the end).
-        for path in (os.path.join(self.wb.poses_dir, wid + '.json'),
-                     os.path.join(self.wb.game_poses_dir(), wid + '.json') if self.wb.game_poses_dir() else None):
-            if path:
-                self.backups[path] = open(path, encoding='utf-8').read() if os.path.exists(path) else None
-                if os.path.exists(path):
-                    os.remove(path)
+        if self.want and self.want.lower() not in (pick.text() + ' ' + wid).lower():
+            self.check(f'the weapon asked for ({self.want}) is in the list', False, f'opened {wid} instead')
         self.wb.weapon_list.setCurrentItem(pick)
         w = self.wb.scene.weapon
         self.check('weapon opened', w is not None and w.id == wid, f"{wid}: {len(w.nodes) if w else 0} parts, {w.stand_ins if w else 0} stand-ins")
@@ -109,6 +122,8 @@ class SelfTest:
 
     def s_save(self):
         wb = self.wb
+        if not wb.unsaved():
+            self.check('a changed pose is marked as not saved', False)
         path = wb.save_pose()
         self.made.append(path)
         game = wb.game_poses_dir()
@@ -119,9 +134,9 @@ class SelfTest:
         fields = len((r.get('mod') or {}).get('position', [])) == 3 and len((r.get('mod') or {}).get('rotation', [])) == 4 and len(r.get('curls', [])) == 5
         self.check('pose saved', bool(ok and fields), path or 'no file')
         self.check('a thumb posed by hand goes to the game', r.get('thumbSet') is True, f"thumbSet {r.get('thumbSet')!r}")
-        if game:
-            self.check('pose saved for the game', os.path.exists(gpath), gpath)
-            self.check('the game copy is the same', json.load(open(gpath, encoding='utf-8')) == doc)
+        self.check('pose saved for the game', bool(game) and os.path.exists(gpath), gpath or 'no game folder')
+        self.check('the game copy is the same', bool(gpath) and os.path.exists(gpath) and json.load(open(gpath, encoding='utf-8')) == doc)
+        self.check('saved: no longer marked as changed', not wb.unsaved())
         self.saved = doc
 
     def s_reimport(self):
@@ -163,9 +178,6 @@ class SelfTest:
     def s_send_remove(self):
         wb = self.wb
         game = wb.game_poses_dir()
-        if not game:
-            self.check('send to / remove from the game', True, 'skipped: the game folder was not found')
-            return
         target = os.path.join(game, wb.scene.weapon.id + '.json')
         wb.remove_from_game()
         gone = not os.path.exists(target)
@@ -174,6 +186,53 @@ class SelfTest:
         back = os.path.exists(target)
         status_on = 'saved pose' in wb.game_status.text()
         self.check('remove from and send to the game', gone and back and status_off and status_on, wb.game_status.text())
+
+    def s_bad_import(self):
+        wb, s = self.wb, self.wb.scene
+        before = (s.right.position.copy(), list(s.right.curls), s.left.position.copy())
+        bad = os.path.join(self.root, 'bad-pose.json')
+        with open(bad, 'w', encoding='utf-8') as f:
+            json.dump({'hands': {'right': {'gun': {'position': [0, 0, 0], 'rotation': [0, 0, 0, 1]}, 'curls': 'x'},
+                                 'left': {'gun': {'position': [1, 2], 'rotation': [0, 0, 0, 1]}}}}, f)
+        ok = wb.import_pose(bad)
+        same = (np.allclose(before[0], s.right.position) and before[1] == list(s.right.curls) and np.allclose(before[2], s.left.position))
+        self.check('a bad pose file is refused and changes nothing', ok is False and same)
+
+    def s_undo(self):
+        wb, s = self.wb, self.wb.scene
+        h = s.right
+        p0 = h.position.copy()
+        wb.push_undo()  # as a drag's start does
+        h.position = h.position + np.array([0.03, 0.0, 0.0])
+        wb.on_hand_moved(h)
+        moved = h.position.copy()
+        wb.undo()
+        back = np.allclose(h.position, p0)
+        wb.redo()
+        again = np.allclose(h.position, moved)
+        wb.undo()
+        self.check('undo and redo a hand move', back and again and np.allclose(h.position, p0))
+
+    def s_draft(self):
+        wb, s = self.wb, self.wb.scene
+        w0 = s.weapon.id
+        h = s.right
+        wb.push_undo()
+        h.position = h.position + np.array([0.0, 0.02, 0.0])
+        wb.on_hand_moved(h)
+        moved = s.weapon.to_gun(h.position)[:3].copy()
+        other = next((it for it in wb.items if it.data(Qt.ItemDataRole.UserRole) != w0), None)
+        if other is None:
+            self.check('unsaved hands kept when another weapon is opened', True, 'skipped: only one weapon exported')
+            return
+        wb.weapon_list.setCurrentItem(other)
+        marked = any(it.data(Qt.ItemDataRole.UserRole) == w0 and 'not saved' in it.text() for it in wb.items)
+        wb.weapon_list.setCurrentItem(next(it for it in wb.items if it.data(Qt.ItemDataRole.UserRole) == w0))
+        kept = s.weapon.id == w0 and np.allclose(s.weapon.to_gun(s.right.position)[:3], moved, atol=1e-6)
+        self.check('unsaved hands kept when another weapon is opened', marked and kept,
+                   f'marked {marked}, back on {s.weapon.id}, {np.linalg.norm(s.weapon.to_gun(s.right.position)[:3] - moved) * 1000:.3f} mm')
+        wb.revert_to_saved()
+        self.check('revert to the saved pose', not wb.unsaved())
 
     def s_reload_start(self):
         w = self.wb.scene.weapon
@@ -196,7 +255,7 @@ class SelfTest:
             if w.fresh is not None and self.wb.scene.extra_draws():
                 self.fresh_seen = True
             time.sleep(0.01)
-        ok = not tl.running and w.fresh is None and abs(w.mag) < 1e-6 and abs(w.slide) < 1e-6 and not any(n.away for n in w.nodes)
+        ok = not tl.running and w.fresh is None and abs(w.mag) < 1e-6 and abs(w.slide) < 1e-6 and abs(w.cover) < 1e-6 and not any(n.away for n in w.nodes)
         self.check('reload played to the end, parts home', ok, f'magazine {w.mag:.2f}, slide {w.slide:.2f}, away {sum(n.away for n in w.nodes)}')
         if w.rig.get('magazine'):
             self.check('the fresh magazine is drawn while it goes in', self.fresh_seen)
@@ -206,11 +265,28 @@ class SelfTest:
 
     def s_laser(self):
         wb = self.wb
-        wb.test_pick()
-        text = wb.point_text() if wb.picked_point is not None else ''
+        w = wb.scene.weapon
+        v = wb.view
+        wb.laser_btn.setChecked(True)
+        node = next((n for n in w.nodes if n.role in ('slide', 'handle') and not n.hidden), None) or max(
+            (n for n in w.nodes if not n.hidden), key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
+        world = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
+        clip_pos = (v.proj_matrix() @ v.view_matrix()) @ np.append(world, 1.0)
+        ndc = clip_pos[:3] / clip_pos[3]
+        pos = QPointF((ndc[0] + 1) * 0.5 * v.width(), (1 - ndc[1]) * 0.5 * v.height())
+        wb.picked_point = None
+        for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            ev = QMouseEvent(kind, pos, v.mapToGlobal(pos), Qt.MouseButton.LeftButton,
+                             Qt.MouseButton.LeftButton if kind == QEvent.Type.MouseButtonPress else Qt.MouseButton.NoButton,
+                             Qt.KeyboardModifier.NoModifier)
+            QGuiApplication.sendEvent(v, ev)
+        hit = wb.picked_point is not None and wb.picked_node is not None
+        text = wb.point_text() if hit else ''
         wb.copy_point()
         clip = QGuiApplication.clipboard().text()
-        self.check('laser readout and copy', bool(text) and clip == text and 'from the muzzle' in text, text[:140])
+        self.check('laser: a click on the gun picks a part through the view', hit, f"{wb.picked_node.short if hit else 'nothing'}")
+        self.check('laser readout and copy', bool(text) and clip == text and ' cm from ' in text, text[:140])
+        wb.laser_btn.setChecked(False)
 
     def s_screenshot(self):
         path = self.wb.screenshot()
@@ -267,14 +343,11 @@ class SelfTest:
     def s_cleanup(self):
         removed = 0
         for path in self.made:
-            if path and os.path.exists(path) and path not in self.backups:
-                os.remove(path)
-                removed += 1
-        for path, content in self.backups.items():
-            if content is None:
-                if os.path.exists(path):
+            try:
+                if path and os.path.exists(path):
                     os.remove(path)
-            else:
-                with open(path, 'w', encoding='utf-8') as f:
-                    f.write(content)
-        self.check('test files removed, earlier poses put back', True, f'{removed} removed, {sum(c is not None for c in self.backups.values())} put back')
+                    removed += 1
+            except OSError:
+                pass
+        shutil.rmtree(self.root, ignore_errors=True)
+        self.check('test files removed (the user\'s poses never touched)', not os.path.exists(self.root), f'{removed} captures removed')

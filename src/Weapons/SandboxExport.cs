@@ -450,7 +450,7 @@ namespace RavenfieldVR.Weapons
                 .Path("slide", d.SlidePath).Path("handle", d.HandlePath).Path("bolt", d.BoltPath).Path("hinge", d.HingePath)
                 .Path("magazine", d.MagazinePath).Paths("magazineParts", d.MagazinePartPaths).Paths("slideCompanions", d.SlideCompanionPaths)
                 .Vec("magSeatPos", d.MagSeat.position).Vec("magRestPos", d.MagRestPos).Quat("magSeatRot", d.MagSeat.rotation).Vec("magEject", d.MagEjectAxis)
-                .Vec("magBoundsCenter", d.MagBounds.center).Vec("magBoundsSize", Abs(d.MagBounds.size)).Str("magMethod", d.MagMethod)
+                .Vec("magBoundsCenter", d.MagBounds.center).Size("magBoundsSize", Abs(d.MagBounds.size)).Str("magMethod", d.MagMethod)
                 .Str("hingeKind", d.Hinge.ToString()).Vec("hingePivot", d.HingePivot).Vec("hingeAxis", d.HingeAxis)
                 .Num("hingeAngle", d.HingeOpenAngle).Vec("hingeGrab", d.HingeGrabPoint).Bool("seatOnHinge", d.SeatOnHinge)
                 .Floats("gripCurls", d.GripCurls).Floats("supportCurls", d.SupportCurls)
@@ -517,6 +517,14 @@ namespace RavenfieldVR.Weapons
             public Json Bool(string k, bool v)
             {
                 Key(k)._sb.Append(v ? "true" : "false");
+                return this;
+            }
+
+            /// <summary>A size (lengths along x, y, z): not turned right-handed like a point (Vec negated z, so every
+            /// magBoundsSize had a negative z and the sandbox missed the magazine's length along z).</summary>
+            public Json Size(string k, Vector3 v)
+            {
+                Key(k)._sb.Append('[').Append(F(v.x)).Append(',').Append(F(v.y)).Append(',').Append(F(v.z)).Append(']');
                 return this;
             }
 

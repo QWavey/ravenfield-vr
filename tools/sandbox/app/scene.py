@@ -43,6 +43,7 @@ class Weapon:
         self.right = norm(np.cross(self.aim, self.up))
         self.grip = v3(r['grip'])
         self.muzzle = v3(r['muzzle'])
+        self.muzzle_known = bool(np.linalg.norm(self.muzzle) > 1e-6)
         rot = np.vstack([self.aim, self.up, self.right])  # gun -> world: barrel +X, top +Y, right side +Z (toward the viewer)
         self.W = np.eye(4)
         self.W[:3, :3] = rot
@@ -81,6 +82,11 @@ class Weapon:
         allmax = np.max([n.bmax + s for n, s in zip(self.nodes, shift)], axis=0) if self.nodes else np.zeros(3)
         self.bmin, self.bmax = allmin, allmax
         self.stand_ins = sum(1 for n in self.nodes if n.stand_in)
+        if not self.muzzle_known:
+            # (SABRE, the smoke grenade, the squad kit, PATRIOT GL: no muzzle in the export. On the bore line at the gun's
+            # front instead, so readouts and markers are not measured from the gun's origin; review B9#2.)
+            front = max(float(np.dot(c, self.aim)) for c in _corners(self.bmin, self.bmax)) if self.nodes else 0.0
+            self.muzzle = self.grip + self.aim * (front - float(np.dot(self.grip, self.aim)))
 
     # ---- spaces ---------------------------------------------------------------------------------------------------
 
@@ -112,9 +118,12 @@ class Weapon:
     # ---- the moving parts -------------------------------------------------------------------------------------------
 
     @property
+    def mag_size(self):
+        return np.abs(v3(self.rig.get('magBoundsSize', [0.03, 0.12, 0.06])))
+
+    @property
     def mag_length(self):
-        size = v3(self.rig.get('magBoundsSize', [0.03, 0.12, 0.06]))
-        return float(max(size)) * 1.15 + 0.03
+        return float(max(self.mag_size)) * 1.15 + 0.03
 
     def mag_center(self):
         q = self.rig.get('magSeatRot', [0, 0, 0, 1])
@@ -178,15 +187,28 @@ class Weapon:
         travel = ht if self.rig.get('handle') and np.linalg.norm(ht) > 1e-5 else st
         return v3(self.rig['rackPoint']) + travel * self.slide
 
+    def fresh_matrix(self, out):
+        """Where the fresh magazine is drawn, out = 1 at the end of its pull and 0 seated: on the seat's line, from where its
+        parts wait (a parked clip, the M1's, is drawn on the seat) and turned with the barrels when it sits in them."""
+        m = np.eye(4)
+        m[:3, 3] = self._mag_eject_rest() * self.mag_length * out + self.mag_parked
+        return self.hinge_m @ m if self.rig.get('seatOnHinge') else m
+
     def nearest_part(self, p_gun):
-        best, bd = None, 1e9
+        best, bd, bvol = None, 1e9, 1e9
+        p = np.append(v3(p_gun), 1.0)
         for n in self.nodes:
-            # The part's box where it is now (turned with the cover or barrels too, not only moved).
-            c = np.array([(n.sim @ np.append(k, 1.0))[:3] for k in _corners(n.bmin, n.bmax)])
-            q = np.clip(p_gun, c.min(axis=0), c.max(axis=0))
-            d = np.linalg.norm(q - p_gun)
-            if d < bd:
-                best, bd = n, d
+            if n.hidden or n.away:
+                continue
+            try:
+                local = np.linalg.solve(n.sim, p)[:3]
+            except np.linalg.LinAlgError:
+                continue
+            q = np.clip(local, n.bmin, n.bmax)
+            d = float(np.linalg.norm((n.sim @ np.append(q, 1.0))[:3] - p[:3]))
+            vol = float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4)))
+            if d < bd - 1e-4 or (abs(d - bd) <= 1e-4 and vol < bvol):
+                best, bd, bvol = n, d, vol
         return best, bd
 
 
@@ -220,7 +242,7 @@ class Scene:
         w = self.weapon
         if w is None or w.fresh is None:
             return []
-        return [(n, w.W @ w.fresh) for n in w.nodes if n.role == 'magazine' and not n.hidden]
+        return [(n, w.W @ w.fresh) for n in w.nodes if n.role == 'magazine' and not n.hidden]  # fresh: Weapon.fresh_matrix
 
     def laser_origin(self):
         h = self.laser_hand
@@ -249,8 +271,9 @@ class Scene:
             cross(r['support'], (0.35, 0.6, 1.0, 1))
         cross(w.rack_point(), (1.0, 0.6, 0.15, 1))
         arrow(w.rack_point(), r.get('slideTravel', [0, 0, 0]), (1.0, 0.6, 0.15, 1))
-        cross(w.muzzle, (1.0, 0.3, 0.3, 1))
-        arrow(w.muzzle, w.aim * 0.06, (1.0, 0.3, 0.3, 1))
+        if w.muzzle_known:
+            cross(w.muzzle, (1.0, 0.3, 0.3, 1))
+            arrow(w.muzzle, w.aim * 0.06, (1.0, 0.3, 0.3, 1))
         seat = v3(r.get('magSeatPos', [0, 0, 0]))
         cross(seat, (1.0, 0.9, 0.3, 1), 0.008)
         arrow(w.mag_center(), w.mag_eject() * w.mag_length, (1.0, 0.9, 0.3, 0.8))
@@ -312,7 +335,7 @@ class Scene:
             hand.on_part = 'slide / handle'
         elif target == 'magazine':
             ej = w.mag_eject()
-            size = v3(r.get('magBoundsSize', [0.03, 0.12, 0.06]))
+            size = w.mag_size
             base = w.mag_center() + ej * (float(np.max(size)) * 0.5 + 0.01) + ej * w.mag_length * w.mag
             self.place(hand, base, -ej, w.aim)
             hand.set_pose('Pistol magazine' if pistol else 'Box magazine' if r.get('machineGun') else 'Rifle magazine')
@@ -376,9 +399,17 @@ class Scene:
                 gaps.append(t - back)
         if not gaps:
             return 0.0
-        # In by up to 2 cm, out by up to 4 (HandModel.PalmOffset). Only the drawn glove moves: in VR the hand (the gun's
-        # grip point) stays where it is and the glove is drawn settled; saved, the hand's own place is kept.
-        move = float(np.clip(min(gaps) - 0.002, -0.04, 0.02))
+        # As HandModel.PalmOffset: touching, out in 2 mm steps until it no longer does (4 cm at most); else in by 2 mm steps
+        # while a gap is left, only when the skin touches within 2 cm (a gun farther off is left alone). Only the drawn glove
+        # moves: in VR the hand (the gun's grip point) stays where it is and the glove is drawn settled; saved, the hand's
+        # own place is kept.
+        g = min(gaps)
+        if g <= 0:
+            move = -min(0.04, math.ceil(-g / 0.002 - 1e-9) * 0.002)
+        elif g <= 0.0201:
+            move = math.ceil(g / 0.002 - 1e-9) * 0.002 - 0.002
+        else:
+            move = 0.0
         hand.set_settle(normal * move)
         return move
 
@@ -391,12 +422,37 @@ class Scene:
         part, dist = w.nearest_part(p)
         if part is None or dist > 0.06:
             return ''
+        job = {'magazine': 'magazine', 'slide': 'rack', 'handle': 'rack', 'bolt': 'rack', 'companion': 'rack', 'hinge': 'cover'}.get(part.role)
         if hand.side == 'right':
-            return 'grip'
+            # The grip: on the gun's body near the analysed grip (the game holds the gun wherever the right hand is saved).
+            return 'grip' if job is None and np.linalg.norm(p - w.grip) < 0.12 else (job or '')
         r = w.rig
         near_support = r.get('hasSupport') and np.linalg.norm(p - v3(r['support'])) < 0.05
-        job = {'magazine': 'magazine', 'slide': 'rack', 'handle': 'rack', 'bolt': 'rack', 'companion': 'rack', 'hinge': 'cover'}.get(part.role)
-        return 'support' if job is None or near_support else job
+        if job is not None and not near_support:
+            return job
+        ahead = float(np.dot(p - w.grip, w.aim))
+        # A long gun's support hand is ahead of the grip (the analysis keeps it 7 cm or more ahead, on the forend); a pistol's
+        # cups the grip.
+        if r.get('isPistol'):
+            return 'support' if np.linalg.norm(p - w.grip) < 0.12 else ''
+        return 'support' if ahead >= 0.07 or near_support else ''
+
+    def pose_warnings(self):
+        """What the game would do oddly with these hands, said before saving."""
+        w = self.weapon
+        out = []
+        if w is None:
+            return out
+        p = w.to_gun(self.right.position)[:3]
+        part, dist = w.nearest_part(p)
+        off = float(np.linalg.norm(p - w.grip))
+        if off > 0.08 or (part is not None and part.role != 'body' and dist < 0.03):
+            where = f"on the {ROLE_NAMES.get(part.role, part.role)} '{part.short}'" if part is not None and dist < 0.06 else 'off the gun'
+            out.append(f'The right hand is {where}, {off * 100:.0f} cm from the analysed grip: the game will hold the gun there.')
+        if self.left.role != 'support':
+            out.append('The left hand is not on the handguard (its job: ' + (self.left.role or 'none') +
+                       '): the game keeps the analysed support point and the support hand\'s fingers.')
+        return out
 
     # ---- saving --------------------------------------------------------------------------------------------------------
 
@@ -408,7 +464,7 @@ class Scene:
         part, dist = w.nearest_part(p)
         return {
             'gun': {'position': p.tolist(), 'rotation': q.tolist()},
-            'mod': {'position': Weapon.unity(p).round(5).tolist(), 'rotation': [round(-q[0], 5), round(-q[1], 5), round(q[2], 5), round(q[3], 5)]},
+            'mod': {'position': Weapon.unity(p).round(6).tolist(), 'rotation': [round(-q[0], 7), round(-q[1], 7), round(q[2], 7), round(q[3], 7)]},
             'fromMuzzleCm': w.from_muzzle(p).round(2).tolist(),
             'pose': hand.pose_name, 'thumb': round(hand.thumb, 4), 'curls': [round(c, 4) for c in hand.curls],
             'thumbSet': bool(hand.thumb_set),
@@ -429,24 +485,80 @@ class Scene:
             'parts': {'slide': w.slide, 'magazine': w.mag, 'cover': w.cover},
         }
 
+    @staticmethod
+    def read_pose_document(doc):
+        """A pose file's contents checked and put in order, or ValueError saying what is wrong. Nothing is changed here."""
+        def numbers(v, n, what):
+            if not isinstance(v, (list, tuple)) or len(v) != n:
+                raise ValueError(f'{what}: expected {n} numbers')
+            try:
+                out = np.array([float(x) for x in v], dtype=np.float64)
+            except (TypeError, ValueError):
+                raise ValueError(f'{what}: not numbers') from None
+            if not np.all(np.isfinite(out)):
+                raise ValueError(f'{what}: not finite')
+            return out
+
+        if not isinstance(doc, dict) or not isinstance(doc.get('hands'), dict):
+            raise ValueError('not a pose file (no hands in it)')
+        hands = {}
+        for side in ('right', 'left'):
+            h = doc['hands'].get(side)
+            if h is None:
+                continue
+            if not isinstance(h, dict):
+                raise ValueError(f'{side} hand: not an object')
+            pos = rot = None
+            if isinstance(h.get('mod'), dict):
+                mp = numbers(h['mod'].get('position'), 3, f'{side} hand mod.position')
+                mq = numbers(h['mod'].get('rotation'), 4, f'{side} hand mod.rotation')
+                pos, rot = np.array([mp[0], mp[1], -mp[2]]), np.array([-mq[0], -mq[1], mq[2], mq[3]])
+            if isinstance(h.get('gun'), dict):
+                gp = numbers(h['gun'].get('position'), 3, f'{side} hand gun.position')
+                gq = numbers(h['gun'].get('rotation'), 4, f'{side} hand gun.rotation')
+                # 'gun' keeps the sandbox's full precision; 'mod' (what the game reads, rounded) wins when it was edited.
+                if pos is None or (np.linalg.norm(gp - pos) < 1e-4 and 1.0 - abs(float(np.dot(quat_norm(gq), quat_norm(rot)))) < 1e-6):
+                    pos, rot = gp, gq
+            if pos is None:
+                raise ValueError(f'{side} hand: no place (mod or gun)')
+            if np.linalg.norm(rot) < 1e-6:
+                raise ValueError(f'{side} hand: a zero rotation')
+            curls = h.get('curls', [0.1, 0.12, 0.16, 0.2, 0.24])
+            if not isinstance(curls, (list, tuple)) or not curls:
+                raise ValueError(f'{side} hand: curls must be a list')
+            curls = [float(min(1.0, max(0.0, float(c)))) for c in list(curls)[:5]]
+            curls += [curls[-1]] * (5 - len(curls))
+            hands[side] = {'position': pos, 'rotation': quat_norm(rot), 'curls': curls,
+                           'thumb': float(min(1.0, max(0.0, float(h.get('thumb', 0) or 0)))),
+                           'pose': str(h.get('pose', 'Custom')), 'on': str(h.get('on', '') or ''), 'role': str(h.get('role', '') or ''),
+                           'thumbSet': bool(h.get('thumbSet', False))}
+        parts = doc.get('parts') if isinstance(doc.get('parts'), dict) else {}
+
+        def part(k):
+            try:
+                return float(min(1.0, max(0.0, float(parts.get(k, 0) or 0))))
+            except (TypeError, ValueError):
+                return 0.0
+        return {'hands': hands, 'parts': {'slide': part('slide'), 'magazine': part('magazine'), 'cover': part('cover')}}
+
     def apply_pose_document(self, doc):
         w = self.weapon
+        checked = doc if isinstance(doc, dict) and doc.get('_checked') else dict(self.read_pose_document(doc), _checked=True)
         for side, hand in (('right', self.right), ('left', self.left)):
-            h = (doc.get('hands') or {}).get(side)
+            h = checked['hands'].get(side)
             if not h:
                 continue
-            g = h['gun']
-            hand.position = w.to_world(g['position'])
-            hand.rotation = quat_norm(quat_mul(w.Wq, g['rotation']))
-            hand.pose_name = h.get('pose', 'Custom')
-            hand.thumb = float(h.get('thumb', 0))
-            hand.curls = [float(c) for c in h.get('curls', hand.curls)]
-            hand.on_part = h.get('on', '')
-            hand.role = h.get('role', '')
-            hand.thumb_set = bool(h.get('thumbSet', False))
+            hand.position = w.to_world(h['position'])
+            hand.rotation = quat_norm(quat_mul(w.Wq, h['rotation']))
+            hand.pose_name = h['pose']
+            hand.thumb = h['thumb']
+            hand.curls = list(h['curls'])
+            hand.on_part = h['on']
+            hand.role = h['role']
+            hand.thumb_set = h['thumbSet']
             hand.update_mesh()
-        parts = doc.get('parts') or {}
-        w.set_state(parts.get('slide', 0), parts.get('magazine', 0), parts.get('cover', 0))
+        parts = checked['parts']
+        w.set_state(parts['slide'], parts['magazine'], parts['cover'])
         for hand in (self.right, self.left):
             if hand.role in ('grip', 'support'):
                 self.settle(hand)

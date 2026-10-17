@@ -34,7 +34,10 @@ class Node:
         self.name = name
         self.path = path  # "0/3/1": the transform's child-index path in the weapon (matches rig.json's part paths)
         self.primitives = primitives
-        allp = np.concatenate([p.positions for p in primitives]) if primitives else np.zeros((0, 3), np.float32)
+        # Only the vertices its triangles use: a skinned gun's parts (split per bone) share the whole mesh's vertex list, and
+        # each took the whole gun's box (review B7#0: the nearest part and the hand's contact were wrong on them).
+        used = [p.positions[np.unique(p.indices)] if len(p.indices) else p.positions for p in primitives]
+        allp = np.concatenate(used) if used else np.zeros((0, 3), np.float32)
         self.bmin = allp.min(axis=0) if len(allp) else np.zeros(3)
         self.bmax = allp.max(axis=0) if len(allp) else np.zeros(3)
         self.stand_in = name.startswith('[stand-in] ')

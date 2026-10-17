@@ -172,7 +172,8 @@ class Viewport(QOpenGLWidget):
     context(QPoint global) on a right click without a drag."""
     picked = pyqtSignal(object, object)
     selected = pyqtSignal(object)
-    changed = pyqtSignal()
+    changed = pyqtSignal(object)  # the hand moved or turned
+    drag_started = pyqtSignal()  # a hand is about to be moved (an undo step)
     context = pyqtSignal(QPoint)
     hovered = pyqtSignal(str)
 
@@ -193,6 +194,7 @@ class Viewport(QOpenGLWidget):
         self.laser = False
         self.selected_hand = None
         self.hover_node = None
+        self.part_node = None  # the part chosen in the parts list (kept highlighted)
         self.pick_point = None
         self.pick_line = None  # (from, to) world
         self.show_grid = True
@@ -312,7 +314,7 @@ class Viewport(QOpenGLWidget):
                 if node.hidden or node.away:
                     continue
                 model = w.node_matrix(node)
-                tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.0, 0.0, 0.0)
+                tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else (0.0, 0.0, 0.0)
                 if self.scene.highlight_role and node.role == self.scene.highlight_role:
                     tint = (0.05, 0.1, 0.22)
                 for g in self._gpu_nodes.get(id(node), []):
@@ -458,6 +460,7 @@ class Viewport(QOpenGLWidget):
             if self.laser or alt:
                 hit = self.pick(self._mouse, hands=False)
                 self._set_pick(hit)
+                self._drag = ('orbit',)  # (with the laser on, dragging still looks around)
                 return
             # The nearest of hands and gun: a glove behind the gun is not taken through it (the press orbits).
             hit = self.pick(self._mouse)
@@ -466,6 +469,7 @@ class Viewport(QOpenGLWidget):
                     self.selected_hand = hit[1]
                     self.selected.emit(hit[1])
                 shift = bool(e.modifiers() & Qt.KeyboardModifier.ShiftModifier)
+                self.drag_started.emit()
                 self._drag = ('turn' if shift else 'move', hit[1], hit[2])
                 self.update()
                 return
@@ -492,6 +496,8 @@ class Viewport(QOpenGLWidget):
 
     def mouseMoveEvent(self, e):
         pos = e.position().toPoint()
+        if self._drag is not None and e.buttons() == Qt.MouseButton.NoButton:
+            self._drag = None  # (the release was lost, outside the window: plain moves no longer drag)
         if self._mouse is None or self._drag is None:
             if self.laser or e.modifiers() & Qt.KeyboardModifier.AltModifier:
                 hit = self.pick(pos, hands=False)
@@ -521,17 +527,18 @@ class Viewport(QOpenGLWidget):
             hand = self._drag[1]
             view = self.view_matrix()
             right, up = view[0, :3], view[1, :3]
-            depth = np.linalg.norm(hand.position - self.eye())
+            forward = -view[2, :3]
+            depth = max(0.01, float(np.dot(hand.position - self.eye(), forward)))  # along the view (it follows the cursor)
             s = depth * 2 * math.tan(math.radians(19)) / max(1, self.height())
             hand.position = hand.position + (right * dx - up * dy) * s
-            self.changed.emit()
+            self.changed.emit(hand)
         elif kind == 'turn':
             hand = self._drag[1]
             view = self.view_matrix()
             right, up = view[0, :3], view[1, :3]
             q = quat_mul(quat_axis_angle(up, dx * 0.5), quat_axis_angle(right, dy * 0.5))
             hand.rotation = quat_norm(quat_mul(q, hand.rotation))
-            self.changed.emit()
+            self.changed.emit(hand)
         self.update()
 
     def leaveEvent(self, e):
@@ -544,12 +551,12 @@ class Viewport(QOpenGLWidget):
     def mouseReleaseEvent(self, e):
         moved = self._press is not None and (e.position().toPoint() - self._press).manhattanLength() > 3
         if e.button() == Qt.MouseButton.RightButton and not moved:
+            if self.laser or e.modifiers() & Qt.KeyboardModifier.AltModifier:
+                # The menu acts on the part under the laser now, not the one clicked last.
+                self._mouse = e.position().toPoint()
+                self._set_pick(self.pick(self._mouse, hands=False))
             self.context.emit(e.globalPosition().toPoint())
-        if e.button() == Qt.MouseButton.LeftButton and not moved and self._drag and self._drag[0] == 'orbit':
-            # A click on nothing: nothing selected.
-            if self.selected_hand is not None:
-                self.selected_hand = None
-                self.selected.emit(None)
+        # (A click on the gun or on nothing keeps the selected hand: dropping it left the controls editing the right hand.)
         self._drag = None
         self.update()
 
