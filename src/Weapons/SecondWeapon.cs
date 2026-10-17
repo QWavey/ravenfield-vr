@@ -340,6 +340,49 @@ namespace RavenfieldVR.Weapons
             {
                 Weapon.Show(); // the game hid it as a weapon not in use: it is in the hand
             }
+            UpdateGlove();
+        }
+
+        private GunVolume _volume;
+        private System.Func<Vector3, bool> _solid;
+        private readonly float _heldSince = Time.unscaledTime;
+        private float _volumeRetryAt;
+        private int _volumeTries;
+
+        /// <summary>
+        /// The hand closes on this weapon's own measured shape, as the gun hand on its gun (252 p: the glove was the tracked
+        /// fist, closed on nothing). Measured a moment after it is taken (shared per weapon type), posed with the weapon.
+        /// </summary>
+        private void UpdateGlove()
+        {
+            HandModel model = Hand.Model;
+            if (model == null || Rig.GunBody == null)
+            {
+                return;
+            }
+            Quaternion frame = OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up);
+            if (_volume != null && _volume.Failed)
+            {
+                _volume = null; // measured again a second later
+                _volumeRetryAt = Time.unscaledTime + 1f;
+            }
+            if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && Time.unscaledTime - _heldSince > 0.25f)
+            {
+                _volumeTries++;
+                _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
+                if (_volume == null)
+                {
+                    _volumeRetryAt = Time.unscaledTime + 1f;
+                }
+            }
+            if (_volume == null || !_volume.Ready)
+            {
+                return;
+            }
+            _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
+            model.Solid = _solid ?? (_solid = p => _volume != null && _volume.Ready && _volume.Solid(p));
+            model.SolidAnchor = Rig.GunBody;
+            model.SolidVersion = 0;
         }
 
         /// <summary>Back into its holster (let go, or the main gun went away).</summary>
@@ -359,9 +402,13 @@ namespace RavenfieldVR.Weapons
                 FinishReload(); // a reload under way is finished, not lost
             }
             Weapon.Holster();
-            if (Hand.Role == HandRole.Weapon)
+            if (Hand.Role == HandRole.Weapon || Hand.Role == HandRole.Throwable)
             {
                 Hand.Role = HandRole.Free;
+            }
+            if (Hand.Model != null && _solid != null && Hand.Model.Solid == _solid)
+            {
+                Hand.Model.Solid = null; // nothing left in the hand to close on
             }
             _sys.Sounds.Play(MechSound.Holster, Hand.Palm.position, 0.6f);
             Hand.Haptic(0.04f, 100f, 0.5f);
