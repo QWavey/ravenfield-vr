@@ -107,7 +107,7 @@ def quat_to_euler_deg(q):
     m = quat_to_mat3(q)
     sy = max(-1.0, min(1.0, -m[1, 2]))
     x = math.degrees(math.asin(sy))
-    if abs(sy) < 0.9999:
+    if abs(sy) < 1.0 - 1e-12:  # (the exact form down to a hair from pitch +-90; 0.9999 gave another turn within 0.8 deg of it)
         y = math.degrees(math.atan2(m[0, 2], m[2, 2]))
         z = math.degrees(math.atan2(m[1, 0], m[1, 1]))
     else:

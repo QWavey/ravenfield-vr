@@ -414,7 +414,6 @@ class Scene:
                 continue  # a part scaled to nothing cannot be hit
             lo = (inv @ np.append(o, 1))[:3]
             ld = (inv @ np.append(d, 0))[:3]
-            n = np.linalg.norm(ld)
             # Only triangles near the ray's segment (a quick box test first).
             lo_end = lo + ld * reach
             if np.any(np.minimum(lo, lo_end) > node.bmax + 0.01) or np.any(np.maximum(lo, lo_end) < node.bmin - 0.01):

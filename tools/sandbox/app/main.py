@@ -979,6 +979,7 @@ class Workbench(QWidget):
         if w is None:
             return
         w.set_state(slide, mag, cover)
+        self.update_selected_label()  # (what the hand touches changes when a part moves under it)
         self.view.update()
 
     def sync_sliders(self):
@@ -1436,6 +1437,7 @@ class Workbench(QWidget):
         self.scene.laser_hand = self.scene.right
         point = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
         self.view.pick_point = point
+        self.view.pick_normal = None  # (not measured here: put-a-hand then faces the camera)
         self.view.pick_line = [self.scene.laser_origin(), point]
         self.on_pick(point, node)
 
@@ -2314,7 +2316,7 @@ def main():
         report = args[args.index('--selftest') + 1]
         want = args[args.index('--weapon') + 1] if '--weapon' in args else None
         win.show()
-        test = SelfTest(win, app, report, want)
+        test = SelfTest(win, app, report, want, all_weapons='--all' in args)
         test.start()
         leave(app.exec())
     if '--shot' in args:

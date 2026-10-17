@@ -15,12 +15,13 @@ from mathutil import quat_axis_angle, quat_mul, v3
 
 
 class SelfTest:
-    def __init__(self, win, app, report, want=None):
+    def __init__(self, win, app, report, want=None, all_weapons=False):
         self.win = win
         self.wb = win.workbench
         self.app = app
         self.report = report
         self.want = want
+        self.all_weapons = all_weapons  # --all: every exported weapon opened once at the end
         self.lines = []
         self.passed = 0
         self.failed = 0
@@ -35,7 +36,9 @@ class SelfTest:
                       self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_snap_cover,
                       self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
                       self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
-                      self.s_move_weapon, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_later_features, self.s_cleanup]
+                      self.s_move_weapon, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
+                      self.s_turntable_start, self.s_turntable_check, self.s_record_reload_start, self.s_record_reload_check,
+                      self.s_later_features] + ([self.s_all_weapons] if self.all_weapons else []) + [self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
         self.root = os.path.join(self.wb.repo, 'reports', 'sandbox', 'selftest')
         shutil.rmtree(self.root, ignore_errors=True)
@@ -375,7 +378,7 @@ class SelfTest:
 
     # The features other branches add now, with the Workbench method each would have. Until that method exists the check is
     # a SKIP line; once it is merged, the check for it is written here (a SKIP still shows it is not checked yet).
-    LATER = (('the turntable GIF', 'record_turntable'), ('clean pictures', 'clean_screenshot'))
+    LATER = ()
 
     def _settle(self):
         """A reload still playing is run to its end first: the checks look at the parts as they are."""
@@ -734,6 +737,65 @@ class SelfTest:
         self.check('the menu puts the left hand on the picked part, undo puts it back',
                    moved < 0.07 and np.allclose(s.left.position, before), f'palm {moved * 100:.1f} cm from the point')
 
+    def s_clean_and_big(self):
+        """Pictures: a clean one has no grid, markers or highlights and puts them back after; the 2x one is twice the size."""
+        wb, v = self.wb, self.wb.view
+        before = {k: getattr(v, k) for k in wb.OVERLAYS}
+        normal = wb._grab_view(False)
+        clean = wb._grab_view(True)
+        after = {k: getattr(v, k) for k in wb.OVERLAYS}
+        differs = normal.size() == clean.size() and normal != clean
+        self.check('a clean picture leaves the grid and markers out, and puts them back',
+                   differs and all(before[k] is after[k] or before[k] == after[k] for k in before))
+        wb.big_sw.setChecked(True)
+        path = wb.screenshot()
+        wb.big_sw.setChecked(False)
+        self.made.append(path)
+        from PyQt6.QtGui import QImage
+        img = QImage(path) if path else QImage()
+        self.check('a 2x screenshot is twice the view\'s size', not img.isNull() and img.width() >= normal.width() * 2 - 2,
+                   f'{img.width()} x {img.height()} against {normal.width()} x {normal.height()}')
+
+    def s_turntable_start(self):
+        self.tt_before = set(f for f in os.listdir(self.wb.captures) if f.endswith('.gif'))
+        self.tt_yaw = self.wb.view.yaw
+        self.wb.turntable_gif()
+        return int(self.wb.TURN_SECONDS * 1000) + 1500
+
+    def s_turntable_check(self):
+        new = [f for f in os.listdir(self.wb.captures) if f.endswith('.gif') and f not in self.tt_before]
+        frames = 0
+        if new:
+            path = os.path.join(self.wb.captures, new[0])
+            self.made.append(path)
+            from PIL import Image
+            with Image.open(path) as g:
+                frames = getattr(g, 'n_frames', 1)
+        self.check('the turntable GIF records one turn and stops by itself, the camera back',
+                   bool(new) and frames >= 10 and self.wb.recording is None and abs(self.wb.view.yaw - self.tt_yaw) < 1e-6,
+                   f'{new[0] if new else "none"}: {frames} frames')
+
+    def s_record_reload_start(self):
+        self.rr_before = set(f for f in os.listdir(self.wb.captures) if f.endswith('.gif'))
+        w = self.wb.scene.weapon
+        self.rr_has = bool(w.rig.get('magazine') or w.rig.get('slide') or w.rig.get('hingeKind', 'None') != 'None')
+        self.wb.record_reload()
+        return 200
+
+    def s_record_reload_check(self):
+        deadline = time.time() + 12
+        while (self.wb.recording is not None or self.wb.timeline.running) and time.time() < deadline:
+            self.app.processEvents()
+            time.sleep(0.01)
+        new = [f for f in os.listdir(self.wb.captures) if f.endswith('.gif') and f not in self.rr_before]
+        for f in new:
+            self.made.append(os.path.join(self.wb.captures, f))
+        if not self.rr_has:
+            self.skip('Record the reload', 'nothing to reload on this gun')
+            return
+        self.check('Record the reload: a GIF of the reload, stopped by itself', bool(new) and self.wb.recording is None,
+                   new[0] if new else 'none')
+
     def s_later_features(self):
         """The features other branches are adding: SKIP until their Workbench method is merged in."""
         for name, method in self.LATER:
@@ -741,6 +803,36 @@ class SelfTest:
                 self.skip(name, f'Workbench.{method} is there, its check is not written yet')
             else:
                 self.skip(name, f'not in this build (no Workbench.{method})')
+
+    def s_all_weapons(self):
+        """--all: every exported weapon opened, its hands put on, a reload played to its end and saved to the test's own
+        folder. Any error is a failure naming the weapon (the barrel-up grenade launchers closed the program)."""
+        wb = self.wb
+        bad, n = [], 0
+        log = getattr(__import__('sys').modules.get('__main__'), 'error_log_path', None)
+        log_path = log() if log else None
+        log_size = os.path.getsize(log_path) if log_path and os.path.exists(log_path) else 0
+        for it in list(wb.items):
+            wid = it.data(Qt.ItemDataRole.UserRole)
+            n += 1
+            try:
+                wb.drafts.clear()
+                wb.weapon_list.setCurrentItem(it)
+                if wb.scene.weapon is None or wb.scene.weapon.id != wid:
+                    bad.append(f'{wid}: did not open')
+                    continue
+                wb.hands_on_gun()
+                wb.play_reload()
+                wb.settle_timeline()
+                if wb.save_pose() is None:
+                    bad.append(f'{wid}: not saved')
+                wb.undo_stack.clear()
+            except Exception as e:  # noqa: BLE001
+                bad.append(f'{wid}: {type(e).__name__}: {e}')
+            self.app.processEvents()
+        new_errors = (os.path.getsize(log_path) if log_path and os.path.exists(log_path) else 0) > log_size
+        self.check(f'every exported weapon opens, takes the hands, reloads and saves ({n})', not bad and not new_errors,
+                   '; '.join(bad[:8]) + (' …' if len(bad) > 8 else '') + (' (errors in the log)' if new_errors else ''))
 
     def s_cleanup(self):
         removed = 0
