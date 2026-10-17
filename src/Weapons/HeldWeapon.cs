@@ -1729,6 +1729,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
         private bool _knobChecked;
+        /// <summary>A knob was added on a slide hidden in the receiver: the racking hand closes on the knob, not the slide.</summary>
+        private bool _knobOnHidden;
 
         /// <summary>
         /// A long gun whose slide (found by its fire motion) moves hidden in the receiver, with nothing else of it moving
@@ -1778,6 +1780,8 @@ namespace RavenfieldVR.Weapons
             try
             {
                 _boltPiece = BoltPiece.CreateKnob(Rig, RackPointGun);
+                _knobOnHidden = true;
+                _rackSolid = null;
                 Log.InfoOnce("hiddenknob:" + d.Key, $"{d.Key}: its slide moves hidden in the receiver: a knob added where the hand takes it.");
             }
             catch (System.Exception e)
@@ -2126,6 +2130,23 @@ namespace RavenfieldVR.Weapons
                         renderers.Add(r);
                     }
                 }
+                if (part == Rig.Slide)
+                {
+                    // The slide's companions (the Vector's knob beside its bolt) move with it: the hand closes on them too.
+                    foreach (Transform c in Rig.SlideCompanions)
+                    {
+                        if (c != null)
+                        {
+                            foreach (Renderer r in c.GetComponentsInChildren<Renderer>(false))
+                            {
+                                if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer))
+                                {
+                                    renderers.Add(r);
+                                }
+                            }
+                        }
+                    }
+                }
                 _partVolume = GunVolume.Measure("part:" + Rig.Data.Key + ":" + part.name, renderers, part, 3);
             }
             if (_partVolume == null || !_partVolume.Ready)
@@ -2162,7 +2183,7 @@ namespace RavenfieldVR.Weapons
         {
             System.Func<Vector3, bool> part = PartSolid();
             System.Func<Vector3, bool> gun = HandSolid();
-            if (part == null && gun != null && _boltPiece != null)
+            if ((part == null || _knobOnHidden) && gun != null && _boltPiece != null)
             {
                 // A handle the mod draws (cut out of the receiver, or a knob added): no part of the model to measure, so
                 // the hand closed on nothing and curled through it. A bar across the gun where the handle is on its stroke.
