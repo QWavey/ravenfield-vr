@@ -3465,30 +3465,39 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Named like a slide but not one: a catch, release, stop, button, selector, safety, carry handle, sling.</summary>
         private static readonly Regex NotSlideName = new Regex(@"release|catch|stop|button|latch|selector|safety|switch|carry ?handle|sling|保险", RegexOptions.IgnoreCase);
-        private static readonly Regex StrongSlideName = new Regex(@"slide|bolt|charg|cocking|carrier|schlitten|verschluss|culasse|corredera|cerrojo|затвор|枪机|套筒|拉机柄", RegexOptions.IgnoreCase);
+        private static readonly Regex StrongSlideName = new Regex(@"slide|bolt|carrier|schlitten|verschluss|culasse|corredera|cerrojo|затвор|枪机|套筒", RegexOptions.IgnoreCase);
 
         /// <summary>
         /// The slide by its name when no motion found it: never a bolt catch, a bolt release, a magazine-release lever or a
-        /// carry handle (the first name in the tree used to be taken, whatever it was; 255.I4-3); a slide, bolt or charging
-        /// name before a plain lever or handle.
+        /// carry handle (the first name in the tree used to be taken, whatever it was; 255.I4-3). A slide, bolt or carrier
+        /// name first, then any other slide-like name, and a charging handle's name last: the handle is found as the handle
+        /// on its own (NamedChargingHandle), and taken for the slide it took the bolt's place (the PATRIOT's 'Charging
+        /// Handle' over its 'Chamber Lid': the bolt never moved and nothing visible did; weapons-1017).
         /// </summary>
         private static Transform FindSlideByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle,
             HashSet<Transform> armRelated, HashSet<Transform> gunBones)
         {
-            Transform weak = null;
+            Transform weak = null, charging = null;
             foreach (Transform t in all)
             {
                 if (!SlideName.IsMatch(t.name) || NotSlideName.IsMatch(t.name) || MagName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     continue;
                 }
-                if (StrongSlideName.IsMatch(t.name))
+                if (ChargingName.IsMatch(t.name))
+                {
+                    charging = charging ?? t;
+                }
+                else if (StrongSlideName.IsMatch(t.name))
                 {
                     return t;
                 }
-                weak = weak ?? t;
+                else
+                {
+                    weak = weak ?? t;
+                }
             }
-            return weak;
+            return weak ?? charging;
         }
 
         private static Transform FindByName(Transform[] all, Regex rx, Transform root, Transform gunBody, Transform muzzle,
