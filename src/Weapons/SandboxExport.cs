@@ -91,6 +91,17 @@ namespace RavenfieldVR.Weapons
             var w = new GlbWriter();
             RigidPose gunInv = gunIdle.Inverse();
             int unreadable = 0, hidden = 0, away = 0, fromGpu = 0;
+            // The parts that move (slide, handle, bolt, magazine and its pieces, cover, the slide's companions): a skinned
+            // mesh's triangles on their bones are split off as parts of their own.
+            var roles = new List<Transform>();
+            foreach (int[] p in new[] { d.SlidePath, d.HandlePath, d.BoltPath, d.MagazinePath, d.HingePath }.Concat(d.MagazinePartPaths).Concat(d.SlideCompanionPaths))
+            {
+                Transform rt = p != null ? WeaponRig.Resolve(root, p) : null;
+                if (rt != null && !roles.Contains(rt))
+                {
+                    roles.Add(rt);
+                }
+            }
             // What the mod hides while the gun is held: spare magazines and the reload's rounds waiting beside the gun.
             var spare = new List<Transform>();
             foreach (int[] p in d.SparePartPaths)
@@ -234,16 +245,97 @@ namespace RavenfieldVR.Weapons
                         prims.Add((subs[sm], mats2 != null && mats2.Length > 0 ? mats2[Mathf.Min(sm, mats2.Length - 1)] : null));
                     }
                 }
-                if (prims.Count > 0)
+                if (prims.Count == 0)
                 {
-                    w.AddNode(PathName(root, t), PathIndex(root, t), pos, nor, uv.Length == v.Length ? uv : null, prims);
+                    continue;
                 }
+                Vector2[] uvOut = uv.Length == v.Length ? uv : null;
+                if (r is SkinnedMeshRenderer sk && sk.bones != null && weights.Length == v.Length && roles.Count > 0)
+                {
+                    // A skinned gun's moving parts are bones of one mesh (the ARS family's 'Door' and 'Charger'): the triangles
+                    // their bones carry become parts of their own, named by the bone, so the sandbox moves them with the part.
+                    Transform[] bones = sk.bones;
+                    var groups = new Dictionary<Transform, List<(int[] indices, Material mat)>>();
+                    var rest = new List<(int[] indices, Material mat)>();
+                    foreach (var (indices, mat) in prims)
+                    {
+                        var byRole = new Dictionary<Transform, List<int>>();
+                        var others = new List<int>();
+                        for (int k = 0; k + 2 < indices.Length; k += 3)
+                        {
+                            Transform role = RoleOf(weights[indices[k]], bones, roles);
+                            if (role != null && RoleOf(weights[indices[k + 1]], bones, roles) == role && RoleOf(weights[indices[k + 2]], bones, roles) == role)
+                            {
+                                if (!byRole.TryGetValue(role, out List<int> list))
+                                {
+                                    byRole[role] = list = new List<int>();
+                                }
+                                list.Add(indices[k]);
+                                list.Add(indices[k + 1]);
+                                list.Add(indices[k + 2]);
+                            }
+                            else
+                            {
+                                others.Add(indices[k]);
+                                others.Add(indices[k + 1]);
+                                others.Add(indices[k + 2]);
+                            }
+                        }
+                        if (others.Count > 0)
+                        {
+                            rest.Add((others.ToArray(), mat));
+                        }
+                        foreach (var kv in byRole)
+                        {
+                            if (!groups.TryGetValue(kv.Key, out var gl))
+                            {
+                                groups[kv.Key] = gl = new List<(int[] indices, Material mat)>();
+                            }
+                            gl.Add((kv.Value.ToArray(), mat));
+                        }
+                    }
+                    if (rest.Count > 0)
+                    {
+                        w.AddNode(PathName(root, t), PathIndex(root, t), pos, nor, uvOut, rest);
+                    }
+                    foreach (var kv in groups)
+                    {
+                        w.AddNode(PathName(root, kv.Key) + " (skinned part of " + t.name + ")", PathIndex(root, kv.Key), pos, nor, uvOut, kv.Value);
+                    }
+                    continue;
+                }
+                w.AddNode(PathName(root, t), PathIndex(root, t), pos, nor, uvOut, prims);
             }
             note = $"{w.NodeCount} drawn part(s){(fromGpu > 0 ? $", {fromGpu} read back from the graphics card" : "")}{(unreadable > 0 ? $", {unreadable} unreadable (stand-in boxes)" : "")}{(hidden > 0 ? $", {hidden} hidden at rest or while held" : "")}{(away > 0 ? $", {away} parked far from the gun" : "")}";
             return w.NodeCount > 0 ? w.Build() : null;
         }
 
         private static float NonZero(float f) => Mathf.Abs(f) < 1e-6f ? 1e-6f : f;
+
+        /// <summary>The moving part a vertex mostly belongs to (its heaviest bone at or under one), or null.</summary>
+        private static Transform RoleOf(BoneWeight w, Transform[] bones, List<Transform> roles)
+        {
+            int b = w.boneIndex0;
+            float best = w.weight0;
+            if (w.weight1 > best) { b = w.boneIndex1; best = w.weight1; }
+            if (w.weight2 > best) { b = w.boneIndex2; best = w.weight2; }
+            if (w.weight3 > best) { b = w.boneIndex3; best = w.weight3; }
+            if (best < 0.5f || b < 0 || b >= bones.Length || bones[b] == null)
+            {
+                return null;
+            }
+            Transform bone = bones[b];
+            Transform found = null;
+            foreach (Transform r in roles)
+            {
+                // The deepest part the bone is in (a handle under the slide is the handle).
+                if ((bone == r || bone.IsChildOf(r)) && (found == null || r.IsChildOf(found)))
+                {
+                    found = r;
+                }
+            }
+            return found != null ? bone : null;
+        }
 
         private static Material _standIn;
         private static Material StandIn => _standIn ?? (_standIn = new Material(Shader.Find("Standard")) { name = "stand-in (unreadable mesh)", color = new Color(0.55f, 0.6f, 0.68f, 0.55f) });
