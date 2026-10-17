@@ -49,6 +49,10 @@ namespace RavenfieldVR.Weapons
 
         public static string Dir => Path.Combine(Path.Combine(Paths.ConfigPath, "RavenfieldVR"), "poses");
 
+        private static string Fmt(Vector3 v) => string.Format(System.Globalization.CultureInfo.InvariantCulture, "({0:0.#####}, {1:0.#####}, {2:0.#####})", v.x, v.y, v.z);
+
+        private static string Fmt(Quaternion q) => string.Format(System.Globalization.CultureInfo.InvariantCulture, "({0:0.#####}, {1:0.#####}, {2:0.#####}, {3:0.#####})", q.x, q.y, q.z, q.w);
+
         public static void Apply(WeaponRigData d)
         {
             if (VRConfig.UseSandboxPoses == null || !VRConfig.UseSandboxPoses.Value || d == null || string.IsNullOrEmpty(d.Key))
@@ -96,7 +100,11 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 d.Notes += "hands from the sandbox's saved pose ";
-                Log.Info($"{d.Key}: hand pose from the sandbox ({path}).");
+                // What it set, in the file's numbers (the autotest's check reads it back against the file).
+                Log.Info($"{d.Key}: hand pose from the sandbox ({path}): grip {Fmt(d.GripPoint)}, palm {Fmt(d.GripRotation)}"
+                         + $", curls {(d.GripCurls != null ? string.Join(" ", Array.ConvertAll(d.GripCurls, c => c.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))) : "-")}"
+                         + $", thumb {(d.GripThumbCurl >= 0f ? $"base {d.GripThumbBase:0.###} curl {d.GripThumbCurl:0.###}" : "the mod's")}"
+                         + $", support {(left?.role == "support" && d.HasSupportPoint ? Fmt(d.SupportPoint) : "the analysis'")}.");
             }
             catch (Exception e)
             {
