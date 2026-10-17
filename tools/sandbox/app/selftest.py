@@ -24,7 +24,7 @@ class SelfTest:
         self.made = []
         self.steps = [self.s_list, self.s_open, self.s_hands, self.s_edit, self.s_save, self.s_reimport, self.s_export,
                       self.s_send_remove, self.s_reload_start, self.s_reload_wait, self.s_laser, self.s_screenshot,
-                      self.s_gif_start, self.s_gif_stop, self.s_cleanup]
+                      self.s_gif_start, self.s_gif_stop, self.s_error_raise, self.s_error_check, self.s_cleanup]
         self.index = 0
         self.saved = None
 
@@ -244,6 +244,25 @@ class SelfTest:
             with Image.open(path) as g:
                 frames = getattr(g, 'n_frames', 1)
         self.check('GIF recorded', ok and frames >= 5, f'{new[0] if new else "none"}: {frames} frames')
+
+    def _error_log(self):
+        import sys as _sys
+        main = _sys.modules.get('__main__')
+        return main.error_log_path() if main is not None and hasattr(main, 'error_log_path') else None
+
+    def s_error_raise(self):
+        path = self._error_log()
+        self.error_before = os.path.getsize(path) if path and os.path.exists(path) else 0
+
+        def boom():
+            raise RuntimeError('self-test: a deliberate error in a button (the program must go on)')
+        QTimer.singleShot(0, boom)
+        return 400
+
+    def s_error_check(self):
+        path = self._error_log()
+        size = os.path.getsize(path) if path and os.path.exists(path) else 0
+        self.check('an error in the program is logged and the program goes on', size > self.error_before, path or 'no log path')
 
     def s_cleanup(self):
         removed = 0

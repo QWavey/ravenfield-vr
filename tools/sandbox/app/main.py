@@ -1234,9 +1234,45 @@ class Window(FluentWindow):
         self.move(avail.x() + (avail.width() - self.width()) // 2, avail.y() + (avail.height() - self.height()) // 2)
 
 
+def error_log_path():
+    """Where errors are written: next to the captures when the repository is known, else in the user's local app data."""
+    repo = find_repo()
+    base = os.path.join(repo, 'reports', 'sandbox') if repo else os.path.join(os.environ.get('LOCALAPPDATA', HERE), 'RavenfieldVR')
+    os.makedirs(base, exist_ok=True)
+    return os.path.join(base, 'sandbox-errors.log')
+
+
+def install_error_handler(app):
+    """An error in a button's or the view's code is written to sandbox-errors.log and shown, and the program goes on. (Without
+    this PyQt6 ends the whole program on any such error: opening a weapon whose export it could not read closed it.)"""
+    import traceback
+
+    def hook(kind, value, tb):
+        text = ''.join(traceback.format_exception(kind, value, tb))
+        try:
+            with open(error_log_path(), 'a', encoding='utf-8') as f:
+                f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')}\n{text}\n")
+        except OSError:
+            pass
+        if sys.stderr is not None:
+            try:
+                sys.stderr.write(text)
+            except (OSError, ValueError):
+                pass
+        win = next((w for w in app.topLevelWidgets() if isinstance(w, Window)), None)
+        if win is not None and hasattr(win, 'workbench'):
+            try:
+                win.workbench.toast('Something went wrong (the program goes on)', f'{kind.__name__}: {value}\nDetails in {error_log_path()}',
+                                    error=True)
+            except Exception:  # noqa: BLE001 (the message itself must not fail the hook)
+                pass
+    sys.excepthook = hook
+
+
 def main():
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
+    install_error_handler(app)
     app.setApplicationName(APP_NAME)
     setTheme(Theme.DARK)
     setThemeColor('#d79b45')

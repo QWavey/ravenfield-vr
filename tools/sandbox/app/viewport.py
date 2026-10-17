@@ -412,7 +412,10 @@ class Viewport(QOpenGLWidget):
         if hands:
             for hand in self.scene.hands():
                 m = hand.model_matrix()
-                inv = np.linalg.inv(m)
+                try:
+                    inv = np.linalg.inv(m)
+                except np.linalg.LinAlgError:
+                    continue  # a part scaled to nothing cannot be hit
                 lo = (inv @ np.append(o, 1))[:3]
                 ld = (inv @ np.append(d, 0))[:3]
                 tris = hand.vertices[hand.shape.indices.reshape(-1, 3)].astype(np.float64)
@@ -428,7 +431,10 @@ class Viewport(QOpenGLWidget):
                 if node.hidden or node.away:
                     continue
                 m = w.node_matrix(node)
-                inv = np.linalg.inv(m)
+                try:
+                    inv = np.linalg.inv(m)
+                except np.linalg.LinAlgError:
+                    continue  # a part scaled to nothing cannot be hit
                 lo = (inv @ np.append(o, 1))[:3]
                 ld = (inv @ np.append(d, 0))[:3]
                 if not _ray_box(lo, ld, node.bmin, node.bmax):

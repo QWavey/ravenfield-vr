@@ -572,9 +572,10 @@ namespace RavenfieldVR.Weapons
                 }
                 Vector3 up = gunIdle.InverseTransformDirection(sampler.Idle(root).Up);
                 up = Vector3.ProjectOnPlane(up, d.AimAxis);
-                d.Up = up.sqrMagnitude > 1e-4f ? up.normalized : Vector3.ProjectOnPlane(Vector3.up, d.AimAxis).normalized;
+                d.Up = up.sqrMagnitude > 1e-4f ? up.normalized : UpAcrossBore(d.AimAxis, root, sampler, gunIdle, d);
                 d.Up = UprightByModel(d.Up, d.AimAxis, d);
                 d.MuzzlePoint = gunIdle.InverseTransformPoint(muzzleIdle.position);
+                PullMuzzleOntoBarrel(d, root, armRelated, sampler, gunIdle);
                 float rootAngle = Vector3.Angle(gunIdle.TransformDirection(d.AimAxis), sampler.Idle(root).Forward);
                 if (rootAngle > 25f)
                 {
@@ -4345,6 +4346,76 @@ namespace RavenfieldVR.Weapons
                 depth++;
             }
             return depth;
+        }
+
+        /// <summary>
+        /// The gun's up when its root's up lies along the bore (an under-barrel grenade launcher modelled barrel-up: the HK416-D's
+        /// M320, the QBZ192-D's QLG, the PATRIOT GL): the weapon it hangs under gives it, else the first gun axis across the
+        /// bore. World up projected was zero for them (their bore is the gun's up), so every frame built on it was degenerate
+        /// and the sandbox could not open them (sandbox export 2026-10-17).
+        /// </summary>
+        private static Vector3 UpAcrossBore(Vector3 aim, Transform root, PoseSampler sampler, RigidPose gunIdle, WeaponRigData d)
+        {
+            Weapon parent = root.parent != null ? root.parent.GetComponentInParent<Weapon>() : null;
+            if (parent != null)
+            {
+                Vector3 upLocal = root.InverseTransformDirection(parent.transform.up);
+                Vector3 fromParent = Vector3.ProjectOnPlane(gunIdle.InverseTransformDirection(sampler.Idle(root).TransformDirection(upLocal)), aim);
+                if (fromParent.sqrMagnitude > 0.01f)
+                {
+                    d.Notes += "up from the weapon it hangs under (its own up is its bore) ";
+                    return fromParent.normalized;
+                }
+            }
+            foreach (Vector3 axis in new[] { Vector3.up, Vector3.forward, Vector3.right })
+            {
+                Vector3 across = Vector3.ProjectOnPlane(axis, aim);
+                if (across.sqrMagnitude > 0.01f)
+                {
+                    d.Warnings.Add("up: the weapon's own up lies along its bore; a gun axis across it is taken");
+                    return across.normalized;
+                }
+            }
+            return Vector3.up;
+        }
+
+        private static readonly Regex LaserBeamName = new Regex(@"laser|beam", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A muzzle its mod put far ahead of the drawn barrel (every FNX-45 a metre out, the PPSh-41 94 cm, the sawed-off
+        /// M1878 where the long barrel ended, a PKM's where its parked suppressor would be; 43 of 286 guns more than 5 cm,
+        /// sandbox export 2026-10-17): the mod's own uses take the barrel's end instead. They are the gun's length (its swing
+        /// and weight, the pistol-or-rifle rule: the FNX-45 was taken for "a long gun in the secondary slot"), how far
+        /// along the handguard the support hand may slide (out into the air), the collider's envelope and the reports. The
+        /// game still fires from its own muzzle. Only past 15 cm: a flash point a few centimetres ahead is normal.
+        /// </summary>
+        private static void PullMuzzleOntoBarrel(WeaponRigData d, Transform root, HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.AimAxis.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            Vector3 aim = d.AimAxis.normalized;
+            // What is drawn at rest on the gun: not the arms, not a laser's beam, not a part parked far away.
+            Bounds drawn = sampler.GunSpaceBoundsWhere(root, gunIdle, t => armRelated.Contains(t) || !ShownAtIdle(t, sampler)
+                || LaserBeamName.IsMatch(t.name) || (sampler.Idle(t).position - gunIdle.position).sqrMagnitude > 1.5f * 1.5f);
+            if (drawn.size.sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            float front = float.NegativeInfinity;
+            Vector3 lo = drawn.min, hi = drawn.max;
+            for (int i = 0; i < 8; i++)
+            {
+                var corner = new Vector3((i & 1) == 0 ? lo.x : hi.x, (i & 2) == 0 ? lo.y : hi.y, (i & 4) == 0 ? lo.z : hi.z);
+                front = Mathf.Max(front, Vector3.Dot(corner, aim));
+            }
+            float ahead = Vector3.Dot(d.MuzzlePoint, aim) - front;
+            if (ahead > 0.15f)
+            {
+                d.MuzzlePoint -= aim * (ahead - 0.01f);
+                d.Notes += $"muzzle {ahead * 100f:0} cm ahead of the drawn barrel: taken at the barrel's end ";
+            }
         }
 
         private static Transform GeometricMuzzleHost(Transform root, HashSet<Transform> armRelated)

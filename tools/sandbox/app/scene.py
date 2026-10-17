@@ -33,7 +33,13 @@ class Weapon:
         r = self.rig
         self.aim = norm(r['aim'])
         up = v3(r['up'])
-        self.up = norm(up - self.aim * np.dot(up, self.aim))
+        up = up - self.aim * np.dot(up, self.aim)
+        if np.linalg.norm(up) < 1e-4:
+            # (An export whose up lies along the bore or is zero: the under-barrel grenade launchers before the mod gave
+            # them one. The first axis across the bore, so the frame is never degenerate.)
+            up = next(a - self.aim * np.dot(a, self.aim) for a in (np.array([0.0, 1, 0]), np.array([0.0, 0, 1]), np.array([1.0, 0, 0]))
+                      if np.linalg.norm(a - self.aim * np.dot(a, self.aim)) > 0.1)
+        self.up = norm(up)
         self.right = norm(np.cross(self.aim, self.up))
         self.grip = v3(r['grip'])
         self.muzzle = v3(r['muzzle'])
@@ -335,7 +341,10 @@ class Scene:
         for node in w.nodes:
             if node.hidden or node.away or not len(node.tris):
                 continue
-            inv = np.linalg.inv(w.node_matrix(node))
+            try:
+                inv = np.linalg.inv(w.node_matrix(node))
+            except np.linalg.LinAlgError:
+                continue  # a part scaled to nothing cannot be hit
             lo = (inv @ np.append(o, 1))[:3]
             ld = (inv @ np.append(d, 0))[:3]
             n = np.linalg.norm(ld)
