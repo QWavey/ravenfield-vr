@@ -913,6 +913,209 @@ namespace RavenfieldVR.Weapons
         /// Autotest: the simulated off hand takes a feed cover at its latch and lifts it round its hinge, as a hand would, to
         /// 60% of its swing; reports whether it opened and stays open when let go, then shuts it again by hand.
         /// </summary>
+        /// <summary>
+        /// Autotest: a machine gun's whole reload by hand, through the hand's own grabs: every step is a squeeze where a
+        /// player's hand would be, nothing is called directly (user, 2026-10-16: "reloading is sooo buggy and doesnt even
+        /// work manually"). The cover opened at its latch, the box pulled out along its line, a fresh one taken from the
+        /// pouch and seated along its line, the belt taken at the box's mouth and laid on the tray, the cover pushed shut;
+        /// then it must be ready to fire. Each step says what took the squeeze when it went wrong.
+        /// </summary>
+        internal IEnumerator MgHandReloadSelfCheck(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || Ammo == null || !Ammo.HasCover || Data.Hinge != HingeKind.FeedCover || !Ammo.UsesDetachableMag)
+            {
+                yield break;
+            }
+            string busy = OffHandBusy(off) ?? (Ammo.CoverOpen ? "the cover is open" : !Ammo.MagInserted ? "no box in"
+                : !Ammo.InfiniteSpare && Ammo.SpareAmmo <= 0 ? "no spare box" : null);
+            if (busy != null)
+            {
+                report($"machine gun reload by hand: skipped ({busy})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+            Quaternion palmDown = Quaternion.LookRotation(Rig.AimWorld, -Rig.UpWorld);
+            void PalmTo(Vector3 p)
+            {
+                VRHand.Scripted[side] = new RigidPose(p, palmDown).Multiply(rawFromPalm);
+                VRHand.ScriptedVelocity[side] = Vector3.zero;
+            }
+            Vector3 CoverLatchAt(float openness) => Rig.ToWorld(HingeRotate(new RigidPose(Data.HingeGrabPoint + Data.Up * 0.02f, Quaternion.identity), openness).position);
+            var steps = new List<string>();
+            bool ok = false;
+            try
+            {
+                // 1. The cover: the hand at its latch, a squeeze, lifted.
+                PalmTo(CoverLatchAt(0f));
+                yield return null;
+                yield return null;
+                VRInput.SimulateGrabPress(off.Side);
+                yield return null;
+                yield return null;
+                bool tookCover = off.Role == HandRole.Hinge;
+                HandRole coverTaker = off.Role;
+                for (int i = 1; i <= 15; i++)
+                {
+                    PalmTo(CoverLatchAt(0.8f * i / 15f));
+                    yield return null;
+                }
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.4f);
+                bool opened = Ammo.CoverOpen;
+                steps.Add(tookCover ? opened ? "cover opened at its latch" : "cover taken but DID NOT OPEN" : $"COVER NOT TAKEN at its latch (the squeeze: {coverTaker})");
+                if (!opened)
+                {
+                    yield break;
+                }
+
+                // 2. The box out: a squeeze on it, pulled out along its line, let go away from the gun.
+                Vector3 outW = Rig.DirToWorld(Data.MagEjectAxis).normalized;
+                Vector3 boxAt = SeatedMagBaseWorld;
+                PalmTo(boxAt);
+                yield return null;
+                yield return null;
+                VRInput.SimulateGrabPress(off.Side);
+                yield return null;
+                yield return null;
+                bool tookBox = off.Held is MagazineProp;
+                HandRole boxTaker = off.Role;
+                for (int i = 1; i <= 15; i++)
+                {
+                    PalmTo(boxAt + outW * (0.35f * i / 15f));
+                    yield return null;
+                }
+                bool boxOut = !Ammo.MagInserted;
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.3f);
+                steps.Add(tookBox ? boxOut ? "box pulled out" : "box taken but NOT OUT of the gun" : $"BOX NOT TAKEN (the squeeze: {boxTaker})");
+                if (Ammo.MagInserted)
+                {
+                    yield break;
+                }
+
+                // 3. A fresh box: a squeeze in the pouch.
+                PalmTo(_sys.Zones.Pouch);
+                yield return null;
+                yield return null;
+                VRInput.SimulateGrabPress(off.Side);
+                for (int i = 0; i < 6 && off.Held == null; i++)
+                {
+                    yield return null;
+                }
+                MagazineProp box = off.Held as MagazineProp;
+                steps.Add(box != null && box.Rounds > 0 ? $"fresh box from the pouch ({box.Rounds} rounds)" : $"NO FRESH BOX from the pouch (the squeeze: {off.Role})");
+                if (box == null || box.Rounds <= 0)
+                {
+                    yield break;
+                }
+
+                // 4. Seated along its line, pushed in as a hand does.
+                RigidPose holdInRaw = off.Raw.Inverse().Multiply(box.HoldPose(off));
+                float length = Vector3.Dot(box.TipLocal - box.BaseLocal, box.InsertDirLocal);
+                for (float below = 0.06f; below > -length - 0.03f && ReferenceEquals(off.Held, box) && !Ammo.MagInserted;
+                     below -= 0.3f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+                {
+                    PlaceFreshMag(off, box, holdInRaw, below, 0f, 0.3f);
+                    yield return null;
+                }
+                for (int wait = 0; wait < 30 && !Ammo.MagInserted; wait++)
+                {
+                    yield return null;
+                }
+                bool seated = Ammo.MagInserted;
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.ScriptedVelocity[side] = Vector3.zero;
+                yield return null;
+                steps.Add(seated ? "fresh box seated along its line" : "FRESH BOX NOT SEATED");
+                if (!seated)
+                {
+                    yield break;
+                }
+
+                // 5. The belt: taken at the box's mouth, brought onto the tray.
+                if (VRConfig.BeltByHand.Value && !Ammo.BeltLaid)
+                {
+                    Vector3 beltAt = BeltStartWorld;
+                    PalmTo(beltAt);
+                    yield return null;
+                    yield return null;
+                    VRInput.SimulateGrabPress(off.Side);
+                    yield return null;
+                    yield return null;
+                    bool tookBelt = off.Role == HandRole.Belt;
+                    HandRole beltTaker = off.Role;
+                    for (int i = 1; i <= 20 && !Ammo.BeltLaid; i++)
+                    {
+                        PalmTo(Vector3.Lerp(beltAt, FeedTrayWorld, i / 20f));
+                        yield return null;
+                    }
+                    bool laid = Ammo.BeltLaid;
+                    VRInput.SimulatedGrab[side] = false;
+                    yield return null;
+                    steps.Add(tookBelt ? laid ? "belt taken at the box and laid on the tray" : "belt taken but NOT LAID on the tray" : $"BELT NOT TAKEN at the box (the squeeze: {beltTaker})");
+                    if (!laid)
+                    {
+                        yield break;
+                    }
+                }
+
+                // 6. The cover pushed shut.
+                PalmTo(CoverLatchAt(_held.HingeOpenness));
+                yield return null;
+                yield return null;
+                VRInput.SimulateGrabPress(off.Side);
+                yield return null;
+                yield return null;
+                bool tookShut = off.Role == HandRole.Hinge;
+                HandRole shutTaker = off.Role;
+                float from = _held.HingeOpenness;
+                for (int i = 1; i <= 15; i++)
+                {
+                    PalmTo(CoverLatchAt(Mathf.Lerp(from, 0f, i / 15f)));
+                    yield return null;
+                }
+                VRInput.SimulatedGrab[side] = false;
+                yield return new WaitForSecondsRealtime(0.3f);
+                bool shut = !Ammo.CoverOpen;
+                steps.Add(tookShut ? shut ? "cover pushed shut" : "cover taken but NOT SHUT" : $"COVER NOT TAKEN to shut it (the squeeze: {shutTaker})");
+                ok = shut;
+            }
+            finally
+            {
+                VRInput.SimulatedGrab[side] = false;
+                VRHand.Scripted[side] = null;
+                VRHand.ScriptedVelocity[side] = Vector3.zero;
+                if (off.Held is MagazineProp leftover)
+                {
+                    Ammo.ReturnSpare(leftover.Rounds);
+                    leftover.Rounds = 0;
+                    leftover.Destroy();
+                }
+                report($"machine gun reload by hand: {string.Join(", ", steps)}{(ok ? Ammo.FeedReady ? "; ready to fire" : "; NOT READY TO FIRE" : "")}");
+                // Left as a player would leave it: box in, belt laid, cover shut (a failed step is put right here, also after
+                // a step that gave up, for the checks after this one).
+                if (!Ammo.MagInserted)
+                {
+                    if (!Ammo.CoverOpen)
+                    {
+                        Ammo.SetCoverOpen(true);
+                    }
+                    Ammo.InsertMagazine(Ammo.RoundsForFreshMagazine());
+                }
+                if (Ammo.CoverOpen && !Ammo.BeltLaid)
+                {
+                    Ammo.LayBelt();
+                }
+                if (Ammo.CoverOpen)
+                {
+                    Ammo.SetCoverOpen(false);
+                }
+            }
+            yield return new WaitForSecondsRealtime(0.2f);
+        }
+
         internal IEnumerator CoverSelfCheck(System.Action<string> report)
         {
             VRHand off = _sys.Rig.Off;

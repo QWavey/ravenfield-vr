@@ -3083,6 +3083,10 @@ namespace RavenfieldVR.Core
                         {
                             yield return held.Reload.CoverSelfCheck(lines.Add); // every feed cover opened by hand (the QJBs' could not be)
                         }
+                        if (held.Rig.Data.Hinge == HingeKind.FeedCover)
+                        {
+                            yield return held.Reload.MgHandReloadSelfCheck(lines.Add); // the whole belt reload through the hand's own grabs (252 af, o)
+                        }
                         if (want && action == ActionType.SelfLoading)
                         {
                             int shotIndex = index;
