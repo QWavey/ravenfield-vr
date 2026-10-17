@@ -3086,6 +3086,15 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator MagazineDeepCheck(System.Action<string> report, System.Action<string, Vector3, float> sideShot)
         {
             VRHand off = _sys.Rig.Off;
+            if (Manual && Ammo.BoxLocked && Ammo.HasCover)
+            {
+                // A machine gun's box is locked under its shut cover: opened first, as a player does, so the box is taken out,
+                // held and seated in the pictures too (none of the belt-fed guns had one; Tasks 252 n).
+                Ammo.SetCoverOpen(true);
+                _held.HingeOpenness = 1f;
+                yield return new WaitForSecondsRealtime(0.2f);
+                report("magazine (deep): feed cover opened first (the box was locked under it)");
+            }
             if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
             {
                 report("magazine (deep): skipped (no detachable magazine, or the hand is busy)");

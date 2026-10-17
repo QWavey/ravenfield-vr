@@ -487,11 +487,17 @@ namespace RavenfieldVR.Weapons
             {
                 go = ProjectileCopy(rig, insertLocal, frontLocal, out bounds);
             }
+            bool standIn = go == null;
             if (go == null)
             {
                 go = new GameObject("RavenfieldVR " + kind);
                 bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds, ShotgunShells(rig));
             }
+            // What the hand holds, once per weapon and kind: the gun's own part copied or a made stand-in, and which part
+            // (a machine gun's box was invisible in the hand, or only its belt came out; Tasks 252 n).
+            Log.InfoOnce("propkind:" + kind + ":" + d.Key, $"{kind} of {d.Key} in the hand: {(standIn ? "a made stand-in" : "a copy of the gun's own")} "
+                + $"(part '{(rig.Magazine != null ? rig.Magazine.name : "none")}', {rig.MagazineParts.Length} part(s) with it), {bounds.size.x * 100f:0} x {bounds.size.y * 100f:0} x {bounds.size.z * 100f:0} cm"
+                + $"{(standIn ? "" : $", {go.GetComponentsInChildren<Renderer>(true).Length} renderer(s)")}.");
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
