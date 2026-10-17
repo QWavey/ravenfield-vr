@@ -109,6 +109,7 @@ namespace RavenfieldVR.Weapons
             GrenadeDud.Cull();
             VRGameInput.SuppressFire = false;
             // Set again below while the support hand's trigger fires an under-barrel launcher, or is the gun's.
+            _supportFireLast = VRGameInput.SupportFire;
             VRGameInput.SupportFire = false;
             VRGameInput.SupportTriggerOwned = false;
 
@@ -492,10 +493,14 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The support hand's trigger fired the launcher last frame (for the dry-fire click's edge).</summary>
+        private bool _supportFireLast;
+
         public void OnDryFire(Weapon weapon)
         {
             // CanFire is polled every frame while the trigger is held; click once per trigger pull.
-            if (VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) && Time.unscaledTime - _lastDryFire > 0.15f)
+            // (Or the support hand's trigger just pulled on an under-barrel launcher: it never clicked; 255.B5-4.)
+            if ((VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) || VRGameInput.SupportFire && !_supportFireLast) && Time.unscaledTime - _lastDryFire > 0.15f)
             {
                 _lastDryFire = Time.unscaledTime;
                 Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f);
@@ -545,7 +550,7 @@ namespace RavenfieldVR.Weapons
             {
                 FlashMessage("SEMI ONLY");
                 Rig.Dominant.Haptic(0.02f, 60f, 0.3f);
-                return true;
+                return false; // the game still gets the press: its own fire-mode uses (a Katana sheathes with it; 255.B5-2)
             }
             FlashMessage(mode);
             // The selector's own short click, not the hammer falling on an empty chamber (85-agent review).

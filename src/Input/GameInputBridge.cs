@@ -173,6 +173,10 @@ namespace RavenfieldVR.Input
         /// double click: as a binding, every slide release waited out the double-click window and the squad button lost its
         /// hold (squad orders need it held). The first press still does its job; the second is taken.
         /// </summary>
+        /// <summary>When the gun hand's A was pressed for a fire-mode switch still waiting out the double press (-1: none).</summary>
+        private static float _modePressAt = -1f;
+        private const float DoublePressWindow = 0.4f;
+
         private static bool LowerButtonDoublePressed()
         {
             bool open = false;
@@ -185,9 +189,10 @@ namespace RavenfieldVR.Input
                     continue;
                 }
                 float now = Time.unscaledTime;
-                if (LowerPressedAt[h] >= 0f && now - LowerPressedAt[h] < 0.4f)
+                if (LowerPressedAt[h] >= 0f && now - LowerPressedAt[h] < DoublePressWindow)
                 {
                     LowerPressedAt[h] = -1f;
+                    _modePressAt = -1f; // a double press: the menu, not a fire-mode switch
                     VRInput.Consume(DigitalAction.SlideRelease, hand);
                     VRInput.Consume(DigitalAction.Squad, hand);
                     open = true;
@@ -257,13 +262,23 @@ namespace RavenfieldVR.Input
             // A plain press of the slide-release button (A on the gun hand) switches the fire mode too, whenever there is no
             // locked slide for it to release: the long press alone was found by nobody ("no full auto / single switch";
             // user, 2026-10-16).
-            bool modeByRelease = VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon);
+            // Taken only once the double-press window has passed: a second press opens the pause menu, and the switch it would
+            // have made is dropped (two presses switched the mode and opened the menu; 255.B5-1).
+            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon))
+            {
+                _modePressAt = Time.unscaledTime;
+            }
+            bool modeByRelease = _modePressAt >= 0f && Time.unscaledTime - _modePressAt >= DoublePressWindow;
+            if (modeByRelease)
+            {
+                _modePressAt = -1f;
+                if (!SlideReleaseSwitchesMode(weapon))
+                {
+                    modeByRelease = false; // the slide locked meanwhile (or the weapon changed): A releases it instead
+                }
+            }
             if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease)
             {
-                if (modeByRelease)
-                {
-                    VRInput.Consume(DigitalAction.SlideRelease, VRInput.GunHand);
-                }
                 // Looking through the sights: flip the magnifier / alternate sight. Otherwise: the weapon's own
                 // fire-mode script, the mod's sub-weapon modes, else our semi/auto selector (automatic weapons only).
                 Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;

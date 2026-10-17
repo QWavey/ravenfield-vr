@@ -658,6 +658,25 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>What each under-barrel weapon has loaded (null without any).</summary>
+        /// <summary>
+        /// The rounds in a weapon as it is put down: with its slide locked open the game is told none are loaded (so a fresh
+        /// magazine does not run the slide forward), but the magazine in it still holds its rounds. Taken from the game's
+        /// count alone, a gun dropped locked open with a fresh magazine came back empty (255.B4-1).
+        /// </summary>
+        private static int RoundsIn(Weapon w)
+        {
+            if (w == null)
+            {
+                return 0;
+            }
+            AmmoState st = WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
+            if (st != null && st.Participates && st.SlideLocked && !st.Chambered)
+            {
+                return st.MagInserted ? st.MagRounds : 0;
+            }
+            return Mathf.Max(0, w.ammo);
+        }
+
         private static int[] SubAmmoOf(Weapon w)
         {
             if (w == null || w.alternativeWeapons == null || w.alternativeWeapons.Count == 0)
@@ -668,7 +687,7 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < ammo.Length; i++)
             {
                 Weapon sub = w.alternativeWeapons[i];
-                ammo[i] = sub != null ? Mathf.Max(0, sub.ammo) : -1;
+                ammo[i] = sub != null ? RoundsIn(sub) : -1;
             }
             return ammo;
         }
@@ -813,7 +832,7 @@ namespace RavenfieldVR.Weapons
                 // Swap: what you had in that slot goes where the picked-up weapon was. Made first: a weapon without a
                 // model to copy cannot be put down, so nothing is picked up (it was replaced and gone, rounds and all).
                 var pose = new RigidPose(drop.Go.transform.position + Vector3.up * 0.1f, drop.Go.transform.rotation);
-                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, Mathf.Max(0, current.ammo), Mathf.Max(0, current.spareAmmo));
+                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, RoundsIn(current), Mathf.Max(0, current.spareAmmo));
                 if (swapped == null)
                 {
                     hand.Haptic(0.08f, 40f, 0.4f);
@@ -1006,7 +1025,7 @@ namespace RavenfieldVR.Weapons
                 Go = root,
                 Colliders = colliders,
                 Entry = w.weaponEntry,
-                Ammo = Mathf.Max(0, w.ammo),
+                Ammo = RoundsIn(w),
                 Spare = Mathf.Max(0, w.spareAmmo),
                 SubAmmo = SubAmmoOf(w),
                 Key = held.Rig.Data.Key,
