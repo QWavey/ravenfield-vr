@@ -261,6 +261,16 @@ namespace RavenfieldVR.Input
         /// <summary>Fire mode / sights and the assisted reload for the personal weapon in hand.</summary>
         private static void HandleWeaponButtons(Weapon weapon)
         {
+            // The fire mode does not change while the trigger is held (Task 265; user, 2026-10-18: "some primarys when shot pause
+            // shooting ... the user needs to press shot again, so full autoing is sometimes not possible"). A plain press of A, or
+            // its long press, made during a burst switched an automatic gun to single shots (or a fire-mode variant to its semi
+            // copy), and the game then fired one round per trigger pull (Weapon.CanFire: hasFiredSingleRoundThisTrigger) until the
+            // trigger was let go and pressed again.
+            bool firing = VRInput.GetHeld(DigitalAction.Fire, VRInput.GunHand) || SupportFire;
+            if (firing)
+            {
+                _modePressAt = -1f; // a press made just before the pull is no mode switch either
+            }
             // A plain press of the slide-release button (A on the gun hand) switches the fire mode too, whenever there is no
             // locked slide for it to release: the long press alone was found by nobody ("no full auto / single switch";
             // user, 2026-10-16).
@@ -295,7 +305,7 @@ namespace RavenfieldVR.Input
                 {
                     Set(KeyBinds.NextScope, true);
                 }
-                else if (system == null || !system.HandleFireModePress(weapon)) // the weapon's own fire-mode key works with the selector off too
+                else if (!firing && (system == null || !system.HandleFireModePress(weapon))) // the weapon's own fire-mode key works with the selector off too
                 {
                     Set(KeyBinds.FireMode, true);
                 }
@@ -308,13 +318,18 @@ namespace RavenfieldVR.Input
 
         /// <summary>
         /// The slide-release press may switch the fire mode: a gun with modes to switch (its own fire-mode script, sub weapons,
-        /// or automatic for the selector), not a grenade or a melee weapon (A pulls a pin), and no slide or bolt locked open.
+        /// or automatic for the selector), not a grenade or a melee weapon (A pulls a pin), no slide or bolt locked open, and
+        /// not while the trigger is held (Task 265).
         /// </summary>
         private static bool SlideReleaseSwitchesMode(Weapon weapon)
         {
             if (weapon == null || weapon is ThrowableWeapon || weapon is MeleeWeapon)
             {
                 return false;
+            }
+            if (VRInput.GetHeld(DigitalAction.Fire, VRInput.GunHand) || SupportFire)
+            {
+                return false; // a burst under way: see HandleWeaponButtons
             }
             Weapons.HeldWeapon held = Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Held : null;
             if (held == null || held.Weapon != weapon || held.ActiveAmmo != null && (held.ActiveAmmo.SlideLocked || held.ActiveAmmo.BoltOpen))
