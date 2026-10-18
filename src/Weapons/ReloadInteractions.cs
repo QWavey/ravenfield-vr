@@ -157,8 +157,10 @@ namespace RavenfieldVR.Weapons
             {
                 VRInput.Consume(DigitalAction.Use, off.Side);
                 // Pressed again while the launcher is parked (empty or reloading): the gun goes back to what it fired before the
-                // first press, not to the launcher it is on.
-                _launcherFrom = _launcherReturn ?? w.activeSubWeaponIndex;
+                // first press, not to the launcher it is on. Pressed while the launcher is already the gun's selection (cycled to
+                // it), the return is the rifle (-1): the launcher cannot be its own return, or the gun's trigger would never switch back.
+                int returnTo = _launcherReturn ?? w.activeSubWeaponIndex;
+                _launcherFrom = returnTo == launcher ? -1 : returnTo;
                 _launcherReturn = null;
                 if (w.activeSubWeaponIndex != launcher)
                 {
@@ -381,8 +383,23 @@ namespace RavenfieldVR.Weapons
             // Parked on the under-barrel launcher (its trigger let go, the launcher empty or reloading) and the gun's trigger pulled:
             // the rifle is wanted. The pull does not fire the launcher meanwhile (SuppressFire), and the rifle fires on the held
             // trigger as soon as it is the active weapon (user, 2026-10-18 evening). Not in a menu, nor with the laser on a panel.
-            if (_launcherReturn.HasValue && VRInput.GetHeld(DigitalAction.Fire, dom.Side) && !Util.GameContext.GameMenuOpen
-                && !(VRGameInput.PanelOpen && VRGameInput.PointerOverUI))
+            bool gunTriggerWanted = VRInput.GetHeld(DigitalAction.Fire, dom.Side) && !Util.GameContext.GameMenuOpen
+                                    && !(VRGameInput.PanelOpen && VRGameInput.PointerOverUI);
+            if (gunTriggerWanted && !_launcherReturn.HasValue && !_launcherFrom.HasValue && VRInput.GetPressed(DigitalAction.Fire, dom.Side))
+            {
+                // Drawn again after a holster with the launcher still selected and empty: the parking went with the held weapon it
+                // was on, so the rifle is the return here. Without it the gun's trigger only dry-clicked on the empty launcher. Only a
+                // fresh pull: a launcher emptied by a shot made on a held trigger does not switch away mid-hold.
+                Weapon gunWeapon = _held.Weapon;
+                int launcher = UnderBarrelLauncher(gunWeapon);
+                Weapon sub = launcher >= 0 && gunWeapon.activeSubWeaponIndex == launcher ? gunWeapon.GetActiveSubWeapon() : null;
+                if (sub != null && !sub.reloading && !sub.HasLoadedAmmo())
+                {
+                    _launcherReturn = -1;
+                    Log.InfoOnce("ubgl-redrawn:" + GripData.Key, $"{gunWeapon.name}: its under-barrel launcher is still selected and empty when the gun's trigger is pulled: the gun goes back to the rifle.");
+                }
+            }
+            if (gunTriggerWanted && _launcherReturn.HasValue)
             {
                 LauncherReturn(rifleWanted: true);
                 if (_launcherReturn.HasValue)
