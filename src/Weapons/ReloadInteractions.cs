@@ -1394,21 +1394,26 @@ namespace RavenfieldVR.Weapons
                 Quaternion seatInv = Quaternion.Inverse(Data.MagSeat.rotation);
                 Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
                 Bounds b = Data.MagBounds;
-                // The insertion face is the box's support in the insert direction: a coordinate the insert direction has is at
-                // its face, one it does not have runs free across the face. The belt starts at the point of that face nearest
-                // the tray (taken in the seat's rest frame, where the box's bounds are).
+                // The insertion face is the one the box is pushed through: the axis its insert direction has most of. Only that axis
+                // is pinned to the box's face; the others run free across it, clamped to the box, so the belt starts at the point of
+                // that face nearest the tray (taken in the seat's rest frame, where the box's bounds are). Pinning every axis the
+                // insert direction has at all put the MK46's mouth at the far end of its 58 cm box (a 2-degree slant on y), 48 cm
+                // from the tray (274).
                 Vector3 tray = Data.MagSeat.InverseTransformPoint(Rig.ToGun(FeedTrayWorld));
+                int lead = 0;
+                for (int axis = 1; axis < 3; axis++)
+                {
+                    if (Mathf.Abs(insertLocal[axis]) > Mathf.Abs(insertLocal[lead]))
+                    {
+                        lead = axis;
+                    }
+                }
                 Vector3 mouth = b.center;
                 for (int axis = 0; axis < 3; axis++)
                 {
-                    if (Mathf.Abs(insertLocal[axis]) > 0.02f)
-                    {
-                        mouth[axis] = b.center[axis] + Mathf.Sign(insertLocal[axis]) * b.extents[axis];
-                    }
-                    else
-                    {
-                        mouth[axis] = Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis], b.center[axis] + b.extents[axis]);
-                    }
+                    mouth[axis] = axis == lead
+                        ? b.center[axis] + Mathf.Sign(insertLocal[axis]) * b.extents[axis]
+                        : Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis], b.center[axis] + b.extents[axis]);
                 }
                 return SeatPose.TransformPoint(mouth);
             }
