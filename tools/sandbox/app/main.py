@@ -411,6 +411,7 @@ class Workbench(QWidget):
         self.weapon_list.currentItemChanged.connect(self.on_weapon_chosen)
         self.weapon_info = CaptionLabel('')
         self.weapon_info.setWordWrap(True)
+        self._card_job_text = None  # (the text a job last put on this card: _run keeps the text before it, not that one)
         v.addWidget(card('Weapon', self.search, self.weapon_list, self.weapon_info))
 
         on_gun = PrimaryPushButton(FIF.FINGERPRINT, 'Hands on the gun')
@@ -2118,11 +2119,14 @@ class Workbench(QWidget):
             return
         self.job_log.setPlainText(f'{title}…\n')
         # The Easy card says the job runs (busy), and how it ended (_job_done, _job_failed). The text it had is kept for after
-        # a game test (real2 I1#7).
-        self._info_before_job = self.weapon_info.text()
+        # a game test (real2 I1#7). A result an earlier job left on the card is not kept (a test that passed after one that
+        # failed would say 'did not work' for ever): the text before that result is.
+        if self.weapon_info.text() != self._card_job_text:
+            self._info_before_job = self.weapon_info.text()
         self._job_busy = busy
         if busy:
             self.weapon_info.setText(busy)
+            self._card_job_text = busy
         self.process = QProcess(self)
         self.process.setWorkingDirectory(self.repo)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -2141,7 +2145,9 @@ class Workbench(QWidget):
             return  # (a crash or a kill also ends in finished)
         self.job_log.appendPlainText(f'\n{title}: could not start {self._python()} ({self.process.errorString()}).')
         if self.weapon_info.text() == self._job_busy:  # (the Easy card says so as well, unless a weapon was opened since)
-            self.weapon_info.setText(f'{title} did not start: {self._python()} was not found (Python has to be installed and on PATH).')
+            self._card_job_text = (f'{title} did not start: {self._python()} was not found '
+                                   '(Python has to be installed and on PATH).')
+            self.weapon_info.setText(self._card_job_text)
         self.toast(f'{title}: could not start', f'{self._python()} was not found: Python has to be installed (and on PATH) '
                                                  'for the game jobs.', error=True)
 
@@ -2163,7 +2169,8 @@ class Workbench(QWidget):
             shown = sorted(set(keyed[-3:]) | set(range(max(0, len(lines) - 3), len(lines))))
             reason = lines[keyed[-1]] if keyed else (lines[-1] if lines else 'it printed nothing')
             if shows_job:
-                self.weapon_info.setText(f'{title} did not work: {reason}\nThe whole output: Advanced, under the Game card.')
+                self._card_job_text = f'{title} did not work: {reason}\nThe whole output: Advanced, under the Game card.'
+                self.weapon_info.setText(self._card_job_text)
             self.toast(f'{title}: it did not work', '\n'.join(lines[i] for i in shown)
                        + '\n(the whole output: Advanced, under the Game card)', error=True)
         else:
