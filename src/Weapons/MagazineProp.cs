@@ -571,12 +571,6 @@ namespace RavenfieldVR.Weapons
         internal static int DisplayLayer => HeldLayer;
 
         /// <summary>
-        /// The bounds of what a copy actually shows, in its root's space. The analysis measures the magazine part alone at
-        /// its idle pose; the copy also carries the pieces that travel with it (rounds, a follower) and skinned triangles
-        /// baked from the gun's mesh, and a magazine held or displayed by the analysis box sat off its real middle (pistol
-        /// magazines hung low in the pouch and in the hand). A copy measuring far from the analysis keeps the analysis.
-        /// </summary>
-        /// <summary>
         /// The copy of the gun's own magazine (or rocket), checked against the analysis. A copy taken while the game had
         /// the part parked and shrunk for its reload (a BRN 180's magazine waits 25 m away at 1%) came out tiny and showed as
         /// nothing in the hand: scaled back to the analysed size, it is kept if it then sits where the magazine was
@@ -647,6 +641,9 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<string, int> LoadedLookTries = new Dictionary<string, int>();
         private static GameObject _loadedLooksHolder;
 
+        /// <summary>The last look at each launcher's loaded rocket (gun space) while its far seat waits to be taken over.</summary>
+        private static readonly Dictionary<string, (RigidPose pose, float at)> SeatLooks = new Dictionary<string, (RigidPose pose, float at)>();
+
         /// <summary>
         /// While a loaded launcher is held: a copy of its rocket as it shows now, kept when it measures as the analysis did
         /// (its size within half again, its middle within 3 cm; rocket-sized when the analysis found no box). Tried at most
@@ -654,9 +651,6 @@ namespace RavenfieldVR.Weapons
         /// is meshes made and thrown away: a launcher whose rocket never measures right would make them for as long as it is
         /// held; ten tries half a second apart were all spent in the first five seconds).
         /// </summary>
-        /// <summary>The last look at each launcher's loaded rocket (gun space) while its far seat waits to be taken over.</summary>
-        private static readonly Dictionary<string, (RigidPose pose, float at)> SeatLooks = new Dictionary<string, (RigidPose pose, float at)>();
-
         internal static void KeepLoadedLook(WeaponRig rig)
         {
             string key = rig.Data.Key;
@@ -886,6 +880,12 @@ namespace RavenfieldVR.Weapons
             return b;
         }
 
+        /// <summary>
+        /// The bounds of what a copy actually shows, in its root's space. The analysis measures the magazine part alone at
+        /// its idle pose; the copy also carries the pieces that travel with it (rounds, a follower) and skinned triangles
+        /// baked from the gun's mesh, and a magazine held or displayed by the analysis box sat off its real middle (pistol
+        /// magazines hung low in the pouch and in the hand). A copy measuring far from the analysis keeps the analysis.
+        /// </summary>
         private static Bounds RenderedBounds(GameObject root, Bounds analysed, string key)
         {
             Matrix4x4 toRoot = root.transform.worldToLocalMatrix;

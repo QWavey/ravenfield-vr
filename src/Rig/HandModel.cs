@@ -1332,10 +1332,6 @@ namespace RavenfieldVR.Rig
         public float[] WeaponSupportCurls;
 
         /// <summary>
-        /// Finger targets: the tracked fingers (SteamVR skeletal curls, or trigger/grip/thumb input) always drive the
-        /// pose; a held object only sets how far each finger can open, so fingers never freeze around a weapon.
-        /// </summary>
-        /// <summary>
         /// A shot was fired with this hand: the trigger finger presses visibly for a moment (a controller that reports the
         /// trigger only as a click never moved it, and a held analogue pull showed no shot at all).
         /// </summary>
@@ -1343,6 +1339,10 @@ namespace RavenfieldVR.Rig
 
         private float _shotAt = -1f;
 
+        /// <summary>
+        /// Finger targets: the tracked fingers (SteamVR skeletal curls, or trigger/grip/thumb input) always drive the
+        /// pose; a held object only sets how far each finger can open, so fingers never freeze around a weapon.
+        /// </summary>
         private float[] TargetCurls()
         {
             Hand side = _hand.Side;
