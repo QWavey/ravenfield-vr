@@ -1086,7 +1086,9 @@ namespace RavenfieldVR.Weapons
             }
             if (Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis) < 0.07f)
             {
-                float reach = Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis);
+                // The gun's length, not the muzzle transform alone: the RPG-7V [PG-7V] family's muzzle sits 28 cm ahead of its grip
+                // inside a tube that runs on past it, so it was cupped as a pistol and held with no steering or steadying (Tasks 266).
+                float reach = d.LengthFromGrip;
                 if (!d.Handgun && reach > 0.3f)
                 {
                     // A long gun's support hand is never behind its grip: the PPSh-41's reload rests the left hand on the
@@ -4892,6 +4894,14 @@ namespace RavenfieldVR.Weapons
             else if (ahead > 0.05f)
             {
                 d.Notes += $"muzzle {ahead * 100f:0} cm ahead of the drawn barrel (kept: {boxes.Count} meshes, {System.Array.FindAll(inGun, x => x).Length} on the gun) ";
+            }
+            else if (ahead < -0.3f && d.Action == ActionType.SingleShot)
+            {
+                // A one-round launcher whose muzzle transform sits well inside its drawn tube (the RPG-7V [PG-7V] family's at the
+                // tube's centre). Its length was the muzzle's, so the cupped-grip rule (AnalyzeHands) took it for a pistol: no foregrip
+                // steering, no launcher steadying, the tube held by one hand (Tasks 266).
+                d.BarrelFrontAlong = front;
+                d.Notes += $"muzzle {-ahead * 100f:0} cm inside the drawn barrel: the barrel's front is its length ";
             }
         }
 
