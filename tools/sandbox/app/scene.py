@@ -129,8 +129,19 @@ class Weapon:
         return np.abs(v3(self.rig.get('magBoundsSize', [0.03, 0.12, 0.06])))
 
     @property
+    def mag_extent(self):
+        """The magazine's length along its eject axis (review B9#0, B5#1): its box turned by its seat rotation (as mag_center turns
+        its centre) and projected onto the eject direction, the sum of |R column . eject| * size. The longest side only for a rig
+        with no eject axis."""
+        ej = v3(self.rig.get('magEject', [0, 0, 0]))
+        if np.linalg.norm(ej) < 1e-6:
+            return float(max(self.mag_size))
+        R = quat_to_mat3(self.rig.get('magSeatRot', [0, 0, 0, 1]))
+        return float(np.sum(np.abs(R.T @ norm(ej)) * self.mag_size))
+
+    @property
     def mag_length(self):
-        return float(max(self.mag_size)) * 1.15 + 0.03
+        return self.mag_extent * 1.15 + 0.03
 
     def mag_center(self):
         q = self.rig.get('magSeatRot', [0, 0, 0, 1])
@@ -251,6 +262,11 @@ class Scene:
     def load_weapon(self, folder):
         self.weapon = Weapon(folder)
         self.weapon.set_state(0, 0, 0)
+        for h in self.hands():
+            # The game's grip thumb rule goes by the gun's class (glove.game_curls), so the hands are drawn again for it.
+            h.pistol = bool(self.weapon.rig.get('isPistol'))
+            h.machine_gun = bool(self.weapon.rig.get('machineGun'))
+            h.update_mesh()
 
     def extra_draws(self):
         """(node, model) pairs drawn besides the weapon: the fresh magazine coming in."""
@@ -358,8 +374,7 @@ class Scene:
             hand.on_part = 'slide / handle'
         elif target == 'magazine':
             ej = w.mag_eject()
-            size = w.mag_size
-            base = w.mag_center() + ej * (float(np.max(size)) * 0.5 + 0.01) + ej * w.mag_length * w.mag
+            base = w.mag_center() + ej * (w.mag_extent * 0.5 + 0.01) + ej * w.mag_length * w.mag
             self.place(hand, base, -ej, w.aim)
             hand.set_pose('Pistol magazine' if pistol else 'Box magazine' if r.get('machineGun') else 'Rifle magazine')
             hand.on_part = 'magazine'

@@ -966,13 +966,13 @@ class Workbench(QWidget):
         if w is not None and name in ("weapon's own grip", "weapon's own support"):
             curls = w.rig.get('gripCurls' if 'grip' in name else 'supportCurls')
             if curls:
+                h.thumb_set = False  # the weapon's own pose: the game keeps its thumb rule (set before the pose: the mesh follows it)
                 h.set_pose(name, [0.35] + list(curls))
-                h.thumb_set = False  # the weapon's own pose: the game keeps its thumb rule
                 self.sync_hand_controls()
                 self.view.update()
             return
+        h.thumb_set = True  # a pose picked by hand: its thumb goes to the game too (set before the pose: the mesh follows it)
         h.set_pose(name)
-        h.thumb_set = True  # a pose picked by hand: its thumb goes to the game too
         self.sync_hand_controls()
         self.view.update()
 

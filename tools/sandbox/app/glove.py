@@ -190,16 +190,48 @@ def _held(c, fallback):
     return fallback if c < 0 else min(0.92, max(0.15, c))
 
 
-def game_curls(role, curls, thumb_set):
-    """The curls the game draws for a hand on the gun (review B10#2): the grip's fingers kept between 0.15 and 0.92 and its
-    trigger finger at 85% of that (HandModel's grip branch, trigger released); the support hand's all five so. The sliders and
-    the saved file keep the values as set."""
+GRIP_HELD = 0.6  # HandModel.TargetCurls: the grip's thumb goal with the controller's grip held and no tracking (grip * 0.6)
+REST = [0.1, 0.12, 0.16, 0.2, 0.24]  # HandModel.TargetCurls: the least each finger is closed (no hand at rest is ruler-straight)
+
+
+def _lerp(a, b, t):
+    return a + (b - a) * t
+
+
+def _grip_thumb(curl, thumb_set, pistol, machine_gun):
+    """The thumb curl of a gun's grip as the game holds it (HandModel.TargetCurls, Weapon role, grip held). A thumb set in the
+    sandbox goes to the game (SandboxPoses: WeaponGripThumbCurl, clamped to 0..1) and rides 0.15 further. Else the game's own
+    rule by the gun: a pistol's thumb rides along the frame; the other grips wrap by their grip pose's thumb curl (HandPoses).
+    The measured curl is not used, as the game does not read it (review I6#6): the rig keeps no measured thumb (SandboxExport
+    writes gripCurls and supportCurls only). The sandbox knows only pistol and machine gun, so the launcher, knife and tool
+    grips are drawn as the rifle grip."""
+    if thumb_set:
+        t = min(1.0, max(0.0, curl))
+        return _lerp(t, min(1.0, t + 0.15), GRIP_HELD)
+    if pistol:
+        return _lerp(0.06, 0.2, GRIP_HELD)
+    rest = POSES['Machine gun grip' if machine_gun else 'Rifle grip'][1]
+    return _lerp(rest, min(1.0, rest + 0.2), GRIP_HELD)
+
+
+def _points(c):
+    """HandModel.Pointing for a free hand, its curls as its goal: the index out, the other three in."""
+    return c[1] < 0.3 and c[2] > 0.6 and c[3] > 0.6 and c[4] > 0.55
+
+
+def game_curls(role, curls, thumb_set, pistol=False, machine_gun=False):
+    """The curls the game draws for a hand (review B10#2, B10#7, I6#6): a gun's grip has its fingers kept between 0.15 and 0.92
+    and its trigger finger at 85% of that (HandModel's grip branch, trigger released), its thumb as _grip_thumb; the support hand's
+    all five so. A free hand is never closed less than its rest (HandModel.TargetCurls' minimum), so a curl not set (below 0, the
+    -1 sentinel) is drawn at that rest. Not modelled: the Closing branch (HandModel 1449-1466) that a held measured gun takes, where
+    its fingers close on the gun until they touch (minimums 0.95; the thumb at least 0.35 on a pistol, 0.95 on a rifle): the sandbox
+    has no contact stop. The sliders and the saved file keep the values as set."""
     c = list(curls)
     if role == 'grip':
-        return [c[0] if thumb_set else c[0], _held(c[1], 0.3) * 0.85, _held(c[2], 0.7), _held(c[3], 0.72), _held(c[4], 0.74)]
+        return [_grip_thumb(c[0], thumb_set, pistol, machine_gun), _held(c[1], 0.3) * 0.85, _held(c[2], 0.7), _held(c[3], 0.72), _held(c[4], 0.74)]
     if role == 'support':
         return [_held(c[0], 0.3), _held(c[1], 0.55), _held(c[2], 0.6), _held(c[3], 0.62), _held(c[4], 0.65)]
-    return c
+    return [max(REST[i], c[i]) for i in range(5)]
 
 
 class Hand:
@@ -216,8 +248,11 @@ class Hand:
         self.on_part = ''  # what it holds (set by the snap or found when saved)
         self.role = ''  # its job on the gun (grip, support, rack, magazine, cover): from the snap, or what it touches when moved
         self.thumb_set = False  # the thumb posed by hand here (sent to the game); else the game keeps its own thumb rule
+        self.pistol = False  # the gun's class (set by the scene when a weapon loads): the game's grip thumb rule goes by it
+        self.machine_gun = False
         self.settle = np.zeros(3)  # where the glove is drawn from its place: settled onto the gun as in VR (drawn only)
         self._settled_at = None
+        self._meshed_for = None  # what the mesh was posed with (_mesh_inputs): set_pose poses it again when that changes
         self.dirty = True
         self.vertices = None
         self.normals = None
@@ -233,18 +268,26 @@ class Hand:
         if v is None:
             return
         thumb, curls = float(v[0]), [float(c) for c in v[1:6]]
-        if name == self.pose_name and thumb == self.thumb and curls == self.curls:
+        if name == self.pose_name and thumb == self.thumb and curls == self.curls and self._meshed_for == self._mesh_inputs():
             return  # (the same pose: not skinned again; the reload snapped the hand every frame)
         self.pose_name = name
         self.thumb = thumb
         self.curls = curls
         self.update_mesh()
 
+    def _mesh_inputs(self):
+        """What the drawn mesh depends on besides the pose: the job (role), the thumb the sandbox set and the gun's class."""
+        return (self.role, self.thumb_set, self.pistol, self.machine_gun)
+
     def update_mesh(self):
-        # Valve's pointing joints only for a free hand, as the mod draws one (HandModel.Pointing); a hand on the gun is drawn
-        # from its curls, which are what is saved and what the game holds (review B10#6).
-        point = self.pose_name == 'Pointing (laser)' and not self.role
-        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, game_curls(self.role, self.curls, self.thumb_set), point)
+        # SandboxPoses.cs reads the right hand's place and curls as the gun's grip whatever its role, so a free right hand is
+        # drawn as the grip the game will hold (review B10#6). The game does not read a free left hand, so it is drawn as a free
+        # hand: Valve's pointing joints when its curls meet HandModel.Pointing, else its curls at rest (review B10#7).
+        role = self.role or ('grip' if self.side == 'right' else '')
+        curls = game_curls(role, self.curls, self.thumb_set, self.pistol, self.machine_gun)
+        point = role == '' and _points(curls)
+        self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, curls, point)
+        self._meshed_for = self._mesh_inputs()
         self.dirty = True
 
     def set_settle(self, offset):

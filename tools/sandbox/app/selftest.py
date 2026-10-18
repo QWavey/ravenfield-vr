@@ -466,7 +466,7 @@ class SelfTest:
             self.skip('Left hand to Slide on a side handle: the fingers up over it', "this gun's handle is on top")
 
     def s_snap_magazine(self):
-        """Left hand to Magazine: at the magazine's place, between its half width and its length from its centre."""
+        """Left hand to Magazine: at the magazine's place, between half its length along the eject axis and its length from its centre."""
         wb, s = self.wb, self.wb.scene
         w = s.weapon
         self._settle()
@@ -474,7 +474,7 @@ class SelfTest:
             self.skip('Left hand to Magazine: on the magazine', 'this gun has no magazine in the analysis')
             return
         wb.snap_left('magazine')
-        half = float(np.max(w.mag_size)) * 0.5
+        half = w.mag_extent * 0.5
         dist = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - w.mag_center()))
         self.check('Left hand to Magazine: on the magazine',
                    s.left.role == 'magazine' and s.left.on_part == 'magazine' and half <= dist <= w.mag_length,
