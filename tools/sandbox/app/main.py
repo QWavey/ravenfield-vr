@@ -15,9 +15,10 @@ import time
 import numpy as np
 from PIL import Image
 from PyQt6.QtCore import QByteArray, QFile, QProcess, QSettings, QSize, Qt, QTimer, QUrl
-from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QImage, QKeySequence, QPixmap, QShortcut
-from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListView, QListWidgetItem, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
-from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QImage, QKeySequence, QMovie, QPixmap, QShortcut
+from PyQt6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel, QListView, QListWidgetItem, QSizePolicy, QStackedWidget, QVBoxLayout,
+                             QWidget)
+from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, CheckBox, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
                             InfoBar, InfoBarPosition, LineEdit, MessageBox, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
                             PushButton, RoundMenu, SearchLineEdit, SegmentedWidget, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel,
                             SwitchButton, Theme, TitleLabel, TogglePushButton, setTheme, setThemeColor)
@@ -196,6 +197,7 @@ class Workbench(QWidget):
         self.picked_point = None
         self.picked_node = None
         self.recording = None
+        self.last_gif = None  # the GIF the last stop saved (closeEvent shows its path: the toast would not be seen)
         self.process = None
         self.selftest = '--selftest' in sys.argv  # the self-test: nothing of the user's is read or written then
         self.game_dir_override = None  # the self-test's own game poses folder
@@ -486,14 +488,19 @@ class Workbench(QWidget):
         remove.clicked.connect(self.remove_from_game)
         shot = PushButton(FIF.CAMERA, 'Screenshot')
         shot.clicked.connect(lambda: self.screenshot())  # (a plain connect would pass the button's checked state as 'clean')
+        # The same setting as Advanced's 'Pictures without grid and markers': the two are kept in step (on_clean_check).
+        self.clean_check = CheckBox('Clean picture')
+        self.clean_check.setToolTip('Leaves out the grid, the markers, the laser line and the highlights (the same switch as '
+                                    'Advanced, Pictures without grid and markers).')
+        self.clean_check.toggled.connect(self.on_clean_check)
         self.rec_btn = TogglePushButton(FIF.VIDEO, 'Record GIF')
         self.rec_btn.toggled.connect(self.toggle_record)
         turn = PushButton(FIF.ROTATE, 'Turntable GIF')
         turn.clicked.connect(lambda: self.turntable_gif())
         reload_gif = PushButton(FIF.PLAY, 'Record the reload')
         reload_gif.clicked.connect(lambda: self.record_reload())
-        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.rec_btn),
-                         row(turn, reload_gif)))
+        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.clean_check),
+                         row(self.rec_btn, turn), reload_gif))
         v.addStretch(1)
         return p
 
@@ -593,13 +600,23 @@ class Workbench(QWidget):
         # Pictures and GIFs without the grid, markers, laser line and highlights (off by default: they show the evidence).
         self.clean_sw = SwitchButton()
         self.clean_sw.setChecked(False)
-        self.big_sw = SwitchButton()  # screenshots drawn again at twice the view's size, for a post
-        self.big_sw.setChecked(False)
+        self.clean_sw.checkedChanged.connect(self.on_clean_switch)
+        # Screenshots at the view's size, or drawn again at twice or four times it, for a post (the 1x, 2x, 4x of SIZES).
+        self.size_box = ComboBox()
+        self.size_box.addItems(['1x', '2x', '4x'])
+        self.size_box.setCurrentIndex(0)
+        self.size_box.setToolTip('The screenshot at the view\'s size, or drawn again at 2x or 4x for a post (a bigger one takes '
+                                 'longer; a size the graphics card cannot hold gives way to the next smaller one).')
+        # A PNG screenshot with the background see-through, for placing it on another background (GIFs stay solid).
+        self.transp_sw = SwitchButton()
+        self.transp_sw.setChecked(False)
+        self.transp_sw.setToolTip('PNG screenshots keep the background see-through. GIFs stay solid.')
         v.addWidget(card('View', row(*views), row(BodyLabel('Grid'), self.grid_sw, BodyLabel('Markers'), self.mark_sw),
                          row(BodyLabel('Settle hands on the gun'), self.settle_sw), settle_hint,
                          markers_hint, row(BodyLabel('GIF fps'), self.gif_fps, BodyLabel('size'), self.gif_scale),
                          row(BodyLabel('Pictures without grid and markers'), self.clean_sw),
-                         row(BodyLabel('Screenshots at 2x size'), self.big_sw)))
+                         row(BodyLabel('Screenshot size'), self.size_box),
+                         row(BodyLabel('Transparent background (PNG)'), self.transp_sw)))
 
         self.export_names = LineEdit()
         self.export_names.setPlaceholderText('Weapons to export (empty: all)')
@@ -1819,20 +1836,76 @@ class Workbench(QWidget):
         self.game_status.setText(text)
 
     def screenshot(self, clean=None):
-        """A picture of the view as it is now (F12 or the Screenshot button). clean=None takes the 'Pictures without grid and
-        markers' switch; the 2x switch draws the same camera again at twice the size, for a post."""
+        """A picture of the view as it is now (F12 or the Screenshot button). clean=None takes the 'Clean picture' switch; the
+        size box draws the same camera again at 2x or 4x, for a post, and the transparent switch keeps the background
+        see-through (PNG only)."""
         w = self.scene.weapon
         if clean is None:
             clean = self.clean_sw.isChecked()
-        img = self._grab_big(clean) if self.big_sw.isChecked() else None
-        if img is None:  # (also when the 2x picture could not be drawn: the view's own size then)
-            img = self._grab_view(clean)
+        asked = self.picture_scale()
+        transparent = self.transp_sw.isChecked()
+        img, got, see_through = self._picture(clean, asked, transparent)
         path = os.path.join(self.captures, f"{safe(w.name if w else 'sandbox')}-{stamp()}.png")
         if not img.save(path):
             self.toast('The screenshot could not be saved', path, error=True)
             return None
-        self.toast('Screenshot saved', path, path)
+        self._write_notes(path)
+        note = ''
+        if got < asked:
+            note += f'\n{asked}x is more than this graphics card can draw: {got}x was saved.'
+        if transparent and not see_through:
+            note += '\nThe background is not see-through: this graphics card could not draw the picture into a buffer.'
+        self.toast('Screenshot saved', path + note, path)
         return path
+
+    SIZES = (1, 2, 4)  # the Screenshot size box, in its order: the view's own size, twice it, four times it
+
+    def picture_scale(self):
+        return self.SIZES[max(0, self.size_box.currentIndex())]
+
+    def _picture(self, clean, scale, transparent):
+        """(the picture, the scale it has, whether its background is see-through). The size asked for first, then each smaller
+        one: a buffer the graphics card cannot hold (or will not draw) gives way to the next size down. The view's own grab is
+        the last resort, and is opaque."""
+        for s in [x for x in self.SIZES if x <= scale][::-1]:
+            if s == 1 and not transparent:
+                break  # (the view's own grab, below, needs no buffer)
+            img = self._grab_big(clean, s, transparent)
+            if img is not None:
+                return img, s, transparent
+        return self._grab_view(clean), 1, False
+
+    def on_clean_check(self, on):
+        """The Easy tab's 'Clean picture' and Advanced's switch are one setting: each follows the other."""
+        self.clean_sw.blockSignals(True)  # (no echo back to the box that changed)
+        self.clean_sw.setChecked(on)
+        self.clean_sw.blockSignals(False)
+
+    def on_clean_switch(self, on):
+        self.clean_check.blockSignals(True)
+        self.clean_check.setChecked(on)
+        self.clean_check.blockSignals(False)
+
+    def picture_notes(self, turned=False):
+        """The text saved beside a picture (the same name, .txt): the weapon and its hands in words (hands_text), the view, and
+        the laser's point when one is picked, so a picture pasted into Claude comes with what it shows (real2 I8#1)."""
+        w = self.scene.weapon
+        v = self.view
+        lines = [self.hands_text() if w is not None else 'No weapon was open.']
+        lines.append(f"View: yaw {v.yaw:.1f} deg, pitch {v.pitch:.1f} deg, distance {v.dist * 100:.0f} cm, "
+                     + ('orthographic' if getattr(v, 'ortho', False) else 'perspective')
+                     + (' (a turntable: the view turned once round; this is where it started)' if turned else '') + '.')
+        if w is not None and self.picked_point is not None and self.picked_node is not None:
+            lines.append('Laser point: ' + self.point_text())
+        return '\n'.join(lines) + '\n'
+
+    def _write_notes(self, path, turned=False):
+        """The text beside a picture (picture_notes). A file that cannot be written is logged; the picture itself is kept."""
+        try:
+            with open(os.path.splitext(path)[0] + '.txt', 'w', encoding='utf-8') as f:
+                f.write(self.picture_notes(turned))
+        except OSError as e:
+            self.log_error(f'writing the text beside {path}', e)
 
     # What a clean picture leaves out: the grid, the markers, the laser line, the hover and part highlights and the hand's tint.
     OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand', 'show_gizmo', 'show_axes')
@@ -1860,22 +1933,30 @@ class Workbench(QWidget):
         finally:
             self._overlays_back(saved)
 
-    def _grab_big(self, clean):
-        """The view drawn again into an offscreen buffer at twice its size: the same camera, so the same picture, sharper.
-        None when the buffer cannot be drawn (the caller then takes the picture at the view's own size)."""
-        # (Imported here: these are only needed for a 2x picture.)
+    def _grab_big(self, clean, scale=2, transparent=False):
+        """The view drawn again into an offscreen buffer at scale times its size: the same camera, so the same picture, sharper.
+        A transparent one is drawn over alpha 0 (Viewport.clear_alpha) and keeps its alpha. None when the buffer is bigger than
+        the graphics card holds, or cannot be drawn (the caller then takes a smaller size)."""
+        # (Imported here: these are only needed for a bigger picture.)
         from OpenGL import GL
         from PyQt6.QtCore import QSize
         from PyQt6.QtOpenGL import QOpenGLFramebufferObject, QOpenGLFramebufferObjectFormat
         v = self.view
-        dpr = v.devicePixelRatioF()  # (the grab is in device pixels, so the 2x is of those)
-        size = QSize(int(round(v.width() * dpr * 2)), int(round(v.height() * dpr * 2)))
+        dpr = v.devicePixelRatioF()  # (the grab is in device pixels, so the scale is of those)
+        size = QSize(int(round(v.width() * dpr * scale)), int(round(v.height() * dpr * scale)))
         fmt = QOpenGLFramebufferObjectFormat()
         fmt.setAttachment(QOpenGLFramebufferObject.Attachment.CombinedDepthStencil)  # the scene is drawn with depth testing
         fmt.setSamples(4)  # (the view's own antialiasing, so the big picture is not jagged)
         saved = self._overlays_off() if clean else None
         v.makeCurrent()
+        prev_alpha = getattr(v, 'clear_alpha', 1.0)
         try:
+            # The colour buffer is a texture and the depth one a renderbuffer: the bigger size must fit both limits.
+            limit = min(int(np.ravel(GL.glGetIntegerv(GL.GL_MAX_TEXTURE_SIZE))[0]),
+                        int(np.ravel(GL.glGetIntegerv(GL.GL_MAX_RENDERBUFFER_SIZE))[0]))
+            if max(size.width(), size.height()) > limit:
+                return None
+            v.clear_alpha = 0.0 if transparent else 1.0  # (set for this grab only: the view itself stays opaque)
             fbo = QOpenGLFramebufferObject(size, fmt)
             if not fbo.isValid() or not fbo.bind():
                 return None
@@ -1891,11 +1972,13 @@ class Workbench(QWidget):
                 GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, prev_fbo)
                 GL.glViewport(*prev_view)
             del fbo  # (its buffers are freed now, while the view's context is still current)
-            return img
-        except Exception as e:  # (a graphics driver that refuses the buffer: the 1x picture is still taken)
-            self.log_error('drawing the 2x screenshot', e)
+            # A transparent picture keeps its alpha; any other is opaque, as the view's own grab is.
+            return img.convertToFormat(QImage.Format.Format_ARGB32 if transparent else QImage.Format.Format_RGB32)
+        except Exception as e:  # (a graphics driver that refuses the buffer: a smaller picture is still taken)
+            self.log_error(f'drawing the {scale}x screenshot', e)
             return None
         finally:
+            v.clear_alpha = prev_alpha
             if saved is not None:
                 self._overlays_back(saved)
             v.doneCurrent()
@@ -1927,12 +2010,21 @@ class Workbench(QWidget):
             t = rec['times'] + [rec['times'][-1] + 1.0 / rec['fps']]
             cs = [int(round((x - t[0]) * 100)) for x in t]
             durations = [max(2, cs[i + 1] - cs[i]) * 10 for i in range(len(frames))]
+            # The encode is one long call on this thread: the button says so, painted once before it, and is back after it.
+            self.rec_btn.setText('Saving GIF...')
+            self.rec_btn.setEnabled(False)
+            QApplication.processEvents()
             try:
                 frames[0].save(path, save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=1)
             except (OSError, ValueError) as e:
                 self.log_error(f'saving the GIF {path}', e)
                 self.toast('The GIF could not be saved', f'{path}\n{e}', error=True)
                 return
+            finally:
+                self.rec_btn.setText('Record GIF')
+                self.rec_btn.setEnabled(True)
+            self._write_notes(path, turned='turn_timer' in rec)
+            self.last_gif = path
             self.toast(f'GIF saved ({len(frames)} frames, {sum(durations) / 1000:.1f} s)',
                        path + ('\nStopped at the 400 MB limit of the recording.' if rec.get('limit') else ''), path)
 
@@ -1964,11 +2056,12 @@ class Workbench(QWidget):
         arr = np.frombuffer(ptr, np.uint8).reshape(img.height(), img.bytesPerLine())[:, :img.width() * 3].reshape(img.height(), img.width(), 3)
         # One palette for the whole GIF, made from its first frame: each frame's own made the same colours shimmer from
         # frame to frame (real2 I2#7, I5#1, I8#6).
+        # (No copy of arr: quantize makes a new image, and img, which the buffer belongs to, lives until this function returns.)
         if rec.get('palette') is None:
-            frame = Image.fromarray(arr.copy()).quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+            frame = Image.fromarray(arr).quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
             rec['palette'] = frame
         else:
-            frame = Image.fromarray(arr.copy()).quantize(palette=rec['palette'], dither=Image.Dither.NONE)
+            frame = Image.fromarray(arr).quantize(palette=rec['palette'], dither=Image.Dither.NONE)
         rec['frames'].append(frame)
         rec['times'].append(time.perf_counter())
         rec['bytes'] += frame.width * frame.height
@@ -2047,8 +2140,8 @@ class Workbench(QWidget):
                                                             position=InfoBarPosition.BOTTOM_RIGHT, duration=8000, parent=self.win)
         if path:
             path = os.path.normpath(path)
-            # The buttons share one row under the text (a vertical stack made the message tall). A picture also gets
-            # Copy picture, so it can go into a chat straight from the message (a GIF copies its first frame).
+            # The buttons share one row under the text (a vertical stack made the message tall). A PNG also gets Copy picture,
+            # so it can go into a chat straight from the message (a GIF gets none: the clipboard would take its first frame).
             buttons = QWidget()
             h = QHBoxLayout(buttons)
             h.setContentsMargins(0, 0, 0, 0)
@@ -2059,7 +2152,7 @@ class Workbench(QWidget):
             copy_path = PushButton('Copy path')
             copy_path.clicked.connect(lambda: QGuiApplication.clipboard().setText(path))
             h.addWidget(copy_path)
-            if path.lower().endswith(('.png', '.gif')):
+            if path.lower().endswith('.png'):
                 copy_pic = PushButton('Copy picture')
                 copy_pic.clicked.connect(lambda: Captures.copy_picture(path, self.win))
                 h.addWidget(copy_pic)
@@ -2124,6 +2217,48 @@ class Workbench(QWidget):
                   f'Test {w.name} in the game')
 
 
+class Preview(QLabel):
+    """The selected capture as large as its box allows, fitted with its proportions kept, and fitted again when the window is
+    resized. A GIF plays here. clear_file stops it and lets its file go (a capture is moved to the Recycle Bin after it, and a
+    file still open cannot be moved)."""
+
+    def __init__(self):
+        super().__init__()
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMinimumSize(320, 180)
+        # (The picture's own size does not set the box's: the picture is fitted into whatever room the page gives.)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        self.still = None  # a PNG's picture
+        self.movie = None  # a GIF's movie, played frame by frame
+
+    def show_file(self, path):
+        self.clear_file()
+        if path.lower().endswith('.gif'):
+            self.movie = QMovie(path)
+            self.movie.frameChanged.connect(self.draw)
+            self.movie.start()
+        else:
+            self.still = QPixmap(path)
+        self.draw()
+
+    def clear_file(self):
+        if self.movie is not None:
+            self.movie.stop()
+            self.movie = None  # (the last reference: the movie is freed now, and with it the file it reads)
+        self.still = None
+        self.clear()
+
+    def draw(self, *_):
+        pm = self.movie.currentPixmap() if self.movie is not None else self.still
+        if pm is None or pm.isNull():
+            return
+        self.setPixmap(pm.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.draw()
+
+
 class Captures(QWidget):
     THUMB = QSize(192, 108)  # a thumbnail's size; a picture of another shape is fitted inside it
     CELL = QSize(216, 160)   # a grid cell: the thumbnail, then room for the name on two lines
@@ -2148,7 +2283,22 @@ class Captures(QWidget):
         self.list.itemSelectionChanged.connect(self.update_buttons)
         self.list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.list.customContextMenuRequested.connect(self.on_context)
-        v.addWidget(self.list, 1)
+        # The selected capture large, with the text saved beside it (its .txt) under it: a name in a grid says little about a
+        # picture. The .txt files are not listed themselves (refresh only takes .png and .gif).
+        self.preview = Preview()
+        self.notes = PlainTextEdit()
+        self.notes.setReadOnly(True)
+        self.notes.setFixedHeight(170)
+        self.notes.setPlaceholderText('No text was saved beside this capture.')
+        self.list.itemSelectionChanged.connect(self.show_preview)
+        panel = CardWidget()  # (a card as card() makes them; built here so the picture gets the room the page gives it)
+        pv = QVBoxLayout(panel)
+        pv.setContentsMargins(14, 12, 14, 12)
+        pv.setSpacing(8)
+        pv.addWidget(StrongBodyLabel('Selected capture'))
+        pv.addWidget(self.preview, 1)
+        pv.addWidget(self.notes)
+        v.addLayout(row(self.list, panel, stretch=[3, 2]), 1)
         # These act on the selected capture, so they stay off until one is selected.
         self.item_buttons = []
         for icon, text, slot in ((FIF.PHOTO, 'Open', self.open_selected), (FIF.COPY, 'Copy picture', self.copy_selected),
@@ -2157,6 +2307,7 @@ class Captures(QWidget):
             b = PushButton(icon, text)
             b.clicked.connect(slot)
             self.item_buttons.append(b)
+        self.copy_btn = self.item_buttons[1]  # (Copy picture, the second of them: a GIF cannot be copied as a picture)
         v.addLayout(row(*self.item_buttons, QWidget(), stretch=[0] * len(self.item_buttons) + [1]))
         open_folder = PushButton(FIF.FOLDER, 'Open the folder')
         open_folder.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(folder)))
@@ -2167,6 +2318,7 @@ class Captures(QWidget):
 
     def refresh(self):
         selected = self.selected_path()  # (the same capture stays selected when the list is read again)
+        self.list.blockSignals(True)  # (the list is rebuilt: the preview and the buttons are set once, at the end)
         self.list.clear()
         files = []
         if os.path.isdir(self.folder):
@@ -2190,7 +2342,9 @@ class Captures(QWidget):
         # The thumbnails of files that are gone are dropped, so a deleted capture does not stay in memory.
         live = {path for _mtime, path in files}
         self.thumbs = {p: hit for p, hit in self.thumbs.items() if p in live}
+        self.list.blockSignals(False)
         self.update_buttons()
+        self.show_preview()  # (a capture that is gone is no longer shown, nor its GIF played)
 
     def thumbnail(self, path):
         """The small copy of a picture for the grid. A GIF shows its first frame."""
@@ -2213,6 +2367,10 @@ class Captures(QWidget):
         self.refresh()
         super().showEvent(e)
 
+    def hideEvent(self, e):
+        self.preview.clear_file()  # (a GIF is not played while the page is not shown; showEvent shows it again)
+        super().hideEvent(e)
+
     def selected_item(self):
         return self.list.currentItem()
 
@@ -2224,6 +2382,24 @@ class Captures(QWidget):
         on = self.selected_item() is not None
         for b in self.item_buttons:
             b.setEnabled(on)
+        # A GIF is not copied as a picture (the clipboard would take its first frame alone): the button is not offered for one.
+        self.copy_btn.setVisible(not (self.selected_path() or '').lower().endswith('.gif'))
+
+    def show_preview(self):
+        """The selected capture in the preview, with the text saved beside it (its .txt) under it. Nothing selected: empty."""
+        path = self.selected_path()
+        self.preview.clear_file()  # (the capture shown before is let go first: its GIF stops, its file is free)
+        self.notes.setPlainText('')
+        if path is None:
+            return
+        self.preview.show_file(path)
+        side = os.path.splitext(path)[0] + '.txt'
+        if os.path.isfile(side):
+            try:
+                with open(side, encoding='utf-8') as f:
+                    self.notes.setPlainText(f.read())
+            except (OSError, UnicodeDecodeError):
+                pass  # (removed, or not text, while it was read: the picture still shows)
 
     def on_context(self, pos):
         item = self.list.itemAt(pos)
@@ -2232,7 +2408,8 @@ class Captures(QWidget):
         self.list.setCurrentItem(item)
         menu = RoundMenu(parent=self)
         menu.addAction(Action(FIF.PHOTO, 'Open', triggered=self.open_selected))
-        menu.addAction(Action(FIF.COPY, 'Copy picture', triggered=self.copy_selected))
+        if not item.data(Qt.ItemDataRole.UserRole).lower().endswith('.gif'):  # (a GIF is not copied as a picture)
+            menu.addAction(Action(FIF.COPY, 'Copy picture', triggered=self.copy_selected))
         menu.addAction(Action(FIF.LINK, 'Copy path', triggered=self.copy_selected_path))
         menu.addAction(Action(FIF.SEARCH, 'Show in folder', triggered=self.show_selected))
         menu.addSeparator()
@@ -2292,11 +2469,16 @@ class Captures(QWidget):
         box.yesButton.setText('Move to Recycle Bin')
         if not box.exec():
             return
+        self.preview.clear_file()  # (a file still open, as a GIF being played is, cannot be moved: the preview lets it go first)
         # Moved to the Recycle Bin, never deleted for good. (QFile.moveToTrash returns (ok, path in the bin).)
         ok, _in_bin = QFile.moveToTrash(path)
         if not ok:
             self.tell('Could not move it to the Recycle Bin', path, self.window(), error=True)
+            self.show_preview()
             return
+        side = os.path.splitext(path)[0] + '.txt'  # the text saved beside it goes with it (it means nothing alone)
+        if os.path.isfile(side):
+            QFile.moveToTrash(side)
         self.refresh()
 
 
@@ -2394,7 +2576,13 @@ class Window(FluentWindow):
                 return
         wb.timeline.stop()
         if wb.recording:
+            wb.last_gif = None
             wb.rec_btn.setChecked(False)  # (the recording so far is saved, not dropped)
+            if wb.last_gif and not wb.selftest:
+                # The 'GIF saved' message hangs off this window, which is closing: the path is shown in one that waits.
+                box = MessageBox('GIF saved', f'The recording was saved to:\n{wb.last_gif}', self)
+                box.hideCancelButton()
+                box.exec()
         if not wb.selftest:
             wb.settings.setValue('geometry', self.saveGeometry())
         wb.view.cleanup()

@@ -351,7 +351,8 @@ class Viewport(QOpenGLWidget):
     # ---- drawing -------------------------------------------------------------------------------------------------
 
     def paintGL(self):
-        GL.glClearColor(*self.background, 1.0)
+        # clear_alpha is 0 only while a transparent PNG is drawn (Workbench._grab_big sets it for that grab); else opaque.
+        GL.glClearColor(*self.background, getattr(self, 'clear_alpha', 1.0))
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         view, proj = self.view_matrix(), self.proj_matrix()
         vp = proj @ view
