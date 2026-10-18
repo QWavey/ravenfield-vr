@@ -1499,6 +1499,8 @@ namespace RavenfieldVR.Weapons
         private int _volumeTries;
         private float _volumeRetryAt;
         private bool _hullApplied;
+        /// <summary>The frame the hull was last cooked in: <see cref="HandSolid"/> is asked twice in a frame while racking, one slice a frame.</summary>
+        private int _hullCookFrame = -1;
         private System.Func<Vector3, bool> _supportSolid;
         private HandModel _supportGunHand;
 
@@ -1569,10 +1571,18 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
-            if (!_hullApplied && _volume.HullPieces != null && _volume.HullPieces.Length > 0 && _gunCollider != null)
+            // The hull's pieces are cooked a slice a frame (task 263: all of them in one frame were a spike on the first hold
+            // of a weapon type); the shape is chosen once they are all cooked, exactly as before.
+            if (!_hullApplied && _volume.HullPieces != null && _volume.HullPieces.Length > 0 && _gunCollider != null && _hullCookFrame != Time.frameCount)
             {
-                _hullApplied = true;
-                ChooseShape();
+                _hullCookFrame = Time.frameCount;
+                // A rendered-model shape already decided against is never used (ChooseShape keeps the meshes): nothing to cook.
+                bool hullUsed = _volume.Unreadable || !RenderedShapeBetter.TryGetValue(Rig.Data.Key, out bool known) || known;
+                if (!hullUsed || CookHullWithin(_volume.HullPieces, 1.5f))
+                {
+                    _hullApplied = true;
+                    ChooseShape();
+                }
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
             if (!_rackSnapped)
@@ -2039,6 +2049,40 @@ namespace RavenfieldVR.Weapons
                 _gunCollider.ShapeRejected = after;
             }
             Log.Info($"{key}: physics shape from the {(better ? "rendered model" : "meshes")} (meshes: {before}; rendered model: {after}).");
+        }
+
+        /// <summary>
+        /// Cooks the hulls of a rendered-model shape for about <paramref name="budgetMs"/> on the main thread, the rest on the
+        /// next calls: PhysX cooks each piece here, and the sixteen of a gun in one frame were a spike on its first hold (task
+        /// 263, 2026-10-18). The same checks as <see cref="ShapeFit.Bake"/>: a piece PhysX cannot cook is marked and becomes a
+        /// box. The first piece of a call is always cooked, so every call makes progress. True once no piece is left.
+        /// </summary>
+        private static bool CookHullWithin(ShapeFit.Piece[] pieces, float budgetMs)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            int cooked = 0;
+            foreach (ShapeFit.Piece p in pieces)
+            {
+                if (p.Points.Length < 4 || p.CookFailed || p.Baked)
+                {
+                    continue;
+                }
+                if (cooked > 0 && watch.Elapsed.TotalMilliseconds >= budgetMs)
+                {
+                    return false;
+                }
+                cooked++;
+                try
+                {
+                    Physics.BakeMesh(p.Mesh.GetInstanceID(), true);
+                    p.Baked = true;
+                }
+                catch (System.Exception)
+                {
+                    p.CookFailed = true;
+                }
+            }
+            return true;
         }
 
         private GunVolume _magVolume;
