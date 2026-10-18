@@ -1735,7 +1735,11 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
+        /// <summary>Weapon types whose slide is being measured now: its pictures come back from the GPU a frame or two later.</summary>
+        private static readonly HashSet<string> SlideMeasuring = new HashSet<string>();
         private bool _knobChecked;
+        /// <summary>Set by <see cref="Release"/>: a measurement that comes back after it adds nothing to this hold.</summary>
+        private bool _releasedHold;
         /// <summary>A knob was added on a slide hidden in the receiver: the racking hand closes on the knob, not the slide.</summary>
         private bool _knobOnHidden;
 
@@ -1776,11 +1780,42 @@ namespace RavenfieldVR.Weapons
                         gun.Add(r);
                     }
                 }
-                seen = GunVolume.VisibleShare(gun, mine, Rig.AimWorld, Rig.DirToWorld(d.Up), out string views, 0.004f);
-                SlideSeen[d.Key] = seen;
-                Log.Info($"{d.Key}: its slide '{Rig.Slide.name}' is {(seen < 0f ? "not measurable" : $"{seen * 100f:0}% seen from outside ({views})")}.");
+                // Measured with the pictures read back as the GPU finishes them, a frame or two later (task 263, 2026-10-18:
+                // read back at once, the first hold of each such gun type stalled on 12 pictures and made a few MB of garbage).
+                // The knob comes when they are back, on this same hold.
+                if (!SlideMeasuring.Add(d.Key))
+                {
+                    return; // (being measured for another hold of this type: its result serves the next hold)
+                }
+                string key = d.Key, slideName = Rig.Slide.name;
+                try
+                {
+                    GunVolume.VisibleShareAsync(gun, mine, Rig.AimWorld, Rig.DirToWorld(d.Up), (share, views) =>
+                    {
+                        SlideMeasuring.Remove(key);
+                        SlideSeen[key] = share;
+                        Log.Info($"{key}: its slide '{slideName}' is {(share < 0f ? "not measurable" : $"{share * 100f:0}% seen from outside ({views})")}.");
+                        if (!_releasedHold && Rig != null && Rig.Data.Key == key)
+                        {
+                            AddKnobOnHiddenSlide(share);
+                        }
+                    }, 0.004f);
+                }
+                catch (System.Exception e)
+                {
+                    SlideMeasuring.Remove(key); // (its callback never comes: measured again on the next hold)
+                    Log.WarnOnce("slideseen:" + key, $"Could not measure how much of {key}'s slide is seen: {e.Message}");
+                }
+                return;
             }
-            if (seen < 0f || seen >= 0.05f)
+            AddKnobOnHiddenSlide(seen);
+        }
+
+        /// <summary>The knob on a slide seen less than 5% from outside (see <see cref="KnobOnHiddenSlide"/>).</summary>
+        private void AddKnobOnHiddenSlide(float seen)
+        {
+            WeaponRigData d = Rig.Data;
+            if (seen < 0f || seen >= 0.05f || _boltPiece != null)
             {
                 return;
             }
@@ -2805,6 +2840,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Undo every visual change before the weapon is holstered, dropped or VR stops.</summary>
         public void Release()
         {
+            _releasedHold = true; // (a slide measurement still on the GPU adds no knob to a gun that is put away)
             // The hands first: whatever fails below, no glove may stay closed on a weapon that is gone.
             if (_system.Rig.Dominant.Model != null)
             {

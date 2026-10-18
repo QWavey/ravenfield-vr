@@ -435,7 +435,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 261. [ ] Haiku fixer + verifier pass over every open task (user, 2026-10-18 afternoon: "the agents can write the fixes too but they shouldnt test, also agents that verify the changes and fix them if not"): 13 fixers, a git worktree each, and a verifier for each that changed code; merged by me, built after each merge. 62 done in code, check in the headset, 28 needs the game to decide, 11 partly fixed now, 5 FIXED NOW (code), check in the headset, 1 obsolete. Fixed in code now: 148 (warm-up waits for the weapon list), 152 (a weapon picked up by the free hand goes beside the held gun), 160 (the double press read on every frame), 205 (an invisible kept rocket copy is not handed out), 211 (view jolt in the autotest), 213 (bot count that does not fit an int), 230 (scope steadying by the hand's own speed), 260 a/b/c (mag kick flies forward and tumbles; magazine hitbox from the outline's farthest points; a seated magazine stops a fresh one). To check in the game; see "For 261"
 82/82 (GLOCK 43X); see "For 258"
 262. [ ] New workshop mods (user, 2026-10-18 evening: "also for new workshop mods the mags and reloadable parts etc should be found dynamically, lets not forget that; maybe it does that already when it loads the mods"). It does: every installed weapon is analysed when the game has loaded its content (menu warm-up, else on first use), the magazine and the rack from the weapon's own reload and fire animation, names only as a tie-break or fallback, no per-weapon list (287 exported rigs: 81% of magazines and 74% of racks from motion). Gaps found by 5 read-only Haiku scouts, to fix: stale rigs after the menu's mod reload (caches never cleared), one rule throwing loses the whole rig for the session (and a throw outside the try reruns every frame), two mods' weapons with the same entry + prefab names share one rig / drop shape / hull / pose, silent fallbacks (virtual magazine or rack on shell-fed and single-shot guns warned nowhere), hand bones by English names only, a flat hierarchy's unnamed meshes never parts, the sandbox not seeing new mods until an export. See "For 262"
-263. [ ] Performance (user, 2026-10-18 evening, after the headset test): a workflow on the mod's performance only: no lags, removing lags, gaining fps. See "For 263"
+263. [ ] Performance (user, 2026-10-18 evening, after the headset test): a workflow on the mod's performance only: no lags, removing lags, gaining fps. Done in code 2026-10-18 (not yet measured in the game): the first hold of a gun type and enemy drops no longer do their heavy one-off work in one frame. See "For 263"
 264. [ ] Slide forward by itself (user, 2026-10-18 evening, headset: "the pistol slide when mag is in goes forward, it still goes forward automatically but still requires a pull, and this happens to some primarys too"): with a magazine in, the slide (or bolt) runs home by itself yet the gun still needs a rack to fire. Earlier: 254. Cause found and fixed in code (2026-10-18): a slide released or racked with nothing to chamber was left unlocked, so a loaded magazine let the animator send it home empty; now a gun that locks open on empty stays caught back until it can chamber. Open: guns without lock-on-empty (the MWII M4s, AS Val, ARS bot-friendly HK416/MP9, SIGNAL DMR). See "For 264"
 265. [ ] Full auto stops (user, 2026-10-18 evening, headset: "some primarys when shot pause shooting for some reason and the user needs to press shot again, so full autoing is sometimes not possible"). Cause found and fixed in code (2026-10-18): the A button's fire-mode switch (2026-10-17) changed the fire mode while the trigger was held; now never under a held trigger. See "For 265"
 266. [ ] RPGs still shake a lot (user, 2026-10-18 evening, headset). The autotest's simulated hands hold the Panzerfaust 3 still (check-1018h, 0.0 mm a frame): the shake comes with real hands. Earlier: 230, 249.11. Partly fixed in code (2026-10-18): the RPG-7V [PG-7V] was analysed as a PISTOL (its muzzle transform in the tube's middle), so no launcher steadying or two-hand steering; now measured by the drawn barrel. The plain RPG-7 is a launcher already: its lead is the world stand-in (the drawn gun blended toward where the world holds it). See "For 266"
@@ -2142,6 +2142,34 @@ Each line: the task, the verdict, what the code does now / what is left (from th
 - 255: done in code, check in the headset. 30-agent hunt, 91 confirmed. All sub-items are marked done in Tasks.md and their code is present: BoxLocked no longer ignores a shut cover (AmmoState.cs:362); LostByHand cleared on release and drop (MagazineProp.cs:1410, :2190); bolt restored on Release (HeldWeapon.cs:2807); belt-named boxes excluded (WeaponAnalyzer.cs:2483-2484, the || and && precedence fixed); machine guns get named charging handles ...
 - 259: partly fixed now. Scouts' rack and grip faults from the sandbox sweep. Code in place (commit 96d11e3): RackStrokeFromHands (WeaponAnalyzer.cs:605 call, :1707 def) cuts a handle out only where a part of the gun is within 2.5 cm, else the rack point stays on the moving part; RackOnOutstandingPiece (:610 call, :3185 def) takes the carrier by its far vertex for 23 guns; ArChargingHandle (:879) measures the upper receiver's back end ...
 - 260: FIXED NOW (code), check in the headset. All three parts written in code (not built or run; needs the headset and autotest check). Setup note: this worktree was NOT at 483b1de when I started (it was clean at 36f50e3, an older commit still reachable from main and tasks-98-113); I ran git reset --hard 483b1de on this worktree's own branch before working, as the task specified.
+
+### For 263: performance (2026-10-18 evening, wf_e1a3995c)
+
+- What the measurements say (check-1018h, a clean 2-gun VR run; weapons-1017, all 290 guns): the mod's steady cost is
+  small (all sections together about 0.5 ms a frame; GPU 4.5 ms). The lag is spikes: single frames of Weapons.BeforeRender
+  up to 92-449 ms and Weapons.Update up to 136 ms, an enemy's weapon drop 10-29 ms and 0.1-1.1 MB of garbage each, frames
+  99th 18.3 ms, max 384 ms, 110 late and 160 dropped in about 2 minutes.
+- 8 read-only Haiku hunters (first use, drops, BeforeRender, update loops, garbage, GPU, physics, long sessions) reported 63
+  candidates; a Haiku skeptic each kept 7 (all one-off spikes, no per-frame cost worth changing). 4 Haiku fixers by file
+  (a worktree each) and a verifier each; merged by me, built clean; the GunVolume fixer's asynchronous measurement had no
+  caller (another fixer owned HeldWeapon): wired in by me.
+- Changed:
+  - The first hold of a gun whose slide is found by its fire motion measured how much of the slide shows (12 pictures, each
+    read back from the GPU at once: 12 stalls and a few MB of garbage in that frame; P320, 1911, ACE 32 in the user's log).
+    Now GunVolume.VisibleShareAsync reads them back as the GPU finishes (a frame or two later) and the knob, if any, is added
+    then (HeldWeapon.KnobOnHiddenSlide / AddKnobOnHiddenSlide; once per type; nothing added after the gun is put away). The
+    rack self-test keeps the synchronous one.
+  - The first hold of each gun type cooked all its hull pieces (Physics.BakeMesh) on the main thread in one frame and
+    rebuilt the physics stand-in up to three times: the cooks are now spread over frames (about 1.5 ms a frame) and the
+    shape is chosen once they are done (HeldWeapon).
+  - BoltPiece.Carve (the handle cut out of a receiver on the first draw of a gun not in the loadout): each corner measured
+    once, the centroid test only where a triangle's corners all pass, fewer whole-mesh copies; same output.
+  - WeaponWarmup prepares the drop templates and their shapes for more weapon types at the menu, so an enemy's death does not
+    build a cold type's drop in that frame.
+- Not changed (judged not safe without a run): the first-hold shape comparisons (MatchShape), the magazine's first-hold
+  hull cook (MagazineProp.TakeRenderedShape), ScaledPieces cooking per holder scale on a death frame.
+- To measure: the autotest's Performance block (Weapons.BeforeRender and Weapons.Update max, 'weapon drop' per call,
+  frames 99th / max, late and dropped) on check-1018h's guns and a full weapons run, against the numbers above.
 
 ### For 264-270: the user's headset test of 2026-10-18 evening, 7 Haiku fixers (wf_918b456f)
 
