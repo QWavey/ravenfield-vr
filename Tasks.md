@@ -434,6 +434,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 260. [ ] From the user (2026-10-18 afternoon): (a) a magazine knocked out with the other magazine (mag kick) drops straight down instead of flipping out forward; (b) on many magazines the hitbox (its grab zone / physics shape) sits low and does not cover the whole magazine; (c) the second magazine (the one in the hand) must collide with the magazine seated in the gun (code done 2026-10-18: a flies forward and tumbles, b the hitbox covers the whole outline, c the seated magazine stops the one in the hand; see "For 260"; verify)
 261. [ ] Haiku fixer + verifier pass over every open task (user, 2026-10-18 afternoon: "the agents can write the fixes too but they shouldnt test, also agents that verify the changes and fix them if not"): 13 fixers, a git worktree each, and a verifier for each that changed code; merged by me, built after each merge. 62 done in code, check in the headset, 28 needs the game to decide, 11 partly fixed now, 5 FIXED NOW (code), check in the headset, 1 obsolete. Fixed in code now: 148 (warm-up waits for the weapon list), 152 (a weapon picked up by the free hand goes beside the held gun), 160 (the double press read on every frame), 205 (an invisible kept rocket copy is not handed out), 211 (view jolt in the autotest), 213 (bot count that does not fit an int), 230 (scope steadying by the hand's own speed), 260 a/b/c (mag kick flies forward and tumbles; magazine hitbox from the outline's farthest points; a seated magazine stops a fresh one). To check in the game; see "For 261"
 82/82 (GLOCK 43X); see "For 258"
+262. [ ] New workshop mods (user, 2026-10-18 evening: "also for new workshop mods the mags and reloadable parts etc should be found dynamically, lets not forget that; maybe it does that already when it loads the mods"). It does: every installed weapon is analysed when the game has loaded its content (menu warm-up, else on first use), the magazine and the rack from the weapon's own reload and fire animation, names only as a tie-break or fallback, no per-weapon list (287 exported rigs: 81% of magazines and 74% of racks from motion). Gaps found by 5 read-only Haiku scouts, to fix: stale rigs after the menu's mod reload (caches never cleared), one rule throwing loses the whole rig for the session (and a throw outside the try reruns every frame), two mods' weapons with the same entry + prefab names share one rig / drop shape / hull / pose, silent fallbacks (virtual magazine or rack on shell-fed and single-shot guns warned nowhere), hand bones by English names only, a flat hierarchy's unnamed meshes never parts, the sandbox not seeing new mods until an export. See "For 262"
 
 ## Notes
 
@@ -2132,6 +2133,48 @@ Each line: the task, the verdict, what the code does now / what is left (from th
 - 255: done in code, check in the headset. 30-agent hunt, 91 confirmed. All sub-items are marked done in Tasks.md and their code is present: BoxLocked no longer ignores a shut cover (AmmoState.cs:362); LostByHand cleared on release and drop (MagazineProp.cs:1410, :2190); bolt restored on Release (HeldWeapon.cs:2807); belt-named boxes excluded (WeaponAnalyzer.cs:2483-2484, the || and && precedence fixed); machine guns get named charging handles ...
 - 259: partly fixed now. Scouts' rack and grip faults from the sandbox sweep. Code in place (commit 96d11e3): RackStrokeFromHands (WeaponAnalyzer.cs:605 call, :1707 def) cuts a handle out only where a part of the gun is within 2.5 cm, else the rack point stays on the moving part; RackOnOutstandingPiece (:610 call, :3185 def) takes the carrier by its far vertex for 23 guns; ArChargingHandle (:879) measures the upper receiver's back end ...
 - 260: FIXED NOW (code), check in the headset. All three parts written in code (not built or run; needs the headset and autotest check). Setup note: this worktree was NOT at 483b1de when I started (it was clean at 36f50e3, an older commit still reachable from main and tasks-98-113); I ran git reset --hard 483b1de on this worktree's own branch before working, as the task specified.
+
+### For 262: new workshop mods, found dynamically (2026-10-18 evening)
+
+- Asked by the user while testing in the headset. 5 read-only Haiku scouts (when the analysis runs, caches, names against
+  motion and geometry, the 287 exported rigs and the weapons-1017 autotest, the sandbox), each answer with code evidence.
+- How it works now (dynamic, no per-weapon list): WeaponWarmup analyses every entry of WeaponManager.allWeapons once the
+  game's content has loaded (OnAllContentLoaded) and at VR start; a weapon it has not reached (a secret unlock, one added
+  in play) is analysed on first use through WeaponSystem.RigFor (a hitch, never skipped). WeaponAnalyzer samples the
+  weapon's own animator: the magazine is the part the reload moves nearest the grip (then a part the reload hides and
+  shows, then a name, then a virtual well); the slide is the part the fire clip moves along the bore (then the handle the
+  reload pulls straight back, then a name, then a virtual rack point). Names only weight those choices (magazine 3x, slide
+  1.5x) or come after motion. WeaponOverrides.json (BepInEx config) corrects one weapon by hand, without code.
+- In the data: 287 rigs, magazines 233 from motion, 18 by name, 36 virtual (17 on firearms); racks 213 from motion (169 fire
+  clip, 44 reload handle), 13 by name, 61 virtual (40 on firearms). In weapons-1017, 93 of the 101 firearms failing a reload
+  check had a motion-found magazine: the failures are mostly seat and rack-point geometry (tasks 252/259/260), not discovery.
+- Gaps (to fix, most important first):
+  1. The menu's mod reload (after a workshop subscribe, update or mod toggle) rebuilds every WeaponEntry, but
+     WeaponAnalyzer.Cache is cleared only when the overrides file changes (WeaponOverrides.cs:78): a same-named updated
+     weapon keeps its old rig (old sibling-index paths taken silently) until the game restarts; the warm-up's Warmed set
+     and WeaponDrops.Templates skip the new entries too. Clear the analysis, shape, volume and drop caches on content
+     reload.
+  2. Analyze runs every rule in one try with no catch (WeaponAnalyzer.cs:546-642): one throwing rule replaces the whole rig
+     with Fallback (no magazine, slide, sounds, arms) for the session, no retry. WeaponSystem.AttachHeld calls RigFor before
+     its try (WeaponSystem.cs:354): a throw there reruns the analysis every frame. Per-rule try/catch, and RigFor inside the try.
+  3. The key is entry name + prefab name (WeaponAnalyzer.KeyOf, no source mod): two mods with the same names share one rig,
+     one export folder, one pose file; the drop shape key is 'drop:' + entry name only (WeaponDrops.cs:520), the hull key
+     'tp:' + entry name (GunVolume): two same-named entries already exist (M4A1#m4 and M4A1#M4A1squad).
+  4. Silent fallbacks: a virtual magazine or rack is warned only for SelfLoading and Manual guns (35 firearm rigs have an
+     invisible handle with no warning; the P220 akimbo trio a virtual magazine); a missing left hand bone puts the support
+     at grip + aim x 0.24 with no warning; rig.json has no handsMethod.
+  5. Names that gate whole rules: hand bones need 'hand' + an R/L word (else the grip and support are estimates and the
+     hand-driven rack, curls and arm chain go); the palm and grip direction use English finger names only; every unnamed
+     mesh directly under the weapon root is left out of the part pool (a flat hierarchy gets a virtual magazine and rack);
+     open-bolt rest, AR / Bren 2 / Garand / Vector families, the cover by name (or auto with 50+ rounds).
+  6. Smaller: a sub-weapon (under-barrel launcher) is analysed on the prefab before its Start, so its animator is not
+     sampled (5 rigs all virtual); absolute travel limits (pistol slide 7 cm, rifle bolt 23 cm); round words (Round, Shell,
+     子弹) weighted as magazine words; overrides matched by substring (one meant for one gun hits any name containing it);
+     the warm-up coroutine has no finally (one escaping throw stops the warm-up for the session); mounted sentries analysed
+     needlessly.
+  7. The sandbox lists only exported weapons: a new mod's weapons appear after an export (Advanced, Export weapons) and
+     nothing says so; 19 analysed keys (13 sub-weapons, 6 zombie hands) are never exported; folders of removed mods stay.
+- One scout wrote two scratch files into %TEMP% despite a read-only brief (key lists); removed.
 
 ### For 260: the user's magazine items (2026-10-18)
 
