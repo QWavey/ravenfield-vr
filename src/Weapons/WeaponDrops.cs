@@ -851,17 +851,40 @@ namespace RavenfieldVR.Weapons
                 swapped.Key = WeaponAnalyzer.KeyOf(current);
                 swapped.Semi = FireSelector.IsSemiByPlayer(current);
             }
-            // Into the hand that picked it up: taken with the free hand, it went into the other one.
-            _sys.TakeIntoHand(hand);
+            // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
+            // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick
+            // up the pistol while the main weapon is held"). Anything else is taken up as before, the gun going to its holster.
+            bool beside = hand != _sys.Rig.Dominant && _sys.Second == null && _sys.Held != null && _sys.Held.Weapon != null
+                          && slot != actor.activeWeaponSlot;
+            if (!beside)
+            {
+                // Into the hand that picked it up: taken with the free hand, it went into the other one.
+                _sys.TakeIntoHand(hand);
+            }
 
-            Weapon equipped = actor.EquipNewWeaponEntry(drop.Entry, slot, true);
+            Weapon equipped = actor.EquipNewWeaponEntry(drop.Entry, slot, !beside);
             if (equipped != null)
             {
                 RestoreAmmo(equipped, drop);
             }
             Remove(drop);
-            _sys.Sounds.Play(MechSound.Holster, hand.Palm.position, 0.8f);
-            hand.Haptic(0.05f, 100f, 0.7f);
+            if (beside && equipped != null && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))
+            {
+                _sys.BeginSecond(equipped, hand); // the holster sound and the haptic come with it
+            }
+            else
+            {
+                if (beside)
+                {
+                    _sys.TakeIntoHand(hand);
+                    if (equipped != null)
+                    {
+                        actor.SwitchWeapon(slot); // as a holstered weapon taken with the free hand (WeaponSystem)
+                    }
+                }
+                _sys.Sounds.Play(MechSound.Holster, hand.Palm.position, 0.8f);
+                hand.Haptic(0.05f, 100f, 0.7f);
+            }
             Log.Debug($"Picked up {drop.Entry.name} into slot {slot + 1}");
         }
 
