@@ -560,6 +560,7 @@ class Viewport(QOpenGLWidget):
         self._gz = _GizmoDrag(drag, hand, self.scene.weapon)
         self._drag = ('gizmo',)
         self.gizmo_hover = handle
+        self.setCursor(Qt.CursorShape.ClosedHandCursor)  # (a closed hand while the handle is dragged; restored at its end)
         self.update()
         return True
 
@@ -629,6 +630,7 @@ class Viewport(QOpenGLWidget):
         self._drag = None
         self._drag_start = None
         self.gizmo_hover = None
+        self._restore_cursor(self._mouse)  # (the closed hand of the drag goes)
         self.gizmo_info.emit('')
         self.drag_cancelled.emit()
         self.update()
@@ -637,7 +639,25 @@ class Viewport(QOpenGLWidget):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key.Key_Escape and self.cancel_gizmo():
             return
+        # The arrows and + / - are the view's while it has the focus (a click on it): the weapon list keeps its arrows and the
+        # text boxes their keys. Not while a gizmo drag goes on (it measures from where the camera stood).
+        if not self.editing() and self._camera_key(e.key()):
+            return
         super().keyPressEvent(e)
+
+    def _camera_key(self, key):
+        """The arrows orbit the view as a mouse drag in that direction does (5 degrees a press, the pitch clamped as the drag
+        clamps it); + and - zoom by one wheel notch. True when the key was used."""
+        if key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            self.yaw += 5.0 if key == Qt.Key.Key_Left else -5.0
+        elif key in (Qt.Key.Key_Up, Qt.Key.Key_Down):
+            self.pitch = max(-89.0, min(89.0, self.pitch + (-5.0 if key == Qt.Key.Key_Up else 5.0)))
+        elif key in (Qt.Key.Key_Plus, Qt.Key.Key_Minus):
+            self.dist = max(0.05, min(8.0, self.dist * (0.9 if key == Qt.Key.Key_Plus else 1.1)))  # (wheelEvent's notch)
+        else:
+            return False
+        self.update()
+        return True
 
     def _axis_gizmo(self, view):
         """A small key in the bottom-left corner: the world's X (red), Y (green) and Z (blue) axes, turning as the view turns
@@ -759,6 +779,7 @@ class Viewport(QOpenGLWidget):
                 self.drag_started.emit()
                 self._drag = ('turn' if shift else 'move', hit[1], hit[2])
                 self._drag_start = (hit[1], hit[1].position.copy(), hit[1].rotation.copy())
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)  # (a closed hand while it is dragged; restored on release)
                 self.update()
                 return
             if ctrl and hit is not None:
@@ -834,14 +855,40 @@ class Viewport(QOpenGLWidget):
             self.picked.emit(hit[2], hit[1])
         self.update()
 
+    def _hover_handle(self, pos):
+        """The gizmo handle under the pointer, or None. The trackball lights only where a press would start it: off the hand
+        and the gun, and not with the laser (its press picks)."""
+        handle = self.gizmo_hit(pos)
+        if handle == ('ball',) and (self.laser or self.pick(pos) is not None):
+            handle = None
+        return handle
+
+    def _hover_shape(self, pos, handle, alt):
+        """The pointer's shape at pos while nothing is dragged, for what a press there does: an open hand over a gizmo handle
+        (the press drags it, laser or not) or over a hand (the press takes it), a cross while the laser or Alt picks a part,
+        else the arrow. A drag shows a closed hand instead (mousePressEvent, _start_gizmo)."""
+        if handle is not None and not alt:
+            return Qt.CursorShape.OpenHandCursor
+        if self.laser or alt:
+            return Qt.CursorShape.CrossCursor
+        hit = self.pick(pos)  # (the nearest of hands and gun, as a press takes it)
+        if hit is not None and hit[0] == 'hand':
+            return Qt.CursorShape.OpenHandCursor
+        return Qt.CursorShape.ArrowCursor
+
+    def _restore_cursor(self, pos, alt=False):
+        """The shape the pointer has over the view once a drag has ended (or was cancelled)."""
+        if pos is None:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        else:
+            self.setCursor(self._hover_shape(pos, self._hover_handle(pos), alt))
+
     def mouseMoveEvent(self, e):
         pos = e.position().toPoint()
         if self._drag is not None and e.buttons() == Qt.MouseButton.NoButton:
             self._end_drag()  # (the release was lost, outside the window: plain moves no longer drag)
         if self._mouse is None or self._drag is None:
-            handle = self.gizmo_hit(pos) if self._drag is None else None
-            if handle == ('ball',) and (self.laser or self.pick(pos) is not None):
-                handle = None  # (the trackball lit only where a press starts it: off the hand and the gun)
+            handle = self._hover_handle(pos) if self._drag is None else None
             if handle != self.gizmo_hover:
                 self.gizmo_hover = handle
                 self.update()
@@ -856,6 +903,7 @@ class Viewport(QOpenGLWidget):
                 self.hover_node = None
                 self.hovered.emit('')
                 self.update()
+            self.setCursor(self._hover_shape(pos, handle, bool(e.modifiers() & Qt.KeyboardModifier.AltModifier)))
             self._mouse = pos
             return
         dx, dy = pos.x() - self._mouse.x(), pos.y() - self._mouse.y()
@@ -931,6 +979,7 @@ class Viewport(QOpenGLWidget):
             self.set_gizmo_target('gun')  # Ctrl + click on the gun: the gizmo on it (a click on a hand puts it back there)
         # (A click on the gun or on nothing keeps the selected hand: dropping it left the controls editing the right hand.)
         self._end_drag()
+        self._restore_cursor(e.position().toPoint(), bool(e.modifiers() & Qt.KeyboardModifier.AltModifier))
         self.update()
 
     def wheelEvent(self, e):
