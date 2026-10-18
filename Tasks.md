@@ -431,7 +431,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 257. [x] Floating spare ammunition (user, 2026-10-18: "the 2nd mag floats, this happens to other guns too maybe", seen on the mwii-g17): the reload animation parks a spare magazine, a drum, a belt or a round beside or behind the gun at rest, and the game draws it there while held. Code done (WeaponAnalyzer: the spare rule's bore-line gate only ahead of the grip, and the new ParkedAmmo rule), 44 guns + the mwii-g17 family; the autotest now takes a side picture of each held gun (weapon-side-NNN). Checked in the game with the new side pictures (check-1018a/b, 2026-10-18): nothing floats beside or behind the 21 guns checked; see "For 257"
 258. [ ] Sandbox editor: Blender's transform gizmos (user, 2026-10-18 morning: "we have this in blender to turn things and also the arrows, but also free move as it is now, that's good already"): arrows, plane squares and a centre circle to move, axis rings, a white view ring and a trackball to turn, on the selected hand or on the gun; Global / Local / Gun axes, Ctrl snap, Shift fine, Esc / right click cancel; free dragging kept. Done in tools/sandbox/app/gizmo.py + viewport.py + main.py (header over the view, keys W/G/R/T, comma); reviewed by 9 read-only Haiku agents and fixed; self-test 86/86 (HK416-A) and
 259. [ ] The scouts' real faults from the sandbox sweep (2026-10-17 night, see "For 256"): rack points in the air (AS Val, AK-24, ACE 32, AK-105), the AR charging handle guessed behind the receiver (M417A2, Suzuya's AR-15s), the Panzerfaust 3's grips hidden as spares and its hands under them. Code done 2026-10-18; see "For 259"
-260. [ ] From the user (2026-10-18 afternoon): (a) a magazine knocked out with the other magazine (mag kick) drops straight down instead of flipping out forward; (b) on many magazines the hitbox (its grab zone / physics shape) sits low and does not cover the whole magazine; (c) the second magazine (the one in the hand) must collide with the magazine seated in the gun
+260. [ ] From the user (2026-10-18 afternoon): (a) a magazine knocked out with the other magazine (mag kick) drops straight down instead of flipping out forward; (b) on many magazines the hitbox (its grab zone / physics shape) sits low and does not cover the whole magazine; (c) the second magazine (the one in the hand) must collide with the magazine seated in the gun (code done 2026-10-18: a flies forward and tumbles, b the hitbox covers the whole outline, c the seated magazine stops the one in the hand; see "For 260"; verify)
 82/82 (GLOCK 43X); see "For 258"
 
 ## Notes
@@ -1994,6 +1994,30 @@ Refuted: WeaponAnalyzer.cs:1205 Bolt-carrying handle racked at bounds centre, sk
   them; the mwii-g17's spare (the user's) is gone; the shotguns' chosen shells and the Glock's third-person mesh do not
   show either; the PATRIOT GL's grenade stays in its launcher. (What shows in those pictures besides the gun: the
   player's holstered loadout and the magazines the test dropped.)
+
+### For 260: the mag kick's flight, the magazine hitbox, a magazine against the seated one (2026-10-18)
+
+- (a) Kick flight: `ReloadInteractions.KickOut` gave the knocked-out magazine a sideways push (1.3 m/s) and a downward one
+  with no forward part, and spun it about the barrel axis (a roll), so it dropped straight down. Now it flies forward
+  along the barrel (1.4 to 1.9 m/s, with the strike's push and the gun hand's motion), 0.6 m/s away from the gun hand and
+  0.2 m/s down; its spin is 6 to 9 rad/s about insert x aim, which carries the top forward (end over end, top leading).
+  The release button's drop (`FinishEject`) is unchanged: it still drops straight out.
+- (b) Hitbox: `ShapeFit.Thin` kept every n-th outline point of a piece once the piece had more than 180 (about ten slices of
+  1.5 cm: most rifle and long pistol magazines), and the stride skipped the outermost points, so the piece's hull stopped
+  short of the model. Autotest before (check-1018a, thrown magazine): 43% (ARS Glock 19), 76% (BRN180 L), 53% (FNX-45) of
+  the model covered. Now it keeps, for 180 directions spread over the sphere, the point farthest along each direction, so
+  the hull is the hull of all the outline points (the same for guns and the unreadable-mesh fit). Not changed: a curved
+  magazine's pieces still bulge (BRN180 L: 67% outside), because magazines are capped at 8 pieces (coarser slices).
+- (c) Magazine against the seated one: `MagazineProp.KeepOffGun` let the magazine in the hand pass any point inside the
+  well box (the well's opening, 8 mm play) while it was on the well line, and the seated magazine is inside that box, so
+  the fresh one went through it (the autotest's keep-out "sideways slowly" had 7 frames inside the gun). The well is open
+  to the gun's body only now: `HeldWeapon.SeatedMagSolid` (the seated magazine as posed, grown by a finger's radius, the
+  same as in `HandsSolid`) blocks it. The fresh magazine stops at the seated one's base; a strike or a firm push still
+  kicks the seated one out, because `TryMagKick` reads the hand's pose, not the drawn one. The autotest's counts
+  (`MagazineProp.PointsInsideGun`, `ProbeInside`) use the same rule, so a magazine pushed into the seated one shows.
+- Not run here (no build and no game in this session). Check in the headset: the kicked magazine flies forward and turns
+  end over end; a fresh magazine stops at the seated base and kicks out with a strike and with a push. Autotest: the
+  thrown magazine's shape coverage should be above the 43 to 76% above, and "magazine keep-out (sideways slowly)" 0 frames.
 
 ### For 259: rack points and grips from the scouts' list (2026-10-18)
 

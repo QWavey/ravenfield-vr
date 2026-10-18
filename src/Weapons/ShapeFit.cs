@@ -314,22 +314,45 @@ namespace RavenfieldVR.Weapons
             return result ?? new Piece[0];
         }
 
-        /// <summary>Every <c>n</c>-th point down to at most <paramref name="max"/> (extremes are spread evenly through the list).</summary>
+        /// <summary>
+        /// At most <paramref name="max"/> of the points, chosen so that their hull is, to a fraction of a millimetre, the hull
+        /// of all of them: for each of <paramref name="max"/> directions spread evenly over the sphere, the point farthest
+        /// along it. Taking every n-th point lost the outermost ones (the top end of each slice, where the stride fell), so a
+        /// piece's hull stopped short of the model: a magazine's hitbox sat low and did not cover the whole magazine (user,
+        /// 2026-10-18, task 260 b).
+        /// </summary>
         private static Vector3[] Thin(Vector3[] pts, int max)
         {
             if (pts.Length <= max)
             {
                 return pts;
             }
-            var keep = new Vector3[max];
+            var keep = new List<Vector3>(max);
+            var taken = new HashSet<int>();
             for (int i = 0; i < max; i++)
             {
-                keep[i] = pts[(int)((long)i * pts.Length / max)];
+                // Fibonacci sphere: evenly spread directions, one per point to keep.
+                float y = 1f - 2f * (i + 0.5f) / max;
+                float r = Mathf.Sqrt(Mathf.Max(0f, 1f - y * y));
+                float a = i * 2.39996323f;
+                var dir = new Vector3(r * Mathf.Cos(a), y, r * Mathf.Sin(a));
+                int best = 0;
+                float bestDot = float.NegativeInfinity;
+                for (int k = 0; k < pts.Length; k++)
+                {
+                    float dot = Vector3.Dot(pts[k], dir);
+                    if (dot > bestDot)
+                    {
+                        bestDot = dot;
+                        best = k;
+                    }
+                }
+                if (taken.Add(best))
+                {
+                    keep.Add(pts[best]);
+                }
             }
-            // The last point too (the stride never reached it): it is the top end of the piece along its slices, and a
-            // tapered end stopped up to a slice short (night bug hunt, 229).
-            keep[max - 1] = pts[pts.Length - 1];
-            return keep;
+            return keep.ToArray();
         }
 
         private const float MinThickness = 0.004f;

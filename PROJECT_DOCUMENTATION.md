@@ -215,7 +215,9 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 ### 3.6 Physics shapes (`Weapons/ShapeFit.cs`, `Weapons/GunCollider.cs`)
 
 - `ShapeFit` cuts a model into slices along its longest axis, splits slices at gaps, keeps the outermost vertices per
-  slice in 16 directions, thins and thickens degenerate pieces (PCA) and builds convex `MeshCollider`s (box fallback when
+  slice in 16 directions; a piece with more than 180 outline points keeps the farthest point in each of 180 directions
+  over the sphere (task 260: the old every-n-th thinning dropped the outermost points, so pieces stopped short of the
+  model), thickens degenerate pieces (PCA) and builds convex `MeshCollider`s (box fallback when
   PhysX cannot cook). Readable meshes give vertices (capped at 8000 per mesh); unreadable meshes (about a quarter of all
   weapon meshes: 1447 of ~6070) used to join as **bounding boxes** — the "invisible square touch border".
 - `GunCollider` is the held gun's physics stand-in (velocity-driven rigidbody on the prop layer, ignores the player).
@@ -251,7 +253,9 @@ Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 - `ReloadInteractions`: magazines ride a rail into the well and seat at full depth; B ejects (with a fresh magazine near
   the well it is a **tactical eject** into the same hand — H3VR palming); a fresh magazine driven into the seated one
   knocks it out (**mag kick**, swept window, smoothed hand speed, a light tick on the old base, no kick for 0.4 s after
-  a seat); slides/bolts/handles/pumps follow the hand along their stroke; covers, belts, hinges, optics (magnifier flip).
+  a seat); the knocked-out one flies forward and turns end over end (`KickOut`, task 260); the seated one is solid to the
+  fresh one until it is knocked out (the well is open to the gun's body only: `MagazineProp.KeepOffGun`).
+  Slides/bolts/handles/pumps follow the hand along their stroke; covers, belts, hinges, optics (magnifier flip).
   The pouch only answers a squeeze made at it (`_pressPalm`), and a magazine let go at the pouch is stowed only if the
   hand is slow (< 1.2 m/s) — otherwise it is thrown.
 - `MagazineProp`: magazines, shells and rockets as props (copies of the weapon's own magazine meshes, baked if skinned),
