@@ -469,8 +469,8 @@ class Workbench(QWidget):
         self.laser_btn = TogglePushButton(FIF.ALIGNMENT, 'Laser pointer  (L)')
         self.laser_btn.toggled.connect(self.set_laser)
         self.laser_btn.setToolTip('Laser pointer (L). Click a part to see what it is and where; Alt + click does the same without '
-                                  'the laser. While the laser is on, clicks pick parts and a hand cannot be dragged: press L '
-                                  'again. Right-click for the menu.')
+                                  'the laser. While the laser is on, clicks pick parts and a hand cannot be dragged freely (its '
+                                  'gizmo still moves it): press L again. Right-click for the menu.')
         self.laser_hint_text = 'Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.'
         self.laser_hint = CaptionLabel(self.laser_hint_text)  # (set_laser changes it while the laser is on)
         self.laser_hint.setWordWrap(True)
@@ -1448,10 +1448,11 @@ class Workbench(QWidget):
         self.scene.laser_hand = self.scene.right if on else None
         # With the laser on, a press picks a part and does not drag a hand: the hints say so, and how to get the drag back
         # (real2 I1#2).
-        self.laser_hint.setText('Laser on: clicks pick parts; press L or this button to drag hands again.' if on
+        self.laser_hint.setText('Laser on: clicks pick parts; press L or this button to drag hands freely again.' if on
                                 else self.laser_hint_text)
-        self.hands_hint.setText('Laser on: clicks pick parts, so a hand cannot be dragged now. Press L or the Laser '
-                                'pointer button to drag hands again.' if on else self.hands_hint_text)
+        self.hands_hint.setText('Laser on: clicks pick parts, so a hand cannot be dragged freely (its gizmo still moves it). '
+                                'Press L or the Laser pointer button to drag hands freely again.' if on
+                                else self.hands_hint_text)
         if not on:
             # Turning the laser off takes its pick with it: the readout, the pick line and Copy coordinates go, so a right click
             # without the laser or Alt never copies a part picked before (real2 I9#0). The hover label drops the part's name too.
@@ -2373,7 +2374,7 @@ class Help(QWidget):
             'snaps and Reset. The history holds up to 100 steps for the open weapon.</p>'
             '<p><b>Laser pointer</b> (L, or Alt + click): click a part to see what it is and where it is, in cm from the muzzle '
             '(back, up, right) as the test reports give it, and the mod\'s gun-space x, y, z. While it is on, a click picks a part '
-            'and a hand cannot be dragged: press L again. <b>Right-click</b> opens a menu '
+            'and a hand cannot be dragged freely (its gizmo still moves it): press L again. <b>Right-click</b> opens a menu '
             '(Copy coordinates, Hide this part, Hands on the gun and more). <b>Copy the hands for Claude</b> puts both hands (where '
             'each one is, its pose and the part it holds) on the clipboard as text to paste.</p>'
             '<p>Grey boxes are parts whose mesh the game does not let the mod read: they are at the right place and size.</p>'

@@ -66,8 +66,8 @@ another weapon starts its own history, and the unsaved hands of the first one ar
 
 - **Laser pointer** (L, or Alt + click): click a part to see its name, what the mod takes it for, and where it is: cm
   from the muzzle (back, up, right) as the test reports give it, and the mod's gun-space x, y, z. While the laser is
-  on, a click picks a part and a hand cannot be dragged: press L again. Turning the laser off clears its pick, so a
-  right click afterwards copies nothing from it.
+  on, a click picks a part and a hand cannot be dragged freely (its gizmo still moves it): press L again. Turning the
+  laser off clears its pick, so a right click afterwards copies nothing from it.
 - **Right-click** opens a menu: *Copy coordinates*, *Copy the part name*, *Hide this part*, *Show every part*,
   *Hands on the gun*, *Frame the gun*, and the entry that puts a hand on the part. *Copy coordinates* puts a line on the
   clipboard to paste to Claude, e.g.
