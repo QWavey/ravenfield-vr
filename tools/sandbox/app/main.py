@@ -8,6 +8,7 @@ import codecs
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -417,6 +418,7 @@ class Workbench(QWidget):
         self.weapon_list.currentItemChanged.connect(self.on_weapon_chosen)
         self.weapon_info = CaptionLabel('')
         self.weapon_info.setWordWrap(True)
+        self._card_job_text = None  # (the text a job last put on this card: _run keeps the text before it, not that one)
         v.addWidget(card('Weapon', self.search, self.weapon_list, self.weapon_info))
 
         on_gun = PrimaryPushButton(FIF.FINGERPRINT, 'Hands on the gun')
@@ -455,8 +457,9 @@ class Workbench(QWidget):
         self.hands_hint = CaptionLabel(self.hands_hint_text)  # (set_laser says on it that the laser takes the clicks)
         self.hands_hint.setWordWrap(True)
         self.hand_label = BodyLabel('Pose of the right hand')
-        v.addWidget(card('Hands', on_gun, row(self.sel_right, self.sel_left), CaptionLabel('Left hand to:'), row(*snaps),
-                         self.hand_label, self.pose, fingers, self.hands_hint))
+        # The hint leads the card: at its bottom, under six sliders, a new user never reached it (real2 I1#6).
+        v.addWidget(card('Hands', self.hands_hint, on_gun, row(self.sel_right, self.sel_left), CaptionLabel('Left hand to:'),
+                         row(*snaps), self.hand_label, self.pose, fingers))
 
         play = PrimaryPushButton(FIF.PLAY, 'Reload')
         play.clicked.connect(self.play_reload)
@@ -655,7 +658,7 @@ class Workbench(QWidget):
                          row(BodyLabel('Transparent background (PNG)'), self.transp_sw)))
 
         self.export_names = LineEdit()
-        self.export_names.setPlaceholderText('Weapons to export (empty: all)')
+        self.export_names.setPlaceholderText('Weapons to export, comma-separated (empty: all)')  # (a space is no separator: real2 I2#1)
         export = PushButton(FIF.DOWNLOAD, 'Export weapons')
         export.clicked.connect(self.export_weapons)
         game = PushButton(FIF.GAME, 'Test this gun in the game')
@@ -764,8 +767,10 @@ class Workbench(QWidget):
             self._open_now(wid)
 
     def _open_now(self, wid):
-        self._opened_at = time.monotonic()
         self.open_weapon(wid)
+        # Stamped when the load is over, not when it starts (real2 I5#0): the keys queued behind a slow load then find a recent
+        # open and restart the wait, so a burst opens only its last weapon.
+        self._opened_at = time.monotonic()
 
     def open_weapon(self, wid, hands_doc=None):
         self.settle_timeline()
@@ -786,6 +791,7 @@ class Workbench(QWidget):
             return
         if not self.selftest:
             self.settings.setValue('lastWeapon', wid)
+            self.settings.sync()  # (on disk now, not only at the exit: real2 I3#0)
         self.undo_stack, self.redo_stack = [], []
         self.view.part_node = None
         w = self.scene.weapon
@@ -1747,10 +1753,42 @@ class Workbench(QWidget):
 
     DEFAULT_GAME = os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam', 'steamapps', 'common', 'Ravenfield')
 
+    @staticmethod
+    def steam_libraries():
+        """Steam's library folders, Steam's own first: its path from the registry (else the default place), then the "path"
+        values of its libraryfolders.vdf, found the way tools/common.ps1 finds them. A missing or odd file leaves them out."""
+        steam = None
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam') as key:
+                steam = str(winreg.QueryValueEx(key, 'SteamPath')[0])
+        except (ImportError, OSError):
+            steam = None  # (not Windows, or Steam was never started on this account)
+        steam = os.path.normpath(steam or os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam'))
+        libs = [steam]
+        try:
+            with open(os.path.join(steam, 'steamapps', 'libraryfolders.vdf'), encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        except OSError:
+            text = ''
+        for raw in re.findall(r'"path"\s+"([^"]+)"', text):
+            lib = os.path.normpath(raw.replace('\\\\', '\\'))  # (the file doubles each backslash)
+            if os.path.normcase(lib) not in {os.path.normcase(x) for x in libs}:
+                libs.append(lib)
+        return libs
+
     def game_folder(self):
-        """Ravenfield's folder: the one chosen in Advanced (Game folder...), else Steam's default."""
+        """Ravenfield's folder: the one chosen in Advanced (Game folder...), else the first Steam library that holds it (every
+        library, not only Steam's default one: real2 B8#6), else Steam's default. The self-test always takes the default."""
         chosen = '' if self.selftest else str(self.settings.value('gameFolder', '') or '')
-        return chosen if chosen and os.path.isdir(chosen) else self.DEFAULT_GAME
+        if chosen and os.path.isdir(chosen):
+            return chosen
+        if not self.selftest:  # (the self-test does not look at the user's Steam libraries)
+            for lib in self.steam_libraries():
+                folder = os.path.join(lib, 'steamapps', 'common', 'Ravenfield')
+                if os.path.isfile(os.path.join(folder, 'ravenfield.exe')):
+                    return folder
+        return self.DEFAULT_GAME
 
     def game_poses_dir(self):
         """Where the mod reads saved poses (BepInEx/config/RavenfieldVR/poses), or None when the game (with the mod) is not found."""
@@ -1915,7 +1953,8 @@ class Workbench(QWidget):
             self.keep_old(os.path.join(game, w.id + '.json'))
             self._write(os.path.join(game, w.id + '.json'), doc)
         except (OSError, ValueError) as e:
-            self.toast('Could not send it to the game', str(e), error=True)
+            self.toast('Could not send it to the game', f'{w.id}: {type(e).__name__}: {e}\n{os.path.join(game, w.id + ".json")}',
+                       error=True)  # (the weapon and the file, not only the bare message: real2 I10#4)
             return
         self.update_game_status()
         self.toast('Sent to the game', os.path.join(game, w.id + '.json'))
@@ -1932,7 +1971,7 @@ class Workbench(QWidget):
                 self.keep_old(target, 'removed')
                 os.remove(target)
         except OSError as e:
-            self.toast('Could not remove it from the game', str(e), error=True)
+            self.toast('Could not remove it from the game', f'{w.id}: {type(e).__name__}: {e}\n{target}', error=True)  # (real2 I10#4)
             return
         self.update_game_status()
         self.toast('Removed from the game', 'The game holds this weapon the mod\'s own way again; the pose is still saved here.')
@@ -2280,7 +2319,7 @@ class Workbench(QWidget):
     def _python(self):
         return sys.executable if not getattr(sys, 'frozen', False) else 'python'
 
-    def _run(self, args, title):
+    def _run(self, args, title, busy=''):
         if self.process is not None and self.process.state() != QProcess.ProcessState.NotRunning:
             self.toast('Something is still running', 'Wait for it to finish.', error=True)
             return
@@ -2289,6 +2328,15 @@ class Workbench(QWidget):
             self.toast('Ravenfield is running', 'Not starting it again (someone is playing?).', error=True)
             return
         self.job_log.setPlainText(f'{title}…\n')
+        # The Easy card says the job runs (busy), and how it ended (_job_done, _job_failed). The text it had is kept for after
+        # a game test (real2 I1#7). A result an earlier job left on the card is not kept (a test that passed after one that
+        # failed would say 'did not work' for ever): the text before that result is.
+        if self.weapon_info.text() != self._card_job_text:
+            self._info_before_job = self.weapon_info.text()
+        self._job_busy = busy
+        if busy:
+            self.weapon_info.setText(busy)
+            self._card_job_text = busy
         self.process = QProcess(self)
         self.process.setWorkingDirectory(self.repo)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -2306,16 +2354,35 @@ class Workbench(QWidget):
         if err != QProcess.ProcessError.FailedToStart:
             return  # (a crash or a kill also ends in finished)
         self.job_log.appendPlainText(f'\n{title}: could not start {self._python()} ({self.process.errorString()}).')
+        if self.weapon_info.text() == self._job_busy:  # (the Easy card says so as well, unless a weapon was opened since)
+            self._card_job_text = (f'{title} did not start: {self._python()} was not found '
+                                   '(Python has to be installed and on PATH).')
+            self.weapon_info.setText(self._card_job_text)
         self.toast(f'{title}: could not start', f'{self._python()} was not found: Python has to be installed (and on PATH) '
                                                  'for the game jobs.', error=True)
 
     def _job_done(self, title, code):
+        # The output before this job's own closing line. Its reason can sit above the last lines: vrshots raises 'build failed'
+        # and the build output is printed after it (real2 I1#7). The first line is the job's title (set by _run).
+        lines = [ln.rstrip() for ln in self.job_log.toPlainText().splitlines() if ln.strip()][1:]
         self.job_log.appendPlainText(f'\n{title}: finished ({code}).')
+        # The Easy card showed the job while it ran: an export reads the weapon list again, and another job goes back to the text
+        # it had, unless a weapon was opened meanwhile (that weapon has its own text then).
+        shows_job = self.weapon_info.text() == self._job_busy
         if 'Export' in title:
-            self.load_weapon_list(keep_open=True)
+            self.load_weapon_list(keep_open=True)  # (after this, the card holds the list: a failure below replaces its text)
+            shows_job = True
+        elif shows_job and code == 0:
+            self.weapon_info.setText(self._info_before_job)
         if code != 0:
-            tail = [ln for ln in self.job_log.toPlainText().splitlines() if ln.strip()][-6:]
-            self.toast(f'{title}: it did not work', '\n'.join(tail[-5:]) + '\n(the whole output: Advanced, under the Game card)', error=True)
+            keyed = [i for i, ln in enumerate(lines) if any(k in ln.lower() for k in ('error', 'failed', 'traceback'))]
+            shown = sorted(set(keyed[-3:]) | set(range(max(0, len(lines) - 3), len(lines))))
+            reason = lines[keyed[-1]] if keyed else (lines[-1] if lines else 'it printed nothing')
+            if shows_job:
+                self._card_job_text = f'{title} did not work: {reason}\nThe whole output: Advanced, under the Game card.'
+                self.weapon_info.setText(self._card_job_text)
+            self.toast(f'{title}: it did not work', '\n'.join(lines[i] for i in shown)
+                       + '\n(the whole output: Advanced, under the Game card)', error=True)
         else:
             self.toast(f'{title}: finished', 'The weapons are read again; the open weapon and its hands stay as they were.'
                        if 'Export' in title else 'Done.')
@@ -2323,7 +2390,9 @@ class Workbench(QWidget):
     def export_weapons(self):
         names = self.export_names.text().strip()
         self._run([os.path.join(self.repo, 'tools', 'sandbox', 'export.py'), '--game', self.game_folder()]
-                  + (['--weapons', names] if names else []), 'Export weapons')
+                  + (['--weapons', names] if names else []), 'Export weapons',
+                  busy=f'Exporting {names or "all weapons"}… Ravenfield runs once without a headset; the weapons appear here when '
+                       'it is done (a few minutes).')
 
     def test_in_game(self):
         w = self.scene.weapon
@@ -2331,7 +2400,7 @@ class Workbench(QWidget):
             return
         self._run([os.path.join(self.repo, 'tools', 'vrshots.py'), '--game', self.game_folder(), '--weapon', '=' + w.name,
                    '--out', 'sandbox-' + safe(w.name)],
-                  f'Test {w.name} in the game')
+                  f'Test {w.name} in the game', busy=f'Testing {w.name} in the game…')
 
 
 class Preview(QLabel):
@@ -2642,7 +2711,7 @@ class Help(QWidget):
             '<p>Grey boxes are parts whose mesh the game does not let the mod read: they are at the right place and size.</p>'
             '<p><b>Save pose</b> (Ctrl+S) writes this weapon\'s hands to tools/sandbox/poses/, and to the game\'s '
             'BepInEx/config/RavenfieldVR/poses/ folder when Ravenfield is found (that is the copy the mod reads). The game folder '
-            'is looked for in Steam\'s usual place; if Ravenfield is elsewhere, pick it under Advanced, <b>Game folder…</b>. A pose '
+            'is looked for in every Steam library; if Ravenfield is elsewhere, pick it under Advanced, <b>Game folder…</b>. A pose '
             'file about to be overwritten is first kept in tools/sandbox/poses/history (the last 30 per weapon), so a pose saved '
             'over by mistake can be got back.</p>'
             '<p><b>Import pose…</b> and <b>Export pose…</b> move a pose file in and out (to share it or send it to Claude). '
@@ -2703,6 +2772,7 @@ class Window(FluentWindow):
                 box.exec()
         if not wb.selftest:
             wb.settings.setValue('geometry', self.saveGeometry())
+            wb.settings.sync()  # (leave() ends the program with os._exit, which does not flush the settings: real2 I3#0)
         wb.view.cleanup()
         super().closeEvent(e)
 
@@ -2715,7 +2785,7 @@ class Window(FluentWindow):
         self.workbench = Workbench(self, repo)
         self.captures = Captures(self.workbench.captures)
         self.help = Help()
-        self.addSubInterface(self.workbench, FIF.EDIT, 'Workbench')
+        self.addSubInterface(self.workbench, FIF.EDIT, 'Weapons & hands')  # (the object name 'workbench' stays: the route key)
         self.addSubInterface(self.captures, FIF.PHOTO, 'Captures')
         self.addSubInterface(self.help, FIF.HELP, 'Help', NavigationItemPosition.BOTTOM)
         self.navigationInterface.setExpandWidth(180)
@@ -2857,6 +2927,7 @@ def leave(code):
                 stream.flush()
             except (OSError, ValueError):
                 pass
+    QSettings('RavenfieldVR', 'Sandbox').sync()  # the settings go to disk before os._exit (real2 I3#0)
     os._exit(code or 0)
 
 
