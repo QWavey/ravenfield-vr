@@ -3156,7 +3156,7 @@ namespace RavenfieldVR.Weapons
         /// about 7 cm behind the back end of the MWII M4's own T, and a knob was added there: the two pull-back handles the user
         /// saw, the knob moving while the T stood still (user, 2026-10-18, task 269). Here the T is the handle: the hand takes
         /// its back end and it comes back with the hand, and no knob is added (HeldWeapon). The bar must run across the receiver
-        /// (the mod's own T is 4.2 cm across; the flat plate and fin that stand at the same place on the holo and plain M4 are
+        /// (the M4's own T is 3.2 cm across; the flat plate and fin that stand at the same place on the holo and plain M4 are
         /// 1.1 cm across), and it must stand within 10 cm of the guess (the guess sat 8 to 10 cm behind the handle on other
         /// ARs, see ArChargingHandle).
         /// </summary>
