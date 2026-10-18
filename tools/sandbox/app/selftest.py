@@ -1320,6 +1320,9 @@ class SelfTest:
                 if path and os.path.exists(path):
                     os.remove(path)
                     removed += 1
+                side = os.path.splitext(path)[0] + '.txt' if path else None  # (the text beside a picture goes with it: real2 I8#1)
+                if side and os.path.exists(side):
+                    os.remove(side)
             except OSError:
                 pass
         shutil.rmtree(self.root, ignore_errors=True)
