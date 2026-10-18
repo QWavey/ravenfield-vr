@@ -875,9 +875,9 @@ class Viewport(QOpenGLWidget):
             hand = self._drag[1]
             view = self.view_matrix()
             right, up = view[0, :3], view[1, :3]
-            forward = -view[2, :3]
-            depth = max(0.01, float(np.dot(hand.position - self.eye(), forward)))  # along the view (it follows the cursor)
-            hand.position = hand.position + (right * dx - up * dy) * self._px_scale(depth)
+            # Metres per pixel where the hand is (the same everywhere in the orthographic view: there the hand's own depth ran
+            # it ahead of or behind the pointer, real2 B4#4).
+            hand.position = hand.position + (right * dx - up * dy) * self._px_at(hand.position)
             self.changed.emit(hand)
         elif kind == 'turn':
             hand = self._drag[1]

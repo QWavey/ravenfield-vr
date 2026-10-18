@@ -646,12 +646,16 @@ class Workbench(QWidget):
         """The exported weapons. keep_open: the weapon open now stays open (opened again from its new files, with the hands as
         they are); else the one opened last time, or the first."""
         current = self.scene.weapon.id if self.scene.weapon is not None else None
+        if keep_open and current:
+            self.settle_timeline()  # (a reload still playing: its hands half way were kept and could be saved, real2 B2#2)
         hands = self.scene.pose_document() if keep_open and current else None
         self.weapon_list.blockSignals(True)
         self.weapon_list.clear()
         self.items = []
         if os.path.isdir(self.data):
             for name in sorted(os.listdir(self.data), key=str.lower):
+                if name.endswith(('.new', '.old')):
+                    continue  # (an export's copy being swapped in, or left by one cut off half way)
                 rig = os.path.join(self.data, name, 'rig.json')
                 if os.path.exists(rig) and os.path.exists(os.path.join(self.data, name, 'model.glb')):
                     try:
@@ -741,6 +745,9 @@ class Workbench(QWidget):
         if not w.muzzle_known:
             info += ' · no muzzle in the export: distances are from the gun\'s front'
         warns = r.get('warnings') or []
+        if isinstance(warns, str):
+            # (The export writes them as one string, "a; b; c": joined as a list it came out a letter at a time, real2 B9#4.)
+            warns = [x.strip() for x in warns.split(';') if x.strip()]
         if warns:
             info += ' · the analysis warns: ' + '; '.join(str(x) for x in warns[:3]) + (' …' if len(warns) > 3 else '')
         self.weapon_info.setText(info)
@@ -1461,9 +1468,12 @@ class Workbench(QWidget):
         w = self.scene.weapon
         n = self.picked_node
         g = w.to_gun(self.picked_point)[:3]
-        moved = np.linalg.norm(n.sim[:3, 3]) > 1e-6 or np.linalg.norm(n.sim[:3, :3] - np.eye(3)) > 1e-6
+        # The same point on the part at rest: back through where the part is now, then out to its home (a magazine parked
+        # away at rest is drawn on its seat: its home; taken back to the raw export, the M1's clip read 1 m off, real2 B2#3).
+        home = w.home_matrix(n)
+        moved = not np.allclose(n.sim, home, atol=1e-6)
         try:
-            rest = np.linalg.solve(n.sim, np.append(g, 1.0))[:3] if moved else g  # the same point on the part at rest
+            rest = (home @ np.linalg.solve(n.sim, np.append(g, 1.0)))[:3] if moved else g
         except np.linalg.LinAlgError:
             rest = g
         b, u, r = w.from_muzzle(rest)
@@ -1952,7 +1962,13 @@ class Workbench(QWidget):
         ptr = img.constBits()
         ptr.setsize(img.sizeInBytes())
         arr = np.frombuffer(ptr, np.uint8).reshape(img.height(), img.bytesPerLine())[:, :img.width() * 3].reshape(img.height(), img.width(), 3)
-        frame = Image.fromarray(arr.copy()).quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        # One palette for the whole GIF, made from its first frame: each frame's own made the same colours shimmer from
+        # frame to frame (real2 I2#7, I5#1, I8#6).
+        if rec.get('palette') is None:
+            frame = Image.fromarray(arr.copy()).quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+            rec['palette'] = frame
+        else:
+            frame = Image.fromarray(arr.copy()).quantize(palette=rec['palette'], dither=Image.Dither.NONE)
         rec['frames'].append(frame)
         rec['times'].append(time.perf_counter())
         rec['bytes'] += frame.width * frame.height
@@ -2013,6 +2029,16 @@ class Workbench(QWidget):
             pass
 
     def toast(self, title, content, path=None, error=False):
+        if error and not self.selftest:
+            # Every error shown is in sandbox-errors.log too (save, import, export, send: shown only; real2 I10#4).
+            try:
+                main = sys.modules.get('__main__')
+                log = main.error_log_path() if main is not None and hasattr(main, 'error_log_path') else None
+                if log:
+                    with open(log, 'a', encoding='utf-8') as f:
+                        f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {title}: {content}{(' (' + path + ')') if path else ''}\n")
+            except OSError:
+                pass
         if self.selftest:
             # (The self-test's messages say so: its deliberate bad file and error looked like real faults on screen.)
             expected = getattr(self, 'expect_error', '')

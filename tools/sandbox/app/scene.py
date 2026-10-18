@@ -187,6 +187,14 @@ class Weapon:
                 m = hinge_m @ m
             n.sim = m
 
+    def home_matrix(self, node):
+        """Where a part is drawn at rest (every part home): the export's own place, except a magazine parked away at rest
+        (the M1's clip), which is drawn on its seat."""
+        m = np.eye(4)
+        if node.role == 'magazine':
+            m[:3, 3] = self.mag_parked
+        return m
+
     def rack_point(self):
         """Where the hand takes the slide or handle now (gun space)."""
         st = v3(self.rig.get('slideTravel', [0, 0, 0]))
@@ -341,8 +349,9 @@ class Scene:
                 thumb = -w.aim  # on top: the thumb back along the gun, the fingers across it
             else:
                 # On the side: the fingers go up over the part (ReloadInteractions.RackHandPose: fingers = up for side parts),
-                # the thumb along the barrel. (fingers = palm x cross thumb; the left glove is mirrored.)
-                thumb = np.cross(out, w.up) if hand.side == 'left' else np.cross(w.up, out)
+                # the thumb along the barrel. (fingers = thumb x palm axis; the left glove is mirrored. The two were swapped and
+                # the hand hung upside down, fingers down from above: real2 I6#3, seen on the AS Val, 2026-10-18.)
+                thumb = np.cross(w.up, out) if hand.side == 'left' else np.cross(out, w.up)
             self.place(hand, p + out * 0.02, -out, thumb)
             pump = r.get('action') == 'ShellFed' and not r.get('handle')
             hand.set_pose('Pistol slide' if pistol else 'Pump' if pump else 'Charging handle' if r.get('handle') else 'Bolt handle')

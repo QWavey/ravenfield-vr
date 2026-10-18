@@ -452,6 +452,18 @@ class SelfTest:
         self.check('Left hand to Slide: on the slide or handle',
                    s.left.role == 'rack' and s.left.on_part == 'slide / handle' and abs(dist - 0.02) < 1e-4,
                    f'{dist * 100:.2f} cm from the rack point, job {s.left.role!r}')
+        # On a handle on the side the fingers go up over it, as the game's rack hold (RackHandPose) takes it: the glove's
+        # fingers are its -Z (real2 I6#3: the hand hung upside down, fingers down from above).
+        off = w.rack_point() - w.muzzle
+        off = off - w.aim * float(np.dot(off, w.aim))
+        out = off / max(1e-9, float(np.linalg.norm(off)))
+        if float(np.linalg.norm(off)) > 0.015 and float(np.dot(w.dir_to_world(out), w.dir_to_world(w.up))) <= 0.7:
+            from mathutil import quat_to_mat3
+            fingers = quat_to_mat3(s.left.rotation) @ np.array([0.0, 0.0, -1.0])
+            up = float(np.dot(fingers, w.dir_to_world(w.up)))
+            self.check('Left hand to Slide on a side handle: the fingers up over it, as the game holds it', up > 0.5, f'fingers {up:+.2f} along up')
+        else:
+            self.skip('Left hand to Slide on a side handle: the fingers up over it', "this gun's handle is on top")
 
     def s_snap_magazine(self):
         """Left hand to Magazine: at the magazine's place, between its half width and its length from its centre."""

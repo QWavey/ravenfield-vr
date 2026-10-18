@@ -45,9 +45,17 @@ def main():
         vrshots.run_game(a.game, args, a.timeout, vr=False)
     finally:
         # Interrupted (Ctrl+C, an error): the game this run started goes too (it was refused above when one was running),
-        # else the next export or game test is refused with "someone is playing?".
+        # else the next export or game test is refused with "someone is playing?". What it wrote so far is still copied
+        # (real2 B7#1).
         if vrshots.running('ravenfield.exe'):
             vrshots.kill('ravenfield.exe')
+        result = copy_written(a, out, since, names)
+    if result:
+        raise SystemExit(1)
+
+
+def copy_written(a, out, since, names):
+    """Copies every weapon written since the run began into the sandbox's data; True when something went wrong."""
     index = os.path.join(out, 'index.json')
     complete = os.path.exists(index) and os.path.getmtime(index) >= since - 5
     os.makedirs(DATA, exist_ok=True)
@@ -60,8 +68,21 @@ def main():
             if not (os.path.isdir(src) and os.path.exists(rig) and os.path.exists(glb) and os.path.getmtime(rig) >= since - 5):
                 continue
             dst = os.path.join(DATA, name)
-            shutil.rmtree(dst, ignore_errors=True)
-            shutil.copytree(src, dst)
+            # Whole or not at all: copied beside, then swapped in. Removed first, a copy that failed half way (a locked
+            # file) left the gun with no export at all (real2 I10#6).
+            new, old = dst + '.new', dst + '.old'
+            shutil.rmtree(new, ignore_errors=True)
+            shutil.rmtree(old, ignore_errors=True)
+            shutil.copytree(src, new)
+            if os.path.exists(dst):
+                os.replace(dst, old)
+            try:
+                os.replace(new, dst)
+            except OSError:
+                if os.path.exists(old) and not os.path.exists(dst):
+                    os.replace(old, dst)  # the last good export back
+                raise
+            shutil.rmtree(old, ignore_errors=True)
             copied.append(name)
         except OSError as e:
             failed.append(f'{name}: {e}')
@@ -78,8 +99,7 @@ def main():
     missing = [n for n in names.split(',') if n and not any(n.lower().replace(' ', '_') in c.lower() or n.lower() in c.lower() for c in copied)]
     if missing:
         vrshots.log('nothing exported for: ' + ', '.join(missing) + ' (a part of the weapon\'s name as the game lists it)')
-    if not copied or failed or missing or not complete:
-        raise SystemExit(1)
+    return bool(not copied or failed or missing or not complete)
 
 
 if __name__ == '__main__':
