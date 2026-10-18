@@ -2134,8 +2134,9 @@ namespace RavenfieldVR.Weapons
         private float _lastContactSound = -1f;
 
         /// <summary>
-        /// A held magazine meeting the gun knocks, louder the faster it came in, and scrapes while it slides along; both
-        /// buzz the hand. At most four sounds a second (a magazine resting against the gun does not machine-gun knocks).
+        /// A held magazine meeting the gun buzzes the hand, harder the faster it came in, and more lightly while it scrapes
+        /// along the gun. Felt only: no knock or scrape sound (user, 2026-10-16, 252 r). At most four buzzes a second (a
+        /// magazine resting against the gun does not buzz the hand over and over).
         /// </summary>
         private void ContactSounds(HeldWeapon gun, Vector3 drawn, bool touching)
         {
