@@ -1188,8 +1188,9 @@ class Workbench(QWidget):
         # Only the axes whose own box changed take the box's value; the others keep the hand's exact place and turn (rebuilt
         # from all three rounded boxes, one typed number moved the hand by up to 0.5 mm on the others, and a box clamped at its
         # limit pulled the hand back to it: review of the sandbox extras).
-        pos_changed = np.ones(3, bool) if last is None else ~np.isclose(pos_box, last['pos_box'], atol=1e-9)
-        turn_changed = np.ones(3, bool) if last is None else ~np.isclose(turn_box, last['turn_box'], atol=1e-9)
+        # (Absolute only: np.isclose's relative part let a 0.1 step at 10000 pass as no change.)
+        pos_changed = np.ones(3, bool) if last is None else ~np.isclose(pos_box, last['pos_box'], rtol=0.0, atol=1e-9)
+        turn_changed = np.ones(3, bool) if last is None else ~np.isclose(turn_box, last['turn_box'], rtol=0.0, atol=1e-9)
         if pos_changed.any():
             local = np.where(pos_changed, pos_box, self.hand_numbers(w, h))
             if self.numbers_frame == 'muzzle':
@@ -1591,8 +1592,8 @@ class Workbench(QWidget):
         if not on:
             # Turning the laser off takes its pick with it: the readout, the pick line and Copy coordinates go, so a right click
             # afterwards does not copy the part the laser picked (real2 I9#0). (An Alt + click with the laser off picks too, and
-            # that pick stays, readout shown, until the next pick or a click on empty space.) The hover label drops the part's
-            # name too.
+            # that pick stays, readout shown, until the next pick or an Alt + click on empty space.) The hover label drops the
+            # part's name too.
             self.view.pick_point = None
             self.view.pick_line = None
             self.view.pick_normal = None
@@ -2082,7 +2083,7 @@ class Workbench(QWidget):
         game = self.game_poses_dir()
         saved = os.path.exists(self.pose_path())
         if game is None:
-            text = 'The game (with the mod) was not found: poses are saved here only. Advanced → Game folder… to point to it.'
+            text = f'The game (with the mod) was not found in {self.game_folder()}: poses are saved here only. Advanced → Game folder… to point to it.'
         elif os.path.exists(os.path.join(game, w.id + '.json')):
             text = 'In the game: this weapon is held with your saved pose (from the next time it is analysed: restart or reload).'
         else:

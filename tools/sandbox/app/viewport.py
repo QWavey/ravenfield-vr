@@ -521,7 +521,8 @@ class Viewport(QOpenGLWidget):
             return
         GL.glDisable(GL.GL_DEPTH_TEST)  # over the gun and the hands, always
         GL.glEnable(GL.GL_BLEND)
-        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        # (Its alpha added up as cover does, as the see-through parts': a transparent PNG kept the handles' alpha squared.)
+        GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glUseProgram(self.flat)
         GL.glUniformMatrix4fv(self.flat_loc['uMVP'], 1, GL.GL_TRUE, np.eye(4, dtype=np.float32))
         GL.glBindVertexArray(self.line_vao)

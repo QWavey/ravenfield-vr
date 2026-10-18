@@ -236,7 +236,9 @@ def game_curls(role, curls, thumb_set, pistol=False, machine_gun=False):
     its rest (TargetCurls' minimum), so a curl not set (below 0, the -1 sentinel) is drawn at that rest. Not modelled: the
     Closing branch (HandModel 1449-1466) a held gun with a measured volume takes, where the fingers close until they touch it
     (the middle, ring and little to 1.0, a rifle's thumb to 0.95, a pistol's to at least 0.35): the sandbox has no contact
-    stop. The sliders and the saved file keep the values as set."""
+    stop. Nor a gun with no measured grip curls before a pose is saved for it: the game then draws its class's table pose
+    (the index unscaled, the wrapping fingers at the 0.85 stop); the sandbox draws every grip as a saved pose holds it. The
+    sliders and the saved file keep the values as set."""
     c = list(curls)
     if role == 'grip':
         return [_grip_thumb(c[0], thumb_set, pistol, machine_gun), _held(c[1], 0.3) * 0.85,

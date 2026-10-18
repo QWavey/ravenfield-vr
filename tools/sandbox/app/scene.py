@@ -689,7 +689,7 @@ class Scene:
                            'thumb': float(min(1.0, max(0.0, float(h.get('thumb', 0) or 0)))),
                            'pose': str(h.get('pose', 'Custom')), 'on': str(h.get('on', '') or ''),
                            # A file from before the job was saved: its right hand is the grip, as the mod reads it (SandboxPoses).
-                           'role': str(h.get('role', 'grip' if side == 'right' else '') or ''),
+                           'role': (('grip' if side == 'right' else '') if h.get('role') is None else str(h['role'])),
                            'thumbSet': bool(h.get('thumbSet', False))}
         parts = doc.get('parts') if isinstance(doc.get('parts'), dict) else {}
 

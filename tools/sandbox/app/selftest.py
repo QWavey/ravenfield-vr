@@ -607,6 +607,19 @@ class SelfTest:
                    glove._points(free) and not glove._points(glove.game_curls('', glove.POSES['Relaxed'][1:6], False)))
         unset = glove.game_curls('', [-1.0] * 5, False)
         self.check("glove: a 'not measured' curl (-1) is drawn at rest, never bent backwards", unset == glove.REST, str(unset))
+        # The pose file keeps -1 through a load and a save, and an old file's right hand (no job saved) is the grip, as the mod
+        # reads it (review of the extras).
+        doc = {'hands': {'right': {'gun': {'position': [0, 0, 0], 'rotation': [0, 0, 0, 1]}, 'curls': [-1, 0.5, 0.5, 0.5, 0.5]},
+                         'left': {'gun': {'position': [0, 0, 0], 'rotation': [0, 0, 0, 1]}, 'role': None}}}
+        read = self.wb.scene.read_pose_document(doc)
+        self.check("pose file: a -1 curl stays -1, an old file's right hand is the grip, a left hand with no job has none",
+                   read['hands']['right']['curls'][0] == -1.0 and read['hands']['right']['role'] == 'grip'
+                   and read['hands']['left']['role'] == '', str(read['hands']['right']['curls']))
+        w = self.wb.scene.weapon
+        if w is not None and w.rig.get('hasSupport'):
+            s = self.wb.scene
+            self.check('support rule: the analysed support point is always a support the game takes (as SandboxPoses does)',
+                       s.support_ok(np.array(w.rig['support'], dtype=np.float64)))
 
     def s_snap_cover(self):
         """Left hand to Cover: on the latch of the cover or barrels, where the cover is now (with the cover shut here)."""
