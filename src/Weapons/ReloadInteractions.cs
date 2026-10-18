@@ -349,9 +349,9 @@ namespace RavenfieldVR.Weapons
                          && !Util.GameContext.GameMenuOpen && Ammo.FeedReady && Ammo.MagRounds > 0)
                 {
                     // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it chambers a
-                    // round from a loaded magazine. With none to chamber, the slide stays back (AmmoState.RackForward) and this
-                    // branch is skipped: the release ran on every frame of the pull, and buzzed every frame (264). That pull does
-                    // not also fire.
+                    // round from a loaded magazine. With none to chamber, the slide stays back (AmmoState.RackForward), so this
+                    // branch is skipped and the pull is a dry one: the game's dry-fire click (WeaponCanFirePatch, 264). That pull
+                    // does not also fire.
                     ReleaseSlide();
                     Ammo.HoldFireUntilTriggerUp = true;
                 }

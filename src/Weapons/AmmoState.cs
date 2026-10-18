@@ -190,8 +190,9 @@ namespace RavenfieldVR.Weapons
             BeltLaid = true;
             BoltOpen = false;
             // Empty on a gun that locks open on empty (a dropped one picked up, a spawn): its slide starts caught back, as after
-            // its last round, not free to go home without a round (264).
-            if (!Chambered && Rig.LockOnEmpty && !Rig.CyclesByHand)
+            // its last round, not free to go home without a round (264). Only a gun with a chamber: an override's lockOnEmpty on
+            // a launcher or break action must not report its loaded rounds as none.
+            if (!Chambered && Rig.LockOnEmpty && UsesChamber && !Rig.CyclesByHand)
             {
                 SlideLocked = true;
             }
@@ -412,7 +413,7 @@ namespace RavenfieldVR.Weapons
                 MagRounds--;
                 Chambered = true;
             }
-            if (!Chambered && Rig.LockOnEmpty && !Rig.CyclesByHand)
+            if (!Chambered && Rig.LockOnEmpty && UsesChamber && !Rig.CyclesByHand)
             {
                 SlideLocked = true;
                 Log.InfoOnce($"caught:{Rig.Key}", $"{Rig.Key}: the slide went back with no round to chamber (no magazine it can feed, or an empty one); it stays caught back until one can be chambered.");
