@@ -10,6 +10,8 @@ import time
 import numpy as np
 from PyQt6.QtCore import QEvent, QPointF, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QKeyEvent, QMouseEvent
+from PyQt6.QtWidgets import QAbstractButton
+from qfluentwidgets import RoundMenu
 
 import gizmo as gz
 from mathutil import quat_axis_angle, quat_inv, quat_mul, v3
@@ -40,7 +42,8 @@ class SelfTest:
                       self.s_move_weapon, self.s_gizmo_move, self.s_gizmo_snap_plane, self.s_gizmo_turn, self.s_gizmo_cancel,
                       self.s_gizmo_local, self.s_gizmo_gun, self.s_gizmo_buttons, self.s_gizmo_keys, self.s_gizmo_free, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
                       self.s_turntable_start, self.s_turntable_check, self.s_record_reload_start, self.s_record_reload_check,
-                      self.s_later_features] + ([self.s_all_weapons] if self.all_weapons else []) + [self.s_cleanup]
+                      self.s_later_features] + ([self.s_all_weapons] if self.all_weapons else []) + [
+                          self.s_export_weapons, self.s_test_in_game, self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
         self.root = os.path.join(self.wb.repo, 'reports', 'sandbox', 'selftest')
         shutil.rmtree(self.root, ignore_errors=True)
@@ -302,30 +305,93 @@ class SelfTest:
         else:
             self.skip('a part hidden by the user stays hidden through the reload', 'the gun has one part only')
 
+    def _laser_spots(self, cam, w, node):
+        """Where the laser is aimed at a part, in order: the middle of its box as the view projects it, then a 3 by 3 grid over
+        the box's corners on screen (for a part whose middle is in the air, a bent or thin one)."""
+        m = w.node_matrix(node)
+        spots = []
+        centre = cam.project((m @ np.append((node.bmin + node.bmax) * 0.5, 1.0))[:3])
+        if centre is not None:
+            spots.append(centre)
+        corners = [cam.project((m @ np.array([x, y, z, 1.0]))[:3])
+                   for x in (node.bmin[0], node.bmax[0]) for y in (node.bmin[1], node.bmax[1]) for z in (node.bmin[2], node.bmax[2])]
+        seen = np.array([c for c in corners if c is not None])
+        if len(seen):
+            lo, hi = seen.min(axis=0), seen.max(axis=0)
+            for fx in (0.5, 0.25, 0.75):
+                for fy in (0.5, 0.25, 0.75):
+                    spots.append(lo + (hi - lo) * np.array([fx, fy]))
+        return spots
+
     def s_laser(self):
-        wb = self.wb
+        """The laser picks the part whose middle is clicked. Only that part is in the view for the click (a part in front of it
+        would be picked instead), so the check is what the part is: the point picked lies in its box, the laser button and the
+        view agree, and a right click on it opens the menu whose Copy coordinates names it. The menu is recorded, not shown (a
+        menu waits for a click). (real2 B8#4: this used to check only that something was picked.)"""
+        wb, v = self.wb, self.wb.view
         w = wb.scene.weapon
-        v = wb.view
+        node = next((n for n in w.nodes if n.role in ('slide', 'handle') and not n.hidden and not n.away), None) or max(
+            (n for n in w.nodes if not n.hidden and not n.away), key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))),
+            default=None)
+        if node is None:
+            self.skip('laser: a click picks a part', 'no part of the gun is shown')
+            return
         wb.laser_btn.setChecked(True)
-        node = next((n for n in w.nodes if n.role in ('slide', 'handle') and not n.hidden), None) or max(
-            (n for n in w.nodes if not n.hidden), key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
-        world = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
-        clip_pos = (v.proj_matrix() @ v.view_matrix()) @ np.append(world, 1.0)
-        ndc = clip_pos[:3] / clip_pos[3]
-        pos = QPointF((ndc[0] + 1) * 0.5 * v.width(), (1 - ndc[1]) * 0.5 * v.height())
-        wb.picked_point = None
-        for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
-            ev = QMouseEvent(kind, pos, v.mapToGlobal(pos), Qt.MouseButton.LeftButton,
-                             Qt.MouseButton.LeftButton if kind == QEvent.Type.MouseButtonPress else Qt.MouseButton.NoButton,
-                             Qt.KeyboardModifier.NoModifier)
-            QGuiApplication.sendEvent(v, ev)
-        hit = wb.picked_point is not None and wb.picked_node is not None
-        text = wb.point_text() if hit else ''
+        on = bool(v.laser and wb.laser_btn.isChecked())
+        m = w.node_matrix(node)
+        spots = self._laser_spots(v.camera(), w, node)
+        shown = [(n, n.hidden) for n in w.nodes]
+        menus = []
+        real_exec = RoundMenu.exec
+        found, hit_node, hit_point = None, None, None
+        wb.on_pick(None, None)
+        for n in w.nodes:
+            n.hidden = n is not node
+        try:
+            for spot in spots:
+                x, y = self._px(spot)
+                self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
+                self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
+                if wb.picked_node is node and wb.picked_point is not None:
+                    found, hit_node, hit_point = (x, y), wb.picked_node, wb.picked_point
+                    break
+            if found is not None:
+                RoundMenu.exec = lambda menu, pos, *a, **k: menus.append(menu)  # (recorded, not shown: see the docstring)
+                x, y = found
+                self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.RightButton, button=Qt.MouseButton.RightButton)
+                self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton, button=Qt.MouseButton.RightButton)
+        finally:
+            RoundMenu.exec = real_exec
+            for n, h in shown:
+                n.hidden = h
+        ok_pick = found is not None
+        self.check('laser: a click on the part (its box middle first) picks that part', ok_pick and hit_node is node,
+                   f"'{node.short}': picked {hit_node.short if hit_node is not None else 'nothing'}")
+        local = np.linalg.solve(m, np.append(hit_point, 1.0))[:3] if ok_pick else None
+        inside = local is not None and bool(np.all(local >= node.bmin - 0.002) and np.all(local <= node.bmax + 0.002))
+        self.check("laser: the point picked lies within that part's box (2 mm margin)", inside,
+                   'nothing picked' if local is None else f"{np.round(local * 100, 1)} cm, the box {np.round(node.bmin * 100, 1)} to "
+                   f"{np.round(node.bmax * 100, 1)} cm")
+        text = wb.point_text() if ok_pick else ''
         wb.copy_point()
         clip = QGuiApplication.clipboard().text()
-        self.check('laser: a click on the gun picks a part through the view', hit, f"{wb.picked_node.short if hit else 'nothing'}")
         self.check('laser readout and copy', bool(text) and clip == text and ' cm from ' in text, text[:140])
+        if not ok_pick:
+            self.skip('laser: a right click on the part opens its menu, with Copy coordinates', 'nothing was picked to right click')
+        else:
+            copy = next((a for a in menus[0].actions() if a.text() == 'Copy coordinates'), None) if menus else None
+            self.check('laser: a right click on the part opens its menu with Copy coordinates (recorded, not shown)', copy is not None,
+                       f'{len(menus)} menu(s)')
+            if copy is not None:
+                copy.trigger()
+                name = node.name[len('[stand-in] '):] if node.stand_in else node.name
+                clip = QGuiApplication.clipboard().text()
+                self.check('laser: Copy coordinates copies a text naming that part', f"'{name}'" in clip, clip[:120] or 'nothing copied')
+            for menu in menus:
+                menu.deleteLater()
         wb.laser_btn.setChecked(False)
+        off = bool(not v.laser and not wb.laser_btn.isChecked())
+        self.check('laser: the view and the laser button agree (on, then off)', on and off, f'on {on}, off {off}')
 
     def s_screenshot(self):
         path = self.wb.screenshot()
@@ -335,6 +401,8 @@ class SelfTest:
 
     def s_gif_start(self):
         self.gif_before = set(f for f in os.listdir(self.wb.captures) if f.endswith('.gif'))
+        self.rack_has = self.wb._has_rack()
+        self.rack_peak = 0.0  # the furthest the slide went back in the rack (sampled by _orbit, while the rack plays)
         self.wb.rec_btn.setChecked(True)
         self.wb.play_rack()
         # Something moving even on a gun without moving parts: frames that do not change are merged into one by the GIF writer.
@@ -346,8 +414,18 @@ class SelfTest:
     def _orbit(self):
         self.wb.view.yaw += 2.0
         self.wb.view.update()
+        w = self.wb.scene.weapon
+        if w is not None:
+            self.rack_peak = max(self.rack_peak, abs(w.slide))
 
     def s_gif_stop(self):
+        # The rack is played to its end first, so the GIF has the whole rack and its result can be checked (real2 I10#7: the
+        # rack was started and its result never looked at).
+        tl = self.wb.timeline
+        deadline = time.time() + 8
+        while tl.running and time.time() < deadline:
+            self.app.processEvents()
+            time.sleep(0.01)
         self.orbit.stop()
         self.wb.rec_btn.setChecked(False)
         new = [f for f in os.listdir(self.wb.captures) if f.endswith('.gif') and f not in self.gif_before]
@@ -361,6 +439,15 @@ class SelfTest:
             with Image.open(path) as g:
                 frames = getattr(g, 'n_frames', 1)
         self.check('GIF recorded', ok and frames >= 5, f'{new[0] if new else "none"}: {frames} frames')
+        if not self.rack_has:
+            self.skip('the rack: the slide goes back and comes home, the left hand back on the handguard', 'nothing to rack on this gun')
+            return
+        w, s = self.wb.scene.weapon, self.wb.scene
+        self.check('the rack: the slide pulled back, then home, and the rack played to its end',
+                   not tl.running and self.rack_peak > 0.5 and abs(w.slide) < 1e-6,
+                   f'slide {self.rack_peak:.2f} at the furthest, {w.slide:.2f} at the end, still playing {tl.running}')
+        self.check('the rack ends with the left hand back on the handguard', s.left.on_part == 'handguard' and s.left.role == 'support',
+                   f'job {s.left.role!r} on {s.left.on_part!r}')
 
     def _error_log(self):
         import sys as _sys
@@ -1312,6 +1399,74 @@ class SelfTest:
         new_errors = (os.path.getsize(log_path) if log_path and os.path.exists(log_path) else 0) > log_size
         self.check(f'every exported weapon opens, takes the hands, reloads and saves ({n})', not bad and not new_errors,
                    '; '.join(bad[:8]) + (' …' if len(bad) > 8 else '') + (' (errors in the log)' if new_errors else ''))
+
+    # ---- the Game card: its buttons are clicked, and the job they start is recorded instead of run (the self-test never starts
+    # a process: export.py and vrshots.py run the game, and the game is not started by a test) ----------------------------------
+
+    def _game_job(self, text):
+        """The Game card's button with this text, clicked as a user clicks it. Its job starter (the workbench's _run) is swapped
+        for a recorder while the click runs, and put back in a finally. Returns the recorded (args, title) jobs, or None when
+        there is no button with that text."""
+        button = next((b for b in self.wb.findChildren(QAbstractButton) if b.text() == text), None)
+        if button is None:
+            return None
+        jobs = []
+        had = '_run' in vars(self.wb)
+        real = vars(self.wb).get('_run')
+        self.wb._run = lambda args, title: jobs.append((list(args), title))
+        try:
+            button.click()
+        finally:
+            if had:
+                self.wb._run = real
+            else:
+                del self.wb._run
+        return jobs
+
+    def s_export_weapons(self):
+        """Export weapons: the box's name goes to export.py as --weapons NAME (the open gun's name is typed in the box here)."""
+        wb = self.wb
+        w = wb.scene.weapon
+        if w is None:
+            self.skip('Export weapons: the box goes to export.py', 'no weapon open')
+            return
+        wb.export_names.setText(w.name)
+        try:
+            jobs = self._game_job('Export weapons')
+        finally:
+            wb.export_names.setText('')
+        if jobs is None:
+            self.check('Export weapons: the button is there', False, 'no button with that text')
+            return
+        self.check('Export weapons starts one job (recorded here, not run)', len(jobs) == 1, f'{len(jobs)} job(s)')
+        if not jobs:
+            return
+        args, title = jobs[0]
+        i = args.index('--weapons') if '--weapons' in args else -1
+        ok = (os.path.basename(args[0]) == 'export.py' and '--game' in args and 0 <= i < len(args) - 1 and args[i + 1] == w.name
+              and title == 'Export weapons')
+        self.check(f'Export weapons runs export.py for the name in the box (--weapons {w.name})', ok,
+                   title + ': ' + ' '.join([os.path.basename(args[0])] + args[1:]))
+
+    def s_test_in_game(self):
+        """Test this gun in the game: vrshots.py gets the open gun by name (its job is recorded here, never run)."""
+        w = self.wb.scene.weapon
+        if w is None:
+            self.skip('Test this gun in the game: vrshots.py gets the gun', 'no weapon open')
+            return
+        jobs = self._game_job('Test this gun in the game')
+        if jobs is None:
+            self.check('Test this gun in the game: the button is there', False, 'no button with that text')
+            return
+        self.check('Test this gun in the game starts one job (recorded here, not run)', len(jobs) == 1, f'{len(jobs)} job(s)')
+        if not jobs:
+            return
+        args, title = jobs[0]
+        i = args.index('--weapon') if '--weapon' in args else -1
+        j = args.index('--out') if '--out' in args else -1
+        ok = (os.path.basename(args[0]) == 'vrshots.py' and 0 <= i < len(args) - 1 and args[i + 1] == '=' + w.name
+              and 0 <= j < len(args) - 1 and args[j + 1].startswith('sandbox-') and title == f'Test {w.name} in the game')
+        self.check(f'Test this gun in the game runs vrshots.py for {w.name}', ok, title)
 
     def s_cleanup(self):
         removed = 0
