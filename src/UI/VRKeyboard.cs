@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 using RavenfieldVR.Core;
 using RavenfieldVR.Runtime;
@@ -135,7 +136,8 @@ namespace RavenfieldVR.UI
                 {
                     string valid = Filter(text, tmp.characterValidation == TMP_InputField.CharacterValidation.Integer || tmp.characterValidation == TMP_InputField.CharacterValidation.Digit,
                         tmp.characterValidation == TMP_InputField.CharacterValidation.Decimal,
-                        tmp.characterValidation == TMP_InputField.CharacterValidation.Alphanumeric, tmp.characterLimit);
+                        tmp.characterValidation == TMP_InputField.CharacterValidation.Alphanumeric, tmp.characterLimit,
+                        signed: tmp.characterValidation != TMP_InputField.CharacterValidation.Digit);
                     if (valid != null)
                     {
                         tmp.text = valid;
@@ -149,10 +151,11 @@ namespace RavenfieldVR.UI
 
         /// <summary>
         /// The typed text as the field itself would have taken it (digits only in a number field, and so on): the SteamVR
-        /// keyboard types anything, and the game's own handler threw on a bot count that was not a number. Null: nothing
-        /// usable, the field keeps what it had.
+        /// keyboard types anything, and the game's own handler threw on a bot count that was not a number. A number that
+        /// does not fit an int is refused as well (int.Parse throws on it too). Null: nothing usable, the field keeps what
+        /// it had. <paramref name="signed"/>: a minus sign is allowed (not on a digits-only field).
         /// </summary>
-        private static string Filter(string text, bool integer, bool decimalNumber, bool alphanumeric, int limit)
+        private static string Filter(string text, bool integer, bool decimalNumber, bool alphanumeric, int limit, bool signed = true)
         {
             if (text == null)
             {
@@ -166,7 +169,7 @@ namespace RavenfieldVR.UI
                 {
                     sb.Append(ch);
                 }
-                else if ((integer || decimalNumber) && ch == '-' && sb.Length == 0)
+                else if (signed && (integer || decimalNumber) && ch == '-' && sb.Length == 0)
                 {
                     sb.Append(ch);
                 }
@@ -188,6 +191,10 @@ namespace RavenfieldVR.UI
             if ((integer || decimalNumber) && (result.Length == 0 || result == "-" || result == "." || result == "-."))
             {
                 return null; // no number in it
+            }
+            if (integer && !int.TryParse(result, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _))
+            {
+                return null; // more digits than an int holds (Tasks 213: the game's int.Parse would throw on it)
             }
             return result;
         }

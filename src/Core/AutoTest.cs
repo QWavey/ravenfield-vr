@@ -1022,6 +1022,7 @@ namespace RavenfieldVR.Core
                 Weapon active = weapon.GetActiveSubWeapon();
                 MuzzleFlashInfo info = MuzzleFlashInfo.Of(active);
                 int shots0 = LensFlash.Instance.ShotsSeen, flashes0 = LensFlash.Instance.Shown;
+                Rig.VRRig.PeakShake = 0f; // the view's jolt on these shots (Tasks 211: a fraction of a degree, capped)
                 for (int k = 0; k < 3 && active.ammo != 0; k++)
                 {
                     try
@@ -1041,6 +1042,7 @@ namespace RavenfieldVR.Core
                     }
                 }
                 int singleShots = LensFlash.Instance.ShotsSeen - shots0, singleFlashes = LensFlash.Instance.Shown - flashes0;
+                float singleJolt = Rig.VRRig.PeakShake; // the largest turn of the view on those single shots (Tasks 211)
                 int burstShots = 0, burstFlashes = 0;
                 if (active.configuration != null && active.configuration.auto && active.ammo != 0)
                 {
@@ -1060,6 +1062,7 @@ namespace RavenfieldVR.Core
                 bool expected = info.Any;
                 bool tooFew = expected && shots > 0 && flashes < Mathf.FloorToInt(shots * (info.Particles ? Mathf.Min(1f, info.Chance) : 1f) * 0.8f);
                 string line = $"  {entry.name}: singles {singleFlashes}/{singleShots} flashed, held trigger {burstFlashes}/{burstShots} flashed; muzzle flash: {info.Describe()}"
+                              + $"; view jolt {singleJolt:0.00} deg on a single shot"
                               + (tooFew ? " (TOO FEW LENS FLASHES)" : !expected ? " (no muzzle flash of its own: no lens flash by design)" : "")
                               + (shots == 0 ? " (DID NOT FIRE)" : "");
                 Results.Add(line);

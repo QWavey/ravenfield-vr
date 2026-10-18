@@ -589,8 +589,16 @@ namespace RavenfieldVR.Weapons
             GameObject go = kind == PropKind.Rocket ? LoadedLook(d.Key) : null;
             if (go != null)
             {
-                bounds = RenderedBounds(go, d.MagBounds, d.Key);
-                return go;
+                if (DrawsAnything(go))
+                {
+                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                    return go;
+                }
+                // A kept copy that draws nothing is not handed out: the hand held an invisible rocket (Tasks 205). The gun's
+                // own parts below, or the made one, are the choices after it.
+                Log.InfoOnce("rocketlook-hidden:" + d.Key, $"Rocket of {d.Key}: the copy kept as it sits loaded draws nothing in the hand; the gun's own part or the made one is used.");
+                Object.Destroy(go);
+                go = null;
             }
             go = CopyVisuals(rig);
             if (go == null)
@@ -634,6 +642,22 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             return go;
+        }
+
+        /// <summary>
+        /// True when some renderer of the copy is on, in an active object, and has a size (a copy scaled to nothing, or
+        /// switched off, draws nothing).
+        /// </summary>
+        private static bool DrawsAnything(GameObject go)
+        {
+            foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r.enabled && r.gameObject.activeInHierarchy && r.transform.lossyScale.sqrMagnitude > 1e-8f)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
