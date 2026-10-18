@@ -202,9 +202,8 @@ def _grip_thumb(curl, thumb_set, pistol, machine_gun):
     """The thumb curl of a gun's grip as the game holds it (HandModel.TargetCurls, Weapon role, grip held). A thumb set in the
     sandbox goes to the game (SandboxPoses: WeaponGripThumbCurl, clamped to 0..1) and rides 0.15 further. Else the game's own
     rule by the gun: a pistol's thumb rides along the frame; the other grips wrap by their grip pose's thumb curl (HandPoses).
-    The measured curl is not used, as the game does not read it (review I6#6): the rig keeps no measured thumb (SandboxExport
-    writes gripCurls and supportCurls only). The sandbox knows only pistol and machine gun, so the launcher, knife and tool
-    grips are drawn as the rifle grip."""
+    The rig's measured thumb curl (gripCurls[0]) is not used: the game's weapon grip reads curls 1 to 4 only (review I6#6).
+    The sandbox knows only pistol and machine gun, so the launcher, knife and tool grips are drawn as the rifle grip."""
     if thumb_set:
         t = min(1.0, max(0.0, curl))
         return _lerp(t, min(1.0, t + 0.15), GRIP_HELD)
@@ -282,7 +281,7 @@ class Hand:
     def update_mesh(self):
         # SandboxPoses.cs reads the right hand's place and curls as the gun's grip whatever its role, so a free right hand is
         # drawn as the grip the game will hold (review B10#6). The game does not read a free left hand, so it is drawn as a free
-        # hand: Valve's pointing joints when its curls meet HandModel.Pointing, else its curls at rest (review B10#7).
+        # hand: Valve's pointing joints when its curls meet HandModel.Pointing, else its curls not less than rest (review B10#7).
         role = self.role or ('grip' if self.side == 'right' else '')
         curls = game_curls(role, self.curls, self.thumb_set, self.pistol, self.machine_gun)
         point = role == '' and _points(curls)
