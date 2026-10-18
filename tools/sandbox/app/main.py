@@ -2591,13 +2591,6 @@ class Captures(QWidget):
         pv.addWidget(self.preview, 1)
         pv.addWidget(self.notes)
         v.addLayout(row(self.list, panel, stretch=[3, 2]), 1)
-
-    def set_folder(self, folder):
-        """Another captures folder: the self-test's own, so its pictures never land among the user's (review of the extras)."""
-        self.folder = folder
-        self.folder_label.setText(folder)
-        self.thumbs.clear()
-        self.refresh()
         # These act on the selected capture, so they stay off until one is selected.
         self.item_buttons = []
         for icon, text, slot in ((FIF.PHOTO, 'Open', self.open_selected), (FIF.COPY, 'Copy picture', self.copy_selected),
@@ -2609,10 +2602,18 @@ class Captures(QWidget):
         self.copy_btn = self.item_buttons[1]  # (Copy picture, the second of them: a GIF cannot be copied as a picture)
         v.addLayout(row(*self.item_buttons, QWidget(), stretch=[0] * len(self.item_buttons) + [1]))
         open_folder = PushButton(FIF.FOLDER, 'Open the folder')
-        open_folder.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(folder)))
+        # (The folder as it is then: set_folder can change it.)
+        open_folder.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(self.folder)))
         refresh = PushButton(FIF.SYNC, 'Refresh')
         refresh.clicked.connect(self.refresh)
         v.addLayout(row(open_folder, refresh, QWidget(), stretch=[0, 0, 1]))
+        self.refresh()
+
+    def set_folder(self, folder):
+        """Another captures folder: the self-test's own, so its pictures never land among the user's (review of the extras)."""
+        self.folder = folder
+        self.folder_label.setText(folder)
+        self.thumbs.clear()
         self.refresh()
 
     def refresh(self):

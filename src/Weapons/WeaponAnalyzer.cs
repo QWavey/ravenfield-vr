@@ -3125,9 +3125,18 @@ namespace RavenfieldVR.Weapons
                 Bounds b = sampler.GunSpaceBounds(t, gunIdle);
                 float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
                 float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
-                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f || fireCase && Vector3.Dot(b.size, upAbs) > 0.015f)
+                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f)
                 {
                     continue; // a T is a few centimetres long and sits just over the bore, under the sights
+                }
+                // A T is flat (at most 1.5 cm tall) and rides just over the carrier's top (its middle at most 1.5 cm above it).
+                // Without these the reload case took a sight: the M4A1 [SQUAD]'s rear sight '对象006' (4.5 cm tall, 3.3 cm over
+                // the carrier), its ACOG's mount and its red dot's mount (2.1-2.2 cm tall, 1.8-2.3 cm over), so racking moved
+                // the sight and not the handle (user, headset, 2026-10-18 evening: "the kimme racks"). The K13's T '416F ZG' is
+                // 0.8 cm tall, 0.7 cm over its bolt.
+                if (Vector3.Dot(b.size, upAbs) > 0.015f || Vector3.Dot(b.center - rearTop, d.Up) > 0.015f)
+                {
+                    continue;
                 }
                 float gap = Mathf.Sqrt(b.SqrDistance(rearTop));
                 if (gap < bestGap)
