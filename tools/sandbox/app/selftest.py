@@ -1416,7 +1416,7 @@ class SelfTest:
         jobs = []
         had = '_run' in vars(self.wb)
         real = vars(self.wb).get('_run')
-        self.wb._run = lambda args, title: jobs.append((list(args), title))
+        self.wb._run = lambda args, title, **_: jobs.append((list(args), title))  # (_run also takes busy=, the card's text)
         try:
             button.click()
         finally:
