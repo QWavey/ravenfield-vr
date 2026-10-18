@@ -2544,7 +2544,7 @@ namespace RavenfieldVR.Weapons
                 {
                     support = MirrorAcrossGun(support); // the rig's support hand is a left hand
                 }
-                if (!Rig.Data.IsPistol)
+                if (!Rig.Data.IsPistol && !SupportHeldInPlace())
                 {
                     // Along the handguard to where the hand actually is, within the stretch between grip and muzzle.
                     Vector3 axis = Rig.AimWorld;
@@ -2561,6 +2561,36 @@ namespace RavenfieldVR.Weapons
             {
                 off.Model.SnapPose = null;
             }
+        }
+
+        private int _supportInPlace = -1;
+
+        /// <summary>
+        /// The support hand holds something that does not run along the barrel: the magazine (a PPSh's drum, a Thompson's), or
+        /// a launcher's own front grip. It stays where the weapon's own pose puts it instead of sliding along the handguard to
+        /// where the hand is (user, headset, 2026-10-18 evening: "ppshs can be held by the magazine but the hand can still move
+        /// forward; same with the rocket launcher"). Worked out once per hold.
+        /// </summary>
+        private bool SupportHeldInPlace()
+        {
+            if (_supportInPlace < 0)
+            {
+                WeaponRigData d = Rig.Data;
+                bool onMag = false;
+                if (d.MagBounds.size.sqrMagnitude > 1e-6f)
+                {
+                    Vector3 local = Quaternion.Inverse(d.MagSeat.rotation) * (d.SupportPoint - d.MagSeat.position);
+                    Bounds b = d.MagBounds;
+                    b.Expand(0.04f); // (2 cm all round: the palm's centre sits on the magazine's face, not inside it)
+                    onMag = b.Contains(local);
+                }
+                _supportInPlace = onMag || IsLauncher(d, Weapon) ? 1 : 0;
+                if (_supportInPlace == 1)
+                {
+                    Log.InfoOnce("supportinplace:" + d.Key, $"{d.Key}: the support hand stays where it holds the gun ({(onMag ? "on the magazine" : "on the launcher's grip")}), it does not slide along the barrel.");
+                }
+            }
+            return _supportInPlace == 1;
         }
 
         /// <summary>Self-test: where the gun hand's glove, its snap pose and the weapon's own hand bones are, in the grip's aim frame (cm).</summary>
