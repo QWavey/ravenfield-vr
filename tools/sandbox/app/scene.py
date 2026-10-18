@@ -514,17 +514,23 @@ class Scene:
             return job  # the part the hand is on is its job, even where the support point is (review B5#0: a magazine by 5 cm)
         return 'support' if self.support_ok(p) else ''
 
+    def held_grip(self):
+        """The grip point the game holds the gun by, in gun space: the gun hand's place when it is saved as the grip (the game
+        takes that point, review B10#0), else the analysed grip."""
+        w = self.weapon
+        return w.to_gun(self.right.position)[:3] if self.right.role == 'grip' else w.grip
+
     def support_ok(self, p):
         """Whether a left hand at this gun-space point is a support the game can take (review B10#1, B10#7): never on a gun with
-        no support point; a pistol's cup within 12 cm of its grip; a long gun's support 7 cm or more ahead of the grip along the
-        aim (the analysis keeps it there, on the forend), or within 5 cm of the analysed support point."""
+        no support point; a pistol's cup within 12 cm of its grip; a long gun's support 7 cm or more ahead of the grip the game
+        holds (held_grip) along the aim (the analysis keeps it there, on the forend), or within 5 cm of the analysed support."""
         w = self.weapon
         r = w.rig
         if not r.get('hasSupport'):
             return False
         if r.get('isPistol'):
             return float(np.linalg.norm(p - w.grip)) < 0.12
-        return float(np.dot(p - w.grip, w.aim)) >= 0.07 or float(np.linalg.norm(p - v3(r['support']))) < 0.05
+        return float(np.dot(p - self.held_grip(), w.aim)) >= 0.07 or float(np.linalg.norm(p - v3(r['support']))) < 0.05
 
     def pose_warnings(self):
         """What the game would do oddly with these hands, said before saving."""
@@ -555,7 +561,7 @@ class Scene:
             elif w.rig.get('isPistol'):
                 why = f'{float(np.linalg.norm(p_left - w.grip)) * 100:.0f} cm from the pistol grip'
             else:
-                ahead = float(np.dot(p_left - w.grip, w.aim)) * 100
+                ahead = float(np.dot(p_left - self.held_grip(), w.aim)) * 100
                 why = f"{abs(ahead):.0f} cm {'behind' if ahead < 0 else 'ahead of'} the grip (a long gun's support is 7 cm or more ahead of it)"
             out.append(f'The left hand is saved as the support but sits {why}: the game keeps the analysed support point.')
         # The game clamps a held curl to 0.15-0.92 (HandModel.Pose, glove._held): the grip's four fingers (its thumb is its own),
