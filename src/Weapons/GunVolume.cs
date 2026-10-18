@@ -829,8 +829,9 @@ namespace RavenfieldVR.Weapons
         /// How much of <paramref name="part"/> is seen when the gun is looked at from its left, right, top and bottom: of the
         /// pixels the part covers alone, the share where it is the gun's nearest surface (the picture changes when it is left
         /// out). A carrier buried in the receiver reads 0, a slide or a knob standing out most of it. The arms are not drawn.
-        /// Rendered and read back now, in the frame it is called: the rack self-test (12 small pictures, a test-only cost).
-        /// A hold in play uses <see cref="VisibleShareAsync"/>, which takes the same pictures a frame or two later.
+        /// Rendered and read back now, in the frame it is called (12 small pictures, a few GPU stalls): the rack self-test needs
+        /// the value in the same call. A hold in play should use <see cref="VisibleShareAsync"/>, which takes the same pictures
+        /// a frame or two later.
         /// </summary>
         internal static float VisibleShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, out string perView, float texel = 0.002f)
         {
@@ -845,8 +846,8 @@ namespace RavenfieldVR.Weapons
         /// <see cref="VisibleShare"/> for a hold in play (task 263, 2026-10-18: the first hold of a hidden-slide gun read its 12
         /// pictures back in the hold frame, with 12 GPU stalls and a few MB of garbage). The same renders and the same pictures,
         /// but they come back from the GPU a frame or two later, and <paramref name="done"/> runs then on the main thread with the
-        /// share and the per-view text (-1 when not measurable). It runs before this returns when nothing needs a picture or when
-        /// asynchronous read-back is not supported. If this throws, <paramref name="done"/> is never called.
+        /// share and the per-view text (-1 when not measurable). It runs before this returns when there is nothing to measure or
+        /// when asynchronous read-back is not supported. If this throws, <paramref name="done"/> is never called.
         /// </summary>
         internal static void VisibleShareAsync(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, Action<float, string> done, float texel = 0.002f)
         {
@@ -855,7 +856,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// The measurement behind both. With <paramref name="deferred"/> the pictures are read back as the GPU finishes them;
-        /// otherwise each is read at once and <paramref name="done"/> runs before this returns.
+        /// otherwise, or where asynchronous read-back is not supported, each is read at once and <paramref name="done"/> runs
+        /// before this returns.
         /// </summary>
         private static void MeasureShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, float texel, bool deferred, Action<float, string> done)
         {
@@ -997,18 +999,24 @@ namespace RavenfieldVR.Weapons
                 AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
                 {
                     Color32[] pixels;
-                    if (request.hasError)
+                    try
                     {
-                        pixels = ReadNow(rt); // read again at once, so the value stays exact
+                        if (request.hasError)
+                        {
+                            pixels = ReadNow(rt); // read again at once, so the value stays exact
+                        }
+                        else
+                        {
+                            // Into a pooled buffer, as the views of a measured shape are: a new array of a picture each time was garbage.
+                            Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
+                            pixels = RentPixels(data.Length);
+                            data.CopyTo(pixels);
+                        }
                     }
-                    else
+                    finally
                     {
-                        // Into a pooled buffer, as the views of a measured shape are: a new array of a picture each time was garbage.
-                        Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
-                        pixels = RentPixels(data.Length);
-                        data.CopyTo(pixels);
+                        RenderTexture.ReleaseTemporary(rt);
                     }
-                    RenderTexture.ReleaseTemporary(rt);
                     pictures[shot] = pixels;
                     if (--left == 0)
                     {
