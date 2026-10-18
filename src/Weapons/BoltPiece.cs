@@ -242,9 +242,9 @@ namespace RavenfieldVR.Weapons
             var cutSubIndex = new List<int>();
             bool any = false;
             float r2 = r * r, loose2 = r2 * 2.6f;
-            // A triangle is cut only when all three corners are within loose2 of the point (the test below needs that), so the
-            // corners are measured once here and the centroid test runs only where they pass: most of a receiver is one read
-            // per corner (task 263, 2026-10-18).
+            // A triangle is cut only when all three corners are within loose2 of the point (the test below needs that), so each
+            // corner is measured once here and the centroid test runs only for triangles whose three corners all pass
+            // (task 263, 2026-10-18).
             var near = new bool[verts.Count];
             for (int v = 0; v < near.Length; v++)
             {
