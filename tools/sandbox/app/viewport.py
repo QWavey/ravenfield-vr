@@ -656,7 +656,7 @@ class Viewport(QOpenGLWidget):
         elif key in (Qt.Key.Key_Up, Qt.Key.Key_Down):
             self.pitch = max(-89.0, min(89.0, self.pitch + (-5.0 if key == Qt.Key.Key_Up else 5.0)))
         elif key in (Qt.Key.Key_Plus, Qt.Key.Key_Minus):
-            self.dist = max(0.05, min(8.0, self.dist * (0.9 if key == Qt.Key.Key_Plus else 1.1)))  # (wheelEvent's notch)
+            self.dist = max(0.05, min(8.0, self.dist * (0.9 if key == Qt.Key.Key_Plus else 1 / 0.9)))  # (wheelEvent's notch)
         else:
             return False
         self.update()
@@ -991,8 +991,9 @@ class Viewport(QOpenGLWidget):
         dy = e.angleDelta().y()
         if dy == 0:
             return  # a sideways scroll does not zoom
-        # A notch (120) is 10 % in or out; a touchpad's small steps each count for their size, so a flick does not hit a limit.
-        f = 0.9 ** (dy / 120) if dy > 0 else 1.1 ** (-dy / 120)
+        # A notch (120) is 10 % in, and out the exact way back (1 / 0.9: with 1.1 a notch in and one out ended 1 % off); a
+        # touchpad's small steps each count for their size, so a flick does not hit a limit.
+        f = 0.9 ** (dy / 120)
         self.dist = max(0.05, min(8.0, self.dist * f))
         self.update()
 
