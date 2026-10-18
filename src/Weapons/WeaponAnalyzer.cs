@@ -602,7 +602,7 @@ namespace RavenfieldVR.Weapons
                                  || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
                 {
-                    RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle);
+                    RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle, armRenderers);
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
@@ -611,6 +611,9 @@ namespace RavenfieldVR.Weapons
                 FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle);
                 CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
                 ParkedAmmo(d, w, all, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                // Last: only where the hands go. Run right after the hands, the moved grip point changed the rules that measure
+                // from it, and the Panzerfaust 3's rocket became its grip (it did not fire; check-1018d).
+                HandsOnNamedGrips(d, all, armRelated, sampler, gunIdle);
                 d.GripCurls = FingerCurls(handR, sampler);
                 d.SupportCurls = FingerCurls(handL, sampler);
                 d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
@@ -640,7 +643,7 @@ namespace RavenfieldVR.Weapons
 
             FinishVirtualParts(d);
             MagKickRule(d, w); // after the virtual magazine's seat is set: before, a virtual magazine was judged at no seat
-            ArChargingHandle(d);
+            ArChargingHandle(d, root, gunBody, armRenderers);
             BoltInsideOnSurface(d);
             ForwardSideHandle(d);
             CheckSanity(d, root, gunBody, armRelated);
@@ -788,7 +791,21 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                d.SideKnob = sum / n;
+                // On the knob itself: the band's point nearest its mean (the mean of a curved or hollow knob lay in the air
+                // beside it, CZ Bren 2 BR Raid; scouts, 2026-10-17).
+                Vector3 mean = sum / n;
+                Vector3 onKnob = mean;
+                float nearest = float.MaxValue;
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    float d2 = (pts[i] - mean).sqrMagnitude;
+                    if (Vector3.Dot(pts[i], left) > most - 0.012f && d2 < nearest)
+                    {
+                        nearest = d2;
+                        onKnob = pts[i];
+                    }
+                }
+                d.SideKnob = onKnob;
                 d.HasSideKnob = true;
                 d.CarveFromPath = WeaponRig.PathOf(root, t);
                 return;
@@ -859,7 +876,7 @@ namespace RavenfieldVR.Weapons
         /// only the bolt slid in it, the charging handle never moved. Here the handle is cut out of the receiver at its
         /// place and comes back with the hand (the bolt, if the model has one, moves with it).
         /// </summary>
-        private static void ArChargingHandle(WeaponRigData d)
+        private static void ArChargingHandle(WeaponRigData d, Transform root, Transform gunBody, HashSet<Renderer> armRenderers)
         {
             if (d.Handgun || d.Action != ActionType.SelfLoading || d.HandlePath != null || d.IsMachineGun || !ArPattern.IsMatch(d.Key ?? ""))
             {
@@ -877,6 +894,14 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 boreAboveGrip = d.MuzzlePoint + d.AimAxis * Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
             d.RackPoint = boreAboveGrip - d.AimAxis * 0.05f + d.Up * 0.03f;
+            if (UpperReceiverRear(d, root, gunBody, armRenderers, out float rear))
+            {
+                // The handle's T is the upper receiver's back end: measured there. 5 cm behind the grip point was on the
+                // buffer tube behind the receiver of the M417A2 and Suzuya's AR-15s (their grip point low on a slanted grip),
+                // 8 to 10 cm behind their handle, and the hand closed on air (game pictures and sandbox, 2026-10-18).
+                d.RackPoint = d.MuzzlePoint + d.AimAxis * (rear + 0.012f) + d.Up * 0.03f;
+                d.Notes += $"AR charging handle at the upper receiver's back end, {(Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis) - rear) * 100f:0.0} cm behind the grip point ";
+            }
             d.RackOnSurface = true; // onto the top of the receiver once the model is measured
             d.CarveHandle = true;
             if (d.SlidePath == null)
@@ -885,6 +910,141 @@ namespace RavenfieldVR.Weapons
                 d.SlideTravel = -d.AimAxis * 0.075f;
             }
             d.SlideMethod += " (AR-pattern: the charging handle at the back of the receiver)";
+        }
+
+        private static readonly Regex FrontGripName = new Regex(@"前握|fore_?grip|front_?grip|vert(ical)?_?grip|(^|[^a-z])vfg", RegexOptions.IgnoreCase);
+        private static readonly Regex PistolGripName = new Regex(@"握把|pistol_?grip", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// The hands onto the grips the model names, when the animation's palm waits off them: the Panzerfaust 3's hands
+        /// hung 6 to 8 cm under its 铁拳3 握把 and 铁拳3 前握把 (game pictures, 2026-10-18). A pistol grip (握把, pistol grip,
+        /// grip) takes the grip point, a front grip (前握把, foregrip, vertical grip) the support point, when the palm is
+        /// more than 4 cm from that part: on its back face (the shooter's side) at its middle, 1.2 cm off it, where a palm
+        /// closes round it. A palm already on its grip, as on most guns, is left as it is. Launchers only, and only grips named
+        /// as such: for every gun and any "grip", the MK46's right hand went onto its vertical foregrip ("GRIP", 30 cm from
+        /// its pistol grip) and the MK18 RIS III's onto its Grip-N-Rip charging handle (export check, 2026-10-18).
+        /// </summary>
+        private static void HandsOnNamedGrips(WeaponRigData d, Transform[] all, HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Action != ActionType.SingleShot)
+            {
+                return;
+            }
+            bool Find(bool front, out Bounds box, out string name)
+            {
+                box = default;
+                name = null;
+                float best = float.MaxValue;
+                foreach (Transform t in all)
+                {
+                    bool isFront = FrontGripName.IsMatch(t.name);
+                    if (front != isFront || !front && !PistolGripName.IsMatch(t.name) || armRelated.Contains(t)
+                        || Regex.IsMatch(t.name, @"charg|handle|bolt|knob|tape", RegexOptions.IgnoreCase)
+                        || t.GetComponent<Renderer>() == null || !ShownAtIdle(t, sampler))
+                    {
+                        continue;
+                    }
+                    Bounds b = sampler.GunSpaceBoundsWhere(t, gunIdle, x => x != t);
+                    float size = b.size.magnitude;
+                    if (size < 0.03f || size > 0.3f)
+                    {
+                        continue; // a grip a hand holds (not a tape decal or the whole stock)
+                    }
+                    float dist = b.SqrDistance(front ? d.SupportPoint : d.GripPoint);
+                    if (dist < best)
+                    {
+                        best = dist;
+                        box = b;
+                        name = t.name;
+                    }
+                }
+                return name != null;
+            }
+            Vector3 OnBack(Bounds b)
+            {
+                Vector3 a = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+                return b.center - d.AimAxis * (Vector3.Dot(b.extents, a) + 0.012f);
+            }
+            if (Find(false, out Bounds grip, out string gripName))
+            {
+                float off = Mathf.Sqrt(grip.SqrDistance(d.GripPoint));
+                if (off > 0.04f)
+                {
+                    d.GripPoint = OnBack(grip);
+                    d.Notes += $"grip point onto '{gripName}' (the animation's palm was {off * 100f:0} cm off it) ";
+                }
+            }
+            if (d.HasSupportPoint && Find(true, out Bounds fore, out string foreName))
+            {
+                float off = Mathf.Sqrt(fore.SqrDistance(d.SupportPoint));
+                if (off > 0.04f)
+                {
+                    d.SupportPoint = OnBack(fore);
+                    d.Notes += $"support point onto '{foreName}' (the animation's palm was {off * 100f:0} cm off it) ";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Where an AR's upper receiver ends at the back, along the bore from the muzzle (negative: behind it): from over the
+        /// receiver 5 cm ahead of the grip point, back along the gun's top (2.5 to 7 cm above the bore, within 2.5 cm of its
+        /// centre line) for as long as it goes on without a gap over 1.5 cm. Behind it are the buffer tube, lower than that, and
+        /// the stock past the gap. The parts as they stand (the sampler is gone by now), in the gun body's frame; meshes that
+        /// cannot be read leave it unmeasured.
+        /// </summary>
+        private static bool UpperReceiverRear(WeaponRigData d, Transform root, Transform gunBody, HashSet<Renderer> armRenderers, out float rear)
+        {
+            rear = 0f;
+            if (gunBody == null || root == null)
+            {
+                return false;
+            }
+            RigidPose toGun = new RigidPose(gunBody.position, gunBody.rotation).Inverse();
+            Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            float start = Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis) + 0.05f;
+            var along = new List<float>();
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                if (m == null || !m.isReadable || m.vertexCount == 0 || mr == null || armRenderers.Contains(mr) || OpticName.IsMatch(mf.name))
+                {
+                    continue;
+                }
+                Vector3[] v = m.vertices;
+                int step = Mathf.Max(1, v.Length / 20000);
+                for (int i = 0; i < v.Length; i += step)
+                {
+                    Vector3 c = toGun.TransformPoint(mf.transform.TransformPoint(v[i])) - d.MuzzlePoint;
+                    float a = Vector3.Dot(c, d.AimAxis);
+                    float up = Vector3.Dot(c, d.Up);
+                    if (a <= start + 0.01f && a > start - 0.3f && up >= 0.025f && up <= 0.07f && Mathf.Abs(Vector3.Dot(c, right)) <= 0.025f)
+                    {
+                        along.Add(a);
+                    }
+                }
+            }
+            if (along.Count < 8)
+            {
+                return false;
+            }
+            along.Sort();
+            along.Reverse(); // front to back
+            if (along[0] < start - 0.015f)
+            {
+                return false; // nothing on the receiver where the walk starts: not an AR's upper as expected
+            }
+            float at = along[0];
+            foreach (float a in along)
+            {
+                if (at - a > 0.015f)
+                {
+                    break;
+                }
+                at = Mathf.Min(at, a);
+            }
+            rear = at;
+            return true;
         }
 
         // ---- hands & sights ---------------------------------------------------------------------------
@@ -1545,7 +1705,7 @@ namespace RavenfieldVR.Weapons
         /// handle where the reload hand takes it, not reach into the gun.
         /// </summary>
         private static void RackStrokeFromHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, Dictionary<Transform, int> index,
-            Transform root, RigidPose gunIdle)
+            Transform root, RigidPose gunIdle, HashSet<Renderer> armRenderers)
         {
             float bestLen = 0f;
             Vector3 bestStart = Vector3.zero;
@@ -1621,6 +1781,28 @@ namespace RavenfieldVR.Weapons
                 Transform slide = WeaponRig.Resolve(root, d.SlidePath);
                 Bounds sb = slide != null ? sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f) : new Bounds();
                 bool onPart = sb.size.sqrMagnitude > 1e-6f && sb.SqrDistance(bestStart) < 0.015f * 0.015f;
+                if (!onPart)
+                {
+                    // A handle is cut out only where there is gun to cut: the reload hand's palm centre can wait a hand's
+                    // width off the handle it holds, and the rack point then hung in the air, 5 to 8 cm from every part, on
+                    // every gun this took (AS Val 11 cm out to its side, AK-24 under its receiver by the magazine, ACE 32
+                    // beside it, AK-105; sandbox sweep and scouts, 2026-10-17). The stroke is left then: the piece of the
+                    // moving part that sticks out (RackOnOutstandingPiece) is the handle.
+                    float nearest = float.MaxValue;
+                    // (Not the arms; activeInHierarchy is no test here: the analysed prefab is never active in a scene.)
+                    foreach (Bounds b in sampler.GunSpaceBoxes(root, gunIdle, t => t.GetComponent<Renderer>() is Renderer r && armRenderers.Contains(r)))
+                    {
+                        if (b.size.sqrMagnitude > 1e-8f && b.size.magnitude < 2f)
+                        {
+                            nearest = Mathf.Min(nearest, Mathf.Sqrt(b.SqrDistance(bestStart)));
+                        }
+                    }
+                    if (nearest > 0.025f)
+                    {
+                        d.Notes += $"the reload hand's rack stroke starts {nearest * 100f:0} cm from every part (in the air): not used ";
+                        return;
+                    }
+                }
                 d.RackPoint = bestStart;
                 d.RackOnSurface = true;
                 d.CarveHandle = !onPart;
@@ -2668,8 +2850,10 @@ namespace RavenfieldVR.Weapons
                 }
                 float size = sampler.LocalBounds(t).size.magnitude;
                 bool single = d.Action == ActionType.SingleShot;
+                // (Never a grip, handle, key or release: the Panzerfaust 3's grips, 铁拳3 握把 and 前握把, move in its reload and
+                // have its rocket's size, and were hidden as spares: both hands then held air; scouts, 2026-10-17.)
                 if (size > 0.6f || !IsMagName(t.name, single) && (magSize < 0.01f || Mathf.Abs(size - magSize) > magSize * 0.4f)
-                    || IsNotMag(t.name, single) || OpticName.IsMatch(t.name))
+                    || IsNotMag(t.name, single) || OpticName.IsMatch(t.name) || NotParkedName.IsMatch(t.name))
                 {
                     continue;
                 }
@@ -3039,6 +3223,52 @@ namespace RavenfieldVR.Weapons
             {
                 d.RackPoint = at;
                 d.SlideMethod += $" (taken by '{piece.name}', its piece sticking out)";
+                return;
+            }
+            // A carrier made in one mesh with its handle (an AK's tab, the AS Val's hook, out to its right side): the vertex of
+            // it farthest from the bore is the handle's tip; the hand takes it just inside that. The rack point sat in the
+            // middle of the carrier, 8 to 10 cm behind the tab (AK-24, AS Val, ACE 32, AK-105; sandbox, 2026-10-18).
+            float gripAlong = Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
+            Bounds whole = sampler.GunSpaceBoundsNear(slide, gunIdle, 0.5f);
+            if (Vector3.Dot(whole.center - d.GripPoint, d.AimAxis) > 0.27f)
+            {
+                return; // a pump's forend (31-35 cm ahead of the grip on the R870s): the hand closes round it, not on a tip
+            }
+            RigidPose gunInv = gunIdle.Inverse();
+            float far = best;
+            Vector3 tip = Vector3.zero;
+            foreach (MeshFilter mf in slide.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable || m.vertexCount == 0 || !ActiveUpTo(mf.transform, slide))
+                {
+                    continue;
+                }
+                Transform t = mf.transform;
+                RigidPose idle = sampler.Idle(t);
+                Vector3[] v = m.vertices;
+                int step = Mathf.Max(1, v.Length / 6000);
+                for (int i = 0; i < v.Length; i += step)
+                {
+                    Vector3 p = gunInv.TransformPoint(idle.TransformPoint(Vector3.Scale(v[i], t.lossyScale)));
+                    float along = Vector3.Dot(p - d.MuzzlePoint, d.AimAxis);
+                    if (along > -0.05f || along < gripAlong - 0.25f)
+                    {
+                        continue; // on the receiver only (not a piston rod's end out in the handguard)
+                    }
+                    float off = Off(p);
+                    if (off > far)
+                    {
+                        far = off;
+                        tip = p;
+                    }
+                }
+            }
+            if (far > best)
+            {
+                Vector3 outward = Vector3.ProjectOnPlane(tip - d.MuzzlePoint, d.AimAxis).normalized;
+                d.RackPoint = tip - outward * 0.008f;
+                d.SlideMethod += $" (taken by its tip farthest from the bore, {far * 100f:0.0} cm out: its handle)";
             }
         }
 

@@ -430,6 +430,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 256. [ ] Sandbox (user, 2026-10-17 evening): a real Windows program (not a web page, Windows 11 style) to try hands, poses and reloads on the weapons without opening the game; easy to use, an advanced tab; save poses per weapon (to be read by the mod later), a laser pointer whose right-click copies a part's coordinates; screenshots and GIFs with their path shown. Built (tools/sandbox, README there); see "For 256"
 257. [x] Floating spare ammunition (user, 2026-10-18: "the 2nd mag floats, this happens to other guns too maybe", seen on the mwii-g17): the reload animation parks a spare magazine, a drum, a belt or a round beside or behind the gun at rest, and the game draws it there while held. Code done (WeaponAnalyzer: the spare rule's bore-line gate only ahead of the grip, and the new ParkedAmmo rule), 44 guns + the mwii-g17 family; the autotest now takes a side picture of each held gun (weapon-side-NNN). Checked in the game with the new side pictures (check-1018a/b, 2026-10-18): nothing floats beside or behind the 21 guns checked; see "For 257"
 258. [ ] Sandbox editor: Blender's transform gizmos (user, 2026-10-18 morning: "we have this in blender to turn things and also the arrows, but also free move as it is now, that's good already"): arrows, plane squares and a centre circle to move, axis rings, a white view ring and a trackball to turn, on the selected hand or on the gun; Global / Local / Gun axes, Ctrl snap, Shift fine, Esc / right click cancel; free dragging kept. Done in tools/sandbox/app/gizmo.py + viewport.py + main.py (header over the view, keys W/G/R/T, comma); reviewed by 9 read-only Haiku agents and fixed; self-test 86/86 (HK416-A) and
+259. [ ] The scouts' real faults from the sandbox sweep (2026-10-17 night, see "For 256"): rack points in the air (AS Val, AK-24, ACE 32, AK-105), the AR charging handle guessed behind the receiver (M417A2, Suzuya's AR-15s), the Panzerfaust 3's grips hidden as spares and its hands under them. Code done 2026-10-18; see "For 259"
 82/82 (GLOCK 43X); see "For 258"
 
 ## Notes
@@ -1992,6 +1993,35 @@ Refuted: WeaponAnalyzer.cs:1205 Bolt-carrying handle racked at bounds centre, sk
   them; the mwii-g17's spare (the user's) is gone; the shotguns' chosen shells and the Glock's third-person mesh do not
   show either; the PATRIOT GL's grenade stays in its launcher. (What shows in those pictures besides the gun: the
   player's holstered loadout and the magazines the test dropped.)
+
+### For 259: rack points and grips from the scouts' list (2026-10-18)
+
+- Rack stroke from the reload hand (RackStrokeFromHands): on all 7 guns that took it (AS Val x2, AK-24 x2, ACE 32,
+  AK-105 x2) the reload hand's palm centre waited 5 to 8 cm from every part, and the rack point (and a handle cut out
+  there) hung in the air. Now a handle is cut out only where some part of the gun is within 2.5 cm (the arms' meshes
+  left out); else the stroke is not used and the rack point stays on the moving part.
+- RackOnOutstandingPiece: a carrier made in one mesh with its handle (no small piece to find) is taken by its vertex
+  farthest from the bore, on the receiver's stretch, 8 mm in from that tip; not for a pump's forend (its centre 31 to
+  35 cm ahead of the grip; the rifles' are at most 23). 23 guns: AS Val (on its hook), QBZ192 / QBU191 family (14, on the
+  paddle), ACE 32 (top left, under its sight), CZ Bren 2 BR family (their own side handle still wins after). Meshes that
+  cannot be read (AK-24, AK-105) keep the rack point on the carrier.
+- In the game (check-1018c): AS Val 4/4 fingers on the moving part (before: the hand in the air), QBZ192-A 1/4 (the
+  index on the paddle), ACE 32 0/4 (the fingers on the top of the receiver under the red dot: its handle is on the left,
+  bent up under the sight), AK-24 2/4, AK-105 0/4 (on the carrier, deep in the receiver). Open: ACE 32 and AK-105.
+- AR charging handle (ArChargingHandle): "5 cm behind the grip point" lay on the buffer tube behind the receiver of the
+  M417A2 and Suzuya's AR-15s (their grip point low on a slanted grip; the hand closed on air in the game, 0/4 fingers).
+  Now the upper receiver's back end is measured (walking back along the top, 2.5 to 7 cm above the bore, until a gap over
+  1.5 cm) and the handle is taken just ahead of it: the sandbox shows the point on both T-handles. Guns whose meshes cannot
+  be read (HK416 BotFriendly, the mwii M4s) keep the estimate.
+- Panzerfaust 3: its grips (铁拳3 握把, 前握把) moved in the reload and had its rocket's size, so the spare rule hid them
+  and both hands held air. The spare rule now never takes a grip, handle, key or release by name (the parked-ammunition
+  rule's list). Its hands still hung 6 to 8 cm under the grips (the animation's palms): for launchers only, a grip named
+  as such (握把, pistol grip; 前握把, foregrip) more than 4 cm from the palm takes the grip / support point (its back face,
+  1.2 cm off). Tried for every gun first: the MK46's right hand went onto its vertical foregrip (named "GRIP") and the
+  MK18 RIS III's onto its Grip-N-Rip charging handle, so it was narrowed to launchers.
+- In the game (check-1018d): the M417A2's and the Suzuya AR-15's hands now close on the T-handle at the upper receiver's back (before: on the buffer tube); the test's 0/4 counts the bolt inside, not the handle cut out. The Panzerfaust's grip rule first ran right after the hands: its rocket became the grip (握把) and it did not fire; moved to the end of the analysis, the rocket is again what check-1018c fired with (铁拳3 枪托; whether that is the right part is a question of its own: its warhead is 铁拳3_炮弹). NOT yet checked in the game after that move: run the Panzerfaust 3 again. The CZ Bren 2's side knob is now taken at a vertex of the knob (the band's point nearest its mean), not checked in the game either.
+- Still open from the scouts: the CZ Bren 2 BR Raid's side knob (the mean of the left-most band can lie in air), the
+  grips estimated without a hand bone (QBZ192-D's QLG launcher, ARS MP9: muzzle minus 36 cm).
 
 ### For 258: the sandbox's transform gizmos (2026-10-18)
 
