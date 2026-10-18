@@ -23,3 +23,6 @@ reports/sandbox/
 tools/sandbox/build/
 tools/sandbox/bin/
 tools/sandbox/poses/history/
+
+# Agent worktrees (workflow runs)
+.claude/worktrees/
