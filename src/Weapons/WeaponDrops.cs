@@ -218,8 +218,8 @@ namespace RavenfieldVR.Weapons
                 Vector3 tpEuler = w.thirdPersonRotation;
                 Vector3 tpOffset = w.thirdPersonOffset;
                 float tpScale = w.thirdPersonScale;
-                // The game's own arms are never part of a copy, even when the third-person model holds them (Task 267: a holstered
-                // or dropped weapon showed its arms as the second weapon did). The renderer alone, as the analysis takes it.
+                // The game's own arms are never part of a copy, even when the third-person model holds them (Task 267, 2026-10-18).
+                // The arms that showed beside the second weapon stay out of a copy. The renderer alone, as the analysis takes it.
                 SkinnedMeshRenderer ownArms = w.arms;
 
                 MonoBehaviour[] scripts = clone.GetComponentsInChildren<MonoBehaviour>(true);
