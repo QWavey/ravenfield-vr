@@ -346,10 +346,12 @@ namespace RavenfieldVR.Weapons
                     ReleaseSlide();
                 }
                 else if (VRConfig.TriggerReleasesSlide.Value && Ammo.SlideLocked && !_racking && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
-                         && !Util.GameContext.GameMenuOpen)
+                         && !Util.GameContext.GameMenuOpen && Ammo.FeedReady && Ammo.MagRounds > 0)
                 {
-                    // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it
-                    // chambers a round from a fresh magazine (or closes on an empty one). That pull does not also fire.
+                    // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it chambers a
+                    // round from a loaded magazine. With none to chamber, the slide stays back (AmmoState.RackForward), so this
+                    // branch is skipped and the pull is a dry one: the game's dry-fire click (WeaponCanFirePatch, 264). That pull
+                    // does not also fire.
                     ReleaseSlide();
                     Ammo.HoldFireUntilTriggerUp = true;
                 }
@@ -2275,11 +2277,8 @@ namespace RavenfieldVR.Weapons
             }
             if (_rackedBack)
             {
-                bool chambered = Ammo.RackForward();
-                if (!chambered && Data.LockOnEmpty && Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds == 0)
-                {
-                    Ammo.SlideLocked = true; // empty magazine catches the slide
-                }
+                // (With no round to chamber, a gun that locks open on empty stays caught back: AmmoState.RackForward, Tasks 264.)
+                Ammo.RackForward();
                 if (!Ammo.SlideLocked)
                 {
                     _held.Sounds.Play(MechSound.SlideForward, RackPointWorld);
