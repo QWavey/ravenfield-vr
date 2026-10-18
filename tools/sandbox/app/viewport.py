@@ -207,6 +207,7 @@ class Viewport(QOpenGLWidget):
         self.laser = False
         self.selected_hand = None
         self.hover_node = None
+        self.touch_node = None  # the part the selected hand touches (main.py update_selected_label), tinted (review I9#2)
         self.part_node = None  # the part chosen in the parts list (kept highlighted)
         self.pick_point = None
         self.pick_line = None  # (from, to) world
@@ -368,7 +369,8 @@ class Viewport(QOpenGLWidget):
                 model = w.node_matrix(node)
                 nm = _normal_matrix(model)  # once per part, not once per mesh of it
                 tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else gun_on
-                if self.scene.highlight_role and node.role == self.scene.highlight_role:
+                # (A part by role, or the one the selected hand touches: a body's role would tint the whole gun, review I9#2.)
+                if (self.scene.highlight_role and node.role == self.scene.highlight_role) or node is self.touch_node:
                     tint = (0.05, 0.1, 0.22)
                 for g in self._gpu_nodes.get(id(node), []):
                     (draws_blend if g.blend else draws_opaque).append((g, model, nm, tint, False))

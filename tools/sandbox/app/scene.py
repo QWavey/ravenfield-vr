@@ -51,6 +51,9 @@ class Weapon:
         self.Wq = mat3_to_quat(rot)
         self.W0 = self.W.copy()
         self.P = np.eye(4)  # where the weapon was moved to in the scene (Ctrl + drag); poses are in gun space, unaffected
+        self._winv = None  # inv(W) for to_gun, taken from the W in _winv_of (review I5#6: a drag asks on every move)
+        self._winv_of = None
+        self._parts = None  # the parts' stacked places and boxes for nearest_part (see _part_cache)
         roles = []
         for key, role in (('magazine', 'magazine'), ('hinge', 'hinge'), ('handle', 'handle'), ('bolt', 'bolt'), ('slide', 'slide')):
             if r.get(key):
@@ -104,7 +107,9 @@ class Weapon:
         return self.W[:3, :3] @ v3(d)
 
     def to_gun(self, p):
-        return np.linalg.inv(self.W) @ np.append(v3(p), 1.0)
+        if self._winv is None or self._winv_of is not self.W:  # (set_place makes a new W; the inverse follows it)
+            self._winv, self._winv_of = np.linalg.inv(self.W), self.W
+        return self._winv @ np.append(v3(p), 1.0)
 
     def from_muzzle(self, p_gun):
         """cm from the muzzle: back, up, right (as the test reports and rig dumps give them)."""
@@ -214,22 +219,49 @@ class Weapon:
         m[:3, 3] = self._mag_eject_rest() * self.mag_length * out + self.mag_parked
         return self.hinge_m @ m if self.rig.get('seatOnHinge') else m
 
+    def _part_cache(self):
+        """Every part's place, its inverse and its box, stacked for nearest_part (review I5#6). Rebuilt when a part's place
+        changed: set_state gives each part a new place array, and the cache keeps the ones it was built from and compares."""
+        sims = [n.sim for n in self.nodes]
+        if self._parts is None or len(self._parts[0]) != len(sims) or any(a is not b for a, b in zip(self._parts[0], sims)):
+            sims_arr = np.array(sims, dtype=np.float64).reshape(-1, 4, 4)
+            inv = np.tile(np.eye(4), (len(sims), 1, 1))
+            live = np.ones(len(sims), dtype=bool)
+            for i, s in enumerate(sims_arr):
+                try:
+                    inv[i] = np.linalg.inv(s)
+                except np.linalg.LinAlgError:
+                    live[i] = False  # a part scaled to nothing cannot be picked
+            bmin = np.array([n.bmin for n in self.nodes], dtype=np.float64).reshape(-1, 3)
+            bmax = np.array([n.bmax for n in self.nodes], dtype=np.float64).reshape(-1, 3)
+            vol = np.prod(np.maximum(bmax - bmin, 1e-4), axis=1)
+            body = np.array([n.role == 'body' for n in self.nodes], dtype=bool)
+            self._parts = (sims, sims_arr, inv, live, bmin, bmax, vol, body)
+        return self._parts
+
     def nearest_part(self, p_gun):
-        best, bd, bvol = None, 1e9, 1e9
+        """The part nearest a gun-space point and the distance to its box (0 inside it). Hidden and away parts are skipped.
+        Parts at the same distance (a point inside several boxes) give the smallest box (review B5#0). A point inside the big
+        body box but within 1 cm of a smaller part's box is on that part (review B7#0: the body box holds the magazine seat
+        and the charging handle's area)."""
+        _, sims_arr, inv, live, bmin, bmax, vol, body = self._part_cache()
+        shown = np.array([not (n.hidden or n.away) for n in self.nodes], dtype=bool)
+        ok = live & shown
+        if not ok.any():
+            return None, 1e9
         p = np.append(v3(p_gun), 1.0)
-        for n in self.nodes:
-            if n.hidden or n.away:
-                continue
-            try:
-                local = np.linalg.solve(n.sim, p)[:3]
-            except np.linalg.LinAlgError:
-                continue
-            q = np.clip(local, n.bmin, n.bmax)
-            d = float(np.linalg.norm((n.sim @ np.append(q, 1.0))[:3] - p[:3]))
-            vol = float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4)))
-            if d < bd - 1e-4 or (abs(d - bd) <= 1e-4 and vol < bvol):
-                best, bd, bvol = n, d, vol
-        return best, bd
+        local = np.einsum('nij,j->ni', inv, p)[:, :3]
+        q = np.clip(local, bmin, bmax)
+        at = np.einsum('nij,nj->ni', sims_arr, np.append(q, np.ones((len(q), 1)), axis=1))[:, :3]
+        d = np.where(ok, np.linalg.norm(at - p[:3], axis=1), np.inf)
+        # The nearest, and among those within 0.1 mm of it the smallest box (a full tie: the first part in order).
+        near = np.flatnonzero(d <= d.min() + 1e-4)
+        bi = int(near[np.argmin(vol[near])])
+        if body[bi] and d[bi] <= 1e-4:
+            smaller = np.flatnonzero(ok & ~body & (d <= 0.01) & (vol < vol[bi]))
+            if smaller.size:
+                bi = int(smaller[np.lexsort((d[smaller], vol[smaller]))[0]])
+        return self.nodes[bi], float(d[bi])
 
 
 class Scene:
@@ -483,16 +515,27 @@ class Scene:
         if hand.side == 'right':
             # The grip: on the gun's body near the analysed grip (the game holds the gun wherever the right hand is saved).
             return 'grip' if job is None and np.linalg.norm(p - w.grip) < 0.12 else (job or '')
+        if job is not None:
+            return job  # the part the hand is on is its job, even where the support point is (review B5#0: a magazine by 5 cm)
+        return 'support' if self.support_ok(p) else ''
+
+    def held_grip(self):
+        """The grip point the game holds the gun by, in gun space: the gun hand's place when it is saved as the grip (the game
+        takes that point, review B10#0), else the analysed grip."""
+        w = self.weapon
+        return w.to_gun(self.right.position)[:3] if self.right.role == 'grip' else w.grip
+
+    def support_ok(self, p):
+        """Whether a left hand at this gun-space point is a support the game can take (review B10#1, B10#7): never on a gun with
+        no support point; a pistol's cup within 12 cm of its grip; a long gun's support 7 cm or more ahead of the grip the game
+        holds (held_grip) along the aim (the analysis keeps it there, on the forend), or within 5 cm of the analysed support."""
+        w = self.weapon
         r = w.rig
-        near_support = r.get('hasSupport') and np.linalg.norm(p - v3(r['support'])) < 0.05
-        if job is not None and not near_support:
-            return job
-        ahead = float(np.dot(p - w.grip, w.aim))
-        # A long gun's support hand is ahead of the grip (the analysis keeps it 7 cm or more ahead, on the forend); a pistol's
-        # cups the grip.
+        if not r.get('hasSupport'):
+            return False
         if r.get('isPistol'):
-            return 'support' if np.linalg.norm(p - w.grip) < 0.12 else ''
-        return 'support' if ahead >= 0.07 or near_support else ''
+            return float(np.linalg.norm(p - w.grip)) < 0.12
+        return float(np.dot(p - self.held_grip(), w.aim)) >= 0.07 or float(np.linalg.norm(p - v3(r['support']))) < 0.05
 
     def pose_warnings(self):
         """What the game would do oddly with these hands, said before saving."""
@@ -505,10 +548,35 @@ class Scene:
         off = float(np.linalg.norm(p - w.grip))
         if off > 0.08 or (part is not None and part.role != 'body' and dist < 0.03):
             where = f"on the {ROLE_NAMES.get(part.role, part.role)} '{part.short}'" if part is not None and dist < 0.06 else 'off the gun'
-            out.append(f'The right hand is {where}, {off * 100:.0f} cm from the analysed grip: the game will hold the gun there.')
+            # The game holds the gun by the right hand only when it is saved as the grip (review B10#0).
+            held = 'the game will hold the gun there.' if self.right.role == 'grip' else 'the game keeps the analysed grip (this hand is not saved as the grip).'
+            out.append(f'The right hand is {where}, {off * 100:.0f} cm from the analysed grip: {held}')
+        elif self.right.role != 'grip':
+            # Within 8 cm of the grip but on a magazine, a slide or in the air: not the grip the game would take (review B10#0).
+            out.append(f"The right hand is {off * 100:.0f} cm from the analysed grip but its job is '{self.right.role or 'none'}', not the grip: "
+                       'the game keeps the analysed grip, not this hand.')
+        p_left = w.to_gun(self.left.position)[:3]
         if self.left.role != 'support':
             out.append('The left hand is not on the handguard (its job: ' + (self.left.role or 'none') +
                        '): the game keeps the analysed support point and the support hand\'s fingers.')
+        elif not self.support_ok(p_left):
+            # A support behind the grip turns the gun away from the off hand (review B10#1).
+            if not w.rig.get('hasSupport'):
+                why = 'on a gun with no support point'
+            elif w.rig.get('isPistol'):
+                why = f'{float(np.linalg.norm(p_left - w.grip)) * 100:.0f} cm from the pistol grip'
+            else:
+                ahead = float(np.dot(p_left - self.held_grip(), w.aim)) * 100
+                why = f"{abs(ahead):.0f} cm {'behind' if ahead < 0 else 'ahead of'} the grip (a long gun's support is 7 cm or more ahead of it)"
+            out.append(f'The left hand is saved as the support but sits {why}: the game keeps the analysed support point.')
+        # The game clamps a held curl to 0.15-0.92 (HandModel.Pose, glove._held): the grip's four fingers (its thumb is its own),
+        # the support hand's five. A negative curl is the game's "not measured", not a value (review B10#2).
+        names = ('thumb', 'index', 'middle', 'ring', 'little')
+        for side, h in (('right', self.right), ('left', self.left)):
+            fingers = (1, 2, 3, 4) if h.role == 'grip' else (0, 1, 2, 3, 4) if h.role == 'support' else ()
+            bad = [f'{names[i]} {h.curls[i]:.2f}' for i in fingers if h.curls[i] >= 0 and not 0.15 <= h.curls[i] <= 0.92]
+            if bad:
+                out.append(f"The {side} hand's curls outside 0.15-0.92 ({', '.join(bad)}): the game clamps them, so its hand differs from this one.")
         return out
 
     # ---- saving --------------------------------------------------------------------------------------------------------
@@ -525,7 +593,8 @@ class Scene:
             'fromMuzzleCm': w.from_muzzle(p).round(2).tolist(),
             'pose': hand.pose_name, 'thumb': round(hand.thumb, 4), 'curls': [round(c, 4) for c in hand.curls],
             'thumbSet': bool(hand.thumb_set),
-            'on': hand.on_part or (part.short if part is not None else ''),
+            # What the hand is on: its snap, or the part it touches within the 6 cm reach its job is worked out by (review I9#2).
+            'on': hand.on_part or (part.short if part is not None and dist <= 0.06 else ''),
             'role': hand.role,
             'nearestPart': {'name': part.name if part else '', 'role': ROLE_NAMES.get(part.role, part.role) if part else '',
                             'cm': round(dist * 100, 2)},
@@ -616,6 +685,12 @@ class Scene:
             hand.update_mesh()
         parts = checked['parts']
         w.set_state(parts['slide'], parts['magazine'], parts['cover'])
+        if self.left.role == 'support' and not self.support_ok(w.to_gun(self.left.position)[:3]):
+            # A saved support the game cannot take (behind the grip, or on a gun with no support point) gets the job its place
+            # gives, as a drag would give it (review B10#1, B10#7): the parts are placed first, so the nearest part is the real one.
+            self.left.on_part = ''
+            self.left.role = self.contact_role(self.left)
+            self.left.update_mesh()
         for hand in (self.right, self.left):
             if hand.role in ('grip', 'support'):
                 self.settle(hand)
