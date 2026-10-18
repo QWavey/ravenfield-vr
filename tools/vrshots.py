@@ -152,6 +152,15 @@ def ensure_steam():
     time.sleep(25)
 
 
+def report_since(game, start):
+    """Whether the autotest wrote its report after start (AutoTest.ReportPath: written once, when the test ends)."""
+    report = os.path.join(game, 'BepInEx', 'RavenfieldVR-autotest.txt')
+    try:
+        return os.path.getmtime(report) >= start
+    except OSError:
+        return False
+
+
 def run_game(game, args, timeout_min, vr):
     exe = os.path.join(game, 'ravenfield.exe')
     logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
@@ -175,6 +184,10 @@ def run_game(game, args, timeout_min, vr):
             if not running('ravenfield.exe'):
                 if vr and time.time() - start < 40:
                     flat = True  # taken down while SteamVR was still starting
+                elif vr and '-rfvr-autotest' in args and time.time() - start < 120 and not report_since(game, start):
+                    # Gone in its first two minutes with no report: SteamVR closed it (room setup asks the game to quit,
+                    # the autotest ignores that, and SteamVR then ends the process; check-1018i ended so after 42 s).
+                    flat = True
                 break
             if time.time() - start > timeout_min * 60:
                 log('timeout: stopping the game')
