@@ -126,6 +126,7 @@ namespace RavenfieldVR.Weapons
                     NoModel.Add(entry);
                     return null;
                 }
+                HideParkedAmmo(entry, template);
                 if (_templateRoot == null)
                 {
                     _templateRoot = new GameObject("RavenfieldVR Drop Templates");
@@ -138,6 +139,68 @@ namespace RavenfieldVR.Weapons
             GameObject model = UnityEngine.Object.Instantiate(template);
             model.SetActive(true);
             return model;
+        }
+
+        /// <summary>
+        /// Hides in the template the parked ammunition the held gun hides (<see cref="WeaponRigData.SparePartPaths"/>, put away
+        /// by <see cref="WeaponRig.HideSpareParts"/>). A holstered or dropped copy drew it floating beside the gun: the spare
+        /// magazine, drum or round the reload brings in (user, 2026-10-18 evening: "some mags of other weapons float in the air
+        /// if they are not equipped"; Task 268). The copy is the third-person model only, so the parked parts inside that model
+        /// are the ones hidden: their paths run from the weapon's root, and the model's own path is where each one starts.
+        /// </summary>
+        private static void HideParkedAmmo(WeaponManager.WeaponEntry entry, GameObject template)
+        {
+            Weapon prefab = entry.prefab != null ? entry.prefab.GetComponent<Weapon>() : null;
+            Transform tpAsset = prefab != null ? prefab.thirdPersonTransform : null;
+            if (tpAsset == null || template.transform.childCount == 0)
+            {
+                return;
+            }
+            int[] tpPath = WeaponRig.PathOf(prefab.transform, tpAsset);
+            if (tpPath == null)
+            {
+                return;
+            }
+            // The analysis the warm-up made of this prefab (analysed here once, if it was not yet).
+            WeaponRigData data = WeaponAnalyzer.Get(prefab, entry);
+            Transform model = template.transform.GetChild(0); // the template's only child: the third-person model
+            Vector3 tiny = Vector3.one * 1e-4f;
+            int hidden = 0;
+            foreach (int[] p in data.SparePartPaths)
+            {
+                if (p == null || p.Length <= tpPath.Length)
+                {
+                    continue;
+                }
+                bool inside = true;
+                for (int i = 0; i < tpPath.Length && inside; i++)
+                {
+                    inside = p[i] == tpPath[i];
+                }
+                if (!inside)
+                {
+                    continue; // not in the third-person model, so never drawn in a copy
+                }
+                var rest = new int[p.Length - tpPath.Length];
+                Array.Copy(p, tpPath.Length, rest, 0, rest.Length);
+                Transform part = WeaponRig.Resolve(model, rest);
+                if (part != null)
+                {
+                    part.localScale = tiny;
+                    // Its meshes are switched off as well: at 1e-4 they still have their vertices at the pivot, where the part
+                    // waits, and the dropped weapon's physics shape is fitted from the enabled renderers only (ShapeFit.AddPoints),
+                    // so a hidden part would leave an invisible collider out beside the gun (Task 268).
+                    foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                    {
+                        r.enabled = false;
+                    }
+                    hidden++;
+                }
+            }
+            if (hidden > 0)
+            {
+                Log.InfoOnce("parkedcopy:" + entry.name, $"Copies of {entry.name} (holstered and dropped): {hidden} parked ammunition part(s) hidden, as in the hand.");
+            }
         }
 
         /// <summary>The weapon dropped last (self-test).</summary>
