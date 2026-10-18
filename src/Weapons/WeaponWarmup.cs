@@ -11,11 +11,16 @@ namespace RavenfieldVR.Weapons
     /// a visible hitch in a headset the first time a weapon type is drawn in a match. In VR every installed weapon is
     /// analysed ahead of time while the main menu is up, so drawing, picking up and switching weapons in a match never
     /// waits for it. Paced to about 6 ms per frame on average, paused while the menu is being used and while a match runs.
+    /// The weapon list is watched after each pass: a weapon that appears later (a workshop mod subscribed in the menu) is
+    /// analysed and prepared then, not on its first death in a match (task 263, 2026-10-18).
     /// </summary>
     internal static class WeaponWarmup
     {
-        /// <summary>Weapons fully prepared here (analysis, shape fit, dropped model), by rig key.</summary>
-        private static readonly HashSet<string> Warmed = new HashSet<string>();
+        /// <summary>
+        /// Weapons fully prepared here (analysis, shape fit, dropped model). By entry, as WeaponDrops keys its model templates:
+        /// a weapon re-created under the same name (a mod reload) has a template of its own to build.
+        /// </summary>
+        private static readonly HashSet<WeaponManager.WeaponEntry> Warmed = new HashSet<WeaponManager.WeaponEntry>();
 
         private static bool _running;
         private static bool _rescan;
@@ -107,17 +112,39 @@ namespace RavenfieldVR.Weapons
             entries.InsertRange(0, first);
         }
 
+        /// <summary>Whether the game's weapon list is no longer the one a pass took: an entry added, removed or re-created.</summary>
+        private static bool WeaponListChanged(List<WeaponManager.WeaponEntry> taken)
+        {
+            if (WeaponManager.instance == null || WeaponManager.instance.allWeapons == null)
+            {
+                return false;
+            }
+            int i = 0;
+            foreach (WeaponManager.WeaponEntry entry in WeaponManager.instance.allWeapons)
+            {
+                if (i >= taken.Count || taken[i] != entry)
+                {
+                    return true;
+                }
+                i++;
+            }
+            return i != taken.Count;
+        }
+
         private static bool InMatch() => GameManager.IsIngame(out bool noGameplay) && !noGameplay;
 
         private static IEnumerator Run()
         {
             _running = true;
             var entries = new List<WeaponManager.WeaponEntry>();
-            int analysed = 0;
+            var taken = new List<WeaponManager.WeaponEntry>(); // the list this pass works from, in the game's order
             float started = Time.realtimeSinceStartup;
             do
             {
                 _rescan = false;
+                float passStarted = Time.realtimeSinceStartup;
+                int analysed = 0;
+                int fittedAtStart = _fitted;
                 entries.Clear();
                 if (WeaponManager.instance != null && WeaponManager.instance.allWeapons != null)
                 {
@@ -132,9 +159,24 @@ namespace RavenfieldVR.Weapons
                     _rescan = true;
                     continue;
                 }
+                taken.Clear();
+                taken.AddRange(entries);
                 PutLoadoutFirst(entries);
                 foreach (WeaponManager.WeaponEntry entry in entries)
                 {
+                    if (entry == null || entry.prefab == null)
+                    {
+                        continue;
+                    }
+                    // Checked before the waits below: a pass goes over every entry, and one already prepared must not wait for the
+                    // menu to be idle or for a read-back (a stuck read-back held each such entry for its full two seconds).
+                    Weapon weapon = entry.prefab.GetComponent<Weapon>();
+                    // Skipped only once all of it was done here: analysed elsewhere first (a sound donor, a draw), its shape fit and
+                    // the dropped model were never prepared, and the first draw in the match did them (the hitch this avoids).
+                    if (weapon == null || Warmed.Contains(entry))
+                    {
+                        continue;
+                    }
                     // Only in menus: in a match the frame rate matters more than the cache. While the menu is in use
                     // (pointing along it, clicking, scrolling) it gets every frame: the warm-up goes on once it has been left
                     // alone for a moment (picking a map or a setting lagged otherwise). Both are checked together: a map that
@@ -142,10 +184,6 @@ namespace RavenfieldVR.Weapons
                     while (InMatch() || Time.unscaledTime - UI.VRInputModule.LastUsed < 1.5f && VRManager.Active)
                     {
                         yield return InMatch() ? new WaitForSecondsRealtime(1f) : null;
-                    }
-                    if (entry == null || entry.prefab == null)
-                    {
-                        continue;
                     }
                     // Models being measured hold their read-back pictures until done: a few at a time.
                     for (float until = Time.realtimeSinceStartup + 2f; GunVolume.InFlight > 4 && Time.realtimeSinceStartup < until;)
@@ -155,13 +193,6 @@ namespace RavenfieldVR.Weapons
                     while (InMatch())
                     {
                         yield return new WaitForSecondsRealtime(1f); // a match that started during the wait above: not now
-                    }
-                    Weapon weapon = entry.prefab.GetComponent<Weapon>();
-                    // Skipped only once all of it was done here: analysed elsewhere first (a sound donor, a draw), its shape fit and
-                    // the dropped model were never prepared, and the first draw in the match did them (the hitch this avoids).
-                    if (weapon == null || Warmed.Contains(WeaponAnalyzer.KeyOf(weapon, entry)))
-                    {
-                        continue;
                     }
                     var watch = System.Diagnostics.Stopwatch.StartNew();
                     try
@@ -180,11 +211,11 @@ namespace RavenfieldVR.Weapons
                             }
                         }
                         analysed++;
-                        Warmed.Add(WeaponAnalyzer.KeyOf(weapon, entry));
+                        Warmed.Add(entry);
                     }
                     catch (System.Exception e)
                     {
-                        Warmed.Add(WeaponAnalyzer.KeyOf(weapon, entry)); // not tried again every pass
+                        Warmed.Add(entry); // not tried again every pass
                         Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {e.Message}");
                     }
                     // One analysis is a long frame (tens of milliseconds); the frames after it are left alone so the
@@ -195,9 +226,21 @@ namespace RavenfieldVR.Weapons
                         yield return null;
                     }
                 }
+                Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted - fittedAtStart} physics shapes in {Time.realtimeSinceStartup - passStarted:0.0} s.");
+                // A weapon that appears after this pass took the list (a workshop mod subscribed or loaded in the menu, a weapon
+                // unlocked) was never analysed: its first death in a match built the dropped model there, a hitch of tens of
+                // milliseconds (WeaponDrops.Spawn). The list is checked every two seconds and the pass goes round again when it has
+                // changed; the entries already prepared are skipped at once. Not during a self-test, whose timings are its own.
+                while (!_rescan && VRManager.Active)
+                {
+                    yield return new WaitForSecondsRealtime(2f);
+                    if (!_rescan && !WeaponSelfTest.Running && WeaponListChanged(taken))
+                    {
+                        _rescan = true;
+                    }
+                }
             }
             while (_rescan && VRManager.Active);
-            Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted} physics shapes in {Time.realtimeSinceStartup - started:0.0} s.");
             _running = false;
         }
     }
