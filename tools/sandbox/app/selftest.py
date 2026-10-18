@@ -11,7 +11,8 @@ import numpy as np
 from PyQt6.QtCore import QEvent, QPointF, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QKeyEvent, QMouseEvent
 
-from mathutil import quat_axis_angle, quat_mul, v3
+import gizmo as gz
+from mathutil import quat_axis_angle, quat_inv, quat_mul, v3
 
 
 class SelfTest:
@@ -36,7 +37,8 @@ class SelfTest:
                       self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_snap_cover,
                       self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
                       self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
-                      self.s_move_weapon, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
+                      self.s_move_weapon, self.s_gizmo_move, self.s_gizmo_snap_plane, self.s_gizmo_turn, self.s_gizmo_cancel,
+                      self.s_gizmo_local, self.s_gizmo_gun, self.s_gizmo_keys, self.s_gizmo_free, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
                       self.s_turntable_start, self.s_turntable_check, self.s_record_reload_start, self.s_record_reload_check,
                       self.s_later_features] + ([self.s_all_weapons] if self.all_weapons else []) + [self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
@@ -690,6 +692,443 @@ class SelfTest:
                    moved_gun and moved_hands and same_places and back,
                    f'moved {np.linalg.norm(t) * 100:.1f} cm: weapon {moved_gun}, hands {moved_hands}, places kept {same_places}, back {back}')
         wb.view.update()
+
+    # ---- the transform gizmo (Blender's arrows and rings) ------------------------------------------------------------------
+
+    def _gizmo_ready(self, mode, space='global', target='hand', hand=None):
+        """The view as a user would have it for a gizmo check: parts home, hands on the gun, the 3/4 view framed on them,
+        this gizmo on the hand (or the gun). Returns (view, camera, centre, axes) or None."""
+        wb, s, v = self.wb, self.wb.scene, self.wb.view
+        self._settle()
+        wb.reset_parts()
+        wb.select_hand(hand or s.right)
+        wb.set_gizmo_mode(mode)
+        wb.set_gizmo_space(space)
+        v.set_gizmo_target(target)
+        wb.frame_weapon()
+        v.set_view('three')
+        self.app.processEvents()
+        f = v.gizmo_frame()
+        if f is None:
+            return None
+        return v, v.camera(), f[0], f[1]
+
+    def _mouse(self, kind, x, y, buttons, mods=Qt.KeyboardModifier.NoModifier, button=Qt.MouseButton.LeftButton):
+        v = self.wb.view
+        pos = QPointF(float(x), float(y))
+        QGuiApplication.sendEvent(v, QMouseEvent(kind, pos, v.mapToGlobal(pos), button, buttons, mods))
+
+    def _drag(self, points, mods=Qt.KeyboardModifier.NoModifier, release=True):
+        """A left-button drag through screen points (the first is the press), as the mouse sends it."""
+        left = Qt.MouseButton.LeftButton
+        self._mouse(QEvent.Type.MouseButtonPress, *points[0], left, mods)
+        for p in points[1:]:
+            self._mouse(QEvent.Type.MouseMove, *p, left, mods, Qt.MouseButton.NoButton)
+        if release:
+            self._mouse(QEvent.Type.MouseButtonRelease, *points[-1], Qt.MouseButton.NoButton, mods)
+
+    @staticmethod
+    def _px(p):
+        """A screen point as the view gets it: Qt rounds an event's position to whole pixels."""
+        return np.floor(np.asarray(p, dtype=np.float64) + 0.5)
+
+    def _expect_axis(self, cam, c, a, press, release):
+        """The move along axis a that a drag from the press to the release point (whole pixels) gives: the ray's nearest
+        points on the axis line."""
+        t0 = gz.line_param(*cam.ray(*self._px(press)), c, a)
+        t1 = gz.line_param(*cam.ray(*self._px(release)), c, a)
+        return a * (t1 - t0) if t0 is not None and t1 is not None else None
+
+    def _expect_plane(self, cam, c, n, press, release):
+        h0 = gz.plane_hit(*cam.ray(*self._px(press)), c, n, not cam.ortho)
+        h1 = gz.plane_hit(*cam.ray(*self._px(release)), c, n, not cam.ortho)
+        return h1 - h0 if h0 is not None and h1 is not None else None
+
+    @staticmethod
+    def _path(cam, a, b, n=8):
+        """Screen points from world point a to world point b, in n steps (a hand's drag)."""
+        return [tuple(cam.project(a + (b - a) * t)) for t in np.linspace(0.0, 1.0, n + 1)]
+
+    def _arrow_grab(self, cam, c, axes, i, mode='move'):
+        """A point on arrow i's shaft (60% out), in the world: where a user takes it. None when it faces the viewer."""
+        _, length = gz.sizes(mode)
+        if gz.axis_visibility(cam, c, axes[:, i], length) < 0.6:
+            return None
+        return c + axes[:, i] * length * 0.6 * cam.px_at(c)
+
+    def s_gizmo_move(self):
+        """Move gizmo, Global axes: dragging the red arrow 4 cm along it moves the right hand 4 cm along X and nothing else;
+        the drag is one undo step; the readout says how far; the hand's job is worked out at the end."""
+        wb, s = self.wb, self.wb.scene
+        r = self._gizmo_ready('move')
+        if r is None:
+            self.skip('gizmo: move along an arrow', 'no gizmo on the right hand')
+            return
+        v, cam, c, axes = r
+        h = s.right
+        p0 = h.position.copy()
+        undo0 = len(wb.undo_stack)
+        texts = []
+        v.gizmo_info.connect(texts.append)
+        self.check('gizmo: on a hand it sits on the glove as drawn (settled onto the gun)',
+                   np.allclose(c, h.drawn_position(), atol=1e-12), f'{np.linalg.norm(h.drawn_position() - h.position) * 100:.1f} cm settle')
+        drawn0 = h.drawn_position().copy()
+        i = next((k for k in range(3) if self._arrow_grab(cam, c, axes, k) is not None), None)
+        if i is None:
+            self.skip('gizmo: move along an arrow', 'every arrow faces the viewer here')
+            return
+        g = self._arrow_grab(cam, c, axes, i)
+        hit = gz.hit(cam, c, axes, 'move', *cam.project(g))
+        path = self._path(cam, g, g + axes[:, i] * 0.04)
+        self._drag(path)
+        v.gizmo_info.disconnect(texts.append)
+        moved = h.drawn_position() - drawn0  # (the glove: it does not jump by its settle, it moves as the pointer)
+        along = float(np.dot(moved, axes[:, i]))
+        off = float(np.linalg.norm(moved - axes[:, i] * along))
+        want = self._expect_axis(cam, c, axes[:, i], path[0], path[-1])
+        self.check(f'gizmo: the {gz.AXIS_NAMES[i]} arrow is taken where it is drawn', hit == ('axis', i), str(hit))
+        self.check(f'gizmo: dragging the {gz.AXIS_NAMES[i]} arrow 4 cm moves the hand along it only, as far as the pointer went',
+                   want is not None and np.allclose(moved, want, atol=1e-9) and abs(along - 0.04) < 0.006 and off < 1e-9,
+                   f'{along * 100:.2f} cm along (the pointer: {float(np.dot(want, axes[:, i])) * 100 if want is not None else 0:.2f}), '
+                   f'{off * 1000:.4f} mm off the axis')
+        self.check('gizmo: a drag is one undo step, and undo puts the hand back', len(wb.undo_stack) == undo0 + 1, f'{len(wb.undo_stack) - undo0} step(s)')
+        wb.undo()
+        self.check('gizmo: undo after a gizmo move (the place and the settled glove back)', np.allclose(h.position, p0, atol=1e-9)
+                   and np.allclose(h.drawn_position(), drawn0, atol=1e-9))
+        self.check('gizmo: the readout says what moves how far, and clears at the end',
+                   any(t.startswith(f'Move {gz.AXIS_NAMES[i]}') and 'cm' in t for t in texts) and texts[-1:] == [''],
+                   (texts[-2] if len(texts) > 1 else str(texts))[:80])
+
+    def s_gizmo_snap_plane(self):
+        """Ctrl snaps an arrow's move to whole centimetres; a plane square moves the hand in its plane only."""
+        wb, s = self.wb, self.wb.scene
+        r = self._gizmo_ready('move')
+        if r is None:
+            self.skip('gizmo: snap and plane', 'no gizmo')
+            return
+        v, cam, c, axes = r
+        h = s.right
+        i = next((k for k in (1, 0, 2) if self._arrow_grab(cam, c, axes, k) is not None), None)
+        if i is not None:
+            p0 = h.drawn_position().copy()
+            g = self._arrow_grab(cam, c, axes, i)
+            self._drag(self._path(cam, g, g + axes[:, i] * 0.027), Qt.KeyboardModifier.ControlModifier)
+            along = float(np.dot(h.drawn_position() - p0, axes[:, i]))
+            self.check(f'gizmo: Ctrl snaps a move to whole cm (2.7 cm dragged along {gz.AXIS_NAMES[i]})', abs(along - 0.03) < 1e-9,
+                       f'{along * 100:.4f} cm')
+            wb.undo()
+        n = next((k for k in range(3) if gz.plane_visibility(cam, c, axes[:, k]) > 0.8), None)
+        if n is None:
+            self.skip('gizmo: a plane square moves in its plane', 'no plane faces the view')
+            return
+        q = gz._plane_quad(cam, c, axes, n, gz.MOVE_LEN)
+        start = None
+        for wts in ((0.25, 0.25, 0.25, 0.25), (0.1, 0.4, 0.4, 0.1), (0.1, 0.1, 0.4, 0.4), (0.4, 0.1, 0.1, 0.4)):
+            pt = np.array(wts) @ q
+            if gz.hit(cam, c, axes, 'move', *pt) == ('plane', n):
+                start = pt
+                break
+        if start is None:
+            self.skip('gizmo: a plane square moves in its plane', 'the square sits under an arrow here')
+            return
+        o, d = cam.ray(*start)
+        p_on = gz.plane_hit(o, d, c, axes[:, n], not cam.ortho)
+        j, k = (n + 1) % 3, (n + 2) % 3
+        want = axes[:, j] * 0.025 - axes[:, k] * 0.015
+        p0 = h.drawn_position().copy()
+        path = [tuple(start)] + self._path(cam, p_on, p_on + want)[1:]
+        self._drag(path)
+        moved = h.drawn_position() - p0
+        exact = self._expect_plane(cam, c, axes[:, n], path[0], path[-1])
+        if exact is not None:
+            exact = exact - axes[:, n] * float(np.dot(exact, axes[:, n]))
+        self.check(f'gizmo: the {gz.AXIS_NAMES[j]}{gz.AXIS_NAMES[k]} square moves the hand in that plane only, as far as the pointer went',
+                   exact is not None and np.allclose(moved, exact, atol=1e-9) and np.allclose(moved, want, atol=0.008)
+                   and abs(float(np.dot(moved, axes[:, n]))) < 1e-9, f'{np.round(moved * 100, 2)} cm (aimed {np.round(want * 100, 2)})')
+        wb.undo()
+
+    def s_gizmo_turn(self):
+        """Turn gizmo: dragging a ring along itself turns the hand about that ring's axis (its place stays); Ctrl snaps the
+        turn to 5 degrees."""
+        wb, s = self.wb, self.wb.scene
+        r = self._gizmo_ready('rotate')
+        if r is None:
+            self.skip('gizmo: turn with a ring', 'no gizmo')
+            return
+        v, cam, c, axes = r
+        h = s.right
+        facing = [abs(float(np.dot(axes[:, k], cam.to_eye(c)))) for k in range(3)]
+        i = int(np.argmax(facing))  # the ring seen most face-on
+        sc, keep, t = gz._front_ring(cam, c, axes[:, i], gz.ROT_R)
+        ks = [k for k in range(len(keep)) if keep[k]]
+        k0 = None
+        for k in ks:
+            if gz.hit(cam, c, axes, 'rotate', *sc[k]) == ('ring', i):
+                k0 = k
+                break
+        if k0 is None:
+            self.skip('gizmo: turn with a ring', 'no point of the ring is free of the others here')
+            return
+        u, vv = gz._perp(axes[:, i])
+        rad = gz.ROT_R * cam.px_at(c)
+
+        def ring(phi):
+            return tuple(cam.project(c + rad * (u * math.cos(phi) + vv * math.sin(phi))))
+        for snap, want in ((False, 30.0), (True, 30.0)):
+            p0, q0 = h.drawn_position().copy(), h.rotation.copy()
+            turn = 31.7 if snap else 30.0
+            pts = [ring(t[k0] + math.radians(a)) for a in np.linspace(0.0, turn, 13)]
+            self._drag(pts, Qt.KeyboardModifier.ControlModifier if snap else Qt.KeyboardModifier.NoModifier)
+            rel = quat_mul(h.rotation, quat_inv(q0))
+            ang = math.degrees(2 * math.acos(min(1.0, abs(float(rel[3])))))
+            axis = rel[:3] / max(1e-12, float(np.linalg.norm(rel[:3])))
+            about = abs(float(np.dot(axis, axes[:, i])))
+            stay = float(np.linalg.norm(h.drawn_position() - p0))  # (it turns about the glove as drawn, where the rings are)
+            ok = (abs(ang - want) < (1e-6 if snap else 0.6)) and about > 0.9999 and stay < 1e-9
+            self.check(f'gizmo: the {gz.AXIS_NAMES[i]} ring dragged {turn:g} degrees along itself turns the hand '
+                       f'{"(Ctrl: snapped to 5 degrees) " if snap else ""}about {gz.AXIS_NAMES[i]}, its place kept', ok,
+                       f'{ang:.3f} deg, axis {about:.5f} along {gz.AXIS_NAMES[i]}, moved {stay * 1000:.4f} mm')
+            wb.undo()
+
+    def s_gizmo_cancel(self):  # noqa: C901
+        """Esc while dragging an arrow puts the hand back where the drag began (the part it was on and its job too), with no
+        undo step left; so does a right click, whose release opens no menu. A click on an arrow alone changes nothing and
+        leaves no undo step; the wheel while dragging does not zoom."""
+        wb, s = self.wb, self.wb.scene
+        self._settle()
+        wb.reset_parts()
+        wb.snap_left('support')
+        r = self._gizmo_ready('move', hand=s.left)
+        if r is None:
+            self.skip('gizmo: Esc and right click take a drag back', 'no gizmo')
+            return
+        v, cam, c, axes = r
+        h = s.left
+        on0, role0 = h.on_part, h.role
+        menus = []
+        v.context.connect(menus.append)
+        i = next((k for k in range(3) if self._arrow_grab(cam, c, axes, k) is not None), None)
+        if i is None:
+            self.skip('gizmo: Esc and right click take a drag back', 'every arrow faces the viewer')
+            return
+        results = []
+        for how in ('Esc', 'right click'):
+            p0, d0 = h.position.copy(), h.drawn_position().copy()
+            undo0 = len(wb.undo_stack)
+            g = self._arrow_grab(cam, c, axes, i)
+            self._drag(self._path(cam, g, g + axes[:, i] * 0.05), release=False)
+            moved = float(np.linalg.norm(h.position - p0))
+            if how == 'Esc':
+                QGuiApplication.sendEvent(v, QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier))
+            else:
+                x, y = cam.project(g + axes[:, i] * 0.05)
+                self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton,
+                            button=Qt.MouseButton.RightButton)
+            x, y = cam.project(g + axes[:, i] * 0.05)
+            self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
+            back = bool(np.allclose(h.position, p0, atol=1e-12)) and bool(np.allclose(h.drawn_position(), d0, atol=1e-12))
+            kept = h.on_part == on0 and h.role == role0
+            results.append(f'{how}: moved {moved * 100:.1f} cm then back {back}, undo steps +{len(wb.undo_stack) - undo0}, '
+                           f'on {h.on_part!r} as {h.role!r}')
+            self.check(f'gizmo: {how} while dragging takes the drag back (no undo step left, the hand still on {on0!r})',
+                       moved > 0.02 and back and kept and len(wb.undo_stack) == undo0 and v._gz is None, results[-1])
+        v.context.disconnect(menus.append)
+        self.check('gizmo: the right click that takes a drag back opens no menu', not menus, f'{len(menus)} menu(s)')
+        # A click on the arrow alone: nothing changes, no undo step, the hand stays on its part.
+        undo0 = len(wb.undo_stack)
+        g = self._arrow_grab(cam, c, axes, i)
+        x, y = cam.project(g)
+        self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
+        self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
+        self.check('gizmo: a click on an arrow alone changes nothing and leaves no undo step',
+                   len(wb.undo_stack) == undo0 and h.on_part == on0 and h.role == role0,
+                   f'undo steps +{len(wb.undo_stack) - undo0}, on {h.on_part!r}')
+        # ... and keeps the redo history: a step undone, a click, and redo still brings it back.
+        p_before = h.position.copy()
+        self._drag(self._path(cam, g, g + axes[:, i] * 0.02))
+        p_moved = h.position.copy()
+        wb.undo()
+        self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
+        self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
+        redo_ok = bool(wb.redo_stack)
+        wb.redo()
+        self.check('gizmo: a click that changes nothing keeps the redo history', redo_ok and np.allclose(h.position, p_moved, atol=1e-12),
+                   f'redo there {redo_ok}')
+        wb.undo()
+        self.check('gizmo: and undo goes back again', np.allclose(h.position, p_before, atol=1e-12))
+        # The wheel while dragging: no zoom (the drag measures from where the camera stood).
+        dist0 = v.dist
+        self._drag(self._path(cam, g, g + axes[:, i] * 0.02), release=False)
+        from PyQt6.QtGui import QWheelEvent
+        from PyQt6.QtCore import QPoint
+        at = QPointF(*cam.project(g + axes[:, i] * 0.02))
+        QGuiApplication.sendEvent(v, QWheelEvent(at, v.mapToGlobal(at), QPoint(0, 0), QPoint(0, 240), Qt.MouseButton.LeftButton,
+                                                 Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False))
+        self._mouse(QEvent.Type.MouseButtonRelease, at.x(), at.y(), Qt.MouseButton.NoButton)
+        self.check('gizmo: the wheel while dragging does not zoom', v.dist == dist0, f'{dist0:.3f} -> {v.dist:.3f}')
+        wb.undo()
+
+    def s_gizmo_local(self):
+        """Local axes: the red arrow lies along the hand's own X, and dragging it moves the hand along that."""
+        wb, s = self.wb, self.wb.scene
+        r = self._gizmo_ready('move', space='local')
+        if r is None:
+            self.skip('gizmo: local axes', 'no gizmo')
+            return
+        v, cam, c, axes = r
+        h = s.right
+        from mathutil import quat_to_mat3
+        own = quat_to_mat3(h.rotation)
+        self.check('gizmo: Local axes are the hand\'s own', np.allclose(axes, own, atol=1e-9))
+        i = next((k for k in range(3) if self._arrow_grab(cam, c, axes, k) is not None), None)
+        if i is None:
+            self.skip('gizmo: move along a local arrow', 'every arrow faces the viewer')
+            return
+        p0 = h.drawn_position().copy()
+        g = self._arrow_grab(cam, c, axes, i)
+        path = self._path(cam, g, g + axes[:, i] * 0.03)
+        self._drag(path)
+        moved = h.drawn_position() - p0
+        along = float(np.dot(moved, own[:, i]))
+        want = self._expect_axis(cam, c, axes[:, i], path[0], path[-1])
+        self.check(f'gizmo: dragging the local {gz.AXIS_NAMES[i]} arrow moves the hand along its own {gz.AXIS_NAMES[i]}, as far as the pointer went',
+                   want is not None and np.allclose(moved, want, atol=1e-9) and abs(along - 0.03) < 0.006
+                   and float(np.linalg.norm(moved - own[:, i] * along)) < 1e-9, f'{along * 100:.2f} cm')
+        wb.undo()
+        wb.set_gizmo_space('global')
+
+    def s_gizmo_gun(self):
+        """Ctrl + click on the gun puts the gizmo on it (at the grip); its arrow moves the gun, the hands go along and keep
+        their places on it; undo puts it back; a click on a hand puts the gizmo back on the hand."""
+        wb, s = self.wb, self.wb.scene
+        w = s.weapon
+        r = self._gizmo_ready('move')
+        if r is None:
+            self.skip('gizmo on the gun', 'no gizmo')
+            return
+        v, cam, c, axes = r
+        # The gun's centre seen through the view: a Ctrl + click there (a click, no drag).
+        node = max((n for n in w.nodes if not n.hidden and not n.away and n.role == 'body'),
+                   key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
+        at = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
+        hit = v.pick(QPointF(*cam.project(at)).toPoint())
+        if hit is None or hit[0] != 'node':
+            self.skip('gizmo on the gun', 'the gun is not under its centre on screen here')
+            return
+        undo0 = len(wb.undo_stack)
+        x, y = cam.project(at)
+        self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.ControlModifier)
+        self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton, Qt.KeyboardModifier.ControlModifier)
+        on_gun = v.gizmo_target == 'gun' and wb.gizmo_on.currentRouteKey() == 'gun'
+        f = v.gizmo_frame()
+        at_grip = f is not None and np.allclose(f[0], w.to_world(w.grip), atol=1e-9)
+        self.check('gizmo: Ctrl + click on the gun puts the gizmo on it, at its grip, and leaves no undo step',
+                   on_gun and at_grip and len(wb.undo_stack) == undo0,
+                   f'target {v.gizmo_target}, header {wb.gizmo_on.currentRouteKey()}, undo steps +{len(wb.undo_stack) - undo0}')
+        cam = v.camera()
+        c, axes = f
+        i = next((k for k in range(3) if self._arrow_grab(cam, c, axes, k) is not None), None)
+        if i is None:
+            self.skip('gizmo moves the gun', 'every arrow faces the viewer')
+        else:
+            place0 = w.P.copy()
+            grip0 = w.to_world(w.grip)
+            hands0 = [(h, h.position.copy(), w.to_gun(h.position)[:3].copy()) for h in s.hands() if h.role or h.on_part]
+            # A laser pick on the gun goes with it (Copy coordinates and Put the hand here use it).
+            pn = max((n for n in w.nodes if not n.hidden and not n.away), key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
+            pick = w.to_world((pn.bmin + pn.bmax) * 0.5 + pn.sim[:3, 3])
+            wb.on_pick(pick, pn)
+            g = self._arrow_grab(cam, c, axes, i)
+            self._drag(self._path(cam, g, g + axes[:, i] * 0.05))
+            d = w.to_world(w.grip) - grip0
+            self.check('a laser pick goes with the gun when the gizmo moves it', wb.picked_point is not None
+                       and np.allclose(wb.picked_point - pick, d, atol=1e-9), f'{np.round((wb.picked_point - pick) * 100, 2)} cm')
+            wb.on_pick(None, None)
+            along = float(np.dot(d, axes[:, i]))
+            kept = all(np.allclose(w.to_gun(h.position)[:3], g0, atol=1e-6) for h, _, g0 in hands0)
+            self.check(f'gizmo on the gun: its {gz.AXIS_NAMES[i]} arrow moves the gun 5 cm along it, the hands go along',
+                       abs(along - 0.05) < 0.003 and float(np.linalg.norm(d - axes[:, i] * along)) < 1e-6 and kept and len(hands0) > 0,
+                       f'{along * 100:.2f} cm, {len(hands0)} hand(s) kept their places on it: {kept}')
+            wb.undo()
+            self.check('gizmo on the gun: undo puts the gun and the hands back', np.allclose(w.P, place0, atol=1e-9)
+                       and all(np.allclose(h.position, p0, atol=1e-9) for h, p0, _ in hands0))
+        # A click on the right hand: the gizmo back on it. (A point of the glove away from the gizmo's handles: the gun's
+        # grip, where its gizmo sits, is the right hand's palm, and the handles come first.)
+        cam = v.camera()
+        sc = cam.project(s.right.drawn_position())
+        hp, hh = None, None
+        for rad in (16.0, 24.0, 32.0, 40.0):
+            for ang in np.linspace(0.0, 2 * math.pi, 16, endpoint=False):
+                p = sc + rad * np.array([math.cos(ang), math.sin(ang)])
+                pick = v.pick(QPointF(*p).toPoint())
+                if pick is not None and pick[0] == 'hand' and pick[1] is s.right and v.gizmo_hit(QPointF(*p).toPoint()) is None:
+                    hp, hh = tuple(p), pick
+                    break
+            if hp is not None:
+                break
+        if hh is not None:
+            self._mouse(QEvent.Type.MouseButtonPress, *hp, Qt.MouseButton.LeftButton)
+            self._mouse(QEvent.Type.MouseButtonRelease, *hp, Qt.MouseButton.NoButton)
+            self.check('gizmo: a click on a hand puts the gizmo back on the hand (no undo step)',
+                       v.gizmo_target == 'hand' and len(wb.undo_stack) == undo0, f'undo steps +{len(wb.undo_stack) - undo0}')
+        else:
+            self.skip('gizmo: a click on a hand puts the gizmo back on the hand', 'no point of the right glove free of the gizmo here')
+            v.set_gizmo_target('hand')
+
+    def s_gizmo_keys(self):
+        """The keys G, R, T and W choose the gizmo (move, turn, both, none); the comma cycles its axes. The header follows."""
+        wb, v = self.wb, self.wb.view
+        self.win.activateWindow()
+        self.app.processEvents()
+        if self.app.activeWindow() is not self.win:
+            self.skip('gizmo keys G, R, T, W and comma', 'the program is not the active window on this PC')
+            return
+        seen = []
+        for key, text, want in ((Qt.Key.Key_R, 'r', 'rotate'), (Qt.Key.Key_T, 't', 'both'), (Qt.Key.Key_W, 'w', 'free'),
+                                (Qt.Key.Key_G, 'g', 'move')):
+            self._key(wb, key, text)
+            seen.append(v.gizmo_mode == want and wb.gizmo_seg.currentRouteKey() == want)
+        self.check('gizmo keys: R turn, T both, W none, G move (the header follows)', all(seen), str(seen))
+        wb.set_gizmo_space('global')
+        order = []
+        for _ in range(3):
+            self._key(wb, Qt.Key.Key_Comma, ',')
+            order.append(v.gizmo_space)
+        self.check('gizmo key comma: Global, Local, Gun in turn', order == ['local', 'gun', 'global'], str(order))
+
+    def s_gizmo_free(self):
+        """Free (no gizmo): nothing to take; dragging the hand itself still moves it freely, as before. And a clean picture
+        leaves the gizmo out, and puts it back."""
+        wb, s = self.wb, self.wb.scene
+        r = self._gizmo_ready('free')
+        v = wb.view
+        cam = v.camera()
+        c = s.right.drawn_position()
+        sc = cam.project(c)
+        none = r is None and v.gizmo_hit(QPointF(*sc).toPoint()) is None
+        # The hand dragged by its own body (a point of the glove under the pointer), 3 cm to the right on screen.
+        hit = v.pick(QPointF(*sc).toPoint())
+        moved = 0.0
+        if hit is not None and hit[0] == 'hand' and hit[1] is s.right:
+            p0 = s.right.position.copy()
+            self._drag([tuple(sc), tuple(sc + np.array([15.0, 0])), tuple(sc + np.array([30.0, 0]))])
+            moved = float(np.linalg.norm(s.right.position - p0))
+            wb.undo()
+        self.check('gizmo Free: no gizmo to take, and dragging the hand itself still moves it', none and moved > 0.001,
+                   f'gizmo hit {not none}, the hand moved {moved * 100:.2f} cm')
+        wb.set_gizmo_mode('move')
+        drawn = []
+        real = v._draw_gizmo
+        v._draw_gizmo = lambda *a: (drawn.append(1), real(*a))
+        try:
+            wb._grab_view(True)
+            in_clean = len(drawn)
+            wb._grab_view(False)
+            in_plain = len(drawn) - in_clean
+        finally:
+            v._draw_gizmo = real
+        self.check('a clean picture draws no gizmo (a plain one does), and the gizmo is back after it',
+                   in_clean == 0 and in_plain > 0 and v.show_gizmo and v.show_axes, f'clean {in_clean}, plain {in_plain}')
 
     def s_put_hand(self):
         """A hand put on a surface of the gun (the point a ray from above finds, as the laser would): the palm lands within

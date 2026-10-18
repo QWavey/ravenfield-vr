@@ -1,11 +1,12 @@
 """The 3D view: an OpenGL 3.3 renderer for the exported weapon and the two gloves, with an orbit camera, picking and
 dragging (move a hand in the view's plane; Shift turns it; Ctrl + drag moves the gun, Ctrl + Shift + drag turns it about
-its grip)."""
+its grip), and Blender's transform gizmos on the selected hand or the gun (gizmo.py): arrows, plane squares and rings."""
 import ctypes
 import math
 
 import numpy as np
 from OpenGL import GL
+import gizmo as gz
 from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QSurfaceFormat
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
@@ -183,8 +184,11 @@ class Viewport(QOpenGLWidget):
     drag_finished = pyqtSignal(object)  # the hand's drag ended: its job is worked out now, once
     weapon_moved = pyqtSignal()  # the gun moved or turned: the hands on it went along
     drag_started = pyqtSignal()  # a hand or the gun is about to be moved (an undo step)
+    drag_cancelled = pyqtSignal()  # a gizmo drag taken back (Esc or a right click): its undo step is not needed
     context = pyqtSignal(QPoint)
     hovered = pyqtSignal(str)
+    gizmo_info = pyqtSignal(str)  # what a gizmo drag moves and how far ('' when it ends)
+    gizmo_target_changed = pyqtSignal(str)  # 'hand' or 'gun': what the gizmo is on
 
     def __init__(self, scene, parent=None):
         fmt = QSurfaceFormat()
@@ -216,6 +220,18 @@ class Viewport(QOpenGLWidget):
         self._drag = None
         self._ready = False
         self.background = (0.22, 0.235, 0.26)
+        # The transform gizmo (Blender's): on the selected hand or on the gun. Free: none (drag the hand itself, as before;
+        # that still works with every gizmo).
+        self.gizmo_mode = 'move'  # gizmo.MODES
+        self.gizmo_space = 'global'  # gizmo.SPACES: the world's axes, the hand's own (or the gun's), the gun's
+        self.gizmo_target = 'hand'
+        self.gizmo_snap = False  # snap without Ctrl (Ctrl then moves freely), as Blender's magnet
+        self.show_gizmo = True  # off for clean pictures
+        self.show_axes = True  # the corner key of the world's axes (off for clean pictures too)
+        self._drag_start = None  # what a drag began from: (hand, position, rotation) or the gun's place
+        self._eat_release = None  # the button whose release ends a cancel (a right click: no menu after it)
+        self.gizmo_hover = None
+        self._gz = None  # the gizmo drag going on: _GizmoDrag
 
     # ---- GL setup -----------------------------------------------------------------------------------------------
 
@@ -342,13 +358,15 @@ class Viewport(QOpenGLWidget):
         eye = self.eye()
         draws_opaque, draws_blend = [], []
         w = self.scene.weapon
+        # The gun faintly lit while the gizmo is on it (its grip is where the right hand is: else the two look the same).
+        gun_on = (0.07, 0.05, 0.0) if self.show_gizmo and self.gizmo_target == 'gun' and self.gizmo_mode != 'free' else (0.0, 0.0, 0.0)
         if w is not None:
             for node in w.nodes:
                 if node.hidden or node.away:
                     continue
                 model = w.node_matrix(node)
                 nm = _normal_matrix(model)  # once per part, not once per mesh of it
-                tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else (0.0, 0.0, 0.0)
+                tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else gun_on
                 if self.scene.highlight_role and node.role == self.scene.highlight_role:
                     tint = (0.05, 0.1, 0.22)
                 for g in self._gpu_nodes.get(id(node), []):
@@ -377,7 +395,10 @@ class Viewport(QOpenGLWidget):
             GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_CULL_FACE)
         self._lines(vp)
-        self._axis_gizmo(view)
+        if self.show_gizmo:
+            self._draw_gizmo(view, proj)
+        if self.show_axes:
+            self._axis_gizmo(view)
 
     def _draw(self, g, model, nm, vp, tint, mirrored):
         loc = self.lit_loc
@@ -430,6 +451,193 @@ class Viewport(QOpenGLWidget):
             GL.glDrawArrays(GL.GL_LINES, 0, len(data))
             GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
+
+    # ---- the transform gizmo -------------------------------------------------------------------------------------------
+
+    def _px_at(self, p):
+        """Metres per screen pixel at a point (the same everywhere in the orthographic view)."""
+        if getattr(self, 'ortho', False):
+            return self._px_scale(self.dist)
+        forward = -self.view_matrix()[2, :3]
+        return self._px_scale(max(0.01, float(np.dot(np.asarray(p) - self.eye(), forward))))
+
+    def camera(self, view=None, proj=None):
+        view = self.view_matrix() if view is None else view
+        proj = self.proj_matrix() if proj is None else proj
+        return gz.Camera(self.eye(), view, proj, self.width(), self.height(), getattr(self, 'ortho', False), self._px_at)
+
+    def editing(self):
+        """A hand or the gun is being dragged (by the gizmo or freely): keys and the wheel leave the scene alone then."""
+        return self._drag is not None and self._drag[0] in ('gizmo', 'move', 'turn', 'gun_move', 'gun_turn')
+
+    def gizmo_space_shown(self):
+        """The axes the gizmo shows, by name: on the gun, Local is the gun's own axes."""
+        return 'gun' if self.gizmo_target == 'gun' and self.gizmo_space != 'global' else self.gizmo_space
+
+    def gizmo_frame(self):
+        """(centre, axes as the columns of a 3x3) of the gizmo now, or None when it has nothing to act on. On a hand (the
+        selected one, else the right one, as the panels): its palm centre as drawn, on the glove (a hand settled on the gun is
+        drawn up to 2 cm off its place; a gizmo drag first takes the drawn place as its place, so nothing jumps: see
+        _start_gizmo); on the gun: its grip (it turns about it, as Ctrl + Shift + drag does)."""
+        if self.gizmo_mode not in ('move', 'rotate', 'both'):
+            return None
+        w = self.scene.weapon
+        gun_axes = w.P[:3, :3].copy() if w is not None else np.eye(3)  # along the barrel, up, the right side
+        if self.gizmo_target == 'gun':
+            if w is None:
+                return None
+            return w.to_world(w.grip), (np.eye(3) if self.gizmo_space == 'global' else gun_axes)
+        h = self.selected_hand or self.scene.right
+        if self.gizmo_space == 'local':
+            axes = quat_to_mat3(h.rotation)
+        elif self.gizmo_space == 'gun':
+            axes = gun_axes
+        else:
+            axes = np.eye(3)
+        return h.drawn_position().copy(), axes
+
+    def gizmo_hit(self, pos):
+        f = self.gizmo_frame()
+        if f is None:
+            return None
+        return gz.hit(self.camera(), f[0], f[1], self.gizmo_mode, pos.x(), pos.y())
+
+    def _draw_gizmo(self, view, proj):
+        f = self.gizmo_frame()
+        if f is None:
+            return
+        cam = self.camera(view, proj)
+        g = self._gz
+        pieces = gz.build(cam, f[0], f[1], self.gizmo_mode, None if g else self.gizmo_hover, g.drag if g else None)
+        if not pieces:
+            return
+        GL.glDisable(GL.GL_DEPTH_TEST)  # over the gun and the hands, always
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glUseProgram(self.flat)
+        GL.glUniformMatrix4fv(self.flat_loc['uMVP'], 1, GL.GL_TRUE, np.eye(4, dtype=np.float32))
+        GL.glBindVertexArray(self.line_vao)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.line_vbo)
+        for tris, rgba in pieces:
+            if len(tris) == 0:
+                continue
+            ndc = np.column_stack([tris[:, 0] / cam.w * 2.0 - 1.0, 1.0 - tris[:, 1] / cam.h * 2.0, np.zeros(len(tris))])
+            GL.glUniform4f(self.flat_loc['uColor'], *rgba)
+            for k in range(0, len(ndc), 4095):  # (the buffer holds 4096 points: whole triangles of them)
+                chunk = np.ascontiguousarray(ndc[k:k + 4095], dtype=np.float32)
+                GL.glBufferSubData(GL.GL_ARRAY_BUFFER, 0, chunk)
+                GL.glDrawArrays(GL.GL_TRIANGLES, 0, len(chunk))
+        GL.glBindVertexArray(0)
+        GL.glDisable(GL.GL_BLEND)
+        GL.glEnable(GL.GL_DEPTH_TEST)
+
+    def set_gizmo_target(self, target):
+        if target != self.gizmo_target:
+            self.gizmo_target = target
+            self.gizmo_hover = None
+            self.gizmo_target_changed.emit(target)
+            self.update()
+
+    def _start_gizmo(self, handle, pos):
+        if self.gizmo_frame() is None:
+            return False
+        # One undo step for the drag (dropped again when it changes nothing); a reload still playing is run to its end
+        # first (the Workbench), so the frame is taken after it.
+        self.drag_started.emit()
+        hand = (self.selected_hand or self.scene.right) if self.gizmo_target == 'hand' else None
+        if hand is not None and not np.allclose(hand.drawn_position(), hand.position, atol=1e-12):
+            # The glove settled onto the gun is drawn off its place: the drag starts from where it is seen (the gizmo is
+            # there), so neither jumps on the first move; a cancel puts the place and the settle back (the undo step).
+            hand.position = hand.drawn_position().copy()
+            hand.settle = np.zeros(3)
+            hand._settled_at = None
+        f = self.gizmo_frame()
+        if f is None:
+            return False
+        cam = self.camera()
+        ring_r, _ = gz.sizes(self.gizmo_mode)
+        drag = gz.Drag(cam, handle, f[0], f[1], pos.x(), pos.y(), ring_r or gz.ROT_R)
+        self._gz = _GizmoDrag(drag, hand, self.scene.weapon)
+        self._drag = ('gizmo',)
+        self.gizmo_hover = handle
+        self.update()
+        return True
+
+    def _gizmo_move(self, pos, mods):
+        g = self._gz
+        fine = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+        snap = bool(mods & Qt.KeyboardModifier.ControlModifier) != self.gizmo_snap  # Ctrl snaps; with the magnet on it frees
+        step = g.drag.follow(pos.x(), pos.y(), fine)
+        if not step.any():
+            return
+        cam = self.camera()
+        kind = g.drag.handle[0]
+        space = self.gizmo_space_shown()
+        if kind in ('axis', 'plane', 'view'):
+            moved = g.drag.move(cam, snap)
+            self._gizmo_apply(moved=moved)
+            self.gizmo_info.emit(gz.describe(g.drag, space, moved))
+        elif kind in ('ring', 'vring'):
+            g.drag.turn(cam, snap)
+            self._gizmo_apply(turn=g.drag.angle)
+            self.gizmo_info.emit(gz.describe(g.drag, space))
+        else:  # the trackball: free, as Shift + drag on a hand, from where it began (so Ctrl snaps it too)
+            yaw, pitch = g.drag.ball_turn(snap)
+            q = quat_mul(quat_axis_angle(g.drag.cam_up, yaw), quat_axis_angle(g.drag.cam_right, pitch))
+            self._gizmo_apply(free=q)
+            self.gizmo_info.emit(gz.describe(g.drag, space))
+
+    def _gizmo_apply(self, moved=None, turn=None, free=None):
+        """The hand or the gun put where the drag has taken it, from where it began (nothing drifts)."""
+        g = self._gz
+        if g.hand is not None:
+            h = g.hand
+            if moved is not None:
+                h.position = g.p0 + moved
+            elif turn is not None:
+                h.rotation = quat_norm(quat_mul(quat_axis_angle(g.drag.axis, turn), g.q0))
+            else:
+                h.rotation = quat_norm(quat_mul(free, g.q0))
+            g.changed |= not (np.allclose(h.position, g.p0, atol=1e-12) and np.allclose(h.rotation, g.q0, atol=1e-12))
+            self.changed.emit(h)
+            return
+        if g.weapon is None or g.weapon is not self.scene.weapon:
+            return
+        if moved is not None:
+            want = np.eye(4)
+            want[:3, 3] = moved
+        elif turn is not None:
+            want = _about(g.drag.c0, quat_to_mat3(quat_axis_angle(g.drag.axis, turn)))
+        else:
+            want = _about(g.drag.c0, quat_to_mat3(free))
+        self.scene.move_weapon(want @ np.linalg.inv(g.applied))  # (the hands on it go along)
+        g.applied = want
+        g.changed |= not np.allclose(want, np.eye(4), atol=1e-12)
+        self.weapon_moved.emit()
+
+    def cancel_gizmo(self):
+        """Esc or a right click while a gizmo drag goes on: everything back where the drag began. The place here; the rest
+        (the part the hand was on, its job: a drag clears them) from the undo step the drag's start kept (drag_cancelled)."""
+        g = self._gz
+        if g is None:
+            return False
+        if g.hand is not None:
+            g.hand.position, g.hand.rotation = g.p0.copy(), g.q0.copy()
+        elif g.weapon is not None and g.weapon is self.scene.weapon:
+            self.scene.move_weapon(np.linalg.inv(g.applied))
+        self._gz = None
+        self._drag = None
+        self._drag_start = None
+        self.gizmo_hover = None
+        self.gizmo_info.emit('')
+        self.drag_cancelled.emit()
+        self.update()
+        return True
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key.Key_Escape and self.cancel_gizmo():
+            return
+        super().keyPressEvent(e)
 
     def _axis_gizmo(self, view):
         """A small key in the bottom-left corner: the world's X (red), Y (green) and Z (blue) axes, turning as the view turns
@@ -514,6 +722,13 @@ class Viewport(QOpenGLWidget):
     # ---- mouse -----------------------------------------------------------------------------------------------------
 
     def mousePressEvent(self, e):
+        if self._gz is not None:
+            # While a gizmo drag goes on, a right click takes it back (as in Blender), and its release opens no menu; any
+            # other button is left alone (a middle press ended the drag and started a pan; review).
+            if e.button() == Qt.MouseButton.RightButton:
+                self.cancel_gizmo()
+                self._eat_release = Qt.MouseButton.RightButton
+            return
         self._mouse = e.position().toPoint()
         self._press = self._mouse
         self._end_drag()  # (a drag never ended before this press is ended now, its hand worked out)
@@ -521,6 +736,11 @@ class Viewport(QOpenGLWidget):
         ctrl = bool(e.modifiers() & Qt.KeyboardModifier.ControlModifier)
         shift = bool(e.modifiers() & Qt.KeyboardModifier.ShiftModifier)
         if e.button() == Qt.MouseButton.LeftButton:
+            # The gizmo's handles come first (Alt + click stays the laser's); inside its rings (the trackball) only where no
+            # hand is under the pointer: dragging a hand itself moves it freely, as before.
+            handle = None if alt else self.gizmo_hit(self._mouse)
+            if handle is not None and handle != ('ball',) and self._start_gizmo(handle, self._mouse):
+                return
             if self.laser or alt:
                 hit = self.pick(self._mouse, hands=False)
                 if ctrl and hit is not None:
@@ -535,12 +755,18 @@ class Viewport(QOpenGLWidget):
                 if self.selected_hand is not hit[1]:
                     self.selected_hand = hit[1]
                     self.selected.emit(hit[1])
+                self.set_gizmo_target('hand')
                 self.drag_started.emit()
                 self._drag = ('turn' if shift else 'move', hit[1], hit[2])
+                self._drag_start = (hit[1], hit[1].position.copy(), hit[1].rotation.copy())
                 self.update()
                 return
             if ctrl and hit is not None:
                 self._start_gun_drag(hit, shift)
+                return
+            # The trackball only where nothing is under the pointer: a press on the gun inside the rings looks around, as
+            # before (it turned the hand; review).
+            if handle == ('ball',) and hit is None and self._start_gizmo(handle, self._mouse):
                 return
             self._drag = ('orbit',)
         elif e.button() == Qt.MouseButton.RightButton:
@@ -551,6 +777,8 @@ class Viewport(QOpenGLWidget):
     def _start_gun_drag(self, hit, shift):
         """Ctrl + drag on the gun: it moves in the view's plane; with Shift it turns about its grip. One undo step per drag."""
         self.drag_started.emit()
+        w = self.scene.weapon
+        self._drag_start = ('gun', w.P.copy()) if w is not None else None
         if shift:
             self._drag = ('gun_turn',)
         else:
@@ -561,10 +789,33 @@ class Viewport(QOpenGLWidget):
 
     def _end_drag(self):
         """Ends the drag. A hand that was moved is reported once (drag_finished): its job is worked out then, not on every
-        move."""
+        move. A drag that changed nothing (a click on a hand, a handle or Ctrl + click on the gun) leaves no undo step and
+        keeps the hand's part and job (drag_cancelled: they went back to the step its start kept; review)."""
         drag, self._drag = self._drag, None
-        if drag is not None and drag[0] in ('move', 'turn'):
-            self.drag_finished.emit(drag[1])
+        start, self._drag_start = self._drag_start, None
+        if drag is None:
+            return
+        kind = drag[0]
+        if kind in ('move', 'turn'):
+            h = drag[1]
+            same = start is not None and start[0] is h and np.allclose(h.position, start[1], atol=1e-12) \
+                and np.allclose(h.rotation, start[2], atol=1e-12)
+            if same:
+                self.drag_cancelled.emit()
+            else:
+                self.drag_finished.emit(h)
+        elif kind in ('gun_move', 'gun_turn'):
+            w = self.scene.weapon
+            if start is not None and w is not None and np.allclose(w.P, start[1], atol=1e-12):
+                self.drag_cancelled.emit()
+        elif kind == 'gizmo':
+            g, self._gz = self._gz, None
+            self.gizmo_hover = None
+            if g is not None and not g.changed:
+                self.drag_cancelled.emit()
+            elif g is not None and g.hand is not None:
+                self.drag_finished.emit(g.hand)  # (its job worked out once, as after a free drag)
+            self.gizmo_info.emit('')
 
     def _set_pick(self, hit):
         if hit is None or hit[0] != 'node':
@@ -588,6 +839,12 @@ class Viewport(QOpenGLWidget):
         if self._drag is not None and e.buttons() == Qt.MouseButton.NoButton:
             self._end_drag()  # (the release was lost, outside the window: plain moves no longer drag)
         if self._mouse is None or self._drag is None:
+            handle = self.gizmo_hit(pos) if self._drag is None else None
+            if handle == ('ball',) and (self.laser or self.pick(pos) is not None):
+                handle = None  # (the trackball lit only where a press starts it: off the hand and the gun)
+            if handle != self.gizmo_hover:
+                self.gizmo_hover = handle
+                self.update()
             if self.laser or e.modifiers() & Qt.KeyboardModifier.AltModifier:
                 hit = self.pick(pos, hands=False)
                 node = hit[1] if hit else None
@@ -604,7 +861,9 @@ class Viewport(QOpenGLWidget):
         dx, dy = pos.x() - self._mouse.x(), pos.y() - self._mouse.y()
         self._mouse = pos
         kind = self._drag[0]
-        if kind == 'orbit':
+        if kind == 'gizmo':
+            self._gizmo_move(pos, e.modifiers())
+        elif kind == 'orbit':
             self.yaw -= dx * 0.4
             self.pitch = max(-89.0, min(89.0, self.pitch + dy * 0.4))
         elif kind == 'pan':
@@ -647,6 +906,9 @@ class Viewport(QOpenGLWidget):
         self.update()
 
     def leaveEvent(self, e):
+        if self.gizmo_hover is not None and self._gz is None:
+            self.gizmo_hover = None
+            self.update()
         if self.hover_node is not None:
             self.hover_node = None
             self.hovered.emit('')
@@ -654,6 +916,9 @@ class Viewport(QOpenGLWidget):
         super().leaveEvent(e)
 
     def mouseReleaseEvent(self, e):
+        if self._eat_release is not None and e.button() == self._eat_release:
+            self._eat_release = None  # (the release of the right click that took a gizmo drag back: no menu)
+            return
         moved = self._press is not None and (e.position().toPoint() - self._press).manhattanLength() > 3
         if e.button() == Qt.MouseButton.RightButton and not moved:
             if self.laser or e.modifiers() & Qt.KeyboardModifier.AltModifier:
@@ -661,11 +926,16 @@ class Viewport(QOpenGLWidget):
                 self._mouse = e.position().toPoint()
                 self._set_pick(self.pick(self._mouse, hands=False))
             self.context.emit(e.globalPosition().toPoint())
+        if (e.button() == Qt.MouseButton.LeftButton and not moved and self._drag is not None
+                and self._drag[0] in ('gun_move', 'gun_turn')):
+            self.set_gizmo_target('gun')  # Ctrl + click on the gun: the gizmo on it (a click on a hand puts it back there)
         # (A click on the gun or on nothing keeps the selected hand: dropping it left the controls editing the right hand.)
         self._end_drag()
         self.update()
 
     def wheelEvent(self, e):
+        if self.editing():
+            return  # (zoomed while dragging, the part jumped: the drag measures from where the camera stood)
         dy = e.angleDelta().y()
         if dy == 0:
             return  # a sideways scroll does not zoom
@@ -673,6 +943,27 @@ class Viewport(QOpenGLWidget):
         f = 0.9 ** (dy / 120) if dy > 0 else 1.1 ** (-dy / 120)
         self.dist = max(0.05, min(8.0, self.dist * f))
         self.update()
+
+
+class _GizmoDrag:
+    """A gizmo drag: the Drag (gizmo.py), the hand it moves (or None: the gun), and where it began."""
+
+    def __init__(self, drag, hand, weapon):
+        self.drag = drag
+        self.hand = hand
+        self.weapon = weapon
+        self.p0 = hand.position.copy() if hand is not None else None
+        self.q0 = hand.rotation.copy() if hand is not None else None
+        self.applied = np.eye(4)  # the gun: the move given to it so far (taken back by a cancel)
+        self.changed = False  # anything moved or turned yet (a click alone leaves no undo step)
+
+
+def _about(pivot, rot3):
+    """A 4x4 turn by rot3 about a point (the point stays)."""
+    m = np.eye(4)
+    m[:3, :3] = rot3
+    m[:3, 3] = np.asarray(pivot) - rot3 @ np.asarray(pivot)
+    return m
 
 
 def _surface_normal(m, tri, d, o, p):

@@ -428,7 +428,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 254. [ ] PRIORITY REGRESSION (cause found and fixed 2026-10-16 23:50, to check in the headset: in HeldWeapon.ApplyPartOverrides the slide's 'home once' else-block was left hanging off the new 'if (boltAlone) ... else if (_boltMoved)' (8bf8e78), so it ran every frame and sent the slide / handle home in the same frame it was moved: no slide, bolt or handle could be pulled back by hand; the gun's own fire animation still moved them). The handles that still moved in that build were the mod's added knobs / cut pieces (their offset is set after the broken block), and the bolt behind them did not move because the block reset it: the same cause. The added knob now sits on the surface (1 mm, was 4 mm). Also reported the same night: assault rifles the same; RECOIL mostly gone on most weapons; RPGs held a little wrongly. Not explained by the else-block (no shot drives SlideOffset). Leads for recoil: compare a shot's PeakKick / PeakBack in the autotest's recoil lines with the 21:15 run (one hand ~8 deg, two hands ~4 deg on pistols); the analysis change for long guns whose animation's left hand was behind the grip (they are no longer 'pistols': Handling, Supported, the two-hand steer); the launcher hold steadied as through a 3x sight and its damped spring (01556f6); for the RPGs also the new forend support point turning a two-handed launcher toward the support hand.  (user, 2026-10-16 23:40, headset, build c861225a / a77a980): almost all pistols' slides can no longer be pulled back by hand (the slide still moves when fired, but a hand on the slide pulling moves nothing). Caused by tonight's 252 changes (the 22:30 build could pull them). Also: some charging handles can now be pulled but stand out of the gun a little too far, and the bolt inside does not move with them. Plan: first thing next session: rack check on a handful of pistols (RackGripSelfCheck: "drawn: N part(s) move"), the log for exceptions while racking, then bisect the 252 commits (8bf8e78 slides/handles/magwell, 01556f6, 2a81eaa line fit, 1035a95 pump, 73965c8 support trigger, 75638b2 bash, 38965e9 T handle) if not obvious. Suspects to check first: the grab choice between the slide (rack) and the pistol cup now that the cup runs SupportTrigger every frame; BoltLockedAlone / the BoltPath of the "charging handle carrying the bolt" rule if it caught pistols (the slide part becoming a parent and the real slide its "bolt"); an exception in HeldWeapon.Update / BeforeRender (LeaveEmptyPose, TurnEmittersForward, FitMagazineLine, Bash) stopping ApplyPartOverrides; LeaveEmptyPose cross-fading the animator into a state that drives the slide every frame. The handles standing out: the added T latch (BoltPiece, 4 mm off the surface) and the carried bolt not moving (BoltPath only moves when locked).
 255. [ ] 30 Haiku agents (20 hunters: performance, bugs, improvements; 10 skeptics), 2026-10-17 morning: 91 confirmed (47 bugs, 31 performance, 13 improvements), 20 refuted; list under "For 255"
 256. [ ] Sandbox (user, 2026-10-17 evening): a real Windows program (not a web page, Windows 11 style) to try hands, poses and reloads on the weapons without opening the game; easy to use, an advanced tab; save poses per weapon (to be read by the mod later), a laser pointer whose right-click copies a part's coordinates; screenshots and GIFs with their path shown. Built (tools/sandbox, README there); see "For 256"
-257. [ ] Floating spare ammunition (user, 2026-10-18: "the 2nd mag floats, this happens to other guns too maybe", seen on the mwii-g17): the reload animation parks a spare magazine, a drum, a belt or a round beside or behind the gun at rest, and the game draws it there while held. Code done (WeaponAnalyzer: the spare rule's bore-line gate only ahead of the grip, and the new ParkedAmmo rule), 44 guns + the mwii-g17 family; the autotest now takes a side picture of each held gun (weapon-side-NNN). To check in the headset; see "For 257"
+257. [x] Floating spare ammunition (user, 2026-10-18: "the 2nd mag floats, this happens to other guns too maybe", seen on the mwii-g17): the reload animation parks a spare magazine, a drum, a belt or a round beside or behind the gun at rest, and the game draws it there while held. Code done (WeaponAnalyzer: the spare rule's bore-line gate only ahead of the grip, and the new ParkedAmmo rule), 44 guns + the mwii-g17 family; the autotest now takes a side picture of each held gun (weapon-side-NNN). Checked in the game with the new side pictures (check-1018a/b, 2026-10-18): nothing floats beside or behind the 21 guns checked; see "For 257"
+258. [ ] Sandbox editor: Blender's transform gizmos (user, 2026-10-18 morning: "we have this in blender to turn things and also the arrows, but also free move as it is now, that's good already"): arrows, plane squares and a centre circle to move, axis rings, a white view ring and a trackball to turn, on the selected hand or on the gun; Global / Local / Gun axes, Ctrl snap, Shift fine, Esc / right click cancel; free dragging kept. Done in tools/sandbox/app/gizmo.py + viewport.py + main.py (header over the view, keys W/G/R/T, comma); reviewed by 9 read-only Haiku agents and fixed; self-test 86/86 (HK416-A) and
+82/82 (GLOCK 43X); see "For 258"
 
 ## Notes
 
@@ -1984,6 +1986,53 @@ Refuted: WeaponAnalyzer.cs:1205 Bolt-carrying handle racked at bounds centre, sk
   '12_guage_loader' 7 cm, R870 '12_guage' 20 cm): the magazine's seat is taken from where it rests, so a seated shell may be
   drawn there; ARS Glock 19 'Glock_ThirdPerson' 19 cm off; FNX-45 [RDS] 'Sight (1)', a 16 cm square plane 27 cm ahead.
   Check-1018a (VR, the new side pictures) is for these.
+- Checked in the game (2026-10-18 morning, VR null driver, the autotest's new weapon-side-NNN picture: the held gun from
+  its side, 1.3 m off): check-1018a (HK416, HK416-A, M417A2, FNX-45, BRN180 L, R870, M1014, 76 EAGLE, ARS Glock 19) and
+  check-1018b (mwii-g17, PATRIOT GL, 9 QJB201 variants): no spare magazine, drum, belt or round beside or behind any of
+  them; the mwii-g17's spare (the user's) is gone; the shotguns' chosen shells and the Glock's third-person mesh do not
+  show either; the PATRIOT GL's grenade stays in its launcher. (What shows in those pictures besides the gun: the
+  player's holstered loadout and the magazines the test dropped.)
+
+### For 258: the sandbox's transform gizmos (2026-10-18)
+
+- gizmo.py (numpy only, no GL): Camera (projection, rays, metres per pixel), build() (screen-space triangles: arrows with
+  heads, plane squares, the centre circle, the axis rings' front halves, the white view ring, the trackball sphere; while
+  dragging only the handle taken, with the axis line or the angle's pie), hit() (the centre first, then the nearest line
+  within 7 px; the trackball last), Drag (axis: the ray's nearest point on the axis line; plane: the ray on the plane;
+  ring: the angle in the ring's own plane, so a drag along a tilted ring turns exactly as far as the ring shows; nearly
+  edge-on rings turn by the drag along their near side; Shift a tenth, Ctrl 1 cm / 5 degrees, 1 mm / 1 degree with Shift;
+  a move never more than 1.5 m).
+- viewport.py: the handles come before the hand's body (whose free drag stays), the trackball only where no hand is under
+  the pointer; Ctrl + click on the gun puts the gizmo on the gun (at its grip, the gun faintly lit); the moves are applied
+  from the drag's start (no drift); Esc or a right click takes a drag back and drops its undo step.
+- main.py: the header over the view (Free / Move / Turn / Move + turn, Axes, Snap, On Hand / Gun), keys W G R T and comma,
+  the choice remembered (not by the self-test); the readout at the top left while dragging; clean pictures leave the gizmo
+  out. Help, the hints and tools/sandbox/README.md say how.
+- Checked: 184 headless math checks (5 views incl. orthographic and edge-on rings, global and turned axes); self-test
+  86/86 on HK416-A, 82/82 on GLOCK 43X, with 29 gizmo checks driven by real mouse events, measured against the whole
+  pixels the view gets (arrow along X only, Ctrl snap 2.7 -> 3 cm, the YZ square in its plane, the Z ring 30 degrees
+  about Z with the glove kept in place, snapped 31.7 -> 30, Esc and right click take the drag back with the hand's part
+  and job and no undo step and no menu, a click alone leaves no undo step and keeps the redo history, the wheel during a
+  drag does not zoom, local axes, the gizmo on the gun moves it with the hands and the laser pick, keys, Free keeps the
+  free drag, a clean picture draws no gizmo).
+- Review (2026-10-18, 4 Haiku finders: math, view, app, Blender; a Haiku skeptic per finder; a completeness critic). Fixed:
+  a right click that cancels opened the context menu; on a settled hand the gizmo sat on the glove but the drag moved the
+  place (a 2 cm jump, the axis line off): a gizmo drag now takes the drawn place first, so neither jumps (the critic
+  preferred the gizmo on the glove over the place); a cancel left the hand's part and job cleared (now the drag's undo
+  step is restored); a click on a handle, a hand or Ctrl + click on the gun left an undo step that changed nothing and
+  cleared the snap, and wiped the redo history; keys (1, 2, gizmo keys, Ctrl+Z, O, F), the wheel and a middle press during
+  a drag changed what it measured from; the trackball took presses on the gun inside the rings (now only where nothing is
+  under the pointer, lit only there) and ignored Ctrl (now it turns from where it began and snaps); a Ctrl-snapped move in
+  the view's plane left the plane; an arrow dragged past its vanishing point threw the hand behind the eye, a plane near
+  its horizon spiked to 1.5 m; edge-on rings turned 5 % too far; arrows drawn faded could not be taken; the hover light
+  stayed after a drag; the gun's Local axes were named X, Y, Z; a plane square was named by its plane, not its colour;
+  rings were built in Python loops (now numpy, and hit tests stop far from the gizmo); clean pictures kept the corner axis
+  key; a drag during a reload fought the timeline (now the reload is run to its end first); a laser pick stayed where the
+  gun had been; the self-test could read the user's saved repository setting; three self-test checks could pass while
+  the feature was broken.
+- Not done, with reasons: W / G / R / T kept (W for no gizmo matches Blender's default keymap, where W is the select tool;
+  G and R its move and rotate); a modal G / R grab with X / Y / Z constraint keys (Blender's operators) is a possible next
+  step, not asked for (the user asked for the arrows and rings).
 
 ### For 255: 30 read-only Haiku agents (20 hunters for performance, bugs and improvements, 10 skeptics) on 2026-10-17 morning
 

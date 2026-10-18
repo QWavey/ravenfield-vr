@@ -19,8 +19,8 @@ from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon, QImage, QKeySe
 from PyQt6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListView, QListWidgetItem, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, ComboBox, DoubleSpinBox, FluentIcon as FIF, FluentWindow,
                             InfoBar, InfoBarPosition, LineEdit, MessageBox, ListWidget, NavigationItemPosition, Pivot, PlainTextEdit, PrimaryPushButton,
-                            PushButton, RoundMenu, SearchLineEdit, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel, SwitchButton,
-                            Theme, TitleLabel, TogglePushButton, setTheme, setThemeColor)
+                            PushButton, RoundMenu, SearchLineEdit, SegmentedWidget, Slider, SmoothScrollArea, StrongBodyLabel, SubtitleLabel,
+                            SwitchButton, Theme, TitleLabel, TogglePushButton, setTheme, setThemeColor)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -42,6 +42,8 @@ def find_repo():
             if os.path.exists(os.path.join(d, 'src', 'Rig', 'Glove', 'glove.bin')):
                 return d
             d = os.path.dirname(d)
+    if '--selftest' in sys.argv:
+        return None  # (the self-test never reads the user's settings)
     saved = QSettings('RavenfieldVR', 'Sandbox').value('repo', '')
     return saved if saved and os.path.exists(os.path.join(saved, 'src', 'Rig', 'Glove', 'glove.bin')) else None
 
@@ -230,6 +232,8 @@ class Workbench(QWidget):
         viewbox = QWidget()
         vv = QVBoxLayout(viewbox)
         vv.setContentsMargins(4, 10, 10, 10)
+        vv.setSpacing(6)
+        vv.addWidget(self._gizmo_bar())
         vv.addWidget(self.view, 1)
         h.addWidget(viewbox, 1)
 
@@ -250,11 +254,15 @@ class Workbench(QWidget):
         self.view.picked.connect(self.on_pick)
         self.view.selected.connect(self.on_select)
         self.view.changed.connect(self.on_hand_moved)
-        self.view.drag_started.connect(self.push_undo)
+        self.view.drag_started.connect(self._drag_starting)
         self.view.context.connect(self.on_context)
         self.view.hovered.connect(lambda s: (self.hover.setText(s), self.hover.adjustSize()))
         self.view.drag_finished.connect(self._moved)  # a hand's job is worked out when its drag ends, not on every move
         self.view.weapon_moved.connect(self.sync_numbers)  # the gun moved: the numbers of the hand shown follow
+        self.view.weapon_moved.connect(self._pick_follows_gun)
+        self.view.drag_cancelled.connect(self._drag_cancelled)
+        self.view.gizmo_info.connect(self._gizmo_info)
+        self.view.gizmo_target_changed.connect(lambda t: self.gizmo_on.setCurrentItem(t))
         # Weapons chosen in quick succession (the arrow keys held down) open once the keys pause: see on_weapon_chosen.
         self._open_timer = QTimer(self)
         self._open_timer.setSingleShot(True)
@@ -268,6 +276,100 @@ class Workbench(QWidget):
         self._shortcuts()
 
     # ---- panels ----------------------------------------------------------------------------------------------------
+
+    def _gizmo_bar(self):
+        """The view's header, as Blender's: the transform gizmo (Free, Move, Turn, or both), its axes, snapping, and what it
+        is on (the selected hand, or the gun)."""
+        bar = QWidget()
+        h = QHBoxLayout(bar)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(8)
+        self.gizmo_seg = SegmentedWidget()
+        for key, text, tip in (
+                ('free', 'Free', 'No gizmo (W). Drag a hand to move it, Shift + drag to turn it: that works with every gizmo.'),
+                ('move', 'Move', 'Arrows to move along an axis, squares to move in a plane, the white circle to move in the '
+                                 "view's plane (G). Ctrl snaps to 1 cm, Shift moves finely."),
+                ('rotate', 'Turn', 'Rings to turn about an axis, the white ring to turn about the view, inside the rings to '
+                                   'turn freely (R). Ctrl snaps to 5 degrees, Shift turns finely.'),
+                ('both', 'Move + turn', 'Arrows and rings together (T).')):
+            self.gizmo_seg.addItem(key, text, lambda k=key: self.set_gizmo_mode(k))
+            self.gizmo_seg.widget(key).setToolTip(tip)
+        self.axes_box = ComboBox()
+        self.axes_box.addItems(['Global', 'Local', 'Gun'])
+        self.axes_box.setToolTip("The gizmo's axes (comma cycles them): Global, the world's (red X, green Y, blue Z); Local, "
+                                 "the hand's own (on the gun: the gun's); Gun, the gun's: X along the barrel, Y up, Z its right side.")
+        self.axes_box.currentIndexChanged.connect(lambda i: self.set_gizmo_space(('global', 'local', 'gun')[i]))
+        self.snap_btn = TogglePushButton('Snap')
+        self.snap_btn.setToolTip('Snap gizmo moves to 1 cm and turns to 5 degrees (Shift: 1 mm, 1 degree). Without it, Ctrl '
+                                 'snaps while held; with it, Ctrl moves freely.')
+        self.snap_btn.toggled.connect(self.set_gizmo_snap)
+        self.gizmo_on = SegmentedWidget()
+        self.gizmo_on.addItem('hand', 'Hand', lambda: self.view.set_gizmo_target('hand'))
+        self.gizmo_on.addItem('gun', 'Gun', lambda: self.view.set_gizmo_target('gun'))
+        self.gizmo_on.widget('hand').setToolTip('The gizmo on the selected hand (a click on a hand, or 1 / 2)')
+        self.gizmo_on.widget('gun').setToolTip('The gizmo on the gun, at its grip (or Ctrl + click on the gun). The hands on it go '
+                                               'along; poses are kept in the gun\'s own space, so this only changes the view.')
+        self.gizmo_on.setCurrentItem('hand')
+        h.addWidget(self.gizmo_seg)
+        h.addWidget(CaptionLabel('Axes'))
+        h.addWidget(self.axes_box)
+        h.addWidget(self.snap_btn)
+        h.addWidget(CaptionLabel('Gizmo on'))
+        h.addWidget(self.gizmo_on)
+        h.addStretch(1)
+        # Remembered between runs (not in the self-test, which never reads or writes the user's settings).
+        mode, space, snap = 'move', 'global', False
+        if not self.selftest:
+            mode = str(self.settings.value('gizmoMode', mode) or mode)
+            space = str(self.settings.value('gizmoSpace', space) or space)
+            snap = str(self.settings.value('gizmoSnap', 'false')).lower() == 'true'
+        self.set_gizmo_mode(mode if mode in ('free', 'move', 'rotate', 'both') else 'move')
+        self.set_gizmo_space(space if space in ('global', 'local', 'gun') else 'global')
+        self.snap_btn.setChecked(snap)
+        return bar
+
+    def set_gizmo_mode(self, mode):
+        v = self.view
+        v.gizmo_mode = mode
+        v.gizmo_hover = None
+        if self.gizmo_seg.currentRouteKey() != mode:
+            self.gizmo_seg.setCurrentItem(mode)
+        if not self.selftest:
+            self.settings.setValue('gizmoMode', mode)
+        v.update()
+
+    def set_gizmo_space(self, space):
+        self.view.gizmo_space = space
+        i = ('global', 'local', 'gun').index(space)
+        if self.axes_box.currentIndex() != i:
+            self.axes_box.setCurrentIndex(i)
+        if not self.selftest:
+            self.settings.setValue('gizmoSpace', space)
+        self.view.update()
+
+    def cycle_gizmo_space(self):
+        order = ('global', 'local', 'gun')
+        self.set_gizmo_space(order[(order.index(self.view.gizmo_space) + 1) % 3])
+
+    def set_gizmo_snap(self, on):
+        self.view.gizmo_snap = bool(on)
+        if self.snap_btn.isChecked() != bool(on):
+            self.snap_btn.setChecked(bool(on))
+        if not self.selftest:
+            self.settings.setValue('gizmoSnap', 'true' if on else 'false')
+
+    def _gizmo_info(self, text):
+        """The readout of a gizmo drag, over the view's top left corner (where a part's name shows under the laser)."""
+        self.hover.setText(text)
+        self.hover.adjustSize()
+
+    def _drag_cancelled(self):
+        """A drag taken back (Esc, right click) or one that changed nothing (a click): the scene back to the undo step its
+        start kept, and that step dropped. (Restored, not only dropped: the drag had cleared the part the hand was on and
+        its job; review.)"""
+        if self.undo_stack:
+            self.restore(self.undo_stack.pop())
+            self.redo_stack = list(getattr(self, '_redo_before', []))  # (nothing changed: the redo history stays; review C5)
 
     @staticmethod
     def _scroll(widget):
@@ -288,7 +390,8 @@ class Workbench(QWidget):
 
         # The first thing a new user reads: the steps, and where the rest is explained (Help is the last item of the left bar).
         start = BodyLabel('<b>Start here:</b> pick a weapon, press Hands on the gun, drag a hand to move it (Shift + drag turns '
-                          'it), then Save pose. Help in the left bar explains everything.')
+                          'it) or use the arrows and rings on it (Move / Turn over the view, keys G and R), then Save pose. '
+                          'Help in the left bar explains everything.')
         start.setWordWrap(True)
         start.setTextFormat(Qt.TextFormat.RichText)
         v.addWidget(start)
@@ -333,7 +436,8 @@ class Workbench(QWidget):
             fingers.addWidget(s)
         self.thumb_base = LabeledSlider('Thumb base', self.on_thumb_base, on_press=self.push_undo)
         fingers.addWidget(self.thumb_base)
-        hint = CaptionLabel('Drag a hand to move it, Shift + drag to turn it. Drag elsewhere to look around, right-drag to pan, wheel to zoom.')
+        hint = CaptionLabel('Drag a hand to move it, Shift + drag to turn it; or drag its arrows (move along one axis), squares '
+                            '(in a plane) and rings (turn about one axis). Drag elsewhere to look around, right-drag to pan, wheel to zoom.')
         hint.setWordWrap(True)
         self.hand_label = BodyLabel('Pose of the right hand')
         v.addWidget(card('Hands', on_gun, row(self.sel_right, self.sel_left), CaptionLabel('Left hand to:'), row(*snaps),
@@ -510,18 +614,25 @@ class Workbench(QWidget):
         return p
 
     def _shortcuts(self):
+        def idle(fn):
+            # (Not while a hand or the gun is dragged: 1, 2, the gizmo keys, Ctrl+Z, O and F changed what the drag was
+            # measuring from, and the hand jumped; review.)
+            return lambda: None if self.view.editing() else fn()
         for key, fn in (('L', lambda: self.laser_btn.toggle()), ('F', self.frame_weapon),
                         ('Shift+F', lambda: self.frame_weapon(hands=False)),
                         ('1', lambda: self.select_hand(self.scene.right)), ('2', lambda: self.select_hand(self.scene.left)),
                         ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot),
-                        ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo), ('O', self.view.toggle_ortho)):
-            QShortcut(QKeySequence(key), self, activated=fn)
+                        ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo), ('O', self.view.toggle_ortho),
+                        ('W', lambda: self.set_gizmo_mode('free')), ('G', lambda: self.set_gizmo_mode('move')),
+                        ('R', lambda: self.set_gizmo_mode('rotate')), ('T', lambda: self.set_gizmo_mode('both')),
+                        (',', self.cycle_gizmo_space)):
+            QShortcut(QKeySequence(key), self, activated=idle(fn))
         # Blender-like view keys on the keypad (with Num Lock on). The keypad modifier keeps them apart from the plain 1 and 2
         # keys that select the hands (tested: each key fires only its own shortcut).
         keypad = Qt.KeyboardModifier.KeypadModifier
         for key, name in ((Qt.Key.Key_1, 'side'), (Qt.Key.Key_3, 'front'), (Qt.Key.Key_7, 'top'),
                           (Qt.Key.Key_5, 'three'), (Qt.Key.Key_0, 'three')):
-            QShortcut(QKeySequence(keypad | key), self, activated=lambda n=name: self.view.set_view(n))
+            QShortcut(QKeySequence(keypad | key), self, activated=idle(lambda n=name: self.view.set_view(n)))
 
     # ---- weapons -----------------------------------------------------------------------------------------------------
 
@@ -717,6 +828,7 @@ class Workbench(QWidget):
 
     def select_hand(self, hand):
         self.view.selected_hand = hand
+        self.view.set_gizmo_target('hand')
         self.on_select(hand)
         self.view.update()
 
@@ -1198,7 +1310,14 @@ class Workbench(QWidget):
             return
         self.undo_stack.append(s)
         del self.undo_stack[:-100]
+        self._redo_before = list(self.redo_stack)  # (a drag that changes nothing gives the redo history back)
         self.redo_stack.clear()
+
+    def _drag_starting(self):
+        """A hand or the gun is about to be dragged: a reload or rack still playing is run to its end first (it moved the
+        dragged hand on every tick, and undo then went back to a half-played reload; review C2), then the undo step."""
+        self.settle_timeline()
+        self.push_undo()
 
     def undo(self):
         self.settle_timeline()
@@ -1298,6 +1417,14 @@ class Workbench(QWidget):
 
     def on_pick(self, point, node):
         self.picked_point, self.picked_node = point, node
+        # Kept on the gun too: the gun moved or turned after the pick, Copy coordinates and Put the hand here used the
+        # point where the part had been (review C1).
+        w = self.scene.weapon
+        self._picked_gun = None
+        if point is not None and w is not None:
+            n = self.view.pick_normal
+            self._picked_gun = (w.to_gun(point)[:3].copy(),
+                                np.linalg.inv(w.W[:3, :3]) @ n if n is not None else None)
         if point is None:
             self.readout.hide()
             return
@@ -1308,6 +1435,21 @@ class Workbench(QWidget):
         self.readout.move(12, self.view.height() - self.readout.height() - 12)
         self.readout.show()
         self.readout.raise_()
+
+    def _pick_follows_gun(self):
+        """The gun moved or turned: the laser's point (and its line's end and the surface's normal) go with it."""
+        w = self.scene.weapon
+        held = getattr(self, '_picked_gun', None)
+        if w is None or held is None or self.picked_point is None:
+            return
+        self.picked_point = w.to_world(held[0])
+        v = self.view
+        v.pick_point = self.picked_point
+        if held[1] is not None:
+            n = w.dir_to_world(held[1])
+            v.pick_normal = n / max(1e-12, float(np.linalg.norm(n)))
+        if v.pick_line is not None:
+            v.pick_line = [v.pick_line[0], self.picked_point]
 
     def point_text(self, rich=False):
         w = self.scene.weapon
@@ -1677,14 +1819,14 @@ class Workbench(QWidget):
         return path
 
     # What a clean picture leaves out: the grid, the markers, the laser line, the hover and part highlights and the hand's tint.
-    OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand')
+    OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand', 'show_gizmo', 'show_axes')
     TURN_SECONDS = 4.0  # the turntable GIF: one turn of the view
 
     def _overlays_off(self):
         """Turns the overlays off for a clean picture; returns what they were, for _overlays_back."""
         v = self.view
         saved = {k: getattr(v, k) for k in self.OVERLAYS}
-        v.show_grid, v.show_markers = False, False
+        v.show_grid, v.show_markers, v.show_gizmo, v.show_axes = False, False, False, False
         v.pick_line, v.hover_node, v.part_node, v.selected_hand = None, None, None, None
         return saved
 
@@ -2144,6 +2286,16 @@ class Help(QWidget):
             'it, as for a hand). <b>Hands on the gun</b> puts both hands on it the way the mod holds it. <b>Left hand to</b> puts '
             'the left hand on the handguard, the slide, the magazine or the cover. The laser\'s right-click menu can put a hand on '
             'any part the mod found.</p>'
+            '<p><b>Arrows and rings</b> (as in Blender), chosen over the view: <b>Move</b> (G) puts arrows on the selected hand: '
+            'drag one to move along its axis (red X, green Y, blue Z), a small square to move in its plane, the white circle in '
+            'the middle to move in the view\'s plane. <b>Turn</b> (R) puts rings on it: drag a ring to turn about its axis, the '
+            'white outer ring to turn about the view, inside the rings (off the hand and the gun) to turn freely. <b>Move + '
+            'turn</b> (T) shows both, '
+            '<b>Free</b> (W) none. Dragging the hand itself still moves it freely with any of them. Ctrl snaps (1 cm, 5 degrees), '
+            'Shift is fine (a tenth as fast; with Ctrl, 1 mm and 1 degree), the <b>Snap</b> button snaps without Ctrl. Esc or a '
+            'right click while dragging takes the drag back. <b>Axes</b>: Global (the world\'s), Local (the hand\'s own) or Gun '
+            '(X along the barrel, Y up, Z its right side); the comma key cycles them. <b>On</b>: Hand or Gun (Ctrl + click on the '
+            'gun puts the gizmo on it, a click on a hand back on the hand).</p>'
             '<p><b>Pose</b>: pick one from the list (the weapon\'s own grip and support poses first, then the mod\'s) or drag the '
             'finger sliders. <b>Copy this pose to the other hand</b> is under Advanced.</p>'
             '<p><b>Reload</b> and <b>Rack</b> play the parts the mod moves (the slide by its travel, the magazine along its line, '
@@ -2173,7 +2325,7 @@ class Help(QWidget):
             'the headset) or <b>Test this gun in the game</b> (only when really needed).</p>'
             '<p><b>Problems</b> show a message, and the program goes on. Every error is also written to '
             'reports/sandbox/sandbox-errors.log, with its details.</p>'
-            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns it (the hands on it go along). Keys: 1 / 2 select the right / left hand, F frame the gun and the hands (Shift+F the gun alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z / Ctrl+Y undo / redo.</p>'
+            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns it (the hands on it go along). Keys: 1 / 2 select the right / left hand, G / R / T / W move / turn / both / no gizmo, comma the gizmo axes, Esc takes a gizmo drag back, F frame the gun and the hands (Shift+F the gun alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z / Ctrl+Y undo / redo.</p>'
             '<p><b>Self-test</b>: <code>python tools/sandbox/app/main.py --selftest report.txt --weapon NAME</code> runs the '
             'features as a user would and writes PASS, FAIL or SKIP for each check (add --all to open every exported weapon '
             'once). It saves into a folder of its own: your saved poses and the game copies are never touched.</p>')
@@ -2308,7 +2460,8 @@ def main():
             return
         if is_repo(chosen):
             repo = chosen
-            QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
+            if '--selftest' not in sys.argv:
+                QSettings('RavenfieldVR', 'Sandbox').setValue('repo', repo)
         else:
             QMessageBox.warning(None, APP_NAME, f'{chosen} is not the Ravenfield-VR folder (it has no src\\Rig\\Glove\\glove.bin). '
                                 'Pick the folder again.')

@@ -35,6 +35,17 @@ program does; this file is the longer version.
   on the four parts above.
 - **Move a hand**: drag it. **Turn it**: Shift + drag. **Move or turn the weapon itself**: Ctrl + drag (Shift turns it,
   as for a hand), to look at the grip from another side.
+- **Arrows and rings** (Blender's transform gizmos), chosen in the header over the view:
+  - **Move** (G): arrows on the selected hand. Drag an arrow to move along its axis (red X, green Y, blue Z), a small
+    square to move in its plane, the white circle in the middle to move in the view's plane.
+  - **Turn** (R): rings. Drag a ring to turn about its axis (the front half is drawn, as in Blender), the white outer
+    ring to turn about the view, inside the rings to turn freely (a trackball).
+  - **Move + turn** (T) shows both; **Free** (W) none. Dragging the hand itself still moves it freely with any of them.
+  - **Ctrl** snaps (1 cm, 5 degrees), **Shift** is fine (a tenth as fast; with Ctrl 1 mm and 1 degree); the **Snap**
+    button snaps without Ctrl (Ctrl then moves freely). **Esc** or a right click while dragging takes the drag back.
+  - **Axes**: Global (the world's), Local (the hand's own) or Gun (X along the barrel, Y up, Z its right side); the comma
+    key cycles them. **On**: Hand or Gun; Ctrl + click on the gun puts the gizmo on it (at its grip, the gun faintly lit),
+    a click on a hand puts it back. While dragging, the top left of the view says what moves how far.
 - **Pose**: the list (the weapon's own grip and support poses first, then the mod's poses) or the finger sliders.
   **Copy this pose to the other hand** (Advanced) copies a pose across.
 - **Reload / Rack**: the parts move as the mod moves them (the slide by its travel, the magazine along its line, the
@@ -110,7 +121,8 @@ folder, `reports/sandbox/selftest`: the weapons' saved poses and the game's copi
 ### Keys and mouse
 
 Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns
-it (the hands on it go along). Keys: 1 / 2 select the right / left hand, F frame the gun and the hands (Shift+F the gun
+it (the hands on it go along). Keys: 1 / 2 select the right / left hand, G / R / T / W the move / turn / both / no gizmo,
+comma the gizmo's axes, Esc takes a gizmo drag back, F frame the gun and the hands (Shift+F the gun
 alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save,
 F12 screenshot, Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo.
 
@@ -129,6 +141,7 @@ image plug-in, and PyOpenGL's GLUT and GLE DLLs. The taskbar groups the program 
 |---|---|
 | `app/main.py` | the window (PyQt6 + Fluent widgets), panels, reload timeline, capture, saving, error log, Help |
 | `app/viewport.py` | the OpenGL 3.3 view: drawing, camera, picking, dragging |
+| `app/gizmo.py` | the transform gizmos (arrows, plane squares, rings): their shapes on screen, what the pointer is on, the drag math |
 | `app/scene.py` | the weapon (parts and roles from rig.json, their motion), hands on the gun, coordinates, the pose file |
 | `app/glove.py` | the mod's glove (`src/Rig/Glove/glove.bin`) and its finger poses, built as `HandShape` / `HandModel` / `HandPoses` build them |
 | `app/glb.py` | reads the export's .glb |

@@ -277,6 +277,11 @@ def summary(dest):
 
 
 def main():
+    # (Part names in the summary are often Chinese: printed to a cp1252 console or a redirected log they ended the run with
+    # a UnicodeEncodeError after the pictures were taken.)
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--weapons', action='store_true', help='every weapon: grab pictures and sheets')
     ap.add_argument('--weapon', action='append', default=[], metavar='NAME|ID|mod:TEXT|=NAME', help='one weapon (repeatable)')
