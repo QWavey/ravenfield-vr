@@ -1235,16 +1235,6 @@ class Workbench(QWidget):
             target()
         return (dur, update)
 
-    def _show_parts(self):
-        """The part sliders show the parts as they are now: a reload or rack moves them step by step, so the sliders follow
-        (they kept the values from before it until it ended; real2 I7#2)."""
-        w = self.scene.weapon
-        if w is None:
-            return
-        self.s_slide.set(w.slide)
-        self.s_mag.set(w.mag)
-        self.s_cover.set(w.cover)
-
     def _ease(self, what, to, dur):
         """A step taking one part from where it is at the step's start to `to` (the reload starts from the parts as they are:
         a slider left part way snapped back on the first frame)."""
@@ -1256,7 +1246,7 @@ class Workbench(QWidget):
 
         def update(t):
             w.set_state(**{what: start['v'] + (to - start['v']) * t})
-            self._show_parts()
+            self.sync_sliders()  # (the sliders follow the parts as they move, not only at the end: real2 I7#2)
         return (dur, update, begin)
 
     def _follow_ease(self, hand, target, what, to, dur):
@@ -1285,7 +1275,7 @@ class Workbench(QWidget):
         # locked reload below runs. Only a rig whose slide locks on empty (or en bloc) takes it; the slider is set here.
         if rack and self.empty_sw.isChecked() and (r.get('lockOnEmpty') or r.get('enBloc')):
             w.set_state(slide=1.0)
-            self._show_parts()
+            self.sync_sliders()
         steps = []
         # An empty gun's slide is caught back (lockOnEmpty), and an en-bloc rifle takes its clip only with the bolt back: the
         # reload starts with the slide back, and ends with it released (review I7#2, I7#6).
@@ -1313,7 +1303,7 @@ class Workbench(QWidget):
             def fresh_at(t):
                 w.fresh = w.fresh_matrix(1.0 - t)  # from where its parts wait, on the seat's line (review B2#0, B5#2)
                 w.mag = 1.0 - t
-                self._show_parts()
+                self.sync_sliders()
 
             def fresh_step(t):
                 fresh_at(t)
@@ -1331,7 +1321,7 @@ class Workbench(QWidget):
                 for n in w.nodes:
                     n.away = False  # (a part the user hid stays hidden)
                 w.set_state(mag=0)
-                self._show_parts()
+                self.sync_sliders()
             steps.append((0.05, lambda t: None, seated))
         if cover:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
