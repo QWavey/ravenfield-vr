@@ -1629,7 +1629,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// The line a magazine slides in on, fitted to the gun as it is drawn: from the analysed line, tilted up to 24 degrees
         /// either way in the gun's side plane, the one along which the least of the magazine (its own drawn shape, a third
-        /// to a quarter of the way out down to the whole rail) passes through the gun outside its well. The analysed line
+        /// to a quarter of the way out down to the whole rail) passes through the gun outside its well (a handgun's well is
+        /// its drawn shape, not its box: see <c>shapeWell</c> below). The analysed line
         /// came from the reload animation's pull or the magazine's box and was off on whole families: magazines went into
         /// pistol grips, the HK416-D's and CZ Bren 2's through the trigger guard (user, 2026-10-16: "could be for all
         /// weapons"). Kept only when clearly better (at most 60% of the points through the gun, 3 fewer at least).
@@ -1674,8 +1675,13 @@ namespace RavenfieldVR.Weapons
             Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
             Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
             Vector3 in0 = -d.MagEjectAxis.normalized;
-            // byShape: the well is the magazine's own drawn shape instead of its box (diagnostic, task 270).
-            int Through(Vector3 inGun, bool byShape)
+            // A handgun's well is its magazine's own drawn shape, not its box (task 270, user 2026-10-18: "mags go through the
+            // handle"). The box is wider than the magazine by the rake of its shape (a pistol's 14 degrees), so the grip's walls
+            // lay inside it and never counted: the 1911's box is 6.7 cm deep and covers its grip's walls, so the analysed line
+            // counted 0 through and nothing was corrected (the log: 0/126, best tilt 0 deg) while the magazine went through the
+            // handle. Other guns keep their box.
+            bool shapeWell = d.Handgun;
+            int Through(Vector3 inGun)
             {
                 Vector3 inLocal = (seatInv * inGun).normalized;
                 float half = Mathf.Abs(Vector3.Dot(mb.extents, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
@@ -1687,9 +1693,7 @@ namespace RavenfieldVR.Weapons
                     foreach (Vector3 q in points)
                     {
                         Vector3 p = q - inLocal * back;
-                        // The box is wider than the magazine by the rake of its shape (a pistol's 14 degrees: its rear and front
-                        // walls lie inside it and count as well), so the drawn shape is also counted for comparison.
-                        bool inWell = byShape ? _magVolume.InsideModel(seat.TransformPoint(p)) : well.Contains(p);
+                        bool inWell = shapeWell ? _magVolume.InsideModel(seat.TransformPoint(p)) : well.Contains(p);
                         if (!inWell && _volume.InsideModel(seat.TransformPoint(p)))
                         {
                             hits++;
@@ -1698,7 +1702,7 @@ namespace RavenfieldVR.Weapons
                 }
                 return hits;
             }
-            int before = Through(in0, false), best = before;
+            int before = Through(in0), best = before;
             float bestAngle = 0f;
             // Coarse to fine: every 6 degrees out to 24, then 3 degrees either side of the best.
             for (int step = 1; step <= 4; step++)
@@ -1706,7 +1710,7 @@ namespace RavenfieldVR.Weapons
                 for (int sign = -1; sign <= 1; sign += 2)
                 {
                     float angle = sign * step * 6f;
-                    int hits = Through(Quaternion.AngleAxis(angle, right) * in0, false);
+                    int hits = Through(Quaternion.AngleAxis(angle, right) * in0);
                     if (hits < best)
                     {
                         best = hits;
@@ -1722,7 +1726,7 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                int hits = Through(Quaternion.AngleAxis(angle, right) * in0, false);
+                int hits = Through(Quaternion.AngleAxis(angle, right) * in0);
                 if (hits < best)
                 {
                     best = hits;
@@ -1730,20 +1734,18 @@ namespace RavenfieldVR.Weapons
                 }
             }
             int total = points.Count * 3;
-            // Diagnostic (task 270): the same count by the magazine's own drawn shape, kept line and best tilt alike, so the next
-            // log shows whether the box hid the grip's walls (the 1911 went in "0 through" while the user saw it pass the grip).
-            int shapeBefore = Through(in0, true), shapeBest = Through(Quaternion.AngleAxis(bestAngle, right) * in0, true);
+            string wellBy = shapeWell ? "against its drawn shape" : "against its box";
             // (Also a small tilt that clears it completely: 2 points through the trigger guard and none at 3 degrees was kept on
             // the six CZ Bren 2 BRs and the Q1911, whose magazines the user saw go in through the gun; 2026-10-17.)
             if (bestAngle != 0f && best <= before * 0.6f && (before - best >= 3 || best == 0 && before >= 2 && Mathf.Abs(bestAngle) <= 6.01f))
             {
                 d.MagEjectAxis = -(Quaternion.AngleAxis(bestAngle, right) * in0).normalized;
                 d.Notes += $"magazine line fitted to the drawn gun ({bestAngle:0} deg) ";
-                Log.Info($"{d.Key}: magazine line fitted to the drawn gun, turned {bestAngle:0} deg in its side plane: {before}/{total} magazine points went through the gun on the way in, now {best} (by its drawn shape: {shapeBefore}, now {shapeBest}).");
+                Log.Info($"{d.Key}: magazine line fitted to the drawn gun, turned {bestAngle:0} deg in its side plane: {before}/{total} magazine points went through the gun on the way in, now {best} ({wellBy}).");
             }
             else
             {
-                Log.Info($"{d.Key}: magazine line kept ({before}/{total} magazine points through the gun on the way in; the best tilt, {bestAngle:0} deg, {best}; by its drawn shape: {shapeBefore}, at that tilt {shapeBest}).");
+                Log.Info($"{d.Key}: magazine line kept ({before}/{total} magazine points through the gun on the way in, {wellBy}; the best tilt, {bestAngle:0} deg, {best}).");
             }
         }
 
