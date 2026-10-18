@@ -10,8 +10,10 @@ namespace RavenfieldVR.Weapons
     /// Hand poses saved in the sandbox (tools/sandbox, "Save pose"): BepInEx/config/RavenfieldVR/poses/&lt;weapon&gt;.json.
     /// The gun hand's place and turn on the gun become the weapon's grip point and grip frame (the gun is held so that the
     /// glove's palm frame sits where the pose put it), its finger curls the weapon's own grip curls; the support hand's
-    /// palm becomes the support point; a thumb posed there, the gun hand's thumb. A pose saved without changes is the
-    /// analysis' own (with the weapon's overrides): nothing changes.
+    /// palm becomes the support point; a thumb posed there, the gun hand's thumb. A hand is taken only as the job it was
+    /// saved as: the gun hand as the grip (or no job, in an old file), the support hand as the support and only where a
+    /// support hand can be (SupportAllowed). A pose saved without changes is the analysis' own (with the weapon's overrides):
+    /// nothing changes.
     /// </summary>
     internal static class SandboxPoses
     {
@@ -20,6 +22,32 @@ namespace RavenfieldVR.Weapons
         private static string Fmt(Vector3 v) => string.Format(System.Globalization.CultureInfo.InvariantCulture, "({0:0.#####}, {1:0.#####}, {2:0.#####})", v.x, v.y, v.z);
 
         private static string Fmt(Quaternion q) => string.Format(System.Globalization.CultureInfo.InvariantCulture, "({0:0.#####}, {1:0.#####}, {2:0.#####}, {3:0.#####})", q.x, q.y, q.z, q.w);
+
+        /// <summary>
+        /// How far a long gun's support point lies ahead of its grip along the aim (metres). The analysis keeps the support
+        /// that far forward on the forend, and the sandbox's own check (tools/sandbox/app/scene.py Scene.support_ok) uses the same.
+        /// </summary>
+        private const float MinSupportAhead = 0.07f;
+
+        /// <summary>
+        /// Whether a saved support hand may be the support point (review B10#1): a pistol's support hand cups the grip, so its
+        /// saved place stays as it is; a long gun's must be MinSupportAhead ahead of the grip along the aim, or be the analysed
+        /// support point itself (within 5 cm). A support behind the grip turns the barrel away from the off hand. Called before
+        /// the analysed support point is overwritten.
+        /// </summary>
+        private static bool SupportAllowed(WeaponRigData d, Vector3 support)
+        {
+            if (d.IsPistol)
+            {
+                return true;
+            }
+            // The grip the game holds (the saved gun hand's when it was taken, else the analysed one), along the aim the game uses.
+            if (Vector3.Dot(support - d.GripPoint, d.AimAxis) >= MinSupportAhead)
+            {
+                return true;
+            }
+            return d.HasSupportPoint && Vector3.Distance(support, d.SupportPoint) < 0.05f;
+        }
 
         public static void Apply(WeaponRigData d)
         {
@@ -43,7 +71,11 @@ namespace RavenfieldVR.Weapons
                 var rightMod = MiniJson.Obj(right, "mod");
                 float[] rp = MiniJson.Floats(rightMod, "position", 3), rq = MiniJson.Floats(rightMod, "rotation", 4);
                 bool usedRight = false, usedLeft = false;
-                if (rp != null && rq != null)
+                // Only a gun hand saved as the grip is the game's grip point: one saved on a magazine, a slide or in the air is not
+                // (review B10#0). A file from before the role was saved has none, and its hand is the grip as it always was.
+                string rightRole = MiniJson.Str(right, "role");
+                bool rightIsGrip = rightRole == null || rightRole == "grip";
+                if (rp != null && rq != null && rightIsGrip)
                 {
                     d.GripPoint = new Vector3(rp[0], rp[1], rp[2]);
                     var q = new Quaternion(rq[0], rq[1], rq[2], rq[3]);
@@ -66,19 +98,31 @@ namespace RavenfieldVR.Weapons
                     }
                     usedRight = true;
                 }
+                else if (rp != null && rq != null)
+                {
+                    Log.WarnOnce("sandbox-pose-grip:" + d.Key, $"The sandbox pose for {d.Key} saves the gun hand as '{rightRole}', not as the grip: the mod keeps its analysed grip ({path}).");
+                }
                 float[] lp = MiniJson.Floats(MiniJson.Obj(left, "mod"), "position", 3);
                 if (lp != null && MiniJson.Str(left, "role") == "support")
                 {
-                    d.SupportPoint = new Vector3(lp[0], lp[1], lp[2]);
-                    d.HasSupportPoint = true;
-                    float[] curls = MiniJson.Floats(left, "curls", 5);
-                    if (curls != null)
+                    var support = new Vector3(lp[0], lp[1], lp[2]);
+                    if (SupportAllowed(d, support))
                     {
-                        d.SupportCurls = curls;
+                        d.SupportPoint = support;
+                        d.HasSupportPoint = true;
+                        float[] curls = MiniJson.Floats(left, "curls", 5);
+                        if (curls != null)
+                        {
+                            d.SupportCurls = curls;
+                        }
+                        usedLeft = true;
                     }
-                    usedLeft = true;
+                    else
+                    {
+                        Log.WarnOnce("sandbox-pose-support:" + d.Key, $"The sandbox pose for {d.Key} saves the support hand at {Fmt(support)}, not ahead of the grip on this long gun: the mod keeps the analysed support point ({path}).");
+                    }
                 }
-                if (!usedRight)
+                if (!usedRight && (rp == null || rq == null))
                 {
                     Log.Warn($"The sandbox pose for {d.Key} has no usable right hand (hands.right.mod.position / rotation): the mod's own grip is kept ({path}).");
                 }

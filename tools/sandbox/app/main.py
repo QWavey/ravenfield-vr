@@ -864,9 +864,16 @@ class Workbench(QWidget):
             self.touch_text.setText('')
             self.saved_text.setText('')
             self.revert_btn.setEnabled(False)
+            if self.view.touch_node is not None:
+                self.view.touch_node = None
+                self.view.update()
             return
         part, dist = w.nearest_part(w.to_gun(h.position)[:3])
         near = part is not None and dist <= 0.06  # (the reach a hand gets its job by: Scene.contact_role)
+        touch = part if near else None  # the part the hand touches, tinted in the view (review I9#2)
+        if touch is not self.view.touch_node:
+            self.view.touch_node = touch
+            self.view.update()
         part_name = f"{ROLE_NAMES.get(part.role, part.role)} '{part.short}'" if part is not None else ''
         if h.on_part:
             on = f' (on the {h.on_part})'
