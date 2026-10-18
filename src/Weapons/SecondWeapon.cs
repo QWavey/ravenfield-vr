@@ -366,6 +366,9 @@ namespace RavenfieldVR.Weapons
             {
                 Weapon.Show(); // the game hid it as a weapon not in use: it is in the hand
             }
+            // Its parked spare magazines and rounds are not drawn in the hand, as the held gun's are not (Task 268: a spare
+            // waited beside it in the free hand, floating).
+            Rig.HideSpareParts();
             UpdateGlove();
         }
 
@@ -427,6 +430,7 @@ namespace RavenfieldVR.Weapons
             {
                 FinishReload(); // a reload under way is finished, not lost
             }
+            Rig.ShowSpareParts(); // its parked ammunition back as the rig was made, before it is put away (Task 268)
             Weapon.Holster();
             if (Hand.Role == HandRole.Weapon || Hand.Role == HandRole.Throwable)
             {

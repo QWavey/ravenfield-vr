@@ -339,6 +339,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>The magazine parts' own scales, recorded while the gun was fresh (the magazine is hidden by scaling while out).</summary>
         public readonly Vector3[] MagazinePartScales;
 
+        /// <summary>
+        /// The parked ammunition (<see cref="WeaponRigData.SparePartPaths"/>) and the scales it had when this rig was made,
+        /// before anything hid it. The held gun and the second weapon both hide it while they are in a hand, and both put it
+        /// back from these: a second weapon that became the held gun first would otherwise keep the hidden scale as its own
+        /// (Task 268).
+        /// </summary>
+        public readonly Transform[] SpareParts;
+        public readonly Vector3[] SpareScales;
+
         public WeaponRig(Weapon weapon, WeaponRigData data)
         {
             Weapon = weapon;
@@ -412,6 +421,43 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < MagazineParts.Length; i++)
             {
                 MagazinePartScales[i] = MagazineParts[i].localScale;
+            }
+            SpareParts = new Transform[data.SparePartPaths.Count];
+            SpareScales = new Vector3[SpareParts.Length];
+            for (int i = 0; i < SpareParts.Length; i++)
+            {
+                SpareParts[i] = Resolve(root, data.SparePartPaths[i]);
+                SpareScales[i] = SpareParts[i] != null ? SpareParts[i].localScale : Vector3.one;
+            }
+        }
+
+        /// <summary>
+        /// Hides the parked ammunition: the spare magazines, drums and rounds the reload keeps beside the gun
+        /// (<see cref="WeaponRigData.SparePartPaths"/>), which the flat reload draws where they wait and which floated in the air
+        /// by a held gun (Tasks 257, 268). Called every frame the gun is in a hand, so a part an animation scaled back up is hidden
+        /// again.
+        /// </summary>
+        public void HideSpareParts()
+        {
+            Vector3 tiny = Vector3.one * 1e-4f;
+            foreach (Transform t in SpareParts)
+            {
+                if (t != null && t.localScale != tiny) // re-hidden only when an animation has scaled it back up
+                {
+                    t.localScale = tiny;
+                }
+            }
+        }
+
+        /// <summary>Puts the parked ammunition back as the rig was made: the gun is holstered, dropped or released.</summary>
+        public void ShowSpareParts()
+        {
+            for (int i = 0; i < SpareParts.Length; i++)
+            {
+                if (SpareParts[i] != null)
+                {
+                    SpareParts[i].localScale = SpareScales[i];
+                }
             }
         }
 

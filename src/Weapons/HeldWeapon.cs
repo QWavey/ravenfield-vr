@@ -529,47 +529,13 @@ namespace RavenfieldVR.Weapons
             return $"lens {shown}/{_scopeLenses.Count} shown ({string.Join(", ", _scopeLenses.ConvertAll(r => r != null ? r.name : "-"))}), scope camera {off} off the sight line{lensOff}, sights known {(Rig.Data.Sights != null ? Rig.Data.Sights.Length : 0)}";
         }
 
-        private Transform[] _spareParts;
-        private Vector3[] _spareScales;
-
-        /// <summary>The flat reload's spare magazines are not drawn while the weapon is held (see WeaponRigData.SparePartPaths).</summary>
-        private void HideSpareParts()
-        {
-            List<int[]> paths = Rig.Data.SparePartPaths;
-            if (paths.Count == 0 || Weapon == null)
-            {
-                return;
-            }
-            if (_spareParts == null)
-            {
-                _spareParts = new Transform[paths.Count];
-                _spareScales = new Vector3[paths.Count];
-                for (int i = 0; i < paths.Count; i++)
-                {
-                    _spareParts[i] = WeaponRig.Resolve(Weapon.transform, paths[i]);
-                    _spareScales[i] = _spareParts[i] != null ? _spareParts[i].localScale : Vector3.one;
-                }
-            }
-            Vector3 tiny = Vector3.one * 1e-4f;
-            foreach (Transform t in _spareParts)
-            {
-                if (t != null && t.localScale != tiny) // re-hidden only when an animation has scaled it back up
-                {
-                    t.localScale = tiny;
-                }
-            }
-        }
-
         /// <summary>Self-test: how many of the flat reload's spare magazines are drawn now (0 while held).</summary>
         internal int SparePartsShown()
         {
             int n = 0;
-            if (_spareParts != null)
+            foreach (Transform t in Rig.SpareParts)
             {
-                foreach (Transform t in _spareParts)
-                {
-                    n += t != null && t.lossyScale.sqrMagnitude > 1e-6f ? 1 : 0;
-                }
+                n += t != null && t.lossyScale.sqrMagnitude > 1e-6f ? 1 : 0;
             }
             return n;
         }
@@ -2564,7 +2530,7 @@ namespace RavenfieldVR.Weapons
 
             AmmoState ammo = ActiveAmmo ?? Ammo;
             ApplyBeltParts(ammo);
-            HideSpareParts();
+            Rig.HideSpareParts(); // the flat reload's spare magazines are not drawn while held (WeaponRigData.SparePartPaths)
             if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
             {
                 // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
@@ -2841,16 +2807,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _scopeLenses.Clear();
-            if (_spareParts != null)
-            {
-                for (int i = 0; i < _spareParts.Length; i++)
-                {
-                    if (_spareParts[i] != null)
-                    {
-                        _spareParts[i].localScale = _spareScales[i];
-                    }
-                }
-            }
+            Rig.ShowSpareParts();
             if (_beltHidden && _beltParts != null)
             {
                 for (int i = 0; i < _beltParts.Length; i++)

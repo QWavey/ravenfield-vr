@@ -104,7 +104,13 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
+                // A part hidden by scale (the parked ammunition, Task 268) has a box of nothing, but its pivot is where it waits:
+                // taken in, that point would stretch the box the barrel and centre are taken from.
                 Bounds wb = r.bounds;
+                if (wb.size.sqrMagnitude < 1e-8f)
+                {
+                    continue;
+                }
                 Bounds local = new Bounds(model.transform.InverseTransformPoint(wb.center), Vector3.zero);
                 local.Encapsulate(model.transform.InverseTransformPoint(wb.min));
                 local.Encapsulate(model.transform.InverseTransformPoint(wb.max));
