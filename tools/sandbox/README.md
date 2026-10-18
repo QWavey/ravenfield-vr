@@ -82,7 +82,8 @@ another weapon starts its own history, and the unsaved hands of the first one ar
   curls, its thumb when you posed it here (a pose from the list, or the thumb sliders), and the handguard hand's place
   (config `Weapons.UseSandboxPoses`, on). A pose saved without changes is exactly the mod's own (with the weapon's config
   overrides), so only what you change changes in the game.
-- **The game folder**: the game is looked for in Steam's usual place. If Ravenfield is somewhere else, choose its folder
+- **The game folder**: the game is looked for in every Steam library (Steam's own folder and the libraries its
+  libraryfolders.vdf lists). If Ravenfield is somewhere else, choose its folder
   under **Advanced → Game folder…** (it must hold BepInEx). The line above *Send to game* says which copy the game uses.
 - **Pose history**: a pose file about to be overwritten or removed (by Save pose, Send to game or Remove from game) is
   first copied to `tools/sandbox/poses/history/`, and the last 30 per weapon are kept. A pose file that cannot be read
