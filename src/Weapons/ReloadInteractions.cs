@@ -1954,9 +1954,11 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Knocked out by a fresh magazine: the old one comes off at the well's mouth, set aside by its own width (never out
-        /// of the inside of the gun or through the fresh one coming up), and flies clear with the strike's push, a sideways
-        /// kick away from the gun hand's side, downward, spinning. (It was made at its seat, slid straight out along the
-        /// well through the fresh one, and dropped from inside the gun.) The release button still drops it straight out.
+        /// of the inside of the gun or through the fresh one coming up), and flies clear forward, out in front of the gun
+        /// with the strike's push and a little sideways away from the gun hand's side, turning end over end with its top
+        /// leading. It used to drop straight down, spinning about the barrel (user, 2026-10-18: "drops straight down instead
+        /// of flipping out forward", task 260 a). (It was made at its seat, slid straight out along the well through the fresh
+        /// one, and dropped from inside the gun.) The release button still drops it straight out.
         /// </summary>
         private void KickOut(VRHand off, MagazineProp fresh)
         {
@@ -1979,8 +1981,13 @@ namespace RavenfieldVR.Weapons
             mouth = new RigidPose(mouth.position + side * width - insert * 0.01f, mouth.rotation);
             mouth.ApplyTo(old.Go.transform);
             Vector3 push = Vector3.ClampMagnitude(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), 2.5f);
-            Vector3 velocity = _sys.Rig.Dominant.Velocity + push * 0.5f + side * 1.3f - insert * 0.6f + Vector3.down * 0.5f;
-            old.Drop(velocity, aim * Random.Range(4f, 7f) * (Random.value < 0.5f ? -1f : 1f) + Random.insideUnitSphere * 2f);
+            // Forward along the barrel with the strike and the gun hand's motion; out of the well, a little away from the gun
+            // hand and only a touch down. (Sideways and down alone, it fell straight down.)
+            Vector3 velocity = _sys.Rig.Dominant.Velocity + push * 0.5f + aim * Random.Range(1.4f, 1.9f) + side * 0.6f - insert * 0.6f + Vector3.down * 0.2f;
+            // End over end with the top (the insertion end) leading forward: the spin is about the axis across the gun, insert
+            // x aim, which carries the top along the barrel. A spin about the barrel itself only rolled it.
+            Vector3 tumble = Vector3.Cross(insert, aim).normalized * Random.Range(6f, 9f) + Random.insideUnitSphere * 1.5f;
+            old.Drop(velocity, tumble);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f);
             _held.Nudge(-insert * 0.06f);

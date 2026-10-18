@@ -1540,6 +1540,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>Whether <see cref="HandsSolid"/> includes the seated magazine now (its shape changes with it).</summary>
         internal bool MagSolidShown => _magSolidShown;
 
+        /// <summary>
+        /// The seated magazine alone, as posed now (grown by a finger's radius); false while none is shown. A magazine in the
+        /// hand that comes into the well must not pass through it: the well's opening is for the gun's body only.
+        /// </summary>
+        internal bool SeatedMagSolid(Vector3 p) => _magSolidShown && _magVolume.Solid(p);
+
         /// <summary>The gun's solid for a hand racking the action: recesses (an ejection port) closed over.</summary>
         private bool ClosedGunSolid(Vector3 p) => _volume.SolidClosed(p) || _magSolidShown && _magVolume.Solid(p);
 

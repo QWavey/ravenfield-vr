@@ -1929,10 +1929,18 @@ namespace RavenfieldVR.Weapons
                     for (int i = 0; i < count; i++)
                     {
                         Vector3 p = at + rot * points[i];
-                        if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p))))
+                        if (!solid(p))
                         {
-                            return true;
+                            continue;
                         }
+                        // The well opens to the gun's body only: a magazine seated in it stays solid, so a fresh one stops at its
+                        // base, where a firm push or strike knocks the seated one out, instead of passing through it (user,
+                        // 2026-10-18, task 260 c).
+                        if (open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
+                        {
+                            continue;
+                        }
+                        return true;
                     }
                     return false;
                 }
