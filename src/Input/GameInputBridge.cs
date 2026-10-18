@@ -172,6 +172,8 @@ namespace RavenfieldVR.Input
 
         /// <summary>When the gun hand's A was pressed for a fire-mode switch still waiting out the double press (-1: none).</summary>
         private static float _modePressAt = -1f;
+        /// <summary>The trigger was held while that press waited: it flips a sight at most, the fire mode stays (Task 265).</summary>
+        private static bool _modePressFiring;
         private const float DoublePressWindow = 0.4f;
 
         /// <summary>
@@ -261,6 +263,14 @@ namespace RavenfieldVR.Input
         /// <summary>Fire mode / sights and the assisted reload for the personal weapon in hand.</summary>
         private static void HandleWeaponButtons(Weapon weapon)
         {
+            // The fire mode does not change while the trigger is held (Task 265; user, 2026-10-18: "some primarys when shot pause
+            // shooting ... the user needs to press shot again, so full autoing is sometimes not possible"). A plain press of A, or
+            // its long press, made during a burst switched an automatic gun to single shots (or a fire-mode variant to its semi
+            // copy), and the game then fired one round per trigger pull (Weapon.CanFire: hasFiredSingleRoundThisTrigger) until the
+            // trigger was let go and pressed again. A press made while the trigger is held still flips the sight (it stops no
+            // burst); a grenade or melee weapon is not held back: a katana sheathes with its long press.
+            bool firing = !(weapon is ThrowableWeapon || weapon is MeleeWeapon)
+                          && (VRInput.GetHeld(DigitalAction.Fire, VRInput.GunHand) || SupportFire);
             // A plain press of the slide-release button (A on the gun hand) switches the fire mode too, whenever there is no
             // locked slide for it to release: the long press alone was found by nobody ("no full auto / single switch";
             // user, 2026-10-16).
@@ -269,6 +279,11 @@ namespace RavenfieldVR.Input
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon))
             {
                 _modePressAt = Time.unscaledTime;
+                _modePressFiring = false;
+            }
+            if (firing && _modePressAt >= 0f)
+            {
+                _modePressFiring = true; // the trigger was pulled while this press waited: it may flip a sight, never the mode
             }
             bool modeByRelease = _modePressAt >= 0f && Time.unscaledTime - _modePressAt >= DoublePressWindow;
             if (modeByRelease)
@@ -295,7 +310,8 @@ namespace RavenfieldVR.Input
                 {
                     Set(KeyBinds.NextScope, true);
                 }
-                else if (system == null || !system.HandleFireModePress(weapon)) // the weapon's own fire-mode key works with the selector off too
+                else if (!firing && !(modeByRelease && _modePressFiring)
+                         && (system == null || !system.HandleFireModePress(weapon))) // the weapon's own fire-mode key works with the selector off too
                 {
                     Set(KeyBinds.FireMode, true);
                 }
@@ -309,6 +325,8 @@ namespace RavenfieldVR.Input
         /// <summary>
         /// The slide-release press may switch the fire mode: a gun with modes to switch (its own fire-mode script, sub weapons,
         /// or automatic for the selector), not a grenade or a melee weapon (A pulls a pin), and no slide or bolt locked open.
+        /// The trigger does not stop the press here: HandleWeaponButtons keeps the mode change out of a burst (Task 265), and a
+        /// sight flip still goes through.
         /// </summary>
         private static bool SlideReleaseSwitchesMode(Weapon weapon)
         {
