@@ -95,10 +95,17 @@ another weapon starts its own history, and the unsaved hands of the first one ar
 
 - **Screenshot** (F12) and **Record GIF**: into `reports/sandbox/captures/`; the message shows the path with a button
   to open the folder.
-- **Clean pictures** leave out the grid, the markers, the laser line and the highlights.
+- **Clean pictures** leave out the grid, the markers, the laser line and the highlights. The **Clean picture** box beside
+  Screenshot (Easy) and the switch under Advanced → View are the same setting.
+- **Screenshot size** (Advanced → View): 1x (the view's size), 2x or 4x, drawn again from the same camera for a post. A
+  size the graphics card cannot hold gives way to the next smaller one, with a message. **Transparent background** keeps
+  a PNG's background see-through; GIFs stay solid.
+- Each picture and GIF has a `.txt` beside it with the same name: the weapon, its hands in words, the view, and the laser
+  point when one is picked. Paste it with the picture to Claude.
 - **Turntable**: a GIF can turn the weapon once round for a seamless loop. Its length is under Advanced → GIF settings.
-- **Captures** page: lists the pictures and GIFs, and what you can do with each one: open it, copy it, show it in
-  Explorer, or move it to the Recycle Bin.
+- **Captures** page: lists the pictures and GIFs, and what you can do with each one: open it, copy it (a PNG only),
+  show it in Explorer, or move it to the Recycle Bin. The selected one is shown large, with its `.txt` under it, and a
+  GIF plays there.
 
 ### Advanced
 

@@ -1226,9 +1226,9 @@ class SelfTest:
         differs = normal.size() == clean.size() and normal != clean
         self.check('a clean picture leaves the grid and markers out, and puts them back',
                    differs and all(before[k] is after[k] or before[k] == after[k] for k in before))
-        wb.big_sw.setChecked(True)
+        wb.size_box.setCurrentIndex(1)  # (the Screenshot size box: 2x)
         path = wb.screenshot()
-        wb.big_sw.setChecked(False)
+        wb.size_box.setCurrentIndex(0)
         self.made.append(path)
         from PyQt6.QtGui import QImage
         img = QImage(path) if path else QImage()
@@ -1320,6 +1320,9 @@ class SelfTest:
                 if path and os.path.exists(path):
                     os.remove(path)
                     removed += 1
+                side = os.path.splitext(path)[0] + '.txt' if path else None  # (the text beside a picture goes with it: real2 I8#1)
+                if side and os.path.exists(side):
+                    os.remove(side)
             except OSError:
                 pass
         shutil.rmtree(self.root, ignore_errors=True)
