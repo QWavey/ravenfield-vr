@@ -345,9 +345,9 @@ class SelfTest:
         real_exec = RoundMenu.exec
         found, hit_node, hit_point = None, None, None
         wb.on_pick(None, None)
-        for n in w.nodes:
-            n.hidden = n is not node
         try:
+            for n in w.nodes:
+                n.hidden = n is not node
             for spot in spots:
                 x, y = self._px(spot)
                 self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
@@ -446,7 +446,10 @@ class SelfTest:
         self.check('the rack: the slide pulled back, then home, and the rack played to its end',
                    not tl.running and self.rack_peak > 0.5 and abs(w.slide) < 1e-6,
                    f'slide {self.rack_peak:.2f} at the furthest, {w.slide:.2f} at the end, still playing {tl.running}')
-        self.check('the rack ends with the left hand back on the handguard', s.left.on_part == 'handguard' and s.left.role == 'support',
+        # The job the support snap gives: 'support' where the game has a support point; a gun without one in the export has the
+        # hand on the handguard with no job (Scene.snap: a place of the sandbox's own, not the game's support point).
+        job = 'support' if w.rig.get('hasSupport') else ''
+        self.check('the rack ends with the left hand back on the handguard', s.left.on_part == 'handguard' and s.left.role == job,
                    f'job {s.left.role!r} on {s.left.on_part!r}')
 
     def _error_log(self):
