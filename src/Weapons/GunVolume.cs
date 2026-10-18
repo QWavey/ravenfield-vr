@@ -826,18 +826,46 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Self-test: how much of <paramref name="part"/> is seen when the gun is looked at from its left, right, top and
-        /// bottom: of the pixels the part covers alone, the share where it is the gun's nearest surface (the picture changes
-        /// when it is left out). A carrier buried in the receiver reads 0, a slide or a knob standing out most of it. The arms
-        /// are not drawn. Rendered and read back now: a test-only cost (12 small pictures).
+        /// How much of <paramref name="part"/> is seen when the gun is looked at from its left, right, top and bottom: of the
+        /// pixels the part covers alone, the share where it is the gun's nearest surface (the picture changes when it is left
+        /// out). A carrier buried in the receiver reads 0, a slide or a knob standing out most of it. The arms are not drawn.
+        /// Rendered and read back now, in the frame it is called (12 small pictures, a few GPU stalls): the rack self-test needs
+        /// the value in the same call. A hold in play should use <see cref="VisibleShareAsync"/>, which takes the same pictures
+        /// a frame or two later.
         /// </summary>
         internal static float VisibleShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, out string perView, float texel = 0.002f)
         {
-            perView = "";
+            float share = -1f;
+            string text = "";
+            MeasureShare(gun, part, aimWorld, upWorld, texel, false, (s, t) => { share = s; text = t; });
+            perView = text;
+            return share;
+        }
+
+        /// <summary>
+        /// <see cref="VisibleShare"/> for a hold in play (task 263, 2026-10-18: the first hold of a hidden-slide gun read its 12
+        /// pictures back in the hold frame, with 12 GPU stalls and a few MB of garbage). The same renders and the same pictures,
+        /// but they come back from the GPU a frame or two later, and <paramref name="done"/> runs then on the main thread with the
+        /// share and the per-view text (-1 when not measurable). It runs before this returns when there is nothing to measure or
+        /// when asynchronous read-back is not supported. If this throws, <paramref name="done"/> is never called.
+        /// </summary>
+        internal static void VisibleShareAsync(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, Action<float, string> done, float texel = 0.002f)
+        {
+            MeasureShare(gun, part, aimWorld, upWorld, texel, true, done);
+        }
+
+        /// <summary>
+        /// The measurement behind both. With <paramref name="deferred"/> the pictures are read back as the GPU finishes them;
+        /// otherwise, or where asynchronous read-back is not supported, each is read at once and <paramref name="done"/> runs
+        /// before this returns.
+        /// </summary>
+        private static void MeasureShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, float texel, bool deferred, Action<float, string> done)
+        {
             Shader shader = DepthShader();
             if (shader == null || part.Count == 0)
             {
-                return -1f;
+                done(-1f, "");
+                return;
             }
             var all = new List<Renderer>();
             foreach (Renderer r in gun)
@@ -857,7 +885,8 @@ namespace RavenfieldVR.Weapons
             }
             if (mine.Count == 0)
             {
-                return -1f;
+                done(-1f, "");
+                return;
             }
             Bounds wb = mine[0].bounds;
             foreach (Renderer r in all)
@@ -903,8 +932,6 @@ namespace RavenfieldVR.Weapons
             cam.renderingPath = RenderingPath.Forward;
             cam.nearClipPlane = 0.005f;
             cam.farClipPlane = 2f * radius + 0.2f;
-            long partPx = 0, seenPx = 0;
-            var parts = new List<string>();
             void SetLayers(bool rest, bool own)
             {
                 for (int i = 0; i < all.Count; i++)
@@ -916,28 +943,21 @@ namespace RavenfieldVR.Weapons
                     mine[i].gameObject.layer = own ? layer : oldLayers[all.Count + i];
                 }
             }
-            Color32[] Shoot(Vector3 dir, Vector3 camUp)
+            // The pictures in order, three a view: the rest of the gun, the gun with the part, the part alone. Each is read back as
+            // soon as it is rendered, or, when deferred, asked for and taken when it arrives; the comparison runs once all of them
+            // are in, on the same pixels either way.
+            int shots = views.Length * 3;
+            var pictures = new Color32[shots][];
+            int left = shots;
+            // Asynchronous read-back is queued behind the frame's GPU work; where it is not supported, each picture is read at once.
+            bool readLater = deferred && SystemInfo.supportsAsyncGPUReadback;
+            void Finish()
             {
-                RenderTexture rt = Render(cam, wb.center - dir * (radius + 0.1f), Quaternion.LookRotation(dir, camUp), size, size, shader);
-                try
+                long partPx = 0, seenPx = 0;
+                var parts = new List<string>();
+                for (int v = 0; v < views.Length; v++)
                 {
-                    return ReadNow(rt);
-                }
-                finally
-                {
-                    RenderTexture.ReleaseTemporary(rt);
-                }
-            }
-            try
-            {
-                foreach (var (dir, camUp, name) in views)
-                {
-                    SetLayers(true, false);
-                    Color32[] without = Shoot(dir, camUp);
-                    SetLayers(true, true);
-                    Color32[] with = Shoot(dir, camUp);
-                    SetLayers(false, true);
-                    Color32[] alone = Shoot(dir, camUp);
+                    Color32[] without = pictures[3 * v], with = pictures[3 * v + 1], alone = pictures[3 * v + 2];
                     long own = 0, seen = 0;
                     for (int i = 0; i < alone.Length; i++)
                     {
@@ -955,7 +975,70 @@ namespace RavenfieldVR.Weapons
                     }
                     partPx += own;
                     seenPx += seen;
-                    parts.Add($"{name} {(own == 0 ? 0f : 100f * seen / own):0}%");
+                    parts.Add($"{views[v].Item3} {(own == 0 ? 0f : 100f * seen / own):0}%");
+                    ReturnPixels(without);
+                    ReturnPixels(with);
+                    ReturnPixels(alone);
+                }
+                done(partPx == 0 ? -1f : (float)seenPx / partPx, string.Join(", ", parts.ToArray()));
+            }
+            void Take(int shot, RenderTexture rt)
+            {
+                if (!readLater)
+                {
+                    try
+                    {
+                        pictures[shot] = ReadNow(rt);
+                    }
+                    finally
+                    {
+                        RenderTexture.ReleaseTemporary(rt);
+                    }
+                    return;
+                }
+                AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
+                {
+                    Color32[] pixels;
+                    try
+                    {
+                        if (request.hasError)
+                        {
+                            pixels = ReadNow(rt); // read again at once, so the value stays exact
+                        }
+                        else
+                        {
+                            // Into a pooled buffer, as the views of a measured shape are: a new array of a picture each time was garbage.
+                            Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
+                            pixels = RentPixels(data.Length);
+                            data.CopyTo(pixels);
+                        }
+                    }
+                    finally
+                    {
+                        RenderTexture.ReleaseTemporary(rt);
+                    }
+                    pictures[shot] = pixels;
+                    if (--left == 0)
+                    {
+                        Finish();
+                    }
+                });
+            }
+            void Shoot(int shot, Vector3 dir, Vector3 camUp)
+            {
+                Take(shot, Render(cam, wb.center - dir * (radius + 0.1f), Quaternion.LookRotation(dir, camUp), size, size, shader));
+            }
+            try
+            {
+                for (int v = 0; v < views.Length; v++)
+                {
+                    Vector3 dir = views[v].Item1, camUp = views[v].Item2;
+                    SetLayers(true, false);
+                    Shoot(3 * v, dir, camUp);
+                    SetLayers(true, true);
+                    Shoot(3 * v + 1, dir, camUp);
+                    SetLayers(false, true);
+                    Shoot(3 * v + 2, dir, camUp);
                 }
             }
             finally
@@ -969,8 +1052,10 @@ namespace RavenfieldVR.Weapons
                 }
                 UnityEngine.Object.Destroy(go);
             }
-            perView = string.Join(", ", parts.ToArray());
-            return partPx == 0 ? -1f : (float)seenPx / partPx;
+            if (!readLater)
+            {
+                Finish();
+            }
         }
 
         private static RenderTexture Render(Camera cam, Vector3 position, Quaternion rotation, int w, int h, Shader shader)
