@@ -65,7 +65,9 @@ another weapon starts its own history, and the unsaved hands of the first one ar
 ### The laser and copying
 
 - **Laser pointer** (L, or Alt + click): click a part to see its name, what the mod takes it for, and where it is: cm
-  from the muzzle (back, up, right) as the test reports give it, and the mod's gun-space x, y, z.
+  from the muzzle (back, up, right) as the test reports give it, and the mod's gun-space x, y, z. While the laser is
+  on, a click picks a part and a hand cannot be dragged freely (its gizmo still moves it): press L again. Turning the
+  laser off clears its pick, so a right click afterwards copies nothing from it.
 - **Right-click** opens a menu: *Copy coordinates*, *Copy the part name*, *Hide this part*, *Show every part*,
   *Hands on the gun*, *Frame the gun*, and the entry that puts a hand on the part. *Copy coordinates* puts a line on the
   clipboard to paste to Claude, e.g.
@@ -129,9 +131,13 @@ folder, `reports/sandbox/selftest`: the weapons' saved poses and the game's copi
 
 Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns
 it (the hands on it go along). Keys: 1 / 2 select the right / left hand, G / R / T / W the move / turn / both / no gizmo,
-comma the gizmo's axes, Esc takes a gizmo drag back, F frame the gun and the hands (Shift+F the gun
-alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save,
-F12 screenshot, Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo.
+comma the gizmo's axes, Esc takes a gizmo drag back, F frame the gun and the hands, Shift+F (or keypad .) frame the
+selected hand (about 35 cm off), the arrow keys orbit the view (5 degrees a press, as a drag does) and + / - zoom it
+(one wheel notch each), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser,
+Ctrl+S save, F12 screenshot, Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo, ? the Help page. The arrows and + / - act when
+the view has the focus (click it first), so the weapon list keeps its arrows and the text boxes their keys. Hover
+shows the hand: an open hand over a hand or a gizmo handle, a closed one while it is dragged, a cross while the laser
+picks, else an arrow.
 
 ## Building the exe
 

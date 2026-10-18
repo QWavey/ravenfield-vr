@@ -444,12 +444,14 @@ class Workbench(QWidget):
             fingers.addWidget(s)
         self.thumb_base = LabeledSlider('Thumb base', self.on_thumb_base, on_press=self.push_undo)
         fingers.addWidget(self.thumb_base)
-        hint = CaptionLabel('Drag a hand to move it, Shift + drag to turn it; or drag its arrows (move along one axis), squares '
-                            '(in a plane) and rings (turn about one axis). Drag elsewhere to look around, right-drag to pan, wheel to zoom.')
-        hint.setWordWrap(True)
+        self.hands_hint_text = ('Drag a hand to move it, Shift + drag to turn it; or drag its arrows (move along one axis), '
+                                'squares (in a plane) and rings (turn about one axis). Drag elsewhere to look around, right-drag '
+                                'to pan, wheel to zoom.')
+        self.hands_hint = CaptionLabel(self.hands_hint_text)  # (set_laser says on it that the laser takes the clicks)
+        self.hands_hint.setWordWrap(True)
         self.hand_label = BodyLabel('Pose of the right hand')
         v.addWidget(card('Hands', on_gun, row(self.sel_right, self.sel_left), CaptionLabel('Left hand to:'), row(*snaps),
-                         self.hand_label, self.pose, fingers, hint))
+                         self.hand_label, self.pose, fingers, self.hands_hint))
 
         play = PrimaryPushButton(FIF.PLAY, 'Reload')
         play.clicked.connect(self.play_reload)
@@ -469,13 +471,17 @@ class Workbench(QWidget):
         self.laser_btn = TogglePushButton(FIF.ALIGNMENT, 'Laser pointer  (L)')
         self.laser_btn.toggled.connect(self.set_laser)
         self.laser_btn.setToolTip('Laser pointer (L). Click a part to see what it is and where; Alt + click does the same without '
-                                  'the laser. Right-click for the menu.')
-        laser_hint = CaptionLabel('Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.')
-        laser_hint.setWordWrap(True)
-        v.addWidget(card('Point', self.laser_btn, laser_hint))
+                                  'the laser. While the laser is on, clicks pick parts and a hand cannot be dragged freely (its '
+                                  'gizmo still moves it): press L again. Right-click for the menu.')
+        self.laser_hint_text = 'Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.'
+        self.laser_hint = CaptionLabel(self.laser_hint_text)  # (set_laser changes it while the laser is on)
+        self.laser_hint.setWordWrap(True)
+        v.addWidget(card('Point', self.laser_btn, self.laser_hint))
 
         save = PrimaryPushButton(FIF.SAVE, 'Save pose  (also for the game)')
         save.clicked.connect(self.save_pose)
+        save.setToolTip("Saves this weapon's hands as its pose (Ctrl+S): tools/sandbox/poses, and the game's copy when "
+                        'Ravenfield is found.')
         imp = PushButton(FIF.FOLDER, 'Import pose…')
         imp.clicked.connect(self.import_pose)
         exp = PushButton(FIF.SHARE, 'Export pose…')
@@ -488,6 +494,7 @@ class Workbench(QWidget):
         remove.clicked.connect(self.remove_from_game)
         shot = PushButton(FIF.CAMERA, 'Screenshot')
         shot.clicked.connect(lambda: self.screenshot())  # (a plain connect would pass the button's checked state as 'clean')
+        shot.setToolTip('Screenshot of the view (F12), saved to reports/sandbox/captures.')
         # The same setting as Advanced's 'Pictures without grid and markers': the two are kept in step (on_clean_check).
         self.clean_check = CheckBox('Clean picture')
         self.clean_check.setToolTip('Leaves out the grid, the markers, the laser line and the highlights (the same switch as '
@@ -642,7 +649,7 @@ class Workbench(QWidget):
             # measuring from, and the hand jumped; review.)
             return lambda: None if self.view.editing() else fn()
         for key, fn in (('L', lambda: self.laser_btn.toggle()), ('F', self.frame_weapon),
-                        ('Shift+F', lambda: self.frame_weapon(hands=False)),
+                        ('Shift+F', self.frame_hand),
                         ('1', lambda: self.select_hand(self.scene.right)), ('2', lambda: self.select_hand(self.scene.left)),
                         ('Space', self.play_reload), ('Ctrl+S', self.save_pose), ('F12', self.screenshot),
                         ('Ctrl+Z', self.undo), ('Ctrl+Y', self.redo), ('Ctrl+Shift+Z', self.redo), ('O', self.view.toggle_ortho),
@@ -656,6 +663,10 @@ class Workbench(QWidget):
         for key, name in ((Qt.Key.Key_1, 'side'), (Qt.Key.Key_3, 'front'), (Qt.Key.Key_7, 'top'),
                           (Qt.Key.Key_5, 'three'), (Qt.Key.Key_0, 'three')):
             QShortcut(QKeySequence(keypad | key), self, activated=idle(lambda n=name: self.view.set_view(n)))
+        QShortcut(QKeySequence(keypad | Qt.Key.Key_Period), self, activated=idle(self.frame_hand))  # (as Blender's keypad .)
+        # ? opens Help: Shift + / on a US keyboard, Shift + ß on a German one. Both forms are bound; the layout sends one.
+        for key in ('?', Qt.KeyboardModifier.ShiftModifier | Qt.Key.Key_Question):
+            QShortcut(QKeySequence(key), self, activated=idle(self.show_help))
 
     # ---- weapons -----------------------------------------------------------------------------------------------------
 
@@ -811,7 +822,8 @@ class Workbench(QWidget):
         self.update_game_status()
 
     def frame_weapon(self, hands=True):
-        """F: the camera on the gun and on both hands, so a hand moved away from it is in view too (Shift + F: the gun alone)."""
+        """F: the camera on the gun and on both hands, so a hand moved away from it is in view too (hands=False: the gun alone,
+        the context menu's entry). Shift + F frames the selected hand (frame_hand)."""
         w = self.scene.weapon
         if w is None:
             return
@@ -831,6 +843,16 @@ class Workbench(QWidget):
                 c = c + (h.position - c) * ((big - r) / d)
                 r = big
         self.view.frame(c, r)
+
+    def frame_hand(self):
+        """Shift + F and keypad .: the camera on the selected hand (else the right one), about 35 cm off, so its grip is seen
+        close. The gun is out of the view then; F frames the gun and both hands as before."""
+        h = self.view.selected_hand or self.scene.right
+        self.view.frame(h.drawn_position(), 0.11)  # (a radius of 11 cm: Viewport.frame backs the camera off to about 35 cm)
+
+    def show_help(self):
+        """?: the Help page, as the left bar's Help item shows it."""
+        self.win.switchTo(self.win.help)
 
     # ---- hands ----------------------------------------------------------------------------------------------------------
 
@@ -1441,8 +1463,23 @@ class Workbench(QWidget):
     def set_laser(self, on):
         self.view.laser = on
         self.scene.laser_hand = self.scene.right if on else None
+        # With the laser on, a press picks a part and does not drag a hand: the hints say so, and how to get the drag back
+        # (real2 I1#2).
+        self.laser_hint.setText('Laser on: clicks pick parts; press L or this button to drag hands freely again.' if on
+                                else self.laser_hint_text)
+        self.hands_hint.setText('Laser on: clicks pick parts, so a hand cannot be dragged freely (its gizmo still moves it). '
+                                'Press L or the Laser pointer button to drag hands freely again.' if on
+                                else self.hands_hint_text)
         if not on:
-            self.view.hover_node = None
+            # Turning the laser off takes its pick with it: the readout, the pick line and Copy coordinates go, so a right click
+            # without the laser or Alt never copies a part picked before (real2 I9#0). The hover label drops the part's name too.
+            self.view.pick_point = None
+            self.view.pick_line = None
+            self.view.pick_normal = None
+            self.on_pick(None, None)
+            if self.view.hover_node is not None:
+                self.view.hover_node = None
+                self.view.hovered.emit('')
         self.view.update()
 
     def on_pick(self, point, node):
@@ -2518,7 +2555,8 @@ class Help(QWidget):
             '<p><b>Undo and redo</b>: Ctrl+Z goes back and Ctrl+Y (or Ctrl+Shift+Z) forward, for hand moves, poses, fingers, parts, '
             'snaps and Reset. The history holds up to 100 steps for the open weapon.</p>'
             '<p><b>Laser pointer</b> (L, or Alt + click): click a part to see what it is and where it is, in cm from the muzzle '
-            '(back, up, right) as the test reports give it, and the mod\'s gun-space x, y, z. <b>Right-click</b> opens a menu '
+            '(back, up, right) as the test reports give it, and the mod\'s gun-space x, y, z. While it is on, a click picks a part '
+            'and a hand cannot be dragged freely (its gizmo still moves it): press L again. <b>Right-click</b> opens a menu '
             '(Copy coordinates, Hide this part, Hands on the gun and more). <b>Copy the hands for Claude</b> puts both hands (where '
             'each one is, its pose and the part it holds) on the clipboard as text to paste.</p>'
             '<p>Grey boxes are parts whose mesh the game does not let the mod read: they are at the right place and size.</p>'
@@ -2539,7 +2577,7 @@ class Help(QWidget):
             'the headset) or <b>Test this gun in the game</b> (only when really needed).</p>'
             '<p><b>Problems</b> show a message, and the program goes on. Every error is also written to '
             'reports/sandbox/sandbox-errors.log, with its details.</p>'
-            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns it (the hands on it go along). Keys: 1 / 2 select the right / left hand, G / R / T / W move / turn / both / no gizmo, comma the gizmo axes, Esc takes a gizmo drag back, F frame the gun and the hands (Shift+F the gun alone), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z / Ctrl+Y undo / redo.</p>'
+            '<p>Mouse: drag to look around, right-drag to pan, wheel to zoom; Ctrl + drag on the gun moves it, Ctrl + Shift + drag turns it (the hands on it go along). Keys: 1 / 2 select the right / left hand, G / R / T / W move / turn / both / no gizmo, comma the gizmo axes, Esc takes a gizmo drag back, F frame the gun and the hands, Shift+F (or keypad .) the selected hand, arrows orbit the view and + / - zoom it (with the view clicked: the weapon list keeps its arrows), keypad 1 / 3 / 7 / 5 side, front, top and 3/4 views, O orthographic view, Space reload, L laser, Ctrl+S save, F12 screenshot, Ctrl+Z / Ctrl+Y undo / redo, ? this Help.</p>'
             '<p><b>Self-test</b>: <code>python tools/sandbox/app/main.py --selftest report.txt --weapon NAME</code> runs the '
             'features as a user would and writes PASS, FAIL or SKIP for each check (add --all to open every exported weapon '
             'once). It saves into a folder of its own: your saved poses and the game copies are never touched.</p>')
