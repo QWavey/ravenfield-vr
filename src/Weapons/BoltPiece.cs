@@ -207,6 +207,16 @@ namespace RavenfieldVR.Weapons
                 piece.CarrierOnly = true;
                 return;
             }
+            if (!piece.Carved && d.SlidePath == null && d.HandlePath == null && d.SlideMethod != null && d.SlideMethod.Contains("(AR-pattern"))
+            {
+                // An AR whose bolt and T are baked into a receiver mesh the game will not let the mod read (all of the MWII
+                // M4s'): the T is already drawn there, so an added knob was a second handle beside it (user, headset,
+                // 2026-10-18 evening: "2 pull back things, remove the one!!!!!", all three MWII M4s). No knob: the hand racks at
+                // the T, which cannot move apart from the receiver.
+                Log.InfoOnce("boltknob:" + d.Key, $"{d.Key}: nothing cut out at the rack point ({unreadable} mesh(es) unreadable, {far} too far, {nothing} with no triangles "
+                                                  + "there); its own T is part of the receiver's mesh: no knob added, the hand racks it there.");
+                return;
+            }
             if (!piece.Carved)
             {
                 // Said once per weapon: the added knob is what moves, the model's own handle (if it has one) stays put.

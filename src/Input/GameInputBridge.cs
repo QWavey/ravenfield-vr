@@ -157,6 +157,7 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
+            Set(KeyBinds.Slowmotion, VRInput.GetPressed(DigitalAction.SlowMotion)); // (a toggle in the game: one press on, one off)
             Set(KeyBinds.Goggles, goggles);
             Set(KeyBinds.Map, WristLookGesture);
 

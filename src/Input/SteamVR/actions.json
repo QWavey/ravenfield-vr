@@ -123,6 +123,11 @@
       "requirement": "optional"
     },
     {
+      "name": "/actions/main/in/SlowMotion",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
       "name": "/actions/main/in/Countermeasures",
       "type": "boolean",
       "requirement": "optional"
@@ -190,6 +195,7 @@
       "/actions/main/in/Pause": "Pause menu",
       "/actions/main/in/VRMenu": "VR settings",
       "/actions/main/in/ModKeys": "Mod keys (keys weapon and mutator scripts listen for)",
+      "/actions/main/in/SlowMotion": "Slow motion (the game's)",
       "/actions/main/in/Countermeasures": "Vehicle countermeasures / third person",
       "/actions/main/in/Pose": "Hand pose",
       "/actions/main/in/PoseGrip": "Palm (grip) pose",

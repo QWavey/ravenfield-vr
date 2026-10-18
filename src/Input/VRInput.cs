@@ -16,7 +16,10 @@ namespace RavenfieldVR.Input
     public enum DigitalAction
     {
         Fire, Grab, MagRelease, SlideRelease, FireMode, Sprint, Use, WeaponNext, Kick,
-        Squad, Map, Loadout, Scoreboard, Pause, VRMenu, Countermeasures, ModKeys
+        Squad, Map, Loadout, Scoreboard, Pause, VRMenu, Countermeasures, ModKeys,
+        // The game's slow motion (its Slowmotion key), the right thumbstick double-clicked: it had no button in VR (user,
+        // 2026-10-18 evening: "theres no button for slowmotion rn"; task 273).
+        SlowMotion
     }
 
     public enum PoseKind { Raw, Grip, Tip }

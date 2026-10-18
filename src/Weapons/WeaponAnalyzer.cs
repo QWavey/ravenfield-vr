@@ -3203,6 +3203,14 @@ namespace RavenfieldVR.Weapons
                 {
                     continue; // a T: a bar across the receiver, a few centimetres long, at most 2.5 cm tall, standing over the bore
                 }
+                // A T is flat (at most 1.5 cm tall) and rides in the receiver's top, under the sights (its middle at most 3.2 cm
+                // over the bore). Without these the MWII M4 holo's folded rear sight '..._rec_..._002' (2.0 cm tall, 3.4 cm over
+                // the bore, sitting on the rail) was taken, and racking moved the sight (user, headset, 2026-10-18 evening: "the
+                // bolt doesn't go back, it's the sight which goes back"). The same limits as ArStaticHandle's (task 271).
+                if (Vector3.Dot(b.size, upAbs) > 0.015f || above > 0.032f)
+                {
+                    continue;
+                }
                 float gap = Mathf.Sqrt(b.SqrDistance(guess));
                 if (gap < bestGap)
                 {
