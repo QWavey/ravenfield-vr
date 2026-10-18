@@ -207,6 +207,11 @@ class Workbench(QWidget):
         self.undo_stack, self.redo_stack = [], []
         self._numbers_undo_at = 0.0
         self._numbers_shown = {}  # hand side -> (its turn as a quaternion, the position and turn boxes as shown last)
+        # The hand boxes' frame: from the analysed grip point (the first), or from the muzzle (set_numbers_frame; real2 I2#0).
+        self.numbers_frame = 'grip'
+        if not self.selftest:
+            saved_frame = str(self.settings.value('numbersFrame', 'grip') or 'grip')
+            self.numbers_frame = saved_frame if saved_frame in ('grip', 'muzzle') else 'grip'
 
         h = QHBoxLayout(self)
         h.setContentsMargins(0, 0, 0, 0)
@@ -466,14 +471,22 @@ class Workbench(QWidget):
         self.s_slide = LabeledSlider('Slide back', lambda f: self.set_part(slide=f), width=110, on_press=self.push_undo)
         self.s_mag = LabeledSlider('Magazine out', lambda f: self.set_part(mag=f), width=110, on_press=self.push_undo)
         self.s_cover = LabeledSlider('Cover open', lambda f: self.set_part(cover=f), width=110, on_press=self.push_undo)
-        v.addWidget(card('Reload', row(play, rack, reset), self.s_slide, self.s_mag, self.s_cover))
+        # An empty gun's reload starts with its slide caught back, as after the last shot (play_reload; real2 I7#2).
+        self.empty_sw = SwitchButton()
+        self.empty_sw.setChecked(False)
+        self.empty_sw.setToolTip('On: the reload starts with the slide locked back, as an empty gun is left after its last shot, '
+                                 'and the slide is released at the end. Only guns whose slide locks on empty (or en-bloc '
+                                 'rifles) take it.')
+        v.addWidget(card('Reload', row(play, rack, reset), row(BodyLabel('Empty gun (after the last shot)'), self.empty_sw),
+                         self.s_slide, self.s_mag, self.s_cover))
 
         self.laser_btn = TogglePushButton(FIF.ALIGNMENT, 'Laser pointer  (L)')
         self.laser_btn.toggled.connect(self.set_laser)
         self.laser_btn.setToolTip('Laser pointer (L). Click a part to see what it is and where; Alt + click does the same without '
                                   'the laser. While the laser is on, clicks pick parts and a hand cannot be dragged freely (its '
                                   'gizmo still moves it): press L again. Right-click for the menu.')
-        self.laser_hint_text = 'Click a part with the laser (or Alt + click) to see what it is and where; right-click to copy it.'
+        self.laser_hint_text = ('Click a part with the laser (or Alt + click) to see what it is and where. Right-click, then Copy '
+                                'coordinates, to copy it with the hand nearest to it.')
         self.laser_hint = CaptionLabel(self.laser_hint_text)  # (set_laser changes it while the laser is on)
         self.laser_hint.setWordWrap(True)
         v.addWidget(card('Point', self.laser_btn, self.laser_hint))
@@ -486,6 +499,10 @@ class Workbench(QWidget):
         imp.clicked.connect(self.import_pose)
         exp = PushButton(FIF.SHARE, 'Export pose…')
         exp.clicked.connect(self.export_pose)
+        copy_text = PushButton(FIF.COPY, 'Copy pose as text')  # the same text as the viewport's menu entry (real2 I8#0)
+        copy_text.clicked.connect(self.copy_hands_text)
+        copy_text.setToolTip('The weapon and both hands as text on the clipboard (where each palm is, its pose, the part it holds), '
+                             'to paste to Claude. Export pose… saves the file instead.')
         self.game_status = CaptionLabel('')
         self.game_status.setWordWrap(True)
         send = PushButton(FIF.SEND, 'Send to game')
@@ -506,8 +523,8 @@ class Workbench(QWidget):
         turn.clicked.connect(lambda: self.turntable_gif())
         reload_gif = PushButton(FIF.PLAY, 'Record the reload')
         reload_gif.clicked.connect(lambda: self.record_reload())
-        v.addWidget(card('Save and share', save, row(imp, exp), self.game_status, row(send, remove), row(shot, self.clean_check),
-                         row(self.rec_btn, turn), reload_gif))
+        v.addWidget(card('Save and share', save, row(imp, exp), copy_text, self.game_status, row(send, remove),
+                         row(shot, self.clean_check), row(self.rec_btn, turn), reload_gif))
         v.addStretch(1)
         return p
 
@@ -521,11 +538,22 @@ class Workbench(QWidget):
         self.sel_name = BodyLabel('Selected: right hand')
         self.sel_name.setWordWrap(True)  # (it names what the hand touches: long; the panel is narrow)
         self.num = []
+        # The frame the position boxes count in (set_numbers_frame): the analysed grip point, or the muzzle, as the laser readout
+        # and Copy coordinates give the place (real2 I2#0).
+        self.frame_box = ComboBox()
+        self.frame_box.addItems(['from the grip point', 'from the muzzle'])
+        self.frame_box.setToolTip('The position boxes count from the analysed grip point (forward along the barrel, up, '
+                                  'right), or from the muzzle (back, up, right: the numbers the laser readout and Copy '
+                                  'coordinates give).')
+        self.frame_box.setCurrentIndex(1 if self.numbers_frame == 'muzzle' else 0)  # (before the signal is connected: no save)
+        self.frame_box.currentIndexChanged.connect(lambda i: self.set_numbers_frame(('grip', 'muzzle')[i]))
         grid = QVBoxLayout()
         for label, unit in (('Position in cm from the analysed grip point: forward along the barrel, up, right', 'cm'),
                             ('Turn in degrees, relative to the gun: pitch, yaw, roll', 'deg')):
             cap = CaptionLabel(label)
             cap.setWordWrap(True)
+            if unit == 'cm':
+                self.pos_caption = cap  # (its words follow the frame: _sync_number_labels)
             grid.addWidget(cap)
             boxes = []
             for _ in range(3):
@@ -543,9 +571,8 @@ class Workbench(QWidget):
                 boxes.append(b)
             self.num.append(boxes)
             grid.addLayout(row(*boxes))
-        numbers_note = CaptionLabel('The laser readout and Copy use back, up, right from the muzzle instead, '
-                                    'so their numbers differ from these.')
-        numbers_note.setWordWrap(True)
+        self.numbers_note = CaptionLabel('')  # (its words follow the frame: _sync_number_labels)
+        self.numbers_note.setWordWrap(True)
         # What the hand is on or touches, and how far its glove is drawn from its place (the settle).
         self.touch_text = CaptionLabel('')
         self.touch_text.setWordWrap(True)
@@ -557,7 +584,9 @@ class Workbench(QWidget):
         self.revert_btn.clicked.connect(self.revert_to_saved)
         mirror = PushButton('Copy this pose to the other hand')
         mirror.clicked.connect(self.copy_pose_to_other)
-        v.addWidget(card('Selected hand', self.sel_name, grid, numbers_note, self.touch_text, self.saved_text, self.revert_btn, mirror))
+        v.addWidget(card('Selected hand', self.sel_name, row(BodyLabel('Position'), self.frame_box, stretch=[0, 1]), grid,
+                         self.numbers_note, self.touch_text, self.saved_text, self.revert_btn, mirror))
+        self._sync_number_labels()
 
         self.parts = ListWidget()
         self.parts.setFixedHeight(200)
@@ -1041,13 +1070,42 @@ class Workbench(QWidget):
         self.thumb_base.set(h.thumb)
         self.sync_numbers()
 
+    def set_numbers_frame(self, frame):
+        """The position boxes' frame: 'grip' (forward along the barrel from the analysed grip point) or 'muzzle' (back, up, right
+        from the muzzle, as the laser readout and Copy coordinates give them). Remembered between runs, as the gizmo's choices are
+        (real2 I2#0)."""
+        if frame not in ('grip', 'muzzle'):
+            return
+        self.numbers_frame = frame
+        i = ('grip', 'muzzle').index(frame)
+        if self.frame_box.currentIndex() != i:
+            self.frame_box.setCurrentIndex(i)
+        if not self.selftest:
+            self.settings.setValue('numbersFrame', frame)
+        self._sync_number_labels()
+        self.sync_numbers()
+
+    def _sync_number_labels(self):
+        """The position boxes' caption and the card's note say the frame the boxes show now."""
+        if self.numbers_frame == 'muzzle':
+            self.pos_caption.setText('Position in cm from the muzzle: back along the barrel, up, right')
+            self.numbers_note.setText('The laser readout and Copy coordinates give these same numbers. The frame above switches '
+                                      'the boxes to forward, up and right from the grip point.')
+        else:
+            self.pos_caption.setText('Position in cm from the analysed grip point: forward along the barrel, up, right')
+            self.numbers_note.setText('The laser readout and Copy use back, up, right from the muzzle instead, so their numbers '
+                                      'differ from these.')
+
     def sync_numbers(self):
         w = self.scene.weapon
         h = self.current_hand()
         if w is None:
             return
         g = w.to_gun(h.position)[:3]
-        local = np.array([np.dot(g - w.grip, w.aim), np.dot(g - w.grip, w.up), np.dot(g - w.grip, w.right)]) * 100
+        if self.numbers_frame == 'muzzle':
+            local = w.from_muzzle(g)  # back, up, right from the muzzle: the laser readout's own numbers
+        else:
+            local = np.array([np.dot(g - w.grip, w.aim), np.dot(g - w.grip, w.up), np.dot(g - w.grip, w.right)]) * 100
         q = quat_mul(quat_inv(w.Wq), h.rotation)
         turn = self.turn_numbers(h, q)
         for box, val in zip(self.num[0] + self.num[1], list(local) + list(turn)):
@@ -1096,8 +1154,12 @@ class Workbench(QWidget):
         pos = np.array([b.value() for b in self.num[0]])
         turn = np.array([b.value() for b in self.num[1]])
         if last is None or not np.allclose(pos, last[1], atol=1e-9):
-            f, u, r = pos / 100
-            h.position = w.to_world(w.grip + w.aim * f + w.up * u + w.right * r)
+            if self.numbers_frame == 'muzzle':
+                # Back, up, right from the muzzle: the exact inverse of from_muzzle, which the laser readout uses.
+                h.position = w.to_world(w.muzzle_point(pos[0], pos[1], pos[2]))
+            else:
+                f, u, r = pos / 100
+                h.position = w.to_world(w.grip + w.aim * f + w.up * u + w.right * r)
         if last is None or not np.allclose(turn, last[2], atol=1e-9):
             # The angles as typed (kept as typed: sync_numbers shows them again while the hand keeps this turn).
             h.rotation = quat_norm(quat_mul(w.Wq, euler_deg_to_quat(turn)))
@@ -1220,7 +1282,11 @@ class Workbench(QWidget):
 
         def begin():
             start['v'] = getattr(w, {'slide': 'slide', 'mag': 'mag', 'cover': 'cover'}[what])
-        return (dur, lambda t: w.set_state(**{what: start['v'] + (to - start['v']) * t}), begin)
+
+        def update(t):
+            w.set_state(**{what: start['v'] + (to - start['v']) * t})
+            self.sync_sliders()  # (the sliders follow the parts as they move, not only at the end: real2 I7#2)
+        return (dur, update, begin)
 
     def _follow_ease(self, hand, target, what, to, dur):
         """A part eased from where it is to `to` with the hand kept on it."""
@@ -1244,6 +1310,11 @@ class Workbench(QWidget):
         if not has_mag and not cover and not rack:
             self.toast('Nothing to reload on this weapon', 'The analysis found no magazine, cover or slide that moves.')
             return
+        # The Empty gun switch under Reload (real2 I7#2): the gun starts as after its last shot, its slide caught back, so the
+        # locked reload below runs. Only a rig whose slide locks on empty (or en bloc) takes it; the slider is set here.
+        if rack and self.empty_sw.isChecked() and (r.get('lockOnEmpty') or r.get('enBloc')):
+            w.set_state(slide=1.0)
+            self.sync_sliders()
         steps = []
         # An empty gun's slide is caught back (lockOnEmpty), and an en-bloc rifle takes its clip only with the bolt back: the
         # reload starts with the slide back, and ends with it released (review I7#2, I7#6).
@@ -1271,6 +1342,7 @@ class Workbench(QWidget):
             def fresh_at(t):
                 w.fresh = w.fresh_matrix(1.0 - t)  # from where its parts wait, on the seat's line (review B2#0, B5#2)
                 w.mag = 1.0 - t
+                self.sync_sliders()
 
             def fresh_step(t):
                 fresh_at(t)
@@ -1288,6 +1360,7 @@ class Workbench(QWidget):
                 for n in w.nodes:
                     n.away = False  # (a part the user hid stays hidden)
                 w.set_state(mag=0)
+                self.sync_sliders()
             steps.append((0.05, lambda t: None, seated))
         if cover:
             steps.append(self._move_hand(left, lambda: s.snap(left, 'cover')))
@@ -1543,12 +1616,18 @@ class Workbench(QWidget):
         if w.cover > 0.001:
             state.append(f'cover {w.cover * 100:.0f}% open')
         note = (f" (the part at rest; it is moved now: {', '.join(state)})" if moved and state else '')
+        # The hand nearest the picked point, by its palm centre (the place hands_text gives), and how far it is (real2 I8#0).
+        hand = min(self.scene.hands(), key=lambda h: float(np.linalg.norm(h.position - self.picked_point)))
+        hand_cm = float(np.linalg.norm(hand.position - self.picked_point)) * 100
+        laser = ' (the laser hand)' if self.scene.laser_hand is hand else ''
+        hand_line = f'Nearest hand: {hand.side} hand{laser}, palm centre {hand_cm:.1f} cm from the picked point'
         if rich:
             return (f"<b>{n.short}</b> — {role}{' (grey stand-in box)' if n.stand_in else ''}<br>"
                     f"back <b>{b:.1f}</b> · up <b>{u:.1f}</b> · right <b>{r:.1f}</b> cm {ref}{note}<br>"
+                    f"{hand_line}<br>"
                     f"<span style='color:gray'>gun space x {x:.4f} y {y:.4f} z {z:.4f}</span>")
         return (f"{w.name} ({w.id}): '{name}' ({role}) at back {b:.1f} up {u:.1f} right {r:.1f} cm {ref}{note} "
-                f"(mod gun space x {x:.4f} y {y:.4f} z {z:.4f})")
+                f"(mod gun space x {x:.4f} y {y:.4f} z {z:.4f})\n{hand_line}")
 
     def copy_point(self):
         if self.picked_point is None:
@@ -1570,10 +1649,11 @@ class Workbench(QWidget):
         menu.addAction(Action(FIF.VIEW, 'Show every part', triggered=self.show_all_parts))
         menu.addAction(Action(FIF.FINGERPRINT, 'Hands on the gun', triggered=self.hands_on_gun))
         if self.scene.weapon is not None:
-            menu.addAction(Action(FIF.ROBOT, 'Copy the hands for Claude', triggered=self.copy_hands_text))
+            # The same text as the Save and share button (real2 I8#0): the weapon and both hands, for Claude.
+            menu.addAction(Action(FIF.ROBOT, 'Copy pose as text', triggered=self.copy_hands_text))
             menu.addAction(Action(FIF.RETURN, "Reset the weapon's place", triggered=self.reset_place))
         menu.addAction(Action(FIF.ZOOM, 'Frame the gun and both hands  (F)', triggered=lambda: self.frame_weapon()))
-        menu.addAction(Action(FIF.ZOOM, 'Frame the gun alone  (Shift+F)', triggered=lambda: self.frame_weapon(hands=False)))
+        menu.addAction(Action(FIF.ZOOM, 'Frame the gun alone', triggered=lambda: self.frame_weapon(hands=False)))
         menu.exec(pos)
 
     def put_hand_here(self, hand):

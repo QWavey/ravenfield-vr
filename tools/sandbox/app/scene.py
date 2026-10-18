@@ -111,6 +111,11 @@ class Weapon:
         c = v3(p_gun) - self.muzzle
         return np.array([np.dot(c, -self.aim), np.dot(c, self.up), np.dot(c, self.right)]) * 100.0
 
+    def muzzle_point(self, back, up, right):
+        """The gun-space point at back, up, right cm from the muzzle: the exact inverse of from_muzzle (aim, up and right are
+        one orthonormal frame), so the hand boxes can be typed in the muzzle's numbers (real2 I2#0)."""
+        return self.muzzle + (-self.aim * float(back) + self.up * float(up) + self.right * float(right)) / 100.0
+
     @staticmethod
     def unity(p_gun):
         """The mod's own gun-space coordinates (left-handed: z back)."""

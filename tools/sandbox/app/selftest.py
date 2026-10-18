@@ -636,7 +636,7 @@ class SelfTest:
         v.dist = 3.0
         wb.frame_weapon(hands=False)  # (Shift + F: the gun alone)
         fit = max(0.15, max(0.12, r) / math.sin(math.radians(19)) * 1.05)  # (as the view frames it)
-        self.check('Frame the gun alone (Shift + F): the view centres on it and backs off to fit', np.allclose(v.target, c) and abs(v.dist - fit) < 1e-9,
+        self.check('Frame the gun alone (menu): the view centres on it and backs off to fit', np.allclose(v.target, c) and abs(v.dist - fit) < 1e-9,
                    f'{v.dist:.3f} m away, fitting {fit:.3f} m')
         wb.frame_weapon()  # F: the gun and both hands
         reach = max(float(np.linalg.norm(h.position - v.target)) + 0.1 for h in self.wb.scene.hands())
