@@ -366,7 +366,25 @@ namespace RavenfieldVR.Weapons
             {
                 Weapon.Show(); // the game hid it as a weapon not in use: it is in the hand
             }
+            HideArms(); // after Show(), which draws the weapon's own arms again
             UpdateGlove();
+        }
+
+        /// <summary>
+        /// The weapon's own first-person arms (the game's model, both of its hands on the gun) are hidden while it is in the free
+        /// hand, as the drawn gun hides its own (<see cref="HeldWeapon"/>'s HideArms). Taking it out unholsters it, which shows
+        /// them (Weapon.Show), and nothing hid them again: the user saw the two hands of the normal Ravenfield model beside the
+        /// gun (Task 267, 2026-10-18). This weapon has no arm IK to put them on the controllers.
+        /// </summary>
+        private void HideArms()
+        {
+            foreach (Renderer r in Rig.ArmRenderers)
+            {
+                if (r != null && r.enabled)
+                {
+                    r.enabled = false;
+                }
+            }
         }
 
         private GunVolume _volume;
@@ -428,6 +446,17 @@ namespace RavenfieldVR.Weapons
                 FinishReload(); // a reload under way is finished, not lost
             }
             Weapon.Holster();
+            if (!Weapon.isHidden)
+            {
+                // Undone as HeldWeapon.Release undoes it: its own arms come back with it, for whichever hand takes it next.
+                foreach (Renderer r in Rig.ArmRenderers)
+                {
+                    if (r != null)
+                    {
+                        r.enabled = true;
+                    }
+                }
+            }
             if (Hand.Role == HandRole.Weapon || Hand.Role == HandRole.Throwable)
             {
                 Hand.Role = HandRole.Free;
