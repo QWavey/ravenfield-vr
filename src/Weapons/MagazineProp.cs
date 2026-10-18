@@ -69,7 +69,7 @@ namespace RavenfieldVR.Weapons
         private float _frontHalf;
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
         public float CrossHalf { get; private set; }
-        /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held index-point instead of in the fist.</summary>
+        /// <summary>A slim magazine (under 4.4 cm across, or a pistol's own under 8 cm): held by its base in the fist too, a little nearer the base plate and with the pistol pose (Tasks 240).</summary>
         public bool PistolSized => Kind == PropKind.Magazine && (CrossHalf < 0.022f || _pistolGun && CrossHalf < 0.04f);
 
         /// <summary>A pistol's magazine: held and seated as one even when its base plate makes it wider (AUTOMATICO 4.8 cm, FNX-45 6.5).</summary>
@@ -1529,7 +1529,7 @@ namespace RavenfieldVR.Weapons
             RigidPose p = HoldPose(hand);
             Vector3 towardFingers = -hand.Palm.Right * hand.Mirror; // the palm side of the fist
             // Both rest on the palm in HoldPose: this one goes the first one's whole thickness further out, and 4 mm. Its
-            // thickness that way: side to side in the fist, mostly front to back held index-point (a pistol magazine).
+            // thickness that way, both its width and its depth (a pistol magazine is held in the fist by its base too, Tasks 240).
             MagazineProp first = primary ?? this;
             Vector3 frontW = p.rotation * FrontLocal, sideW = p.rotation * Vector3.Cross(InsertDirLocal, FrontLocal);
             float half = Mathf.Abs(Vector3.Dot(towardFingers, sideW)) * first._sideHalf + Mathf.Abs(Vector3.Dot(towardFingers, frontW)) * first._frontHalf;
