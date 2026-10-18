@@ -30,6 +30,16 @@ namespace RavenfieldVR.Weapons
         // Carving is done once per mesh and handle point, then shared by every copy of the weapon.
         private static readonly Dictionary<string, CarveResult> CarveCache = new Dictionary<string, CarveResult>();
 
+        // Reused by every carve (task 263, 2026-10-18): Mesh.vertices and the others copy the whole mesh into a new array on each
+        // call, and a receiver's first carve made that copy on the main thread in the first draw. Each one is cleared or
+        // overwritten before it is read, so nothing from an earlier carve is used.
+        private static readonly List<Vector3> CarveVerts = new List<Vector3>();
+        private static readonly List<Vector3> CarveNormals = new List<Vector3>();
+        private static readonly List<Vector4> CarveTangents = new List<Vector4>();
+        private static readonly List<Vector2> CarveUvs = new List<Vector2>();
+        private static readonly List<int> CarveTris = new List<int>();
+        private static int[] _carveKeep = new int[0], _carveCut = new int[0];
+
         private readonly List<Piece> _pieces = new List<Piece>();
         public bool Carved { get; private set; }
 
@@ -224,12 +234,22 @@ namespace RavenfieldVR.Weapons
         /// <summary>Splits off the triangles around <paramref name="center"/> (mesh space).</summary>
         private static CarveResult Carve(Mesh mesh, Vector3 center, float r)
         {
-            Vector3[] verts = mesh.vertices;
+            CarveVerts.Clear();
+            mesh.GetVertices(CarveVerts);
+            List<Vector3> verts = CarveVerts;
             var keepSub = new List<int[]>();
-            var cutSub = new List<List<int>>();
+            var cutSub = new List<int[]>();
             var cutSubIndex = new List<int>();
             bool any = false;
             float r2 = r * r, loose2 = r2 * 2.6f;
+            // A triangle is cut only when all three corners are within loose2 of the point (the test below needs that), so the
+            // corners are measured once here and the centroid test runs only where they pass: most of a receiver is one read
+            // per corner (task 263, 2026-10-18).
+            var near = new bool[verts.Count];
+            for (int v = 0; v < near.Length; v++)
+            {
+                near[v] = (verts[v] - center).sqrMagnitude < loose2;
+            }
             for (int sm = 0; sm < mesh.subMeshCount; sm++)
             {
                 if (mesh.GetTopology(sm) != MeshTopology.Triangles)
@@ -237,22 +257,45 @@ namespace RavenfieldVR.Weapons
                     keepSub.Add(mesh.GetIndices(sm));
                     continue;
                 }
-                int[] tris = mesh.GetTriangles(sm);
-                var keep = new List<int>(tris.Length);
-                var cut = new List<int>();
-                for (int i = 0; i + 2 < tris.Length; i += 3)
+                CarveTris.Clear();
+                mesh.GetTriangles(CarveTris, sm);
+                int n = CarveTris.Count;
+                if (_carveKeep.Length < n)
                 {
-                    Vector3 a = verts[tris[i]], b = verts[tris[i + 1]], c = verts[tris[i + 2]];
-                    Vector3 centroid = (a + b + c) / 3f;
-                    bool inside = (centroid - center).sqrMagnitude < r2
-                                  && (a - center).sqrMagnitude < loose2 && (b - center).sqrMagnitude < loose2 && (c - center).sqrMagnitude < loose2;
-                    (inside ? cut : keep).Add(tris[i]);
-                    (inside ? cut : keep).Add(tris[i + 1]);
-                    (inside ? cut : keep).Add(tris[i + 2]);
+                    _carveKeep = new int[n];
+                    _carveCut = new int[n];
                 }
-                keepSub.Add(keep.ToArray());
-                if (cut.Count > 0)
+                int keepN = 0, cutN = 0;
+                for (int i = 0; i + 2 < n; i += 3)
                 {
+                    int ia = CarveTris[i], ib = CarveTris[i + 1], ic = CarveTris[i + 2];
+                    bool inside = false;
+                    if (near[ia] && near[ib] && near[ic])
+                    {
+                        Vector3 a = verts[ia], b = verts[ib], c = verts[ic];
+                        Vector3 centroid = (a + b + c) / 3f;
+                        inside = (centroid - center).sqrMagnitude < r2;
+                    }
+                    if (inside)
+                    {
+                        _carveCut[cutN++] = ia;
+                        _carveCut[cutN++] = ib;
+                        _carveCut[cutN++] = ic;
+                    }
+                    else
+                    {
+                        _carveKeep[keepN++] = ia;
+                        _carveKeep[keepN++] = ib;
+                        _carveKeep[keepN++] = ic;
+                    }
+                }
+                var keep = new int[keepN];
+                System.Array.Copy(_carveKeep, keep, keepN);
+                keepSub.Add(keep);
+                if (cutN > 0)
+                {
+                    var cut = new int[cutN];
+                    System.Array.Copy(_carveCut, cut, cutN);
                     cutSub.Add(cut);
                     cutSubIndex.Add(sm);
                     any = true;
@@ -270,20 +313,23 @@ namespace RavenfieldVR.Weapons
                 remaining.SetIndices(keepSub[sm], mesh.GetTopology(sm), sm, false);
             }
 
-            // The cut piece gets only the vertices it uses.
+            // The cut piece gets only the vertices it uses. Read only now: a carve with no cut returned above and copied none of these.
             var map = new Dictionary<int, int>();
             var pv = new List<Vector3>();
-            Vector3[] normals = mesh.normals;
-            Vector4[] tangents = mesh.tangents;
-            Vector2[] uv = mesh.uv;
+            CarveNormals.Clear();
+            mesh.GetNormals(CarveNormals);
+            CarveTangents.Clear();
+            mesh.GetTangents(CarveTangents);
+            CarveUvs.Clear();
+            mesh.GetUVs(0, CarveUvs);
             var pn = new List<Vector3>();
             var pt = new List<Vector4>();
             var pu = new List<Vector2>();
             var subTris = new List<int[]>();
-            foreach (List<int> tris in cutSub)
+            foreach (int[] tris in cutSub)
             {
-                var local = new int[tris.Count];
-                for (int i = 0; i < tris.Count; i++)
+                var local = new int[tris.Length];
+                for (int i = 0; i < tris.Length; i++)
                 {
                     int v = tris[i];
                     if (!map.TryGetValue(v, out int nv))
@@ -291,9 +337,9 @@ namespace RavenfieldVR.Weapons
                         nv = pv.Count;
                         map[v] = nv;
                         pv.Add(verts[v]);
-                        if (normals.Length == verts.Length) pn.Add(normals[v]);
-                        if (tangents.Length == verts.Length) pt.Add(tangents[v]);
-                        if (uv.Length == verts.Length) pu.Add(uv[v]);
+                        if (CarveNormals.Count == verts.Count) pn.Add(CarveNormals[v]);
+                        if (CarveTangents.Count == verts.Count) pt.Add(CarveTangents[v]);
+                        if (CarveUvs.Count == verts.Count) pu.Add(CarveUvs[v]);
                     }
                     local[i] = nv;
                 }
