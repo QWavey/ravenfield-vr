@@ -189,6 +189,12 @@ namespace RavenfieldVR.Weapons
             CoverOpen = false;
             BeltLaid = true;
             BoltOpen = false;
+            // Empty on a gun that locks open on empty (a dropped one picked up, a spawn): its slide starts caught back, as after
+            // its last round, not free to go home without a round (264).
+            if (!Chambered && Rig.LockOnEmpty && !Rig.CyclesByHand)
+            {
+                SlideLocked = true;
+            }
             Sync();
         }
 
@@ -390,7 +396,12 @@ namespace RavenfieldVR.Weapons
             return ejected;
         }
 
-        /// <summary>Slide/bolt goes forward: strips a round from the magazine if one is available.</summary>
+        /// <summary>
+        /// Slide/bolt goes forward: strips a round from the magazine if one is available. A slide that goes home chambers a
+        /// round from the magazine (264): with none to chamber, a gun that locks open on empty stays caught back. Released
+        /// with nothing chambered it went home unlocked; the empty animator held it back, and the next magazine (with rounds)
+        /// sent it home without a round, so it went forward on its own and still needed a pull (user, 2026-10-18).
+        /// </summary>
         /// <returns>True if a round was chambered.</returns>
         public bool RackForward()
         {
@@ -400,6 +411,11 @@ namespace RavenfieldVR.Weapons
             {
                 MagRounds--;
                 Chambered = true;
+            }
+            if (!Chambered && Rig.LockOnEmpty && !Rig.CyclesByHand)
+            {
+                SlideLocked = true;
+                Log.InfoOnce($"caught:{Rig.Key}", $"{Rig.Key}: the slide went back with no round to chamber (no magazine it can feed, or an empty one); it stays caught back until one can be chambered.");
             }
             Sync();
             return Chambered;
