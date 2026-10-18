@@ -51,7 +51,7 @@ namespace RavenfieldVR.Weapons
             // Only the loadout's weapons: each cut keeps a copy of the receiver's mesh, and hundreds of mod weapons would keep
             // hundreds of them.
             if (Loadout.Contains(entry.nameHash)
-                && (data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed) || data.CarveHandle))
+                && (data.SlidePath == null && data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed) || data.CarveHandle))
             {
                 BoltPiece.Prewarm(rig); // the handle cut out of the receiver, as the draw makes it (HeldWeapon)
             }

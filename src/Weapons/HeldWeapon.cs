@@ -233,11 +233,12 @@ namespace RavenfieldVR.Weapons
             }
             ActionType action = rig.Data.Action;
             RackPointGun = rig.Data.RackPoint;
-            if (rig.Data.SlidePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
+            if (rig.Data.SlidePath == null && rig.Data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
                 || rig.Data.CarveHandle || rig.Data.AddedHandle)
             {
                 // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
-                // it a handle that does.
+                // it a handle that does. Not when the model's own handle is the one that moves (its own part is the handle, found
+                // by ArOwnHandleNoSlide): a knob added beside it was the second pull-back handle (user, 2026-10-18, task 269).
                 try
                 {
                     _boltPiece = BoltPiece.Create(rig);
