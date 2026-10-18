@@ -73,11 +73,6 @@ namespace RavenfieldVR.Input
     }
 
     /// <summary>
-    /// A deployed sentry gun's aim blend (the game's AimTransform) with its idle or aim transform missing threw a
-    /// NullReferenceException every frame for as long as the turret stood (seven sentry kits in the weapons run): it is
-    /// skipped then, the turret keeps its pose.
-    /// </summary>
-    /// <summary>
     /// A weapon's own animation event asking its sound bank for a clip it does not have (three RPG-7V variants in the
     /// rocket film) threw IndexOutOfRangeException from the game's SoundBank: skipped, said once per bank.
     /// </summary>
@@ -100,6 +95,11 @@ namespace RavenfieldVR.Input
         }
     }
 
+    /// <summary>
+    /// A deployed sentry gun's aim blend (the game's AimTransform) with its idle or aim transform missing threw a
+    /// NullReferenceException every frame for as long as the turret stood (seven sentry kits in the weapons run): it is
+    /// skipped then, the turret keeps its pose.
+    /// </summary>
     [HarmonyPatch(typeof(AimTransform), "LateUpdate")]
     internal static class AimTransformGuardPatch
     {

@@ -69,7 +69,7 @@ namespace RavenfieldVR.Weapons
         private float _frontHalf;
         /// <summary>Half the magazine's largest size across its insertion axis (front to back or side to side): how big its base plate is.</summary>
         public float CrossHalf { get; private set; }
-        /// <summary>A slim magazine (a pistol's, under 4.4 cm across): held by its base in the fist too, a little nearer the base plate and with the pistol pose (Tasks 240).</summary>
+        /// <summary>A slim magazine (under 4.4 cm across, or a pistol's own under 8 cm): held by its base in the fist too, a little nearer the base plate and with the pistol pose (Tasks 240).</summary>
         public bool PistolSized => Kind == PropKind.Magazine && (CrossHalf < 0.022f || _pistolGun && CrossHalf < 0.04f);
 
         /// <summary>A pistol's magazine: held and seated as one even when its base plate makes it wider (AUTOMATICO 4.8 cm, FNX-45 6.5).</summary>
