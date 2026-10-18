@@ -1231,6 +1231,8 @@ namespace RavenfieldVR.Weapons
         private Quaternion _steadyRot;
         private bool _steadyInit;
         private float _steadyWeight;
+        private Quaternion _steadyPrevRaw;
+        private float _steadyHandSpeed;
 
         /// <summary>Self-test: how far (degrees) the steadied aim is behind the hand now.</summary>
         internal float SteadyLag { get; private set; }
@@ -1257,14 +1259,21 @@ namespace RavenfieldVR.Weapons
             if (!_steadyInit || _steadyWeight <= 0f)
             {
                 _steadyRot = gunRot;
+                _steadyPrevRaw = gunRot;
+                _steadyHandSpeed = 0f;
                 _steadyInit = true;
                 SteadyLag = 0f;
                 return gunRot;
             }
-            float behind = Quaternion.Angle(_steadyRot, gunRot);
-            float speed = behind / Mathf.Max(dt, 1e-4f); // degrees a second the hand is turning away from the steadied aim
+            // The hand's own turn, frame to frame, low-passed at about 2 Hz (Tasks 230 and 249.11, 2026-10-18). The speed was
+            // the filter's lag over the frame time: a slow drift settled at 2.2 Hz on a 45 Hz headset and 2.9 Hz on a 90 Hz
+            // one, not the 1.6 Hz floor, so the steadying depended on the refresh rate. Now the cutoff follows the hand's
+            // speed and does not flicker with the frame time.
+            float rawSpeed = Quaternion.Angle(_steadyPrevRaw, gunRot) / Mathf.Max(dt, 1e-4f);
+            _steadyPrevRaw = gunRot;
+            _steadyHandSpeed += (rawSpeed - _steadyHandSpeed) * (1f - Mathf.Exp(-2f * Mathf.PI * 2f * dt));
             // Cutoff frequency: 1 Hz for a tremor at 4x (lower at higher zoom), up to 8 Hz for a swing.
-            float cutoff = Mathf.Lerp(1.6f, 8f, Mathf.InverseLerp(4f, 60f, speed)) / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f);
+            float cutoff = Mathf.Lerp(1.6f, 8f, Mathf.InverseLerp(4f, 60f, _steadyHandSpeed)) / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f);
             float alpha = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff * dt);
             _steadyRot = Quaternion.Slerp(_steadyRot, gunRot, alpha);
             if (Quaternion.Angle(_steadyRot, gunRot) > 5f)
