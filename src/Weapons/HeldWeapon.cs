@@ -1658,9 +1658,63 @@ namespace RavenfieldVR.Weapons
             // counted 0 through and nothing was corrected (the log: 0/126, best tilt 0 deg) while the magazine went through the
             // handle. Other guns keep their box.
             bool shapeWell = d.Handgun;
+            // And a handgun is measured by its magazine's SKIN, over the whole way in, against the hull of the magazine as it
+            // sits (task 270, the user again, 2026-10-18 evening: "for the m1911 and other pistols the mag still goes through
+            // the handle"). The grid above is inside the magazine, so its skin pressing into the grip's walls never counted, and
+            // the magazine's own depth span has holes (a hollow magazine's core counted as "out of the well"): measured on the
+            // 1911's export, 27-37 skin points sat in the grip's walls at every centimetre from 1 to 5 cm out on the analysed
+            // line, while the log said "0/117 through". The rest hull: the skin's extremes along 26 directions.
+            List<Vector3> skin = shapeWell ? MagazineSkin(seat) : null;
+            Vector3[] hullDirs = null;
+            float[] hullMax = null;
+            if (skin != null)
+            {
+                hullDirs = HullDirections();
+                hullMax = new float[hullDirs.Length];
+                for (int h = 0; h < hullDirs.Length; h++)
+                {
+                    float m = float.NegativeInfinity;
+                    foreach (Vector3 q in skin)
+                    {
+                        m = Mathf.Max(m, Vector3.Dot(hullDirs[h], q));
+                    }
+                    hullMax[h] = m + 0.003f; // (3 mm: the skin's own sampling, not a gap in the grip)
+                }
+            }
+            bool InRestHull(Vector3 q)
+            {
+                for (int h = 0; h < hullDirs.Length; h++)
+                {
+                    if (Vector3.Dot(hullDirs[h], q) > hullMax[h])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
             int Through(Vector3 inGun)
             {
                 Vector3 inLocal = (seatInv * inGun).normalized;
+                if (skin != null)
+                {
+                    // The whole way in: the magazine's top travels its own length through the grip (beyond the rail, it is the
+                    // hand that brings it up the line), at six depths.
+                    float length = Mathf.Abs(Vector3.Dot(mb.size, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
+                    int skinHits = 0;
+                    for (int s = 1; s <= 6; s++)
+                    {
+                        float back = Mathf.Min(length, 0.15f) * s / 6f;
+                        foreach (Vector3 q in skin)
+                        {
+                            Vector3 p = q - inLocal * back;
+                            if (!InRestHull(p) && _volume.InsideModel(seat.TransformPoint(p)))
+                            {
+                                skinHits++;
+                            }
+                        }
+                    }
+                    return skinHits;
+                }
                 float half = Mathf.Abs(Vector3.Dot(mb.extents, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
                 float rail = Mathf.Clamp(half * 0.9f, 0.03f, 0.09f); // as MagazineProp's rail
                 int hits = 0;
@@ -1710,8 +1764,8 @@ namespace RavenfieldVR.Weapons
                     bestAngle = angle;
                 }
             }
-            int total = points.Count * 3;
-            string wellBy = shapeWell ? "against its drawn shape" : "against its box";
+            int total = skin != null ? skin.Count * 6 : points.Count * 3;
+            string wellBy = skin != null ? "its skin against its seated hull" : shapeWell ? "against its drawn shape" : "against its box";
             // (Also a small tilt that clears it completely: 2 points through the trigger guard and none at 3 degrees was kept on
             // the six CZ Bren 2 BRs and the Q1911, whose magazines the user saw go in through the gun; 2026-10-17.)
             if (bestAngle != 0f && best <= before * 0.6f && (before - best >= 3 || best == 0 && before >= 2 && Mathf.Abs(bestAngle) <= 6.01f))
@@ -1724,6 +1778,51 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Info($"{d.Key}: magazine line kept ({before}/{total} magazine points through the gun on the way in, {wellBy}; the best tilt, {bestAngle:0} deg, {best}).");
             }
+        }
+
+        /// <summary>
+        /// The seated magazine's drawn surface (its measured volume's surface points, as the views saw it), in the seat's frame,
+        /// at most 240 of them spread over it; null when there are too few to judge by (task 270).
+        /// </summary>
+        private List<Vector3> MagazineSkin(RigidPose seat)
+        {
+            if (_magFrame == null || _magVolume == null || !_magVolume.Ready)
+            {
+                return null;
+            }
+            List<Vector3> all = _magVolume.SurfacePoints(2);
+            if (all.Count < 40)
+            {
+                return null;
+            }
+            var frame = new RigidPose(_magFrame.position, _magFrame.rotation); // (the volume is posed there, UpdateSeatedMagSolid)
+            int step = Mathf.Max(1, all.Count / 240);
+            var skin = new List<Vector3>(all.Count / step + 1);
+            for (int i = 0; i < all.Count; i += step)
+            {
+                skin.Add(seat.InverseTransformPoint(frame.TransformPoint(all[i])));
+            }
+            return skin;
+        }
+
+        /// <summary>26 directions (a cube's faces, edges and corners) for a convex hull by its extremes.</summary>
+        private static Vector3[] HullDirections()
+        {
+            var dirs = new List<Vector3>(26);
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    for (int z = -1; z <= 1; z++)
+                    {
+                        if (x != 0 || y != 0 || z != 0)
+                        {
+                            dirs.Add(new Vector3(x, y, z).normalized);
+                        }
+                    }
+                }
+            }
+            return dirs.ToArray();
         }
 
         /// <summary>
