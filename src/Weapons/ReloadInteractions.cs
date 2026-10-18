@@ -1418,13 +1418,23 @@ namespace RavenfieldVR.Weapons
         private bool _beltHanging;
         /// <summary>The belt was laid by hand on a gun that has no belt of its own in its model: the strip stays on the tray.</summary>
         private bool _beltShownLaid;
+        /// <summary>The belt was laid by hand while the cover was open: it shows until the cover is lifted again (274).</summary>
+        private bool _beltLaidThisLift;
+        /// <summary>The cover was open at the last look, so a lift is seen as the moment it goes up.</summary>
+        private bool _beltCoverWasOpen;
         /// <summary>How far the belt end comes out of the box (about 28 rounds).</summary>
         private const float BeltReach = 0.32f;
 
         /// <summary>Where the end of a belt hanging from the box mouth is.</summary>
         private Vector3 BeltHangEnd => BeltStartWorld + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
 
-        /// <summary>Where the belt leaves the seated box: the top of the box, on its centre line.</summary>
+        /// <summary>
+        /// Where the belt leaves the seated box: its feed mouth, the point of the insertion face nearest the feed tray (the belt
+        /// runs from there onto the tray). Before, it was b.center + insert * extent: the point on the box's centre line at the
+        /// insertion depth, which for a box inserted at an angle lies off the box. On the MG3 (measured in the export) it was
+        /// 2.9 cm past the box's back face and 9 cm from the gun-side edge of its top (274: "the belt comes out of the box in
+        /// the middle and not the box opening").
+        /// </summary>
         private Vector3 BeltStartWorld
         {
             get
@@ -1432,8 +1442,28 @@ namespace RavenfieldVR.Weapons
                 Quaternion seatInv = Quaternion.Inverse(Data.MagSeat.rotation);
                 Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
                 Bounds b = Data.MagBounds;
-                float extent = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(insertLocal.x), Mathf.Abs(insertLocal.y), Mathf.Abs(insertLocal.z))));
-                return SeatPose.TransformPoint(b.center + insertLocal * extent);
+                // The insertion face is the one the box is pushed through: the axis its insert direction has most of. Only that axis
+                // is pinned to the box's face; the others run free across it, clamped to the box, so the belt starts at the point of
+                // that face nearest the tray (taken in the seat's rest frame, where the box's bounds are). Pinning every axis the
+                // insert direction has at all put the MK46's mouth at the far end of its 58 cm box (a 2-degree slant on y), 48 cm
+                // from the tray (274).
+                Vector3 tray = Data.MagSeat.InverseTransformPoint(Rig.ToGun(FeedTrayWorld));
+                int lead = 0;
+                for (int axis = 1; axis < 3; axis++)
+                {
+                    if (Mathf.Abs(insertLocal[axis]) > Mathf.Abs(insertLocal[lead]))
+                    {
+                        lead = axis;
+                    }
+                }
+                Vector3 mouth = b.center;
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    mouth[axis] = axis == lead
+                        ? b.center[axis] + Mathf.Sign(insertLocal[axis]) * b.extents[axis]
+                        : Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis], b.center[axis] + b.extents[axis]);
+                }
+                return SeatPose.TransformPoint(mouth);
             }
         }
 
@@ -1450,6 +1480,7 @@ namespace RavenfieldVR.Weapons
                 _belt = new BeltStrip();
             }
             _belt.Show(true);
+            Log.InfoOnce("beltmouth:" + Data.Key, $"{Data.Key}: the belt leaves its box at the feed mouth, gun space (cm) {(Rig.ToGun(BeltStartWorld) * 100f).ToString("0.0")}.");
             _held.Sounds.Play(MechSound.ShellIn, BeltStartWorld, 0.5f);
             off.Haptic(0.02f, 160f, 0.35f);
         }
@@ -1505,6 +1536,7 @@ namespace RavenfieldVR.Weapons
             {
                 // On a gun whose model has no belt of its own, the laid strip stays to be seen on the tray.
                 _beltShownLaid = _held.BeltPartCount == 0;
+                _beltLaidThisLift = true;
                 _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -1528,6 +1560,21 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateBeltStrip(VRHand off)
         {
+            // A belt still held goes with its box: out, the cover shut or the belt laid, it is let go here whatever the hand's role
+            // says. Only UpdateBelt let it go, and that runs only while the hand's role is Belt, so a belt held when the box came
+            // out (the role since reset, or the hand not tracked) stayed drawn after its box (274: "the old belt is still there").
+            if (_beltHeld && (!Ammo.MagInserted || !Ammo.HasCover || !Ammo.CoverOpen || Ammo.BeltLaid))
+            {
+                Log.InfoOnce("beltheld-dropped:" + Data.Key, $"{Data.Key}: the belt held by the hand was let go with its box (box in {Ammo.MagInserted}, cover open {Ammo.CoverOpen}, belt laid {Ammo.BeltLaid}).");
+                EndBelt(off);
+            }
+            // Lifting the cover takes a belt laid on the tray off it with its box: the old belt stayed when the cover was opened
+            // (274, the user). A belt laid by hand with the cover open is shown until the cover is lifted again.
+            if (Ammo.CoverOpen && !_beltCoverWasOpen)
+            {
+                _beltLaidThisLift = false;
+            }
+            _beltCoverWasOpen = Ammo.CoverOpen;
             if (!Ammo.MagInserted || !Ammo.HasCover)
             {
                 _beltHanging = false;
@@ -1552,13 +1599,17 @@ namespace RavenfieldVR.Weapons
                     _beltHanging = true;
                 }
             }
-            bool show = _beltHeld || _beltHanging || _beltShownLaid;
-            if (_belt == null || Rig.GunBody == null)
+            // A laid strip shows under the shut cover, and with the cover open only if it was laid in this lift; the box going
+            // clears it, so a box put back is never drawn with the old belt (274).
+            bool laidOnTray = _beltShownLaid && (!Ammo.CoverOpen || _beltLaidThisLift);
+            bool show = _beltHeld || _beltHanging || laidOnTray;
+            if (_belt == null)
             {
                 return;
             }
+            // Hidden even with no gun body to place it on: a strip left drawn with its box gone stayed in the air (274).
             _belt.Show(show);
-            if (!show)
+            if (!show || Rig.GunBody == null)
             {
                 return;
             }
@@ -4966,6 +5017,8 @@ namespace RavenfieldVR.Weapons
             _belt = null;
             _beltHanging = false;
             _beltShownLaid = false;
+            _beltLaidThisLift = false;
+            _beltCoverWasOpen = false;
             if (off.Model != null)
             {
                 off.Model.GraspAnchor = null;
