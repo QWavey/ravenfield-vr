@@ -317,9 +317,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// At most <paramref name="max"/> of the points, chosen so that their hull is, to a fraction of a millimetre, the hull
         /// of all of them: for each of <paramref name="max"/> directions spread evenly over the sphere, the point farthest
-        /// along it. Taking every n-th
-        /// point lost the outermost ones (the top end of each slice, where the stride fell), so a piece's hull stopped short
-        /// of the model: a magazine's hitbox sat low and did not cover the whole magazine (user, 2026-10-18, task 260 b).
+        /// along it. Taking every n-th point lost the outermost ones (the top end of each slice, where the stride fell), so a
+        /// piece's hull stopped short of the model: a magazine's hitbox sat low and did not cover the whole magazine (user,
+        /// 2026-10-18, task 260 b).
         /// </summary>
         private static Vector3[] Thin(Vector3[] pts, int max)
         {

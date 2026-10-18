@@ -2052,7 +2052,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Autotest: how many of the magazine's 25 check points are inside <paramref name="gun"/>'s body where it is drawn
-        /// now (its magwell does not count). -1 when the gun's solid is not measured.
+        /// now (its magwell does not count, a magazine seated in it does: task 260 c). -1 when the gun's solid is not measured.
         /// </summary>
         internal int PointsInsideGun(HeldWeapon gun)
         {
@@ -2075,7 +2075,8 @@ namespace RavenfieldVR.Weapons
                 foreach (Vector3 local in new[] { c, c + FrontLocal * (_frontHalf * 0.8f), c - FrontLocal * (_frontHalf * 0.8f), c + side * (_sideHalf * 0.8f), c - side * (_sideHalf * 0.8f) })
                 {
                     Vector3 p = t.TransformPoint(local);
-                    if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p))))
+                    // The same rule as KeepOffGun: the well is open to the gun's body only, not to a magazine seated in it.
+                    if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p)))
                     {
                         inside++;
                     }
@@ -2086,8 +2087,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Self-test: the magazine as drawn now, sampled every 5 mm over its whole box (the keep-out tests 25 points): how
-        /// many lie in the gun's solid inside the well's opening (let through by design) and how many outside it. A sideways
-        /// pass that crosses the receiver through the opening, or between the keep-out's rows, shows up here (252 ae).
+        /// many lie in the gun's solid inside the well's opening (let through by design, not a seated magazine) and how many
+        /// outside it. A sideways pass that crosses the receiver through the opening, or between the keep-out's rows, shows
+        /// up here (252 ae).
         /// </summary>
         internal void ProbeInside(HeldWeapon gun, out int points, out int inWell, out int outWell)
         {
@@ -2120,7 +2122,8 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        if (open && well.Contains(seat.InverseTransformPoint(p)))
+                        // A magazine seated in the well is not let through (task 260 c): its points are outside the opening.
+                        if (open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
                         {
                             inWell++;
                         }

@@ -2013,7 +2013,8 @@ Refuted: WeaponAnalyzer.cs:1205 Bolt-carrying handle racked at bounds centre, sk
   the fresh one went through it (the autotest's keep-out "sideways slowly" had 7 frames inside the gun). The well is open
   to the gun's body only now: `HeldWeapon.SeatedMagSolid` (the seated magazine as posed, grown by a finger's radius, the
   same as in `HandsSolid`) blocks it. The fresh magazine stops at the seated one's base; a strike or a firm push still
-  kicks the seated one out, because `TryMagKick` reads the hand's pose, not the drawn one.
+  kicks the seated one out, because `TryMagKick` reads the hand's pose, not the drawn one. The autotest's counts
+  (`MagazineProp.PointsInsideGun`, `ProbeInside`) use the same rule, so a magazine pushed into the seated one shows.
 - Not run here (no build and no game in this session). Check in the headset: the kicked magazine flies forward and turns
   end over end; a fresh magazine stops at the seated base and kicks out with a strike and with a push. Autotest: the
   thrown magazine's shape coverage should be above the 43 to 76% above, and "magazine keep-out (sideways slowly)" 0 frames.
