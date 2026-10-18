@@ -123,6 +123,15 @@ namespace RavenfieldVR.Weapons
                 {
                     entries.AddRange(WeaponManager.instance.allWeapons);
                 }
+                if (entries.Count == 0 && Time.realtimeSinceStartup - started < 60f && VRManager.Active)
+                {
+                    // Nothing to analyse yet: VR can come up before the game has filled its weapon list, and this pass then ended
+                    // with nothing analysed (the log's "Pre-analysed 0 weapon rigs ... in 0,0 s", task 148, 2026-10-18). Wait for
+                    // the list and go round again, for up to a minute.
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    _rescan = true;
+                    continue;
+                }
                 PutLoadoutFirst(entries);
                 foreach (WeaponManager.WeaponEntry entry in entries)
                 {
