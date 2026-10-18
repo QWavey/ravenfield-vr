@@ -1596,3 +1596,24 @@ Baseline (before round 1), grip squeezed on a controller without finger tracking
 - The harness's racking scenarios now open only the thumb out of the solid before closing, as HandModel does for a
   racking hand. The numbers are the same either way.
 - Kept.
+
+## Tasks 205, 211, 213 (group 205-213 reviewed against the code, 2026-10-18)
+
+Not run in the game: compile check and headset checks are still to do.
+
+- **205, a rocket from the pouch invisible.** A launcher's kept copy of its loaded rocket (`LoadedLook`, from 2026-10-16)
+  was handed out without the drawn check that a copy from the gun's own parts already had. `CheckedCopy`
+  (`src/Weapons/MagazineProp.cs`) now takes a kept copy only when `DrawsAnything` (a renderer on, in an active object,
+  with a size). Otherwise the gun's own parts, then the made rocket, are used. The rocket log line (`rocketheld`) was
+  already there. Still open: the RPG-7, PG-7VR, AT-1K and Panzerfaust 3 checks under 250.
+- **211, view shake.** The autotest's lens flash check (`src/Core/AutoTest.cs`, the loop over every gun) reads
+  `VRRig.PeakShake` on its three single shots and prints `view jolt X deg on a single shot` on each gun's line. The
+  shake's strength still uses the suppressed flag (`c.loud`), not the gun's own flash size.
+- **213, bot count typed with the SteamVR keyboard.** `VRKeyboard.Filter` refuses a whole number that does not fit an
+  int (the game's `int.Parse` throws on eleven digits as on a letter), and a digits-only TMP field takes no minus sign.
+  TMP `Float` is not mapped: this TMP build's `CharacterValidation` enum was not checked for that member.
+
+Checked, no change: 206 (the handguard's support hand holds up to 60 cm; a pistol's support hand has no anchor, so its
+glove follows the tracked hand), 207 (`KeepEmptyHandOut`, the whole glove including its fingers), 208
+(`HeldWeapon.StepInertia`, the autotest weight line), 209 (`LensEffects`, `LensFlash`, `DamageFeedback`, the settings),
+212 (`MuzzleFlashInfo`, `LensFlash.FlashSize`, the self-test's flash line). 210 needs a choice of gestures from the user.
