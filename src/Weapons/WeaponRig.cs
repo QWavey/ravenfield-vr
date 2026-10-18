@@ -238,6 +238,18 @@ namespace RavenfieldVR.Weapons
         public Vector3 MagEjectAxis = Vector3.down;
         public Bounds MagBounds = new Bounds(Vector3.zero, new Vector3(0.025f, 0.12f, 0.06f));
         public Vector3 MuzzlePoint;
+        /// <summary>
+        /// Where the drawn barrel's front lies along the aim (gun-body space, metres from its origin), set only for a one-round
+        /// launcher whose muzzle transform sits more than 30 cm inside the gun. The RPG-7V [PG-7V] family's sits at its tube's
+        /// centre, 28 cm ahead of its grip (rig.json, 2026-10-18) while the tube runs on well past the grip (its rocket is 121 cm
+        /// long), and the gun's length was taken from that muzzle. Negative infinity: not set.
+        /// </summary>
+        public float BarrelFrontAlong = float.NegativeInfinity;
+        /// <summary>
+        /// How far the gun reaches ahead of its grip along the aim (metres): the muzzle's, or the drawn barrel's front where the
+        /// muzzle transform sits well inside the gun (<see cref="BarrelFrontAlong"/>). The muzzle's for every other gun.
+        /// </summary>
+        public float LengthFromGrip => Mathf.Max(Vector3.Dot(MuzzlePoint - GripPoint, AimAxis), BarrelFrontAlong - Vector3.Dot(GripPoint, AimAxis));
 
         public ActionType Action;
         public bool LockOnEmpty;

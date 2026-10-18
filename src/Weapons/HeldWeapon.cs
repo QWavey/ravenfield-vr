@@ -285,7 +285,7 @@ namespace RavenfieldVR.Weapons
         internal static bool IsLauncher(WeaponRigData d, Weapon w)
         {
             if (d.Action != ActionType.SingleShot || w == null || w.configuration == null || w.configuration.ammo > 1
-                || Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis)) <= 0.4f)
+                || Mathf.Abs(d.LengthFromGrip) <= 0.4f)
             {
                 return false;
             }
@@ -2396,7 +2396,9 @@ namespace RavenfieldVR.Weapons
                     Vector3 axis = Rig.AimWorld;
                     float slide = Vector3.Dot(off.PalmCentre - support.position, axis);
                     float min = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint) - support.position, axis) + 0.08f;
-                    float max = Vector3.Dot(Rig.ToWorld(Rig.Data.MuzzlePoint) - support.position, axis) - 0.04f;
+                    // The gun's length along the aim (the drawn barrel's front where the muzzle sits inside it, Tasks 266): the same
+                    // projection as the muzzle point for every other gun.
+                    float max = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint + Rig.Data.AimAxis * Rig.Data.LengthFromGrip) - support.position, axis) - 0.04f;
                     support.position += axis * Mathf.Clamp(slide, Mathf.Min(min, 0f), Mathf.Max(max, 0f));
                 }
                 off.Model.SnapPose = support;
