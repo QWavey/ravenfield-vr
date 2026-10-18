@@ -115,8 +115,10 @@ namespace RavenfieldVR.Input
             Hand off = VRInput.FreeHand;
             bool menu = GameContext.GameMenuOpen || !GameContext.InGame;
 
-            // Always available: menus and respawn.
-            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause) || LowerButtonDoublePressed());
+            // Always available: menus and respawn. The double press is read on every frame: behind the Pause test it was skipped
+            // on a frame that also had a Pause press, and that lower press was lost from the count (Tasks 160).
+            bool lowerDouble = LowerButtonDoublePressed();
+            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause) || lowerDouble);
             Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout));
             Set(KeyBinds.SquadLeaderKit, VRInput.GetPressed(DigitalAction.Map));
             // In VR the scoreboard only ever shows together with the map (the wrist look): on its own it covered the
@@ -168,15 +170,15 @@ namespace RavenfieldVR.Input
 
         private static readonly float[] LowerPressedAt = { -1f, -1f };
 
+        /// <summary>When the gun hand's A was pressed for a fire-mode switch still waiting out the double press (-1: none).</summary>
+        private static float _modePressAt = -1f;
+        private const float DoublePressWindow = 0.4f;
+
         /// <summary>
         /// The lower face button (A or X) pressed twice quickly opens the game's menu. Done here rather than as a SteamVR
         /// double click: as a binding, every slide release waited out the double-click window and the squad button lost its
         /// hold (squad orders need it held). The first press still does its job; the second is taken.
         /// </summary>
-        /// <summary>When the gun hand's A was pressed for a fire-mode switch still waiting out the double press (-1: none).</summary>
-        private static float _modePressAt = -1f;
-        private const float DoublePressWindow = 0.4f;
-
         private static bool LowerButtonDoublePressed()
         {
             bool open = false;
