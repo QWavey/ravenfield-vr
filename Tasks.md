@@ -2132,6 +2132,23 @@ Each line: the task, the verdict, what the code does now / what is left (from th
 - 259: partly fixed now. Scouts' rack and grip faults from the sandbox sweep. Code in place (commit 96d11e3): RackStrokeFromHands (WeaponAnalyzer.cs:605 call, :1707 def) cuts a handle out only where a part of the gun is within 2.5 cm, else the rack point stays on the moving part; RackOnOutstandingPiece (:610 call, :3185 def) takes the carrier by its far vertex for 23 guns; ArChargingHandle (:879) measures the upper receiver's back end ...
 - 260: FIXED NOW (code), check in the headset. All three parts written in code (not built or run; needs the headset and autotest check). Setup note: this worktree was NOT at 483b1de when I started (it was clean at 36f50e3, an older commit still reachable from main and tasks-98-113); I ran git reset --hard 483b1de on this worktree's own branch before working, as the task specified.
 
+### For 260: the user's magazine items (2026-10-18)
+
+- (a) Mag kick: the knocked-out magazine flies forward along the barrel and tumbles end over end, top leading (it fell
+  sideways and down spinning about the barrel). Fixer agent (ReloadInteractions.KickOut); in the game (check-1018f) the
+  HK416's mag kick still knocks out on a fast strike, a slow push and tilted 45 degrees, and nothing passing beside it.
+- (c) A seated magazine is solid for a magazine in the hand: the well's opening no longer lets it through
+  (MagazineProp.KeepOffGun, HeldWeapon.SeatedMagSolid); the mag kick still triggers (above).
+- (b) "the hitbox is down and not on the whole mag": NOT reproduced yet. The fixer changed ShapeFit.Thin (farthest points
+  per direction instead of every n-th): no change in the autotest (FNX-45 53% covered before and after, HK416 52%). Then
+  measured: the HK416's and FNX-45's physics pieces span exactly the drawn copy (log 'Magazine shape of ...', check-1018g),
+  the grab distance is measured to those colliders, and the keep-out's 25 points run from the drawn base to the drawn tip;
+  no partial-hull warnings in the Unity log; over all 244 guns with a magazine the analysis box sits within 1 cm of the
+  drawn magazine except 8 (the ARS Bot Friendly HK416 / MP9 / G19 at 6-10 cm, a G BRN180 EO SS at 17 (its drum), M500,
+  Panzerfaust 3). The autotest's ~52% coverage is measured on a thrown (flying, curved) magazine against its rendered
+  surface at 5 mm, not proof of a short shape. Needed from the user: which guns, and which hitbox (picking a magazine up,
+  a magazine in the hand bumping the gun, a dropped magazine lying on the ground).
+
 ### For 259: rack points and grips from the scouts' list (2026-10-18)
 
 - Rack stroke from the reload hand (RackStrokeFromHands): on all 7 guns that took it (AS Val x2, AK-24 x2, ACE 32,

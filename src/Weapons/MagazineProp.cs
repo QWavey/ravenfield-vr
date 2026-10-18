@@ -222,6 +222,19 @@ namespace RavenfieldVR.Weapons
             {
                 _pieceBounds[i] = shape[i].Bounds;
             }
+            if (shape.Length > 0)
+            {
+                // What the physics shape spans against what the copy draws, both in its own space (task 260 b: the hitbox
+                // of many magazines sat low and covered only about half of them).
+                Bounds span = _pieceBounds[0];
+                foreach (Bounds pb in _pieceBounds)
+                {
+                    span.Encapsulate(pb);
+                }
+                Log.InfoOnce("magshape:" + key + ":" + kind, $"Magazine shape of {key} ({kind}): {shape.Length} piece(s) spanning {span.min * 100f:F1}..{span.max * 100f:F1} cm, "
+                                                        + $"the copy drawn over {bounds.min * 100f:F1}..{bounds.max * 100f:F1} cm, {(_boxShaped ? "boxes" : "fitted to its vertices")}, "
+                                                        + $"{shown.Length} renderer(s) ({System.Linq.Enumerable.Count(shown, r => r != null && r.enabled)} on).");
+            }
             _body = go.AddComponent<Rigidbody>();
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
