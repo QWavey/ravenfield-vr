@@ -12,7 +12,7 @@ import time
 import numpy as np
 
 import glb
-from glove import POSES, GloveShape, Hand
+from glove import POSES, GloveShape, Hand, grip_thumb_base
 from mathutil import frame_quat, norm, quat_axis_angle, quat_inv, quat_mul, quat_norm, quat_to_mat3, mat3_to_quat, trs, v3
 
 ROLE_NAMES = {'slide': 'slide / bolt', 'companion': 'moves with the slide', 'handle': 'charging handle', 'bolt': 'bolt',
@@ -265,6 +265,10 @@ class Weapon:
         q = np.clip(local, bmin, bmax)
         at = np.einsum('nij,nj->ni', sims_arr, np.append(q, np.ones((len(q), 1)), axis=1))[:, :3]
         d = np.where(ok, np.linalg.norm(at - p[:3], axis=1), np.inf)
+        ok = ok & np.isfinite(d)  # (a NaN place or point: skipped, as the old loop skipped it; else argmin of nothing raised)
+        if not ok.any():
+            return None, 1e9
+        d = np.where(ok, d, np.inf)
         # The nearest, and among those within 0.1 mm of it the smallest box (a full tie: the first part in order).
         near = np.flatnonzero(d <= d.min() + 1e-4)
         bi = int(near[np.argmin(vol[near])])
@@ -283,7 +287,6 @@ class Scene:
         self.right.position = np.array([0.0, -0.02, 0.12])
         self.left.position = np.array([0.18, -0.02, 0.12])
         self.weapon = None
-        self.highlight_role = None
         self.laser_hand = None
 
     def hands(self):
@@ -376,7 +379,8 @@ class Scene:
             hand.position = w.to_world(w.grip)
             curls = r.get('gripCurls')
             if curls and len(curls) == 5:
-                hand.set_pose("weapon's own grip", [0.35] + list(curls))
+                # The thumb base the game gives the class's grip (a machine gun's 0.45, review of the sandbox extras).
+                hand.set_pose("weapon's own grip", [grip_thumb_base(pistol, bool(r.get('machineGun')))] + list(curls))
             else:
                 hand.set_pose('Machine gun grip' if r.get('machineGun') else 'Pistol grip' if pistol else 'Rifle grip')
             hand.on_part = 'grip'
@@ -451,6 +455,7 @@ class Scene:
         hand.position = np.asarray(point_world, dtype=np.float64) + n * 0.03
         hand.on_part = ''
         hand.role = self.contact_role(hand)
+        hand.update_mesh()  # (the job decides how the glove is drawn: grip and support clamps, a free hand's pointing)
         self.settle(hand)
 
     # ---- the glove settling on what it holds ----------------------------------------------------------------------------
@@ -541,16 +546,20 @@ class Scene:
         return w.to_gun(self.right.position)[:3] if self.right.role == 'grip' else w.grip
 
     def support_ok(self, p):
-        """Whether a left hand at this gun-space point is a support the game can take (review B10#1, B10#7): never on a gun with
-        no support point; a pistol's cup within 12 cm of its grip; a long gun's support 7 cm or more ahead of the grip the game
-        holds (held_grip) along the aim (the analysis keeps it there, on the forend), or within 5 cm of the analysed support."""
+        """Whether a left hand at this gun-space point is a support the game can take (review B10#1, B10#7), the same rule as
+        the mod's SandboxPoses.SupportAllowed: never on a gun with no support point; anywhere within 5 cm of the analysed
+        support; else a pistol's cup within 12 cm of the grip the game holds (held_grip), a long gun's support 7 cm or more
+        ahead of it along the aim (the analysis keeps it there, on the forend). (The two sides took different rules: a
+        pistol's analysed support 68 cm off its grip, a sabre's, was warned about here and kept by the game.)"""
         w = self.weapon
         r = w.rig
         if not r.get('hasSupport'):
             return False
+        if float(np.linalg.norm(p - v3(r['support']))) < 0.05:
+            return True
         if r.get('isPistol'):
-            return float(np.linalg.norm(p - w.grip)) < 0.12
-        return float(np.dot(p - self.held_grip(), w.aim)) >= 0.07 or float(np.linalg.norm(p - v3(r['support']))) < 0.05
+            return float(np.linalg.norm(p - self.held_grip())) < 0.12
+        return float(np.dot(p - self.held_grip(), w.aim)) >= 0.07
 
     def pose_warnings(self):
         """What the game would do oddly with these hands, said before saving."""
@@ -577,13 +586,15 @@ class Scene:
         elif not self.support_ok(p_left):
             # A support behind the grip turns the gun away from the off hand (review B10#1).
             if not w.rig.get('hasSupport'):
-                why = 'on a gun with no support point'
-            elif w.rig.get('isPistol'):
-                why = f'{float(np.linalg.norm(p_left - w.grip)) * 100:.0f} cm from the pistol grip'
+                out.append('The left hand is saved as the support on a gun with no support point: the game keeps no support point.')
             else:
-                ahead = float(np.dot(p_left - self.held_grip(), w.aim)) * 100
-                why = f"{abs(ahead):.0f} cm {'behind' if ahead < 0 else 'ahead of'} the grip (a long gun's support is 7 cm or more ahead of it)"
-            out.append(f'The left hand is saved as the support but sits {why}: the game keeps the analysed support point.')
+                if w.rig.get('isPistol'):
+                    why = (f"{float(np.linalg.norm(p_left - self.held_grip())) * 100:.0f} cm from the pistol grip (a pistol's "
+                           'support hand cups the grip, within 12 cm of it)')
+                else:
+                    ahead = float(np.dot(p_left - self.held_grip(), w.aim)) * 100
+                    why = f"{abs(ahead):.0f} cm {'behind' if ahead < 0 else 'ahead of'} the grip (a long gun's support is 7 cm or more ahead of it)"
+                out.append(f'The left hand is saved as the support but sits {why}: the game keeps the analysed support point.')
         # The game clamps a held curl to 0.15-0.92 (HandModel.Pose, glove._held): the grip's four fingers (its thumb is its own),
         # the support hand's five. A negative curl is the game's "not measured", not a value (review B10#2).
         names = ('thumb', 'index', 'middle', 'ring', 'little')
@@ -667,11 +678,18 @@ class Scene:
             curls = h.get('curls', [0.1, 0.12, 0.16, 0.2, 0.24])
             if not isinstance(curls, (list, tuple)) or not curls:
                 raise ValueError(f'{side} hand: curls must be a list')
-            curls = [float(min(1.0, max(0.0, float(c)))) for c in list(curls)[:5]]
+            # A curl below 0 is the game's 'not measured' (-1, HandModel.Pose's fallback): kept as -1, not made 0 (a file
+            # loaded and saved again turned it into a straight finger the game then held). A NaN reads as 0.
+            def curl(c):
+                c = float(c)
+                return 0.0 if not math.isfinite(c) else -1.0 if c < 0 else min(1.0, c)
+            curls = [curl(c) for c in list(curls)[:5]]
             curls += [curls[-1]] * (5 - len(curls))
             hands[side] = {'position': pos, 'rotation': quat_norm(rot), 'curls': curls,
                            'thumb': float(min(1.0, max(0.0, float(h.get('thumb', 0) or 0)))),
-                           'pose': str(h.get('pose', 'Custom')), 'on': str(h.get('on', '') or ''), 'role': str(h.get('role', '') or ''),
+                           'pose': str(h.get('pose', 'Custom')), 'on': str(h.get('on', '') or ''),
+                           # A file from before the job was saved: its right hand is the grip, as the mod reads it (SandboxPoses).
+                           'role': str(h.get('role', 'grip' if side == 'right' else '') or ''),
                            'thumbSet': bool(h.get('thumbSet', False))}
         parts = doc.get('parts') if isinstance(doc.get('parts'), dict) else {}
 

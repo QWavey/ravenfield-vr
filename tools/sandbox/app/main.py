@@ -27,7 +27,7 @@ from qfluentwidgets import (Action, BodyLabel, CaptionLabel, CardWidget, CheckBo
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from glove import FINGERS, POSES  # noqa: E402
+from glove import FINGERS, POSES, grip_thumb_base  # noqa: E402
 from mathutil import quat_norm, quat_slerp, quat_to_euler_deg, euler_deg_to_quat, quat_mul, quat_inv  # noqa: E402
 from scene import ROLE_NAMES, Scene, Weapon  # noqa: E402
 from viewport import Viewport  # noqa: E402
@@ -207,7 +207,9 @@ class Workbench(QWidget):
         self.settings = QSettings('RavenfieldVR', 'Sandbox')
         self.undo_stack, self.redo_stack = [], []
         self._numbers_undo_at = 0.0
-        self._numbers_shown = {}  # hand side -> (its turn as a quaternion, the position and turn boxes as shown last)
+        # hand side -> {'q': its turn (a quaternion, gun-relative), 'pos_box' / 'turn_box': the boxes as shown last (to see which
+        # one the user changed), 'turn': the exact angles they were shown from (the boxes round to 0.1)}
+        self._numbers_shown = {}
         # The hand boxes' frame: from the analysed grip point (the first), or from the muzzle (set_numbers_frame; real2 I2#0).
         self.numbers_frame = 'grip'
         if not self.selftest:
@@ -267,7 +269,7 @@ class Workbench(QWidget):
         self.view.hovered.connect(lambda s: (self.hover.setText(s), self.hover.adjustSize()))
         self.view.drag_finished.connect(self._moved)  # a hand's job is worked out when its drag ends, not on every move
         self.view.weapon_moved.connect(self.sync_numbers)  # the gun moved: the numbers of the hand shown follow
-        self.view.weapon_moved.connect(self._pick_follows_gun)
+        self.view.weapon_moved.connect(self._pick_follows)
         self.view.drag_cancelled.connect(self._drag_cancelled)
         self.view.gizmo_info.connect(self._gizmo_info)
         self.view.gizmo_target_changed.connect(lambda t: self.gizmo_on.setCurrentItem(t))
@@ -348,6 +350,7 @@ class Workbench(QWidget):
             self.gizmo_seg.setCurrentItem(mode)
         if not self.selftest:
             self.settings.setValue('gizmoMode', mode)
+        v.refresh_cursor()  # (other handles under the pointer now)
         v.update()
 
     def set_gizmo_space(self, space):
@@ -561,7 +564,9 @@ class Workbench(QWidget):
             boxes = []
             for _ in range(3):
                 b = DoubleSpinBox()
-                b.setRange(-500, 500)
+                # (Wide: a hand 6 m off showed 500 and was pulled back to it when another box changed. Each box now moves only
+                # its own axis, so a clamped one cannot move the hand either.)
+                b.setRange(-100000, 100000)
                 b.setDecimals(1)
                 b.setSingleStep(0.5 if unit == 'cm' else 5)
                 # Three in a row in the narrow side panel: the arrows would cut the number off (120 showed as 12), so the keys
@@ -830,7 +835,10 @@ class Workbench(QWidget):
                 self.scene.read_pose_document(self.saved_doc)
             except Exception as e:  # noqa: BLE001 (a hand-made or cut file)
                 self.log_error(f'reading the saved pose {pose_file}', e)
-                kept = self.keep_old(pose_file, 'unreadable')
+                try:
+                    kept = self.keep_old(pose_file, 'unreadable')
+                except OSError:
+                    kept = None  # (logged; the message below then names no copy)
                 self.toast('The saved pose could not be read', f'{pose_file}\n{type(e).__name__}: {e}'
                            + (f'\nA copy is in {kept}.' if kept else ''), error=True)
                 self.saved_doc = None
@@ -917,6 +925,7 @@ class Workbench(QWidget):
         self.view.selected_hand = hand
         self.view.set_gizmo_target('hand')
         self.on_select(hand)
+        self.view.refresh_cursor()  # (the gizmo moved to the other hand)
         self.view.update()
 
     def on_select(self, hand):
@@ -942,9 +951,12 @@ class Workbench(QWidget):
                 self.view.touch_node = None
                 self.view.update()
             return
+        self._pick_follows()  # (a part or a hand moved: the laser's point and its readout follow; every such path comes here)
         part, dist = w.nearest_part(w.to_gun(h.position)[:3])
         near = part is not None and dist <= 0.06  # (the reach a hand gets its job by: Scene.contact_role)
-        touch = part if near else None  # the part the hand touches, tinted in the view (review I9#2)
+        # The part the hand touches, tinted in the view (review I9#2); not a body part: on many guns the body is the whole
+        # receiver and stock, and a palm on the grip tinted the whole gun.
+        touch = part if near and part.role != 'body' else None
         if touch is not self.view.touch_node:
             self.view.touch_node = touch
             self.view.update()
@@ -1048,7 +1060,8 @@ class Workbench(QWidget):
             curls = w.rig.get('gripCurls' if 'grip' in name else 'supportCurls')
             if curls:
                 h.thumb_set = False  # the weapon's own pose: the game keeps its thumb rule (set before the pose: the mesh follows it)
-                h.set_pose(name, [0.35] + list(curls))
+                base = grip_thumb_base(h.pistol, h.machine_gun) if 'grip' in name else 0.35  # (the class's, as the snap gives it)
+                h.set_pose(name, [base] + list(curls))
                 self.sync_hand_controls()
                 self.view.update()
             return
@@ -1102,30 +1115,35 @@ class Workbench(QWidget):
         """The position boxes' caption and the card's note say the frame the boxes show now."""
         if self.numbers_frame == 'muzzle':
             self.pos_caption.setText('Position in cm from the muzzle: back along the barrel, up, right')
-            self.numbers_note.setText('The laser readout and Copy coordinates give these same numbers. The frame above switches '
-                                      'the boxes to forward, up and right from the grip point.')
+            self.numbers_note.setText("The boxes count as the laser readout and Copy coordinates do (back, up, right from the "
+                                      "muzzle); those give the picked point on the part, not this hand's palm centre. The "
+                                      'frame above switches the boxes to forward, up and right from the grip point.')
         else:
             self.pos_caption.setText('Position in cm from the analysed grip point: forward along the barrel, up, right')
             self.numbers_note.setText('The laser readout and Copy use back, up, right from the muzzle instead, so their numbers '
                                       'differ from these.')
+
+    def hand_numbers(self, w, h):
+        """The hand's place in the boxes' frame, exact (cm): back, up, right from the muzzle (the laser readout's frame), or
+        forward, up, right from the analysed grip point."""
+        g = w.to_gun(h.position)[:3]
+        if self.numbers_frame == 'muzzle':
+            return w.from_muzzle(g)
+        return np.array([np.dot(g - w.grip, w.aim), np.dot(g - w.grip, w.up), np.dot(g - w.grip, w.right)]) * 100
 
     def sync_numbers(self):
         w = self.scene.weapon
         h = self.current_hand()
         if w is None:
             return
-        g = w.to_gun(h.position)[:3]
-        if self.numbers_frame == 'muzzle':
-            local = w.from_muzzle(g)  # back, up, right from the muzzle: the laser readout's own numbers
-        else:
-            local = np.array([np.dot(g - w.grip, w.aim), np.dot(g - w.grip, w.up), np.dot(g - w.grip, w.right)]) * 100
+        local = self.hand_numbers(w, h)
         q = quat_mul(quat_inv(w.Wq), h.rotation)
         turn = self.turn_numbers(h, q)
         for box, val in zip(self.num[0] + self.num[1], list(local) + list(turn)):
             box.blockSignals(True)
             box.setValue(float(val))
             box.blockSignals(False)
-        self.remember_numbers(h, q)
+        self.remember_numbers(h, q, turn)
         self.update_selected_label()
 
     def turn_numbers(self, h, q):
@@ -1133,8 +1151,8 @@ class Workbench(QWidget):
         typed 120 stays 120 instead of coming back as 60 with yaw and roll 180 (the same turn). After a drag the Euler form
         nearest the angles shown last is used, so pitch does not jump at 90 degrees."""
         last = self._numbers_shown.get(h.side)
-        if last is not None and 1.0 - abs(float(np.dot(q, last[0]))) < 1e-9:
-            return last[2].copy()
+        if last is not None and 1.0 - abs(float(np.dot(q, last['q']))) < 1e-9:
+            return last['turn'].copy()
         e = quat_to_euler_deg(q)
         if last is None:
             return e
@@ -1142,18 +1160,19 @@ class Workbench(QWidget):
         # turns (360 degrees is the same turn): the form nearest the angles shown last wins.
         best, best_d = e, None
         for c in (e, np.array([180.0 - e[0], e[1] + 180.0, e[2] + 180.0])):
-            c = c + 360.0 * np.round((last[2] - c) / 360.0)
-            d = float(np.sum((c - last[2]) ** 2))
+            c = c + 360.0 * np.round((last['turn'] - c) / 360.0)
+            d = float(np.sum((c - last['turn']) ** 2))
             if best_d is None or d < best_d:
                 best, best_d = c, d
         return best
 
-    def remember_numbers(self, h, q):
-        """The boxes as they show now for this hand, with its turn: the next change moves only the box that was changed (the
-        boxes round to 0.1, which must not move the hand), and a drag keeps the angles the numbers were shown with."""
-        pos = np.array([b.value() for b in self.num[0]])
-        turn = np.array([b.value() for b in self.num[1]])
-        self._numbers_shown[h.side] = (np.array(q, dtype=np.float64), pos, turn)
+    def remember_numbers(self, h, q, turn):
+        """The boxes as they show now for this hand (to see which one the user changes next) and the exact angles they show:
+        the next change moves only the axis of the box that was changed (the boxes round to 0.1, which must not move the hand),
+        and a drag keeps the angles the numbers were shown with."""
+        self._numbers_shown[h.side] = {'q': np.array(q, dtype=np.float64), 'turn': np.array(turn, dtype=np.float64),
+                                       'pos_box': np.array([b.value() for b in self.num[0]]),
+                                       'turn_box': np.array([b.value() for b in self.num[1]])}
 
     def on_numbers(self):
         w = self.scene.weapon
@@ -1164,19 +1183,29 @@ class Workbench(QWidget):
             self.push_undo()
         self._numbers_undo_at = time.monotonic()
         last = self._numbers_shown.get(h.side)
-        pos = np.array([b.value() for b in self.num[0]])
-        turn = np.array([b.value() for b in self.num[1]])
-        if last is None or not np.allclose(pos, last[1], atol=1e-9):
+        pos_box = np.array([b.value() for b in self.num[0]])
+        turn_box = np.array([b.value() for b in self.num[1]])
+        # Only the axes whose own box changed take the box's value; the others keep the hand's exact place and turn (rebuilt
+        # from all three rounded boxes, one typed number moved the hand by up to 0.5 mm on the others, and a box clamped at its
+        # limit pulled the hand back to it: review of the sandbox extras).
+        pos_changed = np.ones(3, bool) if last is None else ~np.isclose(pos_box, last['pos_box'], atol=1e-9)
+        turn_changed = np.ones(3, bool) if last is None else ~np.isclose(turn_box, last['turn_box'], atol=1e-9)
+        if pos_changed.any():
+            local = np.where(pos_changed, pos_box, self.hand_numbers(w, h))
             if self.numbers_frame == 'muzzle':
                 # Back, up, right from the muzzle: the exact inverse of from_muzzle, which the laser readout uses.
-                h.position = w.to_world(w.muzzle_point(pos[0], pos[1], pos[2]))
+                h.position = w.to_world(w.muzzle_point(local[0], local[1], local[2]))
             else:
-                f, u, r = pos / 100
+                f, u, r = local / 100
                 h.position = w.to_world(w.grip + w.aim * f + w.up * u + w.right * r)
-        if last is None or not np.allclose(turn, last[2], atol=1e-9):
+        q = quat_mul(quat_inv(w.Wq), h.rotation)
+        turn = self.turn_numbers(h, q)  # (the exact angles shown for this turn)
+        if turn_changed.any():
+            turn = np.where(turn_changed, turn_box, turn)
             # The angles as typed (kept as typed: sync_numbers shows them again while the hand keeps this turn).
             h.rotation = quat_norm(quat_mul(w.Wq, euler_deg_to_quat(turn)))
-        self.remember_numbers(h, quat_mul(quat_inv(w.Wq), h.rotation))
+            q = quat_mul(quat_inv(w.Wq), h.rotation)
+        self.remember_numbers(h, q, turn)
         self._moved(h)
         self.view.update()
 
@@ -1193,6 +1222,7 @@ class Workbench(QWidget):
         the support hand again; its stale job dropped it from the saved pose)."""
         h.on_part = ''
         h.role = self.scene.contact_role(h)
+        h.update_mesh()  # (the job decides how the glove is drawn: it kept the old job's curls until the next pose change)
         self.update_selected_label()
 
     def after_hand_change(self):
@@ -1257,6 +1287,7 @@ class Workbench(QWidget):
             n.away = False
         w.set_state(0, 0, 0)
         self.sync_sliders()
+        self._pick_follows()
         self.view.update()
 
     def _move_hand(self, hand, target):
@@ -1299,6 +1330,7 @@ class Workbench(QWidget):
         def update(t):
             w.set_state(**{what: start['v'] + (to - start['v']) * t})
             self.sync_sliders()  # (the sliders follow the parts as they move, not only at the end: real2 I7#2)
+            self._pick_follows()  # (and a laser point on the moving part)
         return (dur, update, begin)
 
     def _follow_ease(self, hand, target, what, to, dur):
@@ -1558,7 +1590,9 @@ class Workbench(QWidget):
                                 else self.hands_hint_text)
         if not on:
             # Turning the laser off takes its pick with it: the readout, the pick line and Copy coordinates go, so a right click
-            # without the laser or Alt never copies a part picked before (real2 I9#0). The hover label drops the part's name too.
+            # afterwards does not copy the part the laser picked (real2 I9#0). (An Alt + click with the laser off picks too, and
+            # that pick stays, readout shown, until the next pick or a click on empty space.) The hover label drops the part's
+            # name too.
             self.view.pick_point = None
             self.view.pick_line = None
             self.view.pick_normal = None
@@ -1566,56 +1600,76 @@ class Workbench(QWidget):
             if self.view.hover_node is not None:
                 self.view.hover_node = None
                 self.view.hovered.emit('')
+        self.view.refresh_cursor()  # (the cross with the laser on, at once)
         self.view.update()
 
     def on_pick(self, point, node):
         self.picked_point, self.picked_node = point, node
-        # Kept on the gun too: the gun moved or turned after the pick, Copy coordinates and Put the hand here used the
-        # point where the part had been (review C1).
+        # Kept on the part it was taken on, in the part's own frame: the gun moved or turned (review C1), a slider moved the
+        # part, or Ctrl+Z or Reset put either back, and the point goes with it. Kept in gun space only, Copy coordinates gave
+        # numbers off by the move after an undo or a slider, while the readout still showed the pick's (review of the
+        # sandbox extras).
         w = self.scene.weapon
         self._picked_gun = None
         if point is not None and w is not None:
+            try:
+                inv = np.linalg.inv(node.sim) if node is not None else np.eye(4)
+            except np.linalg.LinAlgError:
+                inv = np.eye(4)
             n = self.view.pick_normal
-            self._picked_gun = (w.to_gun(point)[:3].copy(),
-                                np.linalg.inv(w.W[:3, :3]) @ n if n is not None else None)
+            self._picked_gun = ((inv @ np.append(w.to_gun(point)[:3], 1.0))[:3],
+                                inv[:3, :3] @ (np.linalg.inv(w.W[:3, :3]) @ n) if n is not None else None)
         if point is None:
             self.readout.hide()
             return
-        self.readout_text.setText(self.point_text(rich=True))
-        self.readout.adjustSize()
         self.readout.setFixedWidth(min(560, max(320, self.view.width() - 24)))
-        self.readout.adjustSize()
-        self.readout.move(12, self.view.height() - self.readout.height() - 12)
+        self._show_readout()
         self.readout.show()
         self.readout.raise_()
 
-    def _pick_follows_gun(self):
-        """The gun moved or turned: the laser's point (and its line's end and the surface's normal) go with it."""
+    def _show_readout(self):
+        """The readout card's text for the pick as it is now, sized and kept at the view's bottom left."""
+        self.readout_text.setText(self.point_text(rich=True))
+        self.readout.adjustSize()
+        self.readout.move(12, self.view.height() - self.readout.height() - 12)
+
+    def _pick_follows(self):
+        """The gun moved or turned, the part the pick is on moved, or a hand moved: the laser's point (its line's end and the
+        surface's normal) goes with its part, and the readout says where it is now and which hand is nearest (its hand line
+        stayed as at the pick, review of the sandbox extras)."""
         w = self.scene.weapon
         held = getattr(self, '_picked_gun', None)
-        if w is None or held is None or self.picked_point is None:
+        if w is None or held is None or self.picked_point is None or self.picked_node is None:
             return
-        self.picked_point = w.to_world(held[0])
+        sim = self.picked_node.sim
+        self.picked_point = w.to_world((sim @ np.append(held[0], 1.0))[:3])
         v = self.view
         v.pick_point = self.picked_point
         if held[1] is not None:
-            n = w.dir_to_world(held[1])
+            n = w.dir_to_world(sim[:3, :3] @ held[1])
             v.pick_normal = n / max(1e-12, float(np.linalg.norm(n)))
         if v.pick_line is not None:
             v.pick_line = [v.pick_line[0], self.picked_point]
+        if not self.readout.isHidden():  # (shown, also while another page is in front)
+            self._show_readout()
 
     def point_text(self, rich=False):
         w = self.scene.weapon
         n = self.picked_node
-        g = w.to_gun(self.picked_point)[:3]
-        # The same point on the part at rest: back through where the part is now, then out to its home (a magazine parked
-        # away at rest is drawn on its seat: its home; taken back to the raw export, the M1's clip read 1 m off, real2 B2#3).
+        # The same point on the part at rest: the point in the part's own frame (kept at the pick, on_pick) out to the part's
+        # home (a magazine parked away at rest is drawn on its seat: its home; taken back to the raw export, the M1's clip read
+        # 1 m off, real2 B2#3).
         home = w.home_matrix(n)
         moved = not np.allclose(n.sim, home, atol=1e-6)
-        try:
-            rest = (home @ np.linalg.solve(n.sim, np.append(g, 1.0)))[:3] if moved else g
-        except np.linalg.LinAlgError:
-            rest = g
+        held = getattr(self, '_picked_gun', None)
+        if held is not None:
+            rest = (home @ np.append(held[0], 1.0))[:3]
+        else:
+            g = w.to_gun(self.picked_point)[:3]
+            try:
+                rest = (home @ np.linalg.solve(n.sim, np.append(g, 1.0)))[:3] if moved else g
+            except np.linalg.LinAlgError:
+                rest = g
         b, u, r = w.from_muzzle(rest)
         x, y, z = Weapon.unity(rest)
         role = ROLE_NAMES.get(n.role, n.role)
@@ -1720,6 +1774,8 @@ class Workbench(QWidget):
     def copy_hands_text(self):
         text = self.hands_text()
         if not text:
+            # (The button is there with no weapon open too: it said nothing and left the old clipboard, review of the extras.)
+            self.toast('Nothing copied', 'No weapon is open: open one, then Copy pose as text copies its hands.', warn=True)
             return
         QGuiApplication.clipboard().setText(text)
         self.toast('Copied', 'The hands and where they are on the gun are on the clipboard: paste them to Claude.')
@@ -1734,6 +1790,8 @@ class Workbench(QWidget):
             return
         self.push_undo()
         self.scene.move_weapon(np.linalg.inv(w.P))
+        self._pick_follows()  # (the gun went back without a drag: weapon_moved is not sent)
+        self.sync_numbers()
         self.view.update()
 
     def test_pick(self):
@@ -1767,10 +1825,22 @@ class Workbench(QWidget):
         steam = None
         try:
             import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam') as key:
-                steam = str(winreg.QueryValueEx(key, 'SteamPath')[0])
-        except (ImportError, OSError):
-            steam = None  # (not Windows, or Steam was never started on this account)
+            # (The keys tools/common.ps1 and the installer read, in their order: the user's, then the machine's.)
+            keys = ((winreg.HKEY_CURRENT_USER, r'Software\Valve\Steam'), (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\WOW6432Node\Valve\Steam'),
+                    (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Valve\Steam'))
+            for hive, sub in keys:
+                for name in ('SteamPath', 'InstallPath'):
+                    try:
+                        with winreg.OpenKey(hive, sub) as key:
+                            steam = str(winreg.QueryValueEx(key, name)[0]) or None
+                    except OSError:
+                        continue
+                    if steam:
+                        break
+                if steam:
+                    break
+        except ImportError:
+            steam = None  # (not Windows)
         steam = os.path.normpath(steam or os.path.join(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'), 'Steam'))
         libs = [steam]
         try:
@@ -1833,23 +1903,33 @@ class Workbench(QWidget):
 
     def keep_old(self, path, why=''):
         """A pose file about to be overwritten or removed is copied to tools/sandbox/poses/history first (the last 30 per
-        weapon are kept): a pose saved over by mistake can be got back."""
+        weapon are kept): a pose saved over by mistake can be got back. None when there is nothing to keep; raises OSError
+        when the copy could not be made, so the caller leaves the file as it is (it went on and overwrote or removed it
+        without its copy: review of the sandbox extras)."""
         if not path or not os.path.exists(path):
             return None
+        import shutil
         hist = os.path.join(self.poses_dir, 'history')
-        os.makedirs(hist, exist_ok=True)
         base = os.path.splitext(os.path.basename(path))[0]
         where = 'game' if os.path.normcase(os.path.dirname(path)) != os.path.normcase(self.poses_dir) else 'saved'
         dst = os.path.join(hist, f'{base}--{where}{("-" + why) if why else ""}--{stamp()}.json')
         try:
-            import shutil
+            os.makedirs(hist, exist_ok=True)
             shutil.copy2(path, dst)
+        except OSError as e:
+            self.log_error(f'keeping the old pose {path}', e)
+            try:
+                if os.path.exists(dst):
+                    os.remove(dst)  # (a copy cut off half way is no copy)
+            except OSError:
+                pass
+            raise OSError(f'no copy of the old pose could be kept in {hist}, so it was left as it is: {e}') from e
+        try:  # (the oldest copies beyond 30 go; one that cannot go only stays)
             old = sorted((f for f in os.listdir(hist) if f.startswith(base + '--')), key=lambda f: os.path.getmtime(os.path.join(hist, f)))
             for f in old[:-30]:
                 os.remove(os.path.join(hist, f))
         except OSError as e:
-            self.log_error(f'keeping the old pose {path}', e)
-            return None
+            self.log_error(f'clearing old copies of {base} in {hist}', e)
         return dst
 
     def save_pose(self):
@@ -1948,7 +2028,7 @@ class Workbench(QWidget):
         if w is None:
             return
         if game is None:
-            self.toast('The game was not found', 'Ravenfield is not in the usual Steam folder.', error=True)
+            self.toast('The game was not found', self.game_not_found(), error=True)
             return
         src = self.pose_path()
         if not os.path.exists(src):
@@ -1969,19 +2049,30 @@ class Workbench(QWidget):
     def remove_from_game(self):
         """The game holds this weapon the mod's own way again (the pose stays saved here)."""
         w = self.scene.weapon
+        if w is None:
+            return
         game = self.game_poses_dir()
-        if w is None or game is None:
+        if game is None:  # (it said nothing at all: review of the sandbox extras)
+            self.toast('The game was not found', self.game_not_found(), error=True)
             return
         target = os.path.join(game, w.id + '.json')
+        if not os.path.exists(target):
+            self.update_game_status()
+            self.toast('Nothing to remove', 'The game has no pose for this weapon: it already holds it the mod\'s own way.', warn=True)
+            return
         try:
-            if os.path.exists(target):
-                self.keep_old(target, 'removed')
-                os.remove(target)
+            self.keep_old(target, 'removed')
+            os.remove(target)
         except OSError as e:
             self.toast('Could not remove it from the game', f'{w.id}: {type(e).__name__}: {e}\n{target}', error=True)  # (real2 I10#4)
             return
         self.update_game_status()
         self.toast('Removed from the game', 'The game holds this weapon the mod\'s own way again; the pose is still saved here.')
+
+    def game_not_found(self):
+        """Where the game was looked for, for the messages that say it was not found."""
+        return (f'No BepInEx/config folder in {self.game_folder()} (the mod is not installed there, or Ravenfield is elsewhere). '
+                'Advanced → Game folder… points to it.')
 
     def update_game_status(self):
         w = self.scene.weapon
@@ -2070,8 +2161,10 @@ class Workbench(QWidget):
         except OSError as e:
             self.log_error(f'writing the text beside {path}', e)
 
-    # What a clean picture leaves out: the grid, the markers, the laser line, the hover and part highlights and the hand's tint.
-    OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand', 'show_gizmo', 'show_axes')
+    # What a clean picture leaves out: the grid, the markers, the laser line, the hover and part highlights, the hand's tint and
+    # the tint of the part the selected hand touches.
+    OVERLAYS = ('show_grid', 'show_markers', 'pick_line', 'hover_node', 'part_node', 'selected_hand', 'show_gizmo', 'show_axes',
+                'touch_node')
     TURN_SECONDS = 4.0  # the turntable GIF: one turn of the view
 
     def _overlays_off(self):
@@ -2079,7 +2172,7 @@ class Workbench(QWidget):
         v = self.view
         saved = {k: getattr(v, k) for k in self.OVERLAYS}
         v.show_grid, v.show_markers, v.show_gizmo, v.show_axes = False, False, False, False
-        v.pick_line, v.hover_node, v.part_node, v.selected_hand = None, None, None, None
+        v.pick_line, v.hover_node, v.part_node, v.selected_hand, v.touch_node = None, None, None, None, None
         return saved
 
     def _overlays_back(self, saved):
@@ -2120,13 +2213,14 @@ class Workbench(QWidget):
             if max(size.width(), size.height()) > limit:
                 return None
             v.clear_alpha = 0.0 if transparent else 1.0  # (set for this grab only: the view itself stays opaque)
-            fbo = QOpenGLFramebufferObject(size, fmt)
-            if not fbo.isValid() or not fbo.bind():
-                return None
-            # Put back what was bound and the viewport, whatever the drawing did, so the view itself is unchanged.
+            # What was bound and the viewport, put back whatever the drawing does, so the view itself is unchanged. Read before
+            # the buffer is made (making and binding it changes the binding: read after, the grab's own buffer was 'put back').
             prev_fbo = int(np.ravel(GL.glGetIntegerv(GL.GL_FRAMEBUFFER_BINDING))[0])
             prev_view = [int(x) for x in np.ravel(GL.glGetIntegerv(GL.GL_VIEWPORT))]
+            fbo = QOpenGLFramebufferObject(size, fmt)
             try:
+                if not fbo.isValid() or not fbo.bind():
+                    return None
                 GL.glViewport(0, 0, size.width(), size.height())
                 v.paintGL()  # the same drawing as on screen, into the bigger buffer
                 img = fbo.toImage()
@@ -2134,7 +2228,7 @@ class Workbench(QWidget):
                 fbo.release()
                 GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, prev_fbo)
                 GL.glViewport(*prev_view)
-            del fbo  # (its buffers are freed now, while the view's context is still current)
+                del fbo  # (its buffers freed here, while the view's context is still current, also when the drawing failed)
             # A transparent picture keeps its alpha; any other is opaque, as the view's own grab is.
             return img.convertToFormat(QImage.Format.Format_ARGB32 if transparent else QImage.Format.Format_RGB32)
         except Exception as e:  # (a graphics driver that refuses the buffer: a smaller picture is still taken)
@@ -2284,7 +2378,9 @@ class Workbench(QWidget):
         except OSError:
             pass
 
-    def toast(self, title, content, path=None, error=False):
+    def toast(self, title, content, path=None, error=False, warn=False):
+        """A message at the bottom right: an error (red, also written to sandbox-errors.log), a warning (yellow: nothing went
+        wrong, but nothing was done either) or a success."""
         if error and not self.selftest:
             # Every error shown is in sandbox-errors.log too (save, import, export, send: shown only; real2 I10#4).
             try:
@@ -2299,7 +2395,7 @@ class Workbench(QWidget):
             # (The self-test's messages say so: its deliberate bad file and error looked like real faults on screen.)
             expected = getattr(self, 'expect_error', '')
             title = 'Self-test: ' + title + (f' (expected: {expected})' if error and expected else '')
-        bar = (InfoBar.error if error else InfoBar.success)(title, content, orient=Qt.Orientation.Vertical, isClosable=True,
+        bar = (InfoBar.error if error else InfoBar.warning if warn else InfoBar.success)(title, content, orient=Qt.Orientation.Vertical, isClosable=True,
                                                             position=InfoBarPosition.BOTTOM_RIGHT, duration=8000, parent=self.win)
         if path:
             path = os.path.normpath(path)
@@ -2360,13 +2456,15 @@ class Workbench(QWidget):
     def _job_failed(self, title, err):
         if err != QProcess.ProcessError.FailedToStart:
             return  # (a crash or a kill also ends in finished)
-        self.job_log.appendPlainText(f'\n{title}: could not start {self._python()} ({self.process.errorString()}).')
+        reason = self.process.errorString()
+        self.job_log.appendPlainText(f'\n{title}: could not start {self._python()} ({reason}).')
+        # (From source the job runs this same Python, so 'not installed' was wrong there: Qt's reason is said instead; review
+        # of the sandbox extras.)
+        advice = (' Python has to be installed (and on PATH) for the game jobs.' if getattr(sys, 'frozen', False) else '')
         if self.weapon_info.text() == self._job_busy:  # (the Easy card says so as well, unless a weapon was opened since)
-            self._card_job_text = (f'{title} did not start: {self._python()} was not found '
-                                   '(Python has to be installed and on PATH).')
+            self._card_job_text = f'{title} did not start: {self._python()}: {reason}.{advice}'
             self.weapon_info.setText(self._card_job_text)
-        self.toast(f'{title}: could not start', f'{self._python()} was not found: Python has to be installed (and on PATH) '
-                                                 'for the game jobs.', error=True)
+        self.toast(f'{title}: could not start', f'{self._python()}: {reason}.{advice}', error=True)
 
     def _job_done(self, title, code):
         # The output before this job's own closing line. Its reason can sit above the last lines: vrshots raises 'build failed'
@@ -2464,7 +2562,8 @@ class Captures(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(24, 18, 24, 18)
         v.addWidget(TitleLabel('Captures'))
-        v.addWidget(CaptionLabel(folder))
+        self.folder_label = CaptionLabel(folder)
+        v.addWidget(self.folder_label)
         self.list = ListWidget()
         # Thumbnails in a grid: a file name alone does not show which picture it is.
         self.list.setViewMode(QListView.ViewMode.IconMode)
@@ -2492,6 +2591,13 @@ class Captures(QWidget):
         pv.addWidget(self.preview, 1)
         pv.addWidget(self.notes)
         v.addLayout(row(self.list, panel, stretch=[3, 2]), 1)
+
+    def set_folder(self, folder):
+        """Another captures folder: the self-test's own, so its pictures never land among the user's (review of the extras)."""
+        self.folder = folder
+        self.folder_label.setText(folder)
+        self.thumbs.clear()
+        self.refresh()
         # These act on the selected capture, so they stay off until one is selected.
         self.item_buttons = []
         for icon, text, slot in ((FIF.PHOTO, 'Open', self.open_selected), (FIF.COPY, 'Copy picture', self.copy_selected),
@@ -2671,7 +2777,9 @@ class Captures(QWidget):
             return
         side = os.path.splitext(path)[0] + '.txt'  # the text saved beside it goes with it (it means nothing alone)
         if os.path.isfile(side):
-            QFile.moveToTrash(side)
+            ok_txt, _ = QFile.moveToTrash(side)
+            if not ok_txt:  # (open in another program: said, as for the picture; the picture is gone, so the list is refreshed)
+                self.tell('Could not move its text to the Recycle Bin', side, self.window(), error=True)
         self.refresh()
 
 
@@ -2713,8 +2821,9 @@ class Help(QWidget):
             '<p><b>Laser pointer</b> (L, or Alt + click): click a part to see what it is and where it is, in cm from the muzzle '
             '(back, up, right) as the test reports give it, and the mod\'s gun-space x, y, z. While it is on, a click picks a part '
             'and a hand cannot be dragged freely (its gizmo still moves it): press L again. <b>Right-click</b> opens a menu '
-            '(Copy coordinates, Hide this part, Hands on the gun and more). <b>Copy the hands for Claude</b> puts both hands (where '
-            'each one is, its pose and the part it holds) on the clipboard as text to paste.</p>'
+            '(Copy coordinates, Copy pose as text, Hide this part, Hands on the gun and more). <b>Copy pose as text</b> (also on the '
+            'Save and share card) puts the weapon and both hands (where each one is, its pose and the part it holds) on the '
+            'clipboard as text to paste.</p>'
             '<p>Grey boxes are parts whose mesh the game does not let the mod read: they are at the right place and size.</p>'
             '<p><b>Save pose</b> (Ctrl+S) writes this weapon\'s hands to tools/sandbox/poses/, and to the game\'s '
             'BepInEx/config/RavenfieldVR/poses/ folder when Ravenfield is found (that is the copy the mod reads). The game folder '

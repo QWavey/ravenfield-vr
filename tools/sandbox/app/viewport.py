@@ -8,7 +8,7 @@ import numpy as np
 from OpenGL import GL
 import gizmo as gz
 from PyQt6.QtCore import QPoint, Qt, pyqtSignal
-from PyQt6.QtGui import QSurfaceFormat
+from PyQt6.QtGui import QGuiApplication, QSurfaceFormat
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
 from mathutil import look_at, norm, perspective, quat_axis_angle, quat_mul, quat_norm, quat_to_mat3, ray_triangles
@@ -352,8 +352,11 @@ class Viewport(QOpenGLWidget):
     # ---- drawing -------------------------------------------------------------------------------------------------
 
     def paintGL(self):
-        # clear_alpha is 0 only while a transparent PNG is drawn (Workbench._grab_big sets it for that grab); else opaque.
-        GL.glClearColor(*self.background, getattr(self, 'clear_alpha', 1.0))
+        # clear_alpha is 0 only while a transparent PNG is drawn (Workbench._grab_big sets it for that grab); else opaque. The
+        # transparent clear is black too: the buffer is read back premultiplied, so a background colour under alpha 0 came out
+        # as a light fringe on every antialiased edge (review of the sandbox extras).
+        alpha = getattr(self, 'clear_alpha', 1.0)
+        GL.glClearColor(*(self.background if alpha >= 1.0 else (0.0, 0.0, 0.0)), alpha)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         view, proj = self.view_matrix(), self.proj_matrix()
         vp = proj @ view
@@ -369,8 +372,8 @@ class Viewport(QOpenGLWidget):
                 model = w.node_matrix(node)
                 nm = _normal_matrix(model)  # once per part, not once per mesh of it
                 tint = (0.18, 0.12, 0.02) if node is self.hover_node else (0.05, 0.16, 0.22) if node is self.part_node else gun_on
-                # (A part by role, or the one the selected hand touches: a body's role would tint the whole gun, review I9#2.)
-                if (self.scene.highlight_role and node.role == self.scene.highlight_role) or node is self.touch_node:
+                # (The part the selected hand touches, review I9#2; main.py leaves a body part out, which would tint the gun.)
+                if node is self.touch_node:
                     tint = (0.05, 0.1, 0.22)
                 for g in self._gpu_nodes.get(id(node), []):
                     (draws_blend if g.blend else draws_opaque).append((g, model, nm, tint, False))
@@ -390,7 +393,9 @@ class Viewport(QOpenGLWidget):
             self._draw(g, model, nm, vp, tint, mirrored)
         if draws_blend:
             GL.glEnable(GL.GL_BLEND)
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            # The colour as before; the alpha adds up as cover does (a + under * (1 - a)), so a see-through part keeps its own
+            # alpha in a transparent PNG (with the colour's factors on the alpha too, glass at 0.3 was stored as 0.09).
+            GL.glBlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glDepthMask(GL.GL_FALSE)
             for g, model, nm, tint, mirrored in draws_blend:
                 self._draw(g, model, nm, vp, tint, mirrored)
@@ -633,7 +638,7 @@ class Viewport(QOpenGLWidget):
         self._drag = None
         self._drag_start = None
         self.gizmo_hover = None
-        self._restore_cursor(self._mouse)  # (the closed hand of the drag goes)
+        self._restore_cursor(self._mouse, self._alt_down())  # (the closed hand of the drag goes; Alt still held: the cross)
         self.gizmo_info.emit('')
         self.drag_cancelled.emit()
         self.update()
@@ -642,11 +647,30 @@ class Viewport(QOpenGLWidget):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key.Key_Escape and self.cancel_gizmo():
             return
+        if e.key() == Qt.Key.Key_Alt:
+            self.refresh_cursor(True)  # (Alt picks: the cross shows at once, not at the next move)
         # The arrows and + / - are the view's while it has the focus (a click on it): the weapon list keeps its arrows and the
         # text boxes their keys. Not while a gizmo drag goes on (it measures from where the camera stood).
         if not self.editing() and self._camera_key(e.key()):
             return
         super().keyPressEvent(e)
+
+    def keyReleaseEvent(self, e):
+        if e.key() == Qt.Key.Key_Alt:
+            self.refresh_cursor(False)
+        super().keyReleaseEvent(e)
+
+    @staticmethod
+    def _alt_down():
+        return bool(QGuiApplication.keyboardModifiers() & Qt.KeyboardModifier.AltModifier)
+
+    def refresh_cursor(self, alt=None):
+        """The pointer's shape again where it rests, for a change without a mouse move: the laser, the gizmo or the selected
+        hand changed, or Alt went down or up (it waited for the next move: review of the sandbox extras). Not during a drag,
+        which shows its closed hand."""
+        if self._mouse is None or self._drag is not None:
+            return
+        self.setCursor(self._hover_shape(self._mouse, self._hover_handle(self._mouse), self._alt_down() if alt is None else alt))
 
     def _camera_key(self, key):
         """The arrows orbit the view as a mouse drag in that direction does (5 degrees a press, the pitch clamped as the drag
@@ -666,8 +690,11 @@ class Viewport(QOpenGLWidget):
         """A small key in the bottom-left corner: the world's X (red), Y (green) and Z (blue) axes, turning as the view turns
         (so the gun's up and aim can be read against them). Drawn in its own square of the window, over the scene."""
         dpr = self.devicePixelRatioF()
-        full_w, full_h = int(round(self.width() * dpr)), int(round(self.height() * dpr))
-        size, margin = int(round(88 * dpr)), int(round(10 * dpr))
+        # The buffer drawn into: the window's, or a 2x / 4x picture's (Workbench._grab_big), where the key grows with it (it
+        # stayed 88 pixels, a quarter of its size in a 4x picture) and the whole buffer is given back after.
+        prev = [int(x) for x in np.ravel(GL.glGetIntegerv(GL.GL_VIEWPORT))]
+        scale = max(1.0, prev[2] / max(1.0, self.width() * dpr))
+        size, margin = int(round(88 * dpr * scale)), int(round(10 * dpr * scale))
         rot = np.array(view, dtype=np.float64)
         rot[:3, 3] = 0.0  # the view turned, not moved: the key stays at its own centre
         back = np.eye(4)
@@ -686,7 +713,7 @@ class Viewport(QOpenGLWidget):
             GL.glDrawArrays(GL.GL_LINES, 0, 2)
         GL.glBindVertexArray(0)
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glViewport(0, 0, full_w, full_h)  # the rest of the window is the scene's again
+        GL.glViewport(*prev)  # the rest of the buffer is the scene's again
 
     # ---- picking -------------------------------------------------------------------------------------------------
 

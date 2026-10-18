@@ -11,6 +11,8 @@ import numpy as np
 from PyQt6.QtCore import QEvent, QPointF, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import QAbstractButton
+
+import glove
 from qfluentwidgets import RoundMenu
 
 import gizmo as gz
@@ -36,7 +38,7 @@ class SelfTest:
         self.steps = [self.s_list, self.s_open, self.s_hands, self.s_edit, self.s_save, self.s_reimport, self.s_export,
                       self.s_send_remove, self.s_bad_import, self.s_undo, self.s_draft, self.s_reload_start, self.s_reload_wait,
                       self.s_laser, self.s_screenshot, self.s_gif_start, self.s_gif_stop, self.s_error_raise, self.s_error_check,
-                      self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_snap_cover,
+                      self.s_reset, self.s_snap_support, self.s_snap_rack, self.s_snap_magazine, self.s_glove_rules, self.s_snap_cover,
                       self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
                       self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
                       self.s_move_weapon, self.s_gizmo_move, self.s_gizmo_snap_plane, self.s_gizmo_turn, self.s_gizmo_cancel,
@@ -51,6 +53,11 @@ class SelfTest:
         self.wb.game_dir_override = os.path.join(self.root, 'game-poses')
         os.makedirs(self.wb.poses_dir, exist_ok=True)
         os.makedirs(self.wb.game_dir_override, exist_ok=True)
+        # Its pictures, GIFs and their text too (they went into the user's captures folder, among the user's own, and a run cut
+        # off left them there): the Captures page shows this folder while the test runs.
+        self.wb.captures = os.path.join(self.root, 'captures')
+        os.makedirs(self.wb.captures, exist_ok=True)
+        self.win.captures.set_folder(self.wb.captures)
         self.wb.drafts.clear()
         self.index = 0
         self.saved = None
@@ -337,59 +344,64 @@ class SelfTest:
             self.skip('laser: a click picks a part', 'no part of the gun is shown')
             return
         wb.laser_btn.setChecked(True)
-        on = bool(v.laser and wb.laser_btn.isChecked())
-        m = w.node_matrix(node)
-        spots = self._laser_spots(v.camera(), w, node)
-        shown = [(n, n.hidden) for n in w.nodes]
-        menus = []
-        real_exec = RoundMenu.exec
-        found, hit_node, hit_point = None, None, None
-        wb.on_pick(None, None)
-        try:
-            for n in w.nodes:
-                n.hidden = n is not node
-            for spot in spots:
-                x, y = self._px(spot)
-                self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
-                self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
-                if wb.picked_node is node and wb.picked_point is not None:
-                    found, hit_node, hit_point = (x, y), wb.picked_node, wb.picked_point
-                    break
-            if found is not None:
-                RoundMenu.exec = lambda menu, pos, *a, **k: menus.append(menu)  # (recorded, not shown: see the docstring)
-                x, y = found
-                self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.RightButton, button=Qt.MouseButton.RightButton)
-                self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton, button=Qt.MouseButton.RightButton)
+        try:  # (the laser is switched off in the finally, whatever a check below raises)
+            on = bool(v.laser and wb.laser_btn.isChecked())
+            m = w.node_matrix(node)
+            spots = self._laser_spots(v.camera(), w, node)
+            shown = [(n, n.hidden) for n in w.nodes]
+            menus = []
+            real_exec = RoundMenu.exec
+            found, hit_node, hit_point = None, None, None
+            wb.on_pick(None, None)
+            try:
+                for n in w.nodes:
+                    n.hidden = n is not node
+                for spot in spots:
+                    x, y = self._px(spot)
+                    self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.LeftButton)
+                    self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton)
+                    if wb.picked_node is node and wb.picked_point is not None:
+                        found, hit_node, hit_point = (x, y), wb.picked_node, wb.picked_point
+                        break
+                if found is not None:
+                    RoundMenu.exec = lambda menu, pos, *a, **k: menus.append(menu)  # (recorded, not shown: see the docstring)
+                    x, y = found
+                    self._mouse(QEvent.Type.MouseButtonPress, x, y, Qt.MouseButton.RightButton, button=Qt.MouseButton.RightButton)
+                    self._mouse(QEvent.Type.MouseButtonRelease, x, y, Qt.MouseButton.NoButton, button=Qt.MouseButton.RightButton)
+            finally:
+                RoundMenu.exec = real_exec
+                for n, h in shown:
+                    n.hidden = h
+            ok_pick = found is not None
+            self.check('laser: a click on the part (its box middle first) picks that part', ok_pick and hit_node is node,
+                       f"'{node.short}': picked {hit_node.short if hit_node is not None else 'nothing'}")
+            local = np.linalg.solve(m, np.append(hit_point, 1.0))[:3] if ok_pick else None
+            inside = local is not None and bool(np.all(local >= node.bmin - 0.002) and np.all(local <= node.bmax + 0.002))
+            self.check("laser: the point picked lies within that part's box (2 mm margin)", inside,
+                       'nothing picked' if local is None else f"{np.round(local * 100, 1)} cm, the box {np.round(node.bmin * 100, 1)} to "
+                       f"{np.round(node.bmax * 100, 1)} cm")
+            text = wb.point_text() if ok_pick else ''
+            QGuiApplication.clipboard().setText('')  # (a copy that did nothing must not pass on an earlier copy's text)
+            wb.copy_point()
+            clip = QGuiApplication.clipboard().text()
+            self.check('laser readout and copy', bool(text) and clip == text and ' cm from ' in text, text[:140])
+            if not ok_pick:
+                self.skip('laser: a right click on the part opens its menu, with Copy coordinates', 'nothing was picked to right click')
+            else:
+                copy = next((a for a in menus[0].actions() if a.text() == 'Copy coordinates'), None) if menus else None
+                self.check('laser: a right click on the part opens its menu with Copy coordinates (recorded, not shown)', copy is not None,
+                           f'{len(menus)} menu(s)')
+                if copy is not None:
+                    self.check('laser: Copy coordinates is enabled', copy.isEnabled())
+                    QGuiApplication.clipboard().setText('')
+                    copy.trigger()
+                    name = node.name[len('[stand-in] '):] if node.stand_in else node.name
+                    clip = QGuiApplication.clipboard().text()
+                    self.check('laser: Copy coordinates copies a text naming that part', f"'{name}'" in clip, clip[:120] or 'nothing copied')
+                for menu in menus:
+                    menu.deleteLater()
         finally:
-            RoundMenu.exec = real_exec
-            for n, h in shown:
-                n.hidden = h
-        ok_pick = found is not None
-        self.check('laser: a click on the part (its box middle first) picks that part', ok_pick and hit_node is node,
-                   f"'{node.short}': picked {hit_node.short if hit_node is not None else 'nothing'}")
-        local = np.linalg.solve(m, np.append(hit_point, 1.0))[:3] if ok_pick else None
-        inside = local is not None and bool(np.all(local >= node.bmin - 0.002) and np.all(local <= node.bmax + 0.002))
-        self.check("laser: the point picked lies within that part's box (2 mm margin)", inside,
-                   'nothing picked' if local is None else f"{np.round(local * 100, 1)} cm, the box {np.round(node.bmin * 100, 1)} to "
-                   f"{np.round(node.bmax * 100, 1)} cm")
-        text = wb.point_text() if ok_pick else ''
-        wb.copy_point()
-        clip = QGuiApplication.clipboard().text()
-        self.check('laser readout and copy', bool(text) and clip == text and ' cm from ' in text, text[:140])
-        if not ok_pick:
-            self.skip('laser: a right click on the part opens its menu, with Copy coordinates', 'nothing was picked to right click')
-        else:
-            copy = next((a for a in menus[0].actions() if a.text() == 'Copy coordinates'), None) if menus else None
-            self.check('laser: a right click on the part opens its menu with Copy coordinates (recorded, not shown)', copy is not None,
-                       f'{len(menus)} menu(s)')
-            if copy is not None:
-                copy.trigger()
-                name = node.name[len('[stand-in] '):] if node.stand_in else node.name
-                clip = QGuiApplication.clipboard().text()
-                self.check('laser: Copy coordinates copies a text naming that part', f"'{name}'" in clip, clip[:120] or 'nothing copied')
-            for menu in menus:
-                menu.deleteLater()
-        wb.laser_btn.setChecked(False)
+            wb.laser_btn.setChecked(False)
         off = bool(not v.laser and not wb.laser_btn.isChecked())
         self.check('laser: the view and the laser button agree (on, then off)', on and off, f'on {on}, off {off}')
 
@@ -565,10 +577,36 @@ class SelfTest:
             return
         wb.snap_left('magazine')
         half = w.mag_extent * 0.5
-        dist = float(np.linalg.norm(w.to_gun(s.left.position)[:3] - w.mag_center()))
-        self.check('Left hand to Magazine: on the magazine',
-                   s.left.role == 'magazine' and s.left.on_part == 'magazine' and half <= dist <= w.mag_length,
-                   f"{dist * 100:.1f} cm from the magazine's centre, job {s.left.role!r}")
+        off = w.to_gun(s.left.position)[:3] - w.mag_center()
+        dist = float(np.linalg.norm(off))
+        along = float(np.dot(off, w.mag_eject()))  # (out along the eject line, not beside the magazine: the same distance passed)
+        self.check('Left hand to Magazine: on the magazine, out along its eject line',
+                   s.left.role == 'magazine' and s.left.on_part == 'magazine' and half <= dist <= w.mag_length and half <= along <= w.mag_length,
+                   f"{dist * 100:.1f} cm from the magazine's centre, {along * 100:.1f} cm of it along the eject line, job {s.left.role!r}")
+
+    def s_glove_rules(self):
+        """The curls the game draws, checked against HandModel's numbers directly (no window needed): the grip's thumb by the
+        gun's class, the trigger finger at 85%, the wrapping fingers stopped at 0.85 (grip) and 0.75 (support), a free hand's
+        pointing, a 'not measured' curl drawn at rest (review of the sandbox extras: no step checked any curl rule)."""
+        c = [0.8, 0.5, 0.95, 0.95, 0.95]
+        pistol = glove.game_curls('grip', c, False, pistol=True)
+        rifle = glove.game_curls('grip', c, False)
+        mg = glove.game_curls('grip', c, False, machine_gun=True)
+        set_ = glove.game_curls('grip', [0.5] + c[1:], True)
+        self.check('glove: the grip thumb as the game holds it (pistol 0.144, rifle 0.37, machine gun 0.52, set 0.5 -> 0.59)',
+                   all(abs(a - b) < 1e-6 for a, b in ((pistol[0], 0.144), (rifle[0], 0.37), (mg[0], 0.52), (set_[0], 0.59))),
+                   f'{pistol[0]:.3f}, {rifle[0]:.3f}, {mg[0]:.3f}, {set_[0]:.3f}')
+        self.check('glove: the grip trigger finger at 85% of its curl, the wrapping fingers stopped at 0.85',
+                   abs(rifle[1] - 0.5 * 0.85) < 1e-6 and all(abs(x - 0.85) < 1e-6 for x in rifle[2:]), str(np.round(rifle, 3)))
+        sup = glove.game_curls('support', [0.5, 0.5, 0.9, 0.9, 0.9], False)
+        self.check('glove: the support hand clamped to 0.15-0.92, its wrapping fingers stopped at 0.75',
+                   all(abs(x - 0.75) < 1e-6 for x in sup[2:]) and abs(sup[1] - 0.5) < 1e-6, str(np.round(sup, 3)))
+        point = glove.POSES['Pointing (laser)'][1:6]
+        free = glove.game_curls('', point, False)
+        self.check("glove: a free hand with the pointing pose points, a relaxed one does not",
+                   glove._points(free) and not glove._points(glove.game_curls('', glove.POSES['Relaxed'][1:6], False)))
+        unset = glove.game_curls('', [-1.0] * 5, False)
+        self.check("glove: a 'not measured' curl (-1) is drawn at rest, never bent backwards", unset == glove.REST, str(unset))
 
     def s_snap_cover(self):
         """Left hand to Cover: on the latch of the cover or barrels, where the cover is now (with the cover shut here)."""
@@ -1446,7 +1484,7 @@ class SelfTest:
             return
         args, title = jobs[0]
         i = args.index('--weapons') if '--weapons' in args else -1
-        ok = (os.path.basename(args[0]) == 'export.py' and '--game' in args and 0 <= i < len(args) - 1 and args[i + 1] == w.name
+        ok = (os.path.basename(args[0]) == 'export.py' and '--game' in args and 0 <= i < len(args) - 1 and args[i + 1] == w.name.strip()
               and title == 'Export weapons')
         self.check(f'Export weapons runs export.py for the name in the box (--weapons {w.name})', ok,
                    title + ': ' + ' '.join([os.path.basename(args[0])] + args[1:]))
@@ -1472,16 +1510,21 @@ class SelfTest:
         self.check(f'Test this gun in the game runs vrshots.py for {w.name}', ok, title)
 
     def s_cleanup(self):
-        removed = 0
+        removed, failed = 0, []
         for path in self.made:
-            try:
-                if path and os.path.exists(path):
-                    os.remove(path)
-                    removed += 1
-                side = os.path.splitext(path)[0] + '.txt' if path else None  # (the text beside a picture goes with it: real2 I8#1)
-                if side and os.path.exists(side):
-                    os.remove(side)
-            except OSError:
-                pass
+            if not path:
+                continue
+            # (The text beside a picture goes with it, real2 I8#1; each in its own try, so a locked picture keeps no text.)
+            for f in (path, os.path.splitext(path)[0] + '.txt'):
+                try:
+                    if os.path.exists(f):
+                        os.remove(f)
+                        removed += f == path
+                except OSError as e:
+                    failed.append(f'{os.path.basename(f)} ({e.strerror or e})')
         shutil.rmtree(self.root, ignore_errors=True)
-        self.check('test files removed (the user\'s poses never touched)', not os.path.exists(self.root), f'{removed} captures removed')
+        made = [p for p in self.made if p]
+        left = [p for p in made if os.path.exists(p) or os.path.exists(os.path.splitext(p)[0] + '.txt')]
+        self.check("test files removed (the user's poses and captures never touched)", not left and not os.path.exists(self.root),
+                   f'{removed} of {len(made)} captures removed' + (f"; could not remove {', '.join(failed)}" if failed else ''))
+        self.win.captures.set_folder(os.path.join(self.wb.repo, 'reports', 'sandbox', 'captures'))

@@ -30,23 +30,28 @@ namespace RavenfieldVR.Weapons
         private const float MinSupportAhead = 0.07f;
 
         /// <summary>
-        /// Whether a saved support hand may be the support point (review B10#1): a pistol's support hand cups the grip, so its
-        /// saved place stays as it is; a long gun's must be MinSupportAhead ahead of the grip along the aim, or be the analysed
-        /// support point itself (within 5 cm). A support behind the grip turns the barrel away from the off hand. Called before
-        /// the analysed support point is overwritten.
+        /// Whether a saved support hand may be the support point (review B10#1), the sandbox's own rule (tools/sandbox/app/scene.py
+        /// Scene.support_ok): never on a gun with no support point; anywhere within 5 cm of the analysed support point; else a
+        /// pistol's support hand cups the grip (within 12 cm of it), and a long gun's must be MinSupportAhead ahead of the grip
+        /// along the aim (a support behind the grip turns the barrel away from the off hand). The grip is the one the game holds:
+        /// the saved gun hand's when it was taken. Called before the analysed support point is overwritten. (The two sides took
+        /// different rules: a pistol's support anywhere was kept here and warned about in the sandbox.)
         /// </summary>
         private static bool SupportAllowed(WeaponRigData d, Vector3 support)
         {
+            if (!d.HasSupportPoint)
+            {
+                return false;
+            }
+            if (Vector3.Distance(support, d.SupportPoint) < 0.05f)
+            {
+                return true;
+            }
             if (d.IsPistol)
             {
-                return true;
+                return Vector3.Distance(support, d.GripPoint) < 0.12f;
             }
-            // The grip the game holds (the saved gun hand's when it was taken, else the analysed one), along the aim the game uses.
-            if (Vector3.Dot(support - d.GripPoint, d.AimAxis) >= MinSupportAhead)
-            {
-                return true;
-            }
-            return d.HasSupportPoint && Vector3.Distance(support, d.SupportPoint) < 0.05f;
+            return Vector3.Dot(support - d.GripPoint, d.AimAxis) >= MinSupportAhead;
         }
 
         public static void Apply(WeaponRigData d)
@@ -119,7 +124,10 @@ namespace RavenfieldVR.Weapons
                     }
                     else
                     {
-                        Log.WarnOnce("sandbox-pose-support:" + d.Key, $"The sandbox pose for {d.Key} saves the support hand at {Fmt(support)}, not ahead of the grip on this long gun: the mod keeps the analysed support point ({path}).");
+                        string why = !d.HasSupportPoint ? "on a gun with no support point: the mod keeps none"
+                            : d.IsPistol ? "more than 12 cm from the pistol grip: the mod keeps the analysed support point"
+                            : "not ahead of the grip on this long gun: the mod keeps the analysed support point";
+                        Log.WarnOnce("sandbox-pose-support:" + d.Key, $"The sandbox pose for {d.Key} saves the support hand at {Fmt(support)}, {why} ({path}).");
                     }
                 }
                 if (!usedRight && (rp == null || rq == null))

@@ -213,23 +213,37 @@ def _grip_thumb(curl, thumb_set, pistol, machine_gun):
     return _lerp(rest, min(1.0, rest + 0.2), GRIP_HELD)
 
 
+def grip_thumb_base(pistol, machine_gun):
+    """The thumb base the game gives a gun's grip when the sandbox did not set it (HandModel: the grip pose's own thumb, the
+    class's: 0.45 for a machine gun, 0.35 for a pistol or rifle; launchers, knives and tools are drawn as rifles here)."""
+    return POSES['Machine gun grip' if machine_gun else 'Pistol grip' if pistol else 'Rifle grip'][0]
+
+
+GRIP_CAP, SUPPORT_CAP = 0.85, 0.75  # HandModel.HoldCap: the middle, ring and little fingers stop on what they hold
+
+
 def _points(c):
     """HandModel.Pointing for a free hand, its curls as its goal: the index out, the other three in."""
     return c[1] < 0.3 and c[2] > 0.6 and c[3] > 0.6 and c[4] > 0.55
 
 
 def game_curls(role, curls, thumb_set, pistol=False, machine_gun=False):
-    """The curls the game draws for a hand (review B10#2, B10#7, I6#6): a gun's grip has its fingers kept between 0.15 and 0.92
-    and its trigger finger at 85% of that (HandModel's grip branch, trigger released), its thumb as _grip_thumb; the support hand's
-    all five so. A free hand is never closed less than its rest (HandModel.TargetCurls' minimum), so a curl not set (below 0, the
-    -1 sentinel) is drawn at that rest. Not modelled: the Closing branch (HandModel 1449-1466) that a held measured gun takes, where
-    its fingers close on the gun until they touch (minimums 0.95; the thumb at least 0.35 on a pistol, 0.95 on a rifle): the sandbox
-    has no contact stop. The sliders and the saved file keep the values as set."""
+    """The curls the game draws for a hand (review B10#2, B10#7, I6#6), as HandModel.TargetCurls gives them with the grip held and
+    the trigger released. A saved pose's curls become the gun's own grip / support curls in the game (SandboxPoses), so a gun's
+    grip is drawn by that branch: its fingers kept between 0.15 and 0.92 (HandModel.Pose), the trigger finger at 85% of its
+    curl, the middle, ring and little fingers stopped at 0.85 where they wrap the grip (HoldCap), the thumb as _grip_thumb; the
+    support hand's five so, its three wrapping fingers stopped at 0.75 on the handguard. A free hand is never closed less than
+    its rest (TargetCurls' minimum), so a curl not set (below 0, the -1 sentinel) is drawn at that rest. Not modelled: the
+    Closing branch (HandModel 1449-1466) a held gun with a measured volume takes, where the fingers close until they touch it
+    (the middle, ring and little to 1.0, a rifle's thumb to 0.95, a pistol's to at least 0.35): the sandbox has no contact
+    stop. The sliders and the saved file keep the values as set."""
     c = list(curls)
     if role == 'grip':
-        return [_grip_thumb(c[0], thumb_set, pistol, machine_gun), _held(c[1], 0.3) * 0.85, _held(c[2], 0.7), _held(c[3], 0.72), _held(c[4], 0.74)]
+        return [_grip_thumb(c[0], thumb_set, pistol, machine_gun), _held(c[1], 0.3) * 0.85,
+                min(GRIP_CAP, _held(c[2], 0.7)), min(GRIP_CAP, _held(c[3], 0.72)), min(GRIP_CAP, _held(c[4], 0.74))]
     if role == 'support':
-        return [_held(c[0], 0.3), _held(c[1], 0.55), _held(c[2], 0.6), _held(c[3], 0.62), _held(c[4], 0.65)]
+        return [_held(c[0], 0.3), _held(c[1], 0.55),
+                min(SUPPORT_CAP, _held(c[2], 0.6)), min(SUPPORT_CAP, _held(c[3], 0.62)), min(SUPPORT_CAP, _held(c[4], 0.65))]
     return [max(REST[i], c[i]) for i in range(5)]
 
 
@@ -279,10 +293,11 @@ class Hand:
         return (self.role, self.thumb_set, self.pistol, self.machine_gun)
 
     def update_mesh(self):
-        # SandboxPoses.cs reads the right hand's place and curls as the gun's grip whatever its role, so a free right hand is
-        # drawn as the grip the game will hold (review B10#6). The game does not read a free left hand, so it is drawn as a free
-        # hand: Valve's pointing joints when its curls meet HandModel.Pointing, else its curls not less than rest (review B10#7).
-        role = self.role or ('grip' if self.side == 'right' else '')
+        # Drawn by its job, as the game holds it: the game takes the right hand as the grip only when it is saved as the grip
+        # (SandboxPoses: role 'grip', or no role in an older file) and the left as the support only as the support. A hand with
+        # no job is drawn as a free hand: Valve's pointing joints when its curls meet HandModel.Pointing, else its curls not
+        # less than rest (review B10#7; a free right hand was drawn as a grip the game no longer takes).
+        role = self.role
         curls = game_curls(role, self.curls, self.thumb_set, self.pistol, self.machine_gun)
         point = role == '' and _points(curls)
         self.vertices, self.normals, self.joint_mats = self.shape.pose(self.thumb, curls, point)

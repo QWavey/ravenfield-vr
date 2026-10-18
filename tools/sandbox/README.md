@@ -50,6 +50,8 @@ program does; this file is the longer version.
   **Copy this pose to the other hand** (Advanced) copies a pose across.
 - **Reload / Rack**: the parts move as the mod moves them (the slide by its travel, the magazine along its line, the
   cover on its hinge), the left hand on them. The sliders do it by hand. **Record the reload** saves the reload as a GIF.
+  **Empty gun (after the last shot)**: the reload starts with the slide caught back, as after the last round, and ends
+  with it released; only guns whose slide locks on empty (and en-bloc rifles) do that, others start as usual.
 - **Reset**: the parts go back home, both hands go back on the gun and the parts you hid are shown again. Reset does
   not change the saved pose file, and **Ctrl+Z** undoes it.
 - **Settle**: after "Hands on the gun" the glove is drawn on the gun's surface (in by up to 2 cm, out by up to 4), as
@@ -67,13 +69,17 @@ another weapon starts its own history, and the unsaved hands of the first one ar
 - **Laser pointer** (L, or Alt + click): click a part to see its name, what the mod takes it for, and where it is: cm
   from the muzzle (back, up, right) as the test reports give it, and the mod's gun-space x, y, z. While the laser is
   on, a click picks a part and a hand cannot be dragged freely (its gizmo still moves it): press L again. Turning the
-  laser off clears its pick, so a right click afterwards copies nothing from it.
-- **Right-click** opens a menu: *Copy coordinates*, *Copy the part name*, *Hide this part*, *Show every part*,
-  *Hands on the gun*, *Frame the gun*, and the entry that puts a hand on the part. *Copy coordinates* puts a line on the
+  laser off clears its pick, so a right click afterwards copies nothing from it. An Alt + click pick (laser off) stays
+  until the next pick or a click on empty space. The pick stays on its part: moving the gun or the part, Ctrl+Z or
+  Reset take the point (and the numbers copied) along.
+- **Right-click** opens a menu: *Copy coordinates*, *Copy the part name*, *Copy pose as text*, *Hide this part*,
+  *Show every part*, *Hands on the gun*, *Reset the weapon's place*, *Frame the gun and both hands (F)*, *Frame the gun
+  alone*, and the entry that puts a hand on the part. *Copy coordinates* puts a line on the
   clipboard to paste to Claude, e.g.
   `vector rds (vector_rds_vector_rds): 'weapon_tdi_…_slide_rotation…' (moves with the slide) at back 10.5 up 2.9 right -3.2 cm from the muzzle (mod gun space x … y … z …)`.
-- **Copy the hands for Claude**: both hands as text on the clipboard: where each one is, its pose and the part it holds,
-  to paste next to a picture or the coordinates.
+- **Copy pose as text** (the Save and share card, and the right-click menu with a weapon open): the weapon and both
+  hands as text on the clipboard: where each one is, its pose and the part it holds, to paste next to a picture or the
+  coordinates.
 
 ### Saving poses
 
@@ -112,7 +118,8 @@ another weapon starts its own history, and the unsaved hands of the first one ar
 
 ### Advanced
 
-Exact numbers for the selected hand, the parts the mod found (click one to highlight it), the analysis (rig.json),
+Exact numbers for the selected hand (its place counted from the analysed grip point, or back / up / right from the
+muzzle as the laser gives them: the switch over the boxes, remembered between runs), the parts the mod found (click one to highlight it), the analysis (rig.json),
 views, GIF settings, and the game: **Game folder…**, **Export weapons**, or **Test this gun in the game** (a vrshots run
 for that gun, only when really needed; never while Ravenfield is running).
 
