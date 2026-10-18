@@ -606,6 +606,7 @@ namespace RavenfieldVR.Weapons
                 }
                 NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                ArOwnHandleNoSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
                 SideKnobByName(d, all, root, sampler, gunIdle);
                 RackOnOutstandingPiece(d, root, sampler, gunIdle);
                 FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle);
@@ -3157,6 +3158,73 @@ namespace RavenfieldVR.Weapons
             d.HandleTravel = -d.AimAxis * Mathf.Min(0.075f, d.SlideTravel.magnitude > 1e-4f ? d.SlideTravel.magnitude : 0.075f);
             d.RackPoint = bestBounds.center - d.AimAxis * Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs)) * 0.8f;
             d.SlideMethod += $" + its T handle '{best.name}' (still in the animations)";
+        }
+
+        /// <summary>
+        /// An AR with no slide found and no handle named (its bolt baked into the receiver): the model's own charging handle is
+        /// still there, a flat T across the receiver at its back, and it never moves. The rack point was the grip's guess
+        /// (ArChargingHandle: 5 cm behind the grip point, 3 cm over the bore; the receiver's mesh cannot be measured in game),
+        /// about 7 cm behind the back end of the MWII M4's own T, and a knob was added there: the two pull-back handles the user
+        /// saw, the knob moving while the T stood still (user, 2026-10-18, task 269). Here the T is the handle: the hand takes
+        /// its back end and it comes back with the hand, and no knob is added (HeldWeapon). The bar must run across the receiver
+        /// (the M4's own T is 3.2 cm across; the flat plate and fin that stand at the same place on the holo and plain M4 are
+        /// 1.1 cm across), and it must stand within 10 cm of the guess (the guess sat 8 to 10 cm behind the handle on other
+        /// ARs, see ArChargingHandle).
+        /// </summary>
+        private static void ArOwnHandleNoSlide(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
+            Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Handgun || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath != null || d.HandlePath != null
+                || !ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Vector3 boreAboveGrip = d.MuzzlePoint + d.AimAxis * Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
+            Vector3 guess = boreAboveGrip - d.AimAxis * 0.05f + d.Up * 0.03f;
+            Vector3 across = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+            Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
+            Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
+            Transform best = null;
+            Bounds bestBounds = default;
+            float bestGap = 0.10f;
+            foreach (Transform t in all)
+            {
+                if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] > 0.01f || UnderOptic(t, gunBody) || MagName.IsMatch(t.name)
+                    || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
+                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f
+                    || Vector3.Dot(b.size, upAbs) > 0.025f || Vector3.Dot(b.size, acrossAbs) < 0.025f)
+                {
+                    continue; // a T: a bar across the receiver, a few centimetres long, at most 2.5 cm tall, standing over the bore
+                }
+                float gap = Mathf.Sqrt(b.SqrDistance(guess));
+                if (gap < bestGap)
+                {
+                    bestGap = gap;
+                    best = t;
+                    bestBounds = b;
+                }
+            }
+            if (best == null)
+            {
+                return;
+            }
+            d.HandlePath = WeaponRig.PathOf(root, best);
+            d.HandleRestLocal = sampler.IdleLocalPosition(best);
+            d.HandleTravel = -d.AimAxis * 0.075f;
+            // The hand takes the T at its back end, as ArStaticHandle does; the T reaches forward from there.
+            d.RackPoint = bestBounds.center - d.AimAxis * Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs)) * 0.8f;
+            d.RackFromHand = true;
+            d.SlideTravel = d.HandleTravel;
+            d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
+            d.SlideMethod += $" + its own charging handle '{best.name}' (no moving slide: the model's T, moved with the hand)";
+            Log.InfoOnce("ownhandle:" + d.Key, $"{d.Key}: its own charging handle '{best.name}' is the handle the hand racks ({bestGap * 100f:0.0} cm from the rack guess); no knob added.");
         }
 
         /// <summary>A part under (or itself) a sight or optic by name, up to the gun body: the K13 ACOG's rear sight 'K13_STGHT1'
