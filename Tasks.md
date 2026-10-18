@@ -436,13 +436,13 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 82/82 (GLOCK 43X); see "For 258"
 262. [ ] New workshop mods (user, 2026-10-18 evening: "also for new workshop mods the mags and reloadable parts etc should be found dynamically, lets not forget that; maybe it does that already when it loads the mods"). It does: every installed weapon is analysed when the game has loaded its content (menu warm-up, else on first use), the magazine and the rack from the weapon's own reload and fire animation, names only as a tie-break or fallback, no per-weapon list (287 exported rigs: 81% of magazines and 74% of racks from motion). Gaps found by 5 read-only Haiku scouts, to fix: stale rigs after the menu's mod reload (caches never cleared), one rule throwing loses the whole rig for the session (and a throw outside the try reruns every frame), two mods' weapons with the same entry + prefab names share one rig / drop shape / hull / pose, silent fallbacks (virtual magazine or rack on shell-fed and single-shot guns warned nowhere), hand bones by English names only, a flat hierarchy's unnamed meshes never parts, the sandbox not seeing new mods until an export. See "For 262"
 263. [ ] Performance (user, 2026-10-18 evening, after the headset test): a workflow on the mod's performance only: no lags, removing lags, gaining fps. See "For 263"
-264. [ ] Slide forward by itself (user, 2026-10-18 evening, headset: "the pistol slide when mag is in goes forward, it still goes forward automatically but still requires a pull, and this happens to some primarys too"): with a magazine in, the slide (or bolt) runs home by itself yet the gun still needs a rack to fire. Earlier: 254. See "For 264"
-265. [ ] Full auto stops (user, 2026-10-18 evening, headset: "some primarys when shot pause shooting for some reason and the user needs to press shot again, so full autoing is sometimes not possible"). See "For 265"
-266. [ ] RPGs still shake a lot (user, 2026-10-18 evening, headset). The autotest's simulated hands hold the Panzerfaust 3 still (check-1018h, 0.0 mm a frame): the shake comes with real hands. Earlier: 230, 249.11. See "For 266"
-267. [ ] BIG BUG (user, 2026-10-18 evening, headset): pulling out a second weapon shows the two hands of Ravenfield's own model. See "For 267"
-268. [ ] Magazines of other weapons float in the air when those weapons are not equipped (user, 2026-10-18 evening, headset). Earlier: 257 (hidden on the held gun). See "For 268"
-269. [ ] The MWII M4 (all three: 'mwii-m4', the holo sight and ACOG versions; the user, 2026-10-18 evening: "happens for all mwii-m4, which I told you before") shows two pull-back handles: remove the extra one (user, 2026-10-18 evening, headset: "why is that? remove the one!!!!!"). The analysis found no moving slide and racks by an invisible AR-pattern handle at the receiver's back (rig.json slideMethod "virtual (AR-pattern ...)"). See "For 269"
-270. [ ] Pistols: the magazine slides in through the grip instead of up its well (user, 2026-10-18 evening, headset; also seen in the sandbox on the M1911 during the reload). See "For 270"
+264. [ ] Slide forward by itself (user, 2026-10-18 evening, headset: "the pistol slide when mag is in goes forward, it still goes forward automatically but still requires a pull, and this happens to some primarys too"): with a magazine in, the slide (or bolt) runs home by itself yet the gun still needs a rack to fire. Earlier: 254. Cause found and fixed in code (2026-10-18): a slide released or racked with nothing to chamber was left unlocked, so a loaded magazine let the animator send it home empty; now a gun that locks open on empty stays caught back until it can chamber. Open: guns without lock-on-empty (the MWII M4s, AS Val, ARS bot-friendly HK416/MP9, SIGNAL DMR). See "For 264"
+265. [ ] Full auto stops (user, 2026-10-18 evening, headset: "some primarys when shot pause shooting for some reason and the user needs to press shot again, so full autoing is sometimes not possible"). Cause found and fixed in code (2026-10-18): the A button's fire-mode switch (2026-10-17) changed the fire mode while the trigger was held; now never under a held trigger. See "For 265"
+266. [ ] RPGs still shake a lot (user, 2026-10-18 evening, headset). The autotest's simulated hands hold the Panzerfaust 3 still (check-1018h, 0.0 mm a frame): the shake comes with real hands. Earlier: 230, 249.11. Partly fixed in code (2026-10-18): the RPG-7V [PG-7V] was analysed as a PISTOL (its muzzle transform in the tube's middle), so no launcher steadying or two-hand steering; now measured by the drawn barrel. The plain RPG-7 is a launcher already: its lead is the world stand-in (the drawn gun blended toward where the world holds it). See "For 266"
+267. [ ] BIG BUG (user, 2026-10-18 evening, headset): pulling out a second weapon shows the two hands of Ravenfield's own model. Cause found and fixed in code (2026-10-18): the second weapon never hid the game's own arm meshes (Weapon.Show draws them); now hidden every frame, restored when put away; holstered and dropped copies leave them out. See "For 267"
+268. [ ] Magazines of other weapons float in the air when those weapons are not equipped (user, 2026-10-18 evening, headset). Earlier: 257 (hidden on the held gun). Cause found and fixed in code (2026-10-18): only the held gun hid its parked spares; the holstered and dropped copies (WeaponDrops templates) and the second weapon now hide them too (and the dropped copy's collider leaves them out). See "For 268"
+269. [ ] The MWII M4 (all three: 'mwii-m4', the holo sight and ACOG versions; the user, 2026-10-18 evening: "happens for all mwii-m4, which I told you before") shows two pull-back handles: remove the extra one (user, 2026-10-18 evening, headset: "why is that? remove the one!!!!!"). The analysis found no moving slide and racks by an invisible AR-pattern handle at the receiver's back (rig.json slideMethod "virtual (AR-pattern ...)"). Partly fixed in code (2026-10-18): the model's own T is found (ArOwnHandleNoSlide) and moved, and no knob is added, on the plain and holo MWII M4; the ACOG's export has no separate T part, so it may still get the knob. See "For 269"
+270. [ ] Pistols: the magazine slides in through the grip instead of up its well (user, 2026-10-18 evening, headset; also seen in the sandbox on the M1911 during the reload). Changed in code, to check (2026-10-18): the magazine's line is its own length (13-21 deg off its box on the 1911); for a pistol the line is now fitted against the magazine's drawn shape in the grip, not its box. The sandbox draws the analysed line, not the fitted one. See "For 270"
 271. [ ] M4A1 (the [SQUAD] family: M4A1, M4A1 reddot, M4A1 acog): racking moves a sight, not the charging handle (user, 2026-10-18 evening, headset: "the rack doesnt get racked but the scope does, big bug"; "the kimme racks"). Cause: WeaponAnalyzer.ArStaticHandle took the static part nearest the carrier's rear top for the T handle: the rear sight '对象006' (4.5 cm tall), the ACOG's mount '对象001_002' and the red dot's mount '对象002_001' (2.1-2.2 cm tall, 1.8-2.3 cm over the carrier; the red dot's mount wholly ahead of the carrier's rear). Fixed in code (2026-10-18): a T is at most 1.5 cm tall with its middle at most 1.5 cm over the carrier (the K13's real T: 0.8 cm, 0.7 cm, kept for all 7 K13s). Now these three rack their bolt carrier with the hand at the receiver: their T is part of the 85 cm gun mesh, which the game reads only from the graphics card (all 9-12 drawn parts), so it cannot be cut out and moved in VR; the sight no longer moves. To check in the headset
 
 ## Notes
@@ -2142,6 +2142,61 @@ Each line: the task, the verdict, what the code does now / what is left (from th
 - 255: done in code, check in the headset. 30-agent hunt, 91 confirmed. All sub-items are marked done in Tasks.md and their code is present: BoxLocked no longer ignores a shut cover (AmmoState.cs:362); LostByHand cleared on release and drop (MagazineProp.cs:1410, :2190); bolt restored on Release (HeldWeapon.cs:2807); belt-named boxes excluded (WeaponAnalyzer.cs:2483-2484, the || and && precedence fixed); machine guns get named charging handles ...
 - 259: partly fixed now. Scouts' rack and grip faults from the sandbox sweep. Code in place (commit 96d11e3): RackStrokeFromHands (WeaponAnalyzer.cs:605 call, :1707 def) cuts a handle out only where a part of the gun is within 2.5 cm, else the rack point stays on the moving part; RackOnOutstandingPiece (:610 call, :3185 def) takes the carrier by its far vertex for 23 guns; ArChargingHandle (:879) measures the upper receiver's back end ...
 - 260: FIXED NOW (code), check in the headset. All three parts written in code (not built or run; needs the headset and autotest check). Setup note: this worktree was NOT at 483b1de when I started (it was clean at 36f50e3, an older commit still reachable from main and tasks-98-113); I ran git reset --hard 483b1de on this worktree's own branch before working, as the task specified.
+
+### For 264-270: the user's headset test of 2026-10-18 evening, 7 Haiku fixers (wf_918b456f)
+
+- 7 Haiku fixers (a git worktree each, nothing built or run) with a verifier each; merged by me in order, one conflict
+  (SecondWeapon.BeforeRender: both the arms and the spares hidden), built clean (2026-10-18 ~19:00). Not yet run in the
+  game: the user asked to pause after this. Evidence used: the user's own session log, reports/shots/user-1018-evening/
+  LogOutput.log (copied before the next run overwrites it).
+- 264 (slide forward by itself): ReleaseSlide / EndRack / the trigger release called AmmoState.RackForward, which unlocked
+  the slide and chambered only with rounds in; the only re-catch (EndRack) needed a magazine in with 0 rounds. So a slide
+  released with the magazine out stayed free and unchambered, and a loaded magazine then made HeldWeapon.LeaveEmptyPose
+  cross-fade the animator to its loaded rest pose (the user's log: "Magazine ejected from NVO-228E#ACE 32: 0 rounds", then
+  "the animator stayed in its empty pose with a round loaded"). Now (AmmoState.RackForward and AdoptWeaponAmmo): with
+  nothing chambered, a lock-on-empty gun that is not cycled by hand and uses a chamber stays caught back; the trigger
+  releases the slide only with rounds to chamber (else the game's dry click). A release with no magazine now keeps the slide
+  back (a visible change: it closed before). The free hand's second-weapon pistol still chambers and closes by itself when a
+  loaded magazine goes in (SecondWeapon.CycleForTheHand: one hand cannot rack). OPEN, a decision: guns the analysis gives no
+  lock-on-empty (LockOnEmpty needs a slide path or a handgun, WeaponAnalyzer ~4326): the MWII M4s, AS Val family, ARS
+  HK416/MP9 bot-friendly, SIGNAL DMR; an AR's bolt does lock on empty. Headset check: the M1911, mwii-g17, ACE 32: fire the
+  last round, eject, release (button or trigger), insert a full magazine: the slide stays back; release: it chambers and
+  fires with no pull.
+- 265 (full auto stops): the plain A press on the gun hand switches the fire mode (2026-10-17, d509c23 / f46b50e; the A is
+  bound single = SlideRelease, long = FireMode); GameInputBridge.HandleWeaponButtons did it with the trigger held, so an
+  automatic went to semi in the middle of a burst ("press again"). Now no fire-mode change while the trigger (or the support
+  hand's fire) is held, and a pending A press is dropped when the trigger is pulled; a sight flip or magnifier still works
+  while firing.
+- 266 (RPG shake): the RPG-7V [PG-7V] family is a cupped PISTOL in the analysis (rig.json isPistol true): its muzzle
+  transform sits in the tube's middle, 0.28 m ahead of the grip, so the cupped-grip rule ran, and IsLauncher (HeldWeapon)
+  never matched ('7V V' has no 'rpg'): no steadying, no two-hand steering. Now WeaponRigData.LengthFromGrip also counts the
+  drawn barrel's front (PullMuzzleOntoBarrel, single-shot guns whose barrel reaches 0.3 m past the muzzle transform): the
+  RPG-7V is 0.9 m long, takes the forend support at 0.24 m, and is a launcher. The plain RPG-7 is a launcher already (its
+  muzzle pulled to the barrel's end): its likeliest cause is the world stand-in (HeldWeapon ~1418-1441: the drawn gun blended
+  toward where the world holds it, a long tube on the shoulder touching the player's head); not changed. Also unchecked:
+  the Javelin and Hydra probably stay cupped pistols.
+- 267 (second weapon shows the game's hands): Weapon.Unholster ends with Weapon.Show, which enables every renderer with
+  Weapon.arms; HeldWeapon hides them every frame (HideArms), SecondWeapon never did. Now SecondWeapon.BeforeRender hides
+  them after Show and PutAway restores them; WeaponDrops leaves w.arms out of its holstered and dropped copies; the autotest's
+  second-weapon line says "its own arms hidden / SHOWING (n)".
+- 268 (floating magazines): the parked spares (WeaponRigData.SparePartPaths, task 257) were hidden only by the held gun
+  (HeldWeapon.HideSpareParts). Now the rig hides and shows them (WeaponRig.HideSpareParts / ShowSpareParts, scales kept at
+  construction), used by HeldWeapon, SecondWeapon, and WeaponDrops.HideParkedAmmo on the one template per entry that the
+  holster display and every dropped copy are made from (renderers off too, so the dropped collider does not keep them).
+- 269 (MWII M4 two handles): the rack point was the grip guess (5 cm behind the grip, 3 cm up: UpperReceiverRear needs
+  readable meshes, all 24 are GPU-only), behind the model's own T, and a knob was added there. New ArOwnHandleNoSlide (an
+  AR-pattern self-loader with no slide and no handle): the static part 3-12 cm long, at most 2.5 cm tall, at least 2.5 cm
+  across, 0-6 cm over the bore, nearest the guess within 10 cm, is the handle: moved by the stroke, rack point at its back
+  end; HeldWeapon makes no knob then. The plain and holo M4 have their T as a part; the ACOG's export has none (16 drawn
+  parts against 18 and 20), so it may keep the knob: check 'ownhandle:' in the log.
+- 270 (pistol magazine through the grip): the magazine's line is its own length (MagAxisFromShape: the principal axis of its
+  vertices, 13-21 deg off its box; the 1911's 12.8 deg), which is right for the magazine, but the grip's walls stand near
+  upright, and HeldWeapon.FitMagazineLine counted the magazine's BOX against the well, so it saw no walls. Now for a handgun
+  the fit counts the magazine's drawn shape in the grip and tilts the line when it goes through (rifles keep the box). Risk:
+  a working pistol's line may re-tilt (up to 24 deg, the existing gate). The in-hand keep-out (MagazineProp KeepOffGun,
+  ProbeInside) still uses the box. The sandbox shows the analysed line, not the fitted one. Headset / autotest check: the
+  M1911, Q1911, FNX-45, GLOCKs: 'magazine line' lines in the log ("by its drawn shape").
+- 271 (M4A1 sight racks): fixed by me, see the task line.
 
 ### For 262: new workshop mods, found dynamically (2026-10-18 evening)
 
