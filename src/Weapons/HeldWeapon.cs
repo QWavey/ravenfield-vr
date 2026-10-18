@@ -1900,6 +1900,10 @@ namespace RavenfieldVR.Weapons
                 {
                     continue; // a laser's dot and beam go where the beam hits, not with the gun (check-1017h: the QBZ192-C's "slide" 190 mm back)
                 }
+                if (_sightParts != null && System.Array.Exists(_sightParts, s => s != null && r.transform.IsChildOf(s)))
+                {
+                    continue; // a part the sight mode moves (the CZ Bren 2 BR Raid's 'Red Dot Sight' read as its slide 93 mm back; check-1018e)
+                }
                 if (r is MeshRenderer)
                 {
                     at[r] = Rig.ToGun(r.bounds.center);
