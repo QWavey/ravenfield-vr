@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using HarmonyLib;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
@@ -323,18 +324,19 @@ namespace RavenfieldVR.Weapons
     /// Actor.UpdateFacing aims the body's look-at (ik.aimPoint, which turns the spine and the arms that hold the gun) at
     /// FacingDirection, the head's camera, while the VR gun points wherever the hand holds it (user, 2026-10-18 evening: "the
     /// shadow from my player turns his weapon based where im looking and not where my gun is actualy pointing"; Task 275).
-    /// While a gun is drawn in VR the look-at goes along its barrel (the drawn gun's aim axis, the muzzle's forward) instead,
-    /// with no prone offset: a prone shooter's eye is on the barrel. Bullets already leave along the muzzle, the view is the
-    /// headset's, and the body's own turn (its legs, its steps) still follows the head, as the game turns it, within 50
-    /// degrees (less crouched or prone). On a ladder or in an obstacle climb the game keeps its own direction; with no gun
-    /// drawn (a grenade, a blade or a tool has no barrel), and for bots and other actors, nothing changes.
+    /// While a gun is drawn in VR the look-at goes along its barrel (the aim axis of the gun that fires, the muzzle's forward;
+    /// an under-barrel launcher while it is the active one) instead, with no prone offset: a prone shooter's eye is on the
+    /// barrel. Bullets already leave along the muzzle, the view is the headset's, and the body's own turn (its legs, its
+    /// steps) still follows the head, as the game turns it, within 50 degrees (less crouched or prone). On a ladder or in an
+    /// obstacle climb the game keeps its own direction; with no gun drawn, or one with no barrel (a grenade, a blade or a
+    /// tool; an infinite-ammo gun has one), and for bots and other actors, nothing changes.
     /// </summary>
     [HarmonyPatch(typeof(Actor), "UpdateFacing")]
     internal static class ThirdPersonAimPatch
     {
         private static readonly AccessTools.FieldRef<Actor, ActorIk> IkOf = AccessTools.FieldRefAccess<Actor, ActorIk>("ik");
         private static readonly AccessTools.FieldRef<Actor, TimedAction> ClimbOf = AccessTools.FieldRefAccess<Actor, TimedAction>("climbObstacleAnimationAction");
-        private static readonly System.Collections.Generic.HashSet<WeaponRigData> Reported = new System.Collections.Generic.HashSet<WeaponRigData>();
+        private static readonly HashSet<WeaponRigData> Reported = new HashSet<WeaponRigData>();
 
         private static void Postfix(Actor __instance)
         {
@@ -351,23 +353,30 @@ namespace RavenfieldVR.Weapons
                 {
                     return; // the game's own point, the head's facing, stays
                 }
-                // A grenade, a blade or a tool has no barrel to aim along: the body keeps looking where the head does.
-                ActionType action = held.Rig.Data.Action;
-                if (action == ActionType.Throwable || action == ActionType.Melee || action == ActionType.NoAmmo)
+                // The gun that fires: an under-barrel launcher while it is the active one, else the held gun (the rig Casings
+                // reads too). Bullets leave along its muzzle (Actor.UpdateWeapon fires with the muzzle direction), so the body
+                // aims along its barrel.
+                WeaponRig rig = held.ActiveRig;
+                Weapon firing = held.ActiveWeapon;
+                // A grenade, a blade or a tool has no barrel to aim along: the body keeps looking where the head does. An
+                // infinite-ammo gun is classed NoAmmo too, but it has a barrel (HeldWeapon measures it the same way: ammo == -1).
+                ActionType action = rig.Data.Action;
+                bool infinite = firing.configuration != null && firing.configuration.ammo == -1;
+                if (action == ActionType.Throwable || action == ActionType.Melee || (action == ActionType.NoAmmo && !infinite))
                 {
                     return;
                 }
                 ActorIk ik = IkOf(__instance);
-                Vector3 barrel = held.Rig.AimWorld;
+                Vector3 barrel = rig.AimWorld;
                 if (ik == null || barrel.sqrMagnitude < 0.5f)
                 {
                     return;
                 }
                 barrel.Normalize();
                 ik.aimPoint = __instance.transform.position + barrel * 100f; // the game's own 100 m point, along the barrel
-                if (Reported.Add(held.Rig.Data)) // once per weapon kind, not every frame
+                if (Reported.Add(rig.Data)) // once per weapon kind, not every frame
                 {
-                    Log.InfoOnce("body-aim:" + held.Rig.Data.Key, $"{held.Rig.Data.Key}: the third-person body aims along its barrel (at the first aim the head was {Vector3.Angle(barrel, __instance.controller.FacingDirection()):0} degrees off it).");
+                    Log.InfoOnce("body-aim:" + rig.Data.Key, $"{rig.Data.Key}: the third-person body aims along its barrel (at the first aim the head was {Vector3.Angle(barrel, __instance.controller.FacingDirection()):0} degrees off it).");
                 }
             }
             catch (System.Exception e)
