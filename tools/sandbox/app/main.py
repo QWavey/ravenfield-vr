@@ -292,7 +292,9 @@ class Workbench(QWidget):
                 ('rotate', 'Turn', 'Rings to turn about an axis, the white ring to turn about the view, inside the rings to '
                                    'turn freely (R). Ctrl snaps to 5 degrees, Shift turns finely.'),
                 ('both', 'Move + turn', 'Arrows and rings together (T).')):
-            self.gizmo_seg.addItem(key, text, lambda k=key: self.set_gizmo_mode(k))
+            # (The item's click signal passes its checked state: taken as the mode, a click on Turn set the mode to
+            # False and every gizmo was gone until a restart; user, 2026-10-18. The key is bound, the signal's value dropped.)
+            self.gizmo_seg.addItem(key, text, lambda *_, k=key: self.set_gizmo_mode(k))
             self.gizmo_seg.widget(key).setToolTip(tip)
         self.axes_box = ComboBox()
         self.axes_box.addItems(['Global', 'Local', 'Gun'])
@@ -304,8 +306,8 @@ class Workbench(QWidget):
                                  'snaps while held; with it, Ctrl moves freely.')
         self.snap_btn.toggled.connect(self.set_gizmo_snap)
         self.gizmo_on = SegmentedWidget()
-        self.gizmo_on.addItem('hand', 'Hand', lambda: self.view.set_gizmo_target('hand'))
-        self.gizmo_on.addItem('gun', 'Gun', lambda: self.view.set_gizmo_target('gun'))
+        self.gizmo_on.addItem('hand', 'Hand', lambda *_: self.view.set_gizmo_target('hand'))
+        self.gizmo_on.addItem('gun', 'Gun', lambda *_: self.view.set_gizmo_target('gun'))
         self.gizmo_on.widget('hand').setToolTip('The gizmo on the selected hand (a click on a hand, or 1 / 2)')
         self.gizmo_on.widget('gun').setToolTip('The gizmo on the gun, at its grip (or Ctrl + click on the gun). The hands on it go '
                                                'along; poses are kept in the gun\'s own space, so this only changes the view.')
@@ -329,6 +331,8 @@ class Workbench(QWidget):
         return bar
 
     def set_gizmo_mode(self, mode):
+        if mode not in ('free', 'move', 'rotate', 'both'):
+            return  # (only a real mode: anything else left no gizmo at all)
         v = self.view
         v.gizmo_mode = mode
         v.gizmo_hover = None
@@ -339,6 +343,8 @@ class Workbench(QWidget):
         v.update()
 
     def set_gizmo_space(self, space):
+        if space not in ('global', 'local', 'gun'):
+            return
         self.view.gizmo_space = space
         i = ('global', 'local', 'gun').index(space)
         if self.axes_box.currentIndex() != i:

@@ -38,7 +38,7 @@ class SelfTest:
                       self.s_slide_slider, self.s_mag_slider, self.s_cover_slider, self.s_hide_show, self.s_parts_list,
                       self.s_numbers, self.s_copy_pose, self.s_views, self.s_frame, self.s_keys, self.s_captures,
                       self.s_move_weapon, self.s_gizmo_move, self.s_gizmo_snap_plane, self.s_gizmo_turn, self.s_gizmo_cancel,
-                      self.s_gizmo_local, self.s_gizmo_gun, self.s_gizmo_keys, self.s_gizmo_free, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
+                      self.s_gizmo_local, self.s_gizmo_gun, self.s_gizmo_buttons, self.s_gizmo_keys, self.s_gizmo_free, self.s_put_hand, self.s_copy_hands, self.s_put_hand_menu, self.s_clean_and_big,
                       self.s_turntable_start, self.s_turntable_check, self.s_record_reload_start, self.s_record_reload_check,
                       self.s_later_features] + ([self.s_all_weapons] if self.all_weapons else []) + [self.s_cleanup]
         # Its own folders: the user's poses (tools/sandbox/poses) and the game's are never read or written by the test.
@@ -92,8 +92,15 @@ class SelfTest:
             except OSError as e:
                 code = 2  # (no report: said by the exit code, not a run left hanging)
                 text += f'\nTHE REPORT COULD NOT BE WRITTEN: {e}\n'
-            if __import__('sys').stdout is not None:
-                print(text)
+            out = __import__('sys').stdout
+            if out is not None:
+                # (A console that cannot show a character, cp1252 and the readout's degree sign or a Chinese part name,
+                # threw here, and the error message it raised kept the program open after the test; the report is the file.)
+                enc = getattr(out, 'encoding', None) or 'utf-8'
+                try:
+                    print(text.encode(enc, 'replace').decode(enc, 'replace'))
+                except (OSError, ValueError, LookupError):
+                    pass
         finally:
             self.win.close()  # frees the GPU resources as a user's close does
             self.app.exit(code)
@@ -1074,6 +1081,26 @@ class SelfTest:
         else:
             self.skip('gizmo: a click on a hand puts the gizmo back on the hand', 'no point of the right glove free of the gizmo here')
             v.set_gizmo_target('hand')
+
+    def s_gizmo_buttons(self):
+        """The header's buttons, clicked as a user clicks them: each one shows its gizmo, back and forth (a click passed the
+        button's checked state as the mode, and after the first switch no gizmo showed again; user, 2026-10-18)."""
+        wb, v = self.wb, self.wb.view
+        self._gizmo_ready('move')
+        seen = []
+        for key in ('rotate', 'move', 'both', 'free', 'rotate', 'move'):
+            wb.gizmo_seg.widget(key).click()
+            self.app.processEvents()
+            shows = v.gizmo_frame() is not None
+            seen.append(f"{key}: mode {v.gizmo_mode!r}, {'drawn' if shows else 'none'}")
+            if v.gizmo_mode != key or shows != (key != 'free') or wb.gizmo_seg.currentRouteKey() != key:
+                break
+        self.check('gizmo header: each tool button clicked shows its gizmo, back and forth', len(seen) == 6
+                   and v.gizmo_mode == 'move' and v.gizmo_frame() is not None, '; '.join(seen))
+        for key in ('gun', 'hand'):
+            wb.gizmo_on.widget(key).click()
+            self.app.processEvents()
+        self.check('gizmo header: Gun and Hand clicked put the gizmo on the gun and back on the hand', v.gizmo_target == 'hand')
 
     def s_gizmo_keys(self):
         """The keys G, R, T and W choose the gizmo (move, turn, both, none); the comma cycles its axes. The header follows."""
