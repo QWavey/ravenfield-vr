@@ -52,15 +52,20 @@ namespace RavenfieldVR.Weapons
             : Rig.GunBody == null ? "no gun body"
             : null;
 
-        /// <summary>The sub weapon to go back to once the under-barrel launcher is not reloading (null: none).</summary>
+        /// <summary>
+        /// The sub weapon to go back to from the under-barrel launcher (null: none). Set when the support hand lets go of the
+        /// launcher: it stays selected while it is empty or reloading (LauncherReturn).
+        /// </summary>
         private int? _launcherReturn;
 
         /// <summary>
-        /// Back from the under-barrel launcher to what the gun fired before, once it is not reloading: switched mid-reload it
-        /// would cancel the reload, and dropped then, the rifle stayed on the launcher (255.B2-1). Left alone when the player
-        /// switched it meanwhile.
+        /// Back from the under-barrel launcher to what the gun fired before. Let go empty or reloading, the launcher stays
+        /// selected, so it can be loaded into by hand or by the game's reload (user, 2026-10-18 evening: "as soon as I let go
+        /// of the shoot button it goes away, can't even reload it then"). The gun goes back once the launcher is loaded, or at
+        /// once when the gun's trigger is pulled (rifleWanted). Never mid-reload: switched then, the game drops the reload
+        /// (HolsterSubWeapon) and its end lands on the rifle (255.B2-1). Left alone when the player switched it meanwhile.
         /// </summary>
-        private void LauncherReturn()
+        private void LauncherReturn(bool rifleWanted = false)
         {
             if (!_launcherReturn.HasValue)
             {
@@ -72,11 +77,15 @@ namespace RavenfieldVR.Weapons
                 _launcherReturn = null;
                 return;
             }
-            if (!gun.GetActiveSubWeapon().reloading)
+            // Waits on the loaded state, not the reserve: the last round taken from the pouch leaves the reserve empty while it is
+            // still in the hand, and the launcher has to stay selected for it to be seated.
+            Weapon sub = gun.GetActiveSubWeapon();
+            if (sub.reloading || !rifleWanted && !sub.HasLoadedAmmo())
             {
-                gun.EquipSubWeapon(_launcherReturn.Value);
-                _launcherReturn = null;
+                return;
             }
+            gun.EquipSubWeapon(_launcherReturn.Value);
+            _launcherReturn = null;
         }
 
         /// <summary>Lights and lasers per weapon type: 0 off, 1 laser, 2 light, 3 both (as the support hand's trigger left them).</summary>
@@ -113,7 +122,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// The support hand's trigger, the hand on the gun (user, 2026-10-16): on an under-barrel launcher it fires the
-        /// launcher (switched to while the trigger is held, back when it is let go: the HK416-D's); elsewhere on the gun it
+        /// launcher (switched to while the trigger is held; let go, the gun goes back to the rifle once the launcher is loaded,
+        /// and the launcher stays selected while it is empty, so it can be loaded: the HK416-D's); elsewhere on the gun it
         /// steps through the lights and lasers the gun's scripts offer: laser, light, both, off (a gun with one key taps it).
         /// </summary>
         private void SupportTrigger(VRHand off)
@@ -128,11 +138,15 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 // Let go: the gun goes back to what it was firing before (after the shot has gone: the trigger was held a
-                // frame at least), as soon as the launcher is not reloading.
+                // frame at least) once the launcher is loaded again (LauncherReturn; empty, it stays selected).
                 VRGameInput.SupportFire = false;
                 _launcherReturn = _launcherFrom;
                 _launcherFrom = null;
                 LauncherReturn();
+                if (_launcherReturn.HasValue)
+                {
+                    Log.InfoOnce("ubgl-park:" + GripData.Key, $"{w.name}: its under-barrel launcher stays selected while it is empty or reloading, so it can be loaded; the gun goes back once it is loaded or its trigger is pulled.");
+                }
                 return;
             }
             if (!VRInput.GetPressed(DigitalAction.Use, off.Side) || Util.GameContext.GameMenuOpen)
@@ -142,7 +156,12 @@ namespace RavenfieldVR.Weapons
             if (launcher >= 0 && OnLauncher(w.alternativeWeapons[launcher], off.Palm.position))
             {
                 VRInput.Consume(DigitalAction.Use, off.Side);
-                _launcherFrom = w.activeSubWeaponIndex;
+                // Pressed again while the launcher is parked (empty or reloading): the gun goes back to what it fired before the
+                // first press, not to the launcher it is on. Pressed while the launcher is already the gun's selection (cycled to
+                // it), the return is the rifle (-1): the launcher cannot be its own return, or the gun's trigger would never switch back.
+                int returnTo = _launcherReturn ?? w.activeSubWeaponIndex;
+                _launcherFrom = returnTo == launcher ? -1 : returnTo;
+                _launcherReturn = null;
                 if (w.activeSubWeaponIndex != launcher)
                 {
                     w.EquipSubWeapon(launcher);
@@ -361,6 +380,34 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
+            // Parked on the under-barrel launcher (its trigger let go, the launcher empty or reloading) and the gun's trigger pulled:
+            // the rifle is wanted. The pull does not fire the launcher meanwhile (SuppressFire), and the rifle fires on the held
+            // trigger as soon as it is the active weapon (user, 2026-10-18 evening). Not in a menu, nor with the laser on a panel.
+            bool gunTriggerWanted = VRInput.GetHeld(DigitalAction.Fire, dom.Side) && !Util.GameContext.GameMenuOpen
+                                    && !(VRGameInput.PanelOpen && VRGameInput.PointerOverUI);
+            if (gunTriggerWanted && !_launcherReturn.HasValue && !_launcherFrom.HasValue && VRInput.GetPressed(DigitalAction.Fire, dom.Side))
+            {
+                // Drawn again after a holster with the launcher still selected and empty: the parking went with the held weapon it
+                // was on, so the rifle is the return here. Without it the gun's trigger only dry-clicked on the empty launcher. Only a
+                // fresh pull: a launcher emptied by a shot made on a held trigger does not switch away mid-hold.
+                Weapon gunWeapon = _held.Weapon;
+                int launcher = UnderBarrelLauncher(gunWeapon);
+                Weapon sub = launcher >= 0 && gunWeapon.activeSubWeaponIndex == launcher ? gunWeapon.GetActiveSubWeapon() : null;
+                if (sub != null && !sub.reloading && !sub.HasLoadedAmmo())
+                {
+                    _launcherReturn = -1;
+                    Log.InfoOnce("ubgl-redrawn:" + GripData.Key, $"{gunWeapon.name}: its under-barrel launcher is still selected and empty when the gun's trigger is pulled: the gun goes back to the rifle.");
+                }
+            }
+            if (gunTriggerWanted && _launcherReturn.HasValue)
+            {
+                LauncherReturn(rifleWanted: true);
+                if (_launcherReturn.HasValue)
+                {
+                    VRGameInput.SuppressFire = true; // still on the launcher (reloading): its switch waits, the pull does not fire it
+                }
+            }
+
             if (!off.Tracked)
             {
                 if (_coverHeld)
@@ -384,7 +431,8 @@ namespace RavenfieldVR.Weapons
             }
             if (_launcherFrom.HasValue && off.Role != HandRole.Foregrip)
             {
-                // The support hand left the launcher with its trigger still held: back to what the gun fired before.
+                // The support hand left the launcher with its trigger still held: let go here, so the gun goes back to what it fired
+                // before once the launcher is loaded (empty, it stays selected).
                 _launcherReturn = _launcherFrom;
                 _launcherFrom = null;
             }
