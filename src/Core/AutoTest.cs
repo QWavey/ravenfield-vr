@@ -1545,6 +1545,19 @@ namespace RavenfieldVR.Core
                 SecondWeapon.TestTrigger = false;
                 yield return null;
                 int shots = second != null ? second.Shots : 0;
+                // Its own arms (the game's model, both hands on the gun) stay hidden in the free hand (Task 267).
+                int armsShown = -1;
+                if (r != null)
+                {
+                    armsShown = 0;
+                    foreach (Renderer ar in r.ArmRenderers)
+                    {
+                        if (ar != null && ar.enabled)
+                        {
+                            armsShown++;
+                        }
+                    }
+                }
                 bool mainStays = sys.Held != null && sys.Held.Weapon == held.Weapon && actor.activeWeapon == held.Weapon;
                 Input.VRInput.SimulatedGrab[side] = false;
                 yield return null;
@@ -1554,6 +1567,7 @@ namespace RavenfieldVR.Core
                 Metric("second weapon: cm from the free hand's grip", offHand * 100f);
                 report($"second weapon ({other.name}): {(drawn ? "drawn in the free hand" : "NOT DRAWN")}, {offHand * 100f:0.0} cm from the hand's grip{(offHand > 0.03f || offHand < 0f ? " (NOT IN THE HAND)" : "")}, "
                        + $"{(shots > 0 ? $"fired {shots} shot(s), ammo {ammoBefore} -> {other.ammo}" : "NOT FIRED")}, the drawn gun {(mainStays ? "stays drawn" : "WAS PUT AWAY")}, "
+                       + $"its own arms {(armsShown == 0 ? "hidden" : armsShown < 0 ? "not measured" : $"SHOWING ({armsShown})")}, "
                        + $"let go: {(putAway ? "back in its holster" : "NOT PUT AWAY")}{(mainAfter ? "" : ", the drawn gun NOT IN THE HAND afterwards")}");
             }
             finally

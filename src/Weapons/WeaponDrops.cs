@@ -218,6 +218,9 @@ namespace RavenfieldVR.Weapons
                 Vector3 tpEuler = w.thirdPersonRotation;
                 Vector3 tpOffset = w.thirdPersonOffset;
                 float tpScale = w.thirdPersonScale;
+                // The game's own arms are never part of a copy, even when the third-person model holds them (Task 267: a holstered
+                // or dropped weapon showed its arms as the second weapon did). The renderer alone, as the analysis takes it.
+                SkinnedMeshRenderer ownArms = w.arms;
 
                 MonoBehaviour[] scripts = clone.GetComponentsInChildren<MonoBehaviour>(true);
                 for (int i = scripts.Length - 1; i >= 0; i--)
@@ -262,7 +265,7 @@ namespace RavenfieldVR.Weapons
                 tp.gameObject.SetActive(true);
                 foreach (Renderer r in tp.GetComponentsInChildren<Renderer>(true))
                 {
-                    r.enabled = true;
+                    r.enabled = r != ownArms;
                     Util.MaterialFix.Apply(r); // the prefab's materials, without the mod's own runtime shader fixes
                 }
                 pivot.transform.SetParent(null, false);
@@ -291,6 +294,7 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
+            SkinnedMeshRenderer armsAsset = w.arms; // the game's own arms: never copied (Task 267)
             foreach (SkinnedMeshRenderer smr in tpAsset.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
                 if (smr.rootBone != null && !smr.rootBone.IsChildOf(tpAsset))
@@ -311,6 +315,9 @@ namespace RavenfieldVR.Weapons
             {
                 GameObject copy = UnityEngine.Object.Instantiate(tpAsset.gameObject, holder.transform, false);
                 Transform tp = copy.transform;
+                // The same arms renderer in the copy: found by its path from the third-person model (null: not part of it).
+                Transform armsCopyRoot = armsAsset != null ? WeaponRig.Resolve(tp, WeaponRig.PathOf(tpAsset, armsAsset.transform)) : null;
+                SkinnedMeshRenderer armsCopy = armsCopyRoot != null ? armsCopyRoot.GetComponent<SkinnedMeshRenderer>() : null;
                 MonoBehaviour[] scripts = copy.GetComponentsInChildren<MonoBehaviour>(true);
                 for (int i = scripts.Length - 1; i >= 0; i--)
                 {
@@ -353,7 +360,7 @@ namespace RavenfieldVR.Weapons
                 copy.SetActive(true);
                 foreach (Renderer r in copy.GetComponentsInChildren<Renderer>(true))
                 {
-                    r.enabled = true;
+                    r.enabled = r != armsCopy;
                     Util.MaterialFix.Apply(r);
                 }
                 pivot.transform.SetParent(null, false);
