@@ -187,6 +187,13 @@ namespace RavenfieldVR.Weapons
                 if (part != null)
                 {
                     part.localScale = tiny;
+                    // Its meshes are switched off as well: at 1e-4 they still have their vertices at the pivot, where the part
+                    // waits, and the dropped weapon's physics shape is fitted from the enabled renderers only (ShapeFit.AddPoints),
+                    // so a hidden part would leave an invisible collider out beside the gun (Task 268).
+                    foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                    {
+                        r.enabled = false;
+                    }
                     hidden++;
                 }
             }
