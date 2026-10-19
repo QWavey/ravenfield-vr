@@ -4181,11 +4181,6 @@ namespace RavenfieldVR.Weapons
         private int TotalRounds(int inHand) => Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
 
         /// <summary>
-        /// Autotest: moves the simulated off hand so the magazine it holds stands lined up below the well, its tip
-        /// <paramref name="below"/> under the seated magazine's base (sideways by <paramref name="aside"/>), moving at
-        /// <paramref name="speed"/> into the well.
-        /// </summary>
-        /// <summary>
         /// Autotest (task 270): the fresh magazine (the gun empty) (a) held level with the grip at half its rail, 5 cm to the
         /// side, and brought onto its line from there slowly: it must stay out of the grip, kept out at its wall and not taken
         /// onto the rail beside it (taken there, it slid in through the wall); (b) turned 25 degrees and pushed up into the
@@ -4274,6 +4269,11 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Autotest: moves the simulated off hand so the magazine it holds stands lined up below the well, its tip
+        /// <paramref name="below"/> under the seated magazine's base (sideways by <paramref name="aside"/>), moving at
+        /// <paramref name="speed"/> into the well.
+        /// </summary>
         private void PlaceFreshMag(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float below, float aside, float speed, float tilt = 0f)
         {
             RigidPose seat = SeatPose;

@@ -67,12 +67,12 @@ namespace RavenfieldVR.Weapons
         internal const int BodyMask = (1 << 8) | (1 << 10) | (1 << 16) | (1 << 17);
         private static Collider[] _bodyScratch = new Collider[64];
 
+        private static readonly System.Predicate<Collider> IsGoneCollider = c => c == null;
+
         /// <summary>
         /// Something lying in the world stops colliding with the bodies around it (ragdolls, soldiers walking past), so
         /// it stays where it fell; <paramref name="done"/> remembers the bodies already ignored.
         /// </summary>
-        private static readonly System.Predicate<Collider> IsGoneCollider = c => c == null;
-
         public static void IgnoreBodiesNear(IList<Collider> colliders, Vector3 at, float radius, HashSet<Collider> done)
         {
             // A full buffer means more bodies than it holds (a squad around a soldier who fell: about 20 colliders each),

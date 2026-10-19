@@ -1101,6 +1101,13 @@ namespace RavenfieldVR.Weapons
             return root;
         }
 
+        /// <param name="root">The copy the part goes under.</param>
+        /// <param name="name">The part's name.</param>
+        /// <param name="mesh">Its mesh.</param>
+        /// <param name="materials">Its materials (fixed for the mod's shaders).</param>
+        /// <param name="localPos">Where it sits under the root.</param>
+        /// <param name="localRot">How it is turned under the root.</param>
+        /// <param name="scale">Its scale.</param>
         /// <param name="owned">The mesh was made for this copy (baked, cut out): it goes with the copy.</param>
         private static void AddPart(Transform root, string name, Mesh mesh, Material[] materials, Vector3 localPos, Quaternion localRot, Vector3 scale, bool owned = false)
         {

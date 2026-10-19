@@ -356,9 +356,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// The gun's flash size on this shot, as flash_sim.py's guns (pistol 1.0, SMG 1.1, rifle 1.7, machine gun 2.0,
-        /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot.
+        /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot. The rig data
+        /// is the gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.
         /// </summary>
-        /// <param name="d">The gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.</param>
         private static float FlashSize(WeaponRigData d, Weapon w, MuzzleFlashInfo info, bool particlesOut)
         {
             float size;

@@ -19,6 +19,8 @@ namespace RavenfieldVR.UI
         private readonly float _opacity;
         private readonly float _margin;
 
+        /// <param name="text">The text the plate sits behind (it follows it and takes its size).</param>
+        /// <param name="textMaterial">The text's material: the plate is drawn just before it in the render queue.</param>
         /// <param name="opacity">How dark the plate is at full visibility.</param>
         /// <param name="margin">Room round the text (m).</param>
         public TextPlate(TextMesh text, Material textMaterial, float opacity, float margin)

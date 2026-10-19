@@ -305,6 +305,12 @@ namespace RavenfieldVR.Weapons
         /// The volume of any set of renderers (a magazine on the gun or in the hand), in the frame of <paramref name="frame"/>
         /// as it is now; kept under <paramref name="key"/>.
         /// </summary>
+        /// <param name="key">The cache key it is kept under.</param>
+        /// <param name="renderers">What is measured.</param>
+        /// <param name="frame">The transform whose space the volume is in.</param>
+        /// <param name="views">How many depth views it is rendered from.</param>
+        /// <param name="hullSlice">With a convex hull fitted too: the slice thickness (0: no hull).</param>
+        /// <param name="hullPieces">With a hull: the most pieces it may have.</param>
         /// <param name="now">All views at once (the frame is gone at the end of this frame).</param>
         public static GunVolume Measure(string key, List<Renderer> renderers, Transform frame, int views = 5, float hullSlice = 0f, int hullPieces = 0, bool now = false)
         {
@@ -454,6 +460,13 @@ namespace RavenfieldVR.Weapons
             return _layer;
         }
 
+        /// <param name="key">The cache key it is kept under.</param>
+        /// <param name="renderers">What is measured.</param>
+        /// <param name="fp">The frame's position the volume is measured in.</param>
+        /// <param name="fr">The frame's rotation.</param>
+        /// <param name="envMin">The volume's box is cut to this corner (frame space).</param>
+        /// <param name="envMax">And to this one.</param>
+        /// <param name="viewCount">How many depth views it is rendered from.</param>
         /// <param name="poseNow">Where the frame is now (null: gone), asked once a frame while the views are rendered one a
         /// frame; null to render them all at once from (<paramref name="fp"/>, <paramref name="fr"/>).</param>
         private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5,

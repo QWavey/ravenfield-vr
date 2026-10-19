@@ -90,6 +90,7 @@ namespace RavenfieldVR.Weapons
             return piece;
         }
 
+        /// <param name="rig">The gun the piece is cut out of.</param>
         /// <param name="rackGun">Where the handle is (gun-body space).</param>
         public static BoltPiece Create(WeaponRig rig, Vector3 rackGun)
         {

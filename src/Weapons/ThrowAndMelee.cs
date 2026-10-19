@@ -803,7 +803,6 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 dir = sweep / length;
             // The player's own hitboxes are skipped by their owner below, not switched off and on every fast frame (255.P7-1).
-            const bool disabled = false;
             try
             {
                 const float radius = 0.06f;
@@ -864,13 +863,6 @@ namespace RavenfieldVR.Weapons
             {
                 Log.ExceptionOnce("gun bash", e);
                 return false;
-            }
-            finally
-            {
-                if (disabled)
-                {
-                    user.EnableHitboxColliders();
-                }
             }
         }
     }
