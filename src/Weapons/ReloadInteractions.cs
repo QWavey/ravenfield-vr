@@ -3231,7 +3231,11 @@ namespace RavenfieldVR.Weapons
                                                 + side * (s * Mathf.Abs(Vector3.Dot(box.extents, Abs(side))) * 0.6f);
                                 total++;
                                 inside += _held.InsideGunFromSide(t.TransformPoint(local)) ? 1 : 0;
-                                insideSeated += _held.InsideGunFromSide(seated.TransformPoint(local)) ? 1 : 0;
+                                // Compared with the seated magazine at the same place in the gun (the point slid down the line by
+                                // the part still out), not the same point of the magazine seated, which sits up in the frame: the
+                                // grip's bottom (a cutout, a flared well) showed more of any magazine there, and a clean line was
+                                // flagged as going in beside the well on the 1911s and the Glock (task 270; offline, the line was clean).
+                                insideSeated += _held.InsideGunFromSide(seated.TransformPoint(local - prop.InsertDirLocal * (prop.RailLength - prop.RailDepth))) ? 1 : 0;
                             }
                         }
                     }
@@ -3239,7 +3243,7 @@ namespace RavenfieldVR.Weapons
                     float outsideSeated = total > 0 ? 1f - insideSeated / (float)total : 0f;
                     Core.AutoTest.Metric("magazine (deep): share of what has gone in that shows beside the gun's sides", outside * 100f);
                     sb.Append($", {inDepth * 100f:0.0} cm in past the well's mouth ({inSeated * 100f:0.0} cm seated): {outside * 100f:0}% of it shows beside the gun's sides "
-                              + $"(the same points seated: {outsideSeated * 100f:0}%){(inDepth > 0.025f && outside > 0.25f && outside > outsideSeated + 0.15f ? " (GOES IN BESIDE THE WELL)" : "")}");
+                              + $"(the seated magazine there: {outsideSeated * 100f:0}%){(inDepth > 0.025f && outside > 0.25f && outside > outsideSeated + 0.15f ? " (GOES IN BESIDE THE WELL)" : "")}");
                 }
                 else
                 {
