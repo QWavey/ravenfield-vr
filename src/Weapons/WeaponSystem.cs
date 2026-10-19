@@ -653,6 +653,12 @@ namespace RavenfieldVR.Weapons
             // A short tick when the hand reaches a holster with something in it: holsters are found by feel.
             bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null
                           && (gunHand || actor.weapons[slot] != actor.activeWeapon);
+            // The gun hand gets nothing at the second weapon's holster either: its copy is hidden (HolsterDisplay), so the spot
+            // looks empty. A grab there drew that weapon, which put the held one away and then the second one too (2026-10-19).
+            if (usable && gunHand && Second != null && actor.weapons[slot] == Second.Weapon)
+            {
+                usable = false;
+            }
             if (usable && slot != _hoveredHolster[i])
             {
                 hand.Haptic(0.012f, 220f, 0.35f);
