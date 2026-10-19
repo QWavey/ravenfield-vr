@@ -2590,7 +2590,7 @@ namespace RavenfieldVR.Weapons
         /// where the hand is (user, headset, 2026-10-18 evening: "ppshs can be held by the magazine but the hand can still move
         /// forward; same with the rocket launcher"). Worked out once per hold.
         /// </summary>
-        private bool SupportHeldInPlace()
+        internal bool SupportHeldInPlace()
         {
             if (_supportInPlace < 0)
             {

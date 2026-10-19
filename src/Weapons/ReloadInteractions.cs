@@ -674,9 +674,17 @@ namespace RavenfieldVR.Weapons
                     break;
                 case 4:
                     off.Role = HandRole.Foregrip;
+                    // The rest is taken again for this hold: the reset above runs only on the frames the hand is not holding, so a
+                    // hold taken on the frame after the last one let go kept the old rest.
+                    _supportRest = -1f;
                     _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value && !GripData.IsPistol);
                     off.Haptic(0.02f, 120f, 0.35f);
                     Log.InfoOnce("support-stretch:" + GripData.Key, $"{GripData.Key}: the support hand's stretch is measured from {(SupportAtOwnPoint ? "its own support point (a pistol's cup, a rear grip, a magazine's or a launcher's grip)" : "the handguard line")}.");
+                    if (GripData.IsPistol && !GripData.HasSupportPoint)
+                    {
+                        // Its cup is only estimated (no left-hand bone): the support glove settles onto it (UpdateGraspAnchor).
+                        Log.InfoOnce("pistol-cup-glove:" + GripData.Key, $"{GripData.Key}: no left-hand bone: the support glove settles onto the grip's cup, a few centimetres.");
+                    }
                     break;
                 default:
                     return;
@@ -2812,41 +2820,11 @@ namespace RavenfieldVR.Weapons
         private bool SupportBehindGrip => GripData.HasSupportPoint && !GripData.IsPistol
                                           && Vector3.Dot(GripData.SupportPoint - GripData.GripPoint, GripData.AimAxis) < 0.07f;
 
-        private WeaponRigData _heldInPlaceOf;
-        private bool _heldInPlace;
-
-        /// <summary>
-        /// The support hand holds a magazine or a launcher's grip rather than the handguard (a PPSh's drum or stick, a launcher's
-        /// front grip; task 277). The same test as HeldWeapon.SupportHeldInPlace, which is private there: keep the two in step.
-        /// Worked out once per gun.
-        /// </summary>
-        private bool SupportHeldInPlace
-        {
-            get
-            {
-                WeaponRigData d = GripData;
-                if (!ReferenceEquals(d, _heldInPlaceOf))
-                {
-                    bool onMag = false;
-                    if (d.MagBounds.size.sqrMagnitude > 1e-6f)
-                    {
-                        Vector3 local = Quaternion.Inverse(d.MagSeat.rotation) * (d.SupportPoint - d.MagSeat.position);
-                        Bounds b = d.MagBounds;
-                        b.Expand(0.04f); // (2 cm all round: the palm's centre sits on the magazine's face, not inside it)
-                        onMag = b.Contains(local);
-                    }
-                    _heldInPlace = onMag || HeldWeapon.IsLauncher(d, _held.Weapon);
-                    _heldInPlaceOf = d;
-                }
-                return _heldInPlace;
-            }
-        }
-
         /// <summary>
         /// The support hand's point is the gun's own, not a place along the handguard: a pistol's cup, a rear grip, or a magazine's
-        /// or a launcher's grip. Its stretch and its glove are taken from that point.
+        /// or a launcher's grip (HeldWeapon.SupportHeldInPlace, task 277). Its stretch and its glove are taken from that point.
         /// </summary>
-        private bool SupportAtOwnPoint => GripData.IsPistol || SupportBehindGrip || SupportHeldInPlace;
+        private bool SupportAtOwnPoint => GripData.IsPistol || SupportBehindGrip || _held.SupportHeldInPlace();
 
         /// <summary>
         /// Autotest film of a launcher's reload by hand: a rocket from the pouch, carried to the launcher's mouth, lined up
