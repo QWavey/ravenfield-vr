@@ -26,6 +26,12 @@ namespace RavenfieldVR.UI
         /// <summary>The hand that points (null while none does).</summary>
         internal static VRHand PointingHand { get; private set; }
 
+        /// <summary>
+        /// The capture point the pointing line is on (within a few degrees), or null. An order given while it is set goes to
+        /// that point, as the flat game's order to a flag (task 297).
+        /// </summary>
+        internal static SpawnPoint Objective { get; private set; }
+
         private const float Reach = 0.42f;      // eye to palm with the arm held out (a hand at the chest is about 0.3)
         private const float Straight = 32f;     // the hand points along the arm within this (degrees)
 
@@ -35,11 +41,13 @@ namespace RavenfieldVR.UI
         private readonly TextPlate _plate;
         private readonly GameObject _arrow;
         private readonly Material _arrowMaterial;
+        private readonly SquadObjectiveMarkers _objectives;
         private float _alpha;
 
         public SquadPointing(VRRig rig)
         {
             _rig = rig;
+            _objectives = new SquadObjectiveMarkers();
             Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             _label = new GameObject("RavenfieldVR Squad Order");
             Object.DontDestroyOnLoad(_label);
@@ -71,6 +79,7 @@ namespace RavenfieldVR.UI
         {
             Pointing = false;
             PointingHand = null;
+            Objective = null;
             VRRig rig = VRRig.Instance;
             if (rig == null || !VRManager.Active)
             {
@@ -106,6 +115,7 @@ namespace RavenfieldVR.UI
             {
                 Pointing = true;
                 Line = new Ray(head.position, (PointingHand.PalmCentre - head.position).normalized);
+                Objective = SquadObjectiveMarkers.Aimed(Line, head.position);
             }
         }
 
@@ -166,6 +176,8 @@ namespace RavenfieldVR.UI
         {
             SquadPointUi ui = SquadPointUi.instance;
             bool open = VRManager.Active && ui != null && ui.canvas != null && ui.canvas.enabled && LocalPlayer.actor != null && !LocalPlayer.actor.dead;
+            // The capture points' flags: while the order screen is open and a hand points, and gone the moment the pointing ends.
+            _objectives.BeforeRender(open && Pointing, _rig.Head.position, Objective);
             _alpha = Mathf.MoveTowards(_alpha, open ? 1f : 0f, Time.unscaledDeltaTime * 8f);
             bool show = _alpha > 0.01f;
             if (_label.activeSelf != show)
@@ -187,7 +199,8 @@ namespace RavenfieldVR.UI
             // Just above the hand, facing the eye.
             Vector3 at = palm + Vector3.up * 0.075f;
             _label.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - head.position, Vector3.up));
-            string order = Pointing ? (ui.text != null ? ui.text.text : "GO TO") : "POINT WITH A HAND";
+            // What the order will be, from the pointing itself: the game's own text can name a flag that is hidden in VR.
+            string order = !Pointing ? "POINT WITH A HAND" : Objective != null ? ObjectiveOrder(Objective) : (Line.direction.y < -0.7f ? "REGROUP" : "GO TO");
             // The label is refitted only when its text changed or it came back (and the frame after, once laid out), and its
             // colours are set only when they change: all of it ran every frame the squad button was held (and TextMesh.text's
             // getter builds a new string on every read, so the last text set is remembered).
@@ -239,13 +252,29 @@ namespace RavenfieldVR.UI
         private int _refitFrames = 2;
         private Color _textColor = new Color(-1f, 0f, 0f, 0f);
         private float _plateAlpha = -1f, _arrowAlpha = -1f;
+        private SpawnPoint _orderSpawn;
+        private bool _orderDefend;
+        private string _orderText = "";
 
-        /// <summary>Where the order would go: the flag picked, the soldier picked, or the ground the line meets.</summary>
+        /// <summary>"ATTACK A" or "DEFEND A" for a capture point: the game's own words for its flag, built again only when the point changes.</summary>
+        private string ObjectiveOrder(SpawnPoint spawn)
+        {
+            bool defend = spawn.squadOrderPoint.type == SquadOrderPoint.ObjectiveType.Defend;
+            if (!ReferenceEquals(spawn, _orderSpawn) || defend != _orderDefend)
+            {
+                _orderSpawn = spawn;
+                _orderDefend = defend;
+                _orderText = (defend ? "DEFEND " : "ATTACK ") + spawn.shortName;
+            }
+            return _orderText;
+        }
+
+        /// <summary>Where the order would go: the capture point the line is on, the soldier picked, or the ground the line meets.</summary>
         private static Vector3? Target(SquadPointUi ui)
         {
-            if (ui.aimPoint != null)
+            if (Objective != null)
             {
-                return ui.aimPoint.transform.position;
+                return Objective.transform.position;
             }
             if (ui.aimActor != null)
             {
@@ -286,9 +315,18 @@ namespace RavenfieldVR.UI
             return m;
         }
 
+        /// <summary>A new scene: its capture points' flags are gone with it, and no hand sign is in progress.</summary>
+        internal void OnSceneChanged()
+        {
+            _objectives.Clear();
+            SquadHandSigns.Reset();
+            Objective = null;
+        }
+
         public void Destroy()
         {
             Restore();
+            _objectives.Destroy();
             if (_label != null)
             {
                 Object.Destroy(_label);
@@ -321,7 +359,34 @@ namespace RavenfieldVR.UI
                 {
                     Log.ExceptionOnce("SquadPointing.Compute", e); // never in the way of the game's player update
                 }
+                try
+                {
+                    SquadHandSigns.Update(); // after the pointing: a sign's order uses the same capture point the pointing shows
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("SquadHandSigns.Update", e);
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// The order's flag is the capture point the pointing line is on (task 297). The game's own pick of a flag is made from the
+    /// flat view, where its flags are drawn; in VR that screen is hidden, so while a hand points the game's pick is replaced by
+    /// the capture point the line is on, or by none (the ground the line meets is the order then).
+    /// </summary>
+    [HarmonyPatch(typeof(SquadPointUi), "GetAimingAtPoint")]
+    internal static class SquadPointedFlagPatch
+    {
+        private static void Postfix(ref SquadOrderPoint __result)
+        {
+            if (!VRManager.Active || !SquadPointing.Pointing)
+            {
+                return;
+            }
+            // The game's own order for that flag (attack or defend it), exactly as it would give it for a flag in view.
+            __result = SquadPointing.Objective != null ? SquadPointing.Objective.squadOrderPoint : null;
         }
     }
 
