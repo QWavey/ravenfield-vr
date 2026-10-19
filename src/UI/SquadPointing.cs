@@ -372,9 +372,10 @@ namespace RavenfieldVR.UI
     }
 
     /// <summary>
-    /// The order's flag is the capture point the pointing line is on (task 297). The game's own pick of a flag is made from the
-    /// flat view, where its flags are drawn; in VR that screen is hidden, so while a hand points the game's pick is replaced by
-    /// the capture point the line is on, or by none (the ground the line meets is the order then).
+    /// The order's flag is the capture point the pointing line is on (task 297). The game's own pick of a flag (made in the order
+    /// screen's LateUpdate, with the cameras turned along the pointing line) takes any flag within about 18 degrees of it. While
+    /// a hand points that pick is narrowed to the capture point the line is within 5 degrees of (the one drawn bright), or to
+    /// none, so the order goes where the label and the arrow say. With no hand pointing the game's pick is left alone.
     /// </summary>
     [HarmonyPatch(typeof(SquadPointUi), "GetAimingAtPoint")]
     internal static class SquadPointedFlagPatch
