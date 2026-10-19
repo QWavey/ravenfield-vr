@@ -25,6 +25,15 @@ namespace RavenfieldVR.Weapons
         public int Spare = -1;
         /// <summary>The player's own weapon put down in a swap: the only copy of it, never culled.</summary>
         public bool Keep;
+        /// <summary>
+        /// The player's own weapon (put down in a swap, or let go of): its rounds come back to it even when no live owner is left
+        /// (a loose magazine of a swapped-away rifle lost its rounds when the rifle was skipped here; 2026-10-19).
+        /// </summary>
+        public bool PlayerOwned;
+        /// <summary>Put down with its magazine out: it comes back without one (the rounds in that magazine are the magazine's).</summary>
+        public bool MagOut;
+        /// <summary>Put down locked back on nothing chambered: it comes back caught back, with its magazine's rounds loaded.</summary>
+        public bool SlideBack;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
         /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
@@ -491,6 +500,22 @@ namespace RavenfieldVR.Weapons
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]> RenderedShapes =
             new System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]>();
         private static readonly Dictionary<string, ShapeFit.Piece[]> ScaledShapes = new Dictionary<string, ShapeFit.Piece[]>();
+        private static readonly Dictionary<WeaponManager.WeaponEntry, int> EntryNumbers = new Dictionary<WeaponManager.WeaponEntry, int>();
+
+        /// <summary>
+        /// The name a weapon entry's shape caches are kept under: its display name and its own number. Two entries can share a
+        /// display name (the squad's M4A1 and the M4A1 of the analysis key m4), and a shape fitted for one was handed to the other
+        /// when the caches were keyed by the name alone (bug hunt 2026-10-19; Task 262 gap 3).
+        /// </summary>
+        private static string CacheNameOf(WeaponManager.WeaponEntry entry)
+        {
+            if (!EntryNumbers.TryGetValue(entry, out int number))
+            {
+                number = EntryNumbers.Count + 1;
+                EntryNumbers[entry] = number;
+            }
+            return entry.name + "#" + number;
+        }
 
         /// <summary>
         /// A dropped model whose meshes cannot be read only gets boxes from their bounds: during the warm-up its drawn model
@@ -517,7 +542,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            GunVolume v = GunVolume.Measure("tp:" + entry.name, renderers, root, 5, 0.04f, 12, now: true); // the warm-up's root goes this frame
+            GunVolume v = GunVolume.Measure("tp:" + CacheNameOf(entry), renderers, root, 5, 0.04f, 12, now: true); // the warm-up's root goes this frame
             if (v == null)
             {
                 return;
@@ -542,7 +567,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The rendered-model shape of this type at this scale (the pieces were measured at scale 1).</summary>
         private static ShapeFit.Piece[] ScaledRenderedShape(WeaponManager.WeaponEntry entry, Vector3 scale)
         {
-            return RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces) ? ScaledPieces(entry.name, pieces, scale) : null;
+            return RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces) ? ScaledPieces(CacheNameOf(entry), pieces, scale) : null;
         }
 
         /// <summary><paramref name="pieces"/> (fitted at scale 1) at <paramref name="scale"/>, made once per name and scale.</summary>
@@ -587,12 +612,13 @@ namespace RavenfieldVR.Weapons
             {
                 return rendered;
             }
-            string key = "drop:" + entry.name + "@" + scale.x.ToString("F2");
-            if (!ShapeFit.TryCached(key, out _) && ShapeFit.TryCached("drop:" + entry.name + "@1.00", out ShapeFit.Piece[] unit) && unit.Length > 0)
+            string name = CacheNameOf(entry);
+            string key = "drop:" + name + "@" + scale.x.ToString("F2");
+            if (!ShapeFit.TryCached(key, out _) && ShapeFit.TryCached("drop:" + name + "@1.00", out ShapeFit.Piece[] unit) && unit.Length > 0)
             {
                 // The warm-up's unit-scale fit, scaled (the same pieces, fitted again on the death frame for any other scale;
                 // 255.P7-2).
-                return ScaledPieces("fit:" + entry.name, unit, scale);
+                return ScaledPieces("fit:" + name, unit, scale);
             }
             var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
@@ -755,6 +781,17 @@ namespace RavenfieldVR.Weapons
             return Mathf.Max(0, w.ammo);
         }
 
+        /// <summary>
+        /// Whether a weapon is put down with its magazine out, and with its slide locked back on nothing chambered (both false
+        /// without a rig state, as for a weapon nothing of the mod's has handled).
+        /// </summary>
+        private static void PutDownState(Weapon w, out bool magOut, out bool slideBack)
+        {
+            AmmoState st = WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
+            magOut = st != null && st.UsesDetachableMag && !st.MagInserted;
+            slideBack = st != null && st.Participates && st.SlideLocked && !st.Chambered;
+        }
+
         private static int[] SubAmmoOf(Weapon w)
         {
             if (w == null || w.alternativeWeapons == null || w.alternativeWeapons.Count == 0)
@@ -803,8 +840,24 @@ namespace RavenfieldVR.Weapons
                 }
             }
             w.OnAmmoChanged();
-            // Its rig state (chamber, magazine) is taken from the game's count again.
-            WeaponSystem.Instance?.StateFor(w, create: false)?.AdoptWeaponAmmo();
+            // Its rig state (chamber, magazine) is taken from the game's count again. A gun put down with its magazine out or
+            // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
+            // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
+            // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack);
+            state?.AdoptWeaponAmmo();
+            if (state != null && (d.MagOut || d.SlideBack))
+            {
+                state.Chambered = !d.SlideBack && d.Ammo > 0;
+                state.MagInserted = !d.MagOut;
+                state.MagRounds = d.SlideBack && !d.MagOut ? Mathf.Clamp(d.Ammo, 0, state.Capacity) : 0;
+                if (d.SlideBack)
+                {
+                    state.SlideLocked = true;
+                }
+                state.Sync();
+                Log.InfoOnce("putdown:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: magazine {(d.MagOut ? "out" : "in")}, slide {(d.SlideBack ? "locked back" : "free")}.");
+            }
         }
 
         /// <summary>
@@ -816,7 +869,8 @@ namespace RavenfieldVR.Weapons
             for (int i = _drops.Count - 1; i >= 0; i--)
             {
                 DroppedWeapon d = _drops[i];
-                if (d.OwnerSlot < 0 || d.Entry == null || d.Spare < 0)
+                // A bot's drop takes no rounds back; the player's own (a swapped-away rifle is Keep with no owner slot) does.
+                if (d.Entry == null || d.Spare < 0 || (d.OwnerSlot < 0 && !d.PlayerOwned))
                 {
                     continue;
                 }
@@ -918,8 +972,12 @@ namespace RavenfieldVR.Weapons
                 }
                 swapped.SubAmmo = SubAmmoOf(current);
                 swapped.Keep = true; // your rifle, swapped for a fallen enemy's shotgun, was deleted 90 s later (85-agent review)
+                swapped.PlayerOwned = true;
                 swapped.Key = WeaponAnalyzer.KeyOf(current);
                 swapped.Semi = FireSelector.IsSemiByPlayer(current);
+                PutDownState(current, out bool swapMagOut, out bool swapSlideBack);
+                swapped.MagOut = swapMagOut;
+                swapped.SlideBack = swapSlideBack;
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick
@@ -933,6 +991,12 @@ namespace RavenfieldVR.Weapons
             }
 
             Weapon equipped = actor.EquipNewWeaponEntry(drop.Entry, slot, !beside);
+            // The slot follows the gun drawn into it, as the game's own switch sets it: the pairing check and the holster reads
+            // compare with it (a stale slot swapped the drawn gun out for the second pickup, 2026-10-19).
+            if (equipped != null && actor.activeWeapon == equipped)
+            {
+                actor.activeWeaponSlot = slot;
+            }
             if (equipped != null)
             {
                 RestoreAmmo(equipped, drop);
@@ -964,10 +1028,11 @@ namespace RavenfieldVR.Weapons
             {
                 case WeaponManager.WeaponSlot.Primary: return 0;
                 case WeaponManager.WeaponSlot.Secondary: return 1;
-                case WeaponManager.WeaponSlot.LargeGear: return 4;
+                // The launcher's slot is 3 (the loadout's gear2, SecondWeapon.Kind); 4 is the loadout's gear3, a small gun's.
+                case WeaponManager.WeaponSlot.LargeGear: return 3;
                 default:
                     if (actor.weapons[2] == null) return 2;
-                    if (actor.weapons[3] == null) return 3;
+                    if (actor.weapons[4] == null) return 4;
                     return 2;
             }
         }
@@ -1121,6 +1186,7 @@ namespace RavenfieldVR.Weapons
             body.angularVelocity = angularVelocity;
             SetUpBody(body, colliders);
             PropPhysics.IgnorePlayer(colliders);
+            PutDownState(w, out bool magOut, out bool slideBack);
             var drop = new DroppedWeapon
             {
                 Go = root,
@@ -1134,7 +1200,10 @@ namespace RavenfieldVR.Weapons
                 OwnerSlot = slot,
                 ReturnAt = Time.time + Mathf.Max(1f, VRConfig.WeaponReturnSeconds.Value),
                 OwnedMeshes = baked,
-                Semi = FireSelector.IsSemiByPlayer(w)
+                Semi = FireSelector.IsSemiByPlayer(w),
+                PlayerOwned = true,
+                MagOut = magOut,
+                SlideBack = slideBack
             };
             drop.Reach = ReachOf(root.transform, colliders);
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
@@ -1239,14 +1308,14 @@ namespace RavenfieldVR.Weapons
                     // expire and vanish from both the ground and the loadout 90 s after the drop (85-agent review).
                     d.OwnerSlot = -1;
                     d.Keep = true;
+                    d.PlayerOwned = true;
                     continue;
                 }
-                // Into the holster, not the hand: the slot must not look like the active one while it is spawned.
+                // Into the holster, not the hand: the slot must not look like the active one while it is spawned. Always, not only
+                // with nothing drawn: a stale slot left by an earlier drop, with another gun in the hand, drew this one and holstered
+                // the gun in use (2026-10-19).
                 int active = actor.activeWeaponSlot;
-                if (actor.activeWeapon == null)
-                {
-                    actor.activeWeaponSlot = -1;
-                }
+                actor.activeWeaponSlot = -1;
                 Weapon w;
                 try
                 {
