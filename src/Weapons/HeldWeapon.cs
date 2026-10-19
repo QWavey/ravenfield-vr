@@ -2518,6 +2518,9 @@ namespace RavenfieldVR.Weapons
             return System.Text.RegularExpressions.Regex.IsMatch(weapon.name, @"\b(bag|kit|medkit|medic|ammo ?box|first ?aid)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
+        /// <summary>The snap-off notes are said (once per hold: SnapHands runs every frame).</summary>
+        private bool _saidGripSnapOff, _saidSupportSnapOff;
+
         private void SnapHands(VRHand main, VRHand off)
         {
             if (main.Model != null)
@@ -2584,8 +2587,9 @@ namespace RavenfieldVR.Weapons
                                       && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f
                     ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand
                     : (RigidPose?)null;
-                if (main.Model.SnapPose == null && _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose off6))
+                if (!_saidGripSnapOff && main.Model.SnapPose == null && _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose off6))
                 {
+                    _saidGripSnapOff = true; // once a hold: this runs every frame, and the strings and the pose were made every frame
                     // Said once: the glove then is not put on the grip pose (the RPG-7's hands "float while gripped", user,
                     // headset, 2026-10-18 evening; task 276).
                     Log.InfoOnce("gripsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the gun hand is not put on the weapon's own grip pose: its hand bone is {Vector3.Distance(off6.position, Rig.ToWorld(Rig.Data.GripPoint)) * 100f:0.0} cm from the grip point (6 cm at most).");
@@ -2617,8 +2621,9 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose off12))
+                if (!_saidSupportSnapOff && _supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose off12))
                 {
+                    _saidSupportSnapOff = true;
                     Log.InfoOnce("supportsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the support hand is not put on the weapon's own support pose: its hand bone is {Vector3.Distance(off12.position, Rig.ToWorld(Rig.Data.SupportPoint)) * 100f:0.0} cm from the support point (12 cm at most; task 276).");
                 }
                 off.Model.SnapPose = null;
