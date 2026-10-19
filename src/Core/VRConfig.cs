@@ -147,6 +147,10 @@ namespace RavenfieldVR.Core
                 "Start SteamVR yourself when the game launches and a headset driver reports a headset. Off: VR starts only if SteamVR is already running (or with -vr), so flat play never opens SteamVR.");
             DominantHand = cfg.Bind("General", "DominantHand", Handedness.Right,
                 "Hand that holds the weapon. The other hand handles foregrips, magazines and slides.");
+            // The bindings are mirrored once, at startup (VRInput.ExtractManifests): the setting's "(restart)" applies there
+            // and nowhere else. Read live, the gun hand flipped in the menu while the bindings stayed mirrored until restart,
+            // so no trigger fired the gun (2026-10-19).
+            _leftHandedAtStart = DominantHand.Value == Handedness.Left;
 
             Stereo = cfg.Bind("Rendering", "StereoMode", StereoMode.MultiPass,
                 "MultiPass works with every shader. SinglePassInstanced is faster but some map/mod shaders then render in one eye only. Restart required.");
@@ -395,7 +399,10 @@ namespace RavenfieldVR.Core
             }
         }
 
-        public static bool LeftHanded => TestLeftHanded ?? DominantHand.Value == Handedness.Left;
+        /// <summary>Handedness as it was at startup: the setting takes effect on restart (the bindings are mirrored then).</summary>
+        private static bool _leftHandedAtStart;
+
+        public static bool LeftHanded => TestLeftHanded ?? _leftHandedAtStart;
 
         /// <summary>The hands to show now: the setting, or the autotest's choice for a moment (never saved).</summary>
         public static HandsMode HandsNow => TestHands ?? Hands.Value;

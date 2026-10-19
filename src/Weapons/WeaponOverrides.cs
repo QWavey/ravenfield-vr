@@ -9,8 +9,13 @@ namespace RavenfieldVR.Weapons
     [Serializable]
     internal sealed class WeaponOverride
     {
-        /// <summary>Case-insensitive substring of the weapon's name or prefab name.</summary>
+        /// <summary>
+        /// The weapon's name: its prefab name, its entry name or its display name, in any case, the "(Clone)" tag aside. A
+        /// substring only with "contains": true (exact by default: "ak" reached "Akimbo" and every other gun with "ak" in its name).
+        /// </summary>
         public string match = "";
+        /// <summary>"true": match is a substring of any of the names. Off: the whole name only.</summary>
+        public bool contains;
         /// <summary>SelfLoading, Manual, ShellFed, SingleShot, BreakOpen, Throwable, Melee or NoAmmo; empty keeps the detected one.</summary>
         public string action = "";
         /// <summary>Name of the magazine transform; empty keeps the detected one.</summary>
@@ -114,10 +119,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            string names = (w.name + " " + (w.weaponEntry != null ? w.weaponEntry.name : "") + " " + w.displayName).ToLowerInvariant();
             foreach (WeaponOverride o in _file.weapons)
             {
-                if (o == null || string.IsNullOrEmpty(o.match) || o.match.StartsWith("example") || !names.Contains(o.match.ToLowerInvariant()))
+                if (o == null || string.IsNullOrEmpty(o.match) || o.match.StartsWith("example") || !Names(w, o))
                 {
                     continue;
                 }
@@ -182,6 +186,24 @@ namespace RavenfieldVR.Weapons
                 d.Notes += "override(" + o.match + ") ";
             }
         }
+
+        /// <summary>
+        /// Whether an override names this weapon: exactly, against its prefab, entry or display name (the "(Clone)" tag dropped, as
+        /// WeaponAnalyzer.KeyOf does), or as a substring of any of them behind "contains" (2026-10-19: a short word hit unrelated guns).
+        /// </summary>
+        private static bool Names(Weapon w, WeaponOverride o)
+        {
+            string match = o.match.Trim().ToLowerInvariant();
+            string entry = w.weaponEntry != null ? w.weaponEntry.name : null;
+            if (o.contains)
+            {
+                return (w.name + " " + entry + " " + w.displayName).ToLowerInvariant().Contains(match);
+            }
+            return Same(w.name, match) || Same(entry, match) || Same(w.displayName, match);
+        }
+
+        private static bool Same(string name, string match) =>
+            string.Equals((name ?? "").Replace("(Clone)", "").Trim(), match, StringComparison.OrdinalIgnoreCase);
 
         private static Transform FindChild(Transform root, string name)
         {

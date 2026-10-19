@@ -43,6 +43,8 @@ namespace RavenfieldVR.Input
             public float ReleaseAt = float.MaxValue;
             public ScriptedBehaviour Target;
             public bool WasDown;
+            /// <summary>A tap cut into a hold (Shift while sprinting): the hold is still on under the tap (see Tap).</summary>
+            public bool HeldUnderTap;
             /// <summary>Script instance id -> the frame it first saw the edge in.</summary>
             public readonly Dictionary<int, int> DownDelivered = new Dictionary<int, int>();
             public readonly Dictionary<int, int> UpDelivered = new Dictionary<int, int>();
@@ -80,6 +82,13 @@ namespace RavenfieldVR.Input
         public static void Tap(string key, ScriptedBehaviour target = null)
         {
             VirtualKey v = Get(key);
+            // A tap that cuts into a hold (a sprint's Shift) must not end that hold when it runs out: Update lets the hold
+            // carry on, so Shift is not pressed again for every script (2026-10-19). A tap already in flight keeps the
+            // hold it found.
+            if (v.ReleaseAt == float.MaxValue)
+            {
+                v.HeldUnderTap = v.Down;
+            }
             v.Down = true;
             v.WasDown = true;
             v.ChangeFrame = Time.frameCount;
@@ -108,6 +117,11 @@ namespace RavenfieldVR.Input
             {
                 // A tap is in flight: let it run out, for the one script it was meant for. Taken over by a hold (sprinting),
                 // it went to every script and stayed down for the whole sprint. The hold takes over once it has run out.
+                // A sprint that ends under the tap is over: the key goes up when the tap runs out (2026-10-19).
+                if (!held)
+                {
+                    v.HeldUnderTap = false;
+                }
                 return;
             }
             v.Down = held;
@@ -136,6 +150,17 @@ namespace RavenfieldVR.Input
             {
                 if (v.Down && now >= v.ReleaseAt)
                 {
+                    if (v.HeldUnderTap)
+                    {
+                        // The hold the tap cut into is still on: it carries on for every script with no press or release
+                        // edge. Releasing here let SetHeld press Shift again, which reached every script as a new press
+                        // (2026-10-19). The edge is aged out so that no script reads the old press as a new one.
+                        v.HeldUnderTap = false;
+                        v.Target = null;
+                        v.ReleaseAt = float.MaxValue;
+                        v.ChangeFrame = Time.frameCount - EdgeFrames - 1;
+                        continue;
+                    }
                     v.Down = false;
                     v.ReleaseAt = float.MaxValue;
                     v.ChangeFrame = Time.frameCount;
@@ -185,7 +210,8 @@ namespace RavenfieldVR.Input
             }
             if (v.Target != null && v.Target != script)
             {
-                return false;
+                // Not the script the tap was for: it still sees the hold the tap cut into (no edge), as it did before the tap.
+                return kind == 0 && v.HeldUnderTap;
             }
             int id = script != null ? script.GetInstanceID() : 0;
             bool fresh = Time.frameCount - v.ChangeFrame <= EdgeFrames;

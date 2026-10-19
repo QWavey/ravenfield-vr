@@ -19,9 +19,10 @@ namespace RavenfieldVR.Input
                 return null;
             }
             VRRig rig = VRRig.Instance;
-            if (VRConfig.TurretAim.Value == TurretAimMode.Hand && rig.SetDominant.Tracked)
+            // The hand that fires the mounted gun (the gun hand, after a pass), so the aim and the trigger are the same hand (2026-10-19).
+            if (VRConfig.TurretAim.Value == TurretAimMode.Hand && rig.Dominant.Tracked)
             {
-                return rig.SetDominant.Pointer.Forward;
+                return rig.Dominant.Pointer.Forward;
             }
             return rig.Head.forward;
         }
