@@ -8,8 +8,8 @@ namespace RavenfieldVR.Weapons
     /// A visible, moving charging handle for guns whose bolt is part of the receiver mesh (no separate part moves
     /// when the action is worked). Readable meshes: the geometry around the handle point is cut out of the
     /// receiver into its own piece, so nothing changes at rest and pulling it back opens the port like the real
-    /// thing. Unreadable meshes: a small handle in the gun's own material is added at the point where the mod's
-    /// hand racks in its reload animation.
+    /// thing. Unreadable meshes: a slim T latch in the gun's own material is added at the point where the mod's
+    /// hand racks in its reload animation (never a block: see <see cref="LatchMesh"/>).
     /// </summary>
     internal sealed class BoltPiece
     {
@@ -370,7 +370,7 @@ namespace RavenfieldVR.Weapons
             return new CarveResult { Remaining = remaining, Cut = cutMesh, Submeshes = cutSubIndex.ToArray() };
         }
 
-        /// <summary>A small handle in the gun's own material, standing off the receiver at the rack point.</summary>
+        /// <summary>A slim T latch (<see cref="LatchMesh"/>) in the gun's own material, on the receiver's surface at the rack point.</summary>
         private void AddKnob(WeaponRig rig, Vector3 rackGun)
         {
             WeaponRigData d = rig.Data;
@@ -413,10 +413,11 @@ namespace RavenfieldVR.Weapons
             // On the surface, not standing off it (4 mm out looked like a part that did not belong; user, 2026-10-16).
             _knobBase = rackGun + outward * 0.001f;
             _knobRotation = Quaternion.LookRotation(d.AimAxis, outward);
-            // An AR's charging handle is a T at the back of the receiver: a cube there read as a black block, not a handle
-            // (user, 2026-10-16, mwii-m4holo).
-            bool arT = !d.Handgun && d.SlideMethod != null && d.SlideMethod.Contains("AR-pattern");
-            go.AddComponent<MeshFilter>().sharedMesh = arT ? TMesh() : KnobMesh(d.Handgun);
+            // The made handle is the slim T latch on every gun (task 299). It used to be a small cube on every gun that was not an
+            // AR (hidden slides, guns with nothing that moves, a Bren 2's added handle), and the cube read as a block on the part
+            // the hand racks (user, 2026-10-19: "some weapons still have a block on their pull rack"). An AR's T was already this shape
+            // (user, 2026-10-16, mwii-m4holo: a cube there read as a black block).
+            go.AddComponent<MeshFilter>().sharedMesh = LatchMesh(d.Handgun);
             MeshRenderer mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
             _pieces.Add(new Piece { T = go.transform });
@@ -427,25 +428,36 @@ namespace RavenfieldVR.Weapons
         private Vector3 _knobBase;
         private Quaternion _knobRotation = Quaternion.identity;
 
-        private static Mesh _knob, _knobPistol, _tHandle;
+        private static Mesh _latch, _latchPistol;
 
-        /// <summary>An AR charging handle's T: a bar across the bore at the back with a short stem forward, low and flat.</summary>
-        private static Mesh TMesh()
+        /// <summary>
+        /// The slim T latch every made handle uses (task 299): a bar across the gun with a stem reaching forward from it, a few
+        /// millimetres thick, standing on the surface at the rack point with the bar's back edge at that point (the place the
+        /// AR charging handle's T always had). Rifles get the AR charging handle's size, pistols a smaller one. The size comes
+        /// from the gun's class only, never from a part's bounds, so it cannot grow into a block the size of a whole part.
+        /// </summary>
+        private static Mesh LatchMesh(bool handgun)
         {
-            if (_tHandle != null)
+            ref Mesh cached = ref handgun ? ref _latchPistol : ref _latch;
+            if (cached != null)
             {
-                return _tHandle;
+                return cached;
             }
+            // Bar: across the gun (x), along the bore (z), height off the surface (y). Stem: the same axes, from 1 mm into the
+            // bar's back edge forward. Rifle: bar 4.2 x 1.2 x 0.8 cm, stem 0.9 x 2.6 x 0.6 cm. Pistol: bar 2.6 x 0.9 x 0.5 cm,
+            // stem 0.7 x 1.8 x 0.4 cm.
+            float barAcross = handgun ? 0.026f : 0.042f, barLen = handgun ? 0.009f : 0.012f, barHigh = handgun ? 0.005f : 0.008f;
+            float stemWide = handgun ? 0.007f : 0.009f, stemLen = handgun ? 0.018f : 0.026f, stemHigh = handgun ? 0.004f : 0.006f;
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Mesh cube = go.GetComponent<MeshFilter>().sharedMesh;
             Object.Destroy(go);
             Vector3[] cv = cube.vertices;
             int[] ct = cube.triangles;
             Vector2[] cu = cube.uv;
-            var verts = new System.Collections.Generic.List<Vector3>();
-            var tris = new System.Collections.Generic.List<int>();
-            var uvs = new System.Collections.Generic.List<Vector2>();
-            // (centre z along the bore, width x across, length z, height y); the bar's back edge at the rack point.
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            var uvs = new List<Vector2>();
+            // (centre z along the bore, width x across, length z, height y).
             void Box(float z, float wide, float len, float tall)
             {
                 int start = verts.Count;
@@ -459,38 +471,12 @@ namespace RavenfieldVR.Weapons
                 }
                 uvs.AddRange(cu);
             }
-            Box(0.006f, 0.042f, 0.012f, 0.008f); // the latch bar, 4.2 cm across
-            Box(0.024f, 0.009f, 0.026f, 0.006f); // the stem into the receiver
-            _tHandle = new Mesh { name = "RavenfieldVR charging handle" };
-            _tHandle.SetVertices(verts);
-            _tHandle.SetTriangles(tris, 0);
-            _tHandle.SetUVs(0, uvs);
-            _tHandle.RecalculateNormals();
-            _tHandle.RecalculateBounds();
-            return _tHandle;
-        }
-
-        private static Mesh KnobMesh(bool pistol)
-        {
-            ref Mesh cached = ref pistol ? ref _knobPistol : ref _knob;
-            if (cached != null)
-            {
-                return cached;
-            }
-            // Bevelled block: length along the bore, height away from the receiver.
-            float l = pistol ? 0.014f : 0.02f, w = pistol ? 0.008f : 0.011f, h = pistol ? 0.007f : 0.012f;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Mesh cube = go.GetComponent<MeshFilter>().sharedMesh;
-            Object.Destroy(go);
-            Vector3[] v = cube.vertices;
-            for (int i = 0; i < v.Length; i++)
-            {
-                v[i] = new Vector3(v[i].x * w, (v[i].y + 0.5f) * h, v[i].z * l);
-            }
-            cached = new Mesh { name = "RavenfieldVR knob" };
-            cached.vertices = v;
-            cached.triangles = cube.triangles;
-            cached.uv = cube.uv;
+            Box(barLen * 0.5f, barAcross, barLen, barHigh);
+            Box(barLen - 0.001f + stemLen * 0.5f, stemWide, stemLen, stemHigh);
+            cached = new Mesh { name = handgun ? "RavenfieldVR latch (pistol)" : "RavenfieldVR latch" };
+            cached.SetVertices(verts);
+            cached.SetTriangles(tris, 0);
+            cached.SetUVs(0, uvs);
             cached.RecalculateNormals();
             cached.RecalculateBounds();
             return cached;
