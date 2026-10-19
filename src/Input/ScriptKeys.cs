@@ -263,8 +263,12 @@ namespace RavenfieldVR.Input
         {
             new Rule(ScriptKeyPurpose.FireMode, "Fire mode", @"fire ?mode|firemode|isauto|semi|burst|switchauto|modechange|weaponmode|selector"),
             new Rule(ScriptKeyPurpose.Bipod, "Bipod", @"bipod"),
+            // Laser before Magnifier: a laser's script is often named after its sight ("Laser Sight", "LaserSight"), and
+            // "sight" is a magnifier word. Checked the other way round, the laser's toggle is taken for the magnifier, so the
+            // aim press taps the laser and the scope's magnifier does not flip (reported 2026-10-19: a scope that did not
+            // work on a gun with a laser). 镭射 and 激光 are laser in Chinese mod names.
+            new Rule(ScriptKeyPurpose.Laser, "Laser", @"laser|镭射|激光"),
             new Rule(ScriptKeyPurpose.Magnifier, "Magnifier", @"magnif|zoom|scope|sight"),
-            new Rule(ScriptKeyPurpose.Laser, "Laser", @"laser"),
             new Rule(ScriptKeyPurpose.Light, "Flashlight", @"flash ?light|torch|light"),
             new Rule(ScriptKeyPurpose.Suppressor, "Suppressor", @"suppress|silenc"),
             new Rule(ScriptKeyPurpose.Inspect, "Inspect", @"inspect"),
@@ -277,7 +281,7 @@ namespace RavenfieldVR.Input
         private static void Classify(ScriptKey k)
         {
             string behaviour = k.Script.behaviour ?? k.Script.name ?? "";
-            string context = behaviour;
+            string around = "";
             try
             {
                 string source = k.Script.source != null ? k.Script.source.text : null;
@@ -293,28 +297,62 @@ namespace RavenfieldVR.Input
                         m = Regex.Match(source, "[\"']" + Regex.Escape(k.Key) + "[\"']", RegexOptions.IgnoreCase);
                     }
                     at = m.Success ? m.Index : -1;
-                    context += " " + (at >= 0 ? source.Substring(at, Math.Min(500, source.Length - at)) : source.Substring(0, Math.Min(1500, source.Length)));
+                    around = at >= 0 ? source.Substring(at, Math.Min(500, source.Length - at)) : source.Substring(0, Math.Min(1500, source.Length));
                 }
             }
             catch (Exception)
             {
                 // Source not readable: the behaviour name alone decides.
             }
-            // The behaviour name is the strongest hint; the code around the check is next.
-            foreach (string text in new[] { behaviour, context })
+            // The behaviour name is the strongest hint: the first rule, in order, whose words it has.
+            Rule rule = FirstRule(behaviour);
+            // Then the code around the check. The word nearest the check decides, not the first rule in order: a laser toggle
+            // whose code also mentions a sight further on is still a laser, and an unrelated word later on is not read.
+            if (rule == null)
             {
-                foreach (Rule rule in Rules)
-                {
-                    if (rule.Words.IsMatch(text))
-                    {
-                        k.Purpose = rule.Purpose;
-                        k.Label = rule.Label;
-                        return;
-                    }
-                }
+                rule = NearestRule(around);
+            }
+            if (rule != null)
+            {
+                k.Purpose = rule.Purpose;
+                k.Label = rule.Label;
+                return;
             }
             k.Purpose = ScriptKeyPurpose.Other;
             k.Label = Regex.Replace(behaviour, "(?<=[a-z])(?=[A-Z])", " ");
+        }
+
+        private static Rule FirstRule(string text)
+        {
+            foreach (Rule rule in Rules)
+            {
+                if (rule.Words.IsMatch(text))
+                {
+                    return rule;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>The rule whose word appears first in the text (ties go to the rule listed first); null when none matches.</summary>
+        private static Rule NearestRule(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return null;
+            }
+            Rule best = null;
+            int bestAt = int.MaxValue;
+            foreach (Rule rule in Rules)
+            {
+                Match m = rule.Words.Match(text);
+                if (m.Success && m.Index < bestAt)
+                {
+                    best = rule;
+                    bestAt = m.Index;
+                }
+            }
+            return best;
         }
 
         /// <summary>Keys polled recently by scripts on this weapon (and its sub-weapons).</summary>
