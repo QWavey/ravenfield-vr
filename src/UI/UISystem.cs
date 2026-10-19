@@ -280,6 +280,7 @@ namespace RavenfieldVR.UI
                 ModKeys.Close();
             }
             Canvases.OnSceneChanged();
+            _squad.OnSceneChanged(); // the capture points' flags and any hand sign in progress belong to the old scene
             _eventSystem = null;
         }
 
