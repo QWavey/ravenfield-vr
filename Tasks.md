@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 304 (numbered 1-304)
+- Tasks: 306 (numbered 1-306)
 - Done: 153
-- Open: 151, of them code done and waiting for a check in the headset: 91
+- Open: 153, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -482,6 +482,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 302. [ ] CZ Bren 2 family: the rack (user, 2026-10-19 night, while testing: "concentrate the bughunt on cz bren 2 ... and their racks. make sure they work"). Offline over the export (all six variants analyse alike): the moving part is "Charging Handle/Bolt" (the fire animation's, inside the receiver); its parent "Charging Handle" is a static 38 cm mesh on the left of the receiver with the L-shaped knob 4.5 cm out at the front; the rack point is on the knob's tip (10 cm ahead of the bolt), the stroke 11.5 cm straight back; the 3 cm carve takes exactly the whole knob and nothing else, and the knob's path back is clear of every part (3.5 cm at the nearest); the Tac's magnifier grip (task 301) takes "Eotech G33/Magnifier", 20.6 cm from the knob (no conflict). Magazine (not the rack): its line leans 10-15 degrees back from the well (mag_line_scan: 53-78 points beside the outline half way in; a 10-15 degree forward tilt clears it); not the top cartridges (left out, the lean stays and a sideways tilt comes in), so the open question of 194 (to judge in the headset). Code trace of the rack path: Haiku workflow (four tracers, a skeptic per finding), results below.
 303. [ ] FNX-45 in front of the view while a primary is held, sometimes; may happen with every pistol (user, 2026-10-19 night, playing; not tested further).
 304. [ ] mwii-m4 Holo (No Script) and its family: the charging handle can be grabbed and pulled, but nothing goes back (user, 2026-10-19 night, playing).
+305. [ ] QJB 95 and its drum version: cannot be racked (user, 2026-10-19 night, playing: "maybe hitbox issue").
+306. [ ] Hitting things with held objects (a weapon swung into something) does no damage (user, 2026-10-19 night, playing).
 
 ## Notes
 
