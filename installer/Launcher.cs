@@ -8,8 +8,10 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using Valve.VR;
 
 namespace RavenfieldVR.Launcher
 {
@@ -28,11 +30,11 @@ namespace RavenfieldVR.Launcher
                 // Picked in Steam's Play list ("Ravenfield VR" passes -vr): already decided, no need to ask again.
                 if (game.Requested.HasValue && !showAnyway)
                 {
-                    return game.Run(game.Requested.Value, settings.Preset);
+                    return game.RunChecked(game.Requested.Value, settings.Preset);
                 }
                 if (settings.Remember && !showAnyway)
                 {
-                    return game.Run(settings.Mode, settings.Preset);
+                    return game.RunChecked(settings.Mode, settings.Preset);
                 }
                 using (var form = new LauncherForm(game, settings))
                 {
@@ -94,6 +96,24 @@ namespace RavenfieldVR.Launcher
                 }
             }
             return cmd;
+        }
+
+        /// <summary>
+        /// <see cref="Run"/>, but VR only once a headset is there: started without one, the game came up flat with "VR could not
+        /// start: Init_HmdNotFound" (user, 2026-10-19, Quest 3 not connected). Waits for it, or plays flat, or nothing (0).
+        /// </summary>
+        public int RunChecked(PlayMode mode, string preset)
+        {
+            if (mode == PlayMode.VR)
+            {
+                PlayMode? chosen = HeadsetWaitForm.Wait(GameDir);
+                if (chosen == null)
+                {
+                    return 0;
+                }
+                mode = chosen.Value;
+            }
+            return Run(mode, preset);
         }
 
         /// <summary>Starts the game and waits for it, so Steam's "playing" state and overlay stay correct.</summary>
@@ -312,16 +332,266 @@ namespace RavenfieldVR.Launcher
         }
     }
 
+    /// <summary>What the launcher saw and chose, for finding out why a start went the way it did (BepInEx\RavenfieldVR-launcher.log).</summary>
+    internal static class LauncherLog
+    {
+        private static bool _started;
+
+        public static void Write(string gameDir, string line)
+        {
+            try
+            {
+                string path = Path.Combine(gameDir, "BepInEx", "RavenfieldVR-launcher.log");
+                string text = DateTime.Now.ToString("HH:mm:ss ") + line + "\r\n";
+                if (_started)
+                {
+                    File.AppendAllText(path, text);
+                }
+                else
+                {
+                    File.WriteAllText(path, DateTime.Now.ToString("yyyy-MM-dd ") + "launcher started\r\n" + text); // one start per file
+                    _started = true;
+                }
+            }
+            catch (Exception)
+            {
+                // No log is harmless.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Asks SteamVR whether a headset is connected, as a background app: that never starts SteamVR and is not shown in the
+    /// headset. Uses the game's own openvr_api.dll (Valve's bindings, openvr_api.cs, are built into the launcher).
+    /// </summary>
+    internal static class HeadsetCheck
+    {
+        internal enum State { Ready, NoHeadset, NoSteamVR, Unknown }
+
+        [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibrary(string path);
+
+        private static bool? _loaded;
+
+        private static bool Load(string gameDir)
+        {
+            if (_loaded == null)
+            {
+                string dll = Path.Combine(gameDir, "ravenfield_Data", "Plugins", "x86_64", "openvr_api.dll");
+                _loaded = Environment.Is64BitProcess && File.Exists(dll) && LoadLibrary(dll) != IntPtr.Zero;
+            }
+            return _loaded.Value;
+        }
+
+        /// <summary>Unknown (no openvr_api.dll, an error this does not know) lets the game try as before.</summary>
+        public static State Probe(string gameDir)
+        {
+            try
+            {
+                if (!Load(gameDir) || !OpenVR.IsRuntimeInstalled())
+                {
+                    return State.Unknown;
+                }
+                var error = EVRInitError.None;
+                CVRSystem system = OpenVR.Init(ref error, EVRApplicationType.VRApplication_Background);
+                if (error == EVRInitError.Init_NoServerForBackgroundApp)
+                {
+                    return State.NoSteamVR;
+                }
+                if (error == EVRInitError.Init_HmdNotFound || error == EVRInitError.Init_HmdNotFoundPresenceFailed)
+                {
+                    return State.NoHeadset;
+                }
+                if (error != EVRInitError.None || system == null)
+                {
+                    return State.Unknown;
+                }
+                bool hmd = system.IsTrackedDeviceConnected(OpenVR.k_unTrackedDeviceIndex_Hmd)
+                           && system.GetTrackedDeviceClass(OpenVR.k_unTrackedDeviceIndex_Hmd) == ETrackedDeviceClass.HMD;
+                OpenVR.Shutdown();
+                return hmd ? State.Ready : State.NoHeadset;
+            }
+            catch (Exception)
+            {
+                return State.Unknown;
+            }
+        }
+
+        /// <summary>Starts SteamVR (its vrstartup, else through Steam).</summary>
+        public static void StartSteamVR()
+        {
+            try
+            {
+                string startup = Path.Combine(OpenVR.RuntimePath() ?? "", "bin", "win64", "vrstartup.exe");
+                Process.Start(new ProcessStartInfo(File.Exists(startup) ? startup : "steam://rungameid/250820") { UseShellExecute = true });
+            }
+            catch (Exception)
+            {
+                // The waiting window says what to do by hand.
+            }
+        }
+    }
+
+    /// <summary>
+    /// VR was chosen and no headset is connected: this window waits for it and starts the game in VR by itself once it is
+    /// there, or plays flat, or starts anyway, or cancels.
+    /// </summary>
+    internal sealed class HeadsetWaitForm : Form
+    {
+        private readonly string _gameDir;
+        private readonly Label _status;
+        private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 1500 };
+        private bool _probing;
+        private DateTime _steamVRStartedAt = DateTime.MinValue;
+        private PlayMode? _choice;
+
+        /// <summary>VR with a headset there (no window), else what the player picks in the window; null to start nothing.</summary>
+        public static PlayMode? Wait(string gameDir)
+        {
+            HeadsetCheck.State first = HeadsetCheck.Probe(gameDir);
+            LauncherLog.Write(gameDir, "VR asked for; SteamVR says: " + first);
+            if (first == HeadsetCheck.State.Ready || first == HeadsetCheck.State.Unknown)
+            {
+                return PlayMode.VR;
+            }
+            using (var form = new HeadsetWaitForm(gameDir, first))
+            {
+                form.ShowDialog();
+                LauncherLog.Write(gameDir, "waiting window closed: " + (form._choice?.ToString() ?? "cancelled") + (form._last != first ? " (last: " + form._last + ")" : ""));
+                return form._choice;
+            }
+        }
+
+        private HeadsetCheck.State _last;
+
+        private HeadsetWaitForm(string gameDir, HeadsetCheck.State first)
+        {
+            _gameDir = gameDir;
+            Text = "Ravenfield VR";
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            MinimizeBox = true;
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor = LauncherForm.Panel;
+            ForeColor = LauncherForm.TextC;
+            Font = new Font("Segoe UI", 10f);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(560, 262);
+            KeyPreview = true;
+            try
+            {
+                Icon = Icon.ExtractAssociatedIcon(Path.Combine(gameDir, "ravenfield.exe"));
+            }
+            catch (Exception)
+            {
+                // Default icon.
+            }
+
+            Controls.Add(new Label { Text = "Waiting for the headset", Font = new Font("Segoe UI Semibold", 17f), AutoSize = true, Location = new Point(28, 20), ForeColor = LauncherForm.TextC });
+            _status = new Label { AutoSize = false, Location = new Point(31, 62), Size = new Size(500, 24), ForeColor = LauncherForm.Accent };
+            Controls.Add(_status);
+            // 90 px: four lines (at 64 the end was cut off at 150% scaling).
+            Controls.Add(new Label
+            {
+                Text = "Put on your Quest 3 (or other headset) and connect it to this PC: Steam Link, Air Link, a Link cable or Virtual Desktop. " +
+                       "Ravenfield starts in VR by itself as soon as SteamVR sees the headset.",
+                Location = new Point(31, 90), Size = new Size(500, 90), ForeColor = LauncherForm.Muted, Font = new Font("Segoe UI", 9.25f)
+            });
+
+            Button flat = LauncherForm.FlatButton("Play flat", new Rectangle(31, 196, 156, 44), LauncherForm.Raised, LauncherForm.TextC);
+            flat.Click += (s, e) => Finish(PlayMode.Flat);
+            Button anyway = LauncherForm.FlatButton("Start VR anyway", new Rectangle(199, 196, 170, 44), LauncherForm.Raised, LauncherForm.TextC);
+            anyway.Click += (s, e) => Finish(PlayMode.VR);
+            Button cancel = LauncherForm.FlatButton("Cancel", new Rectangle(381, 196, 148, 44), LauncherForm.Raised, LauncherForm.TextC);
+            cancel.Click += (s, e) => Finish(null);
+            Controls.Add(flat);
+            Controls.Add(anyway);
+            Controls.Add(cancel);
+            KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    Finish(null);
+                }
+            };
+
+            ShowState(first);
+            _timer.Tick += async (s, e) =>
+            {
+                if (_probing)
+                {
+                    return;
+                }
+                _probing = true;
+                HeadsetCheck.State state = await System.Threading.Tasks.Task.Run(() => HeadsetCheck.Probe(_gameDir));
+                _probing = false;
+                if (!IsDisposed && _timer.Enabled)
+                {
+                    ShowState(state);
+                }
+            };
+            _timer.Start();
+        }
+
+        private void ShowState(HeadsetCheck.State state)
+        {
+            if (state != _last)
+            {
+                LauncherLog.Write(_gameDir, "SteamVR says: " + state);
+                _last = state;
+            }
+            switch (state)
+            {
+                case HeadsetCheck.State.Ready:
+                    _status.Text = "Headset found. Starting Ravenfield in VR...";
+                    Finish(PlayMode.VR);
+                    break;
+                case HeadsetCheck.State.NoSteamVR:
+                    // Started at once, and again if it is gone 30 s later (closed, or restarted by Steam Link or Virtual Desktop).
+                    if (_steamVRStartedAt == DateTime.MinValue || DateTime.UtcNow - _steamVRStartedAt > TimeSpan.FromSeconds(30))
+                    {
+                        _steamVRStartedAt = DateTime.UtcNow;
+                        HeadsetCheck.StartSteamVR();
+                    }
+                    _status.Text = "Starting SteamVR...";
+                    break;
+                case HeadsetCheck.State.NoHeadset:
+                    _status.Text = "SteamVR is running, but no headset is connected.";
+                    break;
+                default:
+                    // Could not ask SteamVR any more: let the game try.
+                    Finish(PlayMode.VR);
+                    break;
+            }
+        }
+
+        private void Finish(PlayMode? choice)
+        {
+            _timer.Stop();
+            _choice = choice;
+            Close();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _timer.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
     /// <summary>One window, the mod's own look: gunmetal panel, off-white type, one amber accent for the choice.</summary>
     internal sealed class LauncherForm : Form
     {
-        private static readonly Color Panel = Color.FromArgb(27, 30, 33);
-        private static readonly Color Raised = Color.FromArgb(42, 46, 51);
-        private static readonly Color RaisedHover = Color.FromArgb(56, 61, 67);
-        private static readonly Color TextC = Color.FromArgb(226, 228, 223);
-        private static readonly Color Muted = Color.FromArgb(150, 156, 160);
-        private static readonly Color Accent = Color.FromArgb(201, 160, 74);
-        private static readonly Color AccentText = Color.FromArgb(24, 22, 18);
+        internal static readonly Color Panel = Color.FromArgb(27, 30, 33);
+        internal static readonly Color Raised = Color.FromArgb(42, 46, 51);
+        internal static readonly Color RaisedHover = Color.FromArgb(56, 61, 67);
+        internal static readonly Color TextC = Color.FromArgb(226, 228, 223);
+        internal static readonly Color Muted = Color.FromArgb(150, 156, 160);
+        internal static readonly Color Accent = Color.FromArgb(201, 160, 74);
+        internal static readonly Color AccentText = Color.FromArgb(24, 22, 18);
 
         private readonly GameCommand _game;
         private readonly LauncherSettings _settings;
@@ -400,7 +670,7 @@ namespace RavenfieldVR.Launcher
             };
         }
 
-        private static Button FlatButton(string text, Rectangle bounds, Color back, Color fore)
+        internal static Button FlatButton(string text, Rectangle bounds, Color back, Color fore)
         {
             var b = new Button { Text = text, Bounds = bounds, BackColor = back, ForeColor = fore, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, UseVisualStyleBackColor = false };
             b.FlatAppearance.BorderSize = 0;
@@ -429,7 +699,7 @@ namespace RavenfieldVR.Launcher
             Hide();
             try
             {
-                ExitCode = _game.Run(mode, _settings.Preset);
+                ExitCode = _game.RunChecked(mode, _settings.Preset);
             }
             catch (Exception e)
             {

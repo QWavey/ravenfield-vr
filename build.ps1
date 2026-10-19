@@ -154,7 +154,8 @@ if ($Package) {
         '-nologo', '-target:winexe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig',
         "-out:$(Join-Path $dist 'RavenfieldVR-Launcher.exe')", "-win32manifest:$(Join-Path $Root 'installer/app.manifest')",
         "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll", "-r:$fx/System.Windows.Forms.dll",
-        (Join-Path $Root 'installer/Launcher.cs')
+        # Valve's bindings: the launcher asks SteamVR whether a headset is connected before it starts VR.
+        (Join-Path $Root 'installer/Launcher.cs'), (Join-Path $XrRuntime 'openvr_api.cs')
     )
     Write-Step 'Built RavenfieldVR-Launcher.exe'
 

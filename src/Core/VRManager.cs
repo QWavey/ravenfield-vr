@@ -50,14 +50,14 @@ namespace RavenfieldVR.Core
                 Log.Info("Not starting VR: " + reason + " Launch with -vr to force it.");
                 if (reason != null && !reason.StartsWith("-novr", StringComparison.Ordinal))
                 {
-                    FlatNotice("VR not started: " + reason + "\nStart SteamVR (with the headset connected), then press F6 here, or start the game after SteamVR.");
+                    FlatNotice("VR not started: " + reason + "\nStart SteamVR with the headset connected, then press Try again (F6).");
                 }
                 yield break;
             }
             if (!OpenVRRuntime.Start())
             {
                 Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError);
-                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nCheck SteamVR and the headset, then press F6 to try again.");
+                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nConnect the headset and check SteamVR, then press Try again (F6).");
                 yield break;
             }
             _flatNotice = null;
@@ -77,7 +77,7 @@ namespace RavenfieldVR.Core
                 Shutdown();
                 // Re-arm the on-screen notice and the F6 retry: without this the game ran flat with the failure only in the
                 // log (and VRInput.Initialize, which had been outside the try, left SteamVR up and unpumped if it threw).
-                FlatNotice("VR could not be set up: " + e.Message + "\nPress F6 to try again.");
+                FlatNotice("VR could not be set up: " + e.Message + "\nPress Try again (F6).");
                 yield break;
             }
 
@@ -155,13 +155,41 @@ namespace RavenfieldVR.Core
 
         private void OnGUI()
         {
-            if (_active || _flatNotice == null || Time.unscaledTime > _flatNoticeUntil)
+            // Up while the cursor is free (the menus: its buttons can be clicked there); in a match, where the cursor is locked,
+            // for 40 s, and F6 still tries again after that.
+            if (_active || _flatNotice == null || Time.unscaledTime > _flatNoticeUntil && Cursor.lockState == CursorLockMode.Locked)
             {
                 return;
             }
             var style = new GUIStyle(GUI.skin.box) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             style.normal.textColor = Color.white;
-            GUI.Box(new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 90f), "Ravenfield VR\n" + _flatNotice, style);
+            // 120 px: three lines and the title (at 90 the last line was cut off; user, 2026-10-19).
+            var box = new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 120f);
+            GUI.Box(box, "Ravenfield VR\n" + _flatNotice, style);
+            if (_retrying)
+            {
+                return;
+            }
+            var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
+            const float w = 220f, h = 40f;
+            // Try again starts VR in this game (no restart): connect the headset, then press it (user, 2026-10-19).
+            if (GUI.Button(new Rect(Screen.width * 0.5f - w - 8f, box.yMax + 8f, w, h), "Try again (F6)", button))
+            {
+                RetryVR();
+            }
+            if (GUI.Button(new Rect(Screen.width * 0.5f + 8f, box.yMax + 8f, w, h), "Play flat", button))
+            {
+                _flatNotice = null;
+            }
+        }
+
+        private void RetryVR()
+        {
+            Log.Info("Trying VR again.");
+            _retrying = true;
+            _retry = true;
+            _flatNotice = "Starting VR...";
+            StartCoroutine(Start());
         }
 
         private void Update()
@@ -170,10 +198,7 @@ namespace RavenfieldVR.Core
             {
                 if (_flatNotice != null && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F6))
                 {
-                    _retrying = true;
-                    _retry = true;
-                    _flatNotice = "Starting VR...";
-                    StartCoroutine(Start());
+                    RetryVR();
                 }
                 return;
             }

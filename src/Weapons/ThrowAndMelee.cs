@@ -339,7 +339,7 @@ namespace RavenfieldVR.Weapons
                         PullPin(off);
                     }
                 }
-                if (!_pinPulled && VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side))
+                if (!_pinPulled && VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && !GameContextBlocksThrow())
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
                     PullPin(null); // one-handed: the thumb flicks the ring off

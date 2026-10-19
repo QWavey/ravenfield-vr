@@ -395,7 +395,14 @@ namespace RavenfieldVR.Input
             }
             // No weapon in hand from the seat: a fire-mode press made on foot does not switch anything here.
             CancelModePress();
-            // Vehicle axes are produced by the CarInput/HelicopterInput/AirplaneInput patches; here only buttons.
+            // Vehicle axes are produced by the CarInput/HelicopterInput/AirplaneInput patches; here only buttons. The laser on one
+            // of the mod's panels takes them, as it does the gun's (2026-10-19: A fired countermeasures through an open panel).
+            if (GunInputBlocked)
+            {
+                SprintActive = false;
+                _jumpLatch = _downLatch = false;
+                return;
+            }
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand))
             {
                 Set(KeyBinds.Countermeasures, true);

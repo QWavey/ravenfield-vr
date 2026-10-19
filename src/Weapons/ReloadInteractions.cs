@@ -244,7 +244,7 @@ namespace RavenfieldVR.Weapons
         private bool PumpByTrigger(VRHand off)
         {
             return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Use, off.Side)
-                   && !Util.GameContext.GameMenuOpen && Vector3.Distance(off.Palm.position, RackPointWorld) < (Data.Action == ActionType.ShellFed ? 0.25f : 0.2f);
+                   && !VRGameInput.GunInputBlocked && Vector3.Distance(off.Palm.position, RackPointWorld) < (Data.Action == ActionType.ShellFed ? 0.25f : 0.2f);
         }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
         private bool _rackFromBoltLock;
