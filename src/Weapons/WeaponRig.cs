@@ -246,6 +246,11 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public float BarrelFrontAlong = float.NegativeInfinity;
         /// <summary>
+        /// The support point was put on the forend by the analysis, away from the animation's left hand (it was behind the
+        /// grip): the support pose is the animation hand's turn at the support point (HeldWeapon; task 276, the RPG-7).
+        /// </summary>
+        public bool SupportOnForend;
+        /// <summary>
         /// How far the gun reaches ahead of its grip along the aim (metres): the muzzle's, or the drawn barrel's front where the
         /// muzzle transform sits well inside the gun (<see cref="BarrelFrontAlong"/>). The muzzle's for every other gun.
         /// </summary>
