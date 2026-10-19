@@ -347,6 +347,12 @@ namespace RavenfieldVR.Weapons
             {
                 BeltLaid = true; // closing the cover over the belt
             }
+            // Lifting the cover takes a belt laid by hand off the tray with its box: the strip is hidden with the cover open, so the
+            // state has to say so too, or LAY BELT was never offered and the gun counted a belt it did not show (2026-10-19).
+            if (!CoverOpen && open && HasCover && MagInserted && VRConfig.BeltByHand.Value)
+            {
+                BeltLaid = false;
+            }
             CoverOpen = open;
             Sync();
         }

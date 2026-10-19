@@ -18,6 +18,8 @@ namespace RavenfieldVR.Weapons
     public static class WeaponAnalyzer
     {
         private static readonly Dictionary<string, WeaponRigData> Cache = new Dictionary<string, WeaponRigData>();
+        /// <summary>Keys whose analysis could not be set up (the geometric fallback is kept): analysed again at the next scene.</summary>
+        private static readonly HashSet<string> Failed = new HashSet<string>();
 
         private static readonly Regex ArmName = new Regex(
             @"(^|[^a-z])(arm(?!ature|or|our)|forearm(?![\s_.-]*(grip|wood|guard))|upperarm|hand(?!guard|le|stop|[\s_.-]*(grip|rest|rail))|wrist|finger|thumb(?![\s_.-]*(hole|rest))|index|middle|ring|pinky|pinkie|little|clavicle|shoulder(?![\s_.-]*(stock|pad|rest))|elbow|palm|knuckle)",
@@ -173,6 +175,7 @@ namespace RavenfieldVR.Weapons
                 Log.Exception($"Weapon analysis failed for {key}; using geometric fallback", e);
                 data = Fallback(w, key, slot);
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
+                Failed.Add(key);
             }
             WeaponOverrides.Apply(w, data);
             if (data.ExportGlb != null)
@@ -193,7 +196,41 @@ namespace RavenfieldVR.Weapons
             return data;
         }
 
-        public static void ClearCache() => Cache.Clear();
+        public static void ClearCache()
+        {
+            Cache.Clear();
+            Failed.Clear();
+        }
+
+        /// <summary>
+        /// Drops the analyses whose setup threw, so that the next scene analyses them again: the fallback was kept for the whole
+        /// session before, with no retry (2026-10-19). Called at each scene change (WeaponSystem.OnSceneChanged).
+        /// </summary>
+        public static void ForgetFailed()
+        {
+            foreach (string key in Failed)
+            {
+                Cache.Remove(key);
+            }
+            Failed.Clear();
+        }
+
+        /// <summary>
+        /// One rule of the analysis: a rule that throws leaves its own result out, and the rules after it still run. The rules
+        /// used to share one try, so a single throw replaced the whole rig with the geometric fallback (2026-10-19).
+        /// </summary>
+        private static void Guarded(WeaponRigData d, string rule, Action step)
+        {
+            try
+            {
+                step();
+            }
+            catch (Exception e)
+            {
+                Log.Exception($"Weapon rule {rule} failed for {d.Key}; the rest of its analysis stands", e);
+                d.Warnings.Add(rule + " threw " + e.GetType().Name + ": " + e.Message);
+            }
+        }
 
         // ---------------------------------------------------------------------------------------------
 
@@ -586,43 +623,52 @@ namespace RavenfieldVR.Weapons
                     d.Warnings.Add($"barrel points {rootAngle:0}° away from the weapon's forward axis (check muzzle orientation)");
                 }
 
-                AnalyzeHands(d, handR, handL, sampler, gunIdle, w);
-                AnalyzeSights(d, sampler);
-                AlignEyeToScopeModel(d, root, armRelated, sampler, w, gunIdle);
-                AnalyzeSightModes(d, sampler, w);
-                AnalyzeSightParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
-                Transform slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
-                AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w);
-                KeepMagazineAxisInSidePlane(d);
-                MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler);
-                ReclassifyAdvancedReload(d, w);
-                DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle);
-                FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler);
+                // Each rule is guarded on its own (2026-10-19): a rule that throws leaves its result out, and the rules after it
+                // still run. The rules used to share this try, so one throw replaced the whole rig with the fallback.
+                Guarded(d, "hands", () => AnalyzeHands(d, handR, handL, sampler, gunIdle, w));
+                Guarded(d, "sights", () => AnalyzeSights(d, sampler));
+                Guarded(d, "eye", () => AlignEyeToScopeModel(d, root, armRelated, sampler, w, gunIdle));
+                Guarded(d, "sight modes", () => AnalyzeSightModes(d, sampler, w));
+                Guarded(d, "sight parts", () => AnalyzeSightParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler));
+                Transform slide = null;
+                Guarded(d, "slide", () => slide = AnalyzeSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
+                Guarded(d, "magazine", () => AnalyzeMagazine(d, all, index, root, gunBody, muzzle, slide, armRelated, gunBones, sampler, w));
+                Guarded(d, "magazine axis", () => KeepMagazineAxisInSidePlane(d));
+                Guarded(d, "magazine protrusion", () => MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler));
+                Guarded(d, "advanced reload", () => ReclassifyAdvancedReload(d, w));
+                Guarded(d, "hinge", () => DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle));
+                Guarded(d, "belt", () => FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler));
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
                 {
-                    RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle, armRenderers);
+                    Guarded(d, "rack stroke", () => RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle, armRenderers));
                 }
-                NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
-                ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
-                ArOwnHandleNoSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
-                SideKnobByName(d, all, root, sampler, gunIdle);
-                RackOnOutstandingPiece(d, root, sampler, gunIdle);
-                FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle);
-                CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle); // after every part is chosen
-                ParkedAmmo(d, w, all, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                Guarded(d, "charging handle", () => NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
+                Guarded(d, "static handle", () => ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
+                Guarded(d, "own handle", () => ArOwnHandleNoSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
+                Guarded(d, "side knob", () => SideKnobByName(d, all, root, sampler, gunIdle));
+                Guarded(d, "outstanding piece", () => RackOnOutstandingPiece(d, root, sampler, gunIdle));
+                Guarded(d, "slide companions", () => FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle));
+                Guarded(d, "reload rounds", () => CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle)); // after every part is chosen
+                Guarded(d, "parked ammo", () => ParkedAmmo(d, w, all, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 // Last: only where the hands go. Run right after the hands, the moved grip point changed the rules that measure
                 // from it, and the Panzerfaust 3's rocket became its grip (it did not fire; check-1018d).
-                HandsOnNamedGrips(d, all, armRelated, sampler, gunIdle);
-                d.GripCurls = FingerCurls(handR, sampler);
-                d.SupportCurls = FingerCurls(handL, sampler);
-                d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
-                d.ArmLeft = ArmChainOf(root, handL, handR, armBones, sampler, gunIdle, d);
-                BuildSoundMap(d, sampler, w);
+                Guarded(d, "named grips", () => HandsOnNamedGrips(d, all, armRelated, sampler, gunIdle));
+                Guarded(d, "finger curls", () =>
+                {
+                    d.GripCurls = FingerCurls(handR, sampler);
+                    d.SupportCurls = FingerCurls(handL, sampler);
+                });
+                Guarded(d, "arm chains", () =>
+                {
+                    d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
+                    d.ArmLeft = ArmChainOf(root, handL, handR, armBones, sampler, gunIdle, d);
+                });
+                Guarded(d, "sounds", () => BuildSoundMap(d, sampler, w));
                 if (WeaponSelfTest.WantsRigDump(key))
                 {
-                    rigDump = DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle);
+                    Guarded(d, "rig dump", () => rigDump = DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 }
                 if (SandboxExport.Wants(key))
                 {
@@ -642,12 +688,12 @@ namespace RavenfieldVR.Weapons
                 sampler.Dispose();
             }
 
-            FinishVirtualParts(d);
-            MagKickRule(d, w); // after the virtual magazine's seat is set: before, a virtual magazine was judged at no seat
-            ArChargingHandle(d, root, gunBody, armRenderers);
-            BoltInsideOnSurface(d);
-            ForwardSideHandle(d);
-            CheckSanity(d, root, gunBody, armRelated);
+            Guarded(d, "virtual parts", () => FinishVirtualParts(d));
+            Guarded(d, "magazine kick", () => MagKickRule(d, w)); // after the virtual magazine's seat is set: before, a virtual magazine was judged at no seat
+            Guarded(d, "charging handle (AR)", () => ArChargingHandle(d, root, gunBody, armRenderers));
+            Guarded(d, "bolt inside", () => BoltInsideOnSurface(d));
+            Guarded(d, "side handle", () => ForwardSideHandle(d));
+            Guarded(d, "sanity", () => CheckSanity(d, root, gunBody, armRelated));
             // Written in Get, after the weapon's overrides (config gripForward, pitch, slide...): the sandbox holds the gun
             // where the game does (written here, an overridden gun's sandbox grip was the analysis' and a saved pose undid
             // the override; sandbox review).

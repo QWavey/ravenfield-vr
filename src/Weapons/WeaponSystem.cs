@@ -888,6 +888,7 @@ namespace RavenfieldVR.Weapons
             FireSelector.Clear();
             _ammo.Clear();
             _rigs.Clear();
+            WeaponAnalyzer.ForgetFailed(); // a weapon whose analysis threw is analysed again in the new scene (2026-10-19)
         }
 
         public void Dispose()

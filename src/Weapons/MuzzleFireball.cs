@@ -24,6 +24,8 @@ namespace RavenfieldVR.Weapons
             public Material Material;
             public Transform Muzzle;
             public float Ahead, Power, RadiusPx, Born = -1f;
+            /// <summary>The strength the picture was drawn at (its tenths over ten): the tint carries Power over it in Place.</summary>
+            public float Strength;
         }
 
         private readonly Ball[] _balls = new Ball[Pool];
@@ -131,6 +133,7 @@ namespace RavenfieldVR.Weapons
             KeyValuePair<Texture2D, float> t = TextureFor(power, phase);
             b.Material.mainTexture = t.Key;
             b.RadiusPx = t.Value;
+            b.Strength = PictureTenths(power) / 10f;
             b.Muzzle = muzzle;
             b.Ahead = ahead;
             b.Power = power;
@@ -155,6 +158,7 @@ namespace RavenfieldVR.Weapons
                 _glow.Material.mainTexture = t.Key;
             }
             _glow.RadiusPx = t.Value;
+            _glow.Strength = PictureTenths(power) / 10f;
             _glow.Muzzle = muzzle;
             _glow.Ahead = ahead;
             _glow.Power = power;
@@ -205,14 +209,23 @@ namespace RavenfieldVR.Weapons
             }
             b.Go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(toward / dist, head.up));
             b.Go.transform.localScale = new Vector3(2f * radius, 2f * radius, 1f);
-            // The legacy particle shaders double the tint: 0.5 is the picture as it is, faded by k.
-            b.Material.SetColor(TintColorId, new Color(0.5f * k, 0.5f * k, 0.5f * k, 0.5f));
+            // The legacy particle shaders double the tint: 0.5 is the picture as it is, faded by k. The picture is drawn at its own
+            // strength, which is 0.1 at least: the tint carries the flash's strength over it, else a glow of 0.02 was drawn at 0.1,
+            // two to nine times too bright (2026-10-19). Above 1 is fine: the tint is not clamped.
+            float tint = 0.5f * k * (b.Strength > 0f ? b.Power / b.Strength : 1f);
+            b.Material.SetColor(TintColorId, new Color(tint, tint, tint, 0.5f));
         }
+
+        /// <summary>
+        /// The picture's strength in tenths: 1 to 16. None weaker than 0.1 is drawn (the threaded table has none below it), so a
+        /// weaker flash is drawn at 0.1 and the tint takes the difference (<see cref="Place"/>).
+        /// </summary>
+        private static int PictureTenths(float power) => Mathf.Clamp(Mathf.RoundToInt(power * 10f), 1, 16);
 
         private KeyValuePair<Texture2D, float> TextureFor(float power, float phase)
         {
             // Strength in tenths up to the strongest flash, the starburst's turn in eighths: a few dozen pictures, each made once.
-            int pb = Mathf.Clamp(Mathf.RoundToInt(power * 10f), 1, 16);
+            int pb = PictureTenths(power);
             int ph = Mathf.RoundToInt(phase / (2f * Mathf.PI) * 8f) & 7;
             int key = pb * 8 + ph;
             if (!_textures.TryGetValue(key, out KeyValuePair<Texture2D, float> t))

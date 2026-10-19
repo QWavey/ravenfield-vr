@@ -1,7 +1,7 @@
 {
   "controller_type": "vive_controller",
   "name": "Ravenfield VR default (Vive wands)",
-  "description": "Trackpads move and turn. Right menu: mag release (hold: fire mode, double: slide release). Left menu: map (hold: pause, double: loadout). Left trackpad click: sprint, right trackpad click: next weapon (hold: kick). Left trigger: use (hold: squad order).",
+  "description": "Trackpads move and turn. Right menu: mag release (hold: fire mode, double: slide release). Left menu: map (hold: pause, double: loadout). Left trackpad click: sprint, right trackpad click: next weapon (hold: kick). Left trigger: use (hold: squad order). No scoreboard button on these wands: the scoreboard comes up with the map.",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -31,6 +31,8 @@
       "poses": [
         { "output": "/actions/main/in/Pose", "path": "/user/hand/left/pose/raw" },
         { "output": "/actions/main/in/Pose", "path": "/user/hand/right/pose/raw" },
+        { "output": "/actions/main/in/PoseGrip", "path": "/user/hand/left/pose/grip" },
+        { "output": "/actions/main/in/PoseGrip", "path": "/user/hand/right/pose/grip" },
         { "output": "/actions/main/in/PoseTip", "path": "/user/hand/left/pose/tip" },
         { "output": "/actions/main/in/PoseTip", "path": "/user/hand/right/pose/tip" }
       ],

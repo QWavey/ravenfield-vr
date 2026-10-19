@@ -248,6 +248,22 @@ namespace RavenfieldVR.Weapons
     [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnAllContentLoaded))]
     internal static class WarmupContentLoadedPatch
     {
+        /// <summary>
+        /// A reload of the content (a workshop mod updated or toggled in the menu) creates the weapons again under the same names.
+        /// The caches keyed by name kept the old rig, hand volume and shape, and the new weapon used them until the game restarted
+        /// (2026-10-19). They are dropped before the warm-up analyses the new weapons. (Each is refilled when it is next asked for.)
+        /// </summary>
+        private static void Prefix()
+        {
+            WeaponAnalyzer.ClearCache();
+            GunVolume.ClearCache();
+            ShapeFit.ClearCache();
+            SoundDonors.Clear();
+            WeaponDrops.ClearShapes();
+            MagazineProp.ClearLooks();
+            HeldWeapon.ClearNameCaches();
+        }
+
         private static void Postfix() => WeaponWarmup.Start();
     }
 }

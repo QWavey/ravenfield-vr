@@ -1459,8 +1459,6 @@ namespace RavenfieldVR.Weapons
         private BeltStrip _belt;
         /// <summary>The belt slipped from the hand (pulled out to its length): it hangs from the box mouth until taken again.</summary>
         private bool _beltHanging;
-        /// <summary>The belt was laid by hand on a gun that has no belt of its own in its model: the strip stays on the tray.</summary>
-        private bool _beltShownLaid;
         /// <summary>The belt was laid by hand while the cover was open: it shows until the cover is lifted again (274).</summary>
         private bool _beltLaidThisLift;
         /// <summary>The cover was open at the last look, so a lift is seen as the moment it goes up.</summary>
@@ -1577,8 +1575,6 @@ namespace RavenfieldVR.Weapons
         {
             if (Ammo.LayBelt())
             {
-                // On a gun whose model has no belt of its own, the laid strip stays to be seen on the tray.
-                _beltShownLaid = _held.BeltPartCount == 0;
                 _beltLaidThisLift = true;
                 _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
@@ -1621,7 +1617,6 @@ namespace RavenfieldVR.Weapons
             if (!Ammo.MagInserted || !Ammo.HasCover)
             {
                 _beltHanging = false;
-                _beltShownLaid = false;
             }
             else if (!Ammo.CoverOpen)
             {
@@ -1633,7 +1628,6 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                _beltShownLaid = false;
                 if (!_beltHeld && VRConfig.BeltByHand.Value)
                 {
                     // A fresh box under an open cover: its belt hangs from it, to be taken and laid. Drawn only after a slip,
@@ -1643,9 +1637,17 @@ namespace RavenfieldVR.Weapons
                 }
             }
             // A laid strip shows under the shut cover, and with the cover open only if it was laid in this lift; the box going
-            // clears it, so a box put back is never drawn with the old belt (274).
-            bool laidOnTray = _beltShownLaid && (!Ammo.CoverOpen || _beltLaidThisLift);
+            // clears it, so a box put back is never drawn with the old belt (274). Read from the state, so a belt laid at the
+            // spawn, or still laid when the gun is drawn again, shows too; for hand-laid belts only (without BeltByHand the belt
+            // was never shown on the tray), and a gun whose model has its own belt shows that instead.
+            bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.HasCover && VRConfig.BeltByHand.Value && _held.BeltPartCount == 0
+                              && (!Ammo.CoverOpen || _beltLaidThisLift);
             bool show = _beltHeld || _beltHanging || laidOnTray;
+            if (laidOnTray && _belt == null)
+            {
+                Log.InfoOnce("belt-tray:" + Data.Key, $"{Data.Key}: the belt laid on the feed tray shows from the gun's state (spawned or drawn again with it laid).");
+                _belt = new BeltStrip();
+            }
             if (_belt == null)
             {
                 return;
@@ -3556,7 +3558,7 @@ namespace RavenfieldVR.Weapons
                         BeginBelt(off);
                         yield return null;
                         CompleteBelt(off);
-                        report($"belt laid: {(_held.BeltPartCount > 0 ? $"the model's own belt ({_held.BeltPartCount} part(s)) shows" : _beltShownLaid ? "the strip stays on the feed tray" : "NOTHING SHOWS on the tray")}");
+                        report($"belt laid: {(_held.BeltPartCount > 0 ? $"the model's own belt ({_held.BeltPartCount} part(s)) shows" : Ammo.BeltLaid ? "the strip stays on the feed tray" : "NOTHING SHOWS on the tray")}");
                     }
                     Ammo.SetCoverOpen(false);
                 }
@@ -5110,7 +5112,6 @@ namespace RavenfieldVR.Weapons
             _belt?.Destroy();
             _belt = null;
             _beltHanging = false;
-            _beltShownLaid = false;
             _beltLaidThisLift = false;
             _beltCoverWasOpen = false;
             if (off.Model != null)
