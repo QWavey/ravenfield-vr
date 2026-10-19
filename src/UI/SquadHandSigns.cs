@@ -20,7 +20,7 @@ namespace RavenfieldVR.UI
     {
         private enum HandSign { None, Flat, Fist }
 
-        private const float HoldSeconds = 0.4f;
+        private const float HoldSeconds = 0.5f;
         private const float ReleaseSeconds = 0.25f;  // the hand shows no sign this long before the same sign counts again
         private const float OpenCurl = 0.3f;         // the four fingers at most this curled: open
         private const float ThumbOpenCurl = 0.5f;    // the thumb is looser on a controller, it rests on the buttons
@@ -29,7 +29,10 @@ namespace RavenfieldVR.UI
         private const float MaxYaw = 60f;            // ... and within this of the way the head faces
         private const float InFront = 70f;           // the palm within this of the way the head faces
         private const float MinReach = 0.25f;        // the palm at least this far from the eyes
-        private const float MaxBelowEyes = 0.4f;     // the palm no lower than this under the eyes (a hand at the belt is no sign: held at chest height or up)
+        // The palm no lower than this under the eyes: raised to the shoulder or above, as a hand signal is given. At chest
+        // height (0.4 m) an open hand reaching out for a door, a weapon on a table or a magazine on the ground for half a
+        // second ordered the squad (lead's review, 2026-10-19).
+        private const float MaxBelowEyes = 0.25f;
 
         private static HandSign _candidate;
         private static float _candidateSince;
