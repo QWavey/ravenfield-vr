@@ -4098,10 +4098,13 @@ namespace RavenfieldVR.Weapons
             var lines = new System.Collections.Generic.List<string>();
             try
             {
+                // The deep check before it takes fresh magazines from the pouch: the MG3's spare boxes ran out there, and this
+                // check reported NO MAGAZINE in every run. Topped up to the weapon's own spare, as the kick check does.
+                Ammo.SpareAmmo = Mathf.Max(Ammo.SpareAmmo, Ammo.Weapon.configuration.spareAmmo);
                 TakeFromPouch(off);
                 if (!(off.Held is MagazineProp mag))
                 {
-                    report("magazine keep-out: NO MAGAZINE from the pouch");
+                    report($"magazine keep-out: NO MAGAZINE from the pouch (spare {Ammo.SpareAmmo}, a fresh one would hold {Ammo.RoundsForFreshMagazine()})");
                     yield break;
                 }
                 yield return null;
