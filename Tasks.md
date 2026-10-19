@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 313 (numbered 1-313)
+- Tasks: 314 (numbered 1-314)
 - Done: 153
-- Open: 160, of them code done and waiting for a check in the headset: 91
+- Open: 161, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -491,6 +491,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 311. [ ] P320 (and maybe more pistols): the magazine still goes through the grip on the way in; the CZ Bren 2 too, a little ("why didnt you fix it on it?") (user, 2026-10-19 night, playing). See 310 (the same cause and fix); the P320's magazine is on the graphics card only, so its line was the knuckle guess (18 degrees off its own axis): its drawn skin's axis is taken first now.
 312. [ ] MG3 (both versions): after opening the cover the old belt is still there and does not go away, and the new one is laid in the wrong place (not where the old belt was) (user, 2026-10-19 night, playing).
 313. [ ] Slow motion: cannot be switched while dead or in the weapon (loadout) menu; and another button than the thumbstick double-click, please (user, 2026-10-19 night, playing).
+314. [ ] Cannot shoot while running (sprinting) (user, 2026-10-19 night, playing).
 
 ## Notes
 
