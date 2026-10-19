@@ -110,7 +110,27 @@ namespace RavenfieldVR.Weapons
             int spare = w.configuration.spareAmmo >= 0
                 ? Mathf.RoundToInt(w.configuration.spareAmmo * VRConfig.DroppedWeaponAmmo.Value)
                 : -1;
+            // A soldier's hand bone carries its scale with a wobble in the third decimal (0.999, 1.000, 1.001): taken as it was, nearly
+            // every drop missed the shape kept per scale and re-cooked its colliders on the death frame (a hitch on kills; user,
+            // 2026-10-19 night, task 309). Within 1.5% of 1 it is 1 (the warm-up's shapes), else rounded to 1%.
+            holdScale = DropScale(holdScale);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare);
+            float ms = (float)watch.Elapsed.TotalMilliseconds;
+            if (ms > 20f)
+            {
+                Log.Info($"Weapon drop of {w.weaponEntry.name} took {ms:0} ms on the death frame (scale {holdScale.x:0.00}; shape {(RenderedShapes.ContainsKey(w.weaponEntry) ? "rendered" : "fitted")}).");
+            }
+        }
+
+        /// <summary>A drop's scale snapped: 1 within 1.5%, else each axis to the nearest 1% (so drops share the shapes kept per scale).</summary>
+        internal static Vector3 DropScale(Vector3 s)
+        {
+            if (Mathf.Abs(s.x - 1f) < 0.015f && Mathf.Abs(s.y - 1f) < 0.015f && Mathf.Abs(s.z - 1f) < 0.015f)
+            {
+                return Vector3.one;
+            }
+            return new Vector3(Mathf.Round(s.x * 100f) / 100f, Mathf.Round(s.y * 100f) / 100f, Mathf.Round(s.z * 100f) / 100f);
         }
 
         // Stripped third-person models, built once per weapon type: copying the whole weapon prefab (scripts,
@@ -552,6 +572,9 @@ namespace RavenfieldVR.Weapons
                 if (done.HullPieces != null && done.HullPieces.Length > 0)
                 {
                     RenderedShapes[entry] = done.HullPieces;
+                    // Cooked soon on the main thread (this runs on the measuring worker), at scale 1: arriving after the warm-up's own
+                    // bake, this shape was cooked on the first drop of the type instead, on a soldier's death frame (task 309).
+                    PendingBake.Enqueue(entry);
                 }
             }
             if (v.Ready)
@@ -561,6 +584,19 @@ namespace RavenfieldVR.Weapons
             else
             {
                 v.OnReady = Keep;
+            }
+        }
+
+        /// <summary>Rendered shapes measured on the worker, waiting to be cooked at scale 1 on the main thread (one a frame).</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<WeaponManager.WeaponEntry> PendingBake =
+            new System.Collections.Concurrent.ConcurrentQueue<WeaponManager.WeaponEntry>();
+
+        /// <summary>One measured rendered shape cooked at scale 1 (main thread, from Update).</summary>
+        private static void BakePendingShape()
+        {
+            if (PendingBake.TryDequeue(out WeaponManager.WeaponEntry entry) && entry != null && RenderedShapes.TryGetValue(entry, out ShapeFit.Piece[] pieces))
+            {
+                ScaledPieces(CacheNameOf(entry), pieces, Vector3.one);
             }
         }
 
@@ -684,6 +720,7 @@ namespace RavenfieldVR.Weapons
 
         public void Update()
         {
+            BakePendingShape();
             Cull();
             PropPhysics.TrackPlayer();
             IgnoreBodies();
