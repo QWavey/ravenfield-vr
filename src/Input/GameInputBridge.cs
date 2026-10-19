@@ -122,7 +122,8 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout));
             Set(KeyBinds.SquadLeaderKit, VRInput.GetPressed(DigitalAction.Map));
             // In VR the scoreboard only ever shows together with the map (the wrist look): on its own it covered the
-            // view while aiming. The scoreboard button chooses whether it comes up with the map.
+            // view while aiming. The scoreboard button chooses whether it comes up with the map. The Vive wands have no scoreboard
+            // button (bindings_vive_controller.json): there it stays with the map, the default.
             if (VRInput.GetPressed(DigitalAction.Scoreboard))
             {
                 _scoreboardWithMap = !_scoreboardWithMap;

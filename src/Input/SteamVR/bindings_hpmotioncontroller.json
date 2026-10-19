@@ -1,7 +1,7 @@
 {
   "controller_type": "hpmotioncontroller",
   "name": "Ravenfield VR default (HP Reverb G2)",
-  "description": "Same layout as Touch. Y: map (hold: pause, double: loadout). The menu buttons stay SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there).",
+  "description": "Same layout as Touch, but no grip pose is bound: the palms sit on the fixed offset, not on the controller's grip. Y: map (hold: pause, double: loadout). The menu buttons stay SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there).",
   "bindings": {
     "/actions/main": {
       "sources": [

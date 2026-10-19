@@ -1845,6 +1845,16 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
         /// <summary>Weapon types whose slide is being measured now: its pictures come back from the GPU a frame or two later.</summary>
         private static readonly HashSet<string> SlideMeasuring = new HashSet<string>();
+        /// <summary>
+        /// Drops what was measured by weapon name before a content reload (2026-10-19): the slide's visible share and the
+        /// render-or-fit choice are measured again on the reloaded weapon's next hold.
+        /// </summary>
+        internal static void ClearNameCaches()
+        {
+            SlideSeen.Clear();
+            SlideMeasuring.Clear();
+            RenderedShapeBetter.Clear();
+        }
         private bool _knobChecked;
         /// <summary>Set by <see cref="Release"/>: a measurement that comes back after it adds nothing to this hold.</summary>
         private bool _releasedHold;

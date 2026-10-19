@@ -62,7 +62,7 @@ namespace RavenfieldVR.Weapons
                     {
                         weapons = new[]
                         {
-                            new WeaponOverride { match = "example: put part of a weapon name here", action = "Manual", slide = "bolt", slideTravel = 0.09f }
+                            new WeaponOverride { match = "example: put the whole weapon name here", action = "Manual", slide = "bolt", slideTravel = 0.09f }
                         }
                     };
                     File.WriteAllText(path, JsonUtility.ToJson(example, true));
@@ -194,6 +194,10 @@ namespace RavenfieldVR.Weapons
         private static bool Names(Weapon w, WeaponOverride o)
         {
             string match = o.match.Trim().ToLowerInvariant();
+            if (match.Length == 0)
+            {
+                return false; // a blank match names no weapon (it would match every blank name, and with "contains" every weapon)
+            }
             string entry = w.weaponEntry != null ? w.weaponEntry.name : null;
             if (o.contains)
             {

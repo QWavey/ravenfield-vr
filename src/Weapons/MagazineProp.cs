@@ -841,6 +841,27 @@ namespace RavenfieldVR.Weapons
             return root;
         }
 
+        /// <summary>
+        /// Drops the looks, seats and shapes kept by weapon name before a content reload (2026-10-19): the reloaded launcher is
+        /// new, so its rocket is copied and its seat measured again. The kept rocket copies are destroyed with their keys.
+        /// </summary>
+        internal static void ClearLooks()
+        {
+            foreach (GameObject look in LoadedLooks.Values)
+            {
+                if (look != null)
+                {
+                    Object.Destroy(look);
+                }
+            }
+            LoadedLooks.Clear();
+            LoadedLookTried.Clear();
+            LoadedLookTries.Clear();
+            SeatLooks.Clear();
+            GripSections.Clear();
+            RenderedShapes.Clear();
+        }
+
         /// <summary>A new copy of the launcher's rocket as it looked loaded; null when none was kept (or its meshes are gone).</summary>
         private static GameObject LoadedLook(string key)
         {

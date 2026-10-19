@@ -122,10 +122,10 @@ Weapon rigs are worked out from each gun's own animations: what moves when it fi
 If a mod still behaves strangely, add an entry to `BepInEx/config/RavenfieldVR.weapons.json` (created with an example):
 
 ```json
-{ "weapons": [ { "match": "mosin", "action": "Manual", "slide": "bolt", "slideTravel": 0.09, "gripForward": 0.01, "pitch": -4, "magKick": "false" } ] }
+{ "weapons": [ { "match": "mosin", "contains": true, "action": "Manual", "slide": "bolt", "slideTravel": 0.09, "gripForward": 0.01, "pitch": -4, "magKick": "false" } ] }
 ```
 
-`action` is one of `SelfLoading`, `Manual`, `ShellFed`, `SingleShot`, `BreakOpen`, `Throwable`, `Melee`, `NoAmmo`. `magazine` and `slide` take transform names from the weapon. `magKick` allows or forbids knocking out the magazine with a fresh one. `pitch` and `gripUp` turn the gun about its own upright, which since 2026-10-16 is the gun body's nearest axis to upright (not the weapon root's, which many rigs leave a few degrees rolled): an entry tuned before may need a degree or two less.
+`match` is the weapon's whole name (its prefab's, its entry's or its display name, in any case), so `"match": "mosin nagant"` names only that gun. `"contains": true` lets `match` be a part of the name: `"mosin"` then reaches every gun with it in its name. `action` is one of `SelfLoading`, `Manual`, `ShellFed`, `SingleShot`, `BreakOpen`, `Throwable`, `Melee`, `NoAmmo`. `magazine` and `slide` take transform names from the weapon. `magKick` allows or forbids knocking out the magazine with a fresh one. `pitch` and `gripUp` turn the gun about its own upright, which since 2026-10-16 is the gun body's nearest axis to upright (not the weapon root's, which many rigs leave a few degrees rolled): an entry tuned before may need a degree or two less.
 
 **Checking every installed weapon:** start the game with `-rfvr-selftest` (works flat, from the main menu). `BepInEx/RavenfieldVR-weapon-report.txt` then lists for every weapon how each part was found, the sounds bound to each action and where each reload sound comes from (the mod, a vanilla weapon, or synthesised), and anything suspicious. `-rfvr-dumprig=name` adds the full transform tree of matching weapons (`RavenfieldVR-rig-dump.txt`).
 

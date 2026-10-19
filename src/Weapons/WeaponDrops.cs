@@ -580,6 +580,26 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: drops of this type use the shape fitted to the rendered model.</summary>
         internal static bool UsesRenderedShape(WeaponManager.WeaponEntry entry) => RenderedShapes.ContainsKey(entry);
 
+        /// <summary>
+        /// Drops the models and shapes kept for the weapon types before a content reload (2026-10-19): the shapes are keyed by
+        /// name, the models and the no-model marks by entry, and the reloaded weapons are new. Each is made again when a drop
+        /// next asks for it. The copies already dropped are not touched (they are instances, not the templates).
+        /// </summary>
+        internal static void ClearShapes()
+        {
+            foreach (GameObject template in Templates.Values)
+            {
+                if (template != null)
+                {
+                    UnityEngine.Object.Destroy(template);
+                }
+            }
+            Templates.Clear();
+            NoModel.Clear();
+            RenderedShapes.Clear();
+            ScaledShapes.Clear();
+        }
+
         private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale)
         {
             ShapeFit.Piece[] rendered = ScaledRenderedShape(entry, scale);

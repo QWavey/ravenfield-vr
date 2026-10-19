@@ -259,6 +259,9 @@ namespace RavenfieldVR.Weapons
             GunVolume.ClearCache();
             ShapeFit.ClearCache();
             SoundDonors.Clear();
+            WeaponDrops.ClearShapes();
+            MagazineProp.ClearLooks();
+            HeldWeapon.ClearNameCaches();
         }
 
         private static void Postfix() => WeaponWarmup.Start();
