@@ -162,7 +162,7 @@ namespace RavenfieldVR.Input
             {
                 _leaveHeldSince = -1f;
             }
-            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(off) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
+            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
@@ -234,15 +234,20 @@ namespace RavenfieldVR.Input
         private static float _leaveHeldSince = -1f;
         private static int _leaveTicks;
 
+        /// <summary>A seat this far (metres) to one side of the vehicle's middle belongs to the hand on that side.</summary>
+        private const float SeatSideReach = 0.15f;
+
         /// <summary>
-        /// In a seat, Use (the off hand's trigger) gets you out only when held for a second, with ticks building up in
-        /// the hand: a fist closed on the wheel squeezes the trigger too, and a single click threw the driver out of the
-        /// car. A hand on the wheel or the flight stick never counts.
+        /// In a seat, the trigger of the hand on the seat's side gets you out, and only when held for a second, with ticks
+        /// building up in the hand: a fist closed on the wheel squeezes the trigger too, and a single click threw the driver
+        /// out of the car. A driver on the left leaves with the left hand, a passenger on the right with the right, and a seat
+        /// in the middle keeps the off hand. A hand on the wheel or the flight stick never counts.
         /// </summary>
-        private static bool HeldToLeaveSeat(Hand off)
+        private static bool HeldToLeaveSeat(Actor actor)
         {
-            Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(off) : null;
-            bool held = VRInput.GetHeld(DigitalAction.Use, off) && (hand == null || hand.Role != Rig.HandRole.Cockpit);
+            Hand leave = LeaveHand(actor);
+            Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(leave) : null;
+            bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit);
             if (!held)
             {
                 _leaveHeldSince = -1f;
@@ -265,6 +270,79 @@ namespace RavenfieldVR.Input
                 hand?.Haptic(0.02f, 120f + 60f * tick, 0.15f + 0.15f * tick);
             }
             return false;
+        }
+
+        /// <summary>
+        /// The hand that gets out of this seat: the one on the seat's side of the vehicle, read from where the seat sits across
+        /// the vehicle; a seat in the middle keeps the off hand. Use is read from the off hand's trigger (the bindings mirror for
+        /// left-handed play, and with the weapon passed over they trade places: VRInput.Slot), and the gun hand's trigger is the
+        /// gun's Fire. So the gun hand's trigger leaves a seat only where it fires nothing; otherwise the off hand does it.
+        /// </summary>
+        private static Hand LeaveHand(Actor actor)
+        {
+            Hand hand = VRInput.FreeHand;
+            Seat seat = actor.seat;
+            if (seat != null && seat.vehicle != null)
+            {
+                float side = seat.vehicle.transform.InverseTransformPoint(seat.transform.position).x;
+                if (side > SeatSideReach)
+                {
+                    hand = Hand.Right;
+                }
+                else if (side < -SeatSideReach)
+                {
+                    hand = Hand.Left;
+                }
+            }
+            if (hand == VRInput.GunHand && !GunTriggerLeaves(actor))
+            {
+                hand = VRInput.FreeHand;
+            }
+            return hand;
+        }
+
+        /// <summary>
+        /// The gun hand's trigger may leave the seat only where it fires nothing: no weapon in hand, and no gun or horn in the seat
+        /// (a car's horn is a mounted weapon too, and the trigger sounds it).
+        /// </summary>
+        private static bool GunTriggerLeaves(Actor actor) =>
+            actor.seat.weapons.Length == 0 && !(Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null);
+
+        /// <summary>The leaving trigger of this hand: Use for the off hand, Fire for the gun hand (only where <see cref="LeaveHand"/> allows it).</summary>
+        private static bool LeaveTriggerHeld(Hand leave) =>
+            leave == VRInput.GunHand ? VRInput.GetHeld(DigitalAction.Fire, leave) : VRInput.GetHeld(DigitalAction.Use, leave);
+
+        /// <summary>The game's seat keys in seat order: Seat1 takes seat 0, and so on (FpsActorController.UpdateInput).</summary>
+        private static readonly KeyBinds[] SeatKeys =
+        {
+            KeyBinds.Seat1, KeyBinds.Seat2, KeyBinds.Seat3, KeyBinds.Seat4, KeyBinds.Seat5, KeyBinds.Seat6, KeyBinds.Seat7
+        };
+
+        /// <summary>
+        /// The seat after the player's, cycling through the vehicle's seats and skipping any the player cannot take: a seat
+        /// switched off, a taken seat when the vehicle does not allow swaps, and a seat past the seventh (no game key for it).
+        /// -1: no seat to switch to.
+        /// </summary>
+        private static int NextSeatIndex(Seat current)
+        {
+            Vehicle vehicle = current != null ? current.vehicle : null;
+            if (vehicle == null || !vehicle.allowPlayerSeatChange || vehicle.seats == null)
+            {
+                return -1;
+            }
+            int here = vehicle.seats.IndexOf(current);
+            int count = vehicle.seats.Count;
+            for (int step = 1; step < count; step++)
+            {
+                int index = (here + step) % count;
+                Seat seat = vehicle.seats[index];
+                if (seat == null || !seat.gameObject.activeInHierarchy || seat.IsOccupied() && !vehicle.allowPlayerSeatSwap)
+                {
+                    continue;
+                }
+                return index < SeatKeys.Length ? index : -1;
+            }
+            return -1;
         }
 
         private static void ComputeOnFoot(Actor actor)
@@ -408,6 +486,17 @@ namespace RavenfieldVR.Input
                 SprintActive = false;
                 _jumpLatch = _downLatch = false;
                 return;
+            }
+            // Seat switching: Sprint has no job in a seat (it is read on foot only, in UpdateSprint), so its press moves the
+            // player to the next seat. The game's own seat keys take it, swapping with an AI passenger the same way they do.
+            // Sprint is the left stick's click on the controllers and the Vive wand's trackpad click.
+            if (VRInput.GetPressed(DigitalAction.Sprint))
+            {
+                int next = NextSeatIndex(actor.seat);
+                if (next >= 0)
+                {
+                    Set(SeatKeys[next], true);
+                }
             }
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand))
             {

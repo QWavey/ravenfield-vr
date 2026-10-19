@@ -29,7 +29,23 @@ namespace RavenfieldVR.Rig
         private readonly float[] _wheelTurned = new float[2];
         /// <summary>Where each hand on the rim puts the steering this frame.</summary>
         private readonly float[] _handSteer = new float[2];
+        /// <summary>How far each hand moved the rim this frame (degrees of steering, before the lock).</summary>
+        private readonly float[] _handMove = new float[2];
         private float _steer;
+
+        /// <summary>
+        /// The rim, in the wheel's own frame: its centre (on the turning axis, which the wheel's transform sets) and its radius.
+        /// The transform's origin is where the wheel turns, not where the rim sits along that axis: the hands on the rim were
+        /// measured against the origin before, so a rim set back from it was out of reach for one hand.
+        /// </summary>
+        private Vector3 _rimLocal;
+        private float _rimRadius = DefaultRimRadius;
+
+        /// <summary>A rim of a car or Humvee wheel when its mesh cannot be read: the wheel's origin with this radius.</summary>
+        private const float DefaultRimRadius = 0.2f;
+        /// <summary>How far a hand may sit off the rim's plane (along the turning axis) and off the rim itself and still take it.</summary>
+        private const float RimPlaneReach = 0.12f;
+        private const float RimRadialReach = 0.12f;
 
         private Hand? _stickHand;
         private Vector3 _stickStartLocal;
@@ -63,11 +79,17 @@ namespace RavenfieldVR.Rig
             {
                 UpdateHand(hand);
             }
-            // Two hands on the rim share it equally. Pulled half way to each hand in turn, the hand updated second won:
-            // (left + 2 right) / 3, so turning with the left hand while the right held still steered a third as much.
+            // Two hands on the rim: the hand moving it this frame steers, and the other is carried along (its angle is moved to
+            // the steering, so it adds no pull of its own). Averaging the two let a hand that held still drag the wheel back:
+            // turning with one hand while the other rested steered about half as far, and the other hand's own turn never
+            // counted. Both hands turning together still steer the same amount.
             if (_onWheel[0] && _onWheel[1])
             {
-                _steer = (_handSteer[0] + _handSteer[1]) * 0.5f;
+                int lead = Mathf.Abs(_handMove[0]) >= Mathf.Abs(_handMove[1]) ? 0 : 1;
+                int follow = 1 - lead;
+                _steer = _handSteer[lead];
+                _wheelBase[follow] += _steer - _handSteer[follow];
+                _handSteer[follow] = _steer;
             }
             else if (_onWheel[0] || _onWheel[1])
             {
@@ -96,6 +118,21 @@ namespace RavenfieldVR.Rig
                     break;
                 }
             }
+            _rimLocal = Vector3.zero;
+            _rimRadius = DefaultRimRadius;
+            if (_wheel != null)
+            {
+                bool measured = MeasureRim(_wheel, out Vector3 rim, out float radius);
+                if (measured)
+                {
+                    _rimLocal = rim;
+                    _rimRadius = radius;
+                }
+                // Once per wheel: where the rim really sits, to read against the hands in the next test.
+                Log.InfoOnce("wheel-rim:" + _seat.vehicle.name + ":" + _wheel.name,
+                    $"Steering wheel {_wheel.name} of {_seat.vehicle.name}: rim {(measured ? "measured" : "not measured, the origin used")}, "
+                    + $"{rim.z:+0.00;-0.00} m along the turning axis and {new Vector2(rim.x, rim.y).magnitude:0.00} m across it from the origin, radius {radius:0.00} m.");
+            }
             foreach (Joystick j in _seat.vehicle.GetComponentsInChildren<Joystick>())
             {
                 if (j.driverSeat == _seat)
@@ -118,7 +155,9 @@ namespace RavenfieldVR.Rig
             // turning (or the aircraft kept rolling) until the controller came back.
             bool holding = hand.Tracked && hand.GrabHeld;
             Vector3 palm = hand.Palm.position;
-            if (hand.Tracked && hand.GrabPressed && hand.Role == HandRole.Free)
+            // A grip that closed on the way to the rim takes it too (GetHeldUnclaimed), not only a squeeze made at the rim: the
+            // second hand usually reaches with its fist already shut, and the edge alone never caught that.
+            if (hand.Tracked && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side) && hand.Role == HandRole.Free)
             {
                 if (_wheel != null && NearWheel(palm))
                 {
@@ -126,6 +165,8 @@ namespace RavenfieldVR.Rig
                     _wheelStart[i] = OnWheelPlane(palm);
                     _wheelBase[i] = _steer;
                     _wheelTurned[i] = 0f;
+                    _handSteer[i] = _steer;
+                    _handMove[i] = 0f;
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = false;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
@@ -147,6 +188,7 @@ namespace RavenfieldVR.Rig
                 if (!holding)
                 {
                     _onWheel[i] = false;
+                    _handMove[i] = 0f;
                     hand.Role = HandRole.Free;
                     int other = 1 - i;
                     if (_onWheel[other])
@@ -165,7 +207,9 @@ namespace RavenfieldVR.Rig
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
                     _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, _wheel.transform.forward, _wheelBase[i], maxRot);
                     _wheelStart[i] = now;
+                    float before = _handSteer[i];
                     _handSteer[i] = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
+                    _handMove[i] = _handSteer[i] - before;
                 }
             }
 
@@ -251,18 +295,116 @@ namespace RavenfieldVR.Rig
             }
         }
 
-        private bool NearWheel(Vector3 palm)
+        /// <summary>A hand near the wheel's rim (within <paramref name="margin"/> more than the rim takes): the weapons' holster
+        /// grab yields to it, so a hand reaching for the rim does not draw the pistol at the hip beside it.</summary>
+        public bool WheelReaches(Vector3 palm, float margin) => _seat != null && _wheel != null && WithinRim(palm, margin);
+
+        private bool NearWheel(Vector3 palm) => WithinRim(palm, 0f);
+
+        /// <summary>
+        /// Within reach of the rim: near its plane along the turning axis and within its radius (plus a little) of the rim's
+        /// centre, not of the transform's origin.
+        /// </summary>
+        private bool WithinRim(Vector3 palm, float margin)
         {
-            Vector3 rel = palm - _wheel.transform.position;
-            float axial = Mathf.Abs(Vector3.Dot(rel, _wheel.transform.forward));
-            float radial = Vector3.ProjectOnPlane(rel, _wheel.transform.forward).magnitude;
-            return axial < 0.12f && radial < 0.32f;
+            Transform wt = _wheel.transform;
+            Vector3 centre = wt.TransformPoint(_rimLocal);
+            Vector3 rel = palm - centre;
+            float axial = Mathf.Abs(Vector3.Dot(rel, wt.forward));
+            float radial = Vector3.ProjectOnPlane(rel, wt.forward).magnitude;
+            float radius = wt.TransformVector(new Vector3(_rimRadius, 0f, 0f)).magnitude;
+            return axial < RimPlaneReach + margin && radial < radius + RimRadialReach + margin;
         }
 
         private Vector3 OnWheelPlane(Vector3 palm)
         {
-            Vector3 v = Vector3.ProjectOnPlane(palm - _wheel.transform.position, _wheel.transform.forward);
-            return v.sqrMagnitude > 1e-6f ? v : _wheel.transform.up * 0.15f;
+            Transform wt = _wheel.transform;
+            Vector3 v = Vector3.ProjectOnPlane(palm - wt.TransformPoint(_rimLocal), wt.forward);
+            return v.sqrMagnitude > 1e-6f ? v : wt.up * 0.15f;
+        }
+
+        /// <summary>
+        /// Where the rim is, from the wheel's own mesh: the outer ring of its vertices gives the rim's plane along the turning
+        /// axis, its centre across the axis and its radius. Returns false (the origin and <see cref="DefaultRimRadius"/> stay) when
+        /// the mesh cannot be read or the ring is not a sane rim.
+        /// </summary>
+        private static bool MeasureRim(SteeringWheel wheel, out Vector3 centre, out float radius)
+        {
+            centre = Vector3.zero;
+            radius = DefaultRimRadius;
+            Transform wt = wheel.transform;
+            float outer = 0f;
+            int count = 0;
+            MeshFilter[] filters = wt.GetComponentsInChildren<MeshFilter>(false);
+            foreach (MeshFilter mf in filters)
+            {
+                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
+                {
+                    continue;
+                }
+                Matrix4x4 toWheel = wt.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in mf.sharedMesh.vertices)
+                {
+                    Vector3 p = toWheel.MultiplyPoint3x4(v);
+                    outer = Mathf.Max(outer, new Vector2(p.x, p.y).magnitude);
+                    count++;
+                }
+            }
+            if (count < 12 || outer < 0.1f)
+            {
+                return false;
+            }
+            // The rim is the outermost ring: the vertices within 6% of the outer radius, averaged.
+            Vector3 sum = Vector3.zero;
+            int ring = 0;
+            foreach (MeshFilter mf in filters)
+            {
+                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
+                {
+                    continue;
+                }
+                Matrix4x4 toWheel = wt.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in mf.sharedMesh.vertices)
+                {
+                    Vector3 p = toWheel.MultiplyPoint3x4(v);
+                    if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
+                    {
+                        sum += p;
+                        ring++;
+                    }
+                }
+            }
+            if (ring < 8)
+            {
+                return false;
+            }
+            Vector3 mean = sum / ring;
+            float spread = 0f;
+            foreach (MeshFilter mf in filters)
+            {
+                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
+                {
+                    continue;
+                }
+                Matrix4x4 toWheel = wt.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in mf.sharedMesh.vertices)
+                {
+                    Vector3 p = toWheel.MultiplyPoint3x4(v);
+                    if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
+                    {
+                        spread += new Vector2(p.x - mean.x, p.y - mean.y).magnitude;
+                    }
+                }
+            }
+            float r = spread / ring;
+            // Sane for a car or Humvee wheel: a rim of 10-30 cm, centred near the transform across the axis.
+            if (r < 0.10f || r > 0.30f || new Vector2(mean.x, mean.y).magnitude > 0.15f || Mathf.Abs(mean.z) > 0.5f)
+            {
+                return false;
+            }
+            centre = new Vector3(mean.x, mean.y, mean.z);
+            radius = r;
+            return true;
         }
 
         private void ReleaseAll()

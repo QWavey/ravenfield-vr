@@ -48,6 +48,10 @@ namespace RavenfieldVR.Rig
         private readonly MudSplash _mud;
         private readonly LensEffects _lens;
         private readonly CockpitControls _cockpit;
+        private readonly VehicleTouchEnter _touchEnter;
+
+        /// <summary>The steering wheel and flight stick the hands grab in a seat.</summary>
+        public CockpitControls Cockpit => _cockpit;
 
         public RigMode Mode { get; private set; } = RigMode.None;
         public Transform Head => Camera.transform;
@@ -126,6 +130,7 @@ namespace RavenfieldVR.Rig
                 Log.Exception("Explosion dirt could not be set up; playing without it", e);
             }
             _cockpit = new CockpitControls(this);
+            _touchEnter = new VehicleTouchEnter(this);
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -290,6 +295,7 @@ namespace RavenfieldVR.Rig
 
             HandleTurning(player);
             _cockpit.Update();
+            _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
             if (Mode == RigMode.OnFoot && player != null)
             {
                 RoomscaleFollow(player);

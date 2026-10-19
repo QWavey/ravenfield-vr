@@ -434,6 +434,14 @@ namespace RavenfieldVR.Input
         public static bool GetPressedRecently(DigitalAction a, Hand h, float seconds) =>
             GetHeld(a, h) && Unclaimed[Slot(a), (int)h] && !Consumed[Slot(a), (int)h] && Time.unscaledTime - HeldSince[Slot(a) * 3 + (int)h] <= seconds;
 
+        /// <summary>
+        /// Still closed, and nothing has taken this squeeze yet, however long ago it closed. A grip shut while the hand was still
+        /// on its way to the steering wheel (or after it, with the hand reaching in) takes the wheel when the hand arrives; the
+        /// edge alone only caught a squeeze made at the rim.
+        /// </summary>
+        public static bool GetHeldUnclaimed(DigitalAction a, Hand h) =>
+            GetHeld(a, h) && Unclaimed[Slot(a), (int)h] && !Consumed[Slot(a), (int)h];
+
         private static readonly bool[,] PressPending = new bool[DigitalCount, 3];
 
         /// <summary>Autotest: a button press on a simulated hand, seen as pressed on the next input update.</summary>
