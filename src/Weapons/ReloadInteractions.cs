@@ -632,7 +632,12 @@ namespace RavenfieldVR.Weapons
             {
                 float d = ForegripDistance(palm);
                 float r = GripData.IsPistol ? 0.12f : radius * 1.4f;
-                if (d < r)
+                // A palm within the charging handle's zone is the handle's unless it is clearly nearer the handguard (half the rack
+                // distance): the CZ Bren 2's knob sits at the front of the receiver where the handguard line starts, and about 6 cm
+                // off the knob's tip toward the support point the handguard won (Bren hunt, 2026-10-19, task 302).
+                float dRack = !GripData.IsPistol && Manual && Ammo.UsesChamber && !IsPump ? RackZoneDistance(palm) : float.MaxValue;
+                bool handleHolds = dRack < radius * 1.3f;
+                if (d < r && (!handleHolds || d < 0.5f * dRack))
                 {
                     Consider(4, d / r, ref choice, ref best);
                 }
@@ -2349,7 +2354,7 @@ namespace RavenfieldVR.Weapons
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
         /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
-        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * (_held.BoltLockedAlone && !_racking ? 0f : Fraction)));
+        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * ((_held.BoltLockedAlone || _held.KnobLockedAlone) && !_racking ? 0f : Fraction)));
 
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
@@ -2360,6 +2365,21 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         /// <summary>A hand is working the slide, bolt or handle right now.</summary>
         internal bool IsRacking => _racking;
+
+        /// <summary>The rack in progress started with the bolt locked back and its handle at home (an AR's, a CZ Bren 2's knob).</summary>
+        internal bool RackFromLock => _racking && _rackFromBoltLock;
+
+        /// <summary>A palm weighed against the rack zone as TryGrab weighs it (for MagnifierFlip): its score, or infinity out of reach.</summary>
+        internal float RackScore(Vector3 palm)
+        {
+            if (!Manual || Ammo == null || !Ammo.UsesChamber || IsPump)
+            {
+                return float.PositiveInfinity;
+            }
+            float rackRadius = VRConfig.GrabRadius.Value * 1.3f;
+            float d = RackZoneDistance(palm);
+            return d < rackRadius ? d / rackRadius * 0.85f : float.PositiveInfinity;
+        }
 
         private float RackZoneDistance(Vector3 palm)
         {
@@ -2393,7 +2413,7 @@ namespace RavenfieldVR.Weapons
             _rackPalm = Data.IsPistol && !HandleStroke && !IsPump && Mathf.Abs(Vector3.Dot(palmNormal, Rig.AimWorld)) < 0.6f
                         && Vector3.Dot(palmNormal, RackPointWorld - off.Palm.position) > -0.01f;
             // Locked open with only the bolt back (an M4's handle home): the handle is taken where it is, at home.
-            _rackFromBoltLock = _held.BoltLockedAlone;
+            _rackFromBoltLock = _held.BoltLockedAlone || _held.KnobLockedAlone; // (a made knob locked forward: taken at home too)
             _rackBase = _rackFromBoltLock ? 0f : Ammo.SlideLocked ? 1f : Fraction;
             // An open bolt with an empty chamber (the case already out) feeds when pushed home, however far it was left open:
             // pulled back, half closed and let go, it closed later without feeding and the gun said RACK.

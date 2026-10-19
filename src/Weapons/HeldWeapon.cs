@@ -2950,6 +2950,10 @@ namespace RavenfieldVR.Weapons
             // Locked open with the bolt under the racked handle: the handle home (or where the hand has it), the bolt back.
             bool boltAlone = BoltLockedAlone;
             float slideShare = boltAlone && !Reload.IsRacking ? 0f : fraction;
+            if (Reload != null && Reload.IsRacking && Reload.RackFromLock && KnobLockedAlone)
+            {
+                slideShare = 1f; // the knob is worked from home while the bolt stays on its catch until it is let go
+            }
             if (SlideOffset > 0.0005f)
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * slideShare);
@@ -3121,6 +3125,15 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal bool BoltLockedAlone => Rig.Bolt != null && Rig.Slide != null && Reload != null && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked
                                          && ReferenceEquals(ActiveRig, Rig);
+
+        /// <summary>
+        /// Locked open with a made knob (carved out or added) on a moving part that has no bolt of its own: the knob stays forward
+        /// (a non-reciprocating handle, as the CZ Bren 2's) while the part, the bolt, waits back on its catch. The grab zone and
+        /// the stroke start at the knob then: they sat 11.5 cm back with the bolt, so the knob drawn at home was hardly in reach
+        /// and jumped back from the hand on the grab (Bren hunt, 2026-10-19, task 302).
+        /// </summary>
+        internal bool KnobLockedAlone => Rig.Bolt == null && Rig.Slide != null && (Rig.Data.CarveHandle || Rig.Data.AddedHandle) && Reload != null
+                                         && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
 
         /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
         private void ApplyHinge(WeaponRigData d)

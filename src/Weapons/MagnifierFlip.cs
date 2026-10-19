@@ -137,8 +137,9 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            bool racks = _held.Ammo != null && _held.Ammo.Participates && _held.Ammo.UsesChamber;
-            return !racks || Vector3.Distance(palm, _held.Rig.ToWorld(data.RackPoint)) >= d;
+            // Weighed against the reload's own rack zone (where the knob is drawn now: its snapped point, moved with the stroke) as
+            // TryGrab weighs them: the analysed point lay 3 cm off the CZ Bren 2 Tac's knob and the grip took palms in its zone.
+            return _held.Reload == null || _held.Reload.RackScore(palm) >= d / VRConfig.GrabRadius.Value;
         }
 
         private void BeginGrab(VRHand off)

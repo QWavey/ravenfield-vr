@@ -896,6 +896,9 @@ namespace RavenfieldVR.Weapons
                 // under it moves with the stroke as before (Tasks 235: the hand was 10 cm behind the knob, the knob still).
                 d.RackPoint = d.SideKnob;
                 d.CarveHandle = true;
+                // On the knob's own tip, not snapped onto the receiver: BoltInsideOnSurface (run before) had asked for the snap,
+                // which moved the point 3.2-3.6 cm inboard, off the knob the carve cuts out (Bren hunt, 2026-10-19, task 302).
+                d.RackOnSurface = false;
                 d.SlideMethod += " + its own side handle (left, front of the receiver)";
                 return;
             }
