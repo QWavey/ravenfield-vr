@@ -1419,6 +1419,82 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// Task 301: the free hand grips the flip magnifier at its middle, slides it 6 cm across the bore and back twice (two
+        /// flips: the magnifier ends as it was), then lets go held still (no flip). The hand must take it, flip once per slide,
+        /// and be free afterwards.
+        /// </summary>
+        private static IEnumerator MagnifierHandCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            Weapons.MagnifierFlip grip = held.MagnifierGrip;
+            if (off == null || off.Role != Rig.HandRole.Free || !grip.HandlesWeapon(held.Weapon))
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            Transform part = grip.Part;
+            Renderer r = part.GetComponentInChildren<Renderer>();
+            Vector3 centre = r != null ? r.bounds.center : part.position;
+            Vector3 palmToRaw = off.Raw.position - off.Palm.position;
+            var start = new Runtime.RigidPose(centre + palmToRaw, off.Raw.rotation);
+            Vector3 across = held.Rig.DirToWorld(Vector3.Cross(held.Rig.Data.Up, held.Rig.Data.AimAxis).normalized);
+            int before = grip.Flips;
+            bool took = false;
+            var perSlide = new List<int>();
+            try
+            {
+                Rig.VRHand.Scripted[side] = start;
+                yield return null;
+                yield return null;
+                Input.VRInput.SimulateGrabPress(off.Side);
+                yield return null;
+                yield return null;
+                took = off.Role == Rig.HandRole.Magnifier;
+                for (int pass = 0; pass < 2 && took; pass++)
+                {
+                    int at = grip.Flips;
+                    for (float t = 0f; t < 0.3f; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + across * (0.06f * Mathf.Clamp01(t / 0.2f)), start.rotation);
+                        yield return null;
+                    }
+                    for (float t = 0f; t < 0.3f; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + across * (0.06f * (1f - Mathf.Clamp01(t / 0.2f))), start.rotation);
+                        yield return null;
+                    }
+                    perSlide.Add(grip.Flips - at);
+                    yield return new WaitForSecondsRealtime(0.3f);
+                }
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                Input.VRInput.SimulatedGrab[side] = false;
+            }
+            int atLetGo = grip.Flips;
+            yield return null;
+            yield return null;
+            bool freed = off.Role != Rig.HandRole.Magnifier;
+            int onLetGo = grip.Flips - atLetGo;
+            report($"magnifier by hand ('{part.name}'): {(took ? "taken" : "NOT TAKEN")}, flips per 6 cm slide {(perSlide.Count > 0 ? string.Join(", ", perSlide) : "-")}, "
+                   + $"on letting go {onLetGo}, hand {(freed ? "free again" : "STILL ON THE MAGNIFIER")} ({grip.Flips - before} in all)");
+            if (!took)
+            {
+                Problem($"[{name}] magnifier: the free hand at its middle did not take it");
+            }
+            else if (perSlide.Exists(n => n != 1))
+            {
+                Problem($"[{name}] magnifier: a 6 cm slide across the bore flipped it {string.Join(", ", perSlide)} time(s) (once each expected)");
+            }
+            if (onLetGo != 0 || !freed)
+            {
+                Problem($"[{name}] magnifier: letting go {(onLetGo != 0 ? "flipped it" : "left the hand on it")}");
+            }
+        }
+
+        /// <summary>
         /// Weight (Tasks 208): the gun hand lifted at 1 m/s for 0.3 s and stopped. A heavier weapon lags the lift more and
         /// swings past more after the stop; a pistol stays in the hand. Measured one-handed.
         /// </summary>
@@ -3070,7 +3146,7 @@ namespace RavenfieldVR.Core
                 every = Mathf.Max(1, entries.Count / 28);
             }
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0, lensShots = 0;
-            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false, scopeBenchDone = false;
+            bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false, scopeBenchDone = false, magnifierHandDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)
             {
                 // The weapon's id (its place in the game's list): the same number on its pictures in every run, however
@@ -3352,6 +3428,12 @@ namespace RavenfieldVR.Core
                             {
                                 yield return null;
                             }
+                        }
+                        if (!magnifierHandDone && held.MagnifierGrip.HandlesWeapon(weapon))
+                        {
+                            // The flip magnifier by the free hand's grip (task 301), once a run on the first gun that has one.
+                            magnifierHandDone = true;
+                            yield return MagnifierHandCheck(held, entry.name, lines.Add);
                         }
                         if ((Deep || !pistolPouchDone) && held.Rig.Data.IsPistol && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                         {

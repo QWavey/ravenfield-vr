@@ -1010,6 +1010,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public bool MagnifierByHand(Weapon weapon) => _magnifierFlip.HandlesWeapon(weapon);
 
+        /// <summary>Autotest: the free hand's magnifier grip on this gun.</summary>
+        internal MagnifierFlip MagnifierGrip => _magnifierFlip;
+
         /// <summary>The sight the weapon uses right now (its selected sight mode), or null for its only sight.</summary>
         public SightLine CurrentSight
         {

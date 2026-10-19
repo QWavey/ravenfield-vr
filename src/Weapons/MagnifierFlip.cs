@@ -185,8 +185,12 @@ namespace RavenfieldVR.Weapons
                 return; // the script stopped polling its key: nothing to tap
             }
             ScriptKeys.Tap(key.Key, key.Script);
+            Flips++;
             off.Haptic(0.03f, 160f, 0.55f);
         }
+
+        /// <summary>Autotest: the taps made by the hand since the gun was drawn.</summary>
+        internal int Flips { get; private set; }
 
         /// <summary>Takes the hand's current pose as the reference for the next slide and roll.</summary>
         private void Rebase(VRHand off)
