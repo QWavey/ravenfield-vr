@@ -477,6 +477,7 @@ namespace RavenfieldVR.Weapons
             if (Second != null && (weapon == Second.Weapon || weapon.parentWeapon == Second.Weapon))
             {
                 Second.OnShot();
+                _lensFlash?.OnShot(Second.Rig, weapon); // its lens flash too (none came: bug hunt 2026-10-19, task 287)
                 return;
             }
             bool held = Held != null && (weapon == Held.Weapon || weapon.parentWeapon == Held.Weapon);

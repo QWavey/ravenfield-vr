@@ -1201,12 +1201,14 @@ namespace RavenfieldVR.Weapons
         private Quaternion _steadyPrevRaw;
         private float _steadyHandSpeed;
         private Vector3 _steadyOmega;
+        /// <summary>The steadying setting of the current (or last) aim: the scope's through a magnifier, the aim's on iron sights.</summary>
+        private float _steadyStrength;
 
         /// <summary>Self-test: how far (degrees) the steadied aim is behind the hand now.</summary>
         internal float SteadyLag { get; private set; }
 
         /// <summary>
-        /// Aiming through a magnifying sight, the hands' small shake is steadied (Tasks 230): at 4x a tremor of a tenth of a
+        /// Aiming through a magnifying sight, or down iron sights or a red dot (AimSteadying, 2026-10-19), the hands' small shake is steadied (Tasks 230): at 4x a tremor of a tenth of a
         /// degree shook the picture by most of a degree. A one-euro style filter on the gun's turn: slow motion (a tremor) is
         /// smoothed, the more the stronger the zoom; a deliberate swing is followed at once; the gun never trails the hand by
         /// more than 5 degrees. Eased in and out with the aim; recoil is added after it, not smoothed.
@@ -1214,16 +1216,25 @@ namespace RavenfieldVR.Weapons
         private Quaternion SteadyThroughScope(Quaternion gunRot, float dt)
         {
             float zoom = Aiming && Weapon != null ? 60f / Mathf.Max(1f, Weapon.GetAimFov()) : 1f;
-            float strength = VRConfig.ScopeSteadying.Value;
+            // Through a magnifier the scope setting; aimed down iron sights or a red dot (no magnification) the aim setting
+            // (2026-10-19, user: "scope stabilisation when aiming because the guns shake very much (when not shooting) because
+            // of my hands"; unsteadied, a 1 cm tremor of the off hand turned the barrel about 2.4 deg). The same filter: a
+            // shake at 1x is cut above about 1.7 Hz, a swing opens it up to 8 Hz.
+            float strength = zoom > 1.8f ? VRConfig.ScopeSteadying.Value : Aiming ? VRConfig.AimSteadying.Value : 0f;
             // The ramp is an on/off level in and out with the aim; the setting scales it at the end (2026-10-19). It used to be
             // the setting itself, eased again by the smoothstep below: 25% then gave about 16% of the filter, not a quarter.
-            float want = strength > 0f && zoom > 1.8f ? 1f : 0f;
-            if (_weaponClass == WeaponClass.Launcher && strength > 0f)
+            float want = strength > 0f && Aiming ? 1f : 0f;
+            if (_weaponClass == WeaponClass.Launcher && VRConfig.ScopeSteadying.Value > 0f)
             {
                 // A launcher is steadied whenever it is held, as through a 3x sight: a metre of tube on the shoulder showed
                 // every tremor of the hands (user, 2026-10-16). A swing is still followed at once; recoil is not smoothed.
                 zoom = Mathf.Max(zoom, 3f);
+                strength = VRConfig.ScopeSteadying.Value;
                 want = 1f;
+            }
+            if (want > 0f)
+            {
+                _steadyStrength = strength; // kept while it eases out after the aim, so the ease-out is smooth
             }
             _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
             if (!_steadyInit || _steadyWeight <= 0f)
@@ -1267,7 +1278,7 @@ namespace RavenfieldVR.Weapons
                 _steadyRot = Quaternion.RotateTowards(gunRot, _steadyRot, 5f);
             }
             // The setting is applied once, after the ease: at 1 the steadying is the full filter, as before; 0.25 is a quarter.
-            float w = _steadyWeight * _steadyWeight * (3f - 2f * _steadyWeight) * strength;
+            float w = _steadyWeight * _steadyWeight * (3f - 2f * _steadyWeight) * _steadyStrength;
             Quaternion result = Quaternion.Slerp(gunRot, _steadyRot, w);
             SteadyLag = Quaternion.Angle(result, gunRot);
             return result;

@@ -2038,6 +2038,56 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// Aimed, the hand shaken as a tremor does (0.3 deg at 9 Hz about the head's right axis, from the aimed pose), and how much
+        /// of it reaches the barrel: the steadying (ScopeSteadying through a magnifier, AimSteadying on iron sights) is measured
+        /// where it acts (bug hunt 2026-10-19: no run had shaken an aimed gun; SteadyCheck never aims and only adds velocity
+        /// noise). With the setting on, more than 75% coming through is a problem.
+        /// </summary>
+        private static IEnumerator AimedTremor(HeldWeapon held, string name, int side, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Runtime.RigidPose aimed = Rig.VRHand.Scripted[side].Value;
+            Vector3 axis = rig.Head.right;
+            Vector3 up = rig.Head.up;
+            const float amplitude = 0.3f, hz = 9f;
+            float magnified = 60f / Mathf.Max(1f, held.Weapon.GetAimFov());
+            float setting = magnified > 1.8f ? VRConfig.ScopeSteadying.Value : VRConfig.AimSteadying.Value;
+            var pitch = new List<float>();
+            float t0 = Time.realtimeSinceStartup;
+            bool stillAiming = true;
+            while (Time.realtimeSinceStartup - t0 < 2f)
+            {
+                float t = Time.realtimeSinceStartup - t0;
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(aimed.position, Quaternion.AngleAxis(amplitude * Mathf.Sin(2f * Mathf.PI * hz * t), axis) * aimed.rotation);
+                yield return new WaitForEndOfFrame();
+                if (held.Rig.GunBody == null)
+                {
+                    yield break;
+                }
+                stillAiming &= held.Aiming;
+                if (t > 0.5f)
+                {
+                    // The barrel's pitch about the same axis (up the head's up, in degrees).
+                    Vector3 aim = held.Rig.AimWorld;
+                    pitch.Add(Mathf.Asin(Mathf.Clamp(Vector3.Dot(aim, up), -1f, 1f)) * Mathf.Rad2Deg);
+                }
+            }
+            Rig.VRHand.Scripted[side] = aimed;
+            if (pitch.Count < 10)
+            {
+                yield break;
+            }
+            float through = (pitch.Max() - pitch.Min()) / 2f / amplitude * 100f;
+            string which = magnified > 1.8f ? $"scope {magnified:0.0}x, ScopeSteadying {setting * 100f:0}%" : $"{magnified:0.0}x sight, AimSteadying {setting * 100f:0}%";
+            Metric("aimed tremor reaching the barrel, %", through);
+            report($"aimed tremor (0.3 deg at 9 Hz): {through:0}% reaches the barrel ({which}{(stillAiming ? "" : "; the aim was lost meanwhile")})");
+            if (setting > 0f && stillAiming && through > 75f)
+            {
+                Problem($"[{name}] aimed, a hand tremor is not steadied: {through:0}% of it reaches the barrel ({which})");
+            }
+        }
+
+        /// <summary>
         /// Deep run: the gun raised until its sight line lies before the right eye, a picture through it for each sight mode
         /// (a magnifier flipped in or out), and what the mod and the game make of it: aiming or not, and the weapon's own
         /// scope camera (on or off, what it draws into).
@@ -2081,6 +2131,10 @@ namespace RavenfieldVR.Core
                     string cam = rt == null ? "no scope camera of its own"
                         : $"its scope camera '{rt.name}' {(rt.enabled && rt.gameObject.activeInHierarchy ? "on" : "OFF")}, drawing into {(rt.targetTexture != null ? $"'{rt.targetTexture.name}'" : "THE SCREEN")}";
                     report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")}, game aiming {w.GetActiveSubWeapon().aiming}, {cam}, {held.ScopeLensState()}");
+                    if (m == 0 && held.Aiming && Rig.VRHand.Scripted[side].HasValue)
+                    {
+                        yield return AimedTremor(held, name, side, report);
+                    }
                     if (!w.HasAnyAltSightModes() || !w.NextSightMode())
                     {
                         break;

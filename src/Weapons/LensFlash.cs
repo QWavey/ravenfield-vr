@@ -29,6 +29,8 @@ namespace RavenfieldVR.Weapons
         // A shot this frame, decided before drawing (the game plays its particles during the frame).
         private Weapon _pendingWeapon;
         private HeldWeapon _pendingHeld;
+        /// <summary>The fired gun's rig data, for its flash size (the held gun's active rig, or the free hand's second weapon's).</summary>
+        private WeaponRigData _pendingData;
         private int _pendingFrame = -1;
         // The fired gun's muzzle particle systems and how many particles each had at the shot: only particles this shot
         // put out count as its flash (not an earlier shot's still in the air, or another barrel's).
@@ -106,11 +108,20 @@ namespace RavenfieldVR.Weapons
         private int _glowVisFrame = -10;
 
         /// <summary>The player's weapon fired (Weapon.Shoot): the flash is decided before the frame is drawn.</summary>
-        public void OnShot(HeldWeapon held, Weapon weapon)
+        public void OnShot(HeldWeapon held, Weapon weapon) => Pend(held, (weapon == held.Weapon ? held.Rig : held.ActiveRig ?? held.Rig).Data, weapon);
+
+        /// <summary>
+        /// The free hand's second weapon fired: its own rig's data for the size, and no drawn-gun volume to hide the flash
+        /// behind (it fired with no lens flash at all; bug hunt 2026-10-19).
+        /// </summary>
+        public void OnShot(WeaponRig rig, Weapon weapon) => Pend(null, rig.Data, weapon);
+
+        private void Pend(HeldWeapon held, WeaponRigData data, Weapon weapon)
         {
             _shots.Add(Time.unscaledTime); // every shot counts for the glow's rate, two in one frame too
             ShotsSeen++;
             _pendingHeld = held;
+            _pendingData = data;
             _pendingWeapon = weapon;
             _pendingFrame = Time.frameCount;
             // Read now, before the shot's particles are simulated (the game has only asked them to play).
@@ -143,7 +154,7 @@ namespace RavenfieldVR.Weapons
                 bool later = Time.frameCount == _pendingFrame && _pendingInfo.Particles && !ParticlesOut();
                 if (!later)
                 {
-                    TryFlash(_pendingHeld, _pendingWeapon, _pendingInfo, _pendingMuzzle, now);
+                    TryFlash(_pendingHeld, _pendingData, _pendingWeapon, _pendingInfo, _pendingMuzzle, now);
                     _pendingWeapon = null;
                     _pendingHeld = null;
                 }
@@ -210,10 +221,10 @@ namespace RavenfieldVR.Weapons
 
         // ---- a shot ------------------------------------------------------------------------------------------------
 
-        private void TryFlash(HeldWeapon held, Weapon w, MuzzleFlashInfo info, Transform fired, float now)
+        private void TryFlash(HeldWeapon held, WeaponRigData data, Weapon w, MuzzleFlashInfo info, Transform fired, float now)
         {
             LensEffects fx = LensEffects.Instance;
-            if (!VRConfig.LensFlash.Value || fx == null || held == null || w == null || w.configuration == null)
+            if (!VRConfig.LensFlash.Value || fx == null || data == null || w == null || w.configuration == null)
             {
                 return;
             }
@@ -223,13 +234,13 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             // The gun's own flash size places the plume; the player's strength setting only scales how bright it is.
-            float size = FlashSize(held, w, info, FlashCameOut(w, info));
+            float size = FlashSize(data, w, info, FlashCameOut(w, info));
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
             _gun = w;
             _gunMuzzle = muzzle; // the glow of sustained fire sits on the barrel that fired last
             // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
             // flash-less set it to nothing, and the glow went out in the middle of a burst).
-            float gunSize = info.Particles ? FlashSize(held, w, info, true) : size;
+            float gunSize = info.Particles ? FlashSize(data, w, info, true) : size;
             _gunSize = gunSize * strength;
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
@@ -296,11 +307,10 @@ namespace RavenfieldVR.Weapons
         /// The gun's flash size on this shot, as flash_sim.py's guns (pistol 1.0, SMG 1.1, rifle 1.7, machine gun 2.0,
         /// shotgun 2.6, suppressed 0.15), times its particles' real size; 0 when it does not flash on this shot.
         /// </summary>
-        private static float FlashSize(HeldWeapon held, Weapon w, MuzzleFlashInfo info, bool particlesOut)
+        /// <param name="d">The gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.</param>
+        private static float FlashSize(WeaponRigData d, Weapon w, MuzzleFlashInfo info, bool particlesOut)
         {
             float size;
-            // The gun that fired: an under-barrel shotgun on a pistol is a shotgun's flash, not the pistol's.
-            WeaponRigData d = (w == held.Weapon ? held.Rig : held.ActiveRig ?? held.Rig).Data;
             if (particlesOut)
             {
                 // A short automatic that is no pistol nor machine gun is an SMG (a gun under 45 cm from grip to muzzle).

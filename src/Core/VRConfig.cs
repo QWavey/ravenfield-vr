@@ -81,6 +81,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> RecoilStrength;
         public static ConfigEntry<float> TwoHandRecoilReduction;
         public static ConfigEntry<float> ScopeSteadying;
+        public static ConfigEntry<float> AimSteadying;
         public static ConfigEntry<bool> WeaponWeight;
         public static ConfigEntry<bool> SkipDrawAnimation;
         public static ConfigEntry<HandsMode> Hands;
@@ -247,6 +248,9 @@ namespace RavenfieldVR.Core
             TwoHandedAiming = cfg.Bind("Weapons", "TwoHandedAiming", true, "Gripping the foregrip steers the barrel with both hands.");
             ScopeSteadying = cfg.Bind("Weapons", "ScopeSteadying", 1f,
                 new ConfigDescription("Aiming through a magnifying scope (snipers, ACOGs, scoped launchers), the small shake of the hands is steadied, more the stronger the zoom; a deliberate swing follows at once. 0 = off.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            AimSteadying = cfg.Bind("Weapons", "AimSteadying", 0.5f,
+                new ConfigDescription("Aiming down iron sights or a red dot (no magnification), the small shake of the hands is steadied this much; a deliberate swing follows at once, recoil is not smoothed. 0 = off.",
                     new AcceptableValueRange<float>(0f, 1f)));
             VRScopes = cfg.Bind("Weapons", "VRScopes", true,
                 "Magnified picture-in-picture scope lens for scoped weapons that only had a 2D scope overlay.");
