@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 292 (numbered 1-292)
+- Tasks: 293 (numbered 1-293)
 - Done: 153
-- Open: 139, of them code done and waiting for a check in the headset: 90
+- Open: 140, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -470,6 +470,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 290. [ ] Scope steadying: a deliberate swing lags 1-3 deg at normal pan speeds and more with zoom (the zoom divisor also lowers the 8 Hz swing ceiling). Bug hunt round 2; not changed, needs the headset to judge. Done in code (2026-10-19): the zoom lowers only the tremor end of the cutoff (0.65 Hz at 12x as before); a swing opens it to 8 Hz at any zoom (a 30 deg/s pan at 12x trails 1.2 deg instead of 2.5). To check in the headset.
 291. [ ] Autotest gap: SteadyCheck never aims and only adds velocity noise, so no run exercised the aimed filter with a pose tremor (bug hunt round 2). Done (2026-10-19): the sight check of a deep run shakes the aimed hand (0.3 deg at 9 Hz about the head's right axis) and reports how much reaches the barrel ("aimed tremor reaching the barrel, %"), a problem over 75% with the setting on.
 292. [ ] HP Reverb: no PoseGrip binding (no HP profile here to confirm the path; its description now says so); Vive: no scoreboard button (the scoreboard stays with the map, the default). Bug hunt round 5.
+293. [ ] Bug hunt and improve rounds, solo, no game (user, 2026-10-19 night: "do some improvement runs yourself and bug hunts but dont start ravenfield because im playing; dont launch haiku agents"). Bug hunt: (1) recent changes: a seated pistol magazine pulled out by hand or dropped by the release still had the short rail and came off half way up the grip (now the grip-bottom rail too); the launcher's headset check stayed a SteamVR background app if a step after connecting failed (now always shut); the support-pull autotest grabbed from 40 cm off the gun (now at the support point). (2) magazine keep-out: past the well's mouth the well was open to a magazine 4.5 cm off its line and a pistol magazine's outer 1.5-3 mm were never tested, so pushed in from the side it stood in the grip's wall (check-1019k: 23-102 probe points); now open only within 6 mm past the mouth, pistol magazines tested to their edges. (3) UI (settings panel, laser module, canvas manager): clean. (4) the installers (Setup.exe, install.ps1): an upgrade backed up a newly replaced original into a new stamped folder the install record never named, so uninstall left it modded (shown with an offline test of the old install.ps1); files a version dropped lingered; a failed upgrade lost the install record. All three fixed; offline test of the fixed scripts: both originals back, nothing left. (5) grenades and melee: clean (one suspected listener pile-up was not real: the handler is released on every weapon change). Improve: the lens flash no longer walks the muzzle tree and makes 6-10 arrays on every shot (cached per weapon for a second); SnapHands no longer builds two log strings and an extra hand pose every frame on guns whose hand bone is off the grip (RPG-7); build warnings 33 -> 0 (dead code in the gun bash, doc comments on the wrong members, missing param notes). Investigated, no change: the 1911 sliver (task 270: offline the line is clean). To check when the game is free: the side-entry phase (keep-out, target 0 probe points), a full-auto run (no GC from the lens flash), the support-pull check on the RPG-7 and MG3.
 
 ## Notes
 
