@@ -124,25 +124,76 @@ namespace RavenfieldVR.Weapons
             _pendingData = data;
             _pendingWeapon = weapon;
             _pendingFrame = Time.frameCount;
-            // Read now, before the shot's particles are simulated (the game has only asked them to play).
-            _pendingSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
+            CacheMuzzle(weapon);
             // Only the barrel this shot left from counts (unless the weapon fires all its muzzles at once): another barrel's
             // particles, or this one's from an earlier shot when its burst skipped this time, drew a flash on a shot the game
             // played none for. The flash is also placed there: CurrentMuzzle has already moved on to the next barrel.
             _pendingMuzzle = weapon.configuration != null && !weapon.configuration.fireFromAllMuzzles ? WeaponShootPatch.FiredMuzzleOf(weapon) : null;
-            if (_pendingMuzzle != null && _pendingSystems.Length > 0)
+            _pendingSystems = _cachedSystems;
+            _pendingTrees = _cachedTrees;
+            if (_pendingMuzzle != null && _cachedSystems.Length > 1)
             {
-                _pendingSystems = System.Array.FindAll(_pendingSystems, ps => ps != null && ps.transform.IsChildOf(_pendingMuzzle));
+                // Several barrels: this one's systems only (made only for a multi-barrel gun; one barrel's is the cache itself).
+                var systems = new List<ParticleSystem>();
+                var trees = new List<ParticleSystem[]>();
+                for (int i = 0; i < _cachedSystems.Length; i++)
+                {
+                    if (_cachedSystems[i] != null && _cachedSystems[i].transform.IsChildOf(_pendingMuzzle))
+                    {
+                        systems.Add(_cachedSystems[i]);
+                        trees.Add(_cachedTrees[i]);
+                    }
+                }
+                _pendingSystems = systems.ToArray();
+                _pendingTrees = trees.ToArray();
             }
-            _pendingInfo = MuzzleFlashInfo.Of(weapon); // read once: it walks the muzzle tree, and five or six reads followed per shot
+            else if (_pendingMuzzle != null && _cachedSystems.Length == 1 && (_cachedSystems[0] == null || !_cachedSystems[0].transform.IsChildOf(_pendingMuzzle)))
+            {
+                _pendingSystems = NoSystems;
+                _pendingTrees = NoTrees;
+            }
+            _pendingInfo = _cachedInfo;
             _pendingEveryShot = _pendingInfo.Chance >= 0.999f;
-            _pendingCounts = new int[_pendingSystems.Length];
-            _pendingTrees = new ParticleSystem[_pendingSystems.Length][];
+            // Read now, before the shot's particles are simulated (the game has only asked them to play).
+            if (_pendingCounts.Length != _pendingSystems.Length)
+            {
+                _pendingCounts = new int[_pendingSystems.Length];
+            }
             for (int i = 0; i < _pendingSystems.Length; i++)
             {
-                _pendingTrees[i] = _pendingSystems[i] != null ? _pendingSystems[i].GetComponentsInChildren<ParticleSystem>(false) : new ParticleSystem[0];
-                _pendingCounts[i] = TreeCount(_pendingTrees[i]);
+                _pendingCounts[i] = _pendingSystems[i] != null && i < _pendingTrees.Length ? TreeCount(_pendingTrees[i]) : 0;
             }
+        }
+
+        private static readonly ParticleSystem[] NoSystems = new ParticleSystem[0];
+        private static readonly ParticleSystem[][] NoTrees = new ParticleSystem[0][];
+        private Weapon _cachedFor;
+        private float _cachedUntil = -1f;
+        private ParticleSystem[] _cachedSystems = NoSystems;
+        private ParticleSystem[][] _cachedTrees = NoTrees;
+        private MuzzleFlashInfo _cachedInfo;
+
+        /// <summary>
+        /// The weapon's muzzle systems, each with the systems under it, and its flash info, kept for a second: on every shot they
+        /// were walked out of the muzzle tree anew, with half a dozen arrays and lists made each time (15 times a second on
+        /// full auto, garbage the collector then stopped the frame for). A second is short enough to follow a mod that
+        /// switches its muzzle (a suppressor fitted, a flash hider swapped).
+        /// </summary>
+        private void CacheMuzzle(Weapon weapon)
+        {
+            if (ReferenceEquals(weapon, _cachedFor) && Time.unscaledTime < _cachedUntil)
+            {
+                return;
+            }
+            _cachedFor = weapon;
+            _cachedUntil = Time.unscaledTime + 1f;
+            _cachedSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
+            _cachedTrees = new ParticleSystem[_cachedSystems.Length][];
+            for (int i = 0; i < _cachedSystems.Length; i++)
+            {
+                _cachedTrees[i] = _cachedSystems[i] != null ? _cachedSystems[i].GetComponentsInChildren<ParticleSystem>(false) : NoSystems;
+            }
+            _cachedInfo = MuzzleFlashInfo.Of(weapon); // it walks the muzzle tree too
         }
 
         public void BeforeRender()
