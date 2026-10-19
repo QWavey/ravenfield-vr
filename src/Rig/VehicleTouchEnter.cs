@@ -6,7 +6,7 @@ namespace RavenfieldVR.Rig
 {
     /// <summary>
     /// Getting into a vehicle with either hand. An empty hand (nothing in it: no weapon, magazine, grenade or wheel) that
-    /// comes within reach of a vehicle and squeezes its grip takes the nearest free seat to that hand, as the game's own
+    /// comes within reach of a vehicle and holds its grip closed on it for a moment takes the nearest free seat to that hand, as the game's own
     /// Use takes the seat under the reticle. A short tick says the hand has found an open vehicle. Locked, dead, enemy and
     /// full vehicles refuse, as the game's own entry does. The Use trigger still gets in as before.
     /// </summary>
@@ -19,6 +19,14 @@ namespace RavenfieldVR.Rig
         private readonly Collider[] _hits = new Collider[32];
         /// <summary>The vehicle each hand is touching now (null: none), so the tick plays once when a hand first reaches it.</summary>
         private readonly Vehicle[] _touching = new Vehicle[2];
+        /// <summary>
+        /// How long the grip must stay closed on the vehicle before the player gets in. This runs before the weapon system, so
+        /// on a squeeze it took the press first: a hand behind a car's door reaching for the pouch, a holster or a magazine
+        /// lying by the wheel got the player into the car (lead's review, 2026-10-19). Held, any other grip the squeeze is
+        /// for takes the hand (its role is no longer Free) and the hold ends.
+        /// </summary>
+        private const float HoldToEnter = 0.45f;
+        private readonly float[] _holdSince = { -1f, -1f };
 
         public VehicleTouchEnter(VRRig rig)
         {
@@ -37,34 +45,49 @@ namespace RavenfieldVR.Rig
                 if (!onFoot || !hand.Tracked || hand.Role != HandRole.Free || hand.Held != null)
                 {
                     _touching[i] = null;
+                    _holdSince[i] = -1f;
                     continue;
                 }
                 Seat seat = NearestFreeSeatInReach(hand.Palm.position, actor, out Vehicle vehicle);
                 if (seat == null)
                 {
                     _touching[i] = null;
+                    _holdSince[i] = -1f;
                     continue;
                 }
                 if (_touching[i] != vehicle)
                 {
                     _touching[i] = vehicle;
+                    _holdSince[i] = -1f;
                     hand.Haptic(0.02f, 180f, 0.35f); // the hand has found a vehicle with a seat it can take
                 }
-                if (!hand.GrabPressed && !hand.GrabReaching)
+                if (!hand.GrabHeld)
+                {
+                    _holdSince[i] = -1f;
+                    continue;
+                }
+                float now = Time.unscaledTime;
+                if (_holdSince[i] < 0f)
+                {
+                    // Only a squeeze made on the vehicle starts the hold (not a grip already closed when the hand arrived).
+                    if (!hand.GrabPressed && !hand.GrabReaching)
+                    {
+                        continue;
+                    }
+                    _holdSince[i] = now;
+                }
+                if (now - _holdSince[i] < HoldToEnter)
                 {
                     continue;
                 }
+                _holdSince[i] = -1f;
                 if (actor.EnterSeat(seat, kickOutOccupant: false))
                 {
-                    VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.05f, 120f, 0.6f);
                     _touching[i] = null;
                     return; // one seat a frame: the other hand is no longer on foot
                 }
-                if (hand.GrabPressed)
-                {
-                    hand.Haptic(0.05f, 40f, 0.3f); // the game refused the seat
-                }
+                hand.Haptic(0.05f, 40f, 0.3f); // the game refused the seat
             }
         }
 
