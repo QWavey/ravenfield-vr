@@ -1858,6 +1858,7 @@ namespace RavenfieldVR.Weapons
             // sides, as tools/export_checks/mag_line_scan.py counts it: offline that count is least at the well's own line (the
             // M4A1 199 points along the analysed line, 4 along the upright one).
             bool[] hidden = null;
+            Vector3 inAnalysed = in0; // (the line as analysed, before the skin's axis or a tilt)
             if (skin != null)
             {
                 hidden = new bool[skin.Count];
@@ -1875,8 +1876,11 @@ namespace RavenfieldVR.Weapons
                     // hand that brings it up the line), at six depths.
                     float length = Mathf.Abs(Vector3.Dot(mb.size, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
                     int skinHits = 0;
-                    Vector3 outLocal = -inLocal;
-                    float mouth = float.NegativeInfinity; // the deepest a hidden point reaches out along this line: the well's mouth
+                    // Which points are still in the well is measured along the analysed line for every candidate, as the offline
+                    // scan does: measured along each candidate, a steep one let points out of the count sooner and looked cleaner
+                    // for it (the QBZ192's offline sweep fell to nothing at 21 degrees either way).
+                    Vector3 outLocal = (seatInv * -inAnalysed).normalized;
+                    float mouth = float.NegativeInfinity; // the deepest a hidden point reaches out along that line: the well's mouth
                     for (int h = 0; h < skin.Count; h++)
                     {
                         if (hidden[h])
