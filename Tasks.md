@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 312 (numbered 1-312)
+- Tasks: 313 (numbered 1-313)
 - Done: 153
-- Open: 159, of them code done and waiting for a check in the headset: 91
+- Open: 160, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -490,6 +490,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 310. [ ] HK416 family: the magazine still goes in and comes out wrongly, a little through the gun (user, 2026-10-19 night, playing: "look at the animator"). Cause (offline, the export: tools/export_checks/mag_line_scan.py, a sweep of the line's lean): the analysed lines lean back toward the trigger guard: HK416 -18 degrees (the curved-magazine "top tangent" is swung by vertex density: the top round's dense mesh against the walls' few vertices; area-weighted it reads -6), M4A1 -15, CZ Bren 2 -13.5 (its well wants -27), P320 +7.6 (wants -12..-15). Along each the magazine, still in the well, stands out of the grip's face: 85-553 points; at the best lean 4-32 (the HK416 bottoms out at 231, its curve). The runtime fit (task 270) counted only points inside the gun's walls, never those in the air beside the well. Done in code (built): the fit also counts a magazine point hidden in the well when seated that, still above the mouth, leaves the gun's side silhouette or goes out through a side (GunVolume.InSideSilhouette, the side view), as the offline scan does; the tilt search (24 degrees either way) and its keep-only-when-clearly-better rule are as before; and a pistol whose magazine cannot be read takes its drawn skin's long axis first (task 311). To check in the headset: the log line "magazine line fitted to the drawn gun, turned N deg" on the HK416s, M4A1s, CZ Bren 2s and P320s, and the magazine going straight up the well.
 311. [ ] P320 (and maybe more pistols): the magazine still goes through the grip on the way in; the CZ Bren 2 too, a little ("why didnt you fix it on it?") (user, 2026-10-19 night, playing). See 310 (the same cause and fix); the P320's magazine is on the graphics card only, so its line was the knuckle guess (18 degrees off its own axis): its drawn skin's axis is taken first now.
 312. [ ] MG3 (both versions): after opening the cover the old belt is still there and does not go away, and the new one is laid in the wrong place (not where the old belt was) (user, 2026-10-19 night, playing).
+313. [ ] Slow motion: cannot be switched while dead or in the weapon (loadout) menu; and another button than the thumbstick double-click, please (user, 2026-10-19 night, playing).
 
 ## Notes
 
