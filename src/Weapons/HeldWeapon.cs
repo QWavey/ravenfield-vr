@@ -1200,6 +1200,7 @@ namespace RavenfieldVR.Weapons
         private float _steadyWeight;
         private Quaternion _steadyPrevRaw;
         private float _steadyHandSpeed;
+        private Vector3 _steadyOmega;
 
         /// <summary>Self-test: how far (degrees) the steadied aim is behind the hand now.</summary>
         internal float SteadyLag { get; private set; }
@@ -1214,19 +1215,22 @@ namespace RavenfieldVR.Weapons
         {
             float zoom = Aiming && Weapon != null ? 60f / Mathf.Max(1f, Weapon.GetAimFov()) : 1f;
             float strength = VRConfig.ScopeSteadying.Value;
-            float want = strength > 0f && zoom > 1.8f ? strength : 0f;
+            // The ramp is an on/off level in and out with the aim; the setting scales it at the end (2026-10-19). It used to be
+            // the setting itself, eased again by the smoothstep below: 25% then gave about 16% of the filter, not a quarter.
+            float want = strength > 0f && zoom > 1.8f ? 1f : 0f;
             if (_weaponClass == WeaponClass.Launcher && strength > 0f)
             {
                 // A launcher is steadied whenever it is held, as through a 3x sight: a metre of tube on the shoulder showed
                 // every tremor of the hands (user, 2026-10-16). A swing is still followed at once; recoil is not smoothed.
                 zoom = Mathf.Max(zoom, 3f);
-                want = Mathf.Max(want, strength);
+                want = 1f;
             }
             _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
             if (!_steadyInit || _steadyWeight <= 0f)
             {
                 _steadyRot = gunRot;
                 _steadyPrevRaw = gunRot;
+                _steadyOmega = Vector3.zero;
                 _steadyHandSpeed = 0f;
                 _steadyInit = true;
                 SteadyLag = 0f;
@@ -1236,9 +1240,20 @@ namespace RavenfieldVR.Weapons
             // the filter's lag over the frame time: a slow drift settled at 2.2 Hz on a 45 Hz headset and 2.9 Hz on a 90 Hz
             // one, not the 1.6 Hz floor, so the steadying depended on the refresh rate. Now the cutoff follows the hand's
             // speed and does not flicker with the frame time.
-            float rawSpeed = Quaternion.Angle(_steadyPrevRaw, gunRot) / Mathf.Max(dt, 1e-4f);
+            // The turn is low-passed as a signed vector and only then its size is taken (2026-10-19). Its size each frame was
+            // the shake's mean turn rate: a degree at 10 Hz read as about 40 deg/s, so the shake itself opened the cutoff and
+            // the bigger the shake, the less it was steadied. Signed, the two halves of a shake cancel; a steady swing reads
+            // the same as before.
+            Quaternion turn = gunRot * Quaternion.Inverse(_steadyPrevRaw);
+            turn.ToAngleAxis(out float turnDeg, out Vector3 turnAxis);
+            if (turnDeg > 180f)
+            {
+                turnDeg -= 360f; // the shorter way round
+            }
+            Vector3 omega = Mathf.Abs(turnDeg) > 1e-5f ? turnAxis * (turnDeg / Mathf.Max(dt, 1e-4f)) : Vector3.zero;
             _steadyPrevRaw = gunRot;
-            _steadyHandSpeed += (rawSpeed - _steadyHandSpeed) * (1f - Mathf.Exp(-2f * Mathf.PI * 2f * dt));
+            _steadyOmega += (omega - _steadyOmega) * (1f - Mathf.Exp(-2f * Mathf.PI * 2f * dt));
+            _steadyHandSpeed = _steadyOmega.magnitude;
             // Cutoff frequency: 1 Hz for a tremor at 4x (lower at higher zoom), up to 8 Hz for a swing.
             float cutoff = Mathf.Lerp(1.6f, 8f, Mathf.InverseLerp(4f, 60f, _steadyHandSpeed)) / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f);
             float alpha = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff * dt);
@@ -1247,7 +1262,8 @@ namespace RavenfieldVR.Weapons
             {
                 _steadyRot = Quaternion.RotateTowards(gunRot, _steadyRot, 5f);
             }
-            float w = _steadyWeight * _steadyWeight * (3f - 2f * _steadyWeight);
+            // The setting is applied once, after the ease: at 1 the steadying is the full filter, as before; 0.25 is a quarter.
+            float w = _steadyWeight * _steadyWeight * (3f - 2f * _steadyWeight) * strength;
             Quaternion result = Quaternion.Slerp(gunRot, _steadyRot, w);
             SteadyLag = Quaternion.Angle(result, gunRot);
             return result;
@@ -2722,8 +2738,11 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = Rig.Data;
             float fraction = SlideOffset / Mathf.Max(d.SlideTravel.magnitude, 1e-4f);
             // A charging handle apart from the bolt (a separate part, or one cut out of an AR's receiver) comes back only with
-            // the hand: when the bolt locks open on an empty magazine, the handle stays forward (it showed pulled back).
-            float handle = Reload != null && !Reload.IsRacking && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
+            // the hand: when the bolt locks open on an empty magazine, the handle stays forward (it showed pulled back). A hand-
+            // driven action left open part-way (BoltOpen, not locked) keeps its handle with it: the handle snapped home on
+            // release while the pump stayed back (2026-10-19, ARS M500: handleTravel 7.5 cm, slideTravel 12.4 cm).
+            bool heldOpenByHand = ActiveAmmo != null && ActiveAmmo.BoltOpen && !ActiveAmmo.SlideLocked;
+            float handle = Reload != null && !Reload.IsRacking && !heldOpenByHand && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
             // Locked open with the bolt under the racked handle: the handle home (or where the hand has it), the bolt back.
             bool boltAlone = BoltLockedAlone;
             float slideShare = boltAlone && !Reload.IsRacking ? 0f : fraction;
