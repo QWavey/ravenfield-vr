@@ -331,7 +331,10 @@ namespace RavenfieldVR.Weapons
             d.Handgun = d.IsPistol;
             d.GripPoint = new Vector3(0f, -0.04f, d.IsPistol ? -0.12f : -0.32f);
             d.SupportPoint = d.GripPoint + new Vector3(0f, 0f, d.IsPistol ? 0.01f : 0.22f);
-            d.HasSupportPoint = true;
+            // As AnalyzeHands estimates a gun with no left-hand bone: a pistol's cup is only a guess, so its support glove settles
+            // onto it (ReloadInteractions' cup anchor); set for every pistol here, the fallback's support glove followed the real
+            // hand freely (bug hunt 2026-10-19, task 288).
+            d.HasSupportPoint = !d.IsPistol;
             FinishVirtualParts(d);
             return d;
         }
