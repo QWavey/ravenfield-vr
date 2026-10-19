@@ -51,6 +51,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Regex NotMagName = new Regex(
             @"release|catch|button|latch|controll?er|控制器|(^|[^a-z])well|magwell|housing|lever|pouch|holder|spare|switch|bolt ?stop|stopper|indicator|弹匣释放|卡笋"
+            // A laser or light module is no magazine either: it is never named as one, so it must not be scored as one by size.
+            + @"|laser|镭射|激光|flash ?light|torch"
             // Optics: a magnifier's "Mag 2x" glass is not a magazine; a calibre is not a magnification ("mag_9x19",
             // "7.62x39 mag" were taken for optics and their magazines lost).
             + @"|glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z0-9.])(?!(\d+\.\d+|9|10)x(1[7-9]|[2-9]\d|1\d\d)(?!\d))\d+(\.\d+)?x($|[^a-z])|倍镜|瞄",
@@ -1195,7 +1197,9 @@ namespace RavenfieldVR.Weapons
                 }
                 // Its own name or its parent's: a whole model called "..._scoped" must not count as the scope.
                 bool named = ScopeName.IsMatch(t.name) || t.parent != null && t.parent != root && ScopeName.IsMatch(t.parent.name);
-                if (!named)
+                // A laser module's body, dot or beam is not the tube, even when its mount sits by the scope's name.
+                bool laser = PoseSampler.LaserModuleName.IsMatch(t.name) || t.parent != null && t.parent != root && PoseSampler.LaserModuleName.IsMatch(t.parent.name);
+                if (!named || laser)
                 {
                     continue;
                 }
@@ -3519,9 +3523,10 @@ namespace RavenfieldVR.Weapons
             foreach (Transform t in all)
             {
                 if (t == slide || t == gunBody || !t.IsChildOf(gunBody) || t.IsChildOf(slide) || slide.IsChildOf(t)
-                    || t.GetComponent<MeshRenderer>() == null || !index.TryGetValue(t, out int i) || !sampler.IdleVisible(t))
+                    || t.GetComponent<MeshRenderer>() == null || !index.TryGetValue(t, out int i) || !sampler.IdleVisible(t)
+                    || PoseSampler.IsLaserModule(t, root, gunBody))
                 {
-                    continue;
+                    continue; // a laser's or light's module is never the knob that moves with the slide
                 }
                 HashSet<string> words = NameWords(t.name);
                 if (!words.IsSupersetOf(slideWords))
@@ -3571,7 +3576,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Words a slide companion may add to the slide's name: not these.</summary>
         private static readonly Regex CompanionBlocked = new Regex(
-            @"^(release|catch|stop|button|latch|selector|safety|switch|mag|magazine|sight|scope|optic|light|laser|trigger|spring|pin|screw|lod\d*)$",
+            @"^(release|catch|stop|button|latch|selector|safety|switch|mag|magazine|sight|scope|optic|light|laser|beam|dot|lens|glass|magnif|zoom|reticle|torch|flashlight|trigger|spring|pin|screw|lod\d*)$",
             RegexOptions.IgnoreCase);
 
         /// <summary>A part name's words (lower case; numbers alone and level-of-detail tags left out).</summary>
@@ -4593,6 +4598,13 @@ namespace RavenfieldVR.Weapons
             }
             if (t.GetComponent<ParticleSystem>() != null || t.GetComponent<Camera>() != null || t.GetComponent<Light>() != null
                 || t.GetComponent<AudioSource>() != null && !HasRendererInSubtree(t))
+            {
+                return false;
+            }
+            // A laser's or a light's module (its body, dot or beam, a flashlight) is never the slide, bolt, charging handle,
+            // magazine or sight part. Those are picked by name and by motion, and a module's name or its beam (a line) can
+            // mislead both. The name is checked up the chain too, but not above a group that holds the gun body itself.
+            if (t.GetComponent<LineRenderer>() != null || t.GetComponent<TrailRenderer>() != null || PoseSampler.IsLaserModule(t, root, gunBody))
             {
                 return false;
             }

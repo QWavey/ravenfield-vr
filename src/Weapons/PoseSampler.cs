@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using RavenfieldVR.Core;
 using RavenfieldVR.Runtime;
 using UnityEngine;
@@ -550,13 +551,53 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Laser module names: the body, dot and beam of a laser (镭射 and 激光 are laser in Chinese mod names), a flashlight.
+        /// "Surefire X300" is the light-and-laser module of the FNX-45 models (its flashlight and laser variants carry no other name).
+        /// </summary>
+        internal static readonly Regex LaserModuleName = new Regex(@"laser|beam|镭射|激光|flash ?light|torch|surefire", RegexOptions.IgnoreCase);
+        /// <summary>A part named just "light" (a flashlight's own mesh). Only the part's own name counts: a group named "light" may hold the gun's parts.</summary>
+        private static readonly Regex LightPartName = new Regex(@"(^|[^a-z])light($|[^a-z])", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// True when <paramref name="t"/> is a laser or light module: its own name, or a group above it below
+        /// <paramref name="stop"/> (not counting it). A transform that <paramref name="keep"/> hangs under is the gun's own group,
+        /// never a module, so a group that holds the whole gun (a model named after its laser) does not take every part with it.
+        /// </summary>
+        public static bool IsLaserModule(Transform t, Transform stop, Transform keep = null)
+        {
+            if (t == null)
+            {
+                return false;
+            }
+            if (LaserModuleName.IsMatch(t.name) || LightPartName.IsMatch(t.name))
+            {
+                return true;
+            }
+            for (Transform p = t.parent; p != null && p != stop; p = p.parent)
+            {
+                if (keep != null && keep.IsChildOf(p))
+                {
+                    break;
+                }
+                if (LaserModuleName.IsMatch(p.name))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gun-space bounds of the meshes on <paramref name="live"/> within <paramref name="radius"/> of it (at idle): a sight's
         /// reticle quad that hangs metres out in front (a collimated dot: 6 m off on a P220's RMR) is not part of the slide.
+        /// A laser module on the part is not the part either: its beam is a long thin mesh that can run far ahead of it, so
+        /// left in, it would stretch the box the racking grab point is taken from.
         /// </summary>
         public Bounds GunSpaceBoundsNear(Transform live, RigidPose gunIdle, float radius)
         {
             Vector3 centre = Idle(live).position;
-            Bounds near = GunSpaceBoundsWhere(live, gunIdle, t => (Idle(t).position - centre).sqrMagnitude > radius * radius);
+            Bounds near = GunSpaceBoundsWhere(live, gunIdle,
+                t => (Idle(t).position - centre).sqrMagnitude > radius * radius || t != live && IsLaserModule(t, live));
             return near.size.sqrMagnitude > 1e-8f ? near : GunSpaceBounds(live, gunIdle);
         }
 

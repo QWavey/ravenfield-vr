@@ -456,10 +456,14 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (Renderer child in _scopeLenses[i].GetComponentsInChildren<Renderer>(true))
                 {
-                    if (!_scopeLenses.Contains(child) && !(child is ParticleSystemRenderer))
+                    // A laser's dot or beam hung under the lens is not part of its picture: it keeps its own visibility. Listed with
+                    // the lens, it would be hidden whenever the magnifier is flipped out or not aimed through.
+                    if (_scopeLenses.Contains(child) || child is ParticleSystemRenderer || child is LineRenderer || child is TrailRenderer
+                        || PoseSampler.IsLaserModule(child.transform, _scopeLenses[i].transform))
                     {
-                        _scopeLenses.Add(child);
+                        continue;
                     }
+                    _scopeLenses.Add(child);
                 }
             }
             if (_scopeLenses.Count > 0 && Rig.Data.Sights != null && Rig.Data.Sights.Length > 1)
