@@ -776,7 +776,7 @@ namespace RavenfieldVR.Rig
             {
                 // Game logic reads the head through the game camera; it also projects the HUD markers, so it takes
                 // the HUD frame's (lazily following) orientation and the markers stay on their targets. The use ray and the
-                // ladder check take the head's own orientation instead (UseRayHeadAimPatch).
+                // ladder check take the head's own orientation instead (UseRayHeadAimPatch, LadderHeadAimPatch).
                 player.fpCamera.transform.SetPositionAndRotation(HudPose.position, HudPose.rotation);
             }
             try
