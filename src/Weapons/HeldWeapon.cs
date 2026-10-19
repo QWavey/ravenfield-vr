@@ -1270,7 +1270,9 @@ namespace RavenfieldVR.Weapons
             _steadyOmega += (omega - _steadyOmega) * (1f - Mathf.Exp(-2f * Mathf.PI * 2f * dt));
             _steadyHandSpeed = _steadyOmega.magnitude;
             // Cutoff frequency: 1 Hz for a tremor at 4x (lower at higher zoom), up to 8 Hz for a swing.
-            float cutoff = Mathf.Lerp(1.6f, 8f, Mathf.InverseLerp(4f, 60f, _steadyHandSpeed)) / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f);
+            // The zoom lowers the tremor's end only (2026-10-19, task 290): it divided the whole range, so at 12x a swing's ceiling
+            // was 3.3 Hz and a pan at 30 deg/s trailed 2.5 deg (1.2 now); the shake is cut as before (0.65 Hz at 12x).
+            float cutoff = Mathf.Lerp(1.6f / Mathf.Sqrt(Mathf.Clamp(zoom, 1.8f, 12f) / 2f), 8f, Mathf.InverseLerp(4f, 60f, _steadyHandSpeed));
             float alpha = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff * dt);
             _steadyRot = Quaternion.Slerp(_steadyRot, gunRot, alpha);
             if (Quaternion.Angle(_steadyRot, gunRot) > 5f)

@@ -49,6 +49,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEAM = r'C:\Program Files (x86)\Steam'
 STEAMVR_CFG = os.path.join(STEAM, 'config', 'steamvr.vrsettings')
 BACKUPS = os.path.join(os.environ.get('LOCALAPPDATA', REPO), 'RavenfieldVR', 'steamvr-backups')
+CHAPERONE = os.path.join(STEAM, 'config', 'chaperone_info.vrchap')
+NULL_UNIVERSE = 2  # the null driver's tracking universe (the game logs it: "Tracking universe: 2")
 VR_PROCESSES = ['vrmonitor.exe', 'vrserver.exe', 'vrcompositor.exe', 'vrdashboard.exe', 'vrstartup.exe', 'vrwebhelper.exe',
                 'steamvr_room_setup.exe']
 
@@ -98,7 +100,55 @@ class NullHeadset:
                               'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
         json.dump(cfg, open(STEAMVR_CFG, 'w', encoding='utf-8'), indent=3)
         log(f'SteamVR on the null driver ({w}x{h}); your settings backed up to {self.backup}')
+        self.room_setup_off()
         return self
+
+    def room_setup_off(self):
+        """A play area for the null driver's tracking universe (2, as the game logs it: "Tracking universe"): without one
+        SteamVR's room setup opens, asks the game to quit, and SteamVR ends it about 23 s later, so every run's first launch
+        failed (task 279). The user's chaperone file is backed up and put back after the run (or removed if there was none)."""
+        self.chap_existed = os.path.exists(CHAPERONE)
+        self.chap_hash = sha(CHAPERONE) if self.chap_existed else None
+        self.chap_backup = None
+        data = {'jsonid': 'chaperone_info', 'universes': [], 'version': 5}
+        if self.chap_existed:
+            self.chap_backup = os.path.join(BACKUPS, f'chaperone_info.vrchap.{time.strftime("%Y%m%d-%H%M%S")}.{self.chap_hash[:8]}')
+            shutil.copyfile(CHAPERONE, self.chap_backup)
+            try:
+                data = json.load(open(CHAPERONE, encoding='utf-8'))
+            except (OSError, ValueError):
+                pass
+        if not any(str(u.get('universeID')) == str(NULL_UNIVERSE) for u in data.get('universes', [])):
+            half, top = 1.5, 2.43
+            corners = [(-half, -half), (half, -half), (half, half), (-half, half)]
+            walls = [[[a[0], 0, a[1]], [a[0], top, a[1]], [b[0], top, b[1]], [b[0], 0, b[1]]]
+                     for a, b in zip(corners, corners[1:] + corners[:1])]
+            data.setdefault('universes', []).append({
+                'collision_bounds': walls, 'play_area': [2 * half, 2 * half],
+                'seated': {'translation': [0, 0, 0], 'yaw': 0}, 'standing': {'translation': [0, 0, 0], 'yaw': 0},
+                'time': time.strftime('%a %b %d %H:%M:%S %Y'), 'universeID': NULL_UNIVERSE})
+            json.dump(data, open(CHAPERONE, 'w', encoding='utf-8'), indent=3)
+        log('a play area for the null driver (room setup stays shut)'
+            + (f'; your chaperone file backed up to {self.chap_backup}' if self.chap_existed else ''))
+
+    def room_setup_back(self):
+        """The user's chaperone file as it was (or none, as there was none)."""
+        for attempt in range(15):
+            try:
+                if self.chap_existed:
+                    shutil.copyfile(self.chap_backup, CHAPERONE)
+                    if sha(CHAPERONE) == self.chap_hash:
+                        return True
+                else:
+                    if os.path.exists(CHAPERONE):
+                        os.remove(CHAPERONE)
+                    return True
+            except OSError:
+                pass
+            for p in VR_PROCESSES:
+                kill(p)
+            time.sleep(1)
+        return False
 
     def __exit__(self, *exc):
         # Also on Ctrl+C or an error: the game this run started (none was running before it) goes too, and SteamVR's
@@ -123,6 +173,11 @@ class NullHeadset:
             log('SteamVR settings restored (hash matches)')
         else:
             log(f'!!! SteamVR settings NOT restored ({error or "hash differs"}): copy {self.backup} over {STEAMVR_CFG} by hand !!!')
+        if hasattr(self, 'chap_existed'):  # (not set when entering failed before the play area was written)
+            if self.room_setup_back():
+                log('chaperone file put back' + (' (hash matches)' if self.chap_existed else ' (removed: there was none)'))
+            else:
+                log(f'!!! chaperone file NOT put back: {"copy " + self.chap_backup + " over " if self.chap_existed else "delete "}{CHAPERONE} by hand !!!')
         return False
 
 

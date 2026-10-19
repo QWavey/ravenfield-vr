@@ -113,6 +113,11 @@ namespace RavenfieldVR.Runtime
                 LastError = null;
                 Log.Info($"SteamVR running: {XRSettings.loadedDeviceName} {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye, " +
                          $"{XRDevice.refreshRate:0} Hz, stereo {XRSettings.stereoRenderingMode}.");
+                // The tracking universe, which SteamVR keys a room's play area by (tools/vrshots.py gives the null driver one,
+                // so its room setup does not open and close the game; task 279).
+                ETrackedPropertyError universeError = ETrackedPropertyError.TrackedProp_Success;
+                ulong universe = OpenVR.System?.GetUint64TrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_CurrentUniverseId_Uint64, ref universeError) ?? 0;
+                Log.Info($"Tracking universe: {universe} ({universeError}).");
                 return true;
             }
             catch (DllNotFoundException e)

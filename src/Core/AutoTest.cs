@@ -1350,6 +1350,68 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// The support hand on the gun, pulled away (user, 2026-10-19: "the hand cant go anywhere else except that grip (only if the
+        /// user pulls hard away)"; task 282): moved 20 cm across the gun in 0.3 s and held there, it stays on (the gun follows,
+        /// with a buzz); yanked 80 cm across in a quarter of a second, it lets go. Either way round is a problem.
+        /// </summary>
+        private static IEnumerator SupportPullCheck(HeldWeapon held, string name, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            if (off == null || !held.Rig.Data.HasSupportPoint || held.Rig.Data.IsPistol || off.Role != Rig.HandRole.Free)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            Runtime.RigidPose start = off.Raw;
+            Vector3 across = Vector3.Cross(held.Rig.AimWorld, Vector3.up);
+            across = across.sqrMagnitude > 1e-4f ? across.normalized : rig.Head.right;
+            bool stayed = true, letGo = false;
+            float letGoAt = -1f;
+            Input.VRInput.SimulatedGrab[side] = true;
+            off.Role = Rig.HandRole.Foregrip;
+            held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+            try
+            {
+                yield return new WaitForSecondsRealtime(0.4f);
+                for (float t = 0f; t < 0.9f; t += Time.unscaledDeltaTime)
+                {
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + across * (0.2f * Mathf.Clamp01(t / 0.3f)), start.rotation);
+                    yield return null;
+                    stayed &= off.Role == Rig.HandRole.Foregrip;
+                }
+                Rig.VRHand.Scripted[side] = start;
+                yield return new WaitForSecondsRealtime(0.4f);
+                for (float t = 0f; t < 0.6f && off.Role == Rig.HandRole.Foregrip; t += Time.unscaledDeltaTime)
+                {
+                    float k = Mathf.Clamp01(t / 0.25f);
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + across * (0.8f * k), start.rotation);
+                    yield return null;
+                    if (off.Role != Rig.HandRole.Foregrip)
+                    {
+                        letGoAt = 0.8f * k;
+                    }
+                }
+                letGo = off.Role != Rig.HandRole.Foregrip;
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[side] = null;
+                Input.VRInput.SimulatedGrab[side] = false;
+            }
+            yield return null; // the grip opens: the hand is free again
+            report($"support pull: 20 cm across {(stayed ? "stays on the gun" : "LET GO")}; yanked 80 cm across {(letGo ? letGoAt > 0f ? $"lets go at about {letGoAt * 100f:0} cm" : "lets go" : "STILL HOLDS")}");
+            if (!stayed)
+            {
+                Problem($"[{name}] support hand: let go of the gun on a 20 cm pull (it should stay on until pulled hard)");
+            }
+            if (!letGo)
+            {
+                Problem($"[{name}] support hand: still on the gun after an 80 cm yank (a hard pull should let go)");
+            }
+        }
+
+        /// <summary>
         /// Weight (Tasks 208): the gun hand lifted at 1 m/s for 0.3 s and stopped. A heavier weapon lags the lift more and
         /// swings past more after the stop; a pistol stays in the hand. Measured one-handed.
         /// </summary>
@@ -3177,6 +3239,7 @@ namespace RavenfieldVR.Core
                         {
                             yield return SteadyCheck(held, entry.name, lines.Add);
                             yield return WeightCheck(held, entry.name, lines.Add);
+                            yield return SupportPullCheck(held, entry.name, lines.Add);
                         }
                         else if (want && held.Rig.Data.IsPistol && weightPistols++ < 1)
                         {
