@@ -443,8 +443,8 @@ namespace RavenfieldVR.Weapons
             {
                 return cached;
             }
-            // Bar: across the gun (x), along the bore (z), height off the surface (y). Stem: the same axes, from 1 mm into the
-            // bar's back edge forward. Rifle: bar 4.2 x 1.2 x 0.8 cm, stem 0.9 x 2.6 x 0.6 cm. Pistol: bar 2.6 x 0.9 x 0.5 cm,
+            // Bar: across the gun (x), along the bore (z), height off the surface (y). Stem: the same axes, starting 1 mm inside the
+            // bar's forward end and reaching on forward. Rifle: bar 4.2 x 1.2 x 0.8 cm, stem 0.9 x 2.6 x 0.6 cm. Pistol: bar 2.6 x 0.9 x 0.5 cm,
             // stem 0.7 x 1.8 x 0.4 cm.
             float barAcross = handgun ? 0.026f : 0.042f, barLen = handgun ? 0.009f : 0.012f, barHigh = handgun ? 0.005f : 0.008f;
             float stemWide = handgun ? 0.007f : 0.009f, stemLen = handgun ? 0.018f : 0.026f, stemHigh = handgun ? 0.004f : 0.006f;
