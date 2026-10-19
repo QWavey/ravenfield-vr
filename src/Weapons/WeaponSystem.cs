@@ -588,6 +588,14 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // An empty hand reaching for the rim takes the wheel, not a holster it passes on the way (in some cars the rim sits
+            // by the hip and belt holsters, and the press drew the pistol instead of turning the wheel). The rim test runs first in
+            // the frame, so a press on the rim has already been taken; this catches the ones just short of it.
+            const float wheelReachMargin = 0.06f;
+            if (dom.Role == HandRole.Free && Rig.Cockpit.WheelReaches(dom.Palm.position, wheelReachMargin))
+            {
+                return;
+            }
             int slot = Zones.HolsterAt(dom.Palm.position);
             if (slot < 0 || actor.weapons == null || slot >= actor.weapons.Length)
             {
