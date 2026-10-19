@@ -437,6 +437,11 @@ namespace RavenfieldVR.Weapons
         {
             if (Weapon == null)
             {
+                // Destroyed under the hand: the game replaced it (the gun hand picked up a weapon of its slot, which drops and
+                // destroys this one at the end of that frame; a loadout change). The hand is freed all the same: its role came
+                // back only through HealHandRoles, and its shape to close on stayed the destroyed weapon's, so the next grip
+                // that set no shape of its own closed the fingers on an invisible gun (bug hunt, 2026-10-19).
+                FreeHand();
                 return;
             }
             if (_firing)
@@ -461,6 +466,15 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            FreeHand();
+            _sys.Sounds.Play(MechSound.Holster, Hand.Palm.position, 0.6f);
+            Hand.Haptic(0.04f, 100f, 0.5f);
+            Log.Info($"Second weapon: {Weapon.name} back in its holster.");
+        }
+
+        /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
+        private void FreeHand()
+        {
             if (Hand.Role == HandRole.Weapon || Hand.Role == HandRole.Throwable)
             {
                 Hand.Role = HandRole.Free;
@@ -469,9 +483,6 @@ namespace RavenfieldVR.Weapons
             {
                 Hand.Model.Solid = null; // nothing left in the hand to close on
             }
-            _sys.Sounds.Play(MechSound.Holster, Hand.Palm.position, 0.6f);
-            Hand.Haptic(0.04f, 100f, 0.5f);
-            Log.Info($"Second weapon: {Weapon.name} back in its holster.");
         }
     }
 }
