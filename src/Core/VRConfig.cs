@@ -458,7 +458,8 @@ namespace RavenfieldVR.Core
             float[] f = new float[3];
             for (int i = 0; i < 3; i++)
             {
-                if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out f[i]))
+                // (Not "NaN" or "Infinity", which parse: a NaN offset hid the hand and the gun, every frame.)
+                if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out f[i]) || float.IsNaN(f[i]) || float.IsInfinity(f[i]))
                 {
                     return false;
                 }
