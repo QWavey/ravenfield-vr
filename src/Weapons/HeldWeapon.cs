@@ -1250,7 +1250,11 @@ namespace RavenfieldVR.Weapons
             {
                 turnDeg -= 360f; // the shorter way round
             }
-            Vector3 omega = Mathf.Abs(turnDeg) > 1e-5f ? turnAxis * (turnDeg / Mathf.Max(dt, 1e-4f)) : Vector3.zero;
+            // A NaN axis would stick in the filter for the whole aim, so it reads as no turn (GunCollider and PoseSampler guard
+            // the same call the same way).
+            Vector3 omega = Mathf.Abs(turnDeg) > 1e-5f && !float.IsNaN(turnAxis.x) && !float.IsInfinity(turnAxis.x)
+                ? turnAxis * (turnDeg / Mathf.Max(dt, 1e-4f))
+                : Vector3.zero;
             _steadyPrevRaw = gunRot;
             _steadyOmega += (omega - _steadyOmega) * (1f - Mathf.Exp(-2f * Mathf.PI * 2f * dt));
             _steadyHandSpeed = _steadyOmega.magnitude;
