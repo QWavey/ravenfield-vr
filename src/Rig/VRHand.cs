@@ -6,7 +6,7 @@ using UnityEngine;
 namespace RavenfieldVR.Rig
 {
     /// <summary>What a hand is currently doing; drives the hand pose and arbitrates grabs.</summary>
-    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster, Hinge, Pin, Belt, Optic }
+    public enum HandRole { Free, Weapon, Foregrip, Slide, Magazine, Throwable, Pointer, Cockpit, Holster, Hinge, Pin, Belt, Optic, Magnifier }
 
     /// <summary>
     /// One tracked hand: world poses (raw controller, palm, pointer), derived gun frame, velocity history,

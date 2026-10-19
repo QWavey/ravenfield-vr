@@ -339,7 +339,13 @@ namespace RavenfieldVR.Input
                 Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
                 bool aiming = system != null && system.Held != null && system.Held.Aiming;
                 ScriptKey magnifier = aiming ? ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) : null;
-                if (magnifier != null)
+                if (aiming && system.Held.MagnifierByHand(weapon))
+                {
+                    // The free hand flips this weapon's magnifier (Weapons.MagnifierFlip found its part), so the press does
+                    // nothing here: no tap, no sight-mode or fire-mode step. Only a weapon whose magnifier part cannot be found
+                    // keeps the button, so the magnifier can always be switched.
+                }
+                else if (magnifier != null)
                 {
                     ScriptKeys.Tap(magnifier.Key, magnifier.Script);
                 }

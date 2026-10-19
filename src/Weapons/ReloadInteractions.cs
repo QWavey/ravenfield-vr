@@ -1352,7 +1352,13 @@ namespace RavenfieldVR.Weapons
             get
             {
                 Weapon w = _held.Weapon;
-                return w != null && (w.HasAnyAltSightModes() || Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null);
+                // A magnifier the free hand flips by its own grip (MagnifierFlip) has one switch: that grip. This optic grab
+                // would also flip it on a quick tap at release, which the magnifier grip must never do.
+                if (w == null || _held.MagnifierByHand(w))
+                {
+                    return false;
+                }
+                return w.HasAnyAltSightModes() || Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
             }
         }
 

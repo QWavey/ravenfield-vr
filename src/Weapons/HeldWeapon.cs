@@ -26,6 +26,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Lenses for the magnified sight modes (a flip-in magnifier), by mode; shown while that mode is selected.</summary>
         private readonly VRScope[] _modeScopes;
         private readonly AmmoCounter _counter;
+        /// <summary>The flip-in magnifier, switched by the free hand's grip and slide rather than the Magnifier button.</summary>
+        private readonly MagnifierFlip _magnifierFlip;
 
         /// <summary>The weapon's own sounds for manual actions (procedural fallback).</summary>
         public readonly WeaponSoundPlayer Sounds;
@@ -135,6 +137,7 @@ namespace RavenfieldVR.Weapons
             ActiveAmmo = ammo;
             Sounds = new WeaponSoundPlayer(rig, system.Sounds);
             Reload = new ReloadInteractions(system, this);
+            _magnifierFlip = new MagnifierFlip(system, this);
             _magOriginalScales = rig.MagazinePartScales;
             if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
             {
@@ -811,6 +814,7 @@ namespace RavenfieldVR.Weapons
             if (active != ActiveWeapon)
             {
                 Reload.Release();
+                _magnifierFlip.Release();
                 ActiveWeapon = active;
                 ActiveRig = active == Weapon ? Rig : SubWeaponRig(active);
                 ActiveAmmo = active == Weapon ? Ammo : _system.StateFor(active, create: true);
@@ -820,6 +824,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             UpdateAim();
+            _magnifierFlip.Update();
             Reload.Update();
             HoldSlideLockPose();
             LeaveEmptyPose();
@@ -994,6 +999,12 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Whether the free hand flips this weapon's magnifier (its part was found and it has a Magnifier key). The aim
+        /// button then leaves that magnifier to the hand; a weapon without a found part keeps the button.
+        /// </summary>
+        public bool MagnifierByHand(Weapon weapon) => _magnifierFlip.HandlesWeapon(weapon);
+
         /// <summary>The sight the weapon uses right now (its selected sight mode), or null for its only sight.</summary>
         public SightLine CurrentSight
         {
@@ -1136,6 +1147,7 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);
             }
             Reload.OnShot();
+            _magnifierFlip.OnShot();
             // The action throws the case out with the shot: a self-loading gun (or any gun with assisted reloading, whose
             // fire animation works the bolt), or one with no ammo to count (an infinite-ammo gatling still throws cases;
             // its flat casing particles are hidden like every other gun's).
@@ -3061,6 +3073,7 @@ namespace RavenfieldVR.Weapons
             // The physics stand-in with the hands: whatever throws below, it must not be left at the gun's last pose, where
             // dropped weapons and magazines would bounce off an invisible gun-shaped box (it is DontDestroyOnLoad).
             _gunCollider?.Destroy();
+            _magnifierFlip.Release();
             try
             {
                 Reload.Release();
