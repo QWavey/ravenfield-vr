@@ -3,12 +3,16 @@
 One list again (2026-10-15): Tasks.md (1-199, 213-217) and Tasks2.md (200-229) merged. At the top a short status;
 under "All tasks" every task as written; the notes ("For NNN") at the end.
 
-## At a glance (2026-10-16)
+## At a glance (2026-10-19)
 
-- Done: 146
-- Code done, to check in the headset: 65
-- In progress: 13
-- Still to do: 29
+- Tasks: 278 (numbered 1-278)
+- Done: 152
+- Open: 126, of them code done and waiting for a check in the headset: 82
+- The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
+  the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
+  magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow (reverted), support in place, lens flash).
+- Running 2026-10-19: a 10-round bug hunt with Haiku agents (grips, steadying, reloads, racking, input, second weapon,
+  analysis, effects, rig, recent changes).
 
 ### Split between two branches (user, 2026-10-16)
 
