@@ -490,13 +490,15 @@ namespace RavenfieldVR.Launcher
             Controls.Add(new Label { Text = "Waiting for the headset", Font = new Font("Segoe UI Semibold", 17f), AutoSize = true, Location = new Point(28, 20), ForeColor = LauncherForm.TextC });
             _status = new Label { AutoSize = false, Location = new Point(31, 62), Size = new Size(500, 24), ForeColor = LauncherForm.Accent };
             Controls.Add(_status);
-            // 90 px: four lines (at 64 the end was cut off at 150% scaling).
-            Controls.Add(new Label
+            // Sized to its text, and the buttons and the window follow it on load: a fixed height cut the last line off with
+            // the display scaled.
+            var hint = new Label
             {
                 Text = "Put on your Quest 3 (or other headset) and connect it to this PC: Steam Link, Air Link, a Link cable or Virtual Desktop. " +
                        "Ravenfield starts in VR by itself as soon as SteamVR sees the headset.",
-                Location = new Point(31, 90), Size = new Size(500, 90), ForeColor = LauncherForm.Muted, Font = new Font("Segoe UI", 9.25f)
-            });
+                Location = new Point(31, 90), AutoSize = true, MaximumSize = new Size(500, 0), ForeColor = LauncherForm.Muted, Font = new Font("Segoe UI", 9.25f)
+            };
+            Controls.Add(hint);
 
             Button flat = LauncherForm.FlatButton("Play flat", new Rectangle(31, 196, 156, 44), LauncherForm.Raised, LauncherForm.TextC);
             flat.Click += (s, e) => Finish(PlayMode.Flat);
@@ -507,6 +509,15 @@ namespace RavenfieldVR.Launcher
             Controls.Add(flat);
             Controls.Add(anyway);
             Controls.Add(cancel);
+            Load += (s, e) =>
+            {
+                int top = hint.Bottom + hint.Height / 4;
+                foreach (Button b in new[] { flat, anyway, cancel })
+                {
+                    b.Top = top;
+                }
+                ClientSize = new Size(ClientSize.Width, flat.Bottom + flat.Height / 2);
+            };
             KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape)
