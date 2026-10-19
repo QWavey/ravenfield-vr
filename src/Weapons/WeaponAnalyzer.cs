@@ -3510,6 +3510,83 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// The moving part's tip farthest from the bore could not be read here (its meshes are on the graphics card only), so
+        /// the rack point stayed on the part's middle: HeldWeapon takes the tip from the part's drawn surface instead
+        /// (<see cref="TipOfSlide"/>). The QJB 95 / 95-1's cocking hook under the carry handle is part of a 29 cm rod: the
+        /// rack point sat on the bolt tube inside the receiver, 19 cm behind the hook the hand reached for, out of its reach
+        /// (user, 2026-10-19 night: "not able to rack it", task 305). The same guns as RackOnOutstandingPiece's.
+        /// </summary>
+        internal static bool WantsDrawnSlideTip(WeaponRigData d, Transform slide)
+        {
+            if (slide == null || d.Handgun || d.SlidePath == null || d.HandlePath != null || d.CarveHandle || d.AddedHandle || d.RackFromHand || d.RackOnSurface
+                || d.SlideMethod == null || d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)
+                || d.SlideMethod.Contains("(taken by") || ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return false;
+            }
+            foreach (MeshFilter mf in slide.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh != null && !mf.sharedMesh.isReadable)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The rack point on the point of a moving part's surface (gun space) farthest from the bore, on the receiver (5 cm
+        /// behind the muzzle to 25 cm behind the grip), when it stands at least 1.5 cm farther out than the rack point does now;
+        /// just inside that tip, as RackOnOutstandingPiece takes it from the vertices. False (and the rack point left) when no
+        /// point does, or for a pump's forend (its middle more than 27 cm ahead of the grip).
+        /// </summary>
+        internal static bool TipOfSlide(WeaponRigData d, List<Vector3> gunPoints, Vector3 current, out Vector3 rack)
+        {
+            rack = current;
+            if (gunPoints == null || gunPoints.Count < 8)
+            {
+                return false;
+            }
+            Vector3 mean = Vector3.zero;
+            foreach (Vector3 p in gunPoints)
+            {
+                mean += p;
+            }
+            mean /= gunPoints.Count;
+            if (Vector3.Dot(mean - d.GripPoint, d.AimAxis) > 0.27f)
+            {
+                return false;
+            }
+            float Off(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
+            float gripAlong = Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis);
+            float best = Off(current) + 0.015f;
+            bool found = false;
+            Vector3 tip = current;
+            foreach (Vector3 p in gunPoints)
+            {
+                float along = Vector3.Dot(p - d.MuzzlePoint, d.AimAxis);
+                if (along > -0.05f || along < gripAlong - 0.25f)
+                {
+                    continue;
+                }
+                float off = Off(p);
+                if (off > best)
+                {
+                    best = off;
+                    tip = p;
+                    found = true;
+                }
+            }
+            if (!found)
+            {
+                return false;
+            }
+            Vector3 outward = Vector3.ProjectOnPlane(tip - d.MuzzlePoint, d.AimAxis).normalized;
+            rack = tip - outward * 0.008f;
+            return true;
+        }
+
+        /// <summary>
         /// Parts that ride with the slide but hang beside it in the model, named after it: the Vector's cocking knob
         /// ('..._vector_slide_rotation_9x19...') is a sibling of its bolt ('..._vector_slide_9x19...') and no animation moves
         /// either, so the bolt slid unseen inside the receiver while the knob the hand held stood still (252 ae). Such a part

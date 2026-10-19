@@ -1658,9 +1658,72 @@ namespace RavenfieldVR.Weapons
                 _knobChecked = true; // with the slide home: measured with it locked back, it read as seen (rule review)
                 KnobOnHiddenSlide();
             }
+            RackOnDrawnSlideTip();
             UpdateSeatedMagSolid();
             FitMagazineLine();
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
+        }
+
+        private GunVolume _slideTipVolume;
+        private bool _slideTipDone;
+
+        /// <summary>
+        /// The rack point on the moving part's drawn tip, for a part the analysis could not read (WeaponAnalyzer.WantsDrawnSlideTip):
+        /// the part alone is measured from three sides (shared per weapon type), and its surface point farthest from the bore
+        /// on the receiver becomes where the hand takes it. The QJB 95 / 95-1's cocking hook (19 cm ahead of the old point,
+        /// beyond the hand's reach) and the AK family's tab on its carrier (6-7 cm) offline (tools/export_checks/slide_tip_rule.py;
+        /// task 305). Taken with the slide home; once per draw.
+        /// </summary>
+        private void RackOnDrawnSlideTip()
+        {
+            if (_slideTipDone)
+            {
+                return;
+            }
+            WeaponRigData d = Rig.Data;
+            Transform slide = Rig.Slide;
+            if (slide == null || !WeaponAnalyzer.WantsDrawnSlideTip(d, slide))
+            {
+                _slideTipDone = true;
+                return;
+            }
+            if (_slideTipVolume == null)
+            {
+                var renderers = new List<Renderer>();
+                foreach (Renderer r in slide.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer) && System.Array.IndexOf(Rig.ArmRenderers, r) < 0)
+                    {
+                        renderers.Add(r);
+                    }
+                }
+                _slideTipVolume = renderers.Count > 0 ? GunVolume.Measure("slidetip:" + d.Key, renderers, slide, 3) : null;
+                if (_slideTipVolume == null)
+                {
+                    _slideTipDone = true;
+                    return;
+                }
+            }
+            if (_slideTipVolume.Failed)
+            {
+                _slideTipDone = true;
+                return;
+            }
+            if (!_slideTipVolume.Ready || SlideOffset > 0.002f || Weapon.reloading)
+            {
+                return; // measured over a few frames; read with the slide home
+            }
+            _slideTipDone = true;
+            var gunPoints = new List<Vector3>();
+            foreach (Vector3 p in _slideTipVolume.SurfacePoints(2))
+            {
+                gunPoints.Add(Rig.ToGun(slide.position + slide.rotation * p));
+            }
+            if (WeaponAnalyzer.TipOfSlide(d, gunPoints, RackPointGun, out Vector3 tip))
+            {
+                Log.InfoOnce("slidetip:" + d.Key, $"{d.Key}: rack point on its moving part's drawn tip ({Vector3.Distance(tip, RackPointGun) * 100f:0.0} cm from the analysed point, which its meshes could not show).");
+                RackPointGun = tip;
+            }
         }
 
         /// <summary>Analyses whose magazine line has been fitted to the measured shape (once each; a new analysis again).</summary>
