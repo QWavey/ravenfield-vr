@@ -5116,6 +5116,59 @@ namespace RavenfieldVR.Weapons
                 d.BarrelFrontAlong = front;
                 d.Notes += $"muzzle {-ahead * 100f:0} cm inside the drawn barrel: the barrel's front is its length ";
             }
+
+            // A bore that runs beside the whole drawn gun: no drawn part within a centimetre of it over the 30 cm behind the muzzle.
+            // The "Bot Friendly" ARS guns (MP9, HK416, Glock 19) set their muzzle up for a bot's hold, a metre ahead and 5-7 cm to
+            // one side; pulled back along the bore above, it kept that side offset, so the bore and the grip estimated from it
+            // (they have no arms) ran beside the gun, and the hand held the gun 7-12 cm off its grip (hold_points_audit over the
+            // export, task 293). Guns are symmetric about the bore's upright plane: the muzzle is centred across the drawn gun, only
+            // when that brings the bore onto it (over the export only those three guns; a sawed-off's muzzle on one of its two
+            // barrels, or a laser's tip ahead of the barrel, are never moved: their bores pass through the drawn gun).
+            Vector3 upAcross = Vector3.ProjectOnPlane(d.Up, aim);
+            if (upAcross.sqrMagnitude > 1e-4f)
+            {
+                Vector3 across = Vector3.Cross(upAcross.normalized, aim).normalized;
+                bool BoreTouches(Vector3 muzzlePoint)
+                {
+                    for (int s = 0; s <= 12; s++)
+                    {
+                        Vector3 p = muzzlePoint - aim * (0.3f * s / 12f);
+                        foreach (Bounds b in boxes)
+                        {
+                            if (b.SqrDistance(p) < 0.01f * 0.01f)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                if (!BoreTouches(d.MuzzlePoint))
+                {
+                    float lo = float.PositiveInfinity, hi = float.NegativeInfinity;
+                    for (int k = 0; k < boxes.Count; k++)
+                    {
+                        if (!inGun[k])
+                        {
+                            continue;
+                        }
+                        Vector3 bmin = boxes[k].min, bmax = boxes[k].max;
+                        for (int i = 0; i < 8; i++)
+                        {
+                            float c = Vector3.Dot(new Vector3((i & 1) == 0 ? bmin.x : bmax.x, (i & 2) == 0 ? bmin.y : bmax.y, (i & 4) == 0 ? bmin.z : bmax.z), across);
+                            lo = Mathf.Min(lo, c);
+                            hi = Mathf.Max(hi, c);
+                        }
+                    }
+                    float offset = (lo + hi) * 0.5f - Vector3.Dot(d.MuzzlePoint, across);
+                    Vector3 centred = d.MuzzlePoint + across * offset;
+                    if (lo <= hi && BoreTouches(centred))
+                    {
+                        d.MuzzlePoint = centred;
+                        d.Notes += $"bore {Mathf.Abs(offset) * 100f:0} cm beside the drawn gun: centred across it ";
+                    }
+                }
+            }
         }
 
         private static Transform GeometricMuzzleHost(Transform root, HashSet<Transform> armRelated)

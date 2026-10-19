@@ -14,6 +14,7 @@ runtime line before changing the analysis.
 | `mag_line_draw.py` | A side view: the gun's outline (grey), the magazine seated (blue) and slid out (green), its points beside the outline (red). | `python mag_line_draw.py <gun dir> <fraction 0-1> <out.png>` |
 | `mag_axis_audit.py` | Every self-loader's long magazine: its analysed line against its own long axis and its chord, worst first. | `python mag_axis_audit.py` |
 | `bolt_carrier_rule.py` | The bolt-carrier rule (WeaponAnalyzer.ArBoltCarrier) over every self-loading long gun: does it pick the known bolt, and what does it pick on the guns with nothing found to move. | `python bolt_carrier_rule.py` |
+| `hold_points_audit.py` | How far each firearm's grip point and support point (where the hands hold it) lie from its drawn surface, worst first. The grip point is the palm's centre: 1-3 cm off is normal, over 4 cm is worth a look. | `python hold_points_audit.py [gun dir ...]` |
 
 `<gun dir>` is a folder name under `reports/sandbox/data/weapons` (for example `vector_vector`). The audits over the whole
 export take a few seconds.
@@ -21,4 +22,5 @@ export take a few seconds.
 What they found (task 293, 269 and 270 in Tasks.md): the 1911's line is clean offline; 108 of 287 guns keep their meshes
 only on the graphics card, so the analysis takes a magazine's upright box for its axis (the Vector family's raked magazine,
 18 degrees off; the runtime fit covers it); the bolt-carrier rule picks the known bolt on 6 of 6 guns where it picks
-anything.
+anything; the three "Bot Friendly" ARS guns' bore and estimated grip ran 5-7 cm beside the gun (their hand held air 7-12 cm
+off the grip; fixed in WeaponAnalyzer.PullMuzzleOntoBarrel).
