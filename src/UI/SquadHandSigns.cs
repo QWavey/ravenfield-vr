@@ -14,7 +14,7 @@ namespace RavenfieldVR.UI
     /// where they stand, which the game shows as SQUAD - HOLD. A sign counts once it has been held for 0.4 seconds, with a short
     /// buzz in that hand and the order sound. The same sign is not taken again until the hand shows something else, or nothing
     /// for a moment. No sign while the hand holds something, while a menu is open, while the squad button is held or the order
-    /// screen is open, or when the player is dead.
+    /// screen is open, on a ladder, while the wrist is turned to the eyes, or when the player is dead.
     /// </summary>
     internal static class SquadHandSigns
     {
@@ -29,7 +29,7 @@ namespace RavenfieldVR.UI
         private const float MaxYaw = 60f;            // ... and within this of the way the head faces
         private const float InFront = 70f;           // the palm within this of the way the head faces
         private const float MinReach = 0.25f;        // the palm at least this far from the eyes
-        private const float MaxBelowEyes = 0.6f;     // the palm no lower than this under the eyes (a hand at the hip is no sign)
+        private const float MaxBelowEyes = 0.4f;     // the palm no lower than this under the eyes (a hand at the belt is no sign: held at chest height or up)
 
         private static HandSign _candidate;
         private static float _candidateSince;
@@ -47,7 +47,16 @@ namespace RavenfieldVR.UI
                 return;
             }
             float now = Time.unscaledTime;
-            HandSign sign = CanSign() ? Detect(rig.Off, rig) : HandSign.None;
+            if (!CanSign())
+            {
+                // No signs here (a menu, the squad button or the order screen, a ladder, dead). The shape the hand shows now is
+                // taken as given, so the pointing's order is not followed by the same hand's sign when the block lifts.
+                _given = Detect(rig.Off, rig);
+                _candidate = HandSign.None;
+                _candidateSince = now;
+                return;
+            }
+            HandSign sign = Detect(rig.Off, rig);
             if (sign != _candidate)
             {
                 _candidate = sign;
@@ -77,7 +86,7 @@ namespace RavenfieldVR.UI
             _given = HandSign.None;
         }
 
-        /// <summary>Signs are read only in a match, with the player alive, and when no menu, squad button or order screen is up.</summary>
+        /// <summary>Signs are read only in a match, with the player alive, and when no menu, squad button, order screen, ladder or wrist view is up.</summary>
         private static bool CanSign()
         {
             if (!GameContext.InGame || !GameContext.PlayerAlive || GameContext.GameMenuOpen)
@@ -91,6 +100,15 @@ namespace RavenfieldVR.UI
             if (VRInput.GetHeld(DigitalAction.Squad))
             {
                 return false; // the squad button is held: its pointing order is being given
+            }
+            if (VRGameInput.WristLooking || VRGameInput.WristLookGesture)
+            {
+                return false; // the wrist is turned to the eyes (the wrist view): an open hand there is no sign
+            }
+            Actor actor = GameContext.PlayerActor;
+            if (actor == null || actor.IsOnLadder())
+            {
+                return false; // on a ladder the hands grip the rungs, curled, in front of the chest: that is no sign
             }
             SquadPointUi ui = SquadPointUi.instance;
             return ui == null || ui.canvas == null || !ui.canvas.enabled;
