@@ -140,6 +140,10 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.PeekScoreboard, _scoreboardWithMap && !menu && WristLookGesture && GameContext.InGame);
             // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
             Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) || SupportFire) && !SuppressFire && !((menu || PanelOpen) && PointerOverUI));
+            // Slow motion in a menu and while dead too, as the flat game's key works there: set after the returns below, it could
+            // not be switched in the loadout menu or after dying (user, 2026-10-19 night, task 313). (A toggle in the game: one
+            // press on, one off.)
+            Set(KeyBinds.Slowmotion, VRInput.GetPressed(DigitalAction.SlowMotion));
 
             if (menu)
             {
@@ -166,7 +170,6 @@ namespace RavenfieldVR.Input
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
             Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
             Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
-            Set(KeyBinds.Slowmotion, VRInput.GetPressed(DigitalAction.SlowMotion)); // (a toggle in the game: one press on, one off)
             Set(KeyBinds.Goggles, goggles);
             Set(KeyBinds.Map, WristLookGesture);
 
