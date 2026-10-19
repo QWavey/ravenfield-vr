@@ -50,6 +50,12 @@ namespace RavenfieldVR.Input
         /// <summary>The laser is on one of the mod's open panels, so the sticks scroll it and do nothing else.</summary>
         public static bool SticksOnPanel => PanelOpen && PointerOverUI;
 
+        /// <summary>
+        /// The gun's own buttons (fire mode, sight, assisted reload) stay off: the game's cursor is out, or the laser is on one of
+        /// the mod's panels. The panels never free the cursor, so GameMenuOpen alone let those presses through (bug hunt 2026-10-19).
+        /// </summary>
+        public static bool GunInputBlocked => GameContext.GameMenuOpen || (PanelOpen && PointerOverUI);
+
         /// <summary>Weapon systems set this while the dominant trigger must not fire (e.g. holding a grenade pin).</summary>
         public static bool SuppressFire { get; set; }
 
@@ -137,6 +143,7 @@ namespace RavenfieldVR.Input
             if (menu)
             {
                 _leaveHeldSince = -1f; // the hold to leave a seat starts again after the menu, not counting the time in it
+                CancelModePress(); // a fire-mode press made before the menu does not switch the mode once it has closed
                 return;
             }
 
@@ -144,6 +151,7 @@ namespace RavenfieldVR.Input
             if (actor == null || actor.dead)
             {
                 _leaveHeldSince = -1f;
+                CancelModePress();
                 return;
             }
 
@@ -175,7 +183,17 @@ namespace RavenfieldVR.Input
         private static float _modePressAt = -1f;
         /// <summary>The trigger was held while that press waited: it flips a sight at most, the fire mode stays (Task 265).</summary>
         private static bool _modePressFiring;
+        /// <summary>The weapon the waiting press was made on (a press waiting on another weapon never switches the new one).</summary>
+        private static Weapon _modePressWeapon;
         private const float DoublePressWindow = 0.4f;
+
+        /// <summary>Drops a fire-mode press still waiting out its double-press window: the weapon or context it was made in has gone.</summary>
+        private static void CancelModePress()
+        {
+            _modePressAt = -1f;
+            _modePressFiring = false;
+            _modePressWeapon = null;
+        }
 
         /// <summary>
         /// The lower face button (A or X) pressed twice quickly opens the game's menu. Done here rather than as a SteamVR
@@ -264,6 +282,14 @@ namespace RavenfieldVR.Input
         /// <summary>Fire mode / sights and the assisted reload for the personal weapon in hand.</summary>
         private static void HandleWeaponButtons(Weapon weapon)
         {
+            // The menu or one of the mod's panels under the laser takes these buttons: a press made then does nothing to the gun,
+            // and a fire-mode press still waiting out its window is dropped rather than switching the mode after the panel closed
+            // (bug hunt 2026-10-19: the A press and the assisted reload went through an open panel).
+            if (GunInputBlocked)
+            {
+                CancelModePress();
+                return;
+            }
             // The fire mode does not change while the trigger is held (Task 265; user, 2026-10-18: "some primarys when shot pause
             // shooting ... the user needs to press shot again, so full autoing is sometimes not possible"). A plain press of A, or
             // its long press, made during a burst switched an automatic gun to single shots (or a fire-mode variant to its semi
@@ -281,6 +307,13 @@ namespace RavenfieldVR.Input
             {
                 _modePressAt = Time.unscaledTime;
                 _modePressFiring = false;
+                _modePressWeapon = weapon;
+            }
+            // A press waiting out its window on another weapon (drawn, or passed to the other hand meanwhile) is dropped: the switch
+            // would land on a weapon the player never pressed for (bug hunt 2026-10-19).
+            if (_modePressAt >= 0f && _modePressWeapon != weapon)
+            {
+                CancelModePress();
             }
             if (firing && _modePressAt >= 0f)
             {
@@ -290,9 +323,12 @@ namespace RavenfieldVR.Input
             if (modeByRelease)
             {
                 _modePressAt = -1f;
+                _modePressWeapon = null;
                 if (!SlideReleaseSwitchesMode(weapon))
                 {
-                    modeByRelease = false; // the slide locked meanwhile (or the weapon changed): A releases it instead
+                    // The slide locked meanwhile: the press is dropped here, not passed on (the slide release only sees a press made
+                    // in its own frame, and this one was made on an unlocked gun). A new press releases the slide.
+                    modeByRelease = false;
                 }
             }
             if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease)
@@ -356,6 +392,8 @@ namespace RavenfieldVR.Input
                 _jumpLatch = _downLatch = false;
                 return;
             }
+            // No weapon in hand from the seat: a fire-mode press made on foot does not switch anything here.
+            CancelModePress();
             // Vehicle axes are produced by the CarInput/HelicopterInput/AirplaneInput patches; here only buttons.
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand))
             {
