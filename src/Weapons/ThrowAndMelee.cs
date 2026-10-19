@@ -730,7 +730,9 @@ namespace RavenfieldVR.Weapons
 
         // ---- a gun swung into someone ---------------------------------------------------------------
 
-        private Vector3 _bashMuzzle, _bashButt, _bashMuzzleInRig, _bashButtInRig;
+        /// <summary>Points along the gun from its butt (0) to its muzzle (last), each swept from the last frame (world and body space).</summary>
+        private const int BashPoints = 4;
+        private readonly Vector3[] _bashAt = new Vector3[BashPoints], _bashInRig = new Vector3[BashPoints];
         private bool _bashHas;
         private Weapon _bashWeapon;
         private float _lastBash = -10f;
@@ -763,18 +765,19 @@ namespace RavenfieldVR.Weapons
             Vector3 butt = rig.ToWorld(d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f);
             Transform body = _sys.Rig.Root;
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            // Four points along the gun, from its butt to its muzzle, each swept on its own: with the muzzle's tip and the butt alone,
+            // a swing that landed with the middle of the gun (a handguard, a magazine, a receiver) hit nothing, and a pistol punch
+            // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
+            // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
             if (_bashHas && Time.time - _lastBash > 0.5f && !Util.GameContext.GameMenuOpen)
             {
-                float muzzleSpeed = (muzzle - body.TransformPoint(_bashMuzzleInRig)).magnitude / dt;
-                float buttSpeed = (butt - body.TransformPoint(_bashButtInRig)).magnitude / dt;
-                bool carried = (muzzle - _bashMuzzle).sqrMagnitude > MaxSweep * MaxSweep;
-                float need = Mathf.Max(3f, VRConfig.MeleeSwingSpeed.Value + 0.5f);
-                if (!carried && (muzzleSpeed > need || buttSpeed > need))
+                bool carried = (muzzle - _bashAt[BashPoints - 1]).sqrMagnitude > MaxSweep * MaxSweep;
+                float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
+                for (int k = BashPoints - 1; k >= 0 && !carried; k--)
                 {
-                    bool byMuzzle = muzzleSpeed >= buttSpeed;
-                    Vector3 from = byMuzzle ? _bashMuzzle : _bashButt, to = byMuzzle ? muzzle : butt;
-                    float speed = byMuzzle ? muzzleSpeed : buttSpeed;
-                    if (BashCast(w, user, from, to, speed, d))
+                    Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
+                    float speed = (at - body.TransformPoint(_bashInRig[k])).magnitude / dt;
+                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d))
                     {
                         _lastBash = Time.time;
                         _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
@@ -782,14 +785,17 @@ namespace RavenfieldVR.Weapons
                         {
                             _sys.Rig.Off.Haptic(0.08f, 60f, 0.8f);
                         }
-                        held.Nudge(-(to - from).normalized * 0.6f, 20f); // the blow jars the gun back
+                        held.Nudge(-(at - _bashAt[k]).normalized * 0.6f, 20f); // the blow jars the gun back
+                        break;
                     }
                 }
             }
-            _bashMuzzle = muzzle;
-            _bashButt = butt;
-            _bashMuzzleInRig = body.InverseTransformPoint(muzzle);
-            _bashButtInRig = body.InverseTransformPoint(butt);
+            for (int k = 0; k < BashPoints; k++)
+            {
+                Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
+                _bashAt[k] = at;
+                _bashInRig[k] = body.InverseTransformPoint(at);
+            }
             _bashHas = true;
         }
 
