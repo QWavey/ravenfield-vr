@@ -55,8 +55,10 @@ namespace RavenfieldVR.Weapons
             ActionType action = data.Action;
             // Only the loadout's weapons: each cut keeps a copy of the receiver's mesh, and hundreds of mod weapons would keep
             // hundreds of them.
+            // (No cut when the model's own handle is the one taken: HeldWeapon, task 299.)
             if (Loadout.Contains(entry.nameHash)
-                && (data.SlidePath == null && data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed) || data.CarveHandle))
+                && (data.SlidePath == null && data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
+                    || data.CarveHandle && data.HandlePath == null))
             {
                 BoltPiece.Prewarm(rig); // the handle cut out of the receiver, as the draw makes it (HeldWeapon)
             }

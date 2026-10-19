@@ -236,8 +236,13 @@ namespace RavenfieldVR.Weapons
             }
             ActionType action = rig.Data.Action;
             RackPointGun = rig.Data.RackPoint;
+            // Task 299: a made handle (a piece cut out of the receiver, or an added latch) is never put beside the gun's own handle
+            // part (HandlePath): the hand takes that part and the mod moves it. The reload analysis set CarveHandle first (its
+            // stroke rule runs before the named-handle rule), then named the model's handle, and a piece of receiver was cut out
+            // beside the handle that already moved.
+            bool ownHandle = rig.Data.HandlePath != null;
             if (rig.Data.SlidePath == null && rig.Data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
-                || rig.Data.CarveHandle || rig.Data.AddedHandle)
+                || !ownHandle && (rig.Data.CarveHandle || rig.Data.AddedHandle))
             {
                 // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
                 // it a handle that does. Not when the model's own handle is the one that moves (its own part is the handle, found
@@ -1913,10 +1918,11 @@ namespace RavenfieldVR.Weapons
         private bool _knobOnHidden;
 
         /// <summary>
-        /// A long gun whose slide (found by its fire motion) moves hidden in the receiver, with nothing else of it moving
-        /// with the hand, gets a knob where the hand takes it, as a bolt baked into the receiver does: GREASER's bolt was 0%
-        /// seen and PPSh-41's 3% (check-1017f), and racked, nothing visible moved. Measured once per weapon type, from four
-        /// sides with and without the slide (a few small pictures).
+        /// A long gun or pistol whose slide (found by its fire motion) moves hidden in the receiver, with nothing else of it moving
+        /// with the hand, gets a slim latch (BoltPiece's T; it was a cube, task 299) where the hand takes it, as a bolt baked into
+        /// the receiver does: GREASER's bolt was 0% seen and PPSh-41's 3% (check-1017f), and racked, nothing visible moved.
+        /// Measured once per weapon type, from four sides with and without the slide (a few small pictures). A slide seen at
+        /// least 5% from outside gets nothing: the hand takes the slide itself.
         /// </summary>
         private void KnobOnHiddenSlide()
         {
