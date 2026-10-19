@@ -1363,7 +1363,14 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             int side = (int)off.Side;
-            Runtime.RigidPose start = off.Raw;
+            // The palm put on the gun's support point first, as a real grab takes it there (from the hand's simulated place
+            // 40 cm off, a rear grip or a magazine hold measured its stretch from there and an 80 cm yank added only 50 cm:
+            // check-1019h's RPG-7 and MG3 "still holds" were the test's).
+            Vector3 palmToRaw = off.Raw.position - off.Palm.position;
+            Runtime.RigidPose start = new Runtime.RigidPose(held.Rig.ToWorld(held.Rig.Data.SupportPoint) + palmToRaw, off.Raw.rotation);
+            Rig.VRHand.Scripted[side] = start;
+            yield return null;
+            yield return null;
             Vector3 across = Vector3.Cross(held.Rig.AimWorld, Vector3.up);
             across = across.sqrMagnitude > 1e-4f ? across.normalized : rig.Head.right;
             bool stayed = true, letGo = false;

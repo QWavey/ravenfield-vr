@@ -402,14 +402,25 @@ namespace RavenfieldVR.Launcher
                 {
                     return State.NoHeadset;
                 }
-                if (error != EVRInitError.None || system == null)
+                if (error != EVRInitError.None)
                 {
                     return State.Unknown;
                 }
-                bool hmd = system.IsTrackedDeviceConnected(OpenVR.k_unTrackedDeviceIndex_Hmd)
-                           && system.GetTrackedDeviceClass(OpenVR.k_unTrackedDeviceIndex_Hmd) == ETrackedDeviceClass.HMD;
-                OpenVR.Shutdown();
-                return hmd ? State.Ready : State.NoHeadset;
+                // Connected from here: always let go again, or the launcher stays a SteamVR app for as long as the game runs.
+                try
+                {
+                    if (system == null)
+                    {
+                        return State.Unknown;
+                    }
+                    bool hmd = system.IsTrackedDeviceConnected(OpenVR.k_unTrackedDeviceIndex_Hmd)
+                               && system.GetTrackedDeviceClass(OpenVR.k_unTrackedDeviceIndex_Hmd) == ETrackedDeviceClass.HMD;
+                    return hmd ? State.Ready : State.NoHeadset;
+                }
+                finally
+                {
+                    OpenVR.Shutdown();
+                }
             }
             catch (Exception)
             {

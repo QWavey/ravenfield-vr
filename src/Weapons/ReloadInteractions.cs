@@ -741,6 +741,10 @@ namespace RavenfieldVR.Weapons
             _ejecting = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
             Log.InfoOnce("eject:" + Data.Key, $"Magazine ejected from {Data.Key}: {rounds} rounds, {Rig.MagazineParts.Length} part(s) hidden on the gun, pull axis {Data.MagEjectAxis:F2}, rail {_ejecting.RailLength * 100f:0.0} cm.");
             _ejecting.Owner = Ammo;
+            if (WellInGrip)
+            {
+                GripWellRail(_ejecting); // it drops clear of the grip, not let go half way up it (task 270)
+            }
             _ejecting.RailDepth = _ejecting.RailLength;
             _ejectTime = 0f;
             _held.Sounds.Play(MechSound.MagOut, _ejecting.Go.transform.position);
@@ -875,6 +879,12 @@ namespace RavenfieldVR.Weapons
             MagazineProp prop = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
             prop.Owner = Ammo;
             prop.Attach(off);
+            if (WellInGrip)
+            {
+                // Out along the whole grip, as it goes in (task 270): on the short rail it came off with half of it still up
+                // the grip, free there, where the keep-out now opens the well only to a magazine within 12 degrees.
+                GripWellRail(prop);
+            }
             prop.OnRail = true;
             prop.RailDepth = prop.RailLength;
             prop.LastTick = prop.RailDepth;
