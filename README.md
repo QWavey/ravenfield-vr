@@ -40,13 +40,13 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 | Input | On foot | In a vehicle |
 | --- | --- | --- |
 | Right trigger | Fire | Fire mounted weapon |
-| Left trigger | Use: enter vehicle, ladder, interact | Use: leave vehicle |
-| Grips | Grab: foregrip, magazine, slide, bolt, cover, grenade pin, holsters, pouch, anything lying on the ground | Grab: steering wheel, flight stick |
-| Left stick | Move. Click: sprint. Double-click: VR settings. Hold: scoreboard | Steer and throttle (car), collective and yaw (helicopter), rudder and throttle (plane) |
+| Left trigger | Use: enter vehicle, ladder, interact | Hold 1 s (the hand on your seat's side): leave vehicle |
+| Grips | Grab: foregrip, magazine, slide, bolt, cover, grenade pin, magnifier, holsters, pouch, anything lying on the ground. Hold half a second on a vehicle: get in | Grab: steering wheel (one or both hands), flight stick |
+| Left stick | Move. Click: sprint (pulling the trigger ends it). Double-click: VR settings. Hold: scoreboard | Steer and throttle (car), collective and yaw (helicopter), rudder and throttle (plane). Click: next seat |
 | Right stick | Turn. Up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
-| B | Drop the magazine / open a break-action or revolver | |
+| B | Drop the magazine / open a break-action or revolver. Hold: slow motion (also in menus and while dead) | Reload a mounted gun |
 | A | Slide or bolt release; pulls a grenade's pin. Hold: fire mode (semi/auto, or the weapon's own mode switch) | Countermeasures. Hold: auto-hover (helicopter) |
-| X | Squad order (hold and point, release to send) | |
+| X | Squad order (hold and point, release to send; the objectives' flags show while you point) | |
 | Y | Squad map. Hold: pause menu. Double: loadout | |
 | Menu (≡) | SteamVR's own dashboard (the match pauses behind it); not bound by the mod | |
 
@@ -59,6 +59,9 @@ Other gestures:
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
 - **Aiming down sights** is just bringing the sights to your eye. Scopes switch to their magnified lens.
+- **Flip magnifier:** grip it with your free hand and push it about 4 cm sideways (or twist it); the aim button no longer flips a magnifier your hand can reach.
+- **Squad hand signs** (free hand, raised to your shoulder, held half a second): flat hand pointing forward sends the squad there; a fist tells it to stay.
+- **Hitting with a gun:** swing it into an enemy (any part of it); the faster and heavier, the harder.
 
 ## Reloading
 
@@ -111,7 +114,7 @@ Holding A on a weapon with its own fire-mode script presses that script's key (i
 
 ## Driving
 
-Grab the steering wheel of a car or Humvee with one or both hands and turn it; the car steers with it. Let go and the left stick steers again. While driving, reach to a holster to draw that weapon and shoot with one hand while steering with the other; put it back to get the horn again. Tanks, helicopters and planes use the sticks (helicopters and planes also have a grabbable flight stick).
+Get in by holding your grip on a vehicle for half a second with an empty hand (or the left trigger as before); get out by holding the trigger of the hand on your seat's side for a second; click the left stick to move to the next seat. Grab the steering wheel of a car or Humvee with one or both hands and turn it; the car steers with it. Let go and the left stick steers again. While driving, reach to a holster to draw that weapon and shoot with one hand while steering with the other; put it back to get the horn again. Tanks, helicopters and planes use the sticks (helicopters and planes also have a grabbable flight stick).
 
 ## Graphics
 
