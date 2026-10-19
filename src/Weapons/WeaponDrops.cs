@@ -822,7 +822,9 @@ namespace RavenfieldVR.Weapons
                 // 255.P7-2).
                 return ScaledPieces("fit:" + name, unit, scale);
             }
+            // What is drawn only: the parts the template switched off (a beam, a part parked away) get no collider (task 303).
             var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
+            renderers.RemoveAll(r => !r.enabled);
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
             if (boxes.Length > 0)
             {

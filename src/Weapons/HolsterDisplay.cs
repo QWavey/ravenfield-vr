@@ -100,7 +100,9 @@ namespace RavenfieldVR.Weapons
             foreach (Renderer r in model.GetComponentsInChildren<Renderer>(true))
             {
                 r.shadowCastingMode = ShadowCastingMode.Off;
-                if (r is ParticleSystemRenderer)
+                // (Nor a part the template switched off: a beam or a part parked away, which stretched the box the barrel, centre and
+                // length are taken from; task 303.)
+                if (r is ParticleSystemRenderer || !r.enabled)
                 {
                     continue;
                 }
