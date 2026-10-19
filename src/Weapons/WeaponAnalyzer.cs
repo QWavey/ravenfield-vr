@@ -3250,6 +3250,7 @@ namespace RavenfieldVR.Weapons
             Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
             Transform best = null;
             Bounds bestBounds = default;
+            bool bestWhole = false;
             float bestGap = 0.10f;
             foreach (Transform t in all)
             {
@@ -3261,16 +3262,25 @@ namespace RavenfieldVR.Weapons
                 Bounds b = sampler.GunSpaceBounds(t, gunIdle);
                 float length = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
                 float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
-                if (length < 0.03f || length > 0.12f || above < 0f || above > 0.06f
-                    || Vector3.Dot(b.size, upAbs) > 0.025f || Vector3.Dot(b.size, acrossAbs) < 0.025f)
-                {
-                    continue; // a T: a bar across the receiver, a few centimetres long, at most 2.5 cm tall, standing over the bore
-                }
-                // A T is flat (at most 1.5 cm tall) and rides in the receiver's top, under the sights (its middle at most 3.2 cm
-                // over the bore). Without these the MWII M4 holo's folded rear sight '..._rec_..._002' (2.0 cm tall, 3.4 cm over
-                // the bore, sitting on the rail) was taken, and racking moved the sight (user, headset, 2026-10-18 evening: "the
-                // bolt doesn't go back, it's the sight which goes back"). The same limits as ArStaticHandle's (task 271).
-                if (Vector3.Dot(b.size, upAbs) > 0.015f || above > 0.032f)
+                float height = Vector3.Dot(b.size, upAbs), width = Vector3.Dot(b.size, acrossAbs), along = Vector3.Dot(b.size, aimAbs);
+                // A T: a bar across the receiver, a few centimetres long, flat (at most 1.5 cm tall), riding in the receiver's top
+                // under the sights (its middle at most 3.2 cm over the bore). Without the height and over-the-bore limits the MWII M4
+                // holo's folded rear sight '..._rec_..._002' (2.0 cm tall, 3.4 cm over the bore, sitting on the rail) was taken,
+                // and racking moved the sight (user, headset, 2026-10-18 evening: "the bolt doesn't go back, it's the sight which
+                // goes back"). The same limits as ArStaticHandle's (task 271).
+                bool shortT = length >= 0.03f && length <= 0.12f && above >= 0f && above <= 0.032f && height <= 0.015f && width >= 0.025f;
+                // Or the whole charging handle in one part, its rod and its T together: 12-22 cm along the bore (longest that way),
+                // its T 3 cm or more across, at most 2.2 cm tall, on the bore's line under the sights, its back end within 6 cm
+                // of the guess along the bore. The MWII M4s have theirs so ('对象001_001', 17.3 x 5.6 x 1.8 cm): too long and too
+                // tall for the T limits, it was never taken, and only the bolt carrier inside moved (user, headset, 2026-10-19
+                // night: "able to rack the rack thing, but the thing doesn't go back", task 304). Over the export the same limits
+                // take exactly the handle the analysis already knows by name on every AR that has one (mk18, m733, Suzuya, K13,
+                // M4A1: tools/export_checks/ar_long_handle_rule.py) and on no other part.
+                float aside = Mathf.Abs(Vector3.Dot(b.center - d.MuzzlePoint, across));
+                float rearAlong = Vector3.Dot(b.center, d.AimAxis) - Mathf.Abs(Vector3.Dot(b.extents, aimAbs));
+                bool wholeHandle = along >= 0.12f && along <= 0.22f && along >= Mathf.Max(height, width) && width >= 0.03f && height <= 0.022f
+                                   && above >= 0f && above <= 0.032f && aside <= 0.015f && Mathf.Abs(rearAlong - Vector3.Dot(guess, d.AimAxis)) <= 0.06f;
+                if (!shortT && !wholeHandle)
                 {
                     continue;
                 }
@@ -3280,6 +3290,7 @@ namespace RavenfieldVR.Weapons
                     bestGap = gap;
                     best = t;
                     bestBounds = b;
+                    bestWhole = wholeHandle && !shortT;
                 }
             }
             if (best == null)
@@ -3289,8 +3300,11 @@ namespace RavenfieldVR.Weapons
             d.HandlePath = WeaponRig.PathOf(root, best);
             d.HandleRestLocal = sampler.IdleLocalPosition(best);
             d.HandleTravel = -d.AimAxis * 0.075f;
-            // The hand takes the T at its back end, as ArStaticHandle does; the T reaches forward from there.
-            d.RackPoint = bestBounds.center - d.AimAxis * Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs)) * 0.8f;
+            // The hand takes the T at its back end, as ArStaticHandle does; the T reaches forward from there. A whole handle's T is
+            // the last centimetres of its 17 cm: taken 1.2 cm in from its back end (at 80% of its half length the hand sat 7 cm
+            // forward, on the rod inside the receiver).
+            float halfAlong = Mathf.Abs(Vector3.Dot(bestBounds.extents, aimAbs));
+            d.RackPoint = bestBounds.center - d.AimAxis * (bestWhole ? halfAlong - 0.012f : halfAlong * 0.8f);
             d.RackFromHand = true;
             d.SlideTravel = d.HandleTravel;
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
@@ -3313,7 +3327,11 @@ namespace RavenfieldVR.Weapons
         private static void ArBoltCarrier(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
             Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
         {
-            if (d.Handgun || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath != null || d.HandlePath != null || d.BoltPath != null
+            // Also after a charging handle was found with no slide (ArOwnHandleNoSlide, a handle by name): the carrier moves with
+            // it as on a real AR. Before, a found handle stopped this rule, so the MWII M4s' T (taken as a whole handle since task
+            // 304) would have moved alone with nothing in the ejection port.
+            bool handleAlone = d.HandlePath != null && d.RackFromHand;
+            if (d.Handgun || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath != null || d.HandlePath != null && !handleAlone || d.BoltPath != null
                 || !ArPattern.IsMatch(d.Key ?? ""))
             {
                 return;
@@ -3360,8 +3378,8 @@ namespace RavenfieldVR.Weapons
             }
             d.SlidePath = WeaponRig.PathOf(root, best);
             d.SlideRestLocal = sampler.IdleLocalPosition(best);
-            d.SlideTravel = -d.AimAxis * 0.075f;
-            d.SlideMethod = $"bolt carrier by its shape '{best.name}'";
+            d.SlideTravel = handleAlone && d.HandleTravel.sqrMagnitude > 1e-6f ? d.HandleTravel : -d.AimAxis * 0.075f;
+            d.SlideMethod = handleAlone ? d.SlideMethod + $" + its bolt carrier by its shape '{best.name}', moved with it" : $"bolt carrier by its shape '{best.name}'";
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
             Log.InfoOnce("boltcarrier:" + d.Key, $"{d.Key}: its bolt carrier '{best.name}' ({Vector3.Dot(bestBounds.size, aimAbs) * 100f:0.0} cm long, "
                                                  + $"{Vector3.Dot(bestBounds.center - d.GripPoint, d.AimAxis) * 100f:0.0} cm ahead of the grip) moves back when the gun is racked.");
