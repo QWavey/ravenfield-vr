@@ -1664,7 +1664,11 @@ namespace RavenfieldVR.Weapons
             // the magazine's own depth span has holes (a hollow magazine's core counted as "out of the well"): measured on the
             // 1911's export, 27-37 skin points sat in the grip's walls at every centimetre from 1 to 5 cm out on the analysed
             // line, while the log said "0/117 through". The rest hull: the skin's extremes along 26 directions.
-            List<Vector3> skin = shapeWell ? MagazineSkin(seat) : null;
+            // Every gun, not only handguns (2026-10-19): the grid's 3-4 stray points of some 300 tilted the M4A1's line 6 degrees
+            // and the M4A1 EOT's 3 (and the SpringField 1911's 3 the other way), and tilted, their magazines went in through the
+            // gun (user: "this happens to some m4 versions too"); along the analysed line the M4A1 [SQUAD]'s skin passes
+            // nothing at any depth, 6 degrees off it does.
+            List<Vector3> skin = MagazineSkin(seat);
             Vector3[] hullDirs = null;
             float[] hullMax = null;
             if (skin != null)
@@ -1768,7 +1772,12 @@ namespace RavenfieldVR.Weapons
             string wellBy = skin != null ? "its skin against its seated hull" : shapeWell ? "against its drawn shape" : "against its box";
             // (Also a small tilt that clears it completely: 2 points through the trigger guard and none at 3 degrees was kept on
             // the six CZ Bren 2 BRs and the Q1911, whose magazines the user saw go in through the gun; 2026-10-17.)
-            if (bestAngle != 0f && best <= before * 0.6f && (before - best >= 3 || best == 0 && before >= 2 && Mathf.Abs(bestAngle) <= 6.01f))
+            // By the skin, only a clear fault is corrected (at least 1% of its points through, and 40% fewer after): a few skin
+            // points are the sampling, not a wall.
+            bool clear = skin != null
+                ? before >= Mathf.Max(6, total / 100) && best <= before * 0.6f
+                : best <= before * 0.6f && (before - best >= 3 || best == 0 && before >= 2 && Mathf.Abs(bestAngle) <= 6.01f);
+            if (bestAngle != 0f && clear)
             {
                 d.MagEjectAxis = -(Quaternion.AngleAxis(bestAngle, right) * in0).normalized;
                 d.Notes += $"magazine line fitted to the drawn gun ({bestAngle:0} deg) ";
