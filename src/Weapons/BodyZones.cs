@@ -17,7 +17,14 @@ namespace RavenfieldVR.Weapons
     public sealed class BodyZones
     {
         private readonly VRRig _rig;
-        private float _torsoYaw;
+        /// <summary>
+        /// The torso's yaw relative to the play space (the rig's root), not the world: a snap turn rotates the play space,
+        /// the player's body with it, at once. Kept in the world, the torso caught up with the turned head at 25 degrees a
+        /// second, so for a second after each 30-degree snap the holsters, the pouch and the stock's pocket hung 30 degrees
+        /// off the body (a shoulder holster 9 cm away from where the hand reached), and through a smooth turn they trailed
+        /// the full 35 degrees the neck is allowed (bug hunt, 2026-10-19).
+        /// </summary>
+        private float _torsoLocalYaw;
         private bool _hasYaw;
 
         public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide, Belt;
@@ -49,23 +56,31 @@ namespace RavenfieldVR.Weapons
                 f = head.up * -1f;
                 f.y = 0f;
             }
-            float headYaw = Quaternion.LookRotation(f.normalized).eulerAngles.y;
+            float headYaw = Quaternion.LookRotation(f.normalized).eulerAngles.y - RootYaw();
             if (!_hasYaw)
             {
-                _torsoYaw = headYaw;
+                _torsoLocalYaw = headYaw;
                 _hasYaw = true;
             }
             // Torso follows the head only once it has turned past a comfortable neck angle.
-            float delta = Mathf.DeltaAngle(_torsoYaw, headYaw);
+            float delta = Mathf.DeltaAngle(_torsoLocalYaw, headYaw);
             if (Mathf.Abs(delta) > 35f)
             {
-                _torsoYaw += delta - Mathf.Sign(delta) * 35f;
+                _torsoLocalYaw += delta - Mathf.Sign(delta) * 35f;
             }
-            _torsoYaw = Mathf.MoveTowardsAngle(_torsoYaw, headYaw, 25f * Time.unscaledDeltaTime);
+            _torsoLocalYaw = Mathf.MoveTowardsAngle(_torsoLocalYaw, headYaw, 25f * Time.unscaledDeltaTime);
 
             ComputeSpots();
             UpdateGestures();
             DrawDebug();
+        }
+
+        /// <summary>The play space's turn about the vertical (the rig's root, which snap and smooth turns rotate).</summary>
+        private float RootYaw()
+        {
+            Vector3 f = _rig.Root.forward;
+            f.y = 0f;
+            return f.sqrMagnitude > 1e-6f ? Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg : 0f;
         }
 
         /// <summary>
@@ -75,7 +90,9 @@ namespace RavenfieldVR.Weapons
         public void ComputeSpots()
         {
             Transform head = _rig.Head;
-            Quaternion torso = Quaternion.Euler(0f, _torsoYaw, 0f);
+            // From the play space's yaw now: called again before rendering, after the rig has been placed for this frame, so a
+            // snap made this frame carries the spots with it before they are drawn.
+            Quaternion torso = Quaternion.Euler(0f, RootYaw() + _torsoLocalYaw, 0f);
             TorsoForward = torso * Vector3.forward;
             TorsoRight = torso * Vector3.right;
             float side = VRConfig.LeftHanded ? -1f : 1f;
