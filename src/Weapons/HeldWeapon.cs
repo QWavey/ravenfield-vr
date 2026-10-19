@@ -1009,6 +1009,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Self-test: how far the nearer eye is from the sight's line (m; MaxValue: no eye within its reach) and the head's angle to it.</summary>
+        internal float AimMiss { get; private set; } = float.MaxValue;
+        internal float AimAngle { get; private set; }
+
         private void UpdateAim()
         {
             Transform head = _system.Rig.Head;
@@ -1036,6 +1040,8 @@ namespace RavenfieldVR.Weapons
                 }
                 float angle = Vector3.Angle(head.forward, dir);
                 aim = Aiming ? best < 0.07f && angle < 35f : best < 0.045f && angle < 25f;
+                AimMiss = best;
+                AimAngle = angle;
             }
             else
             {

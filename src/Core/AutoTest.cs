@@ -2190,6 +2190,13 @@ namespace RavenfieldVR.Core
                         Quaternion fix = Quaternion.FromToRotation(held.Rig.DirToWorld(dirGun), head.forward);
                         Vector3 target = eye + head.forward * 0.07f;
                         Rig.VRHand.Scripted[side] = new Runtime.RigidPose(target + fix * (raw.position - eyeW), fix * raw.rotation);
+                        // A steadied gun (a launcher always is) eases toward the hand: corrected every frame, the next correction
+                        // chased a gun still on its way and overshot, and the RPG-7 never came onto the eye's line (NOT AIMING in
+                        // every run). The last ones wait for the gun to settle first.
+                        if (k >= 24)
+                        {
+                            yield return new WaitForSecondsRealtime(0.15f);
+                        }
                         yield return null;
                     }
                     yield return new WaitForSecondsRealtime(0.5f);
@@ -2199,7 +2206,8 @@ namespace RavenfieldVR.Core
                     Camera rt = w.renderTextureCamera;
                     string cam = rt == null ? "no scope camera of its own"
                         : $"its scope camera '{rt.name}' {(rt.enabled && rt.gameObject.activeInHierarchy ? "on" : "OFF")}, drawing into {(rt.targetTexture != null ? $"'{rt.targetTexture.name}'" : "THE SCREEN")}";
-                    report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")}, game aiming {w.GetActiveSubWeapon().aiming}, {cam}, {held.ScopeLensState()}");
+                    string miss = held.AimMiss < 1f ? $"the eye {held.AimMiss * 100f:0.0} cm off its line, {held.AimAngle:0} deg" : "no eye within its reach";
+                    report($"sight mode {w.GetSightModeIndex()}: {(held.Aiming ? "aiming" : "NOT AIMING (the eye is not on its line)")} ({miss}), game aiming {w.GetActiveSubWeapon().aiming}, {cam}, {held.ScopeLensState()}");
                     if (m == 0 && held.Aiming && Rig.VRHand.Scripted[side].HasValue)
                     {
                         yield return AimedTremor(held, name, side, report);
