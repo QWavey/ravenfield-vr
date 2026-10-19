@@ -348,6 +348,35 @@ def summary(dest):
         print('   ', p.strip()[:220])
 
 
+PICTURES = ('.png', '.jpg', '.jpeg', '.gif')
+
+
+def prune_pictures(root=None):
+    """Earlier runs' pictures go before a new run (the user, 2026-10-19: test pictures are looked at, then deleted, for space;
+    36 GB had piled up in reports/shots): every run folder's PNG/JPG/GIF except the newest run's, which is the one looked at
+    next. Text reports (autotest.txt, game-log.txt, sheets/index.json) and videos stay. Returns (files, bytes) removed."""
+    root = root or os.path.join(REPO, 'reports', 'shots')
+    runs = {}
+    for d in glob.glob(os.path.join(root, '*')):
+        if os.path.isdir(d):
+            files = [p for p in glob.glob(os.path.join(d, '**', '*'), recursive=True) if os.path.isfile(p)]
+            runs[d] = (max((os.path.getmtime(p) for p in files), default=0.0), files)
+    newest = max(runs, key=lambda d: runs[d][0]) if runs else None
+    count, size = 0, 0
+    for d, (_, files) in runs.items():
+        if d == newest:
+            continue
+        for p in files:
+            if p.lower().endswith(PICTURES):
+                try:
+                    size += os.path.getsize(p)
+                    os.remove(p)
+                    count += 1
+                except OSError:
+                    pass
+    return count, size
+
+
 def main():
     # (Part names in the summary are often Chinese: printed to a cp1252 console or a redirected log they ended the run with
     # a UnicodeEncodeError after the pictures were taken.)
@@ -369,6 +398,7 @@ def main():
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--out', metavar='NAME', help='collect into reports/shots/NAME instead of the mode folder (a run that must not move the last one away)')
     ap.add_argument('--no-build', action='store_true')
+    ap.add_argument('--keep-pictures', action='store_true', help="keep earlier runs' pictures (by default only the newest run's stay)")
     ap.add_argument('--res', default='1440x1584')
     ap.add_argument('--timeout', type=float, default=0)
     ap.add_argument('--game', default=os.path.join(STEAM, 'steamapps', 'common', 'Ravenfield'))
@@ -386,6 +416,10 @@ def main():
         return
     if running('ravenfield.exe'):
         raise SystemExit('Ravenfield is running (someone is playing?): not starting.')
+    if not a.keep_pictures:
+        count, size = prune_pictures()
+        if count:
+            log(f"earlier runs' pictures removed: {count} file(s), {size / 1048576:.0f} MB (the newest run's stay; --keep-pictures keeps them all)")
     failed = False
     w, h = (int(v) for v in a.res.lower().split('x'))
     build_and_install(a.game, build=not a.no_build)
