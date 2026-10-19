@@ -2610,7 +2610,11 @@ namespace RavenfieldVR.Weapons
         {
             System.Func<Vector3, bool> part = PartSolid();
             System.Func<Vector3, bool> gun = HandSolid();
-            if ((part == null || _knobOnHidden) && gun != null && _boltPiece != null)
+            // (Also a knob cut out or added on a moving part with no handle of its own, which the hand takes and not the part: the
+            // CZ Bren 2's knob, 10 cm ahead of the bolt inside the receiver, was in no solid, and the fingers closed on the bolt's
+            // place inside the gun; Bren hunt, 2026-10-19, task 302.)
+            bool madeKnob = (Rig.Data.CarveHandle || Rig.Data.AddedHandle) && Rig.Handle == null;
+            if ((part == null || _knobOnHidden || madeKnob) && gun != null && _boltPiece != null)
             {
                 // A handle the mod draws (cut out of the receiver, or a knob added): no part of the model to measure, so
                 // the hand closed on nothing and curled through it. A bar across the gun where the handle is on its stroke.
