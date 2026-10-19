@@ -1090,7 +1090,16 @@ namespace RavenfieldVR.Weapons
                 // The gun's length, not the muzzle transform alone: the RPG-7V [PG-7V] family's muzzle sits 28 cm ahead of its grip
                 // inside a tube that runs on past it, so it was cupped as a pistol and held with no steering or steadying (Tasks 266).
                 float reach = d.LengthFromGrip;
-                if (!d.Handgun && reach > 0.3f)
+                if (!d.Handgun && reach > 0.3f && d.Action == ActionType.SingleShot)
+                {
+                    // A shoulder-fired launcher's second grip can sit behind its trigger grip (the RPG-7's wooden grip): the
+                    // animation's left hand is on it, and moved onto the tube in front the support glove got no pose and floated,
+                    // the second grip unused (user, headset, 2026-10-18 evening: "the 2nd grip is ignored"; task 276). Kept, and
+                    // not cupped as a pistol.
+                    d.HasSupportPoint = true;
+                    d.Notes += "support hand on its own grip behind the trigger grip (a launcher) ";
+                }
+                else if (!d.Handgun && reach > 0.3f)
                 {
                     // A long gun's support hand is never behind its grip: the PPSh-41's reload rests the left hand on the
                     // magazine, and taken as a pistol the support hand cupped a gun hand that was not there, the gun held in
