@@ -2543,16 +2543,8 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            RigidPose support = default;
-            bool supportPosed = _supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out support);
-            if (supportPosed && Rig.Data.SupportOnForend && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude >= 0.12f * 0.12f)
-            {
-                // The analysis moved the support onto the forend, away from the animation's left hand (behind the grip): the
-                // glove got no pose there and floated beside the gun (the RPG-7's, 40 cm off; user, headset, 2026-10-18 evening,
-                // task 276). The hand's turn holds a tube the same way anywhere along it: taken at the support point.
-                support = new RigidPose(Rig.ToWorld(Rig.Data.SupportPoint), support.rotation);
-            }
-            if (supportPosed && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
+            if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
+                && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {
                 if (off.Side == Hand.Right)
                 {

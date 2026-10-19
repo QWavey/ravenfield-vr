@@ -1098,7 +1098,6 @@ namespace RavenfieldVR.Weapons
                     d.SupportPoint = d.GripPoint + d.AimAxis * Mathf.Min(0.24f, reach * 0.45f);
                     d.HasSupportPoint = true;
                     d.Notes += "support hand on the forend (the animation's left hand was behind the grip) ";
-                    d.SupportOnForend = true;
                 }
                 else
                 {
