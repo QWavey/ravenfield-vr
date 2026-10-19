@@ -480,9 +480,19 @@ namespace RavenfieldVR.Weapons
                         }
                         stretch = Mathf.Max(0f, atPoint - _supportRest);
                     }
+                    else if (_held.TwoHanded)
+                    {
+                        // The gun as the gun hand alone holds it is off the steered one by how the wrist sits on a two-handed aim
+                        // (10-25 deg: 7-17 cm at 40 cm, over the 15 cm buzz), so its distance counts from a rest that follows a slow
+                        // change (the wrist settling into the aim) but not a pull: down at once, up 5 cm a second. The live line
+                        // still counts too: a hand pulled off the end of the handguard.
+                        float unsteered = Vector3.Distance(off.Palm.position, UnsteeredHandguardPoint(off.Palm.position));
+                        _supportRest = _supportRest < 0f ? unsteered : Mathf.Min(unsteered, _supportRest + 0.05f * Time.unscaledDeltaTime);
+                        stretch = Mathf.Max(Vector3.Distance(off.Palm.position, HandguardPoint(off.Palm.position)), unsteered - _supportRest);
+                    }
                     else
                     {
-                        stretch = Vector3.Distance(off.Palm.position, _held.TwoHanded ? UnsteeredHandguardPoint(off.Palm.position) : HandguardPoint(off.Palm.position));
+                        stretch = Vector3.Distance(off.Palm.position, HandguardPoint(off.Palm.position));
                     }
                     if (!off.GrabHeld || stretch > SupportLetGo)
                     {
