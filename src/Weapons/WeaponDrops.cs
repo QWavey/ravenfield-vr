@@ -156,6 +156,7 @@ namespace RavenfieldVR.Weapons
                     return null;
                 }
                 HideParkedAmmo(entry, template);
+                StripStrays(entry, template);
                 if (_templateRoot == null)
                 {
                     _templateRoot = new GameObject("RavenfieldVR Drop Templates");
@@ -169,6 +170,151 @@ namespace RavenfieldVR.Weapons
             model.SetActive(true);
             return model;
         }
+
+        private static readonly System.Text.RegularExpressions.Regex BeamName =
+            new System.Text.RegularExpressions.Regex(@"beam|(?<![a-z])cone|volumetric|light ?shaft|light ?ray|flare|glow", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Hides in the template what a holstered or dropped copy must not draw: a laser's beam or a light's cone (by name: the
+        /// FNX-45 laser variants' 'laser_beam' reached out of the holster across the view), and a small part standing apart from the
+        /// gun's body, more than 5 cm from the cluster of touching parts grown from the biggest (the FNX-45 RDS's 'Sight (1)' parked
+        /// 27 cm in front stretched the copy's box, which turned and placed it wrongly and hid it from the eyes test: user,
+        /// 2026-10-19 night: "fnx 45 is in front of my view when holding a primary", task 303). Only parts under 40% of the body's
+        /// size: an akimbo pair's second gun, as big as the first, stays (tools/export_checks/stray_parts_rule.py).
+        /// </summary>
+        private static void StripStrays(WeaponManager.WeaponEntry entry, GameObject template)
+        {
+            var parts = new List<Renderer>();
+            var boxes = new List<Bounds>();
+            int beams = 0, strays = 0;
+            foreach (Renderer r in template.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!(r is MeshRenderer || r is SkinnedMeshRenderer) || !r.enabled)
+                {
+                    continue;
+                }
+                if (BeamName.IsMatch(r.name) || r.transform.parent != null && BeamName.IsMatch(r.transform.parent.name))
+                {
+                    r.enabled = false;
+                    beams++;
+                    continue;
+                }
+                Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+                if (mesh == null)
+                {
+                    continue;
+                }
+                // From the mesh's own box (the template may be inactive, and an inactive renderer's bounds are empty).
+                Bounds local = mesh.bounds;
+                Matrix4x4 m = r.transform.localToWorldMatrix;
+                var b = new Bounds(m.MultiplyPoint3x4(local.center), Vector3.zero);
+                for (int c = 0; c < 8; c++)
+                {
+                    b.Encapsulate(m.MultiplyPoint3x4(local.center + Vector3.Scale(local.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1))));
+                }
+                if (b.size.sqrMagnitude < 1e-10f)
+                {
+                    continue; // scaled away (parked ammunition hidden by scale)
+                }
+                parts.Add(r);
+                boxes.Add(b);
+            }
+            if (parts.Count >= 2)
+            {
+                int seed = 0;
+                for (int i = 1; i < boxes.Count; i++)
+                {
+                    Vector3 s = boxes[i].size, best = boxes[seed].size;
+                    if (s.x * s.y * s.z > best.x * best.y * best.z)
+                    {
+                        seed = i;
+                    }
+                }
+                var inBody = new bool[parts.Count];
+                inBody[seed] = true;
+                Bounds body = boxes[seed];
+                for (bool grew = true; grew;)
+                {
+                    grew = false;
+                    for (int i = 0; i < parts.Count; i++)
+                    {
+                        if (inBody[i])
+                        {
+                            continue;
+                        }
+                        for (int j = 0; j < parts.Count; j++)
+                        {
+                            if (inBody[j] && Gap(boxes[i], boxes[j]) <= 0.05f)
+                            {
+                                inBody[i] = grew = true;
+                                body.Encapsulate(boxes[i]);
+                                break;
+                            }
+                        }
+                    }
+                }
+                // The parts apart from the body, in their own clusters of touching parts, each judged whole: an akimbo pair's second
+                // gun is many small parts (the P220 akimbos' twenty) and must stay as one.
+                float bodySize = body.size.magnitude;
+                var group = new int[parts.Count];
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    group[i] = inBody[i] ? 0 : -1;
+                }
+                int groups = 0;
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    if (group[i] != -1)
+                    {
+                        continue;
+                    }
+                    groups++;
+                    group[i] = groups;
+                    Bounds g = boxes[i];
+                    var members = new List<int> { i };
+                    for (bool grew = true; grew;)
+                    {
+                        grew = false;
+                        for (int k = 0; k < parts.Count; k++)
+                        {
+                            if (group[k] != -1)
+                            {
+                                continue;
+                            }
+                            foreach (int m2 in members)
+                            {
+                                if (Gap(boxes[k], boxes[m2]) <= 0.05f)
+                                {
+                                    group[k] = groups;
+                                    members.Add(k);
+                                    g.Encapsulate(boxes[k]);
+                                    grew = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // Small beside the body, or parked far from it (farther than half the body's size: the FNX-45 RDS's sight 27 cm in
+                    // front of a 20 cm pistol) and not as big as it (a second gun is).
+                    float size = g.size.magnitude;
+                    if (size < 0.4f * bodySize || Gap(g, body) > 0.5f * bodySize && size < 0.7f * bodySize)
+                    {
+                        foreach (int m2 in members)
+                        {
+                            parts[m2].enabled = false;
+                            strays++;
+                        }
+                    }
+                }
+            }
+            if (beams + strays > 0)
+            {
+                Log.InfoOnce("strays:" + entry.name, $"{entry.name}: its holstered and dropped copy leaves out {beams} beam(s) and {strays} part(s) parked away from the gun.");
+            }
+        }
+
+        /// <summary>The distance between two boxes (0 when they touch).</summary>
+        private static float Gap(Bounds a, Bounds b) => Vector3.Max(Vector3.zero, Vector3.Max(a.min - b.max, b.min - a.max)).magnitude;
 
         /// <summary>
         /// Hides in the template the parked ammunition the held gun hides (<see cref="WeaponRigData.SparePartPaths"/>, put away
