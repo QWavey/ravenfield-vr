@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 311 (numbered 1-311)
+- Tasks: 312 (numbered 1-312)
 - Done: 153
-- Open: 158, of them code done and waiting for a check in the headset: 91
+- Open: 159, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -489,6 +489,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 309. [ ] A hitch of about half a second, sometimes, when killing someone (user, 2026-10-19 night, playing).
 310. [ ] HK416 family: the magazine still goes in and comes out wrongly, a little through the gun (user, 2026-10-19 night, playing: "look at the animator").
 311. [ ] P320 (and maybe more pistols): the magazine still goes through the grip on the way in; the CZ Bren 2 too, a little ("why didnt you fix it on it?") (user, 2026-10-19 night, playing).
+312. [ ] MG3 (both versions): after opening the cover the old belt is still there and does not go away, and the new one is laid in the wrong place (not where the old belt was) (user, 2026-10-19 night, playing).
 
 ## Notes
 
