@@ -117,7 +117,11 @@ namespace RavenfieldVR.Weapons
             EndGrab(_system.Rig.Off);
         }
 
-        /// <summary>The palm is within the grab radius of the magnifier, and not nearer the gun's foregrip (the foregrip wins there).</summary>
+        /// <summary>
+        /// The palm is within the grab radius of the magnifier, and not nearer the gun's foregrip or its rack point (they win
+        /// there): on an AR the magnifier sits a few centimetres in front of the charging handle, and this grip is taken before
+        /// the reload's, so a hand reaching to rack took the magnifier instead.
+        /// </summary>
         private bool InReach(Vector3 palm)
         {
             Transform part = Part;
@@ -129,7 +133,12 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             WeaponRigData data = _held.Rig.Data;
-            return !data.HasSupportPoint || Vector3.Distance(palm, _held.Rig.ToWorld(data.SupportPoint)) >= d;
+            if (data.HasSupportPoint && Vector3.Distance(palm, _held.Rig.ToWorld(data.SupportPoint)) < d)
+            {
+                return false;
+            }
+            bool racks = _held.Ammo != null && _held.Ammo.Participates && _held.Ammo.UsesChamber;
+            return !racks || Vector3.Distance(palm, _held.Rig.ToWorld(data.RackPoint)) >= d;
         }
 
         private void BeginGrab(VRHand off)

@@ -200,10 +200,10 @@ namespace RavenfieldVR.Weapons
                 {
                     h.Role = HandRole.Free;
                 }
-                // On the handguard, a bolt, a hinge, a belt or an optic, with no weapon drawn: left over from a release that
+                // On the handguard, a bolt, a hinge, a belt, an optic or a magnifier, with no weapon drawn: left over from a release that
                 // did not finish (an exception part way), and the hand took nothing again.
                 else if (Held == null && (h.Role == HandRole.Foregrip || h.Role == HandRole.Slide || h.Role == HandRole.Hinge
-                                          || h.Role == HandRole.Belt || h.Role == HandRole.Optic))
+                                          || h.Role == HandRole.Belt || h.Role == HandRole.Optic || h.Role == HandRole.Magnifier))
                 {
                     h.Role = HandRole.Free;
                     if (!(h.Held is MagazineProp))
