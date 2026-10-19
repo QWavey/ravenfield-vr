@@ -161,34 +161,10 @@ def report_since(game, start):
         return False
 
 
-def start_steamvr(timeout=60):
-    """SteamVR up before the game asks for it. Left to the game, a cold SteamVR on the null driver came up later than the mod
-    waits, and every run's first launch came up without the headset (the second, 30 s later, always worked: check-1018k..n,
-    check-1019a..e). Room setup, which closes the game on a fresh null driver, is closed as it opens."""
-    exe = os.path.join(STEAM, 'steamapps', 'common', 'SteamVR', 'bin', 'win64', 'vrstartup.exe')
-    if not os.path.exists(exe) or running('vrserver.exe'):
-        return
-    subprocess.Popen([exe])
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        if running('steamvr_room_setup.exe'):
-            kill('steamvr_room_setup.exe')
-        if running('vrserver.exe') and running('vrcompositor.exe'):
-            time.sleep(5)  # (its drivers settle; room setup opens in these seconds)
-            if running('steamvr_room_setup.exe'):
-                kill('steamvr_room_setup.exe')
-            log(f'SteamVR up ({time.time() - t0:.0f} s)')
-            return
-        time.sleep(1)
-    log('SteamVR did not come up in time: the game starts it')
-
-
 def run_game(game, args, timeout_min, vr):
     exe = os.path.join(game, 'ravenfield.exe')
     logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
     full = args + ['-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720']
-    if vr:
-        start_steamvr()
     for attempt in range(1, 4):
         start = time.time()
         log(f'starting Ravenfield (attempt {attempt}): {" ".join(args)}')
