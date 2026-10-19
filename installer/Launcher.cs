@@ -459,8 +459,11 @@ namespace RavenfieldVR.Launcher
         /// <summary>VR with a headset there (no window), else what the player picks in the window; null to start nothing.</summary>
         public static PlayMode? Wait(string gameDir)
         {
-            HeadsetCheck.State first = HeadsetCheck.Probe(gameDir);
-            LauncherLog.Write(gameDir, "VR asked for; SteamVR says: " + first);
+            // At most 4 s: a SteamVR that is starting or hung can keep the connection waiting, and pressing Play then looked dead.
+            // Not answered in time, the game tries as it did before this check.
+            var probe = System.Threading.Tasks.Task.Run(() => HeadsetCheck.Probe(gameDir));
+            HeadsetCheck.State first = probe.Wait(TimeSpan.FromSeconds(4)) ? probe.Result : HeadsetCheck.State.Unknown;
+            LauncherLog.Write(gameDir, "VR asked for; SteamVR says: " + first + (probe.IsCompleted ? "" : " (no answer in 4 s)"));
             if (first == HeadsetCheck.State.Ready || first == HeadsetCheck.State.Unknown)
             {
                 return PlayMode.VR;
