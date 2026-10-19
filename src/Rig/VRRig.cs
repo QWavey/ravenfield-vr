@@ -553,7 +553,10 @@ namespace RavenfieldVR.Rig
         private void RoomscaleFollow(FpsActorController player)
         {
             Vector3 hl = HeadLocal + TestHeadOffset;
-            if (!VRConfig.RoomscaleMovement.Value || VRConfig.SeatedMode.Value)
+            // Paused (the in-game menu, the SteamVR dashboard, the headset off: all PauseGame) or a menu open: the head moves
+            // on its own there (a lean, a headset carried about), and the character walked with it while the match was frozen
+            // (only walls stopped it). The head is still tracked, so the first step after the pause starts from where it is.
+            if (!VRConfig.RoomscaleMovement.Value || VRConfig.SeatedMode.Value || GameManager.IsPaused() || GameContext.GameMenuOpen)
             {
                 _lastHeadLocal = hl;
                 _hasLastHeadLocal = true;
@@ -772,8 +775,17 @@ namespace RavenfieldVR.Rig
             if (player != null && (Mode == RigMode.OnFoot || Mode == RigMode.Anchored) && player.fpCamera != null)
             {
                 // Game logic reads the head through the game camera; it also projects the HUD markers, so it takes
-                // the HUD frame's (lazily following) orientation and the markers stay on their targets.
+                // the HUD frame's (lazily following) orientation and the markers stay on their targets. The use ray and the
+                // ladder check take the head's own orientation instead (UseRayHeadAimPatch, LadderHeadAimPatch).
                 player.fpCamera.transform.SetPositionAndRotation(HudPose.position, HudPose.rotation);
+            }
+            try
+            {
+                UpdateBodyShadows(player);
+            }
+            catch (Exception e)
+            {
+                Log.ExceptionOnce("Rig.BodyShadows", e); // the body's drawing must never stop the hands placed below
             }
 
             if (reference != null)
@@ -1027,6 +1039,43 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>The player whose body was switched to shadow only for the view (see <see cref="UpdateBodyShadows"/>).</summary>
+        private FpsActorController _bodyShadowsOwner;
+
+        /// <summary>
+        /// On foot the head sits at the body's eye point, so the body must not be drawn into the view. The game draws it
+        /// (shadows on) for a third-person camera and for an override camera that renders the player (bodycam, cinematic
+        /// shake), and the head camera takes the game camera's layers, the body's among them. The body keeps its shadow, as
+        /// it does in first person. Once the view is off foot or the body is no longer drawn, the game's own rule is put back:
+        /// the override's rendering while one is on, else the first- or third-person state.
+        /// </summary>
+        private void UpdateBodyShadows(FpsActorController player)
+        {
+            bool drawn = player != null && (player.IsUsingOverrideCamera() ? player.cameraRenderOptions.renderPlayerActor : !player.firstPerson);
+            if (Mode == RigMode.OnFoot && drawn)
+            {
+                // Every frame, not once: the game switches the body back to drawn whenever it sets a camera.
+                player.EnableFirstPersonRenderingMode();
+                _bodyShadowsOwner = player;
+                Log.InfoOnce("Rig.BodyShadows", "On foot the body is kept out of the view (the game draws it for a third-person or override camera): shadow only.");
+                return;
+            }
+            FpsActorController owner = _bodyShadowsOwner;
+            _bodyShadowsOwner = null;
+            if (owner == null)
+            {
+                return; // not set, or the player was destroyed with its map (its renderers go with it)
+            }
+            if (owner.IsUsingOverrideCamera() ? owner.cameraRenderOptions.renderPlayerActor : !owner.firstPerson)
+            {
+                owner.EnableThirdPersonRenderingMode();
+            }
+            else
+            {
+                owner.EnableFirstPersonRenderingMode();
+            }
+        }
+
         // ---------------------------------------------------------------------------------------------
         // Fades
         // ---------------------------------------------------------------------------------------------
@@ -1104,6 +1153,71 @@ namespace RavenfieldVR.Rig
             {
                 __instance.vignette.enabled = false;
             }
+        }
+    }
+
+    /// <summary>
+    /// The game's use ray and ladder check read the view from the game camera. On foot that camera carries the HUD frame,
+    /// which trails the head by up to 35 degrees while turning, so the rays went where the head had been. Those checks run
+    /// with the head's own orientation (the position already matches) and the frame is put back after them: the HUD
+    /// markers keep the lazy frame.
+    /// </summary>
+    internal static class HeadAimedChecks
+    {
+        private static bool OnFootHere(FpsActorController player)
+        {
+            VRRig rig = VRRig.Instance;
+            return VRManager.Active && rig != null && rig.Mode == RigMode.OnFoot && player != null && player.fpCamera != null;
+        }
+
+        /// <summary>Turns the game camera to the head for a check; returns the orientation it had (the HUD frame's).</summary>
+        internal static Quaternion Begin(FpsActorController player)
+        {
+            Quaternion frame = Quaternion.identity;
+            if (OnFootHere(player))
+            {
+                Transform cam = player.fpCamera.transform;
+                frame = cam.rotation;
+                cam.rotation = VRRig.Instance.Head.rotation;
+            }
+            return frame;
+        }
+
+        /// <summary>Puts back the orientation <see cref="Begin"/> took.</summary>
+        internal static void End(FpsActorController player, Quaternion frame)
+        {
+            if (OnFootHere(player))
+            {
+                player.fpCamera.transform.rotation = frame;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(FpsActorController), "SampleUseRay")]
+    internal static class UseRayHeadAimPatch
+    {
+        private static void Prefix(FpsActorController __instance, out Quaternion __state)
+        {
+            __state = HeadAimedChecks.Begin(__instance);
+        }
+
+        private static void Postfix(FpsActorController __instance, Quaternion __state)
+        {
+            HeadAimedChecks.End(__instance, __state);
+        }
+    }
+
+    [HarmonyPatch(typeof(FpsActorController), "TryGetOnLadder")]
+    internal static class LadderHeadAimPatch
+    {
+        private static void Prefix(FpsActorController __instance, out Quaternion __state)
+        {
+            __state = HeadAimedChecks.Begin(__instance);
+        }
+
+        private static void Postfix(FpsActorController __instance, Quaternion __state)
+        {
+            HeadAimedChecks.End(__instance, __state);
         }
     }
 }
