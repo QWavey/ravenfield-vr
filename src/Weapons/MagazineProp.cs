@@ -1901,15 +1901,18 @@ namespace RavenfieldVR.Weapons
         private bool OnWellLine(RigidPose seat, Vector3 at, Quaternion rot)
         {
             Vector3 local = seat.InverseTransformPoint(at);
-            if (Vector3.ProjectOnPlane(local, InsertDirLocal).magnitude > 0.045f)
+            // Past the mouth the well is open only to a magazine nearly straight on its line and within its play: turned in it,
+            // its corners went out through a pistol grip's walls, and 4.5 cm aside, the half of it over the seated magazine
+            // was let in and its far side stood in the grip's wall (user, 2026-10-19, the 1911s; task 270; check-1019k: 23-102
+            // points in the wall pushed in from the side). At the mouth it may come in turned and aside, as the rail takes it
+            // on there.
+            float depth = Vector3.Dot(local, InsertDirLocal) + RailLength; // 0: its tip at the well's mouth, RailLength: seated
+            bool past = depth > ReloadInteractions.MouthReach;
+            if (Vector3.ProjectOnPlane(local, InsertDirLocal).magnitude > (past ? WellPlay * 0.75f : 0.045f))
             {
                 return false;
             }
-            // Past the mouth the well is open only to a magazine nearly straight on its line: turned in it (the keep-out tests
-            // points at 80% of its width), its corners went out through a pistol grip's walls (user, 2026-10-19, the 1911s;
-            // task 270). At the mouth it may come in turned, as the rail takes it on there.
-            float depth = Vector3.Dot(local, InsertDirLocal) + RailLength; // 0: its tip at the well's mouth, RailLength: seated
-            return Quaternion.Angle(rot, seat.rotation) < (depth > ReloadInteractions.MouthReach ? InWellTurn : 40f);
+            return Quaternion.Angle(rot, seat.rotation) < (past ? InWellTurn : 40f);
         }
 
         /// <summary>How far a magazine may be turned off its line inside its well, past the mouth (task 270).</summary>
@@ -1982,7 +1985,10 @@ namespace RavenfieldVR.Weapons
                 Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
                 Vector3[] points = rocket ? RocketSamples : Samples;
                 int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : MagRows;
-                float edge = rocket ? 0.5f : 0.8f;
+                // A pistol magazine to its edges: its box is its shape, and at 80% its outer 1.5-3 mm went into a 3-5 mm grip wall
+                // unseen (task 270). Others at 80%: a rifle magazine's box is taken where the hand holds it, and a curved one's
+                // edges along its length would meet the receiver before the magazine does.
+                float edge = rocket ? 0.5f : _pistolGun ? 1f : 0.8f;
                 int n = 0;
                 for (int a = 0; a < along; a++)
                 {
