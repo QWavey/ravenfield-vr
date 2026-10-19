@@ -195,6 +195,10 @@ def run_game(game, args, timeout_min, vr):
                 break
         if flat:
             log('came up without the headset; trying again')
+            try:  # (kept for finding out why: every run's first launch fails, the next one overwrites its log)
+                shutil.copyfile(logfile, os.path.join(REPO, 'reports', 'shots', f'failed-launch-{attempt}.log'))
+            except OSError:
+                pass
             kill('ravenfield.exe')
             time.sleep(8)
             continue
