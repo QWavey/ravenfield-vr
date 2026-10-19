@@ -271,7 +271,6 @@ namespace RavenfieldVR.Setup
             }
 
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-            string backupDir = Path.Combine(game, "RavenfieldVR-backup", stamp);
             var added = new List<string>();
             var replaced = new List<string>();
             var ours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -289,8 +288,25 @@ namespace RavenfieldVR.Setup
                     else if (line == "installedBepInEx=True") previousInstalledBepInEx = true;
                 }
                 _log("Updating the existing install.");
-                Directory.Delete(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR"), true);
+                // The plugin folder is cleared but for the install record: an update that fails part way still leaves the
+                // record of what the install added and replaced, so Uninstall can still put the game back (bug hunt
+                // 2026-10-19: deleted with the folder first, a failed update left no record and Uninstall refused).
+                string pluginDir = Path.Combine(game, @"BepInEx\plugins\RavenfieldVR");
+                foreach (string f in Directory.GetFiles(pluginDir))
+                {
+                    if (!string.Equals(Path.GetFileName(f), Path.GetFileName(ManifestRelative), StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Delete(f);
+                    }
+                }
+                foreach (string dir in Directory.GetDirectories(pluginDir))
+                {
+                    Directory.Delete(dir, true);
+                }
             }
+            // An update backs up into the install's own backup folder: the record names one folder, and a file this update
+            // replaced for the first time went into a new one Uninstall never looked in, so its original was not put back.
+            string backupDir = previousBackup.Length > 0 ? previousBackup : Path.Combine(game, "RavenfieldVR-backup", stamp);
 
             bool installBepInEx = previousInstalledBepInEx || !File.Exists(Path.Combine(game, @"BepInEx\core\BepInEx.dll"));
             using (Stream payload = Assembly.GetExecutingAssembly().GetManifestResourceStream("RavenfieldVR.Setup.payload.zip"))
@@ -315,6 +331,21 @@ namespace RavenfieldVR.Setup
                         continue;
                     }
                     InstallEntry(entry, game, rel, backupDir, ours, added, replaced);
+                }
+            }
+
+            // Files an earlier version added that this one no longer has: they were the install's, so they go (left, they lingered
+            // and dropped out of the record, and Uninstall never removed them).
+            foreach (string old in ours)
+            {
+                if (!added.Contains(old, StringComparer.OrdinalIgnoreCase))
+                {
+                    string path = Path.Combine(game, old);
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                        _log("Removed " + old + " (no longer part of Ravenfield VR).");
+                    }
                 }
             }
 

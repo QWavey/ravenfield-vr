@@ -55,7 +55,13 @@ if (Test-Path $previousManifest) {
     $previousBackup = ($prev | Where-Object { $_ -like 'backup=*' } | Select-Object -First 1) -replace '^backup=', ''
     $previousInstalledBepInEx = $prev -contains 'installedBepInEx=True'
     Write-Step 'Upgrading an existing Ravenfield VR install'
-    Remove-Item (Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR') -Recurse -Force
+    # Cleared but for the install record: an upgrade that fails part way still leaves what the install added and
+    # replaced, so uninstall can put the game back.
+    Get-ChildItem (Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR') -Force |
+        Where-Object { $_.Name -ne 'install-manifest.txt' } | Remove-Item -Recurse -Force
+    # Backed up into the install's own backup folder: the record names one folder, and an original first replaced by an
+    # upgrade went into a new one that uninstall never looked in.
+    if ($previousBackup) { $backupDir = $previousBackup }
 }
 
 function Install-File([string]$relative) {
@@ -121,6 +127,17 @@ foreach ($f in Get-RelativeFiles 'ravenfield_Data') { Install-File $f }
 if (Test-Path (Join-Path $Source 'RavenfieldVR-Launcher.exe')) {
     Write-Step 'Copying the launcher'
     Install-File 'RavenfieldVR-Launcher.exe'
+}
+
+# Files an earlier version added that this one no longer has were the install's: they go.
+foreach ($old in $ours) {
+    if (-not ($added -contains $old)) {
+        $path = Join-Path $GameDir $old
+        if (Test-Path $path -PathType Leaf) {
+            Remove-Item $path -Force
+            Write-Step "Removed $old (no longer part of Ravenfield VR)"
+        }
+    }
 }
 
 # --- record ----------------------------------------------------------------------------------------
