@@ -1976,6 +1976,9 @@ namespace RavenfieldVR.Weapons
 
         private static readonly Regex BeltName = new Regex(@"belt|(^|[^a-z])links?($|[^a-z])|lenta|лента|弹链|chain|ammo ?strip", RegexOptions.IgnoreCase);
 
+        /// <summary>Names a belt with no belt name is never taken for (FindBeltParts' shape rule): the gun's own parts by the box.</summary>
+        private static readonly Regex UnnamedBeltNot = new Regex(@"tray|feed|cover|lid|release|trigger|stock|grip|mag", RegexOptions.IgnoreCase);
+
         /// <summary>
         /// A belt-fed gun (a feed cover) often models the belt between the box and the feed as its own mesh, apart from the
         /// box: it stayed on the gun when the box came out. Belt-named visible parts near the feed tray or the box, not part
@@ -2029,6 +2032,70 @@ namespace RavenfieldVR.Weapons
                 }
                 found.RemoveAll(f => f.IsChildOf(t));
                 found.Add(t);
+            }
+            if (found.Count == 0 && gunBody != null)
+            {
+                // A belt with no belt name: the MG3's '对象010', from the top of the box hanging at its left across the feed tray
+                // into the receiver. It is not part of the box, so it stayed on the gun when the box came out, and the mod laid its
+                // own belt beside it, at a guessed place (user, 2026-10-19 night: "the old magbelt is still there and doesnt
+                // dissapear after opening and the new one places wrongly", task 312). A part touching the box (within 1.5 cm) that
+                // runs across the receiver over the bore's line (4 cm or more across, 15 cm at most along the bore), under the
+                // cover's top, smaller than the box. Over the export it is the MG3's alone (tools/export_checks/belt_part_rule.py).
+                RigidPose gunIdle = sampler.Idle(gunBody);
+                Vector3 across = Vector3.Cross(d.Up, d.AimAxis).normalized;
+                Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+                Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
+                Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
+                Bounds boxBounds = default;
+                bool anyBox = false;
+                foreach (Transform b in box)
+                {
+                    Bounds bb = sampler.GunSpaceBounds(b, gunIdle);
+                    if (bb.size.sqrMagnitude < 1e-8f)
+                    {
+                        continue;
+                    }
+                    if (anyBox)
+                    {
+                        boxBounds.Encapsulate(bb);
+                    }
+                    else
+                    {
+                        boxBounds = bb;
+                        anyBox = true;
+                    }
+                }
+                float coverTop = float.PositiveInfinity;
+                if (hinge != null)
+                {
+                    Bounds cb = sampler.GunSpaceBounds(hinge, gunIdle);
+                    coverTop = Vector3.Dot(cb.center, d.Up) + Vector3.Dot(cb.extents, upAbs);
+                }
+                float boreAcross = Vector3.Dot(d.MuzzlePoint, across);
+                foreach (Transform t in all)
+                {
+                    if (!anyBox || !index.ContainsKey(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !ShownAtIdle(t, sampler)
+                        || UnnamedBeltNot.IsMatch(t.name) || box.Any(b => Related(t, b)) || Related(t, slide) || hinge != null && Related(t, hinge)
+                        || t.GetComponent<Renderer>() == null)
+                    {
+                        continue;
+                    }
+                    Bounds b = sampler.GunSpaceBoundsWhere(t, gunIdle, x => x != t); // its own mesh only
+                    if (b.size.sqrMagnitude < 1e-8f)
+                    {
+                        continue;
+                    }
+                    float gap = Mathf.Sqrt(Gap(b, boxBounds));
+                    float acrossC = Vector3.Dot(b.center, across), acrossE = Vector3.Dot(b.extents, acrossAbs);
+                    bool crosses = acrossC - acrossE <= boreAcross && boreAcross <= acrossC + acrossE;
+                    bool under = Vector3.Dot(b.center, d.Up) + Vector3.Dot(b.extents, upAbs) <= coverTop + 0.005f;
+                    bool shaped = 2f * acrossE >= 0.04f && Vector3.Dot(b.size, aimAbs) <= 0.15f && b.size.magnitude <= 0.8f * boxBounds.size.magnitude;
+                    if (gap <= 0.015f && crosses && under && shaped && !found.Any(f => t.IsChildOf(f)))
+                    {
+                        found.RemoveAll(f => f.IsChildOf(t));
+                        found.Add(t);
+                    }
+                }
             }
             // A belt piece is not also a spare magazine: hidden every frame as a spare, the laid belt never showed (255.I3-3).
             d.SparePartPaths.RemoveAll(p => found.Any(f => Related(f, WeaponRig.Resolve(root, p))));
