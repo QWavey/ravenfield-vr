@@ -650,6 +650,7 @@ namespace RavenfieldVR.Weapons
                 Guarded(d, "charging handle", () => NamedChargingHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 Guarded(d, "static handle", () => ArStaticHandle(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 Guarded(d, "own handle", () => ArOwnHandleNoSlide(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
+                Guarded(d, "bolt carrier", () => ArBoltCarrier(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 Guarded(d, "side knob", () => SideKnobByName(d, all, root, sampler, gunIdle));
                 Guarded(d, "outstanding piece", () => RackOnOutstandingPiece(d, root, sampler, gunIdle));
                 Guarded(d, "slide companions", () => FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle));
@@ -3291,6 +3292,75 @@ namespace RavenfieldVR.Weapons
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
             d.SlideMethod += $" + its own charging handle '{best.name}' (no moving slide: the model's T, moved with the hand)";
             Log.InfoOnce("ownhandle:" + d.Key, $"{d.Key}: its own charging handle '{best.name}' is the handle the hand racks ({bestGap * 100f:0.0} cm from the rack guess); no knob added.");
+        }
+
+        /// <summary>
+        /// An AR with nothing found to move (no slide from the animations, no handle, no bolt): its bolt carrier is still in the
+        /// model, a long narrow part on the bore line behind the magazine well, seen through the ejection port, and it moves
+        /// back as the handle is racked. Without it nothing visible moved on the MWII M4s (the T could not be carved out of
+        /// their receiver; user, headset, 2026-10-18: "the bolt doesn't go back"). Found by its shape: 5-20 cm along the
+        /// aim, at least 2.5 times longer than wide, at most 3.2 cm wide or tall, its middle within 1.5 cm of the bore's
+        /// height and 1 cm of its side, 5-22 cm ahead of the grip, not the magazine or a sight; exactly one, or nothing.
+        /// Checked on the export (2026-10-19): where a bolt was found from motion (24 guns) the shape picked that bolt 6 times
+        /// and nothing else ever; among the guns with nothing to move it finds a part only on the three MWII M4s, their
+        /// '对象003_001' (8.5 cm long, 11.5 cm ahead of the grip, 0.2 cm over the bore; the M4A1's own bolt: 10.6 cm, 16 cm,
+        /// 0.1 cm under).
+        /// </summary>
+        private static void ArBoltCarrier(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
+            Transform gunBody, Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Handgun || d.IsMachineGun || d.Action != ActionType.SelfLoading || d.SlidePath != null || d.HandlePath != null || d.BoltPath != null
+                || !ArPattern.IsMatch(d.Key ?? ""))
+            {
+                return;
+            }
+            Vector3 across = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
+            Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
+            Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
+            Transform magazine = d.MagazinePath != null ? WeaponRig.Resolve(root, d.MagazinePath) : null;
+            Transform best = null;
+            Bounds bestBounds = default;
+            int found = 0;
+            foreach (Transform t in all)
+            {
+                if (!index.TryGetValue(t, out _) || magazine != null && t.IsChildOf(magazine) || UnderOptic(t, gunBody) || MagName.IsMatch(t.name)
+                    || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                float length = Vector3.Dot(b.size, aimAbs), height = Vector3.Dot(b.size, upAbs), width = Vector3.Dot(b.size, acrossAbs);
+                if (length < 0.05f || length > 0.20f || height > 0.032f || width > 0.032f || length < 2.5f * Mathf.Max(height, width))
+                {
+                    continue;
+                }
+                float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
+                float aside = Mathf.Abs(Vector3.Dot(b.center - d.MuzzlePoint, across));
+                float ahead = Vector3.Dot(b.center - d.GripPoint, d.AimAxis);
+                if (Mathf.Abs(above) > 0.015f || aside > 0.01f || ahead < 0.05f || ahead > 0.22f)
+                {
+                    continue;
+                }
+                found++;
+                best = t;
+                bestBounds = b;
+            }
+            if (found != 1)
+            {
+                if (found > 1)
+                {
+                    d.Notes += $"{found} bolt-carrier-shaped parts on the bore line, none taken ";
+                }
+                return;
+            }
+            d.SlidePath = WeaponRig.PathOf(root, best);
+            d.SlideRestLocal = sampler.IdleLocalPosition(best);
+            d.SlideTravel = -d.AimAxis * 0.075f;
+            d.SlideMethod = $"bolt carrier by its shape '{best.name}'";
+            d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
+            Log.InfoOnce("boltcarrier:" + d.Key, $"{d.Key}: its bolt carrier '{best.name}' ({Vector3.Dot(bestBounds.size, aimAbs) * 100f:0.0} cm long, "
+                                                 + $"{Vector3.Dot(bestBounds.center - d.GripPoint, d.AimAxis) * 100f:0.0} cm ahead of the grip) moves back when the gun is racked.");
         }
 
         /// <summary>A part under (or itself) a sight or optic by name, up to the gun body: the K13 ACOG's rear sight 'K13_STGHT1'
