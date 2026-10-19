@@ -181,7 +181,7 @@ if ($Package) {
         "-r:$fx/System.Windows.Forms.dll", "-r:$fx/System.IO.Compression.dll", "-r:$fx/System.IO.Compression.FileSystem.dll",
         "-resource:$zip,RavenfieldVR.Setup.payload.zip",
         "-resource:$(Join-Path $setupObj 'version.txt'),RavenfieldVR.Setup.version.txt",
-        (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs')
+        (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs'), (Join-Path $Root 'installer/SteamPlayEntry.cs')
     )
     Write-Step "Setup: $setupExe"
 }

@@ -1,6 +1,7 @@
 // Ravenfield VR launcher: asks "Play in VR / Play flat" and the VR graphics preset, then starts the game.
 // Installed next to ravenfield.exe. Steam runs it through the game's launch option `"...\RavenfieldVR-Launcher.exe" %command%`,
 // so pressing Play in Steam opens it; it waits for the game so Steam keeps showing Ravenfield as running.
+// The "Ravenfield VR" entry Setup adds to Steam's Play list passes -vr, which starts VR without asking.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,6 +25,11 @@ namespace RavenfieldVR.Launcher
                 var game = GameCommand.FromArgs(args);
                 var settings = LauncherSettings.Load(game.GameDir);
                 bool showAnyway = (Control.ModifierKeys & Keys.Shift) != 0;
+                // Picked in Steam's Play list ("Ravenfield VR" passes -vr): already decided, no need to ask again.
+                if (game.Requested.HasValue && !showAnyway)
+                {
+                    return game.Run(game.Requested.Value, settings.Preset);
+                }
                 if (settings.Remember && !showAnyway)
                 {
                     return game.Run(settings.Mode, settings.Preset);
@@ -50,6 +56,8 @@ namespace RavenfieldVR.Launcher
         public string Exe;
         public string GameDir;
         public List<string> Args = new List<string>();
+        /// <summary>-vr / -novr in the command (Steam's "Ravenfield VR" Play entry passes -vr); null when not given.</summary>
+        public PlayMode? Requested;
 
         public static GameCommand FromArgs(string[] args)
         {
@@ -72,7 +80,15 @@ namespace RavenfieldVR.Launcher
             for (int i = first; i < args.Length; i++)
             {
                 // Our own switches are decided here.
-                if (!args[i].Equals("-vr", StringComparison.OrdinalIgnoreCase) && !args[i].Equals("-novr", StringComparison.OrdinalIgnoreCase))
+                if (args[i].Equals("-vr", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.Requested = PlayMode.VR;
+                }
+                else if (args[i].Equals("-novr", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmd.Requested = PlayMode.Flat;
+                }
+                else
                 {
                     cmd.Args.Add(args[i]);
                 }

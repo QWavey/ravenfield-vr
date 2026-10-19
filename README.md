@@ -21,7 +21,9 @@ What you get:
 2. Run `RavenfieldVR-Setup-1.0.0.exe`. It finds Ravenfield in your Steam libraries (or pick the folder) and installs. Keep "Pressing Play in Steam opens the launcher" ticked: Steam then asks every time you press Play whether to start in VR or on the monitor, and with which graphics preset. If Steam is running, Setup asks to close it for a moment (Steam rewrites its launch options when it exits) and starts it again.
 3. Put on the headset, press Play on Ravenfield in Steam, choose **Play in VR**.
 
-To update, run the newer Setup. To remove the mod, run Setup and press Uninstall: everything it replaced is restored from `Ravenfield/RavenfieldVR-backup/`, and the launcher is taken out of Steam's launch options again (your own launch options stay).
+Setup also adds **Ravenfield VR** to the list Steam shows when you press Play (next to "Ravenfield (No Mods)" and "Ravenfield (Safe Mode)"): pick it to start straight in VR. Steam gets that list from Valve with the game's info, so a Ravenfield update can take the entry away again; run Setup again to put it back.
+
+To update, run the newer Setup. To remove the mod, run Setup and press Uninstall: everything it replaced is restored from `Ravenfield/RavenfieldVR-backup/`, the launcher is taken out of Steam's launch options again (your own launch options stay), and the Ravenfield VR entry leaves Steam's Play list.
 
 No Setup? The release zip has `install.cmd` / `uninstall.cmd` that do the same from PowerShell, without the Steam launch option; start the game with `RavenfieldVR-Launcher.exe` in the game folder instead.
 

@@ -23,7 +23,10 @@ namespace RavenfieldVR.Setup
         /// No arguments: the setup window. Unattended:
         ///   --install [--game DIR] [--no-steam-option]      install or update
         ///   --uninstall [--game DIR] [--keep-settings]      uninstall
+        ///   (--install also adds the "Ravenfield VR" entry to Steam's Play list unless --no-steam-play-entry; --uninstall removes it)
+        ///   --steam-play-entry add|remove                  only that entry, in Steam's cache (Steam closed)
         ///   --steam-option-test FILE --launcher PATH        add then remove the launch option in a copy of a localconfig.vdf
+        ///   --steam-play-test FILE                          add then remove the Play entry in a copy of an appinfo.vdf
         /// Unattended runs log to RavenfieldVR-setup.log next to the exe and return 0 on success.
         /// </summary>
         [STAThread]
@@ -58,6 +61,37 @@ namespace RavenfieldVR.Setup
                     SteamLaunchOption.RemoveFromFile(file, write);
                     write("After remove: " + SteamLaunchOption.Read(file));
                 }
+                else if (Flag("--steam-play-test"))
+                {
+                    string file = Arg("--steam-play-test");
+                    byte[] before = File.ReadAllBytes(file);
+                    write("Before: entry " + Present(SteamPlayEntry.IsPresent(file)));
+                    SteamPlayEntry.Change(file, true, write);
+                    write("After add: entry " + Present(SteamPlayEntry.IsPresent(file)) + ", " + new FileInfo(file).Length + " bytes (was " + before.Length + "); kept as " + file + ".added");
+                    File.Copy(file, file + ".added", true);
+                    SteamPlayEntry.Change(file, false, write);
+                    bool same = File.ReadAllBytes(file).SequenceEqual(before);
+                    write("After remove: entry " + Present(SteamPlayEntry.IsPresent(file)) + ", " + (same ? "byte for byte the file it was" : "NOT the file it was"));
+                    if (!same)
+                    {
+                        throw new InvalidDataException("add + remove did not give back the original file.");
+                    }
+                }
+                else if (Flag("--steam-play-entry"))
+                {
+                    // add | remove, in Steam's own cache (Steam closed).
+                    string what = Arg("--steam-play-entry");
+                    if (what != "add" && what != "remove")
+                    {
+                        throw new ArgumentException("--steam-play-entry takes add or remove.");
+                    }
+                    if (SteamLaunchOption.SteamRunning())
+                    {
+                        throw new InvalidOperationException("Steam is running; close it first.");
+                    }
+                    SteamPlayEntry.Change(SteamPlayEntry.CachePath(), what == "add", write);
+                    write("Entry " + Present(SteamPlayEntry.IsPresent(SteamPlayEntry.CachePath())));
+                }
                 else if (Flag("--install"))
                 {
                     if (!Installer.IsRavenfieldFolder(game))
@@ -65,15 +99,20 @@ namespace RavenfieldVR.Setup
                         throw new InvalidOperationException("Ravenfield folder not found; pass --game DIR.");
                     }
                     installer.Install(game);
-                    if (!Flag("--no-steam-option"))
+                    bool option = !Flag("--no-steam-option"), entry = !Flag("--no-steam-play-entry");
+                    if ((option || entry) && SteamLaunchOption.SteamRunning())
                     {
-                        if (SteamLaunchOption.SteamRunning())
-                        {
-                            write("Steam is running: launch option not changed (close Steam or use the setup window).");
-                        }
-                        else
+                        write("Steam is running: Steam's Play options not changed (close Steam or use the setup window).");
+                    }
+                    else
+                    {
+                        if (option)
                         {
                             SteamLaunchOption.Apply(Path.Combine(game, Installer.LauncherName), write);
+                        }
+                        if (entry)
+                        {
+                            SteamPlayEntry.Apply(write);
                         }
                     }
                 }
@@ -83,10 +122,12 @@ namespace RavenfieldVR.Setup
                     if (!SteamLaunchOption.SteamRunning())
                     {
                         SteamLaunchOption.Remove(write);
+                        SteamPlayEntry.Remove(write);
                     }
                     else
                     {
-                        write("Steam is running: remove the launcher from Ravenfield's launch options yourself.");
+                        write("Steam is running: remove the launcher from Ravenfield's launch options yourself; the \"" + SteamPlayEntry.Description +
+                              "\" Play entry goes with Ravenfield's next update, or run --steam-play-entry remove with Steam closed.");
                     }
                 }
                 else
@@ -103,6 +144,8 @@ namespace RavenfieldVR.Setup
                 return 1;
             }
         }
+
+        private static string Present(bool? present) => present == null ? "unknown (no Ravenfield app info)" : present.Value ? "present" : "absent";
     }
 
     /// <summary>Installs the embedded release into a Ravenfield folder and removes it again.</summary>
@@ -444,6 +487,7 @@ namespace RavenfieldVR.Setup
         private readonly Button _close = new Button();
         private readonly CheckBox _keepSettings = new CheckBox();
         private readonly CheckBox _steamLaunch = new CheckBox();
+        private readonly CheckBox _steamPlay = new CheckBox();
         private readonly LinkLabel _openConfig = new LinkLabel();
         private readonly TextBox _log = new TextBox();
         private readonly Installer _installer;
@@ -480,14 +524,19 @@ namespace RavenfieldVR.Setup
             _steamLaunch.AutoSize = true;
             _steamLaunch.Location = new Point(20, 188);
 
+            _steamPlay.Text = "Add \"" + SteamPlayEntry.Description + "\" to the list Steam shows when you press Play";
+            _steamPlay.Checked = true;
+            _steamPlay.AutoSize = true;
+            _steamPlay.Location = new Point(20, 212);
+
             _keepSettings.Text = "Keep my settings when uninstalling";
             _keepSettings.Checked = true;
             _keepSettings.AutoSize = true;
-            _keepSettings.Location = new Point(20, 214);
+            _keepSettings.Location = new Point(20, 238);
 
             _openConfig.Text = "Open the settings file";
             _openConfig.AutoSize = true;
-            _openConfig.Location = new Point(400, 215);
+            _openConfig.Location = new Point(400, 239);
             _openConfig.LinkClicked += (s, e) => OpenConfig();
 
             _log.Multiline = true;
@@ -495,22 +544,24 @@ namespace RavenfieldVR.Setup
             _log.ScrollBars = ScrollBars.Vertical;
             _log.BackColor = SystemColors.Control;
             _log.Font = new Font("Consolas", 9f);
-            _log.SetBounds(20, 246, 560, 120);
+            _log.SetBounds(20, 270, 560, 96);
 
             _install.SetBounds(20, 378, 150, 34);
             _install.Click += async (s, e) =>
             {
                 string game = _path.Text.Trim();
                 bool ok = await RunAsync(() => _installer.Install(game), "Installing…", null);
-                if (ok && _steamLaunch.Checked)
+                if (ok && (_steamLaunch.Checked || _steamPlay.Checked))
                 {
-                    await SetSteamLaunchOption(game, add: true);
+                    await SetSteamOptions(game, true, _steamLaunch.Checked, _steamPlay.Checked);
                 }
                 if (ok)
                 {
                     Log(_steamLaunch.Checked
-                        ? "Done. Press Play on Ravenfield in Steam and pick VR or flat."
-                        : "Done. Start Ravenfield with RavenfieldVR-Launcher.exe in the game folder, or with SteamVR running.");
+                        ? "Done. Press Play on Ravenfield in Steam and pick " + (_steamPlay.Checked ? "\"" + SteamPlayEntry.Description + "\", or Ravenfield for VR or flat." : "VR or flat.")
+                        : _steamPlay.Checked
+                            ? "Done. Press Play on Ravenfield in Steam and pick \"" + SteamPlayEntry.Description + "\"."
+                            : "Done. Start Ravenfield with RavenfieldVR-Launcher.exe in the game folder, or with SteamVR running.");
                 }
             };
             _uninstall.Text = "Uninstall";
@@ -521,7 +572,7 @@ namespace RavenfieldVR.Setup
                 string game = _path.Text.Trim();
                 if (await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null))
                 {
-                    await SetSteamLaunchOption(game, add: false);
+                    await SetSteamOptions(game, false, true, true);
                 }
             };
             _close.Text = "Close";
@@ -530,7 +581,7 @@ namespace RavenfieldVR.Setup
             AcceptButton = _install;
             CancelButton = _close;
 
-            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _keepSettings, _openConfig, _log, _install, _uninstall, _close });
+            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _steamPlay, _keepSettings, _openConfig, _log, _install, _uninstall, _close });
 
             string found = Installer.FindRavenfield();
             _path.Text = found ?? "";
@@ -601,66 +652,89 @@ namespace RavenfieldVR.Setup
         }
 
         /// <summary>
-        /// Adds or removes the launcher in Ravenfield's Steam launch options. Steam rewrites its config when it exits,
-        /// so it is closed for the change (with permission) and started again; otherwise the user gets the text to paste.
+        /// Adds or removes the launcher in Ravenfield's Steam launch options and the "Ravenfield VR" entry in Steam's
+        /// Play list. Steam writes both files back when it exits, so it is closed for the change (with permission)
+        /// and started again; otherwise the user gets the launch option text to paste.
         /// </summary>
-        private async Task SetSteamLaunchOption(string game, bool add)
+        private async Task SetSteamOptions(string game, bool add, bool launchOption, bool playEntry)
         {
             string launcher = Path.Combine(game, Installer.LauncherName);
             string option = SteamLaunchOption.OptionFor(launcher);
             bool restart = false;
+            void CopyOption()
+            {
+                if (add && launchOption)
+                {
+                    Clipboard.SetText(option);
+                    Log("Copied the launch option to the clipboard: " + option);
+                }
+            }
             if (SteamLaunchOption.SteamRunning())
             {
-                string what = add ? "add the launcher to" : "take the launcher out of";
+                string what = add ? "set up" : "take back out";
                 DialogResult answer = MessageBox.Show(this,
-                    "Steam has to close for a moment to " + what + " Ravenfield's launch options (Steam rewrites them when it exits).\n\n" +
+                    "Steam has to close for a moment to " + what + " Ravenfield's Play options (Steam writes them back when it exits).\n\n" +
                     "Close Steam now? It is started again right after.\n\n" +
-                    (add ? "No: the launch option is copied to the clipboard instead. Paste it in Steam > Ravenfield > Properties > Launch Options."
-                         : "No: remove the launcher part from Steam > Ravenfield > Properties > Launch Options yourself."),
+                    (add ? "No: " + (launchOption ? "the launch option is copied to the clipboard instead. Paste it in Steam > Ravenfield > Properties > Launch Options. " : "") +
+                           (playEntry ? "The \"" + SteamPlayEntry.Description + "\" entry needs Steam closed: run Setup again when Steam is not running." : "")
+                         : "No: remove the launcher part from Steam > Ravenfield > Properties > Launch Options yourself. The \"" + SteamPlayEntry.Description +
+                           "\" entry goes away by itself with Ravenfield's next update, or run Setup again when Steam is not running."),
                     Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (answer != DialogResult.Yes)
                 {
-                    if (add)
-                    {
-                        Clipboard.SetText(option);
-                        Log("Copied the launch option to the clipboard: " + option);
-                    }
+                    CopyOption();
                     return;
                 }
                 Log("Closing Steam…");
                 if (!await Task.Run(() => SteamLaunchOption.ShutdownSteam(TimeSpan.FromSeconds(30))))
                 {
-                    Log("Steam did not close in time; the launch option was not changed.");
-                    if (add)
-                    {
-                        Clipboard.SetText(option);
-                        Log("Copied the launch option to the clipboard: " + option);
-                    }
+                    Log("Steam did not close in time; its Play options were not changed.");
+                    CopyOption();
                     return;
                 }
                 restart = true;
             }
-            try
+            if (launchOption)
             {
-                await Task.Run(() =>
+                try
                 {
-                    if (add)
+                    await Task.Run(() =>
                     {
-                        SteamLaunchOption.Apply(launcher, Log);
-                    }
-                    else
-                    {
-                        SteamLaunchOption.Remove(Log);
-                    }
-                });
+                        if (add)
+                        {
+                            SteamLaunchOption.Apply(launcher, Log);
+                        }
+                        else
+                        {
+                            SteamLaunchOption.Remove(Log);
+                        }
+                    });
+                }
+                catch (Exception e)
+                {
+                    Log("Could not change Steam's launch options: " + e.Message);
+                    CopyOption();
+                }
             }
-            catch (Exception e)
+            if (playEntry)
             {
-                Log("Could not change Steam's launch options: " + e.Message);
-                if (add)
+                try
                 {
-                    Clipboard.SetText(option);
-                    Log("Copied the launch option to the clipboard: " + option);
+                    await Task.Run(() =>
+                    {
+                        if (add)
+                        {
+                            SteamPlayEntry.Apply(Log);
+                        }
+                        else
+                        {
+                            SteamPlayEntry.Remove(Log);
+                        }
+                    });
+                }
+                catch (Exception e)
+                {
+                    Log("Could not change Steam's Play list: " + e.Message);
                 }
             }
             if (restart)
