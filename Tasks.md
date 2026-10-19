@@ -485,7 +485,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 305. [ ] QJB 95 and its drum version: cannot be racked (user, 2026-10-19 night, playing: "maybe hitbox issue").
 306. [ ] Hitting things with held objects (a weapon swung into something) does no damage (user, 2026-10-19 night, playing).
 307. [ ] Some bolts do not go back: not the part pulled to rack, the bolt seen in the ejection port (where the cases come out) (user, 2026-10-19 night, playing; guns not named).
-308. [ ] Picking up a weapon: the weapon given up in exchange spawned on top of the one being picked up and knocked into it; it should drop at the player's feet (user, 2026-10-19 night, playing).
+308. [ ] Picking up a weapon: the weapon given up in exchange spawned on top of the one being picked up and knocked into it; it should drop at the player's feet (user, 2026-10-19 night, playing). Done in code (built): the weapon given up drops at the player's feet, a little to the weapon side and forward, lying across the body (WeaponDrops.PickUp spawned it 10 cm over the picked-up weapon). To check in the headset.
 
 ## Notes
 

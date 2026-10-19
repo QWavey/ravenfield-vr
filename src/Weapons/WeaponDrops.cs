@@ -983,8 +983,14 @@ namespace RavenfieldVR.Weapons
             {
                 // Swap: what you had in that slot goes where the picked-up weapon was. Made first: a weapon without a
                 // model to copy cannot be put down, so nothing is picked up (it was replaced and gone, rounds and all).
-                var pose = new RigidPose(drop.Go.transform.position + Vector3.up * 0.1f, drop.Go.transform.rotation);
-                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.up * 0.5f, RoundsIn(current), Mathf.Max(0, current.spareAmmo));
+                // At the player's feet, lying flat across the body, a little to the side: spawned 10 cm over the weapon being
+                // picked up, it fell onto it and knocked it about while the hand held it (user, 2026-10-19 night, task 308).
+                Vector3 bodyForward = Vector3.ProjectOnPlane(_sys.Rig.Head.forward, Vector3.up);
+                bodyForward = bodyForward.sqrMagnitude > 1e-4f ? bodyForward.normalized : Vector3.forward;
+                Vector3 bodyRight = Vector3.Cross(Vector3.up, bodyForward);
+                Vector3 feet = actor.Position() + Vector3.up * 0.15f + bodyRight * 0.2f + bodyForward * 0.15f;
+                var pose = new RigidPose(feet, Quaternion.LookRotation(bodyRight, Vector3.up));
+                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.down * 0.3f, RoundsIn(current), Mathf.Max(0, current.spareAmmo));
                 if (swapped == null)
                 {
                     hand.Haptic(0.08f, 40f, 0.4f);
