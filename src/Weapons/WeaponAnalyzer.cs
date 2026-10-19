@@ -4035,7 +4035,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The direction a set of points spreads along most, and how much more than across it (ratio of the spreads).</summary>
-        private static bool AxisOf(List<Vector3> points, out Vector3 axisLocal, out float elongation)
+        internal static bool AxisOf(List<Vector3> points, out Vector3 axisLocal, out float elongation)
         {
             axisLocal = Vector3.up;
             elongation = 0f;

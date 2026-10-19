@@ -1795,6 +1795,32 @@ namespace RavenfieldVR.Weapons
             // gun (user: "this happens to some m4 versions too"); along the analysed line the M4A1 [SQUAD]'s skin passes
             // nothing at any depth, 6 degrees off it does.
             List<Vector3> skin = MagazineSkin(seat);
+            // A handgun's magazine is straight: its drawn skin's long axis is its own line. Where the analysis could not read the
+            // magazine's meshes (on the graphics card only) the line was a guess, along the gun hand's knuckles (or the box, or the
+            // reload's pull), and on the P320s it lay 18 degrees off the magazine: half way out its front stood out of the grip's
+            // front face (offline, the export: 115-220 points beside the grip's outline from half way out; along its own axis 5,
+            // at the first centimetre only; user, 2026-10-19 night: "mag still glitches through the handle on the p320", task
+            // 311). The tilt search below counts only points inside the gun's walls, so a magazine standing out of the grip into
+            // the air was never corrected. The skin's axis is taken first, when it is clearly a long shape and clearly off the line.
+            if (d.Handgun && skin != null && MagazineUnreadable() && WeaponAnalyzer.AxisOf(skin, out Vector3 skinAxis, out float skinElongation)
+                && skinElongation >= 2.2f)
+            {
+                // The whole axis, its lean sideways too: the P320's magazine leans 10 degrees across the gun's computed side plane, and
+                // offline its own axis (34 points out of place over the way in) beat the same axis put back into that plane (164).
+                Vector3 axisGun = (d.MagSeat.rotation * skinAxis).normalized;
+                if (Vector3.Dot(axisGun, d.MagEjectAxis) < 0f)
+                {
+                    axisGun = -axisGun;
+                }
+                float skinOff = Vector3.Angle(axisGun, d.MagEjectAxis);
+                if (skinOff > 6f && skinOff < 35f)
+                {
+                    Log.Info($"{d.Key}: magazine line taken from its drawn shape's long axis ({skinOff:0} deg off the analysed line, {skinElongation:0.0} times longer than wide; its meshes could not be read).");
+                    d.Notes += $"magazine line from its drawn shape ({skinOff:0} deg off) ";
+                    d.MagEjectAxis = axisGun;
+                    in0 = -axisGun;
+                }
+            }
             Vector3[] hullDirs = null;
             float[] hullMax = null;
             if (skin != null)
@@ -1913,6 +1939,27 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Info($"{d.Key}: magazine line kept ({before}/{total} magazine points through the gun on the way in, {wellBy}; the best tilt, {bestAngle:0} deg, {best}).");
             }
+        }
+
+        /// <summary>A magazine part whose meshes the game keeps only on the graphics card (the analysis could not read its shape).</summary>
+        private bool MagazineUnreadable()
+        {
+            foreach (Transform part in Rig.MagazineParts)
+            {
+                if (part == null)
+                {
+                    continue;
+                }
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                {
+                    Mesh m = r is SkinnedMeshRenderer smr ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+                    if (m != null && !m.isReadable)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
