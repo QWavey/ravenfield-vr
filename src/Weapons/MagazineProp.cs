@@ -151,6 +151,9 @@ namespace RavenfieldVR.Weapons
         public bool RailOutOnly;
         /// <summary>Insertion travel: how far the prop slides before it seats.</summary>
         public float RailLength { get; private set; }
+
+        /// <summary>A well in the grip deeper than the rail: the rail starts at the grip's bottom (ReloadInteractions, task 270).</summary>
+        internal void RailFromGripBottom(float length) => RailLength = Mathf.Max(RailLength, length);
         public float LastTick;
 
         private MagazineProp(GameObject go, PropKind kind, string key, int rounds, Bounds bounds, Vector3 insertDir, Vector3 front, bool machineGun, string fitKey)
@@ -1895,9 +1898,22 @@ namespace RavenfieldVR.Weapons
         /// than 40 degrees from it. Off the line, the well's opening is solid like the rest of the gun: a PKM's box swept
         /// sideways 13 cm over its seat passed through the receiver, all its points inside the opening's box (check-1017f).
         /// </summary>
-        private bool OnWellLine(RigidPose seat, Vector3 at, Quaternion rot) =>
-            Vector3.ProjectOnPlane(seat.InverseTransformPoint(at), InsertDirLocal).magnitude <= 0.045f
-            && Quaternion.Angle(rot, seat.rotation) < 40f;
+        private bool OnWellLine(RigidPose seat, Vector3 at, Quaternion rot)
+        {
+            Vector3 local = seat.InverseTransformPoint(at);
+            if (Vector3.ProjectOnPlane(local, InsertDirLocal).magnitude > 0.045f)
+            {
+                return false;
+            }
+            // Past the mouth the well is open only to a magazine nearly straight on its line: turned in it (the keep-out tests
+            // points at 80% of its width), its corners went out through a pistol grip's walls (user, 2026-10-19, the 1911s;
+            // task 270). At the mouth it may come in turned, as the rail takes it on there.
+            float depth = Vector3.Dot(local, InsertDirLocal) + RailLength; // 0: its tip at the well's mouth, RailLength: seated
+            return Quaternion.Angle(rot, seat.rotation) < (depth > ReloadInteractions.MouthReach ? InWellTurn : 40f);
+        }
+
+        /// <summary>How far a magazine may be turned off its line inside its well, past the mouth (task 270).</summary>
+        internal const float InWellTurn = 12f;
         /// <summary>How much bigger than the magazine its well is left open (the whole size: half of it a side).</summary>
         internal const float WellPlay = 0.008f;
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];

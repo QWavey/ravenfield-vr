@@ -1809,6 +1809,10 @@ namespace RavenfieldVR.Weapons
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
             RigidPose hold = prop.HoldPose(off);
+            if (!prop.OnRail && prop.Kind == PropKind.Magazine && WellInGrip)
+            {
+                GripWellRail(prop);
+            }
             float along = HandAlongRail(off, prop, out float lateral);
 
             if (!prop.OnRail)
@@ -1825,8 +1829,21 @@ namespace RavenfieldVR.Weapons
                 // Only at the tube's mouth: a rocket goes in at the front, its tail first (user, 2026-10-16); held beside the
                 // tube with its tail level with the middle, it was taken into the tube from the side.
                 bool rocket = prop.Kind == PropKind.Rocket;
-                bool lined = lateral < (grip ? 0.045f : rocket ? 0.06f : 0.035f) && along > (rocket ? -0.03f : -0.005f) && along < (rocket ? RocketTakenIn : prop.RailLength)
-                             && angle < (grip || rocket ? 40f : 35f);
+                // Taken loosely only at the well's mouth, where a magazine goes in (its tip within 2 cm of it). Higher up, off
+                // the line, the magazine is beside the gun: taken there, it slid sideways onto its line through the grip's (or
+                // the receiver's) wall in the 0.08 s switch, and sat in the well (user, 2026-10-19, headset: "the mag goes
+                // through the handle", the 1911s most; task 270). Deeper than the mouth only on the line already (within the
+                // well's play: the keep-out lets it no further) and nearly straight.
+                // Judged where the magazine is drawn, not where the hand is: held back at the mouth by the gun with the hand
+                // pushing on (a fast push passes the mouth's 2 cm in a frame), it is still at the mouth.
+                bool magazine = prop.Kind == PropKind.Magazine;
+                float drawnLateral = lateral;
+                float drawnAlong = magazine && prop.Go != null ? PoseAlongRail(prop, RigidPose.Of(prop.Go.transform), out drawnLateral) : along;
+                bool atMouth = !magazine || drawnAlong < MouthReach + 0.005f;
+                float lateralMax = rocket ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
+                float angleMax = !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
+                bool lined = (magazine ? drawnLateral : lateral) < lateralMax && along > (rocket ? -0.03f : -0.005f) && (rocket ? along < RocketTakenIn : (magazine ? drawnAlong : along) < prop.RailLength)
+                             && angle < angleMax;
                 if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
                 {
                     // A rocket held like a stick (along the fist, either end first) at the launcher's mouth: onto the line
@@ -1842,6 +1859,14 @@ namespace RavenfieldVR.Weapons
                 {
                     prop.OnRail = true;
                     prop.RailDepth = Mathf.Clamp(along, rocket ? -RocketLineAhead : 0f, prop.RailLength);
+                    if (magazine)
+                    {
+                        // On at the depth where it is drawn, the hand's way in counted from there: held back at the mouth it starts
+                        // at the mouth; taken off the line there, at the mouth itself, so it moves onto the line under the well and
+                        // not through its lowest centimetre (task 270).
+                        prop.RailDepth = drawnLateral > MagazineProp.WellPlay * 0.75f ? 0f : Mathf.Clamp(drawnAlong, 0f, prop.RailLength);
+                        prop.RailHandOffset = along - prop.RailDepth;
+                    }
                     prop.LastTick = prop.RailDepth;
                     prop.MovingIn = false;
                     prop.TurnDepth = prop.RailDepth;
@@ -1964,12 +1989,51 @@ namespace RavenfieldVR.Weapons
         /// How far along the well's rail the held prop's tip is (from the rail's mouth; the rail's length = seated), and how
         /// far off the rail's line.
         /// </summary>
-        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral)
+        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral) => PoseAlongRail(prop, prop.HoldPose(off), out lateral);
+
+        /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>
+        private float _gripWellDepth = -1f;
+
+        /// <summary>
+        /// A magazine going into a well in the grip runs on its rail from the grip's bottom: its rail was at most 9 cm, and on
+        /// the 1911s (12.6 cm in the grip seated) it began 3.6 cm up inside the grip, where the magazine was still free, turned
+        /// up to 40 degrees and 4 mm off its line, and showed through the grip's walls on the way in (user, 2026-10-19: "the
+        /// mag goes through the handle", the 1911s most; task 270). Measured once per hold, from the side, as the autotest does.
+        /// </summary>
+        private void GripWellRail(MagazineProp prop)
+        {
+            float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
+            if (_gripWellDepth < 0f && _held.HandsSolid != null)
+            {
+                RigidPose seated = SeatPose;
+                float depth = 0f;
+                for (float s = 0f; s <= length; s += 0.002f)
+                {
+                    if (!_held.InsideGunFromSide(seated.TransformPoint(prop.TipLocal - prop.InsertDirLocal * s)))
+                    {
+                        break;
+                    }
+                    depth = s;
+                }
+                if (depth > 0.01f) // else the gun's side view is not ready yet: measured again next frame
+                {
+                    _gripWellDepth = depth;
+                    Log.InfoOnce("gripwell:" + Data.Key, $"{Data.Key}: the well in the grip is {depth * 100f:0.0} cm deep from the side; a magazine's rail starts at its bottom ({prop.RailLength * 100f:0.0} cm before).");
+                }
+            }
+            if (_gripWellDepth > prop.RailLength)
+            {
+                prop.RailFromGripBottom(Mathf.Min(_gripWellDepth + 0.005f, length));
+            }
+        }
+
+        /// <summary>How far along its rail a prop at <paramref name="pose"/> is (0: its tip at the entry), and how far off it.</summary>
+        private float PoseAlongRail(MagazineProp prop, RigidPose pose, out float lateral)
         {
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
             Vector3 entryTip = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
-            Vector3 rel = prop.HoldPose(off).TransformPoint(prop.TipLocal) - entryTip;
+            Vector3 rel = pose.TransformPoint(prop.TipLocal) - entryTip;
             lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
             return Vector3.Dot(rel, insert);
         }
@@ -1985,6 +2049,12 @@ namespace RavenfieldVR.Weapons
             float angle = Vector3.Angle(prop.HoldPose(off).TransformDirection(prop.InsertDirLocal), SeatPose.TransformDirection(prop.InsertDirLocal));
             return lateral < 0.06f && angle < 40f && along > -0.06f && along < prop.RailLength;
         }
+
+        /// <summary>
+        /// How far into its well (from the entry: its tip at the mouth) a magazine off its line can still be taken onto it. Past
+        /// that it is beside the gun, not under its well (task 270).
+        /// </summary>
+        internal const float MouthReach = 0.015f;
 
         /// <summary>How far the support hand may be pulled from the handguard with the grip closed before it lets go.</summary>
         private const float SupportLetGo = 0.6f;
@@ -3810,9 +3880,16 @@ namespace RavenfieldVR.Weapons
                 lines.Add($"held: {held}; {fresh.SizeText}; {(off.Model != null ? off.Model.CurlsText : "no hand model")}{(fingersOn == 0 ? " (NO FINGER ON THE MAGAZINE)" : "")}");
                 sideShot("mag-4-in-hand", off.PalmCentre, 0.32f);
 
-                // 3. Lined up under the well, half way in on the rail, home.
                 RigidPose holdInRaw = off.Raw.Inverse().Multiply(fresh.HoldPose(off));
                 float length = Vector3.Dot(fresh.TipLocal - fresh.BaseLocal, fresh.InsertDirLocal);
+                if (WellInGrip && _held.HandsSolid != null)
+                {
+                    // 2b. Into the grip from the side and turned (task 270; user, 2026-10-19: "the mag goes through the handle", the
+                    // 1911s most): it must not go into the grip through its walls.
+                    yield return SideEntry(off, fresh, holdInRaw, length, lines, sideShot);
+                }
+
+                // 3. Lined up under the well, half way in on the rail, home.
                 PlaceFreshMag(off, fresh, holdInRaw, 0.03f, 0f, 0.1f);
                 yield return null;
                 yield return null;
@@ -4098,6 +4175,95 @@ namespace RavenfieldVR.Weapons
         /// <paramref name="below"/> under the seated magazine's base (sideways by <paramref name="aside"/>), moving at
         /// <paramref name="speed"/> into the well.
         /// </summary>
+        /// <summary>
+        /// Autotest (task 270): the fresh magazine (the gun empty) (a) held level with the grip at half its rail, 5 cm to the
+        /// side, and brought onto its line from there slowly: it must stay out of the grip, kept out at its wall and not taken
+        /// onto the rail beside it (taken there, it slid in through the wall); (b) turned 25 degrees and pushed up into the
+        /// well from below: taken at the mouth, with none of it through the grip's walls on the way. Then back out under the
+        /// well for the straight reload that follows.
+        /// </summary>
+        private IEnumerator SideEntry(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float length, System.Collections.Generic.List<string> lines,
+                                      System.Action<string, Vector3, float> sideShot)
+        {
+            float halfway = fresh.RailLength - length - fresh.RailLength * 0.5f; // "below" for the tip at half the rail
+            int framesIn = 0, maxIn = 0, maxOut = 0;
+            bool takenBeside = false, shotBeside = false;
+            for (float aside = 0.05f; aside >= 0f && ReferenceEquals(off.Held, fresh) && !Ammo.MagInserted; aside -= 0.2f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+            {
+                PlaceFreshMag(off, fresh, holdInRaw, halfway, aside, 0f);
+                VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                yield return null;
+                if (fresh.Go == null)
+                {
+                    break;
+                }
+                PoseAlongRail(fresh, RigidPose.Of(fresh.Go.transform), out float drawnLateral);
+                takenBeside |= fresh.OnRail && drawnLateral > MagazineProp.WellPlay;
+                int inside = fresh.PointsInsideGun(_held);
+                if (inside > 0)
+                {
+                    framesIn++;
+                    maxIn = Mathf.Max(maxIn, inside);
+                }
+                fresh.ProbeInside(_held, out _, out _, out int outWell);
+                maxOut = Mathf.Max(maxOut, outWell);
+                if (!shotBeside && aside < 0.004f)
+                {
+                    shotBeside = true;
+                    yield return new WaitForEndOfFrame();
+                    sideShot("mag-side-entry", fresh.Go.transform.TransformPoint(Vector3.Lerp(fresh.TipLocal, fresh.BaseLocal, 0.5f)), 0.3f);
+                }
+            }
+            Core.AutoTest.Metric("magazine side entry: points through the grip's walls (probe, at most)", maxOut);
+            lines.Add($"side entry (beside the grip at half depth, onto the line from 5 cm): {(takenBeside ? "TAKEN ONTO THE RAIL BESIDE THE GRIP" : fresh.OnRail ? "taken on the line" : "kept out at the grip's wall")}, "
+                      + $"{framesIn} frame(s) drawn inside (at most {maxIn}/45 points), at most {maxOut} probe points through the walls{(maxOut > 6 ? " (THROUGH THE GRIP)" : "")}");
+            // Out sideways, down under the well, back onto the line below it.
+            for (int k = 0; k < 3; k++)
+            {
+                float[] asides = { 0.06f, 0.06f, 0f };
+                float[] belows = { halfway, 0.06f, 0.06f };
+                PlaceFreshMag(off, fresh, holdInRaw, belows[k], asides[k], 0f);
+                yield return null;
+                yield return null;
+            }
+            if (Ammo.MagInserted || !ReferenceEquals(off.Held, fresh))
+            {
+                yield break;
+            }
+            // (b) Turned 25 degrees, pushed up from under the well until the rail takes it (or 4 cm past the mouth).
+            int tiltOut = 0;
+            bool taken = false;
+            float takenDepth = -1f;
+            float mouthBelow = fresh.RailLength - length; // "below" with the tip at the rail's entry
+            for (float below = 0.04f; below > mouthBelow - 0.04f && ReferenceEquals(off.Held, fresh) && !Ammo.MagInserted; below -= 0.2f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+            {
+                PlaceFreshMag(off, fresh, holdInRaw, below, 0f, 0.2f, 25f);
+                yield return null;
+                if (fresh.Go == null)
+                {
+                    break;
+                }
+                if (!fresh.OnRail)
+                {
+                    fresh.ProbeInside(_held, out _, out _, out int outWell);
+                    tiltOut = Mathf.Max(tiltOut, outWell);
+                }
+                if (fresh.OnRail)
+                {
+                    taken = true;
+                    takenDepth = fresh.RailDepth;
+                    break;
+                }
+            }
+            lines.Add($"turned 25 deg, up from below: {(taken ? $"taken at the mouth ({takenDepth * 100f:0.0} cm in)" : "NOT TAKEN")}, at most {tiltOut} probe points through the walls before{(tiltOut > 6 ? " (THROUGH THE GRIP)" : "")}");
+            // Back down out of the well for the straight reload.
+            for (int k = 0; k < 3; k++)
+            {
+                PlaceFreshMag(off, fresh, holdInRaw, 0.08f, 0f, -0.3f);
+                yield return null;
+            }
+        }
+
         private void PlaceFreshMag(VRHand off, MagazineProp fresh, RigidPose holdInRaw, float below, float aside, float speed, float tilt = 0f)
         {
             RigidPose seat = SeatPose;
