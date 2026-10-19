@@ -520,9 +520,19 @@ namespace RavenfieldVR.Input
 
         private static void UpdateSprint(Actor actor)
         {
+            // The trigger pulled with a weapon drawn ends the sprint: the game lowers the weapon while sprinting and does not fire,
+            // and a toggled sprint stayed on as long as the stick was pushed, so running the gun never shot (user, 2026-10-19
+            // night: "when running I cannot shoot", task 314).
+            bool shooting = actor != null && actor.activeWeapon != null && VRInput.GetHeld(DigitalAction.Fire, VRInput.GunHand) && !SuppressFire;
             if (VRConfig.Sprint.Value == SprintMode.Hold)
             {
-                SprintActive = VRInput.GetHeld(DigitalAction.Sprint);
+                SprintActive = VRInput.GetHeld(DigitalAction.Sprint) && !shooting;
+                return;
+            }
+            if (shooting)
+            {
+                SprintActive = false;
+                _sprintClearsStance = false;
                 return;
             }
             if (VRInput.GetPressed(DigitalAction.Sprint))
