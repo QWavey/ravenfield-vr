@@ -251,6 +251,42 @@ namespace RavenfieldVR.Weapons
         /// <summary>Reading back or measuring failed: the volume never becomes ready (the next request measures again).</summary>
         public bool Failed { get; private set; }
 
+        /// <summary>
+        /// The side view (the first view, along the frame's right: the gun seen from its side): whether a world point lies within
+        /// the gun's silhouette there, and <paramref name="withinThickness"/> whether it also lies between the gun's two sides
+        /// along that view (not out beside a side panel). A magazine point hidden in the well when seated that, on its way in,
+        /// leaves the silhouette stands out of the grip's front or back face into the air; one leaving the thickness pokes out
+        /// through a side (HeldWeapon.FitMagazineLine, task 311).
+        /// </summary>
+        public bool InSideSilhouette(Vector3 world, out bool withinThickness)
+        {
+            withinThickness = false;
+            if (!_ready || _views == null || _views.Length == 0)
+            {
+                return false;
+            }
+            View v = _views[0];
+            if (v.BareNear == null)
+            {
+                return false;
+            }
+            Vector3 q = v.ToView * (_inv * (world - _pos));
+            int i = Mathf.FloorToInt((q.x - v.MinX) / v.Texel);
+            int j = Mathf.FloorToInt((q.y - v.MinY) / v.Texel);
+            if (i < 0 || j < 0 || i >= v.W || j >= v.H)
+            {
+                return false;
+            }
+            int k = j * v.W + i;
+            float a = v.BareNear[k], b = v.BareFar[k];
+            if (a > b)
+            {
+                return false;
+            }
+            withinThickness = q.z >= a - 0.0005f && q.z <= b + 0.0005f;
+            return true;
+        }
+
         private bool Test(Vector3 p, bool grown)
         {
             if (!_ready || !_box.Contains(p))

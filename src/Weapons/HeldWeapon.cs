@@ -1848,6 +1848,22 @@ namespace RavenfieldVR.Weapons
                 }
                 return true;
             }
+            // Which skin points the gun hides with the magazine seated (inside its side silhouette: in the well). Counted only inside
+            // the gun's walls, a line along which the magazine stood out of the grip's front or back face into the air was never
+            // corrected: the P320's, the M4A1's and HK416's (15-18 degrees back toward the trigger guard), the CZ Bren 2's (user,
+            // 2026-10-19 night: "the mag still enters wrongly and leaves wrongly, glitching through the weapon", tasks 310, 311).
+            // A hidden point still above the well's mouth on the way in must stay within the side silhouette and between the gun's
+            // sides, as tools/export_checks/mag_line_scan.py counts it: offline that count is least at the well's own line (the
+            // M4A1 199 points along the analysed line, 4 along the upright one).
+            bool[] hidden = null;
+            if (skin != null)
+            {
+                hidden = new bool[skin.Count];
+                for (int h = 0; h < skin.Count; h++)
+                {
+                    hidden[h] = _volume.InSideSilhouette(seat.TransformPoint(skin[h]), out _);
+                }
+            }
             int Through(Vector3 inGun)
             {
                 Vector3 inLocal = (seatInv * inGun).normalized;
@@ -1857,15 +1873,30 @@ namespace RavenfieldVR.Weapons
                     // hand that brings it up the line), at six depths.
                     float length = Mathf.Abs(Vector3.Dot(mb.size, new Vector3(Mathf.Abs(inLocal.x), Mathf.Abs(inLocal.y), Mathf.Abs(inLocal.z))));
                     int skinHits = 0;
+                    Vector3 outLocal = -inLocal;
+                    float mouth = float.NegativeInfinity; // the deepest a hidden point reaches out along this line: the well's mouth
+                    for (int h = 0; h < skin.Count; h++)
+                    {
+                        if (hidden[h])
+                        {
+                            mouth = Mathf.Max(mouth, Vector3.Dot(skin[h], outLocal));
+                        }
+                    }
                     for (int s = 1; s <= 6; s++)
                     {
                         float back = Mathf.Min(length, 0.15f) * s / 6f;
-                        foreach (Vector3 q in skin)
+                        for (int h = 0; h < skin.Count; h++)
                         {
+                            Vector3 q = skin[h];
                             Vector3 p = q - inLocal * back;
-                            if (!InRestHull(p) && _volume.InsideModel(seat.TransformPoint(p)))
+                            Vector3 w = seat.TransformPoint(p);
+                            if (!InRestHull(p) && _volume.InsideModel(w))
                             {
                                 skinHits++;
+                            }
+                            else if (hidden[h] && Vector3.Dot(q, outLocal) + back <= mouth && (!_volume.InSideSilhouette(w, out bool between) || !between))
+                            {
+                                skinHits++; // still in the well, standing out of the grip's face or through a side
                             }
                         }
                     }
