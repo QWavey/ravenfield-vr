@@ -321,37 +321,16 @@ namespace RavenfieldVR.Weapons
             return size;
         }
 
-        /// <summary>Weapon types whose flash particles were seen to come out at least once, and the shots of the others.</summary>
-        private static readonly HashSet<string> ParticlesSeen = new HashSet<string>();
-        private static readonly Dictionary<string, int> ShotsUnseen = new Dictionary<string, int>();
-
         /// <summary>
-        /// This shot's flash, for the lens: its particles seen to come out, or, on a gun whose particles are never seen to
-        /// (its visible flash comes from particles this check does not count: the [SQUAD] M4s, the MWII M4s, the XM8s, the
-        /// F2000s, the AK-12s, the PPSh drum all logged "its flash particles did not come out on the shot" on every shot
-        /// while the user saw them flash), every shot after the third. A gun whose particles came out even once keeps the
-        /// check (its flash plays by chance). User, 2026-10-19: "the square effect on the lenses doesn't come".
+        /// This shot's flash, for the lens: a gun whose flash plays on every shot (its chance 1) always, as its muzzle flash
+        /// does; one that flashes by chance when its particles are seen to come out. On every-shot guns the particle count
+        /// often did not rise in time (the [SQUAD] M4s, MWII M4s, XM8s, F2000s, AK-12s, the PPSh drum: "its flash particles
+        /// did not come out on the shot", every single shot, while a held burst flashed 18 of 20): single shots got no lens
+        /// flash (user, 2026-10-19: "the square effect on the lenses doesn't come").
         /// </summary>
         private bool FlashCameOut(Weapon w, MuzzleFlashInfo info)
         {
-            string key = w.name;
-            if (ParticlesOut())
-            {
-                ParticlesSeen.Add(key);
-                return true;
-            }
-            if (!info.Particles || ParticlesSeen.Contains(key))
-            {
-                return false;
-            }
-            ShotsUnseen.TryGetValue(key, out int n);
-            ShotsUnseen[key] = ++n;
-            if (n >= 3)
-            {
-                Log.InfoOnce("lensassume:" + key, $"Lens flash for {key}: its flash particles are never seen to come out (3 shots), so every shot flashes.");
-                return true;
-            }
-            return false;
+            return info.Particles && info.Chance >= 0.999f || ParticlesOut();
         }
 
         /// <summary>
