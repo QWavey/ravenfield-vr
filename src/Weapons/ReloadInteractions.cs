@@ -149,7 +149,7 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            if (!VRInput.GetPressed(DigitalAction.Use, off.Side) || Util.GameContext.GameMenuOpen)
+            if (!VRInput.GetPressed(DigitalAction.Use, off.Side) || VRGameInput.GunInputBlocked)
             {
                 return;
             }
@@ -305,7 +305,7 @@ namespace RavenfieldVR.Weapons
                 {
                     MagazineProp.KeepLoadedLook(Rig); // its rocket as it sits loaded: the one from the pouch is drawn with it
                 }
-                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side))
+                if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !VRGameInput.GunInputBlocked)
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);
                     if (!Breaks && !(Ammo.UsesDetachableMag && Ammo.MagInserted && !Ammo.BoxLocked))
@@ -356,7 +356,7 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.05f, 110f, 0.8f);
                     dom.Haptic(0.04f, 110f, 0.5f);
                 }
-                if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked && !_racking)
+                if (VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && Ammo.SlideLocked && !_racking && !VRGameInput.GunInputBlocked)
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
                     // The thumb on the slide or bolt release: the gun hand's on a pistol, the support hand's on the gun otherwise.
@@ -365,7 +365,7 @@ namespace RavenfieldVR.Weapons
                     ReleaseSlide();
                 }
                 else if (VRConfig.TriggerReleasesSlide.Value && Ammo.SlideLocked && !_racking && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
-                         && !Util.GameContext.GameMenuOpen && Ammo.FeedReady && Ammo.MagRounds > 0)
+                         && !VRGameInput.GunInputBlocked && Ammo.FeedReady && Ammo.MagRounds > 0)
                 {
                     // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it chambers a
                     // round from a loaded magazine. With none to chamber, the slide stays back (AmmoState.RackForward), so this
@@ -383,8 +383,7 @@ namespace RavenfieldVR.Weapons
             // Parked on the under-barrel launcher (its trigger let go, the launcher empty or reloading) and the gun's trigger pulled:
             // the rifle is wanted. The pull does not fire the launcher meanwhile (SuppressFire), and the rifle fires on the held
             // trigger as soon as it is the active weapon (user, 2026-10-18 evening). Not in a menu, nor with the laser on a panel.
-            bool gunTriggerWanted = VRInput.GetHeld(DigitalAction.Fire, dom.Side) && !Util.GameContext.GameMenuOpen
-                                    && !(VRGameInput.PanelOpen && VRGameInput.PointerOverUI);
+            bool gunTriggerWanted = VRInput.GetHeld(DigitalAction.Fire, dom.Side) && !VRGameInput.GunInputBlocked;
             if (gunTriggerWanted && !_launcherReturn.HasValue && !_launcherFrom.HasValue && VRInput.GetPressed(DigitalAction.Fire, dom.Side))
             {
                 // Drawn again after a holster with the launcher still selected and empty: the parking went with the held weapon it

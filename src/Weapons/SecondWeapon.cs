@@ -110,7 +110,7 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !Util.GameContext.GameMenuOpen;
+            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !VRGameInput.GunInputBlocked;
             if (IsThrowable)
             {
                 UpdateThrowable(held);
