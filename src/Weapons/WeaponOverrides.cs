@@ -164,7 +164,9 @@ namespace RavenfieldVR.Weapons
                 }
                 if (o.slideTravel > 0f)
                 {
-                    d.SlideTravel = d.SlideTravel.normalized * o.slideTravel;
+                    // Along the analysed stroke; back along the bore when none was measured (a zero stroke kept the override at 0).
+                    Vector3 stroke = d.SlideTravel.sqrMagnitude > 1e-8f ? d.SlideTravel.normalized : -d.AimAxis.normalized;
+                    d.SlideTravel = stroke * o.slideTravel;
                 }
                 bool? lockOnEmpty = Flag(o.lockOnEmpty, o.match, "lockOnEmpty");
                 if (lockOnEmpty.HasValue)
