@@ -5,9 +5,9 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-19, evening)
 
-- Tasks: 309 (numbered 1-309)
+- Tasks: 310 (numbered 1-310)
 - Done: 153
-- Open: 156, of them code done and waiting for a check in the headset: 91
+- Open: 157, of them code done and waiting for a check in the headset: 91
 - The user's headset tests of 2026-10-18/19: tasks 257-278 (parked ammo, rack rules, the sandbox gizmos, the magazine items,
   the Haiku passes, performance, slide catch, full auto, RPG shake and hands, second weapon, floating spares, MWII M4 handles,
   magazine lines, the M4A1 sights, the launcher, slow motion, MG3 belt, shadow, support in place, lens flash).
@@ -487,6 +487,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 307. [ ] Some bolts do not go back: not the part pulled to rack, the bolt seen in the ejection port (where the cases come out) (user, 2026-10-19 night, playing; guns not named).
 308. [ ] Picking up a weapon: the weapon given up in exchange spawned on top of the one being picked up and knocked into it; it should drop at the player's feet (user, 2026-10-19 night, playing). Done in code (built): the weapon given up drops at the player's feet, a little to the weapon side and forward, lying across the body (WeaponDrops.PickUp spawned it 10 cm over the picked-up weapon). To check in the headset.
 309. [ ] A hitch of about half a second, sometimes, when killing someone (user, 2026-10-19 night, playing).
+310. [ ] HK416 family: the magazine still goes in and comes out wrongly, a little through the gun (user, 2026-10-19 night, playing: "look at the animator").
 
 ## Notes
 
