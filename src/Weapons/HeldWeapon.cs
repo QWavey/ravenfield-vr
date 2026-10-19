@@ -1802,23 +1802,25 @@ namespace RavenfieldVR.Weapons
             // at the first centimetre only; user, 2026-10-19 night: "mag still glitches through the handle on the p320", task
             // 311). The tilt search below counts only points inside the gun's walls, so a magazine standing out of the grip into
             // the air was never corrected. The skin's axis is taken first, when it is clearly a long shape and clearly off the line.
-            if (d.Handgun && skin != null && MagazineUnreadable() && WeaponAnalyzer.AxisOf(skin, out Vector3 skinAxis, out float skinElongation)
-                && skinElongation >= 2.2f)
+            // The candidate only here; it is taken below, once both lines are counted, when it is clearly better (offline: the GLOCK
+            // 43X 948 points out of place along its analysed line, 1 along its skin's; the P320 587 and 216; but the MWII G17s 16
+            // and 52: their analysed line was the better one).
+            Vector3 skinLine = Vector3.zero;
+            float skinOff = 0f, skinElongation = 0f;
+            if (d.Handgun && skin != null && MagazineUnreadable() && WeaponAnalyzer.AxisOf(skin, out Vector3 skinAxis, out skinElongation)
+                && skinElongation >= 2.0f)
             {
                 // The whole axis, its lean sideways too: the P320's magazine leans 10 degrees across the gun's computed side plane, and
-                // offline its own axis (34 points out of place over the way in) beat the same axis put back into that plane (164).
+                // offline its own axis beat the same axis put back into that plane (34 points out of place against 164).
                 Vector3 axisGun = (d.MagSeat.rotation * skinAxis).normalized;
                 if (Vector3.Dot(axisGun, d.MagEjectAxis) < 0f)
                 {
                     axisGun = -axisGun;
                 }
-                float skinOff = Vector3.Angle(axisGun, d.MagEjectAxis);
-                if (skinOff > 6f && skinOff < 35f)
+                skinOff = Vector3.Angle(axisGun, d.MagEjectAxis);
+                if (skinOff > 4f && skinOff < 35f)
                 {
-                    Log.Info($"{d.Key}: magazine line taken from its drawn shape's long axis ({skinOff:0} deg off the analysed line, {skinElongation:0.0} times longer than wide; its meshes could not be read).");
-                    d.Notes += $"magazine line from its drawn shape ({skinOff:0} deg off) ";
-                    d.MagEjectAxis = axisGun;
-                    in0 = -axisGun;
+                    skinLine = axisGun;
                 }
             }
             Vector3[] hullDirs = null;
@@ -1919,6 +1921,17 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 return hits;
+            }
+            if (skinLine.sqrMagnitude > 0.5f)
+            {
+                int alongAnalysed = Through(in0), alongSkin = Through(-skinLine);
+                if (alongSkin <= alongAnalysed * 0.6f && alongAnalysed - alongSkin >= 6)
+                {
+                    Log.Info($"{d.Key}: magazine line taken from its drawn shape's long axis ({skinOff:0} deg off the analysed line, {skinElongation:0.0} times longer than wide; its meshes could not be read): {alongAnalysed} points out of place on the way in, now {alongSkin}.");
+                    d.Notes += $"magazine line from its drawn shape ({skinOff:0} deg off) ";
+                    d.MagEjectAxis = skinLine;
+                    in0 = -skinLine;
+                }
             }
             int before = Through(in0), best = before;
             float bestAngle = 0f;
