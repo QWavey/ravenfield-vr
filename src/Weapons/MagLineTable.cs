@@ -26,6 +26,14 @@ namespace RavenfieldVR.Weapons
             { "GLOCK 43X#G43X", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X_G43X: 948 -> 0 points out of place
             { "GLOCK 43X-S [FA]#G43X-S FA", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X-S__FA__G43X-S_FA: 803 -> 0 points out of place
             { "GLOCK 43X-S#G43X-S", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X-S_G43X-S: 948 -> 0 points out of place
+            { "HK416 S#HK416 S", new Vector2(7.5f, 0.0f) }, // HK416_S_HK416_S: 445 -> 240 points out of place
+            { "HK416#HK416", new Vector2(7.5f, 0.0f) }, // HK416_HK416: 445 -> 240 points out of place
+            { "HK416-A#HK416-A", new Vector2(7.5f, 0.0f) }, // HK416-A_HK416-A: 445 -> 240 points out of place
+            { "HK416-A/S#HK416-A_S", new Vector2(7.5f, 0.0f) }, // HK416-A_S_HK416-A_S: 445 -> 240 points out of place
+            { "HK416-B#HK416-B", new Vector2(7.5f, 0.0f) }, // HK416-B_HK416-B: 440 -> 235 points out of place
+            { "HK416-B/S#HK416-B_S", new Vector2(7.5f, 0.0f) }, // HK416-B_S_HK416-B_S: 440 -> 235 points out of place
+            { "HK416-E#HK416-E", new Vector2(7.5f, 0.0f) }, // HK416-E_HK416-E: 441 -> 235 points out of place
+            { "HK416-E/S#HK416-E_S", new Vector2(7.5f, 0.0f) }, // HK416-E_S_HK416-E_S: 441 -> 235 points out of place
             { "M4A1 ACOG#m4 acog", new Vector2(10.5f, 0.0f) }, // M4A1_ACOG_m4_acog: 200 -> 4 points out of place
             { "M4A1 CCO FT#m4 cco FT", new Vector2(6.0f, 0.0f) }, // M4A1_CCO_FT_m4_cco_FT: 63 -> 2 points out of place
             { "M4A1 CCO#m4 cco", new Vector2(6.0f, 0.0f) }, // M4A1_CCO_m4_cco: 63 -> 2 points out of place

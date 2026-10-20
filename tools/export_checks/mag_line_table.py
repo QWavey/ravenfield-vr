@@ -33,7 +33,7 @@ for path in sys.argv[1:]:
             # On the cap itself only when a picture (mag_line_draw.py) showed it right: pinned there, the line is usually the same
             # artifact pushing further out (the HK416-D's and F2000's slid through the receiver and the stock, 2026-10-20).
             at_cap = abs(fore) >= 17.9 or abs(side) >= 5.9
-            if (fore or side) and (not at_cap or cur in CHECKED) and best <= analysed * 0.5 and analysed - best >= 15:
+            if (fore or side) and (not at_cap or cur in CHECKED) and best <= analysed * 0.55 and analysed - best >= 15:
                 rig = json.load(open(os.path.join(DATA, cur, 'rig.json'), encoding='utf-8'))
                 rows[rig['key']] = (fore, side, analysed, best, cur)
             cur = None
@@ -47,7 +47,7 @@ for path in sys.argv[1:]:
             # A best on the search's edge is not taken: the line may lie further out, or the count only falls because a steep
             # line lets points out of the band it counts (the QBZ192's). A wide scan (mag_line_wide.py) marks its own edge.
             edge = '(edge)' in line if wide else abs(fore) >= 17.9 or abs(side) >= 7.4
-            if (fore or side) and not edge and best <= analysed * 0.5 and analysed - best >= 15:
+            if (fore or side) and not edge and best <= analysed * 0.55 and analysed - best >= 15:
                 rig = json.load(open(os.path.join(DATA, cur, 'rig.json'), encoding='utf-8'))
                 rows[rig['key']] = (fore, side, analysed, best, cur)
             cur = None
