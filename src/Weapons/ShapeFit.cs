@@ -79,6 +79,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Keeps <paramref name="pieces"/> under <paramref name="key"/> (fitted elsewhere, from <see cref="Gather"/>'s points).</summary>
         internal static void Store(string key, Piece[] pieces) => Cache[key] = pieces;
 
+        /// <summary>Forgets the pieces kept under <paramref name="key"/> (autotest).</summary>
+        internal static void Forget(string key) => Cache.Remove(key);
+
         /// <summary>
         /// The points <see cref="Fit"/> would fit, in the space <paramref name="frameFromWorld"/> maps into, copied out for a fit on a
         /// worker thread (<see cref="FitCloud"/>). Main thread: it reads the meshes.

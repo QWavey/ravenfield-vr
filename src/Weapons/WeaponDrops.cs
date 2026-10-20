@@ -821,6 +821,20 @@ namespace RavenfieldVR.Weapons
             return scaled;
         }
 
+        /// <summary>
+        /// Autotest: forgets the shape fitted for this type's unit-scale drops, so its next drop takes the path of a type the warm-up
+        /// has not reached (a box, then the shape fitted after the frame; task 309). False when its drops use a rendered shape.
+        /// </summary>
+        internal static bool ForgetFittedShape(WeaponManager.WeaponEntry entry)
+        {
+            if (entry == null || RenderedShapes.ContainsKey(entry))
+            {
+                return false;
+            }
+            ShapeFit.Forget("drop:" + CacheNameOf(entry) + "@1.00");
+            return true;
+        }
+
         /// <summary>Self-test: drops of this type use the shape fitted to the rendered model.</summary>
         internal static bool UsesRenderedShape(WeaponManager.WeaponEntry entry) => RenderedShapes.ContainsKey(entry);
 

@@ -2939,6 +2939,41 @@ namespace RavenfieldVR.Core
                 Metric("dropped weapon: cm moved by a body walking through it", moved * 100f);
                 lines.Add($"a soldier walking through a lying {target.Entry.name}: {(moved < 0f ? "gone" : moved > 0.15f ? $"PUSHED {moved * 100f:0} cm" : $"stayed ({moved * 100f:0.0} cm)")}");
             }
+            // A type whose dropped shape was never fitted, as in a match started before the warm-up reached it (task 309): it is
+            // not fitted on the death frame any more; it lies on a box and gets its own shape a moment later, fitted on a worker.
+            WeaponManager.WeaponEntry cold = drops.Count > 0 ? drops[0].Entry : null;
+            if (cold != null && WeaponDrops.ForgetFittedShape(cold)
+                && Physics.Raycast(actor.Position() + fwd * 1.2f + Vector3.up * 1.5f, Vector3.down, out RaycastHit coldHit, 5f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                DroppedWeapon c = sys.Drops.Spawn(cold, new Runtime.RigidPose(coldHit.point + Vector3.up * 0.25f, Quaternion.LookRotation(Vector3.Cross(Vector3.up, fwd), Vector3.up)), Vector3.one, Vector3.zero, -1, -1);
+                float spawnMs = (float)watch.Elapsed.TotalMilliseconds;
+                if (c != null)
+                {
+                    bool late = c.LateFitKey != null;
+                    float started = Time.realtimeSinceStartup;
+                    while (c.LateFitKey != null && c.Go != null && Time.realtimeSinceStartup - started < 3f)
+                    {
+                        yield return null;
+                    }
+                    float took = Time.realtimeSinceStartup - started;
+                    Metric("cold weapon drop: ms on its frame", spawnMs);
+                    string line = !late
+                        ? $"a drop of {cold.name} with its fitted shape forgotten: fitted at once ({spawnMs:0} ms), NOT on the late path"
+                        : c.LateFitKey == null
+                            ? $"a drop of {cold.name} with its fitted shape forgotten: {spawnMs:0} ms on its frame, on a box for {took:0.00} s, then its own shape ({c.Colliders.Count} pieces)"
+                            : $"a drop of {cold.name} with its fitted shape forgotten: {spawnMs:0} ms on its frame, STILL ON ITS BOX after 3 s";
+                    if (!late || c.LateFitKey != null)
+                    {
+                        Problem(line);
+                    }
+                    lines.Add(line);
+                    if (c.Go != null)
+                    {
+                        UnityEngine.Object.Destroy(c.Go);
+                    }
+                }
+            }
             foreach (string l in lines)
             {
                 report(l);
