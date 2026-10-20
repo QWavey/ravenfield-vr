@@ -613,6 +613,13 @@ namespace RavenfieldVR.Weapons
                 MeasureBlade(held.Rig, out _bladeDir, out _bladeLength);
                 _hasLast = false;
             }
+            if (!_sys.Rig.Dominant.Tracked)
+            {
+                // Tracking lost: the frame it comes back the hand's jump to where it is is no swing (up to 1.4 m in a frame read
+                // as a fast one and cut along the jump; throw hunt, 2026-10-20). That frame only takes the pose.
+                _hasLast = false;
+                return;
+            }
             WeaponRig rig = held.Rig;
             Vector3 basePoint = rig.ToWorld(rig.Data.GripPoint + _bladeDir * Mathf.Min(0.08f, _bladeLength * 0.3f));
             Vector3 tip = rig.ToWorld(rig.Data.GripPoint + _bladeDir * _bladeLength);
@@ -778,6 +785,11 @@ namespace RavenfieldVR.Weapons
             {
                 _bashWeapon = w;
                 _bashHas = false;
+            }
+            if (!_sys.Rig.Dominant.Tracked)
+            {
+                _bashHas = false; // as the blade: the jump back into tracking is no bash
+                return;
             }
             WeaponRigData d = rig.Data;
             Vector3 muzzle = rig.ToWorld(d.MuzzlePoint);
