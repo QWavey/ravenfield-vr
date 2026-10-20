@@ -305,6 +305,50 @@ namespace RavenfieldVR.Input
         private static int _diagFrames;
         private static float _diagWindowStart;
 
+        private static readonly Compositor_FrameTiming[] Timings = new Compositor_FrameTiming[64];
+
+        /// <summary>
+        /// The compositor's view of the last frames: the GPU's time per frame (the game's cameras and the mod's, both eyes) against
+        /// the time between frames. Near equal, the frame rate is the GPU's (the graphics preset is what to lower); well under, it
+        /// is the CPU's (the battle's soldiers, the mod's main-thread work). In play the log showed 31-46 fps and nothing to
+        /// tell which (task 322).
+        /// </summary>
+        private static void AppendGpuTiming(StringBuilder sb)
+        {
+            try
+            {
+                CVRCompositor comp = OpenVR.Compositor;
+                if (comp == null)
+                {
+                    return;
+                }
+                Timings[0].m_nSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Compositor_FrameTiming));
+                uint n = comp.GetFrameTimings(Timings);
+                float gpu = 0f, interval = 0f;
+                int timed = 0, reprojected = 0;
+                uint dropped = 0;
+                for (int i = 0; i < n && i < Timings.Length; i++)
+                {
+                    if (Timings[i].m_flTotalRenderGpuMs > 0f)
+                    {
+                        gpu += Timings[i].m_flTotalRenderGpuMs;
+                        interval += Timings[i].m_flClientFrameIntervalMs;
+                        timed++;
+                    }
+                    reprojected += Timings[i].m_nReprojectionFlags != 0 ? 1 : 0;
+                    dropped += Timings[i].m_nNumDroppedFrames;
+                }
+                if (timed > 0)
+                {
+                    sb.Append($", gpu {gpu / timed:0.0} ms of {interval / timed:0.0} ms a frame ({n} frames, {reprojected} reprojected, {dropped} dropped)");
+                }
+            }
+            catch (Exception)
+            {
+                // no compositor timing (flat mode, an old runtime)
+            }
+        }
+
         private static void Diagnose(CVRInput input, EVRInputError updateError)
         {
             float now = Time.unscaledTime;
@@ -318,6 +362,7 @@ namespace RavenfieldVR.Input
             sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart):0} fps");
             _diagFrames = 0;
             _diagWindowStart = now;
+            AppendGpuTiming(sb);
             Rig.VRRig rig = Rig.VRRig.Instance;
             if (rig != null && rig.Camera != null)
             {
