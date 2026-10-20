@@ -3294,6 +3294,17 @@ namespace RavenfieldVR.Weapons
             // The physics stand-in first: whatever throws below, it must not be left at the gun's last pose, where dropped weapons
             // and magazines would bounce off an invisible gun-shaped box (it is DontDestroyOnLoad).
             _gunCollider?.Destroy();
+            // The lenses and the round counter too (their objects have no parent): last, a step below that threw left them behind
+            // (lifecycle hunt, 2026-10-20).
+            _scope?.Destroy();
+            if (_modeScopes != null)
+            {
+                foreach (VRScope s in _modeScopes)
+                {
+                    s?.Destroy();
+                }
+            }
+            _counter.Destroy();
             // The hands next: whatever fails below, no glove may stay closed on a weapon that is gone.
             if (_system.Rig.Dominant.Model != null)
             {
@@ -3405,15 +3416,6 @@ namespace RavenfieldVR.Weapons
                     r.enabled = true;
                 }
             }
-            _scope?.Destroy();
-            if (_modeScopes != null)
-            {
-                foreach (VRScope s in _modeScopes)
-                {
-                    s?.Destroy();
-                }
-            }
-            _counter.Destroy();
             DestroyDebug();
             TwoHanded = false;
             VRHand main = _system.Rig.Dominant;
