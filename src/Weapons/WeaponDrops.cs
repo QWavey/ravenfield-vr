@@ -948,14 +948,19 @@ namespace RavenfieldVR.Weapons
                     _lateBaking = null;
                     ShapeFit.Store(fit.Key, fit.Pieces);
                     LateFitsUnderway.Remove(fit.Key);
-                    if (fit.Pieces.Length > 0)
+                    foreach (DroppedWeapon d in _drops)
                     {
-                        foreach (DroppedWeapon d in _drops)
+                        if (d.LateFitKey != fit.Key)
                         {
-                            if (d.LateFitKey == fit.Key)
-                            {
-                                SwapShape(d, fit.Pieces);
-                            }
+                            continue;
+                        }
+                        if (fit.Pieces.Length > 0)
+                        {
+                            SwapShape(d, fit.Pieces);
+                        }
+                        else
+                        {
+                            d.LateFitKey = null; // nothing to fit: its box is its shape, as a drop of it made from now on gets
                         }
                     }
                 }
