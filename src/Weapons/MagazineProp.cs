@@ -96,6 +96,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>The pieces' bounds in prop space, for distances while the colliders are off (Unity reports an empty box then).</summary>
         private Bounds[] _pieceBounds;
         private float _dropTime = -1f;
+        /// <summary>How fast it was let go, and by which path (the flung-magazine log line; task 315).</summary>
+        private float _dropSpeed;
+        private string _dropBy;
+        private bool _flungLogged;
+        private static int _flungLines;
+        private static readonly Collider[] FlungNear = new Collider[8];
 
         /// <summary>Locked onto the weapon's insertion axis (sliding in or out of the well).</summary>
         public bool OnRail
@@ -2313,6 +2319,9 @@ namespace RavenfieldVR.Weapons
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
+            _dropSpeed = velocity.magnitude;
+            _dropBy = by;
+            _flungLogged = false;
             // The newest drop goes last: the cap on lying props counts from the end, so a magazine picked up and dropped
             // again counts as new (counted by when it was made, it vanished at the feet the moment it was let go).
             if (Alive.Remove(this))
@@ -2456,6 +2465,7 @@ namespace RavenfieldVR.Weapons
                     p.Despawn();
                     continue;
                 }
+                p.LogIfFlung();
                 // Lying in the world, bodies do not push it about (a magazine on the ground stays where it fell).
                 if (Time.time >= p._nextBodyCheck)
                 {
@@ -2473,6 +2483,40 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// A magazine flying off much faster than it was let go, in its first seconds on its own: pushed out of something it was
+        /// let go inside (the gun's stand-in, a hand, a body), the "mags flying around" the user saw on pistols (2026-10-20, task
+        /// 315). Logged once per drop, with what it was let go by and what is around it, at most 20 times a session.
+        /// </summary>
+        private void LogIfFlung()
+        {
+            if (_flungLogged || _flungLines >= 20 || _body == null || _body.isKinematic || Time.time - _dropTime > 3f)
+            {
+                return;
+            }
+            float speed = _body.velocity.magnitude;
+            if (speed < 6f || speed < _dropSpeed + 3f)
+            {
+                return;
+            }
+            _flungLogged = true;
+            _flungLines++;
+            Vector3 at = Go.transform.position;
+            int n = Physics.OverlapSphereNonAlloc(at, 0.15f, FlungNear, ~0, QueryTriggerInteraction.Ignore);
+            var near = new System.Text.StringBuilder();
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = FlungNear[i];
+                if (c == null || System.Array.IndexOf(_colliders, c) >= 0)
+                {
+                    continue;
+                }
+                near.Append(near.Length > 0 ? ", " : "").Append(c.name).Append(" (layer ").Append(c.gameObject.layer).Append(')');
+            }
+            Log.Info($"Magazine of {WeaponKey} flung: {speed:0.0} m/s {Time.time - _dropTime:0.00} s after it was let go at {_dropSpeed:0.0} m/s by {_dropBy}; "
+                     + $"near it: {(near.Length > 0 ? near.ToString() : "nothing")}.");
         }
 
         public static void DestroyAll()
