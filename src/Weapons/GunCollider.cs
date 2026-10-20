@@ -773,6 +773,7 @@ namespace RavenfieldVR.Weapons
                 }
                 _body.detectCollisions = _enabled;
                 _placed = false; // back on foot: jump to the gun instead of sweeping there
+                _snapJumped = true; // and props still inside it pass through until clear (their passing was just forgotten)
                 // Switching the pieces off made Unity forget every ignored pair: resting props are judged again from scratch
                 // (they were still marked ignored and got shoved), and nothing is passing through any more.
                 _restIgnored.Clear();
