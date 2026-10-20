@@ -120,6 +120,12 @@ namespace RavenfieldVR.Weapons
         {
             _shots.Add(Time.unscaledTime); // every shot counts for the glow's rate, two in one frame too
             ShotsSeen++;
+            // The other gun's shot still undecided (the drawn gun and the free hand's second weapon firing in one frame): kept aside
+            // and decided after this one, not overwritten (only the last shot flashed; review, 2026-10-20).
+            if (_pendingWeapon != null && !ReferenceEquals(_pendingWeapon, weapon) && Time.frameCount - _pendingFrame <= 1)
+            {
+                Save(_stashed);
+            }
             _pendingHeld = held;
             _pendingData = data;
             _pendingWeapon = weapon;
@@ -163,6 +169,72 @@ namespace RavenfieldVR.Weapons
             {
                 _pendingCounts[i] = _pendingSystems[i] != null && i < _pendingTrees.Length ? TreeCount(_pendingTrees[i]) : 0;
             }
+        }
+
+        private void DecidePending(float now)
+        {
+            if (_pendingWeapon != null && Time.frameCount - _pendingFrame <= 1)
+            {
+                // A shot fired after this frame's particle update shows its particles next frame: decided then.
+                bool later = Time.frameCount == _pendingFrame && _pendingInfo.Particles && !ParticlesOut();
+                if (!later)
+                {
+                    TryFlash(_pendingHeld, _pendingData, _pendingWeapon, _pendingInfo, _pendingMuzzle, now);
+                    _pendingWeapon = null;
+                    _pendingHeld = null;
+                }
+            }
+            else if (_pendingWeapon != null)
+            {
+                _pendingWeapon = null; // too old to decide
+                _pendingHeld = null;
+            }
+        }
+
+        /// <summary>A pending shot's state, kept aside while another gun's shot of the same frame uses the fields.</summary>
+        private sealed class PendingShot
+        {
+            public Weapon Weapon;
+            public HeldWeapon Held;
+            public WeaponRigData Data;
+            public int Frame = -1;
+            public ParticleSystem[] Systems = NoSystems;
+            public int[] Counts = new int[0];
+            public ParticleSystem[][] Trees = NoTrees;
+            public bool EveryShot;
+            public MuzzleFlashInfo Info;
+            public Transform Muzzle;
+        }
+
+        private readonly PendingShot _stashed = new PendingShot();
+        private readonly PendingShot _keep = new PendingShot();
+
+        private void Save(PendingShot s)
+        {
+            s.Weapon = _pendingWeapon;
+            s.Held = _pendingHeld;
+            s.Data = _pendingData;
+            s.Frame = _pendingFrame;
+            s.Systems = _pendingSystems;
+            s.Counts = (int[])_pendingCounts.Clone(); // (Pend fills the array in place)
+            s.Trees = _pendingTrees;
+            s.EveryShot = _pendingEveryShot;
+            s.Info = _pendingInfo;
+            s.Muzzle = _pendingMuzzle;
+        }
+
+        private void Load(PendingShot s)
+        {
+            _pendingWeapon = s.Weapon;
+            _pendingHeld = s.Held;
+            _pendingData = s.Data;
+            _pendingFrame = s.Frame;
+            _pendingSystems = s.Systems;
+            _pendingCounts = s.Counts;
+            _pendingTrees = s.Trees;
+            _pendingEveryShot = s.EveryShot;
+            _pendingInfo = s.Info;
+            _pendingMuzzle = s.Muzzle;
         }
 
         private static readonly ParticleSystem[] NoSystems = new ParticleSystem[0];
@@ -228,16 +300,15 @@ namespace RavenfieldVR.Weapons
         public void BeforeRender()
         {
             float now = Time.unscaledTime;
-            if (_pendingWeapon != null && Time.frameCount - _pendingFrame <= 1)
+            DecidePending(now);
+            if (_stashed.Weapon != null)
             {
-                // A shot fired after this frame's particle update shows its particles next frame: decided then.
-                bool later = Time.frameCount == _pendingFrame && _pendingInfo.Particles && !ParticlesOut();
-                if (!later)
-                {
-                    TryFlash(_pendingHeld, _pendingData, _pendingWeapon, _pendingInfo, _pendingMuzzle, now);
-                    _pendingWeapon = null;
-                    _pendingHeld = null;
-                }
+                // The other gun's shot of the same frame, decided the same way with its own systems and counts.
+                Save(_keep);
+                Load(_stashed);
+                DecidePending(now);
+                Save(_stashed); // still waiting for its particles, or done (no weapon)
+                Load(_keep);
             }
             UpdateGlow(now, Time.unscaledDeltaTime);
             _fireball.BeforeRender(_rig.Camera != null ? _rig.Camera.transform : null);
