@@ -747,12 +747,24 @@ namespace RavenfieldVR.Weapons
             if (actor.IsSeated())
             {
                 // Drawn in a seat: put away as the seat's holster grab does (the horn back). It stayed in the open hand, and
-                // the next let-go threw it again with its pin in (throw hunt, 2026-10-20).
-                if (!DrivingWeapons.Armed || actor.activeWeapon.IsMountedWeapon())
+                // the next let-go threw it again with its pin in (throw hunt, 2026-10-20). In a seat that allows personal weapons of
+                // its own (no driving weapons drawn), holstered as on foot (review, 2026-10-20).
+                if (actor.activeWeapon.IsMountedWeapon())
                 {
                     return;
                 }
-                DrivingWeapons.PutAway(actor);
+                if (DrivingWeapons.Armed)
+                {
+                    DrivingWeapons.PutAway(actor);
+                }
+                else if (actor.seat != null && actor.seat.CanUsePersonalWeapons())
+                {
+                    actor.HolsterActiveWeapon();
+                }
+                else
+                {
+                    return;
+                }
             }
             else
             {
