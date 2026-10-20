@@ -437,7 +437,9 @@ namespace RavenfieldVR.UI
                 }
                 if (t.Role == CanvasRole.Hud)
                 {
-                    if (t.Size.x > 1f && t.Size.y > 1f && t.Size.x * t.Size.y > aspectArea)
+                    // (Not a vehicle's own sight canvas, drawn far out: one larger than the HUD set the frustum while it showed;
+                    // UI hunt, 2026-10-20 night.)
+                    if (!t.Collimated && t.Size.x > 1f && t.Size.y > 1f && t.Size.x * t.Size.y > aspectArea)
                     {
                         // The game camera's frustum follows the main HUD (the largest HUD canvas), not whichever canvas is
                         // enumerated last: a small HUD panel or a 4:3 canvas showing or hiding used to jerk the camera's
