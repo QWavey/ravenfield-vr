@@ -76,6 +76,30 @@ namespace RavenfieldVR.Weapons
         /// <summary>The pieces fitted earlier under <paramref name="key"/>, if any.</summary>
         internal static bool TryCached(string key, out Piece[] pieces) => Cache.TryGetValue(key, out pieces);
 
+        /// <summary>Keeps <paramref name="pieces"/> under <paramref name="key"/> (fitted elsewhere, from <see cref="Gather"/>'s points).</summary>
+        internal static void Store(string key, Piece[] pieces) => Cache[key] = pieces;
+
+        /// <summary>
+        /// The points <see cref="Fit"/> would fit, in the space <paramref name="frameFromWorld"/> maps into, copied out for a fit on a
+        /// worker thread (<see cref="FitCloud"/>). Main thread: it reads the meshes.
+        /// </summary>
+        public static List<Vector3> Gather(IEnumerable<Renderer> renderers, Matrix4x4 frameFromWorld)
+        {
+            try
+            {
+                Points.Clear();
+                foreach (Renderer r in renderers)
+                {
+                    AddPoints(r, frameFromWorld);
+                }
+                return new List<Vector3>(Points);
+            }
+            finally
+            {
+                Points.Clear();
+            }
+        }
+
         /// <summary>
         /// Convex pieces in the space <paramref name="frameFromWorld"/> maps into, fitted to <paramref name="renderers"/>
         /// (cached under <paramref name="key"/> when given). Empty when there is nothing measurable.

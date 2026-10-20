@@ -58,6 +58,11 @@ namespace RavenfieldVR.Weapons
         public float BodiesForgottenAt;
         /// <summary>The <see cref="PropPhysics.PlayerGeneration"/> the player's colliders were last ignored for.</summary>
         public int PlayerGeneration = -1;
+        /// <summary>
+        /// The shape key of a model whose shape was never fitted: it lies on a box from its drawn bounds until the fit, made on a
+        /// worker thread after the death frame, replaces it (null once it has its own shape; task 309).
+        /// </summary>
+        public string LateFitKey;
     }
 
     /// <summary>
@@ -115,11 +120,18 @@ namespace RavenfieldVR.Weapons
             // 2026-10-19 night, task 309). Within 1.5% of 1 it is 1 (the warm-up's shapes), else rounded to 1%.
             holdScale = DropScale(holdScale);
             var watch = System.Diagnostics.Stopwatch.StartNew();
+            int collections = GC.CollectionCount(0);
+            bool hadModel = Templates.ContainsKey(w.weaponEntry);
             Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare);
             float ms = (float)watch.Elapsed.TotalMilliseconds;
             if (ms > 20f)
             {
-                Log.Info($"Weapon drop of {w.weaponEntry.name} took {ms:0} ms on the death frame (scale {holdScale.x:0.00}; shape {(RenderedShapes.ContainsKey(w.weaponEntry) ? "rendered" : "fitted")}).");
+                // Its parts, to tell which one a slow kill spent its time on (task 309): the model's copy (its first one builds the
+                // template), the shape, the colliders, and whether a garbage collection ran in between.
+                Log.Info($"Weapon drop of {w.weaponEntry.name} took {ms:0} ms on the death frame (scale {holdScale.x:0.00}; shape "
+                         + $"{(RenderedShapes.ContainsKey(w.weaponEntry) ? "rendered" : _lastLateFit ? "fitted later (a box till then)" : "fitted")}; "
+                         + $"model {_lastModelMs:0} ms{(hadModel ? "" : " with its first template")}, shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms"
+                         + $"{(GC.CollectionCount(0) != collections ? ", a garbage collection ran" : "")}).");
             }
         }
 
@@ -381,9 +393,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>The weapon dropped last (self-test).</summary>
         internal DroppedWeapon Newest => _drops.Count > 0 ? _drops[_drops.Count - 1] : null;
 
+        /// <summary>The last <see cref="Spawn"/>'s parts in ms (the death frame's log line; task 309).</summary>
+        private static float _lastModelMs, _lastShapeMs, _lastColliderMs;
+        private static bool _lastLateFit;
+
         public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare)
         {
+            var parts = System.Diagnostics.Stopwatch.StartNew();
             GameObject model = ModelFor(entry);
+            _lastModelMs = (float)parts.Elapsed.TotalMilliseconds;
             if (model == null)
             {
                 return null;
@@ -397,7 +415,15 @@ namespace RavenfieldVR.Weapons
             model.transform.localScale = scale.sqrMagnitude > 1e-6f ? scale : Vector3.one;
             pose.ApplyTo(root.transform);
 
-            List<Collider> boxes = ShapeFit.AddColliders(root, FitModel(entry, root.transform, model.transform.localScale));
+            parts.Reset();
+            parts.Start();
+            ShapeFit.Piece[] shape = FitModel(entry, root.transform, model.transform.localScale, out string lateKey);
+            _lastShapeMs = (float)parts.Elapsed.TotalMilliseconds;
+            _lastLateFit = lateKey != null;
+            parts.Reset();
+            parts.Start();
+            List<Collider> boxes = ShapeFit.AddColliders(root, shape);
+            _lastColliderMs = (float)parts.Elapsed.TotalMilliseconds;
             var body = root.AddComponent<Rigidbody>();
             body.mass = 3f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -412,6 +438,14 @@ namespace RavenfieldVR.Weapons
             // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
             // step, or that step pushes the weapon out of them and it skids or floats away.
             PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
+            if (lateKey != null)
+            {
+                drop.LateFitKey = lateKey;
+                if (LateFitsUnderway.Add(lateKey))
+                {
+                    LateGather.Enqueue(drop);
+                }
+            }
             _drops.Add(drop);
             Cull();
             return drop;
@@ -634,7 +668,7 @@ namespace RavenfieldVR.Weapons
             }
             var root = new GameObject("RavenfieldVR Drop Timing");
             model.transform.SetParent(root.transform, false);
-            ShapeFit.AddColliders(root, FitModel(entry, root.transform, Vector3.one));
+            ShapeFit.AddColliders(root, FitModel(entry, root.transform, Vector3.one, out _, quick: false));
             float ms = (float)watch.Elapsed.TotalMilliseconds;
             UnityEngine.Object.Destroy(root);
             return ms;
@@ -651,7 +685,7 @@ namespace RavenfieldVR.Weapons
             {
                 var root = new GameObject("RavenfieldVR Drop Warm-up");
                 model.transform.SetParent(root.transform, false);
-                ShapeFit.Bake(FitModel(entry, root.transform, Vector3.one));
+                ShapeFit.Bake(FitModel(entry, root.transform, Vector3.one, out _, quick: false));
                 MeasureRenderedShape(entry, root.transform);
                 UnityEngine.Object.Destroy(root);
             }
@@ -805,10 +839,20 @@ namespace RavenfieldVR.Weapons
             NoModel.Clear();
             RenderedShapes.Clear();
             ScaledShapes.Clear();
+            LateFitsUnderway.Clear();
+            LateGather.Clear();
         }
 
-        private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale)
+        /// <summary>
+        /// The physics shape of a dropped copy under <paramref name="root"/>. <paramref name="quick"/> (a drop in a match): a shape
+        /// never fitted is not fitted now, on the soldier's death frame (reading every vertex of the model and slicing it into
+        /// hulls took tens to hundreds of milliseconds on a type the menu's warm-up had not reached: a hitch on kills, user,
+        /// 2026-10-19 night, task 309). It gets a box from its drawn bounds, and <paramref name="lateKey"/> names the shape to fit
+        /// later on a worker thread (<see cref="UpdateLateFits"/>).
+        /// </summary>
+        private static ShapeFit.Piece[] FitModel(WeaponManager.WeaponEntry entry, Transform root, Vector3 scale, out string lateKey, bool quick = true)
         {
+            lateKey = null;
             ShapeFit.Piece[] rendered = ScaledRenderedShape(entry, scale);
             if (rendered != null)
             {
@@ -825,6 +869,12 @@ namespace RavenfieldVR.Weapons
             // What is drawn only: the parts the template switched off (a beam, a part parked away) get no collider (task 303).
             var renderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
             renderers.RemoveAll(r => !r.enabled);
+            if (quick && !ShapeFit.TryCached(key, out _))
+            {
+                lateKey = key;
+                Bounds qb = LocalRendererBounds(root, renderers);
+                return new[] { ShapeFit.BoxPiece(qb.center, Vector3.Max(qb.size, new Vector3(0.05f, 0.05f, 0.05f))) };
+            }
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
             if (boxes.Length > 0)
             {
@@ -832,6 +882,135 @@ namespace RavenfieldVR.Weapons
             }
             Bounds b = LocalRendererBounds(root, renderers);
             return new[] { ShapeFit.BoxPiece(b.center, Vector3.Max(b.size, new Vector3(0.05f, 0.05f, 0.05f))) };
+        }
+
+        /// <summary>A dropped model's shape fitted after its death frame: points read on the main thread, hulls fitted on a worker.</summary>
+        private sealed class LateFit
+        {
+            public string Key;
+            public List<Vector3> Points;
+            public ShapeFit.Piece[] Pieces;
+            public int Baked;
+        }
+
+        /// <summary>Shape keys being fitted later (one fit per key, however many copies lie on their box meanwhile).</summary>
+        private static readonly HashSet<string> LateFitsUnderway = new HashSet<string>();
+        private static readonly Queue<DroppedWeapon> LateGather = new Queue<DroppedWeapon>();
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<LateFit> LateFitted = new System.Collections.Concurrent.ConcurrentQueue<LateFit>();
+        private static LateFit _lateBaking;
+
+        /// <summary>
+        /// One step a frame of the shapes left to fit after a death frame: a copy's points read (main thread; its own drawn
+        /// renderers, in its root's space, as the full fit reads them), the hulls fitted on a worker, cooked three at a time, then
+        /// every copy of that shape still on its box gets them (task 309).
+        /// </summary>
+        private void UpdateLateFits()
+        {
+            if (_lateBaking == null && LateFitted.TryDequeue(out LateFit done))
+            {
+                _lateBaking = done;
+            }
+            if (_lateBaking != null)
+            {
+                LateFit fit = _lateBaking;
+                int cooked = 0;
+                for (; fit.Baked < fit.Pieces.Length && cooked < 3; fit.Baked++, cooked++)
+                {
+                    ShapeFit.Bake(new[] { fit.Pieces[fit.Baked] });
+                }
+                if (fit.Baked >= fit.Pieces.Length)
+                {
+                    _lateBaking = null;
+                    ShapeFit.Store(fit.Key, fit.Pieces);
+                    LateFitsUnderway.Remove(fit.Key);
+                    if (fit.Pieces.Length > 0)
+                    {
+                        foreach (DroppedWeapon d in _drops)
+                        {
+                            if (d.LateFitKey == fit.Key)
+                            {
+                                SwapShape(d, fit.Pieces);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+            if (LateGather.Count == 0)
+            {
+                return;
+            }
+            DroppedWeapon from = LateGather.Dequeue();
+            if (from.Go == null || from.LateFitKey == null)
+            {
+                // Gone before its points were read: the next copy of the type lying on its box starts the fit again.
+                if (from.LateFitKey != null)
+                {
+                    LateFitsUnderway.Remove(from.LateFitKey);
+                    DroppedWeapon other = _drops.Find(d => d.Go != null && d.LateFitKey == from.LateFitKey);
+                    if (other != null && LateFitsUnderway.Add(other.LateFitKey))
+                    {
+                        LateGather.Enqueue(other);
+                    }
+                }
+                return;
+            }
+            var renderers = new List<Renderer>(from.Go.GetComponentsInChildren<Renderer>());
+            renderers.RemoveAll(r => !r.enabled);
+            List<Vector3> points;
+            try
+            {
+                points = ShapeFit.Gather(renderers, from.Go.transform.worldToLocalMatrix);
+            }
+            catch (Exception)
+            {
+                points = new List<Vector3>(); // nothing to fit: it keeps its box
+            }
+            var late = new LateFit { Key = from.LateFitKey, Points = points };
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    late.Pieces = ShapeFit.FitCloud(late.Points, 0.04f, 12);
+                }
+                catch (Exception)
+                {
+                    late.Pieces = new ShapeFit.Piece[0]; // it keeps its box, as a model with nothing to fit does
+                }
+                late.Points = null;
+                LateFitted.Enqueue(late);
+            });
+        }
+
+        /// <summary>A copy lying on its box gets its fitted shape: the new colliders, the drop's material, and the bodies and the player ignored again.</summary>
+        private static void SwapShape(DroppedWeapon d, ShapeFit.Piece[] pieces)
+        {
+            d.LateFitKey = null;
+            if (d.Go == null)
+            {
+                return;
+            }
+            List<Collider> fitted = ShapeFit.AddColliders(d.Go, pieces);
+            if (d.Colliders != null)
+            {
+                foreach (Collider c in d.Colliders)
+                {
+                    if (c != null)
+                    {
+                        UnityEngine.Object.Destroy(c);
+                    }
+                }
+            }
+            d.Colliders = fitted;
+            if (d.Body != null)
+            {
+                SetUpBody(d.Body, fitted);
+                d.Body.WakeUp(); // it settles onto its own shape instead of hovering on the box's
+            }
+            PropPhysics.IgnorePlayer(fitted);
+            d.IgnoredBodies.Clear();
+            PropPhysics.IgnoreBodiesNear(fitted, d.Go.transform.position, 1.5f, d.IgnoredBodies);
+            d.Reach = ReachOf(d.Go.transform, fitted);
         }
 
         private static Bounds LocalRendererBounds(Transform root, List<Renderer> renderers)
@@ -869,6 +1048,7 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             BakePendingShape();
+            UpdateLateFits();
             Cull();
             PropPhysics.TrackPlayer();
             IgnoreBodies();
