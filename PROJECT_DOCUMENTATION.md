@@ -100,7 +100,11 @@ GunVolume                      (the drawn model as depth from 5 directions: a so
   hand)`, `SimulatedTrigger[]` (finger pose only, never fires).
 - `GameInputBridge`: context-aware mapping into SteelInput (fire, use, jump, crouch, scoreboard only with the map
   gesture, etc.). `ScriptKeys` lists keys that weapon/mutator scripts listen to (mod-keys panel). `TurretAim` steers
-  turrets toward where you look; `VehicleInput` maps sticks to cars/helicopters/planes.
+  turrets toward where you look; `VehicleInput` maps sticks to cars/helicopters/planes. A seat is left by holding the
+  trigger of the hand on the seat's side for a second (`HeldToLeaveSeat`); since 2026-10-20 that trigger counts only after
+  it was let go once in the seat (the trigger that entered the car, still held, threw the player out again), a support hand
+  on a gun whose trigger only steps a light or laser no longer blocks it (`SupportTriggerLightsOnly`), and the seat cycle
+  skips seats past the seventh (no game key) instead of ending there.
 
 ### 3.3 Rig and body (`Rig/*`)
 
@@ -342,7 +346,18 @@ is not taken). Capture onto the line from aside, and off it from inside the well
   remembered as missing instead of rebuilt every frame). The pouch sits a hand's width from every holster spot (it used
   to overlap the off-hip holster).
 - **Throwables**: grenades with pins (`GrenadeDud` for pinned throws), throws with real hand velocity, melee along the
-  measured blade.
+  measured blade. A gun swung into an enemy hits with four points swept from butt to muzzle (`MeleeHandler.Bash`), and
+  since 2026-10-20 a magazine, shell or rocket in a hand or a grenade held to throw hits lightly too (`HandBlows`: the
+  palm's path, the knife's speed against the body, credited to the gun in use; task 306).
+- **First drops without the analysis** (`ParkedPartsCache`, 2026-10-20): a drop template hides the parked ammunition the
+  analysis found (`HideParkedAmmo`), and that was the only reason a type's first drop ran the whole analysis on a soldier's
+  death frame (235-300 ms for the PKP, PKM, Type 80, BRN180s when the warm-up had reached 78 of 286 weapons). Every prefab
+  analysis now writes its `SparePartPaths` to `BepInEx/cache/RavenfieldVR-parked-parts.txt`, keyed by the analysis key and
+  hashed against the prefab's transforms (count, names, child counts; a mod update misses and is analysed again). From the
+  second session on, a first drop takes the paths from there; the idle builder (player dead or in a menu) then builds the
+  type's model, its shape and its analysis, one a turn, so a pickup waits for nothing. Each analysis rewrites its entry,
+  so a rule changed in a later build is carried over the next time that weapon is analysed. The slow-drop log line says
+  how much of a first template its analysis was.
 - **Equip take-over**: `WeaponSystem.BeforeRender` attaches a weapon the game drew after the mod's `Update`, so it is
   never drawn where the flat game holds it (task 97).
 
@@ -524,6 +539,16 @@ VR autotest without a headset (null driver):
    pictures in `BepInEx/RavenfieldVR-shots/`.
 5. **Restore** `steamvr.vrsettings`: stop all `vr*` processes first (a running SteamVR rewrites the file on exit),
    then copy the backup back.
+
+Checks without the game (2026-10-20, issue #18): `powershell -File tools/tests/run-tests.ps1` compiles
+`tools/tests/OfflineTests.cs` with the installer's sources and `BindingsWriter` and runs 20 checks: the installer's path
+containment (`Installer.Inside`: zip entries and manifest lines stay inside the game folder), the Steam `localconfig.vdf`
+reader (a truncated file is a `FormatException`), the left-handed bindings. Exit code 0 when all pass.
+
+Dependencies are pinned by SHA-256 in `tools/fetch-deps.ps1` (checked against GitHub's release digests and nuget.org's
+catalog hashes); a mismatching download is deleted and not unpacked. The in-game self-repair (`InstallCheck`) copies the
+bundled runtime only when it matches the XR plugin 1.2.4's hashes. `ucrtbased.dll` (the XR package's debug C runtime) is
+not shipped: neither `XRSDKOpenVR.dll` nor `openvr_api.dll` imports it, directly or delay-loaded.
 
 What "working" looks like (latest quick run): Problems 2 (the mk18riii laser script), 0 frames with a weapon not in
 the VR hand, gun-hand points inside the gun ≈ 1 of 72 on average, 0 cm drift for lying weapons, rounds add up in all
