@@ -120,7 +120,13 @@ namespace RavenfieldVR.Core
             }
             try
             {
-                if (System.Diagnostics.Process.GetProcessesByName("vrserver").Length > 0)
+                System.Diagnostics.Process[] servers = System.Diagnostics.Process.GetProcessesByName("vrserver");
+                bool serverUp = servers.Length > 0;
+                foreach (System.Diagnostics.Process p in servers)
+                {
+                    p.Dispose(); // each holds an OS handle
+                }
+                if (serverUp)
                 {
                     reason = null;
                     return true;

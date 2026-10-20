@@ -296,16 +296,22 @@ namespace RavenfieldVR.Setup
         }
 
         /// <summary>A quoted string, returned raw (escape sequences kept as written).</summary>
+        // A truncated file (Steam stopped mid-write) ends in a FormatException, not an index error: the end was read past at the
+        // opening quote, after an escape at the very end, and an unclosed string was taken as whole (audit, issue #15).
         private static string ReadString(string t, ref int i)
         {
-            if (t[i] != '"')
+            if (i >= t.Length || t[i] != '"')
             {
-                throw new FormatException("Expected a quoted string at " + i + ".");
+                throw new FormatException("Expected a quoted string at " + i + (i >= t.Length ? " (the file ends there)." : "."));
             }
             int start = ++i;
             while (i < t.Length && t[i] != '"')
             {
                 i += t[i] == '\\' ? 2 : 1;
+            }
+            if (i >= t.Length)
+            {
+                throw new FormatException("A quoted string from " + (start - 1) + " is never closed (the file ends first).");
             }
             string raw = t.Substring(start, i - start);
             i++;

@@ -23,6 +23,16 @@ if (-not (Test-Path -LiteralPath $manifest)) {
 }
 
 $entries = Get-Content -LiteralPath $manifest
+
+# A path from the manifest, only if it stays inside the game folder (a rooted or '..' entry would reach outside it; audit,
+# issue #1). $null otherwise, with a warning.
+function Resolve-Inside([string]$root, [string]$rel) {
+    if ([string]::IsNullOrWhiteSpace($rel) -or [System.IO.Path]::IsPathRooted($rel)) { Write-Warning "Skipped manifest entry '$rel' (not a path inside the game folder)."; return $null }
+    $full = [System.IO.Path]::GetFullPath((Join-Path $root $rel))
+    $base = [System.IO.Path]::GetFullPath($root).TrimEnd([char]'\', [char]'/') + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $full.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) { Write-Warning "Skipped manifest entry '$rel' (outside $root)."; return $null }
+    return $full
+}
 $backup = ($entries | Where-Object { $_ -like 'backup=*' } | Select-Object -First 1) -replace '^backup=', ''
 $installedBepInEx = ($entries -contains 'installedBepInEx=True')
 $loaderFiles = 'winhttp.dll', 'doorstop_config.ini', '.doorstop_version', 'changelog.txt'
@@ -39,16 +49,18 @@ foreach ($line in $entries) {
         $rel = $line -replace '^added=', ''
         $bepInExOwn = ($loaderFiles -contains $rel) -or ($rel -like 'BepInEx\core\*') -or ($rel -like 'BepInEx/core/*')
         if ($keepBepInEx -and $bepInExOwn) { continue }
-        $path = Join-Path $GameDir $rel
-        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+        $path = Resolve-Inside $GameDir $rel
+        if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Force }
     }
 }
 foreach ($line in $entries) {
     if ($line -like 'replaced=*') {
         $rel = $line -replace '^replaced=', ''
-        $src = Join-Path $backup $rel
-        if ($backup -and (Test-Path -LiteralPath $src)) {
-            Copy-Item -LiteralPath $src -Destination (Join-Path $GameDir $rel) -Force
+        $dst = Resolve-Inside $GameDir $rel
+        if (-not $dst) { continue }
+        $src = if ($backup) { Resolve-Inside $backup $rel } else { $null }
+        if ($src -and (Test-Path -LiteralPath $src)) {
+            Copy-Item -LiteralPath $src -Destination $dst -Force
         }
         else {
             Write-Warning "Backup for $rel not found; left the modded file in place."

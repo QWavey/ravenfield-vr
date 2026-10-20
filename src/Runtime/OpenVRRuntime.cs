@@ -122,10 +122,12 @@ namespace RavenfieldVR.Runtime
             }
             catch (DllNotFoundException e)
             {
-                return Fail("XRSDKOpenVR.dll or one of its dependencies (openvr_api.dll, ucrtbased.dll) could not be loaded: " + e.Message);
+                Stop(); // what was created before the throw (audit, issue #1)
+                return Fail("XRSDKOpenVR.dll or one of its dependencies (openvr_api.dll) could not be loaded: " + e.Message);
             }
             catch (Exception e)
             {
+                Stop(); // the display and input subsystems started before the throw were left running, never stopped (issue #1)
                 return Fail("Unexpected VR start-up error: " + e);
             }
         }
@@ -161,9 +163,10 @@ namespace RavenfieldVR.Runtime
             }
         }
 
+        // Also after a start that failed part way: its subsystems exist with Running still false.
         public static void Stop()
         {
-            if (!Running)
+            if (!Running && Display == null && InputSubsystem == null)
             {
                 return;
             }

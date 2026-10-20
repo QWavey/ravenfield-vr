@@ -125,7 +125,9 @@ if (-not $Package -and (Test-Path $distPlugin)) {
 
 # --- 3. Package ------------------------------------------------------------------------------
 if ($Package) {
-    $version = (Select-String -Path (Join-Path $Root 'src/Core/PluginInfo.cs') -Pattern 'Version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+    $versionMatch = Select-String -Path (Join-Path $Root 'src/Core/PluginInfo.cs') -Pattern 'Version\s*=\s*"([^"]+)"'
+    if (-not $versionMatch) { throw "No Version = `"...`" found in src/Core/PluginInfo.cs: the package needs it for its name." }
+    $version = $versionMatch.Matches[0].Groups[1].Value
     $dist = Join-Path $Root 'dist/RavenfieldVR'
     Write-Step "Packaging v$version -> $dist"
     if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
@@ -138,7 +140,8 @@ if ($Package) {
     Copy-Item (Join-Path $Build 'RavenfieldVR.dll'), (Join-Path $Build 'RavenfieldVR.pdb') $pluginOut -Force
 
     # Native OpenVR XR provider + its manifest, where Unity discovers them at start-up...
-    foreach ($native in 'XRSDKOpenVR.dll', 'openvr_api.dll', 'ucrtbased.dll') {
+    # (Not the package's ucrtbased.dll, the debug C runtime: neither DLL imports it, delay-loaded or not; audit, issue #1.)
+    foreach ($native in 'XRSDKOpenVR.dll', 'openvr_api.dll') {
         Copy-Item (Join-Path $XrRuntime "x64/$native") $x64Out -Force
     }
     Copy-Item (Join-Path $XrRuntime 'UnitySubsystemsManifest.json') $subsysOut -Force

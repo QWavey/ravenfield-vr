@@ -193,13 +193,13 @@ namespace RavenfieldVR.Input
             }
         }
 
-        /// <summary>Refreshes action state. Idempotent within a frame.</summary>
         /// <summary>
         /// The tracking space the compositor renders the headset in (Unity's XR plugin picks it). Controller poses are
         /// read in the same space, so hands and head always agree, whether that is standing (floor) or seated.
         /// </summary>
         public static ETrackingUniverseOrigin Universe { get; private set; } = ETrackingUniverseOrigin.TrackingUniverseStanding;
 
+        /// <summary>Refreshes action state. Idempotent within a frame.</summary>
         public static void Update()
         {
             if (!Ready || LastUpdateFrame == Time.frameCount)

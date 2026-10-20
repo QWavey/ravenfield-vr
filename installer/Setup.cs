@@ -349,8 +349,8 @@ namespace RavenfieldVR.Setup
             {
                 if (!added.Contains(old, StringComparer.OrdinalIgnoreCase))
                 {
-                    string path = Path.Combine(game, old);
-                    if (File.Exists(path))
+                    string path = Inside(game, old);
+                    if (path != null && File.Exists(path))
                     {
                         File.Delete(path);
                         _log("Removed " + old + " (no longer part of Ravenfield VR).");
@@ -372,9 +372,30 @@ namespace RavenfieldVR.Setup
             _log($"Installed Ravenfield VR {Version}: {added.Count} files, {replaced.Count} original file(s) backed up.");
         }
 
+        /// <summary>
+        /// <paramref name="rel"/> under <paramref name="root"/>, or null when it would land outside it: a rooted path, or one whose
+        /// '..' climbs out (a zip entry 'ravenfield_Data\..\..\x' passed the prefix test; a manifest line is trusted data too; audit,
+        /// issue #1).
+        /// </summary>
+        internal static string Inside(string root, string rel)
+        {
+            if (string.IsNullOrWhiteSpace(rel) || string.IsNullOrEmpty(root) || Path.IsPathRooted(rel))
+            {
+                return null;
+            }
+            string full = Path.GetFullPath(Path.Combine(root, rel));
+            string bas = Path.GetFullPath(root).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+            return full.StartsWith(bas, StringComparison.OrdinalIgnoreCase) ? full : null;
+        }
+
         private void InstallEntry(ZipArchiveEntry entry, string game, string rel, string backupDir, HashSet<string> ours, List<string> added, List<string> replaced)
         {
-            string dst = Path.Combine(game, rel);
+            string dst = Inside(game, rel);
+            if (dst == null)
+            {
+                _log("Skipped " + rel + ": it would be written outside the game folder.");
+                return;
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(dst));
             if (ours.Contains(rel))
             {
@@ -390,7 +411,7 @@ namespace RavenfieldVR.Setup
                 }
                 if (!replaced.Contains(rel, StringComparer.OrdinalIgnoreCase))
                 {
-                    string bak = Path.Combine(backupDir, rel);
+                    string bak = Inside(backupDir, rel) ?? throw new InvalidOperationException("Backup path outside the backup folder: " + rel);
                     Directory.CreateDirectory(Path.GetDirectoryName(bak));
                     File.Copy(dst, bak, true);
                     replaced.Add(rel);
@@ -483,7 +504,12 @@ namespace RavenfieldVR.Setup
                     _log("Kept " + LauncherName + ": Steam's launch options for Ravenfield still start it. Remove it from Steam > Ravenfield > Properties > Launch Options, then delete the file.");
                     continue;
                 }
-                string path = Path.Combine(game, rel);
+                string path = Inside(game, rel);
+                if (path == null)
+                {
+                    _log("Skipped the record's " + rel + ": not a path inside the game folder.");
+                    continue;
+                }
                 if (File.Exists(path))
                 {
                     File.Delete(path);
@@ -493,10 +519,15 @@ namespace RavenfieldVR.Setup
             foreach (string line in lines.Where(l => l.StartsWith("replaced=", StringComparison.Ordinal)))
             {
                 string rel = line.Substring(9);
-                string src = Path.Combine(backup, rel);
-                if (backup.Length > 0 && File.Exists(src))
+                string dst = Inside(game, rel);
+                string src = backup.Length > 0 ? Inside(backup, rel) : null;
+                if (dst == null)
                 {
-                    File.Copy(src, Path.Combine(game, rel), true);
+                    _log("Skipped the record's " + rel + ": not a path inside the game folder.");
+                }
+                else if (src != null && File.Exists(src))
+                {
+                    File.Copy(src, dst, true);
                     restored++;
                 }
                 else
