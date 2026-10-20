@@ -586,7 +586,17 @@ namespace RavenfieldVR.Weapons
             {
                 if (DrivingWeapons.Armed)
                 {
-                    DrivingWeapons.Reset();
+                    // Still in the seat (the option turned off while driving): the drawn weapon is put away too. With only the flag
+                    // cleared, the pistol stayed the active weapon nobody held, the trigger fired it instead of the horn, and no
+                    // holster grab could put it away until the player got out (vehicle hunt, 2026-10-20).
+                    if (actor != null && !actor.dead && actor.IsSeated() && actor.activeWeapon != null && !actor.activeWeapon.IsMountedWeapon())
+                    {
+                        DrivingWeapons.PutAway(actor);
+                    }
+                    else
+                    {
+                        DrivingWeapons.Reset();
+                    }
                 }
                 return;
             }

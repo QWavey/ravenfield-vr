@@ -29,7 +29,9 @@ namespace RavenfieldVR.Input
 
         public static bool Steer(Weapon turret, Transform reference, float gain, float clamp, ref Vector2 result)
         {
-            if (turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver)
+            // Not while the laser is on one of the mod's panels either: the gun followed the head turned to read it, as the flat
+            // game's mouse aim does not on a free cursor (the game's own input reads no aim in VR then; vehicle hunt, 2026-10-20).
+            if (turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver || VRGameInput.GunInputBlocked)
             {
                 return true;
             }
