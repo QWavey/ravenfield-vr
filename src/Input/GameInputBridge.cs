@@ -143,7 +143,24 @@ namespace RavenfieldVR.Input
             // Slow motion in a menu and while dead too, as the flat game's key works there: set after the returns below, it could
             // not be switched in the loadout menu or after dying (user, 2026-10-19 night, task 313). (A toggle in the game: one
             // press on, one off.)
-            Set(KeyBinds.Slowmotion, VRInput.GetPressed(DigitalAction.SlowMotion));
+            // On Touch it is A and B pressed together (2026-10-20: B held brought up Steam, and B as a press-or-hold button let the
+            // magazine drop only once the hold time ran out): there SlowMotion is A held, and the chord's B press drops nothing.
+            bool slowMotion;
+            if (VRInput.AnyOculusTouch)
+            {
+                bool chord = VRInput.GetHeld(DigitalAction.SlowMotion) && VRInput.GetHeld(DigitalAction.MagRelease);
+                slowMotion = chord && !_slowChordWas;
+                _slowChordWas = chord;
+                if (slowMotion)
+                {
+                    VRInput.Consume(DigitalAction.MagRelease);
+                }
+            }
+            else
+            {
+                slowMotion = VRInput.GetPressed(DigitalAction.SlowMotion);
+            }
+            Set(KeyBinds.Slowmotion, slowMotion);
 
             if (menu)
             {
@@ -680,6 +697,8 @@ namespace RavenfieldVR.Input
         /// Steam Input layout the headset's controllers also feed, right in front of the sights.
         /// </summary>
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
+
+        private static bool _slowChordWas;
 
         /// <summary>Autotest: sprint as if the stick were clicked and pushed.</summary>
         internal static bool TestSprint;

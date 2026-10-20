@@ -3416,14 +3416,14 @@ namespace RavenfieldVR.Weapons
             Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
             Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
             Transform magazine = d.MagazinePath != null ? WeaponRig.Resolve(root, d.MagazinePath) : null;
-            // The handle found alone is not its own carrier (taken, the slide would be the handle and stay home; review 2026-10-20).
-            Transform handle = handleAlone ? WeaponRig.Resolve(root, d.HandlePath) : null;
             Transform best = null;
             Bounds bestBounds = default;
             int found = 0;
             foreach (Transform t in all)
             {
-                if (!index.TryGetValue(t, out _) || magazine != null && t.IsChildOf(magazine) || handle != null && (t == handle || t.IsChildOf(handle))
+                // (The handle found alone may be its own carrier: excluding it, 2026-10-20, left the M4A1 family's charging handle
+                // unrackable again; reverted.)
+                if (!index.TryGetValue(t, out _) || magazine != null && t.IsChildOf(magazine)
                     || UnderOptic(t, gunBody) || MagName.IsMatch(t.name)
                     || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {

@@ -71,6 +71,9 @@ namespace RavenfieldVR.Input
         private static readonly float[][] Curl = { new float[5], new float[5] };
         private static readonly bool[] SkeletonValid = new bool[2];
         private static readonly string[] ControllerTypes = { "", "" };
+
+        /// <summary>A Touch controller in either hand (its slow motion is A and B together).</summary>
+        internal static bool AnyOculusTouch => ControllerTypes[0] == "oculus_touch" || ControllerTypes[1] == "oculus_touch";
         private static readonly bool[] HapticOkLogged = new bool[2];
         private static float _nextTypeRefresh;
 
