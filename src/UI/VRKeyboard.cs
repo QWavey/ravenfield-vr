@@ -31,6 +31,15 @@ namespace RavenfieldVR.UI
 
         public void Update()
         {
+            // Its field gone (the menu closed, a map loaded): the keyboard goes too. It stayed in front until dismissed by hand, and
+            // no other field could open one meanwhile (UI hunt, 2026-10-20 night).
+            if (_open && (_target == null || !_target.activeInHierarchy))
+            {
+                OpenVR.Overlay?.HideKeyboard();
+                _open = false;
+                _target = null;
+                _retryAt = 0f;
+            }
             EventSystem es = EventSystem.current;
             GameObject selected = es != null ? es.currentSelectedGameObject : null;
             // The same field again only after a retry time: a field not yet editable, or a keyboard SteamVR could not show,
