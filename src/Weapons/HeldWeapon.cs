@@ -2747,6 +2747,13 @@ namespace RavenfieldVR.Weapons
         /// <summary>The snap-off notes are said (once per hold: SnapHands runs every frame).</summary>
         private bool _saidGripSnapOff, _saidSupportSnapOff;
 
+        // The support hand's hold, taken where it gripped and kept there until let go (user, 2026-10-20 night: "if a player grips,
+        // dont make him able to move his hand anywhere else unless he let go of the gun"; task 324): the glove followed the hand
+        // along the handguard every frame, and a gun with no support pose of its own left the glove on the tracked hand.
+        private bool _supportHoldStarted;
+        private float _supportSlideHeld = float.NaN; // along the aim from the weapon's support pose (m), taken at the grab
+        private RigidPose _supportGrabInGun; // the glove at the grab, in the gun body's frame
+
         private void SnapHands(VRHand main, VRHand off)
         {
             if (main.Model != null)
@@ -2825,6 +2832,16 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (off.Role != HandRole.Foregrip)
+            {
+                _supportHoldStarted = false;
+            }
+            else if (!_supportHoldStarted && Rig.GunBody != null)
+            {
+                _supportHoldStarted = true;
+                _supportSlideHeld = float.NaN;
+                _supportGrabInGun = Rig.GunBodyPose.Inverse().Multiply(off.Model.TrackedGlovePose);
+            }
             if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
                 && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {
@@ -2834,14 +2851,19 @@ namespace RavenfieldVR.Weapons
                 }
                 if (!Rig.Data.IsPistol && !SupportHeldInPlace())
                 {
-                    // Along the handguard to where the hand actually is, within the stretch between grip and muzzle.
+                    // Along the handguard to where the hand gripped, within the stretch between grip and muzzle: taken once, at
+                    // the grab, and kept for the hold (it followed the hand along the barrel every frame; task 324).
                     Vector3 axis = Rig.AimWorld;
-                    float slide = Vector3.Dot(off.PalmCentre - support.position, axis);
-                    float min = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint) - support.position, axis) + 0.08f;
-                    // The gun's length along the aim (the drawn barrel's front where the muzzle sits inside it, Tasks 266): the same
-                    // projection as the muzzle point for every other gun.
-                    float max = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint + Rig.Data.AimAxis * Rig.Data.LengthFromGrip) - support.position, axis) - 0.04f;
-                    support.position += axis * Mathf.Clamp(slide, Mathf.Min(min, 0f), Mathf.Max(max, 0f));
+                    if (float.IsNaN(_supportSlideHeld))
+                    {
+                        float slide = Vector3.Dot(off.PalmCentre - support.position, axis);
+                        float min = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint) - support.position, axis) + 0.08f;
+                        // The gun's length along the aim (the drawn barrel's front where the muzzle sits inside it, Tasks 266): the
+                        // same projection as the muzzle point for every other gun.
+                        float max = Vector3.Dot(Rig.ToWorld(Rig.Data.GripPoint + Rig.Data.AimAxis * Rig.Data.LengthFromGrip) - support.position, axis) - 0.04f;
+                        _supportSlideHeld = Mathf.Clamp(slide, Mathf.Min(min, 0f), Mathf.Max(max, 0f));
+                    }
+                    support.position += axis * _supportSlideHeld;
                 }
                 off.Model.SnapPose = support;
             }
@@ -2850,9 +2872,13 @@ namespace RavenfieldVR.Weapons
                 if (!_saidSupportSnapOff && _supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose off12))
                 {
                     _saidSupportSnapOff = true;
-                    Log.InfoOnce("supportsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the support hand is not put on the weapon's own support pose: its hand bone is {Vector3.Distance(off12.position, Rig.ToWorld(Rig.Data.SupportPoint)) * 100f:0.0} cm from the support point (12 cm at most; task 276).");
+                    Log.InfoOnce("supportsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the support hand is not put on the weapon's own support pose: its hand bone is {Vector3.Distance(off12.position, Rig.ToWorld(Rig.Data.SupportPoint)) * 100f:0.0} cm from the support point (12 cm at most; task 276); it stays where it gripped.");
                 }
-                off.Model.SnapPose = null;
+                // No pose of the weapon's own to take: the glove stays on the gun where it gripped (it followed the tracked hand
+                // anywhere while holding; task 324).
+                off.Model.SnapPose = off.Role == HandRole.Foregrip && _supportHoldStarted && Rig.GunBody != null
+                    ? Rig.GunBodyPose.Multiply(_supportGrabInGun)
+                    : (RigidPose?)null;
             }
         }
 

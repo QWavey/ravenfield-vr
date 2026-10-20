@@ -580,6 +580,9 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>Where the glove goes for the tracked hand alone (the configured offset from the controller's palm).</summary>
+        /// <summary>Where the glove's root goes at the tracked hand (the space <see cref="SnapPose"/> is given in).</summary>
+        internal RigidPose TrackedGlovePose => TrackedTarget();
+
         private RigidPose TrackedTarget()
         {
             Vector3 posOffset = VRConfig.ParseVector(VRConfig.HandModelPosition, Vector3.zero) - VRHand.FistHollow;
