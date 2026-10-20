@@ -1362,7 +1362,9 @@ namespace RavenfieldVR.Weapons
                 Reload.BeforeRender();
                 return;
             }
-            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * 10f);
+            // A support hand that loses tracking (hidden behind the gun from the headset's cameras) still holds: the two-hand aim eases
+            // out over a third of a second, not a tenth, which swung the barrel by the whole steer in a blink (support hunt, 2026-10-20).
+            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (TwoHanded && !off.Tracked ? 3f : 10f));
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = main.GunFrame;
