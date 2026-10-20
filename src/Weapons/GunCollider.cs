@@ -290,6 +290,8 @@ namespace RavenfieldVR.Weapons
         private readonly Quaternion _frame;
         private readonly Vector3 _origin;
         private readonly List<Collider> _passing = new List<Collider>();
+        private Quaternion _lastRigTurn = Quaternion.identity;
+        private bool _hasRigTurn;
         private bool _placed;
         private bool _enabled = true;
 
@@ -789,6 +791,18 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 pos = _handPose.HasValue ? _handPose.Value.TransformPoint(_origin) : _rig.ToWorld(_origin);
             Quaternion rot = (_handPose.HasValue ? _handPose.Value.rotation : _rig.GunBody.rotation) * _frame;
+            // A snap turn jumps the gun with the whole rig: it jumps there too. Driven there, it swept up to some 25 cm through the
+            // world at up to 25 m/s and flung a magazine or a weapon lying by it (2026-10-20, task 315).
+            if (Rig.VRRig.Instance != null)
+            {
+                Rig.VRRig.SteadyRootOf(Rig.VRRig.Instance.Root, out Quaternion rigTurn);
+                if (_hasRigTurn && Quaternion.Angle(_lastRigTurn, rigTurn) > 6f)
+                {
+                    _placed = false;
+                }
+                _lastRigTurn = rigTurn;
+                _hasRigTurn = true;
+            }
             if (!_placed)
             {
                 // First frame: start on the gun instead of sweeping there through the world.
