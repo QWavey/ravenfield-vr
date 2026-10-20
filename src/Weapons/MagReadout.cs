@@ -56,6 +56,9 @@ namespace RavenfieldVR.Weapons
             mr.receiveShadows = false;
             // The same dark backing as the wrist display and the gun's counter: the count reads against the ground and sky.
             _plate = new TextPlate(_text, _font.material, 0.8f, 0.006f);
+            _color = Color.clear; // a new text and plate: all set again
+            _plateAlpha = -1f;
+            _fitFrames = 2;
         }
 
         public void BeforeRender()
@@ -88,6 +91,7 @@ namespace RavenfieldVR.Weapons
             if (!_go.activeSelf)
             {
                 _go.SetActive(true);
+                _fitFrames = 2;
             }
             Vector3 tip = _target.TipWorld;
             Vector3 up = _target.InsertDirWorld;
@@ -99,6 +103,7 @@ namespace RavenfieldVR.Weapons
             {
                 _text.text = label;
                 _shown = label;
+                _fitFrames = 2; // the plate round the new text (laid out by the next frame)
             }
             if (!_loggedShown)
             {
@@ -107,10 +112,27 @@ namespace RavenfieldVR.Weapons
             }
             Color c = _target.Rounds > 0 ? new Color(0.95f, 0.96f, 0.9f) : new Color(1f, 0.42f, 0.36f);
             c.a = _alpha * 0.95f;
-            _text.color = c;
-            _plate.Fit();
-            _plate.SetAlpha(_alpha);
+            // Each only on a change: set every frame, the text mesh was built again and the plate measured every frame.
+            if (c != _color)
+            {
+                _color = c;
+                _text.color = c;
+            }
+            if (_fitFrames > 0)
+            {
+                _fitFrames--;
+                _plate.Fit();
+            }
+            if (_alpha != _plateAlpha)
+            {
+                _plateAlpha = _alpha;
+                _plate.SetAlpha(_alpha);
+            }
         }
+
+        private Color _color = Color.clear;
+        private float _plateAlpha = -1f;
+        private int _fitFrames = 2;
 
         /// <summary>The magazine you are looking at: near, in the middle of the view, its top turned toward you.</summary>
         private static MagazineProp Find(Transform head)
