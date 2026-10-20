@@ -555,7 +555,10 @@ namespace RavenfieldVR.Rig
         private void HandleTurning(FpsActorController player)
         {
             TurnInputThisFrame = 0f;
-            if (VRConfig.Turn.Value == TurnMode.Off || GameContext.GameMenuOpen || VRGameInput.SticksOnPanel)
+            // Nor while the match is paused behind the SteamVR dashboard or with the headset off (no menu of the game's is open
+            // then, so GameMenuOpen stays false): a stick pushed meanwhile turned the view (rig hunt, 2026-10-20 night).
+            if (VRConfig.Turn.Value == TurnMode.Off || GameContext.GameMenuOpen || VRGameInput.SticksOnPanel
+                || GameManager.instance != null && GameManager.IsPaused())
             {
                 return;
             }

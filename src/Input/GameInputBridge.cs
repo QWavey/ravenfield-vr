@@ -126,7 +126,9 @@ namespace RavenfieldVR.Input
             // two hands' buttons trade places).
             Hand dom = VRInput.GunHand;
             Hand off = VRInput.FreeHand;
-            bool menu = GameContext.GameMenuOpen || !GameContext.InGame;
+            // (The match paused behind the SteamVR dashboard or with the headset off counts too: a stick flick there toggled crouch
+            // or prone for when it resumed; rig hunt, 2026-10-20 night.)
+            bool menu = GameContext.GameMenuOpen || !GameContext.InGame || GameManager.instance != null && GameManager.IsPaused();
 
             // Always available: menus and respawn. The double press is read on every frame: behind the Pause test it was skipped
             // on a frame that also had a Pause press, and that lower press was lost from the count (Tasks 160).
