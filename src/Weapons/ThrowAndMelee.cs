@@ -802,7 +802,7 @@ namespace RavenfieldVR.Weapons
             // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
             // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
             // (Not with the laser on one of the mod's panels either, as the trigger: review, 2026-10-20.)
-            if (_bashHas && Time.time - _lastBash > 0.5f && !VRGameInput.GunInputBlocked)
+            if (_bashHas && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
             {
                 bool carried = (muzzle - _bashAt[BashPoints - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
@@ -810,7 +810,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
                     float speed = (at - body.TransformPoint(_bashInRig[k])).magnitude / dt;
-                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d))
+                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, w.name, d.Key))
                     {
                         _lastBash = Time.time;
                         _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
@@ -832,7 +832,60 @@ namespace RavenfieldVR.Weapons
             _bashHas = true;
         }
 
-        private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, WeaponRigData d)
+        // ---- a magazine or a grenade swung into someone --------------------------------------------------
+
+        private readonly Vector3[] _blowAt = new Vector3[2], _blowInRig = new Vector3[2];
+        private readonly object[] _blowHeld = new object[2];
+        private float _lastBlow = -10f;
+
+        /// <summary>
+        /// What a hand holds besides a gun, swung into an enemy, hits them lightly: a magazine, shell or rocket in the hand, or
+        /// a grenade held to throw ("hitting things with held objects does no damage": only guns and blades hit; user,
+        /// 2026-10-19 night, task 306). The palm's path, swept as a gun's points are, at the same speed against the player's
+        /// own body (a swing, not a walk or a turn); once every half second at most. The damage is credited to the gun in use.
+        /// </summary>
+        public void HandBlows(HeldWeapon held)
+        {
+            Actor user = Util.GameContext.PlayerActor;
+            Weapon source = held != null && held.Weapon != null ? held.Weapon : user != null ? user.activeWeapon : null;
+            bool can = user != null && !user.dead && source != null && Util.GameContext.PlayerOnFoot && !VRGameInput.GunInputBlocked;
+            Transform body = _sys.Rig.Root;
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            for (int i = 0; i < 2; i++)
+            {
+                VRHand h = _sys.Rig.Hands[i];
+                object what = !can || h == null || !h.Tracked ? null
+                    : h.Held is MagazineProp prop && prop.Go != null ? prop
+                    : h == _sys.Rig.Dominant && held != null && held.Weapon != null && held.Rig.Data.Action == ActionType.Throwable ? (object)held.Weapon
+                    : null;
+                if (what == null)
+                {
+                    _blowHeld[i] = null;
+                    continue;
+                }
+                Vector3 at = h.Palm.position;
+                if (ReferenceEquals(what, _blowHeld[i]) && Time.time - _lastBlow > 0.5f && Time.time - _lastBash > 0.5f
+                    && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
+                {
+                    float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
+                    if (speed > Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value))
+                    {
+                        string label = what is MagazineProp m ? m.Kind.ToString().ToLowerInvariant() : "grenade"; // (only for a swing)
+                        if (BashCast(source, user, _blowAt[i], at, speed, what is MagazineProp ? 0.45f : 0.55f, "a held " + label, "blow:" + label))
+                        {
+                            _lastBlow = Time.time;
+                            h.Haptic(0.08f, 60f, 0.9f);
+                        }
+                    }
+                }
+                _blowHeld[i] = what;
+                _blowAt[i] = at;
+                _blowInRig[i] = body.InverseTransformPoint(at);
+            }
+        }
+
+        // weight: a pistol 0.6 (about a knife's light blow), a rifle 1, a machine gun 1.4; a held magazine or grenade less.
+        private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, float weight, string label, string key)
         {
             Vector3 sweep = to - from;
             float length = sweep.magnitude;
@@ -884,8 +937,6 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                // A heavy gun hits harder: a pistol about a knife's light blow, a rifle a butt stroke, a machine gun more.
-                float weight = d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f;
                 var info = new DamageInfo(DamageInfo.DamageSourceType.Melee, user, w)
                 {
                     healthDamage = Mathf.Clamp(speed * 9f * weight, 20f, 90f),
@@ -895,7 +946,7 @@ namespace RavenfieldVR.Weapons
                     impactForce = dir * (150f * weight * Mathf.Min(speed, 8f))
                 };
                 best.parent.Damage(info);
-                Log.InfoOnce("bash:" + d.Key, $"{w.name}: swung into {best.parent.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
+                Log.InfoOnce("bash:" + key, $"{label}: swung into {best.parent.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
                 return true;
             }
             catch (System.Exception e)

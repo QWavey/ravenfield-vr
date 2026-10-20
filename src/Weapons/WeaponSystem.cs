@@ -327,6 +327,7 @@ namespace RavenfieldVR.Weapons
                     _melee.Bash(Held); // a gun swung into someone hits them (user, 2026-10-16)
                 }
             }
+            _melee.HandBlows(Held != null && Held.Weapon != null ? Held : null); // and a magazine or grenade in a hand (task 306)
             foreach (VRHand h in Rig.Hands)
             {
                 if (h.Held is MagazineProp prop && (Held == null || h != Rig.Off))
