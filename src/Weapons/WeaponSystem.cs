@@ -113,6 +113,7 @@ namespace RavenfieldVR.Weapons
             _supportFireLast = VRGameInput.SupportFire;
             VRGameInput.SupportFire = false;
             VRGameInput.SupportTriggerOwned = false;
+            VRGameInput.SupportTriggerLightsOnly = false;
 
             Weapon weapon = GameContext.HeldPersonalWeapon;
             if (Held != null && (weapon != Held.Weapon || Held.Weapon == null))

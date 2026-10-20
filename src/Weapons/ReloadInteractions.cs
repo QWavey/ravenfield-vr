@@ -446,7 +446,9 @@ namespace RavenfieldVR.Weapons
                 case HandRole.Foregrip:
                 {
                     RefreshSupportKeys();
-                    VRGameInput.SupportTriggerOwned = IsPump && Manual || UnderBarrelLauncher(_held.Weapon) >= 0 || _laserKey != null || _lightKey != null;
+                    bool works = IsPump && Manual || UnderBarrelLauncher(_held.Weapon) >= 0; // the trigger works the gun itself
+                    VRGameInput.SupportTriggerOwned = works || _laserKey != null || _lightKey != null;
+                    VRGameInput.SupportTriggerLightsOnly = !works && VRGameInput.SupportTriggerOwned;
                     if (PumpByTrigger(off))
                     {
                         // The trigger squeezed on the pump: the hand takes the pump and works it for as long as it is held.
@@ -531,6 +533,7 @@ namespace RavenfieldVR.Weapons
                     if (_rackByTrigger)
                     {
                         VRGameInput.SupportTriggerOwned = true; // the pump's trigger is the gun's while it works it
+                        VRGameInput.SupportTriggerLightsOnly = false;
                     }
                     UpdateRack(off);
                     break;

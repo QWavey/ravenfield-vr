@@ -107,6 +107,7 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             VRGameInput.SupportTriggerOwned = true; // the free hand's trigger fires this weapon, it does not enter vehicles
+            VRGameInput.SupportTriggerLightsOnly = false;
             if (Weapon == null)
             {
                 return;

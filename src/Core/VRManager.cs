@@ -377,6 +377,7 @@ namespace RavenfieldVR.Core
             VRGameInput.RestoreGameSwitches();
             UI?.Dispose();
             Weapons?.Dispose();
+            RavenfieldVR.Weapons.DrivingWeapons.Reset(); // a weapon drawn in a car must not stay usable from the seat in flat play
             Rig?.Dispose();
             UI = null;
             Weapons = null;

@@ -88,7 +88,7 @@ namespace RavenfieldVR.Weapons
     {
         private static void Postfix(Seat __instance, ref bool __result)
         {
-            if (!__result && DrivingWeapons.Armed && __instance.occupant != null && __instance.occupant == GameContext.PlayerActor)
+            if (!__result && DrivingWeapons.Armed && Core.VRManager.Active && __instance.occupant != null && __instance.occupant == GameContext.PlayerActor)
             {
                 __result = true;
             }

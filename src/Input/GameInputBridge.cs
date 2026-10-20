@@ -71,6 +71,13 @@ namespace RavenfieldVR.Input
         /// </summary>
         public static bool SupportTriggerOwned { get; set; }
 
+        /// <summary>
+        /// <see cref="SupportTriggerOwned"/> only for a light's or a laser's switch (a press steps it), not to work the gun: held
+        /// for a second, that trigger still leaves a seat. With a lit rifle's handguard held in a car, the player could not get
+        /// out with either trigger (vehicles hunt, 2026-10-20). Set every frame it applies.
+        /// </summary>
+        public static bool SupportTriggerLightsOnly { get; set; }
+
         public static Vector2 MoveStick { get; private set; }
         public static Vector2 TurnStickRaw { get; private set; }
 
@@ -285,7 +292,7 @@ namespace RavenfieldVR.Input
         {
             Hand leave = LeaveHand(actor);
             Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(leave) : null;
-            bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit) && !SupportTriggerOwned;
+            bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit) && (!SupportTriggerOwned || SupportTriggerLightsOnly);
             if (!held)
             {
                 _leaveHeldSince = -1f;
@@ -344,7 +351,7 @@ namespace RavenfieldVR.Input
         /// (a car's horn is a mounted weapon too, and the trigger sounds it).
         /// </summary>
         private static bool GunTriggerLeaves(Actor actor) =>
-            actor.seat.weapons.Length == 0 && !(Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null);
+            (actor.seat.weapons == null || actor.seat.weapons.Length == 0) && !(Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null);
 
         /// <summary>The leaving trigger of this hand: Use for the off hand, Fire for the gun hand (only where <see cref="LeaveHand"/> allows it).</summary>
         // The pulled trigger counts too: on the Vive wands the off hand's trigger is a complex button (a click Use, held Squad), so
@@ -381,7 +388,11 @@ namespace RavenfieldVR.Input
                 {
                     continue;
                 }
-                return index < SeatKeys.Length ? index : -1;
+                if (index >= SeatKeys.Length)
+                {
+                    continue; // no game key for it: the next one (a seat past the seventh ended the cycle there)
+                }
+                return index;
             }
             return -1;
         }
