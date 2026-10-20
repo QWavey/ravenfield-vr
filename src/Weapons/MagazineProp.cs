@@ -97,7 +97,7 @@ namespace RavenfieldVR.Weapons
         private Bounds[] _pieceBounds;
         private float _dropTime = -1f;
         /// <summary>How fast it was let go, and by which path (the flung-magazine log line; task 315).</summary>
-        private float _dropSpeed;
+        private float _dropSpeed, _dropAcross, _dropUp;
         private string _dropBy;
         private bool _flungLogged;
         private static int _flungLines;
@@ -2320,6 +2320,8 @@ namespace RavenfieldVR.Weapons
             _body.angularVelocity = angularVelocity;
             _dropTime = Time.time;
             _dropSpeed = velocity.magnitude;
+            _dropAcross = new Vector2(velocity.x, velocity.z).magnitude;
+            _dropUp = Mathf.Max(0f, velocity.y);
             _dropBy = by;
             _flungLogged = false;
             // The newest drop goes last: the cap on lying props counts from the end, so a magazine picked up and dropped
@@ -2496,13 +2498,14 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            float speed = _body.velocity.magnitude;
-            // Faster than it was let go plus what falling since has given it (a magazine dropped off a roof is fast and not flung).
-            float fallen = Physics.gravity.magnitude * (Time.time - _dropTime);
-            if (speed < 6f || speed < _dropSpeed + fallen + 3f)
+            // Across or upward, not down: a magazine dropped off a roof falls fast and is not flung.
+            Vector3 v = _body.velocity;
+            float across = new Vector2(v.x, v.z).magnitude, up = v.y;
+            if (!(across >= 6f && across >= _dropAcross + 3f || up >= 4f && up >= _dropUp + 3f))
             {
                 return;
             }
+            float speed = v.magnitude;
             _flungLogged = true;
             _flungLines++;
             Vector3 at = Go.transform.position;
