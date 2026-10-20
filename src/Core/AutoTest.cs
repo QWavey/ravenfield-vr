@@ -3453,6 +3453,7 @@ namespace RavenfieldVR.Core
                                 Shots.Capture($"{name}-{rackIndex:000}-{entry.name}");
                                 RackCloseUps($"{name}-{rackIndex:000}-{entry.name}", held, ref rackCam);
                             });
+                            yield return held.Reload.SupportSlideSelfCheck(lines.Add); // the support hand slid onto the handle (Tasks 322)
                         }
                         if (held.Reload.WorksByPump && (Deep || pumpChecks++ < 3))
                         {

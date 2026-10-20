@@ -4758,6 +4758,65 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Autotest: the support hand holding the handguard slides back along the gun onto the charging handle with its grip still
+        /// closed, and must take the handle (Tasks 322: it stayed on the handguard, which lets go only at 60 cm, and the rack, which
+        /// needs a fresh squeeze, never started: "i cannot pull back the bolt thingy").
+        /// </summary>
+        internal IEnumerator SupportSlideSelfCheck(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesChamber || IsPump || GripData.IsPistol || !GripData.HasSupportPoint)
+            {
+                yield break;
+            }
+            string busy = OffHandBusy(off);
+            if (busy != null)
+            {
+                report($"support hand slid onto the charging handle: skipped ({busy})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            System.Func<Vector3, RigidPose> At = RackHandPose(off);
+            Vector3 from = GripRig.ToWorld(GripData.SupportPoint);
+            bool took = false;
+            string role = "";
+            VRInput.SimulatedGrab[side] = true;
+            try
+            {
+                VRHand.Scripted[side] = At(from);
+                yield return null;
+                yield return null;
+                off.Role = HandRole.Foregrip;
+                _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                yield return null;
+                for (int i = 1; i <= 20 && !took; i++)
+                {
+                    VRHand.Scripted[side] = At(Vector3.Lerp(from, RackPointWorld, i / 20f));
+                    yield return null;
+                    took = off.Role == HandRole.Slide;
+                }
+                role = off.Role.ToString();
+            }
+            finally
+            {
+                if (_racking)
+                {
+                    EndRack(off, chamber: false);
+                }
+                if (off.Role == HandRole.Foregrip)
+                {
+                    _held.SetTwoHanded(false);
+                    off.Role = HandRole.Free;
+                }
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            Core.AutoTest.Metric("support hand slid onto the charging handle: taken (1) or not (0)", took ? 1 : 0);
+            report($"support hand slid back onto the charging handle, grip held: {(took ? "took the handle" : $"DID NOT TAKE IT (the hand: {role})")}");
+            yield return new WaitForSecondsRealtime(0.3f);
+        }
+
+        /// <summary>
         /// Autotest: the off hand takes the handguard (as a grab there would) for a picture of both hands on the gun, then
         /// lets go. Reports whether the glove took the weapon's own support pose.
         /// </summary>
