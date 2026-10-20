@@ -81,7 +81,11 @@ namespace RavenfieldVR.Weapons
                 _shownKind = kind; // a magazine at 30/30 reads "1", a shell gun at 30/30 "30"
                 _label.text = PouchText(spare, ammo.Capacity, kind);
             }
-            _label.color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
+            Color color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
+            if (color != _label.color)
+            {
+                _label.color = color; // only on a change: a text mesh is built again each time its colour is set
+            }
             Vector3 side = Vector3.Cross(Vector3.up, zones.TorsoForward).normalized;
             float halfWidth = Mathf.Abs(Vector3.Dot(_bounds.extents, Abs(Quaternion.Inverse(rot) * side))) * scale;
             _label.transform.position = zones.Pouch + lift + side * (halfWidth + 0.018f) + Vector3.up * 0.01f;
