@@ -5289,6 +5289,12 @@ namespace RavenfieldVR.Weapons
         public void Release()
         {
             VRHand off = _sys.Rig.Off;
+            if (off.Model != null)
+            {
+                // First: whatever throws below (HeldWeapon catches it), the off glove is not left pulled toward an anchor on a gun
+                // that is gone (review, 2026-10-20).
+                off.Model.GraspAnchor = null;
+            }
             _pullingIn = null;
             Casings.ShowChamber(_held, false, false);
             if (_ejecting != null)

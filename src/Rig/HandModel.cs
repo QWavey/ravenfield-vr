@@ -697,6 +697,14 @@ namespace RavenfieldVR.Rig
                 // Not drawn, but its grip point kept live: the arm's IK settles on it (a stale one pulled the weapon's own
                 // arm up to 5 cm toward where the hand had been before the weapon was taken).
                 _graspOffset = Vector3.zero;
+                // And no snap blend kept from before it was hidden: a rifle's grip pose held at full weight came back when the
+                // hand showed again (a kit drawn straight after it, then let go), and the glove glided over from there (review,
+                // 2026-10-20).
+                _snapBlend = SnapPose.HasValue ? 1f : 0f;
+                if (SnapPose.HasValue)
+                {
+                    _lastSnap = SnapPose.Value;
+                }
                 return;
             }
             if (GraspAnchor.HasValue)

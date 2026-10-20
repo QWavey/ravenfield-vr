@@ -55,6 +55,7 @@ namespace RavenfieldVR.Rig
         private int _historyIndex;
         private bool _hasTip, _hasGrip;
         private Quaternion _lastRigRotation = Quaternion.identity;
+        private Vector3 _lastRigMeasured;
         private Matrix4x4 _lastRigMatrix = Matrix4x4.identity;
         private bool _hasLastRig;
         private RigidPose _lastRawLocal;
@@ -145,11 +146,20 @@ namespace RavenfieldVR.Rig
                         rigSpin = turnAxis * (turned * Mathf.Deg2Rad / Time.unscaledDeltaTime);
                     }
                 }
-                if (rigVelocity.sqrMagnitude > 225f)
+                // A jump of the rig (a teleport, a respawn without a mode change) is no motion: told by a change of over 20 m/s from
+                // the frame before, not by the speed, which a vehicle reaches (a 15 m/s cap dropped a fast car's or a jet's speed
+                // from what was let go inside it; review, 2026-10-20). Half a throw's peak would take a jump in.
+                Vector3 measured = rigVelocity;
+                if ((measured - _lastRigMeasured).sqrMagnitude > 400f)
                 {
-                    rigVelocity = Vector3.zero; // over 15 m/s: a teleport or a jump of the rig, not motion (half its peak goes into a throw)
+                    rigVelocity = Vector3.zero;
                     rigSpin = Vector3.zero;
                 }
+                _lastRigMeasured = measured;
+            }
+            else
+            {
+                _lastRigMeasured = Vector3.zero;
             }
             _lastRigRotation = steadyRotation;
             _lastRigMatrix = steadyRoot;

@@ -139,7 +139,13 @@ def scan(name):
     least = min(t[0] for t in tried)
     near = [t for t in tried if t[0] <= least + max(2, least * 0.1)]
     best = min(near, key=lambda t: (t[1] ** 2 + t[2] ** 2, t[0]))
+    # Within a plausible tilt (fore/aft 18, sideways 6): beyond it the magazine can hide inside the receiver, which the side
+    # outline cannot see, and the count falls for that alone (the HK416's -28.5 drew it through the lower receiver).
+    capped_all = [t for t in tried if abs(t[1]) <= 18.01 and abs(t[2]) <= 6.01]
+    capped_least = min(t[0] for t in capped_all)
+    capped = min([t for t in capped_all if t[0] <= capped_least + max(2, capped_least * 0.1)], key=lambda t: (t[1] ** 2 + t[2] ** 2, t[0]))
     out.append(f'  best tip (wide): fore/aft {best[1]:+.1f} deg, sideways {best[2]:+.1f} deg, score {best[0]} (analysed {sum(base_shown) + sum(base_poke)})' + (' (edge)' if abs(best[1]) >= 29.9 or abs(best[2]) >= 11.9 else ''))
+    out.append(f'  best tip (capped): fore/aft {capped[1]:+.1f} deg, sideways {capped[2]:+.1f} deg, score {capped[0]} (analysed {sum(base_shown) + sum(base_poke)})')
     if best[1] or best[2]:
         s, p = run(norm(rot_about(rot_about(eject, right, best[1]), aim, best[2])))
         out.append(f'    there: beside {s}, through {p}')

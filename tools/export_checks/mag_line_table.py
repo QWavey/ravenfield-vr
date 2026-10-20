@@ -16,13 +16,25 @@ OUT = os.path.join(ROOT, 'src', 'Weapons', 'MagLineTable.cs')
 
 rows = {}
 for path in sys.argv[1:]:
+    capped_scan = 'best tip (capped)' in open(path, encoding='utf-8').read()
     cur = None
     for line in open(path, encoding='utf-8'):
         m = re.match(r'^(\S+): \d+ magazine points', line)
         if m:
             cur = m.group(1)
             continue
+        m = re.search(r'best tip \(capped\): fore/aft ([+-]?\d+\.\d) deg, sideways ([+-]?\d+\.\d) deg, score (\d+) \(analysed (\d+)\)', line)
+        if m and cur:
+            # The best within a plausible tilt (fore/aft 18, sideways 6; mag_line_wide.py): the one taken when a scan gives it.
+            fore, side, best, analysed = float(m.group(1)), float(m.group(2)), int(m.group(3)), int(m.group(4))
+            if (fore or side) and best <= analysed * 0.5 and analysed - best >= 15:
+                rig = json.load(open(os.path.join(DATA, cur, 'rig.json'), encoding='utf-8'))
+                rows[rig['key']] = (fore, side, analysed, best, cur)
+            cur = None
+            continue
         m = re.search(r'best tip( \(wide\))?: fore/aft ([+-]?\d+\.\d) deg, sideways ([+-]?\d+\.\d) deg, score (\d+) \(analysed (\d+)\)', line)
+        if m and cur and capped_scan:
+            continue  # the capped line, after this one, decides
         if m and cur:
             wide = m.group(1) is not None
             fore, side, best, analysed = float(m.group(2)), float(m.group(3)), int(m.group(4)), int(m.group(5))
