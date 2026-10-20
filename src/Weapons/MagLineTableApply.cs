@@ -9,8 +9,8 @@ namespace RavenfieldVR.Weapons
     /// against the gun's side outline at 1 mm) where they are clearly better than the analysed line. The in-game fit counts on
     /// depth-rendered volumes and missed it on the M4A1 family: 17-20 points out of place in game, 63-200 offline, kept, and the
     /// magazines went in a little through the gun near the end (user, 2026-10-20). It also tilts only fore/aft, and these lines
-    /// lean sideways too. Applied after the analysis, the user's overrides and the export: the scans read the analysed line,
-    /// and the table's tilts are relative to it.
+    /// lean sideways too. Applied after the analysis, the user's overrides and the export (the scans read the line the game
+    /// analysed); the table holds the measured line itself, in the gun's frame.
     /// </summary>
     internal static partial class MagLineTable
     {
@@ -21,21 +21,17 @@ namespace RavenfieldVR.Weapons
 
         public static void Apply(WeaponRigData d)
         {
-            if (d == null || d.Key == null || !Tilts.TryGetValue(d.Key, out Vector2 tilt) || d.MagEjectAxis.sqrMagnitude < 0.5f)
+            if (d == null || d.Key == null || !Lines.TryGetValue(d.Key, out Vector3 line) || line.sqrMagnitude < 0.5f)
             {
                 return;
             }
-            // As the scan turns it: about right = aim x up (the up made square to the aim), then about the aim.
-            Vector3 aim = d.AimAxis.normalized;
-            Vector3 up = (d.Up - aim * Vector3.Dot(d.Up, aim)).normalized;
-            Vector3 right = Vector3.Cross(aim, up).normalized;
-            Vector3 eject = d.MagEjectAxis.normalized;
-            eject = Quaternion.AngleAxis(tilt.x, right) * eject;
-            eject = Quaternion.AngleAxis(tilt.y, aim) * eject;
-            d.MagEjectAxis = eject.normalized;
-            d.Notes += $"magazine line from the offline table ({tilt.x:+0.0;-0.0} fore/aft, {tilt.y:+0.0;-0.0} sideways) ";
+            // The line itself, in the gun's frame (the well does not move): as a tilt on top of the analysed line it landed elsewhere
+            // when the game's analysis took its line from another source than the export's (review, 2026-10-20).
+            float turned = d.MagEjectAxis.sqrMagnitude > 0.5f ? Vector3.Angle(d.MagEjectAxis, line) : 0f;
+            d.MagEjectAxis = line.normalized;
+            d.Notes += $"magazine line from the offline table ({turned:0.0} deg from the analysed one) ";
             Applied.Add(d);
-            Log.InfoOnce("maglinetable:" + d.Key, $"{d.Key}: magazine line from the offline table, turned {tilt.x:+0.0;-0.0} deg fore/aft and {tilt.y:+0.0;-0.0} deg sideways.");
+            Log.InfoOnce("maglinetable:" + d.Key, $"{d.Key}: magazine line from the offline table, {turned:0.0} deg from the analysed one.");
         }
     }
 }
