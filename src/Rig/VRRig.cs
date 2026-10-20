@@ -229,6 +229,28 @@ namespace RavenfieldVR.Rig
             PeakShake = Mathf.Max(PeakShake, _shakePitch);
         }
 
+        /// <summary>
+        /// The root's pose this frame before the view shake turned it (the hands take the rig's motion from it: the shake of every
+        /// shot turned the rig about the eyes, and a magazine let go right after a shot, an empty pistol's, flew off with it;
+        /// 2026-10-20, task 315).
+        /// </summary>
+        private Matrix4x4 _steadyRoot = Matrix4x4.identity;
+        private Quaternion _steadyRootRotation = Quaternion.identity;
+        private int _steadyFrame = -1;
+
+        /// <summary><paramref name="root"/>'s pose this frame without the view shake (its own pose when it is not this rig's or none was kept).</summary>
+        internal static Matrix4x4 SteadyRootOf(Transform root, out Quaternion rotation)
+        {
+            VRRig rig = Instance;
+            if (rig != null && rig.Root == root && rig._steadyFrame == Time.frameCount)
+            {
+                rotation = rig._steadyRootRotation;
+                return rig._steadyRoot;
+            }
+            rotation = root.rotation;
+            return root.localToWorldMatrix;
+        }
+
         /// <summary>The jolt, fading (a 20 ms time constant: gone within about 60 ms), turned about the eyes.</summary>
         private void ApplyViewShake()
         {
@@ -762,6 +784,9 @@ namespace RavenfieldVR.Rig
             try
             {
                 reference = PlaceOrigin(player);
+                _steadyRoot = Root.localToWorldMatrix;
+                _steadyRootRotation = Root.rotation;
+                _steadyFrame = Time.frameCount;
                 ApplyViewShake();
             }
             catch (Exception e)
