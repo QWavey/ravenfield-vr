@@ -2356,7 +2356,7 @@ namespace RavenfieldVR.Weapons
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
         /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
-        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * ((_held.BoltLockedAlone || _held.KnobLockedAlone) && !_racking ? 0f : Fraction)));
+        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * ((_held.BoltLockedAlone || _held.KnobLockedAlone || _held.HandleLockedAlone) && !_racking ? 0f : Fraction)));
 
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
@@ -2417,7 +2417,7 @@ namespace RavenfieldVR.Weapons
             // made knob locked alone is taken at home before; review, 2026-10-20).
             _racking = true;
             // Locked open with only the bolt back (an M4's handle home): the handle is taken where it is, at home.
-            _rackFromBoltLock = _held.BoltLockedAlone || _held.KnobLockedAlone; // (a made knob locked forward: taken at home too)
+            _rackFromBoltLock = _held.BoltLockedAlone || _held.KnobLockedAlone || _held.HandleLockedAlone; // (a made knob or an M4's T locked forward: taken at home too)
             _rackBase = _rackFromBoltLock ? 0f : Ammo.SlideLocked ? 1f : Fraction;
             // An open bolt with an empty chamber (the case already out) feeds when pushed home, however far it was left open:
             // pulled back, half closed and let go, it closed later without feeding and the gun said RACK.

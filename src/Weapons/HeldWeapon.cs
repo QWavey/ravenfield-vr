@@ -2976,11 +2976,14 @@ namespace RavenfieldVR.Weapons
             // Locked open with the bolt under the racked handle: the handle home (or where the hand has it), the bolt back.
             bool boltAlone = BoltLockedAlone;
             float slideShare = boltAlone && !Reload.IsRacking ? 0f : fraction;
-            if (Reload != null && Reload.IsRacking && Reload.RackFromLock && KnobLockedAlone)
+            // The knob or the T worked from home while the bolt or carrier stays on its catch until it is let go (from its first
+            // frame: the offset starts at nothing there, and the carrier was sent home for that frame).
+            bool lockRack = Reload != null && Reload.IsRacking && Reload.RackFromLock && (KnobLockedAlone || HandleLockedAlone);
+            if (lockRack)
             {
-                slideShare = 1f; // the knob is worked from home while the bolt stays on its catch until it is let go
+                slideShare = 1f;
             }
-            if (SlideOffset > 0.0005f)
+            if (SlideOffset > 0.0005f || lockRack)
             {
                 MovePart(Rig.Slide, d.SlideRestLocal, d.SlideTravel * slideShare);
                 MoveCompanions(d.SlideTravel * slideShare);
@@ -3162,6 +3165,15 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal bool KnobLockedAlone => Rig.Bolt == null && Rig.Slide != null && (Rig.Data.CarveHandle || Rig.Data.AddedHandle) && Reload != null
                                          && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
+
+        /// <summary>
+        /// Locked open with a charging handle of its own (an M4's T): the T is drawn home (ApplyPartOverrides) while the carrier
+        /// waits back on its catch, so the grab zone and the stroke start at the T. They started 7.5 cm behind it with the carrier,
+        /// so after the last round the T was hardly in reach, the sight switch or the magnifier took the grab, and a rack that did
+        /// start drew the T jumping back out of the hand (user, 2026-10-20: "some m4a1 racks got unrackable again"; rack hunt).
+        /// </summary>
+        internal bool HandleLockedAlone => Rig.Handle != null && !BoltLockedAlone && !KnobLockedAlone && Reload != null
+                                           && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
 
         /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
         private void ApplyHinge(WeaponRigData d)
