@@ -3311,7 +3311,41 @@ namespace RavenfieldVR.Weapons
             }
             if (best == null)
             {
-                return;
+                // No short T: the handle drawn whole, T and shaft in one part (the M4A1 [SQUAD] family's '对象003': 16.3 cm along the
+                // bore, 1.1 cm tall, 5.5 cm across, on the carrier's rear top). Taken only by the short T's length it was never
+                // found, the hand racked the carrier inside the receiver and the T the user pulled at stayed (user, 2026-10-20 night:
+                // "cannot pull back the bolt thingy again"). Flat (1.3 cm at most: an M417A2's 1.5 cm part is left to its cut-out
+                // handle) and across the receiver at its back; tools/export_checks/whole_t_rule.py takes the three squad M4A1s.
+                float wholeGap = 0.07f;
+                foreach (Transform t in all)
+                {
+                    if (!index.TryGetValue(t, out int i) || sampler.ReloadMax[i] > 0.01f || t == slide || t.IsChildOf(slide) || slide.IsChildOf(t)
+                        || UnderOptic(t, gunBody)
+                        || MagName.IsMatch(t.name) || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                    {
+                        continue;
+                    }
+                    Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                    float along = Vector3.Dot(b.size, aimAbs), tall = Vector3.Dot(b.size, upAbs), across = Vector3.Dot(b.size, rightAbs);
+                    float above = Vector3.Dot(b.center - d.MuzzlePoint, d.Up);
+                    if (along < 0.12f || along > 0.22f || tall > 0.013f || across < 0.03f || above < 0f || above > 0.06f
+                        || Vector3.Dot(b.center - rearTop, d.Up) > 0.015f)
+                    {
+                        continue;
+                    }
+                    float gap = Mathf.Sqrt(b.SqrDistance(rearTop));
+                    if (gap < wholeGap)
+                    {
+                        wholeGap = gap;
+                        best = t;
+                        bestBounds = b;
+                    }
+                }
+                if (best == null)
+                {
+                    return;
+                }
+                d.SlideMethod += " (a whole handle)";
             }
             d.HandlePath = WeaponRig.PathOf(root, best);
             d.HandleRestLocal = sampler.IdleLocalPosition(best);
