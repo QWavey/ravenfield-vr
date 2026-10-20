@@ -37,14 +37,16 @@ namespace RavenfieldVR.Weapons
         /// A launcher's round by its name: a missile, warhead or projectile (导弹, 火箭, 战斗部, ракета). Launchers only: on any
         /// other gun a "MissileTube" or "Projectile_FX" part was taken for its magazine by the name fallback (review 253.9).
         /// </summary>
-        private static readonly Regex LauncherRoundName = new Regex(@"rocket|missile|warhead|projectile|ракета|导弹|火箭|战斗部", RegexOptions.IgnoreCase);
+        private static readonly Regex LauncherRoundName = new Regex(@"rocket|missile|warhead|projectile|ракета|导弹|火箭|战斗部|弹药|弹头|炮弹", RegexOptions.IgnoreCase); // (弹药, 弹头, 炮弹: ammunition, warhead, shell; the Panzerfaust 3's warhead is 弹药)
         /// <summary>
         /// A launcher's parts that its tube swap moves and are never its rocket: a safety, a cap or lid, a sling, a carry handle
         /// (保险, 桶盖, 提把; the AT-1K's controller unit with its safety was taken for its rocket). Launchers only: on any other
         /// gun a "Mag_Cap" lost its magazine name (review 253.7).
         /// </summary>
         private static readonly Regex LauncherNotRound = new Regex(
-            @"safety|(^|[^a-z])(end ?)?caps?($|[^a-z])|(^|[^a-z])lid($|[^a-z])|sling|carry ?handle|保险|桶盖|提把", RegexOptions.IgnoreCase);
+            @"safety|(^|[^a-z])(end ?)?caps?($|[^a-z])|(^|[^a-z])lid($|[^a-z])|sling|carry ?handle|保险|桶盖|提把"
+            // Nor its stock (枪托): the Panzerfaust 3's was taken for its rocket, and a stock came out of the pouch to load (2026-10-20).
+            + @"|(^|[^a-z])(stock|butt)($|[^a-z])|枪托", RegexOptions.IgnoreCase);
         /// <summary>
         /// Parts named after the magazine that are not the magazine: its release button or catch, the well it sits in, a
         /// pouch or a spare. Taking one of them for the magazine leaves the real one in the gun when it is ejected.
