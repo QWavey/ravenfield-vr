@@ -1466,6 +1466,9 @@ namespace RavenfieldVR.Weapons
         // A grabbed prop eases into the hand over a few frames instead of jumping there.
         private RigidPose _attachFrom;
         private bool _fresh = true;
+
+        /// <summary>An ejected magazine on its way out: caught, it eases into the hand like any other (not as a pouch's fresh one).</summary>
+        internal void NotFresh() => _fresh = false;
         private float _attachAt = -1f;
         private const float AttachBlend = 0.09f;
 
@@ -1914,6 +1917,13 @@ namespace RavenfieldVR.Weapons
         private bool OnWellLine(RigidPose seat, Vector3 at, Quaternion rot)
         {
             Vector3 local = seat.InverseTransformPoint(at);
+            // Aside by its farthest end, not its pivot: turned 10 degrees past the mouth, a 1911 magazine's tip stood 1.1 cm off the
+            // line while its pivot read 0, the well stayed open and the tip went through the grip's wall (review, 2026-10-20).
+            Vector3 scale = Go != null ? Go.transform.lossyScale : Vector3.one;
+            Vector3 tip = Vector3.Scale(TipLocal, scale), bottom = Vector3.Scale(BaseLocal, scale);
+            float aside = Mathf.Max(Vector3.ProjectOnPlane(local, InsertDirLocal).magnitude,
+                Mathf.Max(Vector3.ProjectOnPlane(seat.InverseTransformPoint(at + rot * tip) - tip, InsertDirLocal).magnitude,
+                          Vector3.ProjectOnPlane(seat.InverseTransformPoint(at + rot * bottom) - bottom, InsertDirLocal).magnitude));
             // Past the mouth the well is open only to a magazine nearly straight on its line and within its play: turned in it,
             // its corners went out through a pistol grip's walls, and 4.5 cm aside, the half of it over the seated magazine
             // was let in and its far side stood in the grip's wall (user, 2026-10-19, the 1911s; task 270; check-1019k: 23-102
@@ -1921,7 +1931,7 @@ namespace RavenfieldVR.Weapons
             // on there.
             float depth = Vector3.Dot(local, InsertDirLocal) + RailLength; // 0: its tip at the well's mouth, RailLength: seated
             bool past = depth > ReloadInteractions.MouthReach;
-            if (Vector3.ProjectOnPlane(local, InsertDirLocal).magnitude > (past ? WellPlay * 0.75f : 0.045f))
+            if (aside > (past ? WellPlay * 0.75f : 0.045f))
             {
                 return false;
             }
@@ -2293,6 +2303,7 @@ namespace RavenfieldVR.Weapons
                 Log.Info($"Magazine ({Rounds} rounds) dropped from the {HeldBy.Side} hand by {by}{(LostByHand ? " (lost by the hand)" : "")}.");
             }
             LostByHand = false;
+            _fresh = false; // caught or picked up again later, it eases into the hand (it jumped up to 13 cm in one frame; review, 2026-10-20)
             if (_sectionEasing)
             {
                 _frontHalf = _sectionGoal.x;

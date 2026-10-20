@@ -744,6 +744,7 @@ namespace RavenfieldVR.Weapons
             // despawns first).
             int rounds = Ammo.EjectMagazine();
             _ejecting = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            _ejecting.NotFresh();
             Log.InfoOnce("eject:" + Data.Key, $"Magazine ejected from {Data.Key}: {rounds} rounds, {Rig.MagazineParts.Length} part(s) hidden on the gun, pull axis {Data.MagEjectAxis:F2}, rail {_ejecting.RailLength * 100f:0.0} cm.");
             _ejecting.Owner = Ammo;
             if (WellInGrip)
@@ -1964,7 +1965,8 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             prop.RailOutOnly = false;
-            if (prop.RailDepth >= prop.RailLength * 0.96f)
+            // (98.5%, not 96: the prop gave way 3.6-5 mm short of the seat and the gun's magazine popped up there; review, 2026-10-20.)
+            if (prop.RailDepth >= prop.RailLength * 0.985f)
             {
                 SeatProp(off, prop);
             }
@@ -2291,6 +2293,8 @@ namespace RavenfieldVR.Weapons
 
         private void ReleaseProp(VRHand off, MagazineProp prop)
         {
+            _kickPrevAlong = float.NaN; // the next magazine's kick starts afresh (a stale crossing fired a kick; review, 2026-10-20)
+            _kickPushSince = -1f;
             if (_pullingIn == prop)
             {
                 // Let go while it was being drawn in: it finishes going in rather than falling out of the grip.
