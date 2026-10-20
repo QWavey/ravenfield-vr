@@ -85,7 +85,7 @@ namespace RavenfieldVR.Weapons
             if (_armed && VRInput.GetReleased(DigitalAction.Fire, hand.Side))
             {
                 _armed = false;
-                Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                Vector3 v = ThrowableHandler.Released(hand);
                 if (v.magnitude > 1.1f && Throw(weapon, hand, v))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
@@ -99,7 +99,7 @@ namespace RavenfieldVR.Weapons
                 // leaves with the hand's full speed, running included. Backing away as you throw, that speed could cancel
                 // out: the grenade then fell at your feet with its pin out, so it never leaves slower than the swing itself.
                 Vector3 body = hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-                Vector3 v = hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                Vector3 v = ThrowableHandler.Released(hand);
                 if (v.magnitude < body.magnitude * 0.7f)
                 {
                     v = body;
@@ -209,6 +209,14 @@ namespace RavenfieldVR.Weapons
         // Not a stick grenade's "Handle" or an "Arming" lever: a real pin under one was taken for a finger bone.
         private static readonly Regex ArmName = new Regex(@"hand(?!le|guard|rail)|arm(?!ature|or|our|ing|ed)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
         private static readonly Regex NotAGrenade = new Regex(@"bag|kit|c4|charge|mine|claymore|beacon|molotov|cocktail|knife|axe|tomahawk", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// The velocity a throwable leaves the hand with: the hand's own swing (against the body) times the throw multiplier, and
+        /// the body's own motion (walking, a vehicle) as it is. The whole world velocity was multiplied: a grenade let go from a
+        /// car at 60 m/s left at about 84 along the car's heading (throw hunt, 2026-10-20).
+        /// </summary>
+        internal static Vector3 Released(VRHand hand) =>
+            hand.ThrowVelocity() + hand.BodyThrowVelocity() * (VRConfig.ThrowVelocityMultiplier.Value - 1f);
 
         /// <summary>Fused grenades get a pin; bags, kits, charges and other throwables do not.</summary>
         internal static bool HasPin(ThrowableWeapon weapon)

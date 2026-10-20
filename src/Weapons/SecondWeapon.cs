@@ -154,7 +154,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!trigger && _triggerWas && Armed)
             {
-                Vector3 v = Hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                Vector3 v = ThrowableHandler.Released(Hand);
                 if (v.magnitude > 1.1f)
                 {
                     Throw(v);
@@ -172,7 +172,7 @@ namespace RavenfieldVR.Weapons
             if (IsThrowable && Weapon != null && !Done && !Util.GameContext.GameMenuOpen)
             {
                 Vector3 body = Hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-                Vector3 v = Hand.ThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+                Vector3 v = ThrowableHandler.Released(Hand);
                 if (v.magnitude < body.magnitude * 0.7f)
                 {
                     v = body;
@@ -208,7 +208,9 @@ namespace RavenfieldVR.Weapons
                 Hand.Haptic(0.08f, 40f, 0.4f);
                 return;
             }
-            if (!Armed)
+            // Only what has a pin to pull (a grenade, with pins on): a molotov, C4 or a bag thrown from the free hand landed inert,
+            // as the grenade hand's _usesPin already knew (throw hunt, 2026-10-20).
+            if (!Armed && ThrowableHandler.HasPin(weapon))
             {
                 // As the grenade hand's dud: one fewer in the pouch (picked up again, it goes back), the next one ready.
                 GrenadeDud.Spawn(Rig, weapon, Hand.Palm.position, Hand.Palm.rotation, velocity, Hand.AngularVelocity);

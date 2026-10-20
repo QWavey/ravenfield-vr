@@ -737,11 +737,24 @@ namespace RavenfieldVR.Weapons
         internal void PutAwayAfterThrow()
         {
             Actor actor = GameContext.PlayerActor;
-            if (actor == null || actor.activeWeapon == null || actor.IsSeated())
+            if (actor == null || actor.activeWeapon == null)
             {
                 return;
             }
-            actor.HolsterActiveWeapon();
+            if (actor.IsSeated())
+            {
+                // Drawn in a seat: put away as the seat's holster grab does (the horn back). It stayed in the open hand, and
+                // the next let-go threw it again with its pin in (throw hunt, 2026-10-20).
+                if (!DrivingWeapons.Armed || actor.activeWeapon.IsMountedWeapon())
+                {
+                    return;
+                }
+                DrivingWeapons.PutAway(actor);
+            }
+            else
+            {
+                actor.HolsterActiveWeapon();
+            }
             VRHand dom = Rig.Dominant;
             if (dom.Role == HandRole.Weapon || dom.Role == HandRole.Throwable)
             {
