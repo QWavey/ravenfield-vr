@@ -14,6 +14,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DATA = os.path.join(ROOT, 'reports', 'sandbox', 'data', 'weapons')
 OUT = os.path.join(ROOT, 'src', 'Weapons', 'MagLineTable.cs')
 
+# Export folders whose line on the cap was checked in a picture and looked right (along the grip's rake).
+CHECKED = {'P320_p320_1', 'P320s_p320_1_s'}
+
 rows = {}
 for path in sys.argv[1:]:
     capped_scan = 'best tip (capped)' in open(path, encoding='utf-8').read()
@@ -27,7 +30,10 @@ for path in sys.argv[1:]:
         if m and cur:
             # The best within a plausible tilt (fore/aft 18, sideways 6; mag_line_wide.py): the one taken when a scan gives it.
             fore, side, best, analysed = float(m.group(1)), float(m.group(2)), int(m.group(3)), int(m.group(4))
-            if (fore or side) and best <= analysed * 0.5 and analysed - best >= 15:
+            # On the cap itself only when a picture (mag_line_draw.py) showed it right: pinned there, the line is usually the same
+            # artifact pushing further out (the HK416-D's and F2000's slid through the receiver and the stock, 2026-10-20).
+            at_cap = abs(fore) >= 17.9 or abs(side) >= 5.9
+            if (fore or side) and (not at_cap or cur in CHECKED) and best <= analysed * 0.5 and analysed - best >= 15:
                 rig = json.load(open(os.path.join(DATA, cur, 'rig.json'), encoding='utf-8'))
                 rows[rig['key']] = (fore, side, analysed, best, cur)
             cur = None

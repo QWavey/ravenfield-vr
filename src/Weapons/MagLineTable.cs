@@ -9,44 +9,68 @@ namespace RavenfieldVR.Weapons
         /// <summary>Analysis key -> (tilt fore/aft about the gun's right, then sideways about its aim), degrees.</summary>
         private static readonly Dictionary<string, Vector2> Tilts = new Dictionary<string, Vector2>
         {
-            { "1911#1911", new Vector2(-9.0f, -1.5f) }, // 1911_1911: 32 -> 3 points out of place
-            { "AF2011A1#AF2011A1", new Vector2(-10.5f, -1.5f) }, // AF2011A1_AF2011A1: 626 -> 200 points out of place
-            { "ARS Glock 19#G19", new Vector2(-18.0f, -3.0f) }, // ARS_Glock_19_G19: 217 -> 0 points out of place
-            { "CZ Bren 2 BR Assault#CZ Bren 2 BR Assault", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_Assault_CZ_Bren_2_BR_Assault: 97 -> 19 points out of place
-            { "CZ Bren 2 BR Holo#CZ Bren 2 BR Holo", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_Holo_CZ_Bren_2_BR_Holo: 97 -> 19 points out of place
-            { "CZ Bren 2 BR Raid#CZ Bren 2 BR Raid", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_Raid_CZ_Bren_2_BR_Raid: 93 -> 19 points out of place
-            { "CZ Bren 2 BR S#CZ Bren 2 BR S", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_S_CZ_Bren_2_BR_S: 97 -> 19 points out of place
-            { "CZ Bren 2 BR Tac#CZ Bren 2 BR Tac", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_Tac_CZ_Bren_2_BR_Tac: 97 -> 19 points out of place
-            { "CZ Bren 2 BR#CZ Bren 2 BR", new Vector2(-15.0f, -4.5f) }, // CZ_Bren_2_BR_CZ_Bren_2_BR: 97 -> 19 points out of place
-            { "Colt M1911#M1911", new Vector2(-9.0f, -3.0f) }, // Colt_M1911_M1911: 258 -> 84 points out of place
-            { "Colt M1911A1#M1911A1", new Vector2(-10.5f, -3.0f) }, // Colt_M1911A1_M1911A1: 258 -> 71 points out of place
-            { "D1911#D1911 ANI", new Vector2(-13.5f, -1.5f) }, // D1911_D1911_ANI: 20 -> 0 points out of place
-            { "FAQ1911#FA1911 Lite", new Vector2(-13.5f, 0.0f) }, // FAQ1911_FA1911_Lite: 103 -> 0 points out of place
-            { "GLOCK 43X [FA]#G43X FA MZ", new Vector2(-18.0f, -1.5f) }, // GLOCK_43X__FA__G43X_FA_MZ: 803 -> 0 points out of place
-            { "GLOCK 43X#G43X", new Vector2(-18.0f, -1.5f) }, // GLOCK_43X_G43X: 948 -> 0 points out of place
-            { "GLOCK 43X-S [FA]#G43X-S FA", new Vector2(-18.0f, -1.5f) }, // GLOCK_43X-S__FA__G43X-S_FA: 803 -> 0 points out of place
-            { "GLOCK 43X-S#G43X-S", new Vector2(-18.0f, -1.5f) }, // GLOCK_43X-S_G43X-S: 948 -> 0 points out of place
-            { "M4A1 ACOG#m4 acog", new Vector2(10.5f, -4.5f) }, // M4A1_ACOG_m4_acog: 200 -> 4 points out of place
-            { "M4A1 CCO FT#m4 cco FT", new Vector2(7.5f, -4.5f) }, // M4A1_CCO_FT_m4_cco_FT: 63 -> 0 points out of place
-            { "M4A1 CCO#m4 cco", new Vector2(7.5f, -4.5f) }, // M4A1_CCO_m4_cco: 63 -> 0 points out of place
-            { "M4A1 EOT FT#m4 eot FT", new Vector2(7.5f, -4.5f) }, // M4A1_EOT_FT_m4_eot_FT: 63 -> 0 points out of place
-            { "M4A1 EOT#m4 eot", new Vector2(7.5f, -4.5f) }, // M4A1_EOT_m4_eot: 63 -> 0 points out of place
-            { "M4A1#m4", new Vector2(10.5f, -4.5f) }, // M4A1_m4: 200 -> 4 points out of place
-            { "P220 Devil Eatchel#P220 devil", new Vector2(-9.0f, -1.5f) }, // P220_Devil_Eatchel_P220_devil: 530 -> 51 points out of place
-            { "P220 Eatchel Gustav#P220 ANI", new Vector2(-10.5f, -1.5f) }, // P220_Eatchel_Gustav_P220_ANI: 563 -> 46 points out of place
-            { "P220 G R#P220 G R", new Vector2(-10.5f, -1.5f) }, // P220_G_R_P220_G_R: 563 -> 46 points out of place
-            { "P220 G#P220 G", new Vector2(-15.0f, -1.5f) }, // P220_G_P220_G: 712 -> 6 points out of place
-            { "P220 T S#P220 T S", new Vector2(-10.5f, -1.5f) }, // P220_T_S_P220_T_S: 563 -> 46 points out of place
-            { "P220#P220", new Vector2(-15.0f, -1.5f) }, // P220_P220: 712 -> 6 points out of place
+            { "1911#1911", new Vector2(-4.5f, -4.5f) }, // 1911_1911: 32 -> 4 points out of place
+            { "AF2011A1#AF2011A1", new Vector2(-10.5f, 0.0f) }, // AF2011A1_AF2011A1: 626 -> 200 points out of place
+            { "ARS Glock 19#G19", new Vector2(-16.5f, 0.0f) }, // ARS_Glock_19_G19: 217 -> 0 points out of place
+            { "CZ Bren 2 BR Assault#CZ Bren 2 BR Assault", new Vector2(-12.0f, 0.0f) }, // CZ_Bren_2_BR_Assault_CZ_Bren_2_BR_Assault: 97 -> 19 points out of place
+            { "CZ Bren 2 BR Holo#CZ Bren 2 BR Holo", new Vector2(-12.0f, 0.0f) }, // CZ_Bren_2_BR_Holo_CZ_Bren_2_BR_Holo: 97 -> 19 points out of place
+            { "CZ Bren 2 BR Raid#CZ Bren 2 BR Raid", new Vector2(-10.5f, 0.0f) }, // CZ_Bren_2_BR_Raid_CZ_Bren_2_BR_Raid: 93 -> 19 points out of place
+            { "CZ Bren 2 BR S#CZ Bren 2 BR S", new Vector2(-12.0f, 0.0f) }, // CZ_Bren_2_BR_S_CZ_Bren_2_BR_S: 97 -> 19 points out of place
+            { "CZ Bren 2 BR Tac#CZ Bren 2 BR Tac", new Vector2(-12.0f, 0.0f) }, // CZ_Bren_2_BR_Tac_CZ_Bren_2_BR_Tac: 97 -> 19 points out of place
+            { "CZ Bren 2 BR#CZ Bren 2 BR", new Vector2(-12.0f, 0.0f) }, // CZ_Bren_2_BR_CZ_Bren_2_BR: 97 -> 19 points out of place
+            { "Colt M1911#M1911", new Vector2(-9.0f, 0.0f) }, // Colt_M1911_M1911: 258 -> 86 points out of place
+            { "Colt M1911A1#M1911A1", new Vector2(-9.0f, -1.5f) }, // Colt_M1911A1_M1911A1: 258 -> 77 points out of place
+            { "D1911#D1911 ANI", new Vector2(-1.5f, 0.0f) }, // D1911_D1911_ANI: 20 -> 0 points out of place
+            { "FAQ1911#FA1911 Lite", new Vector2(-12.0f, 0.0f) }, // FAQ1911_FA1911_Lite: 103 -> 0 points out of place
+            { "GLOCK 43X [FA]#G43X FA MZ", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X__FA__G43X_FA_MZ: 803 -> 0 points out of place
+            { "GLOCK 43X#G43X", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X_G43X: 948 -> 0 points out of place
+            { "GLOCK 43X-S [FA]#G43X-S FA", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X-S__FA__G43X-S_FA: 803 -> 0 points out of place
+            { "GLOCK 43X-S#G43X-S", new Vector2(-12.0f, 0.0f) }, // GLOCK_43X-S_G43X-S: 948 -> 0 points out of place
+            { "M4A1 ACOG#m4 acog", new Vector2(10.5f, 0.0f) }, // M4A1_ACOG_m4_acog: 200 -> 4 points out of place
+            { "M4A1 CCO FT#m4 cco FT", new Vector2(6.0f, 0.0f) }, // M4A1_CCO_FT_m4_cco_FT: 63 -> 2 points out of place
+            { "M4A1 CCO#m4 cco", new Vector2(6.0f, 0.0f) }, // M4A1_CCO_m4_cco: 63 -> 2 points out of place
+            { "M4A1 EOT FT#m4 eot FT", new Vector2(6.0f, 0.0f) }, // M4A1_EOT_FT_m4_eot_FT: 63 -> 2 points out of place
+            { "M4A1 EOT#m4 eot", new Vector2(6.0f, 0.0f) }, // M4A1_EOT_m4_eot: 63 -> 2 points out of place
+            { "M4A1#m4", new Vector2(10.5f, 0.0f) }, // M4A1_m4: 200 -> 4 points out of place
+            { "P220 Devil Eatchel#P220 devil", new Vector2(-9.0f, 0.0f) }, // P220_Devil_Eatchel_P220_devil: 530 -> 51 points out of place
+            { "P220 Eatchel Gustav#P220 ANI", new Vector2(-10.5f, 0.0f) }, // P220_Eatchel_Gustav_P220_ANI: 563 -> 46 points out of place
+            { "P220 G R#P220 G R", new Vector2(-10.5f, 0.0f) }, // P220_G_R_P220_G_R: 563 -> 46 points out of place
+            { "P220 G#P220 G", new Vector2(-15.0f, 0.0f) }, // P220_G_P220_G: 712 -> 6 points out of place
+            { "P220 T S#P220 T S", new Vector2(-10.5f, 0.0f) }, // P220_T_S_P220_T_S: 563 -> 46 points out of place
+            { "P220#P220", new Vector2(-15.0f, 0.0f) }, // P220_P220: 712 -> 6 points out of place
             { "P320#p320 1", new Vector2(-18.0f, -1.5f) }, // P320_p320_1: 587 -> 28 points out of place
             { "P320s#p320 1 s", new Vector2(-18.0f, -1.5f) }, // P320s_p320_1_s: 587 -> 28 points out of place
-            { "Q1911#1911 Lite", new Vector2(-13.5f, -1.5f) }, // Q1911_1911_Lite: 45 -> 0 points out of place
-            { "SF 1911 MOD 3 W#SF 1911 MOD3 W", new Vector2(-9.0f, -1.5f) }, // SF_1911_MOD_3_W_SF_1911_MOD3_W: 247 -> 77 points out of place
-            { "SF 1911 MOD 3#SF 1911 MOD3", new Vector2(-9.0f, -1.5f) }, // SF_1911_MOD_3_SF_1911_MOD3: 247 -> 77 points out of place
-            { "SpringField 1911#T1911", new Vector2(-9.0f, -3.0f) }, // SpringField_1911_T1911: 58 -> 0 points out of place
-            { "Springfield  1911 W#Springfield 1911 W", new Vector2(-9.0f, -1.5f) }, // Springfield__1911_W_Springfield_1911_W: 247 -> 77 points out of place
-            { "Springfield  1911#Springfield 1911", new Vector2(-9.0f, -1.5f) }, // Springfield__1911_Springfield_1911: 247 -> 77 points out of place
-            { "Suzuya's PX9105 Springfield .45 ACP#Suzuya's Springfield PX9105", new Vector2(-10.5f, -1.5f) }, // Suzuya_s_PX9105_Springfield_.45_ACP_Suzuya_s_Springfield_PX9105: 40 -> 0 points out of place
+            { "PPSh-41#PPSH Stick", new Vector2(-16.5f, 0.0f) }, // PPSh-41_PPSH_Stick: 179 -> 82 points out of place
+            { "Q1911#1911 Lite", new Vector2(-4.5f, 0.0f) }, // Q1911_1911_Lite: 45 -> 0 points out of place
+            { "QBZ192 S#QBZ192 S", new Vector2(12.0f, -1.5f) }, // QBZ192_S_QBZ192_S: 20 -> 0 points out of place
+            { "QBZ192#QBZ192", new Vector2(12.0f, -1.5f) }, // QBZ192_QBZ192: 20 -> 0 points out of place
+            { "QBZ192-A#QBZ192-A", new Vector2(12.0f, -1.5f) }, // QBZ192-A_QBZ192-A: 20 -> 0 points out of place
+            { "QBZ192-A/S#QBZ192-A_S", new Vector2(12.0f, -1.5f) }, // QBZ192-A_S_QBZ192-A_S: 20 -> 0 points out of place
+            { "QBZ192-D#QBZ192-D", new Vector2(12.0f, -1.5f) }, // QBZ192-D_QBZ192-D: 20 -> 0 points out of place
+            { "QBZ192-D/S#QBZ192-D_S", new Vector2(12.0f, -1.5f) }, // QBZ192-D_S_QBZ192-D_S: 20 -> 0 points out of place
+            { "QBZU191 S#QBU191 S", new Vector2(12.0f, 0.0f) }, // QBZU191_S_QBU191_S: 20 -> 0 points out of place
+            { "QBZU191#QBU191", new Vector2(12.0f, 0.0f) }, // QBZU191_QBU191: 20 -> 0 points out of place
+            { "QBZU191-A#QBU191-A", new Vector2(13.5f, 0.0f) }, // QBZU191-A_QBU191-A: 24 -> 0 points out of place
+            { "QBZU191-A/S#QBU191-A_S", new Vector2(13.5f, 0.0f) }, // QBZU191-A_S_QBU191-A_S: 24 -> 0 points out of place
+            { "SF 1911 MOD 3 W#SF 1911 MOD3 W", new Vector2(-9.0f, 0.0f) }, // SF_1911_MOD_3_W_SF_1911_MOD3_W: 247 -> 79 points out of place
+            { "SF 1911 MOD 3#SF 1911 MOD3", new Vector2(-9.0f, 0.0f) }, // SF_1911_MOD_3_SF_1911_MOD3: 247 -> 79 points out of place
+            { "SpringField 1911#T1911", new Vector2(-1.5f, 0.0f) }, // SpringField_1911_T1911: 58 -> 1 points out of place
+            { "Springfield  1911 W#Springfield 1911 W", new Vector2(-9.0f, 0.0f) }, // Springfield__1911_W_Springfield_1911_W: 247 -> 79 points out of place
+            { "Springfield  1911#Springfield 1911", new Vector2(-9.0f, 0.0f) }, // Springfield__1911_Springfield_1911: 247 -> 79 points out of place
+            { "Suzuya's Custom AR-15 5.56x45MM#Suzuya's Custom AR-15", new Vector2(-3.0f, -4.5f) }, // Suzuya_s_Custom_AR-15_5.56x45MM_Suzuya_s_Custom_AR-15: 245 -> 89 points out of place
+            { "Suzuya's Custom AR-15 HAMR 5.56x45MM#Suzuya's Custom AR-15 HAMR", new Vector2(-3.0f, -4.5f) }, // Suzuya_s_Custom_AR-15_HAMR_5.56x45MM_Suzuya_s_Custom_AR-15_HAMR: 245 -> 89 points out of place
+            { "Suzuya's PX9105 Springfield .45 ACP#Suzuya's Springfield PX9105", new Vector2(-1.5f, 0.0f) }, // Suzuya_s_PX9105_Springfield_.45_ACP_Suzuya_s_Springfield_PX9105: 40 -> 0 points out of place
+            { "ak12 1p78 squad#ak12 1p78-squad", new Vector2(-15.0f, -4.5f) }, // ak12_1p78_squad_ak12_1p78-squad: 24 -> 6 points out of place
+            { "ak12 1p78s squad#ak12 1p78-squad (1)", new Vector2(-15.0f, -4.5f) }, // ak12_1p78s_squad_ak12_1p78-squad__1: 24 -> 6 points out of place
+            { "ak12 1p87 squad#ak12 1p87-squad", new Vector2(-15.0f, -4.5f) }, // ak12_1p87_squad_ak12_1p87-squad: 24 -> 6 points out of place
+            { "ak12 1p87s squad#ak12 1p87-squad (1)", new Vector2(-15.0f, -4.5f) }, // ak12_1p87s_squad_ak12_1p87-squad__1: 24 -> 6 points out of place
+            { "ak12h 1p87 squad#ak12h 1p87-squad", new Vector2(-15.0f, -4.5f) }, // ak12h_1p87_squad_ak12h_1p87-squad: 24 -> 6 points out of place
+            { "ak12h squad#ak12h-squad", new Vector2(-15.0f, -4.5f) }, // ak12h_squad_ak12h-squad: 24 -> 6 points out of place
+            { "ak12squad#ak12-squad", new Vector2(-15.0f, -4.5f) }, // ak12squad_ak12-squad: 24 -> 6 points out of place
+            { "mw-vector rds(No script)#vector rds(originalshaking)", new Vector2(-16.5f, 0.0f) }, // mw-vector_rds_No_script__vector_rds_originalshaking: 204 -> 0 points out of place
+            { "mw-vector(No script)#vector(originalshaking)", new Vector2(-16.5f, 0.0f) }, // mw-vector_No_script__vector_originalshaking: 205 -> 0 points out of place
+            { "vector rds#vector rds", new Vector2(-16.5f, 0.0f) }, // vector_rds_vector_rds: 204 -> 0 points out of place
+            { "vector#vector", new Vector2(-16.5f, 0.0f) }, // vector_vector: 205 -> 0 points out of place
         };
     }
 }
