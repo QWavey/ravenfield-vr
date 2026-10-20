@@ -2835,6 +2835,68 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// Still hands must not move in the world because the view shook or the player turned about the head: what they let go
+        /// takes their velocity, and the rig's origin's motion stood in for it, so magazines flew off while turning and right after
+        /// a shot (2026-10-20, task 315). The simulated hands hold still in the rig, so their velocity is the rig's at the hand.
+        /// </summary>
+        private static IEnumerator HandVelocityCheck(Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null || rig.Mode != Rig.RigMode.OnFoot)
+            {
+                yield break;
+            }
+            Rig.VRHand hand = rig.Off;
+            float Peak(float current, Rig.VRHand h) => Mathf.Max(current, h.Velocity.magnitude);
+            for (int i = 0; i < 5; i++)
+            {
+                yield return null;
+            }
+            float shake = 0f, snap = 0f, smooth = 0f;
+            rig.ShakeView(1f);
+            for (int i = 0; i < 8; i++)
+            {
+                yield return null;
+                shake = Peak(shake, hand);
+            }
+            rig.AddYaw(15f);
+            for (int i = 0; i < 4; i++)
+            {
+                yield return null;
+                snap = Peak(snap, hand);
+            }
+            rig.AddYaw(-15f);
+            for (int i = 0; i < 4; i++)
+            {
+                yield return null;
+            }
+            // A smooth turn of about 120 degrees a second: the hand, some 0.5 m from the head, moves about 1 m/s.
+            float turned = 0f;
+            for (int i = 0; i < 30; i++)
+            {
+                float step = 120f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.03f);
+                rig.AddYaw(step);
+                turned += step;
+                yield return null;
+                if (i >= 3)
+                {
+                    smooth = Peak(smooth, hand);
+                }
+            }
+            rig.AddYaw(-turned);
+            Metric("still hand: m/s after a shot's view shake", shake);
+            Metric("still hand: m/s after a 15 deg snap turn", snap);
+            Metric("still hand: m/s in a 120 deg/s smooth turn", smooth);
+            string line = $"still hand's velocity: {shake:0.00} m/s after a shot's view shake, {snap:0.00} m/s after a 15 deg snap turn, {smooth:0.00} m/s in a 120 deg/s smooth turn";
+            if (shake > 0.3f || snap > 1f || smooth > 2.5f)
+            {
+                line += " (TOO FAST: things let go would fly off)";
+                Problem(line);
+            }
+            report(line);
+        }
+
+        /// <summary>
         /// Weapons a fallen soldier drops, put on the ground near the player: after they settle they must stay where they
         /// lie.
         /// </summary>
@@ -3490,6 +3552,7 @@ namespace RavenfieldVR.Core
                             yield return ReachCheck(lines.Add);
                             yield return GroundDriftCheck(lines.Add);
                             yield return GentleMagazineCheck(lines.Add);
+                            yield return HandVelocityCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {
