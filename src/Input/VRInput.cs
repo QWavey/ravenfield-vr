@@ -308,8 +308,8 @@ namespace RavenfieldVR.Input
         private static readonly Compositor_FrameTiming[] Timings = new Compositor_FrameTiming[64];
 
         /// <summary>
-        /// The compositor's view of the last frames: the GPU's time per frame (the game's cameras and the mod's, both eyes) against
-        /// the time between frames. Near equal, the frame rate is the GPU's (the graphics preset is what to lower); well under, it
+        /// The compositor's view of the last frames: the GPU's time per frame (the game's cameras and the mod's, both eyes), set
+        /// against the line's fps (1000 / fps ms a frame). Near equal, the frame rate is the GPU's (the graphics preset is what to lower); well under, it
         /// is the CPU's (the battle's soldiers, the mod's main-thread work). In play the log showed 31-46 fps and nothing to
         /// tell which (task 322).
         /// </summary>
@@ -324,7 +324,7 @@ namespace RavenfieldVR.Input
                 }
                 Timings[0].m_nSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(Compositor_FrameTiming));
                 uint n = comp.GetFrameTimings(Timings);
-                float gpu = 0f, interval = 0f;
+                float gpu = 0f;
                 int timed = 0, reprojected = 0;
                 uint dropped = 0;
                 for (int i = 0; i < n && i < Timings.Length; i++)
@@ -332,7 +332,6 @@ namespace RavenfieldVR.Input
                     if (Timings[i].m_flTotalRenderGpuMs > 0f)
                     {
                         gpu += Timings[i].m_flTotalRenderGpuMs;
-                        interval += Timings[i].m_flClientFrameIntervalMs;
                         timed++;
                     }
                     reprojected += Timings[i].m_nReprojectionFlags != 0 ? 1 : 0;
@@ -340,7 +339,9 @@ namespace RavenfieldVR.Input
                 }
                 if (timed > 0)
                 {
-                    sb.Append($", gpu {gpu / timed:0.0} ms of {interval / timed:0.0} ms a frame ({n} frames, {reprojected} reprojected, {dropped} dropped)");
+                    // (Not against m_flClientFrameIntervalMs: through Link it read 3.2 ms at 89 fps, not the time between frames. The
+                    // line's fps is the frame time to set it against: 1000 / fps.)
+                    sb.Append($", gpu {gpu / timed:0.0} ms a frame ({n} frames, {reprojected} reprojected, {dropped} dropped)");
                 }
             }
             catch (Exception)
