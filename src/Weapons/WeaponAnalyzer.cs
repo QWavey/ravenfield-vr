@@ -190,6 +190,10 @@ namespace RavenfieldVR.Weapons
             MagLineTable.Apply(data); // after the export: the offline scans measure the analysed line
             SandboxPoses.Apply(data); // hands saved in the sandbox (tools/sandbox) for this weapon
             Cache[key] = data;
+            if (!Failed.Contains(key))
+            {
+                ParkedPartsCache.Put(key, w, data.SparePartPaths); // a prefab's: its first drop next session needs no analysis
+            }
             if (VRConfig.DumpWeaponRigs.Value)
             {
                 Log.Info("Weapon rig " + data.Describe());

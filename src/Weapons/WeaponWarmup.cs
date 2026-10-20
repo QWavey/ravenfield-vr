@@ -284,6 +284,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted - fittedAtStart} physics shapes in {Time.realtimeSinceStartup - passStarted:0.0} s.");
+                ParkedPartsCache.Write(); // what this pass analysed, for the next session's first drops
                 // A weapon that appears after this pass took the list (a workshop mod subscribed or loaded in the menu, a weapon
                 // unlocked) was never analysed: its first death in a match built the dropped model there, a hitch of tens of
                 // milliseconds (WeaponDrops.Spawn). The list is checked every two seconds and the pass goes round again when it has

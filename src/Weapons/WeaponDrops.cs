@@ -140,7 +140,8 @@ namespace RavenfieldVR.Weapons
                 // template), the shape, the colliders, and whether a garbage collection ran in between.
                 Log.Info($"Weapon drop of {w.weaponEntry.name} took {ms:0} ms on the death frame (scale {holdScale.x:0.00}; shape "
                          + $"{(RenderedShapes.ContainsKey(w.weaponEntry) ? "rendered" : _lastLateFit ? "fitted later (a box till then)" : "fitted")}; "
-                         + $"model {_lastModelMs:0} ms{(hadModel ? "" : " with its first template")}, shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms"
+                         + $"model {_lastModelMs:0} ms{(hadModel ? "" : _lastAnalysisMs >= 0f ? $" with its first template (its analysis {_lastAnalysisMs:0} ms of it)" : " with its first template")}, "
+                         + $"shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms"
                          + $"{(GC.CollectionCount(0) != collections ? ", a garbage collection ran" : "")}).");
             }
         }
@@ -292,13 +293,24 @@ namespace RavenfieldVR.Weapons
             var watch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                if (TemplateFor(e) != null && !HasShape(e))
+                // Its model, then its shape, then its analysis, one a turn (as the loading screen goes). The shape step never ran:
+                // a model built went back in line, and the next turn found it built with no shape and put it back again, for good
+                // (the second test could never hold where the first had not).
+                if (!Templates.ContainsKey(e))
                 {
-                    IdleBuilds.Enqueue(e); // its shape next time round
+                    if (TemplateFor(e) != null)
+                    {
+                        IdleBuilds.Enqueue(e); // back in line for its shape (a type with no model is not)
+                    }
                 }
-                else if (Templates.ContainsKey(e) && !HasShape(e))
+                else if (!HasShape(e))
                 {
                     Prepare(e);
+                    IdleBuilds.Enqueue(e); // and its analysis, if the model took its parked parts from the cache
+                }
+                else if (NeedsAnalysis(e, out Weapon prefab))
+                {
+                    WeaponAnalyzer.Get(prefab, e); // a pickup of the type then waits for no analysis
                 }
             }
             catch (Exception ex)
@@ -312,10 +324,17 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Whether the type's prefab has no analysis yet (its drop's model took its parked parts from <see cref="ParkedPartsCache"/>).</summary>
+        private static bool NeedsAnalysis(WeaponManager.WeaponEntry e, out Weapon prefab)
+        {
+            prefab = e.prefab != null ? e.prefab.GetComponent<Weapon>() : null;
+            return prefab != null && !WeaponAnalyzer.IsCached(prefab, e);
+        }
+
         private static readonly Queue<WeaponManager.WeaponEntry> IdleBuilds = new Queue<WeaponManager.WeaponEntry>();
         private static float _nextIdleBuild, _nextCarriedLook;
 
-        /// <summary>The types the living soldiers carry with no dropped model yet, queued for <see cref="BuildWhileIdle"/>.</summary>
+        /// <summary>The types the living soldiers carry whose dropped model, shape or analysis is not ready, queued for <see cref="BuildWhileIdle"/>.</summary>
         private static void QueueCarried()
         {
             List<Actor> actors = ActorManager.instance != null ? ActorManager.instance.actors : null;
@@ -324,6 +343,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             var queued = new HashSet<WeaponManager.WeaponEntry>(IdleBuilds);
+            var looked = new HashSet<WeaponManager.WeaponEntry>();
             int added = 0;
             foreach (Actor a in actors)
             {
@@ -334,8 +354,12 @@ namespace RavenfieldVR.Weapons
                 foreach (Weapon w in a.weapons)
                 {
                     WeaponManager.WeaponEntry e = w != null ? w.weaponEntry : null;
-                    if (e != null && e.prefab != null && !NoModel.Contains(e) && !Templates.ContainsKey(e) && queued.Add(e))
+                    // A type whose model a death frame built (its shape fitted later, its parked parts from the cache) still has
+                    // its shape and its analysis to go.
+                    if (e != null && e.prefab != null && looked.Add(e) && !queued.Contains(e) && !NoModel.Contains(e)
+                        && (!Templates.ContainsKey(e) || !HasShape(e) || NeedsAnalysis(e, out _)))
                     {
+                        queued.Add(e);
                         IdleBuilds.Enqueue(e);
                         added++;
                     }
@@ -553,12 +577,27 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            // The analysis the warm-up made of this prefab (analysed here once, if it was not yet).
-            WeaponRigData data = WeaponAnalyzer.Get(prefab, entry);
+            // The analysis the warm-up made of this prefab, or the parts an earlier session's analysis found (ParkedPartsCache:
+            // analysed here on a soldier's death frame, the type's first drop cost 235-300 ms); else it is analysed here once.
+            List<int[]> spare;
+            if (WeaponAnalyzer.IsCached(prefab, entry) || !ParkedPartsCache.TryGet(WeaponAnalyzer.KeyOf(prefab, entry), prefab.transform, out spare))
+            {
+                bool analysing = !WeaponAnalyzer.IsCached(prefab, entry);
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                spare = WeaponAnalyzer.Get(prefab, entry).SparePartPaths;
+                if (analysing)
+                {
+                    _lastAnalysisMs = (float)watch.Elapsed.TotalMilliseconds;
+                }
+            }
+            else
+            {
+                Log.InfoOnce("parkedcache-hit", $"Copies of {entry.name}: parked ammunition from the cache of earlier sessions, no analysis on this frame (the first such type this session).");
+            }
             Transform model = template.transform.GetChild(0); // the template's only child: the third-person model
             Vector3 tiny = Vector3.one * 1e-4f;
             int hidden = 0;
-            foreach (int[] p in data.SparePartPaths)
+            foreach (int[] p in spare)
             {
                 if (p == null || p.Length <= tpPath.Length)
                 {
@@ -602,11 +641,15 @@ namespace RavenfieldVR.Weapons
         private static float _lastModelMs, _lastShapeMs, _lastColliderMs;
         private static bool _lastLateFit;
 
+        /// <summary>The prefab's analysis when the last template build ran it (part of the model's ms; -1: not run).</summary>
+        private static float _lastAnalysisMs = -1f;
+
         // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
         // at 0 that deleted the swapped rifle, rounds and all, inside this call (drops hunt, 2026-10-20).
         public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare, bool keep = false)
         {
             var parts = System.Diagnostics.Stopwatch.StartNew();
+            _lastAnalysisMs = -1f;
             GameObject model = ModelFor(entry);
             _lastModelMs = (float)parts.Elapsed.TotalMilliseconds;
             if (model == null)
@@ -1304,6 +1347,7 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             Log.Guard("idle drop builds", BuildWhileIdle);
+            ParkedPartsCache.WriteIfDue();
             BakePendingShape();
             UpdateLateFits();
             Cull();
@@ -2026,6 +2070,7 @@ namespace RavenfieldVR.Weapons
 
         public void Dispose()
         {
+            ParkedPartsCache.Write();
             Clear();
             if (Instance == this)
             {
