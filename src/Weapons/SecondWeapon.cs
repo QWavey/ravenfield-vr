@@ -91,6 +91,8 @@ namespace RavenfieldVR.Weapons
             }
             weapon.Unholster();
             hand.Role = weapon is ThrowableWeapon ? HandRole.Throwable : HandRole.Weapon;
+            // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
+            Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
         }
 
@@ -179,6 +181,10 @@ namespace RavenfieldVR.Weapons
                 {
                     Throw(v);
                 }
+            }
+            if (Armed && !Done && Weapon is ThrowableWeapon kept)
+            {
+                _sys.Throwables?.PutAwayPulled(kept); // its pin stays out
             }
             PutAway();
         }
@@ -472,6 +478,21 @@ namespace RavenfieldVR.Weapons
             _sys.Sounds.Play(MechSound.Holster, Hand.Palm.position, 0.6f);
             Hand.Haptic(0.04f, 100f, 0.5f);
             Log.Info($"Second weapon: {Weapon.name} back in its holster.");
+        }
+
+        /// <summary>The weapon became the gun hand's (the game drew it): this hand lets go of it, nothing is holstered.</summary>
+        public void HandOver()
+        {
+            if (Weapon != null && _firing)
+            {
+                Weapon.StopFire();
+                _firing = false;
+            }
+            if (Weapon != null && _reloadDoneAt >= 0f)
+            {
+                FinishReload();
+            }
+            FreeHand();
         }
 
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>

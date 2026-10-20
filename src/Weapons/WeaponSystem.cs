@@ -20,6 +20,7 @@ namespace RavenfieldVR.Weapons
         public readonly ProceduralSounds Sounds;
         public readonly BodyZones Zones;
         private readonly ThrowableHandler _throwables;
+        internal ThrowableHandler Throwables => _throwables;
         private readonly MeleeHandler _melee;
         public readonly WeaponDrops Drops;
         private readonly PouchDisplay _pouch;
@@ -161,8 +162,16 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Actor actor = GameContext.PlayerActor;
+            if (Held != null && Second.Weapon != null && Second.Weapon == Held.Weapon)
+            {
+                // The game drew the other hand's weapon (its number key): it is the gun hand's now. Only this hand lets go: put
+                // away as well, it was holstered under the gun hand and vanished from both (review, 2026-10-20).
+                Second.HandOver();
+                Second = null;
+                return;
+            }
             bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
-                        || Second.Weapon == Held.Weapon || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
+                        || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
             if (gone || Second.Done || !Second.Hand.Tracked)
             {
                 // The gun in the other hand went away (a seat, death), or a grenade thrown: back into its holster.
@@ -697,6 +706,15 @@ namespace RavenfieldVR.Weapons
                 // A second weapon of another kind (primary, secondary, launcher): held in this hand beside the drawn one
                 // (user, 2026-10-16: taking a second weapon made the first disappear).
                 BeginSecond(actor.weapons[slot], hand);
+                return;
+            }
+            // What the game will not draw takes no hand: a toggled item (night-vision goggles) only toggles, and in deep water nothing
+            // is drawn. Taken into the hand first, the gun hand moved over and the drawn rifle followed it (review, 2026-10-20).
+            Weapon wanted = actor.weapons[slot];
+            if (wanted != null && wanted.IsToggleable() || !actor.CanUnholsterWeapon())
+            {
+                actor.SwitchWeapon(slot);
+                hand.Haptic(0.03f, 80f, 0.4f);
                 return;
             }
             TakeIntoHand(hand); // the free hand takes it: the drawn weapon goes to its holster

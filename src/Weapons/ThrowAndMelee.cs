@@ -534,6 +534,18 @@ namespace RavenfieldVR.Weapons
         /// <summary>Death or a new map: the grenades drawn next are fresh ones, pins in.</summary>
         public void ForgetPulledPins() => _pulledPutAway.Clear();
 
+        /// <summary>The free hand put a grenade away with its pin out: drawn again (either hand), it is still pulled.</summary>
+        internal void PutAwayPulled(ThrowableWeapon weapon)
+        {
+            if (weapon != null)
+            {
+                _pulledPutAway.Add(weapon);
+            }
+        }
+
+        /// <summary>Whether this grenade was put away with its pin out (the mark is taken: it is in a hand again).</summary>
+        internal bool TakePulled(ThrowableWeapon weapon) => weapon != null && _pulledPutAway.Remove(weapon);
+
         public void Release()
         {
             _armed = false;
