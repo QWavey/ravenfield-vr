@@ -453,6 +453,22 @@ namespace RavenfieldVR.Weapons
                         _rackByTrigger = true;
                         break;
                     }
+                    if (Manual && Ammo.UsesChamber && !IsPump && !GripData.IsPistol)
+                    {
+                        // Slid back along the gun onto the charging handle with the grip still closed: the hand takes the handle. It
+                        // stayed on the handguard (it lets go only at 60 cm of stretch) and the rack never started, a rack being taken
+                        // by a squeeze and this squeeze the handguard's (user, 2026-10-20 night: "i cannot pull back the bolt thingy
+                        // again"; rack trace). As a new grab decides: well within the handle's zone, and the handle clearly nearer
+                        // than the handguard line (half its distance).
+                        Vector3 palmNow = off.Palm.position;
+                        float dRack = RackZoneDistance(palmNow);
+                        if (dRack < VRConfig.GrabRadius.Value && dRack < 0.5f * ForegripDistance(palmNow))
+                        {
+                            _held.SetTwoHanded(false);
+                            BeginRack(off);
+                            break;
+                        }
+                    }
                     SupportTrigger(off);
                     // Pulled away with the grip still closed, the support hand stays on (Boneworks style): its glove keeps to
                     // the handguard, a buzz grows with the stretch, and it lets go only well past an arm's slack (60 cm), with
@@ -610,7 +626,11 @@ namespace RavenfieldVR.Weapons
             if (HasSwitchableSight)
             {
                 float d = OpticDistance(palm);
-                if (d < 0.06f)
+                // Not where the charging handle is about as near: the sight line runs back over an AR's T (its zone starts 5 cm
+                // behind the grip), and a palm a few centimetres under the T took the sight switch, not the handle (rack trace,
+                // 2026-10-20 night). At the optic itself the sight is clearly nearer and still taken.
+                float dRackHere = Manual && Ammo.UsesChamber && !IsPump ? RackZoneDistance(palm) : float.MaxValue;
+                if (d < 0.06f && !(dRackHere < radius * 1.3f && dRackHere < d + 0.03f))
                 {
                     Consider(8, d / 0.06f * 0.9f, ref choice, ref best);
                 }
