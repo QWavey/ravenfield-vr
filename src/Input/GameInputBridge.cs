@@ -233,6 +233,14 @@ namespace RavenfieldVR.Input
                 {
                     continue;
                 }
+                // On Touch the slow-motion button is that lower button (A, or X left-handed), and its double press is the slow
+                // motion: counted here too, it opened the pause menu with every switch (input hunt, 2026-10-20). Pause stays on Y
+                // held there.
+                if (VRInput.AnyOculusTouch && VRInput.GetPressed(DigitalAction.SlowMotion, hand))
+                {
+                    LowerPressedAt[h] = -1f;
+                    continue;
+                }
                 float now = Time.unscaledTime;
                 if (LowerPressedAt[h] >= 0f && now - LowerPressedAt[h] < DoublePressWindow)
                 {
@@ -330,8 +338,11 @@ namespace RavenfieldVR.Input
             actor.seat.weapons.Length == 0 && !(Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null);
 
         /// <summary>The leaving trigger of this hand: Use for the off hand, Fire for the gun hand (only where <see cref="LeaveHand"/> allows it).</summary>
+        // The pulled trigger counts too: on the Vive wands the off hand's trigger is a complex button (a click Use, held Squad), so
+        // Use was never held for the second and no seat could be left with it (input hunt, 2026-10-20).
         private static bool LeaveTriggerHeld(Hand leave) =>
-            leave == VRInput.GunHand ? VRInput.GetHeld(DigitalAction.Fire, leave) : VRInput.GetHeld(DigitalAction.Use, leave);
+            (leave == VRInput.GunHand ? VRInput.GetHeld(DigitalAction.Fire, leave) : VRInput.GetHeld(DigitalAction.Use, leave))
+            || VRInput.GetTrigger(leave) > 0.9f;
 
         /// <summary>The game's seat keys in seat order: Seat1 takes seat 0, and so on (FpsActorController.UpdateInput).</summary>
         private static readonly KeyBinds[] SeatKeys =
@@ -723,6 +734,9 @@ namespace RavenfieldVR.Input
             SprintActive = false;
             CrouchToggled = false;
             ProneToggled = false;
+            // A stick held down through it is spent: its latch outlived a death, and letting it go after the respawn crouched the
+            // fresh soldier (input hunt, 2026-10-20). A new push down starts a new hold.
+            _proneTriggeredThisHold = true;
         }
     }
 

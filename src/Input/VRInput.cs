@@ -72,8 +72,16 @@ namespace RavenfieldVR.Input
         private static readonly bool[] SkeletonValid = new bool[2];
         private static readonly string[] ControllerTypes = { "", "" };
 
-        /// <summary>A Touch controller in either hand (its slow motion is A and B together).</summary>
-        internal static bool AnyOculusTouch => ControllerTypes[0] == "oculus_touch" || ControllerTypes[1] == "oculus_touch";
+        /// <summary>
+        /// A Touch controller in either hand (its slow motion is A pressed twice), or none known yet (as <see cref="IsTouch"/>):
+        /// while the type was unknown every A press, slide releases and fire-mode presses too, switched slow motion.
+        /// </summary>
+        internal static bool AnyOculusTouch => string.IsNullOrEmpty(ControllerTypes[0]) && string.IsNullOrEmpty(ControllerTypes[1])
+                                               || IsTouchType(ControllerTypes[0]) || IsTouchType(ControllerTypes[1]);
+
+        private static bool IsTouchType(string type) => !string.IsNullOrEmpty(type)
+                                                        && (type.IndexOf("oculus", StringComparison.OrdinalIgnoreCase) >= 0
+                                                            || type.IndexOf("touch", StringComparison.OrdinalIgnoreCase) >= 0);
         private static readonly bool[] HapticOkLogged = new bool[2];
         private static float _nextTypeRefresh;
 
@@ -397,7 +405,11 @@ namespace RavenfieldVR.Input
                 ETrackedPropertyError perr = ETrackedPropertyError.TrackedProp_Success;
                 sb.Length = 0;
                 OpenVR.System?.GetStringTrackedDeviceProperty(info.trackedDeviceIndex, ETrackedDeviceProperty.Prop_ControllerType_String, sb, (uint)sb.Capacity, ref perr);
-                string type = perr == ETrackedPropertyError.TrackedProp_Success ? sb.ToString() : "";
+                if (perr != ETrackedPropertyError.TrackedProp_Success)
+                {
+                    continue; // a failed query keeps the type known (it fell back to unknown, and Touch's slow motion with it)
+                }
+                string type = sb.ToString();
                 if (type != ControllerTypes[h])
                 {
                     ControllerTypes[h] = type;
