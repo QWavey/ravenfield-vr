@@ -51,7 +51,8 @@ namespace RavenfieldVR.Rig
         private readonly float[] _timeHistory = new float[HistoryLength];
         private int _historyIndex;
         private bool _hasTip, _hasGrip;
-        private Vector3 _lastRigPosition;
+        private Quaternion _lastRigRotation = Quaternion.identity;
+        private Matrix4x4 _lastRigMatrix = Matrix4x4.identity;
         private bool _hasLastRig;
         private RigidPose _lastRawLocal;
         private bool _hasLastRaw;
@@ -118,13 +119,23 @@ namespace RavenfieldVR.Rig
             Vector3 rigVelocity = Vector3.zero;
             if (_hasLastRig && Time.unscaledDeltaTime > 1e-4f)
             {
-                rigVelocity = (rigRoot.position - _lastRigPosition) / Time.unscaledDeltaTime;
+                // The rig's own motion where the hand is: its move plus its turn about wherever it turned (a turn goes about the
+                // head). The rig origin's own motion stood in for it, and the origin is where the play area's centre is: in the
+                // user's log 1.6 m from where they stand, so a smooth turn of 120 degrees a second moved it 3.4 m/s while the hands
+                // moved about 1, and sideways; a magazine or a gun let go while turning flew off with it, and a small snap turn
+                // gave a one-frame jump of up to some 40 m/s (2026-10-20, task 315). A snap turn is a jump, not motion.
+                if (Quaternion.Angle(_lastRigRotation, rigRoot.rotation) <= 6f)
+                {
+                    Vector3 then = _lastRigMatrix.MultiplyPoint3x4(rigRoot.InverseTransformPoint(palmPos));
+                    rigVelocity = (palmPos - then) / Time.unscaledDeltaTime;
+                }
                 if (rigVelocity.sqrMagnitude > 2500f)
                 {
                     rigVelocity = Vector3.zero; // teleport, not motion
                 }
             }
-            _lastRigPosition = rigRoot.position;
+            _lastRigRotation = rigRoot.rotation;
+            _lastRigMatrix = rigRoot.localToWorldMatrix;
             _hasLastRig = true;
 
             Vector3 own = raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero;
