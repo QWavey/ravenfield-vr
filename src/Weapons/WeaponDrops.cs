@@ -305,8 +305,14 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (!HasShape(e))
                 {
-                    Prepare(e);
-                    IdleBuilds.Enqueue(e); // and its analysis, if the model took its parked parts from the cache
+                    if (Prepare(e))
+                    {
+                        IdleBuilds.Enqueue(e); // and its analysis, if the model took its parked parts from the cache
+                    }
+                    else
+                    {
+                        IdleFailed.Add(e); // not queued again (QueueCarried looks it over every 5 s)
+                    }
                 }
                 else if (NeedsAnalysis(e, out Weapon prefab))
                 {
@@ -332,6 +338,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private static readonly Queue<WeaponManager.WeaponEntry> IdleBuilds = new Queue<WeaponManager.WeaponEntry>();
+        /// <summary>Types whose shape could not be prepared while idle: their drops fit the shape late, on their own.</summary>
+        private static readonly HashSet<WeaponManager.WeaponEntry> IdleFailed = new HashSet<WeaponManager.WeaponEntry>();
         private static float _nextIdleBuild, _nextCarriedLook;
 
         /// <summary>The types the living soldiers carry whose dropped model, shape or analysis is not ready, queued for <see cref="BuildWhileIdle"/>.</summary>
@@ -356,7 +364,7 @@ namespace RavenfieldVR.Weapons
                     WeaponManager.WeaponEntry e = w != null ? w.weaponEntry : null;
                     // A type whose model a death frame built (its shape fitted later, its parked parts from the cache) still has
                     // its shape and its analysis to go.
-                    if (e != null && e.prefab != null && looked.Add(e) && !queued.Contains(e) && !NoModel.Contains(e)
+                    if (e != null && e.prefab != null && looked.Add(e) && !queued.Contains(e) && !NoModel.Contains(e) && !IdleFailed.Contains(e)
                         && (!Templates.ContainsKey(e) || !HasShape(e) || NeedsAnalysis(e, out _)))
                     {
                         queued.Add(e);
@@ -924,25 +932,32 @@ namespace RavenfieldVR.Weapons
             return ms;
         }
 
-        internal static void Prepare(WeaponManager.WeaponEntry entry)
+        // False: it failed (the idle builder then gives the type up: it went back in line and copied the model again every turn).
+        internal static bool Prepare(WeaponManager.WeaponEntry entry)
         {
             GameObject model = ModelFor(entry);
             if (model == null)
             {
-                return;
+                return false;
             }
+            GameObject root = null;
             try
             {
-                var root = new GameObject("RavenfieldVR Drop Warm-up");
+                root = new GameObject("RavenfieldVR Drop Warm-up");
                 model.transform.SetParent(root.transform, false);
                 ShapeFit.Bake(FitModel(entry, root.transform, Vector3.one, out _, quick: false));
                 MeasureRenderedShape(entry, root.transform);
-                UnityEngine.Object.Destroy(root);
+                return true;
             }
             catch (Exception e)
             {
-                UnityEngine.Object.Destroy(model);
                 Log.WarnOnce("dropwarm:" + entry.name, $"Preparing the dropped model of {entry.name} failed: {e.Message}");
+                return false;
+            }
+            finally
+            {
+                // The root as well as the model on a failure: the root was left behind each time (bug hunt, 2026-10-20 night).
+                UnityEngine.Object.Destroy(root != null ? root : model);
             }
         }
 

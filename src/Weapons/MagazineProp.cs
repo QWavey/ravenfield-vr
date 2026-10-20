@@ -203,6 +203,10 @@ namespace RavenfieldVR.Weapons
                 }
                 // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20).
                 _routeTime = Mathf.Clamp(0.12f + far * 0.7f, 0.14f, 0.3f);
+                if (!(_routeTime > 0f))
+                {
+                    _routeTime = 0.14f; // (a NaN distance passes the clamp, and the route would never end)
+                }
             }
             if (!_routed)
             {
@@ -1601,6 +1605,9 @@ namespace RavenfieldVR.Weapons
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
+            // No switch left over from a release off the rail: re-grabbed within its 0.3 s, the prop jumped back to where it was
+            // let go and went round the well again (bug hunt, 2026-10-20 night). The grab eases in from _attachFrom.
+            _switchAt = -1f;
             RailOutOnly = false;
             SetLayer(Go, HeldLayer);
         }
@@ -1678,6 +1685,7 @@ namespace RavenfieldVR.Weapons
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
+            _switchAt = -1f; // (as Attach)
             RailOutOnly = false;
             SetLayer(Go, HeldLayer);
         }

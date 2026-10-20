@@ -121,16 +121,30 @@ namespace RavenfieldVR.Weapons
                     sb.Append('\n');
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-                string tmp = FilePath + ".tmp";
+                // A temp file of this process's own (two games sharing the folder), swapped in whole: a failed move after a delete
+                // left no file at all.
+                string tmp = FilePath + "." + System.Diagnostics.Process.GetCurrentProcess().Id + ".tmp";
                 File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
                 if (File.Exists(FilePath))
                 {
-                    File.Delete(FilePath);
+                    try
+                    {
+                        File.Replace(tmp, FilePath, null);
+                    }
+                    catch (Exception) when (File.Exists(tmp))
+                    {
+                        File.Delete(FilePath); // (a runtime without File.Replace)
+                        File.Move(tmp, FilePath);
+                    }
                 }
-                File.Move(tmp, FilePath);
+                else
+                {
+                    File.Move(tmp, FilePath);
+                }
             }
             catch (Exception ex)
             {
+                _dirty = true; // tried again at the next write (else the entries missed it for the session)
                 Log.WarnOnce("parkedcache-write", "Writing the parked-ammunition cache failed: " + ex.Message);
             }
         }

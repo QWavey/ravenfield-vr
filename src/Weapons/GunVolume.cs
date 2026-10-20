@@ -425,6 +425,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>Drops every measured shape (the weapon overrides changed the grip frames they were measured in).</summary>
         internal static void ClearCache()
         {
+            // Their places too: a measuring that had stalled (a read-back never back) held one for the rest of the session, and
+            // five of them kept the warm-up waiting its full 2 s at every step (bug hunt, 2026-10-20 night).
+            foreach (GunVolume v in Cache.Values)
+            {
+                v.ReleasePlace();
+            }
             Cache.Clear();
             CacheOrder.Clear();
         }
@@ -463,6 +469,10 @@ namespace RavenfieldVR.Weapons
             {
                 int oldest = CacheOrder.FindIndex(k => k.StartsWith("tp:", StringComparison.Ordinal));
                 oldest = oldest >= 0 && oldest < CacheOrder.Count - 1 ? oldest : 0;
+                if (Cache.TryGetValue(CacheOrder[oldest], out GunVolume evicted))
+                {
+                    evicted.ReleasePlace(); // (released once only: a measuring that finishes later releases nothing)
+                }
                 Cache.Remove(CacheOrder[oldest]);
                 CacheOrder.RemoveAt(oldest);
             }
