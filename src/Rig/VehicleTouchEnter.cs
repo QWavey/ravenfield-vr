@@ -61,7 +61,9 @@ namespace RavenfieldVR.Rig
                     _holdSince[i] = -1f;
                     hand.Haptic(0.02f, 180f, 0.35f); // the hand has found a vehicle with a seat it can take
                 }
-                if (!hand.GrabHeld)
+                // Unclaimed: a squeeze something else took (a grenade dud, the goggles, a dropped weapon refused) ends the hold, so
+                // a fist closed on a dud against a car door does not get in (review, 2026-10-20).
+                if (!VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
                 {
                     _holdSince[i] = -1f;
                     continue;
@@ -81,8 +83,17 @@ namespace RavenfieldVR.Rig
                     continue;
                 }
                 _holdSince[i] = -1f;
+                // The squeeze is the entry's: the wheel or stick does not take the same fist the next frame.
+                VRInput.Consume(DigitalAction.Grab, hand.Side);
                 if (actor.EnterSeat(seat, kickOutOccupant: false))
                 {
+                    // As the game's own entry does (FpsActorController.UseButtonHeld): a moment in which Use does not leave, and a
+                    // Use held from before not taken as a leave.
+                    if (actor.controller is FpsActorController fps)
+                    {
+                        fps.cannotLeaveAction.Start();
+                        fps.useConsumed = true;
+                    }
                     hand.Haptic(0.05f, 120f, 0.6f);
                     _touching[i] = null;
                     return; // one seat a frame: the other hand is no longer on foot

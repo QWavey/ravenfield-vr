@@ -2404,7 +2404,6 @@ namespace RavenfieldVR.Weapons
 
         private void BeginRack(VRHand off)
         {
-            _racking = true;
             _returning = false;
             _rackStartGun = Rig.ToGun(off.Palm.position);
             // How the hand takes a pistol's slide, for the whole stroke: the palm on it (over the top or on its side, the
@@ -2412,6 +2411,9 @@ namespace RavenfieldVR.Weapons
             Vector3 palmNormal = off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f);
             _rackPalm = Data.IsPistol && !HandleStroke && !IsPump && Mathf.Abs(Vector3.Dot(palmNormal, Rig.AimWorld)) < 0.6f
                         && Vector3.Dot(palmNormal, RackPointWorld - off.Palm.position) > -0.01f;
+            // Racking from here on (set after the test above: while racking, RackPointWorld is the slide's full-back point, and a
+            // made knob locked alone is taken at home; review, 2026-10-20).
+            _racking = true;
             // Locked open with only the bolt back (an M4's handle home): the handle is taken where it is, at home.
             _rackFromBoltLock = _held.BoltLockedAlone || _held.KnobLockedAlone; // (a made knob locked forward: taken at home too)
             _rackBase = _rackFromBoltLock ? 0f : Ammo.SlideLocked ? 1f : Fraction;

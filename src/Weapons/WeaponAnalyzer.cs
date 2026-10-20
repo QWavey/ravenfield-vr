@@ -2617,7 +2617,12 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>A belt or a piece of one by its name (a plain "ammo" part on a belt-fed gun is its belt: the PKM's AMMO.001).</summary>
         private static bool IsBeltPiece(string name) => (BeltName.IsMatch(name) || Regex.IsMatch(name, @"^ammo([ ._]?\d+)?$", RegexOptions.IgnoreCase))
-                                                        && !Regex.IsMatch(name, @"box|can|弹箱", RegexOptions.IgnoreCase); // a "belt box" is the box (255.I3-7)
+                                                        && !Regex.IsMatch(name, @"box|can|弹箱", RegexOptions.IgnoreCase) // a "belt box" is the box (255.I3-7)
+                                                        && !(LinkNotBelt.IsMatch(name) && !BeltWord.IsMatch(name));
+
+        /// <summary>A "link" or "chain" named as a gun part (a trigger or bolt link, a sling chain) is not a belt (review, 2026-10-20).</summary>
+        private static readonly Regex LinkNotBelt = new Regex(@"trigger|bolt|hammer|sear|safety|slide|charg|handle|grip|stock|sling|lever", RegexOptions.IgnoreCase);
+        private static readonly Regex BeltWord = new Regex(@"belt|lenta|лента|弹链|ammo", RegexOptions.IgnoreCase);
 
         private static void AnalyzeMagazine(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
@@ -3411,12 +3416,15 @@ namespace RavenfieldVR.Weapons
             Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
             Vector3 acrossAbs = new Vector3(Mathf.Abs(across.x), Mathf.Abs(across.y), Mathf.Abs(across.z));
             Transform magazine = d.MagazinePath != null ? WeaponRig.Resolve(root, d.MagazinePath) : null;
+            // The handle found alone is not its own carrier (taken, the slide would be the handle and stay home; review 2026-10-20).
+            Transform handle = handleAlone ? WeaponRig.Resolve(root, d.HandlePath) : null;
             Transform best = null;
             Bounds bestBounds = default;
             int found = 0;
             foreach (Transform t in all)
             {
-                if (!index.TryGetValue(t, out _) || magazine != null && t.IsChildOf(magazine) || UnderOptic(t, gunBody) || MagName.IsMatch(t.name)
+                if (!index.TryGetValue(t, out _) || magazine != null && t.IsChildOf(magazine) || handle != null && (t == handle || t.IsChildOf(handle))
+                    || UnderOptic(t, gunBody) || MagName.IsMatch(t.name)
                     || OpticName.IsMatch(t.name) || !sampler.IdleVisible(t) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     continue;

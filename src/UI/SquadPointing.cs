@@ -143,8 +143,9 @@ namespace RavenfieldVR.UI
             {
                 // the player or its cameras are going with the scene
             }
-            foreach (Camera c in new[] { main, active })
+            for (int k = 0; k < 2; k++)
             {
+                Camera c = k == 0 ? main : active; // (no array a frame)
                 if (c == null || _turned >= Turned.Length || (_turned == 1 && Turned[0] == c.transform))
                 {
                     continue;
@@ -432,6 +433,10 @@ namespace RavenfieldVR.UI
     [HarmonyPatch(typeof(SquadPointUi), "LateUpdate")]
     internal static class SquadPointUiByPointingPatch
     {
+        /// <summary>The order screen's canvas group, looked up once (not every frame).</summary>
+        private static CanvasGroup _group;
+        private static SquadPointUi _groupOwner;
+
         private static void Prefix(SquadPointUi __instance)
         {
             if (!VRManager.Active)
@@ -451,7 +456,12 @@ namespace RavenfieldVR.UI
             }
             if (__instance.canvas != null && __instance.canvas.enabled)
             {
-                CanvasGroup g = __instance.GetComponent<CanvasGroup>() ?? __instance.gameObject.AddComponent<CanvasGroup>();
+                if (_group == null || _groupOwner != __instance)
+                {
+                    _groupOwner = __instance;
+                    _group = __instance.GetComponent<CanvasGroup>() ?? __instance.gameObject.AddComponent<CanvasGroup>();
+                }
+                CanvasGroup g = _group;
                 if (g.alpha > 0f)
                 {
                     g.alpha = 0f;

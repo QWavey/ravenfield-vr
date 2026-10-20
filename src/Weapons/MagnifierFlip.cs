@@ -32,6 +32,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Names of the main optic (a red dot or a scope). Such a part is skipped unless its name also says magnifier.</summary>
         private static readonly Regex OpticName = new Regex(@"scope|optic|acog|eotech|holo|reflex|red ?dot", RegexOptions.IgnoreCase);
         private static readonly Regex MagnifierWords = new Regex(@"magnif|mag-?nifier|flip", RegexOptions.IgnoreCase);
+        /// <summary>Iron sights (a flip-up rear or front sight): never the magnifier unless the name says magnifier (review, 2026-10-20).</summary>
+        private static readonly Regex SightName = new Regex(@"iron|flip.?up|\bbus\b|(rear|front).?sight", RegexOptions.IgnoreCase);
+        private static readonly Regex SaysMagnifier = new Regex(@"magnif|mag-?nifier|g33|ftc", RegexOptions.IgnoreCase);
 
         private readonly WeaponSystem _system;
         private readonly HeldWeapon _held;
@@ -246,7 +249,7 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (OpticName.IsMatch(t.name) && !MagnifierWords.IsMatch(t.name))
+                if (OpticName.IsMatch(t.name) && !MagnifierWords.IsMatch(t.name) || SightName.IsMatch(t.name) && !SaysMagnifier.IsMatch(t.name))
                 {
                     continue;
                 }

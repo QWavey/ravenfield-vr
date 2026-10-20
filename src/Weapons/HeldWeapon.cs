@@ -1736,7 +1736,8 @@ namespace RavenfieldVR.Weapons
         /// its drawn shape, not its box: see <c>shapeWell</c> below). The analysed line
         /// came from the reload animation's pull or the magazine's box and was off on whole families: magazines went into
         /// pistol grips, the HK416-D's and CZ Bren 2's through the trigger guard (user, 2026-10-16: "could be for all
-        /// weapons"). Kept only when clearly better (at most 60% of the points through the gun, 3 fewer at least).
+        /// weapons"). Kept only when clearly better: at most 60% of the points through the gun, and 3 fewer at least (the grid) or
+        /// a fault of at least 1% of the skin's points to begin with (the skin).
         /// </summary>
         private void FitMagazineLine()
         {

@@ -187,7 +187,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private static readonly System.Text.RegularExpressions.Regex BeamName =
-            new System.Text.RegularExpressions.Regex(@"beam|(?<![a-z])cone|volumetric|light ?shaft|light ?ray|flare|glow", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            new System.Text.RegularExpressions.Regex(@"beam|(?<![a-z])cone|volumetric|light ?shaft|light ?ray|flare(?! ?gun)|glow", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Hides in the template what a holstered or dropped copy must not draw: a laser's beam or a light's cone (by name: the
@@ -202,13 +202,15 @@ namespace RavenfieldVR.Weapons
             var parts = new List<Renderer>();
             var boxes = new List<Bounds>();
             int beams = 0, strays = 0;
+            // A weapon named like a beam (a flare gun) keeps its parts: their names say flare too (review, 2026-10-20).
+            bool beamNamedWeapon = BeamName.IsMatch(entry.name ?? "");
             foreach (Renderer r in template.GetComponentsInChildren<Renderer>(true))
             {
                 if (!(r is MeshRenderer || r is SkinnedMeshRenderer) || !r.enabled)
                 {
                     continue;
                 }
-                if (BeamName.IsMatch(r.name) || r.transform.parent != null && BeamName.IsMatch(r.transform.parent.name))
+                if (!beamNamedWeapon && (BeamName.IsMatch(r.name) || r.transform.parent != null && BeamName.IsMatch(r.transform.parent.name)))
                 {
                     r.enabled = false;
                     beams++;

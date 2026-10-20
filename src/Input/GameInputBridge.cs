@@ -250,7 +250,7 @@ namespace RavenfieldVR.Input
         {
             Hand leave = LeaveHand(actor);
             Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(leave) : null;
-            bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit);
+            bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit) && !SupportTriggerOwned;
             if (!held)
             {
                 _leaveHeldSince = -1f;
