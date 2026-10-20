@@ -125,11 +125,25 @@ namespace RavenfieldVR.Weapons
         private float _switchAt = -1f;
         private const float SwitchBlend = 0.08f;
 
+        // A magazine taken onto its line from aside at the well's mouth goes round the gun (RoutedOn): where it was, against the
+        // rail's pose (the gun may move meanwhile), and how far below the mouth its top clears it.
+        private const float RouteBlend = 0.14f;
+        private int _routeFor = -1; // the switch (its _switchAt frame) the route was set up for; -1 none
+        private bool _routed;
+        private Vector3 _routeTip0;
+        private Quaternion _routeRot0;
+        private float _routeLow;
+
         /// <summary>Draws the prop at <paramref name="target"/>, eased from where it was when it went onto or off the rail.</summary>
         public void ShowAt(RigidPose target)
         {
             if (Go == null)
             {
+                return;
+            }
+            if (_switchAt >= 0f && RoutedOn(ref target))
+            {
+                target.ApplyTo(Go.transform);
                 return;
             }
             float t = _switchAt >= 0f ? (Time.unscaledTime - _switchAt) / SwitchBlend : 1f;
@@ -143,6 +157,61 @@ namespace RavenfieldVR.Weapons
                 _switchAt = -1f;
             }
             target.ApplyTo(Go.transform);
+        }
+
+        /// <summary>
+        /// A magazine taken onto its line from aside (up to 4.5 cm off it and 40 degrees turned, at the mouth of a pistol's grip):
+        /// eased straight there, it cut through the grip's or the magwell's bottom corner in the switch, unchecked against the
+        /// gun ("glitch through the handle a little but near", user, 2026-10-20; insertion hunt). It goes round instead: its top
+        /// down below the mouth along the line (beside the gun, away from it), turned straight there, under the well onto the
+        /// line, then up the line to where the hand has it. False when the switch is not such a one (eased as before).
+        /// </summary>
+        private bool RoutedOn(ref RigidPose target)
+        {
+            if (!_onRail || Kind != PropKind.Magazine)
+            {
+                return false;
+            }
+            Vector3 insert = target.rotation * InsertDirLocal;
+            // The tip's place at the well's mouth, on the line: the rail's pose is RailDepth in from it.
+            Vector3 mouth = target.position + target.rotation * TipLocal - insert * RailDepth;
+            if (_routeFor != Mathf.RoundToInt(_switchAt * 1000f))
+            {
+                _routeFor = Mathf.RoundToInt(_switchAt * 1000f);
+                Quaternion inv = Quaternion.Inverse(target.rotation);
+                Vector3 tip0 = _switchFrom.position + _switchFrom.rotation * TipLocal;
+                _routeTip0 = inv * (tip0 - mouth);
+                _routeRot0 = inv * _switchFrom.rotation;
+                Vector3 aside0 = Vector3.ProjectOnPlane(tip0 - mouth, insert);
+                _routed = aside0.magnitude > WellPlay * 0.75f;
+                // Its top face's highest corner, turned as it was, over its middle: lowered that far more under the mouth.
+                float turned = Vector3.Angle(_switchFrom.rotation * InsertDirLocal, insert);
+                float rise = Mathf.Sin(Mathf.Min(turned, 90f) * Mathf.Deg2Rad) * Mathf.Max(_frontHalf, _sideHalf);
+                _routeLow = Mathf.Min(Vector3.Dot(tip0 - mouth, insert), 0f) - rise - 0.003f;
+            }
+            if (!_routed)
+            {
+                return false;
+            }
+            float t = (Time.unscaledTime - _switchAt) / RouteBlend;
+            if (t >= 1f)
+            {
+                _switchAt = -1f;
+                return false; // there: drawn on the line as any other
+            }
+            float Phase(int i)
+            {
+                float x = Mathf.Clamp01(t * 4f - i);
+                return x * x * (3f - 2f * x);
+            }
+            Vector3 start = target.rotation * _routeTip0; // where its tip was, from the mouth
+            float d0 = Vector3.Dot(start, insert);
+            Vector3 aside = Vector3.ProjectOnPlane(start, insert) * (1f - Phase(2));
+            float depth = Phase(3) > 0f ? Mathf.Lerp(_routeLow, RailDepth, Phase(3)) : Mathf.Lerp(d0, _routeLow, Phase(0));
+            Quaternion rot = Quaternion.Slerp(target.rotation * _routeRot0, target.rotation, Phase(1));
+            Vector3 tip = mouth + insert * depth + aside;
+            target = new RigidPose(tip - rot * TipLocal, rot);
+            return true;
         }
         /// <summary>How far along the rail (0 = at the well entry, RailLength = seated).</summary>
         public float RailDepth;
