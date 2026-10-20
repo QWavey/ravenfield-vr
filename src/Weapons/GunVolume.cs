@@ -132,6 +132,22 @@ namespace RavenfieldVR.Weapons
         /// <summary>When its measuring started (realtime): one that never finished is measured again (see Cached).</summary>
         private readonly float _startedAt = Time.realtimeSinceStartup;
 
+        /// <summary>1 while this measuring holds one of the in-flight places (given back once, however it ends).</summary>
+        private int _holdsPlace;
+
+        /// <summary>
+        /// Gives back this measuring's in-flight place, once: on its end, its failure, or when it is given up as stalled after 15 s
+        /// (a read-back that never came back kept its place for the session, and the warm-up then waited its full 2 s on every
+        /// weapon at four of them; lifecycle hunt, 2026-10-20).
+        /// </summary>
+        private void ReleasePlace()
+        {
+            if (Interlocked.Exchange(ref _holdsPlace, 0) == 1)
+            {
+                Interlocked.Decrement(ref _inFlight);
+            }
+        }
+
         private GunVolume(string key, View[] views, Bounds box)
         {
             Key = key;
@@ -425,6 +441,7 @@ namespace RavenfieldVR.Weapons
                     CacheOrder.Add(key);
                     return cached;
                 }
+                cached.ReleasePlace(); // given up: its place is free again
                 Cache.Remove(key); // its read-back or measuring failed: measured again
             }
             GunVolume v = null;
@@ -603,6 +620,7 @@ namespace RavenfieldVR.Weapons
                 mids[d] = mid;
             }
             GunVolume volume = new GunVolume(key, views, box) { Texels = texels };
+            volume._holdsPlace = 1;
             Interlocked.Increment(ref _inFlight);
             foreach (Renderer r in renderers)
             {
@@ -822,7 +840,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (Failed)
                 {
-                    Interlocked.Decrement(ref _inFlight);
+                    Volume.ReleasePlace();
                     Volume.Failed = true;
                     Log.WarnOnce("gunvolume-read:" + Volume.Key, $"Measuring the shape of {Volume.Key} failed (put away before every view was taken, or a read-back failed): measured again when held.");
                     return;
@@ -860,7 +878,7 @@ namespace RavenfieldVR.Weapons
                     }
                     finally
                     {
-                        Interlocked.Decrement(ref _inFlight);
+                        Volume.ReleasePlace();
                     }
                 });
             }
