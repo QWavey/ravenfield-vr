@@ -3,7 +3,12 @@
 score B (analysed A)"), takes the guns whose best tilt is clearly better (B at most half of A, and at least 15 fewer points
 out of place), looks up each gun's analysis key in its rig.json, and writes the table. The tilts are relative to the line the
 analysis makes, so the export (which the scans read) records the analysed line, before this table is applied.
-Usage: mag_line_table.py <scan output> [more...]"""
+Usage: mag_line_table.py <scan output> [more...]
+       mag_line_table.py --both <mag_line_body.py --both output>
+The second is the one in use (2026-10-20): the scans alone counted a point pushed into the gun as hidden and drove lines through
+the walls of the well (37 of their 70 lines went through more wall than the analysed line: the 1911s, P220s, CZ Bren 2s,
+AK-12s); mag_line_body.py --both takes the tilt with the least wall and the least out of the outline together. A gun is taken
+when that sum is at most 60% of the analysed line's and at least 30 points fewer."""
 import json
 import os
 import re
@@ -26,7 +31,20 @@ CHECKED = {'P320_p320_1', 'P320s_p320_1_s'}
 MANUAL = {'PPSh-41_PPSH_Stick': (6.5, 0.0)}
 
 rows = {}
-for path in sys.argv[1:]:
+BOTH = re.compile(r'^(\S+): analysed wall (\d+) out (\d+); least ([+-][\d.]+)/([+-][\d.]+) wall (\d+) out (\d+)')
+for path in (sys.argv[2:] if sys.argv[1] == '--both' else []):
+    for line in open(path, encoding='utf-8'):
+        m = BOTH.match(line)
+        if not m:
+            continue
+        folder = m.group(1)
+        analysed = int(m.group(2)) + int(m.group(3))
+        fore, side = float(m.group(4)), float(m.group(5))
+        best = int(m.group(6)) + int(m.group(7))
+        if (fore or side) and best <= analysed * 0.6 and analysed - best >= 30:
+            rig = json.load(open(os.path.join(DATA, folder, 'rig.json'), encoding='utf-8'))
+            rows[rig['key']] = (fore, side, analysed, best, folder)
+for path in (sys.argv[1:] if sys.argv[1] != '--both' else []):
     capped_scan = 'best tip (capped)' in open(path, encoding='utf-8').read()
     cur = None
     for line in open(path, encoding='utf-8'):
@@ -99,7 +117,9 @@ lines = [
 for key in sorted(rows):
     fore, side, analysed, best, folder = rows[key]
     v = corrected(folder, fore, side)
-    how = 'set by hand from a picture' if folder in MANUAL else f'{analysed} -> {best} points out of place'
+    how = ('set by hand from a picture' if folder in MANUAL
+           else f'{analysed} -> {best} points in the walls or out of the well' if sys.argv[1] == '--both'
+           else f'{analysed} -> {best} points out of place')
     lines.append(f'            {{ {json.dumps(key, ensure_ascii=False)}, new Vector3({v[0]:.5f}f, {v[1]:.5f}f, {v[2]:.5f}f) }}, // {folder}: {fore:+.1f} fore/aft, {side:+.1f} sideways from the export\'s line; {how}')
 lines += ['        };', '    }', '}', '']
 open(OUT, 'w', encoding='utf-8', newline='\r\n').write('\n'.join(lines))

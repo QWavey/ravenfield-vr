@@ -84,20 +84,31 @@ class Gun:
         for dx in range(-WIDEN, WIDEN + 1):
             for dy in range(-WIDEN, WIDEN + 1):
                 wide |= np.roll(np.roll(seat, dy, axis=0), dx, axis=1)
-        return flat, lo, W, H, body & ~wide
+        q0 = (flat(self.mp) - lo) * S
+        hidden = body[q0[:, 1].astype(int).clip(0, H - 1), q0[:, 0].astype(int).clip(0, W - 1)]
+        return flat, lo, W, H, body & ~wide, body, hidden
 
     def through(self, eject):
-        """Points of the magazine on the gun's body but off its own well, over the fractions, side and front."""
+        """Points of the magazine on the gun's body but off its own well, over the fractions: side, front."""
+        return self.counts(eject)[:2]
+
+    def counts(self, eject):
+        """[wall side, wall front, out side, out front] over the fractions. Wall: on the gun's body but off the magazine's own
+        well. Out (the scans' count): hidden by the gun when seated, still within the well's depth, and out of the outline."""
         length = float(np.ptp(self.mp @ eject))
-        counts = []
-        for flat, lo, W, H, wall in self.views:
-            total = 0
+        along = self.mp @ eject
+        walls, outs = [], []
+        for flat, lo, W, H, wall, body, hidden in self.views:
+            deepest = along[hidden].max() if hidden.any() else -np.inf
+            w = o = 0
             for f in FRACTIONS:
                 q = (flat(self.mp + eject * (length * f)) - lo) * S
                 x, y = q[:, 0].astype(int).clip(0, W - 1), q[:, 1].astype(int).clip(0, H - 1)
-                total += int(wall[y, x].sum())
-            counts.append(total)
-        return counts
+                w += int(wall[y, x].sum())
+                o += int((hidden & (along + length * f <= deepest) & ~body[y, x]).sum())
+            walls.append(w)
+            outs.append(o)
+        return walls + outs
 
     def tilted(self, fore, side):
         return norm(rot_about(rot_about(self.eject, self.right, fore), self.aim, side))
@@ -108,20 +119,43 @@ def table_rows():
     return [(m[0], float(m[1]), float(m[2])) for m in re.findall(r'// (\S+): ([+-][\d.]+) fore/aft, ([+-][\d.]+) sideways', t)]
 
 
-def search(g):
-    """The tilt through the least wall (side and front together); among those within 5% (and 3 points) of it, the smallest."""
+def search(g, both=False):
+    """The tilt through the least wall (side and front together), or with both the least wall and the least out of the
+    outline (the scans' count, which alone pushed lines into the walls, and the wall alone swung them out into the open);
+    among those within 5% (and 3 points) of it, the smallest."""
     results = []
     for fore in np.arange(-18.0, 18.01, 1.5):
         for side in np.arange(-6.0, 6.01, 1.5):
-            c = g.through(g.tilted(fore, side))
-            results.append((sum(c), float(np.hypot(fore, side)), float(fore), float(side), c))
+            c = g.counts(g.tilted(fore, side))
+            results.append((sum(c) if both else c[0] + c[1], float(np.hypot(fore, side)), float(fore), float(side), c))
     least = min(r[0] for r in results)
     near = [r for r in results if r[0] <= least * 1.05 + 3]
     return min(near, key=lambda r: (r[1], r[0]))
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == '--search':
+    if sys.argv[1] == '--both':
+        # Walls and out of the outline together: the analysed line, the table's, and the least of the two counts summed.
+        table = {f: (fo, si) for f, fo, si in table_rows()}
+        folders = sys.argv[2:] or sorted(os.listdir(DATA))
+        for folder in folders:
+            try:
+                g = Gun(folder)
+            except Exception as e:
+                print(f'{folder}: unreadable ({type(e).__name__})', flush=True)
+                continue
+            if not g.ok:
+                print(f'{folder}: no body or no magazine drawn', flush=True)
+                continue
+            a = g.counts(g.eject)
+            best = search(g, both=True)
+            t = ''
+            if folder in table:
+                b = g.counts(g.tilted(*table[folder]))
+                t = f'; table {table[folder][0]:+.1f}/{table[folder][1]:+.1f} wall {b[0] + b[1]} out {b[2] + b[3]}'
+            print(f'{folder}: analysed wall {a[0] + a[1]} out {a[2] + a[3]}; least {best[2]:+.1f}/{best[3]:+.1f} wall '
+                  f'{best[4][0] + best[4][1]} out {best[4][2] + best[4][3]}{t}', flush=True)
+    elif sys.argv[1] == '--search':
         table = {f: (fo, si) for f, fo, si in table_rows()}
         folders = sys.argv[2:] or sorted(os.listdir(DATA))
         for folder in folders:

@@ -125,14 +125,14 @@ namespace RavenfieldVR.Weapons
         private float _switchAt = -1f;
         private const float SwitchBlend = 0.08f;
 
-        // A magazine taken onto its line from aside at the well's mouth goes round the gun (RoutedOn): where it was, against the
-        // rail's pose (the gun may move meanwhile), and how far below the mouth its top clears it.
+        // A magazine switched onto its line from aside at the well's mouth, or off it from inside the well, goes round the gun
+        // (Routed): the line it goes round under (its mouth and direction; against the rail's pose taken onto it, the gun may
+        // move meanwhile; as it was, taken off it), and where the switch started.
         private const float RouteBlend = 0.14f;
-        private int _routeFor = -1; // the switch (its _switchAt frame) the route was set up for; -1 none
+        private int _routeFor = -1; // the switch (its _switchAt in milliseconds) the route was set up for; -1 none
         private bool _routed;
-        private Vector3 _routeTip0;
-        private Quaternion _routeRot0;
-        private float _routeLow;
+        private Vector3 _routeTip0, _routeMouth;
+        private Quaternion _routeRot0, _routeLine;
 
         /// <summary>Draws the prop at <paramref name="target"/>, eased from where it was when it went onto or off the rail.</summary>
         public void ShowAt(RigidPose target)
@@ -141,7 +141,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (_switchAt >= 0f && RoutedOn(ref target))
+            if (_switchAt >= 0f && Routed(ref target))
             {
                 target.ApplyTo(Go.transform);
                 return;
@@ -160,34 +160,41 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// A magazine taken onto its line from aside (up to 4.5 cm off it and 40 degrees turned, at the mouth of a pistol's grip):
-        /// eased straight there, it cut through the grip's or the magwell's bottom corner in the switch, unchecked against the
-        /// gun ("glitch through the handle a little but near", user, 2026-10-20; insertion hunt). It goes round instead: its top
-        /// down below the mouth along the line (beside the gun, away from it), turned straight there, under the well onto the
-        /// line, then up the line to where the hand has it. False when the switch is not such a one (eased as before).
+        /// A magazine switched onto its line from aside (up to 4.5 cm off it and 40 degrees turned, at the mouth of a pistol's
+        /// grip), or off it while still in the well (the hand pulled 20 cm aside): eased straight between the two, it cut through
+        /// the grip's or the magwell's wall in the switch, unchecked against the gun ("glitch through the handle a little but
+        /// near", user, 2026-10-20; insertion hunt). It goes round under the well instead: along the line to below the mouth
+        /// (beside the gun, or out of the well), turned there, across under the well, then along the line to where it goes (up
+        /// the well, or to the hand). False when the switch is not such a one (eased as before).
         /// </summary>
-        private bool RoutedOn(ref RigidPose target)
+        private bool Routed(ref RigidPose target)
         {
-            if (!_onRail || Kind != PropKind.Magazine)
+            if (Kind != PropKind.Magazine)
             {
                 return false;
             }
-            Vector3 insert = target.rotation * InsertDirLocal;
-            // The tip's place at the well's mouth, on the line: the rail's pose is RailDepth in from it.
-            Vector3 mouth = target.position + target.rotation * TipLocal - insert * RailDepth;
-            if (_routeFor != Mathf.RoundToInt(_switchAt * 1000f))
+            int key = Mathf.RoundToInt(_switchAt * 1000f);
+            if (_routeFor != key)
             {
-                _routeFor = Mathf.RoundToInt(_switchAt * 1000f);
-                Quaternion inv = Quaternion.Inverse(target.rotation);
+                _routeFor = key;
                 Vector3 tip0 = _switchFrom.position + _switchFrom.rotation * TipLocal;
-                _routeTip0 = inv * (tip0 - mouth);
-                _routeRot0 = inv * _switchFrom.rotation;
-                Vector3 aside0 = Vector3.ProjectOnPlane(tip0 - mouth, insert);
-                _routed = aside0.magnitude > WellPlay * 0.75f;
-                // Its top face's highest corner, turned as it was, over its middle: lowered that far more under the mouth.
-                float turned = Vector3.Angle(_switchFrom.rotation * InsertDirLocal, insert);
-                float rise = Mathf.Sin(Mathf.Min(turned, 90f) * Mathf.Deg2Rad) * Mathf.Max(_frontHalf, _sideHalf);
-                _routeLow = Mathf.Min(Vector3.Dot(tip0 - mouth, insert), 0f) - rise - 0.003f;
+                if (_onRail)
+                {
+                    // Onto the line: the line from the rail's pose, the start kept against it.
+                    Vector3 lineIn = target.rotation * InsertDirLocal;
+                    Vector3 mouthNow = target.position + target.rotation * TipLocal - lineIn * RailDepth;
+                    Quaternion inv = Quaternion.Inverse(target.rotation);
+                    _routeTip0 = inv * (tip0 - mouthNow);
+                    _routeRot0 = inv * _switchFrom.rotation;
+                    _routed = Vector3.ProjectOnPlane(tip0 - mouthNow, lineIn).magnitude > WellPlay * 0.75f;
+                }
+                else
+                {
+                    // Off the line from in the well: the line as it was (it starts on it, RailDepth in).
+                    _routeLine = _switchFrom.rotation;
+                    _routeMouth = tip0 - (_routeLine * InsertDirLocal) * RailDepth;
+                    _routed = RailDepth > 0.005f;
+                }
             }
             if (!_routed)
             {
@@ -197,18 +204,27 @@ namespace RavenfieldVR.Weapons
             if (t >= 1f)
             {
                 _switchAt = -1f;
-                return false; // there: drawn on the line as any other
+                return false; // there: drawn where it goes as any other
             }
             float Phase(int i)
             {
                 float x = Mathf.Clamp01(t * 4f - i);
                 return x * x * (3f - 2f * x);
             }
-            Vector3 start = target.rotation * _routeTip0; // where its tip was, from the mouth
-            float d0 = Vector3.Dot(start, insert);
-            Vector3 aside = Vector3.ProjectOnPlane(start, insert) * (1f - Phase(2));
-            float depth = Phase(3) > 0f ? Mathf.Lerp(_routeLow, RailDepth, Phase(3)) : Mathf.Lerp(d0, _routeLow, Phase(0));
-            Quaternion rot = Quaternion.Slerp(target.rotation * _routeRot0, target.rotation, Phase(1));
+            Quaternion line = _onRail ? target.rotation : _routeLine;
+            Vector3 insert = line * InsertDirLocal;
+            Vector3 mouth = _onRail ? target.position + target.rotation * TipLocal - insert * RailDepth : _routeMouth;
+            Vector3 tipA = _onRail ? mouth + target.rotation * _routeTip0 : _switchFrom.position + _switchFrom.rotation * TipLocal;
+            Quaternion rotA = _onRail ? target.rotation * _routeRot0 : _switchFrom.rotation;
+            Vector3 tipB = target.position + target.rotation * TipLocal;
+            float dA = Vector3.Dot(tipA - mouth, insert), dB = Vector3.Dot(tipB - mouth, insert);
+            Vector3 asideA = Vector3.ProjectOnPlane(tipA - mouth, insert), asideB = Vector3.ProjectOnPlane(tipB - mouth, insert);
+            // Low enough under the mouth that its top face's highest corner, turned either way, clears it.
+            float turned = Mathf.Max(Vector3.Angle(rotA * InsertDirLocal, insert), Vector3.Angle(target.rotation * InsertDirLocal, insert));
+            float low = Mathf.Min(Mathf.Min(dA, dB), 0f) - Mathf.Sin(Mathf.Min(turned, 90f) * Mathf.Deg2Rad) * Mathf.Max(_frontHalf, _sideHalf) - 0.003f;
+            float depth = Phase(3) > 0f ? Mathf.Lerp(low, dB, Phase(3)) : Mathf.Lerp(dA, low, Phase(0));
+            Vector3 aside = Vector3.Lerp(asideA, asideB, Phase(2));
+            Quaternion rot = Quaternion.Slerp(rotA, target.rotation, Phase(1));
             Vector3 tip = mouth + insert * depth + aside;
             target = new RigidPose(tip - rot * TipLocal, rot);
             return true;
