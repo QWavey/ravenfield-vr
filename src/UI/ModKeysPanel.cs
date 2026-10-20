@@ -207,11 +207,36 @@ namespace RavenfieldVR.UI
             _localPose = RigidPose.Of(_rig.Root).Inverse().Multiply(world);
         }
 
+        private float _awaySince = -1f;
+
         public void BeforeRender()
         {
             if (!IsOpen)
             {
+                _awaySince = -1f;
                 return;
+            }
+            // Looked away from it (more than 75 degrees) for 2 s, turned round in the room: it comes back in front, as the game's
+            // menus do (CanvasManager.KeepMenusInView). It stayed behind the player (review, 2026-10-20).
+            Vector3 toPanel = _root.transform.position - _rig.Head.position;
+            toPanel.y = 0f;
+            Vector3 look = _rig.Head.forward;
+            look.y = 0f;
+            if (toPanel.sqrMagnitude > 1e-4f && look.sqrMagnitude > 1e-4f && Vector3.Angle(toPanel, look) > 75f)
+            {
+                if (_awaySince < 0f)
+                {
+                    _awaySince = Time.unscaledTime;
+                }
+                else if (Time.unscaledTime - _awaySince > 2f)
+                {
+                    _awaySince = -1f;
+                    Place();
+                }
+            }
+            else
+            {
+                _awaySince = -1f;
             }
             RigidPose.Of(_rig.Root).Multiply(_localPose).ApplyTo(_root.transform);
             Vector3 scale = Vector3.one * (0.8f / CanvasWidth);
