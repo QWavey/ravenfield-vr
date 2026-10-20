@@ -101,6 +101,9 @@ def scan(name):
 
     eject = norm(rig.get('magEject', [0, -1, 0]))
     seat_in, seat_through = measure(mpts)
+    if not seat_in.any():
+        # Nothing of it hidden by the gun when seated (an en-bloc clip inside the receiver, a magazine beside it): no well to slide in.
+        return f'{name}: no magazine point hidden by the gun when seated; nothing to scan'
     length = float(np.ptp(mpts @ eject))
     depths = [length * f for f in (0.1, 0.25, 0.4, 0.55, 0.7)]
 
