@@ -91,6 +91,13 @@ namespace RavenfieldVR.Weapons
             }
             weapon.Unholster();
             hand.Role = weapon is ThrowableWeapon ? HandRole.Throwable : HandRole.Weapon;
+            if (hand.Model != null && Rig != null)
+            {
+                // Its own grip pose, as the gun hand's: unset, every second weapon took the rifle grip, a pistol's thumb wrapped over
+                // its slide for the whole hold (hand hunt, 2026-10-20).
+                hand.Model.WeaponIsPistol = Rig.Data.IsPistol;
+                hand.Model.WeaponClass = HeldWeapon.ClassOf(Rig, weapon);
+            }
             // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
             Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
@@ -527,6 +534,11 @@ namespace RavenfieldVR.Weapons
             if (Hand.Model != null && _solid != null && Hand.Model.Solid == _solid)
             {
                 Hand.Model.Solid = null; // nothing left in the hand to close on
+            }
+            if (Hand.Model != null && (Hand.Role == HandRole.Free))
+            {
+                Hand.Model.WeaponIsPistol = false;
+                Hand.Model.WeaponClass = WeaponClass.None;
             }
         }
     }

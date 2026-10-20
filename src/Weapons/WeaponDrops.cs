@@ -37,6 +37,11 @@ namespace RavenfieldVR.Weapons
         public bool MagOut;
         /// <summary>Put down locked back on nothing chambered: it comes back caught back, with its magazine's rounds loaded.</summary>
         public bool SlideBack;
+        /// <summary>
+        /// Put down with nothing chambered and its action closed (a pump or bolt gun fired and not worked again): it comes back
+        /// still to be worked. The count alone made it "N+1" and its next trigger pull fired with no stroke (reload hunt, 2026-10-20).
+        /// </summary>
+        public bool EmptyChamber;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
         /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
@@ -1335,6 +1340,14 @@ namespace RavenfieldVR.Weapons
             slideBack = st != null && st.Participates && st.SlideLocked && !st.Chambered;
         }
 
+        /// <summary>Nothing chambered, the action closed and not locked back, rounds left to feed: the next round needs a stroke.</summary>
+        private static bool EmptyChamberOf(Weapon w)
+        {
+            AmmoState st = w != null && WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
+            return st != null && st.Participates && st.UsesChamber && st.Rig.Action != ActionType.SingleShot && !st.Chambered && !st.SlideLocked
+                   && st.MagRounds > 0 && (st.MagInserted || !st.UsesDetachableMag);
+        }
+
         private static int[] SubAmmoOf(Weapon w)
         {
             if (w == null || w.alternativeWeapons == null || w.alternativeWeapons.Count == 0)
@@ -1387,8 +1400,15 @@ namespace RavenfieldVR.Weapons
             // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
             // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
             // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
-            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack);
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber);
             state?.AdoptWeaponAmmo();
+            if (state != null && d.EmptyChamber && !d.MagOut && !d.SlideBack)
+            {
+                // Every round back in the magazine or tube, the chamber empty: it is worked before it fires, as it was put down.
+                state.Chambered = false;
+                state.MagRounds = Mathf.Clamp(d.Ammo, 0, state.Capacity);
+                state.Sync();
+            }
             if (state != null && (d.MagOut || d.SlideBack))
             {
                 state.Chambered = !d.SlideBack && d.Ammo > 0;
@@ -1527,6 +1547,7 @@ namespace RavenfieldVR.Weapons
                 PutDownState(current, out bool swapMagOut, out bool swapSlideBack);
                 swapped.MagOut = swapMagOut;
                 swapped.SlideBack = swapSlideBack;
+                swapped.EmptyChamber = EmptyChamberOf(current);
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick
@@ -1752,7 +1773,8 @@ namespace RavenfieldVR.Weapons
                 Semi = FireSelector.IsSemiByPlayer(w),
                 PlayerOwned = true,
                 MagOut = magOut,
-                SlideBack = slideBack
+                SlideBack = slideBack,
+                EmptyChamber = EmptyChamberOf(w)
             };
             drop.Reach = ReachOf(root.transform, colliders);
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);

@@ -705,7 +705,19 @@ namespace RavenfieldVR.Rig
                 {
                     _lastSnap = SnapPose.Value;
                 }
+                _wasHidden = true;
                 return;
+            }
+            if (_wasHidden)
+            {
+                // Shown again with no grip to snap to (the weapon let go: Release clears the hiding and the snap together): drawn
+                // at the tracked hand at once. The blend kept at full while hidden drew it at the old grip, up to 6 cm off, and
+                // glided it back (hand hunt, 2026-10-20).
+                _wasHidden = false;
+                if (!SnapPose.HasValue)
+                {
+                    _snapBlend = 0f;
+                }
             }
             if (GraspAnchor.HasValue)
             {
@@ -1333,6 +1345,7 @@ namespace RavenfieldVR.Rig
         public RigidPose? SnapPose;
         private RigidPose _lastSnap;
         private float _snapBlend;
+        private bool _wasHidden; // hidden (suppressed or held) last frame
         /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
         public bool Suppressed;
         /// <summary>What the hand holds is carried without a visible hand (an ammo or medic bag).</summary>

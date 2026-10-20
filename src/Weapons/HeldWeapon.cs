@@ -263,7 +263,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>What kind of weapon this is, for the hands' poses.</summary>
         private readonly WeaponClass _weaponClass;
 
-        private static WeaponClass ClassOf(WeaponRig rig, Weapon weapon)
+        internal static WeaponClass ClassOf(WeaponRig rig, Weapon weapon)
         {
             WeaponRigData d = rig.Data;
             switch (d.Action)

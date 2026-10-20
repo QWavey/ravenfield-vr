@@ -2425,7 +2425,9 @@ namespace RavenfieldVR.Weapons
             _rackBase = _rackFromBoltLock ? 0f : Ammo.SlideLocked ? 1f : Fraction;
             // An open bolt with an empty chamber (the case already out) feeds when pushed home, however far it was left open:
             // pulled back, half closed and let go, it closed later without feeding and the gun said RACK.
-            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && (Fraction >= 0.8f || !Ammo.Chambered && !Ammo.SpentInChamber);
+            // (Not with a fired case still in: a bolt left part way open and put away came back drawn fully open, and the case was
+            // never thrown out before the next round went in over it; reload hunt, 2026-10-20.)
+            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && !Ammo.SpentInChamber && (Fraction >= 0.8f || !Ammo.Chambered);
             _lastTick = _rackBase * StrokeLength;
             _tugStroke = _lastTick;
             off.Role = HandRole.Slide;
