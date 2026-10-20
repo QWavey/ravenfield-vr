@@ -3249,6 +3249,26 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 aimAbs = new Vector3(Mathf.Abs(d.AimAxis.x), Mathf.Abs(d.AimAxis.y), Mathf.Abs(d.AimAxis.z));
             Vector3 upAbs = new Vector3(Mathf.Abs(d.Up.x), Mathf.Abs(d.Up.y), Mathf.Abs(d.Up.z));
+            Vector3 rightAbs = Vector3.Cross(d.Up, d.AimAxis);
+            rightAbs = new Vector3(Mathf.Abs(rightAbs.x), Mathf.Abs(rightAbs.y), Mathf.Abs(rightAbs.z));
+            // The node the slide hangs under may draw the charging handle itself, T and shaft in one mesh (the K13s: '416F BOLT',
+            // 19 cm along the bore, 0.8 cm tall, a 6 cm T; its children the carrier, the slide, and a latch on the T). The latch was
+            // taken for the T below, and racked, the latch came back and the T stayed ("nothing goes back", as Tasks 304; still-bolt
+            // check, Tasks 307). The T is cut out of that mesh and comes back with the hand instead (the AR rule, run later, cuts
+            // at the receiver's back end, from that mesh alone: tools/export_checks/parent_handle_rule.py takes the seven K13s and
+            // Suzuya's two AR-15s, which were cut out of every mesh there, receiver too, and nothing else).
+            Transform holder = slide != null ? slide.parent : null;
+            if (holder != null && holder != root && holder != gunBody && (holder.GetComponent<MeshFilter>() != null || holder.GetComponent<SkinnedMeshRenderer>() != null))
+            {
+                Bounds own = sampler.GunSpaceBoundsWhere(holder, gunIdle, t => t != holder);
+                float along = Vector3.Dot(own.size, aimAbs), tall = Vector3.Dot(own.size, upAbs), across = Vector3.Dot(own.size, rightAbs);
+                if (along >= 0.12f && along <= 0.25f && tall <= 0.015f && across >= 0.03f)
+                {
+                    d.CarveFromPath = WeaponRig.PathOf(root, holder);
+                    d.SlideMethod += $" (the charging handle is '{holder.name}', the slide's holder: cut out of it)";
+                    return;
+                }
+            }
             Vector3 rearTop = sb.center - d.AimAxis * Mathf.Abs(Vector3.Dot(sb.extents, aimAbs)) + d.Up * Mathf.Abs(Vector3.Dot(sb.extents, upAbs));
             Transform best = null;
             Bounds bestBounds = default;
