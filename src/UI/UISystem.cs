@@ -392,6 +392,10 @@ namespace RavenfieldVR.UI
             {
                 UnityEngine.Object.Destroy(_go);
             }
+            if (_material != null)
+            {
+                UnityEngine.Object.Destroy(_material); // (made here, not an asset: it outlived the laser)
+            }
         }
     }
 }
