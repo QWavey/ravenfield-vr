@@ -60,10 +60,10 @@ namespace RavenfieldVR.UI
             _canvasManager = canvases;
         }
 
-        /// <summary>Per frame, before the canvases are converted (the loading screen's canvases are drawn into the picture).</summary>
         // Made once: a method group passed as an Action makes a new delegate on every call (every frame of the loading screen).
         private static readonly System.Action BuildDrops = Weapons.WeaponDrops.BuildDuringLoading;
 
+        /// <summary>Per frame, before the canvases are converted (the loading screen's canvases are drawn into the picture).</summary>
         public void Update()
         {
             Scene scene = SceneManager.GetActiveScene();
