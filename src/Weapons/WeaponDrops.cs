@@ -289,8 +289,21 @@ namespace RavenfieldVR.Weapons
                 _idleBuilding = true;
                 CarriedFirst();
             }
+            if (Time.unscaledTime < _nextIdleBuild)
+            {
+                return;
+            }
+            // Spaced out after a slow one: in the headset a menu that froze a quarter of a second every frame was worse than the
+            // death-frame hitch it saves. Half a second between slow builds, cheap ones back to back.
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             DrainBuilds(20.0);
+            if (watch.Elapsed.TotalMilliseconds > 30.0)
+            {
+                _nextIdleBuild = Time.unscaledTime + 0.5f;
+            }
         }
+
+        private static float _nextIdleBuild;
 
         /// <summary>The queue with the types the living soldiers carry put first.</summary>
         private static void CarriedFirst()
