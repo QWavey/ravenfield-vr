@@ -803,7 +803,7 @@ namespace RavenfieldVR.Weapons
             if (Rig.VRRig.Instance != null)
             {
                 Rig.VRRig.SteadyRootOf(Rig.VRRig.Instance.Root, out Quaternion rigTurn);
-                if (_hasRigTurn && Quaternion.Angle(_lastRigTurn, rigTurn) > 6f)
+                if (_hasRigTurn && (Rig.VRRig.SnappedRecently || Quaternion.Angle(_lastRigTurn, rigTurn) > 45f))
                 {
                     _placed = false;
                     _snapJumped = true;

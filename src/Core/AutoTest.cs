@@ -2906,12 +2906,14 @@ namespace RavenfieldVR.Core
                 yield return null;
                 shake = Peak(shake, hand);
             }
+            Rig.VRRig.LastSnapFrame = Time.frameCount; // as the snap turn's input flags it
             rig.AddYaw(15f);
             for (int i = 0; i < 4; i++)
             {
                 yield return null;
                 snap = Peak(snap, hand);
             }
+            Rig.VRRig.LastSnapFrame = Time.frameCount;
             rig.AddYaw(-15f);
             for (int i = 0; i < 4; i++)
             {

@@ -129,7 +129,8 @@ namespace RavenfieldVR.Rig
                 // moved about 1, and sideways; a magazine or a gun let go while turning flew off with it, and a small snap turn
                 // gave a one-frame jump of up to some 40 m/s (2026-10-20, task 315). A snap turn is a jump, not motion.
                 // Without the view shake: a shot's jolt turns the rig about the eyes for a few frames, which is no motion of the hand.
-                if (Quaternion.Angle(_lastRigRotation, steadyRotation) <= 6f)
+                // (A snap turn, flagged by the rig, or a turn no smooth turn makes in a frame: a jump.)
+                if (VRRig.LastSnapFrame != Time.frameCount && Quaternion.Angle(_lastRigRotation, steadyRotation) <= 45f)
                 {
                     Vector3 local = rigRoot.InverseTransformPoint(palmPos);
                     rigVelocity = (steadyRoot.MultiplyPoint3x4(local) - _lastRigMatrix.MultiplyPoint3x4(local)) / Time.unscaledDeltaTime;
@@ -144,9 +145,10 @@ namespace RavenfieldVR.Rig
                         rigSpin = turnAxis * (turned * Mathf.Deg2Rad / Time.unscaledDeltaTime);
                     }
                 }
-                if (rigVelocity.sqrMagnitude > 2500f)
+                if (rigVelocity.sqrMagnitude > 225f)
                 {
-                    rigVelocity = Vector3.zero; // teleport, not motion
+                    rigVelocity = Vector3.zero; // over 15 m/s: a teleport or a jump of the rig, not motion (half its peak goes into a throw)
+                    rigSpin = Vector3.zero;
                 }
             }
             _lastRigRotation = steadyRotation;

@@ -2314,6 +2314,10 @@ namespace RavenfieldVR.Weapons
             RailOutOnly = false;
             int layer = PropPhysics.Layer;
             SetLayer(Go, layer >= 0 ? layer : WorldLayer);
+            // The pose written this frame (a knocked-out magazine at the well's mouth, the hand's last move) reaches PhysX first:
+            // the stand-in's overlap test below read the old pose, missed the overlap, and the next step pushed it out of the gun
+            // (review, 2026-10-20, task 315).
+            Physics.SyncTransforms();
             SetCollidersEnabled(true);
             _body.isKinematic = false;
             _body.velocity = velocity;

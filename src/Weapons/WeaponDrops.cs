@@ -203,7 +203,7 @@ namespace RavenfieldVR.Weapons
             var boxes = new List<Bounds>();
             int beams = 0, strays = 0;
             // A weapon named like a beam (a flare gun) keeps its parts: their names say flare too (review, 2026-10-20).
-            bool beamNamedWeapon = BeamName.IsMatch(entry.name ?? "");
+            bool beamNamedWeapon = BeamName.IsMatch(entry.name ?? "") || (entry.name ?? "").IndexOf("flare", StringComparison.OrdinalIgnoreCase) >= 0;
             foreach (Renderer r in template.GetComponentsInChildren<Renderer>(true))
             {
                 if (!(r is MeshRenderer || r is SkinnedMeshRenderer) || !r.enabled)

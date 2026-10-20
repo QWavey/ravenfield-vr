@@ -238,6 +238,16 @@ namespace RavenfieldVR.Rig
         private Quaternion _steadyRootRotation = Quaternion.identity;
         private int _steadyFrame = -1;
 
+        /// <summary>
+        /// The frame a snap turn was applied in: a jump of the rig, not motion (the hands give nothing let go its speed, the gun's
+        /// stand-in jumps with it). Flagged where it happens: an angle per frame told it from a smooth turn only at some frame
+        /// rates (360 deg/s at 45 Hz is 8 degrees a frame; review, 2026-10-20).
+        /// </summary>
+        internal static int LastSnapFrame = -10;
+
+        /// <summary>A snap turn in this frame or the one before (read in Update, before this frame's placement).</summary>
+        internal static bool SnappedRecently => Time.frameCount - LastSnapFrame <= 1;
+
         private Matrix4x4 _shakeUndo = Matrix4x4.identity;
         private Quaternion _shakeUndoRotation = Quaternion.identity;
 
@@ -555,6 +565,7 @@ namespace RavenfieldVR.Rig
                 {
                     _snapLatch = true;
                     delta = Mathf.Sign(x) * VRConfig.SnapTurnAngle.Value;
+                    LastSnapFrame = Time.frameCount;
                 }
                 else if (_snapLatch && Mathf.Abs(x) < 0.35f)
                 {
