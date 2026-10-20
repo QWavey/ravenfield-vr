@@ -2364,16 +2364,19 @@ namespace RavenfieldVR.Weapons
                 b.Encapsulate(_colliders[i].bounds);
             }
             int prop = PropPhysics.Layer;
-            int mask = ~((prop >= 0 ? 1 << prop : 0) | PropPhysics.BodyMask);
+            int mask = ~PropPhysics.BodyMask;
             int n = Physics.OverlapBoxNonAlloc(b.center, b.extents, LevelNear, Quaternion.identity, mask, QueryTriggerInteraction.Ignore);
             Vector3 push = Vector3.zero;
             for (int i = 0; i < n; i++)
             {
                 Collider level = LevelNear[i];
+                // Loose props lying here (another magazine, a dropped weapon, a casing) count too: dropped onto one it was pushed
+                // out of it the same way (review, 2026-10-20, task 318 c). The held gun's stand-in does not: it lets props pass.
+                bool looseProp = level != null && prop >= 0 && level.gameObject.layer == prop && !GunCollider.IsStandIn(level);
                 if (level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body
-                    || level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic || PropPhysics.IsPlayerCollider(level))
+                    || level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic && !looseProp || PropPhysics.IsPlayerCollider(level))
                 {
-                    continue; // its own pieces, loose things and the player's own body are not walls
+                    continue; // its own pieces, moving things and the player's own body are not walls
                 }
                 Actor player = Util.GameContext.PlayerActor;
                 if (player != null && level.transform.IsChildOf(player.transform)

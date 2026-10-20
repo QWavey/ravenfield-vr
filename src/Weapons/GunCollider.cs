@@ -282,6 +282,9 @@ namespace RavenfieldVR.Weapons
     {
         public static GunCollider Current { get; private set; }
 
+        /// <summary>Whether <paramref name="c"/> is one of the held gun's stand-in pieces.</summary>
+        public static bool IsStandIn(Collider c) => Current != null && c != null && Current._boxes.Contains(c);
+
         private readonly WeaponRig _rig;
         private readonly GameObject _go;
         private readonly Rigidbody _body;
