@@ -185,6 +185,7 @@ namespace RavenfieldVR.Weapons
                 SandboxExport.Write(data, w.transform, w, data.ExportGlb, data.ExportNote);
                 data.ExportGlb = null;
             }
+            MagLineTable.Apply(data); // after the export: the offline scans measure the analysed line
             SandboxPoses.Apply(data); // hands saved in the sandbox (tools/sandbox) for this weapon
             Cache[key] = data;
             if (VRConfig.DumpWeaponRigs.Value)

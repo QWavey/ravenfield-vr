@@ -1751,6 +1751,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             MagLineFitted.Add(d);
+            if (MagLineTable.From(d))
+            {
+                return; // measured offline on the real meshes, which the in-game count can only approximate
+            }
             RigidPose seat = Rig.GunBodyPose.Multiply(d.MagSeat);
             Bounds mb = d.MagBounds;
             var points = new List<Vector3>();

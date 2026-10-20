@@ -1,0 +1,54 @@
+M4A1_m4: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 195, 0, 0, 0], through the sides [0, 5, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [0, 14, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +10.5 deg, sideways -4.5 deg, score 4 (analysed 200)
+    there: beside [0, 4, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_M4A1squad: 1088 magazine points, 20.0 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 6, 0, 0, 0], through the sides [0, 0, 0, 0, 0]
+  its own long axis is 4.8 deg off the line (+4.8 fore/aft, +0.0 sideways)
+    along it: beside [0, 16, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft -4.5 deg, sideways -3.0 deg, score 4 (analysed 6)
+    there: beside [0, 4, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_CCO_m4_cco: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 59, 0, 0, 0], through the sides [0, 4, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [14, 58, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +7.5 deg, sideways -4.5 deg, score 0 (analysed 63)
+    there: beside [0, 0, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_ACOG_m4_acog: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 195, 0, 0, 0], through the sides [0, 5, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [0, 14, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +10.5 deg, sideways -4.5 deg, score 4 (analysed 200)
+    there: beside [0, 4, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_CCO_FT_m4_cco_FT: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 59, 0, 0, 0], through the sides [0, 4, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [14, 58, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +7.5 deg, sideways -4.5 deg, score 0 (analysed 63)
+    there: beside [0, 0, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_EOT_FT_m4_eot_FT: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 59, 0, 0, 0], through the sides [0, 4, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [14, 58, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +7.5 deg, sideways -4.5 deg, score 0 (analysed 63)
+    there: beside [0, 0, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_EOT_m4_eot: 1088 magazine points, 21.8 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 59, 0, 0, 0], through the sides [0, 4, 0, 0, 0]
+  its own long axis is 20.0 deg off the line (+20.0 fore/aft, +0.3 sideways)
+    along it: beside [14, 58, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft +7.5 deg, sideways -4.5 deg, score 0 (analysed 63)
+    there: beside [0, 0, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_acog_M4A1squad__2__1: 1088 magazine points, 20.0 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 10, 0, 0, 0], through the sides [0, 0, 0, 0, 0]
+  its own long axis is 4.8 deg off the line (+4.8 fore/aft, +0.0 sideways)
+    along it: beside [0, 14, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft -4.5 deg, sideways -3.0 deg, score 4 (analysed 10)
+    there: beside [0, 4, 0, 0, 0], through [0, 0, 0, 0, 0]
+M4A1_reddot_M4A1squad__1: 1088 magazine points, 20.0 cm along the line; seated: 0 through the sides
+  line as analysed: beside the outline per depth [0, 6, 0, 0, 0], through the sides [0, 0, 0, 0, 0]
+  its own long axis is 4.8 deg off the line (+4.8 fore/aft, +0.0 sideways)
+    along it: beside [0, 16, 0, 0, 0], through [0, 0, 0, 0, 0]
+  best tip: fore/aft -4.5 deg, sideways -3.0 deg, score 4 (analysed 6)
+    there: beside [0, 4, 0, 0, 0], through [0, 0, 0, 0, 0]
