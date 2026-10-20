@@ -2497,7 +2497,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             float speed = _body.velocity.magnitude;
-            if (speed < 6f || speed < _dropSpeed + 3f)
+            // Faster than it was let go plus what falling since has given it (a magazine dropped off a roof is fast and not flung).
+            float fallen = Physics.gravity.magnitude * (Time.time - _dropTime);
+            if (speed < 6f || speed < _dropSpeed + fallen + 3f)
             {
                 return;
             }
