@@ -4814,6 +4814,14 @@ namespace RavenfieldVR.Weapons
             Core.AutoTest.Metric("support hand slid onto the charging handle: taken (1) or not (0)", took ? 1 : 0);
             report($"support hand slid back onto the charging handle, grip held: {(took ? "took the handle" : $"DID NOT TAKE IT (the hand: {role})")}");
             yield return new WaitForSecondsRealtime(0.3f);
+            if (HandDriven && Ammo.BoltOpen)
+            {
+                // A bolt left open by the take is closed again, as the rack-grip check does (the shots after it met an open bolt).
+                _rackedBack = false;
+                _held.SlideOffset = 0f;
+                Ammo.BoltOpen = false;
+                Ammo.RackForward();
+            }
         }
 
         /// <summary>
