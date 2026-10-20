@@ -232,7 +232,12 @@ namespace RavenfieldVR.Setup
 
         public static bool IsRavenfieldFolder(string dir) => !string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, "ravenfield.exe"));
 
-        public static bool GameRunning() => Process.GetProcessesByName("ravenfield").Length > 0;
+        /// <summary>
+        /// Ravenfield, or the launcher waiting for the headset to start it: the launcher holds its own exe and openvr_api.dll, and a
+        /// delete then failed as if it needed admin rights (review, 2026-10-20).
+        /// </summary>
+        public static bool GameRunning() => Process.GetProcessesByName("ravenfield").Length > 0
+                                            || Process.GetProcessesByName(Path.GetFileNameWithoutExtension(LauncherName)).Length > 0;
 
         /// <summary>Installed mod version, or null.</summary>
         public static string InstalledVersion(string game)
@@ -265,7 +270,7 @@ namespace RavenfieldVR.Setup
         {
             if (GameRunning())
             {
-                throw new InvalidOperationException("Ravenfield is running. Close it first.");
+                throw new InvalidOperationException("Ravenfield (or its VR launcher) is running. Close it first.");
             }
             string bepProblem = BepInExProblem(game);
             if (bepProblem != null)
@@ -425,7 +430,7 @@ namespace RavenfieldVR.Setup
         {
             if (GameRunning())
             {
-                throw new InvalidOperationException("Ravenfield is running. Close it first.");
+                throw new InvalidOperationException("Ravenfield (or its VR launcher) is running. Close it first.");
             }
             string manifestPath = Path.Combine(game, ManifestRelative);
             if (!File.Exists(manifestPath))
@@ -499,9 +504,15 @@ namespace RavenfieldVR.Setup
             {
                 Directory.Delete(subsystems);
             }
+            // The launcher's log goes; its choices (VR or flat, the preset) are settings.
+            string launcherLog = Path.Combine(game, @"BepInEx\RavenfieldVR-launcher.log");
+            if (File.Exists(launcherLog))
+            {
+                File.Delete(launcherLog);
+            }
             if (!keepSettings)
             {
-                foreach (string cfg in new[] { "com.qwavey.ravenfieldvr.cfg", "RavenfieldVR.weapons.json" })
+                foreach (string cfg in new[] { "com.qwavey.ravenfieldvr.cfg", "RavenfieldVR.weapons.json", "RavenfieldVR.launcher.ini" })
                 {
                     string p = Path.Combine(game, @"BepInEx\config", cfg);
                     if (File.Exists(p))
