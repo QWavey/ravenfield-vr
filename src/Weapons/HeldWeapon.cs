@@ -788,6 +788,12 @@ namespace RavenfieldVR.Weapons
 
         public void Update()
         {
+            // Here as well as in SnapHands: that runs only while the gun hand is tracked, and a re-grab made meanwhile took the
+            // last hold's pose (hold review, 2026-10-20 night).
+            if (_system.Rig.Off.Role != HandRole.Foregrip)
+            {
+                _supportHoldStarted = false;
+            }
             if (_renderedRootSet && Weapon != null && Weapon.transform.parent != null)
             {
                 // The weapon hangs under the game's player, which moved since the weapon was drawn (walking 4 cm a frame,
@@ -2767,6 +2773,7 @@ namespace RavenfieldVR.Weapons
         private bool _supportHoldStarted;
         private float _supportSlideHeld = float.NaN; // along the aim from the weapon's support pose (m), taken at the grab
         private RigidPose _supportGrabInGun; // the glove at the grab, in the gun body's frame
+        private bool _supportGrabOnGun; // the grab was on the handguard (within 5 cm of its line)
 
         private void SnapHands(VRHand main, VRHand off)
         {
@@ -2855,6 +2862,10 @@ namespace RavenfieldVR.Weapons
                 _supportHoldStarted = true;
                 _supportSlideHeld = float.NaN;
                 _supportGrabInGun = Rig.GunBodyPose.Inverse().Multiply(off.Model.TrackedGlovePose);
+                // Held where it gripped only when it gripped on the gun: a grab is taken up to 12 cm off the handguard, and that
+                // pose pinned the glove in the air beside the gun (hold review).
+                Vector3 palm = off.PalmCentre;
+                _supportGrabOnGun = Reload == null || Vector3.Distance(palm, Reload.HandguardPoint(palm)) < 0.05f;
             }
             if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
                 && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
@@ -2890,7 +2901,9 @@ namespace RavenfieldVR.Weapons
                 }
                 // No pose of the weapon's own to take: the glove stays on the gun where it gripped (it followed the tracked hand
                 // anywhere while holding; task 324).
-                off.Model.SnapPose = off.Role == HandRole.Foregrip && _supportHoldStarted && Rig.GunBody != null
+                // Not a pistol's cup: that glove settles onto the cup by its grasp anchor (pinned, it froze where the hand grabbed,
+                // up to 12 cm off the cup; hold review). Nor a grab made off the gun.
+                off.Model.SnapPose = off.Role == HandRole.Foregrip && _supportHoldStarted && Rig.GunBody != null && !Rig.Data.IsPistol && _supportGrabOnGun
                     ? Rig.GunBodyPose.Multiply(_supportGrabInGun)
                     : (RigidPose?)null;
             }

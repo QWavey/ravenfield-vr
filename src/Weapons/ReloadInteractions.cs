@@ -512,6 +512,13 @@ namespace RavenfieldVR.Weapons
                     {
                         stretch = Vector3.Distance(off.Palm.position, HandguardPoint(off.Palm.position));
                     }
+                    // Away from where its glove holds the gun: the glove stays where it gripped (task 324), and a pull along the
+                    // barrel measured nothing against the handguard's line, so the hand could slide off down the gun with the
+                    // glove left behind and never let go (hold review, 2026-10-20 night).
+                    if (off.Model != null && off.Model.SnapPose.HasValue)
+                    {
+                        stretch = Mathf.Max(stretch, Vector3.Distance(off.Model.TrackedGlovePose.position, off.Model.SnapPose.Value.position));
+                    }
                     if (!off.GrabHeld || stretch > SupportLetGo)
                     {
                         if (off.GrabHeld)
@@ -2929,7 +2936,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The point of the handguard (just under the bore, between the grip and the muzzle) nearest to <paramref name="point"/>.</summary>
-        private Vector3 HandguardPoint(Vector3 point)
+        internal Vector3 HandguardPoint(Vector3 point)
         {
             WeaponRigData d = GripData;
             Vector3 a = GripRig.ToWorld(d.GripPoint + d.AimAxis * 0.1f - d.Up * 0.012f);
