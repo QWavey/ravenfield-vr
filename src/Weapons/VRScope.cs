@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
     /// Picture-in-picture lens for scoped weapons that only had a 2D scope overlay in flat mode. A camera
     /// on the sight line renders the magnified view into a texture shown on a disc at the ocular lens, with a
     /// procedural duplex reticle. It only renders while your eye is near the sight. An eye off the sight line sees a dark
-    /// crescent come in from its own side (the scope's shadow, as in a real scope), and the picture dims further out.
+    /// crescent come in from the side away from it (the scope's shadow, as in a real scope), and the picture dims further out.
     /// </summary>
     public sealed class VRScope
     {
