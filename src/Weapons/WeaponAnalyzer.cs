@@ -657,6 +657,7 @@ namespace RavenfieldVR.Weapons
                 Guarded(d, "side knob", () => SideKnobByName(d, all, root, sampler, gunIdle));
                 Guarded(d, "outstanding piece", () => RackOnOutstandingPiece(d, root, sampler, gunIdle));
                 Guarded(d, "slide companions", () => FindSlideCompanions(d, all, index, root, gunBody, sampler, gunIdle));
+                Guarded(d, "bolt beside handle", () => BoltBesideHandle(d, root, sampler, gunIdle));
                 Guarded(d, "reload rounds", () => CollectReloadRounds(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle)); // after every part is chosen
                 Guarded(d, "parked ammo", () => ParkedAmmo(d, w, all, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 // Last: only where the hands go. Run right after the hands, the moved grip point changed the rules that measure
@@ -3767,6 +3768,44 @@ namespace RavenfieldVR.Weapons
                 d.SlideMethod += $" + '{first.name}' moving with it (named after it; taken there)";
             }
         }
+
+        /// <summary>
+        /// A bolt beside its charging handle (the MG3s: 'mg3_bolt', a group of two meshes seen under the open cover, the sibling of
+        /// 'mg3_charginghandle', the part the reload moves): racked, the handle came back and the bolt stayed (Tasks 307, the
+        /// still-bolt check; tools/export_checks/still_bolts.py, and this rule over the export takes the two MG3s alone). It rides
+        /// with the handle as a companion; the hand still takes the handle (the rack point is left alone).
+        /// </summary>
+        private static void BoltBesideHandle(WeaponRigData d, Transform root, PoseSampler sampler, RigidPose gunIdle)
+        {
+            Transform slide = WeaponRig.Resolve(root, d.SlidePath);
+            if (slide == null || slide.parent == null || d.Action != ActionType.SelfLoading || d.BoltPath != null || d.SlideCompanionPaths.Count > 0
+                || !HandleSlideName.IsMatch(slide.name))
+            {
+                return;
+            }
+            foreach (Transform t in slide.parent)
+            {
+                if (t == slide || !BoltGroupName.IsMatch(t.name) || BoltGroupNot.IsMatch(t.name)
+                    || !t.GetComponentsInChildren<Renderer>(false).Any(r => r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer)))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBoundsWhere(t, gunIdle, x => false);
+                if (b.size.magnitude < 0.01f || b.size.magnitude > 0.3f)
+                {
+                    continue;
+                }
+                d.SlideCompanionPaths.Add(WeaponRig.PathOf(root, t));
+                d.SlideCompanionRest.Add(sampler.IdleLocalPosition(t));
+                d.Notes += $"bolt '{t.name}' beside the charging handle (moves with it) ";
+                d.SlideMethod += $" + its bolt '{t.name}' moving with it";
+                return;
+            }
+        }
+
+        private static readonly Regex HandleSlideName = new Regex(@"charg(ing)?[ _-]?handle|cocking[ _-]?handle|拉机柄", RegexOptions.IgnoreCase);
+        private static readonly Regex BoltGroupName = new Regex(@"(^|[^a-z])bolt($|[^a-z])|枪机", RegexOptions.IgnoreCase);
+        private static readonly Regex BoltGroupNot = new Regex(@"catch|release|stop|lock|button|cover|knob", RegexOptions.IgnoreCase);
 
         /// <summary>Words a slide companion may add to the slide's name: not these.</summary>
         private static readonly Regex CompanionBlocked = new Regex(
