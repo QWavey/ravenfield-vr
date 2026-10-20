@@ -228,7 +228,7 @@ namespace RavenfieldVR.Weapons
                         }
                         foreach (WeaponManager.WeaponEntry e in team.availableWeapons.All())
                         {
-                            if (e != null && e.prefab != null && seen.Add(e) && !Templates.ContainsKey(e) && !NoModel.Contains(e))
+                            if (e != null && e.prefab != null && seen.Add(e) && !NoModel.Contains(e))
                             {
                                 LoadingBuilds.Enqueue(e);
                             }
@@ -240,7 +240,7 @@ namespace RavenfieldVR.Weapons
                 {
                     foreach (WeaponManager.WeaponEntry e in new[] { loadout.primary, loadout.secondary, loadout.gear1, loadout.gear2, loadout.gear3 })
                     {
-                        if (e != null && e.prefab != null && seen.Add(e) && !Templates.ContainsKey(e) && !NoModel.Contains(e))
+                        if (e != null && e.prefab != null && seen.Add(e) && !NoModel.Contains(e))
                         {
                             LoadingBuilds.Enqueue(e);
                         }
@@ -253,12 +253,32 @@ namespace RavenfieldVR.Weapons
             }
             _loadingBuildFrame = Time.frameCount;
             var watch = System.Diagnostics.Stopwatch.StartNew();
+            bool fitted = false;
             while (LoadingBuilds.Count > 0 && watch.Elapsed.TotalMilliseconds < 20.0)
             {
-                WeaponManager.WeaponEntry e = LoadingBuilds.Dequeue();
+                WeaponManager.WeaponEntry e = LoadingBuilds.Peek();
+                if (Templates.ContainsKey(e) && HasShape(e))
+                {
+                    LoadingBuilds.Dequeue();
+                    continue; // ready from the menu's warm-up or an earlier match
+                }
+                if (Templates.ContainsKey(e) && fitted)
+                {
+                    break; // one shape fitted a frame (a fit takes tens of milliseconds)
+                }
+                LoadingBuilds.Dequeue();
                 try
                 {
-                    TemplateFor(e);
+                    if (Templates.ContainsKey(e))
+                    {
+                        // Its shape too, as the warm-up prepares it: the first drop of the type then gets its own shape at once.
+                        Prepare(e);
+                        fitted = true;
+                    }
+                    else if (TemplateFor(e) != null)
+                    {
+                        LoadingBuilds.Enqueue(e); // back in line for its shape (a type with no model is not)
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -782,6 +802,10 @@ namespace RavenfieldVR.Weapons
                 Log.WarnOnce("dropwarm:" + entry.name, $"Preparing the dropped model of {entry.name} failed: {e.Message}");
             }
         }
+
+        /// <summary>Whether a drop of this type at scale 1 has its shape (fitted or rendered) without fitting on its frame.</summary>
+        private static bool HasShape(WeaponManager.WeaponEntry entry) =>
+            RenderedShapes.ContainsKey(entry) || ShapeFit.TryCached("drop:" + CacheNameOf(entry) + "@1.00", out _);
 
         /// <summary>Per weapon type whose third-person meshes cannot be read: its shape fitted to the rendered model (scale 1).</summary>
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]> RenderedShapes =
