@@ -348,7 +348,7 @@ namespace RavenfieldVR.Weapons
                 // after the cover was let go: a hand dropping away from it shut it again; 255.B2-4, B6-4.)
                 if (Ammo.HasCover && Ammo.CoverOpen && !_coverHeld && off.Tracked && off.Role == HandRole.Free && !off.GrabHeld
                     && Time.unscaledTime - _coverLetGoAt > 0.5f && CoverZoneDistance(off.Palm.position) < 0.1f
-                    && Vector3.Dot(off.Velocity - dom.Velocity, -Rig.UpWorld) > 1.5f)
+                    && Vector3.Dot(off.BodyRelativeVelocity - dom.BodyRelativeVelocity, -Rig.UpWorld) > 1.5f)
                 {
                     Ammo.SetCoverOpen(false);
                     _held.Nudge(-Rig.UpWorld * 0.08f, 8f);
@@ -2127,7 +2127,9 @@ namespace RavenfieldVR.Weapons
             // The speed that counts is the new magazine's speed relative to the gun: driving it up into the old one
             // and bringing the gun down onto it are the same strike.
             // Averaged over the last moment (raw controller speed is noisy around these thresholds).
-            float speed = Vector3.Dot(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), insert);
+            // Against the body: both hands share the rig's motion, but taken at each hand a turn moved them apart by its spin
+            // times their gap (0.2-0.4 m/s at a smooth turn), around these thresholds (user, 2026-10-20: the mag kick worse).
+            float speed = Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), insert);
             // Sized by the magazine: a strike lands anywhere on the old base plate (as wide as the magazine) with any part
             // of the fresh one's top; a slow push has to be on the base itself.
             float strikeReach = Mathf.Clamp(prop.CrossHalf * 2f + 0.025f, 0.06f, 0.13f);
@@ -2222,7 +2224,7 @@ namespace RavenfieldVR.Weapons
             RigidPose mouth = old.RailPose(seat);
             mouth = new RigidPose(mouth.position + side * width - insert * 0.01f, mouth.rotation);
             mouth.ApplyTo(old.Go.transform);
-            Vector3 push = Vector3.ClampMagnitude(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), 2.5f);
+            Vector3 push = Vector3.ClampMagnitude(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), 2.5f);
             // Forward along the barrel with the strike and the gun hand's motion; out of the well, a little away from the gun
             // hand and only a touch down. (Sideways and down alone, it fell straight down.)
             Vector3 velocity = _sys.Rig.Dominant.Velocity + push * 0.5f + aim * Random.Range(1.4f, 1.9f) + side * 0.6f - insert * 0.6f + Vector3.down * 0.2f;

@@ -2254,7 +2254,7 @@ namespace RavenfieldVR.Weapons
             if (touching && now - _lastContactSound >= 0.25f)
             {
                 VRHand dom = sys.Rig.Dominant;
-                float speed = (HeldBy.Velocity - (dom != null ? dom.Velocity : Vector3.zero)).magnitude;
+                float speed = (HeldBy.BodyRelativeVelocity - (dom != null ? dom.BodyRelativeVelocity : Vector3.zero)).magnitude; // (against the body: a turn is no motion between the hands)
                 // Felt, not heard: the knock and scrape sounds of a magazine meeting the gun were too goofy (user, 2026-10-16).
                 if (!_touchingGun)
                 {
