@@ -23,7 +23,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Rounds loaded (-1 = default) and in reserve (-1 = default) for whoever picks it up.</summary>
         public int Ammo = -1;
         public int Spare = -1;
-        /// <summary>The player's own weapon put down in a swap: the only copy of it, never culled.</summary>
+        /// <summary>
+        /// The player's own weapon put down in a swap (or whose holster slot was taken): the only copy of it, not culled by
+        /// lifetime. Past six of them the oldest becomes an ordinary drop with a fresh lifetime (Cull).
+        /// </summary>
         public bool Keep;
         /// <summary>
         /// The player's own weapon (put down in a swap, or let go of): its rounds come back to it even when no live owner is left
