@@ -530,6 +530,11 @@ namespace RavenfieldVR.Input
                 fps.allowFireWhileSprinting = true;
                 _sprintFireSetOn = fps;
             }
+            if (TestSprint)
+            {
+                SprintActive = true; // autotest: sprinting with no stick to push (task 314)
+                return;
+            }
             if (VRConfig.Sprint.Value == SprintMode.Hold)
             {
                 SprintActive = VRInput.GetHeld(DigitalAction.Sprint);
@@ -675,6 +680,9 @@ namespace RavenfieldVR.Input
         /// Steam Input layout the headset's controllers also feed, right in front of the sights.
         /// </summary>
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
+
+        /// <summary>Autotest: sprint as if the stick were clicked and pushed.</summary>
+        internal static bool TestSprint;
 
         /// <summary>The player controller whose allowFireWhileSprinting was switched on for VR (switched back off when VR stops).</summary>
         private static FpsActorController _sprintFireSetOn;

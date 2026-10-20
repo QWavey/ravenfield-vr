@@ -2835,6 +2835,53 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// The drawn gun fires while sprinting: the game drops the trigger while sprinting unless allowFireWhileSprinting is set
+        /// (user, 2026-10-19 night and 2026-10-20: "when running I cannot shoot", task 314).
+        /// </summary>
+        private static IEnumerator SprintFireCheck(Action<string> report)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            FpsActorController fps = LocalPlayer.actor != null ? LocalPlayer.actor.controller as FpsActorController : null;
+            Weapon w = held != null ? held.Weapon : null;
+            if (fps == null || w == null || w.ammo <= 0 || held.Rig.Data.Action == ActionType.SingleShot)
+            {
+                report("fire while sprinting: skipped (no loaded gun in the hand)");
+                yield break;
+            }
+            int side = (int)Input.VRInput.GunHand;
+            int before = w.ammo;
+            bool sprinting = false;
+            Input.VRGameInput.TestSprint = true;
+            try
+            {
+                for (float until = Time.realtimeSinceStartup + 0.4f; Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+                sprinting = fps.IsSprinting();
+                Input.VRInput.SimulatedFire[side] = true;
+                for (float until = Time.realtimeSinceStartup + 0.5f; Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+            }
+            finally
+            {
+                Input.VRInput.SimulatedFire[side] = false;
+                Input.VRGameInput.TestSprint = false;
+            }
+            int shots = Mathf.Max(0, before - w.ammo);
+            Metric("fire while sprinting: shots in half a second", shots);
+            string line = $"fire while sprinting: sprinting {sprinting}, {shots} shot(s) in 0.5 s with the trigger held";
+            if (sprinting && shots == 0)
+            {
+                line += " (DID NOT FIRE)";
+                Problem(line);
+            }
+            report(line);
+        }
+
+        /// <summary>
         /// Still hands must not move in the world because the view shook or the player turned about the head: what they let go
         /// takes their velocity, and the rig's origin's motion stood in for it, so magazines flew off while turning and right after
         /// a shot (2026-10-20, task 315). The simulated hands hold still in the rig, so their velocity is the rig's at the hand.
@@ -3553,6 +3600,7 @@ namespace RavenfieldVR.Core
                             yield return GroundDriftCheck(lines.Add);
                             yield return GentleMagazineCheck(lines.Add);
                             yield return HandVelocityCheck(lines.Add);
+                            yield return SprintFireCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {

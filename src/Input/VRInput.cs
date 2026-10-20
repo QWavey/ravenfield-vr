@@ -407,7 +407,11 @@ namespace RavenfieldVR.Input
 
         public static bool GetHeld(DigitalAction a) => Held[Slot(a), 2];
         public static bool GetHeld(DigitalAction a, Hand h) => Held[Slot(a), (int)h]
-                                                               || (int)h < 2 && (a == DigitalAction.Grab && SimulatedGrab[(int)h] || a == DigitalAction.Use && SimulatedUse[(int)h]);
+                                                               || (int)h < 2 && (a == DigitalAction.Grab && SimulatedGrab[(int)h] || a == DigitalAction.Use && SimulatedUse[(int)h]
+                                                                                 || a == DigitalAction.Fire && SimulatedFire[(int)h]);
+
+        /// <summary>Autotest: the gun hand's trigger held as Fire (firing while sprinting, task 314).</summary>
+        internal static readonly bool[] SimulatedFire = new bool[2];
 
         /// <summary>Autotest: a closed grip on a simulated hand (the virtual headset has no controllers to squeeze).</summary>
         internal static readonly bool[] SimulatedGrab = new bool[2];
