@@ -1581,7 +1581,7 @@ namespace RavenfieldVR.Weapons
             }
 
             // A separate charging handle the reload works (AR style): that is where the hand grabs, the bolt follows.
-            if (d.Animated && sampler.HasReload && !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal))
+            if (d.Animated && sampler.HasReload && !d.Handgun && !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)) // (not a handgun: its slide is the moving part, never a handle's bolt; pistol hunt)
             {
                 Transform handle = ChargingHandleFromReload(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, out Vector3 handleVec, slide);
                 if (handle != null && slide.IsChildOf(handle) && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)

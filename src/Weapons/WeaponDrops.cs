@@ -262,7 +262,6 @@ namespace RavenfieldVR.Weapons
             DrainBuilds(20.0);
         }
 
-        private static bool _idleBuilding;
 
         /// <summary>
         /// The types the living soldiers carry that the loading screen did not get to, built while the player is dead or in a menu.

@@ -1480,8 +1480,9 @@ namespace RavenfieldVR.Rig
                 // The model itself stops each finger where it touches: a held grip is wrapped all the way round.
                 if (_hand.Role == HandRole.Weapon)
                 {
-                    // A rifle's thumb wraps over the grip until it meets it; a pistol's lies along the frame.
-                    Minimum(WeaponIsPistol ? (ThumbPressing ? 0.8f : 0.35f) : 0.95f, -1f, 0.95f, 0.95f, 0.95f);
+                    // A rifle's thumb wraps over the grip until it meets it; a pistol's lies along the frame, as measured on its grip
+                    // when it was (a floor of 0.35 curled a measured thumb past its pose on every close; pistol hunt, 2026-10-20).
+                    Minimum(WeaponIsPistol ? (ThumbPressing ? 0.8f : WeaponGripThumbCurl >= 0f ? WeaponGripThumbCurl : 0.35f) : 0.95f, -1f, 0.95f, 0.95f, 0.95f);
                 }
                 else
                 {
