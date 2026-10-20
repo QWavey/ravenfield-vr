@@ -469,6 +469,7 @@ namespace RavenfieldVR.Weapons
                 FinishReload(); // a reload under way is finished, not lost
             }
             Rig.ShowSpareParts(); // its parked ammunition back as the rig was made, before it is put away (Task 268)
+            KeepPulledPin();
             Weapon.Holster();
             if (!Weapon.isHidden)
             {
@@ -499,7 +500,21 @@ namespace RavenfieldVR.Weapons
             {
                 FinishReload();
             }
+            KeepPulledPin();
             FreeHand();
+        }
+
+        /// <summary>
+        /// A grenade with its pin out leaving this hand unthrown keeps it out, for whichever hand takes it next: only the let-go
+        /// recorded it, and handed over (its number key) or put away by a seat, death or lost tracking it came back with its pin
+        /// in and was thrown as a dud (throw hunt, 2026-10-20).
+        /// </summary>
+        private void KeepPulledPin()
+        {
+            if (Armed && !Done && Weapon is ThrowableWeapon kept)
+            {
+                _sys.Throwables?.PutAwayPulled(kept);
+            }
         }
 
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
