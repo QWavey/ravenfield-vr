@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
     /// Picture-in-picture lens for scoped weapons that only had a 2D scope overlay in flat mode. A camera
     /// on the sight line renders the magnified view into a texture shown on a disc at the ocular lens, with a
     /// procedural duplex reticle. It only renders while your eye is near the sight. An eye off the sight line sees a dark
-    /// crescent come in from the side away from it (the scope's shadow, as in a real scope), and the picture dims further out.
+    /// crescent come in from its own side (the scope's shadow, as in a real scope), and the picture dims further out.
     /// </summary>
     public sealed class VRScope
     {
@@ -119,8 +119,8 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Puts the clear part of the view <paramref name="shift"/> lens radii off the middle (BeforeRender puts it toward the
-        /// eye's offset): the dark rest comes in from the other side.
+        /// Puts the clear part of the view <paramref name="shift"/> lens radii off the middle (BeforeRender puts it opposite the
+        /// eye's offset): the dark rest comes in from the eye's side.
         /// </summary>
         private void SetShadow(Vector2 shift)
         {
@@ -310,7 +310,7 @@ namespace RavenfieldVR.Weapons
             }
             // Eye box. The eye is the aiming one, the one nearer the line: measured from the middle of the head, a scope you
             // looked through perfectly with one eye was already 3.2 cm "off" and showed only 57% bright. Off the line, the
-            // scope's shadow comes in from the side away from the eye (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
+            // scope's shadow comes in from the eye's side (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
             // picture dims as well past 3 cm.
             Vector3 axis = _rig.DirToWorld(_eyeDirection);
             Vector3 lateral = Vector3.ProjectOnPlane(AimingEye(head, eye, axis, vr) - eye, axis);
@@ -318,11 +318,12 @@ namespace RavenfieldVR.Weapons
             Transform lens = _root.transform;
             var side = new Vector2(Vector3.Dot(lateral, lens.right), Vector3.Dot(lateral, lens.up));
             float push = Mathf.Max(0f, offAxis - 0.008f) / 0.03f;
-            // The clear part toward the eye's side, the shadow coming in from the far side: an eye behind the exit pupil (the usual
-            // place in a headset) sees through it the field on its own side, each angle's bundle having spread out sideways behind
-            // the pupil. Drawn the other way round (as through a bare tube, or an eye too close) it said to move away from the
-            // crescent, where a scope says move toward it (visual hunt, 2026-10-20).
-            SetShadow(offAxis > 1e-5f ? side / offAxis * push : Vector2.zero);
+            // The clear part opposite the eye's offset, the shadow coming in from the eye's own side. Behind the exit pupil (the
+            // usual place in a headset) each field angle's bundle has crossed the axis: rays from the right of the view travel
+            // leftward, so an eye moved left catches the right of the field and loses its left. The shadow then says to move away
+            // from it. (21ea236 drew it the other way round on a reversed reasoning; that is an eye in front of the exit pupil.
+            // Re-derived in the rig hunt, 2026-10-20 night.)
+            SetShadow(offAxis > 1e-5f ? -side / offAxis * push : Vector2.zero);
             float brightness = Mathf.Clamp01(1f - (offAxis - 0.03f) / 0.04f);
             // Black through the lens (the eye 7 cm off its line): no second picture of the whole scene for it.
             bool render = brightness > 0.004f;
