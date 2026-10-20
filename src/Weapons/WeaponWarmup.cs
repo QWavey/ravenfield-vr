@@ -72,10 +72,6 @@ namespace RavenfieldVR.Weapons
         private static readonly HashSet<int> Loadout = new HashSet<int>();
 
         /// <summary>
-        /// The weapons of the saved loadout go first: with hundreds of mod weapons the warm-up takes a while, and a match
-        /// started soon after the game came up drew them before it got there (every first draw hitched).
-        /// </summary>
-        /// <summary>
         /// Then the weapons the bots can carry (either team's weapon pool in the match settings): a match started before the
         /// warm-up was through had soldiers dying with weapons it had not reached, and their dropped copy was built on the death
         /// frame (the user's session of 2026-10-19 night: 47-83 ms drops of the K13 Spectre, QBZ192 and mk18riii; task 309). The
@@ -92,6 +88,17 @@ namespace RavenfieldVR.Weapons
             while (start < entries.Count && entries[start] != null && Loadout.Contains(entries[start].nameHash))
             {
                 start++; // after the loadout's own
+            }
+            PutBotWeaponsFirst(entries, start);
+        }
+
+        /// <summary>The weapons from <paramref name="start"/> on that the bots can carry moved before the rest (each group in its order).</summary>
+        private static void PutBotWeaponsFirst(List<WeaponManager.WeaponEntry> entries, int start)
+        {
+            TeamInfo[] teams = GameManager.instance != null && GameManager.instance.gameInfo != null ? GameManager.instance.gameInfo.team : null;
+            if (teams == null)
+            {
+                return;
             }
             var pool = new List<WeaponManager.WeaponEntry>();
             for (int i = entries.Count - 1; i >= start; i--)
@@ -111,6 +118,10 @@ namespace RavenfieldVR.Weapons
             entries.InsertRange(start, pool);
         }
 
+        /// <summary>
+        /// The weapons of the saved loadout go first: with hundreds of mod weapons the warm-up takes a while, and a match
+        /// started soon after the game came up drew them before it got there (every first draw hitched).
+        /// </summary>
         private static void PutLoadoutFirst(List<WeaponManager.WeaponEntry> entries)
         {
             HashSet<int> wanted = Loadout;
@@ -201,8 +212,15 @@ namespace RavenfieldVR.Weapons
                 taken.AddRange(entries);
                 PutLoadoutFirst(entries);
                 PutBotWeaponsNext(entries);
-                foreach (WeaponManager.WeaponEntry entry in entries)
+                for (int index = 0; index < entries.Count; index++)
                 {
+                    // The bots' pools again every ten weapons: at the start of a pass (the game's content just loaded) they are still
+                    // the defaults, and the match's own weapon settings came later (review, 2026-10-20).
+                    if (index > 0 && index % 10 == 0)
+                    {
+                        PutBotWeaponsFirst(entries, index);
+                    }
+                    WeaponManager.WeaponEntry entry = entries[index];
                     if (entry == null || entry.prefab == null)
                     {
                         continue;
