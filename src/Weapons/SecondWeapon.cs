@@ -292,7 +292,7 @@ namespace RavenfieldVR.Weapons
             if (Ammo.RackForward())
             {
                 _sys.Sounds.Play(MechSound.SlideBack, Hand.Palm.position, 0.6f);
-                _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.6f);
+                _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.6f, 0.12f); // back, then home
                 Hand.Haptic(0.03f, 120f, 0.4f);
             }
         }
@@ -331,7 +331,7 @@ namespace RavenfieldVR.Weapons
             Ammo.SlideLocked = false;
             Ammo.RackForward();
             _sys.Sounds.Play(MechSound.MagIn, Hand.Palm.position, 0.8f);
-            _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.8f);
+            _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.8f, 0.2f); // the magazine in, then the slide home
             Hand.Haptic(0.05f, 110f, 0.7f);
         }
 

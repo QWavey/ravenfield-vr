@@ -100,7 +100,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        public void Play(MechSound sound, Vector3 position, float volume = 1f)
+        // delay: seconds before it sounds (two clicks of one action played in one frame ran into one; sound hunt, 2026-10-20).
+        public void Play(MechSound sound, Vector3 position, float volume = 1f, float delay = 0f)
         {
             AudioSource src = _pool[_next];
             _next = (_next + 1) % _pool.Length;
@@ -110,6 +111,15 @@ namespace RavenfieldVR.Weapons
             }
             src.transform.position = position;
             src.pitch = UnityEngine.Random.Range(0.94f, 1.06f);
+            if (delay > 0f)
+            {
+                src.Stop(); // (its last one-shot, seven sounds ago)
+                src.clip = _clips[(int)sound];
+                src.volume = volume;
+                src.PlayDelayed(delay);
+                return;
+            }
+            src.volume = 1f; // (a delayed sound left its level on the source)
             src.PlayOneShot(_clips[(int)sound], volume);
         }
 
