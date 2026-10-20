@@ -2319,6 +2319,7 @@ namespace RavenfieldVR.Weapons
             // (review, 2026-10-20, task 315).
             Physics.SyncTransforms();
             SetCollidersEnabled(true);
+            OutOfTheLevel();
             _body.isKinematic = false;
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
@@ -2341,6 +2342,52 @@ namespace RavenfieldVR.Weapons
             foreach (Collider c in _colliders)
             {
                 GunCollider.Current?.OnPropDropped(c);
+            }
+        }
+
+        private static readonly Collider[] LevelNear = new Collider[16];
+
+        /// <summary>
+        /// Let go with part of it inside the floor, a wall or a vehicle (the hand pressed it a little into the ground): it is moved
+        /// just out of them first, with no speed. Left inside, PhysX pushed it out at up to 10 m/s, a hop or a flight (review,
+        /// 2026-10-20, task 318 a). Props, the player and bodies are not level: they are ignored or passed through elsewhere.
+        /// </summary>
+        private void OutOfTheLevel()
+        {
+            if (_colliders == null || _colliders.Length == 0 || Go == null)
+            {
+                return;
+            }
+            Bounds b = _colliders[0].bounds;
+            for (int i = 1; i < _colliders.Length; i++)
+            {
+                b.Encapsulate(_colliders[i].bounds);
+            }
+            int prop = PropPhysics.Layer;
+            int mask = ~((prop >= 0 ? 1 << prop : 0) | PropPhysics.BodyMask);
+            int n = Physics.OverlapBoxNonAlloc(b.center, b.extents, LevelNear, Quaternion.identity, mask, QueryTriggerInteraction.Ignore);
+            Vector3 push = Vector3.zero;
+            for (int i = 0; i < n; i++)
+            {
+                Collider level = LevelNear[i];
+                if (level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body
+                    || level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic || PropPhysics.IsPlayerCollider(level))
+                {
+                    continue; // its own pieces, loose things and the player's own body are not walls
+                }
+                foreach (Collider c in _colliders)
+                {
+                    Transform ct = c.transform, lt = level.transform;
+                    if (c.enabled && Physics.ComputePenetration(c, ct.position + push, ct.rotation, level, lt.position, lt.rotation, out Vector3 dir, out float dist))
+                    {
+                        push += dir * dist;
+                    }
+                }
+            }
+            if (push.sqrMagnitude > 1e-8f && push.sqrMagnitude < 0.25f * 0.25f)
+            {
+                Go.transform.position += push + push.normalized * 0.002f;
+                Physics.SyncTransforms();
             }
         }
 
