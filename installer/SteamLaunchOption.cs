@@ -74,11 +74,27 @@ namespace RavenfieldVR.Setup
             }
             VdfNode opt = app.Child("LaunchOptions");
             string current = opt != null ? Vdf.Unescape(opt.RawValue) : "";
+            string ours = OptionFor(launcherPath);
             if (current.IndexOf(Installer.LauncherName, StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return false;
+                // Set already. After the game moved to another Steam library the option still named the old launcher, and Steam
+                // could not start it: an old path is replaced with this one (review, 2026-10-20).
+                string quoted = "\"" + launcherPath + "\"";
+                if (current.IndexOf(quoted, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return false;
+                }
+                string moved = System.Text.RegularExpressions.Regex.Replace(current, "\"[^\"]*" + System.Text.RegularExpressions.Regex.Escape(Installer.LauncherName) + "\"",
+                    quoted.Replace("$", "$$"), System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (moved == current)
+                {
+                    return false; // named some other way (unquoted): left as the user wrote it
+                }
+                opt.RawValue = Vdf.Escape(moved);
+                Write(file, root);
+                log("Updated the launch option in " + file + " to the launcher's new place.");
+                return true;
             }
-            string ours = OptionFor(launcherPath);
             string updated = current.Contains("%command%") ? ReplaceFirst(current, "%command%", ours) : (ours + " " + current).Trim();
             if (opt == null)
             {

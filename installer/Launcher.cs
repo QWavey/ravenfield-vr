@@ -464,7 +464,10 @@ namespace RavenfieldVR.Launcher
             var probe = System.Threading.Tasks.Task.Run(() => HeadsetCheck.Probe(gameDir));
             HeadsetCheck.State first = probe.Wait(TimeSpan.FromSeconds(4)) ? probe.Result : HeadsetCheck.State.Unknown;
             LauncherLog.Write(gameDir, "VR asked for; SteamVR says: " + first + (probe.IsCompleted ? "" : " (no answer in 4 s)"));
-            if (first == HeadsetCheck.State.Ready || first == HeadsetCheck.State.Unknown)
+            // No answer in time (a SteamVR starting or restarting): the window keeps asking and starts VR once the headset is there,
+            // or after 20 s with no answer at all. Started at once, the game came up before SteamVR was ready and found no headset
+            // (the case this wait is for; review, 2026-10-20). An answer of "cannot ask" (no SteamVR installed) starts at once.
+            if (first == HeadsetCheck.State.Ready || first == HeadsetCheck.State.Unknown && probe.IsCompleted)
             {
                 return PlayMode.VR;
             }
@@ -477,6 +480,8 @@ namespace RavenfieldVR.Launcher
         }
 
         private HeadsetCheck.State _last;
+        /// <summary>Since when SteamVR has not answered (MinValue: it answers).</summary>
+        private DateTime _unknownSince = DateTime.MinValue;
 
         private HeadsetWaitForm(string gameDir, HeadsetCheck.State first)
         {
@@ -584,9 +589,24 @@ namespace RavenfieldVR.Launcher
                     _status.Text = "SteamVR is running, but no headset is connected.";
                     break;
                 default:
-                    // Could not ask SteamVR any more: let the game try.
-                    Finish(PlayMode.VR);
+                    // No answer from SteamVR: asked again for up to 20 s (it answers once it is up), then the game tries.
+                    if (_unknownSince == DateTime.MinValue)
+                    {
+                        _unknownSince = DateTime.UtcNow;
+                    }
+                    if (DateTime.UtcNow - _unknownSince > TimeSpan.FromSeconds(20))
+                    {
+                        Finish(PlayMode.VR);
+                    }
+                    else
+                    {
+                        _status.Text = "Waiting for SteamVR to answer...";
+                    }
                     break;
+            }
+            if (state != HeadsetCheck.State.Unknown)
+            {
+                _unknownSince = DateTime.MinValue;
             }
         }
 
