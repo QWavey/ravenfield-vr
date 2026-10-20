@@ -129,6 +129,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The longest single frame of it (the views are rendered one a frame): the hitch on drawing.</summary>
         public float RenderFrameMs { get; private set; }
 
+        /// <summary>When its measuring started (realtime): one that never finished is measured again (see Cached).</summary>
+        private readonly float _startedAt = Time.realtimeSinceStartup;
+
         private GunVolume(string key, View[] views, Bounds box)
         {
             Key = key;
@@ -415,7 +418,9 @@ namespace RavenfieldVR.Weapons
             if (Cache.TryGetValue(key, out GunVolume cached))
             {
                 CacheOrder.Remove(key);
-                if (!cached.Failed)
+                // Not ready after 15 s is a measuring that stopped (its views' coroutine ended with the VR manager, an exception in a
+                // view): kept "in progress", that weapon got no hand shape for the rest of the session (review, 2026-10-20).
+                if (!cached.Failed && (cached.Ready || Time.realtimeSinceStartup - cached._startedAt < 15f))
                 {
                     CacheOrder.Add(key);
                     return cached;
@@ -612,7 +617,21 @@ namespace RavenfieldVR.Weapons
             if (poseNow == null || VRManager.Instance == null)
             {
                 // All at once, from the pose given (a model laid out for the warm-up, gone at the end of this frame).
-                RenderViews(staged, 0, dirs.Length, fp, fr);
+                try
+                {
+                    RenderViews(staged, 0, dirs.Length, fp, fr);
+                }
+                catch (Exception e)
+                {
+                    // Failed as a whole, which also gives back its place among the measures in flight (it leaked, and the warm-up
+                    // then waited its full two seconds on every weapon; review, 2026-10-20).
+                    Log.WarnOnce("gunvolume-views:" + key, $"Rendering the views of {key} failed: {e.Message}");
+                    while (job.Left > 0)
+                    {
+                        job.Arrived(0, null);
+                    }
+                    return volume;
+                }
                 volume.RenderMs = (float)watch.Elapsed.TotalMilliseconds;
                 volume.RenderFrameMs = volume.RenderMs;
             }
@@ -657,7 +676,19 @@ namespace RavenfieldVR.Weapons
                     yield break;
                 }
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                RenderViews(s, d, d + 1, pose.Value.position, pose.Value.rotation);
+                try
+                {
+                    RenderViews(s, d, d + 1, pose.Value.position, pose.Value.rotation);
+                }
+                catch (Exception e)
+                {
+                    Log.WarnOnce("gunvolume-staged:" + volume.Key, $"Rendering a view of {volume.Key} failed: {e.Message}");
+                    for (int t = 2 * d; t < 2 * s.Dirs.Length; t++)
+                    {
+                        s.Job.Arrived(t, null);
+                    }
+                    yield break;
+                }
                 float ms = (float)watch.Elapsed.TotalMilliseconds;
                 volume.RenderMs += ms;
                 volume.RenderFrameMs = Mathf.Max(volume.RenderFrameMs, ms);
@@ -1002,6 +1033,11 @@ namespace RavenfieldVR.Weapons
             bool readLater = deferred && SystemInfo.supportsAsyncGPUReadback;
             void Finish()
             {
+                if (Array.Exists(pictures, p => p == null))
+                {
+                    done(-1f, ""); // a picture missing (its read-back failed): not measured
+                    return;
+                }
                 long partPx = 0, seenPx = 0;
                 var parts = new List<string>();
                 for (int v = 0; v < views.Length; v++)
@@ -1047,7 +1083,7 @@ namespace RavenfieldVR.Weapons
                 }
                 AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
                 {
-                    Color32[] pixels;
+                    Color32[] pixels = null;
                     try
                     {
                         if (request.hasError)
@@ -1061,6 +1097,13 @@ namespace RavenfieldVR.Weapons
                             pixels = RentPixels(data.Length);
                             data.CopyTo(pixels);
                         }
+                    }
+                    catch (Exception e)
+                    {
+                        // Counted down all the same (thrown out of here, it never reached zero and the slide stayed "being measured"
+                        // for the session; review, 2026-10-20): a missing picture fails the measurement in Finish.
+                        Log.WarnOnce("slidemeasure-read", "A slide measurement's read-back failed: " + e.Message);
+                        pixels = null;
                     }
                     finally
                     {

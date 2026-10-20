@@ -2467,6 +2467,7 @@ namespace RavenfieldVR.Weapons
 
         private GunVolume _magVolume;
         private bool _magVolumeTried, _magSolidShown;
+        private float _magVolumeRetryAt, _partRetryAt;
         private Transform _magFrame;
 
         /// <summary>
@@ -2494,6 +2495,14 @@ namespace RavenfieldVR.Weapons
             if (_magHidden || !_magFrame.gameObject.activeInHierarchy)
             {
                 return;
+            }
+            if (_magVolume != null && _magVolume.Failed && Time.unscaledTime >= _magVolumeRetryAt)
+            {
+                // A failed measure (a read-back error, a renderer gone mid-way) is tried again a second later: latched, the seated
+                // magazine had no solid and the line fit never ran for the rest of the hold (review, 2026-10-20).
+                _magVolume = null;
+                _magVolumeTried = false;
+                _magVolumeRetryAt = Time.unscaledTime + 1f;
             }
             if (_magVolume == null && !_magVolumeTried)
             {
@@ -2550,6 +2559,14 @@ namespace RavenfieldVR.Weapons
             if (part == null)
             {
                 return null;
+            }
+            if (_partVolume != null && _partVolume.Failed && Time.unscaledTime >= _partRetryAt)
+            {
+                // Failed: tried again a second later (the racking hand closed on nothing for the rest of the hold).
+                _partVolume = null;
+                _partSolid = null;
+                _partTried = false;
+                _partRetryAt = Time.unscaledTime + 1f;
             }
             if (_partVolume == null && !_partTried)
             {

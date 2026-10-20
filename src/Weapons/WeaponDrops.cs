@@ -868,13 +868,12 @@ namespace RavenfieldVR.Weapons
                     PendingBake.Enqueue(entry);
                 }
             }
+            // The callback first, then the check: checked first, a read-back finished in between (the synchronous path) called no
+            // callback and the shape was never taken (review, 2026-10-20). Taken twice is harmless (the same pieces, one bake).
+            v.OnReady = Keep;
             if (v.Ready)
             {
                 Keep(v);
-            }
-            else
-            {
-                v.OnReady = Keep;
             }
         }
 
