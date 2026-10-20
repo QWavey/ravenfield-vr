@@ -1650,12 +1650,16 @@ namespace RavenfieldVR.Weapons
             {
                 actor.activeWeaponSlot = slot;
             }
-            if (equipped != null)
+            if (equipped == null)
             {
-                RestoreAmmo(equipped, drop);
+                // The game made nothing (its spawn failed): the drop stays where it lies, not deleted with the rounds in it
+                // (drops hunt, 2026-10-20).
+                Log.WarnOnce("pickupfailed:" + drop.Entry.name, $"Picking up {drop.Entry.name}: the game spawned nothing; it stays on the ground.");
+                return;
             }
+            RestoreAmmo(equipped, drop);
             Remove(drop);
-            if (beside && equipped != null && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))
+            if (beside && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))
             {
                 _sys.BeginSecond(equipped, hand); // the holster sound and the haptic come with it
             }
@@ -1979,11 +1983,17 @@ namespace RavenfieldVR.Weapons
                 {
                     actor.activeWeaponSlot = active;
                 }
-                if (w != null)
+                if (w == null)
                 {
-                    RestoreAmmo(w, d);
-                    _sys.Sounds.Play(MechSound.Holster, _sys.Rig.Head.position - Vector3.up * 0.5f, 0.6f);
+                    // The game made nothing: an ordinary drop the player can pick up, not removed (it was gone, rounds and all) and
+                    // not tried again every frame (each try drops what is in that slot).
+                    Log.WarnOnce("returnfailed:" + d.Entry.name, $"Returning {d.Entry.name} to its holster: the game spawned nothing; it stays as a drop.");
+                    d.OwnerSlot = -1;
+                    d.Keep = true;
+                    continue;
                 }
+                RestoreAmmo(w, d);
+                _sys.Sounds.Play(MechSound.Holster, _sys.Rig.Head.position - Vector3.up * 0.5f, 0.6f);
                 Remove(d);
             }
         }
