@@ -901,7 +901,7 @@ namespace RavenfieldVR.Weapons
                 MagazineProp m = mags[i];
                 if (m.IsDropped && m.Go != null)
                 {
-                    SetRestIgnored(m.Body, m.Colliders, m.DroppedFor);
+                    SetRestIgnored(m.Body, m.Colliders, m.DroppedFor, always: true);
                 }
             }
             if (_restIgnored.Count > 64)
@@ -921,7 +921,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private void SetRestIgnored(Rigidbody body, IList<Collider> colliders, float lyingFor)
+        // always: ignored however it moves (a magazine). The stand-in follows the hand by velocity, up to 25 m/s with no give, and
+        // a falling or just-dropped magazine it met left at the hand's speed or more ("mags flying around", user, 2026-10-20;
+        // flung-magazine hunt). A dropped weapon, heavier, still bounces off.
+        private void SetRestIgnored(Rigidbody body, IList<Collider> colliders, float lyingFor, bool always = false)
         {
             if (body == null || colliders == null || body.isKinematic)
             {
@@ -930,7 +933,7 @@ namespace RavenfieldVR.Weapons
             bool known = _restIgnored.TryGetValue(body, out bool ignored);
             float speedSq = body.velocity.sqrMagnitude;
             // Settled for a moment and slow; once ignored, only a real push or fall (above 0.8 m/s) makes it collide again.
-            bool want = ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (body.IsSleeping() || speedSq < 0.25f * 0.25f && body.angularVelocity.sqrMagnitude < 1f);
+            bool want = always || (ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (body.IsSleeping() || speedSq < 0.25f * 0.25f && body.angularVelocity.sqrMagnitude < 1f));
             if (known && want == ignored)
             {
                 return;
@@ -977,13 +980,25 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A prop just became physical: if it starts inside the gun it passes through until clear.</summary>
-        public void OnPropDropped(Collider c)
+        // always: never met by the gun (a magazine; see SetRestIgnored), ignored from its first physics step, not only once the next
+        // check (a tenth of a second on) finds it.
+        public void OnPropDropped(Collider c, bool always = false)
         {
             if (c != null && c.attachedRigidbody != null)
             {
                 // Picked up, its colliders were switched off and Unity forgot its ignored pairs with the gun: a magazine
                 // that lay still before was still marked ignored, so one set down gently was shoved by the gun again.
                 _restIgnored.Remove(c.attachedRigidbody);
+            }
+            if (always && c != null)
+            {
+                foreach (Collider b in _boxes)
+                {
+                    if (b != null)
+                    {
+                        Physics.IgnoreCollision(c, b, true);
+                    }
+                }
             }
             if (c == null || _boxes.Count == 0 || !Touches(c))
             {

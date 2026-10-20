@@ -2437,7 +2437,7 @@ namespace RavenfieldVR.Weapons
             PropPhysics.IgnoreBodiesNear(_colliders, Go.transform.position, 1f, _ignoredBodies);
             foreach (Collider c in _colliders)
             {
-                GunCollider.Current?.OnPropDropped(c);
+                GunCollider.Current?.OnPropDropped(c, always: Kind == PropKind.Magazine);
             }
         }
 
