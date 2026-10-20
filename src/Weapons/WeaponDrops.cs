@@ -265,55 +265,67 @@ namespace RavenfieldVR.Weapons
         private static bool _idleBuilding;
 
         /// <summary>
-        /// What the loading screen did not get to, built while a hitch cannot be felt: the player dead or deploying, or a menu open.
-        /// The loading screen queues every type the match's pools hold (286 with the user's workshop weapons) and was shown again
-        /// with most still to build; a type whose third-person model needs the whole prefab copied then cost 235-300 ms on a
-        /// soldier's death frame in play (the PKP, PKM, Type 80, BRN180s; the user's session of 2026-10-20 night). The types the
-        /// living soldiers carry go first: they are the next drops.
+        /// The types the living soldiers carry that the loading screen did not get to, built while the player is dead or in a menu.
+        /// The loading screen queues every type the match's pools hold (286 with the user's workshop weapons) and was gone with
+        /// most still to build; a type whose third-person model needs the whole prefab copied then cost 235-300 ms on a soldier's
+        /// death frame (the PKP, PKM, Type 80, BRN180s; the user's session of 2026-10-20 night). Only the carried ones (the next
+        /// drops; looked at again every 5 s), and a slow one at most once a second: a menu freezing a quarter of a second on
+        /// every frame is worse in the headset than the hitch it saves.
         /// </summary>
         internal static void BuildWhileIdle()
         {
-            if (LoadingBuilds.Count == 0 || Time.frameCount - _loadingBuildFrame <= 30)
+            if (Time.frameCount - _loadingBuildFrame <= 30 || !(GameContext.GameMenuOpen || !GameContext.PlayerAlive)
+                || !VRConfig.EnemyWeaponDrops.Value && !VRConfig.ShowHolsters.Value)
             {
-                _idleBuilding = false; // nothing left, or the loading screen is building them
-                return;
+                return; // the loading screen is building, or the player is in play
             }
-            bool idle = GameContext.GameMenuOpen || !GameContext.PlayerAlive;
-            if (!idle)
+            float now = Time.unscaledTime;
+            if (now >= _nextCarriedLook)
             {
-                _idleBuilding = false;
-                return;
+                _nextCarriedLook = now + 5f;
+                QueueCarried();
             }
-            if (!_idleBuilding)
-            {
-                _idleBuilding = true;
-                CarriedFirst();
-            }
-            if (Time.unscaledTime < _nextIdleBuild)
+            if (IdleBuilds.Count == 0 || now < _nextIdleBuild)
             {
                 return;
             }
-            // Spaced out after a slow one: in the headset a menu that froze a quarter of a second every frame was worse than the
-            // death-frame hitch it saves. Half a second between slow builds, cheap ones back to back.
+            WeaponManager.WeaponEntry e = IdleBuilds.Dequeue();
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            DrainBuilds(20.0);
+            try
+            {
+                if (TemplateFor(e) != null && !HasShape(e))
+                {
+                    IdleBuilds.Enqueue(e); // its shape next time round
+                }
+                else if (Templates.ContainsKey(e) && !HasShape(e))
+                {
+                    Prepare(e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WarnOnce("idledrop:" + e.name, $"Building the dropped model of {e.name} while idle failed: {ex.Message}");
+                NoModel.Add(e);
+            }
             if (watch.Elapsed.TotalMilliseconds > 30.0)
             {
-                _nextIdleBuild = Time.unscaledTime + 0.5f;
+                _nextIdleBuild = now + 1f;
             }
         }
 
-        private static float _nextIdleBuild;
+        private static readonly Queue<WeaponManager.WeaponEntry> IdleBuilds = new Queue<WeaponManager.WeaponEntry>();
+        private static float _nextIdleBuild, _nextCarriedLook;
 
-        /// <summary>The queue with the types the living soldiers carry put first.</summary>
-        private static void CarriedFirst()
+        /// <summary>The types the living soldiers carry with no dropped model yet, queued for <see cref="BuildWhileIdle"/>.</summary>
+        private static void QueueCarried()
         {
             List<Actor> actors = ActorManager.instance != null ? ActorManager.instance.actors : null;
             if (actors == null)
             {
                 return;
             }
-            var carried = new HashSet<WeaponManager.WeaponEntry>();
+            var queued = new HashSet<WeaponManager.WeaponEntry>(IdleBuilds);
+            int added = 0;
             foreach (Actor a in actors)
             {
                 if (a == null || a.dead || a.weapons == null)
@@ -322,33 +334,18 @@ namespace RavenfieldVR.Weapons
                 }
                 foreach (Weapon w in a.weapons)
                 {
-                    if (w != null && w.weaponEntry != null && !Templates.ContainsKey(w.weaponEntry))
+                    WeaponManager.WeaponEntry e = w != null ? w.weaponEntry : null;
+                    if (e != null && e.prefab != null && !NoModel.Contains(e) && !Templates.ContainsKey(e) && queued.Add(e))
                     {
-                        carried.Add(w.weaponEntry);
+                        IdleBuilds.Enqueue(e);
+                        added++;
                     }
                 }
             }
-            if (carried.Count == 0)
+            if (added > 0)
             {
-                return;
+                Log.InfoOnce("idlebuild:" + added + ":" + IdleBuilds.Count, $"Dropped models to build while idle: {added} type(s) the soldiers carry ({IdleBuilds.Count} queued).");
             }
-            var rest = new List<WeaponManager.WeaponEntry>(LoadingBuilds);
-            LoadingBuilds.Clear();
-            foreach (WeaponManager.WeaponEntry e in rest)
-            {
-                if (carried.Contains(e))
-                {
-                    LoadingBuilds.Enqueue(e);
-                }
-            }
-            foreach (WeaponManager.WeaponEntry e in rest)
-            {
-                if (!carried.Contains(e))
-                {
-                    LoadingBuilds.Enqueue(e);
-                }
-            }
-            Log.InfoOnce("idlebuild:" + Time.frameCount / 3600, $"Dropped models still to build: {rest.Count}, the {carried.Count} carried by soldiers now first (built while dead or in a menu).");
         }
 
         /// <summary>Builds queued drop templates (and their shapes, one fit a frame) for about <paramref name="budgetMs"/>.</summary>
