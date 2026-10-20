@@ -181,6 +181,7 @@ namespace RavenfieldVR.Input
             if (menu)
             {
                 _leaveHeldSince = -1f; // the hold to leave a seat starts again after the menu, not counting the time in it
+                _leaveArmed = false;
                 CancelModePress(); // a fire-mode press made before the menu does not switch the mode once it has closed
                 return;
             }
@@ -189,6 +190,7 @@ namespace RavenfieldVR.Input
             if (actor == null || actor.dead)
             {
                 _leaveHeldSince = -1f;
+                _leaveArmed = false;
                 CancelModePress();
                 return;
             }
@@ -198,6 +200,7 @@ namespace RavenfieldVR.Input
             if (onPanel || !actor.IsSeated())
             {
                 _leaveHeldSince = -1f;
+                _leaveArmed = false; // a seat taken with the trigger still held: let go once before it counts
             }
             Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
             Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
@@ -277,6 +280,9 @@ namespace RavenfieldVR.Input
         /// <summary>How long the Use trigger is held in a seat before the player gets out.</summary>
         private const float LeaveSeatHold = 1f;
         private static float _leaveHeldSince = -1f;
+        // Let go at least once since the seat was taken: the trigger that entered the car, still held, counted toward leaving it
+        // and threw the player out a second later (vehicles hunt, 2026-10-20).
+        private static bool _leaveArmed;
         private static int _leaveTicks;
 
         /// <summary>A seat this far (metres) to one side of the vehicle's middle belongs to the hand on that side.</summary>
@@ -293,9 +299,10 @@ namespace RavenfieldVR.Input
             Hand leave = LeaveHand(actor);
             Rig.VRHand hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Hand(leave) : null;
             bool held = LeaveTriggerHeld(leave) && (hand == null || hand.Role != Rig.HandRole.Cockpit) && (!SupportTriggerOwned || SupportTriggerLightsOnly);
-            if (!held)
+            if (!held || !_leaveArmed)
             {
                 _leaveHeldSince = -1f;
+                _leaveArmed |= !LeaveTriggerHeld(leave);
                 return false;
             }
             if (_leaveHeldSince < 0f)
