@@ -182,6 +182,12 @@ Who provides solids:
   capsules + palm box, published at the end of the gun hand's `Apply`; the dominant hand is now posed first). Its
   solve is redone only when `HandModel.SkinKey` changes (the gun hand's skin moved against the gun body by about half a
   millimetre, or the seated magazine came or went), not every frame (248, `288f492`/`f8ed393`).
+- The support glove stays where it gripped until the grip opens (task 324, `7945ea2`): its snap pose is the weapon's own
+  support pose slid along the handguard to where the palm was **at the grab** (`_supportSlideHeld`, taken once per hold;
+  it followed the palm every frame before), and a gun with no usable support pose keeps the glove at its grab pose in the
+  gun body's frame (`_supportGrabInGun`, from `HandModel.TrackedGlovePose`). The gun is still steered toward the tracked
+  palm; only the drawn glove stays. The autotest's support pull slides the hand 10 cm along the gun and fails when the
+  glove follows.
 - Working the action (`HandRole.Slide`): the **worked part's own volume** (charging handle if separate, else the slide /
   bolt / pump), measured the first time it is taken, moving with the part (`HeldWeapon.PartSolid`).
 - `MagazineProp` in a hand: each held magazine's volume at its own pose (the palmed second magazine too).
@@ -368,7 +374,11 @@ laser pointer, `VRKeyboard` (SteamVR overlay keyboard), `VRSettingsPanel` (doubl
 `ModKeysPanel`, `SeatSights` (vehicle sights collimated at infinity), `UiKit` shared look. The game camera's aspect
 (and so its vertical FOV, which places the screen-projected markers) is taken from the largest visible HUD canvas;
 it used to follow whichever canvas was enumerated last, so a small or 4:3 panel shifted the markers (249). A canvas
-that turns back into a menu without reopening is placed and flattened again like a fresh opening.
+that turns back into a menu without reopening is placed and flattened again like a fresh opening. Menus are stacked
+toward the player by sorting order (4 mm a step, `PlaceMenu`), so the laser's ball lands on the nearest canvas that
+**draws something** where it points (`VRInputModule.ShowsAt`: a shown, unculled graphic with its groups' alpha), not on
+the nearest rectangle: a clear canvas above the menu was an invisible wall a few centimetres in front (task 323). A click
+goes to the first raycast hit whose root canvas is a laser target.
 
 ### 3.10 Test tooling (`Core/AutoTest.cs`, `Weapons/WeaponSelfTest.cs`, `Core/Shots.cs`, `Core/PerfProbe.cs`, `Rig/HandPreview.cs`)
 
