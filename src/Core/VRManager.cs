@@ -210,6 +210,8 @@ namespace RavenfieldVR.Core
                 }
                 return;
             }
+            ModTime.Start();
+            _modFrames++;
             PerfProbe.Frame();
             OpenVRRuntime.PumpEvents();
             OpenVRRuntime.EnforceFramePacing();
@@ -217,6 +219,27 @@ namespace RavenfieldVR.Core
             Log.Guard("Rig.Update", _rigUpdate);
             Log.Guard("UI.Update", _uiUpdate);
             Log.Guard("Weapons.Update", _weaponsUpdate);
+            ModTime.Stop();
+        }
+
+        // The mod's own main-thread time: its Update, LateUpdate and before-render work (not its patches inside the game's code
+        // nor its coroutines). Logged by the input check beside the fps (the GPU time SteamVR reports through Link was 2-3 ms
+        // at 50 fps in play, so whether the frame is the game's or the mod's had to be measured; task 322).
+        private static readonly System.Diagnostics.Stopwatch ModTime = new System.Diagnostics.Stopwatch();
+        private static int _modFrames;
+
+        /// <summary>The mod's main-thread ms a frame since the last call (and starts counting again).</summary>
+        internal static float TakeModMsPerFrame()
+        {
+            float ms = _modFrames > 0 ? (float)(ModTime.Elapsed.TotalMilliseconds / _modFrames) : 0f;
+            bool running = ModTime.IsRunning;
+            ModTime.Reset();
+            if (running)
+            {
+                ModTime.Start(); // (called from inside the mod's Update: the rest of it still counts)
+            }
+            _modFrames = 0;
+            return ms;
         }
 
         // Per-frame work goes to Log.Guard as delegates made once: passing a method group allocates a new delegate
@@ -258,8 +281,10 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
+            ModTime.Start();
             Log.Guard("Suppressor", _suppressor);
             Log.Guard("Weapons.LateUpdate", _weaponsLate);
+            ModTime.Stop();
         }
 
         private void OnBeforeRender()
@@ -268,6 +293,7 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
+            ModTime.Start();
             Log.Guard("Rig.BeforeRender", _rigRender);
             Log.Guard("Weapons.BeforeRender", _weaponsRender);
             Log.Guard("UI.BeforeRender", _uiRender);
@@ -282,6 +308,7 @@ namespace RavenfieldVR.Core
                     Log.Guard("HandModel", _handApply[i]);
                 }
             }
+            ModTime.Stop();
         }
 
         private void OnSceneChanged(Scene from, Scene to)

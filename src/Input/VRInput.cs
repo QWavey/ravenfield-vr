@@ -363,6 +363,7 @@ namespace RavenfieldVR.Input
             sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart):0} fps");
             _diagFrames = 0;
             _diagWindowStart = now;
+            sb.Append($", mod {VRManager.TakeModMsPerFrame():0.0} ms a frame");
             AppendGpuTiming(sb);
             Rig.VRRig rig = Rig.VRRig.Instance;
             if (rig != null && rig.Camera != null)
