@@ -844,6 +844,8 @@ namespace RavenfieldVR.Weapons
             ScaledShapes.Clear();
             LateFitsUnderway.Clear();
             LateGather.Clear();
+            _lateGeneration++; // fits still on a worker are of the old models
+            _lateBaking = null;
         }
 
         /// <summary>
@@ -876,7 +878,9 @@ namespace RavenfieldVR.Weapons
             {
                 lateKey = key;
                 Bounds qb = LocalRendererBounds(root, renderers);
-                return new[] { ShapeFit.BoxPiece(qb.center, Vector3.Max(qb.size, new Vector3(0.05f, 0.05f, 0.05f))) };
+                ShapeFit.Piece box = ShapeFit.BoxPiece(qb.center, Vector3.Max(qb.size, new Vector3(0.05f, 0.05f, 0.05f)));
+                box.CookFailed = true; // a plain BoxCollider: no hull mesh made (and left behind) or cooked for a stand-in this short-lived
+                return new[] { box };
             }
             ShapeFit.Piece[] boxes = ShapeFit.Fit(key, renderers, root.worldToLocalMatrix, 0.04f, 12);
             if (boxes.Length > 0)
@@ -894,7 +898,11 @@ namespace RavenfieldVR.Weapons
             public List<Vector3> Points;
             public ShapeFit.Piece[] Pieces;
             public int Baked;
+            /// <summary>The <see cref="_lateGeneration"/> it was started in: a fit of a model from before a content reload is dropped.</summary>
+            public int Generation;
         }
+
+        private static int _lateGeneration;
 
         /// <summary>Shape keys being fitted later (one fit per key, however many copies lie on their box meanwhile).</summary>
         private static readonly HashSet<string> LateFitsUnderway = new HashSet<string>();
@@ -909,7 +917,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateLateFits()
         {
-            if (_lateBaking == null && LateFitted.TryDequeue(out LateFit done))
+            if (_lateBaking == null && LateFitted.TryDequeue(out LateFit done) && done.Generation == _lateGeneration)
             {
                 _lateBaking = done;
             }
@@ -969,7 +977,7 @@ namespace RavenfieldVR.Weapons
             {
                 points = new List<Vector3>(); // nothing to fit: it keeps its box
             }
-            var late = new LateFit { Key = from.LateFitKey, Points = points };
+            var late = new LateFit { Key = from.LateFitKey, Points = points, Generation = _lateGeneration };
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 try
@@ -1011,6 +1019,12 @@ namespace RavenfieldVR.Weapons
                 d.Body.WakeUp(); // it settles onto its own shape instead of hovering on the box's
             }
             PropPhysics.IgnorePlayer(fitted);
+            foreach (Collider c in fitted)
+            {
+                // The held gun's stand-in had it marked as resting (ignored by its rigidbody): the new colliders are not ignored
+                // by Unity yet, so that mark is forgotten and it is judged again (a gun touching it shoved it otherwise).
+                GunCollider.Current?.OnPropDropped(c);
+            }
             d.IgnoredBodies.Clear();
             PropPhysics.IgnoreBodiesNear(fitted, d.Go.transform.position, 1.5f, d.IgnoredBodies);
             d.Reach = ReachOf(d.Go.transform, fitted);

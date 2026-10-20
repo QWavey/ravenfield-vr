@@ -528,6 +528,7 @@ namespace RavenfieldVR.Input
             if (actor != null && actor.controller is FpsActorController fps && !fps.allowFireWhileSprinting)
             {
                 fps.allowFireWhileSprinting = true;
+                _sprintFireSetOn = fps;
             }
             if (VRConfig.Sprint.Value == SprintMode.Hold)
             {
@@ -674,6 +675,19 @@ namespace RavenfieldVR.Input
         /// Steam Input layout the headset's controllers also feed, right in front of the sights.
         /// </summary>
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
+
+        /// <summary>The player controller whose allowFireWhileSprinting was switched on for VR (switched back off when VR stops).</summary>
+        private static FpsActorController _sprintFireSetOn;
+
+        /// <summary>VR is stopping: the game's own switches set for VR go back, so flat play blocks fire while sprinting again.</summary>
+        public static void RestoreGameSwitches()
+        {
+            if (_sprintFireSetOn != null)
+            {
+                _sprintFireSetOn.allowFireWhileSprinting = false;
+            }
+            _sprintFireSetOn = null;
+        }
 
         /// <summary>Resets toggles when the player respawns, gets into or out of a seat, or onto or off a ladder.</summary>
         public static void ResetToggles()

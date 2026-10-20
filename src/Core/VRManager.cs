@@ -364,6 +364,7 @@ namespace RavenfieldVR.Core
             ScriptKeys.Enabled = false;
             ScriptKeys.Clear();
             VRGameInput.Enabled = false;
+            VRGameInput.RestoreGameSwitches();
             UI?.Dispose();
             Weapons?.Dispose();
             Rig?.Dispose();
