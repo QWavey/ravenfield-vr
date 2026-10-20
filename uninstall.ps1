@@ -14,8 +14,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tools/common.ps1')
 
 $GameDir = Resolve-RavenfieldDir -GameDir $GameDir
-if (Get-Process -Name ravenfield -ErrorAction SilentlyContinue) {
-    throw 'Ravenfield is running. Close it first.'
+if (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue) {
+    throw 'Ravenfield (or its VR launcher) is running. Close it first.'
 }
 $manifest = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'
 if (-not (Test-Path -LiteralPath $manifest)) {

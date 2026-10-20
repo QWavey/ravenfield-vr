@@ -120,6 +120,7 @@ namespace RavenfieldVR.Setup
                 {
                     // Steam's options go first: uninstalled first, a Steam that could not be changed was left starting a deleted
                     // launcher, and Ravenfield did not start from Steam at all (review, 2026-10-20).
+                    installer.CheckCanUninstall(game); // before Steam is touched: a refused uninstall left Steam's options taken out
                     bool steamRunning = SteamLaunchOption.SteamRunning();
                     if (!steamRunning)
                     {
@@ -426,17 +427,23 @@ namespace RavenfieldVR.Setup
 
         // ---- uninstall ---------------------------------------------------------------------------------
 
-        public void Uninstall(string game, bool keepSettings)
+        /// <summary>Throws what would refuse an uninstall, before anything (Steam's options included) is changed.</summary>
+        public void CheckCanUninstall(string game)
         {
             if (GameRunning())
             {
                 throw new InvalidOperationException("Ravenfield (or its VR launcher) is running. Close it first.");
             }
-            string manifestPath = Path.Combine(game, ManifestRelative);
-            if (!File.Exists(manifestPath))
+            if (!File.Exists(Path.Combine(game, ManifestRelative)))
             {
                 throw new InvalidOperationException("Ravenfield VR was not installed by this setup (no install record found).");
             }
+        }
+
+        public void Uninstall(string game, bool keepSettings)
+        {
+            CheckCanUninstall(game);
+            string manifestPath = Path.Combine(game, ManifestRelative);
             string[] lines = File.ReadAllLines(manifestPath);
             string backup = lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "";
             bool installedBepInEx = lines.Contains("installedBepInEx=True");
@@ -645,7 +652,12 @@ namespace RavenfieldVR.Setup
             {
                 bool keep = _keepSettings.Checked;
                 string game = _path.Text.Trim();
-                // Steam's options first, then the files: the launcher is kept while Steam still starts it (see Uninstall).
+                // Steam's options first, then the files: the launcher is kept while Steam still starts it (see Uninstall). Checked
+                // first: a refused uninstall (the game running) left Steam's options taken out and the mod installed.
+                if (!await RunAsync(() => _installer.CheckCanUninstall(game), "Checking…", null))
+                {
+                    return;
+                }
                 await SetSteamOptions(game, false, true, true);
                 await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null);
             };
