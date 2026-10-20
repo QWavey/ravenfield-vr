@@ -791,6 +791,11 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 pos = _handPose.HasValue ? _handPose.Value.TransformPoint(_origin) : _rig.ToWorld(_origin);
             Quaternion rot = (_handPose.HasValue ? _handPose.Value.rotation : _rig.GunBody.rotation) * _frame;
+            // Without the view shake of the frame the pose was taken in (every shot jolts the view for a few frames; the stand-in
+            // swung through loose props with it).
+            Rig.VRRig.ShakeUndo(out Matrix4x4 undoShake, out Quaternion undoShakeRotation);
+            pos = undoShake.MultiplyPoint3x4(pos);
+            rot = undoShakeRotation * rot;
             // A snap turn jumps the gun with the whole rig: it jumps there too. Driven there, it swept up to some 25 cm through the
             // world at up to 25 m/s and flung a magazine or a weapon lying by it (2026-10-20, task 315).
             if (Rig.VRRig.Instance != null)

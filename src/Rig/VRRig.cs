@@ -238,6 +238,21 @@ namespace RavenfieldVR.Rig
         private Quaternion _steadyRootRotation = Quaternion.identity;
         private int _steadyFrame = -1;
 
+        private Matrix4x4 _shakeUndo = Matrix4x4.identity;
+        private Quaternion _shakeUndoRotation = Quaternion.identity;
+
+        /// <summary>
+        /// What takes a world pose of the last placed frame out of that frame's view shake (identity without one): the held gun's
+        /// physics stand-in follows the gun as the hand holds it, not as the shot's jolt turned the view (it swung through what lay
+        /// by it on every shot; task 315).
+        /// </summary>
+        internal static void ShakeUndo(out Matrix4x4 undo, out Quaternion rotation)
+        {
+            VRRig rig = Instance;
+            undo = rig != null ? rig._shakeUndo : Matrix4x4.identity;
+            rotation = rig != null ? rig._shakeUndoRotation : Quaternion.identity;
+        }
+
         /// <summary><paramref name="root"/>'s pose this frame without the view shake (its own pose when it is not this rig's or none was kept).</summary>
         internal static Matrix4x4 SteadyRootOf(Transform root, out Quaternion rotation)
         {
@@ -788,6 +803,8 @@ namespace RavenfieldVR.Rig
                 _steadyRootRotation = Root.rotation;
                 _steadyFrame = Time.frameCount;
                 ApplyViewShake();
+                _shakeUndo = _steadyRoot * Root.worldToLocalMatrix;
+                _shakeUndoRotation = _steadyRootRotation * Quaternion.Inverse(Root.rotation);
             }
             catch (Exception e)
             {
