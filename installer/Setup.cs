@@ -118,13 +118,16 @@ namespace RavenfieldVR.Setup
                 }
                 else if (Flag("--uninstall"))
                 {
-                    installer.Uninstall(game, Flag("--keep-settings"));
-                    if (!SteamLaunchOption.SteamRunning())
+                    // Steam's options go first: uninstalled first, a Steam that could not be changed was left starting a deleted
+                    // launcher, and Ravenfield did not start from Steam at all (review, 2026-10-20).
+                    bool steamRunning = SteamLaunchOption.SteamRunning();
+                    if (!steamRunning)
                     {
                         SteamLaunchOption.Remove(write);
                         SteamPlayEntry.Remove(write);
                     }
-                    else
+                    installer.Uninstall(game, Flag("--keep-settings"));
+                    if (steamRunning)
                     {
                         write("Steam is running: remove the launcher from Ravenfield's launch options yourself; the \"" + SteamPlayEntry.Description +
                               "\" Play entry goes with Ravenfield's next update, or run --steam-play-entry remove with Steam closed.");
@@ -432,10 +435,43 @@ namespace RavenfieldVR.Setup
             string[] lines = File.ReadAllLines(manifestPath);
             string backup = lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "";
             bool installedBepInEx = lines.Contains("installedBepInEx=True");
+            // Decided before anything goes: BepInEx stays when other plugins use it or the settings are kept, and then its loader and
+            // core (files this setup added with it) stay too. Deleted first, BepInEx was left in place but no longer loaded, and the
+            // other mods stopped without a word (review, 2026-10-20).
+            string pluginsDir = Path.Combine(game, @"BepInEx\plugins");
+            bool otherPlugins = Directory.Exists(pluginsDir) && Directory.EnumerateFileSystemEntries(pluginsDir)
+                .Any(e => !string.Equals(Path.GetFileName(e), "RavenfieldVR", StringComparison.OrdinalIgnoreCase));
+            bool settingsKept = keepSettings && File.Exists(Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"));
+            bool keepBepInEx = !installedBepInEx || otherPlugins || settingsKept;
+            // A Steam launch option still running the launcher (Steam could not be changed): the launcher stays, or Ravenfield no
+            // longer starts from Steam.
+            bool launcherInUse = SteamLaunchOption.LocalConfigs().Any(f =>
+            {
+                try
+                {
+                    return SteamLaunchOption.Read(f).IndexOf(LauncherName, StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            });
             int removed = 0, restored = 0;
             foreach (string line in lines.Where(l => l.StartsWith("added=", StringComparison.Ordinal)))
             {
-                string path = Path.Combine(game, line.Substring(6));
+                string rel = line.Substring(6);
+                // (BepInEx's own: what Install adds as the loader.)
+                bool bepInExOwn = LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase) || rel.StartsWith(@"BepInEx\core\", StringComparison.OrdinalIgnoreCase);
+                if (keepBepInEx && bepInExOwn)
+                {
+                    continue;
+                }
+                if (launcherInUse && string.Equals(rel, LauncherName, StringComparison.OrdinalIgnoreCase))
+                {
+                    _log("Kept " + LauncherName + ": Steam's launch options for Ravenfield still start it. Remove it from Steam > Ravenfield > Properties > Launch Options, then delete the file.");
+                    continue;
+                }
+                string path = Path.Combine(game, rel);
                 if (File.Exists(path))
                 {
                     File.Delete(path);
@@ -476,12 +512,9 @@ namespace RavenfieldVR.Setup
             }
             if (installedBepInEx)
             {
-                string plugins = Path.Combine(game, @"BepInEx\plugins");
-                bool others = Directory.Exists(plugins) && Directory.EnumerateFileSystemEntries(plugins).Any();
-                bool configKept = keepSettings && File.Exists(Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"));
-                if (others || configKept)
+                if (keepBepInEx)
                 {
-                    _log(others ? "Other BepInEx plugins are installed, so BepInEx stays." : "BepInEx stays so your Ravenfield VR settings are kept.");
+                    _log(otherPlugins ? "Other BepInEx plugins are installed, so BepInEx stays." : "BepInEx stays so your Ravenfield VR settings are kept.");
                 }
                 else
                 {
@@ -601,10 +634,9 @@ namespace RavenfieldVR.Setup
             {
                 bool keep = _keepSettings.Checked;
                 string game = _path.Text.Trim();
-                if (await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null))
-                {
-                    await SetSteamOptions(game, false, true, true);
-                }
+                // Steam's options first, then the files: the launcher is kept while Steam still starts it (see Uninstall).
+                await SetSteamOptions(game, false, true, true);
+                await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null);
             };
             _close.Text = "Close";
             _close.SetBounds(480, 378, 100, 34);
