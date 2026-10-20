@@ -79,7 +79,7 @@ namespace RavenfieldVR.Weapons
                     bool played = false;
                     foreach (SoundCue cue in cues)
                     {
-                        played |= PlayCue(cue);
+                        played |= PlayCue(cue, volume);
                     }
                     if (played)
                     {
@@ -88,7 +88,7 @@ namespace RavenfieldVR.Weapons
                 }
                 // No sound of its own for this action: the same action of a vanilla weapon of its class.
                 SoundCue donor = SoundDonors.Find(_rig.Data, kind);
-                if (donor != null && PlayCue(donor))
+                if (donor != null && PlayCue(donor, volume))
                 {
                     return;
                 }
@@ -109,7 +109,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private bool PlayCue(SoundCue cue)
+        // volume: the caller's level on top of the cue's own (a light's switch is the rack's sample at 0.15: it played the whole
+        // rack at full volume on every toggle; sound hunt, 2026-10-20).
+        private bool PlayCue(SoundCue cue, float volume = 1f)
         {
             try
             {
@@ -118,11 +120,11 @@ namespace RavenfieldVR.Weapons
                     case CueKind.Event:
                         // The clip the event would play, through our own source: no dependence on the mod's sound
                         // bank being set up (or its index being valid) at runtime.
-                        return cue.Clips != null && cue.Clips.Length > 0 ? PlayClip(cue) : SendEvent(cue);
+                        return cue.Clips != null && cue.Clips.Length > 0 ? PlayClip(cue, volume) : SendEvent(cue);
                     case CueKind.AudioObject:
-                        return PlayAudioObject(cue);
+                        return PlayAudioObject(cue, volume);
                     case CueKind.ClipSlice:
-                        return PlaySlice(cue);
+                        return PlaySlice(cue, volume);
                 }
             }
             catch (Exception e)
@@ -181,7 +183,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private bool PlayClip(SoundCue cue)
+        private bool PlayClip(SoundCue cue, float volume)
         {
             AudioClip clip = cue.Clips[cue.Clips.Length == 1 ? 0 : UnityEngine.Random.Range(0, cue.Clips.Length)];
             if (clip == null)
@@ -190,7 +192,7 @@ namespace RavenfieldVR.Weapons
             }
             AudioSource template = _rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio;
             AudioSource src = OneShotSource(template);
-            src.PlayOneShot(clip, cue.Volume * Audible(template != null ? template.volume : 1f));
+            src.PlayOneShot(clip, cue.Volume * Audible(template != null ? template.volume : 1f) * volume);
             return true;
         }
 
@@ -200,7 +202,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static float Audible(float volume) => volume > 0.05f ? Mathf.Min(volume, 1f) : 1f;
 
-        private bool PlayAudioObject(SoundCue cue)
+        private bool PlayAudioObject(SoundCue cue, float volume)
         {
             Transform t = WeaponRig.Resolve(_rig.Weapon.transform, cue.Path);
             AudioSource src = t != null ? t.GetComponent<AudioSource>() : null;
@@ -210,11 +212,11 @@ namespace RavenfieldVR.Weapons
             }
             // The object is normally inactive until the animation enables it, so play its clip through our source.
             AudioSource player = OneShotSource(src);
-            player.PlayOneShot(src.clip, Audible(src.volume));
+            player.PlayOneShot(src.clip, Audible(src.volume) * volume);
             return true;
         }
 
-        private bool PlaySlice(SoundCue cue)
+        private bool PlaySlice(SoundCue cue, float volume)
         {
             if (cue.Clip == null || cue.Length <= 0f)
             {
@@ -225,7 +227,7 @@ namespace RavenfieldVR.Weapons
             src.Stop();
             src.clip = cue.Clip;
             src.time = Mathf.Clamp(cue.Start, 0f, Mathf.Max(0f, cue.Clip.length - 0.01f));
-            _sliceBaseVolume = Audible(template != null ? template.volume : 1f);
+            _sliceBaseVolume = Audible(template != null ? template.volume : 1f) * volume;
             src.volume = _sliceBaseVolume;
             src.Play();
             _sliceStopDsp = AudioSettings.dspTime + cue.Length;

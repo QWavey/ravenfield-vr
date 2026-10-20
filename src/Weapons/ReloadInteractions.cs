@@ -424,7 +424,8 @@ namespace RavenfieldVR.Weapons
             {
                 _pressPalm = off.Palm.position; // where this squeeze began (the pouch only takes squeezes made at it)
             }
-            if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable)
+            // Not with the pause menu up: a squeeze there pulled the magazine or a clip out of the paused gun (sound hunt, 2026-10-20).
+            if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable && !Util.GameContext.GameMenuOpen)
             {
                 TryGrab(off);
             }

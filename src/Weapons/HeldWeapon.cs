@@ -3329,11 +3329,11 @@ namespace RavenfieldVR.Weapons
                 // The rest of the cleanup (parts, hands, renderers) must still run.
                 Log.Exception("Releasing reload state", e);
             }
+            Sounds.Destroy(); // before the steps below that can throw: a failed release left its audio object on the gun
             if (_magHidden)
             {
                 RestoreMagazine();
             }
-            Sounds.Destroy();
             if (Rig.Slide != null)
             {
                 Rig.Slide.localPosition = Rig.Data.SlideRestLocal;
