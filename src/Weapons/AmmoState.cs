@@ -119,7 +119,8 @@ namespace RavenfieldVR.Weapons
         public int TubeRoom => Mathf.Max(0, Capacity - MagRounds - (!VRConfig.ChamberPlusOne.Value && Chambered ? 1 : 0));
         public int Loaded => (MagInserted || !UsesDetachableMag ? MagRounds : 0) + (Chambered ? 1 : 0);
 
-        public bool UsesDetachableMag => Rig.Action == ActionType.SelfLoading || (Rig.Action == ActionType.Manual && Rig.MagazinePath != null);
+        /// <summary>A fire-mode variant has no magazine path of its own, so it takes the parent's answer (task 249).</summary>
+        public bool UsesDetachableMag => Shared ? MagazineOf.UsesDetachableMag : (Rig.Action == ActionType.SelfLoading || (Rig.Action == ActionType.Manual && Rig.MagazinePath != null));
         public bool UsesChamber => Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.Manual || Rig.Action == ActionType.ShellFed;
         /// <summary>The action cycles itself after a shot (feeds the next round).</summary>
         public bool SelfLoading => (Rig.Action == ActionType.SelfLoading || Rig.Action == ActionType.ShellFed) && !Rig.CyclesByHand;
@@ -128,7 +129,7 @@ namespace RavenfieldVR.Weapons
         /// reloading (the game's own fire animation works a bolt or pump then; nothing racks it by hand).
         /// </summary>
         public bool CyclesItself => SelfLoading || VRConfig.ReloadNow != ReloadMode.Manual;
-        public bool HasCover => Rig.Hinge == HingeKind.FeedCover;
+        public bool HasCover => Shared ? MagazineOf.HasCover : Rig.Hinge == HingeKind.FeedCover;
         /// <summary>Rounds can reach the chamber: a magazine is seated (or internal) and, on a belt-fed gun, the belt is laid.</summary>
         public bool FeedReady => (MagInserted || !UsesDetachableMag) && (!HasCover || BeltLaid && !CoverOpen);
         private bool LoadsDirectly => Rig.Action == ActionType.SingleShot || Rig.Action == ActionType.BreakOpen;

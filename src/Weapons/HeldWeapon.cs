@@ -3018,11 +3018,13 @@ namespace RavenfieldVR.Weapons
             AmmoState ammo = ActiveAmmo ?? Ammo;
             ApplyBeltParts(ammo);
             Rig.HideSpareParts(); // the flat reload's spare magazines are not drawn while held (WeaponRigData.SparePartPaths)
-            if (Rig.MagazineParts.Length > 0 && ammo != null && ammo.UsesDetachableMag)
+            // The magazine parts are this gun's own, so they follow the parent's magazine even while a fire-mode variant is
+            // active: the variant's state could say the magazine is in while it is still in the hand (task 249).
+            if (Rig.MagazineParts.Length > 0 && Ammo != null && Ammo.UsesDetachableMag)
             {
                 // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
                 // Scaling hides mesh-renderer and skinned magazines alike.
-                bool hide = !ammo.MagInserted;
+                bool hide = !Ammo.MagInserted;
                 if (hide)
                 {
                     Vector3 tiny = Vector3.one * 1e-4f;
@@ -3040,7 +3042,7 @@ namespace RavenfieldVR.Weapons
                     RestoreMagazine();
                 }
             }
-            if (Rig.Magazine != null && ammo != null && ammo.Participates && ammo.UsesDetachableMag && ammo.MagInserted && !d.SeatOnHinge
+            if (Rig.Magazine != null && Ammo != null && Ammo.Participates && Ammo.UsesDetachableMag && Ammo.MagInserted && !d.SeatOnHinge
                 && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading))
             {
                 // The seated magazine sits on its seat on the gun body, where a fresh one slides in. On many models it hangs
@@ -3246,7 +3248,10 @@ namespace RavenfieldVR.Weapons
         public void Release()
         {
             _releasedHold = true; // (a slide measurement still on the GPU adds no knob to a gun that is put away)
-            // The hands first: whatever fails below, no glove may stay closed on a weapon that is gone.
+            // The physics stand-in first: whatever throws below, it must not be left at the gun's last pose, where dropped weapons
+            // and magazines would bounce off an invisible gun-shaped box (it is DontDestroyOnLoad).
+            _gunCollider?.Destroy();
+            // The hands next: whatever fails below, no glove may stay closed on a weapon that is gone.
             if (_system.Rig.Dominant.Model != null)
             {
                 _system.Rig.Dominant.Model.Solid = null;
@@ -3258,9 +3263,6 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Model.Solid = null;
                 _system.Rig.Off.Model.SnapPose = null;
             }
-            // The physics stand-in with the hands: whatever throws below, it must not be left at the gun's last pose, where
-            // dropped weapons and magazines would bounce off an invisible gun-shaped box (it is DontDestroyOnLoad).
-            _gunCollider?.Destroy();
             _magnifierFlip.Release();
             try
             {
