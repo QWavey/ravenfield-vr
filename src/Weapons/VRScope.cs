@@ -119,8 +119,8 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Puts the clear part of the view <paramref name="shift"/> lens radii off the middle (opposite the eye's offset,
-        /// as through a tube): the dark rest comes in from the eye's side.
+        /// Puts the clear part of the view <paramref name="shift"/> lens radii off the middle (BeforeRender puts it toward the
+        /// eye's offset): the dark rest comes in from the other side.
         /// </summary>
         private void SetShadow(Vector2 shift)
         {
@@ -310,7 +310,7 @@ namespace RavenfieldVR.Weapons
             }
             // Eye box. The eye is the aiming one, the one nearer the line: measured from the middle of the head, a scope you
             // looked through perfectly with one eye was already 3.2 cm "off" and showed only 57% bright. Off the line, the
-            // scope's shadow comes in from the eye's side (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
+            // scope's shadow comes in from the side away from the eye (a sliver from about 1.5 cm, half the view at about 4 cm, all of it by about 6.5 cm), and the
             // picture dims as well past 3 cm.
             Vector3 axis = _rig.DirToWorld(_eyeDirection);
             Vector3 lateral = Vector3.ProjectOnPlane(AimingEye(head, eye, axis, vr) - eye, axis);
@@ -318,7 +318,11 @@ namespace RavenfieldVR.Weapons
             Transform lens = _root.transform;
             var side = new Vector2(Vector3.Dot(lateral, lens.right), Vector3.Dot(lateral, lens.up));
             float push = Mathf.Max(0f, offAxis - 0.008f) / 0.03f;
-            SetShadow(offAxis > 1e-5f ? -side / offAxis * push : Vector2.zero);
+            // The clear part toward the eye's side, the shadow coming in from the far side: an eye behind the exit pupil (the usual
+            // place in a headset) sees through it the field on its own side, each angle's bundle having spread out sideways behind
+            // the pupil. Drawn the other way round (as through a bare tube, or an eye too close) it said to move away from the
+            // crescent, where a scope says move toward it (visual hunt, 2026-10-20).
+            SetShadow(offAxis > 1e-5f ? side / offAxis * push : Vector2.zero);
             float brightness = Mathf.Clamp01(1f - (offAxis - 0.03f) / 0.04f);
             // Black through the lens (the eye 7 cm off its line): no second picture of the whole scene for it.
             bool render = brightness > 0.004f;
