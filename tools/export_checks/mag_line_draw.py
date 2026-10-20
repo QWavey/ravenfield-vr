@@ -1,6 +1,7 @@
 """Offline side view (CPU, PIL): the gun body's outline (grey), the magazine seated (blue) and slid out along its line by a
 fraction of its length (green), its points showing beside the outline while past the mouth (red). Usage:
-mag_line_draw.py <weapon dir> <fraction> <out.png> [fore/aft deg] [sideways deg]  (the line tilted as mag_line_scan.py tilts it)"""
+mag_line_draw.py <weapon dir> <fraction> <out.png> [fore/aft deg] [sideways deg] [front]  (the line tilted as mag_line_scan.py
+tilts it; "front": seen from the front, across the gun, as mag_line_body.py's second view)"""
 import json
 import os
 import sys
@@ -28,7 +29,7 @@ aim = norm(rig['aim'])
 up = np.array(rig.get('up', [0, 1, 0]), float)
 up = norm(up - aim * up.dot(aim))
 eject = norm(rig.get('magEject', [0, -1, 0]))
-if len(sys.argv) > 4:
+if len(sys.argv) > 4 and sys.argv[4] != 'front':
     def rot_about(v, axis, deg):
         axis = norm(axis)
         r = np.radians(deg)
@@ -42,7 +43,8 @@ for n in nodes:
         (mag if any(n.path == p or n.path.startswith(p + '/') for p in parts) else body).append(t)
 body, mag = np.concatenate(body), np.concatenate(mag)
 S = 4000  # px per metre (4 px a millimetre)
-pts2 = lambda p: np.stack([p @ aim, -(p @ up)], axis=-1)
+across = norm(np.cross(aim, up)) if 'front' in sys.argv[4:] else aim
+pts2 = lambda p: np.stack([p @ across, -(p @ up)], axis=-1)
 mp = np.unique(mag.reshape(-1, 3).round(5), axis=0)
 allp = np.concatenate([pts2(body.reshape(-1, 3)), pts2(mp), pts2(mp + eject * 0.15)])
 lo = allp.min(axis=0) - 0.01

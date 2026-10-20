@@ -29,6 +29,14 @@ CHECKED = {'P320_p320_1', 'P320s_p320_1_s'}
 # its square top block back through the magazine catch; along the block's sides, straight down the gun, it comes out clear
 # (0 points beside the outline at 12% out; 2026-10-20).
 MANUAL = {'PPSh-41_PPSH_Stick': (6.5, 0.0)}
+# --both: a least on the search's edge (fore/aft 18, sideways 6) is taken only where a picture showed it right: the P320's
+# magazine sits canted in its model (seen from the front, -6 sideways follows it, -1.5 leaves its footprint; 2026-10-20).
+EDGE_OK = {'P320_p320_1', 'P320s_p320_1_s'}
+# --both: where the least lies on the edge unchecked, the earlier scan's line, inside it and through less wall than the
+# analysed line by mag_line_body.py (the Vectors and the Glock 19 at -16.5: 224 -> 84 and 174 -> 35).
+if len(sys.argv) > 1 and sys.argv[1] == '--both':
+    MANUAL.update({f: (-16.5, 0.0) for f in ('vector_vector', 'vector_rds_vector_rds', 'mw-vector_No_script__vector_originalshaking',
+                                            'mw-vector_rds_No_script__vector_rds_originalshaking', 'ARS_Glock_19_G19')})
 
 rows = {}
 BOTH = re.compile(r'^(\S+): analysed wall (\d+) out (\d+); least ([+-][\d.]+)/([+-][\d.]+) wall (\d+) out (\d+)')
@@ -41,8 +49,13 @@ for path in (sys.argv[2:] if sys.argv[1] == '--both' else []):
         analysed = int(m.group(2)) + int(m.group(3))
         fore, side = float(m.group(4)), float(m.group(5))
         best = int(m.group(6)) + int(m.group(7))
-        if (fore or side) and best <= analysed * 0.6 and analysed - best >= 30:
-            rig = json.load(open(os.path.join(DATA, folder, 'rig.json'), encoding='utf-8'))
+        rig = json.load(open(os.path.join(DATA, folder, 'rig.json'), encoding='utf-8'))
+        # A detachable magazine only: a pump's or a break action's shell, a launcher's rocket (the Panzerfaust 3's is its stock)
+        # go in by other lines. Not where most of the count stays at the least (over 1000: the M417A2's uneven magwell bottom,
+        # the RPG-7V's tube), nor on the search's edge unchecked.
+        magazine = rig.get('action') == 'SelfLoading' or rig.get('action') == 'Manual' and rig.get('magazine')
+        edge = abs(fore) >= 17.9 or abs(side) >= 5.9
+        if (fore or side) and magazine and best <= analysed * 0.6 and analysed - best >= 30 and best <= 1000 and (not edge or folder in EDGE_OK):
             rows[rig['key']] = (fore, side, analysed, best, folder)
 for path in (sys.argv[1:] if sys.argv[1] != '--both' else []):
     capped_scan = 'best tip (capped)' in open(path, encoding='utf-8').read()

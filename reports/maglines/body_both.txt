@@ -1,0 +1,288 @@
+.357_CONDOR_Revolver: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+1911_10R_1911_10R: analysed wall 45 out 2; least -4.5/+0.0 wall 0 out 0
+1911_1911: analysed wall 19 out 4; least +0.0/+0.0 wall 19 out 4; table -4.5/-4.5 wall 770 out 105
+76_EAGLE_Shotgun: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+92g_92: analysed wall 10 out 0; least -3.0/+0.0 wall 2 out 0
+92gs_92_s: analysed wall 10 out 0; least -3.0/+0.0 wall 2 out 0
+95-1_95_1: analysed wall 53 out 972; least +16.5/+0.0 wall 154 out 647
+95-1_holo_95-1_holo: analysed wall 51 out 1003; least +16.5/-1.5 wall 149 out 676
+95-1_qmk_95_qmk: analysed wall 51 out 1003; least +16.5/-1.5 wall 149 out 676
+AA-AA_Beretta_Akimbo_AA: analysed wall 6 out 0; least +1.5/+0.0 wall 3 out 0
+AF2011A1_AF2011A1: analysed wall 0 out 634; least +3.0/+0.0 wall 62 out 414; table -10.5/+0.0 wall 4266 out 1022
+AIR_HORN_Air_Horn: no body or no magazine drawn
+AK-24_OKP-7_ak24-okp7bld: analysed wall 286 out 495; least +0.0/+0.0 wall 286 out 495
+AK-24_ak24bld: analysed wall 300 out 649; least +1.5/+0.0 wall 236 out 498
+AMMO_BAG_Ammo_Bag: no body or no magazine drawn
+AP-Sentry_Gun_MW炮台部署箱: no body or no magazine drawn
+ARS_Glock_19_G19: analysed wall 174 out 45; least -18.0/+0.0 wall 12 out 41; table -16.5/+0.0 wall 35 out 37
+ARS_Glock_19__Bot_Friendly__G19_BotFriendly: no body or no magazine drawn
+ARS_HK416_HK416: analysed wall 0 out 43; least +1.5/+0.0 wall 12 out 16
+ARS_HK416__Bot_Friendly__HK416_BotFriendly: no body or no magazine drawn
+ARS_M500_M500: analysed wall 283 out 57; least -18.0/+0.0 wall 183 out 0
+ARS_M500__Bot_Friendly__M500_BotFriendly: no body or no magazine drawn
+ARS_MP9_MP9: analysed wall 0 out 62; least +0.0/+0.0 wall 0 out 62
+ARS_MP9__Bot_Friendly__MP9_BotFriendly: no body or no magazine drawn
+AT-1K_AT-1K_ANI: no body or no magazine drawn
+AUTOMATICO_AKIMBO_Beretta_Akimbo: analysed wall 12 out 3; least -9.0/+0.0 wall 1 out 0
+AUTOMATICO_Beretta: analysed wall 6 out 0; least +1.5/+0.0 wall 3 out 0
+BRN180_EO_L_BRN180_EO: analysed wall 34 out 891; least -6.0/+0.0 wall 0 out 203
+BRN180_EO_S_BRN180_EO_S: analysed wall 34 out 891; least -6.0/+0.0 wall 0 out 203
+BRN180_L_BRN180_L: analysed wall 26 out 1067; least -6.0/+0.0 wall 0 out 283
+BRN180_L_S_BRN180_L_S: analysed wall 26 out 1067; least -6.0/+0.0 wall 0 out 283
+BRN180_SS_BRN180_SS: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+BRN180_S_A_BRN180_S_A: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+BRN180_S_A_S_BRN180_S_A_S: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+BUNDLE_O__BUSS_Blunderbuss: no body or no magazine drawn
+C4_C4: no body or no magazine drawn
+CZ_Bren_2_BR_Assault_CZ_Bren_2_BR_Assault: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -12.0/+0.0 wall 2178 out 228
+CZ_Bren_2_BR_CZ_Bren_2_BR: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -12.0/+0.0 wall 2178 out 228
+CZ_Bren_2_BR_Holo_CZ_Bren_2_BR_Holo: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -12.0/+0.0 wall 2178 out 228
+CZ_Bren_2_BR_Raid_CZ_Bren_2_BR_Raid: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -10.5/+0.0 wall 2021 out 254
+CZ_Bren_2_BR_S_CZ_Bren_2_BR_S: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -12.0/+0.0 wall 2178 out 228
+CZ_Bren_2_BR_Tac_CZ_Bren_2_BR_Tac: analysed wall 885 out 155; least +15.0/+0.0 wall 0 out 3; table -12.0/+0.0 wall 2178 out 228
+Colt_M1911A1_M1911A1: analysed wall 0 out 336; least +1.5/+0.0 wall 0 out 306; table -9.0/-1.5 wall 1578 out 462
+Colt_M1911_M1911: analysed wall 0 out 336; least +1.5/+0.0 wall 0 out 306; table -9.0/+0.0 wall 1581 out 452
+D1911_D1911_ANI: analysed wall 64 out 0; least -1.5/+0.0 wall 16 out 0; table -1.5/+0.0 wall 16 out 0
+DAGGER_SMAW: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+DOUBLE-BARREL_DBS_Long_24: analysed wall 354 out 93; least +12.0/+0.0 wall 206 out 8
+FA1911_10R_FA1911_10R: analysed wall 44 out 11; least -6.0/+0.0 wall 0 out 2
+FA1911_20R_FA1911_20R: analysed wall 29 out 0; least -3.0/+0.0 wall 0 out 0
+FAQ1911_FA1911_Lite: analysed wall 57 out 20; least +0.0/+0.0 wall 57 out 20; table -12.0/+0.0 wall 68 out 171
+FNX-45_FNX-45: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__FLASH__FNX-45_Flashlight: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__FLASH__SUP__FNX-45_Silenced_Flashlight: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__LASER__FNX-45_Laser: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__LASER__SUP__FNX-45_Silenced_Laser: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__RDS__FLASH__FNX-45_RDS_Flashlight: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__RDS__FNX-45_RDS: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__RDS__LASER__FNX-45_RDS_Laser: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__RDS__SUP__FNX-45_RDS_Silenced: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__SUP__FNX-45_Silenced: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__TAC1__FNX-45_TAC-S: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FNX-45__TAC2__FNX-45_TAC2: analysed wall 196 out 58; least +3.0/+0.0 wall 0 out 72
+FRAG_Frag: no body or no magazine drawn
+GL-Sentry_Gun_COD榴弹炮台部署箱: no body or no magazine drawn
+GLOCK_43X-S_G43X-S: analysed wall 652 out 76; least -15.0/+0.0 wall 0 out 6; table -12.0/+0.0 wall 51 out 6
+GLOCK_43X-S__FA__G43X-S_FA: analysed wall 769 out 225; least -15.0/+0.0 wall 0 out 24; table -12.0/+0.0 wall 103 out 13
+GLOCK_43X_G43X: analysed wall 652 out 76; least -15.0/+0.0 wall 0 out 6; table -12.0/+0.0 wall 51 out 6
+GLOCK_43X__FA__G43X_FA_MZ: analysed wall 769 out 225; least -15.0/+0.0 wall 0 out 24; table -12.0/+0.0 wall 103 out 13
+GREASER_Grease_Gun: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+G_BRN180_EO_SS_G_BRN180_EO_SS: analysed wall 26 out 1995; least -6.0/+0.0 wall 0 out 315
+G_BRN180_EO_S_G_BRN180_EO_S: analysed wall 34 out 11052; least -3.0/+0.0 wall 38 out 10555
+Gear_BRN180_SS_BRN180_SS: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+Gear_BRN180_S_A_S_BRN180_S_A_S: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+Gear_G_BRN180_EO_SS_G_BRN180_EO_SS: analysed wall 26 out 1995; least -6.0/+0.0 wall 0 out 315
+HE-Sentry_Gun_BO6炮台部署箱: no body or no magazine drawn
+HK416-A_HK416-A: analysed wall 437 out 314; least +12.0/-1.5 wall 54 out 112; table +7.5/+0.0 wall 211 out 163
+HK416-A_S_HK416-A_S: analysed wall 437 out 314; least +12.0/-1.5 wall 54 out 112; table +7.5/+0.0 wall 211 out 163
+HK416-B_HK416-B: analysed wall 426 out 291; least +12.0/+0.0 wall 52 out 114; table +7.5/+0.0 wall 211 out 149
+HK416-B_S_HK416-B_S: analysed wall 426 out 291; least +12.0/+0.0 wall 52 out 114; table +7.5/+0.0 wall 211 out 149
+HK416-C_HK416-C: analysed wall 20 out 123; least -10.5/+0.0 wall 0 out 2
+HK416-C_S_HK416-C_S: analysed wall 20 out 123; least -10.5/+0.0 wall 0 out 2
+HK416-D_HK416-D: analysed wall 440 out 275; least +12.0/-1.5 wall 54 out 100
+HK416-D_M320身子_1_0_19: no body or no magazine drawn
+HK416-D_S_HK416-D_S: analysed wall 440 out 275; least +12.0/-1.5 wall 54 out 100
+HK416-D_S_M320身子_1_0_19: no body or no magazine drawn
+HK416-E_HK416-E: analysed wall 426 out 347; least +12.0/+0.0 wall 52 out 164; table +7.5/+0.0 wall 211 out 200
+HK416-E_S_HK416-E_S: analysed wall 426 out 347; least +12.0/+0.0 wall 52 out 164; table +7.5/+0.0 wall 211 out 200
+HK416_HK416: analysed wall 437 out 314; least +12.0/-1.5 wall 54 out 112; table +7.5/+0.0 wall 211 out 163
+HK416_S_HK416_S: analysed wall 437 out 314; least +12.0/-1.5 wall 54 out 112; table +7.5/+0.0 wall 211 out 163
+HMG_Machine_Gun: no body or no magazine drawn
+HYDRA_Hydra: no body or no magazine drawn
+Helo_Signal_Smoke__All__Helo_Smoke_Grenade_v2: no body or no magazine drawn
+Helo_Signal_Smoke__Reinforce__Helo_Smoke_Grenade_Reinforce: no body or no magazine drawn
+Helo_Signal_Smoke__Support__Helo_Smoke_Grenade_Support: no body or no magazine drawn
+Helo_Signal_Smoke__Transport__Helo_Smoke_Grenade_Transport: no body or no magazine drawn
+INGRESS_700_Walther_ppk: analysed wall 6 out 18; least +9.0/+0.0 wall 0 out 0
+JOLT-20-S_Ingram_M10: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+K13_ACOG_K13_a: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_ACOG_S_K13_a_S: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_Eotech_G33_K13_E: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_Eotech_G33_S_K13_E_S: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_K13: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_Spectre_K13_S: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K13_Spectre_S_K13_S_s: analysed wall 62 out 70; least +6.0/+0.0 wall 2 out 33
+K400_K400: no body or no magazine drawn
+K413_K413: no body or no magazine drawn
+Lite-Sentry_Gun_MW小炮台部署箱: no body or no magazine drawn
+M1014_M1014_Iron: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+M1014_Tactical_M1014_Sighted: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+M1878_Sawed_Off_Buck_Buck_1878_Sawed: analysed wall 505 out 21; least +1.5/+0.0 wall 496 out 0
+M1878_Sawed_Off_Slug_Slug_1878_Sawed: analysed wall 505 out 21; least +1.5/+0.0 wall 496 out 0
+M1878_Shotgun_Buck_Buck_1878: analysed wall 727 out 156; least +3.0/+0.0 wall 599 out 8
+M1878_Shotgun_Buck_Gear_Buck_1878: analysed wall 727 out 156; least +3.0/+0.0 wall 599 out 8
+M1878_Shotgun_Slug_Gear_Slug_1878: analysed wall 727 out 156; least +3.0/+0.0 wall 599 out 8
+M1878_Shotgun_Slug_Slug_1878: analysed wall 727 out 156; least +3.0/+0.0 wall 599 out 8
+M1_GARRET_Garand: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+M417A2_M417A2: analysed wall 591 out 2947; least +6.0/-1.5 wall 385 out 1571
+M4A1_ACOG_m4_acog: analysed wall 423 out 242; least +15.0/+0.0 wall 0 out 51; table +10.5/+0.0 wall 34 out 85
+M4A1_CCO_FT_m4_cco_FT: analysed wall 520 out 201; least +13.5/+0.0 wall 4 out 100; table +6.0/+0.0 wall 249 out 122
+M4A1_CCO_m4_cco: analysed wall 520 out 201; least +13.5/+0.0 wall 4 out 100; table +6.0/+0.0 wall 249 out 122
+M4A1_EOT_FT_m4_eot_FT: analysed wall 520 out 201; least +13.5/+0.0 wall 4 out 100; table +6.0/+0.0 wall 249 out 122
+M4A1_EOT_m4_eot: analysed wall 520 out 201; least +13.5/+0.0 wall 4 out 100; table +6.0/+0.0 wall 249 out 122
+M4A1_M4A1squad: analysed wall 0 out 52; least +0.0/+0.0 wall 0 out 52
+M4A1_acog_M4A1squad__2__1: analysed wall 0 out 49; least +0.0/+0.0 wall 0 out 49
+M4A1_m4: analysed wall 423 out 242; least +15.0/+0.0 wall 0 out 51; table +10.5/+0.0 wall 34 out 85
+M4A1_reddot_M4A1squad__1: analysed wall 0 out 52; least +0.0/+0.0 wall 0 out 52
+MEDIC_BAG_Medic_Bag: no body or no magazine drawn
+MK46_ET_MK46_ANI: analysed wall 5660 out 8520; least -1.5/+1.5 wall 5665 out 7793
+Minigun_Minigun: no body or no magazine drawn
+Mobile-Sentry_Gun_机动炮台部署箱: no body or no magazine drawn
+NVO-228E_ACE_32: analysed wall 56 out 270; least -13.5/+0.0 wall 49 out 107
+P220_Devil_Eatchel_P220_devil: analysed wall 84 out 283; least -3.0/+0.0 wall 9 out 225; table -9.0/+0.0 wall 297 out 273
+P220_Double_Evil_P220_DOUBLE_EVIL: no body or no magazine drawn
+P220_Eatchel_Gustav_P220_ANI: analysed wall 84 out 283; least -3.0/+0.0 wall 9 out 225; table -10.5/+0.0 wall 601 out 301
+P220_G_AKIMBO_P220_G_AKIMBO: no body or no magazine drawn
+P220_G_P220_G: analysed wall 132 out 209; least -4.5/+0.0 wall 3 out 142; table -15.0/+0.0 wall 903 out 286
+P220_G_R_P220_G_R: analysed wall 84 out 283; least -3.0/+0.0 wall 9 out 225; table -10.5/+0.0 wall 601 out 301
+P220_P220: analysed wall 132 out 209; least -4.5/+0.0 wall 3 out 142; table -15.0/+0.0 wall 903 out 286
+P220_T_S_AKIMBO_P220_T_S_AKIMBO: no body or no magazine drawn
+P220_T_S_P220_T_S: analysed wall 84 out 283; least -3.0/+0.0 wall 9 out 225; table -10.5/+0.0 wall 601 out 301
+P320_p320_1: analysed wall 574 out 98; least -15.0/-6.0 wall 44 out 113; table -18.0/-1.5 wall 152 out 176
+P320s_p320_1_s: analysed wall 574 out 98; least -15.0/-6.0 wall 44 out 113; table -18.0/-1.5 wall 152 out 176
+PATRIOT_AR-15: analysed wall 2 out 0; least +0.0/+0.0 wall 2 out 0
+PATRIOT_GL_AR-15_GL: analysed wall 2 out 0; least +0.0/+0.0 wall 2 out 0
+PATRIOT_GL_AR-15_Nade_Launcher_0_8: no body or no magazine drawn
+PATRIOT_TAC_AR-15_Spec_Ops: analysed wall 2 out 0; least +0.0/+0.0 wall 2 out 0
+PKM_PKM: analysed wall 320 out 2530; least +0.0/+3.0 wall 366 out 2195
+PKM_Z_E_S_ZPKM_E_S: analysed wall 320 out 3035; least +0.0/-1.5 wall 280 out 2960
+PKM_Z_E_ZPKM_E: analysed wall 320 out 3035; least +0.0/-1.5 wall 280 out 2960
+PKM_Z_SP_S_ZPKM_SP_S: analysed wall 350 out 3083; least +0.0/-1.5 wall 311 out 2969
+PKM_Z_SP_ZPKM_SP: analysed wall 350 out 3083; least +0.0/-1.5 wall 311 out 2969
+PKP_1P78_PKP_1P78: analysed wall 252 out 2319; least +0.0/-1.5 wall 200 out 2193
+PKP_OKP7_PKP_OKP7: analysed wall 252 out 2319; least +0.0/-1.5 wall 200 out 2193
+PKP_PKP: analysed wall 238 out 2285; least +0.0/+3.0 wall 291 out 1995
+PPSh-41_PPSH_Stick: analysed wall 134 out 331; least +13.5/+0.0 wall 116 out 229; table +6.5/+0.0 wall 110 out 267
+PPSh-41__DRUM__PPSH_Drum: analysed wall 14 out 689; least -3.0/+0.0 wall 30 out 645
+Panzerfaust_3_Panzerfaust_3_ANI: analysed wall 211 out 15; least -18.0/+0.0 wall 85 out 45
+Q1911_1911_Lite: analysed wall 59 out 25; least -3.0/+0.0 wall 19 out 50; table -4.5/+0.0 wall 5 out 102
+QBZ192-A_QBZ192-A: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZ192-A_S_QBZ192-A_S: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZ192-B_QBZ192-B: analysed wall 4 out 343; least -9.0/+0.0 wall 0 out 39
+QBZ192-B_S_QBZ192-B_S: analysed wall 4 out 343; least -9.0/+0.0 wall 0 out 39
+QBZ192-C_QBZ192-C: analysed wall 152 out 543; least +18.0/+0.0 wall 47 out 341
+QBZ192-C_S_QBZ192-C_S: analysed wall 152 out 543; least +18.0/+0.0 wall 47 out 341
+QBZ192-D_QBZ192-D: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZ192-D_QLG榴弹发射器_1_0_21: no body or no magazine drawn
+QBZ192-D_S_QBZ192-D_S: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZ192-D_S_QLG榴弹发射器_1_0_21: no body or no magazine drawn
+QBZ192_QBZ192: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZ192_S_QBZ192_S: analysed wall 4 out 266; least -6.0/+0.0 wall 0 out 13; table +12.0/-1.5 wall 91 out 723
+QBZU191-A_QBU191-A: analysed wall 4 out 187; least -7.5/+0.0 wall 0 out 0; table +13.5/+0.0 wall 30 out 682
+QBZU191-A_S_QBU191-A_S: analysed wall 4 out 187; least -7.5/+0.0 wall 0 out 0; table +13.5/+0.0 wall 30 out 682
+QBZU191_QBU191: analysed wall 4 out 279; least -7.5/+0.0 wall 0 out 22; table +12.0/+0.0 wall 22 out 721
+QBZU191_S_QBU191_S: analysed wall 4 out 279; least -7.5/+0.0 wall 0 out 22; table +12.0/+0.0 wall 22 out 721
+QJB201_H510_QJB201_H510: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QJB201_H510__MG_AR__QJB201_H510_AR_MG: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QJB201_Mag_H510_QJB201_Mag_Holo: analysed wall 10 out 1876; least -3.0/+0.0 wall 7 out 1395
+QJB201_Mag_QJB201_Mag: analysed wall 10 out 1876; least -3.0/+0.0 wall 7 out 1395
+QJB201_Mag_QMK204_QJB201_Mag_QMK204: analysed wall 10 out 1876; least -3.0/+0.0 wall 7 out 1395
+QJB201_QMK204_QJB201_QMK204: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QJB201_QMK204__MG_AR__QJB201_QMK204_AR_MG: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QJB201__MG_AR__QJB201_AR_MG: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QJB201__QJB201: analysed wall 32 out 89; least +0.0/+1.5 wall 28 out 46
+QUICKSILVER_Quicksilver: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+R870_CQC_R870_Short: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+R870__BUCKSHOT__R870: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+R870__SLUG__R870_Slug: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+RECON_LRR_RFB: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+RIPCORD_PP90: analysed wall 4 out 0; least -10.5/+0.0 wall 0 out 0
+RK-44_AK: analysed wall 0 out 161; least +0.0/-1.5 wall 0 out 146
+RPG-7V_RPG7_V_Scoped: analysed wall 7275 out 1045; least -10.5/+0.0 wall 2927 out 0
+RPG-7V__OG-7V__7V_OG: analysed wall 27976 out 163; least -1.5/+4.5 wall 25359 out 0
+RPG-7V__PG-7VL__7V_VL: analysed wall 9025 out 751; least +7.5/+6.0 wall 8385 out 661
+RPG-7V__PG-7VR__7V_VR: analysed wall 12514 out 654; least +0.0/+3.0 wall 11700 out 844
+RPG-7V__PG-7V__7V_V: analysed wall 12049 out 562; least +0.0/+4.5 wall 11252 out 573
+RPG-7V__TBG-7V__7V_TBG: analysed wall 8351 out 102; least +0.0/+4.5 wall 7836 out 100
+RPG-7_RPG7: analysed wall 3161 out 0; least +0.0/+0.0 wall 3161 out 0
+S-IND7_S-IND7: analysed wall 8 out 40; least +0.0/+0.0 wall 8 out 40
+S-IND7__SUP__S-IND7_Suppressed: analysed wall 8 out 40; least +0.0/+0.0 wall 8 out 40
+SABRE_Sabre: no body or no magazine drawn
+SAWED-OFF_DBS_Short_24: analysed wall 354 out 93; least +12.0/+0.0 wall 206 out 8
+SCALPEL_Javelin: no body or no magazine drawn
+SF_1911_MOD_3_SF_1911_MOD3: analysed wall 0 out 332; least +1.5/+0.0 wall 0 out 301; table -9.0/+0.0 wall 1581 out 447
+SF_1911_MOD_3_W_SF_1911_MOD3_W: analysed wall 0 out 332; least +1.5/+0.0 wall 0 out 301; table -9.0/+0.0 wall 1581 out 447
+SIGNAL_DMR_DMR: analysed wall 150 out 6; least +0.0/+0.0 wall 150 out 6
+SL-DEFENDER_sniper: analysed wall 14 out 0; least +0.0/+0.0 wall 14 out 0
+SLAM-R_Carl_Gustav: analysed wall 191 out 0; least +0.0/+0.0 wall 191 out 0
+SMOKE_GRENADE_Smoke_Grenade: no body or no magazine drawn
+SPEARHEAD_Spearhead: no body or no magazine drawn
+SQUAD_LEADER_KIT_Strategy_Kit: no body or no magazine drawn
+SUPERNOVA_L85__SA80: analysed wall 0 out 0; least +0.0/+0.0 wall 0 out 0
+Sam-Sentry_Gun_BO6萨姆炮台部署箱: no body or no magazine drawn
+Sec_BRN180_SS_BRN180_SS: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+Sec_BRN180_S_A_S_BRN180_S_A_S: analysed wall 94 out 1092; least -7.5/+0.0 wall 80 out 358
+Sec_G_BRN180_EO_SS_G_BRN180_EO_SS: analysed wall 26 out 1995; least -6.0/+0.0 wall 0 out 315
+Sentry_Gun_COD炮台部署箱: no body or no magazine drawn
+Shield_Turret_MW盾牌炮台部署箱: no body or no magazine drawn
+SpringField_1911_T1911: analysed wall 144 out 0; least -3.0/+0.0 wall 10 out 37; table -1.5/+0.0 wall 57 out 6
+Springfield__1911_Springfield_1911: analysed wall 0 out 332; least +1.5/+0.0 wall 0 out 301; table -9.0/+0.0 wall 1581 out 447
+Springfield__1911_W_Springfield_1911_W: analysed wall 0 out 332; least +1.5/+0.0 wall 0 out 301; table -9.0/+0.0 wall 1581 out 447
+Super-Sentry_Gun_超级炮台部署箱: no body or no magazine drawn
+Suzuya_s_Custom_AR-15_5.56x45MM_Suzuya_s_Custom_AR-15: analysed wall 716 out 2; least +9.0/+0.0 wall 2 out 0; table -3.0/-4.5 wall 1824 out 11
+Suzuya_s_Custom_AR-15_HAMR_5.56x45MM_Suzuya_s_Custom_AR-15_HAMR: analysed wall 716 out 2; least +9.0/+0.0 wall 2 out 0; table -3.0/-4.5 wall 1811 out 24
+Suzuya_s_PX9105_Springfield_.45_ACP_Suzuya_s_Springfield_PX9105: analysed wall 0 out 5; least +0.0/+0.0 wall 0 out 5; table -1.5/+0.0 wall 0 out 43
+THUMPER_Thumper: analysed wall 533 out 0; least +0.0/+0.0 wall 533 out 0
+TTI_VIPER_N_VIPER: analysed wall 3 out 0; least +0.0/+0.0 wall 3 out 0
+Type_80_Type_80: analysed wall 320 out 2530; least +0.0/+3.0 wall 366 out 2195
+WRENCH_Wrench: no body or no magazine drawn
+ak12_1p78_squad_ak12_1p78-squad: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 362 out 448
+ak12_1p78s_squad_ak12_1p78-squad__1: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 362 out 448
+ak12_1p87_squad_ak12_1p87-squad: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 358 out 453
+ak12_1p87s_squad_ak12_1p87-squad__1: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 358 out 453
+ak12h_1p87_squad_ak12h_1p87-squad: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 343 out 480
+ak12h_squad_ak12h-squad: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 343 out 480
+ak12squad_ak12-squad: analysed wall 0 out 25; least +3.0/+0.0 wall 0 out 0; table -15.0/-4.5 wall 362 out 448
+ak74m_Zenit_ak74mZenit: analysed wall 4 out 122; least +3.0/-1.5 wall 9 out 77
+apc45_apc45nos: analysed wall 773 out 0; least +4.5/+0.0 wall 9 out 0
+asval_AS: analysed wall 16 out 283; least +0.0/-1.5 wall 42 out 221
+asval_asval-squad: analysed wall 18 out 423; least +13.5/+0.0 wall 0 out 196
+asval_o_AS__1: analysed wall 16 out 283; least +0.0/-1.5 wall 42 out 221
+asvalokp7_asvalokp7-squad: analysed wall 22 out 421; least +13.5/+0.0 wall 0 out 193
+asvalpkas_asvalpkas-squad: analysed wall 22 out 426; least +13.5/+0.0 wall 0 out 196
+asvalpso_asvalpso-squad: analysed wall 22 out 426; least +13.5/+0.0 wall 0 out 196
+color_Cyan_MP9_H_L_S__color__MP9_HLS: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+color_Cyan_MP9_H_L__color__MP9_HL: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+color_Cyan_MP9_H_S__color__MP9_HS: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+color_Cyan_MP9_H__color__MP9_H: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+color_Cyan_MP9_PDW__color__MP9_无托: analysed wall 741 out 783; least -10.5/+0.0 wall 2 out 124
+color_Cyan_MP9_S__color__MP9_S: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+color_Cyan_MP9__color__MP9: analysed wall 0 out 138; least +1.5/+0.0 wall 2 out 123
+comm_92g_No_script__92_originalshaking: analysed wall 10 out 0; least -3.0/+0.0 wall 2 out 0
+comm_92g_s_No_script__92_s_originalshaking: analysed wall 10 out 0; least -3.0/+0.0 wall 2 out 0
+comm_f2k_No_script__f2000_originalshaking: analysed wall 116 out 96; least +0.0/+0.0 wall 116 out 96
+comm_f2k_exps3_No_script__f2000_exps3_originalshaking: analysed wall 116 out 96; least +0.0/+0.0 wall 116 out 96
+comm_f2k_scope_No_script__f2000__1__originalshaking: analysed wall 116 out 98; least +0.0/+0.0 wall 116 out 98
+f2000_f2000: analysed wall 116 out 96; least +0.0/+0.0 wall 116 out 96
+f2000_scope_f2000__1: analysed wall 116 out 98; least +0.0/+0.0 wall 116 out 98
+f2000exps3_f2000_exps3: analysed wall 116 out 96; least +0.0/+0.0 wall 116 out 96
+light_mk18_EXPS3_mk18_EXPS3: analysed wall 12 out 143; least +0.0/+0.0 wall 12 out 143
+light_mk18_acog_mk18_acog: analysed wall 12 out 143; least +0.0/+0.0 wall 12 out 143
+m733_barska_m733__1: analysed wall 72 out 255; least +0.0/+0.0 wall 72 out 255
+m733_m733_1: analysed wall 72 out 249; least +0.0/+0.0 wall 72 out 249
+m733_pro_m733__2: analysed wall 930 out 0; least +0.0/+0.0 wall 930 out 0
+mg3-acog_mg3_acog: analysed wall 237 out 210; least -16.5/+0.0 wall 207 out 186
+mg3_mg3: analysed wall 235 out 210; least -7.5/-3.0 wall 228 out 192
+mk18riii_mk18risiii: analysed wall 0 out 5; least +0.0/+0.0 wall 0 out 5
+mrad_mrad_1: analysed wall 1212 out 141; least -3.0/+0.0 wall 1201 out 95
+mw-m870_No_script__m870: analysed wall 204 out 46; least +18.0/+0.0 wall 37 out 3
+mw-vector_No_script__vector_originalshaking: analysed wall 224 out 148; least -18.0/+0.0 wall 27 out 0; table -16.5/+0.0 wall 84 out 2
+mw-vector_rds_No_script__vector_rds_originalshaking: analysed wall 220 out 150; least -18.0/+0.0 wall 19 out 0; table -16.5/+0.0 wall 79 out 0
+mwii-ak105_No_script__19ak105_originalshaking: analysed wall 56 out 451; least +0.0/+0.0 wall 56 out 451
+mwii-ak105pkas_No_script__19ak105pkas_originalshaking: analysed wall 56 out 457; least +0.0/+0.0 wall 56 out 457
+mwii-g17_No_script__g17_originalshaking: analysed wall 433 out 182; least +4.5/+0.0 wall 0 out 144
+mwii-g17_g17_1: analysed wall 433 out 182; least +4.5/+0.0 wall 0 out 144
+mwii-g17_rmr_s_g17__1: analysed wall 433 out 182; least +4.5/+0.0 wall 0 out 144
+mwii-g17_s_g17__2: analysed wall 433 out 182; least +4.5/+0.0 wall 0 out 144
+mwii-g17rmr_s_No_script__g17_1_originalshaking: analysed wall 433 out 182; least +4.5/+0.0 wall 0 out 144
+mwii-m4_No_script__19m4mwii_originalshaking: analysed wall 24 out 386; least +0.0/+0.0 wall 24 out 386
+mwii-m4acog_No_script__19m4mwii_acog_originalshaking: analysed wall 24 out 382; least +0.0/+0.0 wall 24 out 382
+mwii-m4holo_No_script__19m4mwii_holo_originalshaking: analysed wall 24 out 382; least +0.0/+0.0 wall 24 out 382
+mwii-mrad_No_script__mrad_no_s: analysed wall 1212 out 141; least -3.0/+0.0 wall 1201 out 95
+qjb95_95_qjb: analysed wall 0 out 504; least +10.5/+0.0 wall 0 out 421
+vector_rds_vector_rds: analysed wall 220 out 150; least -18.0/+0.0 wall 19 out 0; table -16.5/+0.0 wall 79 out 0
+vector_vector: analysed wall 224 out 148; least -18.0/+0.0 wall 27 out 0; table -16.5/+0.0 wall 84 out 2
+xm8_xm8_1: analysed wall 613 out 259; least +0.0/+0.0 wall 613 out 259
+xm8mg_scope_xm8mg_scope: analysed wall 1922 out 3747; least -16.5/+0.0 wall 1881 out 2095
+xm8mg_xm8mg: analysed wall 1922 out 3747; least -16.5/+0.0 wall 1881 out 2095
+xm8scope_xm8_scope: analysed wall 613 out 259; least +0.0/+0.0 wall 613 out 259
