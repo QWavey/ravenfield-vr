@@ -155,6 +155,14 @@ namespace RavenfieldVR.Input
                     float now = Time.unscaledTime;
                     slowMotion = now - _slowFirstPress <= 0.4f;
                     _slowFirstPress = slowMotion ? -10f : now;
+                    if (slowMotion)
+                    {
+                        // The two presses were slide-release presses too (A's complex button), each a fire-mode press on an
+                        // unlocked gun: the switch the first one is waiting with is dropped, and the second's (its single may
+                        // come on the release, after this) is not taken (SlowToggledAt).
+                        _slowToggledAt = now;
+                        CancelModePress();
+                    }
                 }
             }
             else
@@ -233,10 +241,11 @@ namespace RavenfieldVR.Input
                 {
                     continue;
                 }
-                // On Touch the slow-motion button is that lower button (A, or X left-handed), and its double press is the slow
-                // motion: counted here too, it opened the pause menu with every switch (input hunt, 2026-10-20). Pause stays on Y
-                // held there.
-                if (VRInput.AnyOculusTouch && VRInput.GetPressed(DigitalAction.SlowMotion, hand))
+                // On Touch the slow-motion button is that lower button (A, or X left-handed: the bindings mirror), and its double
+                // press is the slow motion: counted here too, it opened the pause menu with every switch (input hunt, 2026-10-20).
+                // By the hand, not the frame: the slide release is A's complex single, which may fire on the release, a frame
+                // after the slow motion's press. Pause stays on Y held, and the other hand's lower button still opens it.
+                if (VRInput.AnyOculusTouch && hand == VRInput.Dominant)
                 {
                     LowerPressedAt[h] = -1f;
                     continue;
@@ -414,7 +423,8 @@ namespace RavenfieldVR.Input
             // user, 2026-10-16).
             // Taken only once the double-press window has passed: a second press opens the pause menu, and the switch it would
             // have made is dropped (two presses switched the mode and opened the menu; 255.B5-1).
-            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon))
+            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon)
+                && !(VRInput.AnyOculusTouch && Time.unscaledTime - _slowToggledAt < 0.5f))
             {
                 _modePressAt = Time.unscaledTime;
                 _modePressFiring = false;
@@ -711,6 +721,9 @@ namespace RavenfieldVR.Input
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
 
         private static float _slowFirstPress = -10f;
+
+        /// <summary>When slow motion was last switched by A's double press (Touch): that press's slide release switches no fire mode.</summary>
+        private static float _slowToggledAt = -10f;
 
         /// <summary>Autotest: sprint as if the stick were clicked and pushed.</summary>
         internal static bool TestSprint;
