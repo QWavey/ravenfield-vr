@@ -257,9 +257,91 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _loadingBuildFrame = Time.frameCount;
+            DrainBuilds(20.0);
+        }
+
+        private static bool _idleBuilding;
+
+        /// <summary>
+        /// What the loading screen did not get to, built while a hitch cannot be felt: the player dead or deploying, or a menu open.
+        /// The loading screen queues every type the match's pools hold (286 with the user's workshop weapons) and was shown again
+        /// with most still to build; a type whose third-person model needs the whole prefab copied then cost 235-300 ms on a
+        /// soldier's death frame in play (the PKP, PKM, Type 80, BRN180s; the user's session of 2026-10-20 night). The types the
+        /// living soldiers carry go first: they are the next drops.
+        /// </summary>
+        internal static void BuildWhileIdle()
+        {
+            if (LoadingBuilds.Count == 0 || Time.frameCount - _loadingBuildFrame <= 30)
+            {
+                _idleBuilding = false; // nothing left, or the loading screen is building them
+                return;
+            }
+            bool idle = GameContext.GameMenuOpen || !GameContext.PlayerAlive;
+            if (!idle)
+            {
+                _idleBuilding = false;
+                return;
+            }
+            if (!_idleBuilding)
+            {
+                _idleBuilding = true;
+                CarriedFirst();
+            }
+            DrainBuilds(20.0);
+        }
+
+        /// <summary>The queue with the types the living soldiers carry put first.</summary>
+        private static void CarriedFirst()
+        {
+            List<Actor> actors = ActorManager.instance != null ? ActorManager.instance.actors : null;
+            if (actors == null)
+            {
+                return;
+            }
+            var carried = new HashSet<WeaponManager.WeaponEntry>();
+            foreach (Actor a in actors)
+            {
+                if (a == null || a.dead || a.weapons == null)
+                {
+                    continue;
+                }
+                foreach (Weapon w in a.weapons)
+                {
+                    if (w != null && w.weaponEntry != null && !Templates.ContainsKey(w.weaponEntry))
+                    {
+                        carried.Add(w.weaponEntry);
+                    }
+                }
+            }
+            if (carried.Count == 0)
+            {
+                return;
+            }
+            var rest = new List<WeaponManager.WeaponEntry>(LoadingBuilds);
+            LoadingBuilds.Clear();
+            foreach (WeaponManager.WeaponEntry e in rest)
+            {
+                if (carried.Contains(e))
+                {
+                    LoadingBuilds.Enqueue(e);
+                }
+            }
+            foreach (WeaponManager.WeaponEntry e in rest)
+            {
+                if (!carried.Contains(e))
+                {
+                    LoadingBuilds.Enqueue(e);
+                }
+            }
+            Log.InfoOnce("idlebuild:" + Time.frameCount / 3600, $"Dropped models still to build: {rest.Count}, the {carried.Count} carried by soldiers now first (built while dead or in a menu).");
+        }
+
+        /// <summary>Builds queued drop templates (and their shapes, one fit a frame) for about <paramref name="budgetMs"/>.</summary>
+        private static void DrainBuilds(double budgetMs)
+        {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             bool fitted = false;
-            while (LoadingBuilds.Count > 0 && watch.Elapsed.TotalMilliseconds < 20.0)
+            while (LoadingBuilds.Count > 0 && watch.Elapsed.TotalMilliseconds < budgetMs)
             {
                 WeaponManager.WeaponEntry e = LoadingBuilds.Peek();
                 if (Templates.ContainsKey(e) && HasShape(e))
@@ -1210,6 +1292,7 @@ namespace RavenfieldVR.Weapons
 
         public void Update()
         {
+            Log.Guard("idle drop builds", BuildWhileIdle);
             BakePendingShape();
             UpdateLateFits();
             Cull();
