@@ -63,7 +63,7 @@ namespace RavenfieldVR.UI
 
             Section("Comfort");
             Choice("Turning", VRConfig.Turn, new[] { TurnMode.Snap, TurnMode.Smooth, TurnMode.Off }, new[] { "Snap", "Smooth", "Off" });
-            Stepper("Snap angle", () => $"{VRConfig.SnapTurnAngle.Value:0}°", d => VRConfig.SnapTurnAngle.Value = Mathf.Clamp(VRConfig.SnapTurnAngle.Value + d * 15f, 15f, 90f));
+            Stepper("Snap angle", () => $"{VRConfig.SnapTurnAngle.Value:0}°", d => VRConfig.SnapTurnAngle.Value = Mathf.Clamp(VRConfig.SnapTurnAngle.Value + d * 15f, 10f, 90f)); // (the config's own floor: 15 moved a 10 up)
             Stepper("Smooth turn speed", () => $"{VRConfig.SmoothTurnSpeed.Value:0}°/s", d => VRConfig.SmoothTurnSpeed.Value = Mathf.Clamp(VRConfig.SmoothTurnSpeed.Value + d * 30f, 30f, 360f));
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
             Stepper("View shake on shots", () => VRConfig.ViewShake.Value <= 0f ? "off" : $"{VRConfig.ViewShake.Value * 100f:0}%",
@@ -74,7 +74,8 @@ namespace RavenfieldVR.UI
 
             Section("Weapons");
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
-            Choice("Hands", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
+            // Read when a weapon is drawn: the panel said it applied at once (review, 2026-10-20).
+            Choice("Hands (next draw)", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
             Choice("Holsters", VRConfig.Holsters, new[] { HolsterLayout.Boneworks, HolsterLayout.Classic }, new[] { "Boneworks", "Classic" });
             Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
             TogglePair("Two-handed aiming", VRConfig.TwoHandedAiming, "Holster switching", VRConfig.HolsterSwitching);

@@ -167,7 +167,8 @@ namespace RavenfieldVR.Core
             PostProcessing = cfg.Bind("Rendering", "PostProcessing", false,
                 "Copy the game's post-processing stack (colour grading, bloom, AO) onto the VR camera. Costs performance.");
             MinFarClip = cfg.Bind("Rendering", "MinFarClip", 1500f,
-                "Smallest far plane used for the VR camera, in metres. The game's draw distance is used when larger; the graphics preset's view distance still caps it (Low 1200, Medium 2000, High 3000, Ultra 4000).");
+                new ConfigDescription("Smallest far plane used for the VR camera, in metres. The game's draw distance is used when larger; the graphics preset's view distance still caps it (Low 1200, Medium 2000, High 3000, Ultra 4000).",
+                    new AcceptableValueRange<float>(100f, 10000f))); // (a range: a hand-typed NaN made the camera's far plane NaN)
 
             Turn = cfg.Bind("Comfort", "TurnMode", TurnMode.Snap, "Right stick turning style.");
             SnapTurnAngle = cfg.Bind("Comfort", "SnapTurnAngle", 30f,
@@ -185,7 +186,8 @@ namespace RavenfieldVR.Core
             RoomscaleMovement = cfg.Bind("Comfort", "RoomscaleMovement", true,
                 "Walking around your play space moves your soldier (with collision). Off keeps the soldier where the stick puts it.");
             EyeHeight = cfg.Bind("Comfort", "EyeHeight", 0f,
-                "Your standing (or seated) eye height in metres. 0 = calibrate automatically on first spawn. Re-calibrate from the VR settings panel.");
+                new ConfigDescription("Your standing (or seated) eye height in metres. 0 = calibrate automatically on first spawn. Re-calibrate from the VR settings panel.",
+                    new AcceptableValueRange<float>(0f, 2.5f)));
             SeatedMode = cfg.Bind("Comfort", "SeatedMode", false,
                 "Play seated: disables physical crouch and treats the calibrated height as standing height.");
             SmoothVehicleHorizon = cfg.Bind("Comfort", "LevelHorizonInVehicles", false,

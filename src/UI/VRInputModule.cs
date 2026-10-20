@@ -116,7 +116,9 @@ namespace RavenfieldVR.UI
             RaycastResult first = FindFirstRaycast(_results);
             _data.pointerCurrentRaycast = first;
             _results.Clear();
-            GameObject over = first.gameObject;
+            // Only on one of the canvases the laser targets: past the panel, the event camera's ray found any raycast target of
+            // any canvas (a HUD element), which took the click and blocked the trigger (review, 2026-10-20).
+            GameObject over = HasHit ? first.gameObject : null;
             VRGameInput.PointerOverUI = over != null;
 
             bool press = _triggerPressed[(int)PointerHand];
