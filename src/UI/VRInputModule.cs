@@ -113,12 +113,25 @@ namespace RavenfieldVR.UI
 
             _results.Clear();
             eventSystem.RaycastAll(_data, _results);
-            RaycastResult first = FindFirstRaycast(_results);
+            // The first hit on one of the canvases the laser targets: past the panel, the event camera's ray found any raycast
+            // target of any canvas (a HUD element), which took the click and blocked the trigger (review, 2026-10-20); and the
+            // results come sorted by sorting order first, so a HUD canvas sorted above the menu took it over the panel too (UI hunt,
+            // 2026-10-20 night).
+            RaycastResult first = default;
+            if (HasHit)
+            {
+                foreach (RaycastResult r in _results)
+                {
+                    if (r.gameObject != null && OnTarget(r))
+                    {
+                        first = r;
+                        break;
+                    }
+                }
+            }
             _data.pointerCurrentRaycast = first;
             _results.Clear();
-            // Only on one of the canvases the laser targets: past the panel, the event camera's ray found any raycast target of
-            // any canvas (a HUD element), which took the click and blocked the trigger (review, 2026-10-20).
-            GameObject over = HasHit ? first.gameObject : null;
+            GameObject over = first.gameObject;
             VRGameInput.PointerOverUI = over != null;
 
             bool press = _triggerPressed[(int)PointerHand];
@@ -173,17 +186,21 @@ namespace RavenfieldVR.UI
         /// <summary>Where a ray meets the visible panels right now (for drawing the laser from the current hand pose).</summary>
         public bool TryHit(Ray ray, out Vector3 hit) => IntersectCanvases(ray, out hit);
 
-        /// <summary>Nearest intersection of the ray with any visible canvas rectangle.</summary>
+        /// <summary>
+        /// The ray's intersection with the canvases: the nearest one that draws something there, else the nearest rectangle.
+        /// Menus are stacked toward the player by sorting order (4 mm a step, CanvasManager.PlaceMenu), so a canvas above the
+        /// menu that is clear where the laser points (a fader, a tooltip layer, a click blocker) stood centimetres in front of it,
+        /// and the laser's ball stopped on nothing (user, 2026-10-20 night: "some sort of invisible wall"; task 323).
+        /// </summary>
         private bool IntersectCanvases(Ray ray, out Vector3 hit)
         {
             hit = Vector3.zero;
-            float best = 12f;
-            bool any = false;
             if (Targets == null)
             {
                 return false;
             }
             RefreshCandidates();
+            _rectHits.Clear();
             foreach (Canvas c in _candidates)
             {
                 if (c == null || !c.isActiveAndEnabled)
@@ -192,7 +209,7 @@ namespace RavenfieldVR.UI
                 }
                 var rt = (RectTransform)c.transform;
                 var plane = new UnityEngine.Plane(rt.forward, rt.position);
-                if (!plane.Raycast(ray, out float dist) || dist > best || dist < 0.02f)
+                if (!plane.Raycast(ray, out float dist) || dist > 12f || dist < 0.02f)
                 {
                     continue;
                 }
@@ -200,12 +217,54 @@ namespace RavenfieldVR.UI
                 Vector2 local = rt.InverseTransformPoint(p);
                 if (rt.rect.Contains(local))
                 {
-                    best = dist;
-                    hit = p;
-                    any = true;
+                    _rectHits.Add((dist, c, p));
                 }
             }
-            return any;
+            if (_rectHits.Count == 0)
+            {
+                return false;
+            }
+            _rectHits.Sort((a, b) => a.Dist.CompareTo(b.Dist));
+            foreach ((float _, Canvas c, Vector3 p) in _rectHits)
+            {
+                if (ShowsAt(c, p))
+                {
+                    hit = p;
+                    return true;
+                }
+            }
+            hit = _rectHits[0].Point; // a gap between a menu's parts: on the nearest rectangle, as before
+            return true;
+        }
+
+        private readonly List<(float Dist, Canvas Canvas, Vector3 Point)> _rectHits = new List<(float, Canvas, Vector3)>();
+
+        /// <summary>Whether a raycast hit is on one of the targeted canvases (its root canvas is a target).</summary>
+        private bool OnTarget(RaycastResult r)
+        {
+            Canvas c = r.module != null ? r.module.GetComponent<Canvas>() : null;
+            Canvas root = c != null ? c.rootCanvas : null;
+            return root != null && Targets != null && Targets.Contains(root);
+        }
+
+        /// <summary>Whether the canvas draws a part at this point: shown, not culled, not see-through (its groups' alpha included).</summary>
+        private static bool ShowsAt(Canvas c, Vector3 world)
+        {
+            IList<UnityEngine.UI.Graphic> graphics = UnityEngine.UI.GraphicRegistry.GetGraphicsForCanvas(c);
+            for (int i = 0; i < graphics.Count; i++)
+            {
+                UnityEngine.UI.Graphic g = graphics[i];
+                if (g == null || !g.isActiveAndEnabled || g.canvasRenderer.cull || g.color.a * g.canvasRenderer.GetInheritedAlpha() < 0.02f)
+                {
+                    continue;
+                }
+                RectTransform r = g.rectTransform;
+                if (r.rect.Contains((Vector2)r.InverseTransformPoint(world)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
