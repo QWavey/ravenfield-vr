@@ -49,35 +49,38 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             Transform head = _rig.Head;
-            // The facing from the forward and, as the head pitches toward the floor or the sky, more and more from its up (the
-            // top of the head points ahead looking down, behind looking up). The forward alone swung about near straight down
-            // (a magazine picked off the floor), and the old fallback took the up the wrong way round looking down: the torso
-            // was turned 145 degrees, the holsters and the pouch behind the back (bug hunt, 2026-10-20).
-            float pitch = head.forward.y;
-            Vector3 f = head.forward - head.up * (pitch * pitch * pitch);
+            // The facing from the forward alone, and only while it says one: looking steeply down or up (past about 72 degrees)
+            // the torso keeps the facing it had. Near straight down the forward swung about with every tilt of the head (a
+            // magazine picked off the floor), and the old fallback took the up the wrong way round there: the torso turned 145
+            // degrees, the holsters and the pouch behind the back (bug hunt, 2026-10-20). Blending in the up instead let a rolled
+            // head (a cheek on the stock) turn them up to 12 degrees at a moderate pitch (review, 2026-10-20).
+            Vector3 f = head.forward;
             f.y = 0f;
-            if (f.sqrMagnitude < 1e-6f)
+            if (f.sqrMagnitude > 0.3f * 0.3f || !_hasYaw)
             {
-                f = _rig.Root.forward;
-                f.y = 0f;
+                if (f.sqrMagnitude < 1e-6f)
+                {
+                    f = _rig.Root.forward; // the very first frame straight down or up: the play space's facing
+                    f.y = 0f;
+                }
+                if (f.sqrMagnitude < 1e-6f)
+                {
+                    f = Vector3.forward;
+                }
+                float headYaw = Quaternion.LookRotation(f.normalized).eulerAngles.y - RootYaw();
+                if (!_hasYaw)
+                {
+                    _torsoLocalYaw = headYaw;
+                    _hasYaw = true;
+                }
+                // Torso follows the head only once it has turned past a comfortable neck angle.
+                float delta = Mathf.DeltaAngle(_torsoLocalYaw, headYaw);
+                if (Mathf.Abs(delta) > 35f)
+                {
+                    _torsoLocalYaw += delta - Mathf.Sign(delta) * 35f;
+                }
+                _torsoLocalYaw = Mathf.MoveTowardsAngle(_torsoLocalYaw, headYaw, 25f * Time.unscaledDeltaTime);
             }
-            if (f.sqrMagnitude < 1e-6f)
-            {
-                f = Vector3.forward;
-            }
-            float headYaw = Quaternion.LookRotation(f.normalized).eulerAngles.y - RootYaw();
-            if (!_hasYaw)
-            {
-                _torsoLocalYaw = headYaw;
-                _hasYaw = true;
-            }
-            // Torso follows the head only once it has turned past a comfortable neck angle.
-            float delta = Mathf.DeltaAngle(_torsoLocalYaw, headYaw);
-            if (Mathf.Abs(delta) > 35f)
-            {
-                _torsoLocalYaw += delta - Mathf.Sign(delta) * 35f;
-            }
-            _torsoLocalYaw = Mathf.MoveTowardsAngle(_torsoLocalYaw, headYaw, 25f * Time.unscaledDeltaTime);
 
             ComputeSpots();
             UpdateGestures();

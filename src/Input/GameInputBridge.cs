@@ -424,7 +424,7 @@ namespace RavenfieldVR.Input
             // Taken only once the double-press window has passed: a second press opens the pause menu, and the switch it would
             // have made is dropped (two presses switched the mode and opened the menu; 255.B5-1).
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon)
-                && !(VRInput.AnyOculusTouch && Time.unscaledTime - _slowToggledAt < 0.5f))
+                && !(VRInput.AnyOculusTouch && Time.unscaledTime - _slowToggledAt < 1.2f)) // (its single comes on the release: a second press held long too)
             {
                 _modePressAt = Time.unscaledTime;
                 _modePressFiring = false;

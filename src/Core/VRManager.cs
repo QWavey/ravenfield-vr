@@ -363,7 +363,13 @@ namespace RavenfieldVR.Core
                 _subscribed = false;
             }
             _active = false;
-            _pausedForDashboard = false; // a pause the mod made is not undone in a later match by a dashboard or headset edge
+            if ((_pausedForDashboard || _pausedForHeadset) && GameManager.instance != null && GameManager.IsPaused() && !(IngameMenuUi.instance != null && IngameMenuUi.IsOpen()))
+            {
+                // A pause the mod made (the dashboard, the headset off) is undone as VR goes: forgotten, the match stayed paused
+                // with nothing left to unpause it (review, 2026-10-20).
+                Log.Guard("unpause on shutdown", GameManager.UnpauseGame);
+            }
+            _pausedForDashboard = false; // and not undone in a later match by a dashboard or headset edge
             _pausedForHeadset = false;
             ScriptKeys.Enabled = false;
             ScriptKeys.Clear();
