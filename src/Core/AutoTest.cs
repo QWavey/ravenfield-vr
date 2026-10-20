@@ -1156,6 +1156,11 @@ namespace RavenfieldVR.Core
             {
                 Problem($"[{name}] the lens flash limiter let {Mathf.Max(worst[0], worst[1])} steps through in 1.1 s of a held burst (budget 6)");
             }
+            if (full[0] != full[1])
+            {
+                // One decision for both eyes (a limiter each drifted apart: one eye flashed full, the other soft; Tasks 225).
+                Problem($"[{name}] the eyes flashed differently in a held burst: full flashes L {full[0]} / R {full[1]}");
+            }
             yield return new WaitForSecondsRealtime(0.3f);
         }
 

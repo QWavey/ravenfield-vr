@@ -48,7 +48,7 @@ namespace RavenfieldVR.Weapons
             { "P220#P220", new Vector3(0.00215f, 0.43107f, 0.90232f) }, // P220_P220: -15.0 fore/aft, +0.0 sideways from the export's line; 712 -> 6 points out of place
             { "P320#p320 1", new Vector3(0.02575f, 0.17799f, 0.98370f) }, // P320_p320_1: -18.0 fore/aft, -1.5 sideways from the export's line; 587 -> 28 points out of place
             { "P320s#p320 1 s", new Vector3(0.02575f, 0.17799f, 0.98370f) }, // P320s_p320_1_s: -18.0 fore/aft, -1.5 sideways from the export's line; 587 -> 28 points out of place
-            { "PPSh-41#PPSH Stick", new Vector3(0.39410f, -0.00075f, 0.91907f) }, // PPSh-41_PPSH_Stick: -16.5 fore/aft, +0.0 sideways from the export's line; 179 -> 82 points out of place
+            { "PPSh-41#PPSH Stick", new Vector3(0.00367f, -0.00056f, 0.99999f) }, // PPSh-41_PPSH_Stick: +6.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
             { "Q1911#1911 Lite", new Vector3(-0.00078f, 0.20837f, 0.97805f) }, // Q1911_1911_Lite: -4.5 fore/aft, +0.0 sideways from the export's line; 45 -> 0 points out of place
             { "QBZ192 S#QBZ192 S", new Vector3(0.02603f, -0.34644f, 0.93771f) }, // QBZ192_S_QBZ192_S: +12.0 fore/aft, -1.5 sideways from the export's line; 20 -> 0 points out of place
             { "QBZ192#QBZ192", new Vector3(0.02603f, -0.34644f, 0.93771f) }, // QBZ192_QBZ192: +12.0 fore/aft, -1.5 sideways from the export's line; 20 -> 0 points out of place

@@ -19,6 +19,12 @@ OUT = os.path.join(ROOT, 'src', 'Weapons', 'MagLineTable.cs')
 # Export folders whose line on the cap was checked in a picture and looked right (along the grip's rake).
 CHECKED = {'P320_p320_1', 'P320s_p320_1_s'}
 
+# Lines set by hand from a picture (fore/aft, sideways from the export's line) where the scan's best was an artifact: a part
+# of the gun the magazine is pushed into counts as hiding it, not as a wall. The PPSh-41's scanned -16.5 (179 -> 82) pulled
+# its square top block back through the magazine catch; along the block's sides, straight down the gun, it comes out clear
+# (0 points beside the outline at 12% out; 2026-10-20).
+MANUAL = {'PPSh-41_PPSH_Stick': (6.5, 0.0)}
+
 rows = {}
 for path in sys.argv[1:]:
     capped_scan = 'best tip (capped)' in open(path, encoding='utf-8').read()
@@ -54,6 +60,12 @@ for path in sys.argv[1:]:
                 rows[rig['key']] = (fore, side, analysed, best, cur)
             cur = None
 
+for folder, (fore, side) in MANUAL.items():
+    rig = json.load(open(os.path.join(DATA, folder, 'rig.json'), encoding='utf-8'))
+    analysed, best = rows.get(rig['key'], (0, 0, -1, -1, ''))[2:4]
+    rows[rig['key']] = (fore, side, analysed, best, folder)
+
+
 def corrected(folder, fore, side):
     """The line as the scan turns it (about right = aim x up, then about the aim), in the gun's frame. Set as it is in game,
     it does not depend on which of the analysis's sources gave the line there (a tilt on top of a different source landed
@@ -87,7 +99,8 @@ lines = [
 for key in sorted(rows):
     fore, side, analysed, best, folder = rows[key]
     v = corrected(folder, fore, side)
-    lines.append(f'            {{ {json.dumps(key, ensure_ascii=False)}, new Vector3({v[0]:.5f}f, {v[1]:.5f}f, {v[2]:.5f}f) }}, // {folder}: {fore:+.1f} fore/aft, {side:+.1f} sideways from the export\'s line; {analysed} -> {best} points out of place')
+    how = 'set by hand from a picture' if folder in MANUAL else f'{analysed} -> {best} points out of place'
+    lines.append(f'            {{ {json.dumps(key, ensure_ascii=False)}, new Vector3({v[0]:.5f}f, {v[1]:.5f}f, {v[2]:.5f}f) }}, // {folder}: {fore:+.1f} fore/aft, {side:+.1f} sideways from the export\'s line; {how}')
 lines += ['        };', '    }', '}', '']
 open(OUT, 'w', encoding='utf-8', newline='\r\n').write('\n'.join(lines))
 print(f'{len(rows)} magazine lines written to {OUT}')

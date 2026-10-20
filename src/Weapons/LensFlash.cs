@@ -427,11 +427,18 @@ namespace RavenfieldVR.Weapons
             // only where the limiter gives this shot a full flash (Tasks 239).
             bool viewFlash = VRConfig.ShotViewFlash.Value && Random.value < 0.35f && info.Light;
             float viewAmount = Random.Range(0.10f, 0.22f) * Mathf.Clamp(size * strength / 1.7f, 0.4f, 1.3f);
+            // One budget decision for both eyes, at the power of the eye that sees it strongest, each eye then capped at its own
+            // levels: with a limiter each, a flash cost each eye 2 or 3 by its own power, the budgets drifted apart, and after a
+            // few shots one eye got the full flash and the whole-view flash while the other got the soft one (one eye brighter;
+            // visual hunt, 2026-10-20, Tasks 225). The first limiter keeps the count; both keep their own glow.
+            float asked0 = EyePower(size * strength, m, dir, fx.EyeX(0), fx.Ipd) * sizeK;
+            float asked1 = EyePower(size * strength, m, dir, fx.EyeX(1), fx.Ipd) * sizeK;
+            _limiters[0].Shot(now, Mathf.Max(asked0, asked1), out int steps);
             for (int e = 0; e < 2; e++)
             {
                 float ex = fx.EyeX(e);
-                float asked = EyePower(size * strength, m, dir, ex, fx.Ipd) * sizeK;
-                float p = _limiters[e].Shot(now, asked, out int steps);
+                float asked = e == 0 ? asked0 : asked1;
+                float p = _limiters[e].Capped(asked, steps);
                 // The eye's glare from it: as much of the flash as this eye sees past the gun.
                 float vis = LensEffects.CoreInWorld ? Visibility(held, source, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(size)) : 1f;
                 TestLog?.Add(new TestFlash { Time = now, Asked = asked, Shown = p, Eye = e, Steps = steps, Visible = vis });
@@ -550,7 +557,10 @@ namespace RavenfieldVR.Weapons
             }
             Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
-            Vector3 m = muzzle != null ? head.InverseTransformPoint(muzzle.position) : Vector3.forward;
+            // At the plume, where its core in the world and the shot's flash are (8-21 cm ahead): at the muzzle itself the lens glow
+            // sat apart from its own core while the barrel was off the eye's line (visual hunt, 2026-10-20).
+            Vector3 plume = muzzle != null ? muzzle.position + muzzle.forward * _gunAhead : Vector3.zero;
+            Vector3 m = muzzle != null ? head.InverseTransformPoint(plume) : Vector3.forward;
             Vector3 dir = muzzle != null ? head.InverseTransformDirection(muzzle.forward) : Vector3.forward;
             // Only while the trigger is held on an automatic (flash_sim.py: full auto): taps of an automatic left a faint glow
             // sitting at the muzzle between the shots.
@@ -569,7 +579,7 @@ namespace RavenfieldVR.Weapons
                 if (shown > 0.001f && LensEffects.CoreInWorld && Time.frameCount - _glowVisFrame >= 3)
                 {
                     // Seen past the gun, measured every third frame while it glows.
-                    _glowVis[e] = Visibility(_gunHeld, muzzle.position + muzzle.forward * _gunAhead, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(Mathf.Max(0.1f, _gunSize)));
+                    _glowVis[e] = Visibility(_gunHeld, plume, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(Mathf.Max(0.1f, _gunSize)));
                     if (e == 1)
                     {
                         _glowVisFrame = Time.frameCount;
@@ -654,6 +664,19 @@ namespace RavenfieldVR.Weapons
                 }
                 steps = 0; // a soft flash, under the flash threshold
                 return Mathf.Min(power, Interp(_glow, Soft));
+            }
+
+            /// <summary>
+            /// This eye's flash under the shot's decision (<paramref name="steps"/> as <see cref="Shot"/> gave them for both eyes):
+            /// 3 its full power, 2 at most one step, 0 a soft flash; the levels from this eye's own glow.
+            /// </summary>
+            public float Capped(float power, int steps)
+            {
+                if (!VRConfig.ReduceFlashing.Value || steps >= 3)
+                {
+                    return power;
+                }
+                return Mathf.Min(power, Interp(_glow, steps == 2 ? OneStep : Soft));
             }
 
             /// <summary>The steady glow while firing fast: follows the rate, eased (never more than 4% a frame at 90 fps).</summary>
