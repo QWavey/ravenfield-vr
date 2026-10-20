@@ -2375,6 +2375,13 @@ namespace RavenfieldVR.Weapons
                 {
                     continue; // its own pieces, loose things and the player's own body are not walls
                 }
+                Actor player = Util.GameContext.PlayerActor;
+                if (player != null && level.transform.IsChildOf(player.transform)
+                    || WeaponSystem.Instance != null && WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Weapon != null
+                       && level.transform.IsChildOf(WeaponSystem.Instance.Held.Weapon.transform))
+                {
+                    continue; // nor the player's own weapons (a knocked-out magazine starts at the well's mouth)
+                }
                 foreach (Collider c in _colliders)
                 {
                     Transform ct = c.transform, lt = level.transform;
