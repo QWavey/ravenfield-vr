@@ -75,6 +75,42 @@ namespace RavenfieldVR.Weapons
         /// The weapons of the saved loadout go first: with hundreds of mod weapons the warm-up takes a while, and a match
         /// started soon after the game came up drew them before it got there (every first draw hitched).
         /// </summary>
+        /// <summary>
+        /// Then the weapons the bots can carry (either team's weapon pool in the match settings): a match started before the
+        /// warm-up was through had soldiers dying with weapons it had not reached, and their dropped copy was built on the death
+        /// frame (the user's session of 2026-10-19 night: 47-83 ms drops of the K13 Spectre, QBZ192 and mk18riii; task 309). The
+        /// order within each group stays the game's.
+        /// </summary>
+        private static void PutBotWeaponsNext(List<WeaponManager.WeaponEntry> entries)
+        {
+            TeamInfo[] teams = GameManager.instance != null && GameManager.instance.gameInfo != null ? GameManager.instance.gameInfo.team : null;
+            if (teams == null)
+            {
+                return;
+            }
+            int start = 0;
+            while (start < entries.Count && entries[start] != null && Loadout.Contains(entries[start].nameHash))
+            {
+                start++; // after the loadout's own
+            }
+            var pool = new List<WeaponManager.WeaponEntry>();
+            for (int i = entries.Count - 1; i >= start; i--)
+            {
+                WeaponManager.WeaponEntry e = entries[i];
+                bool carried = false;
+                foreach (TeamInfo team in teams)
+                {
+                    carried |= e != null && team != null && team.availableWeapons != null && team.availableWeapons.Contains(e);
+                }
+                if (carried)
+                {
+                    pool.Insert(0, e);
+                    entries.RemoveAt(i);
+                }
+            }
+            entries.InsertRange(start, pool);
+        }
+
         private static void PutLoadoutFirst(List<WeaponManager.WeaponEntry> entries)
         {
             HashSet<int> wanted = Loadout;
@@ -164,6 +200,7 @@ namespace RavenfieldVR.Weapons
                 taken.Clear();
                 taken.AddRange(entries);
                 PutLoadoutFirst(entries);
+                PutBotWeaponsNext(entries);
                 foreach (WeaponManager.WeaponEntry entry in entries)
                 {
                     if (entry == null || entry.prefab == null)
