@@ -2495,10 +2495,25 @@ namespace RavenfieldVR.Weapons
                 // Loose props lying here (another magazine, a dropped weapon, a casing) count too: dropped onto one it was pushed
                 // out of it the same way (review, 2026-10-20, task 318 c). The held gun's stand-in does not: it lets props pass.
                 bool looseProp = level != null && prop >= 0 && level.gameObject.layer == prop && !GunCollider.IsStandIn(level);
-                if (level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body
-                    || level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic && !looseProp || PropPhysics.IsPlayerCollider(level))
+                if (level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body || PropPhysics.IsPlayerCollider(level))
                 {
-                    continue; // its own pieces, moving things and the player's own body are not walls
+                    continue; // its own pieces and the player's own body are not walls
+                }
+                if (level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic && !looseProp)
+                {
+                    // A moving thing it starts inside (the vehicle the player sits in: a magazine dropped in a seat starts inside its
+                    // hull) is not pushed out of (it moves, and from inside a hull there is no short way out): left to the physics
+                    // step, it threw the magazine out at depenetration speed (flung-magazine hunt, 2026-10-20). It passes through
+                    // that collider instead and falls.
+                    foreach (Collider c in _colliders)
+                    {
+                        Transform ct = c.transform, lt = level.transform;
+                        if (c.enabled && Physics.ComputePenetration(c, ct.position, ct.rotation, level, lt.position, lt.rotation, out _, out _))
+                        {
+                            Physics.IgnoreCollision(c, level, true);
+                        }
+                    }
+                    continue;
                 }
                 Actor player = Util.GameContext.PlayerActor;
                 if (player != null && level.transform.IsChildOf(player.transform)
