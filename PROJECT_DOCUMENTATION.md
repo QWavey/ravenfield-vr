@@ -212,6 +212,20 @@ one-handed lag. A rifle held like a pistol had its hand solid cut to a pistol's 
 
 Per-weapon overrides: `BepInEx/config/RavenfieldVR.weapons.json` (see README).
 
+**The magazine-line table** (2026-10-20, `src/Weapons/MagLineTable.cs`, applied by `MagLineTableApply.cs` right after
+the analysis and the sandbox export). The in-game fit of a magazine's line (`HeldWeapon.FitMagazineLine`) only tilts
+fore/aft and counts on depth-rendered volumes; lines measured offline on the real meshes replace it for 101 guns. They
+come from `tools/export_checks/mag_line_body.py --both` (points pushed into the gun's walls off the magazine's own seated
+footprint, plus points standing out of the outline, side and front views, the least of the two over a tilt grid) through
+`mag_line_table.py --both`. The first tables came from the side-outline scans alone, which count a point pushed *into*
+the gun as hidden, and 37 of their 70 lines drove magazines through the well's walls. **Coordinates:** the sandbox export
+is glTF space (`SandboxExport` writes `(x, y, -z)`); anything computed from `reports/sandbox/data` and written back as a
+Unity vector must negate z. The table once shipped without it and every line was applied mirrored, 134-178 degrees off
+(the log line `magazine line from the offline table, N deg` shows it; N must be the tilt, at most ~19). Guards:
+`mag_line_table_check.py` (offline) and `MagLineTable.MaxTurn` (a line more than 25 degrees off the game's own analysis
+is not taken). Capture onto the line from aside, and off it from inside the well, goes round under the well
+(`MagazineProp.Routed`) instead of easing straight through the grip.
+
 ### 3.6 Physics shapes (`Weapons/ShapeFit.cs`, `Weapons/GunCollider.cs`)
 
 - `ShapeFit` cuts a model into slices along its longest axis, splits slices at gaps, keeps the outermost vertices per
