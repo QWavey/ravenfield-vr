@@ -113,7 +113,9 @@ namespace RavenfieldVR.Weapons
             bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !VRGameInput.GunInputBlocked;
             if (IsThrowable)
             {
-                UpdateThrowable(held);
+                // A grenade with its pin out keeps the trigger as it was while input is blocked (a panel opened under the laser):
+                // blocked, it read as let go, and a moving hand threw it (review, 2026-10-20).
+                UpdateThrowable(VRGameInput.GunInputBlocked && Armed ? _triggerWas : held);
                 return;
             }
             CycleForTheHand();

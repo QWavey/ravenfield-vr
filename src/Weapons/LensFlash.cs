@@ -185,6 +185,22 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // The other weapon's, kept aside: the drawn gun and the free hand's second weapon firing in turn swapped the one cache
+            // on every shot and walked the muzzle tree each time, the garbage it was made to avoid (review, 2026-10-20).
+            if (ReferenceEquals(weapon, _otherFor) && Time.unscaledTime < _otherUntil)
+            {
+                Swap(ref _cachedFor, ref _otherFor);
+                Swap(ref _cachedUntil, ref _otherUntil);
+                Swap(ref _cachedSystems, ref _otherSystems);
+                Swap(ref _cachedTrees, ref _otherTrees);
+                Swap(ref _cachedInfo, ref _otherInfo);
+                return;
+            }
+            _otherFor = _cachedFor;
+            _otherUntil = _cachedUntil;
+            _otherSystems = _cachedSystems;
+            _otherTrees = _cachedTrees;
+            _otherInfo = _cachedInfo;
             _cachedFor = weapon;
             _cachedUntil = Time.unscaledTime + 1f;
             _cachedSystems = MuzzleFlashInfo.MuzzleSystems(weapon);
@@ -194,6 +210,19 @@ namespace RavenfieldVR.Weapons
                 _cachedTrees[i] = _cachedSystems[i] != null ? _cachedSystems[i].GetComponentsInChildren<ParticleSystem>(false) : NoSystems;
             }
             _cachedInfo = MuzzleFlashInfo.Of(weapon); // it walks the muzzle tree too
+        }
+
+        private Weapon _otherFor;
+        private float _otherUntil = -1f;
+        private ParticleSystem[] _otherSystems = NoSystems;
+        private ParticleSystem[][] _otherTrees = NoTrees;
+        private MuzzleFlashInfo _otherInfo;
+
+        private static void Swap<T>(ref T a, ref T b)
+        {
+            T t = a;
+            a = b;
+            b = t;
         }
 
         public void BeforeRender()

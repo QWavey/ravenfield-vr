@@ -328,11 +328,20 @@ namespace RavenfieldVR.Input
             {
                 if (rule.Words.IsMatch(text))
                 {
+                    // A name with a laser word and a strong magnifier word ("Laser Scope", "LaserZoom") is the magnifier: only
+                    // "sight" is weak (a "Laser Sight" is a laser). Laser first took them all, and the magnifier's flip went to
+                    // the laser (review, 2026-10-20).
+                    if (rule.Purpose == ScriptKeyPurpose.Laser && StrongMagnifierWords.IsMatch(text))
+                    {
+                        return Array.Find(Rules, r => r.Purpose == ScriptKeyPurpose.Magnifier) ?? rule;
+                    }
                     return rule;
                 }
             }
             return null;
         }
+
+        private static readonly Regex StrongMagnifierWords = new Regex(@"magnif|zoom|scope", RegexOptions.IgnoreCase);
 
         /// <summary>The rule whose word appears first in the text (ties go to the rule listed first); null when none matches.</summary>
         private static Rule NearestRule(string text)

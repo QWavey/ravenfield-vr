@@ -769,7 +769,8 @@ namespace RavenfieldVR.Weapons
             // a swing that landed with the middle of the gun (a handguard, a magazine, a receiver) hit nothing, and a pistol punch
             // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
             // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
-            if (_bashHas && Time.time - _lastBash > 0.5f && !Util.GameContext.GameMenuOpen)
+            // (Not with the laser on one of the mod's panels either, as the trigger: review, 2026-10-20.)
+            if (_bashHas && Time.time - _lastBash > 0.5f && !VRGameInput.GunInputBlocked)
             {
                 bool carried = (muzzle - _bashAt[BashPoints - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);

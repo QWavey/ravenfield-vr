@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using RavenfieldVR.Core;
 using UnityEngine;
@@ -75,6 +77,7 @@ namespace RavenfieldVR.Weapons
                 bool changed = _file != null;
                 _file = JsonUtility.FromJson<WeaponOverrideFile>(File.ReadAllText(path)) ?? new WeaponOverrideFile();
                 _loadedStamp = stamp;
+                _matchesChecked = false;
                 if (changed)
                 {
                     // Edited while the game runs: weapons not analysed yet this scene take it; the measured shapes of the hand
@@ -119,6 +122,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            CheckMatches();
             foreach (WeaponOverride o in _file.weapons)
             {
                 if (o == null || string.IsNullOrEmpty(o.match) || o.match.StartsWith("example") || !Names(w, o))
@@ -186,6 +190,55 @@ namespace RavenfieldVR.Weapons
                     d.Up = q * d.Up;
                 }
                 d.Notes += "override(" + o.match + ") ";
+            }
+        }
+
+        private static bool _matchesChecked;
+
+        /// <summary>
+        /// Once per file: an override whose match names no installed weapon is said, with the weapons it is part of. A match is the
+        /// whole name since 2026-10-19 ("contains": true for a part), and a file written before with "ak" or "mosin" stopped
+        /// doing anything without a word (review, 2026-10-20).
+        /// </summary>
+        private static void CheckMatches()
+        {
+            if (_matchesChecked || WeaponManager.instance == null || WeaponManager.instance.allWeapons == null || WeaponManager.instance.allWeapons.Count == 0)
+            {
+                return;
+            }
+            _matchesChecked = true;
+            foreach (WeaponOverride o in _file.weapons)
+            {
+                if (o == null || string.IsNullOrEmpty(o.match) || o.match.StartsWith("example") || o.contains)
+                {
+                    continue;
+                }
+                string match = o.match.Trim();
+                var near = new List<string>();
+                bool any = false;
+                foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
+                {
+                    if (e == null)
+                    {
+                        continue;
+                    }
+                    Weapon pw = e.prefab != null ? e.prefab.GetComponent<Weapon>() : null;
+                    string[] names = { e.name, e.prefab != null ? e.prefab.name : null, pw != null ? pw.displayName : null };
+                    if (names.Any(n => Same(n, match)))
+                    {
+                        any = true;
+                        break;
+                    }
+                    if (near.Count < 5 && names.Any(n => n != null && n.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        near.Add(e.name);
+                    }
+                }
+                if (!any)
+                {
+                    Log.WarnOnce("override-nomatch:" + match, $"Weapon override '{match}' names no weapon (a match is the whole name; add \"contains\": true for a part of it)"
+                                 + (near.Count > 0 ? ": it is part of " + string.Join(", ", near) + "." : "."));
+                }
             }
         }
 
