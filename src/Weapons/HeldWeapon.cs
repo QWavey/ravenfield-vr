@@ -1267,7 +1267,9 @@ namespace RavenfieldVR.Weapons
                 _steadyStrength = strength; // kept while it eases out after the aim, so the ease-out is smooth
             }
             _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
-            if (!_steadyInit || _steadyWeight <= 0f)
+            // A snap turn turns the whole rig, the gun with it, in one frame: started again there, not followed as a swing (the
+            // 5-degree cap held the aim up to 5 degrees behind for a tenth of a second; support hunt, 2026-10-20).
+            if (!_steadyInit || _steadyWeight <= 0f || RavenfieldVR.Rig.VRRig.LastSnapFrame == Time.frameCount)
             {
                 _steadyRot = gunRot;
                 _steadyPrevRaw = gunRot;
@@ -1371,7 +1373,7 @@ namespace RavenfieldVR.Weapons
             {
                 Vector3 dirGun = (d.SupportPoint - d.GripPoint).normalized;
                 Vector3 dirWorld = off.PalmCentre - hand.position; // palm centre to palm centre, as the support point is
-                if (dirWorld.sqrMagnitude > 0.0025f)
+                if (dirWorld.sqrMagnitude > 1e-6f && dirGun.sqrMagnitude > 0.5f)
                 {
                     // Up from the gun hand's palm (the thumb's side), as worldFrame takes it from the hand: a palm saved
                     // rolled on the gun rolled the gun by that much when the off hand took the handguard (sandbox review).
@@ -1380,6 +1382,13 @@ namespace RavenfieldVR.Weapons
                     Quaternion twoHand = worldFrame * Quaternion.Inverse(gunFrameBase);
                     // Eased in and out: taking or letting go of the handguard no longer starts and stops the turn at full speed.
                     float e = _twoHandBlend * _twoHandBlend * (3f - 2f * _twoHandBlend);
+                    // Only from a hand ahead of the grip, along the barrel the gun hand holds: drawn back past the grip (the hold
+                    // lets go only at 60 cm of stretch), the support hand swung the barrel round at the player and flipped it. And
+                    // faded in from 3 to 8 cm apart instead of off below 5 cm at once: choked up, the aim jumped by the whole steer
+                    // in one frame (support hunt, 2026-10-20).
+                    float ahead = Vector3.Dot(dirWorld.normalized, gunRot * dirGun);
+                    e *= Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.2f, 0.3f, ahead))
+                         * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.03f, 0.08f, dirWorld.magnitude));
                     gunRot = Quaternion.Slerp(gunRot, twoHand, e);
                 }
             }
