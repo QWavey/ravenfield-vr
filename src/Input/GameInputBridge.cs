@@ -182,6 +182,9 @@ namespace RavenfieldVR.Input
             {
                 _leaveHeldSince = -1f; // the hold to leave a seat starts again after the menu, not counting the time in it
                 _leaveArmed = false;
+                // A stick held down into the menu and let go there: on resume its hold (timed in unscaled time, the menu's
+                // too) toggled prone with no press (rig hunt, 2026-10-20 night). That hold toggles nothing now.
+                _proneTriggeredThisHold |= _downLatch;
                 CancelModePress(); // a fire-mode press made before the menu does not switch the mode once it has closed
                 return;
             }

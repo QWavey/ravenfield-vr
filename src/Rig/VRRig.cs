@@ -516,6 +516,11 @@ namespace RavenfieldVR.Rig
             {
                 h.ForgetMotion();
             }
+            // A physical crouch's compensation is the on-foot view's: kept through a death, a seat or a ladder, the first frame
+            // back on foot standing raised the view by the old crouch and let it fall over a tenth of a second (rig hunt).
+            _crouchLowered = false;
+            _crouchCompensation = 0f;
+            _crouchReleasedAt = -1f;
             bool cut = from != RigMode.None;
             if (from == RigMode.Anchored || to == RigMode.Anchored)
             {
@@ -915,8 +920,13 @@ namespace RavenfieldVR.Rig
                             _crouchLowered = false;
                         }
                     }
-                    float wantCompensation = _crouchLowered && !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled
-                        ? Mathf.Max(0f, GameStandEyeHeight - player.cameraHeight) : 0f;
+                    float gameDrop = Mathf.Max(0f, GameStandEyeHeight - player.cameraHeight);
+                    // With a crouch or prone toggle on as well: the deeper of the two drops, never both. Uncompensated the view sank
+                    // a crouch's depth below the real head, and with prone below the ground (rig hunt, 2026-10-20 night). The
+                    // toggle alone (standing) still lowers the view by the game's crouch: the real drop is then nothing.
+                    float wantCompensation = !_crouchLowered ? 0f
+                        : !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled ? gameDrop
+                        : Mathf.Min(gameDrop, Mathf.Max(0f, EyeHeight - hl.y));
                     // Eased at the game's own crouch speed (4 m/s): a crouch or prone toggle while physically crouched switched it off at
                     // once and the view jumped by up to a metre (review, 2026-10-20).
                     _crouchCompensation = Mathf.MoveTowards(_crouchCompensation, wantCompensation, 4f * Mathf.Min(Time.unscaledDeltaTime, 0.1f));
