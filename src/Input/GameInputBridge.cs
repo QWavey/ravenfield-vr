@@ -143,17 +143,18 @@ namespace RavenfieldVR.Input
             // Slow motion in a menu and while dead too, as the flat game's key works there: set after the returns below, it could
             // not be switched in the loadout menu or after dying (user, 2026-10-19 night, task 313). (A toggle in the game: one
             // press on, one off.)
-            // On Touch it is A and B pressed together (2026-10-20: B held brought up Steam, and B as a press-or-hold button let the
-            // magazine drop only once the hold time ran out): there SlowMotion is A held, and the chord's B press drops nothing.
+            // On Touch it is A pressed twice (user, 2026-10-20: "double a pressed for on and off"; B held brought up Steam). There
+            // SlowMotion is A itself: the second press within 0.4 s toggles it. Counted here, not by SteamVR's double click, which
+            // held every single A press (the slide release) back until its double-click time ran out.
             bool slowMotion;
             if (VRInput.AnyOculusTouch)
             {
-                bool chord = VRInput.GetHeld(DigitalAction.SlowMotion) && VRInput.GetHeld(DigitalAction.MagRelease);
-                slowMotion = chord && !_slowChordWas;
-                _slowChordWas = chord;
-                if (slowMotion)
+                slowMotion = false;
+                if (VRInput.GetPressed(DigitalAction.SlowMotion))
                 {
-                    VRInput.Consume(DigitalAction.MagRelease);
+                    float now = Time.unscaledTime;
+                    slowMotion = now - _slowFirstPress <= 0.4f;
+                    _slowFirstPress = slowMotion ? -10f : now;
                 }
             }
             else
@@ -698,7 +699,7 @@ namespace RavenfieldVR.Input
         /// </summary>
         private static bool VROnly(KeyBinds b) => b == KeyBinds.Scoreboard || b == KeyBinds.PeekScoreboard;
 
-        private static bool _slowChordWas;
+        private static float _slowFirstPress = -10f;
 
         /// <summary>Autotest: sprint as if the stick were clicked and pushed.</summary>
         internal static bool TestSprint;
