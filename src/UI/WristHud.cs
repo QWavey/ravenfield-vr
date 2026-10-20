@@ -91,7 +91,12 @@ namespace RavenfieldVR.UI
                 _ringPoints[i] = new Vector3(Mathf.Cos(a) * RingRadius, Mathf.Sin(a) * RingRadius, 0f);
             }
             _ring.positionCount = n;
-            _ring.SetPositions(_ringPoints);
+            // Set only the n points in use, one at a time: the array holds the whole ring, so passing it whole would
+            // hand the line renderer points past the ones it draws.
+            for (int i = 0; i < n; i++)
+            {
+                _ring.SetPosition(i, _ringPoints[i]);
+            }
         }
 
         public void BeforeRender()

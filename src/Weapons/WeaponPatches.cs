@@ -279,6 +279,19 @@ namespace RavenfieldVR.Weapons
                 }
             }
         }
+
+        /// <summary>
+        /// No sprint tuck in VR: Update sets the animator's "tuck" while the player sprints, the pose of a gun lowered across the
+        /// chest that also holds back its firing animation. The hand holds the gun now and it fires while running (task 314).
+        /// </summary>
+        private static void Postfix(Weapon __instance)
+        {
+            if (__instance.animator != null && __instance.unholstered && WeaponHooks.PlayerWeaponInVR(__instance)
+                && __instance.animator.isActiveAndEnabled && __instance.animator.runtimeAnimatorController != null)
+            {
+                __instance.animator.SetBool(Weapon.TUCK_PARAMETER_HASH, false);
+            }
+        }
     }
 
     /// <summary>Aiming down sights = bringing the sights to your eye.</summary>
