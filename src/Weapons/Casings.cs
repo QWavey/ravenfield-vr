@@ -64,7 +64,10 @@ namespace RavenfieldVR.Weapons
             Vector3 up = rig.UpWorld, back = -rig.AimWorld;
             Vector3 hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Dominant.Velocity : Vector3.zero;
             Vector3 velocity = hand + right * Random.Range(1.8f, 2.6f) + up * Random.Range(0.8f, 1.5f) + back * Random.Range(0.1f, 0.5f);
-            Spawn(KindOf(held), live, port.position + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
+            // The port is where the gun was drawn last frame (it is placed again before this frame renders): led by the hand's
+            // motion over a frame, or on a swing the case came out a couple of centimetres behind the port (visual hunt, 2026-10-20).
+            Vector3 lead = hand * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            Spawn(KindOf(held), live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
                 Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f);
         }
 
