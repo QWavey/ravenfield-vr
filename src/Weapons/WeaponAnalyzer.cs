@@ -3268,6 +3268,8 @@ namespace RavenfieldVR.Weapons
                 if (along >= 0.12f && along <= 0.25f && tall <= 0.015f && across >= 0.03f)
                 {
                     d.CarveFromPath = WeaponRig.PathOf(root, holder);
+                    // Round the whole T: its wings reach 3.3 cm from the rack point (the K13's 6.1 cm T), and only that mesh is cut.
+                    d.CarveRadius = Mathf.Clamp(across * 0.5f + 0.008f, 0.03f, 0.045f);
                     d.SlideMethod += $" (the charging handle is '{holder.name}', the slide's holder: cut out of it)";
                     return;
                 }

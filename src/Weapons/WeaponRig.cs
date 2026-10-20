@@ -202,6 +202,8 @@ namespace RavenfieldVR.Weapons
         public bool HasSideKnob;
         /// <summary>The part a cut-out handle is cut from (null: any mesh at the rack point): the handle's own mesh, not the receiver round it.</summary>
         public int[] CarveFromPath;
+        /// <summary>The cut-out's radius (m) round the rack point; 0: the usual (3 cm, 2.2 on a handgun).</summary>
+        public float CarveRadius;
         /// <summary>A part the reload swings open: break-action barrels, a cylinder crane or a feed cover.</summary>
         public HingeKind Hinge;
         public int[] HingePath;

@@ -131,7 +131,7 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            float radius = d.Handgun ? 0.022f : 0.03f;
+            float radius = d.CarveRadius > 0f ? d.CarveRadius : d.Handgun ? 0.022f : 0.03f;
             Vector3 rackWorld = rig.ToWorld(rackGun);
             // Only from the handle's own mesh when it is known (the receiver round a side handle's slot stays whole).
             Transform only = d.CarveFromPath != null ? WeaponRig.Resolve(rig.Weapon.transform, d.CarveFromPath) : null;
