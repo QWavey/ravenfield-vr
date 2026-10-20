@@ -39,6 +39,9 @@ namespace RavenfieldVR.Rig
         public Vector3 BodyRelativeVelocity { get; private set; }
         public Vector3 AngularVelocity { get; private set; }
 
+        /// <summary>The controller's own spin, without the rig's turn: for wrist gestures (a smooth turn is no flick).</summary>
+        public Vector3 OwnAngularVelocity { get; private set; }
+
         public HandRole Role = HandRole.Free;
 
         /// <summary>Opaque reference to the object held in the current role (magazine prop, grabbed control…).</summary>
@@ -116,7 +119,7 @@ namespace RavenfieldVR.Rig
             // The palm frame uses the pointer orientation: forward = where the hand points, up = back of the fist's top.
             Palm = new RigidPose(palmPos, Pointer.rotation);
 
-            Vector3 rigVelocity = Vector3.zero;
+            Vector3 rigVelocity = Vector3.zero, rigSpin = Vector3.zero;
             Matrix4x4 steadyRoot = VRRig.SteadyRootOf(rigRoot, out Quaternion steadyRotation);
             if (_hasLastRig && Time.unscaledDeltaTime > 1e-4f)
             {
@@ -130,6 +133,16 @@ namespace RavenfieldVR.Rig
                 {
                     Vector3 local = rigRoot.InverseTransformPoint(palmPos);
                     rigVelocity = (steadyRoot.MultiplyPoint3x4(local) - _lastRigMatrix.MultiplyPoint3x4(local)) / Time.unscaledDeltaTime;
+                    // And its turn: what is let go while turning keeps turning with it (the controller's own spin left it out).
+                    (steadyRotation * Quaternion.Inverse(_lastRigRotation)).ToAngleAxis(out float turned, out Vector3 turnAxis);
+                    if (turned > 180f)
+                    {
+                        turned -= 360f;
+                    }
+                    if (Mathf.Abs(turned) > 1e-3f && !float.IsNaN(turnAxis.x) && !float.IsInfinity(turnAxis.x))
+                    {
+                        rigSpin = turnAxis * (turned * Mathf.Deg2Rad / Time.unscaledDeltaTime);
+                    }
                 }
                 if (rigVelocity.sqrMagnitude > 2500f)
                 {
@@ -147,7 +160,8 @@ namespace RavenfieldVR.Rig
             }
             BodyRelativeVelocity = own;
             Velocity = own + rigVelocity;
-            AngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
+            OwnAngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
+            AngularVelocity = OwnAngularVelocity + rigSpin;
             _velHistory[_historyIndex] = Velocity;
             _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;
             _timeHistory[_historyIndex] = Time.unscaledTime;

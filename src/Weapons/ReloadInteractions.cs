@@ -338,7 +338,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 // Snap it shut with a flick of the wrist, like the real thing.
-                if (Breaks && Ammo.Open && !_coverHeld && Time.unscaledTime - _openedAt > 0.35f && dom.AngularVelocity.magnitude > 9f)
+                if (Breaks && Ammo.Open && !_coverHeld && Time.unscaledTime - _openedAt > 0.35f && dom.OwnAngularVelocity.magnitude > 9f)
                 {
                     SetBreakOpen(false);
                 }
