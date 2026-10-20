@@ -961,6 +961,13 @@ namespace RavenfieldVR.Weapons
             {
                 ReleaseHeld();
             }
+            if (Second != null)
+            {
+                // The other hand's weapon too, before the ammo states go: kept over a load, its state was orphaned and a second
+                // one made for the same gun (second-weapon hunt, 2026-10-20 night).
+                Log.Guard("Second.PutAway", Second.PutAway);
+                Second = null;
+            }
             MagazineProp.DestroyAll();
             GrenadeDud.DestroyAll();
             Casings.DestroyAll();
