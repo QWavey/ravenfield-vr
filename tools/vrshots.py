@@ -91,29 +91,40 @@ class NullHeadset:
         self.hash = sha(STEAMVR_CFG)
         self.backup = os.path.join(BACKUPS, f'steamvr.vrsettings.{time.strftime("%Y%m%d-%H%M%S")}.{self.hash[:8]}')
         shutil.copyfile(STEAMVR_CFG, self.backup)
-        w, h = self.res
-        cfg.setdefault('steamvr', {})
-        cfg['steamvr']['forcedDriver'] = 'null'
-        cfg['steamvr']['activateMultipleDrivers'] = False
-        cfg['steamvr']['enableHomeApp'] = False
-        cfg['driver_null'] = {'displayFrequency': 90, 'enable': True, 'renderHeight': h, 'renderWidth': w,
-                              'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
-        json.dump(cfg, open(STEAMVR_CFG, 'w', encoding='utf-8'), indent=3)
-        log(f'SteamVR on the null driver ({w}x{h}); your settings backed up to {self.backup}')
-        self.room_setup_off()
+        # From here on the user's settings are changed: a failure before the run (the chaperone file locked, a disk error) puts
+        # them back too. Python calls __exit__ only after __enter__ returned, so SteamVR was left on the null driver, ignoring the
+        # real headset until the file was copied back by hand (review, 2026-10-20).
+        try:
+            w, h = self.res
+            cfg.setdefault('steamvr', {})
+            cfg['steamvr']['forcedDriver'] = 'null'
+            cfg['steamvr']['activateMultipleDrivers'] = False
+            cfg['steamvr']['enableHomeApp'] = False
+            cfg['driver_null'] = {'displayFrequency': 90, 'enable': True, 'renderHeight': h, 'renderWidth': w,
+                                  'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
+            with open(STEAMVR_CFG, 'w', encoding='utf-8') as f:
+                json.dump(cfg, f, indent=3)
+            log(f'SteamVR on the null driver ({w}x{h}); your settings backed up to {self.backup}')
+            self.room_setup_off()
+        except BaseException:
+            self.__exit__(*sys.exc_info())
+            raise
         return self
 
     def room_setup_off(self):
         """A play area for the null driver's tracking universe (2, as the game logs it: "Tracking universe"): without one
         SteamVR's room setup opens, asks the game to quit, and SteamVR ends it about 23 s later, so every run's first launch
         failed (task 279). The user's chaperone file is backed up and put back after the run (or removed if there was none)."""
-        self.chap_existed = os.path.exists(CHAPERONE)
-        self.chap_hash = sha(CHAPERONE) if self.chap_existed else None
-        self.chap_backup = None
+        existed = os.path.exists(CHAPERONE)
+        chap_hash = sha(CHAPERONE) if existed else None
+        chap_backup = None
         data = {'jsonid': 'chaperone_info', 'universes': [], 'version': 5}
-        if self.chap_existed:
-            self.chap_backup = os.path.join(BACKUPS, f'chaperone_info.vrchap.{time.strftime("%Y%m%d-%H%M%S")}.{self.chap_hash[:8]}')
-            shutil.copyfile(CHAPERONE, self.chap_backup)
+        if existed:
+            chap_backup = os.path.join(BACKUPS, f'chaperone_info.vrchap.{time.strftime("%Y%m%d-%H%M%S")}.{chap_hash[:8]}')
+            shutil.copyfile(CHAPERONE, chap_backup)
+        # Set once the backup exists: the restore reads them (a failed backup must not make it delete the user's file).
+        self.chap_existed, self.chap_hash, self.chap_backup = existed, chap_hash, chap_backup
+        if existed:
             try:
                 data = json.load(open(CHAPERONE, encoding='utf-8'))
             except (OSError, ValueError):
