@@ -44,6 +44,8 @@ namespace RavenfieldVR.Weapons
         public bool EmptyChamber;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
+        /// <summary>Reach measured again after its first physics step (the colliders' boxes may not be set the frame they are added).</summary>
+        public bool ReachChecked;
         /// <summary>Rounds loaded in each under-barrel weapon (a launcher's grenade), by index; null = their default.</summary>
         public int[] SubAmmo;
         /// <summary>The key the weapon's rig is analysed under (magazines name it), when known.</summary>
@@ -1570,6 +1572,13 @@ namespace RavenfieldVR.Weapons
                 if (d.Go == null || d.Colliders == null)
                 {
                     continue;
+                }
+                if (!d.ReachChecked && Time.time - d.DropTime > 0.1f)
+                {
+                    // Measured as it was made, from colliders added that frame: boxes not yet set gave a reach too short, and the drop
+                    // was skipped below while the hand was at its far end (drops hunt, 2026-10-20). Once more, after the physics step.
+                    d.ReachChecked = true;
+                    d.Reach = Mathf.Max(d.Reach, ReachOf(d.Go.transform, d.Colliders));
                 }
                 // One native read for the whole drop first: its root cannot have a collider within bestDist of the palm when
                 // the root is farther than bestDist + its reach (every collider lies within reach of the root).
