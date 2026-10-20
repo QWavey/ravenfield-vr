@@ -1383,9 +1383,33 @@ namespace RavenfieldVR.Core
             Input.VRInput.SimulatedGrab[side] = true;
             off.Role = Rig.HandRole.Foregrip;
             held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+            float glideMax = -1f;
             try
             {
                 yield return new WaitForSecondsRealtime(0.4f);
+                // Slid 10 cm along the gun with the grip closed: the glove stays where it gripped (task 324: it followed the hand
+                // along the handguard). Measured on the glove's snap pose in the gun body's frame.
+                Transform body = held.Rig.GunBody;
+                Vector3? pinned = off.Model != null && off.Model.SnapPose.HasValue && body != null ? body.InverseTransformPoint(off.Model.SnapPose.Value.position) : (Vector3?)null;
+                if (pinned.HasValue)
+                {
+                    glideMax = 0f;
+                    for (float t = 0f; t < 0.5f && off.Role == Rig.HandRole.Foregrip; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position - held.Rig.AimWorld * (0.1f * Mathf.Clamp01(t / 0.25f)), start.rotation);
+                        yield return null;
+                        if (off.Model.SnapPose.HasValue && body != null)
+                        {
+                            glideMax = Mathf.Max(glideMax, Vector3.Distance(body.TransformPoint(pinned.Value), off.Model.SnapPose.Value.position));
+                        }
+                        else
+                        {
+                            glideMax = 1f; // let go of its snap: the glove went to the tracked hand
+                        }
+                    }
+                    Rig.VRHand.Scripted[side] = start;
+                    yield return new WaitForSecondsRealtime(0.2f);
+                }
                 for (float t = 0f; t < 0.9f; t += Time.unscaledDeltaTime)
                 {
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + across * (0.2f * Mathf.Clamp01(t / 0.3f)), start.rotation);
@@ -1412,7 +1436,12 @@ namespace RavenfieldVR.Core
                 Input.VRInput.SimulatedGrab[side] = false;
             }
             yield return null; // the grip opens: the hand is free again
-            report($"support pull: 20 cm across {(stayed ? "stays on the gun" : "LET GO")}; yanked 80 cm across {(letGo ? letGoAt > 0f ? $"lets go at about {letGoAt * 100f:0} cm" : "lets go" : "STILL HOLDS")}");
+            string glide = glideMax < 0f ? "no snap pose to measure" : glideMax < 0.01f ? $"the glove stays where it gripped ({glideMax * 100f:0.0} cm)" : $"the glove NOT HELD where it gripped (moved {glideMax * 100f:0.0} cm)";
+            report($"support pull: slid 10 cm along the gun, {glide}; 20 cm across {(stayed ? "stays on the gun" : "LET GO")}; yanked 80 cm across {(letGo ? letGoAt > 0f ? $"lets go at about {letGoAt * 100f:0} cm" : "lets go" : "STILL HOLDS")}");
+            if (glideMax >= 0.01f)
+            {
+                Problem($"[{name}] support hand: the glove followed the hand {glideMax * 100f:0.0} cm along the gun while gripping (it should stay where it gripped)");
+            }
             if (!stayed)
             {
                 Problem($"[{name}] support hand: let go of the gun on a 20 cm pull (it should stay on until pulled hard)");
