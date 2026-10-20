@@ -91,8 +91,10 @@ namespace RavenfieldVR.Core
             VRConfig.RenderScale.SettingChanged += OnRenderSettingChanged;
             VRConfig.Mirror.SettingChanged += OnRenderSettingChanged;
             VRConfig.Graphics.SettingChanged += OnGraphicsPresetChanged;
-            GraphicsPresets.Apply();
+            // Subscribed is set first and the presets guarded: a preset that threw left every handler above subscribed for good
+            // (Shutdown unsubscribes only when set) and the warm-up never started (lifecycle hunt, 2026-10-20).
             _subscribed = true;
+            Log.Guard("GraphicsPresets.Apply", GraphicsPresets.Apply);
             Log.Info("VR active.");
             // Content may have finished loading before VR came up; the warm-up skips rigs already analysed.
             WeaponWarmup.Start();
@@ -361,6 +363,8 @@ namespace RavenfieldVR.Core
                 _subscribed = false;
             }
             _active = false;
+            _pausedForDashboard = false; // a pause the mod made is not undone in a later match by a dashboard or headset edge
+            _pausedForHeadset = false;
             ScriptKeys.Enabled = false;
             ScriptKeys.Clear();
             VRGameInput.Enabled = false;

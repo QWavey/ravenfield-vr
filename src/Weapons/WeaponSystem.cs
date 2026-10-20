@@ -384,7 +384,10 @@ namespace RavenfieldVR.Weapons
 
         private void ReleaseHeld()
         {
-            Log.Guard("ReleaseHeld", () => Held.Release());
+            if (Held != null)
+            {
+                Log.Guard("ReleaseHeld", () => Held.Release()); // a seat's drawn weapon with no held rig called it on nothing (lifecycle hunt)
+            }
             _throwables.Release();
             _melee.Release();
             Held = null;
@@ -938,12 +941,18 @@ namespace RavenfieldVR.Weapons
             FireSelector.Clear();
             _ammo.Clear();
             _rigs.Clear();
+            _attachFailed.Clear(); // as the analysis's failures: tried again in the new scene (lifecycle hunt, 2026-10-20)
             WeaponAnalyzer.ForgetFailed(); // a weapon whose analysis threw is analysed again in the new scene (2026-10-19)
         }
 
         public void Dispose()
         {
             Camera.onPreCull -= CountFlatFrames;
+            if (Second != null)
+            {
+                Log.Guard("Second.PutAway", Second.PutAway); // the other hand's weapon back in its holster too (lifecycle hunt)
+                Second = null;
+            }
             if (Held != null)
             {
                 ReleaseHeld();

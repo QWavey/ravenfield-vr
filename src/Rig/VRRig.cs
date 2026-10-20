@@ -107,30 +107,40 @@ namespace RavenfieldVR.Rig
             Camera.tag = "Untagged";
             AddHeadCamera(Camera);
 
-            Suppressor = new CameraSuppressor(Camera);
-            Hands[0] = new VRHand(Input.Hand.Left, Root);
-            Hands[1] = new VRHand(Input.Hand.Right, Root);
-            _vignette = new ComfortVignette(Camera.transform);
             try
             {
-                _lens = new LensEffects(this); // before DamageFeedback and MudSplash: they hand it their effects
+                Suppressor = new CameraSuppressor(Camera);
+                Hands[0] = new VRHand(Input.Hand.Left, Root);
+                Hands[1] = new VRHand(Input.Hand.Right, Root);
+                _vignette = new ComfortVignette(Camera.transform);
+                try
+                {
+                    _lens = new LensEffects(this); // before DamageFeedback and MudSplash: they hand it their effects
+                }
+                catch (System.Exception e)
+                {
+                    Log.Exception("The on-screen effects could not be set up; playing without them", e);
+                }
+                _damage = new DamageFeedback(Camera.transform);
+                try
+                {
+                    _mud = new MudSplash(Camera.transform);
+                }
+                catch (System.Exception e)
+                {
+                    // A look, not a function: VR starts without it rather than not at all.
+                    Log.Exception("Explosion dirt could not be set up; playing without it", e);
+                }
+                _cockpit = new CockpitControls(this);
+                _touchEnter = new VehicleTouchEnter(this);
             }
-            catch (System.Exception e)
+            catch
             {
-                Log.Exception("The on-screen effects could not be set up; playing without them", e);
+                // Torn down before it goes up to VRManager (which shuts VR down without a rig to dispose): the root, kept across
+                // scenes, and its head camera at depth 100 stayed and could paint over the flat game (lifecycle hunt, 2026-10-20).
+                Dispose();
+                throw;
             }
-            _damage = new DamageFeedback(Camera.transform);
-            try
-            {
-                _mud = new MudSplash(Camera.transform);
-            }
-            catch (System.Exception e)
-            {
-                // A look, not a function: VR starts without it rather than not at all.
-                Log.Exception("Explosion dirt could not be set up; playing without it", e);
-            }
-            _cockpit = new CockpitControls(this);
-            _touchEnter = new VehicleTouchEnter(this);
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -1172,14 +1182,15 @@ namespace RavenfieldVR.Rig
 
         public void Dispose()
         {
-            Suppressor.Dispose();
-            _vignette.Destroy();
-            _damage.Destroy();
+            // Null-safe: also the teardown of a rig whose construction threw part-way.
+            Suppressor?.Dispose();
+            _vignette?.Destroy();
+            _damage?.Destroy();
             _mud?.Destroy();
             _lens?.Destroy();
             foreach (VRHand h in Hands)
             {
-                h.Destroy();
+                h?.Destroy();
             }
             if (Root != null)
             {

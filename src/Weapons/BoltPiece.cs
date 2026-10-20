@@ -30,6 +30,13 @@ namespace RavenfieldVR.Weapons
         // Carving is done once per mesh and handle point, then shared by every copy of the weapon.
         private static readonly Dictionary<string, CarveResult> CarveCache = new Dictionary<string, CarveResult>();
 
+        /// <summary>
+        /// A reload of the content makes the weapons again: their carves are made again too. Kept, every reload added the old
+        /// receivers' carved copies for the rest of the session (lifecycle hunt, 2026-10-20); let go, the next scene load unloads
+        /// the meshes nothing uses any more (a held weapon's own still in use is left alone).
+        /// </summary>
+        internal static void ClearCache() => CarveCache.Clear();
+
         // Reused by every carve (task 263, 2026-10-18): Mesh.vertices and the others copy the whole mesh into a new array on each
         // call, and a receiver's first carve made that copy on the main thread in the first draw. Each one is cleared or
         // overwritten before it is read, so nothing from an earlier carve is used.
