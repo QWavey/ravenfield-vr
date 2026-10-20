@@ -943,6 +943,13 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
+                if (!want && Touches(c))
+                {
+                    // Pushed while the gun is held through it: it passes through until clear instead of colliding again from
+                    // inside, which PhysX settled by flinging it out (review, 2026-10-20, task 318 b).
+                    _passing.Add(c);
+                    continue;
+                }
                 foreach (Collider b in _boxes)
                 {
                     if (b != null && b.enabled)
