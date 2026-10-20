@@ -129,7 +129,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             CycleForTheHand();
-            if (held && !_firing && Ammo != null && Ammo.Participates && VRConfig.ReloadNow == ReloadMode.Manual
+            // In either reload mode: the game reloads only its active weapon, so with Assisted reloading an empty second weapon
+            // stayed empty for as long as it was held (second-weapon hunt, 2026-10-20 night). This reload is the hand's own.
+            if (held && !_firing && Ammo != null && Ammo.Participates
                 && !Ammo.Chambered && Ammo.MagRounds == 0 && (Ammo.InfiniteSpare || Ammo.SpareAmmo > 0))
             {
                 StartReload();

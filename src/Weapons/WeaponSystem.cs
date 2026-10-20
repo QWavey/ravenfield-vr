@@ -520,6 +520,19 @@ namespace RavenfieldVR.Weapons
 
         public void OnDryFire(Weapon weapon)
         {
+            // The second weapon's own trigger (the free hand's Use): an empty pull there gave no click at all (second-weapon hunt,
+            // 2026-10-20 night).
+            if (Second != null && weapon != null && weapon == Second.Weapon)
+            {
+                if (VRInput.GetPressed(DigitalAction.Use, Second.Hand.Side) && Time.unscaledTime - _lastDryFire > 0.15f)
+                {
+                    _lastDryFire = Time.unscaledTime;
+                    Sounds.Play(MechSound.DryFire, Second.Hand.Palm.position, 0.8f);
+                    Second.Hand.Haptic(0.01f, 250f, 0.25f);
+                    Second.Hand.Model?.TriggerShot();
+                }
+                return;
+            }
             // CanFire is polled every frame while the trigger is held; click once per trigger pull.
             // (Or the support hand's trigger just pulled on an under-barrel launcher: it never clicked; 255.B5-4.)
             if ((VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) || VRGameInput.SupportFire && !_supportFireLast) && Time.unscaledTime - _lastDryFire > 0.15f)

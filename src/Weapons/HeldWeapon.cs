@@ -820,7 +820,9 @@ namespace RavenfieldVR.Weapons
                 main.Model.WeaponIsPistol = Rig.Data.IsPistol;
                 main.Model.WeaponClass = _weaponClass;
             }
-            if (_system.Rig.Off.Model != null)
+            // Not while that hand holds the second weapon: it set the pistol's class for its hand, and this wrote the main gun's
+            // over it every frame (an HK416's rifle grip on the free hand's P320; second-weapon hunt, 2026-10-20 night).
+            if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off))
             {
                 _system.Rig.Off.Model.WeaponSupportCurls = Rig.Data.SupportCurls;
                 _system.Rig.Off.Model.WeaponClass = _weaponClass;
