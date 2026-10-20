@@ -504,7 +504,9 @@ namespace RavenfieldVR.Weapons
         private static float _lastModelMs, _lastShapeMs, _lastColliderMs;
         private static bool _lastLateFit;
 
-        public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare)
+        // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
+        // at 0 that deleted the swapped rifle, rounds and all, inside this call (drops hunt, 2026-10-20).
+        public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare, bool keep = false)
         {
             var parts = System.Diagnostics.Stopwatch.StartNew();
             GameObject model = ModelFor(entry);
@@ -540,7 +542,7 @@ namespace RavenfieldVR.Weapons
             SetUpBody(body, boxes);
             PropPhysics.IgnorePlayer(boxes);
 
-            var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time };
+            var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time, Keep = keep };
             drop.Reach = ReachOf(root.transform, boxes);
             // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
             // step, or that step pushes the weapon out of them and it skids or floats away.
@@ -985,7 +987,10 @@ namespace RavenfieldVR.Weapons
                 return rendered;
             }
             string name = CacheNameOf(entry);
-            string key = "drop:" + name + "@" + scale.x.ToString("F2");
+            // All three axes when it is stretched: keyed by x alone, a 0.5/1/0.5 drop took a uniform 0.5 drop's shape (drops hunt,
+            // 2026-10-20). A uniform scale keeps its key (the unit one is "@1.00").
+            bool uniform = Mathf.Abs(scale.x - scale.y) < 0.005f && Mathf.Abs(scale.x - scale.z) < 0.005f;
+            string key = "drop:" + name + "@" + scale.x.ToString("F2") + (uniform ? "" : "," + scale.y.ToString("F2") + "," + scale.z.ToString("F2"));
             if (!ShapeFit.TryCached(key, out _) && ShapeFit.TryCached("drop:" + name + "@1.00", out ShapeFit.Piece[] unit) && unit.Length > 0)
             {
                 // The warm-up's unit-scale fit, scaled (the same pieces, fitted again on the death frame for any other scale;
@@ -1508,7 +1513,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 bodyRight = Vector3.Cross(Vector3.up, bodyForward);
                 Vector3 feet = actor.Position() + Vector3.up * 0.15f + bodyRight * 0.2f + bodyForward * 0.15f;
                 var pose = new RigidPose(feet, Quaternion.LookRotation(bodyRight, Vector3.up));
-                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.down * 0.3f, RoundsIn(current), Mathf.Max(0, current.spareAmmo));
+                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.down * 0.3f, RoundsIn(current), Mathf.Max(0, current.spareAmmo), keep: true);
                 if (swapped == null)
                 {
                     hand.Haptic(0.08f, 40f, 0.4f);
