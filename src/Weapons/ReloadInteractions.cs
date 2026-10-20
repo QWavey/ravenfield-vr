@@ -5193,6 +5193,27 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.5f);
             var lockedBack = _held.DrawnLayout();
             float lockTravel = Moved(home, lockedBack);
+            // Locked with a charging handle of its own drawn home (an M4's T): the grab point must be on it, not where the carrier
+            // took it (it sat 7.5 cm behind the T; user, 2026-10-20: "some m4a1 racks got unrackable again").
+            if (_held.HandleLockedAlone && Rig.Handle != null)
+            {
+                Vector3 grab = RackPointWorld;
+                float gap = float.MaxValue;
+                foreach (Renderer r in Rig.Handle.GetComponentsInChildren<Renderer>())
+                {
+                    gap = Mathf.Min(gap, Mathf.Sqrt(r.bounds.SqrDistance(grab)));
+                }
+                if (gap < float.MaxValue)
+                {
+                    Core.AutoTest.Metric("locked empty: cm from the grab point to the drawn charging handle", gap * 100f);
+                    string handleLine = $"locked empty: the grab point {gap * 100f:0.0} cm from the drawn charging handle";
+                    if (gap > 0.03f)
+                    {
+                        handleLine += " (THE HANDLE IS OUT OF THE GRAB)";
+                    }
+                    report(handleLine);
+                }
+            }
             // A fresh magazine in.
             Ammo.InsertMagazine(Ammo.Capacity);
             yield return new WaitForSecondsRealtime(0.6f);
