@@ -16,6 +16,9 @@ namespace RavenfieldVR.Weapons
     {
         private static readonly HashSet<WeaponRigData> Applied = new HashSet<WeaponRigData>();
 
+        /// <summary>A table line farther than this from the game's analysed line is not taken (the table's tilts reach 19 degrees).</summary>
+        private const float MaxTurn = 25f;
+
         /// <summary>Whether this rig's magazine line came from the table (the in-game fit leaves it alone).</summary>
         public static bool From(WeaponRigData d) => d != null && Applied.Contains(d);
 
@@ -28,6 +31,14 @@ namespace RavenfieldVR.Weapons
             // The line itself, in the gun's frame (the well does not move): as a tilt on top of the analysed line it landed elsewhere
             // when the game's analysis took its line from another source than the export's (review, 2026-10-20).
             float turned = d.MagEjectAxis.sqrMagnitude > 0.5f ? Vector3.Angle(d.MagEjectAxis, line) : 0f;
+            if (turned > MaxTurn)
+            {
+                // Measured against another analysis than the game's now (every line is at most 19 degrees off the one it was
+                // measured on): the game's own line and its fit are kept. Taken as it was, a line mirrored by a coordinate slip
+                // turned magazines 134-178 degrees, up through the receiver (2026-10-20 night).
+                Log.InfoOnce("maglinetable-skip:" + d.Key, $"{d.Key}: the offline table's magazine line is {turned:0.0} deg from the analysed one; not taken (the analysis changed since it was measured).");
+                return;
+            }
             d.MagEjectAxis = line.normalized;
             d.Notes += $"magazine line from the offline table ({turned:0.0} deg from the analysed one) ";
             Applied.Add(d);

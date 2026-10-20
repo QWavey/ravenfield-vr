@@ -126,13 +126,13 @@ namespace RavenfieldVR.Weapons
         private const float SwitchBlend = 0.08f;
 
         // A magazine switched onto its line from aside at the well's mouth, or off it from inside the well, goes round the gun
-        // (Routed): the line it goes round under (its mouth and direction; against the rail's pose taken onto it, the gun may
-        // move meanwhile; as it was, taken off it), and where the switch started.
-        private const float RouteBlend = 0.14f;
+        // (Routed): where the switch started and, taken off the line, the line it leaves (its mouth and direction), all against the
+        // gun (it may move meanwhile: taken onto the line, against the rail's pose; off it, against the gun body), and how long.
         private int _routeFor = -1; // the switch (its _switchAt in milliseconds) the route was set up for; -1 none
         private bool _routed;
-        private Vector3 _routeTip0, _routeMouth;
-        private Quaternion _routeRot0, _routeLine;
+        private float _routeTime;
+        private RigidPose _routeFrom, _routeLine; // the start, and (off the line) the line's mouth and turn, in the anchor's frame
+        private Transform _routeGun; // off the line: the gun body the well is on (null: in the world)
 
         /// <summary>Draws the prop at <paramref name="target"/>, eased from where it was when it went onto or off the rail.</summary>
         public void ShowAt(RigidPose target)
@@ -178,29 +178,37 @@ namespace RavenfieldVR.Weapons
             {
                 _routeFor = key;
                 Vector3 tip0 = _switchFrom.position + _switchFrom.rotation * TipLocal;
+                Vector3 tipTarget = target.position + target.rotation * TipLocal;
+                float far;
                 if (_onRail)
                 {
-                    // Onto the line: the line from the rail's pose, the start kept against it.
+                    // Onto the line: the start kept against the rail's pose.
                     Vector3 lineIn = target.rotation * InsertDirLocal;
-                    Vector3 mouthNow = target.position + target.rotation * TipLocal - lineIn * RailDepth;
-                    Quaternion inv = Quaternion.Inverse(target.rotation);
-                    _routeTip0 = inv * (tip0 - mouthNow);
-                    _routeRot0 = inv * _switchFrom.rotation;
-                    _routed = Vector3.ProjectOnPlane(tip0 - mouthNow, lineIn).magnitude > WellPlay * 0.75f;
+                    Vector3 mouthNow = tipTarget - lineIn * RailDepth;
+                    _routeFrom = target.Inverse().Multiply(_switchFrom);
+                    far = Vector3.ProjectOnPlane(tip0 - mouthNow, lineIn).magnitude;
+                    _routed = far > WellPlay * 0.75f;
                 }
                 else
                 {
-                    // Off the line from in the well: the line as it was (it starts on it, RailDepth in).
-                    _routeLine = _switchFrom.rotation;
-                    _routeMouth = tip0 - (_routeLine * InsertDirLocal) * RailDepth;
+                    // Off the line from in the well: the line as it was (it starts on it, RailDepth in), against the gun body, so it
+                    // stays on the well's axis while the gun moves (frozen in the world, it cut the mouth's wall; review, 2026-10-20).
+                    _routeGun = _drawnFor != null && _drawnFor.Rig != null ? _drawnFor.Rig.GunBody : null;
+                    RigidPose anchor = _routeGun != null ? RigidPose.Of(_routeGun) : RigidPose.Identity;
+                    RigidPose inv = anchor.Inverse();
+                    _routeFrom = inv.Multiply(_switchFrom);
+                    _routeLine = inv.Multiply(new RigidPose(tip0 - (_switchFrom.rotation * InsertDirLocal) * RailDepth, _switchFrom.rotation));
+                    far = Vector3.Distance(tip0, tipTarget);
                     _routed = RailDepth > 0.005f;
                 }
+                // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20).
+                _routeTime = Mathf.Clamp(0.12f + far * 0.7f, 0.14f, 0.3f);
             }
             if (!_routed)
             {
                 return false;
             }
-            float t = (Time.unscaledTime - _switchAt) / RouteBlend;
+            float t = (Time.unscaledTime - _switchAt) / _routeTime;
             if (t >= 1f)
             {
                 _switchAt = -1f;
@@ -211,17 +219,33 @@ namespace RavenfieldVR.Weapons
                 float x = Mathf.Clamp01(t * 4f - i);
                 return x * x * (3f - 2f * x);
             }
-            Quaternion line = _onRail ? target.rotation : _routeLine;
-            Vector3 insert = line * InsertDirLocal;
-            Vector3 mouth = _onRail ? target.position + target.rotation * TipLocal - insert * RailDepth : _routeMouth;
-            Vector3 tipA = _onRail ? mouth + target.rotation * _routeTip0 : _switchFrom.position + _switchFrom.rotation * TipLocal;
-            Quaternion rotA = _onRail ? target.rotation * _routeRot0 : _switchFrom.rotation;
+            RigidPose from, lineAt;
+            if (_onRail)
+            {
+                from = target.Multiply(_routeFrom);
+                lineAt = new RigidPose(target.position + target.rotation * TipLocal - (target.rotation * InsertDirLocal) * RailDepth, target.rotation);
+            }
+            else
+            {
+                RigidPose anchor = _routeGun != null ? RigidPose.Of(_routeGun) : RigidPose.Identity;
+                from = anchor.Multiply(_routeFrom);
+                lineAt = anchor.Multiply(_routeLine);
+            }
+            Vector3 insert = lineAt.rotation * InsertDirLocal;
+            Vector3 mouth = lineAt.position;
+            Vector3 tipA = from.position + from.rotation * TipLocal;
+            Quaternion rotA = from.rotation;
             Vector3 tipB = target.position + target.rotation * TipLocal;
             float dA = Vector3.Dot(tipA - mouth, insert), dB = Vector3.Dot(tipB - mouth, insert);
             Vector3 asideA = Vector3.ProjectOnPlane(tipA - mouth, insert), asideB = Vector3.ProjectOnPlane(tipB - mouth, insert);
-            // Low enough under the mouth that its top face's highest corner, turned either way, clears it.
-            float turned = Mathf.Max(Vector3.Angle(rotA * InsertDirLocal, insert), Vector3.Angle(target.rotation * InsertDirLocal, insert));
-            float low = Mathf.Min(Mathf.Min(dA, dB), 0f) - Mathf.Sin(Mathf.Min(turned, 90f) * Mathf.Deg2Rad) * Mathf.Max(_frontHalf, _sideHalf) - 0.003f;
+            // Low enough under the mouth that its top face's highest corner clears it, turned as it starts, ends or halfway (a
+            // slerp can lean further between), and by the face's corner, not its longer half (a square magazine turned about its
+            // diagonal stood 5 mm over the mouth against a 3 mm margin; review, 2026-10-20).
+            Quaternion mid = Quaternion.Slerp(rotA, target.rotation, 0.5f);
+            float turned = Mathf.Max(Vector3.Angle(rotA * InsertDirLocal, insert),
+                Mathf.Max(Vector3.Angle(target.rotation * InsertDirLocal, insert), Vector3.Angle(mid * InsertDirLocal, insert)));
+            float corner = Mathf.Sqrt(_frontHalf * _frontHalf + _sideHalf * _sideHalf);
+            float low = Mathf.Min(Mathf.Min(dA, dB), 0f) - Mathf.Sin(Mathf.Min(turned, 90f) * Mathf.Deg2Rad) * corner - 0.003f;
             float depth = Phase(3) > 0f ? Mathf.Lerp(low, dB, Phase(3)) : Mathf.Lerp(dA, low, Phase(0));
             Vector3 aside = Vector3.Lerp(asideA, asideB, Phase(2));
             Quaternion rot = Quaternion.Slerp(rotA, target.rotation, Phase(1));
@@ -1988,7 +2012,9 @@ namespace RavenfieldVR.Weapons
         private Vector3 _keptOut;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
-        internal Vector3 KeptOut => OnRail && _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : _keptOut;
+        // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
+        // back and a palmed magazine jumped by it when the fresh one seated (review, 2026-10-20).
+        internal Vector3 KeptOut => !OnRail ? _keptOut : _switchAt >= 0f ? _keptOut * (1f - Mathf.Clamp01((Time.unscaledTime - _switchAt) / SwitchBlend)) : Vector3.zero;
         /// <summary>Rows of points along a magazine for the keep-out (five, 4-5.5 cm apart on a rifle magazine, let a plate of
         /// the receiver between them: the dense probe found up to 300 points of a PATRIOT magazine in the gun; check-1017f).</summary>
         internal const int MagRows = 9;

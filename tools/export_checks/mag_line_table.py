@@ -133,7 +133,10 @@ for key in sorted(rows):
     how = ('set by hand from a picture' if folder in MANUAL
            else f'{analysed} -> {best} points in the walls or out of the well' if sys.argv[1] == '--both'
            else f'{analysed} -> {best} points out of place')
-    lines.append(f'            {{ {json.dumps(key, ensure_ascii=False)}, new Vector3({v[0]:.5f}f, {v[1]:.5f}f, {v[2]:.5f}f) }}, // {folder}: {fore:+.1f} fore/aft, {side:+.1f} sideways from the export\'s line; {how}')
+    # Back into Unity's space: the export writes glTF's right-handed vectors (SandboxExport's Vec: x, y, -z). Written as they were,
+    # every line was mirrored in z in game, 134-178 degrees off the analysed line (the game's log, 2026-10-20 night): the
+    # magazine's tip and base swapped, its line up through the receiver, its grab zones there in the way of the M4A1s' rack.
+    lines.append(f'            {{ {json.dumps(key, ensure_ascii=False)}, new Vector3({v[0]:.5f}f, {v[1]:.5f}f, {-v[2]:.5f}f) }}, // {folder}: {fore:+.1f} fore/aft, {side:+.1f} sideways from the export\'s line; {how}')
 lines += ['        };', '    }', '}', '']
 open(OUT, 'w', encoding='utf-8', newline='\r\n').write('\n'.join(lines))
 print(f'{len(rows)} magazine lines written to {OUT}')
