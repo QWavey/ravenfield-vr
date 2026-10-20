@@ -292,6 +292,7 @@ namespace RavenfieldVR.Rig
 
         /// <summary>The game's camera is lowered by a physical crouch (still, while it eases back up after it).</summary>
         private bool _crouchLowered;
+        private float _crouchCompensation;
         private float _crouchReleasedAt = -1f;
 
         // ---------------------------------------------------------------------------------------------
@@ -721,11 +722,8 @@ namespace RavenfieldVR.Rig
         {
             _neutralHead = new RigidPose(HeadLocal, Quaternion.Euler(0f, Camera.transform.localEulerAngles.y, 0f));
             _seatYawOffset = 0f;
-            FpsActorController player = GameContext.Player;
-            if (Mode == RigMode.OnFoot && player != null)
-            {
-                Yaw = player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
-            }
+            // On foot the heading stays: the body's yaw it was set from is turned only at spawn and on leaving a seat or a ladder,
+            // so after turning by stick the view swung back by the whole turn (review, 2026-10-20). OnModeChanged sets it then.
         }
 
         private float EyeHeight
@@ -900,15 +898,19 @@ namespace RavenfieldVR.Rig
                         {
                             _crouchReleasedAt = Time.unscaledTime;
                         }
-                        if (player.cameraHeight >= GameStandEyeHeight - 0.01f || Time.unscaledTime - _crouchReleasedAt > 0.6f)
+                        // Until the game stands again: under a low overhang it refuses to, and at the old 0.6 s the view dropped by the
+                        // whole crouch while the player stood (review, 2026-10-20). 3 s still ends a crouch the game keeps for itself.
+                        if (player.cameraHeight >= GameStandEyeHeight - 0.01f || Time.unscaledTime - _crouchReleasedAt > 3f)
                         {
                             _crouchLowered = false;
                         }
                     }
-                    if (_crouchLowered && !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled)
-                    {
-                        compensation = Mathf.Max(0f, GameStandEyeHeight - player.cameraHeight);
-                    }
+                    float wantCompensation = _crouchLowered && !VRGameInput.CrouchToggled && !VRGameInput.ProneToggled
+                        ? Mathf.Max(0f, GameStandEyeHeight - player.cameraHeight) : 0f;
+                    // Eased at the game's own crouch speed (4 m/s): a crouch or prone toggle while physically crouched switched it off at
+                    // once and the view jumped by up to a metre (review, 2026-10-20).
+                    _crouchCompensation = Mathf.MoveTowards(_crouchCompensation, wantCompensation, 4f * Mathf.Min(Time.unscaledDeltaTime, 0.1f));
+                    compensation = _crouchCompensation;
                     origin.y = anchor.y - EyeHeight + compensation;
                     Root.SetPositionAndRotation(origin, r);
                     return player.fpCamera;
@@ -916,8 +918,16 @@ namespace RavenfieldVR.Rig
                 case RigMode.Anchored:
                 {
                     RigidPose anchor = AnchorPose(player, out Camera cam);
-                    anchor.rotation *= Quaternion.Euler(0f, _seatYawOffset, 0f);
-                    anchor.Multiply(_neutralHead.Inverse()).ApplyTo(Root);
+                    RigidPose placed = anchor.Multiply(_neutralHead.Inverse());
+                    if (Mathf.Abs(_seatYawOffset) > 1e-4f)
+                    {
+                        // Turned about the head where it is, not about the neutral head point: leaning 15 cm and turning 90 degrees
+                        // carried the head 21 cm across the cabin (review, 2026-10-20).
+                        Vector3 head = placed.TransformPoint(HeadLocal);
+                        Quaternion q = Quaternion.AngleAxis(_seatYawOffset, anchor.rotation * Vector3.up);
+                        placed = new RigidPose(head + q * (placed.position - head), q * placed.rotation);
+                    }
+                    placed.ApplyTo(Root);
                     return cam;
                 }
                 case RigMode.Follow:
