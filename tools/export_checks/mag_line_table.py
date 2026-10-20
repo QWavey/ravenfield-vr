@@ -22,10 +22,14 @@ for path in sys.argv[1:]:
         if m:
             cur = m.group(1)
             continue
-        m = re.search(r'best tip: fore/aft ([+-]?\d+\.\d) deg, sideways ([+-]?\d+\.\d) deg, score (\d+) \(analysed (\d+)\)', line)
+        m = re.search(r'best tip( \(wide\))?: fore/aft ([+-]?\d+\.\d) deg, sideways ([+-]?\d+\.\d) deg, score (\d+) \(analysed (\d+)\)', line)
         if m and cur:
-            fore, side, best, analysed = float(m.group(1)), float(m.group(2)), int(m.group(3)), int(m.group(4))
-            if (fore or side) and best <= analysed * 0.5 and analysed - best >= 15:
+            wide = m.group(1) is not None
+            fore, side, best, analysed = float(m.group(2)), float(m.group(3)), int(m.group(4)), int(m.group(5))
+            # A best on the search's edge is not taken: the line may lie further out, or the count only falls because a steep
+            # line lets points out of the band it counts (the QBZ192's). A wide scan (mag_line_wide.py) marks its own edge.
+            edge = '(edge)' in line if wide else abs(fore) >= 17.9 or abs(side) >= 7.4
+            if (fore or side) and not edge and best <= analysed * 0.5 and analysed - best >= 15:
                 rig = json.load(open(os.path.join(DATA, cur, 'rig.json'), encoding='utf-8'))
                 rows[rig['key']] = (fore, side, analysed, best, cur)
             cur = None

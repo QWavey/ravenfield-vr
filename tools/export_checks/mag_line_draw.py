@@ -1,6 +1,6 @@
 """Offline side view (CPU, PIL): the gun body's outline (grey), the magazine seated (blue) and slid out along its line by a
 fraction of its length (green), its points showing beside the outline while past the mouth (red). Usage:
-mag_line_draw.py <weapon dir> <fraction> <out.png>"""
+mag_line_draw.py <weapon dir> <fraction> <out.png> [fore/aft deg] [sideways deg]  (the line tilted as mag_line_scan.py tilts it)"""
 import json
 import os
 import sys
@@ -28,6 +28,13 @@ aim = norm(rig['aim'])
 up = np.array(rig.get('up', [0, 1, 0]), float)
 up = norm(up - aim * up.dot(aim))
 eject = norm(rig.get('magEject', [0, -1, 0]))
+if len(sys.argv) > 4:
+    def rot_about(v, axis, deg):
+        axis = norm(axis)
+        r = np.radians(deg)
+        return v * np.cos(r) + np.cross(axis, v) * np.sin(r) + axis * np.dot(axis, v) * (1 - np.cos(r))
+    right = norm(np.cross(aim, up))
+    eject = norm(rot_about(rot_about(eject, right, float(sys.argv[4])), aim, float(sys.argv[5]) if len(sys.argv) > 5 else 0.0))
 body, mag = [], []
 for n in nodes:
     t = n.triangles()

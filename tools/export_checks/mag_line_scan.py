@@ -128,14 +128,17 @@ def scan(name):
     out.append(f'  its own long axis is {np.degrees(np.arccos(np.clip(np.dot(axis, eject), -1, 1))):.1f} deg off the line ({fa:+.1f} fore/aft, {np.degrees(np.arcsin(np.clip(np.dot(axis, right), -1, 1))) - np.degrees(np.arcsin(np.clip(np.dot(eject, right), -1, 1))):+.1f} sideways)')
     s, p = run(axis)
     out.append(f'    along it: beside {s}, through {p}')
-    best = (sum(base_shown) + sum(base_poke), 0.0, 0.0)
+    tried = [(sum(base_shown) + sum(base_poke), 0.0, 0.0)]
     for fore in [x * 1.5 for x in range(-12, 13)]:
         for side in [x * 1.5 for x in range(-5, 6)]:
             dvec = norm(rot_about(rot_about(eject, right, fore), aim, side))
             s, p = run(dvec)
-            score = sum(s) + sum(p)
-            if score < best[0]:
-                best = (score, fore, side)
+            tried.append((sum(s) + sum(p), fore, side))
+    # The smallest tilt among the (near) best: the count is flat over a range of lines (often 0), and the first one tried, the
+    # steepest, was taken; tilted far, a magazine also hides inside the receiver, which the side outline cannot see.
+    least = min(t[0] for t in tried)
+    near = [t for t in tried if t[0] <= least + max(2, least * 0.1)]
+    best = min(near, key=lambda t: (t[1] ** 2 + t[2] ** 2, t[0]))
     out.append(f'  best tip: fore/aft {best[1]:+.1f} deg, sideways {best[2]:+.1f} deg, score {best[0]} (analysed {sum(base_shown) + sum(base_poke)})')
     if best[1] or best[2]:
         s, p = run(norm(rot_about(rot_about(eject, right, best[1]), aim, best[2])))
