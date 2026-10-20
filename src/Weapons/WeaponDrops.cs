@@ -158,6 +158,19 @@ namespace RavenfieldVR.Weapons
 
         internal static GameObject ModelFor(WeaponManager.WeaponEntry entry)
         {
+            GameObject template = TemplateFor(entry);
+            if (template == null)
+            {
+                return null;
+            }
+            GameObject model = UnityEngine.Object.Instantiate(template);
+            model.SetActive(true);
+            return model;
+        }
+
+        /// <summary>The stripped model a drop of this type copies, built the first time (null: the type has none).</summary>
+        private static GameObject TemplateFor(WeaponManager.WeaponEntry entry)
+        {
             if (entry == null || NoModel.Contains(entry))
             {
                 return null;
@@ -181,9 +194,78 @@ namespace RavenfieldVR.Weapons
                 template.transform.SetParent(_templateRoot.transform, false);
                 Templates[entry] = template;
             }
-            GameObject model = UnityEngine.Object.Instantiate(template);
-            model.SetActive(true);
-            return model;
+            return template;
+        }
+
+        private static readonly Queue<WeaponManager.WeaponEntry> LoadingBuilds = new Queue<WeaponManager.WeaponEntry>();
+        private static int _loadingBuildFrame = -100;
+
+        /// <summary>
+        /// While the loading screen is up: the drop templates of the weapons the bots can carry (both teams' pools in the match's
+        /// settings) and of the player's loadout, built about 20 ms a frame. A match started before the menu's warm-up was through
+        /// built them on soldiers' death frames, 24-39 ms each (the user's sessions of 2026-10-20: 58 and 16 drops over 20 ms,
+        /// "model ... with its first template"; task 309). A dropped frame on the loading screen does not matter.
+        /// </summary>
+        internal static void BuildDuringLoading()
+        {
+            if (!VRConfig.EnemyWeaponDrops.Value && !VRConfig.ShowHolsters.Value)
+            {
+                return;
+            }
+            if (Time.frameCount - _loadingBuildFrame > 30)
+            {
+                // A new loading screen: the match's pools as they are now.
+                LoadingBuilds.Clear();
+                var seen = new HashSet<WeaponManager.WeaponEntry>();
+                TeamInfo[] teams = GameManager.instance != null && GameManager.instance.gameInfo != null ? GameManager.instance.gameInfo.team : null;
+                if (teams != null)
+                {
+                    foreach (TeamInfo team in teams)
+                    {
+                        if (team == null || team.availableWeapons == null)
+                        {
+                            continue;
+                        }
+                        foreach (WeaponManager.WeaponEntry e in team.availableWeapons.All())
+                        {
+                            if (e != null && e.prefab != null && seen.Add(e) && !Templates.ContainsKey(e) && !NoModel.Contains(e))
+                            {
+                                LoadingBuilds.Enqueue(e);
+                            }
+                        }
+                    }
+                }
+                WeaponManager.LoadoutSet loadout = LoadoutUi.instance != null ? LoadoutUi.instance.loadout : null;
+                if (loadout != null)
+                {
+                    foreach (WeaponManager.WeaponEntry e in new[] { loadout.primary, loadout.secondary, loadout.gear1, loadout.gear2, loadout.gear3 })
+                    {
+                        if (e != null && e.prefab != null && seen.Add(e) && !Templates.ContainsKey(e) && !NoModel.Contains(e))
+                        {
+                            LoadingBuilds.Enqueue(e);
+                        }
+                    }
+                }
+                if (LoadingBuilds.Count > 0)
+                {
+                    Log.Info($"Loading screen: building the dropped models of {LoadingBuilds.Count} weapon type(s) the match can drop.");
+                }
+            }
+            _loadingBuildFrame = Time.frameCount;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            while (LoadingBuilds.Count > 0 && watch.Elapsed.TotalMilliseconds < 20.0)
+            {
+                WeaponManager.WeaponEntry e = LoadingBuilds.Dequeue();
+                try
+                {
+                    TemplateFor(e);
+                }
+                catch (Exception ex)
+                {
+                    Log.WarnOnce("loadingdrop:" + e.name, $"Building the dropped model of {e.name} on the loading screen failed: {ex.Message}");
+                    NoModel.Add(e);
+                }
+            }
         }
 
         private static readonly System.Text.RegularExpressions.Regex BeamName =

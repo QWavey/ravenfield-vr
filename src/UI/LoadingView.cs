@@ -125,6 +125,7 @@ namespace RavenfieldVR.UI
             if (Active)
             {
                 Place();
+                Log.Guard("loading drops", Weapons.WeaponDrops.BuildDuringLoading);
             }
         }
 
