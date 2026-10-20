@@ -49,12 +49,21 @@ namespace RavenfieldVR.Weapons
         public void Update()
         {
             Transform head = _rig.Head;
-            Vector3 f = head.forward;
+            // The facing from the forward and, as the head pitches toward the floor or the sky, more and more from its up (the
+            // top of the head points ahead looking down, behind looking up). The forward alone swung about near straight down
+            // (a magazine picked off the floor), and the old fallback took the up the wrong way round looking down: the torso
+            // was turned 145 degrees, the holsters and the pouch behind the back (bug hunt, 2026-10-20).
+            float pitch = head.forward.y;
+            Vector3 f = head.forward - head.up * (pitch * pitch * pitch);
             f.y = 0f;
-            if (f.sqrMagnitude < 1e-4f)
+            if (f.sqrMagnitude < 1e-6f)
             {
-                f = head.up * -1f;
+                f = _rig.Root.forward;
                 f.y = 0f;
+            }
+            if (f.sqrMagnitude < 1e-6f)
+            {
+                f = Vector3.forward;
             }
             float headYaw = Quaternion.LookRotation(f.normalized).eulerAngles.y - RootYaw();
             if (!_hasYaw)
