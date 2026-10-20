@@ -59,10 +59,15 @@ namespace RavenfieldVR.Weapons
         private readonly ProceduralSounds _fallback;
         // Two sources: slices are cut and faded at their end, one-shot clips must never be (a faded-out slice used to
         // leave the shared volume at zero, silencing every sound after it).
-        private AudioSource _slice;
+        // Two slice sources: a new slice cuts the one before it (long slices must not pile up), except one started a moment ago,
+        // which goes on in the other source (an en-bloc clip pressed home released the bolt in the same frame: its seating click
+        // was cut by the bolt's; sound hunt, 2026-10-20).
+        private readonly AudioSource[] _slices = new AudioSource[2];
         private AudioSource _oneShot;
-        private double _sliceStopDsp;
-        private float _sliceBaseVolume = 1f;
+        private readonly double[] _sliceStopDsp = new double[2];
+        private readonly double[] _sliceStartDsp = { -10.0, -10.0 };
+        private readonly float[] _sliceBaseVolume = { 1f, 1f };
+        private int _sliceNow;
 
         public WeaponSoundPlayer(WeaponRig rig, ProceduralSounds fallback)
         {
@@ -223,20 +228,25 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             AudioSource template = _rig.Weapon.reloadAudio;
-            AudioSource src = SliceSource(template);
+            double now = AudioSettings.dspTime;
+            AudioSource current = _slices[_sliceNow];
+            if (current != null && current.isPlaying && now - _sliceStartDsp[_sliceNow] < 0.25)
+            {
+                _sliceNow = 1 - _sliceNow; // the one before plays on
+            }
+            int i = _sliceNow;
+            AudioSource src = Configure(ref _slices[i], template);
             src.Stop();
             src.clip = cue.Clip;
             src.time = Mathf.Clamp(cue.Start, 0f, Mathf.Max(0f, cue.Clip.length - 0.01f));
-            _sliceBaseVolume = Audible(template != null ? template.volume : 1f) * volume;
-            src.volume = _sliceBaseVolume;
+            _sliceBaseVolume[i] = Audible(template != null ? template.volume : 1f) * volume;
+            src.volume = _sliceBaseVolume[i];
             src.Play();
-            _sliceStopDsp = AudioSettings.dspTime + cue.Length;
-            src.SetScheduledEndTime(_sliceStopDsp + FadeTime);
+            _sliceStartDsp[i] = now;
+            _sliceStopDsp[i] = now + cue.Length;
+            src.SetScheduledEndTime(_sliceStopDsp[i] + FadeTime);
             return true;
         }
-
-        /// <summary>The source for reload-clip slices (stopped, scheduled and faded per slice).</summary>
-        private AudioSource SliceSource(AudioSource template) => Configure(ref _slice, template);
 
         /// <summary>The source for whole clips (PlayOneShot): full volume, never cut by a slice.</summary>
         private AudioSource OneShotSource(AudioSource template)
@@ -283,22 +293,29 @@ namespace RavenfieldVR.Weapons
         /// <summary>Fades a slice out over its last few milliseconds so cuts never click.</summary>
         public void Update()
         {
-            if (_slice == null || !_slice.isPlaying || _slice.clip == null)
+            for (int i = 0; i < _slices.Length; i++)
             {
-                return;
-            }
-            double remaining = _sliceStopDsp - AudioSettings.dspTime;
-            if (remaining < FadeTime)
-            {
-                _slice.volume = _sliceBaseVolume * Mathf.Clamp01((float)(remaining + FadeTime) / (2f * FadeTime));
+                AudioSource s = _slices[i];
+                if (s == null || !s.isPlaying || s.clip == null)
+                {
+                    continue;
+                }
+                double remaining = _sliceStopDsp[i] - AudioSettings.dspTime;
+                if (remaining < FadeTime)
+                {
+                    s.volume = _sliceBaseVolume[i] * Mathf.Clamp01((float)(remaining + FadeTime) / (2f * FadeTime));
+                }
             }
         }
 
         public void Destroy()
         {
-            if (_slice != null)
+            foreach (AudioSource s in _slices)
             {
-                UnityEngine.Object.Destroy(_slice.gameObject);
+                if (s != null)
+                {
+                    UnityEngine.Object.Destroy(s.gameObject);
+                }
             }
             if (_oneShot != null)
             {
