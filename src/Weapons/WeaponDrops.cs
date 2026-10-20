@@ -884,7 +884,17 @@ namespace RavenfieldVR.Weapons
             if (!ShapeFit.TryCached(key, out _) && ShapeFit.TryCached("drop:" + name + "@1.00", out ShapeFit.Piece[] unit) && unit.Length > 0)
             {
                 // The warm-up's unit-scale fit, scaled (the same pieces, fitted again on the death frame for any other scale;
-                // 255.P7-2).
+                // 255.P7-2). Scaled for the first time on a death frame, its hulls were cooked there: a box till the late fit.
+                if (quick && !ScaledShapes.ContainsKey("fit:" + name + "@" + scale.ToString("F3")))
+                {
+                    lateKey = key;
+                    var quickRenderers = new List<Renderer>(root.GetComponentsInChildren<Renderer>());
+                    quickRenderers.RemoveAll(r => !r.enabled);
+                    Bounds sb = LocalRendererBounds(root, quickRenderers);
+                    ShapeFit.Piece scaledBox = ShapeFit.BoxPiece(sb.center, Vector3.Max(sb.size, new Vector3(0.05f, 0.05f, 0.05f)));
+                    scaledBox.CookFailed = true; // a plain BoxCollider meanwhile
+                    return new[] { scaledBox };
+                }
                 return ScaledPieces("fit:" + name, unit, scale);
             }
             // What is drawn only: the parts the template switched off (a beam, a part parked away) get no collider (task 303).
