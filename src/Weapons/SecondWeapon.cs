@@ -449,6 +449,11 @@ namespace RavenfieldVR.Weapons
                 // destroys this one at the end of that frame; a loadout change). The hand is freed all the same: its role came
                 // back only through HealHandRoles, and its shape to close on stayed the destroyed weapon's, so the next grip
                 // that set no shape of its own closed the fingers on an invisible gun (bug hunt, 2026-10-19).
+                if (_reloadDoneAt >= 0f && Ammo != null)
+                {
+                    Ammo.ReturnSpare(_reloadRounds); // a reload under way gives back what it took (review, 2026-10-20)
+                    _reloadDoneAt = -1f;
+                }
                 FreeHand();
                 return;
             }
