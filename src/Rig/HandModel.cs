@@ -718,6 +718,12 @@ namespace RavenfieldVR.Rig
                 {
                     _snapBlend = 0f;
                 }
+                // The fingers, thumb and pushes too: frozen while hidden, they eased out of the last weapon's grip for a third of a
+                // second (hand hunt, 2026-10-20). This frame takes their goals at once.
+                _snapFingers = true;
+                _palmPush = 0f;
+                _slide = 0f;
+                _push = 0f;
             }
             if (GraspAnchor.HasValue)
             {
@@ -791,9 +797,10 @@ namespace RavenfieldVR.Rig
                 _poseChangedAt = Time.unscaledTime;
             }
             float fade = Mathf.Clamp01((Time.unscaledTime - _poseChangedAt) / PoseFade);
-            float k = 1f - Mathf.Exp(-Mathf.Lerp(7f, 25f, fade) * dt);
-            float kJoint = 1f - Mathf.Exp(-Mathf.Lerp(9f, 40f, fade) * dt);
-            _pointBlend = Mathf.MoveTowards(_pointBlend, _pointRotations != null && Pointing(goal) ? 1f : 0f, dt * 8f);
+            float k = _snapFingers ? 1f : 1f - Mathf.Exp(-Mathf.Lerp(7f, 25f, fade) * dt);
+            float kJoint = _snapFingers ? 1f : 1f - Mathf.Exp(-Mathf.Lerp(9f, 40f, fade) * dt);
+            _pointBlend = Mathf.MoveTowards(_pointBlend, _pointRotations != null && Pointing(goal) ? 1f : 0f, _snapFingers ? 1f : dt * 8f);
+            _snapFingers = false;
             // The pose turns the thumb's base between its rest and the fist: along the frame of a held gun or the side of a
             // handguard (Valve's relaxed thumb stood up through it), wrapped round a knife's handle, up beside a pinch.
             // An empty hand keeps the rest (its tracked thumb moves from there), except the fist a controller without finger
@@ -1346,6 +1353,7 @@ namespace RavenfieldVR.Rig
         private RigidPose _lastSnap;
         private float _snapBlend;
         private bool _wasHidden; // hidden (suppressed or held) last frame
+        private bool _snapFingers; // shown again this frame: the fingers take their goals at once
         /// <summary>The weapon's own arm is shown for this hand instead (Hands = weapon's arms).</summary>
         public bool Suppressed;
         /// <summary>What the hand holds is carried without a visible hand (an ammo or medic bag).</summary>
