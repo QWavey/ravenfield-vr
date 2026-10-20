@@ -292,6 +292,8 @@ namespace RavenfieldVR.Weapons
         private readonly List<Collider> _passing = new List<Collider>();
         private Quaternion _lastRigTurn = Quaternion.identity;
         private bool _hasRigTurn;
+        private bool _snapJumped;
+        private static readonly Collider[] _jumpScratch = new Collider[32];
         private bool _placed;
         private bool _enabled = true;
 
@@ -804,6 +806,7 @@ namespace RavenfieldVR.Weapons
                 if (_hasRigTurn && Quaternion.Angle(_lastRigTurn, rigTurn) > 6f)
                 {
                     _placed = false;
+                    _snapJumped = true;
                 }
                 _lastRigTurn = rigTurn;
                 _hasRigTurn = true;
@@ -815,6 +818,22 @@ namespace RavenfieldVR.Weapons
                 _body.rotation = rot;
                 _go.transform.SetPositionAndRotation(pos, rot);
                 _placed = true;
+                if (_snapJumped)
+                {
+                    // Landed in a loose magazine or weapon: it passes through until clear instead of being pushed out of the
+                    // gun at PhysX's depenetration speed.
+                    _snapJumped = false;
+                    int layer = PropPhysics.Layer;
+                    int n = layer >= 0 ? Physics.OverlapSphereNonAlloc(pos, 0.7f, _jumpScratch, 1 << layer, QueryTriggerInteraction.Ignore) : 0;
+                    for (int i = 0; i < n; i++)
+                    {
+                        Collider c = _jumpScratch[i];
+                        if (c != null && c.attachedRigidbody != null && c.attachedRigidbody != _body && !c.attachedRigidbody.isKinematic)
+                        {
+                            OnPropDropped(c);
+                        }
+                    }
+                }
             }
             _driver.TargetPos = pos;
             _driver.TargetRot = rot;
