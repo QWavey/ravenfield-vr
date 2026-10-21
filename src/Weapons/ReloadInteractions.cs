@@ -23,6 +23,10 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _sys;
         private readonly HeldWeapon _held;
 
+        /// <summary>The match was paused (no menu: the dashboard, the headset off) last frame, so the reload froze; on the first
+        /// frame back the motion baselines are re-anchored before anything advances.</summary>
+        private bool _wasPaused;
+
         private bool _racking;
         /// <summary>This stroke's slide is held with the palm on it (else pinched).</summary>
         private bool _rackPalm;
@@ -431,6 +435,24 @@ namespace RavenfieldVR.Weapons
                     _opticSwitched = true; // and no switch from this hold any more: the hand was not moving it
                 }
             }
+            bool paused = GameManager.IsPaused();
+            if (_wasPaused && !paused)
+            {
+                // Back from a pause: re-anchor the motion baselines so a hand that moved while paused does not jump a kick or
+                // a rack on the first frame back (the cockpit re-anchors its wheel and stick the same way, 2026-10-21).
+                _kickPrevAlong = float.NaN;
+                _kickPushSince = -1f;
+                _kickTicked = false;
+                _supportRest = -1f;
+                if (_racking)
+                {
+                    _rackBase = Travel > 1e-5f ? Mathf.Clamp01(_held.SlideOffset / Travel) : _rackBase;
+                    _rackStartGun = Rig.ToGun(off.Palm.position);
+                    _tugStroke = _rackBase * StrokeLength;
+                    _lastTick = _tugStroke;
+                }
+            }
+            _wasPaused = paused;
             // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
             // moment before the hand reaches the bolt or magazine still takes it (nothing else has claimed the press).
             if (off.GrabPressed)
@@ -440,9 +462,16 @@ namespace RavenfieldVR.Weapons
             // Not with the pause menu up: a squeeze there pulled the magazine or a clip out of the paused gun (sound hunt, 2026-10-20).
             // Nor paused with no menu (the dashboard, the headset off; input hunt, 2026-10-21).
             if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable && !Util.GameContext.GameMenuOpen
-                && !GameManager.IsPaused())
+                && !paused)
             {
                 TryGrab(off);
+            }
+            if (paused)
+            {
+                // Paused: no reload interaction advances (no seat, kick, stow, cover, belt, optic, rack or support let-go). The
+                // hand keeps its role and prop and carries on from here on resume (scout finding, 2026-10-21: an in-progress
+                // reload still seated and kicked while paused because only the grab above was gated, not the switch below).
+                return;
             }
             if (_launcherFrom.HasValue && off.Role != HandRole.Foregrip)
             {
