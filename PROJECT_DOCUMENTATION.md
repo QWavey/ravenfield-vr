@@ -382,6 +382,15 @@ goes to the first raycast hit whose root canvas is a laser target.
 
 ### 3.10 Test tooling (`Core/AutoTest.cs`, `Weapons/WeaponSelfTest.cs`, `Core/Shots.cs`, `Core/PerfProbe.cs`, `Rig/HandPreview.cs`)
 
+- **Reading a play session's log** (no flag needed): every few seconds of a diagnose window `VRInput` logs an
+  `Input check` line with the fps over the last window, **`mod N ms a frame`** (the mod's own Update, LateUpdate and
+  before-render work, `VRManager.TakeModMsPerFrame`), **`drops N (avg, max ms)`** (the death-frame drop spawns since the
+  last line, `WeaponDrops.TakeDropTiming`) and **`gpu N ms a frame`** (SteamVR's compositor timing; through Link it
+  reads far below the real cost and is not the frame interval). The user's session of 2026-10-20 night read 0.4-0.5 ms
+  of mod time in play at 42-58 fps (the frame was the game's), 1-3 ms later in the match after kills, 2-8 ms dead in the
+  follow view (the idle builder's analyses, since moved to the respawn and loadout screens) and 6-23 ms on the loading
+  screen (the drop builds, meant to be there). Slow first drops also log `its analysis N ms of it`.
+
 - **`-rfvr-selftest`** (flat or VR, from the menu, does not quit): analyses every weapon and writes
   `BepInEx/RavenfieldVR-weapon-report.txt` — summary counts, per-weapon parts and how they were found, physics shape
   pieces and fitting time, sounds, notes, dropped-weapon costs (first drop with warm-up measuring included, prepared
