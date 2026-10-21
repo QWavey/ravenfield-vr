@@ -1761,8 +1761,9 @@ namespace RavenfieldVR.Core
 
         /// <summary>
         /// The second weapon with the gun in either hand (user, 2026-10-21: "taking a pistol with the right hand while holding the
-        /// weapon in the left hand or opposite around, the 2nd object sometimes isnt in the hand and floats in the air"): each
-        /// frame for 1.5 s from the draw, how far its drawn model is from the hand holding it, the hand moving; with pictures.
+        /// weapon in the left hand or opposite around, the 2nd object sometimes isnt in the hand and floats in the air"): taken
+        /// from its holster and picked up from the ground, each frame for 1.5 s from the take, how far its drawn model is from
+        /// the hand holding it, the hand moving; with pictures.
         /// </summary>
         private static IEnumerator SecondWeaponFloatCheck(HeldWeapon held, Action<string> report)
         {
@@ -1785,6 +1786,7 @@ namespace RavenfieldVR.Core
             {
                 yield break;
             }
+            WeaponManager.WeaponEntry otherEntry = other.weaponEntry;
             Input.Hand startHand = Input.VRInput.GunHand;
             var parts = new List<string>();
             for (int pass = 0; pass < 2; pass++)
@@ -1804,87 +1806,157 @@ namespace RavenfieldVR.Core
                         break;
                     }
                 }
-                Rig.VRHand hand = sys.Rig.Off;
-                if (hand.Role != Rig.HandRole.Free || hand.Held != null)
+                for (int way = 0; way < 2; way++)
                 {
-                    parts.Add($"{hand.Side} hand busy");
-                    continue;
-                }
-                int side = (int)hand.Side;
-                Runtime.RigidPose start = hand.Raw;
-                Input.VRInput.SimulatedGrab[side] = true;
-                float worstModel = 0f, worstGrip = 0f, worstAt = 0f;
-                int frames = 0, posed = 0;
-                float began = Time.realtimeSinceStartup;
-                try
-                {
-                    sys.BeginSecond(other, hand);
-                    SecondWeapon second = sys.Second;
-                    WeaponRig r = second != null ? second.Rig : null;
-                    var arms = r != null ? new HashSet<Renderer>(r.ArmRenderers) : new HashSet<Renderer>();
-                    while (Time.realtimeSinceStartup - began < 1.5f && sys.Second == second && second != null)
+                    // Found again each time: a pickup replaces the pistol of that slot (the old one is destroyed).
+                    other = null;
+                    foreach (Weapon w in actor.weapons)
                     {
-                        float t = Time.realtimeSinceStartup - began;
-                        // The hand moving as a hand does (20 cm side to side, at about 1 Hz).
-                        Vector3 sway = start.rotation * new Vector3(Mathf.Sin(t * 6.3f) * 0.1f, 0f, 0f);
-                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + sway, start.rotation);
-                        yield return new WaitForEndOfFrame(); // after this frame's render: where it was drawn
-                        frames++;
-                        if (r == null || r.GunBody == null || other == null)
+                        if (w != null && w != main && !(w is ThrowableWeapon) && SecondWeapon.CanPair(main, w))
                         {
-                            continue;
+                            other = w;
+                            break;
                         }
-                        Bounds b = default;
-                        bool any = false;
-                        foreach (Renderer rr in other.GetComponentsInChildren<Renderer>())
+                    }
+                    if (other == null)
+                    {
+                        parts.Add("no second weapon left to take");
+                        break;
+                    }
+                    Rig.VRHand hand = sys.Rig.Off;
+                    if (hand.Role != Rig.HandRole.Free || hand.Held != null || sys.Second != null)
+                    {
+                        parts.Add($"{hand.Side} hand busy");
+                        continue;
+                    }
+                    int side = (int)hand.Side;
+                    Runtime.RigidPose start = hand.Raw;
+                    string label = $"{(pass == 0 ? "usual" : "swapped")}-{(way == 0 ? "holster" : "ground")}";
+                    try
+                    {
+                        if (way == 0)
                         {
-                            if (rr == null || !rr.enabled || !rr.gameObject.activeInHierarchy || arms.Contains(rr) || rr is ParticleSystemRenderer)
+                            Input.VRInput.SimulatedGrab[side] = true;
+                            sys.BeginSecond(other, hand);
+                        }
+                        else
+                        {
+                            // A pistol of that kind lying at the hand, taken up by it (it goes beside the gun, the one it replaces
+                            // to the ground).
+                            DroppedWeapon lying = otherEntry != null
+                                ? sys.Drops.Spawn(otherEntry, new Runtime.RigidPose(hand.Palm.position + hand.Palm.Forward * 0.03f, hand.Palm.rotation), Vector3.one, Vector3.zero, -1, -1)
+                                : null;
+                            if (lying == null)
+                            {
+                                parts.Add("no pistol to lay down");
+                                continue;
+                            }
+                            if (lying.Go.GetComponent<Rigidbody>() is Rigidbody lyingBody)
+                            {
+                                lyingBody.isKinematic = true; // it waits at the hand
+                            }
+                            yield return new WaitForSecondsRealtime(0.25f);
+                            Input.VRInput.SimulatedGrab[side] = true;
+                            Input.VRInput.SimulateGrabPress(hand.Side);
+                            float until = Time.realtimeSinceStartup + 1f;
+                            while (Time.realtimeSinceStartup < until && sys.Second == null)
+                            {
+                                yield return null;
+                            }
+                            if (sys.Second == null)
+                            {
+                                parts.Add($"{label}: NOT PICKED UP into the {hand.Side} hand");
+                                if (lying.Go != null)
+                                {
+                                    UnityEngine.Object.Destroy(lying.Go);
+                                }
+                                continue;
+                            }
+                        }
+                        SecondWeapon second = sys.Second;
+                        Weapon drawn = second != null ? second.Weapon : null;
+                        WeaponRig r = second != null ? second.Rig : null;
+                        var arms = r != null ? new HashSet<Renderer>(r.ArmRenderers) : new HashSet<Renderer>();
+                        float worstModel = 0f, worstGrip = 0f, worstAt = 0f, graspSum = 0f, graspMax = 0f;
+                        int frames = 0, posed = 0, graspN = 0, snapped = 0;
+                        string glove = "";
+                        float began = Time.realtimeSinceStartup;
+                        while (Time.realtimeSinceStartup - began < 1.5f && sys.Second == second && second != null)
+                        {
+                            float t = Time.realtimeSinceStartup - began;
+                            // The hand moving as a hand does (20 cm side to side, at about 1 Hz).
+                            Vector3 sway = start.rotation * new Vector3(Mathf.Sin(t * 6.3f) * 0.1f, 0f, 0f);
+                            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + sway, start.rotation);
+                            yield return new WaitForEndOfFrame(); // after this frame's render: where it was drawn
+                            frames++;
+                            if (r == null || r.GunBody == null || drawn == null)
                             {
                                 continue;
                             }
-                            if (any)
+                            Bounds b = default;
+                            bool any = false;
+                            foreach (Renderer rr in drawn.GetComponentsInChildren<Renderer>())
                             {
-                                b.Encapsulate(rr.bounds);
+                                if (rr == null || !rr.enabled || !rr.gameObject.activeInHierarchy || arms.Contains(rr) || rr is ParticleSystemRenderer)
+                                {
+                                    continue;
+                                }
+                                if (any)
+                                {
+                                    b.Encapsulate(rr.bounds);
+                                }
+                                else
+                                {
+                                    b = rr.bounds;
+                                    any = true;
+                                }
                             }
-                            else
+                            if (!any)
                             {
-                                b = rr.bounds;
-                                any = true;
+                                continue;
+                            }
+                            posed++;
+                            float model = Mathf.Sqrt(b.SqrDistance(hand.PalmCentre)); // 0 when the hand is inside the drawn model's box
+                            float grip = Vector3.Distance(r.ToWorld(r.Data.GripPoint), hand.GunFrame.position);
+                            if (model > worstModel)
+                            {
+                                worstModel = model;
+                                worstAt = t;
+                            }
+                            worstGrip = Mathf.Max(worstGrip, grip);
+                            if (t > 0.5f && hand.Model != null)
+                            {
+                                // The drawn glove's palm centre (its root, as placed) against the weapon's grip, once it has settled, and
+                                // whether it is on the weapon's own grip pose (as the gun hand's glove; left on the tracked hand it was not).
+                                float grasp = Vector3.Distance(hand.Model.Root.position, r.ToWorld(r.Data.GripPoint));
+                                snapped += hand.Model.SnapPose.HasValue ? 1 : 0;
+                                graspSum += grasp;
+                                graspMax = Mathf.Max(graspMax, grasp);
+                                graspN++;
+                            }
+                            if (frames == 3 || Mathf.Abs(t - 0.8f) < 0.012f)
+                            {
+                                glove += (glove.Length > 0 ? ", then " : "") + $"{t:0.00} s: {second.GloveState}";
+                                Vector3 look = hand.PalmCentre;
+                                Vector3 from = look + Vector3.up * 0.15f + Vector3.ProjectOnPlane(sys.Rig.Head.forward, Vector3.up).normalized * 0.55f;
+                                Shots.Capture($"second-float-{label}-{frames:000}-{drawn.name}", from, Quaternion.LookRotation(look - from), 70f);
                             }
                         }
-                        if (!any)
-                        {
-                            continue;
-                        }
-                        posed++;
-                        float model = Mathf.Sqrt(b.SqrDistance(hand.PalmCentre)); // 0 when the hand is inside the drawn model's box
-                        float grip = Vector3.Distance(r.ToWorld(r.Data.GripPoint), hand.GunFrame.position);
-                        if (model > worstModel)
-                        {
-                            worstModel = model;
-                            worstAt = t;
-                        }
-                        worstGrip = Mathf.Max(worstGrip, grip);
-                        if (frames == 3 || Mathf.Abs(t - 0.8f) < 0.012f)
-                        {
-                            Vector3 look = hand.PalmCentre;
-                            Vector3 from = look + Vector3.up * 0.15f + Vector3.ProjectOnPlane(sys.Rig.Head.forward, Vector3.up).normalized * 0.55f;
-                            Shots.Capture($"second-float-{(pass == 0 ? "usual" : "swapped")}-{frames:000}-{other.name}", from, Quaternion.LookRotation(look - from), 70f);
-                        }
+                        Metric($"second weapon {label}: worst cm of its drawn model from the hand", worstModel * 100f);
+                        parts.Add($"{label} (gun in the {Input.VRInput.GunHand} hand, {(drawn != null ? drawn.name : "?")} in the {hand.Side}): drawn model up to "
+                                  + $"{worstModel * 100f:0.0} cm from the hand{(worstModel > 0.03f ? $" at {worstAt:0.00} s (FLOATING)" : "")}, grip up to {worstGrip * 100f:0.0} cm off, "
+                                  + $"{posed}/{frames} frames drawn; the glove's palm {(graspN > 0 ? graspSum / graspN * 100f : -1f):0.0} cm from its grip "
+                                  + $"(most {graspMax * 100f:0.0}), on the weapon's own grip pose {snapped}/{graspN} frames; the hand {glove}");
                     }
+                    finally
+                    {
+                        Rig.VRHand.Scripted[side] = null;
+                        Input.VRInput.SimulatedGrab[side] = false;
+                    }
+                    yield return null;
+                    yield return null;
+                    yield return new WaitForSecondsRealtime(0.3f);
                 }
-                finally
-                {
-                    Rig.VRHand.Scripted[side] = null;
-                    Input.VRInput.SimulatedGrab[side] = false;
-                }
-                yield return null;
-                yield return null;
-                Metric($"second weapon {(pass == 0 ? "usual" : "gun swapped")}: worst cm of its drawn model from the hand", worstModel * 100f);
-                parts.Add($"{(pass == 0 ? "gun" : "gun swapped to the")} {(pass == 0 ? "in the " + Input.VRInput.GunHand + " hand" : Input.VRInput.GunHand + " hand")}, {other.name} in the {hand.Side}: "
-                          + $"drawn model up to {worstModel * 100f:0.0} cm from the hand{(worstModel > 0.03f ? $" at {worstAt:0.00} s (FLOATING)" : "")}, grip up to {worstGrip * 100f:0.0} cm off, "
-                          + $"{posed}/{frames} frames drawn");
-                yield return new WaitForSecondsRealtime(0.3f);
             }
             if (Input.VRInput.GunHand != startHand)
             {

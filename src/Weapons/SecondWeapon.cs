@@ -77,6 +77,8 @@ namespace RavenfieldVR.Weapons
 
         private bool _triggerWas;
         private readonly List<Projectile> _spawned = new List<Projectile>();
+        /// <summary>The weapon's own right hand (its first-person arms), whose grip pose the glove takes, as the gun hand's does.</summary>
+        private readonly ModHand _gripHand;
 
         public SecondWeapon(WeaponSystem sys, Weapon weapon, WeaponRig rig, AmmoState ammo, VRHand hand)
         {
@@ -91,13 +93,23 @@ namespace RavenfieldVR.Weapons
             }
             weapon.Unholster();
             hand.Role = weapon is ThrowableWeapon ? HandRole.Throwable : HandRole.Weapon;
+            if (rig != null && rig.Data.Action == ActionType.Throwable)
+            {
+                // Held by its middle, in the fist (only the gun hand's draw did this: a grenade first taken in the free hand hung
+                // from where its throw animation's palm was; second-weapon hunt, 2026-10-21).
+                HeldWeapon.CentreGrenadeGrip(rig, weapon);
+            }
             if (hand.Model != null && Rig != null)
             {
                 // Its own grip pose, as the gun hand's: unset, every second weapon took the rifle grip, a pistol's thumb wrapped over
                 // its slide for the whole hold (hand hunt, 2026-10-20).
                 hand.Model.WeaponIsPistol = Rig.Data.IsPistol;
                 hand.Model.WeaponClass = HeldWeapon.ClassOf(Rig, weapon);
+                hand.Model.WeaponGripCurls = Rig.Data.GripCurls;
+                hand.Model.WeaponGripThumbBase = Rig.Data.GripThumbBase;
+                hand.Model.WeaponGripThumbCurl = Rig.Data.GripThumbCurl;
             }
+            _gripHand = Rig != null && !(weapon is ThrowableWeapon) ? ModHand.Find(weapon.transform, Rig.Data.ArmRight) : null;
             // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
             Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
@@ -393,9 +405,26 @@ namespace RavenfieldVR.Weapons
             Transform root = Weapon.transform;
             RigidPose gunInRoot = RigidPose.Of(root).Inverse().Multiply(RigidPose.Of(Rig.GunBody));
             gunBody.Multiply(gunInRoot.Inverse()).ApplyTo(root);
+            if (Hand.Model != null)
+            {
+                // The glove goes with the kick: the gun left the fist for a moment after every shot (second-weapon hunt,
+                // 2026-10-21), as the gun hand's glove goes with its gun's lag.
+                Hand.Model.FollowOffset = aimFrame * _kickPos;
+                Hand.Model.FollowFrame = Time.frameCount;
+                // On the weapon's own grip pose, as the gun hand's glove: left on the tracked hand, it grasped 4.3 cm off the grip
+                // the weapon is held by (measured; user, 2026-10-21: "the 2nd object sometimes isnt in the hand and floats").
+                Hand.Model.SnapPose = _gripHand != null && _gripHand.TryPose(Weapon.transform, out RigidPose grip)
+                                      && (grip.position - Rig.ToWorld(d.GripPoint)).sqrMagnitude < 0.06f * 0.06f
+                    ? Hand.IsLeft ? HeldWeapon.MirrorAcrossGun(Rig, grip) : grip // the weapon's hand is a right hand
+                    : (RigidPose?)null;
+            }
             if (Weapon.isHidden)
             {
                 Weapon.Show(); // the game hid it as a weapon not in use: it is in the hand
+            }
+            if (IsThrowable)
+            {
+                HeldWeapon.CentreGrenadeGrip(Rig, Weapon); // once shown (hidden when taken, its middle could not be measured yet)
             }
             HideArms(); // after Show(), which draws the weapon's own arms again
             // Its parked spare magazines and rounds are not drawn in the hand, as the held gun's are not (Task 268: a spare
@@ -444,10 +473,11 @@ namespace RavenfieldVR.Weapons
                 _volume = null; // measured again a second later
                 _volumeRetryAt = Time.unscaledTime + 1f;
             }
-            if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && Time.unscaledTime - _heldSince > 0.25f)
+            // Only while it is drawn (measured from the first frame now, a hidden weapon would give an empty shape to its whole type).
+            if (_volume == null && _volumeTries < 3 && Time.unscaledTime >= _volumeRetryAt && Time.unscaledTime - _heldSince > 0.25f && !Weapon.isHidden)
             {
                 _volumeTries++;
-                _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint);
+                _volume = GunVolume.For(Rig, frame, Rig.Data.GripPoint, posedByHand: true);
                 if (_volume == null)
                 {
                     _volumeRetryAt = Time.unscaledTime + 1f;
@@ -462,6 +492,11 @@ namespace RavenfieldVR.Weapons
             model.SolidAnchor = Rig.GunBody;
             model.SolidVersion = 0;
         }
+
+        /// <summary>Autotest: what the hand holding it closes on (its role, its solid, the measurement's state).</summary>
+        internal string GloveState =>
+            $"{Hand.Role}, closing on {(Hand.Model == null ? "no glove" : Hand.Model.Solid == null ? "nothing" : Hand.Model.Solid == _solid ? "its shape" : "another shape")}, "
+            + $"shape {(_volume == null ? $"none ({_volumeTries} tries)" : _volume.Ready ? "ready" : _volume.Failed ? "failed" : "measuring")}";
 
         /// <summary>Back into its holster (let go, or the main gun went away).</summary>
         public void PutAway()
@@ -553,6 +588,10 @@ namespace RavenfieldVR.Weapons
             {
                 Hand.Model.WeaponIsPistol = false;
                 Hand.Model.WeaponClass = WeaponClass.None;
+                Hand.Model.WeaponGripCurls = null;
+                Hand.Model.WeaponGripThumbBase = -1f;
+                Hand.Model.WeaponGripThumbCurl = -1f;
+                Hand.Model.SnapPose = null;
             }
         }
     }

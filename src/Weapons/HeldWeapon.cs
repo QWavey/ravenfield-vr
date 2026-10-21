@@ -217,22 +217,9 @@ namespace RavenfieldVR.Weapons
             _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
             _isKit = IsKit(weapon);
             _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
-            if (rig.Data.Action == ActionType.Throwable && !_isKit && !GrenadeInFist.Contains(rig.Data))
+            if (rig.Data.Action == ActionType.Throwable && !_isKit)
             {
-                // A grenade sits in the fist: its drawn middle where a grip goes. Held by where the throw animation's palm
-                // was, it hung against the side of the glove, in the air (user, 2026-10-16). Hand-sized things only.
-                Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured, ThrowableHandler.FindModPin(weapon.transform));
-                if (gMeasured)
-                {
-                    // Only once it measured something (a failed measure is tried again on the next draw; 255.I5-1), and
-                    // without its pin or ring, which pulled the middle toward the top.
-                    GrenadeInFist.Add(rig.Data);
-                    if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
-                    {
-                        Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");
-                        rig.Data.GripPoint = gb.center;
-                    }
-                }
+                CentreGrenadeGrip(rig, weapon);
             }
             ActionType action = rig.Data.Action;
             RackPointGun = rig.Data.RackPoint;
@@ -2744,6 +2731,31 @@ namespace RavenfieldVR.Weapons
         /// <summary>Throwables already put in the fist by their middle (once per analysis).</summary>
         private static readonly HashSet<WeaponRigData> GrenadeInFist = new HashSet<WeaponRigData>();
 
+        /// <summary>
+        /// A grenade sits in the fist: its drawn middle where a grip goes. Held by where the throw animation's palm was, it hung
+        /// against the side of the glove, in the air (user, 2026-10-16). Hand-sized things only; once per type (the data is
+        /// shared). For the gun hand's draw and the free hand's.
+        /// </summary>
+        internal static void CentreGrenadeGrip(WeaponRig rig, Weapon weapon)
+        {
+            if (rig == null || weapon == null || GrenadeInFist.Contains(rig.Data))
+            {
+                return;
+            }
+            Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured, ThrowableHandler.FindModPin(weapon.transform));
+            if (!gMeasured)
+            {
+                return; // tried again on the next draw (255.I5-1)
+            }
+            // Without its pin or ring, which pulled the middle toward the top.
+            GrenadeInFist.Add(rig.Data);
+            if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
+            {
+                Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");
+                rig.Data.GripPoint = gb.center;
+            }
+        }
+
         /// <summary>Self-test: this weapon is carried like a bag (no glove on it).</summary>
         internal bool IsKitForTest => _isKit;
 
@@ -2871,6 +2883,10 @@ namespace RavenfieldVR.Weapons
                 Vector3 palm = off.PalmCentre;
                 _supportGrabOnGun = Reload == null || Vector3.Distance(palm, Reload.HandguardPoint(palm)) < 0.05f;
             }
+            if (_system.Second != null && _system.Second.Hand == off)
+            {
+                return; // that glove is on the second weapon's own grip pose (cleared here every frame, it grasped 4.3 cm off its grip)
+            }
             if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
                 && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {
@@ -2986,10 +3002,13 @@ namespace RavenfieldVR.Weapons
         /// A hand pose reflected across the gun's vertical middle plane (through the bore): the weapon's right-hand pose
         /// for a left glove and the other way round.
         /// </summary>
-        private RigidPose MirrorAcrossGun(RigidPose p)
+        private RigidPose MirrorAcrossGun(RigidPose p) => MirrorAcrossGun(Rig, p);
+
+        /// <summary>The same for any weapon's rig (the free hand's second weapon).</summary>
+        internal static RigidPose MirrorAcrossGun(WeaponRig rig, RigidPose p)
         {
-            Vector3 right = Rig.DirToWorld(OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up) * Vector3.right);
-            Vector3 centre = Rig.ToWorld(Rig.Data.MuzzlePoint);
+            Vector3 right = rig.DirToWorld(OpenVRMath.SafeLookRotation(rig.Data.AimAxis, rig.Data.Up) * Vector3.right);
+            Vector3 centre = rig.ToWorld(rig.Data.MuzzlePoint);
             Vector3 position = p.position - 2f * Vector3.Dot(p.position - centre, right) * right;
             Vector3 forward = Vector3.Reflect(p.rotation * Vector3.forward, right);
             Vector3 up = Vector3.Reflect(p.rotation * Vector3.up, right);
@@ -3371,9 +3390,9 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Dominant.Model.SnapPose = null;
                 _system.Rig.Dominant.Model.HiddenByHeld = false;
             }
-            if (_system.Rig.Off.Model != null)
+            if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off))
             {
-                _system.Rig.Off.Model.Solid = null;
+                _system.Rig.Off.Model.Solid = null; // (not the second weapon's hand: its glove is on that weapon)
                 _system.Rig.Off.Model.SnapPose = null;
             }
             _magnifierFlip.Release();
@@ -3461,8 +3480,10 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Dominant.Model.Solid = null;
                 _system.Rig.Dominant.Model.HiddenByHeld = false;
             }
-            if (_system.Rig.Off.Model != null)
+            if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off))
             {
+                // Not a hand holding the second weapon: its shape and grip class are that weapon's (wiped by a switch of the gun,
+                // a pistol in the free hand was then held as a rifle; second-weapon hunt, 2026-10-21).
                 _system.Rig.Off.Model.WeaponSupportCurls = null;
                 _system.Rig.Off.Model.SnapPose = null;
                 _system.Rig.Off.Model.Solid = null;

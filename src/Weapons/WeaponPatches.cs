@@ -122,7 +122,12 @@ namespace RavenfieldVR.Weapons
         private static IEnumerator StepNextFrame(Weapon weapon, Animator anim)
         {
             yield return null; // runs after this frame's Update calls, before its animation pass
-            if (weapon != null && anim != null && anim.isActiveAndEnabled && weapon.user != null && weapon.user.activeWeapon == weapon)
+            // The free hand's second weapon as well: it played its whole draw clip in the hand (its shape could not be measured
+            // until the game's draw time ran out, and the glove stayed open beside it; user, 2026-10-21: "the 2nd object
+            // sometimes isnt in the hand and floats in the air").
+            SecondWeapon second = WeaponSystem.Instance != null ? WeaponSystem.Instance.Second : null;
+            if (weapon != null && anim != null && anim.isActiveAndEnabled && weapon.user != null
+                && (weapon.user.activeWeapon == weapon || second != null && second.Weapon == weapon))
             {
                 Step(anim);
             }

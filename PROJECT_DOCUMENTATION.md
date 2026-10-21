@@ -738,8 +738,11 @@ Other discoveries:
   an added knob (`Tasks.md` "For 246"). 27 guns with unreadable meshes needed an added knob (245); some still do.
 - **Trigger finger** curls until it touches; there is no trigger point in the analysis, so it does not aim at the
   trigger blade (202). The finger also presses visibly on each shot and on a dry click.
-- **Weapons in either hand**: passing the weapon to the other hand works (152 step one); holding a second weapon at the
-  same time (step two) needs a second held weapon next to the game's single active weapon and is not started.
+- **Weapons in either hand**: passing the weapon to the other hand works (152 step one), and the free hand holds a second
+  weapon of another kind beside it (`SecondWeapon`: from its holster or picked up from the ground; fired with that hand's
+  trigger, reloaded by a timer, put back when let go). Its glove follows its kick, its draw clip is skipped as the gun
+  hand's is, and its shape is measured from the first frame in the hand (2026-10-21: before, the measurement waited for
+  the game's draw time and failed, and the glove had nothing to close on while the weapon hung beside it).
 - Long-standing (README): night vision and camera effects not copied to the headset; third-person/death cameras turn
   only around the vertical axis; magenta materials replaced by approximations.
 

@@ -336,9 +336,12 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// The volume of this weapon type (measured now from the weapon as it is posed, or the one measured before), or
-        /// null when it cannot be measured.
+        /// null when it cannot be measured. <paramref name="posedByHand"/>: posed by a hand of the mod's (the free hand's second
+        /// weapon), measured from the first frame, not only once the game calls it unholstered. Its draw time ran 1.2 s and
+        /// more, the measurement started before it ended and failed ("put away before every view was taken"), and the glove
+        /// had nothing to close on meanwhile.
         /// </summary>
-        public static GunVolume For(WeaponRig rig, Quaternion frame, Vector3 origin)
+        public static GunVolume For(WeaponRig rig, Quaternion frame, Vector3 origin, bool posedByHand = false)
         {
             if (rig.GunBody == null)
             {
@@ -347,7 +350,7 @@ namespace RavenfieldVR.Weapons
             GunCollider.Envelope(rig.Data, frame, origin, out Vector3 envMin, out Vector3 envMax);
             return Cached(rig.Data.Key, () =>
             {
-                Runtime.RigidPose? Now() => rig.GunBody != null && rig.Weapon != null && rig.Weapon.unholstered
+                Runtime.RigidPose? Now() => rig.GunBody != null && rig.Weapon != null && (rig.Weapon.unholstered || posedByHand && rig.Weapon.gameObject.activeInHierarchy)
                     ? new Runtime.RigidPose(rig.ToWorld(origin), rig.GunBody.rotation * frame)
                     : (Runtime.RigidPose?)null;
                 return Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax, 5, Now,
