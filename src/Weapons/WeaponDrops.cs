@@ -316,7 +316,19 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (NeedsAnalysis(e, out Weapon prefab))
                 {
-                    WeaponAnalyzer.Get(prefab, e); // a pickup of the type then waits for no analysis
+                    if (GameContext.GameMenuOpen)
+                    {
+                        WeaponAnalyzer.Get(prefab, e); // a pickup of the type then waits for no analysis
+                    }
+                    else
+                    {
+                        // Not while spectating: an analysis is 25-270 ms, and dead in the follow view each one froze the moving
+                        // picture in the headset once a second (the user's session of 2026-10-20 night: 2-8 ms a frame on
+                        // average there). The respawn and loadout screens take them.
+                        IdleBuilds.Enqueue(e);
+                        _nextIdleBuild = now + 0.5f;
+                        return;
+                    }
                 }
             }
             catch (Exception ex)
