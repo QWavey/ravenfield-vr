@@ -4241,7 +4241,7 @@ namespace RavenfieldVR.Weapons
                     }
                     float endSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
                     Core.AutoTest.Metric($"magazine keep-out ({name}): frames with the magazine drawn inside the gun", frames);
-                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/{MagazineProp.MagRows * 9} points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}"
+                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/{mag.KeepOutRows * 9} points), ended {endSide * 100f:0.0} cm {(endSide <= 0.02f ? "on its side" : probeFramesOut + frames == 0 ? "past the gun, over or around it (never in it)" : "PAST THE GUN (WENT THROUGH)")}"
                               + $" [probe of {probePoints} points: {probeFramesOut} frame(s) with points in the solid outside the well's opening (at most {probeMaxOut}), at most {probeMaxIn} in the solid inside the opening]");
                     worstFrames = Mathf.Max(worstFrames, frames);
                     worstPoints = Mathf.Max(worstPoints, maxPoints);

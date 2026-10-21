@@ -2034,7 +2034,13 @@ namespace RavenfieldVR.Weapons
         // through thin parts of the gun unseen: the GREASER's and JOLT-20-S's magazines put up to 114 of the test's dense probe
         // points in the gun's body, sideways (autotest, 2026-10-21).
         private const float KeepOutEdge = 0.95f;
-        private static readonly Vector3[] Samples = new Vector3[MagRows * RowPoints];
+        // Rows at most 2 cm apart on a long magazine (up to 16): nine over the GREASER's 28.6 cm stood 3.6 cm apart, and a thin
+        // part of the gun passed between them sideways (autotest, 2026-10-21).
+        private const int MaxMagRows = 16;
+        private static readonly Vector3[] Samples = new Vector3[MaxMagRows * RowPoints];
+
+        /// <summary>The keep-out's rows along this magazine: nine, more on a long one (2 cm apart at most).</summary>
+        internal int KeepOutRows => Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.02f) + 1, MagRows, MaxMagRows);
 
         /// <summary>
         /// The well lets a magazine in only on its own line: within the rail's reach of it sideways (4.5 cm) and turned less
@@ -2134,7 +2140,7 @@ namespace RavenfieldVR.Weapons
                 // them), half way out to its edges (its box is the warhead's: the thin tail would stop short of the tube).
                 Vector3 side = Vector3.Cross(InsertDirLocal, FrontLocal).normalized;
                 Vector3[] points = rocket ? RocketSamples : Samples;
-                int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : MagRows;
+                int along = rocket ? Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(BaseLocal, TipLocal) / 0.06f) + 1, 5, RocketSamples.Length / 5) : KeepOutRows;
                 // A pistol magazine to its edges: its box is its shape, and at 80% its outer 1.5-3 mm went into a 3-5 mm grip wall
                 // unseen (task 270). Others at 80%: a rifle magazine's box is taken where the hand holds it, and a curved one's
                 // edges along its length would meet the receiver before the magazine does.
@@ -2307,9 +2313,10 @@ namespace RavenfieldVR.Weapons
             Transform t = Go.transform;
             bool open = OnWellLine(seat, t.position, t.rotation);
             int inside = 0;
-            for (int a = 0; a < MagRows; a++)
+            int rows = KeepOutRows;
+            for (int a = 0; a < rows; a++)
             {
-                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(MagRows - 1));
+                Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(rows - 1));
                 float edge = _pistolGun ? 1f : KeepOutEdge;
                 Vector3 f = FrontLocal * (_frontHalf * edge), s = side * (_sideHalf * edge);
                 foreach (Vector3 local in new[] { c, c + f, c - f, c + s, c - s, c + f + s, c + f - s, c - f + s, c - f - s })
