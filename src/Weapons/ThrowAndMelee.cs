@@ -320,11 +320,18 @@ namespace RavenfieldVR.Weapons
 
         private void UpdatePin()
         {
+            VRHand off = _sys.Rig.Off;
             if (GameManager.IsPaused())
             {
-                return; // the pin is not pulled in a paused match (the dashboard, the headset off; input hunt, 2026-10-21)
+                if (_holdingPin)
+                {
+                    // A pause (the dashboard, the headset off) ends the pin grab, as MagnifierFlip ends its hold: a hand moved
+                    // while paused must not pull the pin on the first frame back (pause audit, 2026-10-21).
+                    _holdingPin = false;
+                    off.Role = HandRole.Free;
+                }
+                return; // the pin is not pulled in a paused match (input hunt, 2026-10-21)
             }
-            VRHand off = _sys.Rig.Off;
             VRHand dom = _sys.Rig.Dominant;
             if (!_pinPulled)
             {
