@@ -5473,6 +5473,11 @@ namespace RavenfieldVR.Weapons
                 off.Model.GraspAnchor = null;
             }
             _pullingIn = null;
+            // The mag-kick trackers reset too: an in-place sub-weapon switch keeps this instance, so a crossing left over from
+            // before the switch could knock the next magazine out on the first frame back (reload lifecycle scout, 2026-10-21).
+            _kickPrevAlong = float.NaN;
+            _kickPushSince = -1f;
+            _kickTicked = false;
             Casings.ShowChamber(_held, false, false);
             if (_ejecting != null)
             {
