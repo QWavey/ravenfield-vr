@@ -1644,7 +1644,9 @@ namespace RavenfieldVR.Weapons
             // stays in its shape for the session. A gun that never comes to rest (empty, slide locked) is measured anyway.
             float held = Time.unscaledTime - _heldSince;
             bool atRest = Weapon.unholstered && !Weapon.reloading && SlideOffset < 0.002f && HingeOpenness < 0.01f;
-            if (_volume != null && _volume.Failed)
+            // Or stalled: a measuring whose views stopped is neither, and the hands had no solid for the rest of the hold (threads
+            // hunt, 2026-10-21; the 15 s give-up was only in the cache's lookup, which this held volume never made again).
+            if (_volume != null && (_volume.Failed || _volume.Stalled))
             {
                 // Its read-back or measuring failed: measured again a second later (GunVolume keeps no failed entry). Latched
                 // before, the hands never got a solid for the rest of the hold.

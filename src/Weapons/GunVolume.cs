@@ -132,6 +132,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>When its measuring started (realtime): one that never finished is measured again (see Cached).</summary>
         private readonly float _startedAt = Time.realtimeSinceStartup;
 
+        /// <summary>Neither ready nor failed 15 s on: its measuring stopped (a view coroutine ended with the VR manager).</summary>
+        internal bool Stalled => !Ready && !Failed && Time.realtimeSinceStartup - _startedAt > 15f;
+
         /// <summary>1 while this measuring holds one of the in-flight places (given back once, however it ends).</summary>
         private int _holdsPlace;
 
