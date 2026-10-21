@@ -1179,6 +1179,18 @@ namespace RavenfieldVR.Weapons
             LateGather.Clear();
             _lateGeneration++; // fits still on a worker are of the old models
             _lateBaking = null;
+            // The copies still lying on their box get their fit started again: their pending one was just dropped, and they kept
+            // the box for good (threads hunt, 2026-10-21).
+            if (Instance != null)
+            {
+                foreach (DroppedWeapon d in Instance._drops)
+                {
+                    if (d.Go != null && d.LateFitKey != null && LateFitsUnderway.Add(d.LateFitKey))
+                    {
+                        LateGather.Enqueue(d);
+                    }
+                }
+            }
         }
 
         /// <summary>
