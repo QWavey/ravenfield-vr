@@ -4213,7 +4213,11 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f))
+                // Shown means drawn as well: a spare magazine with its renderer off (or scaled away) beside the bone leaned the axis
+                // toward it (analyzer hunt, 2026-10-21).
+                Renderer drawn = mf.GetComponent<Renderer>();
+                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f
+                                      || drawn == null || !drawn.enabled || mf.transform.lossyScale.sqrMagnitude < 1e-8f))
                 {
                     continue;
                 }
