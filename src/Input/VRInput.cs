@@ -364,6 +364,7 @@ namespace RavenfieldVR.Input
             _diagFrames = 0;
             _diagWindowStart = now;
             sb.Append($", mod {VRManager.TakeModMsPerFrame():0.0} ms a frame");
+            sb.Append(Weapons.WeaponDrops.TakeDropTiming());
             AppendGpuTiming(sb);
             Rig.VRRig rig = Rig.VRRig.Instance;
             if (rig != null && rig.Camera != null)

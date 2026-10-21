@@ -134,6 +134,9 @@ namespace RavenfieldVR.Weapons
             bool hadModel = Templates.ContainsKey(w.weaponEntry);
             Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare);
             float ms = (float)watch.Elapsed.TotalMilliseconds;
+            _deathDrops++;
+            _deathDropMs += ms;
+            _deathDropMax = Mathf.Max(_deathDropMax, ms);
             if (ms > 20f)
             {
                 // Its parts, to tell which one a slow kill spent its time on (task 309): the model's copy (its first one builds the
@@ -144,6 +147,24 @@ namespace RavenfieldVR.Weapons
                          + $"shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms"
                          + $"{(GC.CollectionCount(0) != collections ? ", a garbage collection ran" : "")}).");
             }
+        }
+
+        // Every death frame's drop, for the input check's line (only those over 20 ms were logged: the cost of the many small ones
+        // in a fight was unknown; 2026-10-21).
+        private static int _deathDrops;
+        private static float _deathDropMs, _deathDropMax;
+
+        /// <summary>The death-frame drops since the last call: how many, their average and longest ms ("" when none).</summary>
+        internal static string TakeDropTiming()
+        {
+            if (_deathDrops == 0)
+            {
+                return "";
+            }
+            string s = $", drops {_deathDrops} ({_deathDropMs / _deathDrops:0.0} ms avg, {_deathDropMax:0} max)";
+            _deathDrops = 0;
+            _deathDropMs = _deathDropMax = 0f;
+            return s;
         }
 
         /// <summary>A drop's scale snapped: 1 within 1.5%, else each axis to the nearest 1% (so drops share the shapes kept per scale).</summary>
