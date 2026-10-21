@@ -148,6 +148,10 @@ namespace RavenfieldVR.Rig
             {
                 Object.Destroy(_veil);
             }
+            if (_veilMaterial != null)
+            {
+                Object.Destroy(_veilMaterial); // not the veil's own: each VR restart left one behind (rig hunt, 2026-10-21)
+            }
             if (Instance == this)
             {
                 Instance = null;

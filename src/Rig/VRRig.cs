@@ -354,6 +354,16 @@ namespace RavenfieldVR.Rig
             HandleTurning(player);
             _cockpit.Update();
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
+            if (Mode == RigMode.OnFoot && player != null && player.actor != null && player.actor.IsSeated())
+            {
+                // Seated by a hand at a door just now: the seat's mode from this frame. One frame of the on-foot follow ran on the
+                // seated actor and the view was placed from the old yaw (rig hunt, 2026-10-21).
+                DetermineMode(player, out mode, out key);
+                if (mode != Mode || !ReferenceEquals(key, _anchorKey))
+                {
+                    OnModeChanged(Mode, mode, key, player);
+                }
+            }
             if (Mode == RigMode.OnFoot && player != null)
             {
                 RoomscaleFollow(player);
@@ -914,11 +924,13 @@ namespace RavenfieldVR.Rig
                     {
                         if (_crouchReleasedAt < 0f)
                         {
-                            _crouchReleasedAt = Time.unscaledTime;
+                            _crouchReleasedAt = Time.time;
                         }
                         // Until the game stands again: under a low overhang it refuses to, and at the old 0.6 s the view dropped by the
                         // whole crouch while the player stood (review, 2026-10-20). 3 s still ends a crouch the game keeps for itself.
-                        if (player.cameraHeight >= GameStandEyeHeight - 0.01f || Time.unscaledTime - _crouchReleasedAt > 3f)
+                        // Game time, as the game's own stand-up: a pause of over 3 s just after standing ended it while the game was
+                        // still crouched, and the view sank by up to 0.7 m until the match went on (rig hunt, 2026-10-21).
+                        if (player.cameraHeight >= GameStandEyeHeight - 0.01f || Time.time - _crouchReleasedAt > 3f)
                         {
                             _crouchLowered = false;
                         }
@@ -940,6 +952,10 @@ namespace RavenfieldVR.Rig
                 }
                 case RigMode.Anchored:
                 {
+                    if (player == null && !(_anchorKey is Camera keyCam && keyCam != null))
+                    {
+                        return null; // the player went since Update: the view stays where it was, not at the world's origin for a frame
+                    }
                     RigidPose anchor = AnchorPose(player, out Camera cam);
                     RigidPose placed = anchor.Multiply(_neutralHead.Inverse());
                     if (Mathf.Abs(_seatYawOffset) > 1e-4f)

@@ -1837,6 +1837,11 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
+            if (prop.Go == null)
+            {
+                prop.Destroy(); // gone with a scene change: frees the hand (Drop threw on the destroyed object; prop physics hunt, 2026-10-21)
+                return;
+            }
             if (!off.GrabHeld)
             {
                 ReleaseProp(off, prop);
@@ -2888,12 +2893,6 @@ namespace RavenfieldVR.Weapons
         private System.Func<Vector3, bool> _keepOutGun, _keepOutBlocked;
         private HandModel _keepOutHand;
 
-        /// <summary>
-        /// A magazine sliding into the well slides through the hand that holds it: the glove stops where it would go into
-        /// the gun (the well and the receiver round it, a pistol's grip and the gun hand on it) and the magazine goes on
-        /// through the fingers, so the hand ends on its lower end. The glove followed it into the gun before (a pistol
-        /// magazine, held by most of its length, took the hand up into the grip).
-        /// </summary>
         /// <summary>
         /// An empty hand does not pass through the held gun or the hand holding it (Tasks 207): its glove is drawn out of
         /// them the shortest way (away from the bore first). Only the drawing: the tracked hand, and what it can grab, stay

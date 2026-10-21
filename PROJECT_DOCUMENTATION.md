@@ -105,6 +105,12 @@ GunVolume                      (the drawn model as depth from 5 directions: a so
   it was let go once in the seat (the trigger that entered the car, still held, threw the player out again), a support hand
   on a gun whose trigger only steps a light or laser no longer blocks it (`SupportTriggerLightsOnly`), and the seat cycle
   skips seats past the seventh (no game key) instead of ending there.
+- Fire mode on the gun hand's lower button (A): on Touch it switches on A's single (which SteamVR sends on the release,
+  since A's long press is the `FireMode` action) with no further wait; slow motion is A pressed twice, and a semi / auto
+  switch made by its first press is put back (`UndoSelectorToggle`). Other controllers wait 0.4 s, since there a double
+  press opens the pause menu. A fire-mode variant the game switches to is ready after 0.05 s instead of its
+  `changeFireModeTime` (`WeaponFireModeSwitchPatch`). Gun input (`GunInputBlocked`) is off in a menu, with the laser on a
+  panel, and while the match is paused (dashboard, headset off).
 
 ### 3.3 Rig and body (`Rig/*`)
 
@@ -251,6 +257,13 @@ is not taken). Capture onto the line from aside, and off it from inside the well
 - `PropPhysics` (in `GunCollider.cs`) puts loose props on a layer bullets skip, ignores the player's colliders, and now
   `IgnoreBodiesNear` (hitboxes 8, ragdolls 10, seated 16, actor colliders 17) so lying props are not pushed.
   `TrackPlayer` (noticing the player's colliders switched off and on) runs once a frame.
+- Letting go under the ground: terrain and mesh ground are a surface, not a solid. A magazine or weapon let go below it is
+  not pushed out by `ComputePenetration` or by PhysX and falls through the world. `PropPhysics.NothingUnder` (no level
+  floor within 3 m below) plus `PropPhysics.BackToward` (box-cast from a point in the open, the player's eyes or a dying
+  soldier's chest, to the thing; it is put just short of the first level surface when that surface is at most 0.8 m
+  before it) put it back on top. `MagazineProp.OutOfTheLevel` also uses `BackToward` with no limit when the push out of
+  a wall would be over 25 cm (it was skipped and PhysX flung the magazine). `WeaponDrops.Spawn` takes the open point
+  (`open:`), `DropHeld` uses the eyes.
 - `GunCollider.SeeThrough` keeps reticles, glows and glass out of the stand-in and the hands' solid (render queue above
   2500, additive/HUD/particle shaders). Its size test uses the mesh's own bounds at its scale with a 3.5 m limit; on
   the world box with 1.5 m it dropped long launcher tubes, and depended on the pose (251.21).
@@ -681,6 +694,7 @@ Measured on the VR quick autotest (60 weapons) and the flat self-test (308 weapo
 | Lying weapon / magazine moved by a body walking through | (pushed) | 0 cm |
 | Recoil, one hand vs two hands (degrees, per shot) | "didn't work" | e.g. 3.0 vs 1.6, 1.8 vs 0.5; impulse 171 vs 90 deg/s |
 | Frames with a new weapon not yet in the VR hand | (visible flash) | 0 |
+| Magazine let go 15 / 40 cm under the ground (2026-10-21, `BuriedMagazineCheck`) | fell through, 14.8 m/s, 11 m under | on the surface, 1.6 m/s, still |
 
 Other discoveries:
 - About a quarter of all weapon meshes (1447 of ~6070) cannot be read by the CPU; only rendering sees them.

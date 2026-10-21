@@ -119,7 +119,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static bool GameContextBlocksThrow() => Util.GameContext.GameMenuOpen || VRGameInput.PanelOpen && VRGameInput.PointerOverUI;
+        private static bool GameContextBlocksThrow() => VRGameInput.GunInputBlocked; // a menu, the laser on a panel, or the match paused
 
         /// <returns>Something left the hand (a live grenade or a dud).</returns>
         private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
@@ -632,7 +632,7 @@ namespace RavenfieldVR.Weapons
                 float speed = (tip - body.TransformPoint(_lastTipInRig)).magnitude / dt;
                 float cooldown = Mathf.Max(0.28f, melee.configuration.cooldown * 0.8f);
                 bool carried = (tip - _lastTip).sqrMagnitude > MaxSweep * MaxSweep; // the hit test would span the whole jump
-                if (!carried && speed > VRConfig.MeleeSwingSpeed.Value && Time.time - _lastHit > cooldown && !Util.GameContext.GameMenuOpen)
+                if (!carried && speed > VRConfig.MeleeSwingSpeed.Value && Time.time - _lastHit > cooldown && !VRGameInput.GunInputBlocked)
                 {
                     if (Swing(melee, _lastTip, tip, _lastBase, basePoint))
                     {

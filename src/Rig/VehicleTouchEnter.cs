@@ -38,7 +38,9 @@ namespace RavenfieldVR.Rig
         {
             Actor actor = GameContext.PlayerActor;
             // On foot only: seated, on a ladder, falling or dead the hands do what they did (the wheel, the holsters, the ladder).
-            bool onFoot = actor != null && GameContext.PlayerOnFoot && !GameContext.GameMenuOpen && actor.CanEnterSeat();
+            // Not while the game is paused either (the headset off, the dashboard open: no cursor menu, so GameMenuOpen is false):
+            // a squeeze on a door then seated the player in a frozen match (rig hunt, 2026-10-21).
+            bool onFoot = actor != null && GameContext.PlayerOnFoot && !GameContext.GameMenuOpen && !GameManager.IsPaused() && actor.CanEnterSeat();
             foreach (VRHand hand in _rig.Hands)
             {
                 int i = (int)hand.Side;

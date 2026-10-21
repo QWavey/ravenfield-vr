@@ -54,6 +54,12 @@ namespace RavenfieldVR.Rig
         private readonly float[] _timeHistory = new float[HistoryLength];
         private int _historyIndex;
         private bool _hasTip, _hasGrip;
+
+        // Where the controller's tip and grip poses sit on it, from the last frame they were tracked: with tracking lost they keep
+        // that place (the stand-in offsets differ from them, so a held gun stepped as tracking went and again as it came back;
+        // rig hunt, 2026-10-21).
+        private RigidPose _tipOnRaw, _gripOnRaw;
+        private bool _tipOnRawKnown, _gripOnRawKnown;
         private Quaternion _lastRigRotation = Quaternion.identity;
         private Vector3 _lastRigMeasured;
         private Matrix4x4 _lastRigMatrix = Matrix4x4.identity;
@@ -109,14 +115,33 @@ namespace RavenfieldVR.Rig
             Root.SetPositionAndRotation(Raw.position, Raw.rotation);
 
             HandPose tip = raw.valid ? VRInput.GetPose(Side, PoseKind.Tip) : default;
-            _hasTip = tip.valid;
-            Pointer = tip.valid
-                ? rig.Multiply(tip.pose)
-                : Raw.Multiply(new RigidPose(Vector3.zero, Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))))));
+            if (tip.valid)
+            {
+                Pointer = rig.Multiply(tip.pose);
+                _tipOnRaw = Raw.Inverse().Multiply(Pointer);
+                _tipOnRawKnown = true;
+            }
+            else
+            {
+                Pointer = _tipOnRawKnown
+                    ? Raw.Multiply(_tipOnRaw)
+                    : Raw.Multiply(new RigidPose(Vector3.zero, Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))))));
+            }
+            _hasTip = tip.valid || _tipOnRawKnown;
 
             HandPose grip = raw.valid ? VRInput.GetPose(Side, PoseKind.Grip) : default;
-            _hasGrip = grip.valid;
-            Vector3 palmPos = grip.valid ? rig.TransformPoint(grip.pose.position) : Raw.TransformPoint(new Vector3(0f, -0.025f, -0.055f));
+            Vector3 palmPos;
+            if (grip.valid)
+            {
+                palmPos = rig.TransformPoint(grip.pose.position);
+                _gripOnRaw = new RigidPose(Raw.InverseTransformPoint(palmPos), Quaternion.identity);
+                _gripOnRawKnown = true;
+            }
+            else
+            {
+                palmPos = Raw.TransformPoint(_gripOnRawKnown ? _gripOnRaw.position : new Vector3(0f, -0.025f, -0.055f));
+            }
+            _hasGrip = grip.valid || _gripOnRawKnown;
             // The palm frame uses the pointer orientation: forward = where the hand points, up = back of the fist's top.
             Palm = new RigidPose(palmPos, Pointer.rotation);
 

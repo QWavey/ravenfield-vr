@@ -187,6 +187,97 @@ namespace RavenfieldVR.Weapons
             return PlayerColliderSet.Contains(c);
         }
 
+        private static readonly RaycastHit[] SurfaceHits = new RaycastHit[32];
+
+        /// <summary>
+        /// Level geometry for a thing let go (not one of its own <paramref name="own"/> pieces, the player, the player's weapons,
+        /// a soldier's body or a moving body such as a vehicle, which it passes through instead).
+        /// </summary>
+        internal static bool IsLevelFor(Collider level, IList<Collider> own)
+        {
+            if (level == null || own != null && own.Contains(level) || IsPlayerCollider(level)
+                || level.attachedRigidbody != null && !level.attachedRigidbody.isKinematic)
+            {
+                return false;
+            }
+            Actor player = Util.GameContext.PlayerActor;
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            return !(player != null && level.transform.IsChildOf(player.transform)
+                     || held != null && held.Weapon != null && level.transform.IsChildOf(held.Weapon.transform));
+        }
+
+        /// <summary>No floor of the level within 3 m under <paramref name="at"/>: under the ground (or out over a drop).</summary>
+        internal static bool NothingUnder(Vector3 at, IList<Collider> own)
+        {
+            int n = Physics.RaycastNonAlloc(at, Vector3.down, SurfaceHits, 3f, ~BodyMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                if (IsLevelFor(SurfaceHits[i].collider, own))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// A thing let go under the ground's surface (terrain and mesh ground are a surface, not a solid: nothing pushes it out
+        /// and it fell through the world) or deep in a wall (pushed out at up to 10 m/s): moved back along the line from
+        /// <paramref name="open"/>, a point in the open (the player's eyes, a soldier's chest), to just short of the first surface
+        /// on it (<paramref name="b"/> swept along), when that surface is at most <paramref name="maxBehind"/> before it (one held
+        /// out over a drop and seen past an edge stays where it is). True when it was moved (prop physics hunt, 2026-10-21).
+        /// </summary>
+        internal static bool BackToward(Transform root, IList<Collider> own, Vector3 open, Bounds b, float maxBehind)
+        {
+            Vector3 way = b.center - open;
+            float length = way.magnitude;
+            if (root == null || length < 0.05f)
+            {
+                return false;
+            }
+            way /= length;
+            int n = Physics.BoxCastNonAlloc(open, b.extents, way, SurfaceHits, Quaternion.identity, length, ~BodyMask, QueryTriggerInteraction.Ignore);
+            float free = length;
+            for (int i = 0; i < n; i++)
+            {
+                if (SurfaceHits[i].distance > 0f && IsLevelFor(SurfaceHits[i].collider, own))
+                {
+                    free = Mathf.Min(free, SurfaceHits[i].distance);
+                }
+            }
+            if (free >= length || length - free > maxBehind)
+            {
+                return false;
+            }
+            root.position -= way * (length - Mathf.Max(0f, free - 0.01f));
+            Physics.SyncTransforms();
+            return true;
+        }
+
+        /// <summary>The world bounds of <paramref name="pieces"/> (an empty box at the origin when there are none).</summary>
+        internal static Bounds BoundsOf(IList<Collider> pieces)
+        {
+            Bounds b = default;
+            bool any = false;
+            foreach (Collider c in pieces)
+            {
+                if (c == null)
+                {
+                    continue;
+                }
+                if (any)
+                {
+                    b.Encapsulate(c.bounds);
+                }
+                else
+                {
+                    b = c.bounds;
+                    any = true;
+                }
+            }
+            return b;
+        }
+
         private static readonly HashSet<Collider> PlayerColliderSet = new HashSet<Collider>();
         private static int _playerCollidersGeneration = -1;
         private static float _playerCollidersUntil;
@@ -1071,6 +1162,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             float dt = Time.fixedDeltaTime;
+            if (dt < 1e-5f)
+            {
+                return; // the game's time stop (a katana finisher) sets the fixed step to 0: no NaN velocity from it
+            }
             Vector3 delta = TargetPos - Body.position;
             if (delta.sqrMagnitude > SnapDistanceSq)
             {

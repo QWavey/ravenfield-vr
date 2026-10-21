@@ -132,7 +132,7 @@ namespace RavenfieldVR.Weapons
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int collections = GC.CollectionCount(0);
             bool hadModel = Templates.ContainsKey(w.weaponEntry);
-            Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare);
+            Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, open: actor.CenterPosition());
             float ms = (float)watch.Elapsed.TotalMilliseconds;
             _deathDrops++;
             _deathDropMs += ms;
@@ -708,7 +708,25 @@ namespace RavenfieldVR.Weapons
 
         // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
         // at 0 that deleted the swapped rifle, rounds and all, inside this call (drops hunt, 2026-10-20).
-        public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare, bool keep = false)
+        /// <summary>
+        /// Let go with the hand under the ground, or a dying soldier's weapon in it: it fell through the world (terrain is a surface,
+        /// not a solid). Put back on the surface between it and <paramref name="open"/> (the player's eyes, the soldier's chest).
+        /// </summary>
+        private static void OutOfTheGround(Transform root, List<Collider> pieces, Vector3? open)
+        {
+            // The floor test from its pivot alone (the hand's hold): the physics sync for the pieces' bounds only when there is no
+            // floor under it. On a death frame the ragdoll has just moved many transforms, and syncing them all on every drop
+            // cost about 0.14 ms a drop (autotest, 2026-10-21).
+            if (open == null || pieces.Count == 0 || !PropPhysics.NothingUnder(root.position, pieces))
+            {
+                return;
+            }
+            Physics.SyncTransforms(); // the pieces were added this frame: their bounds are read from the transforms
+            PropPhysics.BackToward(root, pieces, open.Value, PropPhysics.BoundsOf(pieces), 0.8f);
+        }
+
+        public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare, bool keep = false,
+                                   Vector3? open = null)
         {
             var parts = System.Diagnostics.Stopwatch.StartNew();
             _lastAnalysisMs = -1f;
@@ -744,6 +762,7 @@ namespace RavenfieldVR.Weapons
             body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
             SetUpBody(body, boxes);
             PropPhysics.IgnorePlayer(boxes);
+            OutOfTheGround(root.transform, boxes, open);
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time, Keep = keep };
             drop.Reach = ReachOf(root.transform, boxes);
@@ -2000,6 +2019,8 @@ namespace RavenfieldVR.Weapons
             body.angularVelocity = angularVelocity;
             SetUpBody(body, colliders);
             PropPhysics.IgnorePlayer(colliders);
+            OutOfTheGround(root.transform, colliders, WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null && WeaponSystem.Instance.Rig.Head != null
+                ? WeaponSystem.Instance.Rig.Head.position : (Vector3?)null);
             PutDownState(w, out bool magOut, out bool slideBack);
             var drop = new DroppedWeapon
             {

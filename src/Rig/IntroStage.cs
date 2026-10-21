@@ -207,7 +207,14 @@ namespace RavenfieldVR.Rig
                 return;
             }
             // Keep their order across the old path: the leader stays the leader, a little ahead of the others.
-            Walkers.Sort((a, b) => Vector3.Dot(b.T.position - a.T.position, Heading(a.T)).CompareTo(0f));
+            // Front first along their shared heading: a key per walker, so the comparison is consistent (measured along each
+            // one's own heading, a < b and b < a could both hold, which a sort may answer with an exception; rig hunt, 2026-10-21).
+            Vector3 along = Vector3.zero;
+            foreach (Walker w in Walkers)
+            {
+                along += Heading(w.T);
+            }
+            Walkers.Sort((a, b) => Vector3.Dot(b.T.position, along).CompareTo(Vector3.Dot(a.T.position, along)));
             for (int i = 0; i < Walkers.Count; i++)
             {
                 Walker w = Walkers[i];

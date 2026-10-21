@@ -146,6 +146,29 @@ namespace RavenfieldVR.Weapons
         }
     }
 
+    /// <summary>
+    /// A fire-mode switch the game makes by cycling a weapon's variants (semi / auto copies, sub weapons) holds the trigger
+    /// back for the weapon's changeFireModeTime (0.3 s by default, more on some), the length of the flat game's selector
+    /// animation. In VR that animation is not shown, and the wait was felt as a lag on every switch to auto or semi (user,
+    /// 2026-10-21). The player's own switch is ready after a twentieth of a second.
+    /// </summary>
+    [HarmonyPatch(typeof(Weapon), nameof(Weapon.UnholsterSubWeapon))]
+    internal static class WeaponFireModeSwitchPatch
+    {
+        private const float Ready = 0.05f;
+
+        private static void Postfix(Weapon __instance, bool switchedFromSubWeapon)
+        {
+            if (!switchedFromSubWeapon || !WeaponHooks.PlayerWeaponInVR(__instance) || __instance.configuration == null
+                || __instance.configuration.changeFireModeTime <= Ready)
+            {
+                return;
+            }
+            __instance.CancelInvoke("UnholsterDone");
+            __instance.Invoke("UnholsterDone", Ready);
+        }
+    }
+
     [HarmonyPatch(typeof(Weapon), nameof(Weapon.CanFire))]
     internal static class WeaponCanFirePatch
     {

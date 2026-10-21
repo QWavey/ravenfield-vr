@@ -53,8 +53,10 @@ namespace RavenfieldVR.Input
         /// <summary>
         /// The gun's own buttons (fire mode, sight, assisted reload) stay off: the game's cursor is out, or the laser is on one of
         /// the mod's panels. The panels never free the cursor, so GameMenuOpen alone let those presses through (bug hunt 2026-10-19).
+        /// Also while the match is paused with no menu (the SteamVR dashboard, the headset taken off): a grenade, the knife, a gun
+        /// swung or the free hand's gun still acted then (throw hunt, 2026-10-21).
         /// </summary>
-        public static bool GunInputBlocked => GameContext.GameMenuOpen || (PanelOpen && PointerOverUI);
+        public static bool GunInputBlocked => GameContext.GameMenuOpen || GameManager.IsPaused() || (PanelOpen && PointerOverUI);
 
         /// <summary>Weapon systems set this while the dominant trigger must not fire (e.g. holding a grenade pin).</summary>
         public static bool SuppressFire { get; set; }
@@ -167,10 +169,15 @@ namespace RavenfieldVR.Input
                     if (slowMotion)
                     {
                         // The two presses were slide-release presses too (A's complex button), each a fire-mode press on an
-                        // unlocked gun: the switch the first one is waiting with is dropped, and the second's (its single may
+                        // unlocked gun: the switch the first one made at once is put back, and the second's (its single may
                         // come on the release, after this) is not taken (SlowToggledAt).
                         _slowToggledAt = now;
                         CancelModePress();
+                        if (_quickSwitchWeapon != null && now - _quickSwitchAt < 0.6f)
+                        {
+                            Weapons.WeaponSystem.Instance?.UndoSelectorToggle(_quickSwitchWeapon);
+                        }
+                        _quickSwitchWeapon = null;
                     }
                 }
             }
@@ -231,6 +238,9 @@ namespace RavenfieldVR.Input
         /// <summary>The weapon the waiting press was made on (a press waiting on another weapon never switches the new one).</summary>
         private static Weapon _modePressWeapon;
         private const float DoublePressWindow = 0.4f;
+        /// <summary>The semi / auto switch a Touch A tap made at once, put back if the tap turns out to start slow motion's double press.</summary>
+        private static Weapon _quickSwitchWeapon;
+        private static float _quickSwitchAt = -10f;
 
         /// <summary>Drops a fire-mode press still waiting out its double-press window: the weapon or context it was made in has gone.</summary>
         private static void CancelModePress()
@@ -445,13 +455,24 @@ namespace RavenfieldVR.Input
             // locked slide for it to release: the long press alone was found by nobody ("no full auto / single switch";
             // user, 2026-10-16).
             // Taken only once the double-press window has passed: a second press opens the pause menu, and the switch it would
-            // have made is dropped (two presses switched the mode and opened the menu; 255.B5-1).
+            // have made is dropped (two presses switched the mode and opened the menu; 255.B5-1). On Touch the gun hand's A never
+            // opens the menu (its double press is slow motion), so there it switches at once: the wait, after A's single that
+            // already comes on the release, made every switch to auto or semi lag (user, 2026-10-21: "the switch to full auto or
+            // semi has delays"). A second press that turns slow motion on or off puts a semi / auto switch back.
+            bool modeNow = false;
             if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon)
                 && !(VRInput.AnyOculusTouch && Time.unscaledTime - _slowToggledAt < 1.2f)) // (its single comes on the release: a second press held long too)
             {
-                _modePressAt = Time.unscaledTime;
-                _modePressFiring = false;
-                _modePressWeapon = weapon;
+                if (VRInput.AnyOculusTouch && VRInput.GunHand == VRInput.Dominant)
+                {
+                    modeNow = true;
+                }
+                else
+                {
+                    _modePressAt = Time.unscaledTime;
+                    _modePressFiring = false;
+                    _modePressWeapon = weapon;
+                }
             }
             // A press waiting out its window on another weapon (drawn, or passed to the other hand meanwhile) is dropped: the switch
             // would land on a weapon the player never pressed for (bug hunt 2026-10-19).
@@ -475,7 +496,7 @@ namespace RavenfieldVR.Input
                     modeByRelease = false;
                 }
             }
-            if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease)
+            if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease || modeNow)
             {
                 // Looking through the sights: flip the magnifier / alternate sight. Otherwise: the weapon's own
                 // fire-mode script, the mod's sub-weapon modes, else our semi/auto selector (automatic weapons only).
@@ -497,10 +518,17 @@ namespace RavenfieldVR.Input
                 {
                     Set(KeyBinds.NextScope, true);
                 }
-                else if (!firing && !(modeByRelease && _modePressFiring)
-                         && (system == null || !system.HandleFireModePress(weapon))) // the weapon's own fire-mode key works with the selector off too
+                else if (!firing && !(modeByRelease && _modePressFiring))
                 {
-                    Set(KeyBinds.FireMode, true);
+                    if (system == null || !system.HandleFireModePress(weapon)) // the weapon's own fire-mode key works with the selector off too
+                    {
+                        Set(KeyBinds.FireMode, true);
+                    }
+                    else if (modeNow && system.LastPressWasSelector)
+                    {
+                        _quickSwitchWeapon = weapon;
+                        _quickSwitchAt = Time.unscaledTime;
+                    }
                 }
             }
             if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.GunHand))

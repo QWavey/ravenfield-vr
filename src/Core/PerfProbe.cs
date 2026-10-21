@@ -17,7 +17,26 @@ namespace RavenfieldVR.Core
         {
             public long Ticks, MaxTicks, Calls, Allocated, AllocatingCalls;
             public long StartTicks, StartBytes;
+            public string MaxAt;
         }
+
+        /// <summary>
+        /// What the autotest is doing (the weapon under test), stamped on each section's slowest call and on the slowest frames:
+        /// the report gave a 312 ms call and a 564 ms frame with nothing to say where they came from.
+        /// </summary>
+        private static string _context;
+        private static float _contextSince;
+
+        public static void SetContext(string what)
+        {
+            _context = what;
+            _contextSince = Time.realtimeSinceStartup;
+        }
+
+        private static string Where => _context == null ? null : $"{_context} +{Time.realtimeSinceStartup - _contextSince:0.0} s";
+
+        private const int SlowestKept = 6;
+        private static readonly List<KeyValuePair<float, string>> Slowest = new List<KeyValuePair<float, string>>(SlowestKept + 1);
 
         public static bool Enabled;
         private static readonly Dictionary<string, Section> Sections = new Dictionary<string, Section>();
@@ -48,7 +67,11 @@ namespace RavenfieldVR.Core
             }
             long ticks = now - s.StartTicks;
             s.Ticks += ticks;
-            s.MaxTicks = Math.Max(s.MaxTicks, ticks);
+            if (ticks > s.MaxTicks)
+            {
+                s.MaxTicks = ticks;
+                s.MaxAt = Where; // a string only on a new slowest call, which stops happening once the run has warmed up
+            }
             s.Calls++;
             long bytes = GC.GetTotalMemory(false) - s.StartBytes;
             if (bytes > 0)
@@ -68,7 +91,17 @@ namespace RavenfieldVR.Core
             {
                 _gcStart = GC.CollectionCount(0);
             }
-            FrameTimes.Add(Time.unscaledDeltaTime * 1000f);
+            float frameMs = Time.unscaledDeltaTime * 1000f;
+            FrameTimes.Add(frameMs);
+            if (Slowest.Count < SlowestKept || frameMs > Slowest[Slowest.Count - 1].Key)
+            {
+                int at = Slowest.FindIndex(k => k.Key < frameMs);
+                Slowest.Insert(at < 0 ? Slowest.Count : at, new KeyValuePair<float, string>(frameMs, Where ?? "-"));
+                if (Slowest.Count > SlowestKept)
+                {
+                    Slowest.RemoveAt(SlowestKept);
+                }
+            }
             SampleCompositor();
         }
 
@@ -112,6 +145,7 @@ namespace RavenfieldVR.Core
             Sections.Clear();
             FrameTimes.Clear();
             GpuTimes.Clear();
+            Slowest.Clear();
             _missed = _dropped = _reprojected = _timedFrames = 0;
             _gcStart = GC.CollectionCount(0);
         }
@@ -147,6 +181,10 @@ namespace RavenfieldVR.Core
                 sb.AppendLine($"Frames: {frames}, frame time avg {FrameTimes.Average():0.00} ms, median {sorted[frames / 2]:0.00} ms, " +
                               $"95th {sorted[(int)(frames * 0.95f)]:0.00} ms, 99th {sorted[(int)(frames * 0.99f)]:0.00} ms, max {sorted[frames - 1]:0.00} ms");
                 sb.AppendLine($"Gen-0 garbage collections during the run: {GC.CollectionCount(0) - Math.Max(0, _gcStart)}");
+                if (Slowest.Count > 0)
+                {
+                    sb.AppendLine("Slowest frames: " + string.Join("; ", Slowest.Select(k => $"{k.Key:0} ms ({k.Value})")));
+                }
             }
             if (GpuTimes.Count > 0)
             {
@@ -165,7 +203,8 @@ namespace RavenfieldVR.Core
                 {
                     continue;
                 }
-                sb.AppendLine($"  {kv.Key,-24} {s.Ticks * ms / s.Calls,8:0.000} {s.MaxTicks * ms,8:0.00} {s.Calls,8} {s.Allocated / (double)s.Calls,10:0} {100.0 * s.AllocatingCalls / s.Calls,8:0.0}%");
+                sb.AppendLine($"  {kv.Key,-24} {s.Ticks * ms / s.Calls,8:0.000} {s.MaxTicks * ms,8:0.00} {s.Calls,8} {s.Allocated / (double)s.Calls,10:0} {100.0 * s.AllocatingCalls / s.Calls,8:0.0}%"
+                              + (s.MaxAt != null && s.MaxTicks * ms > 2.0 ? $"   slowest at {s.MaxAt}" : ""));
             }
             return sb.ToString();
         }

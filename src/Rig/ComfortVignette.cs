@@ -82,9 +82,24 @@ namespace RavenfieldVR.Rig
 
         public void Destroy()
         {
+            // Its mesh, material and mask texture too: they are not the quad's, and each VR restart left a set behind (rig hunt,
+            // 2026-10-21).
             if (_quad != null)
             {
+                MeshFilter filter = _quad.GetComponent<MeshFilter>();
+                if (filter != null && filter.sharedMesh != null)
+                {
+                    Object.Destroy(filter.sharedMesh);
+                }
                 Object.Destroy(_quad);
+            }
+            if (_material != null)
+            {
+                if (_material.mainTexture != null)
+                {
+                    Object.Destroy(_material.mainTexture);
+                }
+                Object.Destroy(_material);
             }
         }
     }

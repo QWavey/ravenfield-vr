@@ -361,6 +361,9 @@ namespace RavenfieldVR.Weapons
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            // A knocked-out magazine is given 6 to 9 rad/s end over end; Unity's default cap of 7 cut the faster half of that
+            // (prop physics hunt, 2026-10-21).
+            _body.maxAngularVelocity = 12f;
             _body.isKinematic = true;
             SetCollidersEnabled(false);
             Alive.Add(this);
@@ -2077,6 +2080,7 @@ namespace RavenfieldVR.Weapons
         internal const float WellPlay = 0.008f;
         private static readonly Vector3[] RocketSamples = new Vector3[5 * 24];
         private static readonly Vector3[] SlideAxes = new Vector3[3];
+        private static readonly Vector3[] WayOut = new Vector3[7];
         /// <summary>Where the magazine was last drawn, in the space of the gun it was kept out of (it moves with that gun).</summary>
         private Vector3 _drawnInGun;
         private HeldWeapon _drawnFor;
@@ -2229,7 +2233,14 @@ namespace RavenfieldVR.Weapons
                         Vector3 bore = gun.Rig.ToWorld(d.MuzzlePoint);
                         Vector3 away = Vector3.ProjectOnPlane(from - bore, gun.Rig.AimWorld);
                         Vector3 up = gun.Rig.UpWorld, right = Vector3.Cross(up, gun.Rig.AimWorld).normalized;
-                        Vector3[] dirs = { away.sqrMagnitude > 1e-6f ? away.normalized : -up, -up, up, right, -right, -gun.Rig.AimWorld, gun.Rig.AimWorld };
+                        Vector3[] dirs = WayOut; // filled in place: no array made each frame the magazine starts in the gun
+                        dirs[0] = away.sqrMagnitude > 1e-6f ? away.normalized : -up;
+                        dirs[1] = -up;
+                        dirs[2] = up;
+                        dirs[3] = right;
+                        dirs[4] = -right;
+                        dirs[5] = -gun.Rig.AimWorld;
+                        dirs[6] = gun.Rig.AimWorld;
                         float best = float.MaxValue;
                         Vector3 freed = target.position;
                         foreach (Vector3 dir in dirs)
@@ -2492,7 +2503,10 @@ namespace RavenfieldVR.Weapons
             }
             PropPhysics.IgnorePlayer(_colliders);
             // Bodies around it from the first physics step on (not from the next clean-up pass): a magazine falling next to
-            // a soldier or into a ragdoll is not shoved away.
+            // a soldier or into a ragdoll is not shoved away. All of them again: held, its colliders were off, and Unity forgets
+            // an ignored pair then, so the bodies remembered from the last drop were skipped and could shove it for up to 2 s
+            // (prop physics hunt, 2026-10-21).
+            _ignoredBodies.Clear();
             PropPhysics.IgnoreBodiesNear(_colliders, Go.transform.position, 1f, _ignoredBodies);
             foreach (Collider c in _colliders)
             {
@@ -2528,7 +2542,7 @@ namespace RavenfieldVR.Weapons
                 // Loose props lying here (another magazine, a dropped weapon, a casing) count too: dropped onto one it was pushed
                 // out of it the same way (review, 2026-10-20, task 318 c). The held gun's stand-in does not: it lets props pass.
                 bool looseProp = level != null && prop >= 0 && level.gameObject.layer == prop && !GunCollider.IsStandIn(level);
-                if (level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body || PropPhysics.IsPlayerCollider(level))
+                if (NotAWall(level))
                 {
                     continue; // its own pieces and the player's own body are not walls
                 }
@@ -2548,10 +2562,7 @@ namespace RavenfieldVR.Weapons
                     }
                     continue;
                 }
-                Actor player = Util.GameContext.PlayerActor;
-                if (player != null && level.transform.IsChildOf(player.transform)
-                    || WeaponSystem.Instance != null && WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Weapon != null
-                       && level.transform.IsChildOf(WeaponSystem.Instance.Held.Weapon.transform))
+                if (PlayersOwn(level))
                 {
                     continue; // nor the player's own weapons (a knocked-out magazine starts at the well's mouth)
                 }
@@ -2564,11 +2575,33 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            if (push.sqrMagnitude > 1e-8f && push.sqrMagnitude < 0.25f * 0.25f)
+            bool deep = push.sqrMagnitude >= 0.25f * 0.25f;
+            if (push.sqrMagnitude > 1e-8f && !deep)
             {
-                Go.transform.position += push + push.normalized * 0.002f;
+                Vector3 moved = push + push.normalized * 0.002f;
+                Go.transform.position += moved;
+                b.center += moved;
                 Physics.SyncTransforms();
             }
+            // Under the ground's surface (terrain and mesh ground are a surface, not a solid: the push above finds nothing in them,
+            // and a magazine let go 15 or 40 cm under the ground fell through the world; buried-magazine check, 2026-10-21), or
+            // deeper in a wall than the push goes: back toward the eyes, onto the surface in between.
+            Transform head = WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null ? WeaponSystem.Instance.Rig.Head : null;
+            if (head != null && (deep || PropPhysics.NothingUnder(b.center, _colliders)))
+            {
+                PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? float.MaxValue : 0.8f);
+            }
+        }
+
+        private bool NotAWall(Collider level) =>
+            level == null || System.Array.IndexOf(_colliders, level) >= 0 || level.attachedRigidbody == _body || PropPhysics.IsPlayerCollider(level);
+
+        private static bool PlayersOwn(Collider level)
+        {
+            Actor player = Util.GameContext.PlayerActor;
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            return player != null && level.transform.IsChildOf(player.transform)
+                   || held != null && held.Weapon != null && level.transform.IsChildOf(held.Weapon.transform);
         }
 
         private void SetCollidersEnabled(bool on)

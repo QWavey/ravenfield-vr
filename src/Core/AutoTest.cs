@@ -371,8 +371,10 @@ namespace RavenfieldVR.Core
                     yield return WristViewCheck();
                 }
                 PerfProbe.Reset();
+                PerfProbe.SetContext("checks before the weapons");
                 yield return TestWeapons();
                 _context = "idle";
+                PerfProbe.SetContext("idle at the end");
                 yield return new WaitForSecondsRealtime(5f);
             }
             Write();
@@ -1755,6 +1757,145 @@ namespace RavenfieldVR.Core
                 Input.VRInput.SimulatedGrab[side] = false;
             }
             yield return new WaitForSecondsRealtime(0.3f);
+        }
+
+        /// <summary>
+        /// The second weapon with the gun in either hand (user, 2026-10-21: "taking a pistol with the right hand while holding the
+        /// weapon in the left hand or opposite around, the 2nd object sometimes isnt in the hand and floats in the air"): each
+        /// frame for 1.5 s from the draw, how far its drawn model is from the hand holding it, the hand moving; with pictures.
+        /// </summary>
+        private static IEnumerator SecondWeaponFloatCheck(HeldWeapon held, Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = GameContext.PlayerActor;
+            if (sys == null || actor == null || actor.weapons == null || held.Weapon == null || sys.Second != null)
+            {
+                yield break;
+            }
+            Weapon main = held.Weapon, other = null;
+            foreach (Weapon w in actor.weapons)
+            {
+                if (w != null && w != main && !(w is ThrowableWeapon) && SecondWeapon.CanPair(main, w))
+                {
+                    other = w;
+                    break;
+                }
+            }
+            if (other == null)
+            {
+                yield break;
+            }
+            Input.Hand startHand = Input.VRInput.GunHand;
+            var parts = new List<string>();
+            for (int pass = 0; pass < 2; pass++)
+            {
+                if (pass == 1)
+                {
+                    // The gun to the other hand, as letting go while that hand holds the handguard does.
+                    sys.TakeIntoHand(sys.Rig.Off);
+                    float until = Time.realtimeSinceStartup + 2f;
+                    while (Time.realtimeSinceStartup < until && (sys.Held == null || sys.Held.Weapon != main))
+                    {
+                        yield return null;
+                    }
+                    if (sys.Held == null || sys.Held.Weapon != main)
+                    {
+                        parts.Add("gun not taken up by the other hand");
+                        break;
+                    }
+                }
+                Rig.VRHand hand = sys.Rig.Off;
+                if (hand.Role != Rig.HandRole.Free || hand.Held != null)
+                {
+                    parts.Add($"{hand.Side} hand busy");
+                    continue;
+                }
+                int side = (int)hand.Side;
+                Runtime.RigidPose start = hand.Raw;
+                Input.VRInput.SimulatedGrab[side] = true;
+                float worstModel = 0f, worstGrip = 0f, worstAt = 0f;
+                int frames = 0, posed = 0;
+                float began = Time.realtimeSinceStartup;
+                try
+                {
+                    sys.BeginSecond(other, hand);
+                    SecondWeapon second = sys.Second;
+                    WeaponRig r = second != null ? second.Rig : null;
+                    var arms = r != null ? new HashSet<Renderer>(r.ArmRenderers) : new HashSet<Renderer>();
+                    while (Time.realtimeSinceStartup - began < 1.5f && sys.Second == second && second != null)
+                    {
+                        float t = Time.realtimeSinceStartup - began;
+                        // The hand moving as a hand does (20 cm side to side, at about 1 Hz).
+                        Vector3 sway = start.rotation * new Vector3(Mathf.Sin(t * 6.3f) * 0.1f, 0f, 0f);
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start.position + sway, start.rotation);
+                        yield return new WaitForEndOfFrame(); // after this frame's render: where it was drawn
+                        frames++;
+                        if (r == null || r.GunBody == null || other == null)
+                        {
+                            continue;
+                        }
+                        Bounds b = default;
+                        bool any = false;
+                        foreach (Renderer rr in other.GetComponentsInChildren<Renderer>())
+                        {
+                            if (rr == null || !rr.enabled || !rr.gameObject.activeInHierarchy || arms.Contains(rr) || rr is ParticleSystemRenderer)
+                            {
+                                continue;
+                            }
+                            if (any)
+                            {
+                                b.Encapsulate(rr.bounds);
+                            }
+                            else
+                            {
+                                b = rr.bounds;
+                                any = true;
+                            }
+                        }
+                        if (!any)
+                        {
+                            continue;
+                        }
+                        posed++;
+                        float model = Mathf.Sqrt(b.SqrDistance(hand.PalmCentre)); // 0 when the hand is inside the drawn model's box
+                        float grip = Vector3.Distance(r.ToWorld(r.Data.GripPoint), hand.GunFrame.position);
+                        if (model > worstModel)
+                        {
+                            worstModel = model;
+                            worstAt = t;
+                        }
+                        worstGrip = Mathf.Max(worstGrip, grip);
+                        if (frames == 3 || Mathf.Abs(t - 0.8f) < 0.012f)
+                        {
+                            Vector3 look = hand.PalmCentre;
+                            Vector3 from = look + Vector3.up * 0.15f + Vector3.ProjectOnPlane(sys.Rig.Head.forward, Vector3.up).normalized * 0.55f;
+                            Shots.Capture($"second-float-{(pass == 0 ? "usual" : "swapped")}-{frames:000}-{other.name}", from, Quaternion.LookRotation(look - from), 70f);
+                        }
+                    }
+                }
+                finally
+                {
+                    Rig.VRHand.Scripted[side] = null;
+                    Input.VRInput.SimulatedGrab[side] = false;
+                }
+                yield return null;
+                yield return null;
+                Metric($"second weapon {(pass == 0 ? "usual" : "gun swapped")}: worst cm of its drawn model from the hand", worstModel * 100f);
+                parts.Add($"{(pass == 0 ? "gun" : "gun swapped to the")} {(pass == 0 ? "in the " + Input.VRInput.GunHand + " hand" : Input.VRInput.GunHand + " hand")}, {other.name} in the {hand.Side}: "
+                          + $"drawn model up to {worstModel * 100f:0.0} cm from the hand{(worstModel > 0.03f ? $" at {worstAt:0.00} s (FLOATING)" : "")}, grip up to {worstGrip * 100f:0.0} cm off, "
+                          + $"{posed}/{frames} frames drawn");
+                yield return new WaitForSecondsRealtime(0.3f);
+            }
+            if (Input.VRInput.GunHand != startHand)
+            {
+                sys.TakeIntoHand(sys.Rig.Hands[(int)startHand]);
+                float until = Time.realtimeSinceStartup + 2f;
+                while (Time.realtimeSinceStartup < until && (sys.Held == null || sys.Held.Weapon != main))
+                {
+                    yield return null;
+                }
+            }
+            report("second weapon with the gun in either hand: " + string.Join("; ", parts));
         }
 
         /// <summary>
@@ -3146,7 +3287,8 @@ namespace RavenfieldVR.Core
             if (held == null || held.Collider == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag
                 || off == null || off.Held != null || off.Role != Rig.HandRole.Free)
             {
-                report("magazine set down gently: skipped (no magazine-fed weapon in hand or the off hand is busy)");
+                report("magazine set down gently: skipped (no magazine-fed weapon in hand or the off hand is busy: "
+                       + (off == null ? "no off hand" : $"{off.Role}, holding {(off.Held != null ? off.Held.GetType().Name : "nothing")}") + ")");
                 yield break;
             }
             Transform head = rig.Head;
@@ -3201,6 +3343,112 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.Scripted[side] = null;
                 Input.VRInput.SimulatedGrab[offSide] = false;
                 mag.Destroy();
+            }
+        }
+
+        /// <summary>
+        /// A magazine let go with the hand pushed into the ground, 15 cm and 40 cm deep: it must come out on top and lie still,
+        /// not be flung by PhysX pushing it out (a push over 25 cm was skipped; prop physics hunt, 2026-10-21).
+        /// </summary>
+        private static IEnumerator BuriedMagazineCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            if (held == null || rig == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag)
+            {
+                report("magazine let go in the ground: skipped (no magazine-fed weapon in hand)");
+                yield break;
+            }
+            Transform head = rig.Head;
+            Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            if (!Physics.Raycast(head.position + fwd * 0.6f, Vector3.down, out RaycastHit ground, 3f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                report("magazine let go in the ground: skipped (no ground in front)");
+                yield break;
+            }
+            foreach (float depth in new[] { 0.15f, 0.4f })
+            {
+                MagazineProp mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+                if (mag == null || mag.Go == null)
+                {
+                    yield break;
+                }
+                float top = 0f;
+                Vector3 start;
+                try
+                {
+                    mag.Go.transform.position = ground.point - Vector3.up * depth;
+                    mag.Drop(Vector3.zero, Vector3.zero);
+                    start = mag.Go.transform.position;
+                    Vector3 last = start;
+                    float until = Time.realtimeSinceStartup + 1.5f;
+                    while (Time.realtimeSinceStartup < until && mag.Go != null)
+                    {
+                        yield return null;
+                        if (mag.Go == null)
+                        {
+                            break;
+                        }
+                        Vector3 now = mag.Go.transform.position;
+                        if (Time.deltaTime > 1e-4f)
+                        {
+                            top = Mathf.Max(top, Vector3.Distance(now, last) / Time.deltaTime);
+                        }
+                        last = now;
+                    }
+                    if (mag.Go == null)
+                    {
+                        report($"magazine let go {depth * 100f:0} cm in the ground: GONE");
+                        continue;
+                    }
+                    Vector3 end = mag.Go.transform.position;
+                    // Against the ground where it ends (put back toward the eyes, it lies up to 30 cm nearer, on sloping ground).
+                    float groundY = Physics.Raycast(end + Vector3.up * 0.5f, Vector3.down, out RaycastHit under, 2f, ~PropPhysics.BodyMask & ~(1 << mag.Go.layer),
+                                                    QueryTriggerInteraction.Ignore) ? under.point.y : ground.point.y;
+                    float above = end.y - groundY;
+                    float across = Vector2.Distance(new Vector2(end.x, end.z), new Vector2(ground.point.x, ground.point.z));
+                    bool ok = top < 3f && above > -0.05f && across < 0.5f;
+                    Metric($"magazine let go {depth * 100f:0} cm in the ground: top speed m/s", top);
+                    report($"magazine let go {depth * 100f:0} cm in the ground: {(ok ? "came out and lay still" : "NOT LAID OUT")} "
+                           + $"(top speed {top:0.0} m/s, ends {above * 100f:0} cm above the ground and {across * 100f:0} cm aside; moved out "
+                           + $"{(start - (ground.point - Vector3.up * depth)).magnitude * 100f:0} cm on release)");
+                }
+                finally
+                {
+                    mag.Destroy();
+                }
+            }
+            // A weapon the same way (a soldier's death drop, or the player's let-go gun, with its hand in the ground).
+            WeaponManager.WeaponEntry entry = held.Weapon != null ? held.Weapon.weaponEntry : null;
+            DroppedWeapon gun = entry != null
+                ? sys.Drops.Spawn(entry, new Runtime.RigidPose(ground.point - Vector3.up * 0.3f, Quaternion.LookRotation(Vector3.Cross(Vector3.up, fwd), Vector3.up)),
+                                  Vector3.one, Vector3.zero, -1, -1, open: head.position)
+                : null;
+            // The control: the same drop 40 cm aside with no point in the open given (as before the fix), to show the case is real.
+            Vector3 aside = Vector3.Cross(Vector3.up, fwd) * 0.4f;
+            RaycastHit ground2 = default;
+            DroppedWeapon control = entry != null && Physics.Raycast(ground.point + aside + Vector3.up, Vector3.down, out ground2, 2f, ~0, QueryTriggerInteraction.Ignore)
+                ? sys.Drops.Spawn(entry, new Runtime.RigidPose(ground2.point - Vector3.up * 0.3f, Quaternion.LookRotation(Vector3.Cross(Vector3.up, fwd), Vector3.up)),
+                                  Vector3.one, Vector3.zero, -1, -1)
+                : null;
+            if (gun != null && gun.Go != null)
+            {
+                yield return new WaitForSecondsRealtime(1.5f);
+                if (gun.Go == null)
+                {
+                    report("weapon let go 30 cm in the ground: GONE");
+                    yield break;
+                }
+                float above = gun.Go.transform.position.y - ground.point.y;
+                Metric("weapon let go 30 cm in the ground: cm above the ground after 1.5 s", above * 100f);
+                string without = control != null && control.Go != null ? $"; without the fix it ends {(control.Go.transform.position.y - ground2.point.y) * 100f:0} cm above" : "";
+                report($"weapon let go 30 cm in the ground: {(above > -0.1f && above < 1f ? "came out on top" : "NOT LAID OUT")} (ends {above * 100f:0} cm above the ground{without})");
+                UnityEngine.Object.Destroy(gun.Go);
+            }
+            if (control != null && control.Go != null)
+            {
+                UnityEngine.Object.Destroy(control.Go);
             }
         }
 
@@ -3333,6 +3581,7 @@ namespace RavenfieldVR.Core
                 // the list was filtered.
                 index = WeaponSelfTest.IdOf(entry);
                 _context = entry.name;
+                PerfProbe.SetContext(entry.name);
                 Actor actor = LocalPlayer.actor;
                 if (actor == null || actor.dead)
                 {
@@ -3451,6 +3700,7 @@ namespace RavenfieldVR.Core
                         if (want && (action == ActionType.SelfLoading || action == ActionType.SingleShot) && secondChecks++ < (Deep ? 6 : 2))
                         {
                             yield return SecondWeaponCheck(held, lines.Add); // a second weapon in the free hand (Tasks 252 p)
+                            yield return SecondWeaponFloatCheck(held, lines.Add); // and with the gun in either hand, measured each frame
                             held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
                             if (held == null || held.Weapon != weapon)
                             {
@@ -3631,11 +3881,14 @@ namespace RavenfieldVR.Core
                         {
                             dropDone = true;
                             yield return WorldCollisionCheck(held, lines.Add);
+                            // The two magazine checks need the gun in the hand: after the drop checks it is in its holster, and
+                            // both were skipped in every run.
+                            yield return GentleMagazineCheck(lines.Add);
+                            yield return BuriedMagazineCheck(lines.Add);
                             yield return PouchThrowCheck(lines.Add);
                             yield return DropCheck(lines.Add);
                             yield return ReachCheck(lines.Add);
                             yield return GroundDriftCheck(lines.Add);
-                            yield return GentleMagazineCheck(lines.Add);
                             yield return HandVelocityCheck(lines.Add);
                             yield return SprintFireCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;

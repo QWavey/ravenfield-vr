@@ -561,6 +561,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public bool HandleFireModePress(Weapon weapon)
         {
+            LastPressWasSelector = false;
             if (weapon == null)
             {
                 return false;
@@ -591,7 +592,23 @@ namespace RavenfieldVR.Weapons
             // The selector's own short click, not the hammer falling on an empty chamber (85-agent review).
             Sounds.Play(MechSound.MagLip, Rig.Dominant.Palm.position, 0.4f);
             Rig.Dominant.Haptic(0.02f, 200f, 0.5f);
+            LastPressWasSelector = true;
             return true;
+        }
+
+        /// <summary>The last <see cref="HandleFireModePress"/> switched the mod's semi / auto selector (a switch that can be put back).</summary>
+        internal bool LastPressWasSelector { get; private set; }
+
+        /// <summary>
+        /// Puts back a semi / auto switch a Touch A tap made at once, when that tap was the first of slow motion's double press.
+        /// </summary>
+        internal void UndoSelectorToggle(Weapon weapon)
+        {
+            string mode = weapon != null ? FireSelector.Toggle(weapon) : null;
+            if (mode != null)
+            {
+                FlashMessage(mode);
+            }
         }
 
         // ---------------------------------------------------------------------------------------------
