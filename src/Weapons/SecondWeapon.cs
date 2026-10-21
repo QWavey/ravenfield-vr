@@ -76,6 +76,7 @@ namespace RavenfieldVR.Weapons
         internal int LastLiveCount { get; private set; }
 
         private bool _triggerWas;
+        private bool _throwBlocked; // input was blocked (a pause, or a panel under the laser) last frame
         private readonly List<Projectile> _spawned = new List<Projectile>();
         /// <summary>The weapon's own right hand (its first-person arms), whose grip pose the glove takes, as the gun hand's does.</summary>
         private readonly ModHand _gripHand;
@@ -132,12 +133,21 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
-            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !VRGameInput.GunInputBlocked;
+            bool blocked = VRGameInput.GunInputBlocked;
+            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !blocked;
             if (IsThrowable)
             {
-                // A grenade with its pin out keeps the trigger as it was while input is blocked (a panel opened under the laser):
-                // blocked, it read as let go, and a moving hand threw it (review, 2026-10-20).
-                UpdateThrowable(VRGameInput.GunInputBlocked && Armed ? _triggerWas : held);
+                if (_throwBlocked && !blocked)
+                {
+                    // Back from a block (the match paused with no menu, or a panel opened under the laser): the pin stays pulled,
+                    // but a trigger let go while blocked is not a throw. Resync to the trigger now, so the first frame back does not
+                    // read the release as a throw (the main hand disarms instead; here Armed also marks the pin out, so it stays).
+                    _triggerWas = held;
+                }
+                _throwBlocked = blocked;
+                // A grenade with its pin out keeps the trigger as it was while input is blocked (a panel opened under the laser,
+                // or the match paused): blocked, it read as let go, and a moving hand threw it (review, 2026-10-20; pause, 2026-10-21).
+                UpdateThrowable(blocked && Armed ? _triggerWas : held);
                 return;
             }
             CycleForTheHand();
@@ -191,8 +201,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void LetGo()
         {
-            if (IsThrowable && Weapon != null && !Done && !Util.GameContext.GameMenuOpen)
+            if (IsThrowable && Weapon != null && !Done && !Util.GameContext.GameMenuOpen && !VRGameInput.GunInputBlocked)
             {
+                // Not while input is blocked (the match paused with no menu): opening the grip there threw the grenade, as the
+                // main hand's grip-throw is already gated (ThrowAndMelee). Paused, GameMenuOpen is false, so it needs this too.
                 Vector3 body = Hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
                 Vector3 v = ThrowableHandler.Released(Hand);
                 if (v.magnitude < body.magnitude * 0.7f)
