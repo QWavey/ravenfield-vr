@@ -378,7 +378,7 @@ namespace RavenfieldVR.Rig
                 _physicalCrouch = false;
             }
 
-            bool dead = player != null && player.actor.dead;
+            bool dead = player != null && (player.actor == null || player.actor.dead); // no body (between death and respawn) counts as dead
             if (_wasDead && !dead)
             {
                 VRGameInput.ResetToggles();
@@ -406,7 +406,9 @@ namespace RavenfieldVR.Rig
                     return;
                 }
                 Camera active = player.GetActiveCamera();
-                if (active != null && active == player.fpCamera && player.firstPerson && !player.IsUsingOverrideCamera() && !player.playingVictoryAnimation)
+                // actor != null here: without a body (a frame between death and respawn) the actor-based checks below would throw;
+                // the camera fallbacks further down take over instead (review 2026-10-21).
+                if (active != null && actor != null && active == player.fpCamera && player.firstPerson && !player.IsUsingOverrideCamera() && !player.playingVictoryAnimation)
                 {
                     if (actor.dead)
                     {
@@ -430,7 +432,7 @@ namespace RavenfieldVR.Rig
                     key = player;
                     return;
                 }
-                if (active != null && actor.IsSeated() && player.IsUsingOverrideCamera())
+                if (active != null && actor != null && actor.IsSeated() && player.IsUsingOverrideCamera())
                 {
                     // Vehicle-provided cameras (turret sights, cockpit views) behave like a seat.
                     mode = RigMode.Anchored;
