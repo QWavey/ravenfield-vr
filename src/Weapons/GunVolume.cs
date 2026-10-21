@@ -82,7 +82,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public bool WantsHull;
         /// <summary>Called on the worker thread once the volume (and its hull) is ready: keep only thread-safe work in it.</summary>
-        internal Action<GunVolume> OnReady;
+        internal volatile Action<GunVolume> OnReady; // (volatile: set on the main thread while the worker may be publishing Ready)
         /// <summary>Slice length and piece count for the hull (a gun's defaults; a magazine uses finer, fewer).</summary>
         public float HullSlice = 0.03f;
         public int HullMaxPieces = 16;
@@ -347,12 +347,8 @@ namespace RavenfieldVR.Weapons
                 Runtime.RigidPose? Now() => rig.GunBody != null && rig.Weapon != null && rig.Weapon.unholstered
                     ? new Runtime.RigidPose(rig.ToWorld(origin), rig.GunBody.rotation * frame)
                     : (Runtime.RigidPose?)null;
-                GunVolume v = Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax, 5, Now);
-                if (v != null)
-                {
-                    v.WantsHull = true;
-                }
-                return v;
+                return Build(rig.Data.Key, GunCollider.VisibleRenderers(rig), rig.ToWorld(origin), rig.GunBody.rotation * frame, envMin, envMax, 5, Now,
+                    v => v.WantsHull = true);
             });
         }
 
@@ -376,15 +372,14 @@ namespace RavenfieldVR.Weapons
             return Cached(key, () =>
             {
                 Runtime.RigidPose? Now() => frame != null ? new Runtime.RigidPose(frame.position, frame.rotation) : (Runtime.RigidPose?)null;
-                GunVolume v = Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views, now ? null : (Func<Runtime.RigidPose?>)Now);
-                if (v != null && hullSlice > 0f)
-                {
-                    // Set before the read-back arrives: the worker fits the hull when it sees it.
-                    v.HullSlice = hullSlice;
-                    v.HullMaxPieces = hullPieces;
-                    v.WantsHull = true;
-                }
-                return v;
+                // The hull settings set before any view is rendered: the worker fits the hull when it sees them.
+                return Build(key, renderers, frame.position, frame.rotation, Vector3.one * -10f, Vector3.one * 10f, views, now ? null : (Func<Runtime.RigidPose?>)Now,
+                    hullSlice > 0f ? v =>
+                    {
+                        v.HullSlice = hullSlice;
+                        v.HullMaxPieces = hullPieces;
+                        v.WantsHull = true;
+                    } : (Action<GunVolume>)null);
             });
         }
 
@@ -537,8 +532,11 @@ namespace RavenfieldVR.Weapons
         /// <param name="viewCount">How many depth views it is rendered from.</param>
         /// <param name="poseNow">Where the frame is now (null: gone), asked once a frame while the views are rendered one a
         /// frame; null to render them all at once from (<paramref name="fp"/>, <paramref name="fr"/>).</param>
+        /// <param name="setUp">Run on the new volume before any view is rendered. Where a read-back is synchronous (no async
+        /// read-back on the GPU), the decode is queued inside the render, and hull settings set after Build came too late for the
+        /// worker (threads hunt, 2026-10-21).</param>
         private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5,
-            Func<Runtime.RigidPose?> poseNow = null)
+            Func<Runtime.RigidPose?> poseNow = null, Action<GunVolume> setUp = null)
         {
             Shader shader = DepthShader();
             if (shader == null || renderers.Count == 0)
@@ -630,6 +628,7 @@ namespace RavenfieldVR.Weapons
                 mids[d] = mid;
             }
             GunVolume volume = new GunVolume(key, views, box) { Texels = texels };
+            setUp?.Invoke(volume);
             volume._holdsPlace = 1;
             Interlocked.Increment(ref _inFlight);
             foreach (Renderer r in renderers)
