@@ -32,6 +32,7 @@ namespace RavenfieldVR.Tests
             InsideTests();
             VdfTests();
             BindingsTests();
+            PlayEntryTests();
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
         }
@@ -83,6 +84,62 @@ namespace RavenfieldVR.Tests
             Check(touch.Contains("Ravenfield VR left-handed") && !touch.Contains("Ravenfield VR default"), "Bindings: the name says left-handed");
             string index = BindingsWriter.MirrorToLeftHanded(right, "knuckles");
             Check(index.Contains("\"path\": \"/user/hand/left/input/a\""), "Bindings: an Index controller's A stays A (no letter faces)");
+        }
+
+        /// <summary>
+        /// The Play-list entry in Steam's binary app cache, on a copy of the user's appinfo.vdf (never the file itself): changed and
+        /// changed back, the file must load at each step, and an entry added and removed must leave it byte for byte as it was
+        /// (SteamPlayEntry rewrites a record's size and its SHA-1; a slip there corrupts Steam's cache).
+        /// </summary>
+        private static void PlayEntryTests()
+        {
+            string real = SteamPlayEntry.CachePath();
+            if (!System.IO.File.Exists(real))
+            {
+                Console.WriteLine("skip Play entry: no appinfo.vdf at " + real);
+                return;
+            }
+            string copy = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-test-appinfo-" + Guid.NewGuid().ToString("N") + ".vdf");
+            System.IO.File.Copy(real, copy);
+            try
+            {
+                byte[] original = System.IO.File.ReadAllBytes(copy);
+                bool? present = SteamPlayEntry.IsPresent(copy);
+                if (present == null)
+                {
+                    Console.WriteLine("skip Play entry: the cache has no app info for Ravenfield");
+                    return;
+                }
+                var log = new List<string>();
+                bool first = SteamPlayEntry.Change(copy, !present.Value, log.Add);
+                Check(first && SteamPlayEntry.IsPresent(copy) == !present.Value, "Play entry: " + (present.Value ? "removed" : "added") + " on a copy (" + string.Join(" / ", log) + ")");
+                bool back = SteamPlayEntry.Change(copy, present.Value, log.Add);
+                Check(back && SteamPlayEntry.IsPresent(copy) == present.Value, "Play entry: put back as it was");
+                if (!present.Value)
+                {
+                    Check(SameBytes(original, System.IO.File.ReadAllBytes(copy)), "Play entry: the cache is byte for byte as before after add + remove");
+                }
+            }
+            finally
+            {
+                System.IO.File.Delete(copy);
+            }
+        }
+
+        private static bool SameBytes(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static string Show(string s) => "'" + s.Replace("\n", "\\n") + "'";
