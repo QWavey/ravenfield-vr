@@ -422,8 +422,29 @@ namespace RavenfieldVR.Weapons
                 WeaponManager.WeaponEntry e = LoadingBuilds.Peek();
                 if (Templates.ContainsKey(e) && HasShape(e))
                 {
+                    if (!NeedsAnalysis(e, out Weapon prefab))
+                    {
+                        LoadingBuilds.Dequeue();
+                        continue; // ready from the menu's warm-up or an earlier match
+                    }
+                    if (fitted)
+                    {
+                        break; // one heavy step a frame
+                    }
+                    // Its analysis too: a model that took its parked parts from the cache (ParkedPartsCache) did not run it, and the
+                    // type's first pickup or draw in the match then did (25-270 ms in the hand). Before the cache the model's
+                    // build ran it here as a side effect.
                     LoadingBuilds.Dequeue();
-                    continue; // ready from the menu's warm-up or an earlier match
+                    try
+                    {
+                        WeaponAnalyzer.Get(prefab, e);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.WarnOnce("loadinganalysis:" + e.name, $"Analysing {e.name} on the loading screen failed: {ex.Message}");
+                    }
+                    fitted = true;
+                    continue;
                 }
                 if (Templates.ContainsKey(e) && fitted)
                 {
