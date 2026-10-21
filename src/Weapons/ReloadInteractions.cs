@@ -4242,10 +4242,76 @@ namespace RavenfieldVR.Weapons
                 lines.Add($"probe: magazine {mag.KeepOutBox}, well opening {Data.MagBounds.size * 100f:F1} cm, insert {Rig.ToGun(SeatPose.position + SeatPose.rotation * mag.InsertDirLocal) - seatGun:F2}, "
                           + $"seat {Vector3.Dot(seatOff, right) * 100f:0.0} right {Vector3.Dot(seatOff, up) * 100f:0.0} up {Vector3.Dot(seatOff, -aim) * 100f:0.0} back of the sweep's centre, "
                           + $"centre {Vector3.Distance(Rig.ToWorld(centre), _held.GripWorld.position) * 100f:0} cm from the grip");
+                // Which of the gun's parts the measured body covers (the HK416s let magazines through their receivers, the probe
+                // finding only a few solid points where the receiver is: task 328 d): the parts measured, those left out as the
+                // magazine's, and the parts whose middle the body leaves mostly empty.
+                var bodyParts = GunCollider.VisibleRenderers(Rig);
+                var emptyParts = new System.Collections.Generic.List<string>();
+                foreach (Renderer part in bodyParts)
+                {
+                    if (part == null)
+                    {
+                        continue;
+                    }
+                    Bounds pb = part.bounds;
+                    int hits = 0, tests = 0;
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        for (int j = -1; j <= 1; j++)
+                        {
+                            for (int k = -1; k <= 1; k++)
+                            {
+                                tests++;
+                                if (_held.HandsSolid(pb.center + Vector3.Scale(pb.extents * 0.5f, new Vector3(i, j, k))))
+                                {
+                                    hits++;
+                                }
+                            }
+                        }
+                    }
+                    if (hits * 2 < tests)
+                    {
+                        emptyParts.Add($"{part.name} {hits}/{tests}");
+                    }
+                }
+                var magParts = new System.Collections.Generic.List<string>();
+                foreach (Transform mp in Rig.MagazineParts)
+                {
+                    if (mp != null)
+                    {
+                        magParts.Add(mp.name);
+                    }
+                }
+                lines.Add($"body: {bodyParts.Count} part(s) measured, left out as the magazine's: {(magParts.Count > 0 ? string.Join(", ", magParts) : "none")}; "
+                          + $"mostly empty in the body: {(emptyParts.Count > 0 ? string.Join(", ", emptyParts) : "none")}");
                 foreach (var (name, dirGun, speed) in passes)
                 {
                     int frames = 0, maxPoints = 0, probeFramesOut = 0, probeMaxOut = 0, probeMaxIn = 0, probePoints = 0;
-                    float travel = 0f;
+                    float travel = 0f, firstIn = float.MaxValue, lastIn = float.MinValue;
+                    string whereIn = "";
+                    // Start on the pass's own side, round the gun well clear of it (50 cm under it, or beside it for the pass from
+                    // above): the magazine from the pouch, or left by the last pass, could be on the far side, where the keep-out held
+                    // it against the gun while the hand started across, and the pass read "past the gun (went through)" with the
+                    // magazine never in it (the HK416s, task 328 d).
+                    Vector3 detour = Mathf.Abs(Vector3.Dot(dirGun, up)) > 0.5f ? right : -up;
+                    Vector3 legFrom = Rig.ToGun(mag.Go.transform.position);
+                    Vector3[] legs =
+                    {
+                        centre + dirGun * Vector3.Dot(legFrom - centre, dirGun) + detour * 0.5f,
+                        centre - dirGun * 0.25f + detour * 0.5f,
+                        centre - dirGun * 0.25f,
+                    };
+                    foreach (Vector3 legTo in legs)
+                    {
+                        for (int k = 1; k <= 8 && ReferenceEquals(off.Held, mag) && mag.Go != null; k++)
+                        {
+                            VRHand.Scripted[side] = new RigidPose(Rig.ToWorld(Vector3.Lerp(legFrom, legTo, k / 8f)), SeatPose.rotation).Multiply(holdInRaw.Inverse());
+                            VRHand.ScriptedVelocity[side] = Vector3.zero;
+                            yield return null;
+                        }
+                        legFrom = legTo;
+                    }
+                    float startSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
                     while (travel <= 0.5f && ReferenceEquals(off.Held, mag) && mag.Go != null && !mag.OnRail)
                     {
                         Vector3 at = Rig.ToWorld(centre + dirGun * (travel - 0.25f));
@@ -4263,6 +4329,16 @@ namespace RavenfieldVR.Weapons
                         if (pOut > 0)
                         {
                             probeFramesOut++;
+                            // Where (task 328 d): the travel these frames span, where the probe's points in the body are and where
+                            // the magazine itself is, from the sweep's centre (right, up, back; cm), at the frame with the most.
+                            firstIn = Mathf.Min(firstIn, travel);
+                            lastIn = Mathf.Max(lastIn, travel);
+                            if (pOut > probeMaxOut)
+                            {
+                                Vector3 pc = Rig.ToGun(mag.ProbeOutCentre) - centre, mc = Rig.ToGun(mag.Go.transform.position) - centre;
+                                whereIn = $"points at {Vector3.Dot(pc, right) * 100f:0.0}/{Vector3.Dot(pc, up) * 100f:0.0}/{Vector3.Dot(pc, -aim) * 100f:0.0}, "
+                                          + $"magazine at {Vector3.Dot(mc, right) * 100f:0.0}/{Vector3.Dot(mc, up) * 100f:0.0}/{Vector3.Dot(mc, -aim) * 100f:0.0} cm right/up/back";
+                            }
                         }
                         probeMaxOut = Mathf.Max(probeMaxOut, pOut);
                         probeMaxIn = Mathf.Max(probeMaxIn, pIn);
@@ -4275,8 +4351,13 @@ namespace RavenfieldVR.Weapons
                     }
                     float endSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
                     Core.AutoTest.Metric($"magazine keep-out ({name}): frames with the magazine drawn inside the gun", frames);
-                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/{mag.KeepOutRows * 9} points), ended {endSide * 100f:0.0} cm {(endSide <= 0.02f ? "on its side" : probeFramesOut + frames == 0 ? "past the gun, over or around it (never in it)" : "PAST THE GUN (WENT THROUGH)")}"
-                              + $" [probe of {probePoints} points: {probeFramesOut} frame(s) with points in the solid outside the well's opening (at most {probeMaxOut}), at most {probeMaxIn} in the solid inside the opening]");
+                    // Through only from the start side to the far one: a magazine already past the middle at the start never crossed.
+                    string ended = endSide <= 0.02f ? "on its side"
+                        : startSide > -0.05f ? $"past the gun, but it started {startSide * 100f:0.0} cm in (not a crossing)"
+                        : probeFramesOut + frames == 0 ? "past the gun, over or around it (never in it)" : "PAST THE GUN (WENT THROUGH)";
+                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/{mag.KeepOutPoints} points), ended {endSide * 100f:0.0} cm {ended}"
+                              + $" [probe of {probePoints} points: {probeFramesOut} frame(s) with points in the solid outside the well's opening (at most {probeMaxOut}), at most {probeMaxIn} in the solid inside the opening"
+                              + (probeFramesOut > 0 ? $"; from {(firstIn - 0.25f) * 100f:0} to {(lastIn - 0.25f) * 100f:0} cm of the sweep, {whereIn}" : "") + "]");
                     worstFrames = Mathf.Max(worstFrames, frames);
                     worstPoints = Mathf.Max(worstPoints, maxPoints);
                     // Back out the way it came before the next pass.

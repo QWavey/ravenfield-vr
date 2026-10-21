@@ -191,14 +191,7 @@ namespace RavenfieldVR.Input
                         _quickSwitchWeapon = quick;
                         if (_quickSwitchWeapon != null && now - _quickSwitchAt < 0.6f)
                         {
-                            if (_quickSwitchWeapon.HasAnySubWeapons())
-                            {
-                                _undoCyclePending = true; // the game's key once more this frame: back to the variant it was on
-                            }
-                            else
-                            {
-                                Weapons.WeaponSystem.Instance?.UndoSelectorToggle(_quickSwitchWeapon);
-                            }
+                            UndoQuickSwitch(_quickSwitchWeapon);
                         }
                         _quickSwitchWeapon = null;
                     }
@@ -271,6 +264,9 @@ namespace RavenfieldVR.Input
         private const float DoublePressWindow = 0.4f;
         /// <summary>The semi / auto switch a Touch A tap made at once, put back if the tap turns out to start slow motion's double press.</summary>
         private static Weapon _quickSwitchWeapon;
+        /// <summary>When the gun hand's A switched the fire mode on its press (-1: no push waiting for its single or long press).</summary>
+        private static float _pushSwitchedAt = -1f;
+        private static Weapon _pushWeapon;
         private static float _quickSwitchAt = -10f;
         private static bool _undoCyclePending;
 
@@ -290,16 +286,38 @@ namespace RavenfieldVR.Input
         /// </summary>
         private static bool SwitchUndoable(Weapon weapon)
         {
-            Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
-            if (weapon == null || ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null || system != null && system.Held != null && system.Held.Aiming)
+            if (weapon == null || ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null)
             {
-                return false; // (aiming, the press flips the sight, which nothing puts back)
+                return false;
             }
             if (weapon.HasAnySubWeapons())
             {
                 return weapon.alternativeWeapons != null && weapon.alternativeWeapons.Count == 1;
             }
             return VRConfig.FireSelector.Value && Weapons.FireSelector.HasModes(weapon);
+        }
+
+        /// <summary>The press has fire modes to switch: the weapon's own fire-mode script, the game's variants, or the semi / auto selector.</summary>
+        private static bool HasFireModes(Weapon weapon) =>
+            weapon != null && (ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null || weapon.HasAnySubWeapons()
+                               || VRConfig.FireSelector.Value && Weapons.FireSelector.HasModes(weapon));
+
+        /// <summary>Puts back a switch made at once (by slow motion's double press, or a press that turned out to be a hold for the sight).</summary>
+        private static void UndoQuickSwitch(Weapon weapon)
+        {
+            if (weapon == null)
+            {
+                return;
+            }
+            if (weapon.HasAnySubWeapons())
+            {
+                _undoCyclePending = true; // the game's key once more: back to the variant it was on
+            }
+            else
+            {
+                Weapons.WeaponSystem.Instance?.UndoSelectorToggle(weapon);
+            }
+            _quickSwitchWeapon = null;
         }
 
         /// <summary>
@@ -512,8 +530,53 @@ namespace RavenfieldVR.Input
             // already comes on the release, made every switch to auto or semi lag (user, 2026-10-21: "the switch to full auto or
             // semi has delays"). A second press that turns slow motion on or off puts a semi / auto switch back.
             bool modeNow = false;
-            if (VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand) && SlideReleaseSwitchesMode(weapon)
-                && !(VRInput.AnyOculusTouch && Time.unscaledTime - _slowToggledAt < 1.2f)) // (its single comes on the release: a second press held long too)
+            float now = Time.unscaledTime;
+            bool longPress = VRInput.GetPressed(DigitalAction.FireMode);
+            // On Touch the gun hand's A reaches the mod twice: its raw press at once (the SlowMotion click), and the slide release's
+            // single only when A is let go (A's complex button has its long press bound). A switch a second press can put back is
+            // made on the press now: taken on the release it lagged by as long as A was held (user, 2026-10-21 night: "theres still
+            // a delay between auto and manual switching"). The single or long press that the same push gives later is not taken
+            // again (it would switch straight back).
+            bool single = VRInput.GetPressed(DigitalAction.SlideRelease, VRInput.GunHand);
+            // While aiming, a tap still switches the fire mode and the button held flips the sight (a magnifier, an alternate sight):
+            // the press used to flip the sight whenever the gun was aimed, so the fire mode could not be switched looking through it
+            // (user, 2026-10-21 night: "when aiming and pressing the switch ... it wants to switch sights and doesnt do the switch").
+            Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
+            bool aiming = system != null && system.Held != null && system.Held.Aiming;
+            bool sightToFlip = aiming && weapon != null && !system.Held.MagnifierByHand(weapon)
+                               && (ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) != null || weapon.HasAnyAltSightModes());
+            if (_pushSwitchedAt >= 0f && (now - _pushSwitchedAt >= 3f || single || longPress))
+            {
+                if (now - _pushSwitchedAt < 3f)
+                {
+                    if (longPress && sightToFlip && _pushWeapon == weapon)
+                    {
+                        // Held while aiming: the sight flips, and the switch the press made is put back (the press cannot know yet
+                        // whether it is a tap or a hold).
+                        UndoQuickSwitch(weapon);
+                    }
+                    else
+                    {
+                        longPress = false; // (this push's long press: it already switched)
+                    }
+                    single = false; // (this push's single: it already switched)
+                }
+                _pushSwitchedAt = -1f;
+                _pushWeapon = null;
+            }
+            if (VRInput.AnyOculusTouch && VRInput.GunHand == VRInput.Dominant && VRInput.GetPressed(DigitalAction.SlowMotion, VRInput.GunHand))
+            {
+                _pushSwitchedAt = -1f; // a new push: whatever the last one gave has come (or was lost to a menu)
+                _pushWeapon = null;
+                if (now - _slowToggledAt >= 1.2f && !firing && SlideReleaseSwitchesMode(weapon) && SwitchUndoable(weapon))
+                {
+                    modeNow = true;
+                    _pushSwitchedAt = now;
+                    _pushWeapon = weapon;
+                }
+            }
+            if (!modeNow && single && SlideReleaseSwitchesMode(weapon)
+                && !(VRInput.AnyOculusTouch && now - _slowToggledAt < 1.2f)) // (its single comes on the release: a second press held long too)
             {
                 // Only a switch a second press can put back exactly (the semi / auto selector, or a gun with one variant beside
                 // it): a weapon script's or a longer variant cycle keeps the wait, or slow motion's double press left it switched
@@ -556,14 +619,15 @@ namespace RavenfieldVR.Input
                 _undoCyclePending = false;
                 Set(KeyBinds.FireMode, true); // the variant switched by the first tap of slow motion's double press, put back
             }
-            if (VRInput.GetPressed(DigitalAction.FireMode) || modeByRelease || modeNow)
+            if (longPress || modeByRelease || modeNow)
             {
-                // Looking through the sights: flip the magnifier / alternate sight. Otherwise: the weapon's own
-                // fire-mode script, the mod's sub-weapon modes, else our semi/auto selector (automatic weapons only).
-                Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
-                bool aiming = system != null && system.Held != null && system.Held.Aiming;
-                ScriptKey magnifier = aiming ? ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) : null;
-                if (aiming && system.Held.MagnifierByHand(weapon))
+                // The fire mode (the weapon's own fire-mode script, the game's variants, else our semi / auto selector), aiming or
+                // not. The sight (the magnifier / alternate sight) when the button is held while aiming, or on a gun with no fire
+                // modes to switch.
+                bool modes = HasFireModes(weapon);
+                bool wantSight = aiming ? longPress || !modes : !modes;
+                ScriptKey magnifier = wantSight && aiming ? ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) : null;
+                if (wantSight && aiming && system.Held.MagnifierByHand(weapon))
                 {
                     // The free hand flips this weapon's magnifier (Weapons.MagnifierFlip found its part), so the press does
                     // nothing here: no tap, no sight-mode or fire-mode step. Only a weapon whose magnifier part cannot be found
@@ -573,14 +637,14 @@ namespace RavenfieldVR.Input
                 {
                     ScriptKeys.Tap(magnifier.Key, magnifier.Script);
                 }
-                else if (weapon != null && weapon.HasAnyAltSightModes() && (aiming || !weapon.HasAnySubWeapons() && !Weapons.FireSelector.HasModes(weapon)
-                                                                             && ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) == null))
+                else if (wantSight && weapon != null && weapon.HasAnyAltSightModes())
                 {
                     Set(KeyBinds.NextScope, true);
                 }
                 else if (!firing && !(modeByRelease && _modePressFiring))
                 {
-                    if (system == null || !system.HandleFireModePress(weapon)) // the weapon's own fire-mode key works with the selector off too
+                    bool handled = system != null && system.HandleFireModePress(weapon);
+                    if (!handled) // the weapon's own fire-mode key works with the selector off too
                     {
                         Set(KeyBinds.FireMode, true);
                     }
@@ -594,6 +658,12 @@ namespace RavenfieldVR.Input
                         _quickSwitchWeapon = weapon; // the game cycled its one variant: a second cycle puts it back
                         _quickSwitchAt = Time.unscaledTime;
                     }
+                    // Which way and when, for the next play log (user, 2026-10-21 night: "theres still a delay between auto and
+                    // manual switching"): on A's press, its release, after the double-press wait, or A held.
+                    string when = modeNow ? (_pushSwitchedAt == now ? "on A's press" : "on A's release") : modeByRelease ? "after the double-press wait" : "A held";
+                    string way = !handled ? (weapon != null && weapon.HasAnySubWeapons() ? "the game's variant cycle" : "the game's key")
+                                 : system.LastPressWasSelector ? "the selector" : "the weapon's own script key";
+                    Log.Info($"Fire mode switched on {(weapon != null ? weapon.name : "?")} by {way}, {when}.");
                 }
             }
             if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.GunHand))

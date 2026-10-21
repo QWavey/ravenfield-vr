@@ -2051,7 +2051,27 @@ namespace RavenfieldVR.Weapons
         // Nine a row: the middle, the four edge middles and the four corners. The edges alone (a "+" a row) left a magazine's
         // corners unsampled: pushed sideways, its leading face had one point a row, and the JOLT-20-S's and PATRIOT GL's went on
         // through the gun with up to 70 of the test's dense probe points in its body (autotest of 2026-10-21).
+        // (Fifteen, five across the depth, were tried for the HK416s and changed nothing: their "went through" was the test's
+        // magazine starting on the far side of the gun, resting against it; task 328 d.)
         private const int RowPoints = 9;
+        private static readonly float[] RowFront = { -1f, 0f, 1f };
+        private static readonly float[] RowSide = { -1f, 0f, 1f };
+
+        /// <summary>One row of the keep-out's points round <paramref name="c"/> (out to <paramref name="front"/> and <paramref name="side"/>), from index <paramref name="n"/>.</summary>
+        private static int FillRow(Vector3[] points, int n, Vector3 c, Vector3 front, Vector3 side)
+        {
+            foreach (float u in RowFront)
+            {
+                foreach (float v in RowSide)
+                {
+                    points[n++] = c + front * u + side * v;
+                }
+            }
+            return n;
+        }
+
+        /// <summary>Self-test: how many points the keep-out tests on this magazine.</summary>
+        internal int KeepOutPoints => KeepOutRows * RowPoints;
         // How far out a long gun's magazine is sampled (of its half-widths; a pistol's to its edges). At 0.8 the outer band went
         // through thin parts of the gun unseen: the GREASER's and JOLT-20-S's magazines put up to 114 of the test's dense probe
         // points in the gun's body, sideways (autotest, 2026-10-21).
@@ -2172,18 +2192,17 @@ namespace RavenfieldVR.Weapons
                 for (int a = 0; a < along; a++)
                 {
                     Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(along - 1));
-                    points[n++] = c;
-                    points[n++] = c + FrontLocal * (_frontHalf * edge);
-                    points[n++] = c - FrontLocal * (_frontHalf * edge);
-                    points[n++] = c + side * (_sideHalf * edge);
-                    points[n++] = c - side * (_sideHalf * edge);
-                    if (!rocket)
+                    if (rocket)
                     {
-                        Vector3 f = FrontLocal * (_frontHalf * edge), s = side * (_sideHalf * edge);
-                        points[n++] = c + f + s;
-                        points[n++] = c + f - s;
-                        points[n++] = c - f + s;
-                        points[n++] = c - f - s;
+                        points[n++] = c;
+                        points[n++] = c + FrontLocal * (_frontHalf * edge);
+                        points[n++] = c - FrontLocal * (_frontHalf * edge);
+                        points[n++] = c + side * (_sideHalf * edge);
+                        points[n++] = c - side * (_sideHalf * edge);
+                    }
+                    else
+                    {
+                        n = FillRow(points, n, c, FrontLocal * (_frontHalf * edge), side * (_sideHalf * edge));
                     }
                 }
                 int count = n;
@@ -2324,9 +2343,11 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(drawn, target.rotation);
         }
 
+        private static readonly Vector3[] RowBuffer = new Vector3[RowPoints];
+
         /// <summary>
-        /// Autotest: how many of the magazine's 25 check points are inside <paramref name="gun"/>'s body where it is drawn
-        /// now (its magwell does not count, a magazine seated in it does: task 260 c). -1 when the gun's solid is not measured.
+        /// Autotest: how many of the keep-out's check points of the magazine are inside <paramref name="gun"/>'s body where it is
+        /// drawn now (its magwell does not count, a magazine seated in it does: task 260 c). -1 when the gun's solid is not measured.
         /// </summary>
         internal int PointsInsideGun(HeldWeapon gun)
         {
@@ -2348,8 +2369,8 @@ namespace RavenfieldVR.Weapons
             {
                 Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(rows - 1));
                 float edge = _pistolGun ? 1f : KeepOutEdge;
-                Vector3 f = FrontLocal * (_frontHalf * edge), s = side * (_sideHalf * edge);
-                foreach (Vector3 local in new[] { c, c + f, c - f, c + s, c - s, c + f + s, c + f - s, c - f + s, c - f - s })
+                FillRow(RowBuffer, 0, c, FrontLocal * (_frontHalf * edge), side * (_sideHalf * edge));
+                foreach (Vector3 local in RowBuffer)
                 {
                     Vector3 p = t.TransformPoint(local);
                     // The same rule as KeepOffGun: the well is open to the gun's body only, not to a magazine seated in it.
@@ -2368,9 +2389,14 @@ namespace RavenfieldVR.Weapons
         /// outside it. A sideways pass that crosses the receiver through the opening, or between the keep-out's rows, shows
         /// up here (252 ae).
         /// </summary>
+        /// <summary>Self-test: the middle of the last probe's points in the gun's body outside the well's opening (world; zero when none).</summary>
+        internal Vector3 ProbeOutCentre { get; private set; }
+
         internal void ProbeInside(HeldWeapon gun, out int points, out int inWell, out int outWell)
         {
             points = inWell = outWell = 0;
+            ProbeOutCentre = Vector3.zero;
+            Vector3 outSum = Vector3.zero;
             System.Func<Vector3, bool> solid = gun != null ? gun.HandsSolid : null;
             if (solid == null || Go == null || gun.Rig.GunBody == null)
             {
@@ -2407,9 +2433,14 @@ namespace RavenfieldVR.Weapons
                         else
                         {
                             outWell++;
+                            outSum += p;
                         }
                     }
                 }
+            }
+            if (outWell > 0)
+            {
+                ProbeOutCentre = outSum / outWell;
             }
         }
 
