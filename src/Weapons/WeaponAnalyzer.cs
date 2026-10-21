@@ -628,7 +628,9 @@ namespace RavenfieldVR.Weapons
                 d.Up = up.sqrMagnitude > 1e-4f ? up.normalized : UpAcrossBore(d.AimAxis, root, sampler, gunIdle, d);
                 d.Up = UprightByModel(d.Up, d.AimAxis, d);
                 d.MuzzlePoint = gunIdle.InverseTransformPoint(muzzleIdle.position);
-                PullMuzzleOntoBarrel(d, root, armRelated, sampler, gunIdle);
+                // Guarded as the rules below are: a throw here replaced every result after it with the fallback (analyzer hunt,
+                // 2026-10-21).
+                Guarded(d, "muzzle onto barrel", () => PullMuzzleOntoBarrel(d, root, armRelated, sampler, gunIdle));
                 float rootAngle = Vector3.Angle(gunIdle.TransformDirection(d.AimAxis), sampler.Idle(root).Forward);
                 if (rootAngle > 25f)
                 {
@@ -651,7 +653,7 @@ namespace RavenfieldVR.Weapons
                 Guarded(d, "hinge", () => DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle));
                 Guarded(d, "belt", () => FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler));
                 d.CyclesByHand = d.Action == ActionType.Manual
-                                 || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
+                                 || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration != null && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))
                 {
                     Guarded(d, "rack stroke", () => RackStrokeFromHands(d, handR, handL, sampler, index, root, gunIdle, armRenderers));
