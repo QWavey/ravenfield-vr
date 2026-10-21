@@ -2533,7 +2533,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static readonly Collider[] LevelNear = new Collider[16];
+        private static readonly Collider[] LevelNear = new Collider[32]; // 16 was dropped in a cluttered spot (a vehicle cabin, a prop pile): walls past the first 16 went unseen and the magazine stayed in them
 
         /// <summary>
         /// Let go with part of it inside the floor, a wall or a vehicle (the hand pressed it a little into the ground): it is moved
