@@ -279,6 +279,12 @@ is not taken). Capture onto the line from aside, and off it from inside the well
   knocks it out (**mag kick**, swept window, smoothed hand speed, a light tick on the old base, no kick for 0.4 s after
   a seat); the knocked-out one flies forward and turns end over end (`KickOut`, task 260); the seated one is solid to the
   fresh one until it is knocked out (the well is open to the gun's body only: `MagazineProp.KeepOffGun`).
+  The keep-out samples a held magazine in rows along it (9, at most 2 cm apart on a long one, up to 16), nine points a row
+  (middle, edge middles, corners), a long gun's magazine to 95% of its box and a pistol's to its edges; it advances in
+  5 mm steps toward the hand and slides along the gun's axes when blocked. Measured by the autotest's keep-out sweep
+  (`vrshots.py --weapon NAME`: a dense 5 mm probe of the magazine's box counts frames with points in the gun's body):
+  with five points a row at 80% (before 2026-10-21) a PATRIOT GL magazine put up to 222 probe points in the gun sideways,
+  after the change none.
   Slides/bolts/handles/pumps follow the hand along their stroke; covers, belts, hinges, optics (magnifier flip).
   The pouch only answers a squeeze made at it (`_pressPalm`), and a magazine let go at the pouch is stowed only if the
   hand is slow (< 1.2 m/s) — otherwise it is thrown.

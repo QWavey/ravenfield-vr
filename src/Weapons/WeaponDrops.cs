@@ -1435,6 +1435,12 @@ namespace RavenfieldVR.Weapons
             PropPhysics.TrackPlayer();
             IgnoreBodies();
             Actor actor = GameContext.PlayerActor;
+            bool dead = actor != null && actor.dead;
+            if (dead && !_playerWasDead)
+            {
+                LetGoOfOwnDrops();
+            }
+            _playerWasDead = dead;
             if (actor == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || _drops.Count == 0)
             {
                 return;
@@ -1860,7 +1866,9 @@ namespace RavenfieldVR.Weapons
                     d.ReturnAt = 0f;
                     continue;
                 }
-                if (expired && !d.Keep)
+                // A kept weapon that fell out of the world can never be picked up again: it only held a place among the kept ones
+                // (pickup hunt, 2026-10-21).
+                if (expired && (!d.Keep || d.Go.transform.position.y < -500f))
                 {
                     Remove(d);
                 }
@@ -1882,19 +1890,25 @@ namespace RavenfieldVR.Weapons
                     kept--;
                 }
             }
-            // Oldest first when over the cap; your own weapon waiting to go back to its holster is never one of them.
+            // Oldest first when over the cap; your own weapon waiting to go back to its holster is never one of them. The soldiers'
+            // drops go before a weapon of yours that stopped being kept: just demoted above, it was the oldest in the list and
+            // went in the same call, the only copy of a swapped-away gun lost on the seventh swap (pickup hunt, 2026-10-21).
             int count = 0;
             foreach (DroppedWeapon d in _drops)
             {
                 count += d.OwnerSlot < 0 && !d.Keep ? 1 : 0;
             }
-            for (int i = 0; i < _drops.Count && count > max; i++)
+            for (int pass = 0; pass < 2 && count > max; pass++)
             {
-                if (_drops[i].OwnerSlot < 0 && !_drops[i].Keep)
+                for (int i = 0; i < _drops.Count && count > max; i++)
                 {
-                    Remove(_drops[i]);
-                    i--;
-                    count--;
+                    DroppedWeapon d = _drops[i];
+                    if (d.OwnerSlot < 0 && !d.Keep && (pass == 1 || !d.PlayerOwned))
+                    {
+                        Remove(d);
+                        i--;
+                        count--;
+                    }
                 }
             }
         }
@@ -2088,6 +2102,28 @@ namespace RavenfieldVR.Weapons
         /// Your own dropped weapon goes back to its holster when you leave it lying for a while or walk away from it, as
         /// long as its slot is still free (pick something else up into it and the dropped one stays a normal drop).
         /// </summary>
+        private bool _playerWasDead;
+
+        /// <summary>
+        /// The player died: the weapons of theirs lying about (kept after a swap, or waiting to go back to a holster) are no longer
+        /// the only copies, since the respawn hands out the loadout again. Kept, they stayed beside a full loadout, and one waiting
+        /// for its holster was made a kept copy by the first frame on foot (pickup hunt, 2026-10-21). They become ordinary drops,
+        /// still grabbable, on the normal timer from now.
+        /// </summary>
+        private void LetGoOfOwnDrops()
+        {
+            foreach (DroppedWeapon d in _drops)
+            {
+                if (d.OwnerSlot >= 0 || d.Keep || d.PlayerOwned)
+                {
+                    d.OwnerSlot = -1;
+                    d.Keep = false;
+                    d.PlayerOwned = false;
+                    d.DropTime = Time.time;
+                }
+            }
+        }
+
         private void ReturnOwnDrops(Actor actor)
         {
             for (int i = _drops.Count - 1; i >= 0; i--)
