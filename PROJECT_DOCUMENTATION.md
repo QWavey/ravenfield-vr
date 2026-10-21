@@ -878,3 +878,19 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
 10. **Holsters**: after a steep look down and a turn the body's facing catches up at most 150 degrees a second (the
    holsters jumped round the body at once); the free hand cannot draw where the game does not (deep water,
    toggled items); a refused draw leaves the gun where it was.
+11. **Final validation of the shipped set**: the full autotest (`metric_diff.py`) held or improved every measurement
+   against the previous run (frame time 10.47 vs 10.63 ms, `Weapons.BeforeRender` max 291 vs 366 ms), and the two
+   earlier problems (a DAGGER launcher false alarm, a JOLT-20-S support slide) were gone. The run's six problems proved
+   to be two intermittent flakes — an RPG single-frame pose spike (0.00 under a deep repro and in the previous run; the
+   run had a 562 ms frame hitch) and a GREASER slow-push mag seat (not sampled before, did not recur) — shown not to
+   come from the change set (`HoldFrame` is a no-op over 20 cm; the reload diff is only a perf wrapper). The deep run
+   also ran 264 s across three weapons as the squad/doc build's smoke test.
+12. **Pause audit, completed across the hands** (read-only scouts, then verified fixes, each guarded by the pause so
+   normal play is provably unchanged): a reload already in progress is frozen (its per-role switch had kept seating,
+   kicking, racking and letting go while paused; the kick and rack baselines re-anchor on resume); an off-hand grenade
+   is not thrown by a trigger or a grip let go while paused (the trigger release is resynced on the frame back, the
+   grip-throw now checks `GunInputBlocked` as the main hand does); a grenade pin grab ends on pause. Plus guard fixes
+   the scouts found: the palmed magazine's drop and the view mode (a player with no actor) against destroyed objects, a
+   reset of the mag-kick trackers when the weapon is let go, and the level push-out seeing 32 colliders instead of 16.
+   Still open for a headset session: the flight stick and steering wheel measured against a one-frame-stale palm (pin
+   to full throw / creep through a corner at speed), and the pin's world-space pull test.
