@@ -544,6 +544,25 @@ namespace RavenfieldVR.Weapons
         private static GunVolume Build(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount = 5,
             Func<Runtime.RigidPose?> poseNow = null, Action<GunVolume> setUp = null)
         {
+            // Timed on its own in a profiled run (its main-thread part: the views drawn and the read-backs queued).
+            if (!Core.PerfProbe.Enabled)
+            {
+                return BuildNow(key, renderers, fp, fr, envMin, envMax, viewCount, poseNow, setUp);
+            }
+            Core.PerfProbe.Begin("shape measuring started");
+            try
+            {
+                return BuildNow(key, renderers, fp, fr, envMin, envMax, viewCount, poseNow, setUp);
+            }
+            finally
+            {
+                Core.PerfProbe.End("shape measuring started");
+            }
+        }
+
+        private static GunVolume BuildNow(string key, List<Renderer> renderers, Vector3 fp, Quaternion fr, Vector3 envMin, Vector3 envMax, int viewCount,
+            Func<Runtime.RigidPose?> poseNow, Action<GunVolume> setUp)
+        {
             Shader shader = DepthShader();
             if (shader == null || renderers.Count == 0)
             {

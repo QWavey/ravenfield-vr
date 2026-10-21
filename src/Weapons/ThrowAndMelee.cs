@@ -320,6 +320,10 @@ namespace RavenfieldVR.Weapons
 
         private void UpdatePin()
         {
+            if (GameManager.IsPaused())
+            {
+                return; // the pin is not pulled in a paused match (the dashboard, the headset off; input hunt, 2026-10-21)
+            }
             VRHand off = _sys.Rig.Off;
             VRHand dom = _sys.Rig.Dominant;
             if (!_pinPulled)

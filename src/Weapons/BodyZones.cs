@@ -26,6 +26,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private float _torsoLocalYaw;
         private bool _hasYaw;
+        private bool _wasFrozen, _catchingUp;
 
         public Vector3 Chest, OffHip, DomHip, BackShoulder, OffBackShoulder, OffChest, DomChest, Pouch, HeadSide, Belt;
         /// <summary>Boneworks layout: under each arm (pistols), the small of the back and the belt's front (gear).</summary>
@@ -56,7 +57,13 @@ namespace RavenfieldVR.Weapons
             // head (a cheek on the stock) turn them up to 12 degrees at a moderate pitch (review, 2026-10-20).
             Vector3 f = head.forward;
             f.y = 0f;
-            if (f.sqrMagnitude > 0.3f * 0.3f || !_hasYaw)
+            bool frozen = !(f.sqrMagnitude > 0.3f * 0.3f || !_hasYaw);
+            if (_wasFrozen && !frozen)
+            {
+                _catchingUp = true; // back from a steep look: the turn made meanwhile is caught up at a pace, not in one frame
+            }
+            _wasFrozen = frozen;
+            if (!frozen)
             {
                 if (f.sqrMagnitude < 1e-6f)
                 {
@@ -77,7 +84,16 @@ namespace RavenfieldVR.Weapons
                 float delta = Mathf.DeltaAngle(_torsoLocalYaw, headYaw);
                 if (Mathf.Abs(delta) > 35f)
                 {
-                    _torsoLocalYaw += delta - Mathf.Sign(delta) * 35f;
+                    // Coming back from a steep look down (the facing frozen) after a turn, at most 150 degrees a second: the first
+                    // frame up moved the holsters and the pouch round the body by the whole turn at once, up to the other side of
+                    // it, and a reach in that moment landed on another holster (holster hunt, 2026-10-21). Otherwise as before.
+                    float excess = delta - Mathf.Sign(delta) * 35f;
+                    float most = _catchingUp ? 150f * Mathf.Max(Time.unscaledDeltaTime, 1e-3f) : float.MaxValue;
+                    _torsoLocalYaw += Mathf.Clamp(excess, -most, most);
+                }
+                else
+                {
+                    _catchingUp = false; // within the neck again: a normal head turn follows at once as before
                 }
                 _torsoLocalYaw = Mathf.MoveTowardsAngle(_torsoLocalYaw, headYaw, 25f * Time.unscaledDeltaTime);
             }

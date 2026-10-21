@@ -49,6 +49,8 @@ namespace RavenfieldVR.Rig
 
         private Hand? _stickHand;
         private Vector3 _stickStartLocal;
+        private Vector3 _stickLocal; // the stick's last deflection (seat space), kept over a pause
+        private bool _wasPaused;
 
         public CockpitControls(VRRig rig)
         {
@@ -74,6 +76,30 @@ namespace RavenfieldVR.Rig
             {
                 ReleaseAll(); // the vehicle was destroyed under the hands
                 FindControls();
+            }
+            // Paused with no menu (the SteamVR dashboard, the headset off): the hands on the wheel and stick move nothing, and
+            // carry on from where they are when the match goes on. Before, their motion was added up through the pause and the
+            // turn or stick throw landed at once on resume (vehicles hunt, 2026-10-21).
+            if (GameManager.IsPaused())
+            {
+                _wasPaused = true;
+                return;
+            }
+            if (_wasPaused)
+            {
+                _wasPaused = false;
+                foreach (VRHand hand in _rig.Hands)
+                {
+                    int i = (int)hand.Side;
+                    if (_onWheel[i])
+                    {
+                        _wheelStart[i] = OnWheelPlane(hand.Palm.position);
+                    }
+                    if (_stickHand == hand.Side)
+                    {
+                        _stickStartLocal = InSeat(hand.Palm.position) - _stickLocal;
+                    }
+                }
             }
             foreach (VRHand hand in _rig.Hands)
             {
@@ -176,6 +202,7 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = InSeat(palm);
+                    _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
@@ -224,6 +251,7 @@ namespace RavenfieldVR.Rig
                 else
                 {
                     Vector3 local = InSeat(palm) - _stickStartLocal;
+                    _stickLocal = local;
                     var throw01 = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
                     // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
                     // (2-3 mm) was a steady 2-4% of stick and the aircraft drifted.

@@ -91,7 +91,7 @@ namespace RavenfieldVR.Weapons
         {
             VRHand off = _system.Rig.Off;
             Transform part = Part;
-            bool menu = GameContext.GameMenuOpen || !GameContext.InGame;
+            bool menu = GameContext.GameMenuOpen || !GameContext.InGame || GameManager.IsPaused(); // (paused: not flipped)
             if (menu || part == null || !part.gameObject.activeInHierarchy || !off.Tracked)
             {
                 EndGrab(off);

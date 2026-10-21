@@ -11,7 +11,7 @@ namespace RavenfieldVR.UI
     /// pointing forward, up or down (within 45 degrees of level), sends the squad where the hand points: to the capture point
     /// the line is on, as the pointing does (<see cref="SquadObjectiveMarkers"/>), or to the ground the line meets. A fist, the
     /// four fingers curled, held the same way tells the squad to stay: it stops following the leader and its members stop
-    /// where they stand, which the game shows as SQUAD - HOLD. A sign counts once it has been held for 0.4 seconds, with a short
+    /// where they stand, which the game shows as SQUAD - HOLD. A sign counts once it has been held for 0.5 seconds, with a short
     /// buzz in that hand and the order sound. The same sign is not taken again until the hand shows something else, or nothing
     /// for a moment. No sign while the hand holds something, while a menu is open, while the squad button is held or the order
     /// screen is open, on a ladder, while the wrist is turned to the eyes, or when the player is dead.
@@ -176,12 +176,23 @@ namespace RavenfieldVR.UI
             hand.Haptic(0.09f, 150f, 0.6f);
         }
 
+        /// <summary>Soldiers of the player's squad to take an order (a player alone got the order's sound and grunt for nothing).</summary>
+        private static bool HasSquadmates()
+        {
+            Squad squad = LocalPlayer.squad;
+            return squad != null && squad.aiMembers != null && squad.aiMembers.Count > 0;
+        }
+
         /// <summary>
         /// The flat hand's order, the same as the pointing's: the capture point the line is on goes to its own order (attack or
         /// defend, as the game gives it for that flag), otherwise the squad goes to the ground the line meets.
         /// </summary>
         private static bool OrderAlongHand(FpsActorController controller, VRHand hand)
         {
+            if (!HasSquadmates())
+            {
+                return false;
+            }
             Vector3 eye = VRRig.Instance.Head.position;
             Ray line = new Ray(eye, (hand.PalmCentre - eye).normalized);
             SpawnPoint flag = SquadObjectiveMarkers.Aimed(line, eye);
@@ -221,7 +232,7 @@ namespace RavenfieldVR.UI
         private static bool OrderStay(FpsActorController controller)
         {
             Squad squad = LocalPlayer.squad;
-            if (squad == null)
+            if (squad == null || !HasSquadmates())
             {
                 return false;
             }

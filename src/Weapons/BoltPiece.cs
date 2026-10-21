@@ -101,6 +101,24 @@ namespace RavenfieldVR.Weapons
         /// <param name="rackGun">Where the handle is (gun-body space).</param>
         public static BoltPiece Create(WeaponRig rig, Vector3 rackGun)
         {
+            // Timed on its own in a profiled run (the handle cut out of the receiver's mesh).
+            if (!Core.PerfProbe.Enabled)
+            {
+                return CreateNow(rig, rackGun);
+            }
+            Core.PerfProbe.Begin("bolt piece cut");
+            try
+            {
+                return CreateNow(rig, rackGun);
+            }
+            finally
+            {
+                Core.PerfProbe.End("bolt piece cut");
+            }
+        }
+
+        private static BoltPiece CreateNow(WeaponRig rig, Vector3 rackGun)
+        {
             var piece = new BoltPiece();
             try
             {

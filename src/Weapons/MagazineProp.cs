@@ -608,6 +608,25 @@ namespace RavenfieldVR.Weapons
         /// <summary>Creates a prop for <paramref name="rig"/>'s ammunition at the magazine's seated pose.</summary>
         public static MagazineProp Create(WeaponRig rig, PropKind kind, int rounds)
         {
+            // Timed on its own in a profiled run (a 300 ms call in the weapons' render step was traced to a machine gun's
+            // first box; 2026-10-21).
+            if (!Core.PerfProbe.Enabled)
+            {
+                return CreateNow(rig, kind, rounds);
+            }
+            Core.PerfProbe.Begin("magazine prop made");
+            try
+            {
+                return CreateNow(rig, kind, rounds);
+            }
+            finally
+            {
+                Core.PerfProbe.End("magazine prop made");
+            }
+        }
+
+        private static MagazineProp CreateNow(WeaponRig rig, PropKind kind, int rounds)
+        {
             WeaponRigData d = rig.Data;
             Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);
             Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
@@ -2589,7 +2608,7 @@ namespace RavenfieldVR.Weapons
             Transform head = WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null ? WeaponSystem.Instance.Rig.Head : null;
             if (head != null && (deep || PropPhysics.NothingUnder(b.center, _colliders)))
             {
-                PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? float.MaxValue : 0.8f);
+                PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? 1f : 0.8f); // (at most a metre: an arm's length)
             }
         }
 

@@ -1548,6 +1548,14 @@ namespace RavenfieldVR.Rig
         {
             if (_root != null)
             {
+                // Its built glove mesh too: not the root's, and each rig rebuild (a VR restart) left one per hand (lifecycle hunt).
+                foreach (SkinnedMeshRenderer smr in _root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    if (smr.sharedMesh != null)
+                    {
+                        Object.Destroy(smr.sharedMesh);
+                    }
+                }
                 Object.Destroy(_root.gameObject);
             }
         }

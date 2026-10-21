@@ -66,6 +66,33 @@ namespace RavenfieldVR.Weapons
 
         private static int _fitted;
 
+        /// <summary>
+        /// One weapon made ready as the menu does it: its analysis, its physics shape, its dropped model and
+        /// its sub weapons' analyses. The autotest calls it for the weapons it tests, so its numbers are a match after the menu
+        /// (it starts a map at once, and the first draw of each weapon paid what the menu does in play).
+        /// </summary>
+        internal static void Prepare(Weapon weapon, WeaponManager.WeaponEntry entry)
+        {
+            if (weapon == null || entry == null || Warmed.Contains(entry))
+            {
+                return;
+            }
+            WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
+            PrefitShape(weapon, data, entry);
+            if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
+            {
+                WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)
+            }
+            foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
+            {
+                if (sub != weapon && !WeaponAnalyzer.IsCached(sub, entry))
+                {
+                    WeaponAnalyzer.Get(sub, entry);
+                }
+            }
+            Warmed.Add(entry);
+        }
+
         private static readonly string[] LoadoutKeys = { "primary", "secondary", "gear1", "gear2", "gear3" };
 
         /// <summary>The saved loadout's weapons (name hashes), as the last pass found them.</summary>
@@ -254,19 +281,7 @@ namespace RavenfieldVR.Weapons
                     var watch = System.Diagnostics.Stopwatch.StartNew();
                     try
                     {
-                        WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
-                        PrefitShape(weapon, data, entry);
-                        if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
-                        {
-                            WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)
-                        }
-                        foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
-                        {
-                            if (sub != weapon && !WeaponAnalyzer.IsCached(sub, entry))
-                            {
-                                WeaponAnalyzer.Get(sub, entry);
-                            }
-                        }
+                        Prepare(weapon, entry);
                         analysed++;
                         Warmed.Add(entry);
                     }

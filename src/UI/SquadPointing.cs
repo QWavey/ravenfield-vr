@@ -277,7 +277,10 @@ namespace RavenfieldVR.UI
             {
                 return Objective.transform.position;
             }
-            if (ui.aimActor != null)
+            // The soldier the game's target order locked: only while that order is being made (its selector shows), and not a dead
+            // one. The game never clears it, so the arrow pointed at the soldier of an older target order while a ground order went
+            // where the hand pointed (squad hunt, 2026-10-21).
+            if (ui.aimActor != null && !ui.aimActor.dead && ui.targetSelector != null && ui.targetSelector.activeSelf)
             {
                 return ui.aimActor.CenterPosition();
             }

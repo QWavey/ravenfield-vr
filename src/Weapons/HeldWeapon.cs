@@ -1362,7 +1362,7 @@ namespace RavenfieldVR.Weapons
             _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (TwoHanded && !off.Tracked ? 3f : 10f));
 
             WeaponRigData d = Rig.Data;
-            RigidPose hand = main.GunFrame;
+            RigidPose hand = HoldFrame(main, d);
             var gripInGun = new RigidPose(d.GripPoint, d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
             Quaternion gunRot = (hand.rotation * Quaternion.Inverse(gripInGun.rotation));
 
@@ -1491,12 +1491,22 @@ namespace RavenfieldVR.Weapons
             _renderedRoot = RigidPose.Of(root);
             _renderedRootSet = true;
 
+            bool part = Core.PerfProbe.Part("held: parts and hands"); // (timed apart in a profiled run)
             Reload.StepParts();
             ApplyPartOverrides();
             SnapHands(main, off);
+            if (part)
+            {
+                Core.PerfProbe.End("held: parts and hands");
+            }
             // The reload first (it sets this frame's keep-out and held palm for the gloves), then the arm: solved before it,
             // the arm went to last frame's glove placement (255.I2-7).
+            part = Core.PerfProbe.Part("held: reload");
             Reload.BeforeRender();
+            if (part)
+            {
+                Core.PerfProbe.End("held: reload");
+            }
             if (_armIK != null && _armIK.Active)
             {
                 _armIK.Solve();
@@ -2730,6 +2740,28 @@ namespace RavenfieldVR.Weapons
         private readonly bool _isKit;
         /// <summary>Throwables already put in the fist by their middle (once per analysis).</summary>
         private static readonly HashSet<WeaponRigData> GrenadeInFist = new HashSet<WeaponRigData>();
+        /// <summary>Hand-sized throwables held by their middle, with their half thickness (m).</summary>
+        private static readonly Dictionary<WeaponRigData, float> InFistHollow = new Dictionary<WeaponRigData, float>();
+
+        /// <summary>
+        /// Where a hand holds a weapon by: its palm centre (a grip's), or for a hand-sized throwable held by its middle the fist's
+        /// hollow. On the palm centre, which is on the palm's surface, half a grenade was in the palm (14 of 72 glove points in a
+        /// frag, the palm pushed 4 cm off it; improve round, 2026-10-21). The hollow is where the curled fingers close round it.
+        /// </summary>
+        internal static RigidPose HoldFrame(VRHand hand, WeaponRigData d)
+        {
+            RigidPose frame = hand.GunFrame;
+            if (d == null || !InFistHollow.TryGetValue(d, out float half))
+            {
+                return frame;
+            }
+            // From the hollow (on the palm's skin) out along the palm's normal by the skin it covers plus its own half thickness, as a
+            // magazine rests on the palm (MagazineProp.HoldPose): at the hollow itself half of it was still in the palm.
+            float zHold = VRHand.FistHollow.z, yHold = VRHand.FistHollow.y;
+            float rest = RavenfieldVR.Rig.HandModel.PalmSurfaceFromGrip(zHold - half, zHold + half, yHold - half, yHold + half) + half;
+            Vector3 held = hand.Palm.position + hand.Palm.rotation * new Vector3(-hand.Mirror, 0f, 0f) * rest;
+            return new RigidPose(frame.position + (held - hand.PalmCentre), frame.rotation);
+        }
 
         /// <summary>
         /// A grenade sits in the fist: its drawn middle where a grip goes. Held by where the throw animation's palm was, it hung
@@ -2749,6 +2781,10 @@ namespace RavenfieldVR.Weapons
             }
             // Without its pin or ring, which pulled the middle toward the top.
             GrenadeInFist.Add(rig.Data);
+            if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f)
+            {
+                InFistHollow[rig.Data] = Mathf.Clamp(Mathf.Min(gb.extents.x, Mathf.Min(gb.extents.y, gb.extents.z)), 0.01f, 0.06f);
+            }
             if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f && Vector3.Distance(gb.center, rig.Data.GripPoint) > 0.01f)
             {
                 Log.Info($"{rig.Data.Key}: held by its middle, in the fist ({Vector3.Distance(gb.center, rig.Data.GripPoint) * 100f:0.0} cm from the animation's palm).");

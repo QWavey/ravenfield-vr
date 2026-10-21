@@ -209,12 +209,12 @@ namespace RavenfieldVR.Rig
             // Keep their order across the old path: the leader stays the leader, a little ahead of the others.
             // Front first along their shared heading: a key per walker, so the comparison is consistent (measured along each
             // one's own heading, a < b and b < a could both hold, which a sort may answer with an exception; rig hunt, 2026-10-21).
-            Vector3 along = Vector3.zero;
+            _along = Vector3.zero;
             foreach (Walker w in Walkers)
             {
-                along += Heading(w.T);
+                _along += Heading(w.T);
             }
-            Walkers.Sort((a, b) => Vector3.Dot(b.T.position, along).CompareTo(Vector3.Dot(a.T.position, along)));
+            Walkers.Sort(FrontFirst); // (a static comparison: a lambda over a local made a closure every frame)
             for (int i = 0; i < Walkers.Count; i++)
             {
                 Walker w = Walkers[i];
@@ -249,6 +249,9 @@ namespace RavenfieldVR.Rig
                 Shots.Capture($"intro-{at:0.0}s");
             }
         }
+
+        private static Vector3 _along;
+        private static readonly System.Comparison<Walker> FrontFirst = (a, b) => Vector3.Dot(b.T.position, _along).CompareTo(Vector3.Dot(a.T.position, _along));
 
         private static Vector3 Heading(Transform t)
         {

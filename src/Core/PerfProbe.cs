@@ -47,6 +47,17 @@ namespace RavenfieldVR.Core
         private static uint _missed, _dropped, _reprojected, _timedFrames;
         private static int _gcStart = -1;
 
+        /// <summary>A part of a section timed on its own, only in a profiled run (no cost otherwise): Begin when on, End after.</summary>
+        public static bool Part(string name)
+        {
+            if (!Enabled)
+            {
+                return false;
+            }
+            Begin(name);
+            return true;
+        }
+
         public static void Begin(string name)
         {
             if (!Sections.TryGetValue(name, out Section s))

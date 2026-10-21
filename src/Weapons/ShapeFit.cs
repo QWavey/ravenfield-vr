@@ -113,6 +113,24 @@ namespace RavenfieldVR.Weapons
             {
                 return cached;
             }
+            // Timed on its own in a profiled run (where a long call in the weapons' steps comes from; 2026-10-21).
+            if (!Core.PerfProbe.Enabled)
+            {
+                return FitNow(key, renderers, frameFromWorld, slice, maxPieces);
+            }
+            Core.PerfProbe.Begin("shape fitted");
+            try
+            {
+                return FitNow(key, renderers, frameFromWorld, slice, maxPieces);
+            }
+            finally
+            {
+                Core.PerfProbe.End("shape fitted");
+            }
+        }
+
+        private static Piece[] FitNow(string key, IEnumerable<Renderer> renderers, Matrix4x4 frameFromWorld, float slice, int maxPieces)
+        {
             Piece[] pieces;
             try
             {

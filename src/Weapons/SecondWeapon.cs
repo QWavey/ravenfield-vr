@@ -396,7 +396,7 @@ namespace RavenfieldVR.Weapons
             _kickRot = Vector2.ClampMagnitude(_kickRot + _kickRotVel * dt, 25f);
 
             WeaponRigData d = Rig.Data;
-            RigidPose hand = Hand.GunFrame;
+            RigidPose hand = HeldWeapon.HoldFrame(Hand, d);
             Quaternion gripInGun = d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up);
             Quaternion aimFrame = hand.rotation * Quaternion.Euler(_kickRot.x, _kickRot.y, 0f);
             Quaternion gunRot = aimFrame * Quaternion.Inverse(gripInGun);
@@ -584,6 +584,10 @@ namespace RavenfieldVR.Weapons
             {
                 Hand.Model.Solid = null; // nothing left in the hand to close on
             }
+            if (Hand.Model != null)
+            {
+                Hand.Model.SnapPose = null; // its grip pose goes with it whatever the hand does next (rewritten each frame by a holder)
+            }
             if (Hand.Model != null && (Hand.Role == HandRole.Free))
             {
                 Hand.Model.WeaponIsPistol = false;
@@ -591,7 +595,6 @@ namespace RavenfieldVR.Weapons
                 Hand.Model.WeaponGripCurls = null;
                 Hand.Model.WeaponGripThumbBase = -1f;
                 Hand.Model.WeaponGripThumbCurl = -1f;
-                Hand.Model.SnapPose = null;
             }
         }
     }

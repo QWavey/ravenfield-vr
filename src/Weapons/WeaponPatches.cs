@@ -164,8 +164,9 @@ namespace RavenfieldVR.Weapons
 
         private static void Postfix(Weapon __instance, bool switchedFromSubWeapon)
         {
+            // (Not a weapon whose fire-mode change is a reload: UnholsterDone finishes that reload, and early it refilled at once.)
             if (!switchedFromSubWeapon || !WeaponHooks.PlayerWeaponInVR(__instance) || __instance.configuration == null
-                || __instance.configuration.changeFireModeTime <= Ready)
+                || __instance.configuration.changeFireModeTime <= Ready || __instance.configuration.changeFireModeIsReload)
             {
                 return;
             }

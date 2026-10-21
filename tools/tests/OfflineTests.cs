@@ -84,6 +84,11 @@ namespace RavenfieldVR.Tests
             Check(touch.Contains("Ravenfield VR left-handed") && !touch.Contains("Ravenfield VR default"), "Bindings: the name says left-handed");
             string index = BindingsWriter.MirrorToLeftHanded(right, "knuckles");
             Check(index.Contains("\"path\": \"/user/hand/left/input/a\""), "Bindings: an Index controller's A stays A (no letter faces)");
+            const string described = "{ \"name\": \"Ravenfield VR default\", \"description\": \"Right hand shoots, left hand moves. B: drop magazine. A: slide release. X: squad orders. Y: map.\", \"sources\": [] }";
+            string touchText = BindingsWriter.MirrorToLeftHanded(described, "oculus_touch");
+            Check(touchText.Contains("Y: drop magazine. X: slide release. A: squad orders. B: map."), "Bindings: Touch's description names the mirrored buttons");
+            Check(touchText.Contains("Left hand shoots, right hand moves"), "Bindings: the description says which hand shoots");
+            Check(BindingsWriter.MirrorToLeftHanded(described, "knuckles").Contains("B: drop magazine. A: slide release."), "Bindings: an Index description keeps its letters");
         }
 
         /// <summary>

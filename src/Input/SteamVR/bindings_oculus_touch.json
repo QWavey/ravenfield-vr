@@ -1,7 +1,7 @@
 {
   "controller_type": "oculus_touch",
   "name": "Ravenfield VR default (Touch)",
-  "description": "Right hand shoots, left hand moves. B: drop magazine (hold: slow motion). A: slide / bolt release (hold: fire mode). Left stick hold: scoreboard. X: squad orders. Y: map (hold: pause, double: loadout). The menu button stays SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there). Grips grab foregrips, magazines, slides and holsters.",
+  "description": "Right hand shoots, left hand moves. B: drop magazine. A: slide / bolt release, else semi / auto (hold: fire mode; twice quickly: slow motion). Left stick hold: scoreboard. X: squad orders. Y: map (hold: pause, double: loadout). The menu button stays SteamVR's own (its dashboard pauses the match). Left stick double-click: VR settings (mod keys from there). Grips grab foregrips, magazines, slides and holsters.",
   "bindings": {
     "/actions/main": {
       "sources": [

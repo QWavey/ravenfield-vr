@@ -227,9 +227,12 @@ namespace RavenfieldVR.Core
                 "Racking with a round already chambered ejects (and loses) that round.");
             Pouch = cfg.Bind("Weapons", "MagazinePouch", PouchLocation.OffHandHip,
                 "Where fresh magazines/shells/rockets are grabbed from.");
+            // (Ranges: a hand-typed huge lifetime left nothing but the fall-out test to remove props; prop physics hunt, 2026-10-21.)
             MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 60f,
-                "Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).");
-            MaxMagProps = cfg.Bind("Weapons", "MaxDroppedMags", 12, "Maximum dropped magazines kept at once.");
+                new ConfigDescription("Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).",
+                    new AcceptableValueRange<float>(1f, 3600f)));
+            MaxMagProps = cfg.Bind("Weapons", "MaxDroppedMags", 12,
+                new ConfigDescription("Maximum dropped magazines kept at once.", new AcceptableValueRange<int>(1, 100)));
             RecoilStrength = cfg.Bind("Weapons", "RecoilStrength", 1f,
                 new ConfigDescription("Visual/aim recoil applied to the gun in your hand.", new AcceptableValueRange<float>(0f, 3f)));
             Hands = cfg.Bind("Weapons", "Hands", HandsMode.VRHands,
@@ -301,8 +304,10 @@ namespace RavenfieldVR.Core
                 "weapons with their own sub-weapon modes keep those).");
             EnemyWeaponDrops = cfg.Bind("Weapons", "EnemyWeaponDrops", true,
                 "Fallen soldiers drop their weapon; grip it to pick it up (your weapon from that slot is dropped in exchange).");
-            DroppedWeaponLifetime = cfg.Bind("Weapons", "DroppedWeaponLifetime", 90f, "Seconds a dropped weapon stays on the ground.");
-            MaxDroppedWeapons = cfg.Bind("Weapons", "MaxDroppedWeapons", 16, "Most dropped weapons kept at once (oldest disappear first).");
+            DroppedWeaponLifetime = cfg.Bind("Weapons", "DroppedWeaponLifetime", 90f,
+                new ConfigDescription("Seconds a dropped weapon stays on the ground.", new AcceptableValueRange<float>(1f, 3600f)));
+            MaxDroppedWeapons = cfg.Bind("Weapons", "MaxDroppedWeapons", 16,
+                new ConfigDescription("Most dropped weapons kept at once (oldest disappear first).", new AcceptableValueRange<int>(0, 100)));
             DroppedWeaponAmmo = cfg.Bind("Weapons", "DroppedWeaponAmmo", 0.5f,
                 new ConfigDescription("Share of a weapon's full reserve ammo that comes with a weapon picked up from a soldier.", new AcceptableValueRange<float>(0f, 1f)));
             ModWeaponSounds = cfg.Bind("Weapons", "ModWeaponSounds", true,

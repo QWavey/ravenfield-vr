@@ -83,6 +83,7 @@ namespace RavenfieldVR.Input
                                                         && (type.IndexOf("oculus", StringComparison.OrdinalIgnoreCase) >= 0
                                                             || type.IndexOf("touch", StringComparison.OrdinalIgnoreCase) >= 0);
         private static readonly bool[] HapticOkLogged = new bool[2];
+        private static readonly bool[] HapticFailLogged = new bool[2];
         private static float _nextTypeRefresh;
 
         private static readonly uint DigitalSize = (uint)Marshal.SizeOf(typeof(InputDigitalActionData_t));
@@ -228,18 +229,26 @@ namespace RavenfieldVR.Input
             }
 
             _noDataSince = -1f;
+            bool recovering = _heldBeforeOutageSaved;
+            _heldBeforeOutageSaved = false;
             float now = Time.unscaledTime;
             var data = new InputDigitalActionData_t();
             for (int a = 0; a < DigitalCount; a++)
             {
                 for (int slot = 0; slot < 3; slot++)
                 {
-                    ulong restrict = slot < 2 ? HandSource[slot] : OpenVR.k_ulInvalidInputValueHandle;
-                    bool state = input.GetDigitalActionData(DigitalHandle[a], ref data, DigitalSize, restrict) == EVRInputError.None
-                                 && data.bActive && data.bState;
+                    // The any-hand slot from the two hand reads just made (every binding is on a hand): a third SteamVR call per
+                    // action was 17 of the 51 calls a frame (performance review 2026-10-19, measured 2026-10-21).
+                    bool state = slot < 2
+                        ? input.GetDigitalActionData(DigitalHandle[a], ref data, DigitalSize, HandSource[slot]) == EVRInputError.None && data.bActive && data.bState
+                        : HandState[0] || HandState[1];
+                    if (slot < 2)
+                    {
+                        HandState[slot] = state;
+                    }
                     bool was = Held[a, slot];
                     Held[a, slot] = state;
-                    Pressed[a, slot] = state && !was;
+                    Pressed[a, slot] = state && !was && !(recovering && HeldBeforeOutage[a, slot]);
                     Released[a, slot] = !state && was;
                     Consumed[a, slot] = false;
                     if (PressPending[a, slot])
@@ -404,6 +413,19 @@ namespace RavenfieldVR.Input
             }
             else if (Time.unscaledTime - _noDataSince > 0.5f)
             {
+                if (!_heldBeforeOutageSaved)
+                {
+                    // What was down when the outage cleared it: still down when the input comes back, it is not pressed again
+                    // (a grip that had taken a magazine took another, and Pause, FireMode and Sprint toggled again; input hunt).
+                    for (int a = 0; a < DigitalCount; a++)
+                    {
+                        for (int slot = 0; slot < 3; slot++)
+                        {
+                            HeldBeforeOutage[a, slot] = Held[a, slot];
+                        }
+                    }
+                    _heldBeforeOutageSaved = true;
+                }
                 Array.Clear(Held, 0, Held.Length);
                 Array.Clear(Trigger, 0, Trigger.Length);
                 Array.Clear(Grip, 0, Grip.Length);
@@ -413,6 +435,9 @@ namespace RavenfieldVR.Input
         }
 
         private static float _noDataSince = -1f;
+        private static readonly bool[] HandState = new bool[2];
+        private static readonly bool[,] HeldBeforeOutage = new bool[DigitalCount, 3];
+        private static bool _heldBeforeOutageSaved;
 
         private static void UpdateSkeletons(CVRInput input)
         {
@@ -635,7 +660,12 @@ namespace RavenfieldVR.Input
                 amplitude, HandSource[(int)h]);
             if (err != EVRInputError.None)
             {
-                Log.WarnOnce("haptic:" + h + err, $"Vibration on the {h} controller failed: {err}");
+                if (!HapticFailLogged[(int)h])
+                {
+                    // Latched as the success line is: the key and message were built on every failed pulse only to be dropped.
+                    HapticFailLogged[(int)h] = true;
+                    Log.Warn($"Vibration on the {h} controller failed: {err}");
+                }
             }
             else if (!HapticOkLogged[(int)h])
             {

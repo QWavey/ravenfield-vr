@@ -127,12 +127,21 @@ namespace RavenfieldVR.Weapons
 
             if (Held != null)
             {
-                Held.Update();
-                if (Held.Rig.Data.Action == ActionType.Throwable)
+                // Caught here: thrown, it skipped everything below every frame (the free hand's weapon, the drops, the holsters,
+                // the grip to hold), and the log said so once (lifecycle hunt, 2026-10-21).
+                try
                 {
-                    _throwables.Update(Held);
+                    Held.Update();
+                    if (Held != null && Held.Rig.Data.Action == ActionType.Throwable)
+                    {
+                        _throwables.Update(Held);
+                    }
+                    UpdateSubWeaponReloadTarget();
                 }
-                UpdateSubWeaponReloadTarget();
+                catch (Exception e)
+                {
+                    Log.ExceptionOnce("Held.Update", e);
+                }
             }
             UpdateSecond();
             HealHandRoles();
@@ -230,7 +239,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateLooseProps()
         {
-            if (GameContext.GameMenuOpen)
+            if (GameContext.GameMenuOpen || GameManager.IsPaused()) // (a dud refunded, a magazine taken in the paused match)
             {
                 return;
             }
@@ -308,17 +317,33 @@ namespace RavenfieldVR.Weapons
             }
             if (Held == null && now != null && now.gameObject.activeInHierarchy)
             {
+                bool timed = PerfProbe.Part("render: weapon taken over");
                 AttachHeld(now);
                 Held?.Update();
+                if (timed)
+                {
+                    PerfProbe.End("render: weapon taken over");
+                }
             }
             _throwables.BeforeRender();
             Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
+            // Parts of this step timed on their own in a profiled run: a 300 ms call in it came with no part to name (2026-10-21).
+            bool part = PerfProbe.Part("render: pouch and holsters");
             _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
             _holsters.BeforeRender();
+            if (part)
+            {
+                PerfProbe.End("render: pouch and holsters");
+            }
             Second?.BeforeRender();
             if (Held != null && Held.Weapon != null)
             {
+                part = PerfProbe.Part("render: held weapon");
                 Held.BeforeRender();
+                if (part)
+                {
+                    PerfProbe.End("render: held weapon");
+                }
                 if (Held.Rig.Data.Action == ActionType.Melee)
                 {
                     _melee.BeforeRender(Held);
@@ -638,7 +663,7 @@ namespace RavenfieldVR.Weapons
             VRHand dom = Rig.Dominant;
             // A grenade drawn in the seat is put back the same way (the hand holding it is "Throwable").
             if (!dom.Tracked || !dom.GrabPressed || dom.Role != HandRole.Free && dom.Role != HandRole.Weapon && dom.Role != HandRole.Throwable
-                || GameContext.GameMenuOpen)
+                || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 return;
             }
@@ -668,6 +693,10 @@ namespace RavenfieldVR.Weapons
                 DrivingWeapons.PutAway(actor);
                 dom.Role = HandRole.Free;
             }
+            else if (weapon.IsToggleable())
+            {
+                actor.SwitchWeapon(slot); // a toggled item (night vision) is switched, not drawn into the hand (holster hunt)
+            }
             else
             {
                 DrivingWeapons.Draw(actor, weapon);
@@ -686,7 +715,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateHolsters()
         {
-            if (!VRConfig.HolsterSwitching.Value || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen)
+            // Nor while the match is paused with no menu (the dashboard, the headset off): a grip on a holster drew or stowed a
+            // weapon in the frozen match (vehicles hunt, 2026-10-21).
+            if (!VRConfig.HolsterSwitching.Value || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 return;
             }
@@ -746,7 +777,10 @@ namespace RavenfieldVR.Weapons
                 HolsterToEmptyHand(actor);
                 return;
             }
-            if (!gunHand && Second == null && Held != null && Held.Weapon != null && SecondWeapon.CanPair(Held.Weapon, actor.weapons[slot]))
+            // (Only where the game draws at all: in deep water nothing is, and the free hand's second weapon was drawn and fired
+            // there; holster hunt, 2026-10-21.)
+            if (!gunHand && Second == null && Held != null && Held.Weapon != null && SecondWeapon.CanPair(Held.Weapon, actor.weapons[slot])
+                && actor.CanUnholsterWeapon() && !actor.weapons[slot].IsToggleable())
             {
                 // A second weapon of another kind (primary, secondary, launcher): held in this hand beside the drawn one
                 // (user, 2026-10-16: taking a second weapon made the first disappear).
@@ -762,8 +796,17 @@ namespace RavenfieldVR.Weapons
                 hand.Haptic(0.03f, 80f, 0.4f);
                 return;
             }
+            VRHand before = Rig.Dominant;
             TakeIntoHand(hand); // the free hand takes it: the drawn weapon goes to its holster
             actor.SwitchWeapon(slot);
+            if (actor.activeWeapon != wanted && before != hand)
+            {
+                // The game did not draw it: the gun stays in the hand that held it (it was attached to the grabbing hand instead;
+                // holster hunt, 2026-10-21).
+                TakeIntoHand(before);
+                hand.Haptic(0.05f, 40f, 0.3f);
+                return;
+            }
             Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
             hand.Haptic(0.05f, 100f, 0.6f);
         }
@@ -834,7 +877,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateGripToHold()
         {
-            if (!VRConfig.GripToHoldWeapon.Value || Held == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen)
+            // (Paused: a grip let go as the headset comes off does not drop or holster the gun.)
+            if (!VRConfig.GripToHoldWeapon.Value || Held == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 _gripLetGoAt = -1f;
                 return;

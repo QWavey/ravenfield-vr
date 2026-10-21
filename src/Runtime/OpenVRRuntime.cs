@@ -184,6 +184,7 @@ namespace RavenfieldVR.Runtime
             }
             InputSubsystem = null;
             Display = null;
+            DashboardOpen = false; // left open when SteamVR went, the next start's first opening was taken as no change (lifecycle hunt)
         }
 
         /// <summary>Drains the OpenVR event queue. Called once per frame from the main thread.</summary>

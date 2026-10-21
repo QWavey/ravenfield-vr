@@ -438,7 +438,9 @@ namespace RavenfieldVR.Weapons
                 _pressPalm = off.Palm.position; // where this squeeze began (the pouch only takes squeezes made at it)
             }
             // Not with the pause menu up: a squeeze there pulled the magazine or a clip out of the paused gun (sound hunt, 2026-10-20).
-            if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable && !Util.GameContext.GameMenuOpen)
+            // Nor paused with no menu (the dashboard, the headset off; input hunt, 2026-10-21).
+            if ((off.GrabPressed || off.GrabReaching) && off.Role == HandRole.Free && Data.Action != ActionType.Throwable && !Util.GameContext.GameMenuOpen
+                && !GameManager.IsPaused())
             {
                 TryGrab(off);
             }
@@ -2972,7 +2974,7 @@ namespace RavenfieldVR.Weapons
         private Vector3 UnsteeredGunPoint(Vector3 gunPoint)
         {
             WeaponRigData d = GripData;
-            RigidPose hand = _sys.Rig.Dominant.GunFrame;
+            RigidPose hand = HeldWeapon.HoldFrame(_sys.Rig.Dominant, d);
             Quaternion gunRot = hand.rotation * Quaternion.Inverse(d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
             return hand.position + gunRot * (gunPoint - d.GripPoint);
         }

@@ -144,7 +144,8 @@ namespace RavenfieldVR.Weapons
                 Log.Info($"Weapon drop of {w.weaponEntry.name} took {ms:0} ms on the death frame (scale {holdScale.x:0.00}; shape "
                          + $"{(RenderedShapes.ContainsKey(w.weaponEntry) ? "rendered" : _lastLateFit ? "fitted later (a box till then)" : "fitted")}; "
                          + $"model {_lastModelMs:0} ms{(hadModel ? "" : _lastAnalysisMs >= 0f ? $" with its first template (its analysis {_lastAnalysisMs:0} ms of it)" : " with its first template")}, "
-                         + $"shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms"
+                         + $"shape {_lastShapeMs:0} ms, colliders {_lastColliderMs:0} ms, ignoring the player and bodies {_lastIgnoreMs:0} ms, "
+                         + $"the ground test {_lastGroundMs:0} ms, the cull {_lastCullMs:0} ms"
                          + $"{(GC.CollectionCount(0) != collections ? ", a garbage collection ran" : "")}).");
             }
         }
@@ -700,7 +701,7 @@ namespace RavenfieldVR.Weapons
         internal DroppedWeapon Newest => _drops.Count > 0 ? _drops[_drops.Count - 1] : null;
 
         /// <summary>The last <see cref="Spawn"/>'s parts in ms (the death frame's log line; task 309).</summary>
-        private static float _lastModelMs, _lastShapeMs, _lastColliderMs;
+        private static float _lastModelMs, _lastShapeMs, _lastColliderMs, _lastGroundMs, _lastIgnoreMs, _lastCullMs;
         private static bool _lastLateFit;
 
         /// <summary>The prefab's analysis when the last template build ran it (part of the model's ms; -1: not run).</summary>
@@ -761,14 +762,23 @@ namespace RavenfieldVR.Weapons
             body.velocity = velocity;
             body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
             SetUpBody(body, boxes);
+            parts.Reset();
+            parts.Start();
             PropPhysics.IgnorePlayer(boxes);
+            _lastIgnoreMs = (float)parts.Elapsed.TotalMilliseconds;
+            parts.Reset();
+            parts.Start();
             OutOfTheGround(root.transform, boxes, open);
+            _lastGroundMs = (float)parts.Elapsed.TotalMilliseconds;
 
             var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time, Keep = keep };
             drop.Reach = ReachOf(root.transform, boxes);
             // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
             // step, or that step pushes the weapon out of them and it skids or floats away.
+            parts.Reset();
+            parts.Start();
             PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
+            _lastIgnoreMs += (float)parts.Elapsed.TotalMilliseconds;
             if (lateKey != null)
             {
                 drop.LateFitKey = lateKey;
@@ -778,7 +788,10 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _drops.Add(drop);
+            parts.Reset();
+            parts.Start();
             Cull();
+            _lastCullMs = (float)parts.Elapsed.TotalMilliseconds;
             return drop;
         }
 

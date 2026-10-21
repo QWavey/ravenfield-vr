@@ -373,7 +373,11 @@ is not taken). Capture onto the line from aside, and off it from inside the well
 - **Throwables**: grenades with pins (`GrenadeDud` for pinned throws), throws with real hand velocity, melee along the
   measured blade. A gun swung into an enemy hits with four points swept from butt to muzzle (`MeleeHandler.Bash`), and
   since 2026-10-20 a magazine, shell or rocket in a hand or a grenade held to throw hits lightly too (`HandBlows`: the
-  palm's path, the knife's speed against the body, credited to the gun in use; task 306).
+  palm's path, the knife's speed against the body, credited to the gun in use; task 306). A hand-sized throwable is held
+  by its drawn middle (`HeldWeapon.CentreGrenadeGrip`, for either hand), and that middle rests on the palm
+  (`HeldWeapon.HoldFrame`: from the fist's hollow, the controller's grip origin on the palm's skin, out along the palm's
+  normal by the skin it covers and its own half thickness, as a magazine rests), not on the palm centre where a gun's
+  grip goes (2.6 cm inside the hand: a frag had 14 of 72 glove points in it).
 - **First drops without the analysis** (`ParkedPartsCache`, 2026-10-20): a drop template hides the parked ammunition the
   analysis found (`HideParkedAmmo`), and that was the only reason a type's first drop ran the whole analysis on a soldier's
   death frame (235-300 ms for the PKP, PKM, Type 80, BRN180s when the warm-up had reached 78 of 286 weapons). Every prefab
@@ -400,6 +404,16 @@ the nearest rectangle: a clear canvas above the menu was an invisible wall a few
 goes to the first raycast hit whose root canvas is a laser target.
 
 ### 3.10 Test tooling (`Core/AutoTest.cs`, `Weapons/WeaponSelfTest.cs`, `Core/Shots.cs`, `Core/PerfProbe.cs`, `Rig/HandPreview.cs`)
+
+- **Since 2026-10-21**: the autotest first prepares the weapons it will test as the menu's warm-up does
+  (`WeaponWarmup.Prepare`, one a frame; the run starts a map at once, so the warm-up never ran) and starts the
+  profiler after it, so its numbers are a match after the menu. The profiler names what the test was doing
+  (`PerfProbe.SetContext`: the weapon under test and the seconds since it began) at each section's slowest call and
+  at the six slowest frames ("slowest at PKP +0.3 s"); magazine props are a section of their own ("magazine prop
+  made"). New checks: `BuriedMagazineCheck` (a magazine let go 15 and 40 cm under the ground and a weapon 30 cm under
+  it, with a no-fix control drop), `SecondWeaponFloatCheck` (the gun in either hand, a second weapon from its holster
+  and from the ground, its drawn model's distance from the hand each frame, the glove's state and pictures), and the
+  gentle set-down check now runs before the drop checks (after them the gun was in its holster and it was skipped).
 
 - **Reading a play session's log** (no flag needed): every few seconds of a diagnose window `VRInput` logs an
   `Input check` line with the fps over the last window, **`mod N ms a frame`** (the mod's own Update, LateUpdate and
@@ -578,10 +592,16 @@ VR autotest without a headset (null driver):
 5. **Restore** `steamvr.vrsettings`: stop all `vr*` processes first (a running SteamVR rewrites the file on exit),
    then copy the backup back.
 
+`python tools/vrshots.py --autotest` does all of this (backup, null driver, relaunch, hash-checked restore) and copies the
+report to `reports/shots/autotest/` (the run before to `autotest-previous/`); `--no-build --weapon "=NAME" ...` runs every
+check on just those weapons into `reports/shots/weapon/`. `python tools/metric_diff.py [autotest|weapon]` then lists the
+frame times, each mod section's average and maximum, and the measurements that moved against the run before.
+
 Checks without the game (2026-10-20, issue #18): `powershell -File tools/tests/run-tests.ps1` compiles
-`tools/tests/OfflineTests.cs` with the installer's sources and `BindingsWriter` and runs 20 checks: the installer's path
+`tools/tests/OfflineTests.cs` with the installer's sources and `BindingsWriter` and runs 25 checks: the installer's path
 containment (`Installer.Inside`: zip entries and manifest lines stay inside the game folder), the Steam `localconfig.vdf`
-reader (a truncated file is a `FormatException`), the left-handed bindings. Exit code 0 when all pass.
+reader (a truncated file is a `FormatException`), the left-handed bindings and their descriptions, and the Steam Play-list
+entry changed and changed back on a copy of `appinfo.vdf`. Exit code 0 when all pass.
 
 Dependencies are pinned by SHA-256 in `tools/fetch-deps.ps1` (checked against GitHub's release digests and nuget.org's
 catalog hashes); a mismatching download is deleted and not unpacked. The in-game self-repair (`InstallCheck`) copies the
@@ -823,3 +843,38 @@ evening on (merged twice the same night).
    scales, laser colour), the trigger press on a dry click, a melee weapon never taken for a kit.
 8. **Work split** between the lead and the helper by files (see Decisions); the Boneworks study (244, read-only agents
    on its decompiled class structure; the game never launched).
+
+## 14. Work Log (2026-10-21)
+
+A work-until-limit run (session 85 / weekly 30), the game started for null-driver tests while the user was away.
+
+1. **Bug hunts** by read-only Haiku finders, each finding verified against the code before a fix: weapon pickups and
+   drops, magazine prop physics, the rig and locomotion, throwables, melee and the second weapon, vehicles and the
+   cockpit, the VR lifecycle. Logged in `Tasks.md` 326.
+2. **Let go under the ground** (`PropPhysics.NothingUnder` / `BackToward`): magazines and weapons let go below terrain
+   or mesh ground fell through the world (14.8 m/s, 11 m under); they are put back on the surface along the line from
+   the eyes (1.3 m/s, lying still). Measured by `BuriedMagazineCheck` with a no-fix control drop.
+3. **Fire mode without the wait** (user): on Touch the gun hand's A switches semi / auto at once (a slow-motion double
+   press puts it back), and the game's fire-mode variant switch is ready after 0.05 s instead of its 0.3 s+.
+4. **The second object in the other hand** (user: "sometimes isnt in the hand and floats in the air"): measured with
+   `SecondWeaponFloatCheck` (the gun in either hand, a pistol from the holster and from the ground, each frame and in
+   pictures). The weapon was in the hand's place, the glove was not on it: its shape was measured only after the game's
+   draw time (the measurement failed, the glove had nothing to close on), and the glove grasped beside its grip. It is
+   now measured from the first frame, the glove goes onto the weapon's own grip pose and follows its kick.
+5. **Paused means paused**: throws, melee, the free hand's gun, the trigger, holster grabs, the wheel and flight stick,
+   a door grab and the crouch timer no longer act through a dashboard or headset-off pause, and slow motion survives it.
+6. **Smaller fixes**: a controller losing tracking keeps its tip and grip offsets (no step of the held gun), death lets
+   go of your own weapons on the ground, the drop cap takes the soldiers' first, deep-in-wall magazines are moved out,
+   setting ranges for drop lifetimes and caps, VR-restart leaks in the vignette and damage veil.
+7. **Tooling**: the profiler names the weapon under test at each section's slowest call and the six slowest frames;
+   35 review items already fixed in the code were ticked in `Tasks.md`. The autotest prepares its weapons as the menu
+   does before measuring; profiler sections for magazine props, shape fits, shape measurings and bolt cuts.
+8. **Input**: no re-press of a still-held button after an input outage, a trigger held into a hand swap needs a new pull,
+   the script keys still update if the input bridge throws, sprint is cleared by a menu or death, the any-hand slot comes
+   from the two hand reads (17 fewer SteamVR calls a frame), and the left-handed binding descriptions name the mirrored
+   buttons.
+9. **Grenades** rest on the palm (from the fist's hollow out by the palm's skin and their half thickness): a frag's glove
+   went from 14 to 2 of 72 points inside it at the hollow, with all four fingers on it.
+10. **Holsters**: after a steep look down and a turn the body's facing catches up at most 150 degrees a second (the
+   holsters jumped round the body at once); the free hand cannot draw where the game does not (deep water,
+   toggled items); a refused draw leaves the gun where it was.

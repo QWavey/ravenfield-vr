@@ -1774,6 +1774,13 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             Weapon main = held.Weapon, other = null;
+            if (main is MeleeWeapon || main is ThrowableWeapon || held.Rig.Data.Action == ActionType.Melee || held.Rig.Data.Action == ActionType.Throwable
+                || held.Rig.Data.Action == ActionType.NoAmmo || HeldWeapon.IsLauncher(held.Rig.Data, main))
+            {
+                // A gun passed to the other hand (a knife is not passed by its handguard; a modded one is no MeleeWeapon). Not a
+                // launcher either: the SMAW was not taken up by the other hand here (Tasks 326 w, to look at on its own).
+                yield break;
+            }
             foreach (Weapon w in actor.weapons)
             {
                 if (w != null && w != main && !(w is ThrowableWeapon) && SecondWeapon.CanPair(main, w))
@@ -1961,11 +1968,20 @@ namespace RavenfieldVR.Core
             if (Input.VRInput.GunHand != startHand)
             {
                 sys.TakeIntoHand(sys.Rig.Hands[(int)startHand]);
-                float until = Time.realtimeSinceStartup + 2f;
-                while (Time.realtimeSinceStartup < until && (sys.Held == null || sys.Held.Weapon != main))
+            }
+            // The gun back in the hand it started in, drawn again by its slot if it did not come back by itself.
+            float back = Time.realtimeSinceStartup + 2f;
+            while (Time.realtimeSinceStartup < back && (sys.Held == null || sys.Held.Weapon != main))
+            {
+                if (main != null && actor.activeWeapon != main && Time.realtimeSinceStartup > back - 1.5f)
                 {
-                    yield return null;
+                    int slot = System.Array.IndexOf(actor.weapons, main);
+                    if (slot >= 0)
+                    {
+                        actor.SwitchWeapon(slot);
+                    }
                 }
+                yield return null;
             }
             report("second weapon with the gun in either hand: " + string.Join("; ", parts));
         }
@@ -3514,8 +3530,19 @@ namespace RavenfieldVR.Core
                 }
                 float above = gun.Go.transform.position.y - ground.point.y;
                 Metric("weapon let go 30 cm in the ground: cm above the ground after 1.5 s", above * 100f);
+                string under = "";
+                if (above < -0.1f)
+                {
+                    // What the floor test found under it (a lower floor there keeps it from being put back up).
+                    var names = new List<string>();
+                    foreach (RaycastHit h in Physics.RaycastAll(gun.Go.transform.position + Vector3.up * 0.01f, Vector3.down, 3f, ~PropPhysics.BodyMask, QueryTriggerInteraction.Ignore))
+                    {
+                        names.Add($"{h.collider.name} ({h.collider.GetType().Name}, layer {h.collider.gameObject.layer}, {h.distance * 100f:0} cm{(h.collider.transform.IsChildOf(gun.Go.transform) ? ", its own" : "")})");
+                    }
+                    under = "; under it: " + (names.Count > 0 ? string.Join(", ", names) : "nothing within 3 m");
+                }
                 string without = control != null && control.Go != null ? $"; without the fix it ends {(control.Go.transform.position.y - ground2.point.y) * 100f:0} cm above" : "";
-                report($"weapon let go 30 cm in the ground: {(above > -0.1f && above < 1f ? "came out on top" : "NOT LAID OUT")} (ends {above * 100f:0} cm above the ground{without})");
+                report($"weapon let go 30 cm in the ground: {(above > -0.1f && above < 1f ? "came out on top" : "NOT LAID OUT")} (ends {above * 100f:0} cm above the ground{without}{under})");
                 UnityEngine.Object.Destroy(gun.Go);
             }
             if (control != null && control.Go != null)
@@ -3645,6 +3672,25 @@ namespace RavenfieldVR.Core
                 Results.Add($"Quick run: {entries.Count} weapons");
                 every = Mathf.Max(1, entries.Count / 28);
             }
+            // Made ready first as the menu's warm-up makes them in play (this run starts a map at once, so the warm-up never ran):
+            // the numbers are then those of a match after the menu, not each weapon's first analysis and shape fits in the middle
+            // of its checks (2026-10-21). The profiler starts again after it.
+            PerfProbe.SetContext("preparing the weapons as the menu does");
+            var prepared = System.Diagnostics.Stopwatch.StartNew();
+            foreach (WeaponManager.WeaponEntry e in entries)
+            {
+                try
+                {
+                    WeaponWarmup.Prepare(e.prefab.GetComponent<Weapon>(), e);
+                }
+                catch (Exception ex)
+                {
+                    Log.WarnOnce("autotest-prepare:" + e.name, $"Preparing {e.name} as the menu does failed: {ex.Message}");
+                }
+                yield return null;
+            }
+            Results.Add($"Prepared as the menu's warm-up does: {entries.Count} weapons in {prepared.Elapsed.TotalSeconds:0.0} s");
+            PerfProbe.Reset();
             int index = 0, meleeShots = 0, throwShots = 0, pistolShots = 0, launcherShots = 0, manualShots = 0, lensShots = 0;
             bool tacticalDone = false, dropDone = false, pistolPouchDone = false, sightPartsDone = false, armsDone = false, assistedDone = false, scopeBenchDone = false, magnifierHandDone = false;
             foreach (WeaponManager.WeaponEntry entry in entries)

@@ -250,7 +250,16 @@ namespace RavenfieldVR.Core
         private static void UpdateInput()
         {
             VRInput.Update();
-            VRGameInput.Compute();
+            try
+            {
+                VRGameInput.Compute();
+            }
+            catch (Exception e)
+            {
+                // Caught here so the script keys below still run: thrown each frame, it left a weapon script's key tap held down
+                // for good (input hunt, 2026-10-21).
+                Log.ExceptionOnce("VRGameInput.Compute", e);
+            }
             ScriptKeys.Update();
             // Mod scripts that read Shift for sprinting (tactical sprint animations) see the VR sprint.
             ScriptKeys.SetHeld("left shift", VRGameInput.SprintActive && Util.GameContext.PlayerOnFoot);
@@ -314,6 +323,11 @@ namespace RavenfieldVR.Core
         private void OnSceneChanged(Scene from, Scene to)
         {
             Log.Debug($"Scene {from.name} -> {to.name}");
+            // A level load unpauses the match (GameManager on every load): a pause the mod made is gone with it, and kept as set
+            // it made the next headset or dashboard edge do the wrong thing (lifecycle hunt, 2026-10-21).
+            _pausedForDashboard = false;
+            _pausedForHeadset = false;
+            _speedBeforePause = 1f;
             Weapons?.OnSceneChanged();
             UI?.OnSceneChanged();
         }
@@ -332,6 +346,7 @@ namespace RavenfieldVR.Core
             {
                 if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
                 {
+                    _speedBeforePause = Time.timeScale;
                     GameManager.PauseGame();
                     _pausedForDashboard = true;
                 }
@@ -344,12 +359,29 @@ namespace RavenfieldVR.Core
             bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
             if (_pausedForDashboard && !_pausedForHeadset && GameManager.instance != null && GameManager.IsPaused() && !menuOpen)
             {
-                GameManager.UnpauseGame();
+                Resume();
             }
             _pausedForDashboard = false;
         }
 
         private bool _pausedForHeadset;
+
+        /// <summary>The game's speed when the mod paused it (slow motion is the game's time scale at 0.2).</summary>
+        private float _speedBeforePause = 1f;
+
+        /// <summary>
+        /// The match goes on at the speed it had: the game's unpause sets the time scale to 1, so slow motion was switched off by
+        /// every look at the dashboard or headset taken off (lifecycle review, 2026-10-21).
+        /// </summary>
+        private void Resume()
+        {
+            GameManager.UnpauseGame();
+            if (_speedBeforePause > 0f && _speedBeforePause < 1f)
+            {
+                GameManager.SetTimeScale(_speedBeforePause);
+            }
+            _speedBeforePause = 1f;
+        }
 
         /// <summary>
         /// Taking the headset off in a match pauses it, as the SteamVR dashboard does (the match went on and you were shot
@@ -361,6 +393,7 @@ namespace RavenfieldVR.Core
             {
                 if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
                 {
+                    _speedBeforePause = Time.timeScale;
                     GameManager.PauseGame();
                     _pausedForHeadset = true;
                 }
@@ -373,7 +406,7 @@ namespace RavenfieldVR.Core
             bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
             if (_pausedForHeadset && !_pausedForDashboard && GameManager.instance != null && GameManager.IsPaused() && !menuOpen)
             {
-                GameManager.UnpauseGame();
+                Resume();
             }
             _pausedForHeadset = false;
         }
@@ -400,7 +433,7 @@ namespace RavenfieldVR.Core
             {
                 // A pause the mod made (the dashboard, the headset off) is undone as VR goes: forgotten, the match stayed paused
                 // with nothing left to unpause it (review, 2026-10-20).
-                Log.Guard("unpause on shutdown", GameManager.UnpauseGame);
+                Log.Guard("unpause on shutdown", Resume);
             }
             _pausedForDashboard = false; // and not undone in a later match by a dashboard or headset edge
             _pausedForHeadset = false;

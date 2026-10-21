@@ -31,8 +31,28 @@ namespace RavenfieldVR.Input
                 }
                 return $"\"path\": \"/user/hand/{hand}/input/{input}\"";
             });
+            if (letterFaces)
+            {
+                // The description names the buttons by their letters ("B: drop magazine"): mirrored too, or the left-handed
+                // layout's text named the right hand's buttons (input hunt, 2026-10-21).
+                mirrored = Description.Replace(mirrored, d => Letter.Replace(d.Value, l => MirrorLetter(l.Groups[1].Value) + ":"));
+            }
             return mirrored.Replace("Ravenfield VR default", "Ravenfield VR left-handed")
                            .Replace("Right hand shoots, left hand moves", "Left hand shoots, right hand moves");
+        }
+
+        private static readonly Regex Description = new Regex(@"""description""\s*:\s*""(?:[^""\\]|\\.)*""");
+        private static readonly Regex Letter = new Regex(@"\b([ABXY]):");
+
+        private static string MirrorLetter(string l)
+        {
+            switch (l)
+            {
+                case "A": return "X";
+                case "B": return "Y";
+                case "X": return "A";
+                default: return "B";
+            }
         }
     }
 }
