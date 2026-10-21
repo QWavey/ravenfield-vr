@@ -2026,7 +2026,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>Rows of points along a magazine for the keep-out (five, 4-5.5 cm apart on a rifle magazine, let a plate of
         /// the receiver between them: the dense probe found up to 300 points of a PATRIOT magazine in the gun; check-1017f).</summary>
         internal const int MagRows = 9;
-        private static readonly Vector3[] Samples = new Vector3[MagRows * 5];
+        // Nine a row: the middle, the four edge middles and the four corners. The edges alone (a "+" a row) left a magazine's
+        // corners unsampled: pushed sideways, its leading face had one point a row, and the JOLT-20-S's and PATRIOT GL's went on
+        // through the gun with up to 70 of the test's dense probe points in its body (autotest of 2026-10-21).
+        private const int RowPoints = 9;
+        // How far out a long gun's magazine is sampled (of its half-widths; a pistol's to its edges). At 0.8 the outer band went
+        // through thin parts of the gun unseen: the GREASER's and JOLT-20-S's magazines put up to 114 of the test's dense probe
+        // points in the gun's body, sideways (autotest, 2026-10-21).
+        private const float KeepOutEdge = 0.95f;
+        private static readonly Vector3[] Samples = new Vector3[MagRows * RowPoints];
 
         /// <summary>
         /// The well lets a magazine in only on its own line: within the rail's reach of it sideways (4.5 cm) and turned less
@@ -2130,7 +2138,7 @@ namespace RavenfieldVR.Weapons
                 // A pistol magazine to its edges: its box is its shape, and at 80% its outer 1.5-3 mm went into a 3-5 mm grip wall
                 // unseen (task 270). Others at 80%: a rifle magazine's box is taken where the hand holds it, and a curved one's
                 // edges along its length would meet the receiver before the magazine does.
-                float edge = rocket ? 0.5f : _pistolGun ? 1f : 0.8f;
+                float edge = rocket ? 0.5f : _pistolGun ? 1f : KeepOutEdge;
                 int n = 0;
                 for (int a = 0; a < along; a++)
                 {
@@ -2140,6 +2148,14 @@ namespace RavenfieldVR.Weapons
                     points[n++] = c - FrontLocal * (_frontHalf * edge);
                     points[n++] = c + side * (_sideHalf * edge);
                     points[n++] = c - side * (_sideHalf * edge);
+                    if (!rocket)
+                    {
+                        Vector3 f = FrontLocal * (_frontHalf * edge), s = side * (_sideHalf * edge);
+                        points[n++] = c + f + s;
+                        points[n++] = c + f - s;
+                        points[n++] = c - f + s;
+                        points[n++] = c - f - s;
+                    }
                 }
                 int count = n;
                 Quaternion rot = target.rotation;
@@ -2294,7 +2310,9 @@ namespace RavenfieldVR.Weapons
             for (int a = 0; a < MagRows; a++)
             {
                 Vector3 c = Vector3.Lerp(BaseLocal, TipLocal, a / (float)(MagRows - 1));
-                foreach (Vector3 local in new[] { c, c + FrontLocal * (_frontHalf * 0.8f), c - FrontLocal * (_frontHalf * 0.8f), c + side * (_sideHalf * 0.8f), c - side * (_sideHalf * 0.8f) })
+                float edge = _pistolGun ? 1f : KeepOutEdge;
+                Vector3 f = FrontLocal * (_frontHalf * edge), s = side * (_sideHalf * edge);
+                foreach (Vector3 local in new[] { c, c + f, c - f, c + s, c - s, c + f + s, c + f - s, c - f + s, c - f - s })
                 {
                     Vector3 p = t.TransformPoint(local);
                     // The same rule as KeepOffGun: the well is open to the gun's body only, not to a magazine seated in it.
