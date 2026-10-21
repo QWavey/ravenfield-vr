@@ -1541,13 +1541,20 @@ namespace RavenfieldVR.Weapons
                 Vector3 worldDelta = gunIdle.rotation * slideVec;
                 Transform parent = slide.parent;
                 Vector3 localDelta = worldDelta;
+                bool flatParent = false;
                 if (parent != null)
                 {
                     Vector3 s = parent.lossyScale;
+                    // A holder scaled to nothing on an axis (a flattened helper): the division put the slide's rest up to a
+                    // million times the travel away (analyzer hunt, 2026-10-21). Its rest is left as sampled then.
+                    flatParent = Mathf.Min(Mathf.Abs(s.x), Mathf.Min(Mathf.Abs(s.y), Mathf.Abs(s.z))) < 1e-4f;
                     localDelta = Quaternion.Inverse(sampler.Idle(parent).rotation) * worldDelta;
                     localDelta = new Vector3(localDelta.x / Mathf.Max(Mathf.Abs(s.x), 1e-6f), localDelta.y / Mathf.Max(Mathf.Abs(s.y), 1e-6f), localDelta.z / Mathf.Max(Mathf.Abs(s.z), 1e-6f));
                 }
-                d.SlideRestLocal += localDelta;
+                if (!flatParent)
+                {
+                    d.SlideRestLocal += localDelta;
+                }
                 restShift = slideVec;
                 d.Notes += $"slide held back at idle (the fire motion runs {slideVec.magnitude * 100f:0.0} cm toward the muzzle): its rest is the forward place ";
                 slideVec = -slideVec;
@@ -4005,6 +4012,12 @@ namespace RavenfieldVR.Weapons
                 return; // short, a drum or a block: no reliable axis of its own
             }
             Vector3 axis = (d.MagSeat.rotation * axisLocal).normalized;
+            if (float.IsNaN(axis.x) || float.IsNaN(axis.y) || float.IsNaN(axis.z) || !(axis.sqrMagnitude > 0.5f))
+            {
+                // A magazine part (or a holder of it) scaled to nothing on an axis: its points came back not finite and every
+                // gate below let a NaN axis through to the eject line (analyzer hunt, 2026-10-21).
+                return;
+            }
             if (Vector3.Dot(axis, outward) < 0f)
             {
                 axis = -axis;
