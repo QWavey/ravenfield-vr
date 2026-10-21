@@ -2395,7 +2395,11 @@ namespace RavenfieldVR.Weapons
                 // Letting go drops (or stows) everything the hand holds.
                 MagazineProp palmed = _palmed;
                 _palmed = null;
-                if (Stows(off))
+                if (palmed.Go == null)
+                {
+                    palmed.Destroy(); // gone with a scene change: Drop throws on the destroyed object (as the held prop is guarded above)
+                }
+                else if (Stows(off))
                 {
                     _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
                     palmed.Rounds = 0;
