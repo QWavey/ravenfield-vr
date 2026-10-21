@@ -409,6 +409,7 @@ namespace RavenfieldVR.Weapons
 
             if (!off.Tracked)
             {
+                _offLostTracking = true;
                 if (_coverHeld)
                 {
                     // The hand is gone (tracking lost, or a test hand handed back): the cover is let go where it is. Held on,
@@ -417,6 +418,18 @@ namespace RavenfieldVR.Weapons
                     EndCover(off);
                 }
                 return;
+            }
+            if (_offLostTracking)
+            {
+                // Back in tracking with the grip still closed: an optic hold measures its slide again from where the hand is now. Its
+                // jump back from the lost pose read as a sideways slide and switched the sight with no press (grab-zone hunt,
+                // 2026-10-21).
+                _offLostTracking = false;
+                if (_opticHeld)
+                {
+                    _opticGrabGun = GripRig.ToGun(off.Palm.position);
+                    _opticSwitched = true; // and no switch from this hold any more: the hand was not moving it
+                }
             }
             // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
             // moment before the hand reaches the bolt or magazine still takes it (nothing else has claimed the press).
@@ -641,7 +654,11 @@ namespace RavenfieldVR.Weapons
                 // behind the grip), and a palm a few centimetres under the T took the sight switch, not the handle (rack trace,
                 // 2026-10-20 night). At the optic itself the sight is clearly nearer and still taken.
                 float dRackHere = Manual && Ammo.UsesChamber && !IsPump ? RackZoneDistance(palm) : float.MaxValue;
-                if (d < 0.06f && !(dRackHere < radius * 1.3f && dRackHere < d + 0.03f))
+                // Nor where the handguard is about as near: the sight line runs 30 cm on over it, and a support hand taking the
+                // handguard from above (palm 4 cm over the bore, the sight line at 6.5) switched the sight instead of holding the gun
+                // (grab-zone hunt, 2026-10-21).
+                float dForeHere = !GripData.IsPistol ? ForegripDistance(palm) : float.MaxValue;
+                if (d < 0.06f && !(dRackHere < radius * 1.3f && dRackHere < d + 0.03f) && !(dForeHere < radius * 1.4f && dForeHere < d + 0.03f))
                 {
                     Consider(8, d / 0.06f * 0.9f, ref choice, ref best);
                 }
@@ -1382,6 +1399,7 @@ namespace RavenfieldVR.Weapons
         private bool _opticSwitched;
         private float _opticGrabTime;
         private Vector3 _opticGrabGun;
+        private bool _offLostTracking; // the off hand was out of tracking (the hold kept); its first tracked frame re-bases holds
 
         /// <summary>The weapon has more than one sight to choose from: the game's sight modes or a mod's magnifier key.</summary>
         private bool HasSwitchableSight
@@ -4223,7 +4241,7 @@ namespace RavenfieldVR.Weapons
                     }
                     float endSide = mag.Go != null ? Vector3.Dot(Rig.ToGun(mag.Go.transform.position) - centre, dirGun) : 0f;
                     Core.AutoTest.Metric($"magazine keep-out ({name}): frames with the magazine drawn inside the gun", frames);
-                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/25 points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}"
+                    lines.Add($"{name}: {frames} frame(s) drawn inside the gun (at most {maxPoints}/{MagazineProp.MagRows * 9} points), ended {endSide * 100f:0.0} cm {(endSide > 0.02f ? "PAST THE GUN (WENT THROUGH)" : "on its side")}"
                               + $" [probe of {probePoints} points: {probeFramesOut} frame(s) with points in the solid outside the well's opening (at most {probeMaxOut}), at most {probeMaxIn} in the solid inside the opening]");
                     worstFrames = Mathf.Max(worstFrames, frames);
                     worstPoints = Mathf.Max(worstPoints, maxPoints);
