@@ -599,7 +599,8 @@ namespace RavenfieldVR.Weapons
 
         private static float Gauss()
         {
-            float u1 = 1f - Random.value, u2 = Random.value;
+            // Unity's Random.value includes 1: u1 was then 0, its log infinite, and the flash's jitter (through Tan) NaN.
+            float u1 = Mathf.Max(1e-7f, 1f - Random.value), u2 = Random.value;
             return Mathf.Sqrt(-2f * Mathf.Log(u1)) * Mathf.Cos(2f * Mathf.PI * u2);
         }
 
