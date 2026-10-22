@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
+using RavenfieldVR.Runtime;
 using RavenfieldVR.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR;
+using Valve.VR;
 
 namespace RavenfieldVR.UI
 {
@@ -17,6 +20,11 @@ namespace RavenfieldVR.UI
     /// set the level up. In VR the loading screen is drawn as it looks flat, into a picture shown on a screen 2.5 m in
     /// front of you in a dark room, from the moment the loading scene starts until the map has something to show (you
     /// are deployed, or the loadout or a menu is up); in between the last loading picture stays on the screen.
+    /// The screen is SteamVR's own overlay, the compositor's skybox black meanwhile: the game freezes for up to two seconds
+    /// while the map's scene comes in (2.1 s in check-1022-loading), and the compositor, given no frames, faded to its own
+    /// dark blue-grey surroundings and back, over the loading screen the game drew (user, 2026-10-22: "black / with blue
+    /// shades glitching in front of the player view when a map is loading"). The compositor draws its overlay and skybox
+    /// itself, frozen game or not. The game's own quad stands in where the compositor cannot take the picture.
     /// </summary>
     public sealed class LoadingView : IDisposable
     {
@@ -52,6 +60,19 @@ namespace RavenfieldVR.UI
         private int _sceneHandle = -1;
         /// <summary>When the loading scene's cameras and canvases are looked for again (each search makes two new arrays).</summary>
         private float _nextCapture;
+
+        // Frames while it is up (logged when it ends): in the headset a long frame is a frozen or vanishing loading screen.
+        private int _frames, _over100, _over500;
+        private float _longest, _shownAt;
+        private double _dropsMs, _dropsLongest;
+        private readonly System.Diagnostics.Stopwatch _dropsWatch = new System.Diagnostics.Stopwatch();
+
+        // The compositor's loading screen (its overlay) and black skybox.
+        private ulong _overlay;
+        private bool _overlayFailed, _overlayShown, _skybox;
+        private ETextureType _textureType;
+        private RenderTexture _overlayTexture;
+        private Texture2D _black;
 
         public LoadingView(VRRig rig, Camera uiCamera, CanvasManager canvases)
         {
@@ -128,7 +149,19 @@ namespace RavenfieldVR.UI
             if (Active)
             {
                 Place();
+                UpdateOverlay();
+                float dt = Time.unscaledDeltaTime;
+                _frames++;
+                _longest = Mathf.Max(_longest, dt);
+                _over100 += dt > 0.1f ? 1 : 0;
+                _over500 += dt > 0.5f ? 1 : 0;
+                _dropsWatch.Reset();
+                _dropsWatch.Start();
                 Log.Guard("loading drops", BuildDrops);
+                _dropsWatch.Stop();
+                double ms = _dropsWatch.Elapsed.TotalMilliseconds;
+                _dropsMs += ms;
+                _dropsLongest = Math.Max(_dropsLongest, ms);
             }
         }
 
@@ -202,9 +235,15 @@ namespace RavenfieldVR.UI
                 _screen.transform.localScale = new Vector3(Width, Width * 9f / 16f, 1f);
             }
             _screen.SetActive(true);
+            CompositorBegin();
+            _screen.GetComponent<Renderer>().enabled = !_overlayShown; // the overlay is the screen: not drawn twice
             _uiMask = _uiCamera.cullingMask;
             _uiCamera.cullingMask = 1 << ScreenLayer;
             VRRig.Blackout = true;
+            _frames = _over100 = _over500 = 0;
+            _longest = 0f;
+            _dropsMs = _dropsLongest = 0.0;
+            _shownAt = Time.unscaledTime;
             Log.Info("Loading screen: shown on a screen in front of you.");
         }
 
@@ -291,6 +330,138 @@ namespace RavenfieldVR.UI
 
         private float _awaySince;
 
+        /// <summary>The compositor's texture type for this graphics API (false where it cannot take Unity's textures here).</summary>
+        private static bool TextureType(out ETextureType type)
+        {
+            switch (SystemInfo.graphicsDeviceType)
+            {
+                case GraphicsDeviceType.Direct3D11:
+                    type = ETextureType.DirectX;
+                    return true;
+                case GraphicsDeviceType.OpenGLCore:
+                    type = ETextureType.OpenGL;
+                    return true;
+                default:
+                    type = ETextureType.Invalid;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// The compositor's skybox black and the loading screen as its overlay (as Valve's own SteamVR_LoadLevel does): drawn
+        /// by SteamVR at the headset's rate even while the game is frozen. Any failure leaves the game's quad as the screen.
+        /// </summary>
+        private void CompositorBegin()
+        {
+            _overlayShown = false;
+            if (!TextureType(out _textureType))
+            {
+                Log.InfoOnce("loadingoverlay:api", $"Loading screen: drawn by the game ({SystemInfo.graphicsDeviceType}: no compositor overlay).");
+                return;
+            }
+            CVRCompositor compositor = OpenVR.Compositor;
+            if (compositor != null)
+            {
+                if (_black == null)
+                {
+                    _black = new Texture2D(4, 4, TextureFormat.RGBA32, false) { name = "RavenfieldVR Loading Skybox" };
+                    var pixels = new Color32[16];
+                    for (int i = 0; i < pixels.Length; i++)
+                    {
+                        pixels[i] = new Color32(0, 0, 0, 255);
+                    }
+                    _black.SetPixels32(pixels);
+                    _black.Apply(false, true);
+                }
+                var sky = new[] { new Texture_t { handle = _black.GetNativeTexturePtr(), eType = _textureType, eColorSpace = EColorSpace.Auto } };
+                EVRCompositorError error = compositor.SetSkyboxOverride(sky);
+                _skybox = error == EVRCompositorError.None;
+                if (!_skybox)
+                {
+                    Log.WarnOnce("loadingskybox", $"Loading screen: the compositor's black skybox was refused ({error}).");
+                }
+            }
+            CVROverlay overlay = OpenVR.Overlay;
+            if (overlay == null || _overlayFailed)
+            {
+                return;
+            }
+            if (_overlay == 0)
+            {
+                EVROverlayError error = overlay.CreateOverlay("ravenfieldvr.loading", "Ravenfield VR loading", ref _overlay);
+                if (error != EVROverlayError.None)
+                {
+                    _overlayFailed = true;
+                    _overlay = 0;
+                    Log.Warn($"Loading screen: no compositor overlay ({error}); the game draws it.");
+                    return;
+                }
+                overlay.SetOverlayWidthInMeters(_overlay, Width);
+                // Unity's pictures are upside down to the compositor (Valve's SteamVR_Overlay reads them this way too).
+                var bounds = new VRTextureBounds_t { uMin = 0f, uMax = 1f, vMin = 1f, vMax = 0f };
+                overlay.SetOverlayTextureBounds(_overlay, ref bounds);
+            }
+            if (_overlayTexture == null)
+            {
+                // Without the picture's multisampling: the compositor takes a plain texture.
+                _overlayTexture = new RenderTexture(_texture.width, _texture.height, 0, RenderTextureFormat.ARGB32) { name = "RavenfieldVR Loading Overlay" };
+                _overlayTexture.Create();
+            }
+            _overlayShown = UpdateOverlay(first: true) && overlay.ShowOverlay(_overlay) == EVROverlayError.None;
+            Log.Info(_overlayShown ? "Loading screen: drawn by the compositor (overlay, black skybox)." : "Loading screen: the overlay did not show; the game draws it.");
+        }
+
+        /// <summary>The picture and the screen's place into the overlay (the rig's root is the tracking space's origin).</summary>
+        private bool UpdateOverlay(bool first = false)
+        {
+            if (!_overlayShown && !first || _overlay == 0 || _screen == null)
+            {
+                return false;
+            }
+            CVROverlay overlay = OpenVR.Overlay;
+            if (overlay == null)
+            {
+                return false;
+            }
+            Graphics.Blit(_texture, _overlayTexture);
+            var texture = new Texture_t { handle = _overlayTexture.GetNativeTexturePtr(), eType = _textureType, eColorSpace = EColorSpace.Auto };
+            EVROverlayError error = overlay.SetOverlayTexture(_overlay, ref texture);
+            Transform root = _rig.Root, t = _screen.transform;
+            HmdMatrix34_t pose = OpenVRMath.FromUnity(root.InverseTransformPoint(t.position), Quaternion.Inverse(root.rotation) * t.rotation);
+            if (error == EVROverlayError.None)
+            {
+                error = overlay.SetOverlayTransformAbsolute(_overlay, ETrackingUniverseOrigin.TrackingUniverseStanding, ref pose);
+            }
+            if (error != EVROverlayError.None)
+            {
+                // The game's quad again.
+                Log.WarnOnce("loadingoverlay:" + error, $"Loading screen: the overlay failed ({error}); the game draws it.");
+                overlay.HideOverlay(_overlay);
+                _overlayShown = false;
+                _screen.GetComponent<Renderer>().enabled = true;
+                return false;
+            }
+            return true;
+        }
+
+        private void CompositorEnd()
+        {
+            if (_overlayShown && _overlay != 0)
+            {
+                OpenVR.Overlay?.HideOverlay(_overlay);
+            }
+            _overlayShown = false;
+            if (_skybox)
+            {
+                OpenVR.Compositor?.ClearSkyboxOverride();
+                _skybox = false;
+            }
+            if (_screen != null)
+            {
+                _screen.GetComponent<Renderer>().enabled = true;
+            }
+        }
+
         private void End()
         {
             Active = false;
@@ -309,11 +480,13 @@ namespace RavenfieldVR.UI
             }
             _captured.Clear();
             _canvases.Clear();
+            CompositorEnd();
             if (_screen != null)
             {
                 _screen.SetActive(false);
             }
-            Log.Info("Loading screen: done, the map is shown.");
+            Log.Info($"Loading screen: done, the map is shown. Up {Time.unscaledTime - _shownAt:0.0} s, {_frames} frames, the longest {_longest * 1000f:0} ms "
+                     + $"({_over100} over 100 ms, {_over500} over 500 ms); the drops' models {_dropsMs:0} ms in all, at most {_dropsLongest:0} ms in a frame.");
         }
 
         public void Dispose()
@@ -321,6 +494,20 @@ namespace RavenfieldVR.UI
             if (Active)
             {
                 End();
+            }
+            if (_overlay != 0)
+            {
+                OpenVR.Overlay?.DestroyOverlay(_overlay);
+                _overlay = 0;
+            }
+            if (_overlayTexture != null)
+            {
+                _overlayTexture.Release();
+                UnityEngine.Object.Destroy(_overlayTexture);
+            }
+            if (_black != null)
+            {
+                UnityEngine.Object.Destroy(_black);
             }
             if (_screen != null)
             {

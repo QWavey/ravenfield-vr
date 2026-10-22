@@ -17,6 +17,21 @@ namespace RavenfieldVR.Runtime
 
         public static Vector3 ToUnityVector(in HmdVector3_t v) => new Vector3(v.v0, v.v1, -v.v2);
 
+        /// <summary>
+        /// A Unity pose as OpenVR's matrix (the inverse of <see cref="ToUnity"/>: the Z axis mirrored, the third row and column
+        /// negated but for [2,2]). Built from the rotated axes, not Matrix4x4.TRS (a native call).
+        /// </summary>
+        public static HmdMatrix34_t FromUnity(Vector3 position, Quaternion rotation)
+        {
+            Vector3 right = rotation * Vector3.right, up = rotation * Vector3.up, forward = rotation * Vector3.forward;
+            return new HmdMatrix34_t
+            {
+                m0 = right.x, m1 = up.x, m2 = -forward.x, m3 = position.x,
+                m4 = right.y, m5 = up.y, m6 = -forward.y, m7 = position.y,
+                m8 = -right.z, m9 = -up.z, m10 = forward.z, m11 = -position.z,
+            };
+        }
+
         /// <summary>Angular velocity is an axial vector, so mirroring Z flips the sign of X and Y instead.</summary>
         public static Vector3 ToUnityAngular(in HmdVector3_t w) => new Vector3(-w.v0, -w.v1, w.v2);
 

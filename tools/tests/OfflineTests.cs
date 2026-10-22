@@ -82,6 +82,48 @@ namespace RavenfieldVR.Tests
             InstallCheckTests(mod);
             ArmNameTests(mod);
             ShellSizeTests(mod);
+            PoseToOpenVrTests(mod);
+        }
+
+        /// <summary>
+        /// A Unity pose as OpenVR's matrix (the loading screen's overlay is placed with it): the inverse of OpenVRMath.ToUnity,
+        /// the Z axis mirrored. Identity and a position, a quarter turn to the right (Unity's forward onto +x: OpenVR's forward,
+        /// its -z column, onto +x too), and a rotation part that stays a rotation (orthonormal, not mirrored).
+        /// </summary>
+        private static void PoseToOpenVrTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo from = mod.GetType("RavenfieldVR.Runtime.OpenVRMath")?.GetMethod("FromUnity");
+            Check(from != null, "Pose to OpenVR: OpenVRMath.FromUnity found");
+            if (from == null)
+            {
+                return;
+            }
+            float[] M(UnityEngine.Vector3 p, UnityEngine.Quaternion q)
+            {
+                object r = from.Invoke(null, new object[] { p, q });
+                var f = new float[12];
+                for (int k = 0; k < 12; k++)
+                {
+                    f[k] = (float)r.GetType().GetField("m" + k).GetValue(r);
+                }
+                return f;
+            }
+            bool Near(float a, float b) => Math.Abs(a - b) < 1e-5f;
+            float[] m = M(new UnityEngine.Vector3(1f, 2f, 3f), UnityEngine.Quaternion.identity);
+            Check(Near(m[0], 1f) && Near(m[5], 1f) && Near(m[10], 1f) && Near(m[1], 0f) && Near(m[2], 0f) && Near(m[6], 0f)
+                  && Near(m[3], 1f) && Near(m[7], 2f) && Near(m[11], -3f), "Pose to OpenVR: identity at (1, 2, 3) is identity at (1, 2, -3)");
+            float h = (float)Math.Sqrt(0.5);
+            m = M(UnityEngine.Vector3.zero, new UnityEngine.Quaternion(0f, h, 0f, h)); // 90 degrees about up
+            Check(Near(-m[2], 1f) && Near(-m[6], 0f) && Near(-m[10], 0f) && Near(m[0], 0f) && Near(m[8], 1f),
+                "Pose to OpenVR: a quarter turn to the right looks along +x (forward column " + (-m[2]) + ", " + (-m[6]) + ", " + (-m[10]) + ")");
+            var q = new UnityEngine.Quaternion(0.1f, 0.7f, -0.3f, 0.64f);
+            float n = (float)Math.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+            m = M(UnityEngine.Vector3.zero, new UnityEngine.Quaternion(q.x / n, q.y / n, q.z / n, q.w / n));
+            float[] c0 = { m[0], m[4], m[8] }, c1 = { m[1], m[5], m[9] }, c2 = { m[2], m[6], m[10] };
+            float Dot(float[] a, float[] b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            float det = c0[0] * (c1[1] * c2[2] - c1[2] * c2[1]) - c1[0] * (c0[1] * c2[2] - c0[2] * c2[1]) + c2[0] * (c0[1] * c1[2] - c0[2] * c1[1]);
+            Check(Near(Dot(c0, c0), 1f) && Near(Dot(c1, c1), 1f) && Near(Dot(c2, c2), 1f) && Near(Dot(c0, c1), 0f) && Near(Dot(c1, c2), 0f)
+                  && Near(det, 1f), $"Pose to OpenVR: any turn stays a rotation (det {det:0.000})");
         }
 
         /// <summary>
