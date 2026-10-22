@@ -274,11 +274,6 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// advancedReload only means the mod drives its reload with allowedReloads chunks. A weapon whose reload
-        /// visibly swaps a magazine and loads at least half its capacity per motion is magazine-fed (HK416, 1911,
-        /// PPSh...), not a tube that takes rounds one by one.
-        /// </summary>
-        /// <summary>
         /// Reloaded a magazine's worth at a time: self-loading, or an advanced reload that loads half the capacity or more
         /// per motion (still classed as shell-fed while the magazine is analysed; see ReclassifyAdvancedReload).
         /// </summary>
@@ -301,6 +296,11 @@ namespace RavenfieldVR.Weapons
             return chunk >= 3 && chunk * 2 >= c.ammo;
         }
 
+        /// <summary>
+        /// advancedReload only means the mod drives its reload with allowedReloads chunks. A weapon whose reload
+        /// visibly swaps a magazine and loads at least half its capacity per motion is magazine-fed (HK416, 1911,
+        /// PPSh...), not a tube that takes rounds one by one.
+        /// </summary>
         private static void ReclassifyAdvancedReload(WeaponRigData d, Weapon w)
         {
             Weapon.Configuration c = w.configuration;
@@ -2983,16 +2983,16 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Spare magazines of the flat reload animation: drawn at rest where its other hand waits, a few tens of centimetres
-        /// from the gun (out of the flat view), moved in by the reload. Magazine-like (by name, or the chosen magazine's
-        /// size), not part of the chosen one. In VR they hung in the air by the gun.
-        /// </summary>
-        /// <summary>
         /// How near a handgun's grip a spare magazine may wait: its reload's other hand holds the next one just behind the
         /// pistol, and at 28 cm it was drawn there in VR (user, 2026-10-16). Its own magazine, in the grip, is never one.
         /// </summary>
         private const float SpareNearHandgun = 0.12f;
 
+        /// <summary>
+        /// Spare magazines of the flat reload animation: drawn at rest where its other hand waits, a few tens of centimetres
+        /// from the gun (out of the flat view), moved in by the reload. Magazine-like (by name, or the chosen magazine's
+        /// size), not part of the chosen one. In VR they hung in the air by the gun.
+        /// </summary>
         private static void CollectSpareMagazines(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, Transform mag, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
         {
@@ -5022,11 +5022,6 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Whether the "third-person" subtree is in fact the visible first-person gun: a real third-person model is a
-        /// copy, so a comparable amount of gun mesh exists outside it. When (almost) all the non-arm mesh lives in that
-        /// subtree, it is the gun, even if the mod keeps its muzzle on a separate branch.
-        /// </summary>
-        /// <summary>
         /// Drawn in first person and named like a moving part (slide, bolt, magazine, trigger): the visible gun's own parts.
         /// A mod pointing thirdPersonTransform at the visible receiver, with the magazine and stock on other branches, had
         /// the receiver, slide and well taken for a hidden third-person copy: no slide, magazine or hinge found.
@@ -5113,7 +5108,6 @@ namespace RavenfieldVR.Weapons
             return inside > 0 && outside * 4 < inside;
         }
 
-        /// <summary>Enabled and on an active branch up to the weapon root (works on prefabs outside any scene too).</summary>
         /// <summary>Active itself and every parent up to (not counting) <paramref name="root"/>: works on prefabs outside any scene.</summary>
         internal static bool ActiveUpTo(Transform t, Transform root)
         {
@@ -5540,7 +5534,6 @@ namespace RavenfieldVR.Weapons
             return best;
         }
 
-        /// <summary>Palm centre ≈ halfway between the hand bone and its finger roots.</summary>
         /// <summary>
         /// Down the grip as the weapon's own hand holds it: from the index finger's knuckle to the little finger's, in the
         /// gun's upright plane, pointing away from the bore. Zero without both fingers or when the line lies along the gun.
@@ -5579,6 +5572,7 @@ namespace RavenfieldVR.Weapons
             return down;
         }
 
+        /// <summary>Palm centre ≈ halfway between the hand bone and its finger roots.</summary>
         private static Vector3 PalmOf(Transform hand, PoseSampler sampler)
         {
             Vector3 handPos = sampler.Idle(hand).position;

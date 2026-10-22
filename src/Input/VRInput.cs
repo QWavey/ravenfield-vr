@@ -300,11 +300,6 @@ namespace RavenfieldVR.Input
 
         private static float _diagnoseUntil = -1f, _nextDiagnose;
 
-        /// <summary>
-        /// For the first minute and a half of a session, every 2 s: what SteamVR Input returns for each hand (pose,
-        /// trigger, grab) next to what the system reports for the controller devices, so a headset that shows no hands
-        /// can be told apart from a binding that delivers nothing.
-        /// </summary>
         /// <summary>Logs the input check every 2 s for the next <paramref name="seconds"/> (e.g. after the view changes).</summary>
         public static void DiagnoseFor(float seconds)
         {
@@ -359,6 +354,11 @@ namespace RavenfieldVR.Input
             }
         }
 
+        /// <summary>
+        /// For the first minute and a half of a session, every 2 s: what SteamVR Input returns for each hand (pose,
+        /// trigger, grab) next to what the system reports for the controller devices, so a headset that shows no hands
+        /// can be told apart from a binding that delivers nothing.
+        /// </summary>
         private static void Diagnose(CVRInput input, EVRInputError updateError)
         {
             float now = Time.unscaledTime;

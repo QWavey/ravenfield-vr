@@ -550,14 +550,6 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// The same weapon held left-handed (the setting overridden in memory only): holstered, handedness switched,
-        /// drawn into the left hand, pictured and measured, then back.
-        /// </summary>
-        /// <summary>
-        /// The game's pause menu: the laser aimed at each of its buttons in turn (by the dominant hand), and what it is over
-        /// then. Every button must be what the laser hits (only one of them took clicks in the headset). Nothing is clicked.
-        /// </summary>
-        /// <summary>
         /// The graphics bench (task 215): standing still in the match, each preset and then Ultra with one setting lowered
         /// at a time, 2 s to settle and 5 s measured: the frame time and the GPU time SteamVR's compositor measured. The
         /// saved settings are never changed (the player's are put back at the end).
@@ -673,11 +665,6 @@ namespace RavenfieldVR.Core
             Shots.Capture(file + "-right", c + right * 0.25f + up * 0.08f, Quaternion.LookRotation(-right * 0.25f - up * 0.08f, up), 45f);
         }
 
-        /// <summary>
-        /// An automatic held on the trigger for 1.6 s (Tasks 209 A-C): the lens flash limiter must keep each eye within
-        /// six counted steps (three flashes) in any 1.1 s, as flash_sim.py's photosensitivity test, the rest soft flashes
-        /// and the glow; the glow pictured a second in.
-        /// </summary>
         /// <summary>
         /// The flash film (-rfvr-flashfilm): for each gun, what the two eyes get frame by frame: standing still (both eyes
         /// should be equally bright), three shots from the hip, three aimed through the sight, and on an automatic the
@@ -1092,6 +1079,11 @@ namespace RavenfieldVR.Core
             Results.Add($"Lens flash check: {checkedGuns} guns fired, {short_} with too few lens flashes, {none.Count} without a muzzle flash of their own: {string.Join(", ", none)}");
         }
 
+        /// <summary>
+        /// An automatic held on the trigger for 1.6 s (Tasks 209 A-C): the lens flash limiter must keep each eye within
+        /// six counted steps (three flashes) in any 1.1 s, as flash_sim.py's photosensitivity test, the rest soft flashes
+        /// and the glow; the glow pictured a second in.
+        /// </summary>
         private static IEnumerator LensBurstCheck(Weapon w, int index, string name, List<string> lines)
         {
             LensFlash lf = LensFlash.Instance;
@@ -1665,10 +1657,6 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// A pistol's slide locked back with a magazine in: its animator must show no round loaded, or the slide runs
-        /// forward while the gun still says RACK.
-        /// </summary>
-        /// <summary>
         /// Two weapons at once (Tasks 252 p): with this gun drawn, the free hand takes another kind of weapon from the loadout
         /// as a second one. It must show, sit in that hand, fire from that hand's trigger and use its own rounds, go back into
         /// its holster when the hand lets go, and the drawn gun must stay drawn the whole time.
@@ -2035,6 +2023,10 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(3.5f); // the grenade goes off far from the player before the next check
         }
 
+        /// <summary>
+        /// A pistol's slide locked back with a magazine in: its animator must show no round loaded, or the slide runs
+        /// forward while the gun still says RACK.
+        /// </summary>
         private static IEnumerator SlideLockPoseCheck(HeldWeapon held, Action<string> report)
         {
             Weapon w = held.ActiveWeapon;
@@ -2153,6 +2145,10 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>
+        /// The game's pause menu: the laser aimed at each of its buttons in turn (by the dominant hand), and what it is over
+        /// then. Every button must be what the laser hits (only one of them took clicks in the headset). Nothing is clicked.
+        /// </summary>
         private static IEnumerator PauseMenuCheck()
         {
             Rig.VRRig rig = Rig.VRRig.Instance;
@@ -2629,6 +2625,10 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(0.3f);
         }
 
+        /// <summary>
+        /// The same weapon held left-handed (the setting overridden in memory only): holstered, handedness switched,
+        /// drawn into the left hand, pictured and measured, then back.
+        /// </summary>
         private static IEnumerator LeftHandCheck(Weapon weapon, string name, Action<string> report)
         {
             Actor actor = LocalPlayer.actor;

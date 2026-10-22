@@ -652,7 +652,6 @@ namespace RavenfieldVR.Weapons
             return any ? b : new Bounds();
         }
 
-        /// <summary>Axis-aligned bounds in <paramref name="live"/>'s own (unscaled) space at idle.</summary>
         /// <summary>
         /// Bounds of the meshes under <paramref name="live"/> that show at idle, in its own idle space. Rigs often keep a
         /// second, hidden magazine (the fresh one their reload brings in) parked somewhere under the magazine bone; it is

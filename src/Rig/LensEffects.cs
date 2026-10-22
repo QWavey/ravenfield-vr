@@ -649,6 +649,7 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>One band of one eye's picture: band 0 / 1 the left eye's top / bottom half, 2 / 3 the right eye's.</summary>
         private void BandLoop(int band)
         {
             while (true)
@@ -671,7 +672,6 @@ namespace RavenfieldVR.Rig
             }
         }
 
-        /// <summary>One band of one eye's picture: band 0 / 1 the left eye's top / bottom half, 2 / 3 the right eye's.</summary>
         /// <summary>
         /// Single-pass stereo shows one picture for both eyes (the right eye's, on the centred quad): the left one is neither
         /// made nor uploaded (255.P5-4). Both in a test run, whose pictures and film read the left one.

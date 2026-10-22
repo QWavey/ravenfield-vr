@@ -1119,10 +1119,6 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Autotest: the simulated off hand takes a feed cover at its latch and lifts it round its hinge, as a hand would, to
-        /// 60% of its swing; reports whether it opened and stays open when let go, then shuts it again by hand.
-        /// </summary>
-        /// <summary>
         /// Autotest: a machine gun's whole reload by hand, through the hand's own grabs: every step is a squeeze where a
         /// player's hand would be, nothing is called directly (user, 2026-10-16: "reloading is sooo buggy and doesnt even
         /// work manually"). The cover opened at its latch, the box pulled out along its line, a fresh one taken from the
@@ -1334,6 +1330,10 @@ namespace RavenfieldVR.Weapons
             yield return new WaitForSecondsRealtime(0.2f);
         }
 
+        /// <summary>
+        /// Autotest: the simulated off hand takes a feed cover at its latch and lifts it round its hinge, as a hand would, to
+        /// 60% of its swing; reports whether it opened and stays open when let go, then shuts it again by hand.
+        /// </summary>
         internal IEnumerator CoverSelfCheck(System.Action<string> report)
         {
             VRHand off = _sys.Rig.Off;
@@ -2454,10 +2454,6 @@ namespace RavenfieldVR.Weapons
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
 
-        /// <summary>
-        /// Distance to the part you rack: a slide can be taken anywhere along its rear half, a bolt or handle around
-        /// its knob.
-        /// </summary>
         /// <summary>A hand is working the slide, bolt or handle right now.</summary>
         internal bool IsRacking => _racking;
 
@@ -2476,6 +2472,10 @@ namespace RavenfieldVR.Weapons
             return d < rackRadius ? d / rackRadius * 0.85f : float.PositiveInfinity;
         }
 
+        /// <summary>
+        /// Distance to the part you rack: a slide can be taken anywhere along its rear half, a bolt or handle around
+        /// its knob.
+        /// </summary>
         private float RackZoneDistance(Vector3 palm)
         {
             Vector3 a = RackPointWorld;
@@ -3036,11 +3036,6 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private bool SupportAtOwnPoint => GripData.IsPistol || SupportBehindGrip || _held.SupportHeldInPlace();
 
-        /// <summary>
-        /// Autotest film of a launcher's reload by hand: a rocket from the pouch, carried to the launcher's mouth, lined up
-        /// 25 cm in front of it and pushed in, the way a player does. Reports whether the rocket in the hand is drawn, whether
-        /// it went onto the line and whether it loaded (Tasks 231: scoped RPGs could not be reloaded, the rocket invisible).
-        /// </summary>
         /// <summary>Autotest (-rfvr-deep): the launcher emptied and reloaded by hand, as the rocket film does, without filming.</summary>
         internal IEnumerator RocketCheck(System.Action<string> report)
         {
@@ -3053,6 +3048,11 @@ namespace RavenfieldVR.Weapons
             yield return RocketFilm(report, _ => { });
         }
 
+        /// <summary>
+        /// Autotest film of a launcher's reload by hand: a rocket from the pouch, carried to the launcher's mouth, lined up
+        /// 25 cm in front of it and pushed in, the way a player does. Reports whether the rocket in the hand is drawn, whether
+        /// it went onto the line and whether it loaded (Tasks 231: scoped RPGs could not be reloaded, the rocket invisible).
+        /// </summary>
         private IEnumerator RocketFilm(System.Action<string> report, System.Action<string> frame)
         {
             VRHand off = _sys.Rig.Off;

@@ -205,10 +205,6 @@ namespace RavenfieldVR.Rig
             _historyIndex = (_historyIndex + 1) % HistoryLength;
         }
 
-        /// <summary>
-        /// Autotest hands, in rig space: the gun hand low and forward of the head, the other hand further out where a
-        /// handguard would be, both pointing where the head faces.
-        /// </summary>
         /// <summary>Autotest: a scripted world pose (and velocity) for a simulated hand, instead of where it rests.</summary>
         internal static readonly RigidPose?[] Scripted = new RigidPose?[2];
         internal static readonly Vector3[] ScriptedVelocity = new Vector3[2];
@@ -219,6 +215,10 @@ namespace RavenfieldVR.Rig
         /// </summary>
         internal static float TestVelocityNoise;
 
+        /// <summary>
+        /// Autotest hands, in rig space: the gun hand low and forward of the head, the other hand further out where a
+        /// handguard would be, both pointing where the head faces.
+        /// </summary>
         private bool SimulatedLocal(Transform rigRoot, out RigidPose local)
         {
             local = default;

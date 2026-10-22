@@ -157,11 +157,6 @@ namespace RavenfieldVR.Weapons
             UpdateGripToHold();
         }
 
-        /// <summary>
-        /// Only the dominant hand holds the drawn weapon or grenade. A hand still marked so without one stayed busy for
-        /// good (no magazine, rack or support grip): the dominant side changed while a weapon was held (the left-handed
-        /// setting, the self-test's left-handed pass) and the release freed the new dominant hand, not the one holding it.
-        /// </summary>
         /// <summary>The second weapon in the free hand (null: none), beside the game's active one.</summary>
         internal SecondWeapon Second { get; private set; }
 
@@ -207,6 +202,11 @@ namespace RavenfieldVR.Weapons
             hand.Haptic(0.05f, 100f, 0.6f);
         }
 
+        /// <summary>
+        /// Only the dominant hand holds the drawn weapon or grenade. A hand still marked so without one stayed busy for
+        /// good (no magazine, rack or support grip): the dominant side changed while a weapon was held (the left-handed
+        /// setting, the self-test's left-handed pass) and the release freed the new dominant hand, not the one holding it.
+        /// </summary>
         private void HealHandRoles()
         {
             foreach (VRHand h in Rig.Hands)

@@ -143,10 +143,10 @@ namespace RavenfieldVR.Weapons
 
         public bool InfiniteSpare => Weapon.HasInfiniteSpareAmmo();
 
-        /// <summary>Whether the trigger can drop the hammer on a round right now.</summary>
         /// <summary>The trigger pull that sent the slide forward does not also fire: held until the trigger is let go.</summary>
         public bool HoldFireUntilTriggerUp;
 
+        /// <summary>Whether the trigger can drop the hammer on a round right now.</summary>
         public bool CanFire
         {
             get

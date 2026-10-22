@@ -2129,15 +2129,6 @@ namespace RavenfieldVR.Weapons
         private bool _keptMagShown;
 
         /// <summary>
-        /// A magazine in the hand does not pass through the gun. It goes from where it was drawn toward the hand, stops
-        /// where it meets the gun's body and slides along it (the glove holding it stays with it); its own magwell stays
-        /// open to it (the rail takes it from there, and a fresh one pushed into the seated one kicks it out: those go by
-        /// the hand). Only checking where the hand is now let a hard or fast push through: a magazine past the middle of
-        /// the receiver came out the far side, and one buried deeper than the search reached went straight through.
-        /// A rocket the same against its launcher (user, 2026-10-16: it went through the tube): it goes in only at the
-        /// tube's mouth, on its line, where it is no longer kept out.
-        /// </summary>
-        /// <summary>
         /// The magazine held beside the one in the hand (palmed): kept out of the gun the same way, on its own (it borrowed
         /// the first one's keep-out only, and went through the gun wherever the first one was clear; user, 2026-10-16).
         /// With the first one on its rail the glove is left to that one (<paramref name="moveHand"/> false).
@@ -2160,6 +2151,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>The rig whose well a held prop goes into: the active sub weapon's when it has a body, else the gun's own.</summary>
         private static WeaponRig WellRig(HeldWeapon gun) => gun.ActiveRig != null && gun.ActiveRig.GunBody != null ? gun.ActiveRig : gun.Rig;
 
+        /// <summary>
+        /// A magazine in the hand does not pass through the gun. It goes from where it was drawn toward the hand, stops
+        /// where it meets the gun's body and slides along it (the glove holding it stays with it); its own magwell stays
+        /// open to it (the rail takes it from there, and a fresh one pushed into the seated one kicks it out: those go by
+        /// the hand). Only checking where the hand is now let a hard or fast push through: a magazine past the middle of
+        /// the receiver came out the far side, and one buried deeper than the search reached went straight through.
+        /// A rocket the same against its launcher (user, 2026-10-16: it went through the tube): it goes in only at the
+        /// tube's mouth, on its line, where it is no longer kept out.
+        /// </summary>
         private RigidPose KeepOffGun(RigidPose target)
         {
             HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
@@ -2383,15 +2383,15 @@ namespace RavenfieldVR.Weapons
             return inside;
         }
 
+        /// <summary>Self-test: the middle of the last probe's points in the gun's body outside the well's opening (world; zero when none).</summary>
+        internal Vector3 ProbeOutCentre { get; private set; }
+
         /// <summary>
         /// Self-test: the magazine as drawn now, sampled every 5 mm over its whole box (the keep-out tests 25 points): how
         /// many lie in the gun's solid inside the well's opening (let through by design, not a seated magazine) and how many
         /// outside it. A sideways pass that crosses the receiver through the opening, or between the keep-out's rows, shows
         /// up here (252 ae).
         /// </summary>
-        /// <summary>Self-test: the middle of the last probe's points in the gun's body outside the well's opening (world; zero when none).</summary>
-        internal Vector3 ProbeOutCentre { get; private set; }
-
         internal void ProbeInside(HeldWeapon gun, out int points, out int inWell, out int outWell)
         {
             points = inWell = outWell = 0;

@@ -505,13 +505,13 @@ namespace RavenfieldVR.Weapons
         private static int _layer = -1;
         private static int _layerScene = -1;
 
+        /// <summary>A new scene: its free layer found now, in the load (on the first hold it scanned every renderer of the map; 255.P3-3).</summary>
+        internal static void OnSceneLoaded() => FreeLayer();
+
         /// <summary>
         /// A layer nothing in the scene draws on (unnamed and holding no renderer), so the shape camera sees only the
         /// renderers moved onto it. Checked once per scene.
         /// </summary>
-        /// <summary>A new scene: its free layer found now, in the load (on the first hold it scanned every renderer of the map; 255.P3-3).</summary>
-        internal static void OnSceneLoaded() => FreeLayer();
-
         private static int FreeLayer()
         {
             int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;

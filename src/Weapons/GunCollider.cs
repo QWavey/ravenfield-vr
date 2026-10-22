@@ -622,7 +622,6 @@ namespace RavenfieldVR.Weapons
             return Current;
         }
 
-        /// <summary>The weapon's shape in the collider frame (origin at the grip, z along the barrel).</summary>
         /// <summary>
         /// The box (in the collider frame) a held weapon's parts can sensibly be in: a stray shadow plane or a far-off lens
         /// flare quad outside it is not part of what you hold.
@@ -644,6 +643,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The weapon's shape in the collider frame (origin at the grip, z along the barrel).</summary>
         internal static ShapeFit.Piece[] Fit(WeaponRig rig, Quaternion frame, Vector3 origin)
         {
             WeaponRigData d = rig.Data;

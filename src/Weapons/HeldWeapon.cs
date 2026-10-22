@@ -975,15 +975,15 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Self-test experiment: -rfvr-noslidepose leaves the animator's "loaded ammo" to the game.</summary>
+        private static readonly bool NoSlidePose = System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a.Equals("-rfvr-noslidepose", System.StringComparison.OrdinalIgnoreCase));
+
         /// <summary>
         /// Many pistols show the slide locked back from the animator's "loaded ammo" being 0. A fresh magazine in a gun with
         /// its slide locked made the game count the rounds as loaded, and the animator ran the slide forward while the gun
         /// still said RACK (and needed racking). Held at 0 until the slide is released or racked; every frame, because the
         /// release does not always change the round count (and so never told the animator).
         /// </summary>
-        /// <summary>Self-test experiment: -rfvr-noslidepose leaves the animator's "loaded ammo" to the game.</summary>
-        private static readonly bool NoSlidePose = System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a.Equals("-rfvr-noslidepose", System.StringComparison.OrdinalIgnoreCase));
-
         private void HoldSlideLockPose()
         {
             if (NoSlidePose)
@@ -2092,13 +2092,6 @@ namespace RavenfieldVR.Weapons
             return dirs.ToArray();
         }
 
-        /// <summary>
-        /// An estimated rack point (from the reload hand, or virtual) can lie inside the receiver or float beside it: it is
-        /// moved straight out from the bore onto the drawn model's surface, where a hand can take it and a handle can be cut
-        /// out or added. A handle cut at the old point is cut again at the new one. A stroke of the reload hand that starts
-        /// well off the model held no handle (an AS Val's left hand passed 10 cm over the front sight): the estimate above
-        /// the grip is used instead.
-        /// </summary>
         /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
         /// <summary>Weapon types whose slide is being measured now: its pictures come back from the GPU a frame or two later.</summary>
@@ -2210,6 +2203,13 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// An estimated rack point (from the reload hand, or virtual) can lie inside the receiver or float beside it: it is
+        /// moved straight out from the bore onto the drawn model's surface, where a hand can take it and a handle can be cut
+        /// out or added. A handle cut at the old point is cut again at the new one. A stroke of the reload hand that starts
+        /// well off the model held no handle (an AS Val's left hand passed 10 cm over the front sight): the estimate above
+        /// the grip is used instead.
+        /// </summary>
         private void SnapRackPoint()
         {
             WeaponRigData d = Rig.Data;

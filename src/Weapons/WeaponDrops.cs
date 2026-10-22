@@ -993,14 +993,6 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>
-        /// The model's shape as boxes in the drop's own space (fitted once per weapon and scale); a single box around its
-        /// renderers when nothing could be measured.
-        /// </summary>
-        /// <summary>
-        /// Menu warm-up: the world model a fallen soldier drops and its physics shape (hulls cooked), built ahead so a bot
-        /// dying with this weapon in a match costs no model copy, no mesh reading and no cooking.
-        /// </summary>
         /// <summary>Self-test: what a drop of <paramref name="entry"/> costs once prepared (model copy, cached shape, colliders), in ms.</summary>
         internal static float TimePreparedDrop(WeaponManager.WeaponEntry entry)
         {
@@ -1019,6 +1011,10 @@ namespace RavenfieldVR.Weapons
         }
 
         // False: it failed (the idle builder then gives the type up: it went back in line and copied the model again every turn).
+        /// <summary>
+        /// Menu warm-up: the world model a fallen soldier drops and its physics shape (hulls cooked), built ahead so a bot
+        /// dying with this weapon in a match costs no model copy, no mesh reading and no cooking.
+        /// </summary>
         internal static bool Prepare(WeaponManager.WeaponEntry entry)
         {
             GameObject model = ModelFor(entry);
@@ -1054,6 +1050,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Per weapon type whose third-person meshes cannot be read: its shape fitted to the rendered model (scale 1).</summary>
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]> RenderedShapes =
             new System.Collections.Concurrent.ConcurrentDictionary<WeaponManager.WeaponEntry, ShapeFit.Piece[]>();
+        /// <summary>
+        /// The model's shape as boxes in the drop's own space (fitted once per weapon and scale); a single box around its
+        /// renderers when nothing could be measured.
+        /// </summary>
         private static readonly Dictionary<string, ShapeFit.Piece[]> ScaledShapes = new Dictionary<string, ShapeFit.Piece[]>();
         private static readonly Dictionary<WeaponManager.WeaponEntry, int> EntryNumbers = new Dictionary<WeaponManager.WeaponEntry, int>();
 
@@ -1566,7 +1566,6 @@ namespace RavenfieldVR.Weapons
             body.angularDrag = 0.5f;
         }
 
-        /// <summary>What each under-barrel weapon has loaded (null without any).</summary>
         /// <summary>
         /// The rounds in a weapon as it is put down: with its slide locked open the game is told none are loaded (so a fresh
         /// magazine does not run the slide forward), but the magazine in it still holds its rounds. Taken from the game's
@@ -1605,6 +1604,7 @@ namespace RavenfieldVR.Weapons
                    && st.MagRounds > 0 && (st.MagInserted || !st.UsesDetachableMag);
         }
 
+        /// <summary>What each under-barrel weapon has loaded (null without any).</summary>
         private static int[] SubAmmoOf(Weapon w)
         {
             if (w == null || w.alternativeWeapons == null || w.alternativeWeapons.Count == 0)
