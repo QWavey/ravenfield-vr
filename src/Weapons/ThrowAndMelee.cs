@@ -336,23 +336,28 @@ namespace RavenfieldVR.Weapons
             if (!_pinPulled)
             {
                 Vector3 pin = PinWorld;
-                if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed
+                if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed && _pinRig != null && _pinRig.GunBody != null
                     && Vector3.Distance(off.Palm.position, pin) < PinGrabRadius)
                 {
                     VRInput.Consume(DigitalAction.Grab, off.Side);
                     _holdingPin = true;
-                    _pinGrabAt = off.Palm.position; // the pull is measured from where the grip closed, not the pin
+                    // The pull is measured from where the grip closed, not the pin, and against the grenade (its own frame): in the
+                    // world, walking, turning or a snap turn with the grip on the ring moved the palm 5.5 cm and pulled the pin with
+                    // no tug (pause audit's pin findings, bug hunt 2026-10-22).
+                    _pinGrabAt = _pinRig.ToGun(off.Palm.position);
                     off.Role = HandRole.Pin;
                     off.Haptic(0.015f, 160f, 0.3f);
                 }
                 if (_holdingPin)
                 {
-                    if (!off.GrabHeld)
+                    if (!off.GrabHeld || !off.Tracked || _pinRig == null || _pinRig.GunBody == null)
                     {
-                        _holdingPin = false; // let go before it came out
+                        // Let go before it came out; or the hand lost tracking (its pose stays where it last was: a jump back
+                        // read as a tug), or the grenade went with its body.
+                        _holdingPin = false;
                         off.Role = HandRole.Free;
                     }
-                    else if (Vector3.Distance(off.Palm.position, _pinGrabAt) > PinPullDistance)
+                    else if (Vector3.Distance(_pinRig.ToGun(off.Palm.position), _pinGrabAt) > PinPullDistance)
                     {
                         // An actual tug of the hand, so a grip that closed 5.5-7 cm from the pin does not pop it the same frame.
                         PullPin(off);
