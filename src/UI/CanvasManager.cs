@@ -450,7 +450,8 @@ namespace RavenfieldVR.UI
                     // Head-locked frame matching the game camera's frustum (vehicle sights far out, same angular size).
                     float d = t.Collimated ? CollimatedDistance : distance;
                     float width = 2f * d * Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad);
-                    float scale = width / t.Size.x;
+                    // (At least 1 wide: a canvas measured from a minimised window's zero screen size scaled to infinity, NaN below it.)
+                    float scale = width / Mathf.Max(1f, t.Size.x);
                     float depth = d - 0.001f * d / distance * Mathf.Clamp(t.Order, -100, 100);
                     t.Rect.SetPositionAndRotation(hud.position + hud.Forward * depth, hud.rotation);
                     SetScale(t.Rect, Vector3.one * scale);
