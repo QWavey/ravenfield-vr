@@ -1152,19 +1152,24 @@ namespace RavenfieldVR.Rig
         // ---- shared ------------------------------------------------------------------------------------------------
 
         /// <summary>flash_sim.py tone: a soft roll-off to 94% of white (the flash alone never goes past it).</summary>
-        private static float ToneFlash(float v) => v <= 0f ? 0f : 0.94f * (1f - ExpNeg(v * 1.32f));
+        // (Written !(v > 0) so a NaN strength shows nothing: as v <= 0 it went on to the table at int.MinValue and threw.)
+        private static float ToneFlash(float v) => !(v > 0f) ? 0f : 0.94f * (1f - ExpNeg(v * 1.32f));
 
         /// <summary>screen_effects.py tone: 1 - exp(-1.25 x).</summary>
-        private static float ToneSe(float v) => v <= 0f ? 0f : 1f - ExpNeg(v * 1.25f);
+        private static float ToneSe(float v) => !(v > 0f) ? 0f : 1f - ExpNeg(v * 1.25f);
 
         private static byte To8(float v) => v <= 0f ? (byte)0 : v >= 1f ? (byte)255 : (byte)(v * 255f + 0.5f);
 
         /// <summary>exp(-q) for q >= 0, from a table.</summary>
         private static float ExpNeg(float q)
         {
-            if (q >= ExpMax)
+            if (!(q < ExpMax))
             {
-                return 0f;
+                return 0f; // (a NaN too: the table read at (int)NaN threw on the effects' worker thread)
+            }
+            if (q <= 0f)
+            {
+                return 1f;
             }
             float f = q * (ExpSteps / ExpMax);
             int i = (int)f;

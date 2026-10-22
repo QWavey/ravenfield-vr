@@ -69,6 +69,46 @@ namespace RavenfieldVR.Tests
             DeadzoneTests(mod);
             ConfigTests(mod);
             JsonTests(mod);
+            LensToneTests(mod);
+        }
+
+        /// <summary>
+        /// The on-screen effects' tone curves and their exp table (LensEffects, computed on a worker thread): a NaN strength
+        /// passed both guards and indexed the table at int.MinValue, which threw.
+        /// </summary>
+        private static void LensToneTests(System.Reflection.Assembly mod)
+        {
+            Type lens = mod.GetType("RavenfieldVR.Rig.LensEffects");
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo flash = lens?.GetMethod("ToneFlash", any), se = lens?.GetMethod("ToneSe", any), exp = lens?.GetMethod("ExpNeg", any),
+                tables = lens?.GetMethod("MakeTables", any);
+            Check(flash != null && se != null && exp != null && tables != null, "Lens tones: LensEffects' curves found");
+            if (flash == null || se == null || exp == null || tables == null)
+            {
+                return;
+            }
+            float Call(System.Reflection.MethodInfo m, float v)
+            {
+                try
+                {
+                    return (float)m.Invoke(null, new object[] { v });
+                }
+                catch (System.Reflection.TargetInvocationException e)
+                {
+                    Check(false, $"Lens tones: {m.Name}({v}) threw {e.InnerException?.GetType().Name}");
+                    return float.NaN;
+                }
+            }
+            Check(Call(flash, float.NaN) == 0f && Call(se, float.NaN) == 0f, "Lens tones: a NaN strength shows nothing");
+            tables.Invoke(null, null);
+            double worst = 0;
+            for (float q = 0f; q < 26f; q += 0.0137f)
+            {
+                worst = Math.Max(worst, Math.Abs(Call(exp, q) - Math.Exp(-q)));
+            }
+            Check(worst < 2e-5, $"Lens tones: the exp table within 2e-5 of exp(-q) over 0-26 (worst {worst:0.0e0})");
+            Check(Call(flash, 100f) <= 0.94f && Call(flash, 100f) > 0.93f && Call(se, 0.001f) > 0f && Call(se, 0.001f) < 0.01f,
+                  "Lens tones: the flash rolls off to 94%, a faint effect stays faint");
         }
 
         /// <summary>
