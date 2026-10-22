@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -727,6 +729,243 @@ namespace RavenfieldVR.Setup
         }
     }
 
+    /// <summary>
+    /// Windows 11 look for the plain WinForms dialogs: the user's accent colour, a light/dark palette that
+    /// follows the system theme, rounded surfaces and a dark title bar — all drawn by hand, so the setup stays
+    /// one self-contained exe with no WinUI/NuGet dependency.
+    /// </summary>
+    internal static class Ui
+    {
+        public static readonly bool Dark = ReadDark();
+        public static readonly Color Accent = ReadAccent();
+
+        private static Color C(int rgb) => Color.FromArgb((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+
+        public static Color Window => Dark ? C(0x202020) : C(0xF3F3F3);
+        public static Color Card => Dark ? C(0x2B2B2B) : C(0xFBFBFB);
+        public static Color CardBorder => Dark ? C(0x3A3A3A) : C(0xE6E6E6);
+        public static Color TextCol => Dark ? C(0xF2F2F2) : C(0x1A1A1A);
+        public static Color Subtle => Dark ? C(0xB4B4B4) : C(0x5D5D5D);
+        public static Color Field => Dark ? C(0x2D2D2D) : C(0xFFFFFF);
+        public static Color FieldBorder => Dark ? C(0x4A4A4A) : C(0xD0D0D0);
+        public static Color Ctl => Dark ? C(0x323232) : C(0xFDFDFD);
+        public static Color CtlHover => Dark ? C(0x3C3C3C) : C(0xF0F0F0);
+        public static Color CtlDown => Dark ? C(0x2A2A2A) : C(0xE8E8E8);
+        public static Color CtlBorder => Dark ? C(0x404040) : C(0xDADADA);
+        public static Color Disabled => Dark ? C(0x333333) : C(0xE2E2E2);
+        public static Color DisabledText => Dark ? C(0x777777) : C(0xA0A0A0);
+        public static Color AccentHover => Blend(Accent, Color.White, 0.13);
+        public static Color AccentDown => Blend(Accent, Color.White, 0.26);
+        public static Color OnAccent => Luminance(Accent) > 0.55 ? C(0x101010) : Color.White;
+
+        public static Color Blend(Color a, Color b, double t) => Color.FromArgb(
+            (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
+        private static double Luminance(Color c) => (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
+
+        private static HashSet<string> _families;
+        private static string Family(params string[] names)
+        {
+            if (_families == null)
+            {
+                _families = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using (var ifc = new System.Drawing.Text.InstalledFontCollection())
+                {
+                    foreach (FontFamily f in ifc.Families) _families.Add(f.Name);
+                }
+            }
+            foreach (string n in names)
+            {
+                if (_families.Contains(n)) return n;
+            }
+            return "Segoe UI";
+        }
+
+        public static Font Display(float size, FontStyle style = FontStyle.Regular)
+            => new Font(Family("Segoe UI Variable Display Semib", "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI"), size, style);
+        public static Font Body(float size, FontStyle style = FontStyle.Regular)
+            => new Font(Family("Segoe UI Variable Text", "Segoe UI"), size, style);
+        public static Font Mono(float size)
+            => new Font(Family("Cascadia Mono", "Cascadia Code", "Consolas"), size);
+
+        public static GraphicsPath Round(Rectangle r, int radius)
+        {
+            var p = new GraphicsPath();
+            int d = radius * 2;
+            if (d <= 0 || d > r.Width || d > r.Height) { p.AddRectangle(r); return p; }
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        private static bool ReadDark()
+        {
+            try
+            {
+                object v = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+                                             "AppsUseLightTheme", 1);
+                return v is int i && i == 0;
+            }
+            catch { return false; }
+        }
+
+        private static Color ReadAccent()
+        {
+            try
+            {
+                // DWM stores the accent as 0xAABBGGRR.
+                object v = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM", "AccentColor", null);
+                if (v is int argb)
+                {
+                    return Color.FromArgb(argb & 0xFF, (argb >> 8) & 0xFF, (argb >> 16) & 0xFF);
+                }
+            }
+            catch { }
+            return C(0x005FB8); // Windows 11 default accent
+        }
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+        /// <summary>Paints the window in the theme colours and gives it a dark title bar in dark mode.</summary>
+        public static void Apply(Form f)
+        {
+            f.BackColor = Window;
+            f.ForeColor = TextCol;
+            Action set = () =>
+            {
+                try { int dark = Dark ? 1 : 0; DwmSetWindowAttribute(f.Handle, 20, ref dark, 4); } // DWMWA_USE_IMMERSIVE_DARK_MODE
+                catch { }
+            };
+            if (f.IsHandleCreated) set(); else f.HandleCreated += (s, e) => set();
+        }
+    }
+
+    /// <summary>A rounded, bordered surface (the Windows 11 "card").</summary>
+    internal sealed class Card : Panel
+    {
+        public Card()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            BackColor = Ui.Card;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Parent != null ? Parent.BackColor : Ui.Window);
+            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (GraphicsPath path = Ui.Round(r, 8))
+            using (var b = new SolidBrush(Ui.Card))
+            using (var p = new Pen(Ui.CardBorder))
+            {
+                g.FillPath(b, path);
+                g.DrawPath(p, path);
+            }
+        }
+    }
+
+    /// <summary>Flat, rounded button: accent-filled when primary, subtle otherwise, with hover/press states.</summary>
+    internal sealed class ModernButton : Button
+    {
+        public bool Primary;
+        private bool _hover, _down;
+
+        public ModernButton(bool primary = false)
+        {
+            Primary = primary;
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = _down = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { _down = true; Invalidate(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { _down = false; Invalidate(); base.OnMouseUp(e); }
+        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Parent != null ? Parent.BackColor : Ui.Window);
+            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            Color fill, fg;
+            bool border = false;
+            if (!Enabled) { fill = Ui.Disabled; fg = Ui.DisabledText; }
+            else if (Primary) { fill = _down ? Ui.AccentDown : _hover ? Ui.AccentHover : Ui.Accent; fg = Ui.OnAccent; }
+            else { fill = _down ? Ui.CtlDown : _hover ? Ui.CtlHover : Ui.Ctl; fg = Ui.TextCol; border = true; }
+            using (GraphicsPath path = Ui.Round(r, 7))
+            {
+                using (var b = new SolidBrush(fill)) g.FillPath(b, path);
+                if (border) using (var p = new Pen(Ui.CtlBorder)) g.DrawPath(p, path);
+            }
+            TextRenderer.DrawText(g, Text, Font, r, fg,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>Owner-drawn check box with a rounded box and an accent check — the WinForms default looks dated.</summary>
+    internal sealed class ModernCheck : CheckBox
+    {
+        private bool _hover;
+
+        public ModernCheck(string text)
+        {
+            Text = text;
+            AutoSize = false;
+            Height = 28;
+            Font = Ui.Body(10f);
+            ForeColor = Ui.TextCol;
+            BackColor = Ui.Card;   // solid: transparent compositing double-painted the label (bug, 2026-10-22)
+            Cursor = Cursors.Hand;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnCheckedChanged(EventArgs e) { Invalidate(); base.OnCheckedChanged(e); }
+        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(BackColor);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            const int bs = 20;
+            var box = new Rectangle(1, (Height - bs) / 2, bs, bs);
+            using (GraphicsPath path = Ui.Round(box, 5))
+            {
+                if (Checked && Enabled)
+                {
+                    using (var b = new SolidBrush(_hover ? Ui.AccentHover : Ui.Accent)) g.FillPath(b, path);
+                    using (var pen = new Pen(Ui.OnAccent, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                    {
+                        g.DrawLines(pen, new[]
+                        {
+                            new Point(box.X + 5, box.Y + 10),
+                            new Point(box.X + 9, box.Y + 14),
+                            new Point(box.X + 15, box.Y + 6)
+                        });
+                    }
+                }
+                else
+                {
+                    using (var b = new SolidBrush(Enabled ? Ui.Field : Ui.Disabled)) g.FillPath(b, path);
+                    using (var pen = new Pen(_hover && Enabled ? Ui.Accent : Ui.FieldBorder, 1.4f)) g.DrawPath(pen, path);
+                }
+            }
+            var textRect = new Rectangle(box.Right + 10, 0, Width - box.Right - 10, Height);
+            TextRenderer.DrawText(g, Text, Font, textRect, Enabled ? ForeColor : Ui.DisabledText,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.WordEllipsis);
+        }
+    }
+
     /// <summary>Small modal that lists the GitHub versions and returns the one to install.</summary>
     internal sealed class VersionPicker : Form
     {
@@ -738,32 +977,49 @@ namespace RavenfieldVR.Setup
         {
             _releases = releases;
             Text = "Install another version";
-            Font = new Font("Segoe UI", 9.75f);
+            AutoScaleDimensions = new SizeF(96f, 96f);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            Font = Ui.Body(9.75f);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(384, 156);
+            ClientSize = new Size(400, 172);
+            Ui.Apply(this);
 
+            var title = new Label
+            {
+                Text = "Install another version",
+                Font = Ui.Display(13.5f, FontStyle.Bold),
+                ForeColor = Ui.TextCol,
+                AutoSize = true,
+                Location = new Point(20, 18)
+            };
             var label = new Label
             {
-                Text = "Pick a Ravenfield VR version from GitHub to install. This replaces the currently installed version.",
-                Location = new Point(16, 14),
-                MaximumSize = new Size(352, 0),
+                Text = "Pick a version from GitHub to install. This replaces the version you have now.",
+                Font = Ui.Body(9.5f),
+                ForeColor = Ui.Subtle,
+                Location = new Point(20, 48),
+                MaximumSize = new Size(360, 0),
                 AutoSize = true
             };
             _combo.DropDownStyle = ComboBoxStyle.DropDownList;
-            _combo.SetBounds(16, 66, 352, 26);
+            _combo.FlatStyle = FlatStyle.Flat;
+            _combo.Font = Ui.Body(10f);
+            _combo.BackColor = Ui.Field;
+            _combo.ForeColor = Ui.TextCol;
+            _combo.SetBounds(20, 88, 360, 28);
             foreach (GitHub.Release r in releases)
             {
                 _combo.Items.Add(r.Version == installed ? r.Version + "   (installed now)" : r.Version);
             }
             _combo.SelectedIndex = 0;
 
-            var ok = new Button { Text = "Install", DialogResult = DialogResult.OK, Bounds = new Rectangle(180, 110, 90, 32) };
-            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Bounds = new Rectangle(278, 110, 90, 32) };
+            var ok = new ModernButton(true) { Text = "Install", DialogResult = DialogResult.OK, Font = Ui.Body(10f), Bounds = new Rectangle(192, 126, 92, 34) };
+            var cancel = new ModernButton() { Text = "Cancel", DialogResult = DialogResult.Cancel, Font = Ui.Body(10f), Bounds = new Rectangle(290, 126, 90, 34) };
             ok.Click += (s, e) => Selected = _releases[_combo.SelectedIndex];
-            Controls.AddRange(new Control[] { label, _combo, ok, cancel });
+            Controls.AddRange(new Control[] { title, label, _combo, ok, cancel });
             AcceptButton = ok;
             CancelButton = cancel;
         }
@@ -773,12 +1029,12 @@ namespace RavenfieldVR.Setup
     {
         private readonly TextBox _path = new TextBox();
         private readonly Label _status = new Label();
-        private readonly Button _install = new Button();
-        private readonly Button _uninstall = new Button();
-        private readonly Button _close = new Button();
-        private readonly CheckBox _keepSettings = new CheckBox();
-        private readonly CheckBox _steamLaunch = new CheckBox();
-        private readonly CheckBox _steamPlay = new CheckBox();
+        private readonly ModernButton _install = new ModernButton(true);
+        private readonly ModernButton _uninstall = new ModernButton();
+        private readonly ModernButton _close = new ModernButton();
+        private readonly ModernCheck _keepSettings = new ModernCheck("Keep my settings when uninstalling");
+        private readonly ModernCheck _steamLaunch = new ModernCheck("Pressing Play in Steam opens the launcher (VR or flat)");
+        private readonly ModernCheck _steamPlay = new ModernCheck("Add \"" + SteamPlayEntry.Description + "\" to Steam's Play menu");
         private readonly LinkLabel _openConfig = new LinkLabel();
         private readonly LinkLabel _advanced = new LinkLabel();
         private readonly TextBox _log = new TextBox();
@@ -788,57 +1044,77 @@ namespace RavenfieldVR.Setup
         {
             _installer = new Installer(Log);
             Text = "Ravenfield VR Setup";
-            Font = new Font("Segoe UI", 9.75f);
+            // Declare the design DPI (96) before the font so WinForms scales from the right baseline — setting a
+            // variable-metric font first made it derive a wrong factor and shrink the whole window (bug, 2026-10-22).
+            AutoScaleDimensions = new SizeF(96f, 96f);
             AutoScaleMode = AutoScaleMode.Dpi;
+            Font = Ui.Body(9.75f);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(600, 452);
-            BackColor = SystemColors.Window;
+            ClientSize = new Size(640, 516);
+            Ui.Apply(this);
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); ShowIcon = true; } catch { /* no icon is fine */ }
 
-            var title = new Label { Text = "Ravenfield VR " + Installer.Version, Font = new Font("Segoe UI Semibold", 15f), AutoSize = true, Location = new Point(20, 16) };
-            var subtitle = new Label
-            {
-                Text = "Plays Ravenfield in your headset through SteamVR.",
-                ForeColor = SystemColors.GrayText,
-                AutoSize = true,
-                Location = new Point(22, 50)
-            };
-            var folderLabel = new Label { Text = "Ravenfield folder", AutoSize = true, Location = new Point(20, 88) };
-            _path.SetBounds(20, 110, 470, 26);
+            const int M = 24;    // outer margin
+            const int W = 592;   // content width (640 - 2*M)
+
+            var title = new Label { Text = "Ravenfield VR " + Installer.Version, Font = Ui.Display(20f, FontStyle.Bold), ForeColor = Ui.TextCol, AutoSize = true, Location = new Point(M, 22) };
+            var subtitle = new Label { Text = "Plays Ravenfield in your headset through SteamVR.", Font = Ui.Body(10f), ForeColor = Ui.Subtle, AutoSize = true, Location = new Point(M, 66) };
+
+            var folderLabel = new Label { Text = "Ravenfield folder", Font = Ui.Body(9.5f), ForeColor = Ui.Subtle, AutoSize = true, Location = new Point(M, 98) };
+            _path.BorderStyle = BorderStyle.FixedSingle;
+            _path.BackColor = Ui.Field;
+            _path.ForeColor = Ui.TextCol;
+            _path.Font = Ui.Body(10f);
+            _path.SetBounds(M, 120, W - 100, 30);
             _path.TextChanged += (s, e) => RefreshState();
-            var browse = new Button { Text = "Browse…", Bounds = new Rectangle(498, 108, 82, 29) };
+            var browse = new ModernButton { Text = "Browse…", Font = Ui.Body(9.75f) };
+            browse.SetBounds(M + W - 88, 119, 88, 32);
             browse.Click += (s, e) => Browse();
-            _status.SetBounds(20, 144, 560, 40);
 
-            _steamLaunch.Text = "Pressing Play in Steam opens the launcher (VR or flat, graphics preset)";
+            _status.SetBounds(M, 160, W, 34);
+            _status.Font = Ui.Body(9.75f);
+            _status.ForeColor = Ui.TextCol;
+
+            // --- Options card ---
+            var optCard = new Card();
+            optCard.SetBounds(M, 202, W, 108);
             _steamLaunch.Checked = true;
-            _steamLaunch.AutoSize = true;
-            _steamLaunch.Location = new Point(20, 188);
-
-            _steamPlay.Text = "Add \"" + SteamPlayEntry.Description + "\" to the list Steam shows when you press Play";
+            _steamLaunch.BackColor = Ui.Card;
+            _steamLaunch.SetBounds(16, 10, W - 36, 28);
             _steamPlay.Checked = true;
-            _steamPlay.AutoSize = true;
-            _steamPlay.Location = new Point(20, 212);
-
-            _keepSettings.Text = "Keep my settings when uninstalling";
+            _steamPlay.BackColor = Ui.Card;
+            _steamPlay.SetBounds(16, 40, W - 36, 28);
             _keepSettings.Checked = true;
-            _keepSettings.AutoSize = true;
-            _keepSettings.Location = new Point(20, 238);
-
+            _keepSettings.BackColor = Ui.Card;
+            _keepSettings.SetBounds(16, 70, W - 200, 28);
             _openConfig.Text = "Open the settings file";
+            _openConfig.Font = Ui.Body(9.5f);
+            _openConfig.BackColor = Ui.Card;
+            _openConfig.LinkColor = Ui.Accent;
+            _openConfig.ActiveLinkColor = Ui.AccentDown;
+            _openConfig.LinkBehavior = LinkBehavior.HoverUnderline;
             _openConfig.AutoSize = true;
-            _openConfig.Location = new Point(400, 239);
+            _openConfig.Location = new Point(W - 156, 74);
             _openConfig.LinkClicked += (s, e) => OpenConfig();
+            optCard.Controls.AddRange(new Control[] { _steamLaunch, _steamPlay, _keepSettings, _openConfig });
 
+            // --- Log card (borderless text inside a rounded surface) ---
+            var logCard = new Card();
+            logCard.SetBounds(M, 324, W, 100);
             _log.Multiline = true;
             _log.ReadOnly = true;
+            _log.BorderStyle = BorderStyle.None;
             _log.ScrollBars = ScrollBars.Vertical;
-            _log.BackColor = SystemColors.Control;
-            _log.Font = new Font("Consolas", 9f);
-            _log.SetBounds(20, 270, 560, 96);
+            _log.BackColor = Ui.Card;
+            _log.ForeColor = Ui.Subtle;
+            _log.Font = Ui.Mono(9f);
+            _log.SetBounds(14, 11, W - 28, 78);
+            logCard.Controls.Add(_log);
 
-            _install.SetBounds(20, 378, 150, 34);
+            _install.Font = Ui.Body(10f);
+            _install.SetBounds(M, 440, 150, 36);
             _install.Click += async (s, e) =>
             {
                 string game = _path.Text.Trim();
@@ -857,7 +1133,8 @@ namespace RavenfieldVR.Setup
                 }
             };
             _uninstall.Text = "Uninstall";
-            _uninstall.SetBounds(180, 378, 120, 34);
+            _uninstall.Font = Ui.Body(10f);
+            _uninstall.SetBounds(M + 158, 440, 120, 36);
             _uninstall.Click += async (s, e) =>
             {
                 bool keep = _keepSettings.Checked;
@@ -872,18 +1149,23 @@ namespace RavenfieldVR.Setup
                 await RunAsync(() => _installer.Uninstall(game, keep), "Uninstalling…", null);
             };
             _close.Text = "Close";
-            _close.SetBounds(480, 378, 100, 34);
+            _close.Font = Ui.Body(10f);
+            _close.SetBounds(M + W - 100, 440, 100, 36);
             _close.Click += (s, e) => Close();
             AcceptButton = _install;
             CancelButton = _close;
 
             // Advanced: install any published version straight from GitHub, not only the one baked into this setup.
             _advanced.Text = "Advanced: install another version from GitHub…";
+            _advanced.Font = Ui.Body(9.75f);
+            _advanced.LinkColor = Ui.Accent;
+            _advanced.ActiveLinkColor = Ui.AccentDown;
+            _advanced.LinkBehavior = LinkBehavior.HoverUnderline;
             _advanced.AutoSize = true;
-            _advanced.Location = new Point(20, 424);
+            _advanced.Location = new Point(M, 486);
             _advanced.LinkClicked += async (s, e) => await UpdateFromGitHubFlow();
 
-            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _steamPlay, _keepSettings, _openConfig, _log, _install, _uninstall, _close, _advanced });
+            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, optCard, logCard, _install, _uninstall, _close, _advanced });
 
             string found = Installer.FindRavenfield();
             _path.Text = found ?? "";
