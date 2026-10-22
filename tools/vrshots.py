@@ -332,6 +332,13 @@ TILES = [
     ('mag-4-in-hand', 'mag 4 fresh one in hand'), ('mag-5-lined-up', 'mag 5 lined up under well'),
     ('mag-6-half-in', 'mag 6 half way in'), ('mag-7-seated-again', 'mag 7 seated again'),
 ]
+# A shotgun's sheet: its shells in place of the magazine's tiles (the autotest's close-ups from both sides of a shell half
+# way into the port or a chamber, and of a break action's open breech loaded).
+SHELL_TILES = TILES[:7] + [
+    ('shell-into-port@left', 'shell half into the port, left'), ('shell-into-port@right', 'shell half into the port, right'),
+    ('shell-into-chamber@left', 'shell half into a chamber, left'), ('shell-into-chamber@right', 'shell half into a chamber, right'),
+    ('break-open-loaded@left', 'open, both loaded, left'), ('break-open-loaded@right', 'open, both loaded, right'),
+]
 
 
 def build_sheets(shots, out):
@@ -348,14 +355,16 @@ def build_sheets(shots, out):
     tw, th, cols = 400, 250, 4
     index = []
     for (idx, name), tiles in sorted(weapons.items()):
-        have = [k for k, _ in TILES if k in tiles]
-        if not any(k.startswith(('rack', 'mag')) for k in have):
+        shells = [t for t in SHELL_TILES[7:] if t[0].split('@')[0] in {k.split('@')[0] for k in tiles}]
+        layout = TILES[:7] + shells if shells else TILES  # (only the shell tiles the gun has: a port or chambers)
+        have = [k for k, _ in layout if k in tiles]
+        if not any(k.startswith(('rack', 'mag', 'shell', 'break-open')) for k in have):
             continue
-        rows = (len(TILES) + cols - 1) // cols
+        rows = (len(layout) + cols - 1) // cols
         sheet = Image.new('RGB', (tw * cols, th * rows + 30), (40, 40, 40))
         d = ImageDraw.Draw(sheet)
         d.text((8, 8), f'{idx:03d} {name}', fill=(255, 255, 255))
-        for i, (key, label) in enumerate(TILES):
+        for i, (key, label) in enumerate(layout):
             x, y = (i % cols) * tw, 30 + (i // cols) * th
             if key in tiles:
                 sheet.paste(Image.open(os.path.join(shots, tiles[key])).convert('RGB').resize((tw, th)), (x, y))
