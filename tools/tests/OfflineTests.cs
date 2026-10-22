@@ -76,6 +76,39 @@ namespace RavenfieldVR.Tests
             HandednessTests(mod);
             EventGuardTests(mod);
             InstallCheckTests(mod);
+            ArmNameTests(mod);
+        }
+
+        /// <summary>
+        /// The grenade hand's and the dud copy's arm-bone test: an arm's bones are arms, a gun's or grenade's handles, handguards
+        /// and arming levers are not (the names from the exported weapons; a stick grenade's "Handle" bone lost its mesh).
+        /// </summary>
+        private static void ArmNameTests(System.Reflection.Assembly mod)
+        {
+            var arm = mod.GetType("RavenfieldVR.Weapons.ThrowableHandler")?.GetField("ArmName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                ?.GetValue(null) as System.Text.RegularExpressions.Regex;
+            Check(arm != null, "Arm names: ThrowableHandler.ArmName found");
+            if (arm == null)
+            {
+                return;
+            }
+            var wrong = new List<string>();
+            foreach (string name in new[] { "Hand.R", "hand_l", "LeftHand", "RightForeArm", "UpperArm_L", "arm_R", "Arm", "Finger_01", "Thumb.L", "Wrist", "Palm", "Elbow", "Shoulder.R", "Clavicle" })
+            {
+                if (!arm.IsMatch(name))
+                {
+                    wrong.Add(name + " (an arm, not taken)");
+                }
+            }
+            foreach (string name in new[] { "Charging Handle", "HandGuard", "handguard_ar15_kac_ris_LOD0_0", "Bolt Handle", "Handle", "QJB201_CatchHandle", "Handrail",
+                                            "Arming_Lever", "Armed", "Armour", "Armor", "Armature", "Spoon", "Pin", "Grenade_Body" })
+            {
+                if (arm.IsMatch(name))
+                {
+                    wrong.Add(name + " (not an arm, taken)");
+                }
+            }
+            Check(wrong.Count == 0, "Arm names: arm bones taken, handles, handguards and arming levers not" + (wrong.Count > 0 ? ": " + string.Join(", ", wrong) : ""));
         }
 
         /// <summary>

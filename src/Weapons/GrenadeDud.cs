@@ -14,7 +14,9 @@ namespace RavenfieldVR.Weapons
     internal sealed class GrenadeDud
     {
         private static readonly List<GrenadeDud> Alive = new List<GrenadeDud>();
-        private static readonly Regex ArmBone = new Regex(@"hand|arm(?!ature|or)|wrist|finger|palm|thumb|elbow|shoulder|clavicle", RegexOptions.IgnoreCase);
+        // The grenade hand's arm test: its own copy (plain "hand", "arm") took a "Handle" or "Arming" lever bone for an arm, and a
+        // grenade skinned to one lost that mesh from its dud copy (75 such names in 39 of the 288 exported weapons; improve round).
+        private static Regex ArmBone => ThrowableHandler.ArmName;
 
         private readonly GameObject _go;
         private readonly List<Collider> _colliders;
