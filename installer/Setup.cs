@@ -120,6 +120,12 @@ namespace RavenfieldVR.Setup
                 {
                     // Steam's options go first: uninstalled first, a Steam that could not be changed was left starting a deleted
                     // launcher, and Ravenfield did not start from Steam at all (review, 2026-10-20).
+                    if (string.IsNullOrEmpty(game))
+                    {
+                        // As --install says it: with no folder found, the record's path was built from null and the run ended on
+                        // "Value cannot be null. Parameter name: path1" (bug hunt, 2026-10-22).
+                        throw new InvalidOperationException("Ravenfield folder not found; pass --game DIR.");
+                    }
                     installer.CheckCanUninstall(game); // before Steam is touched: a refused uninstall left Steam's options taken out
                     bool steamRunning = SteamLaunchOption.SteamRunning();
                     if (!steamRunning)
