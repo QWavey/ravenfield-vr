@@ -9,6 +9,8 @@ added model-accurate hand posing, model-shaped physics, H3VR-style reloads and t
 pose fades (240-242), the magazine seating check, `Handgun` against `IsPistol`, the bug hunts 248/249/251 and the
 split of the work between a lead and a helper branch, the 24-entry gun-shape cache, the dropped-weapon changes and the
 picture/film tools. Sections not about these are as written on 2026-10-13.
+**Refreshed again 2026-10-22** (commit `ab52699`): shotgun shells by hand (loading ports, break-action chambers, the gun's
+own shells; 3.7), the loading screen drawn by the compositor (3.9), the offline checks (3.10) and the work log (section 15).
 
 Repository: private `QWavey/ravenfield-vr` (this folder). The user-facing manual is `README.md`; the task checklist with
 a "For N." paragraph per item is `Tasks.md`; the improve-run log is `Improve20.md`. This document is the engineering
@@ -325,6 +327,32 @@ is not taken). Capture onto the line from aside, and off it from inside the well
 - Magazines go in along the gun's side plane: an insert axis tipped sideways by less than 45° is put back into it (the
   1911's came in 23° from the side, up beside the grip); side-feeders keep theirs (`772658a`).
 
+**Shotgun shells by hand (2026-10-22, task 331, `5865c19` and after).** The analysis's "magazine" of a shotgun is the
+reload animation's shell, and its seat had been where that shell waits at rest, out of the flat view (46 cm behind the
+R870's grip, 29 cm under the bore): no shotgun could be loaded by hand, while the autotest seated shells itself and read
+8/8. Now (`WeaponAnalyzer.AnalyzeShells`, run after the hinge):
+- **Tube guns** (`ShellPort`): the shell goes in at the loading port, where the reload pushes its shell nearest the bore
+  under it (ahead of the grip, short of the muzzle, while drawn), seated as it lies there (`PoseSampler.ReloadRotation`
+  keeps every part's rotation per reload step) and going in the way its path went over its last 3 cm. Measured on all
+  17 shotguns: 17-30 cm ahead of the grip, 1.6-4.7 cm under the bore, 23-52 degrees up from the bore (the R870's matches
+  its `loading_gate`). No such point: half way from the grip to the forend, 3 cm under the bore (`EstimatedPort`; also a
+  tube gun without a shell part). The reload's shell itself is a spare part, hidden while held (it floated under the
+  R870 and above the mw-m870's stock).
+- **Break actions** (`ChamberShells`): every chamber's shell at rest is found (the magazine's and those beside it across
+  the bore, of its size, level with it), the seat swings with the barrels (`SeatOnHinge`, whatever the shells hang
+  from: the DOUBLE-BARREL's hang off the root) and a shell goes in along the bore. `HeldWeapon.ApplyChamberShells` draws a
+  chamber's shell only while it holds one (`ChamberFull`, kept in step with live plus fired-not-out) and carries
+  root-hung shells with the barrels; a shell goes into the empty chamber it is held by (`NearestEmptyChamber`). Opening
+  throws the live shells out with the fired ones, back into the reserve (`AmmoState.TakeLiveShells`; a revolver keeps
+  its live rounds).
+- **One shell per pouch draw** (`ShellChunk`): the flat reload's largest chunk gave a double barrel authored to load two
+  nothing with one barrel empty.
+- **The gun's own shell** in the hand, the pouch and thrown out (`MagazineProp.CopiesModel`, `Casings.OwnShellOf`) when
+  its part is a shell's size (`WeaponAnalyzer.ShellSized`: 4-13 cm long, 1.5 cm thick or more, under half as thick as
+  long); slug guns throw shells too. 16 of the 17 shotguns hold their own (the M500 (Bot Friendly) has no shell part).
+- The autotest pushes every shell in along its line with the simulated hand (`LoadShellByHand`), reports the port's
+  place, an opened break action's shells out and its chamber shells in their chambers, and pictures a shell half in.
+
 **Rockets by hand (2026-10-16, Task 250, `aa03500`, `96667e6`, `b0a99c2`, `bf8e0cb`, `670b6db`, `e883241`).**
 - The rocket in the hand collides with the launcher: it is kept out of the launcher's measured shape the way a
   magazine is kept out of a gun, sampled every 6 cm along it, with no well open to it from the side.
@@ -402,6 +430,15 @@ toward the player by sorting order (4 mm a step, `PlaceMenu`), so the laser's ba
 **draws something** where it points (`VRInputModule.ShowsAt`: a shown, unculled graphic with its groups' alpha), not on
 the nearest rectangle: a clear canvas above the menu was an invisible wall a few centimetres in front (task 323). A click
 goes to the first raycast hit whose root canvas is a laser target.
+
+**The loading screen** (`LoadingView`, 2026-10-22): while a map loads the world is blacked out and the loading scene's
+camera draws into a picture shown 2.5 m in front of you. The game freezes once for about two seconds while the map's
+scene comes in (2,076 and 2,369 ms measured; the mod's own work on that screen is at most about 50 ms a frame), and the
+compositor, given no frames, faded to its own dark blue-grey surroundings and back (the user's "black / with blue shades
+glitching"). The picture is now SteamVR's own overlay (placed where the screen stands; the rig's root is the tracking
+origin, `OpenVRMath.FromUnity`) and the compositor's skybox is black meanwhile (`SetSkyboxOverride`), as Valve's
+SteamVR_LoadLevel does; the game's quad stands in where the compositor cannot take the picture. At its end the view logs
+its frames: time up, the longest frame, frames over 100 and 500 ms, and the drop models' time.
 
 ### 3.10 Test tooling (`Core/AutoTest.cs`, `Weapons/WeaponSelfTest.cs`, `Core/Shots.cs`, `Core/PerfProbe.cs`, `Rig/HandPreview.cs`)
 
@@ -602,6 +639,12 @@ Checks without the game (2026-10-20, issue #18): `powershell -File tools/tests/r
 containment (`Installer.Inside`: zip entries and manifest lines stay inside the game folder), the Steam `localconfig.vdf`
 reader (a truncated file is a `FormatException`), the left-handed bindings and their descriptions, and the Steam Play-list
 entry changed and changed back on a copy of `appinfo.vdf`. Exit code 0 when all pass.
+As of 2026-10-22 it runs 90 C# checks (the launcher's config edits and remembered choice, the setup's install and
+uninstall on a made-up game and Steam, zip-slip, a damaged `appinfo.vdf`, JSON nesting, what counts as a shell, the pose
+conversion to OpenVR, the graphics presets, the input actions against the manifest) and the Python ones:
+`failure_phrases_test.py` (every capital phrase a self-check writes, nested strings included, counts as a problem in the
+autotest's `Failure` pattern: 201 phrases), `uninstall_ps1_test.py`, `install_ps1_test.py`, `bindings_coverage_test.py`,
+the vrshots restore test, the stacked-docs and unused-private guards and the magazine-line table check.
 
 Dependencies are pinned by SHA-256 in `tools/fetch-deps.ps1` (checked against GitHub's release digests and nuget.org's
 catalog hashes); a mismatching download is deleted and not unpacked. The in-game self-repair (`InstallCheck`) copies the
@@ -894,3 +937,21 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    reset of the mag-kick trackers when the weapon is let go, and the level push-out seeing 32 colliders instead of 16.
    Still open for a headset session: the flight stick and steering wheel measured against a one-frame-stale palm (pin
    to full throw / creep through a corner at speed), and the pin's world-space pull test.
+
+---
+
+## 15. Work Log (2026-10-22)
+
+1. **Improve 20 and bug hunt 10** (no game; Tasks.md 330): offline checks 65 to 84, the autotest's `Failure` pattern
+   missed four failure words (magazines through the gun were never problems), `uninstall.ps1` deleted the launcher
+   Steam still starts, `install.ps1` could delete outside the game folder, the setup hung on a damaged Steam app cache, the
+   glove's keep-out tested a stale place during the grip's ease-out, the wrist HUD hung at a level load, a UI press stuck
+   across the module's switch-off.
+2. **Shotguns** (the user: not reloadable, no real shells, the double barrel's shells never out, one floating): see 3.7.
+   Verified on all 17 in the game (null driver): each loads by hand one shell at a time to full.
+3. **Improve after it**: the failure-phrase test reads nested strings (76 to 201 phrases; 11 failure words that never
+   counted, 4 of them seen 47 times: THROUGH THE GRIP, HIDDEN IN THE GUN, GLOVES OVERLAP, ONTO THE RAIL BESIDE THE GRIP),
+   thrown shells are the gun's own, pictures and sheets of shells going in, the mw-m870's floating shell hidden.
+4. **The loading screen** (the user: "black / with blue shades glitching"): see 3.9. To check in the headset: steady,
+   the right way round.
+5. **A half-built weapon system** is disposed and no longer left as `WeaponSystem.Instance`.
