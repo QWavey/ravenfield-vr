@@ -27,8 +27,11 @@ namespace RavenfieldVR.Weapons
         /// <summary>A shot kicks the gun under a held hand; for this long after one the grip follows the gun and nothing flips.</summary>
         private const float ShotSettle = 0.4f;
 
-        /// <summary>Part names of a magnifier (a flip-in lens). G33, FTC and Unity are common model names.</summary>
-        private static readonly Regex PartName = new Regex(@"magnif|flip|3x|g33|ftc|unity|mag-?nifier", RegexOptions.IgnoreCase);
+        /// <summary>
+        /// Part names of a magnifier (a flip-in lens). G33, FTC and Unity are common model names. "3x" not after a digit: the GLOCK
+        /// 43X family's every part ("43X_BJ", "43X_DX1") read as a magnifier (improve round, 2026-10-22).
+        /// </summary>
+        private static readonly Regex PartName = new Regex(@"magnif|flip|(?<![0-9])3x|g33|ftc|unity|mag-?nifier", RegexOptions.IgnoreCase);
         /// <summary>Names of the main optic (a red dot or a scope). Such a part is skipped unless its name also says magnifier.</summary>
         private static readonly Regex OpticName = new Regex(@"scope|optic|acog|eotech|holo|reflex|red ?dot", RegexOptions.IgnoreCase);
         private static readonly Regex MagnifierWords = new Regex(@"magnif|mag-?nifier|flip", RegexOptions.IgnoreCase);
