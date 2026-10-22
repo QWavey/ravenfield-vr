@@ -35,6 +35,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every controller binds every button action, but for the gaps listed on purpose (tools/tests/bindings_coverage_test.py).
 python -I (Join-Path $PSScriptRoot 'bindings_coverage_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# Every failure a self-check writes in capitals counts as a problem in the autotest (tools/tests/failure_phrases_test.py).
+python -I (Join-Path $PSScriptRoot 'failure_phrases_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # No doc comment left on another member's, no private member nothing uses (both cleaned to zero on 2026-10-22).
 $stacked = python -I (Join-Path $Root 'tools/export_checks/stacked_docs.py') --brief
 $stacked | Select-Object -Last 1

@@ -4392,9 +4392,12 @@ namespace RavenfieldVR.Core
 
         /// <summary>
         /// Self-check lines flag failures in capitals: NOT SEATED, NOTHING CHAMBERED, NEVER LINED UP, TOO SMALL, TAKEN FROM THE
-        /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them).
+        /// BACK, STILL SHOWS... One list for the weapon lines and the films (the film's own test missed most of them). The magazine
+        /// keep-out's WENT THROUGH / WENT INTO THE GUN, a picked-up magazine's LOST ROUNDS and the locked handle OUT OF THE GRAB were
+        /// written into the weapon lines but never counted as problems (every report since 2026-10-17: the HK416s' "through the gun"
+        /// was in the lines, not in the problems; improve round, 2026-10-22). tools/tests/failure_phrases_test.py keeps it in step.
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB");
 
         private static string FirstFrames(Exception e)
         {
