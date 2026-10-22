@@ -5704,8 +5704,9 @@ namespace RavenfieldVR.Weapons
             if (off.Model != null)
             {
                 // First: whatever throws below (HeldWeapon catches it), the off glove is not left pulled toward an anchor on a gun
-                // that is gone (review, 2026-10-20).
+                // that is gone (review, 2026-10-20). Nor left pinching: the grip point stayed the pinch's for the diagnostics.
                 off.Model.GraspAnchor = null;
+                off.Model.GraspPinch = false;
             }
             _pullingIn = null;
             // The mag-kick trackers reset too: an in-place sub-weapon switch keeps this instance, so a crossing left over from
@@ -5753,6 +5754,7 @@ namespace RavenfieldVR.Weapons
             if (off.Model != null)
             {
                 off.Model.GraspAnchor = null;
+                off.Model.GraspPinch = false;
                 off.Model.Palming = false; // the palmed magazine was dropped above; a kept one is held alone
             }
             if (off.Held is MagazineProp prop)
