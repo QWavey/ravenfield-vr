@@ -610,15 +610,20 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
-            // The outermost points of every slice segment, in 16 directions across the slice, plus its two ends.
+            // The outermost points of every slice segment, in 16 directions across the slice, plus its two ends, and how far
+            // along the slice its points reach.
             var best = new float[segments.Count, Directions + 2];
             var bestPoint = new Vector3[segments.Count, Directions + 2];
+            var zLo = new float[segments.Count];
+            var zHi = new float[segments.Count];
             for (int s = 0; s < segments.Count; s++)
             {
                 for (int d = 0; d < Directions + 2; d++)
                 {
                     best[s, d] = float.MinValue;
                 }
+                zLo[s] = float.MaxValue;
+                zHi[s] = float.MinValue;
             }
             foreach (Vector3 p in points)
             {
@@ -629,6 +634,8 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
+                zLo[s] = Mathf.Min(zLo[s], p[za]);
+                zHi[s] = Mathf.Max(zHi[s], p[za]);
                 for (int d = 0; d < Directions; d++)
                 {
                     float v = p[xa] * Dirs[d].x + p[ya] * Dirs[d].y;
@@ -649,6 +656,22 @@ namespace RavenfieldVR.Weapons
                     bestPoint[s, Directions + 1] = p;
                 }
             }
+            // A piece's first and last slices (its segments come in slice order, one a slice).
+            var firstSeg = new int[groups.Count];
+            var lastSeg = new int[groups.Count];
+            for (int g = 0; g < groups.Count; g++)
+            {
+                firstSeg[g] = -1;
+            }
+            for (int s = 0; s < segments.Count; s++)
+            {
+                int g = segments[s].Piece;
+                if (firstSeg[g] < 0)
+                {
+                    firstSeg[g] = s;
+                }
+                lastSeg[g] = s;
+            }
             for (int s = 0; s < segments.Count; s++)
             {
                 List<Vector3> hull = groups[segments[s].Piece].Hull;
@@ -657,6 +680,32 @@ namespace RavenfieldVR.Weapons
                     if (best[s, d] > float.MinValue)
                     {
                         hull.Add(bestPoint[s, d]);
+                    }
+                }
+                // At a piece's two ends, each outermost point of its end slice also at that slice's outer end: the piece's hull
+                // then keeps its outline out to its ends. The outermost points lie wherever they fell along their slice, so the
+                // hull narrowed toward a piece's ends: a gun-like cloud had 148 of 2600 points outside every piece, a
+                // receiver's end face up to 13 mm out (offline check, 2026-10-22). Between its slices a piece's hull holds the
+                // outline already (it spans one slice's outermost points to the next one's).
+                bool atStart = s == firstSeg[segments[s].Piece], atEnd = s == lastSeg[segments[s].Piece];
+                if ((atStart || atEnd) && zLo[s] <= zHi[s])
+                {
+                    for (int d = 0; d < Directions; d++)
+                    {
+                        if (best[s, d] > float.MinValue)
+                        {
+                            Vector3 q = bestPoint[s, d];
+                            if (atStart)
+                            {
+                                q[za] = zLo[s];
+                                hull.Add(q);
+                            }
+                            if (atEnd)
+                            {
+                                q[za] = zHi[s];
+                                hull.Add(q);
+                            }
+                        }
                     }
                 }
             }

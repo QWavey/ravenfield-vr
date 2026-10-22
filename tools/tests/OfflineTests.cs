@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using RavenfieldVR.Input;
 using RavenfieldVR.Setup;
 
@@ -83,6 +84,144 @@ namespace RavenfieldVR.Tests
             ArmNameTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
+            ShapeFitTests(mod);
+        }
+
+        /// <summary>
+        /// The physics pieces fitted to a model's points (ShapeFit.FitCloud: what a gun and a magazine collide and are touched
+        /// with). A gun-like cloud (a receiver, a round barrel ahead of it, a raked grip under it) is covered: every point lies
+        /// inside some piece (its hull tested along 98 directions, 3 mm of play), in at most 16 pieces. A flat cloud (a sight's
+        /// glass), points on a line and one point repeated give no throw and no NaN.
+        /// </summary>
+        private static void ShapeFitTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo fit = mod.GetType("RavenfieldVR.Weapons.ShapeFit")?.GetMethod("FitCloud");
+            Check(fit != null, "Shape fit: ShapeFit.FitCloud found");
+            if (fit == null)
+            {
+                return;
+            }
+            List<UnityEngine.Vector3[]> Fit(List<UnityEngine.Vector3> cloud)
+            {
+                var pieces = (Array)fit.Invoke(null, new object[] { cloud, 0.03f, 16 });
+                var hulls = new List<UnityEngine.Vector3[]>();
+                foreach (object piece in pieces)
+                {
+                    hulls.Add((UnityEngine.Vector3[])piece.GetType().GetField("Points").GetValue(piece));
+                }
+                return hulls;
+            }
+            var rng = new Random(7);
+            float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+            var gun = new List<UnityEngine.Vector3>();
+            for (int i = 0; i < 1200; i++)
+            {
+                // The receiver's surface: 30 x 5 x 8 cm.
+                float x = R(-0.025f, 0.025f), y = R(-0.04f, 0.04f), z = R(-0.15f, 0.15f);
+                int face = rng.Next(3);
+                if (face == 0) x = rng.Next(2) == 0 ? -0.025f : 0.025f;
+                else if (face == 1) y = rng.Next(2) == 0 ? -0.04f : 0.04f;
+                else z = rng.Next(2) == 0 ? -0.15f : 0.15f;
+                gun.Add(new UnityEngine.Vector3(x, y, z));
+            }
+            for (int i = 0; i < 900; i++)
+            {
+                // The barrel: 1.2 cm round, 40 cm ahead of the receiver.
+                double t = rng.NextDouble() * Math.PI * 2;
+                gun.Add(new UnityEngine.Vector3(0.012f * (float)Math.Cos(t), 0.02f + 0.012f * (float)Math.Sin(t), R(0.15f, 0.55f)));
+            }
+            for (int i = 0; i < 500; i++)
+            {
+                // The grip: 3 x 3 x 11 cm under the receiver, raked back 20 degrees.
+                float d = R(0f, 0.11f), u = R(-0.015f, 0.015f), v = R(-0.015f, 0.015f);
+                gun.Add(new UnityEngine.Vector3(u, -0.04f - d * 0.94f, -0.08f - d * 0.34f + v));
+            }
+            List<UnityEngine.Vector3[]> pieces0 = Fit(gun);
+            var timing = System.Diagnostics.Stopwatch.StartNew();
+            for (int k = 0; k < 20; k++)
+            {
+                Fit(gun);
+            }
+            Console.WriteLine($"TIMING shape fit: {timing.Elapsed.TotalMilliseconds / 20:0.00} ms a fit of {gun.Count} points; hull points {pieces0.Sum(h => h.Length)}");
+            var dirs = new List<UnityEngine.Vector3>();
+            for (int i = 0; i < 98; i++)
+            {
+                // A Fibonacci sphere.
+                double zz = 1 - 2 * (i + 0.5) / 98, rr = Math.Sqrt(1 - zz * zz), ph = i * Math.PI * (3 - Math.Sqrt(5));
+                dirs.Add(new UnityEngine.Vector3((float)(rr * Math.Cos(ph)), (float)(rr * Math.Sin(ph)), (float)zz));
+            }
+            // How far a point is outside a piece's hull (0 inside), along the worst of the directions.
+            float Outside(UnityEngine.Vector3 p0, UnityEngine.Vector3[] hull)
+            {
+                float worst = 0f;
+                foreach (UnityEngine.Vector3 d in dirs)
+                {
+                    float most = float.MinValue;
+                    foreach (UnityEngine.Vector3 q in hull)
+                    {
+                        most = Math.Max(most, d.x * q.x + d.y * q.y + d.z * q.z);
+                    }
+                    worst = Math.Max(worst, d.x * p0.x + d.y * p0.y + d.z * p0.z - most);
+                }
+                return worst;
+            }
+            var parts = new[] { "receiver", "barrel", "grip" };
+            var missed = new int[3];
+            var far = new float[3];
+            for (int i = 0; i < gun.Count; i++)
+            {
+                float best = float.MaxValue;
+                foreach (UnityEngine.Vector3[] h in pieces0)
+                {
+                    best = Math.Min(best, Outside(gun[i], h));
+                }
+                int part = i < 1200 ? 0 : i < 2100 ? 1 : 2;
+                if (best > 0.003f)
+                {
+                    missed[part]++;
+                    far[part] = Math.Max(far[part], best);
+                }
+            }
+            int uncovered = missed[0] + missed[1] + missed[2];
+            string where = string.Join(", ", new[] { 0, 1, 2 }.Where(k => missed[k] > 0).Select(k => $"{parts[k]} {missed[k]} (up to {far[k] * 1000f:0} mm)").ToArray());
+            Check(pieces0.Count >= 1 && pieces0.Count <= 16 && uncovered == 0,
+                $"Shape fit: a gun-like cloud of {gun.Count} points in {pieces0.Count} piece(s), {uncovered} point(s) outside every piece{(uncovered > 0 ? ": " + where : "")}");
+            bool Clean(List<UnityEngine.Vector3> cloud, out string what)
+            {
+                try
+                {
+                    foreach (UnityEngine.Vector3[] hull in Fit(cloud))
+                    {
+                        foreach (UnityEngine.Vector3 q in hull)
+                        {
+                            if (float.IsNaN(q.x + q.y + q.z) || float.IsInfinity(q.x + q.y + q.z))
+                            {
+                                what = "a NaN or infinite point";
+                                return false;
+                            }
+                        }
+                    }
+                    what = "clean";
+                    return true;
+                }
+                catch (System.Reflection.TargetInvocationException e)
+                {
+                    what = e.InnerException?.GetType().Name + ": " + e.InnerException?.Message;
+                    return false;
+                }
+            }
+            var flat = new List<UnityEngine.Vector3>();
+            var line = new List<UnityEngine.Vector3>();
+            var same = new List<UnityEngine.Vector3>();
+            for (int i = 0; i < 200; i++)
+            {
+                flat.Add(new UnityEngine.Vector3(R(-0.02f, 0.02f), R(-0.015f, 0.015f), 0f));
+                line.Add(new UnityEngine.Vector3(0f, 0f, R(0f, 0.3f)));
+                same.Add(new UnityEngine.Vector3(0.01f, 0.02f, 0.03f));
+            }
+            Check(Clean(flat, out string flatWhat), "Shape fit: a flat cloud (a sight's glass): " + flatWhat);
+            Check(Clean(line, out string lineWhat), "Shape fit: points on a line: " + lineWhat);
+            Check(Clean(same, out string sameWhat), "Shape fit: one point repeated: " + sameWhat);
         }
 
         /// <summary>
