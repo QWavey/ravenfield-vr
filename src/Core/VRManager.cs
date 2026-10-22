@@ -441,10 +441,23 @@ namespace RavenfieldVR.Core
             ScriptKeys.Clear();
             VRGameInput.Enabled = false;
             VRGameInput.RestoreGameSwitches();
-            UI?.Dispose();
-            Weapons?.Dispose();
-            RavenfieldVR.Weapons.DrivingWeapons.Reset(); // a weapon drawn in a car must not stay usable from the seat in flat play
-            Rig?.Dispose();
+            // Each guarded: one that threw left the rest undisposed and SteamVR running (bug hunt, 2026-10-22).
+            UISystem ui = UI;
+            WeaponSystem weapons = Weapons;
+            VRRig rig = Rig;
+            if (ui != null)
+            {
+                Log.Guard("UI.Dispose", ui.Dispose);
+            }
+            if (weapons != null)
+            {
+                Log.Guard("Weapons.Dispose", weapons.Dispose);
+            }
+            Log.Guard("DrivingWeapons.Reset", RavenfieldVR.Weapons.DrivingWeapons.Reset); // a weapon drawn in a car must not stay usable from the seat in flat play
+            if (rig != null)
+            {
+                Log.Guard("Rig.Dispose", rig.Dispose);
+            }
             UI = null;
             Weapons = null;
             Rig = null;

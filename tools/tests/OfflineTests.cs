@@ -74,6 +74,43 @@ namespace RavenfieldVR.Tests
             PoseTests(mod);
             InputParsingTests(mod);
             HandednessTests(mod);
+            EventGuardTests(mod);
+        }
+
+        /// <summary>
+        /// A dashboard handler that throws is logged, not thrown out of the event pump (which skipped the mod's whole frame), and
+        /// the dashboard state still follows SteamVR.
+        /// </summary>
+        private static void EventGuardTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            Type rt = mod.GetType("RavenfieldVR.Runtime.OpenVRRuntime"), log = mod.GetType("RavenfieldVR.Core.Log");
+            System.Reflection.MethodInfo set = rt?.GetMethod("SetDashboard", any);
+            System.Reflection.EventInfo changed = rt?.GetEvent("DashboardChanged"), logged = log?.GetEvent("ExceptionLogged");
+            Check(set != null && changed != null && logged != null, "Event guard: OpenVRRuntime.SetDashboard and its event found");
+            if (set == null || changed == null || logged == null)
+            {
+                return;
+            }
+            int logs = 0;
+            Action<bool> thrower = open => throw new InvalidOperationException("handler");
+            Action<string, Exception> counter = (context, e) => logs++;
+            changed.AddEventHandler(null, thrower);
+            logged.AddEventHandler(null, counter);
+            bool threw = false;
+            try
+            {
+                set.Invoke(null, new object[] { true });
+            }
+            catch (System.Reflection.TargetInvocationException)
+            {
+                threw = true;
+            }
+            bool open = (bool)rt.GetProperty("DashboardOpen").GetValue(null);
+            changed.RemoveEventHandler(null, thrower);
+            set.Invoke(null, new object[] { false });
+            logged.RemoveEventHandler(null, counter);
+            Check(!threw && logs == 1 && open, $"Event guard: a throwing dashboard handler is logged, not thrown (threw {threw}, logged {logs}, open {open})");
         }
 
         /// <summary>

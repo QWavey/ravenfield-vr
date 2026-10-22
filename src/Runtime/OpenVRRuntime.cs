@@ -227,7 +227,7 @@ namespace RavenfieldVR.Runtime
                         {
                             bool worn = (EVREventType)_event.eventType == EVREventType.VREvent_TrackedDeviceUserInteractionStarted;
                             Log.Info(worn ? "Headset put back on." : "Headset taken off.");
-                            HeadsetWornChanged?.Invoke(worn);
+                            Raise(HeadsetWornChanged, worn, "Headset worn handler");
                         }
                         break;
                 }
@@ -249,7 +249,23 @@ namespace RavenfieldVR.Runtime
                 return;
             }
             DashboardOpen = open;
-            DashboardChanged?.Invoke(open);
+            Raise(DashboardChanged, open, "Dashboard handler");
+        }
+
+        /// <summary>
+        /// Guarded as the other events' handlers are: one that threw left the pump, and with it the mod's whole Update for
+        /// that frame (input, rig, UI, weapons), and the rest of the queued events waited a frame (bug hunt, 2026-10-22).
+        /// </summary>
+        private static void Raise(Action<bool> handler, bool value, string context)
+        {
+            try
+            {
+                handler?.Invoke(value);
+            }
+            catch (Exception e)
+            {
+                Log.Exception(context, e);
+            }
         }
 
         private static TSubsystem CreateSubsystem<TDescriptor, TSubsystem>(string id)
