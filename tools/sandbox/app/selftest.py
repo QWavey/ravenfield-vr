@@ -1170,9 +1170,21 @@ class SelfTest:
         # The gun's centre seen through the view: a Ctrl + click there (a click, no drag).
         node = max((n for n in w.nodes if not n.hidden and not n.away and n.role == 'body'),
                    key=lambda n: float(np.prod(np.maximum(n.bmax - n.bmin, 1e-4))))
-        at = w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])
-        hit = v.pick(QPointF(*cam.project(at)).toPoint())
-        if hit is None or hit[0] != 'node':
+        # A point on the gun itself, not its box's centre (in a revolver's frame window, or behind a hand on screen): the box's
+        # centre first, then the middles of the body's largest triangles until one is the gun under the pointer.
+        places = [w.to_world((node.bmin + node.bmax) * 0.5 + node.sim[:3, 3])]
+        if len(node.tris):
+            m = w.node_matrix(node)
+            areas = np.linalg.norm(np.cross(node.tris[:, 1] - node.tris[:, 0], node.tris[:, 2] - node.tris[:, 0]), axis=1)
+            for k in np.argsort(-areas)[:24]:
+                places.append((m @ np.append(node.tris[k].mean(axis=0), 1.0))[:3])
+        at = None
+        for p in places:
+            hit = v.pick(QPointF(*cam.project(p)).toPoint())
+            if hit is not None and hit[0] == 'node':
+                at = p
+                break
+        if at is None:
             self.skip('gizmo on the gun', 'the gun is not under its centre on screen here')
             return
         undo0 = len(wb.undo_stack)
@@ -1318,13 +1330,20 @@ class SelfTest:
         self._settle()
         wb.reset_parts()
         up_w = w.dir_to_world(w.up)
+        aim_w = w.dir_to_world(w.aim)
         c, r = w.center_world()
-        start = c + up_w * (r + 0.1)
-        t = s.ray_weapon(start, -up_w, 2 * (r + 0.1) + 0.05)
-        if t is None:
+        # From above at the centre first, then along the barrel either way: one ray through the box's centre found the gap
+        # between a revolver's barrel and grip and the check never ran on it.
+        point = None
+        for along in (0.0, 0.15, -0.15, 0.3, -0.3, 0.45, -0.45):
+            start = c + aim_w * (along * r) + up_w * (r + 0.1)
+            t = s.ray_weapon(start, -up_w, 2 * (r + 0.1) + 0.05)
+            if t is not None:
+                point = start - up_w * t
+                break
+        if point is None:
             self.skip("a hand put on the gun's surface", 'no surface of the gun under a ray from above')
             return
-        point = start - up_w * t
         for hand in (s.right, s.left):
             s.put_hand_on(hand, point, up_w)
             d = float(np.linalg.norm(hand.drawn_position() - point))
