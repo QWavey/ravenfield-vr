@@ -25,6 +25,14 @@ namespace RavenfieldVR.Weapons
         private static bool _running;
         private static bool _rescan;
 
+        /// <summary>
+        /// A content reload cleared what <see cref="Prepare"/> made (analyses, shapes, dropped-model templates): every weapon is
+        /// prepared again. The built-in weapons keep their entry objects through a reload (WeaponManager.ClearContentModWeapons
+        /// lists the same ones), so they stayed "warmed" with nothing ready, and their first draw and first drop in the next
+        /// match paid it all (bug hunt, 2026-10-22).
+        /// </summary>
+        internal static void Forget() => Warmed.Clear();
+
         public static void Start()
         {
             if (!VRManager.Active || VRManager.Instance == null || WeaponSelfTest.Running)
@@ -336,6 +344,7 @@ namespace RavenfieldVR.Weapons
             MagazineProp.ClearLooks();
             HeldWeapon.ClearNameCaches();
             BoltPiece.ClearCache();
+            WeaponWarmup.Forget(); // and so prepared again by the warm-up the postfix starts
         }
 
         private static void Postfix() => WeaponWarmup.Start();
