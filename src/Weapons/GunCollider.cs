@@ -348,7 +348,7 @@ namespace RavenfieldVR.Weapons
             Scratch.Clear();
         }
 
-        private static void Ignore(Collider a, Collider b)
+        internal static void Ignore(Collider a, Collider b)
         {
             // Unity refuses (with an error) unless both colliders are enabled and active; the inactive ragdoll
             // only appears once the player is dead.
@@ -523,9 +523,13 @@ namespace RavenfieldVR.Weapons
             PropPhysics.IgnorePlayer(_boxes);
             foreach (Collider c in _passing)
             {
+                if (c == null)
+                {
+                    continue; // culled since (a case, a magazine): pruned on the next update
+                }
                 foreach (Collider b in _boxes)
                 {
-                    Physics.IgnoreCollision(c, b, true);
+                    PropPhysics.Ignore(c, b);
                 }
             }
             foreach (Collider b in _boxes)
@@ -923,7 +927,9 @@ namespace RavenfieldVR.Weapons
                     for (int i = 0; i < n; i++)
                     {
                         Collider c = _jumpScratch[i];
-                        if (c != null && c.attachedRigidbody != null && c.attachedRigidbody != _body && !c.attachedRigidbody.isKinematic)
+                        // Only what it landed in: a prop lying near but clear of it kept its resting pairs ignored in PhysX while
+                        // its mark was dropped, and once it moved it passed through the gun (scout, 2026-10-22).
+                        if (c != null && c.attachedRigidbody != null && c.attachedRigidbody != _body && !c.attachedRigidbody.isKinematic && Touches(c))
                         {
                             OnPropDropped(c);
                         }
@@ -1085,10 +1091,7 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (Collider b in _boxes)
                 {
-                    if (b != null)
-                    {
-                        Physics.IgnoreCollision(c, b, true);
-                    }
+                    PropPhysics.Ignore(c, b); // (switched off while seated: Unity refuses those with an error, a drop at a time)
                 }
             }
             if (c == null || _boxes.Count == 0 || !Touches(c))
@@ -1097,7 +1100,7 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Collider b in _boxes)
             {
-                Physics.IgnoreCollision(c, b, true);
+                PropPhysics.Ignore(c, b);
             }
             if (!_passing.Contains(c))
             {
