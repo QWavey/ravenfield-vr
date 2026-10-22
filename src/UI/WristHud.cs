@@ -126,6 +126,13 @@ namespace RavenfieldVR.UI
             if (!visible || actor == null)
             {
                 _wasVisible = false; // so it is refit once when it next shows
+                if (visible)
+                {
+                    // No player (a level loading): gone at once. Left to its fade it hung where the wrist last was, at full colour,
+                    // the place and the fade being set below (bug hunt, 2026-10-22).
+                    _alpha = 0f;
+                    _go.SetActive(false);
+                }
                 return;
             }
 

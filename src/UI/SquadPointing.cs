@@ -337,6 +337,12 @@ namespace RavenfieldVR.UI
             }
             if (_arrow != null)
             {
+                // Its mesh too: made for it (ArrowMesh), not an asset, it outlived the arrow on every VR restart (bug hunt, 2026-10-22).
+                MeshFilter filter = _arrow.GetComponent<MeshFilter>();
+                if (filter != null && filter.sharedMesh != null)
+                {
+                    Object.Destroy(filter.sharedMesh);
+                }
                 Object.Destroy(_arrow);
             }
             if (_arrowMaterial != null)
