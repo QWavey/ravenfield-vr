@@ -94,7 +94,7 @@ namespace RavenfieldVR.UI
             }
             foreach (ScriptKey k in weaponKeys)
             {
-                KeyRow(k, k.Label);
+                KeyRow(k, k.Label, weapon);
             }
 
             Section("Mutators and other mods");
@@ -172,7 +172,8 @@ namespace RavenfieldVR.UI
             _height += 4f;
         }
 
-        private void KeyRow(ScriptKey key, string label)
+        /// <summary>A key's row with its Press button; <paramref name="onWeapon"/> is the weapon a weapon's own key is on (null for the others).</summary>
+        private void KeyRow(ScriptKey key, string label, Weapon onWeapon = null)
         {
             RectTransform row = Row(UiKit.RowHeight);
             Text t = UiKit.MakeText(row, label, 22, FontStyle.Normal, UiKit.TextColor, TextAnchor.MiddleLeft);
@@ -189,6 +190,14 @@ namespace RavenfieldVR.UI
                 if (target.Script == null)
                 {
                     return; // the script went away (weapon switched) before the list refreshed: never broadcast
+                }
+                Weapon now = GameContext.PlayerActor != null ? GameContext.PlayerActor.activeWeapon : null;
+                if (onWeapon != null && now != onWeapon)
+                {
+                    // A row of the weapon held before the switch (the list refreshes every 0.75 s): its key went to the holstered
+                    // weapon's script, with the press felt (squad UI scout, 2026-10-22). The list is the current weapon's now.
+                    Rebuild(force: true);
+                    return;
                 }
                 ScriptKeys.Tap(target.Key, target.Script);
                 _rig.Hand(VRInput.Dominant).Haptic(0.015f, 180f, 0.35f);
