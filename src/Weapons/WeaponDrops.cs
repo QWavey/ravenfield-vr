@@ -2203,6 +2203,9 @@ namespace RavenfieldVR.Weapons
                     Log.WarnOnce("returnfailed:" + d.Entry.name, $"Returning {d.Entry.name} to its holster: the game spawned nothing; it stays as a drop.");
                     d.OwnerSlot = -1;
                     d.Keep = true;
+                    // Still yours, as a slot taken above: unmarked, once no longer kept the cap culled it with the soldiers' drops
+                    // instead of after them, and its magazines' rounds did not go back into it (bug hunt, 2026-10-22).
+                    d.PlayerOwned = true;
                     continue;
                 }
                 RestoreAmmo(w, d);
