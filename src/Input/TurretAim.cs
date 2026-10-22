@@ -31,7 +31,10 @@ namespace RavenfieldVR.Input
         {
             // Not while the laser is on one of the mod's panels either: the gun followed the head turned to read it, as the flat
             // game's mouse aim does not on a free cursor (the game's own input reads no aim in VR then; vehicle hunt, 2026-10-20).
-            if (turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver || VRGameInput.GunInputBlocked)
+            // Nor while a map's trigger has taken the player's input (a scripted scene): the game's own aim stops then, and the
+            // mod's driving with it (VehicleInput.ShouldDrive), but the turret kept following the head (bug hunt, 2026-10-22).
+            if (turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver || VRGameInput.GunInputBlocked
+                || turret.user.controller is FpsActorController player && !player.inputEnabled)
             {
                 return true;
             }
