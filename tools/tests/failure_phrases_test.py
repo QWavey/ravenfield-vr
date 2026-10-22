@@ -22,14 +22,91 @@ NOT_BY_PATTERN = {
     'THE EMPTY POSE': 'a diagnostic: which animator state the gun is in',
     '(TOO FAST': 'AutoTest raises it with Problem(line)',
     '(TOO FEW LENS FLASHES)': 'AutoTest raises the flash count with Problem(...)',
-    'LIVE GRENADE WITH': 'AutoTest raises it as a grenade pin problem',
+    'LIVE GRENADE WITH THE PIN IN': 'AutoTest raises it as a grenade pin problem',
+    'LIVE GRENADE WITH': "AutoTest's own test for that line (l.Contains), not a report",
     'STILL ON ITS BOX': 'AutoTest raises it with Problem(line)',
     'STILL COUNTS AS POINTING': 'AutoTest raises it as a squad problem',
     'THE SLIDE STAYED BACK': 'the pattern has "STAYED BACK after", which the line goes on with',
     'OPEN COVER': "the gun counter's message (FlashCounter) when a box is held by its belt",
+    '(OVER THE FLASH LIMIT)': 'AutoTest raises the limiter with Problem(...) beside it',
+    'LET GO': "AutoTest raises the support pull's failures with Problem(...)",
+    'STILL HOLDS': "AutoTest raises the support pull's failures with Problem(...)",
+    'STILL ON THE MAGNIFIER': 'AutoTest raises it with Problem(...) (magnifier: letting go left the hand on it)',
+    'HANDS WRONG (': 'AutoTest raises a failed pass to the other hand with Problem(...)',
+    'THE SLIDE RUNS FORWARD': 'AutoTest raises it with Problem(...) (the animator shows rounds loaded)',
+    'STILL OPEN': 'the wrist view and pause menu checks raise it with Problem(...)',
+    'COVERED BY': "the pause menu check counts it (bad) and raises Problem(...)",
+    'OUT OF SIGHT': "the pause menu check counts it (bad) and raises Problem(...)",
+    '(INSIDE OUT)': "the flat self-test's report (WeaponSelfTest), read by eye",
 }
 CAPS = re.compile(r"\(?\b[A-Z][A-Z0-9'()]+(?:[ -]\(?[A-Z0-9'()]+\b\)?)+")
-LITERAL = re.compile(r'\$?@?"((?:[^"\\\n]|\\.)*)"')
+
+
+def literals(line):
+    """The text of every string literal on a line of C#, the ones nested in an interpolated string's holes too: most
+    failures are written as `$"...{(bad ? " (NOT TAKEN)" : "")}"`, and a pattern over whole literals ended the outer one at
+    the inner quote and never saw them. Text parts are split at the holes; char literals and // comments are skipped."""
+    out = []
+    n = len(line)
+
+    def char_end(j):  # past a char literal starting at j ('x', '\'', '\u0041')
+        k = j + 2 if j + 1 < n and line[j + 1] == '\\' else j + 1
+        end = line.find("'", k + 1)
+        return n if end < 0 else end + 1
+
+    def string_at(j):  # past a string literal starting at j ($, @ prefixes), its text parts added to out
+        interp = verbatim = False
+        while j < n and line[j] in '$@':
+            interp |= line[j] == '$'
+            verbatim |= line[j] == '@'
+            j += 1
+        j += 1  # the opening quote
+        cur = []
+        while j < n:
+            c = line[j]
+            if verbatim and c == '"' and line[j + 1:j + 2] == '"' or not verbatim and c == '\\':
+                cur.append(line[j:j + 2])
+                j += 2
+            elif c == '"':
+                j += 1
+                break
+            elif interp and c in '{}' and line[j + 1:j + 2] == c:
+                cur.append(c)
+                j += 2
+            elif interp and c == '{':
+                out.append(''.join(cur))
+                cur = []
+                j = code(j + 1, hole=True)
+            else:
+                cur.append(c)
+                j += 1
+        out.append(''.join(cur))
+        return j
+
+    def code(j, hole=False):  # past code (a hole ends at its closing brace), every literal in it read
+        depth = 0
+        while j < n:
+            c = line[j]
+            if c == '/' and line[j + 1:j + 2] == '/':
+                return n
+            if c == "'":
+                j = char_end(j)
+            elif c == '"' or c in '$@' and '"' in line[j + 1:j + 3] and line[j + 1:j + 3].lstrip('$@').startswith('"'):
+                j = string_at(j)
+            elif hole and c == '{':
+                depth += 1
+                j += 1
+            elif hole and c == '}':
+                if depth == 0:
+                    return j + 1
+                depth -= 1
+                j += 1
+            else:
+                j += 1
+        return j
+
+    code(0)
+    return out
 ACRONYMS = {'VR', 'HK', 'MG', 'AR', 'AK', 'RPG', 'UI', 'HUD', 'GPU', 'CPU', 'MP', 'SMAW', 'ACOG', 'OK', 'ID', 'LOD', 'RFC', 'USB'}
 
 
@@ -53,7 +130,7 @@ def main():
             for n, line in enumerate(open(path, encoding='utf-8'), 1):
                 if line.strip().startswith('//') or 'Regex Failure' in line:
                     continue  # (comments, and the pattern's own words)
-                for lit in LITERAL.findall(line):
+                for lit in literals(line):
                     for phrase in CAPS.findall(lit):
                         words = re.findall(r'[A-Z]{2,}', phrase)
                         if len(words) < 2 or all(w in ACRONYMS for w in words):
