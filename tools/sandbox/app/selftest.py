@@ -1023,7 +1023,9 @@ class SelfTest:
         ks = [k for k in range(len(keep)) if keep[k]]
         k0 = None
         for k in ks:
-            if gz.hit(cam, c, axes, 'rotate', *sc[k]) == ('ring', i):
+            # Tested where the view gets the press, on whole pixels: where two rings cross, the half pixel Qt rounds away gave
+            # the press to the other ring, and the PATRIOT's hand turned 77 degrees about X or Y (improve round, 2026-10-22).
+            if gz.hit(cam, c, axes, 'rotate', *self._px(sc[k])) == ('ring', i):
                 k0 = k
                 break
         if k0 is None:
