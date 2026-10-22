@@ -6,6 +6,11 @@ sandbox export (reports/sandbox/data/weapons/*/model.glb: the leaf name of every
 how many names and weapons it takes, and the names, most common first, so a word that takes the wrong parts shows (the GLOCK
 43X's '43X_BJ' read as a 3x magnifier; 'Charging Handle' as an arm bone).
 
+A pattern is run on the leaf name as it is, out of the context the code uses it in: the finger patterns only look under a
+hand bone, the analyzer's arm test keeps arm-named parts that are meshes of their own, so a name listed here is a lead to
+check in the code, not a defect by itself. Where the code changes a name before testing it, the same change is made here
+(NORMALIZE: the grenade pin's name split at its capitals and its non-letters, as ThrowableHandler.FindModPin does).
+
 Usage: python -I tools/export_checks/name_audit.py [--pattern NAME] [--all] [--top N]
 """
 import argparse
@@ -22,6 +27,15 @@ DATA = os.path.join(REPO, 'reports', 'sandbox', 'data', 'weapons')
 # A Regex field: its name, then one or more verbatim strings joined with '+', then the options.
 FIELD = re.compile(r'(?:static\s+readonly\s+)?Regex\s+(\w+)\s*=\s*new\s+Regex\(\s*((?:@"(?:[^"]|"")*"\s*\+?\s*)+)(?:,\s*([^)]*))?\)', re.S)
 VERBATIM = re.compile(r'@"((?:[^"]|"")*)"')
+
+
+def _pin_words(name):
+    """ThrowableHandler.FindModPin: 'm67_safety_pin' -> 'm safety pin' (capitals split, non-letters to spaces, lower case)."""
+    return re.sub('[^A-Za-z]+', ' ', re.sub('(?<=[a-z])(?=[A-Z])', ' ', name)).lower()
+
+
+# (file, field) -> the change the code makes to a name before the pattern sees it.
+NORMALIZE = {('src/Weapons/ThrowAndMelee.cs', 'PinName'): _pin_words}
 
 
 def patterns():
@@ -80,9 +94,10 @@ def main():
             continue
         taken = collections.Counter()
         weapons = set()
+        prepare = NORMALIZE.get((file, field), lambda n: n)
         for w, ns in names.items():
             for n in ns:
-                if rx.search(n):
+                if rx.search(prepare(n)):
                     taken[n] += 1
                     weapons.add(w)
         shown = taken.most_common() if a.all else taken.most_common(a.top)
