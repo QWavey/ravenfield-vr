@@ -1594,6 +1594,8 @@ namespace RavenfieldVR.Weapons
         private bool _beltHanging;
         /// <summary>The belt was laid by hand while the cover was open: it shows until the cover is lifted again (274).</summary>
         private bool _beltLaidThisLift;
+        /// <summary>The lift's flags were taken from the ammunition's state since the gun was drawn (see the belt's update).</summary>
+        private bool _beltStateTaken;
         /// <summary>The cover was open at the last look, so a lift is seen as the moment it goes up.</summary>
         private bool _beltCoverWasOpen;
         /// <summary>How far the belt end comes out of the box (about 28 rounds).</summary>
@@ -1739,6 +1741,15 @@ namespace RavenfieldVR.Weapons
             {
                 Log.InfoOnce("beltheld-dropped:" + Data.Key, $"{Data.Key}: the belt held by the hand was let go with its box (box in {Ammo.MagInserted}, cover open {Ammo.CoverOpen}, belt laid {Ammo.BeltLaid}).");
                 EndBelt(off);
+            }
+            if (!_beltStateTaken)
+            {
+                // Drawn again (or a sub weapon switched in place): the lift as the state has it. Lifting the cover takes a laid belt
+                // off, so a belt laid with the cover open was laid in this lift. Starting from a shut cover, the open one read as
+                // just lifted and a belt laid before the gun was holstered vanished until the cover was shut (bug hunt, 2026-10-22).
+                _beltStateTaken = true;
+                _beltCoverWasOpen = Ammo.CoverOpen;
+                _beltLaidThisLift = Ammo.CoverOpen && Ammo.BeltLaid && Ammo.MagInserted;
             }
             // Lifting the cover takes a belt laid on the tray off it with its box: the old belt stayed when the cover was opened
             // (274, the user). A belt laid by hand with the cover open is shown until the cover is lifted again.
@@ -5751,6 +5762,7 @@ namespace RavenfieldVR.Weapons
             _beltHanging = false;
             _beltLaidThisLift = false;
             _beltCoverWasOpen = false;
+            _beltStateTaken = false;
             if (off.Model != null)
             {
                 off.Model.GraspAnchor = null;
