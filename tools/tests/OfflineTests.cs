@@ -72,6 +72,62 @@ namespace RavenfieldVR.Tests
             LensToneTests(mod);
             ScriptKeyRuleTests(mod);
             PoseTests(mod);
+            InputParsingTests(mod);
+        }
+
+        /// <summary>
+        /// The two parsers that guard the game from what a player types: the VR keyboard's field filter (an int too big for an
+        /// int threw in the game's int.Parse, task 213) and the config's vectors (a NaN offset hid the hand and the gun).
+        /// </summary>
+        private static void InputParsingTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo filter = mod.GetType("RavenfieldVR.UI.VRKeyboard")?.GetMethod("Filter", any),
+                parse = mod.GetType("RavenfieldVR.Core.VRConfig")?.GetMethod("TryParseVector", any),
+                format = mod.GetType("RavenfieldVR.Core.VRConfig")?.GetMethod("FormatVector", any);
+            Check(filter != null && parse != null && format != null, "Parsing: VRKeyboard.Filter and VRConfig's vectors found");
+            if (filter == null || parse == null || format == null)
+            {
+                return;
+            }
+            string F(string text, bool integer, bool dec, bool alnum, int limit, bool signed = true) =>
+                (string)filter.Invoke(null, new object[] { text, integer, dec, alnum, limit, signed });
+            var cases = new (string got, string want, string what)[]
+            {
+                (F(" 42 ", true, false, false, 0), "42", "an int, trimmed"),
+                (F("4a2", true, false, false, 0), "42", "an int keeps only digits"),
+                (F("--5", true, false, false, 0), "-5", "one leading minus"),
+                (F("-5", true, false, false, 0, false), "5", "no minus on a digits-only field"),
+                (F("99999999999", true, false, false, 0), null, "an int too big for an int is refused"),
+                (F("-", true, false, false, 0), null, "a lone minus is no number"),
+                (F("1,5", false, true, false, 0), "1.5", "a decimal comma becomes a point"),
+                (F("1.2.3", false, true, false, 0), "1.23", "only the first point counts"),
+                (F("-.", false, true, false, 0), null, "a minus and a point are no number"),
+                (F("12345", true, false, false, 3), "123", "cut to the field's limit"),
+                (F("A b-1", false, false, true, 0), "Ab1", "alphanumeric keeps letters and digits"),
+                (F(null, true, false, false, 0), null, "nothing typed"),
+            };
+            var wrong = new List<string>();
+            foreach (var (got, want, what) in cases)
+            {
+                if (got != want)
+                {
+                    wrong.Add($"{what}: {(got == null ? "null" : Show(got))}, not {(want == null ? "null" : Show(want))}");
+                }
+            }
+            Check(wrong.Count == 0, $"Keyboard filter: {cases.Length} cases" + (wrong.Count > 0 ? ": " + string.Join("; ", wrong) : ""));
+            bool P(string text, out UnityEngine.Vector3 v)
+            {
+                object[] a = { text, null };
+                bool ok = (bool)parse.Invoke(null, a);
+                v = (UnityEngine.Vector3)a[1];
+                return ok;
+            }
+            bool round = P((string)format.Invoke(null, new object[] { new UnityEngine.Vector3(-0.0125f, 1.5f, 3f) }), out UnityEngine.Vector3 back)
+                         && Math.Abs(back.x + 0.013f) < 0.0006f && back.y == 1.5f && back.z == 3f;
+            Check(round, "Config vectors: written and read back (to 3 decimals, invariant culture)");
+            Check(P("1;2 3", out UnityEngine.Vector3 sep) && sep.z == 3f && !P("1, 2", out _) && !P("NaN, 1, 2", out _) && !P("1e40, 0, 0", out _) && !P("", out _),
+                  "Config vectors: ',' ';' or ' ' between them; two numbers, NaN, an overflow or nothing refused");
         }
 
         /// <summary>
