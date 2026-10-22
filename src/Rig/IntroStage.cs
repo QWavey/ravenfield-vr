@@ -312,7 +312,7 @@ namespace RavenfieldVR.Rig
                 Vector3 centre = cam.transform.position + forward * TitleDistance;
                 centre.y = _hasGround ? _ground + VRConfig.EyeHeight.Value.ClampEye() : centre.y;
                 rect.SetPositionAndRotation(centre, Quaternion.LookRotation(forward, Vector3.up));
-                rect.localScale = Vector3.one * (height / size.y);
+                rect.localScale = Vector3.one * (height / Mathf.Max(1f, size.y)); // (a minimised window's zero screen: as CanvasManager)
                 foreach (Transform t in c.GetComponentsInChildren<Transform>(true))
                 {
                     t.gameObject.layer = WorldLayer;
