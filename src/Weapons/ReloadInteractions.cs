@@ -5432,7 +5432,7 @@ namespace RavenfieldVR.Weapons
                 VRHand.Scripted[side] = null;
             }
             bool emptyBack = got != null && got == empty;
-            report($"empty magazine at the pouch: {(empty == null ? "NO MAGAZINE CAME OUT" : emptyBack ? "THE EMPTY MAGAZINE WAS HANDED BACK" : got != null && got.Rounds > 0 ? $"a full one from the pouch ({got.Rounds} rounds)" : got != null ? "AN EMPTY MAGAZINE FROM THE POUCH" : "nothing taken (the pouch did not answer the squeeze)")}");
+            report($"empty magazine at the pouch: {(empty == null ? "NO MAGAZINE CAME OUT" : emptyBack ? "THE EMPTY MAGAZINE WAS HANDED BACK" : got != null && got.Rounds > 0 ? $"a full one from the pouch ({got.Rounds} rounds)" : got != null ? "AN EMPTY MAGAZINE FROM THE POUCH" : "NOTHING TAKEN (the pouch did not answer the squeeze)")}");
             // Back as it was.
             if (got != null && got != empty)
             {
