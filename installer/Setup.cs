@@ -199,8 +199,15 @@ namespace RavenfieldVR.Setup
             return null;
         }
 
+        /// <summary>Offline tests: a made-up Steam folder in place of the one the registry names (null: the registry's).</summary>
+        internal static string SteamDirOverride;
+
         public static string SteamDir()
         {
+            if (SteamDirOverride != null)
+            {
+                return SteamDirOverride;
+            }
             string steam = null;
             foreach (string key in new[] { @"HKEY_CURRENT_USER\Software\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam", @"HKEY_LOCAL_MACHINE\SOFTWARE\Valve\Steam" })
             {

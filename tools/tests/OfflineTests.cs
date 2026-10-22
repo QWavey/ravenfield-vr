@@ -34,6 +34,7 @@ namespace RavenfieldVR.Tests
             BindingsTests();
             PlayEntryTests();
             LauncherTests();
+            SetupUninstallTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -773,6 +774,70 @@ namespace RavenfieldVR.Tests
                 }
                 catch (System.IO.IOException)
                 {
+                }
+            }
+        }
+
+        /// <summary>
+        /// The setup's uninstall on a made-up install in a temporary folder, with a made-up Steam: the launcher kept while a
+        /// launch option still starts it and removed when none does; the plugin folder, the launcher's log and (settings not
+        /// kept) the config, overrides and launcher choice removed; another plugin's config and a BepInEx it did not install kept.
+        /// </summary>
+        private static void SetupUninstallTests()
+        {
+            foreach (bool inUse in new[] { true, false })
+            {
+                string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-uninstall-" + Guid.NewGuid().ToString("N"));
+                string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+                try
+                {
+                    void Write(string rel, string text)
+                    {
+                        string p = System.IO.Path.Combine(game, rel);
+                        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(p));
+                        System.IO.File.WriteAllText(p, text);
+                    }
+                    Write("ravenfield.exe", "");
+                    Write(Installer.LauncherName, "launcher");
+                    Write(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll", "mod");
+                    Write(@"BepInEx\core\BepInEx.dll", "loader");
+                    Write(@"BepInEx\RavenfieldVR-launcher.log", "log");
+                    Write(@"BepInEx\config\com.qwavey.ravenfieldvr.cfg", "cfg");
+                    Write(@"BepInEx\config\RavenfieldVR.weapons.json", "{}");
+                    Write(@"BepInEx\config\RavenfieldVR.launcher.ini", "mode=VR");
+                    Write(@"BepInEx\config\other.plugin.cfg", "keep");
+                    Write(Installer.ManifestRelative, "version=test\ninstalledBepInEx=False\nbackup=\nadded=" + Installer.LauncherName
+                                                      + "\nadded=BepInEx\\plugins\\RavenfieldVR\\RavenfieldVR.dll\n");
+                    string cfgDir = System.IO.Path.Combine(steam, "userdata", "12345", "config");
+                    System.IO.Directory.CreateDirectory(cfgDir);
+                    string option = inUse ? "\\\"" + game.Replace("\\", "\\\\") + "\\\\" + Installer.LauncherName + "\\\" %command%" : "";
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(cfgDir, "localconfig.vdf"),
+                        "\"UserLocalConfigStore\"\n{\n\t\"Software\"\n\t{\n\t\t\"Valve\"\n\t\t{\n\t\t\t\"Steam\"\n\t\t\t{\n\t\t\t\t\"apps\"\n\t\t\t\t{\n\t\t\t\t\t\"636480\"\n\t\t\t\t\t{\n"
+                        + "\t\t\t\t\t\t\"LaunchOptions\"\t\t\"" + option + "\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n");
+                    Installer.SteamDirOverride = steam;
+                    var log = new List<string>();
+                    new Installer(log.Add).Uninstall(game, keepSettings: false);
+                    bool Has(string rel) => System.IO.File.Exists(System.IO.Path.Combine(game, rel)) || System.IO.Directory.Exists(System.IO.Path.Combine(game, rel));
+                    Check(Has(Installer.LauncherName) == inUse && !Has(@"BepInEx\plugins\RavenfieldVR") && !Has(@"BepInEx\RavenfieldVR-launcher.log")
+                          && !Has(@"BepInEx\config\com.qwavey.ravenfieldvr.cfg") && !Has(@"BepInEx\config\RavenfieldVR.weapons.json")
+                          && !Has(@"BepInEx\config\RavenfieldVR.launcher.ini") && Has(@"BepInEx\config\other.plugin.cfg") && Has(@"BepInEx\core\BepInEx.dll"),
+                          $"Setup uninstall (launch option {(inUse ? "set" : "not set")}): launcher {(Has(Installer.LauncherName) ? "kept" : "removed")}, the mod's files and settings gone, "
+                          + "another plugin's config and BepInEx it did not install kept (" + string.Join(" | ", log) + ")");
+                }
+                catch (Exception e)
+                {
+                    Check(false, "Setup uninstall: threw " + e);
+                }
+                finally
+                {
+                    Installer.SteamDirOverride = null;
+                    try
+                    {
+                        System.IO.Directory.Delete(root, true);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                    }
                 }
             }
         }
