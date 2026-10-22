@@ -23,7 +23,9 @@ Invoke-Csc @(
     "-r:$Managed/UnityEngine.CoreModule.dll", "-r:$BepInExCore/BepInEx.dll",
     (Join-Path $PSScriptRoot 'OfflineTests.cs'),
     (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs'), (Join-Path $Root 'installer/SteamPlayEntry.cs'),
-    (Join-Path $Root 'src/Input/BindingsWriter.cs')
+    (Join-Path $Root 'src/Input/BindingsWriter.cs'),
+    # The Steam launcher (it edits the mod's config and builds the game's command line on every launch), with Valve's bindings it uses.
+    (Join-Path $Root 'installer/Launcher.cs'), (Join-Path $Root 'tools/openvr-xr/package/Runtime/openvr_api.cs')
 )
 & $exe $Managed (Join-Path $Root 'build/RavenfieldVR.dll') $BepInExCore
 $code = $LASTEXITCODE

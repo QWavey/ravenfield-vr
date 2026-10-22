@@ -33,6 +33,7 @@ namespace RavenfieldVR.Tests
             VdfTests();
             BindingsTests();
             PlayEntryTests();
+            LauncherTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -610,6 +611,103 @@ namespace RavenfieldVR.Tests
             Check(Installer.Inside(game, @"C:\Windows\x") == null, "Inside: a rooted path");
             Check(Installer.Inside(game + @"\", @"BepInEx\x") == game + @"\BepInEx\x", "Inside: a root with a trailing separator");
             Check(Installer.Inside(game, "") == null && Installer.Inside(game, null) == null, "Inside: empty");
+        }
+
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CommandLineToArgvW(string cmdLine, out int argc);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern IntPtr LocalFree(IntPtr mem);
+
+        /// <summary>A command line split the way the game's C runtime reads it (CommandLineToArgvW), the program name dropped.</summary>
+        private static string[] SplitLikeWindows(string args)
+        {
+            IntPtr argv = CommandLineToArgvW("x.exe " + args, out int argc);
+            var parts = new string[Math.Max(0, argc - 1)];
+            for (int i = 1; i < argc; i++)
+            {
+                parts[i - 1] = System.Runtime.InteropServices.Marshal.PtrToStringUni(System.Runtime.InteropServices.Marshal.ReadIntPtr(argv, i * IntPtr.Size));
+            }
+            LocalFree(argv);
+            return parts;
+        }
+
+        /// <summary>
+        /// The Steam launcher, run on every launch: the graphics preset written into the mod's config in its own section with the
+        /// rest of the file kept, its render scale set only when the preset changes, the game's arguments passed on unchanged
+        /// (Windows' own splitting reads back exactly what was given) and -vr / -novr taken out as the choice.
+        /// </summary>
+        private static void LauncherTests()
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-launcher-" + Guid.NewGuid().ToString("N"));
+            string cfgDir = System.IO.Path.Combine(dir, "BepInEx", "config"), cfg = System.IO.Path.Combine(cfgDir, "com.qwavey.ravenfieldvr.cfg");
+            try
+            {
+                // No config yet: the section and both entries are made.
+                RavenfieldVR.Launcher.PluginConfig.SetGraphicsPreset(dir, "High");
+                string made = System.IO.File.ReadAllText(cfg);
+                Check(RavenfieldVR.Launcher.PluginConfig.GetGraphicsPreset(dir) == "High" && made.Contains("[Rendering]") && made.Contains("RenderScale = 1.2"),
+                      "Launcher: a missing config gets the preset and its render scale (" + made.Replace("\r\n", " | ") + ")");
+                // A config BepInEx wrote: only the preset's two lines change, the comments, other sections and same-named keys elsewhere stay.
+                string[] original =
+                {
+                    "## Settings file was created by plugin Ravenfield VR v1.0.0", "", "[Comfort]", "", "## Degrees per snap turn.", "SnapTurnAngle = 30", "",
+                    "[Rendering]", "", "## Eye texture resolution multiplier", "# Setting type: Single", "RenderScale = 0.95", "", "GraphicsPreset = Medium",
+                    "MirrorView = Right", "", "[Weapons]", "", "GraphicsPresetNote = keep", "RenderScale = 7"
+                };
+                System.IO.File.WriteAllLines(cfg, original);
+                RavenfieldVR.Launcher.PluginConfig.SetGraphicsPreset(dir, "Ultra");
+                string[] after = System.IO.File.ReadAllLines(cfg);
+                var changed = new List<string>();
+                for (int i = 0; i < Math.Max(original.Length, after.Length); i++)
+                {
+                    string a = i < original.Length ? original[i] : "(none)", b = i < after.Length ? after[i] : "(none)";
+                    if (a != b)
+                    {
+                        changed.Add(a + " -> " + b);
+                    }
+                }
+                Check(changed.Count == 2 && changed.Contains("RenderScale = 0.95 -> RenderScale = 1.4") && changed.Contains("GraphicsPreset = Medium -> GraphicsPreset = Ultra"),
+                      "Launcher: a new preset changes only its own line and the render scale in [Rendering] (" + string.Join("; ", changed) + ")");
+                // The same preset again: a render scale adjusted by hand stays.
+                string[] tuned = (string[])after.Clone();
+                tuned[Array.IndexOf(tuned, "RenderScale = 1.4")] = "RenderScale = 1.33";
+                System.IO.File.WriteAllLines(cfg, tuned);
+                RavenfieldVR.Launcher.PluginConfig.SetGraphicsPreset(dir, "Ultra");
+                Check(Array.IndexOf(System.IO.File.ReadAllLines(cfg), "RenderScale = 1.33") >= 0, "Launcher: the same preset again keeps a render scale set by hand");
+
+                // The game's arguments: quoted so Windows reads back each one as it was (spaces, quotes, trailing backslashes, empty).
+                System.Reflection.MethodInfo quote = typeof(RavenfieldVR.Launcher.GameCommand).GetMethod("Quote", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                string[] given = { "-map", "island 2023", @"D:\Mods\", @"C:\a b\c\\", "say \"hi\"", "", @"x\""y", "-screen-width", "1920", @"\\server\share\" };
+                string line = string.Join(" ", Array.ConvertAll(given, g => (string)quote.Invoke(null, new object[] { g })));
+                string[] back = SplitLikeWindows(line);
+                bool same = back.Length == given.Length;
+                for (int i = 0; same && i < given.Length; i++)
+                {
+                    same = back[i] == given[i];
+                }
+                Check(same, "Launcher: the game's arguments read back by Windows exactly as given (" + line + " -> " + string.Join(" | ", back) + ")");
+                // The choice: -vr / -novr taken out of what goes on to the game, any case.
+                string exe = System.IO.Path.Combine(dir, "ravenfield.exe");
+                System.IO.File.WriteAllText(exe, "");
+                var cmd = RavenfieldVR.Launcher.GameCommand.FromArgs(new[] { exe, "-NOVR", "-map", "x" });
+                Check(cmd.Requested == RavenfieldVR.Launcher.PlayMode.Flat && cmd.Args.Count == 2 && cmd.Args[0] == "-map" && cmd.GameDir == dir,
+                      "Launcher: -novr is the choice, not passed on; Steam's own exe path is the game's folder");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Launcher: threw " + e);
+            }
+            finally
+            {
+                try
+                {
+                    System.IO.Directory.Delete(dir, true);
+                }
+                catch (System.IO.IOException)
+                {
+                }
+            }
         }
 
         private static void VdfTests()
