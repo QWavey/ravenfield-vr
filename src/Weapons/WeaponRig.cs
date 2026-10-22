@@ -566,7 +566,8 @@ namespace RavenfieldVR.Weapons
             t.localScale = new Vector3(1f / Mathf.Max(1e-5f, Mathf.Abs(s.x)), 1f / Mathf.Max(1e-5f, Mathf.Abs(s.y)), 1f / Mathf.Max(1e-5f, Mathf.Abs(s.z)));
         }
         public Vector3 DirToWorld(Vector3 gunDir) => GunBody.rotation * gunDir;
-        public Vector3 ToGun(Vector3 world) => Quaternion.Inverse(GunBody.rotation) * (world - GunBody.position);
+        // (The rotation's conjugate, not Quaternion.Inverse: a native call in this Unity, and the keep-out and the hands ask this per point.)
+        public Vector3 ToGun(Vector3 world) => Runtime.RigidPose.Conjugate(GunBody.rotation) * (world - GunBody.position);
 
         public Vector3 AimWorld => DirToWorld(Data.AimAxis);
         public Vector3 UpWorld => DirToWorld(Data.Up);

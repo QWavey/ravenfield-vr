@@ -71,6 +71,51 @@ namespace RavenfieldVR.Tests
             JsonTests(mod);
             LensToneTests(mod);
             ScriptKeyRuleTests(mod);
+            PoseTests(mod);
+        }
+
+        /// <summary>
+        /// RigidPose's inverse operations (the hands, the keep-out, the guns' frames): a point taken into a pose and out again comes
+        /// back, a pose times its inverse is no move. They ran Quaternion.Inverse, a native call, and could not run here at all.
+        /// </summary>
+        private static void PoseTests(System.Reflection.Assembly mod)
+        {
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            Check(pose != null, "Poses: RigidPose found");
+            if (pose == null)
+            {
+                return;
+            }
+            System.Reflection.MethodInfo into = pose.GetMethod("InverseTransformPoint"), outOf = pose.GetMethod("TransformPoint"),
+                inverse = pose.GetMethod("Inverse"), multiply = pose.GetMethod("Multiply"), dirIn = pose.GetMethod("InverseTransformDirection");
+            var rng = new Random(3);
+            float R() => (float)(rng.NextDouble() * 2 - 1);
+            double worstPoint = 0, worstIdentity = 0, worstDir = 0;
+            try
+            {
+                for (int n = 0; n < 2000; n++)
+                {
+                    var q = new UnityEngine.Quaternion(R(), R(), R(), R());
+                    float len = (float)Math.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+                    q = new UnityEngine.Quaternion(q.x / len, q.y / len, q.z / len, q.w / len);
+                    object p = Activator.CreateInstance(pose, new UnityEngine.Vector3(R() * 50f, R() * 50f, R() * 50f), q);
+                    var v = new UnityEngine.Vector3(R() * 3f, R() * 3f, R() * 3f);
+                    var back = (UnityEngine.Vector3)outOf.Invoke(p, new object[] { into.Invoke(p, new object[] { v }) });
+                    worstPoint = Math.Max(worstPoint, (back - v).magnitude);
+                    object id = multiply.Invoke(p, new[] { inverse.Invoke(p, null) });
+                    var idPos = (UnityEngine.Vector3)pose.GetField("position").GetValue(id);
+                    var idRot = (UnityEngine.Quaternion)pose.GetField("rotation").GetValue(id);
+                    worstIdentity = Math.Max(worstIdentity, idPos.magnitude + Math.Abs(Math.Abs(idRot.w) - 1));
+                    var d = (UnityEngine.Vector3)dirIn.Invoke(p, new object[] { q * v });
+                    worstDir = Math.Max(worstDir, (d - v).magnitude);
+                }
+                Check(worstPoint < 1e-4 && worstDir < 1e-4, $"Poses: a point (and a direction) into a pose and out again comes back ({worstPoint:0.0e0}, {worstDir:0.0e0})");
+                Check(worstIdentity < 1e-4, $"Poses: a pose times its inverse is no move ({worstIdentity:0.0e0})");
+            }
+            catch (System.Reflection.TargetInvocationException e)
+            {
+                Check(false, "Poses: threw " + e.InnerException?.Message);
+            }
         }
 
         /// <summary>

@@ -61,14 +61,21 @@ namespace RavenfieldVR.Runtime
 
         public RigidPose Inverse()
         {
-            Quaternion inv = Quaternion.Inverse(rotation);
+            Quaternion inv = Conjugate(rotation);
             return new RigidPose(inv * -position, inv);
         }
 
         public Vector3 TransformPoint(Vector3 p) => position + rotation * p;
-        public Vector3 InverseTransformPoint(Vector3 p) => Quaternion.Inverse(rotation) * (p - position);
+        public Vector3 InverseTransformPoint(Vector3 p) => Conjugate(rotation) * (p - position);
         public Vector3 TransformDirection(Vector3 d) => rotation * d;
-        public Vector3 InverseTransformDirection(Vector3 d) => Quaternion.Inverse(rotation) * d;
+        public Vector3 InverseTransformDirection(Vector3 d) => Conjugate(rotation) * d;
+
+        /// <summary>
+        /// The inverse of a rotation (a unit quaternion, as every pose's is: q * v assumes it too): its conjugate. Quaternion.Inverse
+        /// is a native call in this Unity, made once per point by the hands and the magazine keep-out; a default pose's zero
+        /// quaternion also gave NaN there (divided by its zero length), here a zero (improve round, 2026-10-22).
+        /// </summary>
+        public static Quaternion Conjugate(Quaternion q) => new Quaternion(-q.x, -q.y, -q.z, q.w);
 
         public void ApplyTo(Transform t) => t.SetPositionAndRotation(position, rotation);
 
