@@ -3974,17 +3974,18 @@ namespace RavenfieldVR.Weapons
         /// A tube's loading port: where the reload pushes its shell nearest the bore under it, ahead of the grip and short of the
         /// muzzle, while the shell is drawn; seated as it lies there, going in the way its path went over its last 3 cm (forward
         /// into the tube, or up into the port). With no such point, half way from the grip to the forend, 3 cm under the bore,
-        /// along it. A shell that waits away from the gun at rest (8 cm or more off the bore) is hidden while held, as the
-        /// spare magazines are: the R870's floated 33 cm under its stock.
+        /// along it. The reload's shell itself is hidden while held, as the spare magazines are, wherever it waits at rest: it
+        /// is the flat reload's prop, never the gun's look (the R870's floated 33 cm under its stock, the mw-m870's above its
+        /// stock's comb, 4 cm off the bore; check-1022-shotguns). The shell in the hand is copied from it at its real size.
         /// </summary>
         private static void ShellPort(WeaponRigData d, int mi, PoseSampler sampler)
         {
             float OffBore(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
             Vector3 restCentre = sampler.RelIdle[mi].TransformPoint(d.MagBounds.center);
-            if (OffBore(restCentre) > 0.08f && d.MagazinePath != null)
+            if (d.MagazinePath != null)
             {
                 d.SparePartPaths.Add(d.MagazinePath);
-                d.Notes += $"its reload shell waits {OffBore(restCentre) * 100f:0} cm off the bore at rest: hidden while held ";
+                d.Notes += $"its reload shell (waiting {OffBore(restCentre) * 100f:0} cm off the bore at rest) hidden while held ";
             }
             Vector3[] path = sampler.HasReload && sampler.ReloadTrajectory != null ? sampler.ReloadTrajectory[mi] : null;
             bool[] drawn = sampler.ReloadVisible?[mi];
