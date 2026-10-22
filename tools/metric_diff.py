@@ -6,21 +6,35 @@
 
 Prints the measurements whose average moved by more than --rel (default 20%) and --abs (default 0.05), the frame-time
 line of each run, and each mod section's average and maximum. A measurement found in only one of the runs is listed too
-(a check that stopped reporting, or a new one).
+(a check that stopped reporting, or a new one). First, the problems found in only one of the runs (new ones and gone ones),
+matched with their numbers taken out: a gun's "shakes up to 75 deg" and "up to 11 deg" are the same problem.
 """
 import argparse
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+NUMBER = re.compile(r'[-+]?\d+(?:[.,]\d+)?')
+
+
+def problem_key(text):
+    """A problem line without its numbers (and its spacing), to match it across runs."""
+    return ' '.join(NUMBER.sub('#', text).split())
+
+
 def read(path):
-    measurements, sections, frames = {}, {}, ''
+    measurements, sections, frames, problems = {}, {}, '', {}
     where = None
     with open(path, encoding='utf-8', errors='replace') as f:
         for line in f:
             text = line.rstrip('\n')
+            if text.lstrip().startswith('! '):
+                body = text.lstrip()[2:].strip()
+                problems.setdefault(problem_key(body), body)
+                continue
             if text.startswith('Measurements'):
                 where = 'm'
                 continue
@@ -47,7 +61,7 @@ def read(path):
                         sections[parts[0].strip()] = (float(parts[1]), float(parts[2]), int(parts[3]))
                     except ValueError:
                         pass
-    return measurements, sections, frames
+    return measurements, sections, frames, problems
 
 
 def main():
@@ -66,10 +80,17 @@ def main():
     for p in (new_path, old_path):
         if not os.path.isfile(p):
             sys.exit(f'no report at {p}')
-    new_m, new_s, new_f = read(new_path)
-    old_m, old_s, old_f = read(old_path)
+    new_m, new_s, new_f, new_p = read(new_path)
+    old_m, old_s, old_f, old_p = read(old_path)
 
     print(f'new: {new_path}\nold: {old_path}\n')
+    came, went = [new_p[k] for k in new_p if k not in old_p], [old_p[k] for k in old_p if k not in new_p]
+    print(f'Problems: {len(new_p)} now, {len(old_p)} before; {len(came)} new, {len(went)} gone, {len(new_p) - len(came)} in both')
+    for text in came:
+        print(f'  new  {text[:200]}')
+    for text in went:
+        print(f'  gone {text[:200]}')
+    print()
     print('Frames')
     print(f'  new {new_f[len("Frames: "):] if new_f else "-"}')
     print(f'  old {old_f[len("Frames: "):] if old_f else "-"}\n')
