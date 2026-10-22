@@ -39,25 +39,36 @@ namespace RavenfieldVR.Weapons
         {
             Instance = this;
             Rig = rig;
-            Sounds = new ProceduralSounds();
             try
             {
-                _lensFlash = new LensFlash(rig);
+                Sounds = new ProceduralSounds();
+                try
+                {
+                    _lensFlash = new LensFlash(rig);
+                }
+                catch (System.Exception e)
+                {
+                    Log.Exception("Muzzle lens flash could not be set up; playing without it", e);
+                }
+                Zones = new BodyZones(rig);
+                _throwables = new ThrowableHandler(this);
+                _melee = new MeleeHandler(this);
+                Drops = new WeaponDrops(this);
+                _pouch = new PouchDisplay(this);
+                _holsters = new HolsterDisplay(this);
+                _readout = new MagReadout(this);
+                if (Core.AutoTest.Requested)
+                {
+                    Camera.onPreCull += CountFlatFrames;
+                }
             }
-            catch (System.Exception e)
+            catch
             {
-                Log.Exception("Muzzle lens flash could not be set up; playing without it", e);
-            }
-            Zones = new BodyZones(rig);
-            _throwables = new ThrowableHandler(this);
-            _melee = new MeleeHandler(this);
-            Drops = new WeaponDrops(this);
-            _pouch = new PouchDisplay(this);
-            _holsters = new HolsterDisplay(this);
-            _readout = new MagReadout(this);
-            if (Core.AutoTest.Requested)
-            {
-                Camera.onPreCull += CountFlatFrames;
+                // Built part way: what was made goes, and the instance with it. VRManager shuts VR down on the throw with no
+                // weapon system to dispose (its field was never set), so the parts made so far stayed, and WeaponSystem.Instance
+                // stayed this half-built one for the patches in the flat game (bug hunt, 2026-10-22).
+                Log.Guard("half-built weapon system", Dispose);
+                throw;
             }
         }
 
@@ -1055,14 +1066,15 @@ namespace RavenfieldVR.Weapons
             MagazineProp.DestroyAll();
             GrenadeDud.DestroyAll();
             Casings.DestroyAll();
-            Drops.Dispose();
-            _pouch.Destroy();
+            // Each part only if it was made (a constructor that threw part way disposes what it built).
+            Drops?.Dispose();
+            _pouch?.Destroy();
             _lensFlash?.Destroy();
-            _holsters.Destroy();
-            _readout.Destroy();
+            _holsters?.Destroy();
+            _readout?.Destroy();
             FireSelector.Clear();
-            Zones.Destroy();
-            Sounds.Dispose();
+            Zones?.Destroy();
+            Sounds?.Dispose();
             VRGameInput.SuppressFire = false;
             if (Instance == this)
             {
