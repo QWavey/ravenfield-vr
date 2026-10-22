@@ -377,7 +377,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private static Quaternion WithoutCurl(Quaternion open, Quaternion pose, Vector3 axis)
         {
-            Quaternion q = Quaternion.Inverse(open) * pose;
+            Quaternion q = Runtime.RigidPose.Conjugate(open) * pose;
             float along = q.x * axis.x + q.y * axis.y + q.z * axis.z;
             var twist = new Quaternion(axis.x * along, axis.y * along, axis.z * along, q.w);
             float len = Mathf.Sqrt(twist.x * twist.x + twist.y * twist.y + twist.z * twist.z + twist.w * twist.w);
@@ -386,7 +386,7 @@ namespace RavenfieldVR.Rig
                 return open; // a half turn about another axis: keep the open pose
             }
             twist = new Quaternion(twist.x / len, twist.y / len, twist.z / len, twist.w / len);
-            return pose * Quaternion.Inverse(twist);
+            return pose * Runtime.RigidPose.Conjugate(twist);
         }
 
         private static Vector3 ReadVector(BinaryReader r) => new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());

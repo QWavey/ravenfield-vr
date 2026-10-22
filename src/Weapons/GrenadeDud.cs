@@ -121,7 +121,7 @@ namespace RavenfieldVR.Weapons
                 var part = new GameObject(r.name);
                 part.transform.SetParent(root, false);
                 part.transform.localPosition = root.InverseTransformPoint(r.transform.position);
-                part.transform.localRotation = Quaternion.Inverse(root.rotation) * r.transform.rotation;
+                part.transform.localRotation = Runtime.RigidPose.Conjugate(root.rotation) * r.transform.rotation;
                 part.transform.localScale = scale;
                 part.AddComponent<MeshFilter>().sharedMesh = mesh;
                 if (r is SkinnedMeshRenderer)
@@ -364,7 +364,7 @@ namespace RavenfieldVR.Weapons
                 var part = new GameObject(r.name) { layer = go.layer };
                 part.transform.SetParent(go.transform, false);
                 part.transform.localPosition = go.transform.InverseTransformPoint(r.transform.position);
-                part.transform.localRotation = Quaternion.Inverse(go.transform.rotation) * r.transform.rotation;
+                part.transform.localRotation = Runtime.RigidPose.Conjugate(go.transform.rotation) * r.transform.rotation;
                 part.transform.localScale = r.transform.lossyScale;
                 part.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
                 var mr = part.AddComponent<MeshRenderer>();

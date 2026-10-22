@@ -87,7 +87,7 @@ namespace RavenfieldVR.Weapons
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
                 RigidPose palm = off.Palm;
-                Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Quaternion.Inverse(Quaternion.LookRotation(c.FingerDir, c.BackDir));
+                Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(c.FingerDir, c.BackDir));
                 // PalmPoint is in metres already (measured on the unscaled idle pose): scaled by the hand bone's scale again, a
                 // rig built at 1/100 put its hand a palm's length off the controller (night bug hunt, 229).
                 Vector3 palmPoint = rot * c.PalmPoint;
@@ -98,7 +98,7 @@ namespace RavenfieldVR.Weapons
                     // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
                     // was not (bug hunt 251.7).
                     off.Model.PlacedFromTracked(out RigidPose tracked, out RigidPose placed);
-                    Quaternion turn = placed.rotation * Quaternion.Inverse(tracked.rotation);
+                    Quaternion turn = placed.rotation * Runtime.RigidPose.Conjugate(tracked.rotation);
                     at = placed.position + turn * (at - tracked.position);
                     rot = turn * rot;
                     palmPoint = rot * c.PalmPoint;

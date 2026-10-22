@@ -166,7 +166,7 @@ namespace RavenfieldVR.Weapons
             Vector3 now = _held.Rig.ToGun(off.Palm.position);
             // How far the hand has slid across the bore since it took hold, and how far it has rolled about the bore.
             float slide = Vector3.ProjectOnPlane(now - _grabGun, axis).magnitude;
-            float roll = Mathf.Abs(Twist(GunRotation(off.Palm.rotation) * Quaternion.Inverse(_grabRot), axis));
+            float roll = Mathf.Abs(Twist(GunRotation(off.Palm.rotation) * Runtime.RigidPose.Conjugate(_grabRot), axis));
             if (!_latched)
             {
                 if (slide > FlipSlide || roll > FlipRoll)
@@ -214,7 +214,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A world rotation seen from the gun body, so the gun's own motion cancels out.</summary>
-        private Quaternion GunRotation(Quaternion world) => Quaternion.Inverse(_held.Rig.GunBody.rotation) * world;
+        private Quaternion GunRotation(Quaternion world) => Runtime.RigidPose.Conjugate(_held.Rig.GunBody.rotation) * world;
 
         /// <summary>The part of a rotation that turns about the axis (degrees), leaving out any tilt of the hand.</summary>
         private static float Twist(Quaternion q, Vector3 axis)

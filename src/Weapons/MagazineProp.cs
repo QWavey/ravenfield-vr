@@ -401,7 +401,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Transform t = Go.transform;
-            Quaternion inv = Quaternion.Inverse(t.rotation);
+            Quaternion inv = Runtime.RigidPose.Conjugate(t.rotation);
             float reachF = Mathf.Clamp(_boxHalf.x + 0.01f, 0.02f, 0.12f), reachS = Mathf.Clamp(_boxHalf.y + 0.01f, 0.02f, 0.06f);
             const float step = 0.004f;
             float fMin = float.MaxValue, fMax = float.MinValue, sMin = float.MaxValue, sMax = float.MinValue;
@@ -629,7 +629,7 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = rig.Data;
             Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);
-            Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
+            Quaternion seatInv = Runtime.RigidPose.Conjugate(d.MagSeat.rotation);
             Vector3 insertLocal = seatInv * insertGun;
             Vector3 frontLocal = seatInv * frontGun;
 
@@ -693,7 +693,7 @@ namespace RavenfieldVR.Weapons
         internal static GameObject BuildDisplay(WeaponRig rig, PropKind kind, out Bounds bounds, out Vector3 insertLocal, out Vector3 frontLocal)
         {
             WeaponRigData d = rig.Data;
-            Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
+            Quaternion seatInv = Runtime.RigidPose.Conjugate(d.MagSeat.rotation);
             Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);
             insertLocal = (seatInv * insertGun).normalized;
             frontLocal = seatInv * frontGun;
@@ -966,7 +966,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 offGun = Vector3.ProjectOnPlane(tubeCentre - d.MagSeat.position, aimGun);
                 if (offGun.magnitude < 0.15f)
                 {
-                    across = Quaternion.Inverse(d.MagSeat.rotation) * offGun;
+                    across = Runtime.RigidPose.Conjugate(d.MagSeat.rotation) * offGun;
                     if (offGun.magnitude > 0.01f)
                     {
                         Log.InfoOnce("rocketcentre:" + d.Key, $"Rocket of {d.Key}: on the tube's axis, {offGun.magnitude * 100f:0.0} cm off the muzzle point's line.");
@@ -1155,7 +1155,7 @@ namespace RavenfieldVR.Weapons
             Transform source = rig.Magazine;
             var root = new GameObject("mag");
             bool any = false;
-            Quaternion inv = Quaternion.Inverse(source.rotation);
+            Quaternion inv = Runtime.RigidPose.Conjugate(source.rotation);
             var magBones = new HashSet<Transform>();
             foreach (Transform part in rig.MagazineParts)
             {
@@ -1647,7 +1647,7 @@ namespace RavenfieldVR.Weapons
                 return ShellPinchPose(hand, palm);
             }
             Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;
-            Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
+            Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             // A magazine by its lower end (15% up from the base plate): held a third of the way up, its side ran past the
             // pinky, which lay flat along it and stuck out straight (the "pinky bug"); now the pinky curls toward the base
             // plate in line with the others (tools/hands/grip_check.py). Shells are pinched in the middle. A rocket is held
@@ -1690,7 +1690,7 @@ namespace RavenfieldVR.Weapons
             Vector3 axis = palm.rotation * ShellPinchAxis;
             Vector3 front = Vector3.ProjectOnPlane(palm.Up, axis);
             front = front.sqrMagnitude > 1e-6f ? front.normalized : palm.Forward;
-            Quaternion rot = Quaternion.LookRotation(front, axis) * Quaternion.Inverse(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
+            Quaternion rot = Quaternion.LookRotation(front, axis) * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(FrontLocal, InsertDirLocal));
             Vector3 pinch = palm.TransformPoint(hand.Model.PinchInPalm);
             return new RigidPose(pinch - axis * ShellPinchFromRim - rot * BaseLocal, rot);
         }
@@ -1829,7 +1829,7 @@ namespace RavenfieldVR.Weapons
                 if (m.HeldBy == hand && m._volume != null && m._volume.Ready && m.Go != null)
                 {
                     Transform t = m.Go.transform;
-                    list.Add(new HeldShape { Volume = m._volume, Position = t.position, Inverse = Quaternion.Inverse(t.rotation) });
+                    list.Add(new HeldShape { Volume = m._volume, Position = t.position, Inverse = Runtime.RigidPose.Conjugate(t.rotation) });
                 }
             }
             return list;
@@ -2252,7 +2252,7 @@ namespace RavenfieldVR.Weapons
                 // last frame's place, without the search's up to a few thousand solid tests a frame (255.P2-3). Only for a
                 // blocked one: a free one is drawn exactly at the hand.
                 Vector3 targetInGun = gun.Rig.ToGun(target.position);
-                Quaternion rotInGun = Quaternion.Inverse(gun.Rig.GunBody.rotation) * target.rotation;
+                Quaternion rotInGun = Runtime.RigidPose.Conjugate(gun.Rig.GunBody.rotation) * target.rotation;
                 if (ReferenceEquals(_drawnFor, gun) && ReferenceEquals(_keptSolid, solid) && _keptMagShown == gun.MagSolidShown && _keptOut.sqrMagnitude > 1e-6f
                     && (targetInGun - _keptTargetInGun).sqrMagnitude < 1e-6f && Quaternion.Angle(rotInGun, _keptRotInGun) < 0.5f)
                 {

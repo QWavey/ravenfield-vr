@@ -92,7 +92,7 @@ namespace RavenfieldVR.UI
                     LocalRotation = t.localRotation,
                     LocalScale = t.localScale,
                     Direction = rel / range,
-                    Rotation = Quaternion.Inverse(cam.rotation) * t.rotation,
+                    Rotation = Runtime.RigidPose.Conjugate(cam.rotation) * t.rotation,
                     Range = range
                 };
                 foreach (Transform c in t.GetComponentsInChildren<Transform>(true))

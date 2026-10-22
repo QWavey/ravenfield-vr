@@ -216,7 +216,7 @@ namespace RavenfieldVR.Weapons
                     centre = at + fwd * 0.06f - up * 0.07f;
                     break;
             }
-            Quaternion rot = Quaternion.LookRotation(barrel, top) * Quaternion.Inverse(s.Frame);
+            Quaternion rot = Quaternion.LookRotation(barrel, top) * Runtime.RigidPose.Conjugate(s.Frame);
             Transform t = s.Go.transform;
             t.rotation = rot;
             t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);

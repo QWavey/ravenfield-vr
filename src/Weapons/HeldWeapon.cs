@@ -1212,7 +1212,7 @@ namespace RavenfieldVR.Weapons
         internal void Nudge(Vector3 velocityWorld, float dip = 0f)
         {
             float mass = Rig.Data.Handgun ? 1.3f : Rig.Data.IsMachineGun ? 0.6f : 1f;
-            Vector3 local = Quaternion.Inverse(GripWorld.rotation) * velocityWorld;
+            Vector3 local = Runtime.RigidPose.Conjugate(GripWorld.rotation) * velocityWorld;
             _recoilPosVel += Vector3.ClampMagnitude(local * mass, 0.5f);
             _recoilRotVel.x += dip * mass;
         }
@@ -1282,7 +1282,7 @@ namespace RavenfieldVR.Weapons
             // the shake's mean turn rate: a degree at 10 Hz read as about 40 deg/s, so the shake itself opened the cutoff and
             // the bigger the shake, the less it was steadied. Signed, the two halves of a shake cancel; a steady swing reads
             // the same as before.
-            Quaternion turn = gunRot * Quaternion.Inverse(_steadyPrevRaw);
+            Quaternion turn = gunRot * Runtime.RigidPose.Conjugate(_steadyPrevRaw);
             turn.ToAngleAxis(out float turnDeg, out Vector3 turnAxis);
             if (turnDeg > 180f)
             {
@@ -1364,7 +1364,7 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = Rig.Data;
             RigidPose hand = HoldFrame(main, d);
             var gripInGun = new RigidPose(d.GripPoint, d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
-            Quaternion gunRot = (hand.rotation * Quaternion.Inverse(gripInGun.rotation));
+            Quaternion gunRot = (hand.rotation * Runtime.RigidPose.Conjugate(gripInGun.rotation));
 
             if (_twoHandBlend > 0f && d.HasSupportPoint && !d.IsPistol)
             {
@@ -1376,7 +1376,7 @@ namespace RavenfieldVR.Weapons
                     // rolled on the gun rolled the gun by that much when the off hand took the handguard (sandbox review).
                     Quaternion gunFrameBase = Quaternion.LookRotation(dirGun, gripInGun.rotation * Vector3.up);
                     Quaternion worldFrame = OpenVRMath.SafeLookRotation(dirWorld.normalized, hand.Up);
-                    Quaternion twoHand = worldFrame * Quaternion.Inverse(gunFrameBase);
+                    Quaternion twoHand = worldFrame * Runtime.RigidPose.Conjugate(gunFrameBase);
                     // Eased in and out: taking or letting go of the handguard no longer starts and stops the turn at full speed.
                     float e = _twoHandBlend * _twoHandBlend * (3f - 2f * _twoHandBlend);
                     // Only from a hand ahead of the grip, along the barrel the gun hand holds: drawn back past the grip (the hold
@@ -1440,7 +1440,7 @@ namespace RavenfieldVR.Weapons
             Quaternion recoil = Quaternion.Euler(_recoilRot.x, _recoilRot.y, 0f);
             Quaternion boreInGun = Quaternion.LookRotation(d.AimAxis, d.Up);
             Quaternion boreFrame = gunRot * boreInGun * recoil;
-            gunRot = boreFrame * Quaternion.Inverse(boreInGun);
+            gunRot = boreFrame * Runtime.RigidPose.Conjugate(boreInGun);
             Quaternion aimFrame = gunRot * gripInGun.rotation;
             Vector3 gripWorld = hand.position + _lagPos + boreFrame * _recoilPos;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
@@ -1812,7 +1812,7 @@ namespace RavenfieldVR.Weapons
             }
             Bounds well = mb;
             well.Expand(MagazineProp.WellPlay);
-            Quaternion seatInv = Quaternion.Inverse(d.MagSeat.rotation);
+            Quaternion seatInv = Runtime.RigidPose.Conjugate(d.MagSeat.rotation);
             Vector3 right = Vector3.Cross(d.Up, d.AimAxis).normalized;
             Vector3 in0 = -d.MagEjectAxis.normalized;
             // A handgun's well is its magazine's own drawn shape, not its box (task 270, user 2026-10-18: "mags go through the
@@ -2693,7 +2693,7 @@ namespace RavenfieldVR.Weapons
                 travel = worked == Rig.Handle ? d.HandleTravel * Mathf.Clamp01(fraction) : d.SlideTravel * fraction;
             }
             _partRestPos = worked.position - Rig.DirToWorld(travel);
-            _partRestInv = Quaternion.Inverse(worked.rotation);
+            _partRestInv = Runtime.RigidPose.Conjugate(worked.rotation);
             _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
             return _rackSolid ?? (_rackSolid = p => _partSolid(p)
                                                      || ClosedGunSolid(p) && !_partVolume.SolidAt(p, _partRestPos, _partRestInv)
@@ -2981,7 +2981,7 @@ namespace RavenfieldVR.Weapons
                 bool onMag = false;
                 if (d.MagBounds.size.sqrMagnitude > 1e-6f)
                 {
-                    Vector3 local = Quaternion.Inverse(d.MagSeat.rotation) * (d.SupportPoint - d.MagSeat.position);
+                    Vector3 local = Runtime.RigidPose.Conjugate(d.MagSeat.rotation) * (d.SupportPoint - d.MagSeat.position);
                     Bounds b = d.MagBounds;
                     b.Expand(0.04f); // (2 cm all round: the palm's centre sits on the magazine's face, not inside it)
                     onMag = b.Contains(local);
@@ -2999,7 +2999,7 @@ namespace RavenfieldVR.Weapons
         internal string HandReport(VRHand main)
         {
             RigidPose g = GripWorld;
-            Quaternion inv = Quaternion.Inverse(g.rotation);
+            Quaternion inv = Runtime.RigidPose.Conjugate(g.rotation);
             Vector3 F(Vector3 w) => inv * (w - g.position);
             string P(Vector3 w)
             {

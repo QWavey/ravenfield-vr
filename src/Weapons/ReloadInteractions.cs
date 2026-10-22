@@ -949,7 +949,7 @@ namespace RavenfieldVR.Weapons
         {
             get
             {
-                Quaternion seatInv = Quaternion.Inverse(Data.MagSeat.rotation);
+                Quaternion seatInv = Runtime.RigidPose.Conjugate(Data.MagSeat.rotation);
                 Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
                 Bounds b = Data.MagBounds;
                 float extent = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(insertLocal.x), Mathf.Abs(insertLocal.y), Mathf.Abs(insertLocal.z))));
@@ -1582,7 +1582,7 @@ namespace RavenfieldVR.Weapons
         {
             get
             {
-                Quaternion seatInv = Quaternion.Inverse(Data.MagSeat.rotation);
+                Quaternion seatInv = Runtime.RigidPose.Conjugate(Data.MagSeat.rotation);
                 Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
                 Bounds b = Data.MagBounds;
                 // The insertion face is the one the box is pushed through: the axis its insert direction has most of. Only that axis
@@ -3008,7 +3008,7 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = GripData;
             RigidPose hand = HeldWeapon.HoldFrame(_sys.Rig.Dominant, d);
-            Quaternion gunRot = hand.rotation * Quaternion.Inverse(d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
+            Quaternion gunRot = hand.rotation * Runtime.RigidPose.Conjugate(d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
             return hand.position + gunRot * (gunPoint - d.GripPoint);
         }
 
@@ -3116,7 +3116,7 @@ namespace RavenfieldVR.Weapons
             RigidPose seatedPose = SeatPose;
             Vector3 aimW = Rig.AimWorld, upW = Rig.UpWorld, rightW = Vector3.Cross(upW, aimW).normalized;
             Vector3 midLocal = (rocket.TipLocal + rocket.BaseLocal) * 0.5f;
-            Quaternion toLocalFrame = Quaternion.Inverse(Quaternion.LookRotation(rocket.InsertDirLocal, rocket.FrontLocal));
+            Quaternion toLocalFrame = Runtime.RigidPose.Conjugate(Quaternion.LookRotation(rocket.InsertDirLocal, rocket.FrontLocal));
             System.Func<Vector3, Vector3, Vector3, RigidPose> palmHolding = (mid, axisW, frontW) =>
             {
                 Quaternion r = Quaternion.LookRotation(axisW, frontW) * toLocalFrame;
@@ -3203,12 +3203,12 @@ namespace RavenfieldVR.Weapons
                 // Beside the tube, lying along it as it sits seated, pushed sideways into it; then held across the tube and
                 // brought down onto it from above.
                 start = off.Palm;
-                RigidPose besideOut = seatedPose.Multiply(new RigidPose(Quaternion.Inverse(seatedPose.rotation) * (rightW * 0.3f), Quaternion.identity)).Multiply(holdToPalm);
+                RigidPose besideOut = seatedPose.Multiply(new RigidPose(Runtime.RigidPose.Conjugate(seatedPose.rotation) * (rightW * 0.3f), Quaternion.identity)).Multiply(holdToPalm);
                 yield return Move(s => new RigidPose(Vector3.Lerp(start.position, besideOut.position, s), Quaternion.Slerp(start.rotation, besideOut.rotation, s)), 0.6f, "beside the tube");
                 watchSide = true;
                 yield return Move(s =>
                 {
-                    RigidPose p = seatedPose.Multiply(new RigidPose(Quaternion.Inverse(seatedPose.rotation) * (rightW * (0.3f * (1f - s))), Quaternion.identity));
+                    RigidPose p = seatedPose.Multiply(new RigidPose(Runtime.RigidPose.Conjugate(seatedPose.rotation) * (rightW * (0.3f * (1f - s))), Quaternion.identity));
                     return p.Multiply(holdToPalm);
                 }, 0.7f, "into the tube's side");
                 watchSide = false;

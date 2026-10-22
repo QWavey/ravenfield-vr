@@ -411,7 +411,7 @@ namespace RavenfieldVR.Weapons
             RigidPose hand = HeldWeapon.HoldFrame(Hand, d);
             Quaternion gripInGun = d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up);
             Quaternion aimFrame = hand.rotation * Quaternion.Euler(_kickRot.x, _kickRot.y, 0f);
-            Quaternion gunRot = aimFrame * Quaternion.Inverse(gripInGun);
+            Quaternion gunRot = aimFrame * Runtime.RigidPose.Conjugate(gripInGun);
             Vector3 gripWorld = hand.position + aimFrame * _kickPos;
             var gunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
             Transform root = Weapon.transform;

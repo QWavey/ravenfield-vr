@@ -61,7 +61,7 @@ namespace RavenfieldVR.Weapons
             // Standing up in the pouch, facing forward with the body.
             Quaternion propBasis = Quaternion.LookRotation(Vector3.ProjectOnPlane(_frontLocal, _insertLocal).sqrMagnitude > 1e-4f ? _frontLocal : Vector3.forward, _insertLocal);
             Quaternion worldBasis = Quaternion.LookRotation(zones.TorsoForward, Vector3.up);
-            Quaternion rot = worldBasis * Quaternion.Inverse(propBasis);
+            Quaternion rot = worldBasis * Runtime.RigidPose.Conjugate(propBasis);
             float scale = _scale * (1f + 0.06f * _hover);
             Vector3 lift = Vector3.up * (0.015f * _hover);
             Transform t = _model.transform;
@@ -87,7 +87,7 @@ namespace RavenfieldVR.Weapons
                 _label.color = color; // only on a change: a text mesh is built again each time its colour is set
             }
             Vector3 side = Vector3.Cross(Vector3.up, zones.TorsoForward).normalized;
-            float halfWidth = Mathf.Abs(Vector3.Dot(_bounds.extents, Abs(Quaternion.Inverse(rot) * side))) * scale;
+            float halfWidth = Mathf.Abs(Vector3.Dot(_bounds.extents, Abs(Runtime.RigidPose.Conjugate(rot) * side))) * scale;
             _label.transform.position = zones.Pouch + lift + side * (halfWidth + 0.018f) + Vector3.up * 0.01f;
             Transform head = _sys.Rig.Head;
             Vector3 toHead = _label.transform.position - head.position;

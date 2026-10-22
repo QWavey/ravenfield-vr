@@ -824,7 +824,7 @@ namespace RavenfieldVR.Rig
             Quaternion handInSolidRot = Quaternion.identity;
             if (SolidAnchor != null)
             {
-                Quaternion anchorInv = Quaternion.Inverse(SolidAnchor.rotation);
+                Quaternion anchorInv = Runtime.RigidPose.Conjugate(SolidAnchor.rotation);
                 handInSolid = anchorInv * (_root.position - SolidAnchor.position);
                 handInSolidRot = anchorInv * _root.rotation;
             }
@@ -1128,7 +1128,7 @@ namespace RavenfieldVR.Rig
             {
                 return true;
             }
-            Quaternion inv = Quaternion.Inverse(SolidAnchor.rotation);
+            Quaternion inv = Runtime.RigidPose.Conjugate(SolidAnchor.rotation);
             Vector3 pos = inv * (_root.position - SolidAnchor.position);
             Quaternion rot = inv * _root.rotation;
             bool moved = !ReferenceEquals(_slideAtSolid, Solid) || _slideAtVersion != SolidVersion

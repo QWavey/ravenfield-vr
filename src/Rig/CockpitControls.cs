@@ -280,7 +280,7 @@ namespace RavenfieldVR.Rig
         private Vector3 InSeat(Vector3 world) => InFrame(_seat.transform, world);
 
         /// <summary>A world point in <paramref name="frame"/>'s position and turn (its scale left out).</summary>
-        internal static Vector3 InFrame(Transform frame, Vector3 world) => Quaternion.Inverse(frame.rotation) * (world - frame.position);
+        internal static Vector3 InFrame(Transform frame, Vector3 world) => Runtime.RigidPose.Conjugate(frame.rotation) * (world - frame.position);
 
         /// <summary>A hand's turn of the rim so far, plus this frame's (from <paramref name="from"/> to <paramref name="to"/>), held at the stops.</summary>
         internal static float AddTurn(float turned, Vector3 from, Vector3 to, Vector3 axis, float steerAtTake, float maxRotation)

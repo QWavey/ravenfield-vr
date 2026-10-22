@@ -467,7 +467,7 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             Transform t = _go.transform;
-            Quaternion rot = t.rotation * Quaternion.Inverse(_frame);
+            Quaternion rot = t.rotation * Runtime.RigidPose.Conjugate(_frame);
             gunBody = new RigidPose(t.position - rot * _origin, rot);
             return true;
         }
@@ -629,7 +629,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static void Envelope(WeaponRigData d, Quaternion frame, Vector3 origin, out Vector3 envMin, out Vector3 envMax)
         {
-            Quaternion inv = Quaternion.Inverse(frame);
+            Quaternion inv = Runtime.RigidPose.Conjugate(frame);
             float muzzle = (inv * (d.MuzzlePoint - origin)).z;
             // A handgun's by its slot: a rifle whose support hand cups the grip is held like a pistol but is as long as a
             // rifle (its shape was cut to a pistol's box; bug hunt 251.2).
@@ -1176,7 +1176,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Body.velocity = Vector3.ClampMagnitude(delta / dt, MaxSpeed);
-            Quaternion dq = TargetRot * Quaternion.Inverse(Body.rotation);
+            Quaternion dq = TargetRot * Runtime.RigidPose.Conjugate(Body.rotation);
             dq.ToAngleAxis(out float angle, out Vector3 axis);
             if (angle > 180f)
             {

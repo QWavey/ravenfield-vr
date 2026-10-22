@@ -105,7 +105,7 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                Quaternion toFrame = Quaternion.Inverse(v.ToView);
+                Quaternion toFrame = Runtime.RigidPose.Conjugate(v.ToView);
                 for (int j = 0; j < v.H; j += stride)
                 {
                     for (int i = 0; i < v.W; i += stride)
@@ -166,7 +166,7 @@ namespace RavenfieldVR.Weapons
         public void SetPose(Vector3 position, Quaternion rotation)
         {
             _pos = position;
-            _inv = Quaternion.Inverse(rotation);
+            _inv = Runtime.RigidPose.Conjugate(rotation);
             foreach (View v in _views)
             {
                 v.WorldToView = v.ToView * _inv;
@@ -577,7 +577,7 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            Quaternion finv = Quaternion.Inverse(fr);
+            Quaternion finv = Runtime.RigidPose.Conjugate(fr);
 
             // The model's extent in the frame, kept within the envelope a held weapon can sensibly have.
             var box = new Bounds();
@@ -628,7 +628,7 @@ namespace RavenfieldVR.Weapons
             for (int d = 0; d < dirs.Length; d++)
             {
                 Quaternion look = Quaternion.LookRotation(dirs[d].Item1, dirs[d].Item2);
-                Quaternion toView = Quaternion.Inverse(look);
+                Quaternion toView = Runtime.RigidPose.Conjugate(look);
                 Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
                 for (int c = 0; c < 8; c++)
                 {

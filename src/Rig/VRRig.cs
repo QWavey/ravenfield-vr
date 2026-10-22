@@ -843,7 +843,7 @@ namespace RavenfieldVR.Rig
                 _steadyFrame = Time.frameCount;
                 ApplyViewShake();
                 _shakeUndo = _steadyRoot * Root.worldToLocalMatrix;
-                _shakeUndoRotation = _steadyRootRotation * Quaternion.Inverse(Root.rotation);
+                _shakeUndoRotation = _steadyRootRotation * Runtime.RigidPose.Conjugate(Root.rotation);
             }
             catch (Exception e)
             {
