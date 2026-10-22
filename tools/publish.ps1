@@ -50,33 +50,43 @@ if ($IncludeZip) {
     $assets += $zip
 }
 
-Write-Host "==> Publishing $tag  (only: $((($assets | Split-Path -Leaf) -join ', ')))"
+$repo = (& gh repo view --json nameWithOwner --jq '.nameWithOwner').Trim()
+Write-Host "==> Publishing $tag to $repo  (only: $((($assets | Split-Path -Leaf) -join ', ')))"
 
-# Does the release already exist?
-$exists = $true
-& gh release view $tag --repo (& gh repo view --json nameWithOwner --jq '.nameWithOwner') *> $null
-if ($LASTEXITCODE -ne 0) { $exists = $false }
+# gh writes "release not found" to stderr, which $ErrorActionPreference='Stop' turns into a
+# terminating error under Windows PowerShell. Relax it for the native calls whose non-zero exit
+# is a normal, expected outcome (existence check; deleting an asset that may not be there).
+function Invoke-GhSoft([string[]]$GhArgs) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & gh @GhArgs 1>$null 2>$null; return $LASTEXITCODE }
+    finally { $ErrorActionPreference = $prev }
+}
+
+$exists = (Invoke-GhSoft @('release', 'view', $tag, '--repo', $repo)) -eq 0
 
 if ($exists) {
     Write-Host "    Release $tag exists - updating its assets."
     foreach ($a in $assets) {
-        & gh release upload $tag $a --clobber
+        & gh release upload $tag $a --repo $repo --clobber
         if ($LASTEXITCODE -ne 0) { throw "Failed to upload $(Split-Path $a -Leaf)." }
     }
     # Remove the redundant standalone launcher asset if a previous publish left one.
-    & gh release delete-asset $tag "RavenfieldVR-Launcher-$Version.exe" --yes *> $null
+    [void](Invoke-GhSoft @('release', 'delete-asset', $tag, "RavenfieldVR-Launcher-$Version.exe", '--yes', '--repo', $repo))
     if (-not $IncludeZip) {
-        & gh release delete-asset $tag "RavenfieldVR-$Version.zip" --yes *> $null
+        [void](Invoke-GhSoft @('release', 'delete-asset', $tag, "RavenfieldVR-$Version.zip", '--yes', '--repo', $repo))
     }
 }
 else {
-    $args = @('release', 'create', $tag) + $assets + @('--title', "Ravenfield VR $Version")
-    if ($Draft) { $args += '--draft' }
-    if ($PreRelease) { $args += '--prerelease' }
-    if ($NotesFile) { $args += @('--notes-file', $NotesFile) } else { $args += @('--notes', "Ravenfield VR $Version") }
-    & gh @args
+    # Tag the commit the release was built from, not the default branch (gh's default when the tag is new).
+    $sha = (& git rev-parse HEAD).Trim()
+    $ghArgs = @('release', 'create', $tag, '--repo', $repo, '--target', $sha) + $assets + @('--title', "Ravenfield VR $Version")
+    if ($Draft) { $ghArgs += '--draft' }
+    if ($PreRelease) { $ghArgs += '--prerelease' }
+    if ($NotesFile) { $ghArgs += @('--notes-file', $NotesFile) } else { $ghArgs += @('--notes', "Ravenfield VR $Version") }
+    & gh @ghArgs
     if ($LASTEXITCODE -ne 0) { throw "gh release create failed." }
 }
 
-Write-Host "==> Done. Release page:"
-& gh release view $tag --web
+$url = (& gh release view $tag --repo $repo --json url --jq '.url').Trim()
+Write-Host "==> Done. Release: $url"
