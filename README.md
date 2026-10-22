@@ -18,7 +18,7 @@ What you get:
 ## Install
 
 1. Close Ravenfield.
-2. Run `RavenfieldVR-Setup-1.0.0.exe`. It finds Ravenfield in your Steam libraries (or pick the folder) and installs. Keep "Pressing Play in Steam opens the launcher" ticked: Steam then asks every time you press Play whether to start in VR or on the monitor, and with which graphics preset. If Steam is running, Setup asks to close it for a moment (Steam rewrites its launch options when it exits) and starts it again.
+2. Download `RavenfieldVR-Setup-<version>.exe` from the newest release on GitHub (Releases; the older ones are the earlier versions) and run it. It finds Ravenfield in your Steam libraries (or pick the folder) and installs. Keep "Pressing Play in Steam opens the launcher" ticked: Steam then asks every time you press Play whether to start in VR or on the monitor, and with which graphics preset. If Steam is running, Setup asks to close it for a moment (Steam rewrites its launch options when it exits) and starts it again.
 3. Put on the headset, press Play on Ravenfield in Steam, choose **Play in VR**.
 
 Setup also adds **Ravenfield VR** to the list Steam shows when you press Play (next to "Ravenfield (No Mods)" and "Ravenfield (Safe Mode)"): pick it to start straight in VR. Steam gets that list from Valve with the game's info, so a Ravenfield update can take the entry away again; run Setup again to put it back.
