@@ -55,6 +55,12 @@ namespace RavenfieldVR.UI
         {
             if (_data != null)
             {
+                if (_pressed)
+                {
+                    // Switched off mid-press (the scene's event system replaced, VR off): no click, but the button gets its pointer
+                    // up. Left pressed, it stayed drawn pressed, and the press carried into the next activation (bug hunt, 2026-10-22).
+                    Release(null, cancel: true);
+                }
                 HandlePointerExitAndEnter(_data, null);
             }
             base.DeactivateModule();
