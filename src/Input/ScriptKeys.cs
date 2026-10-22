@@ -42,6 +42,11 @@ namespace RavenfieldVR.Input
             public int ChangeFrame;
             public float ReleaseAt = float.MaxValue;
             public ScriptedBehaviour Target;
+            /// <summary>
+            /// The tap is for one script. Kept apart from <see cref="Target"/>: a destroyed target reads as null to Unity, and
+            /// its tap then went to every script listening to the key for the rest of its 80 ms (bug hunt, 2026-10-22).
+            /// </summary>
+            public bool Targeted;
             public bool WasDown;
             /// <summary>A tap cut into a hold (Shift while sprinting): the hold is still on under the tap (see Tap).</summary>
             public bool HeldUnderTap;
@@ -94,6 +99,7 @@ namespace RavenfieldVR.Input
             v.ChangeFrame = Time.frameCount;
             v.ReleaseAt = Time.unscaledTime + TapSeconds;
             v.Target = target;
+            v.Targeted = !ReferenceEquals(target, null);
             v.DownDelivered.Clear();
             v.UpDelivered.Clear();
         }
@@ -129,6 +135,7 @@ namespace RavenfieldVR.Input
             v.ChangeFrame = Time.frameCount;
             v.ReleaseAt = float.MaxValue;
             v.Target = null;
+            v.Targeted = false;
             v.DownDelivered.Clear();
             v.UpDelivered.Clear();
         }
@@ -157,6 +164,7 @@ namespace RavenfieldVR.Input
                         // (2026-10-19). The edge is aged out so that no script reads the old press as a new one.
                         v.HeldUnderTap = false;
                         v.Target = null;
+                        v.Targeted = false;
                         v.ReleaseAt = float.MaxValue;
                         v.ChangeFrame = Time.frameCount - EdgeFrames - 1;
                         continue;
@@ -208,7 +216,7 @@ namespace RavenfieldVR.Input
             {
                 return false;
             }
-            if (v.Target != null && v.Target != script)
+            if (v.Targeted && !ReferenceEquals(v.Target, script))
             {
                 // Not the script the tap was for: it still sees the hold the tap cut into (no edge), as it did before the tap.
                 return kind == 0 && v.HeldUnderTap;
