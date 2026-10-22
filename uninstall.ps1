@@ -6,9 +6,11 @@
     Reads BepInEx/plugins/RavenfieldVR/install-manifest.txt written by install.ps1: deletes the files it
     added, restores the backed-up originals, and removes BepInEx only if the installer put it there.
     Your config (BepInEx/config/com.qwavey.ravenfieldvr.cfg) is kept unless -RemoveConfig is given.
+    The VR launcher stays while a Steam launch option still starts it (remove it there first), as the setup's uninstall does.
+    -SteamDir: the Steam folder whose accounts' launch options are read (default: the one Steam's registry names).
 #>
 [CmdletBinding()]
-param([string]$GameDir, [switch]$RemoveConfig)
+param([string]$GameDir, [switch]$RemoveConfig, [string]$SteamDir)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tools/common.ps1')
@@ -44,11 +46,22 @@ $pluginsRoot = Join-Path $GameDir 'BepInEx/plugins'
 $otherPlugins = @(Get-ChildItem -LiteralPath $pluginsRoot -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'RavenfieldVR' }).Count -gt 0
 $keepBepInEx = (-not $installedBepInEx) -or $otherPlugins -or (-not $RemoveConfig)
 
+# A Steam launch option that still runs the launcher (the setup puts it there): deleted, Ravenfield no longer started from Steam
+# at all. Kept then, as the setup's uninstall keeps it (improve round, 2026-10-22).
+if (-not $SteamDir) { $SteamDir = @(Get-SteamLibraries)[0] }
+$launcherName = 'RavenfieldVR-Launcher.exe'
+$launcherInUse = @(Get-ChildItem -Path (Join-Path $SteamDir 'userdata\*\config\localconfig.vdf') -ErrorAction SilentlyContinue |
+    Where-Object { (Get-Content -LiteralPath $_.FullName -Raw -ErrorAction SilentlyContinue) -match [regex]::Escape($launcherName) }).Count -gt 0
+
 foreach ($line in $entries) {
     if ($line -like 'added=*') {
         $rel = $line -replace '^added=', ''
         $bepInExOwn = ($loaderFiles -contains $rel) -or ($rel -like 'BepInEx\core\*') -or ($rel -like 'BepInEx/core/*')
         if ($keepBepInEx -and $bepInExOwn) { continue }
+        if ($launcherInUse -and $rel -eq $launcherName) {
+            Write-Warning "Kept $launcherName`: Steam's launch options for Ravenfield still start it. Remove it from Steam > Ravenfield > Properties > Launch Options, then delete the file."
+            continue
+        }
         $path = Resolve-Inside $GameDir $rel
         if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Force }
     }
@@ -75,8 +88,12 @@ if (Test-Path -LiteralPath $subsystems) { Remove-Item -LiteralPath $subsystems -
 $subsystemsRoot = Join-Path $GameDir 'ravenfield_Data/UnitySubsystems'
 if ((Test-Path -LiteralPath $subsystemsRoot) -and -not (Get-ChildItem -LiteralPath $subsystemsRoot)) { Remove-Item -LiteralPath $subsystemsRoot -Force }
 
+# The launcher's log goes (its choices are settings), and with -RemoveConfig the launcher's remembered choice too: the setup's
+# uninstall removed both, this one neither.
+$launcherLog = Join-Path $GameDir 'BepInEx/RavenfieldVR-launcher.log'
+if (Test-Path -LiteralPath $launcherLog) { Remove-Item -LiteralPath $launcherLog -Force }
 if ($RemoveConfig) {
-    foreach ($cfg in 'com.qwavey.ravenfieldvr.cfg', 'RavenfieldVR.weapons.json') {
+    foreach ($cfg in 'com.qwavey.ravenfieldvr.cfg', 'RavenfieldVR.weapons.json', 'RavenfieldVR.launcher.ini') {
         $p = Join-Path $GameDir "BepInEx/config/$cfg"
         if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
     }
