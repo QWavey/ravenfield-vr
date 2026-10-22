@@ -727,6 +727,8 @@ namespace RavenfieldVR.Weapons
             return d;
         }
 
+        /// <summary>A shotgun's pump (the R870s', the 76 EAGLE's, the ARS M500's bone): the only exported parts so named.</summary>
+        private static readonly Regex PumpName = new Regex(@"pump|fore-?end", RegexOptions.IgnoreCase);
         /// <summary>A charging handle by its name (an AR's T-handle, a side cocking handle); never a magazine ("chargeur").</summary>
         private static readonly Regex ChargingName = new Regex(@"charg|cocking ?handle|拉机柄|拉柄|上膛", RegexOptions.IgnoreCase);
 
@@ -1597,8 +1599,18 @@ namespace RavenfieldVR.Weapons
                 d.RackPoint = d.SupportPoint; // pump action: rack where the support hand already is
             }
 
+            // A pump is its own handle: no separate one. The ARS M500's reload moves an 'Ejector' bone at the receiver, which
+            // became its handle, 18 cm behind its moving pump ("the part under the hand does not move" in every run). A pump with
+            // no mesh of its own (a bone of the skinned gun) is racked where the support hand holds it.
+            bool pump = PumpName.IsMatch(slide.name) && d.HasSupportPoint;
+            if (pump && !HasRendererInSubtree(slide))
+            {
+                d.RackPoint = d.SupportPoint;
+                d.Notes += $"pump '{slide.name}' (a bone): racked where the support hand holds it ";
+            }
+
             // A separate charging handle the reload works (AR style): that is where the hand grabs, the bolt follows.
-            if (d.Animated && sampler.HasReload && !d.Handgun && !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)) // (not a handgun: its slide is the moving part, never a handle's bolt; pistol hunt)
+            if (d.Animated && sampler.HasReload && !d.Handgun && !pump && !d.SlideMethod.StartsWith("reload motion (charging handle)", StringComparison.Ordinal)) // (not a handgun: its slide is the moving part, never a handle's bolt; pistol hunt)
             {
                 Transform handle = ChargingHandleFromReload(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, out Vector3 handleVec, slide);
                 if (handle != null && slide.IsChildOf(handle) && Vector3.Distance(sampler.RelIdle[index[handle]].position, d.GripPoint) < 0.45f)
