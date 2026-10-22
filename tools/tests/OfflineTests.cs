@@ -939,6 +939,43 @@ namespace RavenfieldVR.Tests
         /// </summary>
         private static void PlayEntryTests()
         {
+            // A damaged cache (a record whose size reads 0xFFFFFFF8): refused as a bad file, in time. The walk over the records
+            // stepped by that size unchecked and never ended.
+            string damaged = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-test-appinfo-damaged-" + Guid.NewGuid().ToString("N") + ".vdf");
+            var bytes = new List<byte>();
+            bytes.AddRange(BitConverter.GetBytes(0x07564428u)); // version 28
+            bytes.AddRange(BitConverter.GetBytes(1u));          // universe
+            bytes.AddRange(BitConverter.GetBytes(636480u));     // an app record
+            bytes.AddRange(BitConverter.GetBytes(0xFFFFFFF8u)); // its damaged size
+            bytes.AddRange(new byte[80]);
+            System.IO.File.WriteAllBytes(damaged, bytes.ToArray());
+            string outcome = "still running after 5 s (the walk does not end)";
+            var load = System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    SteamPlayEntry.IsPresent(damaged);
+                    outcome = "read as fine";
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    outcome = "refused";
+                }
+                catch (Exception e)
+                {
+                    outcome = e.GetType().Name;
+                }
+            });
+            load.Wait(5000);
+            Check(outcome == "refused", "Play entry: a damaged app cache is refused, not walked forever (" + outcome + ")");
+            try
+            {
+                System.IO.File.Delete(damaged);
+            }
+            catch (System.IO.IOException)
+            {
+            }
+
             string real = SteamPlayEntry.CachePath();
             if (!System.IO.File.Exists(real))
             {

@@ -232,7 +232,7 @@ namespace RavenfieldVR.Setup
                 {
                     break;
                 }
-                at += 8 + (int)BitConverter.ToUInt32(f._data, at + 4);
+                at = f.RecordEnd(at);
             }
             if (f._v29 && at + 4 != f._tableAt)
             {
@@ -253,7 +253,7 @@ namespace RavenfieldVR.Setup
                 {
                     return null;
                 }
-                int end = at + 8 + (int)BitConverter.ToUInt32(_data, at + 4);
+                int end = RecordEnd(at);
                 if (id == appId)
                 {
                     int p = at + HeaderSize;
@@ -277,6 +277,21 @@ namespace RavenfieldVR.Setup
                 }
                 at = end;
             }
+        }
+
+        /// <summary>
+        /// Where the record at <paramref name="at"/> ends, by its size field, which must leave a whole header and stay inside the
+        /// file. Unchecked, a damaged size (0xFFFFFFF8 read as -8) stepped back or not at all and the walk never ended: the setup
+        /// hung on a damaged cache (bug hunt, 2026-10-22).
+        /// </summary>
+        private int RecordEnd(int at)
+        {
+            uint size = BitConverter.ToUInt32(_data, at + 4);
+            if (size < HeaderSize - 8 || size > (uint)(_data.Length - at - 8))
+            {
+                throw new InvalidDataException($"a record of Steam's app cache has a size that does not fit it ({size} bytes at {at}).");
+            }
+            return at + 8 + (int)size;
         }
 
         public byte[] Body(int recordAt, int recordEnd) => _data.Skip(recordAt + HeaderSize).Take(recordEnd - recordAt - HeaderSize).ToArray();
