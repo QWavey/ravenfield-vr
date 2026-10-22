@@ -15,7 +15,7 @@ namespace RavenfieldVR.Core
         public static object Parse(string text)
         {
             int i = 0;
-            object v = Value(text, ref i);
+            object v = Value(text, ref i, 0);
             Skip(text, ref i);
             if (i != text.Length)
             {
@@ -32,8 +32,18 @@ namespace RavenfieldVR.Core
             }
         }
 
-        private static object Value(string s, ref int i)
+        /// <summary>
+        /// Nesting deeper than this is refused: each level is a call, and a file of a few thousand brackets (a corrupt or hostile
+        /// pose file) overflowed the stack, which no catch stops: the game itself closed (improve round, 2026-10-22).
+        /// </summary>
+        private const int MaxDepth = 256;
+
+        private static object Value(string s, ref int i, int depth)
         {
+            if (depth > MaxDepth)
+            {
+                throw new FormatException($"nested deeper than {MaxDepth} at {i}");
+            }
             Skip(s, ref i);
             if (i >= s.Length)
             {
@@ -58,7 +68,7 @@ namespace RavenfieldVR.Core
                         string key = String(s, ref i);
                         Skip(s, ref i);
                         Expect(s, ref i, ':');
-                        o[key] = Value(s, ref i);
+                        o[key] = Value(s, ref i, depth + 1);
                         Skip(s, ref i);
                         if (i < s.Length && s[i] == ',')
                         {
@@ -81,7 +91,7 @@ namespace RavenfieldVR.Core
                     }
                     while (true)
                     {
-                        a.Add(Value(s, ref i));
+                        a.Add(Value(s, ref i, depth + 1));
                         Skip(s, ref i);
                         if (i < s.Length && s[i] == ',')
                         {

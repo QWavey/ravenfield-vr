@@ -460,6 +460,20 @@ namespace RavenfieldVR.Tests
             Check((float)num.Invoke(null, new object[] { hand, "curl", 0.5f }) == 0.5f && (float)num.Invoke(null, new object[] { hand, "spread", 0.25f }) == 0.25f,
                   "JSON: a non-finite number takes the fallback");
             Check((string)str.Invoke(null, new object[] { hand, "name" }) == "M4A1 ä\"x\"", "JSON: \\u and quote escapes");
+            // Nesting: a deep file is refused with a format error (a stack overflow closes the game, no catch stops it); real
+            // nesting still reads.
+            bool deepRefused;
+            try
+            {
+                parse.Invoke(null, new object[] { new string('[', 100000) + new string(']', 100000) });
+                deepRefused = false;
+            }
+            catch (System.Reflection.TargetInvocationException e)
+            {
+                deepRefused = e.InnerException is FormatException;
+            }
+            object nested = parse.Invoke(null, new object[] { new string('[', 200) + "1" + new string(']', 200) });
+            Check(deepRefused && nested != null, "JSON: 100000 levels of nesting refused as a format error, 200 read");
         }
 
         /// <summary>
