@@ -88,6 +88,10 @@ namespace RavenfieldVR.Weapons
                 if (!Same(from, _lastFrom))
                 {
                     _root.transform.position = from;
+                    // Where it now is, its built shape carried along: left at the build's place, a gun back at exactly that
+                    // place left the strip where it last was (scout, 2026-10-22).
+                    _lastTo += from - _lastFrom;
+                    _lastFrom = from;
                 }
                 return;
             }
