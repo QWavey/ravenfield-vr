@@ -693,6 +693,20 @@ namespace RavenfieldVR.Tests
                 var cmd = RavenfieldVR.Launcher.GameCommand.FromArgs(new[] { exe, "-NOVR", "-map", "x" });
                 Check(cmd.Requested == RavenfieldVR.Launcher.PlayMode.Flat && cmd.Args.Count == 2 && cmd.Args[0] == "-map" && cmd.GameDir == dir,
                       "Launcher: -novr is the choice, not passed on; Steam's own exe path is the game's folder");
+                // The remembered choice: saved and read back as it was; a damaged file (a preset that is none, stray lines) keeps
+                // what it can and asks again rather than throwing.
+                var saved = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
+                saved.Mode = RavenfieldVR.Launcher.PlayMode.Flat;
+                saved.Preset = "Low";
+                saved.Remember = true;
+                saved.Save();
+                var read = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
+                Check(read.Mode == RavenfieldVR.Launcher.PlayMode.Flat && read.Preset == "Low" && read.Remember,
+                      $"Launcher: the remembered choice reads back (mode {read.Mode}, preset {read.Preset}, remember {read.Remember})");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(cfgDir, "RavenfieldVR.launcher.ini"), "garbage\n=x\nmode=VR\npreset=Insane\nremember=yes\n");
+                var damaged = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
+                Check(damaged.Mode == RavenfieldVR.Launcher.PlayMode.VR && damaged.Preset == "Medium" && !damaged.Remember,
+                      $"Launcher: a damaged choice file keeps the defaults it cannot read (mode {damaged.Mode}, preset {damaged.Preset}, remember {damaged.Remember})");
             }
             catch (Exception e)
             {
