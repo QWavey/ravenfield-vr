@@ -103,6 +103,18 @@ namespace RavenfieldVR.Core
                 case 'n':
                     Word(s, ref i, "null");
                     return null;
+                // Python's json module (the sandbox writes the poses with it) writes a non-finite number as NaN, Infinity or
+                // -Infinity: read as such, the field readers below treat it as missing. As a parse error, one such value dropped
+                // every pose in the file (improve round, 2026-10-22).
+                case 'N':
+                    Word(s, ref i, "NaN");
+                    return double.NaN;
+                case 'I':
+                    Word(s, ref i, "Infinity");
+                    return double.PositiveInfinity;
+                case '-' when string.CompareOrdinal(s, i, "-Infinity", 0, 9) == 0:
+                    i += 9;
+                    return double.NegativeInfinity;
                 default:
                 {
                     int start = i;
@@ -199,7 +211,7 @@ namespace RavenfieldVR.Core
         }
 
         public static float Num(object o, string key, float fallback) =>
-            o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is double x ? (float)x : fallback;
+            o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is double x && !double.IsNaN(x) && !double.IsInfinity(x) ? (float)x : fallback;
 
         public static bool Bool(object o, string key) =>
             o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is bool b && b;

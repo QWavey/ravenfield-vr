@@ -68,6 +68,44 @@ namespace RavenfieldVR.Tests
             SteeringTests(mod);
             DeadzoneTests(mod);
             ConfigTests(mod);
+            JsonTests(mod);
+        }
+
+        /// <summary>
+        /// The mod's JSON reader on what the sandbox (Python's json module) writes: a non-finite number comes out as NaN or
+        /// Infinity there, and one such value failed the whole pose file, so every hand pose of that gun was dropped.
+        /// </summary>
+        private static void JsonTests(System.Reflection.Assembly mod)
+        {
+            Type json = mod.GetType("RavenfieldVR.Core.MiniJson");
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo parse = json?.GetMethod("Parse", any), floats = json?.GetMethod("Floats", any), num = json?.GetMethod("Num", any), str = json?.GetMethod("Str", any);
+            Check(parse != null && floats != null && num != null && str != null, "JSON: MiniJson found");
+            if (parse == null || floats == null || num == null || str == null)
+            {
+                return;
+            }
+            object doc = null;
+            try
+            {
+                doc = parse.Invoke(null, new object[] { "{\"hand\": {\"position\": [0.1, -2.5e-1, 3], \"rotation\": [0, 0, NaN, 1], \"curl\": Infinity, \"spread\": -Infinity,"
+                                                       + " \"name\": \"M4A1 \\u00e4\\\"x\\\"\"}}" });
+            }
+            catch (System.Reflection.TargetInvocationException e)
+            {
+                Check(false, "JSON: Python's NaN / Infinity / -Infinity read (threw " + e.InnerException?.Message + ")");
+            }
+            if (doc == null)
+            {
+                return;
+            }
+            object hand = ((System.Collections.Generic.Dictionary<string, object>)doc)["hand"];
+            var pos = (float[])floats.Invoke(null, new object[] { hand, "position", 3 });
+            Check(pos != null && Math.Abs(pos[1] + 0.25f) < 1e-6f && pos[2] == 3f, "JSON: numbers with exponents and signs");
+            Check(floats.Invoke(null, new object[] { hand, "rotation", 4 }) == null, "JSON: an array with a NaN in it counts as missing (that field only)");
+            Check((float)num.Invoke(null, new object[] { hand, "curl", 0.5f }) == 0.5f && (float)num.Invoke(null, new object[] { hand, "spread", 0.25f }) == 0.25f,
+                  "JSON: a non-finite number takes the fallback");
+            Check((string)str.Invoke(null, new object[] { hand, "name" }) == "M4A1 ä\"x\"", "JSON: \\u and quote escapes");
         }
 
         /// <summary>
