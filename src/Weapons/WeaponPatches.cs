@@ -16,9 +16,6 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static bool PlayerWeaponInVR(Weapon w) =>
             VRManager.Active && WeaponSystem.Instance != null && w != null && w.UserIsPlayer() && !w.IsMountedWeapon();
-
-        /// <summary>Set while the mod itself asks the game to reload (assisted mode / scripted refills).</summary>
-        public static bool AllowGameReload;
     }
 
     /// <summary>
@@ -253,7 +250,7 @@ namespace RavenfieldVR.Weapons
     {
         private static bool Prefix(Weapon __instance)
         {
-            if (!WeaponHooks.PlayerWeaponInVR(__instance) || WeaponHooks.AllowGameReload || VRConfig.ReloadNow != ReloadMode.Manual)
+            if (!WeaponHooks.PlayerWeaponInVR(__instance) || VRConfig.ReloadNow != ReloadMode.Manual)
             {
                 return true;
             }

@@ -8,6 +8,8 @@ using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
+    // (Filled by JsonUtility from the file, never in code: no "never assigned" warning for its fields.)
+#pragma warning disable CS0649
     [Serializable]
     internal sealed class WeaponOverride
     {
@@ -36,6 +38,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>"true"/"false": whether a fresh magazine can knock the seated one out; empty keeps the detected value.</summary>
         public string magKick = "";
     }
+
+#pragma warning restore CS0649
 
     [Serializable]
     internal sealed class WeaponOverrideFile

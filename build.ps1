@@ -92,7 +92,7 @@ $references.Add((Join-Path $BepCore '0Harmony.dll'))
 $defines = 'UNITY_5_3_OR_NEWER;UNITY_STANDALONE;UNITY_STANDALONE_WIN'
 $cscArgs = @(
     '-nologo', '-target:library', '-langversion:latest', '-nostdlib', '-noconfig', '-unsafe+',
-    '-deterministic', '-nowarn:CS0649,CS0169,CS0414,CS0618,CS1591,CS0436', '-warn:4',
+    '-deterministic', '-nowarn:CS0618,CS1591,CS0436', '-warn:4',
     "-out:$(Join-Path $Build 'RavenfieldVR.dll')",
     "-doc:$(Join-Path $Build 'RavenfieldVR.xml')"
 )
