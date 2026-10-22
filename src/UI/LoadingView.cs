@@ -235,15 +235,15 @@ namespace RavenfieldVR.UI
                 _screen.transform.localScale = new Vector3(Width, Width * 9f / 16f, 1f);
             }
             _screen.SetActive(true);
+            _frames = _over100 = _over500 = 0;
+            _longest = 0f;
+            _dropsMs = _dropsLongest = 0.0;
+            _shownAt = Time.unscaledTime; // (before the overlay's first picture: its fade-in counts from here)
             CompositorBegin();
             _screen.GetComponent<Renderer>().enabled = !_overlayShown; // the overlay is the screen: not drawn twice
             _uiMask = _uiCamera.cullingMask;
             _uiCamera.cullingMask = 1 << ScreenLayer;
             VRRig.Blackout = true;
-            _frames = _over100 = _over500 = 0;
-            _longest = 0f;
-            _dropsMs = _dropsLongest = 0.0;
-            _shownAt = Time.unscaledTime;
             Log.Info("Loading screen: shown on a screen in front of you.");
         }
 
@@ -424,6 +424,15 @@ namespace RavenfieldVR.UI
                 return false;
             }
             Graphics.Blit(_texture, _overlayTexture);
+            // Faded with the view as the game's quad was (the compositor's fade to black does not reach an overlay): in after
+            // the cut's black (0.12 s, then 0.25 s, as VRRig.FadeCut), out over the end's 0.06 s (FadeThenEnd).
+            float now = Time.unscaledTime;
+            float alpha = Mathf.Clamp01((now - _shownAt - 0.12f) / 0.25f);
+            if (_endAt >= 0f)
+            {
+                alpha = Mathf.Min(alpha, Mathf.Clamp01((_endAt - now) / 0.06f));
+            }
+            overlay.SetOverlayAlpha(_overlay, alpha);
             var texture = new Texture_t { handle = _overlayTexture.GetNativeTexturePtr(), eType = _textureType, eColorSpace = EColorSpace.Auto };
             EVROverlayError error = overlay.SetOverlayTexture(_overlay, ref texture);
             Transform root = _rig.Root, t = _screen.transform;
