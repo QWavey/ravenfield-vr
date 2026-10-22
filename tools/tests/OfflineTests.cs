@@ -27,14 +27,83 @@ namespace RavenfieldVR.Tests
             }
         }
 
-        private static int Main()
+        private static int Main(string[] args)
         {
             InsideTests();
             VdfTests();
             BindingsTests();
             PlayEntryTests();
+            ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// The mod's own pure logic, through the built RavenfieldVR.dll (args: the game's Managed folder, the DLL): only vector
+        /// maths runs here, Unity's native calls (Quaternion.Inverse, LookRotation...) need the game.
+        /// </summary>
+        private static void ModTests(string[] args)
+        {
+            if (args.Length < 2 || !System.IO.File.Exists(args[1]) || !System.IO.Directory.Exists(args[0]))
+            {
+                Console.WriteLine("Mod checks skipped (no built RavenfieldVR.dll, or the game's Managed folder not found)");
+                return;
+            }
+            string managed = args[0], built = System.IO.Path.GetDirectoryName(args[1]);
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
+            {
+                string file = new System.Reflection.AssemblyName(e.Name).Name + ".dll";
+                foreach (string dir in new[] { built, managed })
+                {
+                    string path = System.IO.Path.Combine(dir, file);
+                    if (System.IO.File.Exists(path))
+                    {
+                        return System.Reflection.Assembly.LoadFrom(path);
+                    }
+                }
+                return null;
+            };
+            // In methods of their own: Unity's types are resolved when they are compiled, after the handler is in place.
+            SteeringTests(System.Reflection.Assembly.LoadFrom(args[1]));
+        }
+
+        private static void SteeringTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo addTurn = mod.GetType("RavenfieldVR.Rig.CockpitControls")?.GetMethod("AddTurn",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(addTurn != null, "Steering: CockpitControls.AddTurn found");
+            if (addTurn == null)
+            {
+                return;
+            }
+            float Turn(float turned, float fromDeg, float toDeg, float steerAtTake, float maxRotation) =>
+                (float)addTurn.Invoke(null, new object[] { turned, Rim(fromDeg), Rim(toDeg), UnityEngine.Vector3.forward, steerAtTake, maxRotation });
+            // A hand on the rim turned clockwise as the driver sees it (the wheel facing -forward), in 10 degree steps.
+            float HandOverHand(float degrees, float steerAtTake, float maxRotation)
+            {
+                float turned = 0f;
+                for (float a = 10f; a <= degrees + 0.01f; a += 10f)
+                {
+                    turned = Turn(turned, a - 10f, a, steerAtTake, maxRotation);
+                }
+                return turned;
+            }
+            float t270 = HandOverHand(270f, 0f, 360f);
+            Check(Math.Abs(t270 + 270f) < 0.5f, $"Steering: 270 degrees hand over hand add up past half a turn ({t270:0.0}, not wrapped)");
+            float locked = HandOverHand(270f, 0f, 120f);
+            Check(Math.Abs(locked + 120f) < 0.01f, $"Steering: held at full lock past it ({locked:0.0})");
+            float back = Turn(Turn(0f, 0f, 30f, 0f, 120f), 30f, 0f, 0f, 120f);
+            Check(Math.Abs(back) < 0.01f, $"Steering: turned and back is straight ({back:0.00})");
+            // Taken at half lock (steer 0.5, 100 degrees to lock): half a lock is left one way (+50), one and a half the other (-150).
+            float ccw = Turn(0f, 0f, -80f, 0.5f, 100f), cw = HandOverHand(120f, 0.5f, 100f);
+            Check(Math.Abs(ccw - 50f) < 0.01f && Math.Abs(cw + 120f) < 0.5f, $"Steering: the lock counts from where the wheel was taken ({ccw:0.0} one way, {cw:0.0} the other)");
+        }
+
+        /// <summary>A rim point <paramref name="deg"/> clockwise from the top, as the driver sees a wheel facing -forward.</summary>
+        private static UnityEngine.Vector3 Rim(float deg)
+        {
+            float r = deg * (float)Math.PI / 180f;
+            return new UnityEngine.Vector3((float)Math.Sin(r), (float)Math.Cos(r), 0f);
         }
 
         private static void InsideTests()

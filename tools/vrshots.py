@@ -86,7 +86,8 @@ class NullHeadset:
         time.sleep(2)
         cfg = json.load(open(STEAMVR_CFG, encoding='utf-8'))
         if cfg.get('steamvr', {}).get('forcedDriver') == 'null':
-            raise SystemExit('SteamVR is already on the null driver (a run that did not restore?): put your own settings back first.')
+            raise SystemExit('SteamVR is already on the null driver (a run that did not restore?): '
+                             'python tools/vrshots.py --restore puts your own settings back.')
         os.makedirs(BACKUPS, exist_ok=True)
         self.hash = sha(STEAMVR_CFG)
         self.backup = os.path.join(BACKUPS, f'steamvr.vrsettings.{time.strftime("%Y%m%d-%H%M%S")}.{self.hash[:8]}')
@@ -190,6 +191,54 @@ class NullHeadset:
             else:
                 log(f'!!! chaperone file NOT put back: {"copy " + self.chap_backup + " over " if self.chap_existed else "delete "}{CHAPERONE} by hand !!!')
         return False
+
+
+def restore_left_over(cfg_path=STEAMVR_CFG, chap_path=CHAPERONE, backups=BACKUPS, stop=True):
+    """After a run that was killed before it could restore (stopped from outside, the PC shut down: 2026-10-22 night):
+    SteamVR's settings back from the newest backup (its hash is in its name and is checked), and the run's play area taken out
+    of the chaperone file (the file removed if the run made it: the user had none). Returns a list of what was done, or of
+    what could not be done (lines starting '!!!'). Nothing is touched while SteamVR is not on the null driver."""
+    done = []
+    if stop:
+        kill('ravenfield.exe')
+        for p in VR_PROCESSES:
+            kill(p)
+        time.sleep(2)
+    try:
+        cfg = json.load(open(cfg_path, encoding='utf-8'))
+    except (OSError, ValueError) as e:
+        return [f'!!! SteamVR settings not readable ({e}): nothing changed']
+    if cfg.get('steamvr', {}).get('forcedDriver') != 'null':
+        done.append('SteamVR settings are your own (not on the null driver): left as they are')
+    else:
+        found = sorted(f for f in os.listdir(backups) if f.startswith('steamvr.vrsettings.')) if os.path.isdir(backups) else []
+        if not found:
+            return [f'!!! SteamVR is on the null driver and there is no backup in {backups}: set it back in SteamVR by hand']
+        newest = os.path.join(backups, found[-1])
+        want = found[-1].rsplit('.', 1)[-1]
+        if not sha(newest).startswith(want):
+            return [f'!!! the newest backup {newest} does not match the hash in its name: nothing changed']
+        shutil.copyfile(newest, cfg_path)
+        if sha(cfg_path).startswith(want):
+            done.append(f'SteamVR settings restored from {newest} (hash {want} matches)')
+        else:
+            done.append(f'!!! SteamVR settings NOT restored: copy {newest} over {cfg_path} by hand')
+    if os.path.exists(chap_path):
+        try:
+            data = json.load(open(chap_path, encoding='utf-8'))
+        except (OSError, ValueError):
+            data = None
+        universes = data.get('universes', []) if isinstance(data, dict) else None
+        if universes is not None and any(str(u.get('universeID')) == str(NULL_UNIVERSE) for u in universes):
+            kept = [u for u in universes if str(u.get('universeID')) != str(NULL_UNIVERSE)]
+            if kept:
+                data['universes'] = kept
+                json.dump(data, open(chap_path, 'w', encoding='utf-8'), indent=3)
+                done.append('the run\'s play area taken out of your chaperone file (yours kept)')
+            else:
+                os.remove(chap_path)
+                done.append('the run\'s chaperone file removed (you had none)')
+    return done
 
 
 # ---- the game ------------------------------------------------------------------------------------------------------
@@ -402,6 +451,8 @@ def main():
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
+    ap.add_argument('--restore', action='store_true',
+                    help="after a run that was killed before it finished: SteamVR's settings and play area back as they were")
     ap.add_argument('--film', action='append', nargs='?', const='', metavar='NAME|ID',
                     help='film both eyes while guns shoot (repeatable; alone: four sample guns)')
     ap.add_argument('--flashcheck', action='store_true', help='every weapon fired: lens flashes counted against shots (no pictures)')
@@ -415,6 +466,10 @@ def main():
     ap.add_argument('--game', default=os.path.join(STEAM, 'steamapps', 'common', 'Ravenfield'))
     a = ap.parse_args()
 
+    if a.restore:
+        for line in restore_left_over():
+            log(line)
+        return
     if a.list:
         idx = os.path.join(REPO, 'reports', 'shots', 'weapons', 'sheets', 'index.json')
         for w in json.load(open(idx, encoding='utf-8')) if os.path.exists(idx) else []:
