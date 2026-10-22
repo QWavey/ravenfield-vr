@@ -4385,8 +4385,6 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private int TotalRounds(int inHand) => Ammo.MagRounds + (Ammo.Chambered ? 1 : 0) + (Ammo.InfiniteSpare ? 0 : Ammo.SpareAmmo) + inHand;
-
         /// <summary>
         /// Autotest (task 270): the fresh magazine (the gun empty) (a) held level with the grip at half its rail, 5 cm to the
         /// side, and brought onto its line from there slowly: it must stay out of the grip, kept out at its wall and not taken

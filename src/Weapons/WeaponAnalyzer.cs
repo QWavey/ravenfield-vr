@@ -4960,20 +4960,6 @@ namespace RavenfieldVR.Weapons
             return weak ?? charging;
         }
 
-        private static Transform FindByName(Transform[] all, Regex rx, Transform root, Transform gunBody, Transform muzzle,
-            HashSet<Transform> armRelated, HashSet<Transform> gunBones)
-        {
-            foreach (Transform t in all)
-            {
-                if (rx.IsMatch(t.name) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
-                {
-                    return t;
-                }
-            }
-            return null;
-        }
-
-        /// <summary>Weapons without a configured muzzle: the mesh with the largest extent hosts the barrel.</summary>
         /// <summary>
         /// Samples the animations relative to <paramref name="gunBody"/>. When the muzzle turns relative to it
         /// (the gun model is animated inside a static holder, e.g. tilted for the reload or kicked up by the fire
