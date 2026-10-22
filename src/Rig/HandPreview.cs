@@ -66,11 +66,13 @@ namespace RavenfieldVR.Rig
                 light.type = LightType.Directional;
                 light.transform.rotation = Quaternion.Euler(40f, -30f, 0f);
                 light.intensity = 1.15f;
+                light.cullingMask = 1 << 18; // the preview's layer only, as the pose sheet's: the game's own view is not lit by it
                 var fill = new GameObject("fill").AddComponent<Light>();
                 fill.transform.SetParent(root.transform, false);
                 fill.type = LightType.Directional;
                 fill.transform.rotation = Quaternion.Euler(-20f, 150f, 0f);
                 fill.intensity = 0.45f;
+                fill.cullingMask = 1 << 18;
 
                 var camGo = new GameObject("cam");
                 camGo.transform.SetParent(root.transform, false);
@@ -260,6 +262,7 @@ namespace RavenfieldVR.Rig
                 light.type = LightType.Directional;
                 light.transform.rotation = Quaternion.Euler(35f, 20f, 0f);
                 light.intensity = 1.1f;
+                light.cullingMask = 1 << 18; // the preview's layer only (the game's own view is not lit by it)
 
                 var camGo = new GameObject("cam");
                 camGo.transform.SetParent(root.transform, false);
