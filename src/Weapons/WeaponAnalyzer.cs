@@ -3879,13 +3879,16 @@ namespace RavenfieldVR.Weapons
             return words;
         }
 
-        /// <summary>A shell by its size: 4 to 13 cm long and under half as thick (a magazine, a clip or a rocket is not one).</summary>
+        /// <summary>
+        /// A shotgun shell by its size: 4 to 13 cm long, 1.5 cm thick or more and under half as thick as long (a magazine, a
+        /// clip or a rocket is not one, nor a rifle's or a revolver's round, about 1.2 cm thick).
+        /// </summary>
         internal static bool ShellSized(Bounds b)
         {
             Vector3 s = b.size;
             float longest = Mathf.Max(s.x, Mathf.Max(s.y, s.z));
             float second = s.x + s.y + s.z - longest - Mathf.Min(s.x, Mathf.Min(s.y, s.z));
-            return longest >= 0.04f && longest <= 0.13f && second <= longest * 0.5f;
+            return longest >= 0.04f && longest <= 0.13f && second >= 0.015f && second <= longest * 0.5f;
         }
 
         /// <summary>

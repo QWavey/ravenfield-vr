@@ -117,7 +117,8 @@ namespace RavenfieldVR.Tests
             {
                 { "an HK416 magazine", new UnityEngine.Vector3(0.03f, 0.09f, 0.20f) }, { "a P220 magazine", new UnityEngine.Vector3(0.02f, 0.07f, 0.12f) },
                 { "an RPG-7 rocket", new UnityEngine.Vector3(0.07f, 0.79f, 0.07f) }, { "a 9 mm round", new UnityEngine.Vector3(0.01f, 0.02f, 0.01f) },
-                { "a drum", new UnityEngine.Vector3(0.09f, 0.10f, 0.09f) },
+                { "a drum", new UnityEngine.Vector3(0.09f, 0.10f, 0.09f) }, { "a 7.62x51 round", new UnityEngine.Vector3(0.012f, 0.071f, 0.012f) },
+                { "a .357 round", new UnityEngine.Vector3(0.010f, 0.040f, 0.010f) },
             };
             foreach (KeyValuePair<string, UnityEngine.Vector3> kv in not)
             {

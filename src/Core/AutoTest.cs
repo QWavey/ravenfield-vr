@@ -4146,7 +4146,8 @@ namespace RavenfieldVR.Core
                         {
                             int cases = Casings.Spawned - casesBefore;
                             Metric("cases thrown per shot", _shots > 0 ? (double)cases / Mathf.Min(_shots, 3) : 0);
-                            lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}, case objects made so far {Casings.Built} for {Casings.Spawned} thrown{(Casings.Built > 40 ? " (POOL NOT REUSED)" : "")}");
+                            lines.Add($"cases thrown: {cases}{(cases == 0 && _shots > 0 ? " (NO CASES)" : "")}, case objects made so far {Casings.Built} for {Casings.Spawned} thrown{(Casings.Built > 40 ? " (POOL NOT REUSED)" : "")}"
+                                      + $"{(Casings.ThrowsOwnShells(held) ? ", the gun's own shell" : "")}");
                         }
                         Weapon lockOn = weapon.GetActiveSubWeapon();
                         if (_shots == 0 && lockOn != null && lockOn.targetTracker != null && !lockOn.targetTracker.CanFire())

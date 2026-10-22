@@ -42,6 +42,85 @@ namespace RavenfieldVR.Weapons
 
         private static Material[] MaterialsFor(Kind kind, bool live) => kind == Kind.Shell ? _shellMats : live ? _liveMats : _caseMats;
 
+        /// <summary>
+        /// A shotgun's own shell for the shells it throws out: the biggest plain mesh of its shell part (the hull, not its
+        /// crimp or head), with its materials and its size in the world, and the turn from a made shell's length (z) onto its own.
+        /// </summary>
+        private sealed class OwnShell
+        {
+            public Mesh Mesh;
+            public Material[] Materials;
+            public Vector3 Scale;
+            public Quaternion Turn;
+            public int Axis;
+        }
+
+        /// <summary>Per weapon (null where it has no shell of its own to show).</summary>
+        private static readonly Dictionary<string, OwnShell> OwnShells = new Dictionary<string, OwnShell>();
+
+        /// <summary>
+        /// The gun's own shell for its thrown shells, when its shell part (the reload's, or the one in its chamber) is a shell's
+        /// size and drawn by a plain mesh: they were the mod's made 12-gauge shell on every shotgun (user, 2026-10-22: "shotguns
+        /// are not displayed with their real shells"). Read at its real size: hidden while held, it is scaled to nothing.
+        /// </summary>
+        private static OwnShell OwnShellOf(HeldWeapon held, Kind kind)
+        {
+            WeaponRig rig = held.ActiveRig;
+            if (kind != Kind.Shell || rig.Magazine == null || !WeaponAnalyzer.ShellSized(rig.Data.MagBounds))
+            {
+                return null;
+            }
+            string key = rig.Data.Key ?? "";
+            if (OwnShells.TryGetValue(key, out OwnShell known) && (known == null || known.Mesh != null))
+            {
+                return known; // (made again when a content reload destroyed its mesh)
+            }
+            OwnShell own = null;
+            MeshFilter best = null;
+            float size = 0f;
+            foreach (MeshFilter f in rig.Magazine.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (f.sharedMesh != null && f.GetComponent<MeshRenderer>() != null && f.sharedMesh.bounds.size.magnitude > size)
+                {
+                    size = f.sharedMesh.bounds.size.magnitude;
+                    best = f;
+                }
+            }
+            if (best != null)
+            {
+                Vector3[] hidden = rig.ShowMagazineForCopy();
+                Vector3 lossy;
+                try
+                {
+                    lossy = best.transform.lossyScale;
+                }
+                finally
+                {
+                    rig.RestoreMagazineScales(hidden);
+                }
+                Vector3 sized = Vector3.Scale(best.sharedMesh.bounds.size, new Vector3(Mathf.Abs(lossy.x), Mathf.Abs(lossy.y), Mathf.Abs(lossy.z)));
+                int axis = sized.x >= sized.y && sized.x >= sized.z ? 0 : sized.y >= sized.z ? 1 : 2;
+                if (sized[axis] > 0.03f && sized[axis] < 0.15f)
+                {
+                    Vector3 along = Vector3.zero;
+                    along[axis] = 1f;
+                    own = new OwnShell
+                    {
+                        Mesh = best.sharedMesh, Materials = best.GetComponent<MeshRenderer>().sharedMaterials, Scale = lossy,
+                        Turn = Quaternion.FromToRotation(along, Vector3.forward), Axis = axis,
+                    };
+                }
+            }
+            OwnShells[key] = own;
+            Log.InfoOnce("ownshell:" + key, own != null
+                ? $"Shells thrown by {key}: its own ('{best.name}', {own.Mesh.bounds.size[own.Axis] * Mathf.Abs(own.Scale[own.Axis]) * 100f:0.0} cm long)."
+                : $"Shells thrown by {key}: the made 12-gauge shell (its shell part has no plain mesh of a shell's size).");
+            return own;
+        }
+
+        /// <summary>Whether the held gun throws its own shells (the autotest says so).</summary>
+        internal static bool ThrowsOwnShells(HeldWeapon held) => held != null && held.ActiveWeapon != null && OwnShellOf(held, KindOf(held)) != null;
+
         /// <summary>The weapon throws cases in the flat game (and so in VR).</summary>
         public static bool Ejects(HeldWeapon held)
         {
@@ -67,8 +146,9 @@ namespace RavenfieldVR.Weapons
             // The port is where the gun was drawn last frame (it is placed again before this frame renders): led by the hand's
             // motion over a frame, or on a swing the case came out a couple of centimetres behind the port (visual hunt, 2026-10-20).
             Vector3 lead = hand * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            Spawn(KindOf(held), live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
-                Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f);
+            Kind kind = KindOf(held);
+            Spawn(kind, live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
+                Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f, OwnShellOf(held, kind));
         }
 
         /// <summary>Fired cases falling out of an opened cylinder or break-action, straight down out of the chambers.</summary>
@@ -82,11 +162,12 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Kind kind = KindOf(held);
+            OwnShell own = OwnShellOf(held, kind);
             Vector3 aim = held.ActiveRig.AimWorld;
             for (int i = 0; i < Mathf.Min(count, 8); i++)
             {
                 Vector3 at = chambers + Random.insideUnitSphere * 0.012f;
-                Spawn(kind, live, at, Quaternion.LookRotation(-aim, Vector3.up), Vector3.down * Random.Range(0.3f, 0.9f) - aim * 0.4f, Random.insideUnitSphere * 8f);
+                Spawn(kind, live, at, Quaternion.LookRotation(-aim, Vector3.up), Vector3.down * Random.Range(0.3f, 0.9f) - aim * 0.4f, Random.insideUnitSphere * 8f, own);
             }
         }
 
@@ -94,7 +175,9 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = held.ActiveRig.Data;
             Weapon.Configuration c = held.ActiveWeapon.configuration;
-            if (c.projectilesPerShot > 1 && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual))
+            // A slug gun's are shells too, when its own shell part is one (the R870 [SLUG]'s and M1878 Slugs' were rifle cases).
+            if ((c.projectilesPerShot > 1 || held.ActiveRig.Magazine != null && WeaponAnalyzer.ShellSized(d.MagBounds))
+                && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual))
             {
                 return Kind.Shell;
             }
@@ -106,7 +189,7 @@ namespace RavenfieldVR.Weapons
             return d.IsMachineGun || d.Action == ActionType.Manual && length > 0.55f ? Kind.Heavy : Kind.Rifle;
         }
 
-        private static void Spawn(Kind kind, bool live, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 spin)
+        private static void Spawn(Kind kind, bool live, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 spin, OwnShell own = null)
         {
             EnsureAssets();
             Cull();
@@ -131,14 +214,17 @@ namespace RavenfieldVR.Weapons
             go.name = live ? "RavenfieldVR Round" : "RavenfieldVR Case";
             int layer = PropPhysics.Layer;
             go.layer = layer >= 0 ? layer : 0; // bullets pass through it
-            go.transform.SetPositionAndRotation(position, rotation);
-            Mesh mesh = live ? _liveMeshes[(int)kind] : _meshes[(int)kind];
+            go.transform.SetPositionAndRotation(position, own != null ? rotation * own.Turn : rotation);
+            go.transform.localScale = own != null ? own.Scale : Vector3.one; // (a pooled case may have been another gun's shell)
+            Mesh mesh = own != null ? own.Mesh : live ? _liveMeshes[(int)kind] : _meshes[(int)kind];
             c.Filter.sharedMesh = mesh;
-            c.Renderer.sharedMaterials = MaterialsFor(kind, live);
+            c.Renderer.sharedMaterials = own != null ? own.Materials : MaterialsFor(kind, live);
             Bounds b = mesh.bounds;
+            int axis = own != null ? own.Axis : 2;
             c.Collider.center = b.center;
-            c.Collider.radius = Mathf.Max(b.extents.x, 0.003f);
-            c.Collider.height = b.size.z;
+            c.Collider.direction = axis;
+            c.Collider.radius = own != null ? Mathf.Max(b.extents[(axis + 1) % 3], b.extents[(axis + 2) % 3]) : Mathf.Max(b.extents.x, 0.003f);
+            c.Collider.height = b.size[axis];
             c.Body.mass = kind == Kind.Shell ? 0.03f : 0.012f;
             c.Sound.Rearm();
             go.SetActive(true);
