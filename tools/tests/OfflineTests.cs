@@ -73,6 +73,47 @@ namespace RavenfieldVR.Tests
             ScriptKeyRuleTests(mod);
             PoseTests(mod);
             InputParsingTests(mod);
+            HandednessTests(mod);
+        }
+
+        /// <summary>
+        /// SteamVR's right-handed space into Unity's left-handed one: positions flip z, angular velocities (axial vectors) flip
+        /// x and y. They must agree with each other: a point p of a hand spinning at w moves at w x p, and after the conversion the
+        /// same must hold with Unity's cross product. Wrong, a thrown magazine or grenade spins the wrong way.
+        /// </summary>
+        private static void HandednessTests(System.Reflection.Assembly mod)
+        {
+            Type math = mod.GetType("RavenfieldVR.Runtime.OpenVRMath"), vec = mod.GetType("Valve.VR.HmdVector3_t");
+            System.Reflection.MethodInfo toVec = math?.GetMethod("ToUnityVector"), toAng = math?.GetMethod("ToUnityAngular");
+            Check(toVec != null && toAng != null && vec != null, "Handedness: OpenVRMath's vector conversions found");
+            if (toVec == null || toAng == null || vec == null)
+            {
+                return;
+            }
+            object V(float a, float b, float c)
+            {
+                object v = Activator.CreateInstance(vec);
+                vec.GetField("v0").SetValue(v, a);
+                vec.GetField("v1").SetValue(v, b);
+                vec.GetField("v2").SetValue(v, c);
+                return v;
+            }
+            UnityEngine.Vector3 Conv(System.Reflection.MethodInfo m, object v) => (UnityEngine.Vector3)m.Invoke(null, new[] { v });
+            var p0 = Conv(toVec, V(1f, 2f, 3f));
+            Check(p0 == new UnityEngine.Vector3(1f, 2f, -3f), $"Handedness: a position flips z ({p0})");
+            var rng = new Random(11);
+            float R() => (float)(rng.NextDouble() * 4 - 2);
+            double worst = 0;
+            for (int n = 0; n < 1000; n++)
+            {
+                float wx = R(), wy = R(), wz = R(), px = R(), py = R(), pz = R();
+                // w x p in SteamVR's space (the same component formula as Unity's Cross).
+                float vx = wy * pz - wz * py, vy = wz * px - wx * pz, vz = wx * py - wy * px;
+                UnityEngine.Vector3 expected = Conv(toVec, V(vx, vy, vz));
+                UnityEngine.Vector3 got = UnityEngine.Vector3.Cross(Conv(toAng, V(wx, wy, wz)), Conv(toVec, V(px, py, pz)));
+                worst = Math.Max(worst, (expected - got).magnitude);
+            }
+            Check(worst < 1e-4, $"Handedness: a spinning hand's point moves the same way in both spaces (1000 cases, worst {worst:0.0e0})");
         }
 
         /// <summary>
