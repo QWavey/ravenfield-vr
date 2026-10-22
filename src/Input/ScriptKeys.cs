@@ -269,7 +269,10 @@ namespace RavenfieldVR.Input
             // work on a gun with a laser). 镭射 and 激光 are laser in Chinese mod names.
             new Rule(ScriptKeyPurpose.Laser, "Laser", @"laser|镭射|激光"),
             new Rule(ScriptKeyPurpose.Magnifier, "Magnifier", @"magnif|zoom|scope|sight"),
-            new Rule(ScriptKeyPurpose.Light, "Flashlight", @"flash ?light|torch|light"),
+            // "flash$": a behaviour named for its flash at the end ("KLVFlash", the MK18 R3's light: H turns the animator's
+            // light on and off) is a light; only at the very end (no multiline), so a muzzle flash in the code read after a key
+            // check is not taken for one (scan of the workshop's weapon scripts, improve round, 2026-10-22).
+            new Rule(ScriptKeyPurpose.Light, "Flashlight", @"flash ?light|torch|light|flash$"),
             new Rule(ScriptKeyPurpose.Suppressor, "Suppressor", @"suppress|silenc"),
             new Rule(ScriptKeyPurpose.Inspect, "Inspect", @"inspect"),
             new Rule(ScriptKeyPurpose.Skin, "Skin", @"skin|camo"),

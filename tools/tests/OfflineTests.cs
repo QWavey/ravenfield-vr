@@ -70,6 +70,44 @@ namespace RavenfieldVR.Tests
             ConfigTests(mod);
             JsonTests(mod);
             LensToneTests(mod);
+            ScriptKeyRuleTests(mod);
+        }
+
+        /// <summary>
+        /// The purposes the weapons' own script keys get from their behaviour names, on names from the workshop scan
+        /// (tools/export_checks/script_keys_scan.py): what A, the hand and the support trigger do on those guns follows them.
+        /// </summary>
+        private static void ScriptKeyRuleTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo first = mod.GetType("RavenfieldVR.Input.ScriptKeys")?.GetMethod("FirstRule",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(first != null, "Script keys: FirstRule found");
+            if (first == null)
+            {
+                return;
+            }
+            string Purpose(string name)
+            {
+                object rule = first.Invoke(null, new object[] { name });
+                return rule == null ? "none" : rule.GetType().GetField("Purpose").GetValue(rule).ToString();
+            }
+            var expected = new[]
+            {
+                ("fireMode", "FireMode"), ("FRfiremode", "FireMode"), ("KLVWeaponModeChange", "FireMode"), ("KLVLaser", "Laser"),
+                ("KLVFlash", "Light"), ("LaserSight", "Laser"), ("LaserScope", "Magnifier"), ("KLVRereBipod", "Bipod"),
+                ("NefWeaponInspect", "Inspect"), ("TacticalSprint", "Sprint"), ("BFV_KillFeed", "Hud"),
+                ("MuzzleFlashSuppressor", "Suppressor"), ("FlashHider", "none"), ("ReWeaponSystem", "none"),
+            };
+            var wrong = new List<string>();
+            foreach (var (name, want) in expected)
+            {
+                string got = Purpose(name);
+                if (got != want)
+                {
+                    wrong.Add($"{name}: {got}, not {want}");
+                }
+            }
+            Check(wrong.Count == 0, $"Script keys: {expected.Length} behaviour names from the workshop take their purpose" + (wrong.Count > 0 ? ": " + string.Join("; ", wrong) : ""));
         }
 
         /// <summary>
