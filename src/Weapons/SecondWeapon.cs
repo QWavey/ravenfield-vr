@@ -332,6 +332,24 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// The rounds of a reload under way, for when the weapon leaves the hand in a swap (the gun hand took up a weapon of its slot):
+        /// the rounds it took for it, which go with the weapon put down. Settled after the weapon was destroyed, they went to
+        /// the destroyed weapon's reserve and were lost (scout, 2026-10-22). 0 when none is under way.
+        /// </summary>
+        internal int ReloadRounds => _reloadDoneAt >= 0f ? _reloadRounds : 0;
+
+        /// <summary>The reload under way given up, its rounds handed over (see <see cref="ReloadRounds"/>).</summary>
+        internal int TakeReloadRounds()
+        {
+            if (_reloadDoneAt < 0f)
+            {
+                return 0;
+            }
+            _reloadDoneAt = -1f;
+            return _reloadRounds;
+        }
+
         private void StartReload()
         {
             int rounds = Ammo.RoundsForFreshMagazine();
@@ -362,6 +380,14 @@ namespace RavenfieldVR.Weapons
             {
                 int accepted = Ammo.LoadRounds(_reloadRounds);
                 Ammo.ReturnSpare(_reloadRounds - accepted);
+            }
+            if (Ammo.HasCover)
+            {
+                // The hand's own reload is the whole reload, the belt laid under the shut cover too: with belt laying by hand a new
+                // box left it unlaid, which nothing lays for this hand, and a machine gun in the free hand stayed dry for good
+                // after its first reload (its magazine not empty, no reload again; scout, 2026-10-22).
+                Ammo.CoverOpen = false;
+                Ammo.BeltLaid = Ammo.MagInserted;
             }
             Ammo.SlideLocked = false;
             Ammo.RackForward();

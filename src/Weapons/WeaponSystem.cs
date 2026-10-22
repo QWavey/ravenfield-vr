@@ -519,18 +519,26 @@ namespace RavenfieldVR.Weapons
             return s;
         }
 
+        /// <summary>
+        /// The weapon is <paramref name="owner"/> or one of its fire-mode variants, by a live owner only: a destroyed owner reads
+        /// as null to Unity, and a main gun's shot (its parent null) went to a second weapon destroyed in a swap (scout,
+        /// 2026-10-22).
+        /// </summary>
+        private static bool Fires(Weapon weapon, Weapon owner) =>
+            owner != null && (weapon == owner || !ReferenceEquals(weapon.parentWeapon, null) && weapon.parentWeapon == owner);
+
         public void OnPlayerShot(Weapon weapon)
         {
             AmmoState state = StateFor(weapon, create: true);
             state?.OnShot();
             FireSelector.OnShot(weapon);
-            if (Second != null && (weapon == Second.Weapon || weapon.parentWeapon == Second.Weapon))
+            if (Second != null && Fires(weapon, Second.Weapon))
             {
                 Second.OnShot();
                 _lensFlash?.OnShot(Second.Rig, weapon); // its lens flash too (none came: bug hunt 2026-10-19, task 287)
                 return;
             }
-            bool held = Held != null && (weapon == Held.Weapon || weapon.parentWeapon == Held.Weapon);
+            bool held = Held != null && Fires(weapon, Held.Weapon);
             if (held && state != null && state.Rig.CyclesByHand && VRConfig.ReloadNow == ReloadMode.Manual)
             {
                 // Bolt / pump / lever: the fire animation would cycle the action (and play its sounds) by itself.

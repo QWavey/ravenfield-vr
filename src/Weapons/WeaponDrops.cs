@@ -1820,11 +1820,18 @@ namespace RavenfieldVR.Weapons
                 Vector3 bodyRight = Vector3.Cross(Vector3.up, bodyForward);
                 Vector3 feet = actor.Position() + Vector3.up * 0.15f + bodyRight * 0.2f + bodyForward * 0.15f;
                 var pose = new RigidPose(feet, Quaternion.LookRotation(bodyRight, Vector3.up));
-                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.down * 0.3f, RoundsIn(current), Mathf.Max(0, current.spareAmmo), keep: true);
+                // The free hand's gun mid-reload: the rounds it took for that reload go with it.
+                bool reloading = _sys.Second != null && _sys.Second.Weapon == current;
+                int inReload = reloading ? _sys.Second.ReloadRounds : 0;
+                DroppedWeapon swapped = Spawn(current.weaponEntry, pose, Vector3.one, Vector3.down * 0.3f, RoundsIn(current), Mathf.Max(0, current.spareAmmo) + inReload, keep: true);
                 if (swapped == null)
                 {
                     hand.Haptic(0.08f, 40f, 0.4f);
                     return;
+                }
+                if (reloading)
+                {
+                    _sys.Second.TakeReloadRounds(); // now the drop's
                 }
                 swapped.SubAmmo = SubAmmoOf(current);
                 swapped.Keep = true; // your rifle, swapped for a fallen enemy's shotgun, was deleted 90 s later (85-agent review)
