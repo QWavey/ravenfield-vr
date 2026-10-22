@@ -2,6 +2,7 @@
 binding dropped by accident is a dead button on that controller, found only by someone who owns it).
 Run: python -I tools/tests/bindings_coverage_test.py   (exit code 0 when all pass)"""
 import glob
+import re
 import json
 import os
 import sys
@@ -58,6 +59,22 @@ for path in files:
     stale = sorted(name for name in allowed if buttons.get(name) in bound)
     check(not stale, f'{kind}: the intended gaps are still gaps (now bound: {stale}; drop them from INTENDED)')
 check(seen >= set(INTENDED), f'a bindings file for every controller listed ({sorted(set(INTENDED) - seen)} missing)')
+
+# The code against the manifest: VRInput looks each button up by its DigitalAction name ("/actions/main/in/" + name), and the
+# analog, pose, skeleton and haptic actions by their paths. A name the manifest lacks is a handle SteamVR never fills (that
+# button or stick does nothing, with only a warning in the log); a button the manifest has and the code does not is bound
+# for nothing.
+code = open(os.path.join(ROOT, 'src', 'Input', 'VRInput.cs'), encoding='utf-8').read()
+enum_body = re.search(r'public enum DigitalAction\s*\{(.*?)\}', code, re.S).group(1)
+enum_names = re.findall(r'^\s*(?:,\s*)?(\w+)', re.sub(r'//[^\n]*', '', enum_body).replace(',', '\n'), re.M)
+check(sorted(enum_names) == sorted(buttons), f'the code\'s DigitalAction names are the manifest\'s button actions '
+      f'(only in the code: {sorted(set(enum_names) - set(buttons))}, only in the manifest: {sorted(set(buttons) - set(enum_names))})')
+kinds = {a['name']: a.get('type') for a in manifest['actions']}
+want = {'TriggerPull': 'vector1', 'GripPull': 'vector1', 'Move': 'vector2', 'TurnStick': 'vector2', 'Pose': 'pose', 'PoseGrip': 'pose',
+        'PoseTip': 'pose', 'SkeletonLeft': 'skeleton', 'SkeletonRight': 'skeleton', 'Haptic': 'vibration'}
+used = set(re.findall(r'"(/actions/main/(?:in|out)/\w+)"', code))
+wrong = sorted(f'{p} ({kinds.get(p, "missing")})' for p in used if kinds.get(p) != want.get(p.split('/')[-1], kinds.get(p)) or p not in kinds)
+check(len(used) >= 10 and not wrong, f'every action path the code asks for is in the manifest with its type ({len(used)} paths; wrong: {wrong})')
 
 print(f'{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)
