@@ -3576,7 +3576,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!Ammo.MagInserted || off.Held != null)
             {
-                report("reload film: no magazine seated");
+                report("reload film: NO MAGAZINE SEATED");
                 yield break;
             }
             int side = (int)off.Side;
@@ -3665,6 +3665,9 @@ namespace RavenfieldVR.Weapons
             VRHand off = _sys.Rig.Off;
             if (off.Held != null)
             {
+                // Said, as the other checks say a busy hand: this check left no line, and a gun's reload results were simply
+                // missing from the report (autotest scout, 2026-10-22).
+                report($"reload checks NOT RUN: the free hand holds {off.Held.GetType().Name}");
                 yield break;
             }
             // The simulated hand keeps its grip closed while it handles magazines, as a player's would.
@@ -4243,7 +4246,7 @@ namespace RavenfieldVR.Weapons
             if (!(off.Held is MagazineProp fresh))
             {
                 VRInput.SimulatedGrab[(int)off.Side] = false;
-                report("tactical reload: no fresh magazine from the pouch");
+                report("tactical reload: NO FRESH MAGAZINE from the pouch"); // (in lower case it never counted as a problem)
                 yield break;
             }
             MagReadout.TestTarget = fresh;
