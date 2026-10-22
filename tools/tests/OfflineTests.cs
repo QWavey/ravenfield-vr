@@ -400,6 +400,12 @@ namespace RavenfieldVR.Tests
                     count++;
                     BepInEx.Configuration.ConfigEntryBase entry = kv.Value;
                     BepInEx.Configuration.AcceptableValueBase accept = entry.Description?.AcceptableValues;
+                    // Every number has a range: a hand-typed NaN or negative in an unranged one went straight into the game
+                    // (WeaponReturnSeconds: NaN never returned a dropped weapon). The internal revision counter is the exception.
+                    if (accept == null && (entry.SettingType == typeof(float) || entry.SettingType == typeof(int)) && kv.Key.Key != "ConfigRevision")
+                    {
+                        bad.Add($"{kv.Key.Section}.{kv.Key.Key} is a number without a range");
+                    }
                     if (accept == null)
                     {
                         continue;

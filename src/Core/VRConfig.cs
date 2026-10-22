@@ -282,7 +282,8 @@ namespace RavenfieldVR.Core
             ReleaseDropsWeapon = cfg.Bind("Weapons", "ReleaseDropsWeapon", true,
                 "With GripToHoldWeapon: letting go of a weapon away from your body drops it where you are (pick it up again with either hand); letting go at your body or a holster puts it away.");
             WeaponReturnSeconds = cfg.Bind("Weapons", "WeaponReturnSeconds", 8f,
-                "Seconds a weapon you dropped lies there before it goes back to its holster (it also goes back when you walk 20 m away).");
+                new ConfigDescription("Seconds a weapon you dropped lies there before it goes back to its holster (it also goes back when you walk 20 m away).",
+                    new AcceptableValueRange<float>(1f, 600f))); // (a range: a hand-typed NaN passed Mathf.Max and the weapon never came back)
             MagazinePalming = cfg.Bind("Weapons", "MagazinePalming", true,
                 "Tactical reloads like H3VR: pressing the magazine release while your other hand holds a fresh magazine at the well puts the old magazine into that hand too. Seat the fresh one and the old one stays in your hand; let go to drop both.");
             ThrowVelocityMultiplier = cfg.Bind("Weapons", "ThrowVelocityMultiplier", 1.4f,
