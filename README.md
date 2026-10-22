@@ -23,7 +23,7 @@ What you get:
 
 Setup also adds **Ravenfield VR** to the list Steam shows when you press Play (next to "Ravenfield (No Mods)" and "Ravenfield (Safe Mode)"): pick it to start straight in VR. Steam gets that list from Valve with the game's info, so a Ravenfield update can take the entry away again; run Setup again to put it back.
 
-To update, run the newer Setup. To remove the mod, run Setup and press Uninstall: everything it replaced is restored from `Ravenfield/RavenfieldVR-backup/`, the launcher is taken out of Steam's launch options again (your own launch options stay), and the Ravenfield VR entry leaves Steam's Play list.
+To update, run the newer Setup. Or, in any Setup, use **Advanced: install another version from GitHub…** at the bottom to pick and install any published version (newer or older) straight from the Releases page — handy for rolling back without hunting down an old download. To remove the mod, run Setup and press Uninstall: everything it replaced is restored from `Ravenfield/RavenfieldVR-backup/`, the launcher is taken out of Steam's launch options again (your own launch options stay), and the Ravenfield VR entry leaves Steam's Play list.
 
 No Setup? The release zip has `install.cmd` / `uninstall.cmd` that do the same from PowerShell, without the Steam launch option; start the game with `RavenfieldVR-Launcher.exe` in the game folder instead.
 
@@ -189,6 +189,7 @@ No .NET SDK needed:
 - **Controls do nothing in the headset.** Open the SteamVR binding UI for Ravenfield and select "Ravenfield VR default".
 - **Low frame rate.** Pick a lower graphics preset, keep `PostProcessing` off, reduce the bot count. Ravenfield is CPU-heavy with many bots.
 - **A weapon sits wrong in the hand.** Use "Gun pitch" for all guns, or a per-weapon override (above).
+- **Windows Defender flags Setup as `Program:Win32/Wacapew.A!ml`.** A false positive: `!ml` is Defender's machine-learning guess, and a brand-new, unsigned installer that no one else has downloaded yet is exactly what it guesses at. The setup and launcher carry full version info, a product icon and a manifest (which is what tells those models a file is normal software), but reputation builds only once a release has been downloaded a few times. If yours still flags it, allow the file in Defender and — the real fix — report it to Microsoft as a false positive at <https://www.microsoft.com/en-us/wdsi/filesubmission> (pick "Software developer", it is usually cleared within a day). Signing the binaries with a code-signing certificate removes it for good, but that costs money and is optional for a free mod.
 
 ## Known limitations
 

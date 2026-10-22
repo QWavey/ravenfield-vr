@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -282,6 +283,18 @@ namespace RavenfieldVR.Setup
 
         public void Install(string game)
         {
+            InstallFrom(game,
+                () => Assembly.GetExecutingAssembly().GetManifestResourceStream("RavenfieldVR.Setup.payload.zip"),
+                Version);
+        }
+
+        /// <summary>
+        /// Installs a release into <paramref name="game"/> from any payload zip: the one embedded in this setup, or a
+        /// RavenfieldVR-&lt;ver&gt;.zip downloaded from GitHub by the "install another version" advanced option.
+        /// <paramref name="versionLabel"/> is written to the install manifest so the installed version reads back right.
+        /// </summary>
+        public void InstallFrom(string game, Func<Stream> openPayload, string versionLabel)
+        {
             if (GameRunning())
             {
                 throw new InvalidOperationException("Ravenfield (or its VR launcher) is running. Close it first.");
@@ -331,7 +344,7 @@ namespace RavenfieldVR.Setup
             string backupDir = previousBackup.Length > 0 ? previousBackup : Path.Combine(game, "RavenfieldVR-backup", stamp);
 
             bool installBepInEx = previousInstalledBepInEx || !File.Exists(Path.Combine(game, @"BepInEx\core\BepInEx.dll"));
-            using (Stream payload = Assembly.GetExecutingAssembly().GetManifestResourceStream("RavenfieldVR.Setup.payload.zip"))
+            using (Stream payload = openPayload())
             using (var zip = new ZipArchive(payload, ZipArchiveMode.Read))
             {
                 if (!installBepInEx)
@@ -375,14 +388,14 @@ namespace RavenfieldVR.Setup
             var lines = new List<string>
             {
                 "# Ravenfield VR install " + stamp,
-                "version=" + Version,
+                "version=" + versionLabel,
                 "installedBepInEx=" + (installBepInEx ? "True" : "False"),
                 "backup=" + backupRef
             };
             lines.AddRange(added.Select(a => "added=" + a));
             lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
             File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
-            _log($"Installed Ravenfield VR {Version}: {added.Count} files, {replaced.Count} original file(s) backed up.");
+            _log($"Installed Ravenfield VR {versionLabel}: {added.Count} files, {replaced.Count} original file(s) backed up.");
         }
 
         /// <summary>
@@ -604,6 +617,158 @@ namespace RavenfieldVR.Setup
         }
     }
 
+    /// <summary>
+    /// Reads Ravenfield VR's public GitHub releases so Setup's advanced option can install any version, not only
+    /// the one baked into this exe. Anonymous HTTPS — the repo is public, so no token is needed.
+    /// </summary>
+    internal static class GitHub
+    {
+        public const string Repo = "QWavey/ravenfield-vr";
+        private const string ReleasesApi = "https://api.github.com/repos/" + Repo + "/releases?per_page=100";
+
+        public sealed class Release
+        {
+            public string Version;   // e.g. "1.10.1"
+            public string ZipUrl;    // browser_download_url of RavenfieldVR-<ver>.zip
+            public override string ToString() => Version;
+        }
+
+        private static void PrepareTls()
+        {
+            // 3072 = Tls12. Numeric cast so it builds against any 4.x System.dll; GitHub needs TLS 1.2+.
+            try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; }
+            catch { /* best effort: some runtimes reject OR-ing unknown protocol flags */ }
+        }
+
+        private static HttpWebRequest Request(string url)
+        {
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.UserAgent = "RavenfieldVR-Setup";           // GitHub's API rejects requests without a User-Agent.
+            req.Accept = "application/vnd.github+json";
+            req.Timeout = 30000;
+            req.ReadWriteTimeout = 120000;
+            return req;
+        }
+
+        /// <summary>Installable releases, newest first; each carries its RavenfieldVR-&lt;ver&gt;.zip download URL.</summary>
+        public static List<Release> Releases()
+        {
+            PrepareTls();
+            string json;
+            using (var resp = (HttpWebResponse)Request(ReleasesApi).GetResponse())
+            using (var r = new StreamReader(resp.GetResponseStream()))
+            {
+                json = r.ReadToEnd();
+            }
+            // The zip asset URL already carries the version (…/RavenfieldVR-1.10.1.zip), so one regex over the whole
+            // response pulls (url, version) pairs without walking the JSON structure.
+            var found = new List<Release>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var rx = new Regex("\"browser_download_url\"\\s*:\\s*\"([^\"]*?/RavenfieldVR-([0-9][^\"/]*?)\\.zip)\"",
+                               RegexOptions.IgnoreCase);
+            foreach (Match m in rx.Matches(json))
+            {
+                if (seen.Add(m.Groups[2].Value))
+                {
+                    found.Add(new Release { Version = m.Groups[2].Value, ZipUrl = m.Groups[1].Value });
+                }
+            }
+            if (found.Count == 0)
+            {
+                throw new InvalidOperationException("No installable RavenfieldVR-<version>.zip was found in the GitHub releases.");
+            }
+            found.Sort((a, b) => CompareVersions(b.Version, a.Version));
+            return found;
+        }
+
+        /// <summary>Downloads a release zip to a temp file and returns its path; reports (bytesDone, bytesTotal).</summary>
+        public static string DownloadZip(Release release, Action<long, long> progress)
+        {
+            PrepareTls();
+            string dest = Path.Combine(Path.GetTempPath(),
+                "RavenfieldVR-" + release.Version + "-" + Guid.NewGuid().ToString("N") + ".zip");
+            using (var resp = (HttpWebResponse)Request(release.ZipUrl).GetResponse())
+            using (Stream src = resp.GetResponseStream())
+            using (var dst = new FileStream(dest, FileMode.Create, FileAccess.Write))
+            {
+                long total = resp.ContentLength, done = 0;
+                byte[] buf = new byte[81920];
+                int n;
+                while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                {
+                    dst.Write(buf, 0, n);
+                    done += n;
+                    if (progress != null) progress(done, total);
+                }
+            }
+            return dest;
+        }
+
+        /// <summary>Compares dotted numeric versions (1.10.1 &gt; 1.9.0); non-numeric parts fall back to ordinal.</summary>
+        internal static int CompareVersions(string a, string b)
+        {
+            string[] pa = a.Split('.'), pb = b.Split('.');
+            int n = Math.Max(pa.Length, pb.Length);
+            for (int i = 0; i < n; i++)
+            {
+                string sa = i < pa.Length ? pa[i] : "0", sb = i < pb.Length ? pb[i] : "0";
+                int ia, ib;
+                if (int.TryParse(sa, out ia) && int.TryParse(sb, out ib))
+                {
+                    if (ia != ib) return ia.CompareTo(ib);
+                }
+                else
+                {
+                    int c = string.Compare(sa, sb, StringComparison.OrdinalIgnoreCase);
+                    if (c != 0) return c;
+                }
+            }
+            return 0;
+        }
+    }
+
+    /// <summary>Small modal that lists the GitHub versions and returns the one to install.</summary>
+    internal sealed class VersionPicker : Form
+    {
+        private readonly ComboBox _combo = new ComboBox();
+        private readonly List<GitHub.Release> _releases;
+        public GitHub.Release Selected { get; private set; }
+
+        public VersionPicker(List<GitHub.Release> releases, string installed)
+        {
+            _releases = releases;
+            Text = "Install another version";
+            Font = new Font("Segoe UI", 9.75f);
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(384, 156);
+
+            var label = new Label
+            {
+                Text = "Pick a Ravenfield VR version from GitHub to install. This replaces the currently installed version.",
+                Location = new Point(16, 14),
+                MaximumSize = new Size(352, 0),
+                AutoSize = true
+            };
+            _combo.DropDownStyle = ComboBoxStyle.DropDownList;
+            _combo.SetBounds(16, 66, 352, 26);
+            foreach (GitHub.Release r in releases)
+            {
+                _combo.Items.Add(r.Version == installed ? r.Version + "   (installed now)" : r.Version);
+            }
+            _combo.SelectedIndex = 0;
+
+            var ok = new Button { Text = "Install", DialogResult = DialogResult.OK, Bounds = new Rectangle(180, 110, 90, 32) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Bounds = new Rectangle(278, 110, 90, 32) };
+            ok.Click += (s, e) => Selected = _releases[_combo.SelectedIndex];
+            Controls.AddRange(new Control[] { label, _combo, ok, cancel });
+            AcceptButton = ok;
+            CancelButton = cancel;
+        }
+    }
+
     internal sealed class SetupForm : Form
     {
         private readonly TextBox _path = new TextBox();
@@ -615,6 +780,7 @@ namespace RavenfieldVR.Setup
         private readonly CheckBox _steamLaunch = new CheckBox();
         private readonly CheckBox _steamPlay = new CheckBox();
         private readonly LinkLabel _openConfig = new LinkLabel();
+        private readonly LinkLabel _advanced = new LinkLabel();
         private readonly TextBox _log = new TextBox();
         private readonly Installer _installer;
 
@@ -627,7 +793,7 @@ namespace RavenfieldVR.Setup
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(600, 430);
+            ClientSize = new Size(600, 452);
             BackColor = SystemColors.Window;
 
             var title = new Label { Text = "Ravenfield VR " + Installer.Version, Font = new Font("Segoe UI Semibold", 15f), AutoSize = true, Location = new Point(20, 16) };
@@ -711,7 +877,13 @@ namespace RavenfieldVR.Setup
             AcceptButton = _install;
             CancelButton = _close;
 
-            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _steamPlay, _keepSettings, _openConfig, _log, _install, _uninstall, _close });
+            // Advanced: install any published version straight from GitHub, not only the one baked into this setup.
+            _advanced.Text = "Advanced: install another version from GitHub…";
+            _advanced.AutoSize = true;
+            _advanced.Location = new Point(20, 424);
+            _advanced.LinkClicked += async (s, e) => await UpdateFromGitHubFlow();
+
+            Controls.AddRange(new Control[] { title, subtitle, folderLabel, _path, browse, _status, _steamLaunch, _steamPlay, _keepSettings, _openConfig, _log, _install, _uninstall, _close, _advanced });
 
             string found = Installer.FindRavenfield();
             _path.Text = found ?? "";
@@ -874,9 +1046,90 @@ namespace RavenfieldVR.Setup
             }
         }
 
+        /// <summary>
+        /// Advanced option: fetch the list of published versions from GitHub, let the user pick one, download its
+        /// release zip and install it exactly like the embedded one — then set up Steam's Play options as usual.
+        /// </summary>
+        private async Task UpdateFromGitHubFlow()
+        {
+            string game = _path.Text.Trim();
+            if (!Installer.IsRavenfieldFolder(game))
+            {
+                MessageBox.Show(this, "Choose your Ravenfield folder first (the one with ravenfield.exe).",
+                    Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            string problem = Installer.BepInExProblem(game);
+            if (problem != null)
+            {
+                MessageBox.Show(this, problem, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Control[] controls = { _install, _uninstall, _close, _path, _advanced };
+            foreach (Control c in controls) c.Enabled = false;
+            _status.Text = "Checking GitHub for versions…";
+            List<GitHub.Release> releases;
+            try
+            {
+                releases = await Task.Run(() => GitHub.Releases());
+            }
+            catch (Exception e)
+            {
+                Log("Could not reach GitHub: " + e.Message);
+                foreach (Control c in controls) c.Enabled = true;
+                RefreshState();
+                return;
+            }
+            foreach (Control c in controls) c.Enabled = true;
+            RefreshState();
+
+            GitHub.Release chosen;
+            using (var picker = new VersionPicker(releases, Installer.InstalledVersion(game)))
+            {
+                if (picker.ShowDialog(this) != DialogResult.OK || picker.Selected == null)
+                {
+                    return;
+                }
+                chosen = picker.Selected;
+            }
+
+            string zipPath = null;
+            int lastPct = -1;
+            bool ok = await RunAsync(() =>
+            {
+                Log("Downloading Ravenfield VR " + chosen.Version + " from GitHub…");
+                zipPath = GitHub.DownloadZip(chosen, (done, total) =>
+                {
+                    if (total <= 0) return;
+                    int pct = (int)(done * 100 / total);
+                    if (pct >= lastPct + 20 || pct == 100)
+                    {
+                        lastPct = pct;
+                        Log("  " + pct + "%  (" + (done / 1024) + " / " + (total / 1024) + " KB)");
+                    }
+                });
+                Log("Installing Ravenfield VR " + chosen.Version + "…");
+                _installer.InstallFrom(game, () => File.OpenRead(zipPath), chosen.Version);
+            }, "Installing " + chosen.Version + "…", null);
+
+            if (zipPath != null)
+            {
+                try { File.Delete(zipPath); } catch { /* temp file; ignore */ }
+            }
+            if (ok && (_steamLaunch.Checked || _steamPlay.Checked))
+            {
+                await SetSteamOptions(game, true, _steamLaunch.Checked, _steamPlay.Checked);
+            }
+            if (ok)
+            {
+                Log("Done. Ravenfield VR " + chosen.Version + " is installed.");
+            }
+        }
+
         private async Task<bool> RunAsync(Action work, string busyText, string doneMessage)
         {
-            Control[] controls = { _install, _uninstall, _close, _path };
+            Control[] controls = { _install, _uninstall, _close, _path, _advanced };
             foreach (Control c in controls)
             {
                 c.Enabled = false;

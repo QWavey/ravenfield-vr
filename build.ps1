@@ -130,6 +130,36 @@ if ($Package) {
     $version = $versionMatch.Matches[0].Groups[1].Value
     $dist = Join-Path $Root 'dist/RavenfieldVR'
     Write-Step "Packaging v$version -> $dist"
+
+    # Icon + assembly metadata for the shipped .exe programs. An unsigned C# PE with no icon and
+    # no version info is a classic trigger for Defender's "Wacapew.A!ml" ML false positive; real
+    # company/product/version fields and an icon make the binaries look like what they are.
+    $icon = Join-Path $Root 'installer/app.ico'
+    if (-not (Test-Path $icon)) { throw "Missing icon '$icon'. Regenerate it with: python tools/make_icon.py" }
+    $metaDir = Join-Path $Build 'meta'
+    New-Item -ItemType Directory -Force $metaDir | Out-Null
+    $asmVersion = "$version.0"
+    $year = (Get-Date).Year
+    function New-AssemblyInfo([string]$Path, [string]$Title, [string]$Description) {
+@"
+using System.Reflection;
+using System.Runtime.InteropServices;
+[assembly: AssemblyTitle("$Title")]
+[assembly: AssemblyDescription("$Description")]
+[assembly: AssemblyProduct("Ravenfield VR")]
+[assembly: AssemblyCompany("QWavey")]
+[assembly: AssemblyCopyright("Copyright (c) QWavey $year")]
+[assembly: AssemblyVersion("$asmVersion")]
+[assembly: AssemblyFileVersion("$asmVersion")]
+[assembly: AssemblyInformationalVersion("$version")]
+[assembly: ComVisible(false)]
+"@ | Set-Content -Path $Path -Encoding UTF8
+    }
+    $launcherInfo = Join-Path $metaDir 'LauncherAssemblyInfo.cs'
+    $setupInfo = Join-Path $metaDir 'SetupAssemblyInfo.cs'
+    New-AssemblyInfo $launcherInfo 'Ravenfield VR Launcher' 'Starts Ravenfield in VR or flat mode through SteamVR. Part of the Ravenfield VR mod.'
+    New-AssemblyInfo $setupInfo 'Ravenfield VR Setup' 'Installs or updates the Ravenfield VR mod (SteamVR) in your Ravenfield game folder.'
+
     if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
     $pluginOut = Join-Path $dist 'BepInEx/plugins/RavenfieldVR'
     $x64Out = Join-Path $dist 'ravenfield_Data/Plugins/x86_64'
@@ -156,9 +186,10 @@ if ($Package) {
     Invoke-Csc @(
         '-nologo', '-target:winexe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig',
         "-out:$(Join-Path $dist 'RavenfieldVR-Launcher.exe')", "-win32manifest:$(Join-Path $Root 'installer/app.manifest')",
+        "-win32icon:$icon",
         "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll", "-r:$fx/System.Windows.Forms.dll",
         # Valve's bindings: the launcher asks SteamVR whether a headset is connected before it starts VR.
-        (Join-Path $Root 'installer/Launcher.cs'), (Join-Path $XrRuntime 'openvr_api.cs')
+        (Join-Path $Root 'installer/Launcher.cs'), (Join-Path $XrRuntime 'openvr_api.cs'), $launcherInfo
     )
     Write-Step 'Built RavenfieldVR-Launcher.exe'
 
@@ -181,11 +212,12 @@ if ($Package) {
     Invoke-Csc @(
         '-nologo', '-target:winexe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig',
         "-out:$setupExe", "-win32manifest:$(Join-Path $Root 'installer/app.manifest')",
+        "-win32icon:$icon",
         "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll",
         "-r:$fx/System.Windows.Forms.dll", "-r:$fx/System.IO.Compression.dll", "-r:$fx/System.IO.Compression.FileSystem.dll",
         "-resource:$zip,RavenfieldVR.Setup.payload.zip",
         "-resource:$(Join-Path $setupObj 'version.txt'),RavenfieldVR.Setup.version.txt",
-        (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs'), (Join-Path $Root 'installer/SteamPlayEntry.cs')
+        (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs'), (Join-Path $Root 'installer/SteamPlayEntry.cs'), $setupInfo
     )
     Write-Step "Setup: $setupExe"
 }
