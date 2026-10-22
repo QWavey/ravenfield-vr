@@ -75,6 +75,60 @@ namespace RavenfieldVR.Tests
             InputParsingTests(mod);
             HandednessTests(mod);
             EventGuardTests(mod);
+            InstallCheckTests(mod);
+        }
+
+        /// <summary>
+        /// The runtime self-repair (plugins-only installs): with nothing to copy from it says what is missing instead of asking
+        /// for a restart that would change nothing; with the release's copies it puts them in place; once there it is quiet.
+        /// </summary>
+        private static void InstallCheckTests(System.Reflection.Assembly mod)
+        {
+            Type check = mod.GetType("RavenfieldVR.Core.InstallCheck"), plugin = mod.GetType("RavenfieldVR.Core.VRPlugin");
+            System.Reflection.MethodInfo run = check?.GetMethod("Run");
+            System.Reflection.PropertyInfo dir = plugin?.GetProperty("PluginDir");
+            Check(run != null && dir != null, "Install check: InstallCheck.Run and VRPlugin.PluginDir found");
+            if (run == null || dir == null)
+            {
+                return;
+            }
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-installcheck-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game"), pluginDir = System.IO.Path.Combine(root, "plugin");
+            string runtime = System.IO.Path.Combine(pluginDir, "runtime");
+            object before = dir.GetValue(null);
+            try
+            {
+                System.IO.Directory.CreateDirectory(game);
+                System.IO.Directory.CreateDirectory(runtime);
+                dir.SetValue(null, pluginDir);
+                string empty = (string)run.Invoke(null, new object[] { game });
+                Check(empty != null && empty.Contains("is missing") && !empty.Contains("restart"),
+                    $"Install check: an empty runtime folder says what is missing, not restart ({empty})");
+                // The release's copies, from the last packaged build when there is one.
+                string shipped = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(mod.Location), "..", "dist", "RavenfieldVR", "BepInEx", "plugins", "RavenfieldVR", "runtime");
+                if (System.IO.Directory.Exists(shipped))
+                {
+                    foreach (string f in new[] { "XRSDKOpenVR.dll.bin", "openvr_api.dll.bin", "UnitySubsystemsManifest.json" })
+                    {
+                        System.IO.File.Copy(System.IO.Path.Combine(shipped, f), System.IO.Path.Combine(runtime, f), true);
+                    }
+                    string installed = (string)run.Invoke(null, new object[] { game });
+                    string again = (string)run.Invoke(null, new object[] { game });
+                    Check(installed != null && installed.StartsWith("Installed") && again == null,
+                        $"Install check: the release's copies are put in place, then nothing to do ({installed} / {again ?? "null"})");
+                }
+            }
+            finally
+            {
+                dir.SetValue(null, before);
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
+                }
+            }
         }
 
         /// <summary>

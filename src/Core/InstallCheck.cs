@@ -67,6 +67,21 @@ namespace RavenfieldVR.Core
                 {
                     File.Copy(bundledManifest, manifest, true);
                 }
+                // A file the plugin folder lacks is not copied: said so, not "restart" (which asked for a restart on every start
+                // while the runtime stayed incomplete; bug hunt, 2026-10-22).
+                foreach (string f in NativeFiles)
+                {
+                    if (!File.Exists(Path.Combine(x64, f)))
+                    {
+                        return "VR runtime file ravenfield_Data/Plugins/x86_64/" + f + " is missing and BepInEx/plugins/RavenfieldVR/runtime has no copy of it. " +
+                               "Reinstall Ravenfield VR from its release. Playing flat.";
+                    }
+                }
+                if (!File.Exists(manifest))
+                {
+                    return "VR runtime file ravenfield_Data/UnitySubsystems/XRSDKOpenVR/UnitySubsystemsManifest.json is missing and BepInEx/plugins/RavenfieldVR/runtime " +
+                           "has no copy of it. Reinstall Ravenfield VR from its release. Playing flat.";
+                }
                 return "Installed the OpenVR runtime into ravenfield_Data. Unity only discovers it at startup: restart Ravenfield to play in VR. Playing flat this session.";
             }
             catch (Exception e)
