@@ -288,8 +288,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static List<Collider> CollectPlayerColliders()
         {
-            if (_playerCollidersFrame == Time.frameCount
-                || _playerCollidersGeneration == PlayerGeneration && Time.unscaledTime < _playerCollidersUntil)
+            // The same player only: a respawn later in the frame (its generation bumped) gathers anew, not the frame's old list
+            // (scout, 2026-10-22; it was set right only by the re-check 0.3 s later).
+            if (_playerCollidersGeneration == PlayerGeneration && (_playerCollidersFrame == Time.frameCount || Time.unscaledTime < _playerCollidersUntil))
             {
                 return PlayerColliders;
             }
