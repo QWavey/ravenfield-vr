@@ -31,8 +31,20 @@ if (-not (Test-Path (Join-Path $Source 'BepInEx/plugins/RavenfieldVR/RavenfieldV
 
 $GameDir = Resolve-RavenfieldDir -GameDir $GameDir
 Write-Step "Installing into $GameDir"
-if (Get-Process -Name ravenfield -ErrorAction SilentlyContinue) {
-    throw 'Ravenfield is running. Close it first.'
+# The launcher too, as the setup and uninstall.ps1 check: waiting for the headset it holds its own exe, and copying over it
+# failed part way through the install (improve round, 2026-10-22).
+if (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue) {
+    throw 'Ravenfield (or its VR launcher) is running. Close it first.'
+}
+
+# A path from the install record, only if it stays inside the game folder (a rooted or '..' entry would reach outside it), as
+# uninstall.ps1 and the setup take them: the clean-up of files an earlier version added deleted whatever the record named.
+function Resolve-Inside([string]$root, [string]$rel) {
+    if ([string]::IsNullOrWhiteSpace($rel) -or [System.IO.Path]::IsPathRooted($rel)) { Write-Warning "Skipped record entry '$rel' (not a path inside the game folder)."; return $null }
+    $full = [System.IO.Path]::GetFullPath((Join-Path $root $rel))
+    $base = [System.IO.Path]::GetFullPath($root).TrimEnd([char]'\', [char]'/') + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $full.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) { Write-Warning "Skipped record entry '$rel' (outside $root)."; return $null }
+    return $full
 }
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -132,9 +144,9 @@ if (Test-Path (Join-Path $Source 'RavenfieldVR-Launcher.exe')) {
 # Files an earlier version added that this one no longer has were the install's: they go.
 foreach ($old in $ours) {
     if (-not ($added -contains $old)) {
-        $path = Join-Path $GameDir $old
-        if (Test-Path $path -PathType Leaf) {
-            Remove-Item $path -Force
+        $path = Resolve-Inside $GameDir $old
+        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            Remove-Item -LiteralPath $path -Force
             Write-Step "Removed $old (no longer part of Ravenfield VR)"
         }
     }

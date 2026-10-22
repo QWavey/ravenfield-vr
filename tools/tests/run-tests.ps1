@@ -41,6 +41,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # uninstall.ps1 on a made-up install in a temporary folder (tools/tests/uninstall_ps1_test.py).
 python -I (Join-Path $PSScriptRoot 'uninstall_ps1_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# install.ps1 upgrading a made-up earlier install (tools/tests/install_ps1_test.py; skipped without dist/RavenfieldVR).
+python -I (Join-Path $PSScriptRoot 'install_ps1_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # No doc comment left on another member's, no private member nothing uses (both cleaned to zero on 2026-10-22).
 $stacked = python -I (Join-Path $Root 'tools/export_checks/stacked_docs.py') --brief
 $stacked | Select-Object -Last 1
