@@ -42,6 +42,12 @@ namespace RavenfieldVR.Weapons
         /// still to be worked. The count alone made it "N+1" and its next trigger pull fired with no stroke (reload hunt, 2026-10-20).
         /// </summary>
         public bool EmptyChamber;
+        /// <summary>
+        /// A machine gun put down with its feed cover lifted, and with a box in whose belt was not laid: it comes back so.
+        /// Taken up again it came back shut over a laid belt (its state made anew) and fired without the belt reload (bug
+        /// hunt, 2026-10-22).
+        /// </summary>
+        public bool CoverOpen, BeltUnlaid;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
         /// <summary>Reach measured again after its first physics step (the colliders' boxes may not be set the frame they are added).</summary>
@@ -1596,6 +1602,15 @@ namespace RavenfieldVR.Weapons
             slideBack = st != null && st.Participates && st.SlideLocked && !st.Chambered;
         }
 
+        /// <summary>A machine gun's feed cover lifted, and a box in with its belt not laid on the tray, as it is put down.</summary>
+        private static void BeltStateOf(Weapon w, out bool coverOpen, out bool beltUnlaid)
+        {
+            AmmoState st = w != null && WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
+            bool cover = st != null && st.Participates && st.HasCover;
+            coverOpen = cover && st.CoverOpen;
+            beltUnlaid = cover && st.MagInserted && !st.BeltLaid;
+        }
+
         /// <summary>Nothing chambered, the action closed and not locked back, rounds left to feed: the next round needs a stroke.</summary>
         private static bool EmptyChamberOf(Weapon w)
         {
@@ -1657,7 +1672,7 @@ namespace RavenfieldVR.Weapons
             // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
             // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
             // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
-            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber);
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid);
             state?.AdoptWeaponAmmo();
             if (state != null && d.EmptyChamber && !d.MagOut && !d.SlideBack)
             {
@@ -1677,6 +1692,14 @@ namespace RavenfieldVR.Weapons
                 }
                 state.Sync();
                 Log.InfoOnce("putdown:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: magazine {(d.MagOut ? "out" : "in")}, slide {(d.SlideBack ? "locked back" : "free")}.");
+            }
+            if (state != null && state.HasCover && (d.CoverOpen || d.BeltUnlaid))
+            {
+                // Its cover and belt as they were (AdoptWeaponAmmo shuts the cover over a laid belt).
+                state.CoverOpen = d.CoverOpen;
+                state.BeltLaid = !d.BeltUnlaid; // (no box in: a box put in sets it again)
+                state.Sync();
+                Log.InfoOnce("putdowncover:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: cover {(d.CoverOpen ? "open" : "shut")}, belt {(state.BeltLaid ? "laid" : "not laid")}.");
             }
         }
 
@@ -1812,6 +1835,7 @@ namespace RavenfieldVR.Weapons
                 swapped.MagOut = swapMagOut;
                 swapped.SlideBack = swapSlideBack;
                 swapped.EmptyChamber = EmptyChamberOf(current);
+                BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick
@@ -2054,6 +2078,7 @@ namespace RavenfieldVR.Weapons
                 SlideBack = slideBack,
                 EmptyChamber = EmptyChamberOf(w)
             };
+            BeltStateOf(w, out drop.CoverOpen, out drop.BeltUnlaid);
             drop.Reach = ReachOf(root.transform, colliders);
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);
