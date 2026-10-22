@@ -124,11 +124,15 @@ class SelfTest:
     def s_open(self):
         items = self.wb.items
         pick = None
+        def plain(text):
+            # A weapon's id has underscores for its spaces ('DOUBLE-BARREL_DBS_Long_24'): '--weapon "DBS Long"' found nothing and
+            # the check ran on the default gun instead.
+            return str(text).lower().replace('_', ' ')
         if self.want:
-            pick = next((it for it in items if self.want.lower() in it.text().lower() or self.want.lower() in str(it.data(Qt.ItemDataRole.UserRole)).lower()), None)
+            pick = next((it for it in items if plain(self.want) in plain(it.text()) or plain(self.want) in plain(it.data(Qt.ItemDataRole.UserRole))), None)
         pick = pick or items[0]
         wid = pick.data(Qt.ItemDataRole.UserRole)
-        if self.want and self.want.lower() not in (pick.text() + ' ' + wid).lower():
+        if self.want and plain(self.want) not in plain(pick.text() + ' ' + wid):
             self.check(f'the weapon asked for ({self.want}) is in the list', False, f'opened {wid} instead')
         self.wb.weapon_list.setCurrentItem(pick)
         w = self.wb.scene.weapon
@@ -1038,7 +1042,9 @@ class SelfTest:
             return tuple(cam.project(c + rad * (u * math.cos(phi) + vv * math.sin(phi))))
         for snap, want in ((False, 30.0), (True, 30.0)):
             p0, q0 = h.drawn_position().copy(), h.rotation.copy()
-            turn = 31.7 if snap else 30.0
+            # Snapped: 31 degrees dragged, 1.5 from where the snap goes up to 35 (the press and the release land on whole pixels,
+            # some 0.8 degrees on a ring 70 px across: 31.7 came out 35 on the M500).
+            turn = 31.0 if snap else 30.0
             pts = [ring(t[k0] + math.radians(a)) for a in np.linspace(0.0, turn, 13)]
             self._drag(pts, Qt.KeyboardModifier.ControlModifier if snap else Qt.KeyboardModifier.NoModifier)
             rel = quat_mul(h.rotation, quat_inv(q0))
