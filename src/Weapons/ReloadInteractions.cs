@@ -4294,6 +4294,13 @@ namespace RavenfieldVR.Weapons
                     // it against the gun while the hand started across, and the pass read "past the gun (went through)" with the
                     // magazine never in it (the HK416s, task 328 d).
                     Vector3 detour = Mathf.Abs(Vector3.Dot(dirGun, up)) > 0.5f ? right : -up;
+                    if (mag.Go == null || !ReferenceEquals(off.Held, mag))
+                    {
+                        // Gone from the hand in an earlier pass (seated, or destroyed): read here, its position threw and ended the
+                        // whole autotest run; with no magazine a pass would only report "on its side" (bug hunt, 2026-10-22).
+                        lines.Add($"{name}: not run (the magazine left the hand in an earlier pass)");
+                        break;
+                    }
                     Vector3 legFrom = Rig.ToGun(mag.Go.transform.position);
                     Vector3[] legs =
                     {
