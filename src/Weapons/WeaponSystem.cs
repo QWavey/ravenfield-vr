@@ -566,7 +566,7 @@ namespace RavenfieldVR.Weapons
         {
             // The second weapon's own trigger (the free hand's Use): an empty pull there gave no click at all (second-weapon hunt,
             // 2026-10-20 night).
-            if (Second != null && weapon != null && weapon == Second.Weapon)
+            if (Second != null && weapon != null && Fires(weapon, Second.Weapon)) // (its fire-mode variant too: it clicked in the gun hand)
             {
                 if (VRInput.GetPressed(DigitalAction.Use, Second.Hand.Side) && Time.unscaledTime - _lastDryFire > 0.15f)
                 {
