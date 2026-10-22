@@ -4035,9 +4035,7 @@ namespace RavenfieldVR.Weapons
                            + $"{-Vector3.Dot(c - d.MuzzlePoint, d.Up) * 100f:0.0} cm under the bore), {Vector3.Angle(insert, d.AimAxis):0} deg off the bore ";
                 return;
             }
-            Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.3f;
-            Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.5f);
-            Vector3 port = d.MuzzlePoint + d.AimAxis * Vector3.Dot(mid - d.MuzzlePoint, d.AimAxis) - d.Up * 0.03f;
+            Vector3 port = EstimatedPort(d);
             // Lying along the bore: its long side turned onto it.
             Quaternion lying = d.MagSeat.rotation;
             Vector3 s = d.MagBounds.size;
@@ -4051,6 +4049,17 @@ namespace RavenfieldVR.Weapons
             d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
             d.MagEjectAxis = -d.AimAxis;
             d.Warnings.Add("loading port estimated (the reload's shell never comes under the bore by the grip): half way to the forend, 3 cm under the bore");
+        }
+
+        /// <summary>
+        /// A tube's loading port when no reload shows it: half way from the grip to the forend, 3 cm under the bore (the ports
+        /// measured from the reloads of 2026-10-22: 17-30 cm ahead of the grip, 1.4-4.7 cm under the bore).
+        /// </summary>
+        private static Vector3 EstimatedPort(WeaponRigData d)
+        {
+            Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.3f;
+            Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.5f);
+            return d.MuzzlePoint + d.AimAxis * Vector3.Dot(mid - d.MuzzlePoint, d.AimAxis) - d.Up * 0.03f;
         }
 
         /// <summary>
@@ -5008,11 +5017,15 @@ namespace RavenfieldVR.Weapons
             }
             if (d.MagazinePath == null)
             {
+                // A tube gun with no shell of its own (the ARS M500 (Bot Friendly)) loads at its port like the others: under the
+                // receiver 10 cm ahead of the grip, its shells went in 10 cm under the bore (check-1022-shotguns).
+                bool tube = d.Action == ActionType.ShellFed && !d.Handgun;
                 Vector3 seat = d.Action == ActionType.SingleShot
                     ? d.MuzzlePoint - d.AimAxis * 0.05f
+                    : tube ? EstimatedPort(d)
                     : d.GripPoint + d.AimAxis * (d.Handgun ? 0.0f : 0.1f) - d.Up * (d.Handgun ? 0.02f : 0.05f);
                 d.MagSeat = new RigidPose(seat, Quaternion.LookRotation(d.AimAxis, d.Up));
-                d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : -d.Up;
+                d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : tube ? -d.AimAxis : -d.Up; // a shell goes into the tube along it
             }
             d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.Handgun);
             // (A Garand classed Manual too: every Manual gun cycles by hand in the analysis, so "Manual && !CyclesByHand" never
