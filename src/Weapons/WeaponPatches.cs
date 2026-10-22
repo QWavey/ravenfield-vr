@@ -257,9 +257,19 @@ namespace RavenfieldVR.Weapons
             {
                 return true;
             }
-            AmmoState state = WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: true);
-            // Weapons without a manual model (infinite ammo, tools) keep the normal reload.
-            return state == null || !state.Participates;
+            try
+            {
+                AmmoState state = WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: true);
+                // Weapons without a manual model (infinite ammo, tools) keep the normal reload.
+                return state == null || !state.Participates;
+            }
+            catch (System.Exception e)
+            {
+                // As the patches round it: a mod error (making the rig or the ammo state) must not throw out of the game's own
+                // reload, which then did nothing at every press; it reloads the game's way instead (bug hunt, 2026-10-22).
+                Log.ExceptionOnce("Weapon.Reload (VR)", e);
+                return true;
+            }
         }
     }
 
