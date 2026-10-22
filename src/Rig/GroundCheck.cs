@@ -75,6 +75,12 @@ namespace RavenfieldVR.Rig
                     any = true;
                 }
             }
+            if (!any && n == Hits.Length)
+            {
+                // The buffer full of loose bodies (cases, magazines, limbs; unsorted) and the ground not among them: the game's
+                // own cast, the nearest hit whatever it is, rather than no ground at all (airborne; scout, 2026-10-22).
+                return Physics.SphereCast(ray, radius, out hit, maxDistance, mask);
+            }
             return any;
         }
     }

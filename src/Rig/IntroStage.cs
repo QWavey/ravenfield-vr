@@ -297,6 +297,12 @@ namespace RavenfieldVR.Rig
                 {
                     size = new Vector2(Screen.width, Screen.height) / Mathf.Max(0.01f, c.scaleFactor);
                 }
+                if (size.x < 10f || size.y < 10f)
+                {
+                    // A minimised window has no screen to size it by: placed at the next scan instead (as a world canvas it was
+                    // never placed again, an empty title; scout, 2026-10-22).
+                    continue;
+                }
                 Log.Info($"Intro: canvas '{c.name}' ({c.renderMode}, {size.x:0}x{size.y:0}, layer {c.gameObject.layer}) placed in the scene behind the walkers.");
                 var scaler = c.GetComponent<CanvasScaler>();
                 if (scaler != null)
@@ -307,7 +313,8 @@ namespace RavenfieldVR.Rig
                 rect.pivot = new Vector2(0.5f, 0.5f);
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
                 rect.sizeDelta = size;
-                Vector3 forward = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
+                Vector3 forward = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                forward = forward.sqrMagnitude > 1e-6f ? forward.normalized : Vector3.forward; // (a camera looking straight down)
                 float height = 2f * TitleDistance * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
                 Vector3 centre = cam.transform.position + forward * TitleDistance;
                 centre.y = _hasGround ? _ground + VRConfig.EyeHeight.Value.ClampEye() : centre.y;
