@@ -56,6 +56,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Measurements rendered and not yet ready (each holds its read-back pictures until it is done).</summary>
         public static int InFlight => Volatile.Read(ref _inFlight);
         private readonly Bounds _box;
+        // The box's corners, compared by hand in Test: Bounds.Contains is a native call in this Unity, one per point tested.
+        private readonly Vector3 _boxMin, _boxMax;
         private volatile bool _ready;
         private Vector3 _pos;
         private Quaternion _inv = Quaternion.identity;
@@ -156,6 +158,8 @@ namespace RavenfieldVR.Weapons
             Key = key;
             _views = views;
             _box = box;
+            _boxMin = box.center - box.extents;
+            _boxMax = box.center + box.extents;
         }
 
         /// <summary>Where the frame is in the world right now (the gun's grip and aim).</summary>
@@ -311,20 +315,24 @@ namespace RavenfieldVR.Weapons
 
         private bool Test(Vector3 p, bool grown)
         {
-            if (!_ready || !_box.Contains(p))
+            // The box compared by hand (Bounds.Contains crossed into native code on every point: the glove tests held
+            // magazines this way point by point each frame), then each view as Solid does it: multiplies instead of divides,
+            // a cast instead of FloorToInt (the same for the non-negative values left after the check before it).
+            if (!_ready || p.x < _boxMin.x || p.y < _boxMin.y || p.z < _boxMin.z || p.x > _boxMax.x || p.y > _boxMax.y || p.z > _boxMax.z)
             {
                 return false;
             }
-            foreach (View v in _views)
+            View[] views = _views;
+            for (int n = 0; n < views.Length; n++)
             {
+                View v = views[n];
                 Vector3 q = v.ToView * p;
-                int i = Mathf.FloorToInt((q.x - v.MinX) / v.Texel);
-                int j = Mathf.FloorToInt((q.y - v.MinY) / v.Texel);
-                if (i < 0 || j < 0 || i >= v.W || j >= v.H)
+                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
                 {
                     return false;
                 }
-                int k = j * v.W + i;
+                int k = (int)fy * v.W + (int)fx;
                 float[] near = grown ? v.Near : v.BareNear, far = grown ? v.Far : v.BareFar;
                 if (q.z < near[k] || q.z > far[k])
                 {
