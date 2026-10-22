@@ -38,6 +38,7 @@ namespace RavenfieldVR.Rig
             root.transform.position = new Vector3(0f, 2000f, 0f);
             RenderTexture rt = null;
             Texture2D sheet = null;
+            VRHand[] hands = null; // destroyed in finally: a capture that threw left each hand's glove mesh behind
             try
             {
                 var poses = new (float[] curls, bool weaponThumb)[]
@@ -52,7 +53,7 @@ namespace RavenfieldVR.Rig
                 };
                 // One hand per pose, a metre apart: a skinned mesh is skinned once per frame, so re-posing one hand
                 // between renders of the same frame would show its first pose every time.
-                var hands = new VRHand[poses.Length];
+                hands = new VRHand[poses.Length];
                 for (int p = 0; p < poses.Length; p++)
                 {
                     hands[p] = new VRHand(Input.Hand.Right, root.transform);
@@ -112,10 +113,6 @@ namespace RavenfieldVR.Rig
                 }
                 sheet.Apply();
                 File.WriteAllBytes(path, sheet.EncodeToPNG());
-                foreach (VRHand h in hands)
-                {
-                    h.Destroy();
-                }
                 return null;
             }
             catch (Exception e)
@@ -125,6 +122,13 @@ namespace RavenfieldVR.Rig
             }
             finally
             {
+                if (hands != null)
+                {
+                    foreach (VRHand h in hands)
+                    {
+                        h?.Destroy();
+                    }
+                }
                 if (rt != null)
                 {
                     rt.Release();
@@ -148,10 +152,11 @@ namespace RavenfieldVR.Rig
             root.transform.position = new Vector3(0f, 2100f, 0f);
             RenderTexture rt = null;
             Texture2D sheet = null;
+            VRHand[] hands = null; // destroyed in finally: a capture that threw left each hand's glove mesh behind
             try
             {
                 GripPose[] poses = HandPoses.Library;
-                var hands = new VRHand[poses.Length];
+                hands = new VRHand[poses.Length];
                 Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 for (int p = 0; p < poses.Length; p++)
                 {
@@ -206,10 +211,6 @@ namespace RavenfieldVR.Rig
                 }
                 sheet.Apply();
                 File.WriteAllBytes(path, sheet.EncodeToPNG());
-                foreach (VRHand h in hands)
-                {
-                    h.Destroy();
-                }
                 return null;
             }
             catch (Exception e)
@@ -219,6 +220,13 @@ namespace RavenfieldVR.Rig
             }
             finally
             {
+                if (hands != null)
+                {
+                    foreach (VRHand h in hands)
+                    {
+                        h?.Destroy();
+                    }
+                }
                 if (rt != null)
                 {
                     rt.Release();
@@ -237,6 +245,7 @@ namespace RavenfieldVR.Rig
             var root = new GameObject("RavenfieldVR Hand Preview");
             root.transform.position = new Vector3(0f, 2000f, 0f);
             RenderTexture rt = null;
+            VRHand[] hands = null; // destroyed in finally: a capture that threw left each hand's glove mesh behind
             try
             {
                 float[][] poses =
@@ -245,7 +254,7 @@ namespace RavenfieldVR.Rig
                     new[] { 0.35f, 0.45f, 0.5f, 0.55f, 0.6f },
                     new[] { 0.8f, 0.9f, 1f, 1f, 1f }
                 };
-                var hands = new VRHand[6];
+                hands = new VRHand[6];
                 for (int i = 0; i < 6; i++)
                 {
                     Input.Hand side = i % 2 == 0 ? Input.Hand.Left : Input.Hand.Right;
@@ -282,10 +291,6 @@ namespace RavenfieldVR.Rig
                 camGo.transform.localPosition = new Vector3(0f, 0.05f, 1.0f);
                 camGo.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 Save(cam, rt, path.Replace(".png", "-back.png"));
-                foreach (VRHand h in hands)
-                {
-                    h.Destroy();
-                }
                 return null;
             }
             catch (Exception e)
@@ -295,6 +300,13 @@ namespace RavenfieldVR.Rig
             }
             finally
             {
+                if (hands != null)
+                {
+                    foreach (VRHand h in hands)
+                    {
+                        h?.Destroy();
+                    }
+                }
                 if (rt != null)
                 {
                     rt.Release();
