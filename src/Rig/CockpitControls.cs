@@ -255,7 +255,7 @@ namespace RavenfieldVR.Rig
                     var throw01 = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
                     // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
                     // (2-3 mm) was a steady 2-4% of stick and the aircraft drifted.
-                    VehicleInput.FlightStick = Input.VRGameInput.ApplyDeadzone(throw01, StickDeadzone);
+                    VehicleInput.FlightStick = Input.VRGameInput.ApplyDeadzoneSquare(throw01, StickDeadzone);
                 }
             }
         }

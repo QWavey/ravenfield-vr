@@ -64,7 +64,34 @@ namespace RavenfieldVR.Tests
                 return null;
             };
             // In methods of their own: Unity's types are resolved when they are compiled, after the handler is in place.
-            SteeringTests(System.Reflection.Assembly.LoadFrom(args[1]));
+            System.Reflection.Assembly mod = System.Reflection.Assembly.LoadFrom(args[1]);
+            SteeringTests(mod);
+            DeadzoneTests(mod);
+        }
+
+        private static void DeadzoneTests(System.Reflection.Assembly mod)
+        {
+            Type input = mod.GetType("RavenfieldVR.Input.VRGameInput");
+            System.Reflection.MethodInfo round = input?.GetMethod("ApplyDeadzone"), square = input?.GetMethod("ApplyDeadzoneSquare");
+            Check(round != null && square != null, "Dead zones: ApplyDeadzone and ApplyDeadzoneSquare found");
+            if (round == null || square == null)
+            {
+                return;
+            }
+            UnityEngine.Vector2 Round(float x, float y, float dz) => (UnityEngine.Vector2)round.Invoke(null, new object[] { new UnityEngine.Vector2(x, y), dz });
+            UnityEngine.Vector2 Square(float x, float y, float dz) => (UnityEngine.Vector2)square.Invoke(null, new object[] { new UnityEngine.Vector2(x, y), dz });
+            bool Near(UnityEngine.Vector2 v, float x, float y) => Math.Abs(v.x - x) < 0.002f && Math.Abs(v.y - y) < 0.002f;
+            // A thumbstick (a round gate): nothing in the zone, full at the edge, starting from nothing after the zone.
+            Check(Near(Round(0.05f, 0f, 0.1f), 0f, 0f) && Near(Round(1f, 0f, 0.1f), 1f, 0f) && Near(Round(0.55f, 0f, 0.1f), 0.5f, 0f)
+                  && Round(0.101f, 0f, 0.1f).x < 0.01f, "Dead zone (thumbstick): none in the zone, full at the edge, continuous after it");
+            UnityEngine.Vector2 diag = Round(0.7071f, 0.7071f, 0.1f);
+            Check(Math.Abs(diag.magnitude - 1f) < 0.002f, $"Dead zone (thumbstick): a full diagonal stays on the circle ({diag.x:0.000}, {diag.y:0.000})");
+            // The flight stick (a square gate, each axis its own throw): a corner is full roll and full pitch.
+            Check(Near(Square(1f, 1f, 0.075f), 1f, 1f), $"Dead zone (flight stick): a full corner is full on both axes ({Square(1f, 1f, 0.075f).x:0.000})");
+            Check(Near(Square(-1f, 0f, 0.075f), -1f, 0f) && Near(Square(0.05f, 0.05f, 0.075f), 0f, 0f) && Square(0.076f, 0f, 0.075f).x < 0.01f,
+                  "Dead zone (flight stick): full on one axis, none in the zone, continuous after it");
+            UnityEngine.Vector2 half = Square(0.5f, 0.5f, 0.075f);
+            Check(half.x > 0.4f && half.x < 0.75f && Math.Abs(half.x - half.y) < 1e-4f, $"Dead zone (flight stick): half a corner is in between ({half.x:0.000})");
         }
 
         private static void SteeringTests(System.Reflection.Assembly mod)

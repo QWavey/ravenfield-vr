@@ -870,6 +870,23 @@ namespace RavenfieldVR.Input
             return v / m * scaled;
         }
 
+        /// <summary>
+        /// <see cref="ApplyDeadzone"/> for an input whose axes each go to 1 on their own (a square gate: the cockpit's flight stick,
+        /// each axis its own throw): the same round dead zone and rescale, but not held inside the unit circle, each axis to 1
+        /// instead. Held in the circle, the stick pushed fully into a corner gave 0.71 roll and 0.71 pitch, never both at full as
+        /// the flat game's keys give (improve round, 2026-10-22).
+        /// </summary>
+        public static Vector2 ApplyDeadzoneSquare(Vector2 v, float deadzone)
+        {
+            float m = v.magnitude;
+            if (m <= deadzone || m < 1e-4f)
+            {
+                return Vector2.zero;
+            }
+            Vector2 r = v / m * ((m - deadzone) / Mathf.Max(1e-4f, 1f - deadzone));
+            return new Vector2(Mathf.Clamp(r.x, -1f, 1f), Mathf.Clamp(r.y, -1f, 1f));
+        }
+
         private static void Set(KeyBinds b, bool state)
         {
             if (state)
