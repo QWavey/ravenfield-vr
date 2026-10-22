@@ -643,6 +643,15 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>Close-ups from both sides of the gun, 25 cm out, at a world point: a shell going into its port or chamber.</summary>
+        private static void PointCloseUps(string file, HeldWeapon held, Vector3 at)
+        {
+            Runtime.RigidPose g = held.GripWorld;
+            Vector3 up = g.rotation * Vector3.up, right = g.rotation * Vector3.right;
+            Shots.Capture(file + "-left", at - right * 0.25f + up * 0.08f, Quaternion.LookRotation(right * 0.25f - up * 0.08f, up), 45f);
+            Shots.Capture(file + "-right", at + right * 0.25f + up * 0.08f, Quaternion.LookRotation(-right * 0.25f - up * 0.08f, up), 45f);
+        }
+
         /// <summary>
         /// The rack grip's close-ups from the gun's left and right. Aimed at the hand on the part at rest, and from the same
         /// place on the gun for the half pull: aimed at the moving hand, the hand stayed put in the picture and the whole gun
@@ -3765,7 +3774,10 @@ namespace RavenfieldVR.Core
                         Problem($"[{entry.name}] no visible model: {model}");
                         lines.Add("NO VISIBLE MODEL");
                     }
-                    yield return held.Reload.SelfCheck(lines.Add);
+                    int shellIndex = index;
+                    yield return held.Reload.SelfCheck(lines.Add, VRManager.Active && GrabShots
+                        ? (name, at) => PointCloseUps($"{name}-{shellIndex:000}-{entry.name}", held, at)
+                        : (Action<string, Vector3>)null);
                     // The picture runs take the grab pictures, and then every other per-gun check too: they skipped them all,
                     // so the full runs never ran the empty-reload, cover, second-weapon or keep-out checks (255.I6-3).
                     bool pictured = VRManager.Active && GrabShots;

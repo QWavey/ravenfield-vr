@@ -3644,7 +3644,7 @@ namespace RavenfieldVR.Weapons
         /// open / eject, take from the pouch, seat, pull a seated magazine by hand and seat it again, feed cover,
         /// rack — and reports what happened.
         /// </summary>
-        internal IEnumerator SelfCheck(System.Action<string> report)
+        internal IEnumerator SelfCheck(System.Action<string> report, System.Action<string, Vector3> picture = null)
         {
             if (!Manual)
             {
@@ -3660,7 +3660,7 @@ namespace RavenfieldVR.Weapons
             VRInput.SimulatedGrab[(int)off.Side] = true;
             try
             {
-                foreach (object step in SelfCheckSteps(report))
+                foreach (object step in SelfCheckSteps(report, picture))
                 {
                     yield return step;
                 }
@@ -3671,7 +3671,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private IEnumerable SelfCheckSteps(System.Action<string> report)
+        /// <summary>The steps of <see cref="SelfCheck"/>; <paramref name="picture"/> pictures a shell going in (a name and the world point to look at), when the run takes pictures.</summary>
+        private IEnumerable SelfCheckSteps(System.Action<string> report, System.Action<string, Vector3> picture)
         {
             VRHand off = _sys.Rig.Off;
             if (Breaks)
@@ -3703,13 +3704,18 @@ namespace RavenfieldVR.Weapons
                 for (int n = 0; n < Ammo.Capacity + 1 && Ammo.TubeRoom > 0 && !refused; n++)
                 {
                     bool seated = false;
-                    foreach (object step in LoadShellByHand(off, ok => seated = ok))
+                    foreach (object step in LoadShellByHand(off, ok => seated = ok, n == 0 ? picture : null))
                     {
                         yield return step;
                     }
                     refused = !seated;
                 }
                 report($"break-open: loaded by hand, one shell at a time, to {Ammo.MagRounds}/{Ammo.Capacity}{(refused ? " (A SHELL PUSHED IN ALONG ITS LINE WAS NOT TAKEN)" : "")}; {ChamberShellsReport()}");
+                if (picture != null)
+                {
+                    yield return new WaitForEndOfFrame();
+                    picture("break-open-loaded", ChamberSeat(0).position);
+                }
                 SetBreakOpen(false);
             }
             else if (Ammo.UsesDetachableMag)
@@ -3825,7 +3831,7 @@ namespace RavenfieldVR.Weapons
                 for (int n = 0; n < Ammo.Capacity + 1 && Ammo.TubeRoom > 0 && !refused; n++)
                 {
                     bool seated = false;
-                    foreach (object step in LoadShellByHand(off, ok => seated = ok))
+                    foreach (object step in LoadShellByHand(off, ok => seated = ok, n == 0 ? picture : null))
                     {
                         yield return step;
                     }
@@ -4554,9 +4560,9 @@ namespace RavenfieldVR.Weapons
         /// Autotest: one shell from the pouch, pushed into the gun along its line by the simulated hand from 4 cm out, the way
         /// a player loads it; not seated by the test. The shells' line ran to where the reload's shell waits (46 cm behind an
         /// R870's grip), and the test, which seated them itself, said "loaded to 8/8" (user, 2026-10-22: no shotgun could be
-        /// reloaded). <paramref name="done"/> gets whether it went in.
+        /// reloaded). <paramref name="done"/> gets whether it went in; <paramref name="picture"/>, when given, pictures it half way in.
         /// </summary>
-        private IEnumerable LoadShellByHand(VRHand off, System.Action<bool> done)
+        private IEnumerable LoadShellByHand(VRHand off, System.Action<bool> done, System.Action<string, Vector3> picture = null)
         {
             if (!Ammo.InfiniteSpare)
             {
@@ -4579,6 +4585,14 @@ namespace RavenfieldVR.Weapons
             {
                 PlaceFreshMag(off, shell, holdInRaw, below, 0f, 0.25f);
                 yield return null;
+                if (picture != null && below < -length * 0.5f && shell.Go != null)
+                {
+                    // Half way in, held still for the picture (the null driver draws a frame or two a step).
+                    VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+                    yield return new WaitForEndOfFrame();
+                    picture(Breaks ? "shell-into-chamber" : "shell-into-port", shell.Go.transform.TransformPoint((shell.BaseLocal + shell.TipLocal) * 0.5f));
+                    picture = null;
+                }
             }
             VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
             VRHand.Scripted[(int)off.Side] = null;
