@@ -74,9 +74,12 @@ namespace RavenfieldVR.Weapons
         public bool[][] ReloadVisible;
         /// <summary>
         /// [transform][step] gun-relative rotations during the reload: how a shell lies where the reload pushes it into a tube
-        /// (its seat there, nose first; WeaponAnalyzer.ShellPort).
+        /// (its seat there, nose first; WeaponAnalyzer.ShellPort). Kept only for parts that draw something and move a centimetre
+        /// or more in the reload, from that step on (null for the others): for every part of every weapon it doubled the
+        /// sampler's garbage, up to about 1.8 MB an analysis.
         /// </summary>
         public Quaternion[][] ReloadRotation;
+        private bool[] _drawsSomething;
         public Vector3[][] FireTrajectory;
         public int ReloadSteps;
         public int FireSteps;
@@ -247,7 +250,6 @@ namespace RavenfieldVR.Weapons
             {
                 ReloadVisible[i] = new bool[steps];
                 ReloadAngle[i] = new float[steps];
-                ReloadRotation[i] = new Quaternion[steps];
             }
             var tracker = new EventTracker(_anim);
             var wasActive = new bool[_clone.Length];
@@ -307,10 +309,12 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             _hasPlayOnAwakeAudio = new bool[_clone.Length];
+            _drawsSomething = new bool[_clone.Length];
             for (int i = 0; i < _clone.Length; i++)
             {
                 AudioSource a = _clone[i].GetComponent<AudioSource>();
                 _hasPlayOnAwakeAudio[i] = a != null && a.playOnAwake && a.clip != null;
+                _drawsSomething[i] = _clone[i].GetComponentInChildren<Renderer>(true) != null;
             }
 
             // Nothing in the clone may run, render, sound, collide or emit.
@@ -478,10 +482,6 @@ namespace RavenfieldVR.Weapons
                 RigidPose pose = RootRelative(_clone[i]);
                 // Rotation away from idle in gun space: cylinders, hinged covers, break-open barrels, bolt handles.
                 Quaternion rel0 = gunInv.rotation * pose.rotation;
-                if (rotations != null)
-                {
-                    rotations[i][step] = rel0;
-                }
                 Quaternion delta = rel0 * Quaternion.Inverse(RelIdle[i].rotation);
                 delta.ToAngleAxis(out float angle, out Vector3 axis);
                 if (float.IsNaN(angle) || float.IsNaN(axis.x) || float.IsInfinity(axis.x))
@@ -515,6 +515,14 @@ namespace RavenfieldVR.Weapons
                 }
                 Vector3 d = rel - RelIdle[i].position;
                 float m = d.magnitude;
+                if (rotations != null && _drawsSomething[i] && (rotations[i] != null || m > 0.01f))
+                {
+                    if (rotations[i] == null)
+                    {
+                        rotations[i] = new Quaternion[trajectory[i].Length]; // from the step it first moved (zero before)
+                    }
+                    rotations[i][step] = rel0;
+                }
                 if (m > max[i])
                 {
                     max[i] = m;

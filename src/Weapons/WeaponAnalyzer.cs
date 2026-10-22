@@ -3999,7 +3999,8 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                Quaternion r = turn != null && k < turn.Length && turn[k].w * turn[k].w + turn[k].x * turn[k].x > 0f ? turn[k] : sampler.RelIdle[mi].rotation;
+                Quaternion r = turn != null && k < turn.Length && turn[k].w * turn[k].w + turn[k].x * turn[k].x + turn[k].y * turn[k].y + turn[k].z * turn[k].z > 0.5f
+                    ? turn[k] : sampler.RelIdle[mi].rotation;
                 Vector3 c = path[k] + r * d.MagBounds.center;
                 float below = -Vector3.Dot(c - d.MuzzlePoint, d.Up);
                 float ahead = Vector3.Dot(c - d.GripPoint, d.AimAxis);
@@ -4013,7 +4014,9 @@ namespace RavenfieldVR.Weapons
             }
             if (best >= 0)
             {
-                Quaternion rot = turn != null && best < turn.Length ? turn[best] : sampler.RelIdle[mi].rotation;
+                // (Recorded only from the step the shell first moved: unrecorded steps hold a zero quaternion.)
+                Quaternion rot = turn != null && best < turn.Length && turn[best].w * turn[best].w + turn[best].x * turn[best].x
+                    + turn[best].y * turn[best].y + turn[best].z * turn[best].z > 0.5f ? turn[best] : sampler.RelIdle[mi].rotation;
                 Vector3 insert = d.AimAxis;
                 for (int j = best - 1; j >= 0; j--)
                 {
