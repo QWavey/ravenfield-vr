@@ -51,6 +51,9 @@ $code = $LASTEXITCODE
 # The picture tool's restore after a killed run, on temporary copies (tools/tests/vrshots_restore_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_restore_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# The picture tool's sheets: the tiles each kind of gun gets (tools/tests/vrshots_sheets_test.py).
+python -I (Join-Path $PSScriptRoot 'vrshots_sheets_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every controller binds every button action, but for the gaps listed on purpose (tools/tests/bindings_coverage_test.py).
 python -I (Join-Path $PSScriptRoot 'bindings_coverage_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
