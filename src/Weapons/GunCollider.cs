@@ -1202,7 +1202,12 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static void Postfix(bool __state)
+        /// <summary>
+        /// A finalizer, not a postfix: it runs when the step throws too. A postfix skipped by a throw left the gun a trigger
+        /// on the hidden layer, and the nesting count one up for good, so the gun went through walls and the next gun drawn
+        /// was never hidden from the player's step again (bug hunt, 2026-10-22). (The throw itself still goes on.)
+        /// </summary>
+        private static void Finalizer(bool __state)
         {
             if (__state)
             {
@@ -1226,7 +1231,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static void Postfix(bool __state)
+        private static void Finalizer(bool __state) // (as the step's: restored when the move throws too)
         {
             if (__state)
             {
