@@ -286,9 +286,16 @@ namespace RavenfieldVR.Input
         /// </summary>
         private static bool SwitchUndoable(Weapon weapon)
         {
-            if (weapon == null || ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null)
+            if (weapon == null)
             {
                 return false;
+            }
+            if (ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null)
+            {
+                // A weapon's own fire-mode script: a second tap puts back a two-mode one, the usual semi / auto toggle (the usm_m4
+                // M4A1s' fireMode lists "AUTO SEMI", the APC45's and MP9's FRfiremode flips isAuto). Waited out before, the M4A1s'
+                // switch lagged by A's release and the double-press wait (user, 2026-10-21 night: "on some guns ... a delay").
+                return ScriptModeCount(weapon) <= 2;
             }
             if (weapon.HasAnySubWeapons())
             {
@@ -302,6 +309,21 @@ namespace RavenfieldVR.Input
             weapon != null && (ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode) != null || weapon.HasAnySubWeapons()
                                || VRConfig.FireSelector.Value && Weapons.FireSelector.HasModes(weapon));
 
+        /// <summary>
+        /// The modes a weapon's fire-mode script cycles: the common fireMode script's list (its DataContainer's FIREMODE_MODES,
+        /// "AUTO SEMI"), else two (a script with no list is taken for the usual semi / auto toggle).
+        /// </summary>
+        private static int ScriptModeCount(Weapon weapon)
+        {
+            var data = weapon.GetComponent<Ravenfield.Mods.Data.DataContainer>();
+            if (data != null && data.HasString("FIREMODE_MODES"))
+            {
+                string modes = data.GetString("FIREMODE_MODES");
+                return modes == null ? 2 : modes.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+            }
+            return 2;
+        }
+
         /// <summary>Puts back a switch made at once (by slow motion's double press, or a press that turned out to be a hold for the sight).</summary>
         private static void UndoQuickSwitch(Weapon weapon)
         {
@@ -309,7 +331,12 @@ namespace RavenfieldVR.Input
             {
                 return;
             }
-            if (weapon.HasAnySubWeapons())
+            ScriptKey script = ScriptKeys.Find(weapon, ScriptKeyPurpose.FireMode);
+            if (script != null)
+            {
+                ScriptKeys.Tap(script.Key, script.Script); // the script's two-mode toggle once more
+            }
+            else if (weapon.HasAnySubWeapons())
             {
                 _undoCyclePending = true; // the game's key once more: back to the variant it was on
             }
@@ -648,14 +675,11 @@ namespace RavenfieldVR.Input
                     {
                         Set(KeyBinds.FireMode, true);
                     }
-                    else if (modeNow && system.LastPressWasSelector)
+                    if (modeNow && weapon != null && (handled || weapon.HasAnySubWeapons()))
                     {
+                        // Made at once (the selector, a two-mode script, or the game's one variant): slow motion's double press
+                        // puts it back (UndoQuickSwitch).
                         _quickSwitchWeapon = weapon;
-                        _quickSwitchAt = Time.unscaledTime;
-                    }
-                    if (modeNow && weapon != null && weapon.HasAnySubWeapons())
-                    {
-                        _quickSwitchWeapon = weapon; // the game cycled its one variant: a second cycle puts it back
                         _quickSwitchAt = Time.unscaledTime;
                     }
                     // Which way and when, for the next play log (user, 2026-10-21 night: "theres still a delay between auto and
