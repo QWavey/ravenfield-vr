@@ -49,11 +49,11 @@ namespace RavenfieldVR.Tests
                 Console.WriteLine("Mod checks skipped (no built RavenfieldVR.dll, or the game's Managed folder not found)");
                 return;
             }
-            string managed = args[0], built = System.IO.Path.GetDirectoryName(args[1]);
+            string managed = args[0], built = System.IO.Path.GetDirectoryName(args[1]), core = args.Length > 2 ? args[2] : managed;
             AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
             {
                 string file = new System.Reflection.AssemblyName(e.Name).Name + ".dll";
-                foreach (string dir in new[] { built, managed })
+                foreach (string dir in new[] { built, managed, core })
                 {
                     string path = System.IO.Path.Combine(dir, file);
                     if (System.IO.File.Exists(path))
@@ -67,6 +67,61 @@ namespace RavenfieldVR.Tests
             System.Reflection.Assembly mod = System.Reflection.Assembly.LoadFrom(args[1]);
             SteeringTests(mod);
             DeadzoneTests(mod);
+            ConfigTests(mod);
+        }
+
+        /// <summary>
+        /// Every setting bound into a fresh file: its default is one its own range accepts, and the range is not empty (a default
+        /// out of range is clamped silently on the first load, so the documented default was never the one played).
+        /// </summary>
+        private static void ConfigTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo bind = mod.GetType("RavenfieldVR.Core.VRConfig")?.GetMethod("Bind",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Check(bind != null, "Settings: VRConfig.Bind found");
+            if (bind == null)
+            {
+                return;
+            }
+            string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-config-check-" + Guid.NewGuid().ToString("N") + ".cfg");
+            try
+            {
+                var cfg = new BepInEx.Configuration.ConfigFile(path, true);
+                bind.Invoke(null, new object[] { cfg });
+                int count = 0, ranged = 0;
+                var bad = new List<string>();
+                foreach (KeyValuePair<BepInEx.Configuration.ConfigDefinition, BepInEx.Configuration.ConfigEntryBase> kv in cfg)
+                {
+                    count++;
+                    BepInEx.Configuration.ConfigEntryBase entry = kv.Value;
+                    BepInEx.Configuration.AcceptableValueBase accept = entry.Description?.AcceptableValues;
+                    if (accept == null)
+                    {
+                        continue;
+                    }
+                    ranged++;
+                    if (!accept.IsValid(entry.DefaultValue))
+                    {
+                        bad.Add($"{kv.Key.Section}.{kv.Key.Key} default {entry.DefaultValue} not in {accept.ToDescriptionString()}");
+                    }
+                    Type t = accept.GetType();
+                    if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(BepInEx.Configuration.AcceptableValueRange<>)
+                        && t.GetProperty("MinValue").GetValue(accept) is IComparable min && min.CompareTo(t.GetProperty("MaxValue").GetValue(accept)) >= 0)
+                    {
+                        bad.Add($"{kv.Key.Section}.{kv.Key.Key} has an empty range");
+                    }
+                }
+                Check(count > 50 && bad.Count == 0, $"Settings: {count} bound, {ranged} with a range, every default inside it"
+                      + (bad.Count > 0 ? ": " + string.Join("; ", bad) : ""));
+            }
+            catch (System.Reflection.TargetInvocationException e)
+            {
+                Check(false, "Settings: binding threw " + e.InnerException);
+            }
+            finally
+            {
+                System.IO.File.Delete(path);
+            }
         }
 
         private static void DeadzoneTests(System.Reflection.Assembly mod)
