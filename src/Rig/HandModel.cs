@@ -454,15 +454,17 @@ namespace RavenfieldVR.Rig
         private RigidPose _heldPalmLast;
         private float _heldPalmWeight;
 
-        /// <summary>The tracked hand at the last pose, the one the stored skin belongs to.</summary>
-        private Vector3 _skinTargetPos;
+        /// <summary>Where the glove's root was placed at the last pose, the one the stored skin belongs to.</summary>
+        private Vector3 _skinRootPos;
 
         /// <summary>
         /// From the glove as last posed to where the tracked hand alone puts it now: its offsets taken back, and the hand's move
         /// since that pose added (the skin is last frame's: a fast hand was tested where it had been and went into the gun;
-        /// 255.I2-1).
+        /// 255.I2-1). From the root as placed, its eased snap included: from the tracked target plus the offsets, the 80 ms of a
+        /// grip pose easing out after the handguard was let go tested the glove up to 12 cm from where it was, inside the gun,
+        /// and the keep-out pushed it away (bug hunt, 2026-10-22). Without a snap the two are the same.
         /// </summary>
-        private Vector3 TrackedShift => PlacedTarget().position - _skinTargetPos - _graspOffset - _keepOut;
+        private Vector3 TrackedShift => PlacedTarget().position - _skinRootPos;
 
         /// <summary>
         /// How far the glove, where the tracked hand alone puts it, has to move back against <paramref name="dir"/> to keep
@@ -741,7 +743,6 @@ namespace RavenfieldVR.Rig
                 _lastSnap = SnapPose.Value;
             }
             Vector3 position = target.position + _graspOffset + _keepOut;
-            _skinTargetPos = target.position; // the tracked hand the skin below is posed for (see TrackedShift)
             Quaternion rotation = target.rotation;
             if (_snapBlend > 0f)
             {
@@ -749,6 +750,7 @@ namespace RavenfieldVR.Rig
                 position = Vector3.Lerp(position, _lastSnap.position, e);
                 rotation = Quaternion.Slerp(rotation, _lastSnap.rotation, e);
             }
+            _skinRootPos = position; // where the skin below is posed (see TrackedShift)
             _root.SetPositionAndRotation(position, rotation);
 
             bool closing = Closing;
