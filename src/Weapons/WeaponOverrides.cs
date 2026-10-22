@@ -146,6 +146,9 @@ namespace RavenfieldVR.Weapons
                         Log.WarnOnce("override-action:" + o.action, $"Weapon override '{o.match}': '{o.action}' is no action ({string.Join(", ", Enum.GetNames(typeof(ActionType)))}).");
                     }
                 }
+                // A name with no such part is said, as an action that is none is (a typo did nothing without a word), and the
+                // detected part is kept whole: the slide's companions were cleared before the name was looked up, so a misspelt
+                // slide left the detected one moving without them (bug hunt, 2026-10-22).
                 if (!string.IsNullOrEmpty(o.magazine))
                 {
                     Transform t = FindChild(w.transform, o.magazine);
@@ -153,17 +156,25 @@ namespace RavenfieldVR.Weapons
                     {
                         d.MagazinePath = WeaponRig.PathOf(w.transform, t);
                     }
+                    else
+                    {
+                        Log.WarnOnce("override-magazine:" + o.match + ":" + o.magazine, $"Weapon override '{o.match}': {w.name} has no part named '{o.magazine}' (magazine); the detected one is kept.");
+                    }
                 }
                 if (!string.IsNullOrEmpty(o.slide))
                 {
-                    // The analysed companions belonged to the analysed slide.
-                    d.SlideCompanionPaths.Clear();
-                    d.SlideCompanionRest.Clear();
                     Transform t = FindChild(w.transform, o.slide);
                     if (t != null)
                     {
+                        // The analysed companions belonged to the analysed slide.
+                        d.SlideCompanionPaths.Clear();
+                        d.SlideCompanionRest.Clear();
                         d.SlidePath = WeaponRig.PathOf(w.transform, t);
                         d.SlideRestLocal = t.localPosition;
+                    }
+                    else
+                    {
+                        Log.WarnOnce("override-slide:" + o.match + ":" + o.slide, $"Weapon override '{o.match}': {w.name} has no part named '{o.slide}' (slide); the detected one is kept.");
                     }
                 }
                 if (o.slideTravel > 0f)
