@@ -76,6 +76,7 @@ namespace RavenfieldVR.Tests
             InputParsingTests(mod);
             HandednessTests(mod);
             EventGuardTests(mod);
+            PresetTests(mod);
             InstallCheckTests(mod);
             ArmNameTests(mod);
         }
@@ -110,6 +111,58 @@ namespace RavenfieldVR.Tests
                 }
             }
             Check(wrong.Count == 0, "Arm names: arm bones taken, handles, handguards and arming levers not" + (wrong.Count > 0 ? ": " + string.Join(", ", wrong) : ""));
+        }
+
+        /// <summary>
+        /// The graphics presets: each one at least the one below it (resolution, shadows, detail, view distance; a finer terrain
+        /// error), and the launcher's own copy of their render scales the same as the mod's (picking a preset in the launcher and
+        /// in the headset must give the same resolution).
+        /// </summary>
+        private static void PresetTests(System.Reflection.Assembly mod)
+        {
+            Type presets = mod.GetType("RavenfieldVR.Core.GraphicsPresets"), presetEnum = mod.GetType("RavenfieldVR.Core.GraphicsPreset");
+            var profiles = presets?.GetField("Profiles", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as System.Collections.IDictionary;
+            Check(profiles != null && presetEnum != null, "Presets: GraphicsPresets.Profiles found");
+            if (profiles == null || presetEnum == null)
+            {
+                return;
+            }
+            string[] order = { "Low", "Medium", "High", "Ultra" };
+            float Field(string preset, string field)
+            {
+                object p = profiles[Enum.Parse(presetEnum, preset)];
+                object v = p.GetType().GetField(field).GetValue(p);
+                return Convert.ToSingle(v is Enum ? (object)(int)v : v);
+            }
+            var wrong = new List<string>();
+            string[] rising = { "RenderScale", "Msaa", "ShadowDistance", "Cascades", "ShadowResolution", "LodBias", "PixelLights", "DetailDensity", "DetailDistance", "TreeDistance", "FarClip" };
+            for (int i = 1; i < order.Length; i++)
+            {
+                foreach (string f in rising)
+                {
+                    if (Field(order[i], f) < Field(order[i - 1], f))
+                    {
+                        wrong.Add($"{order[i]}.{f} {Field(order[i], f)} under {order[i - 1]}'s {Field(order[i - 1], f)}");
+                    }
+                }
+                if (Field(order[i], "MinPixelError") > Field(order[i - 1], "MinPixelError") || Field(order[i], "TextureLimit") > Field(order[i - 1], "TextureLimit"))
+                {
+                    wrong.Add($"{order[i]}'s terrain error or texture limit coarser than {order[i - 1]}'s");
+                }
+            }
+            Check(wrong.Count == 0, "Presets: each one at least the one below it" + (wrong.Count > 0 ? ": " + string.Join("; ", wrong) : ""));
+            var launcher = typeof(RavenfieldVR.Launcher.PluginConfig).GetField("PresetRenderScale", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                ?.GetValue(null) as Dictionary<string, string>;
+            var differ = new List<string>();
+            foreach (string preset in order)
+            {
+                string scale = launcher != null && launcher.TryGetValue(preset, out string s) ? s : "none";
+                if (scale == "none" || Math.Abs(float.Parse(scale, System.Globalization.CultureInfo.InvariantCulture) - Field(preset, "RenderScale")) > 1e-4f)
+                {
+                    differ.Add($"{preset}: launcher {scale}, mod {Field(preset, "RenderScale")}");
+                }
+            }
+            Check(launcher != null && differ.Count == 0, "Presets: the launcher's render scale for each preset is the mod's" + (differ.Count > 0 ? ": " + string.Join("; ", differ) : ""));
         }
 
         /// <summary>
