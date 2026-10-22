@@ -47,6 +47,17 @@ namespace RavenfieldVR.Rig
         private const float RimPlaneReach = 0.12f;
         private const float RimRadialReach = 0.12f;
 
+        /// <summary>
+        /// Each palm in the seat's frame, taken when the palm itself is (at the render, the hands just posed, the seat where it is
+        /// drawn): the controls read the hands against the seat from this pair. In Update the palm is still the last render's
+        /// while the seat has moved with this frame's physics, and the difference counted as hand motion: at speed a hand held
+        /// still pinned the stick at full throw (it read the seat's travel per frame, 0.5 m at 30 m/s against an 8 cm throw), and
+        /// the wheel crept through a corner (the car's turn read as the hand's). Bug hunt, 2026-10-22 (the vehicle scout's two
+        /// majors of 2026-10-21).
+        /// </summary>
+        private readonly Vector3[] _palmInSeat = new Vector3[2];
+        private Seat _palmSeat; // the seat the pair was taken in (none yet for a seat just entered: the palm is read as before)
+
         private Hand? _stickHand;
         private Vector3 _stickStartLocal;
         private Vector3 _stickLocal; // the stick's last deflection (seat space), kept over a pause
@@ -93,11 +104,11 @@ namespace RavenfieldVR.Rig
                     int i = (int)hand.Side;
                     if (_onWheel[i])
                     {
-                        _wheelStart[i] = OnWheelPlane(hand.Palm.position);
+                        _wheelStart[i] = OnWheelPlaneInSeat(PalmInSeat(hand), out _);
                     }
                     if (_stickHand == hand.Side)
                     {
-                        _stickStartLocal = InSeat(hand.Palm.position) - _stickLocal;
+                        _stickStartLocal = PalmInSeat(hand) - _stickLocal;
                     }
                 }
             }
@@ -180,15 +191,16 @@ namespace RavenfieldVR.Rig
             // A hand that loses tracking lets go: the last steering or stick deflection stayed in, and the vehicle kept
             // turning (or the aircraft kept rolling) until the controller came back.
             bool holding = hand.Tracked && hand.GrabHeld;
-            Vector3 palm = hand.Palm.position;
+            // Read against the seat from the render that posed it (PalmInSeat): grabs, the stick and the wheel alike.
+            Vector3 palm = PalmInSeat(hand);
             // A grip that closed on the way to the rim takes it too (GetHeldUnclaimed), not only a squeeze made at the rim: the
             // second hand usually reaches with its fist already shut, and the edge alone never caught that.
             if (hand.Tracked && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side) && hand.Role == HandRole.Free)
             {
-                if (_wheel != null && NearWheel(palm))
+                if (_wheel != null && NearWheelInSeat(palm))
                 {
                     _onWheel[i] = true;
-                    _wheelStart[i] = OnWheelPlane(palm);
+                    _wheelStart[i] = OnWheelPlaneInSeat(palm, out _);
                     _wheelBase[i] = _steer;
                     _wheelTurned[i] = 0f;
                     _handSteer[i] = _steer;
@@ -198,10 +210,10 @@ namespace RavenfieldVR.Rig
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
                 }
-                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, _stick.position) < 0.16f)
+                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, InSeat(_stick.position)) < 0.16f)
                 {
                     _stickHand = hand.Side;
-                    _stickStartLocal = InSeat(palm);
+                    _stickStartLocal = palm;
                     _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
@@ -230,9 +242,9 @@ namespace RavenfieldVR.Rig
                 {
                     // Added up from the last frame's hand position: one angle from where the hand took the rim wrapped at
                     // half a turn, and turning past it (hand over hand) threw the steering to full opposite lock.
-                    Vector3 now = OnWheelPlane(palm);
+                    Vector3 now = OnWheelPlaneInSeat(palm, out Vector3 axis);
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
-                    _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, _wheel.transform.forward, _wheelBase[i], maxRot);
+                    _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, axis, _wheelBase[i], maxRot);
                     _wheelStart[i] = now;
                     float before = _handSteer[i];
                     _handSteer[i] = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
@@ -250,7 +262,7 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
-                    Vector3 local = InSeat(palm) - _stickStartLocal;
+                    Vector3 local = palm - _stickStartLocal;
                     _stickLocal = local;
                     var throw01 = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
                     // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
@@ -263,6 +275,15 @@ namespace RavenfieldVR.Rig
         /// <summary>After the game's own wheel animation: the rim sits exactly where the hands turned it.</summary>
         public void BeforeRender()
         {
+            // The palms against the seat as both are now (VRRig poses the hands just before this): read by the next Update.
+            if (_seat != null)
+            {
+                foreach (VRHand hand in _rig.Hands)
+                {
+                    _palmInSeat[(int)hand.Side] = InSeat(hand.Palm.position);
+                }
+                _palmSeat = _seat;
+            }
             if (_wheel == null || !(_onWheel[0] || _onWheel[1]))
             {
                 return;
@@ -314,8 +335,18 @@ namespace RavenfieldVR.Rig
                     turned = AddTurn(turned, from, to, Vector3.forward, 0f, 120f);
                     steer = Mathf.Clamp(turned / 120f, -1f, 1f);
                 }
-                bool ok = stick < 0.01f && Mathf.Abs(Mathf.Abs(steer) - 1f) < 0.01f;
-                return $"hand still in a moving seat: stick {stick:0.000}; rim turned 270 deg: steering {steer:+0.00;-0.00}{(ok ? "" : " (NOT RIGHT)")}";
+                // In play the palm comes from the last render and the seat has moved since (the frame's physics): a still hand
+                // read against the moved seat (the old pairing) against the pair taken together at the render (PalmInSeat). An
+                // aircraft speeding up from 0 to 30 m/s: 0.5 m more travel in this frame than at the grab.
+                Vector3 palmAtRender = t.TransformPoint(new Vector3(0.2f, -0.3f, 0.4f));
+                Vector3 paired = InFrame(t, palmAtRender);
+                t.position += t.forward * 0.5f;
+                float stale = (InFrame(t, palmAtRender) - paired).magnitude / StickThrow;
+                float pairedThrow = (paired - InFrame(t, t.TransformPoint(new Vector3(0.2f, -0.3f, 0.4f)))).magnitude / StickThrow;
+                bool ok = stick < 0.01f && Mathf.Abs(Mathf.Abs(steer) - 1f) < 0.01f && pairedThrow < 0.01f;
+                return $"hand still in a moving seat: stick {stick:0.000}; speeding up 30 m/s, the palm read with the seat of its render: stick "
+                       + $"{pairedThrow:0.000} (with the moved seat it read {stale:0.0} of full throw); rim turned 270 deg: steering {steer:+0.00;-0.00}"
+                       + (ok ? "" : " (NOT RIGHT)");
             }
             finally
             {
@@ -327,7 +358,33 @@ namespace RavenfieldVR.Rig
         /// grab yields to it, so a hand reaching for the rim does not draw the pistol at the hip beside it.</summary>
         public bool WheelReaches(Vector3 palm, float margin) => _seat != null && _wheel != null && WithinRim(palm, margin);
 
-        private bool NearWheel(Vector3 palm) => WithinRim(palm, 0f);
+        /// <summary>The hand's palm in the seat's frame, from the render that posed it (see <see cref="_palmInSeat"/>).</summary>
+        private Vector3 PalmInSeat(VRHand hand) => _palmSeat == _seat ? _palmInSeat[(int)hand.Side] : InSeat(hand.Palm.position);
+
+        /// <summary>The rim's centre and turning axis in the seat's frame (fixed to the vehicle as the seat is: read now).</summary>
+        private void WheelInSeat(out Vector3 centre, out Vector3 axis)
+        {
+            Transform wt = _wheel.transform;
+            centre = InSeat(wt.TransformPoint(_rimLocal));
+            axis = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * wt.forward;
+        }
+
+        /// <summary><see cref="WithinRim"/> for a palm in the seat's frame.</summary>
+        private bool NearWheelInSeat(Vector3 palmInSeat)
+        {
+            WheelInSeat(out Vector3 centre, out Vector3 axis);
+            Vector3 rel = palmInSeat - centre;
+            float radius = _wheel.transform.TransformVector(new Vector3(_rimRadius, 0f, 0f)).magnitude;
+            return Mathf.Abs(Vector3.Dot(rel, axis)) < RimPlaneReach && Vector3.ProjectOnPlane(rel, axis).magnitude < radius + RimRadialReach;
+        }
+
+        /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
+        private Vector3 OnWheelPlaneInSeat(Vector3 palmInSeat, out Vector3 axis)
+        {
+            WheelInSeat(out Vector3 centre, out axis);
+            Vector3 v = Vector3.ProjectOnPlane(palmInSeat - centre, axis);
+            return v.sqrMagnitude > 1e-6f ? v : Runtime.RigidPose.Conjugate(_seat.transform.rotation) * _wheel.transform.up * 0.15f;
+        }
 
         /// <summary>
         /// Within reach of the rim: near its plane along the turning axis and within its radius (plus a little) of the rim's
@@ -342,13 +399,6 @@ namespace RavenfieldVR.Rig
             float radial = Vector3.ProjectOnPlane(rel, wt.forward).magnitude;
             float radius = wt.TransformVector(new Vector3(_rimRadius, 0f, 0f)).magnitude;
             return axial < RimPlaneReach + margin && radial < radius + RimRadialReach + margin;
-        }
-
-        private Vector3 OnWheelPlane(Vector3 palm)
-        {
-            Transform wt = _wheel.transform;
-            Vector3 v = Vector3.ProjectOnPlane(palm - wt.TransformPoint(_rimLocal), wt.forward);
-            return v.sqrMagnitude > 1e-6f ? v : wt.up * 0.15f;
         }
 
         /// <summary>
