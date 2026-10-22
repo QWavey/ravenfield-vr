@@ -71,7 +71,12 @@ namespace RavenfieldVR.Weapons
                 try
                 {
                     data = WeaponAnalyzer.Get(w, e);
-                    Donors[name] = data;
+                    if (!WeaponAnalyzer.AnalysisFailed(data.Key))
+                    {
+                        // (A failed one, the fallback with no sounds, is asked for again: the analyzer tries it again after a scene
+                        // change, and kept here the donor stayed silent for the session; audio scout, 2026-10-22.)
+                        Donors[name] = data;
+                    }
                     return data;
                 }
                 catch (Exception ex)

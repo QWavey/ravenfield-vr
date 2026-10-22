@@ -1365,6 +1365,7 @@ namespace RavenfieldVR.Weapons
                 Reload.StepParts();
                 ApplyPartOverrides();
                 Reload.BeforeRender();
+                Sounds.Update(); // a mechanical sound's slice still fades out at its end (it stopped there at full level: a click)
                 return;
             }
             // A support hand that loses tracking (hidden behind the gun from the headset's cameras) still holds: the two-hand aim eases

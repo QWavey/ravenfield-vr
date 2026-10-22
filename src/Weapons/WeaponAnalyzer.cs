@@ -215,6 +215,9 @@ namespace RavenfieldVR.Weapons
         /// Drops the analyses whose setup threw, so that the next scene analyses them again: the fallback was kept for the whole
         /// session before, with no retry (2026-10-19). Called at each scene change (WeaponSystem.OnSceneChanged).
         /// </summary>
+        /// <summary>The analysis under this key failed and is the fallback (analysed again after <see cref="ForgetFailed"/>).</summary>
+        internal static bool AnalysisFailed(string key) => key != null && Failed.Contains(key);
+
         public static void ForgetFailed()
         {
             foreach (string key in Failed)
