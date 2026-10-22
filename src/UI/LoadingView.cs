@@ -69,7 +69,7 @@ namespace RavenfieldVR.UI
 
         // The compositor's loading screen (its overlay) and black skybox.
         private ulong _overlay;
-        private bool _overlayFailed, _overlayShown, _skybox;
+        private bool _overlayShown, _skybox;
         private ETextureType _textureType;
         private RenderTexture _overlayTexture;
         private Texture2D _black;
@@ -267,6 +267,9 @@ namespace RavenfieldVR.UI
                     // leaves render-texture cameras alone, and this one was captured before it ran.
                     c.stereoTargetEye = StereoTargetEyeMask.None;
                     XRDevice.DisableAutoXRCameraTracking(c, true);
+                    // Never the screen itself (drawn by the game where the compositor cannot take the picture): a loading camera
+                    // seeing it would draw the picture into itself (loading view review, 2026-10-22).
+                    c.cullingMask &= ~(1 << ScreenLayer);
                     _captured.Add(c);
                 }
                 if (c.targetTexture == _texture && (top == null || c.depth >= top.depth))
@@ -382,7 +385,7 @@ namespace RavenfieldVR.UI
                 }
             }
             CVROverlay overlay = OpenVR.Overlay;
-            if (overlay == null || _overlayFailed)
+            if (overlay == null)
             {
                 return;
             }
@@ -391,9 +394,9 @@ namespace RavenfieldVR.UI
                 EVROverlayError error = overlay.CreateOverlay("ravenfieldvr.loading", "Ravenfield VR loading", ref _overlay);
                 if (error != EVROverlayError.None)
                 {
-                    _overlayFailed = true;
+                    // Tried again at the next loading (one refusal kept the game's quad for the whole session).
                     _overlay = 0;
-                    Log.Warn($"Loading screen: no compositor overlay ({error}); the game draws it.");
+                    Log.WarnOnce("loadingoverlay:create:" + error, $"Loading screen: no compositor overlay ({error}); the game draws it.");
                     return;
                 }
                 overlay.SetOverlayWidthInMeters(_overlay, Width);
