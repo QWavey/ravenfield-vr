@@ -111,6 +111,16 @@ namespace RavenfieldVR.Tests
                 }
                 Check(worstPoint < 1e-4 && worstDir < 1e-4, $"Poses: a point (and a direction) into a pose and out again comes back ({worstPoint:0.0e0}, {worstDir:0.0e0})");
                 Check(worstIdentity < 1e-4, $"Poses: a pose times its inverse is no move ({worstIdentity:0.0e0})");
+                System.Reflection.MethodInfo contains = mod.GetType("RavenfieldVR.Runtime.BoundsMath")?.GetMethod("Contains");
+                if (contains == null)
+                {
+                    Check(false, "Bounds: BoundsMath.Contains found");
+                    return;
+                }
+                var box = new UnityEngine.Bounds(new UnityEngine.Vector3(1f, -2f, 0.5f), new UnityEngine.Vector3(0.4f, 1f, 0.2f));
+                bool In(float x, float y, float z) => (bool)contains.Invoke(null, new object[] { box, new UnityEngine.Vector3(x, y, z) });
+                Check(In(1f, -2f, 0.5f) && In(1.2f, -1.5f, 0.6f) && In(0.8f, -2.5f, 0.4f) && !In(1.2001f, -2f, 0.5f) && !In(1f, -2.5001f, 0.5f)
+                      && !In(1f, -2f, 0.3999f), "Bounds: inside and on the faces counts, a hair outside does not (as Unity's)");
             }
             catch (System.Reflection.TargetInvocationException e)
             {

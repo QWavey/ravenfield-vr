@@ -2222,7 +2222,7 @@ namespace RavenfieldVR.Weapons
                         // The well opens to the gun's body only: a magazine seated in it stays solid, so a fresh one stops at its
                         // base, where a firm push or strike knocks the seated one out, instead of passing through it (user,
                         // 2026-10-18, task 260 c).
-                        if (open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
+                        if (open && Runtime.BoundsMath.Contains(well, seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
                         {
                             continue;
                         }
@@ -2374,7 +2374,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Vector3 p = t.TransformPoint(local);
                     // The same rule as KeepOffGun: the well is open to the gun's body only, not to a magazine seated in it.
-                    if (solid(p) && !(open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p)))
+                    if (solid(p) && !(open && Runtime.BoundsMath.Contains(well, seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p)))
                     {
                         inside++;
                     }
@@ -2426,7 +2426,7 @@ namespace RavenfieldVR.Weapons
                             continue;
                         }
                         // A magazine seated in the well is not let through (task 260 c): its points are outside the opening.
-                        if (open && well.Contains(seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
+                        if (open && Runtime.BoundsMath.Contains(well, seat.InverseTransformPoint(p)) && !gun.SeatedMagSolid(p))
                         {
                             inWell++;
                         }

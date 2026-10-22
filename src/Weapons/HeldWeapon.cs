@@ -1954,7 +1954,7 @@ namespace RavenfieldVR.Weapons
                     foreach (Vector3 q in points)
                     {
                         Vector3 p = q - inLocal * back;
-                        bool inWell = shapeWell ? _magVolume.InsideModel(seat.TransformPoint(p)) : well.Contains(p);
+                        bool inWell = shapeWell ? _magVolume.InsideModel(seat.TransformPoint(p)) : Runtime.BoundsMath.Contains(well, p);
                         if (!inWell && _volume.InsideModel(seat.TransformPoint(p)))
                         {
                             hits++;
@@ -2370,7 +2370,7 @@ namespace RavenfieldVR.Weapons
                     Quaternion rot = smr.transform.rotation;
                     for (int i = 0; i < v.Length; i++)
                     {
-                        if (!box.Contains(seat.InverseTransformPoint(at + rot * v[i])))
+                        if (!Runtime.BoundsMath.Contains(box, seat.InverseTransformPoint(at + rot * v[i])))
                         {
                             continue;
                         }

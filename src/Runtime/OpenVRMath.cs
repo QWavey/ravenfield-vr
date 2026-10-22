@@ -34,6 +34,17 @@ namespace RavenfieldVR.Runtime
         }
     }
 
+    /// <summary>Bounds tests without native calls (this Unity's Bounds.Contains is one), for loops that test a point at a time.</summary>
+    public static class BoundsMath
+    {
+        /// <summary>Bounds.Contains in managed code: inside or on the box's faces, as Unity's own.</summary>
+        public static bool Contains(in Bounds b, Vector3 p)
+        {
+            Vector3 c = b.center, e = b.extents;
+            return p.x >= c.x - e.x && p.x <= c.x + e.x && p.y >= c.y - e.y && p.y <= c.y + e.y && p.z >= c.z - e.z && p.z <= c.z + e.z;
+        }
+    }
+
     /// <summary>A rigid transform (position + rotation) with the composition helpers Unity lacks in 2020.3.</summary>
     public struct RigidPose
     {
