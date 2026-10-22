@@ -35,6 +35,7 @@ namespace RavenfieldVR.Tests
             PlayEntryTests();
             LauncherTests();
             SetupUninstallTests();
+            SetupInstallTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -838,6 +839,53 @@ namespace RavenfieldVR.Tests
                     catch (System.IO.IOException)
                     {
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The setup's install of its embedded release (here run-tests.ps1's small payload) into a temporary folder: a fresh install
+        /// writes the plugin, BepInEx, the launcher and the record, and a zip entry that climbs out of the game folder is skipped,
+        /// never written beside it (zip slip); an upgrade over it removes a file the earlier install added that this one has not.
+        /// </summary>
+        private static void SetupInstallTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-install-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game");
+            try
+            {
+                System.IO.Directory.CreateDirectory(game);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                var log = new List<string>();
+                var installer = new Installer(log.Add);
+                installer.Install(game);
+                bool Has(string rel) => System.IO.File.Exists(System.IO.Path.Combine(game, rel));
+                string record = System.IO.File.ReadAllText(System.IO.Path.Combine(game, Installer.ManifestRelative));
+                Check(Has(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll") && Has(@"BepInEx\core\BepInEx.dll") && Has(Installer.LauncherName)
+                      && record.Contains("installedBepInEx=True") && record.Contains("added=" + Installer.LauncherName),
+                      "Setup install: a fresh install writes the plugin, BepInEx, the launcher and its record (" + string.Join(" | ", log) + ")");
+                Check(!System.IO.File.Exists(System.IO.Path.Combine(root, "outside.txt")) && log.Exists(l => l.Contains("outside the game folder")),
+                      "Setup install: a zip entry that climbs out of the game folder is skipped, not written beside it");
+                // An upgrade: the record names a file this release no longer has; it goes.
+                System.IO.File.WriteAllText(System.IO.Path.Combine(game, "old_part.txt"), "old");
+                System.IO.File.AppendAllText(System.IO.Path.Combine(game, Installer.ManifestRelative), "added=old_part.txt\n");
+                log.Clear();
+                installer.Install(game);
+                Check(!Has("old_part.txt") && Has(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll") && log.Exists(l => l.StartsWith("Updating")),
+                      "Setup install: an upgrade removes what the earlier install added and this one has not (" + string.Join(" | ", log) + ")");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup install: threw " + e);
+            }
+            finally
+            {
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
                 }
             }
         }

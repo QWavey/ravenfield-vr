@@ -15,9 +15,28 @@ $fx = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
 $Game = Resolve-RavenfieldDir -GameDir ''
 $Managed = Join-Path $Game 'ravenfield_Data/Managed'
 $BepInExCore = Join-Path $Game 'BepInEx/core'
+# A small payload for the setup's install check, as build.ps1 -Package embeds the release: a plugin, BepInEx's core and loader, the
+# launcher, and one entry that climbs out of the game folder (it must never be written there).
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$payload = Join-Path $out 'test-payload.zip'
+if (Test-Path $payload) { Remove-Item $payload -Force }
+$zip = [System.IO.Compression.ZipFile]::Open($payload, 'Create')
+try {
+    foreach ($e in @(@('BepInEx/plugins/RavenfieldVR/RavenfieldVR.dll', 'mod'), @('BepInEx/core/BepInEx.dll', 'loader'), @('winhttp.dll', 'doorstop'),
+                     @('RavenfieldVR-Launcher.exe', 'launcher'), @('ravenfield_Data/UnitySubsystems/XRSDKOpenVR/UnitySubsystemsManifest.json', '{}'),
+                     @('ravenfield_Data/../../outside.txt', 'climbed out'))) {
+        $w = New-Object System.IO.StreamWriter(($zip.CreateEntry($e[0])).Open())
+        $w.Write($e[1])
+        $w.Dispose()
+    }
+}
+finally { $zip.Dispose() }
+$payloadVersion = Join-Path $out 'test-version.txt'
+Set-Content -Path $payloadVersion -Value 'test' -NoNewline -Encoding ASCII
 Invoke-Csc @(
     '-nologo', '-target:exe', '-langversion:latest', '-nostdlib', '-noconfig', "-out:$exe",
     '-main:RavenfieldVR.Tests.OfflineTests',
+    "-resource:$payload,RavenfieldVR.Setup.payload.zip", "-resource:$payloadVersion,RavenfieldVR.Setup.version.txt",
     "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$fx/System.Drawing.dll",
     "-r:$fx/System.Windows.Forms.dll", "-r:$fx/System.IO.Compression.dll", "-r:$fx/System.IO.Compression.FileSystem.dll",
     "-r:$Managed/UnityEngine.CoreModule.dll", "-r:$BepInExCore/BepInEx.dll",
