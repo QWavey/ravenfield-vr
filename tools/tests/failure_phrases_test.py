@@ -116,9 +116,23 @@ def failure_pattern():
     return re.compile(m.group(1).replace('""', '"'))
 
 
+# The reader's own cases: (a line of C#, the literal texts it must give).
+LITERAL_CASES = [
+    ('report($"a {(x ? " (NOT ALL OUT: {n} were in)" : "")}; b");', ['a ', ' (NOT ALL OUT: {n} were in)', '', '; b']),
+    ("var c = '\"'; s = \"ONE TWO\"; // \"THREE FOUR\"", ['ONE TWO']),
+    ('x = @"C:\path ""QUOTED"" END";', ['C:\path ""QUOTED"" END']),
+    ('y = $"{{BRACES}} {(a ? $" (INNER {b:0.0} HOLE)" : "")} tail";', ['{BRACES} ', ' (INNER ', ' HOLE)', '', ' tail']),
+    ('z = "esc \\"quote\\" here" + "next";', ['esc \\"quote\\" here', 'next']),
+]
+
+
 def main():
     failure = failure_pattern()
     missed, checked = [], 0
+    for line, want in LITERAL_CASES:
+        got = literals(line)
+        if got != want:
+            missed.append(f'literal reader: {line!r} gave {got!r}, not {want!r}')
     for folder, _, files in os.walk(os.path.join(REPO, 'src')):
         for f in sorted(files):
             if not f.endswith('.cs'):
