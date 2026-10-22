@@ -199,6 +199,12 @@ namespace RavenfieldVR.Rig
             {
                 if (_wheel != null && NearWheelInSeat(palm))
                 {
+                    if (!_onWheel[1 - i])
+                    {
+                        // The first hand on it takes the rim where it is: steered by the thumbstick, the game had turned it, and
+                        // the grab began from the centre, the car's steering snapping straight (cockpit scout, 2026-10-22).
+                        _steer = Mathf.Clamp(_wheel.turn, -1f, 1f);
+                    }
                     _onWheel[i] = true;
                     _wheelStart[i] = OnWheelPlaneInSeat(palm, out _);
                     _wheelBase[i] = _steer;
