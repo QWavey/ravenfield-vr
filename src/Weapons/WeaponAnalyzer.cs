@@ -651,6 +651,7 @@ namespace RavenfieldVR.Weapons
                 Guarded(d, "magazine protrusion", () => MeasureMagazineProtrusion(d, root, gunBody, armRelated, armRenderers, gunBones, sampler));
                 Guarded(d, "advanced reload", () => ReclassifyAdvancedReload(d, w));
                 Guarded(d, "hinge", () => DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle));
+                Guarded(d, "shells", () => AnalyzeShells(d, all, index, root, armRelated, sampler, gunIdle, w));
                 Guarded(d, "belt", () => FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler));
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration != null && w.configuration.cooldown >= 0.45f;
@@ -3137,6 +3138,7 @@ namespace RavenfieldVR.Weapons
             paths.AddRange(d.MagazinePartPaths);
             paths.AddRange(d.BeltPartPaths);
             paths.AddRange(d.SparePartPaths);
+            paths.AddRange(d.ChamberShellPaths); // a break action's shells in their chambers are drawn while they are loaded
             foreach (int[] path in paths)
             {
                 Transform c = path != null ? WeaponRig.Resolve(root, path) : null;
@@ -3877,6 +3879,177 @@ namespace RavenfieldVR.Weapons
             return words;
         }
 
+        /// <summary>A shell by its size: 4 to 13 cm long and under half as thick (a magazine, a clip or a rocket is not one).</summary>
+        internal static bool ShellSized(Bounds b)
+        {
+            Vector3 s = b.size;
+            float longest = Mathf.Max(s.x, Mathf.Max(s.y, s.z));
+            float second = s.x + s.y + s.z - longest - Mathf.Min(s.x, Mathf.Min(s.y, s.z));
+            return longest >= 0.04f && longest <= 0.13f && second <= longest * 0.5f;
+        }
+
+        /// <summary>
+        /// Where a shotgun's shells go in, when its "magazine" is a shell (the reload animation's). A break action: into its
+        /// chambers, where its shells sit at rest, along the bore, carried with the barrels (<see cref="ChamberShells"/>). A
+        /// tube: at the loading port (<see cref="ShellPort"/>). Both were taken from the shell's first motion in the reload and
+        /// where it waits at rest: the R870's shells were to go in 46 cm behind its grip and 29 cm under the bore (where its
+        /// reload's shell waits, out of the flat view), the DOUBLE-BARREL's from above into the shut chamber; no shotgun could
+        /// be loaded by hand (user, 2026-10-22).
+        /// </summary>
+        private static void AnalyzeShells(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
+            HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle, Weapon w)
+        {
+            Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
+            if (mag == null || !index.TryGetValue(mag, out int mi) || !ShellSized(d.MagBounds))
+            {
+                return;
+            }
+            if (d.Action == ActionType.BreakOpen && d.Hinge == HingeKind.BreakAction)
+            {
+                ChamberShells(d, all, index, root, mag, armRelated, sampler, gunIdle, w);
+            }
+            else if (d.Action == ActionType.ShellFed)
+            {
+                ShellPort(d, mi, sampler);
+            }
+        }
+
+        /// <summary>
+        /// A break action's chambers: the magazine's shell where it sits at rest (in its chamber) and the shells beside it
+        /// across the bore, of its size and lying its way (the DOUBLE-BARREL's 'Shotgun Shell Left' / 'Right' 3.9 cm apart, the
+        /// M1878's 'Shotgun Shell L' / 'R'), up to the gun's capacity. The chambers are in the barrels, so the seat swings open
+        /// with them whatever the shells hang from, and a shell goes into its chamber along the bore.
+        /// </summary>
+        private static void ChamberShells(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform mag,
+            HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle, Weapon w)
+        {
+            Bounds magGun = sampler.GunSpaceBounds(mag, gunIdle);
+            float offBore = Vector3.ProjectOnPlane(magGun.center - d.MuzzlePoint, d.AimAxis).magnitude;
+            if (magGun.size.sqrMagnitude < 1e-8f || offBore > 0.06f)
+            {
+                d.Warnings.Add($"break action: its shell waits {offBore * 100f:0} cm off the bore at rest, not in a chamber (loaded where it waits)");
+                return;
+            }
+            var chambers = new List<Transform> { mag };
+            var centres = new List<Vector3> { magGun.center };
+            int capacity = Mathf.Max(1, w.configuration.ammo);
+            foreach (Transform t in all)
+            {
+                if (chambers.Count >= capacity)
+                {
+                    break;
+                }
+                if (t == mag || t.IsChildOf(mag) || mag.IsChildOf(t) || !index.ContainsKey(t) || armRelated.Contains(t)
+                    || !HasRendererInSubtree(t) || !ShownAtIdle(t, sampler) || chambers.Exists(c => t.IsChildOf(c) || c.IsChildOf(t)))
+                {
+                    continue;
+                }
+                Bounds b = sampler.GunSpaceBounds(t, gunIdle);
+                Vector3 across = b.center - magGun.center;
+                // Its size within a quarter, level with it along the bore within 1.5 cm, a barrel's width or two beside it.
+                if (Mathf.Abs(b.size.magnitude - magGun.size.magnitude) > magGun.size.magnitude * 0.25f
+                    || Mathf.Abs(Vector3.Dot(across, d.AimAxis)) > 0.015f || across.magnitude < 0.01f || across.magnitude > 0.07f)
+                {
+                    continue;
+                }
+                chambers.Add(t);
+                centres.Add(b.center);
+            }
+            d.SeatOnHinge = true;
+            d.MagEjectAxis = -d.AimAxis;
+            d.ChamberShellPaths.Clear();
+            d.ChamberShellRest.Clear();
+            for (int i = 0; i < chambers.Count; i++)
+            {
+                d.ChamberShellPaths.Add(WeaponRig.PathOf(root, chambers[i]));
+                d.ChamberShellRest.Add(sampler.RelIdle[index[chambers[i]]]);
+            }
+            d.Notes += $"{chambers.Count} chamber shell(s) ({string.Join(", ", chambers.ConvertAll(c => "'" + c.name + "'").ToArray())}): loaded along the bore, opened with the barrels ";
+        }
+
+        /// <summary>
+        /// A tube's loading port: where the reload pushes its shell nearest the bore under it, ahead of the grip and short of the
+        /// muzzle, while the shell is drawn; seated as it lies there, going in the way its path went over its last 3 cm (forward
+        /// into the tube, or up into the port). With no such point, half way from the grip to the forend, 3 cm under the bore,
+        /// along it. A shell that waits away from the gun at rest (8 cm or more off the bore) is hidden while held, as the
+        /// spare magazines are: the R870's floated 33 cm under its stock.
+        /// </summary>
+        private static void ShellPort(WeaponRigData d, int mi, PoseSampler sampler)
+        {
+            float OffBore(Vector3 p) => Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
+            Vector3 restCentre = sampler.RelIdle[mi].TransformPoint(d.MagBounds.center);
+            if (OffBore(restCentre) > 0.08f && d.MagazinePath != null)
+            {
+                d.SparePartPaths.Add(d.MagazinePath);
+                d.Notes += $"its reload shell waits {OffBore(restCentre) * 100f:0} cm off the bore at rest: hidden while held ";
+            }
+            Vector3[] path = sampler.HasReload && sampler.ReloadTrajectory != null ? sampler.ReloadTrajectory[mi] : null;
+            bool[] drawn = sampler.ReloadVisible?[mi];
+            Quaternion[] turn = sampler.ReloadRotation?[mi];
+            float muzzleAhead = Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis);
+            int best = -1;
+            float bestOff = 0.08f;
+            for (int k = 0; path != null && k < path.Length; k++)
+            {
+                if (float.IsNaN(path[k].x) || drawn != null && k < drawn.Length && !drawn[k])
+                {
+                    continue;
+                }
+                Quaternion r = turn != null && k < turn.Length && turn[k].w * turn[k].w + turn[k].x * turn[k].x > 0f ? turn[k] : sampler.RelIdle[mi].rotation;
+                Vector3 c = path[k] + r * d.MagBounds.center;
+                float below = -Vector3.Dot(c - d.MuzzlePoint, d.Up);
+                float ahead = Vector3.Dot(c - d.GripPoint, d.AimAxis);
+                float off = OffBore(c);
+                if (below < 0.012f || ahead < -0.05f || ahead > muzzleAhead - 0.05f || off >= bestOff)
+                {
+                    continue;
+                }
+                best = k;
+                bestOff = off;
+            }
+            if (best >= 0)
+            {
+                Quaternion rot = turn != null && best < turn.Length ? turn[best] : sampler.RelIdle[mi].rotation;
+                Vector3 insert = d.AimAxis;
+                for (int j = best - 1; j >= 0; j--)
+                {
+                    Vector3 step = path[best] - path[j];
+                    if (!float.IsNaN(step.x) && step.magnitude >= 0.03f)
+                    {
+                        insert = step.normalized;
+                        break;
+                    }
+                }
+                // Into the gun: forward along the tube, or up into the port; any other last motion keeps the tube's line.
+                if (Vector3.Dot(insert, d.AimAxis) < 0.3f && Vector3.Dot(insert, d.Up) < 0.5f)
+                {
+                    insert = d.AimAxis;
+                }
+                Vector3 c = path[best] + rot * d.MagBounds.center;
+                d.MagSeat = new RigidPose(path[best], rot);
+                d.MagEjectAxis = -insert;
+                d.Notes += $"shells go in at the loading port, where the reload pushes its shell ({Vector3.Dot(c - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
+                           + $"{-Vector3.Dot(c - d.MuzzlePoint, d.Up) * 100f:0.0} cm under the bore), {Vector3.Angle(insert, d.AimAxis):0} deg off the bore ";
+                return;
+            }
+            Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.3f;
+            Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.5f);
+            Vector3 port = d.MuzzlePoint + d.AimAxis * Vector3.Dot(mid - d.MuzzlePoint, d.AimAxis) - d.Up * 0.03f;
+            // Lying along the bore: its long side turned onto it.
+            Quaternion lying = d.MagSeat.rotation;
+            Vector3 s = d.MagBounds.size;
+            Vector3 longLocal = s.x >= s.y && s.x >= s.z ? Vector3.right : s.y >= s.z ? Vector3.up : Vector3.forward;
+            Vector3 longGun = lying * longLocal;
+            if (Vector3.Dot(longGun, d.AimAxis) < 0f)
+            {
+                longGun = -longGun;
+            }
+            Quaternion along = Quaternion.FromToRotation(longGun, d.AimAxis) * lying;
+            d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
+            d.MagEjectAxis = -d.AimAxis;
+            d.Warnings.Add("loading port estimated (the reload's shell never comes under the bore by the grip): half way to the forend, 3 cm under the bore");
+        }
+
         /// <summary>
         /// Rounds and shells of the flat reload animation: they wait at rest beside the gun, out of the flat view, until the
         /// reload's hand brings them in (an MW M870's two shells hung in the air by the gun hand in VR). Small, drawn at
@@ -3905,6 +4078,7 @@ namespace RavenfieldVR.Weapons
             paths.AddRange(d.MagazinePartPaths);
             paths.AddRange(d.BeltPartPaths);
             paths.AddRange(d.SparePartPaths);
+            paths.AddRange(d.ChamberShellPaths); // a break action's shells in their chambers are drawn while they are loaded
             var parts = new List<Transform>();
             foreach (int[] path in paths)
             {

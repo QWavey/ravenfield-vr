@@ -301,6 +301,27 @@ namespace RavenfieldVR.Weapons
             return spent;
         }
 
+        /// <summary>
+        /// A break-action shotgun opened: its live shells come out with the fired ones (user, 2026-10-22, the DOUBLE-BARREL:
+        /// "the ammo wont even go out"), back into the reserve as a live round racked out of a chamber is.
+        /// </summary>
+        /// <returns>The live shells that came out.</returns>
+        public int TakeLiveShells()
+        {
+            int live = MagRounds;
+            if (live <= 0)
+            {
+                return 0;
+            }
+            MagRounds = 0;
+            if (!VRConfig.LoseRoundOnRack.Value)
+            {
+                ReturnSpareCapped(live);
+            }
+            Sync();
+            return live;
+        }
+
         /// <returns>Rounds that were in the magazine.</returns>
         public int EjectMagazine()
         {
@@ -440,25 +461,17 @@ namespace RavenfieldVR.Weapons
             return InfiniteSpare ? cap : Mathf.Min(cap, SpareAmmo);
         }
 
-        /// <summary>Size of one loading motion for shell-fed weapons (largest allowed chunk that fits).</summary>
+        /// <summary>
+        /// Shells a shell-fed or break-action gun hands out of the pouch at a time: one, as they go in one by one, whatever
+        /// chunks its flat reload loads. The largest allowed chunk that fit gave a double barrel authored to reload both at once
+        /// nothing with one barrel empty ("FULL"), and two shells in the hand went in as one (user, 2026-10-22: "i cant put it
+        /// back in one by one").
+        /// </summary>
         public int ShellChunk()
         {
             int room = TubeRoom;
             int available = InfiniteSpare ? room : Mathf.Min(room, SpareAmmo);
-            int best = 0;
-            int[] allowed = Weapon.configuration.allowedReloads;
-            if (allowed == null || allowed.Length == 0)
-            {
-                return Mathf.Min(1, available);
-            }
-            foreach (int a in allowed)
-            {
-                if (a <= available && a > best)
-                {
-                    best = a;
-                }
-            }
-            return best;
+            return Mathf.Min(1, available);
         }
 
         public void TakeSpare(int rounds)

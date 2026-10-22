@@ -72,7 +72,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Fired cases falling out of an opened cylinder or break-action, straight down out of the chambers.</summary>
-        public static void Drop(HeldWeapon held, int count, Vector3 chambers)
+        public static void Drop(HeldWeapon held, int count, Vector3 chambers, bool live = false)
         {
             // Whatever its flat casing particles: an opened break action or cylinder always lets its fired cases out (the
             // vanilla DOUBLE-BARREL and SAWED-OFF have none, and their shells stayed in; user, 2026-10-16). The count was
@@ -86,7 +86,7 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < Mathf.Min(count, 8); i++)
             {
                 Vector3 at = chambers + Random.insideUnitSphere * 0.012f;
-                Spawn(kind, false, at, Quaternion.LookRotation(-aim, Vector3.up), Vector3.down * Random.Range(0.3f, 0.9f) - aim * 0.4f, Random.insideUnitSphere * 8f);
+                Spawn(kind, live, at, Quaternion.LookRotation(-aim, Vector3.up), Vector3.down * Random.Range(0.3f, 0.9f) - aim * 0.4f, Random.insideUnitSphere * 8f);
             }
         }
 

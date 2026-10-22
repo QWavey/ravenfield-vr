@@ -81,6 +81,52 @@ namespace RavenfieldVR.Tests
             PresetTests(mod);
             InstallCheckTests(mod);
             ArmNameTests(mod);
+            ShellSizeTests(mod);
+        }
+
+        /// <summary>
+        /// What counts as a shell (the shotgun's own shell copied into the hand, its loading port and chambers found from it): the
+        /// reload shells of the exported shotguns (rig.json's magBoundsSize, 2026-10-19), and not a rifle magazine, a pistol
+        /// magazine, an RPG's rocket or a pistol round.
+        /// </summary>
+        private static void ShellSizeTests(System.Reflection.Assembly mod)
+        {
+            var shellSized = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer")?.GetMethod("ShellSized", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(shellSized != null, "Shell sizes: WeaponAnalyzer.ShellSized found");
+            if (shellSized == null)
+            {
+                return;
+            }
+            bool Shell(float x, float y, float z) => (bool)shellSized.Invoke(null, new object[] { new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(x, y, z)) });
+            var wrong = new List<string>();
+            var shells = new Dictionary<string, UnityEngine.Vector3>
+            {
+                { "R870", new UnityEngine.Vector3(0.022f, 0.058f, 0.022f) }, { "M500", new UnityEngine.Vector3(0.022f, 0.059f, 0.022f) },
+                { "76 EAGLE", new UnityEngine.Vector3(0.023f, 0.064f, 0.027f) }, { "M1014", new UnityEngine.Vector3(0.021f, 0.070f, 0.021f) },
+                { "DOUBLE-BARREL", new UnityEngine.Vector3(0.032f, 0.071f, 0.032f) }, { "M1878", new UnityEngine.Vector3(0.035f, 0.108f, 0.035f) },
+                { "mw-m870", new UnityEngine.Vector3(0.023f, 0.061f, 0.023f) },
+            };
+            foreach (KeyValuePair<string, UnityEngine.Vector3> kv in shells)
+            {
+                if (!Shell(kv.Value.x, kv.Value.y, kv.Value.z))
+                {
+                    wrong.Add(kv.Key + "'s shell (not taken)");
+                }
+            }
+            var not = new Dictionary<string, UnityEngine.Vector3>
+            {
+                { "an HK416 magazine", new UnityEngine.Vector3(0.03f, 0.09f, 0.20f) }, { "a P220 magazine", new UnityEngine.Vector3(0.02f, 0.07f, 0.12f) },
+                { "an RPG-7 rocket", new UnityEngine.Vector3(0.07f, 0.79f, 0.07f) }, { "a 9 mm round", new UnityEngine.Vector3(0.01f, 0.02f, 0.01f) },
+                { "a drum", new UnityEngine.Vector3(0.09f, 0.10f, 0.09f) },
+            };
+            foreach (KeyValuePair<string, UnityEngine.Vector3> kv in not)
+            {
+                if (Shell(kv.Value.x, kv.Value.y, kv.Value.z))
+                {
+                    wrong.Add(kv.Key + " (taken for a shell)");
+                }
+            }
+            Check(wrong.Count == 0, "Shell sizes: the shotguns' own shells are shells, magazines, rockets and pistol rounds are not" + (wrong.Count > 0 ? ": " + string.Join(", ", wrong.ToArray()) : ""));
         }
 
         /// <summary>

@@ -787,9 +787,9 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             bounds = RenderedBounds(go, d.MagBounds, d.Key);
-            if (kind == PropKind.Rocket && Longest(bounds) < 0.12f)
+            if (kind == PropKind.Rocket && Longest(bounds) < 0.12f || kind == PropKind.Shell && !WeaponAnalyzer.ShellSized(bounds))
             {
-                Object.Destroy(go); // not a rocket (a fuse, a cap): the made one instead
+                Object.Destroy(go); // not a rocket (a fuse, a cap), not a shell: the made one instead
                 return null;
             }
             return go;
@@ -1406,6 +1406,12 @@ namespace RavenfieldVR.Weapons
             if (kind == PropKind.Magazine)
             {
                 return true;
+            }
+            if (kind == PropKind.Shell)
+            {
+                // The gun's own shell (its reload's), when its part is a shell's size: the hand held the mod's made 12-gauge
+                // shell on every shotgun (user, 2026-10-22: "shotguns are not displayed with their real shells").
+                return WeaponAnalyzer.ShellSized(rig.Data.MagBounds);
             }
             // A rocket whose analysed box came out empty (the scoped RPG-7V's sits under a material-less container) is copied
             // too: the copy measures itself, and one that is not rocket-sized still falls back to the made one.

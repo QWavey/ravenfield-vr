@@ -924,25 +924,49 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Where magazines, shells and rockets go in; chambers on a break-open barrel or crane swing out with it.</summary>
-        private RigidPose SeatPose
+        private RigidPose SeatPose => ChamberSeat(_seatChamber);
+
+        /// <summary>
+        /// The seat of chamber <paramref name="chamber"/> (a break action's; the magazine's own is chamber 0, and every other gun
+        /// has only that one): the magazine's seat moved to where that chamber's shell sits, swung open with the barrels.
+        /// </summary>
+        private RigidPose ChamberSeat(int chamber)
         {
-            get
+            RigidPose seat = Data.MagSeat;
+            if (chamber > 0 && chamber < Data.ChamberShellRest.Count)
             {
-                RigidPose seat = Data.MagSeat;
-                if (Data.SeatOnHinge && _held.HingeOpenness > 0.001f)
-                {
-                    seat = HingeRotate(seat, _held.HingeOpenness);
-                }
-                return Rig.GunBodyPose.Multiply(seat);
+                seat = new RigidPose(seat.position + Data.ChamberShellRest[chamber].position - Data.ChamberShellRest[0].position, seat.rotation);
             }
+            if (Data.SeatOnHinge && _held.HingeOpenness > 0.001f)
+            {
+                seat = HingeRotate(seat, _held.HingeOpenness);
+            }
+            return Rig.GunBodyPose.Multiply(seat);
+        }
+
+        /// <summary>Which chamber the shell in the hand goes into (0 but on a break action of two or more).</summary>
+        private int _seatChamber;
+
+        /// <summary>The empty chamber nearest <paramref name="at"/> (world), or 0 when none is empty or the gun has one.</summary>
+        private int NearestEmptyChamber(Vector3 at)
+        {
+            bool[] full = _held.ChamberFull;
+            int best = 0;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < Data.ChamberShellRest.Count && i < full.Length; i++)
+            {
+                float distance = (ChamberSeat(i).position - at).sqrMagnitude;
+                if (!full[i] && distance < bestDistance)
+                {
+                    best = i;
+                    bestDistance = distance;
+                }
+            }
+            return best;
         }
 
         /// <summary>A gun-space pose carried along by the hinge opened <paramref name="openness"/> of the way.</summary>
-        private RigidPose HingeRotate(RigidPose pose, float openness)
-        {
-            Quaternion r = Quaternion.AngleAxis(Data.HingeOpenAngle * openness, Data.HingeAxis);
-            return new RigidPose(Data.HingePivot + r * (pose.position - Data.HingePivot), r * pose.rotation);
-        }
+        private RigidPose HingeRotate(RigidPose pose, float openness) => Data.HingeRotated(pose, openness);
 
         /// <summary>Base plate of the seated magazine, where a hand takes hold to pull it.</summary>
         private Vector3 SeatedMagBaseWorld
@@ -1008,11 +1032,18 @@ namespace RavenfieldVR.Weapons
             if (open)
             {
                 _held.Sounds.Play(MechSound.SlideBack, SeatPose.position);
-                // The cases fired since it was last opened fall out, live rounds stay (opened again, nothing more falls).
+                // The cases fired since it was last opened fall out (opened again, nothing more falls). A break-action shotgun's
+                // live shells come out with them, back into the reserve: they stayed in, and the gun could not be loaded one
+                // by one (user, 2026-10-22). A revolver's live rounds stay in its cylinder.
                 int spent = Ammo.TakeSpentCases();
+                int live = Data.Hinge == HingeKind.BreakAction ? Ammo.TakeLiveShells() : 0;
                 if (spent > 0)
                 {
                     Casings.Drop(_held, spent, SeatPose.position);
+                }
+                if (live > 0)
+                {
+                    Casings.Drop(_held, live, SeatPose.position, live: true);
                 }
                 dom.Haptic(0.04f, 90f, 0.6f);
             }
@@ -1913,6 +1944,11 @@ namespace RavenfieldVR.Weapons
                 return;
             }
 
+            if (!prop.OnRail && prop.Kind == PropKind.Shell && Data.ChamberShellRest.Count > 1 && prop.Go != null)
+            {
+                // A double barrel's shell goes into the empty chamber it is held by (both took it into the first one).
+                _seatChamber = NearestEmptyChamber(prop.Go.transform.TransformPoint(prop.TipLocal));
+            }
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
             RigidPose hold = prop.HoldPose(off);
@@ -2351,6 +2387,10 @@ namespace RavenfieldVR.Weapons
                     break;
                 case PropKind.Shell:
                 {
+                    if (_seatChamber < _held.ChamberFull.Length)
+                    {
+                        _held.ChamberFull[_seatChamber] = true; // drawn in the chamber it went into, not the first empty one
+                    }
                     int accepted = Ammo.LoadRounds(prop.Rounds);
                     Ammo.ReturnSpare(prop.Rounds - accepted);
                     _held.Sounds.Play(MechSound.ShellIn, at);
@@ -3638,10 +3678,12 @@ namespace RavenfieldVR.Weapons
             {
                 // A shot, then opened twice: the fired case falls out the first time only (every opening dropped
                 // "capacity minus loaded" cases once, out of nothing). Shut first: left open (break actions stay open),
-                // opening again did nothing and the check read "0 cases" as a pass (255.I6-8).
+                // opening again did nothing and the check read "0 cases" as a pass (255.I6-8). A break-action shotgun's live
+                // shells come out with it (2026-10-22).
                 SetBreakOpen(false);
                 yield return new UnityEngine.WaitForSecondsRealtime(0.1f);
                 bool fired = Ammo.MagRounds > 0;
+                int liveAfter = fired && Data.Hinge == HingeKind.BreakAction ? Ammo.MagRounds - 1 : 0;
                 if (fired)
                 {
                     Ammo.OnShot();
@@ -3654,15 +3696,21 @@ namespace RavenfieldVR.Weapons
                 cases = Casings.Spawned;
                 SetBreakOpen(true);
                 int again = Casings.Spawned - cases;
-                report($"break-open: opened after a shot, {first} case(s) fell out{(fired && first == 0 ? " (NO CASE FELL OUT OF THE FIRED ONE)" : fired ? "" : " (nothing loaded to fire)")}; opened again, {again}{(again > 0 ? " (NOT ONLY ONCE: cases out of nothing)" : "")}");
+                int expected = (fired ? 1 : 0) + liveAfter;
+                report($"break-open: opened after a shot, {first} shell(s) came out{(fired && first == 0 ? " (NO CASE FELL OUT OF THE FIRED ONE)" : first < expected ? $" (NOT ALL OUT: {expected} were in)" : fired ? "" : " (nothing loaded to fire)")}; opened again, {again}{(again > 0 ? " (NOT ONLY ONCE: cases out of nothing)" : "")}");
                 yield return new UnityEngine.WaitForSecondsRealtime(0.2f);
-                TakeFromPouch(off);
-                if (off.Held is MagazineProp shells && AcceptsNow(shells))
+                bool refused = false;
+                for (int n = 0; n < Ammo.Capacity + 1 && Ammo.TubeRoom > 0 && !refused; n++)
                 {
-                    SeatProp(off, shells);
+                    bool seated = false;
+                    foreach (object step in LoadShellByHand(off, ok => seated = ok))
+                    {
+                        yield return step;
+                    }
+                    refused = !seated;
                 }
+                report($"break-open: loaded by hand, one shell at a time, to {Ammo.MagRounds}/{Ammo.Capacity}{(refused ? " (A SHELL PUSHED IN ALONG ITS LINE WAS NOT TAKEN)" : "")}; {ChamberShellsReport()}");
                 SetBreakOpen(false);
-                report($"break-open: loaded to {Ammo.MagRounds}/{Ammo.Capacity}");
             }
             else if (Ammo.UsesDetachableMag)
             {
@@ -3767,7 +3815,28 @@ namespace RavenfieldVR.Weapons
                 }
                 report($"magazine: {(Ammo.MagInserted ? "seated" : "NOT SEATED")}, {Ammo.MagRounds} rounds{(Ammo.HasCover ? Ammo.BeltLaid ? ", belt laid" : ", BELT NOT LAID" : "")}");
             }
-            else if (Data.Action == ActionType.ShellFed || Data.Action == ActionType.SingleShot)
+            else if (Data.Action == ActionType.ShellFed)
+            {
+                // Emptied first, the shells back into the reserve: a full tube takes nothing, and the check passed untried.
+                Ammo.ReturnSpare(Ammo.MagRounds);
+                Ammo.MagRounds = 0;
+                Ammo.Sync();
+                bool refused = false;
+                for (int n = 0; n < Ammo.Capacity + 1 && Ammo.TubeRoom > 0 && !refused; n++)
+                {
+                    bool seated = false;
+                    foreach (object step in LoadShellByHand(off, ok => seated = ok))
+                    {
+                        yield return step;
+                    }
+                    refused = !seated;
+                }
+                Vector3 port = Rig.ToGun(SeatPose.position);
+                report($"loaded by hand, one shell at a time, to {Ammo.MagRounds}/{Ammo.Capacity}{(refused ? " (A SHELL PUSHED IN ALONG ITS LINE WAS NOT TAKEN)" : "")}; "
+                       + $"shells go in {Vector3.Dot(port - Data.GripPoint, Data.AimAxis) * 100f:0} cm ahead of the grip, {-Vector3.Dot(port - Data.MuzzlePoint, Data.Up) * 100f:0.0} cm under the bore"
+                       + $"{(Vector3.ProjectOnPlane(port - Data.MuzzlePoint, Data.AimAxis).magnitude > 0.12f ? " (SHELL SEAT NOT ON THE GUN)" : "")}");
+            }
+            else if (Data.Action == ActionType.SingleShot)
             {
                 TakeFromPouch(off);
                 if (off.Held is MagazineProp shell && AcceptsNow(shell))
@@ -4479,6 +4548,72 @@ namespace RavenfieldVR.Weapons
                 PlaceFreshMag(off, fresh, holdInRaw, 0.08f, 0f, -0.3f);
                 yield return null;
             }
+        }
+
+        /// <summary>
+        /// Autotest: one shell from the pouch, pushed into the gun along its line by the simulated hand from 4 cm out, the way
+        /// a player loads it; not seated by the test. The shells' line ran to where the reload's shell waits (46 cm behind an
+        /// R870's grip), and the test, which seated them itself, said "loaded to 8/8" (user, 2026-10-22: no shotgun could be
+        /// reloaded). <paramref name="done"/> gets whether it went in.
+        /// </summary>
+        private IEnumerable LoadShellByHand(VRHand off, System.Action<bool> done)
+        {
+            if (!Ammo.InfiniteSpare)
+            {
+                Ammo.SpareAmmo = Mathf.Max(Ammo.SpareAmmo, Ammo.Capacity); // a test of the hands, not of the reserve
+            }
+            TakeFromPouch(off);
+            if (!(off.Held is MagazineProp shell) || shell.Kind != PropKind.Shell)
+            {
+                done(false);
+                yield break;
+            }
+            yield return null;
+            // Lined up on the empty chamber's line (a double barrel's), as a hand holding it there would be.
+            _seatChamber = NearestEmptyChamber(SeatPose.position);
+            RigidPose holdInRaw = off.Raw.Inverse().Multiply(shell.HoldPose(off));
+            float length = Vector3.Dot(shell.TipLocal - shell.BaseLocal, shell.InsertDirLocal);
+            int before = Ammo.MagRounds;
+            for (float below = 0.04f; below > -(length + 0.02f) && Ammo.MagRounds == before && off.Held == shell;
+                 below -= 0.25f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+            {
+                PlaceFreshMag(off, shell, holdInRaw, below, 0f, 0.25f);
+                yield return null;
+            }
+            VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+            VRHand.Scripted[(int)off.Side] = null;
+            bool seated = Ammo.MagRounds > before;
+            if (!seated && off.Held is MagazineProp left)
+            {
+                Ammo.ReturnSpare(left.Rounds);
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            yield return null;
+            done(seated);
+        }
+
+        /// <summary>Autotest: a break action's chamber shells, drawn where their chambers are (open, carried with the barrels).</summary>
+        private string ChamberShellsReport()
+        {
+            Transform[] shells = Rig.ChamberShells;
+            if (shells.Length == 0)
+            {
+                return "no chamber shells of its own (a made one is drawn in the hand)";
+            }
+            float worst = 0f;
+            int drawn = 0;
+            for (int i = 0; i < shells.Length && i < Data.ChamberShellRest.Count; i++)
+            {
+                if (shells[i] == null || shells[i].lossyScale.sqrMagnitude < 1e-6f)
+                {
+                    continue;
+                }
+                drawn++;
+                Vector3 chamber = Rig.GunBodyPose.Multiply(Data.HingeRotated(Data.ChamberShellRest[i], _held.HingeOpenness)).position;
+                worst = Mathf.Max(worst, Vector3.Distance(shells[i].position, chamber));
+            }
+            return $"{drawn}/{shells.Length} chamber shell(s) drawn, at most {worst * 100f:0.0} cm from their chambers{(worst > 0.01f ? " (NOT IN THEIR CHAMBERS)" : "")}";
         }
 
         /// <summary>

@@ -153,6 +153,21 @@ namespace RavenfieldVR.Weapons
         /// metre from the gun). The flat view never shows them; in VR they floated in the air by the gun. Hidden while held.
         /// </summary>
         public readonly List<int[]> SparePartPaths = new List<int[]>();
+        /// <summary>
+        /// A break action's shells as they sit in its chambers at rest (the magazine's among them), one per chamber, and their
+        /// rest poses (gun-body space, the barrels shut). Shown only while their chamber holds a shell, carried with the
+        /// barrels when they open: the DOUBLE-BARREL's hang off the gun's root, and stayed in the air where the shut chambers
+        /// were when the barrels swung down, never coming out (user, 2026-10-22). Empty for other guns.
+        /// </summary>
+        public readonly List<int[]> ChamberShellPaths = new List<int[]>();
+        public readonly List<RigidPose> ChamberShellRest = new List<RigidPose>();
+
+        /// <summary>A gun-space pose carried along by the hinge opened <paramref name="openness"/> of the way.</summary>
+        public RigidPose HingeRotated(RigidPose pose, float openness)
+        {
+            Quaternion r = Quaternion.AngleAxis(HingeOpenAngle * openness, HingeAxis);
+            return new RigidPose(HingePivot + r * (pose.position - HingePivot), r * pose.rotation);
+        }
         public RigidPose[][] SightPartPoses;
         /// <summary>Scoped weapons whose scope model was measured: the ocular lens centre (gun space) and its radius.</summary>
         public bool HasScopeModel;
@@ -362,6 +377,10 @@ namespace RavenfieldVR.Weapons
         public readonly Transform[] SpareParts;
         public readonly Vector3[] SpareScales;
 
+        /// <summary>A break action's chamber shells (<see cref="WeaponRigData.ChamberShellPaths"/>, same order) and their own scales.</summary>
+        public readonly Transform[] ChamberShells;
+        public readonly Vector3[] ChamberShellScales;
+
         public WeaponRig(Weapon weapon, WeaponRigData data)
         {
             Weapon = weapon;
@@ -442,6 +461,22 @@ namespace RavenfieldVR.Weapons
             {
                 SpareParts[i] = Resolve(root, data.SparePartPaths[i]);
                 SpareScales[i] = SpareParts[i] != null ? SpareParts[i].localScale : Vector3.one;
+            }
+            ChamberShells = new Transform[data.ChamberShellPaths.Count];
+            ChamberShellScales = new Vector3[ChamberShells.Length];
+            for (int i = 0; i < ChamberShells.Length; i++)
+            {
+                ChamberShells[i] = Resolve(root, data.ChamberShellPaths[i]);
+                ChamberShellScales[i] = ChamberShells[i] != null ? ChamberShells[i].localScale : Vector3.one;
+                if (ChamberShells[i] == Magazine && Magazine != null)
+                {
+                    // The magazine's own shell, hidden while its chamber is empty: its scale as the rig recorded it.
+                    int m = System.Array.IndexOf(MagazineParts, Magazine);
+                    if (m >= 0)
+                    {
+                        ChamberShellScales[i] = MagazinePartScales[m];
+                    }
+                }
             }
         }
 

@@ -95,6 +95,16 @@ namespace RavenfieldVR.Weapons
         public float HingeOpenness;
         private Quaternion _hingeRestLocal;
         private bool _hingeOverridden;
+
+        /// <summary>
+        /// Which of a break action's chambers hold a shell, live or fired (<see cref="WeaponRigData.ChamberShellPaths"/>): its
+        /// shell is drawn there. Kept in step with the ammunition (the live shells and the fired ones not yet out); the reload
+        /// says which chamber a shell went into.
+        /// </summary>
+        public bool[] ChamberFull = new bool[0];
+        private bool _chambersApplied;
+        private Vector3[] _chamberLocalPos;
+        private Quaternion[] _chamberLocalRot;
         private Vector3[] _magOriginalScales;
         private bool _magHidden;
         private BoltPiece _boltPiece;
@@ -3161,6 +3171,7 @@ namespace RavenfieldVR.Weapons
             }
             _boltPiece?.SetOffset(Rig, d.SlideTravel * ((d.CarveHandle || d.AddedHandle) && d.SlidePath != null ? handle : fraction));
             ApplyHinge(d);
+            ApplyChamberShells(d);
             ApplySightParts();
 
             AmmoState ammo = ActiveAmmo ?? Ammo;
@@ -3342,6 +3353,105 @@ namespace RavenfieldVR.Weapons
             hinge.localRotation = Quaternion.AngleAxis(d.HingeOpenAngle * HingeOpenness, axisLocal) * _hingeRestLocal;
         }
 
+        /// <summary>
+        /// A break action's chamber shells: drawn where a chamber holds a shell, hidden where it is empty, and carried with the
+        /// barrels as they open. The DOUBLE-BARREL's hang from the gun's root: they were always drawn, and stayed in the air
+        /// where the shut chambers were when the barrels swung down (user, 2026-10-22). Left to the flat reload outside manual
+        /// reloading.
+        /// </summary>
+        private void ApplyChamberShells(WeaponRigData d)
+        {
+            Transform[] shells = Rig.ChamberShells;
+            if (shells.Length == 0)
+            {
+                return;
+            }
+            if (ChamberFull.Length != shells.Length)
+            {
+                ChamberFull = new bool[shells.Length];
+            }
+            if (Ammo == null || !Ammo.Participates || VRConfig.ReloadNow != ReloadMode.Manual || Weapon != null && Weapon.reloading)
+            {
+                RestoreChamberShells();
+                return;
+            }
+            // As many chambers hold a shell as there are live and fired ones in the gun: the ones the reload filled first.
+            int want = Mathf.Min(shells.Length, Ammo.MagRounds + Ammo.SpentCases);
+            int full = 0;
+            foreach (bool f in ChamberFull)
+            {
+                full += f ? 1 : 0;
+            }
+            for (int i = 0; i < ChamberFull.Length && full < want; i++)
+            {
+                if (!ChamberFull[i])
+                {
+                    ChamberFull[i] = true;
+                    full++;
+                }
+            }
+            for (int i = ChamberFull.Length - 1; i >= 0 && full > want; i--)
+            {
+                if (ChamberFull[i])
+                {
+                    ChamberFull[i] = false;
+                    full--;
+                }
+            }
+            if (!_chambersApplied)
+            {
+                _chamberLocalPos = new Vector3[shells.Length];
+                _chamberLocalRot = new Quaternion[shells.Length];
+                for (int i = 0; i < shells.Length; i++)
+                {
+                    if (shells[i] != null)
+                    {
+                        _chamberLocalPos[i] = shells[i].localPosition;
+                        _chamberLocalRot[i] = shells[i].localRotation;
+                    }
+                }
+                _chambersApplied = true;
+            }
+            Vector3 tiny = Vector3.one * 1e-4f;
+            for (int i = 0; i < shells.Length; i++)
+            {
+                Transform t = shells[i];
+                if (t == null)
+                {
+                    continue; // a mod may swap or destroy its pieces at runtime
+                }
+                Vector3 scale = ChamberFull[i] ? Rig.ChamberShellScales[i] : tiny;
+                if (t.localScale != scale)
+                {
+                    t.localScale = scale;
+                }
+                if (ChamberFull[i] && Rig.Hinge != null && !t.IsChildOf(Rig.Hinge) && i < d.ChamberShellRest.Count)
+                {
+                    Rig.GunBodyPose.Multiply(d.HingeRotated(d.ChamberShellRest[i], HingeOpenness)).ApplyTo(t);
+                }
+            }
+        }
+
+        /// <summary>The chamber shells back as the gun had them: let go, or reloaded by the flat animation.</summary>
+        private void RestoreChamberShells()
+        {
+            if (!_chambersApplied)
+            {
+                return;
+            }
+            Transform[] shells = Rig.ChamberShells;
+            for (int i = 0; i < shells.Length; i++)
+            {
+                if (shells[i] != null)
+                {
+                    shells[i].localScale = Rig.ChamberShellScales[i];
+                    shells[i].localPosition = _chamberLocalPos[i];
+                    shells[i].localRotation = _chamberLocalRot[i];
+                }
+            }
+            _chambersApplied = false;
+        }
+
         /// <summary>The slide's companions (a knob beside it in the model) moved by the slide's travel, each from its own rest.</summary>
         private void MoveCompanions(Vector3 travelGun)
         {
@@ -3466,6 +3576,7 @@ namespace RavenfieldVR.Weapons
                 _hingeOverridden = false;
             }
             HingeOpenness = 0f;
+            RestoreChamberShells();
             RestoreSightParts();
             foreach (Renderer r in _scopeLenses)
             {

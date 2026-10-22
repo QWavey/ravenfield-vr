@@ -72,6 +72,11 @@ namespace RavenfieldVR.Weapons
         public Vector3[][] ReloadTrajectory;
         /// <summary>[transform][step] visibility during the reload.</summary>
         public bool[][] ReloadVisible;
+        /// <summary>
+        /// [transform][step] gun-relative rotations during the reload: how a shell lies where the reload pushes it into a tube
+        /// (its seat there, nose first; WeaponAnalyzer.ShellPort).
+        /// </summary>
+        public Quaternion[][] ReloadRotation;
         public Vector3[][] FireTrajectory;
         public int ReloadSteps;
         public int FireSteps;
@@ -237,10 +242,12 @@ namespace RavenfieldVR.Weapons
             ReloadTrajectory = Alloc(steps);
             ReloadVisible = new bool[_clone.Length][];
             ReloadAngle = new float[_clone.Length][];
+            ReloadRotation = new Quaternion[_clone.Length][];
             for (int i = 0; i < _clone.Length; i++)
             {
                 ReloadVisible[i] = new bool[steps];
                 ReloadAngle[i] = new float[steps];
+                ReloadRotation[i] = new Quaternion[steps];
             }
             var tracker = new EventTracker(_anim);
             var wasActive = new bool[_clone.Length];
@@ -252,7 +259,7 @@ namespace RavenfieldVR.Weapons
             {
                 StepOnce(Dt);
                 float t = (k + 1) * Dt;
-                Record(k, ReloadTrajectory, ReloadVisible, ReloadMax, null, FirstDir, ReloadRotMax, ReloadRotAxis, ReloadAngle);
+                Record(k, ReloadTrajectory, ReloadVisible, ReloadMax, null, FirstDir, ReloadRotMax, ReloadRotAxis, ReloadAngle, ReloadRotation);
                 tracker.Collect(t, ReloadCues);
                 // Audio objects the animation switches on (their AudioSource would play on awake).
                 for (int i = 0; i < _clone.Length; i++)
@@ -463,14 +470,19 @@ namespace RavenfieldVR.Weapons
         }
 
         private void Record(int step, Vector3[][] trajectory, bool[][] visible, float[] max, Vector3[] vecAtMax, Vector3[] firstDir,
-            float[] rotMax, Vector3[] rotAxis, float[][] angles)
+            float[] rotMax, Vector3[] rotAxis, float[][] angles, Quaternion[][] rotations = null)
         {
             RigidPose gunInv = RootRelative(_clone[_gunIndex]).Inverse();
             for (int i = 0; i < _clone.Length; i++)
             {
                 RigidPose pose = RootRelative(_clone[i]);
                 // Rotation away from idle in gun space: cylinders, hinged covers, break-open barrels, bolt handles.
-                Quaternion delta = gunInv.rotation * pose.rotation * Quaternion.Inverse(RelIdle[i].rotation);
+                Quaternion rel0 = gunInv.rotation * pose.rotation;
+                if (rotations != null)
+                {
+                    rotations[i][step] = rel0;
+                }
+                Quaternion delta = rel0 * Quaternion.Inverse(RelIdle[i].rotation);
                 delta.ToAngleAxis(out float angle, out Vector3 axis);
                 if (float.IsNaN(angle) || float.IsNaN(axis.x) || float.IsInfinity(axis.x))
                 {
