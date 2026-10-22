@@ -4221,8 +4221,13 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator TacticalSelfCheck(System.Action<string> report, System.Action<string> shot)
         {
             VRHand off = _sys.Rig.Off;
-            if (!Manual || !Ammo.UsesDetachableMag || off.Held != null || Ammo.BoxLocked)
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked)
             {
+                yield break; // (not this gun's kind of reload)
+            }
+            if (off.Held != null)
+            {
+                report($"tactical reload NOT RUN: the free hand holds {off.Held.GetType().Name}"); // (it left no line; scout, 2026-10-22)
                 yield break;
             }
             if (!Ammo.MagInserted)
