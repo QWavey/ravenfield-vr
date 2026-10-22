@@ -33,4 +33,12 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every controller binds every button action, but for the gaps listed on purpose (tools/tests/bindings_coverage_test.py).
 python -I (Join-Path $PSScriptRoot 'bindings_coverage_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# The magazine-line table against the sandbox export, in Unity's space (it once shipped mirrored in z: 134-178 degrees off in
+# game). Needs the local export (reports/sandbox/data, not in the repository): skipped without it.
+if (Test-Path (Join-Path $Root 'reports/sandbox/data/weapons')) {
+    python -I (Join-Path $Root 'tools/export_checks/mag_line_table_check.py') | Select-Object -Last 1
+    if ($LASTEXITCODE -ne 0) { $code = 1 }
+} else {
+    Write-Host 'Magazine-line table check skipped (no sandbox export in reports/sandbox/data)'
+}
 exit $code
