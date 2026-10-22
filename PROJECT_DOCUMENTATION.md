@@ -955,3 +955,14 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
 4. **The loading screen** (the user: "black / with blue shades glitching"): see 3.9. To check in the headset: steady,
    the right way round.
 5. **A half-built weapon system** is disposed and no longer left as `WeaponSystem.Instance`.
+6. **Physics pieces reach their ends** (`ShapeFit`): a piece's end slices put their outline at the slice's outer end; a
+   gun-like cloud had 148 of 2600 points outside every piece (up to 13 mm), now none (new offline check, same fit time).
+7. **Read-only Haiku scouts, each lead checked before a fix**: a machine gun dropped with its cover open and no belt laid
+   comes back so; a belt laid under an open cover shows again on a redraw; the free hand's machine gun lays its belt in
+   its self-reload; a swapped-away free-hand gun keeps its reload's rounds; shots are routed by live owners only; the
+   gun's stand-in after a snap turn; no ignore calls on switched-off colliders; a stale mod-keys row presses nothing; a
+   sound donor whose analysis failed is asked again; the autotest's silent skip and two lower-case failures.
+8. **A pump is its own handle** (the ARS M500 was racked at its ejector bone); script-key taps stay targeted when their
+   script is destroyed; the loading overlay fades with the view; reload rotations are kept only for drawn moving parts.
+9. **Tests**: 95 C# checks, the sheets test; an `AmmoState` check is not possible offline (the game's `Weapon` type
+   initializer runs native code).
