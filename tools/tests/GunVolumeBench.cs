@@ -82,6 +82,8 @@ namespace RavenfieldVR.Tests
                 Set(vol, "_boxMax", new UnityEngine.Vector3(0.25f, 0.25f, 0.25f));
             }
             Set(vol, "_inv", new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
+            // Posed once, as every real volume is before it is asked anything (the per-view rotations are kept from here).
+            volType.GetMethod("SetPose", all).Invoke(vol, new object[] { UnityEngine.Vector3.zero, new UnityEngine.Quaternion(0f, 0f, 0f, 1f) });
             MethodInfo solidAt = volType.GetMethod("SolidAt", all);
             var at = (Func<UnityEngine.Vector3, UnityEngine.Vector3, UnityEngine.Quaternion, bool>)Delegate.CreateDelegate(
                 typeof(Func<UnityEngine.Vector3, UnityEngine.Vector3, UnityEngine.Quaternion, bool>), vol, solidAt);
@@ -114,6 +116,36 @@ namespace RavenfieldVR.Tests
                 best = Math.Min(best, sw.Elapsed.TotalMilliseconds * 1e6 / pts.Length);
             }
             Console.WriteLine($"SolidAt: {best:0.0} ns a call (best of 5 x {pts.Length} points), {hits} hits");
+
+            // The game's hot path: Solid(world) at the pose set once a frame (HeldWeapon.HandsSolid: the gloves' finger solve and
+            // contact sweep, the magazine keep-out ask it thousands of times a frame). Same points, same hits as SolidAt.
+            var solid = (Func<UnityEngine.Vector3, bool>)Delegate.CreateDelegate(typeof(Func<UnityEngine.Vector3, bool>), vol,
+                volType.GetMethod("Solid", all, null, new[] { typeof(UnityEngine.Vector3) }, null));
+            int solidHits = 0;
+            for (int i = 0; i < 200000; i++)
+            {
+                solidHits += solid(pts[i]) ? 1 : 0; // warm up the JIT
+            }
+            double solidBest = double.MaxValue;
+            for (int round = 0; round < 5; round++)
+            {
+                solidHits = 0;
+                var sw = Stopwatch.StartNew();
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    if (solid(pts[i]))
+                    {
+                        solidHits++;
+                    }
+                }
+                sw.Stop();
+                solidBest = Math.Min(solidBest, sw.Elapsed.TotalMilliseconds * 1e6 / pts.Length);
+            }
+            Console.WriteLine($"Solid: {solidBest:0.0} ns a call, {solidHits} hits" + (solidHits == hits ? " (same hits)" : $" (DIFFERENT: {solidHits - hits:+0;-0})"));
+            if (solidHits != hits)
+            {
+                return 1;
+            }
 
             // The test as it was before 2026-10-22, in managed code (its box check was Bounds.Contains, a native call that does
             // not run outside Unity): divides and Math.Floor per view. Same data: its hit count must equal the one above.

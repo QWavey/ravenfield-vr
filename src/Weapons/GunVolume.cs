@@ -31,12 +31,34 @@ namespace RavenfieldVR.Weapons
         private static Shader _depthShader;
         private static bool _shaderLooked;
 
+        /// <summary>
+        /// A rotation as its 3x3 matrix, made with exactly the products Unity's Quaternion * Vector3 makes, so a point turned by
+        /// it lands on the same float bits: the operator rebuilt the matrix (12 products, a call) on every point of every view.
+        /// </summary>
+        private struct Rot3
+        {
+            public float M00, M01, M02, M10, M11, M12, M20, M21, M22;
+
+            public static Rot3 Of(Quaternion q)
+            {
+                float x = q.x * 2f, y = q.y * 2f, z = q.z * 2f;
+                float xx = q.x * x, yy = q.y * y, zz = q.z * z, xy = q.x * y, xz = q.x * z, yz = q.y * z, wx = q.w * x, wy = q.w * y, wz = q.w * z;
+                return new Rot3
+                {
+                    M00 = 1f - (yy + zz), M01 = xy - wz, M02 = xz + wy,
+                    M10 = xy + wz, M11 = 1f - (xx + zz), M12 = yz - wx,
+                    M20 = xz - wy, M21 = yz + wx, M22 = 1f - (xx + yy)
+                };
+            }
+        }
+
         private sealed class View
         {
             public Quaternion ToView; // frame -> view: x right, y up, z along the view direction
             public float MinX, MinY, Texel;
             public float InvTexel;
             public Quaternion WorldToView; // world -> view at the last SetPose (ToView after the frame's inverse)
+            public Rot3 ToRot, WorldRot; // the two above as matrices (Rot3), for the per-point tests
             public int W, H;
             public float[] Near, Far; // per texel, along the view's z; empty where Near > Far
             public float[] BareNear, BareFar; // the same before growing: the model itself
@@ -170,6 +192,8 @@ namespace RavenfieldVR.Weapons
             foreach (View v in _views)
             {
                 v.WorldToView = v.ToView * _inv;
+                v.WorldRot = Rot3.Of(v.WorldToView);
+                v.ToRot = Rot3.Of(v.ToView);
             }
         }
 
@@ -188,20 +212,22 @@ namespace RavenfieldVR.Weapons
                 return SolidLocal(_inv * (world - _pos));
             }
             // One rotation per view straight from the world (no frame step, no box test: every view's picture already
-            // rejects points beyond the model), multiplies instead of divides, out at the first view that says no.
-            Vector3 d = world - _pos;
+            // rejects points beyond the model), multiplies instead of divides, out at the first view that says no. The
+            // rotation is the view's matrix (Rot3), its depth worked out only for a point inside the picture.
+            float dx = world.x - _pos.x, dy = world.y - _pos.y, dz = world.z - _pos.z;
             View[] views = _views;
             for (int n = 0; n < views.Length; n++)
             {
                 View v = views[n];
-                Vector3 q = v.WorldToView * d;
-                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                float fx = (v.WorldRot.M00 * dx + v.WorldRot.M01 * dy + v.WorldRot.M02 * dz - v.MinX) * v.InvTexel;
+                float fy = (v.WorldRot.M10 * dx + v.WorldRot.M11 * dy + v.WorldRot.M12 * dz - v.MinY) * v.InvTexel;
                 if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
                 {
                     return false;
                 }
                 int k = (int)fy * v.W + (int)fx;
-                if (q.z < v.Near[k] || q.z > v.Far[k])
+                float qz = v.WorldRot.M20 * dx + v.WorldRot.M21 * dy + v.WorldRot.M22 * dz;
+                if (qz < v.Near[k] || qz > v.Far[k])
                 {
                     return false;
                 }
@@ -222,20 +248,21 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            Vector3 d = world - _pos;
+            float dx = world.x - _pos.x, dy = world.y - _pos.y, dz = world.z - _pos.z;
             View[] views = _views;
             for (int n = 0; n < views.Length; n++)
             {
                 View v = views[n];
                 float[] near = v.ClosedNear ?? v.Near, far = v.ClosedFar ?? v.Far;
-                Vector3 q = v.WorldToView * d;
-                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                float fx = (v.WorldRot.M00 * dx + v.WorldRot.M01 * dy + v.WorldRot.M02 * dz - v.MinX) * v.InvTexel;
+                float fy = (v.WorldRot.M10 * dx + v.WorldRot.M11 * dy + v.WorldRot.M12 * dz - v.MinY) * v.InvTexel;
                 if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
                 {
                     return false;
                 }
                 int k = (int)fy * v.W + (int)fx;
-                if (q.z < near[k] || q.z > far[k])
+                float qz = v.WorldRot.M20 * dx + v.WorldRot.M21 * dy + v.WorldRot.M22 * dz;
+                if (qz < near[k] || qz > far[k])
                 {
                     return false;
                 }
@@ -326,15 +353,16 @@ namespace RavenfieldVR.Weapons
             for (int n = 0; n < views.Length; n++)
             {
                 View v = views[n];
-                Vector3 q = v.ToView * p;
-                float fx = (q.x - v.MinX) * v.InvTexel, fy = (q.y - v.MinY) * v.InvTexel;
+                float fx = (v.ToRot.M00 * p.x + v.ToRot.M01 * p.y + v.ToRot.M02 * p.z - v.MinX) * v.InvTexel;
+                float fy = (v.ToRot.M10 * p.x + v.ToRot.M11 * p.y + v.ToRot.M12 * p.z - v.MinY) * v.InvTexel;
                 if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
                 {
                     return false;
                 }
                 int k = (int)fy * v.W + (int)fx;
                 float[] near = grown ? v.Near : v.BareNear, far = grown ? v.Far : v.BareFar;
-                if (q.z < near[k] || q.z > far[k])
+                float qz = v.ToRot.M20 * p.x + v.ToRot.M21 * p.y + v.ToRot.M22 * p.z;
+                if (qz < near[k] || qz > far[k])
                 {
                     return false;
                 }
@@ -646,6 +674,8 @@ namespace RavenfieldVR.Weapons
                 {
                     ToView = toView,
                     WorldToView = toView,
+                    ToRot = Rot3.Of(toView),
+                    WorldRot = Rot3.Of(toView),
                     InvTexel = 1f / texel,
                     Texel = texel,
                     W = w,
