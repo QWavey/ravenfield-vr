@@ -544,9 +544,9 @@ Tools (`tools/`, Python, local files only):
 | `src/Rig/GloveMesh.cs` | glove geometry | looks |
 | `src/Weapons/GunVolume.cs` | depth-rendered solid, async read-back, worker growth, hull | the model as the hands see it |
 | `src/Weapons/ModHand.cs` | the weapon's own hand pose from its arm bones | authored grips |
-| `src/Weapons/HeldWeapon.cs` | weapon in hand, recoil, solids for hands, shape choice | central weapon logic |
-| `src/Weapons/ReloadInteractions.cs` | manual reloads, H3VR kick/palming, pouch, rack grips, self-checks | reload feel |
-| `src/Weapons/WeaponAnalyzer.cs`, `PoseSampler.cs` | rig analysis by sampled animation | works for any mod |
+| `src/Weapons/HeldWeapon.cs` (+ `.Shape.cs`, `.Parts.cs`) | weapon in hand, recoil; the measured shape and solids for hands; parts posed on the gun | central weapon logic |
+| `src/Weapons/ReloadInteractions.cs` (+ `.SelfChecks.cs`) | manual reloads, H3VR kick/palming, pouch, rack grips; the in-game self-checks apart | reload feel |
+| `src/Weapons/WeaponAnalyzer.cs` (+ `.HandsAndSights`, `.Action`, `.Magazine`, `.Sounds`, `.Helpers`), `PoseSampler.cs` | rig analysis by sampled animation | works for any mod |
 | `src/Weapons/ShapeFit.cs`, `GunCollider.cs` | convex physics shapes, prop physics, body ignoring | "only the model is the hitbox" |
 | `src/Weapons/MagazineProp.cs` | physical magazines, shells, rockets | reload props |
 | `src/Weapons/WeaponDrops.cs` | dropped weapons, pickup, return, warm-up prep | drops |
