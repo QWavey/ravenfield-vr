@@ -149,4 +149,50 @@ E-7  Tiny   src/Rig/LensEffects.cs:179-193
 ------------------------------------------------------------------------------------------------
 Scout "installer and launcher" (Setup, Launcher, SteamLaunchOption, SteamPlayEntry)
 ------------------------------------------------------------------------------------------------
-(told to finish at once; its report is appended below when it arrives)
+S = installer/Setup.cs, L = installer/SteamLaunchOption.cs (+ Vdf), P = installer/SteamPlayEntry.cs, Lnch = installer/Launcher.cs.
+No Critical. All STATUS: open (not yet verified or fixed; reported after v1.11.0 was built).
+I-1  Major  S:547-558, S:599-606  Uninstall restores the user's own loader files, then deletes or overwrites them.
+     Trigger: the game folder had its own winhttp.dll (another injector) and no BepInEx.dll -> record replaced=winhttp.dll,
+     installedBepInEx=True. Keep settings (GUI default): the original is copied over BepInEx's doorstop while BepInEx is
+     kept (other mods stop loading). Not kept: the restored original is deleted at S:604.
+     Fix: skip restoring loader files when keepBepInEx; exclude restored paths from the S:599 delete.
+I-2  Major  S:399, 434-439, 444, 457  A failed install is not rolled back and a retry records the wrong thing.
+     The manifest is written only at the end; on retry, files written by the failed attempt look "identical"
+     (SameContent -> return, no added/replaced entry). Trigger: a locked/read-only original: backed up at S:444, then
+     File.Create throws; retry never records replaced=, the original sits in an unreferenced backup folder, uninstall
+     leaves the mod file; after a first-install failure CheckCanUninstall refuses.
+     Fix: write the manifest after each file (or stage + swap); only a recorded file counts as the game's original.
+I-3  Major  S:346, 389, 442-444, 551-563  The manifest stores an absolute backup= path: after Steam's "Move install
+     folder" originals never come back ("No backup for ..."); an update recreates the backup folder at the old place,
+     and on a removed drive throws after the old plugin files are already deleted (S:331-342).
+     Fix: store backup= relative to the game folder.
+I-4  Major  S:331-342, 350, 696-705  The GitHub update empties the plugin folder before the download is checked;
+     DownloadZip uses ContentLength only for progress (no size or digest check). Trigger: a truncated / non-zip asset:
+     the mod's DLLs are gone, the record still names the old version, the error only in the log.
+     Fix: open the archive and check size/digest before the first delete.
+I-5  Minor  L:43-44, S:118, S:1126-1133  "Steam already opens the launcher." printed when zero accounts changed (no
+     userdata, registry pointing at another Steam); the Play-entry result ignored; --install returns 0, GUI says Done.
+I-6  Minor  L:188-191, P:121-122, Lnch:305/316  Non-atomic writes: File.Copy(temp, file, true) truncates the live file;
+     a crash mid-copy truncates Steam's account config. Only P reads back. Fix: File.Replace + read-back.
+I-7  Minor  P:121 vs L:184-187  P overwrites .rfvr-backup on every change (after a remove it holds the added state);
+     L keeps the first copy. Fix: keep the first copy in both.
+I-8  Minor  S:1120, 1141, 56  Paths used as typed: a relative folder gives a relative backup= and a launch option
+     ".\RavenfieldVR-Launcher.exe" %command%. Fix: Path.GetFullPath on entry.
+I-9  Minor  S:348  Loader check is only BepInEx.dll: a BepInEx\core without winhttp.dll "installs" and nothing loads.
+I-10 Minor  S:503-506, 598  BepInEx kept only if BepInEx\plugins has entries; when settings are not kept, patchers,
+     monomod and other tools' configs are deleted too.
+I-11 Minor  S:38-44, 1170, 238  GUI start outside the try; FindRavenfield reads libraryfolders.vdf unguarded: an
+     exception is an unlogged crash.
+I-12 Tiny   L:255-258  Vdf.ParseBlock returns silently on a top-level '}' and drops the rest on write (malformed input).
+I-13 Tiny   L:125-126  RemoveFromFile uses the nearest quote: an unquoted launcher path after a quoted argument can cut
+     the user's options.
+I-14 Tiny   S:690-691 / S:1398-1401, P:104-123  temp leaks (zipPath null on failure; .rfvr-tmp if P:121 throws).
+I-15 Tiny   S:1210  "Update" silently downgrades an older setup (CompareVersions only sorts).
+I-16 Unsure S:408-417  Inside() is lexical: a junction created inside the game folder would be followed by
+     File.Delete/File.Create.
+     Checked clean by the scout: zip slip / rooted / .. / sibling prefix (tested), empty path, uninstall refuses without
+     a record, Steam files only written with Steam closed, launcher kept while a launch option uses it, running checks,
+     VDF truncation throws before writing, appinfo bounds + SHA-1 + read-back, missing Steam/registry fallbacks, launcher
+     argument quoting (tested), settings damage tolerated, writes limited to the mod's prefixes.
+     Not covered by the offline tests: restoring a replaced loader file, a mid-install failure, a moved game, the GitHub
+     download and CompareVersions, the localconfig backup, Steam closed with no account.

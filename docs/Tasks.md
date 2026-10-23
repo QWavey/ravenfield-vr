@@ -2680,4 +2680,5 @@ Paused here (user left, 2026-10-23 evening). Next:
 - Every Haiku scout finding of the day, with its status (fixed / rejected / open): reports/haiku-findings-2026-10-23.txt.
   Open there: U-1 intro title scan (check first), U-2 UISystem half-built constructor, E-1..E-7 render-effects items
   (single-pass black quads, double water drops, VRScope leak on a failed attach, spare RTs), the installer scout's list.
-- v1.11.0 built: dist/RavenfieldVR-Setup-1.11.0.exe (+ zip), not published.
+- v1.11.0 published: https://github.com/QWavey/ravenfield-vr/releases/tag/v1.11.0 (setup exe only). Installer scout: 4 majors
+  (I-1..I-4: loader files on uninstall, no rollback, absolute backup path, update deletes before the download is checked).
