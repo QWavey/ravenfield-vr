@@ -516,6 +516,7 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 332. [ ] Work-until-limit (session 85) of 2026-10-22 evening, improving without the game (the user played the loading fix first: their log has the overlay and black skybox up, the DOUBLE-BARREL's own shells in the hand and thrown; reports/shots/play-1022-evening). Done: the docs refreshed (shotguns, the compositor's loading screen, checks, the day's log); a half-built WeaponSystem disposed and no longer the instance (ab52699); a script-key tap for one script stays its own when that script is destroyed (d0dcdc4); the glove's pinch cleared with its anchor (1d06d9b); the loading overlay fades in and out with the view (7408786); ShapeFit pieces reach their ends: a gun-like cloud had 148 of 2600 points outside every piece, up to 13 mm, now 0 (a48f982, a new offline check); Haiku scouts' leads checked and fixed: a machine gun put down with its cover open and no belt laid comes back so (e50a6d8), a belt laid with the cover open shows again when drawn (0df9759), the belt strip remembers where it was moved (94bb89d), the free hand's machine gun lays its belt in its self-reload, a swapped-away free-hand gun keeps its reload's rounds, shots routed by live owners (ae6bcd2), the gun's stand-in after a snap turn and ignore calls on switched-off colliders (63f840b); the reload sampler keeps rotations only for drawn moving parts (39680ba, less garbage); the picture tool's sheets tested (1713697); an AmmoState offline check tried and dropped (the game's Weapon type initializer runs native code); a second round of scouts: the reload check that cannot run says NOT RUN and two lower-case failures counted (51dd57d), a stale mod keys row presses nothing (ecef946), a sound donor whose analysis failed is asked again and slices fade before first tracking (605a908), a pump is its own handle, the ARS M500 racked at its pump (1062afb); the pouch's empty-magazine failure counted (323801b); the hand preview's lights limited to its layer (4b3445b); from a review of the loading view: the overlay tried again at each loading and captured cameras never film the screen (681d36c; no lifecycle defect found); the tactical check's NOT RUN (dec06a7), the hand preview's hands destroyed when a capture throws (c93acc6), a free-hand gun's variant dry click (e4dc9b1), the player's colliders gathered anew on a respawn within a frame (139cab5), the ground check's full buffer and the intro titles on a minimised window (dcb236c), a wheel grab from the rim's turn (de1c68d). Installed 22:30 (all but de1c68d, built while the user played: install it when the game is closed). To check in the next game run: the shotguns' port lines as in check-1022-shotguns (the sampler change), the loading overlay's fade, a machine gun dropped with its cover open. Left (design or unclear): the free hand's grenade thrown on letting go with GripToHoldWeapon off, the main hand's grenade throw holstering the free hand's gun, a fire-mode variant of the free hand's gun using its parent's ammo. Also to check in the game: the pouch's empty-magazine check and the ARS M500's rack grip line (fixed by name, unmeasured).
 333. [x] From the user (2026-10-22, while playing): "push the packages to releases (with the installer etc) ... go from version 1.0.0 to the current version / codebase on github so the users can browse the releases". Done: the version moved to 1.10.0 (40c2f32) and the README points at the setup of the newest release (8c9d6ab). Each day's last commit since v1.0.0 was built in a scratch worktree with only PluginInfo.Version patched (1.1.0 36f50e3 2026-10-13, 1.2.0 077d751, 1.3.0 9e435f0, 1.4.0 0e88d9a, 1.5.0 b4b4dd4, 1.6.0 2f74dbf, 1.7.0 18ba5c7, 1.8.0 bfc52b2, 1.9.0 dbf1a35, 1.10.0 8c9d6ab 2026-10-22; every DLL reads its own version) and published as GitHub releases v1.1.0..v1.10.0 on those commits with the setup, the zip and the launcher (RavenfieldVR-Launcher-<ver>.exe); 1.10.0 is the latest, the older ones pre-releases like v1.0.0. Each note says the code is that day's (its source still said 1.0.0), what was new, fixed and under the hood since the day before (drafted from the commits, checked against them), and how to install. The repository is private, so only collaborators see the releases.
 334. [ ] From the user (2026-10-23 morning, work-until-limit 80, the game not started): "/improve and /bug-hunt ... focus on performance, cleanness etc and maybe also analyze boneworks which is on my pc (WITHOUT DELETING ANYTHING) and see if we could extract some logic/reuse it in our game, hand logic or weapon logic etc or physics etc" and "fix a bug where hands glitch through the gun with enough force (or while double mag reloading sometimes)"; then as the priority: "Analyze how boneworks does the clean weapon reloadings with hands etc and try to 'import' that feature in our app too". Code done, not yet checked in the headset: glove contact (c0d3fd9), hands stay on a worked part (97e0c54), a slammed magazine drops a locked slide (c97364a), haptics keep the strongest pulse (5ffee9a). Notes and Boneworks' measured numbers in For 334.
+335. [ ] /improve and /bug-hunt of 2026-10-23 (work-until-limit 80, the game not started; performance and cleanness first): measured improve rounds (bench.ps1, offline suite) and Haiku read-only scouts per area, every finding verified against the code before a fix. Done and open in For 335.
 
 ## Notes
 
@@ -2587,3 +2588,50 @@ Not done (candidates): the helper blink (needs a highlight the game's shaders ca
 the HOVERING cue before the rail takes a magazine, a short settle before the seat locks (CoWaitLockMagazine), weapon sag
 from the wrist's torque (PhysHand maxTorque 30 against the gun's weight torque) in place of the per-class droop,
 AimEnhancer.
+
+For 335. Improve and bug hunt of 2026-10-23, no game run (all measured offline: tools/tests/bench.ps1, run-tests.ps1).
+
+Improve rounds (kept; measured before and after, same answers):
+- 1 (e3b6134) GunVolume per-point tests: each view's rotation kept as a 3x3 matrix (Rot3, the very products of Unity's
+  Quaternion * Vector3), the point turned inline, its depth only once inside the picture. Solid 92 -> 23.6 ns, SolidAt
+  104 -> 55.7 ns a call, hits 406531 both. The bench now times Solid too.
+- 2 (ad792f5) HandModel.NearSkin: a sphere round the whole skin answers most points at once, and the palm's frame is kept
+  with the skin (no Transform.InverseTransformPoint, a native call, per point; GloveIn keeps it too). Managed copies 58.7
+  -> 18.1 ns, the same answers on 1,000,000 points (tools/tests/SkinBench.cs).
+- 3 (580d268) Test: the matrix rotation is bit-identical to Quaternion * Vector3 on 2000 random rotations; the setup's
+  CS0649 gone.
+- 4 (b172010) MagazineProp.KeepOffGun turns its sample points once a call (23.3 ns a point with the turn, 10.3 without,
+  per point per step).
+
+Bug hunt (fixed):
+- 700658c One controller dropping out alone (link, battery, asleep) read as let go at once: a hand holding the gun by
+  the grip dropped it, and a button still down when it came back was pressed again (Pause, FireMode, Sprint). Now the
+  whole input's 0.5 s grace and no-press-on-return rule per hand (VRInput.HandButton, 7 offline checks).
+- 2cc1983 Today's glove contact: the sweep used last frame's settle onto a worked part (the glove drawn up to 5 cm off
+  the place found clear, easing off a bolt reached 30 cm for); the empty hand's last clear place survived the hand
+  holding something; two comments said the opposite of the code.
+- e438bc8 HeldWeapon: failed seated-magazine and racked-part volumes re-measured in the same frame and then every second
+  forever (each a render and GPU read-back): a second later, three times at most; WantsDrawnSlideTip (an array and a
+  regex) asked every frame while the slide stayed locked back: once; HandSolid twice a frame while racking: once.
+- 747e587 IdleFailed cleared with the content; the parked-parts cache's temp file deleted when its swap fails; a
+  magazine's contact state reset on a grab; the sight-flip test only when a long press needs it (two script-key lists a
+  frame while aiming); the input warning built once per error.
+- 5d2efde A rendered shape read back after a content reload put the old model's hull back (generation check, cook queue
+  drained); a drop whose build threw was left at the death spot untracked (destroyed, the exception passed on).
+- 32ac1da VR stopping kept the crouch/prone toggles, stick latches and pending switches into the next start
+  (VRGameInput.ResetSession at shutdown).
+
+Open (verified, not changed without the game):
+- WeaponDrops.FitModel: the rendered-shape branch (types with unreadable meshes) runs before the quick guard, so a new
+  scale's hulls are cooked on the death frame (ScaledPieces -> ShapeFit.Bake). Only off-1 scales; a fix needs a box now and
+  a deferred cook with a collider swap (as the late fits do): needs a game run to check.
+- WeaponDrops: an unbuilt template and an uncached parked-parts analysis still run on the first death of a type the
+  warm-up and loading builds missed (25-300 ms). Deferring the spawn a frame only moves the cost.
+- WeaponDrops/ShapeFit: piece meshes are never destroyed on a content reload, EntryNumbers never cleared (memory across
+  reloads).
+- MagazineProp: Physics.IgnoreCollision against a moving body it was let go inside is never reverted; ReleaseHand clears
+  the fist's solid while a palmed magazine is still held; baked skinned parts drop the renderer's scale (unsure).
+- MagazineProp.KeepOffGun can reach tens of thousands of solid tests in one frame when a magazine pressed into the gun
+  slides far (each now ~24 ns): a per-frame budget if a profiled run shows it.
+- GloveSweep releases the glove to the real hand once it is clear 15 cm past the gun (Boneworks' SetHand): a deliberate
+  jump across the gun; tune the distance from a headset session.
