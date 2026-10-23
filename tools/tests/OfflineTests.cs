@@ -86,6 +86,27 @@ namespace RavenfieldVR.Tests
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
             GloveSweepTests(mod);
+            HapticPriorityTests(mod);
+        }
+
+        /// <summary>
+        /// Haptics keep the strongest pulse playing (VRInput.HapticAllowed, Boneworks' haptic stack): a 1 cm rack tick does not
+        /// cut the slide's click short, a stronger pulse takes over, and once a pulse is over anything plays.
+        /// </summary>
+        private static void HapticPriorityTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo allowed = mod.GetType("RavenfieldVR.Input.VRInput")?.GetMethod("HapticAllowed",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(allowed != null, "Haptic priority: VRInput.HapticAllowed found");
+            if (allowed == null)
+            {
+                return;
+            }
+            bool Allowed(float now, float amp, float until, float running) => (bool)allowed.Invoke(null, new object[] { now, amp, until, running });
+            Check(!Allowed(1.00f, 0.35f, 1.03f, 0.6f), "Haptic priority: a rack tick does not cut the slide's click short");
+            Check(Allowed(1.00f, 0.9f, 1.03f, 0.6f), "Haptic priority: a stronger pulse takes over a weaker one");
+            Check(Allowed(1.05f, 0.15f, 1.03f, 0.6f), "Haptic priority: once a pulse is over, a weak one plays");
+            Check(Allowed(1.00f, 0.35f, 1.04f, 0.35f), "Haptic priority: rack ticks of the same strength follow each other");
         }
 
         /// <summary>

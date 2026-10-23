@@ -84,6 +84,18 @@ namespace RavenfieldVR.Input
                                                             || type.IndexOf("touch", StringComparison.OrdinalIgnoreCase) >= 0);
         private static readonly bool[] HapticOkLogged = new bool[2];
         private static readonly bool[] HapticFailLogged = new bool[2];
+        // The pulse playing on each hand: until when, and how strong (after the Touch minimums).
+        private static readonly float[] HapticUntil = new float[2];
+        private static readonly float[] HapticAmplitude = new float[2];
+
+        /// <summary>
+        /// Whether a pulse of <paramref name="amplitude"/> may start now, with a pulse of <paramref name="runningAmplitude"/> playing
+        /// until <paramref name="runningUntil"/>: not when it is weaker. SteamVR replaces a running vibration with the newest, so a
+        /// 1 cm rack tick (45 ms on Touch) cut the slide's click short, as a rail tick did a magazine's seat; Boneworks' haptics keep
+        /// the strongest playing (its Haptor's stack policy, noDoubleHaptic).
+        /// </summary>
+        internal static bool HapticAllowed(float now, float amplitude, float runningUntil, float runningAmplitude)
+            => now >= runningUntil || amplitude >= runningAmplitude - 1e-3f;
         private static float _nextTypeRefresh;
 
         private static readonly uint DigitalSize = (uint)Marshal.SizeOf(typeof(InputDigitalActionData_t));
@@ -656,6 +668,13 @@ namespace RavenfieldVR.Input
             {
                 return;
             }
+            float now = Time.unscaledTime;
+            if (!HapticAllowed(now, amplitude, HapticUntil[(int)h], HapticAmplitude[(int)h]))
+            {
+                return; // a stronger pulse is still playing on this hand: it is not cut short by a weaker one
+            }
+            HapticUntil[(int)h] = now + duration;
+            HapticAmplitude[(int)h] = amplitude;
             EVRInputError err = input.TriggerHapticVibrationAction(_haptic, 0f, Mathf.Max(0.001f, duration), Mathf.Clamp(frequency, 1f, 320f),
                 amplitude, HandSource[(int)h]);
             if (err != EVRInputError.None)
