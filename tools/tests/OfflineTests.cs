@@ -148,6 +148,37 @@ namespace RavenfieldVR.Tests
             Check(Allowed(1.00f, 0.9f, 1.03f, 0.6f), "Haptic priority: a stronger pulse takes over a weaker one");
             Check(Allowed(1.05f, 0.15f, 1.03f, 0.6f), "Haptic priority: once a pulse is over, a weak one plays");
             Check(Allowed(1.00f, 0.35f, 1.04f, 0.35f), "Haptic priority: rack ticks of the same strength follow each other");
+
+            // One controller dropping out alone (VRInput.HandButton): its buttons go through the gap as the whole input's do.
+            System.Reflection.MethodInfo button = mod.GetType("RavenfieldVR.Input.VRInput")?.GetMethod("HandButton",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(button != null, "Hand dropout: VRInput.HandButton found");
+            if (button == null)
+            {
+                return;
+            }
+            bool Button(bool alive, bool raw, bool was, float since, bool suppress, out bool pressed, out bool released)
+            {
+                object[] a = { alive, raw, was, since, suppress, false, false };
+                bool held = (bool)button.Invoke(null, a);
+                pressed = (bool)a[5];
+                released = (bool)a[6];
+                return held;
+            }
+            bool h = Button(true, true, false, 0f, false, out bool p, out bool r);
+            Check(h && p && !r, "Hand dropout: a button pressed on a live hand is held and pressed");
+            h = Button(true, false, true, 0f, false, out p, out r);
+            Check(!h && !p && r, "Hand dropout: let go on a live hand it is released");
+            h = Button(false, false, true, 0.2f, false, out p, out r);
+            Check(h && !p && !r, "Hand dropout: a held grip is kept through a 0.2 s dropout (the gun is not dropped)");
+            h = Button(false, false, true, 0.6f, false, out p, out r);
+            Check(!h && !p && !r, "Hand dropout: after 0.6 s it counts as let go, with no release edge");
+            h = Button(true, true, false, 0f, true, out p, out r);
+            Check(h && !p && !r, "Hand dropout: still down when the hand is back, it is not pressed again");
+            h = Button(true, true, false, 0f, false, out p, out r);
+            Check(h && p, "Hand dropout: pressed anew after the hand is back, it is a press");
+            h = Button(false, false, false, 0.2f, false, out p, out r);
+            Check(!h && !p && !r, "Hand dropout: a button up stays up through a dropout");
         }
 
         /// <summary>

@@ -245,23 +245,59 @@ namespace RavenfieldVR.Input
             _heldBeforeOutageSaved = false;
             float now = Time.unscaledTime;
             var data = new InputDigitalActionData_t();
+            // Each hand's reads first. One controller can drop out alone (its link, its battery, asleep): its actions read
+            // inactive, and its buttons go through that gap as the whole input's do in ClearEdges. Read as let go at once, a
+            // dropout dropped the gun from a hand holding it by the grip, and the button still down when it came back was
+            // pressed again (Pause, FireMode, Sprint toggled; input hunt, 2026-10-23).
+            for (int h = 0; h < 2; h++)
+            {
+                bool alive = false;
+                for (int a = 0; a < DigitalCount; a++)
+                {
+                    bool ok = input.GetDigitalActionData(DigitalHandle[a], ref data, DigitalSize, HandSource[h]) == EVRInputError.None && data.bActive;
+                    RawState[a, h] = ok && data.bState;
+                    alive |= ok;
+                }
+                HandRecovering[h] = alive && HandOutageSaved[h];
+                if (alive)
+                {
+                    HandAliveAt[h] = now;
+                    HandOutageSaved[h] = false;
+                }
+                else if (now - HandAliveAt[h] > OutageGrace && !HandOutageSaved[h])
+                {
+                    for (int a = 0; a < DigitalCount; a++)
+                    {
+                        HeldBeforeOutage[a, h] = Held[a, h]; // still down when the hand is back: not pressed again
+                    }
+                    HandOutageSaved[h] = true;
+                }
+                HandAlive[h] = alive;
+            }
             for (int a = 0; a < DigitalCount; a++)
             {
                 for (int slot = 0; slot < 3; slot++)
                 {
-                    // The any-hand slot from the two hand reads just made (every binding is on a hand): a third SteamVR call per
-                    // action was 17 of the 51 calls a frame (performance review 2026-10-19, measured 2026-10-21).
-                    bool state = slot < 2
-                        ? input.GetDigitalActionData(DigitalHandle[a], ref data, DigitalSize, HandSource[slot]) == EVRInputError.None && data.bActive && data.bState
-                        : HandState[0] || HandState[1];
+                    bool was = Held[a, slot];
+                    bool state, pressed, released;
                     if (slot < 2)
                     {
+                        state = HandButton(HandAlive[slot], RawState[a, slot], was, now - HandAliveAt[slot],
+                            (recovering || HandRecovering[slot]) && HeldBeforeOutage[a, slot], out pressed, out released);
                         HandState[slot] = state;
                     }
-                    bool was = Held[a, slot];
+                    else
+                    {
+                        // The any-hand slot from the two hand states just made (every binding is on a hand): a third SteamVR call
+                        // per action was 17 of the 51 calls a frame (performance review 2026-10-19, measured 2026-10-21).
+                        state = HandState[0] || HandState[1];
+                        bool back = recovering && HeldBeforeOutage[a, 2] || HandRecovering[0] && HeldBeforeOutage[a, 0] || HandRecovering[1] && HeldBeforeOutage[a, 1];
+                        pressed = state && !was && !back;
+                        released = !state && was;
+                    }
                     Held[a, slot] = state;
-                    Pressed[a, slot] = state && !was && !(recovering && HeldBeforeOutage[a, slot]);
-                    Released[a, slot] = !state && was;
+                    Pressed[a, slot] = pressed;
+                    Released[a, slot] = released;
                     Consumed[a, slot] = false;
                     if (PressPending[a, slot])
                     {
@@ -423,7 +459,7 @@ namespace RavenfieldVR.Input
             {
                 _noDataSince = Time.unscaledTime;
             }
-            else if (Time.unscaledTime - _noDataSince > 0.5f)
+            else if (Time.unscaledTime - _noDataSince > OutageGrace)
             {
                 if (!_heldBeforeOutageSaved)
                 {
@@ -450,6 +486,35 @@ namespace RavenfieldVR.Input
         private static readonly bool[] HandState = new bool[2];
         private static readonly bool[,] HeldBeforeOutage = new bool[DigitalCount, 3];
         private static bool _heldBeforeOutageSaved;
+
+        /// <summary>How long held buttons keep their state through a gap in the input (all of it, or one hand's).</summary>
+        private const float OutageGrace = 0.5f;
+        // Per hand: this frame's reads, whether any action of it read active, when it last did, its held buttons saved when its
+        // gap passed the grace, and whether it is back this frame from such a gap.
+        private static readonly bool[,] RawState = new bool[DigitalCount, 2];
+        private static readonly bool[] HandAlive = new bool[2];
+        private static readonly float[] HandAliveAt = new float[2];
+        private static readonly bool[] HandOutageSaved = new bool[2];
+        private static readonly bool[] HandRecovering = new bool[2];
+
+        /// <summary>
+        /// One button of one hand this frame (returns whether it is held; sets its press and release). With the hand's reads in
+        /// (<paramref name="alive"/>) it is what it reads, a press kept back when <paramref name="suppressPress"/> (it was down
+        /// before a gap and still is). With the hand dropped out it keeps its state for <see cref="OutageGrace"/> without edges,
+        /// then counts as let go without a release edge, as the whole input's gap does (<see cref="ClearEdges"/>).
+        /// </summary>
+        internal static bool HandButton(bool alive, bool raw, bool was, float sinceAlive, bool suppressPress, out bool pressed, out bool released)
+        {
+            if (alive)
+            {
+                pressed = raw && !was && !suppressPress;
+                released = !raw && was;
+                return raw;
+            }
+            pressed = false;
+            released = false;
+            return sinceAlive <= OutageGrace && was;
+        }
 
         private static void UpdateSkeletons(CVRInput input)
         {
