@@ -1,0 +1,152 @@
+Ravenfield VR - findings of the read-only Haiku scouts, 2026-10-23 (improve + bug hunt run, no game run)
+=======================================================================================================
+Each finding: severity as the scout gave it, file:line, what goes wrong, trigger, fix, and STATUS (what was done, which
+commit). "Rejected" = checked and found not to be a bug, with the reason. Fixes are in v1.11.0 (873a254) unless marked open.
+
+
+------------------------------------------------------------------------------------------------
+Wave 2 scouts (findings from the earlier half of the run)
+------------------------------------------------------------------------------------------------
+W2-1  Major   src/Weapons/AmmoState.cs RackForward (via SecondWeapon.FinishReload)
+      A launcher, break action or revolver reloaded in the free hand moved one round into a chamber it does not have.
+      CanFire on those guns reads only the magazine rounds, so a launcher never fired again; a revolver was one short.
+      Fix: chamber only when UsesChamber.  STATUS: fixed (fab5a66).
+W2-2  Minor   src/Weapons/FireSelector.cs Clear
+      The semi set was cleared while the weapons stayed configured semi: after VR stopped (or a scene change with
+      surviving weapons) a gun switched to semi stayed semi-only.  STATUS: fixed, set back to auto (33e82f4).
+W2-3  Minor   src/Weapons/LensFlash.cs
+      (a) per-shot allocations for multi-barrel guns (two lists + two arrays a shot), (b) Clone of the counts on every
+      stash save, (c) eager InfoOnce strings on every flash-less shot.  STATUS: all fixed (33e82f4).
+      (d) "stash overwritten by a third shot": REJECTED - only two hands can fire; a gun firing twice in one frame
+      supersedes its own older shot, as intended.
+W2-4  Major?  src/Runtime/OpenVRRuntime.cs Stop
+      One shared try around four teardown calls: a throw in the input's Stop left the display running.
+      STATUS: fixed, each step guarded (fab5a66).
+W2-5  Minor   src/Core/VRManager.cs Update
+      PerfProbe.Frame / OpenVRRuntime.PumpEvents / EnforceFramePacing unguarded: a throw ended the frame before input,
+      rig and weapons.  STATUS: fixed, guarded with cached delegates (fab5a66). PerfProbe.Frame closure per frame also
+      removed.
+W2-6  Tiny    src/Core/VRManager.cs OnGUI
+      Two GUIStyles allocated per OnGUI call; layout pass every frame.  STATUS: fixed, styles cached and
+      useGUILayout = false (d212e50).
+W2-7  Minor   src/UI/UISystem.cs constructor (partial construction)  STATUS: open - see U-2 below (same finding).
+W2-8  Minor   src/Rig/VRRig.cs Dispose
+      One throwing step skipped the rest (the rig root and its eye cameras stayed alive in flat play).
+      STATUS: fixed, each step guarded (1e02fed).
+W2-9  Minor   src/Input/VRInput.cs Ready
+      Ready never went false after VR stopped; button state carried into the next start (a grip held at shutdown read
+      as let go on the first frame back).  STATUS: fixed, VRInput.Shutdown (d212e50).
+W2-10 Tiny    src/UI/SquadPointing.cs:231
+      Target(ui) read with the order screen gone while the label fades.  STATUS: fixed, `Pointing && ui != null` (d212e50).
+W2-11 Tiny    src/UI/VRInputModule.cs OnTarget GetComponent<Canvas> per result.  STATUS: rejected (a handful a frame, only
+      while the laser is on a panel). RaycastAll moved inside HasHit (fab5a66).
+W2-12 Tiny    src/UI/WristHud.cs ring material via .material.  STATUS: fixed, sharedMaterial (d212e50).
+
+
+------------------------------------------------------------------------------------------------
+Scout "rig and arm" (CockpitControls, GroundCheck, VRRig, VRHand, ArmIK, GameContext)
+------------------------------------------------------------------------------------------------
+R-1  Minor (unsure)  src/Rig/CockpitControls.cs:59, 291, 368
+     _palmSeat never cleared on a seat change: back in the SAME seat, the last ride's palm pose seeded the stick or
+     wheel grab and offset it until let go.  STATUS: fixed, _palmSeat = null on seat change (5e99b90).
+R-2  Minor (unsure)  src/Rig/GroundCheck.cs:78-82
+     When the 64-hit buffer fills with light loose bodies, the fallback takes the game's own cast (can pick a magazine
+     under the foot).  Trigger: 64+ light bodies in one hip-level sphere cast.  STATUS: open/not changed (too rare).
+R-3  Minor (unsure)  src/Rig/VRRig.cs:1164-1170, 577, 1063/1069, 465-467; GameContext.cs:126-128, 151
+     Per-frame calls into game code (EnableFirstPersonRenderingMode, seat.HasAnyMountedWeapons, camera instance reads):
+     cost unknown (game code).  STATUS: open - time with PerfProbe in a headset session before caching.
+R-4  Tiny  src/Rig/VRRig.cs:1117  GetComponent<PostProcessLayer> every frame before the "wanted" check.
+     STATUS: fixed (5e99b90).
+R-5  Tiny  src/Rig/CockpitControls.cs:430/451/474  mesh.vertices copied three times per seat entry (+ InfoOnce string).
+     STATUS: fixed, vertices read once (5e99b90).
+     Checked clean by the scout: ParseVector cache, VehicleInput flags gated by Enabled, 1-dz division, Blackout reset,
+     ArmIK divisions, comfort vignette layer, toggles reset on death/seat change, ArmIK order.
+
+
+------------------------------------------------------------------------------------------------
+Scout "gun collider and throw" (GunCollider, WeaponDrops, ThrowAndMelee, Casings, GrenadeDud)
+------------------------------------------------------------------------------------------------
+G-1  Major (scout)  src/Weapons/GunCollider.cs:252-253 via WeaponDrops.cs:771/780 and 2087-2091
+     Drop velocity set before OutOfTheGround moves the body.  STATUS: REJECTED - moving the transform does not change
+     the velocity; the body is out of the surface before its first step and continuous detection catches the fall.
+     The order makes no difference.
+G-2  Tiny  src/Weapons/ThrowAndMelee.cs:830, 890-891
+     w.name read per point per fast swing frame; blow label/key strings built every fast frame.
+     STATUS: fixed, cached name + static label arrays, offline test keeps them in PropKind order (5e99b90).
+G-3  Tiny (unsure)  src/Weapons/ThrowAndMelee.cs:643/816/870
+     dt floored at 1e-4: a zero-dt frame reads 0.3 mm as 3 m/s (a swing).  No path found that produces dt 0.
+     STATUS: open/not changed.
+     Noted, not verified: MagazineProp.cs:2624 ignores collision with a vehicle hull and never reverts it (comment says
+     intended: the prop passes through the hull).
+     Checked clean by the scout: stand-in lifetime, casing pool, pin rings, SuppressFire/SupportTrigger reset per frame,
+     projectile listeners removed, ignored pairs reverted, dt/teleport guards, pulled pins on death.
+
+
+------------------------------------------------------------------------------------------------
+Scout "UI lifecycle" (CanvasManager, LoadingView, VRSettingsPanel, UISystem, SquadObjectiveMarkers, IntroStage, HandPreview)
+------------------------------------------------------------------------------------------------
+U-1  Major (unsure)  src/Rig/IntroStage.cs:75
+     The intro's title scan stops once the phase reaches Done (~0.65 s); a root canvas switched on later in the intro
+     (SplashPanel.textObject.SetActive(contentHasFinishedLoading)) would be made a head-locked HUD frame instead of being
+     placed in the world.  Unsure: textObject may sit inside an always-active canvas (scene not readable offline).
+     Fix: keep scanning for the whole intro, skip WorldSpace canvases.  STATUS: open - check in the intro first.
+U-2  Minor  src/UI/UISystem.cs:75 (+ LaserPointer :327, SquadPointing.cs:53/68)
+     Instance = this before anything is built; a constructor throw leaves DontDestroyOnLoad objects (laser, squad
+     orders) and a stale Instance; VRManager.Shutdown cannot dispose it (UI never assigned). Each F6 retry adds a set.
+     Fix: try/catch in the constructor that disposes what exists and clears Instance, or set Instance last.
+     STATUS: open.
+U-3  Tiny  src/UI/CanvasManager.cs:160  GetComponent<CanvasGroup> per tracked canvas per frame.  Fix: cache at Convert.
+     STATUS: open.
+U-4  Tiny  src/UI/CanvasManager.cs:166  FindObjectsOfType<Canvas> every 0.4 s with a menu open (measured cadence,
+     255.P5-1).  STATUS: note only.
+U-5  Tiny  src/UI/SquadObjectiveMarkers.cs:206-216, 239/241  first pointing builds every flag in one frame; Shader.Find
+     twice per flag.  Fix: cache the shader.  STATUS: open.
+U-6  Tiny  src/UI/VRSettingsPanel.cs:179-241  ~15 value strings rebuilt every 0.2 s while the panel is open.
+     STATUS: open (menu only).
+U-7  Tiny (latent)  src/UI/CanvasManager.cs:620-637  Dispose does not restore layers, rect/anchors, child depth, masks,
+     graphic alpha, the added CanvasGroup.  Inert today (no in-session VR off after conversion).  STATUS: open.
+U-8  Tiny  src/Rig/IntroStage.cs:245-250  shot labels give the wait, not the elapsed time; PlacedTitles never read.
+     STATUS: open (diagnostic only).
+U-9  Tiny  src/Rig/HandPreview.cs:19-25  texture leaked and RenderTexture.active left set if WriteAllBytes throws.
+     STATUS: open (self-test only).
+     Checked clean by the scout: update order, RegisterOwn, scene change handling, LoadingView restore, menu reopen,
+     shutdown order, hand-preview finally blocks, no += subscriptions, settings choices.
+
+
+------------------------------------------------------------------------------------------------
+Scout "render effects" (LensEffects, VRScope, MagnifierFlip, MuzzleFireball, MudSplash)
+------------------------------------------------------------------------------------------------
+No Critical or Major. All STATUS: open (not yet verified or fixed; reported at the pause).
+E-1  Minor  src/Rig/LensEffects.cs:477-483, 1288-1296
+     Single-pass: eyes 0/1 never show a picture but their quads stay enabled (blackTexture swapped in), so each is still
+     drawn as a full-view additive quad on every effect frame (flash, hit, low-health edge, drops). Multi-pass: the mono
+     quad (eye 2) likewise. Fix in Build (:211-225): r.enabled = LensEye.SinglePass ? q == 2 : (q != 2 || AutoTest).
+     GPU cost not measured.
+E-2  Minor  src/Rig/LensEffects.cs:1009-1018 (from MudSplash.cs:109-112)
+     Water drops built twice in single-pass (shift 0 for both eyes; eye 0's copy never read when OneEye), ~1.16 M pixels
+     of field + shading wasted and the worker's next flash picture delayed. Only with WaterDrops on (default off).
+     Fix: if (e == 0 && OneEye) continue;
+E-3  Minor  src/Weapons/HeldWeapon.cs:152-168 + WeaponSystem.cs:407-420
+     A scoped weapon whose HeldWeapon constructor throws after the VRScope is made leaks the scope (render texture, root,
+     camera, 3 materials, shadow mesh): the catch drops the half-built HeldWeapon without Release. One leak per failing
+     weapon. Fix: make _scope last, or destroy it in the catch.
+E-4  Tiny   src/Weapons/VRScope.cs:388-424
+     SpareTextures (up to 3 RTs, ~9 MB each at 768 px, ~200 MB total at 2048) never released at VR shutdown.
+     Fix: static ReleaseSpares() called from WeaponSystem.Dispose.
+E-5  Tiny (unsure)  src/Weapons/WeaponSystem.cs:1062-1080 + MuzzleFireball.cs:100-111
+     _lensFlash?.Destroy() comes after unguarded teardown calls inside one Log.Guard; a throw before it leaves 7
+     DontDestroyOnLoad muzzle objects + materials. Fix: guard it as Dispose's first step.
+E-6  Tiny   src/Weapons/MagnifierFlip.cs:105-106, 134 + ScriptKeys.cs:379-395
+     ScriptKeys.Find allocates a List per call, every frame while the grip is held near a magnifier part (repeats when
+     the weapon has no Magnifier key); GetComponentInChildren<Renderer> per frame too. Fix: cache key and renderer.
+E-7  Tiny   src/Rig/LensEffects.cs:179-193
+     A failed build destroys only the quads; the two _tex textures and the quad mesh leak. Fix: destroy them in the catch.
+     Checked clean by the scout: worker handoff and teardown, static tables built on the main thread, array bounds and
+     NaN safety, destroyed-object checks, scope RT pooling, cheap per-frame game calls, no .material/.vertices/.name
+     per frame, no inverted logic, MudSplash resubscription.
+
+
+------------------------------------------------------------------------------------------------
+Scout "installer and launcher" (Setup, Launcher, SteamLaunchOption, SteamPlayEntry)
+------------------------------------------------------------------------------------------------
+(told to finish at once; its report is appended below when it arrives)

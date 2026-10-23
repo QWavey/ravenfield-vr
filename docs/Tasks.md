@@ -2677,3 +2677,7 @@ Paused here (user left, 2026-10-23 evening). Next:
   MuzzleFireball/MudSplash; UI lifecycle: CanvasManager/LoadingView/VRSettingsPanel/UISystem/SquadObjectiveMarkers/
   IntroStage/HandPreview; installer/launcher). Their reports are in the session; verify each finding before fixing.
 - The installed game build is the 18:40 one: every commit since (fab5a66..) is built in build/ and dist/, not installed.
+- Every Haiku scout finding of the day, with its status (fixed / rejected / open): reports/haiku-findings-2026-10-23.txt.
+  Open there: U-1 intro title scan (check first), U-2 UISystem half-built constructor, E-1..E-7 render-effects items
+  (single-pass black quads, double water drops, VRScope leak on a failed attach, spare RTs), the installer scout's list.
+- v1.11.0 built: dist/RavenfieldVR-Setup-1.11.0.exe (+ zip), not published.
