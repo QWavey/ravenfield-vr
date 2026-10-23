@@ -2629,9 +2629,41 @@ Open (verified, not changed without the game):
   warm-up and loading builds missed (25-300 ms). Deferring the spawn a frame only moves the cost.
 - WeaponDrops/ShapeFit: piece meshes are never destroyed on a content reload, EntryNumbers never cleared (memory across
   reloads).
-- MagazineProp: Physics.IgnoreCollision against a moving body it was let go inside is never reverted; ReleaseHand clears
-  the fist's solid while a palmed magazine is still held; baked skinned parts drop the renderer's scale (unsure).
+- MagazineProp: Physics.IgnoreCollision against a moving body it was let go inside is never reverted; baked skinned parts
+  drop the renderer's scale (unsure). (ReleaseHand clearing the fist's solid while a palmed magazine is held: 760242d.)
 - MagazineProp.KeepOffGun can reach tens of thousands of solid tests in one frame when a magazine pressed into the gun
   slides far (each now ~24 ns): a per-frame budget if a profiled run shows it.
 - GloveSweep releases the glove to the real hand once it is clear 15 cm past the gun (Boneworks' SetHand): a deliberate
   jump across the gun; tune the distance from a headset session.
+
+Bug hunt, second half (after the user's first test build; rig, gun-collider/throw, wave-2 scouts, each checked first):
+- fab5a66 A launcher, break action or revolver reloaded in the free hand put one round into a chamber it has none of
+  (AmmoState.RackForward ran for every action): the rounds it fires from were one short, so a launcher never fired again
+  and the counter showed a round. Also: OpenVRRuntime.Stop guards each subsystem step (one throwing left the display
+  running); VRManager runs VR events and frame pacing guarded; PerfProbe.Frame made a closure every probed frame (counted
+  in its own GC figures); VRInputModule raycasts only with a hit to use.
+- 5e99b90 Back in the same seat, the palm pair of the last ride seeded the stick or wheel grab (offset until let go);
+  the steering rim read each mesh's vertices three times; the post-process layer was looked up every frame while off;
+  melee swings built the weapon's name and the blow labels per point per fast frame (an offline test keeps the labels
+  in PropKind's order).
+- 33e82f4 A gun switched to semi stayed semi-only after VR stopped (the set was cleared with its configuration still
+  semi: no selector in flat play, not counted automatic on a VR restart); now set back to auto. Lens flash: a rotary
+  gun's per-barrel systems split once per muzzle cache (four allocations a shot); stash counts copied in place; the
+  flash-less log message built once per weapon.
+- d212e50 VRInput.Ready stayed set after VR stopped and every button kept its state: a grip held as VR stopped read as
+  let go on the next start's first frame (VRInput.Shutdown). VRManager's flat notice: no GUILayout pass (it ran every
+  frame, in VR too) and its styles made once. WristHud's ring material through sharedMaterial; SquadPointing no longer
+  reads an order screen that is gone while its label fades.
+- 1e02fed VRRig.Dispose guards each step (one throwing left the rig root and its eye cameras in flat play).
+- 5e38bf0 Clean: HeldWeapon split into HeldWeapon.cs, .Shape.cs and .Parts.cs (a pure move, checked by line multiset).
+
+Checked and not changed (the reason each):
+- WeaponDrops: drop velocity set before OutOfTheGround moves the body (scout, "major"): the move does not change the
+  velocity, and the body leaves the surface before its first step; continuous detection catches the fall. Order
+  makes no difference.
+- LensFlash stash "overwritten" by a third shot in a frame: the only two weapons are the hands'; a gun firing twice in
+  a frame supersedes its own older shot, as it always did.
+- GroundCheck's fallback to the game's cast after 64 loose bodies: needs 64 light bodies in one hip-level sphere.
+- VRRig per-frame game calls (EnableFirstPersonRenderingMode, seat.HasAnyMountedWeapons, the scenery camera reads):
+  their cost is the game's; time them with PerfProbe in a headset session before caching.
+- VRInputModule.OnTarget's GetComponent<Canvas> per result while the laser is on a panel: a handful a frame.
