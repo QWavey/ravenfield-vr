@@ -420,6 +420,11 @@ namespace RavenfieldVR.Rig
         /// </summary>
         public Vector3 KeepOut;
         public int KeepOutFrame = -10;
+        /// <summary>
+        /// The frame <see cref="KeepOut"/> was last set by <see cref="SweptKeepOut"/>: a swept contact is continuous already (the
+        /// glove only moves from where it was drawn), so it is applied at once instead of eased.
+        /// </summary>
+        public int KeepOutSweptFrame = -10;
         private Vector3 _keepOut;
 
         /// <summary>
@@ -560,6 +565,33 @@ namespace RavenfieldVR.Rig
             return WayOutDirs[0] * max;
         }
 
+        // The sweep's glove test, made once: shifts are from where the tracked hand puts the glove (GloveSweep's space).
+        private System.Func<Vector3, bool> _sweepBlocked, _gloveAtShift;
+        private Vector3 _sweepBase;
+
+        /// <summary>
+        /// The keep-out by contact (<see cref="GloveSweep"/>): the glove swept from where it was drawn
+        /// (<paramref name="lastDrawnRoot"/>, world) toward the tracked hand plus <paramref name="aim"/> (a shift what it holds
+        /// already needs), stopped where it meets <paramref name="blocked"/> and slid along <paramref name="axes"/>. However
+        /// fast or deep the real hand goes, the glove neither passes into nor through. Null when the glove is not posed or its
+        /// last place cannot be freed nearby: search the shortest way out instead (<see cref="ShortestWayOut"/>).
+        /// </summary>
+        internal Vector3? SweptKeepOut(System.Func<Vector3, bool> blocked, Vector3 lastDrawnRoot, Vector3 aim, Vector3[] axes, float release)
+        {
+            if (!_skinValid)
+            {
+                return null;
+            }
+            _sweepBlocked = blocked;
+            _sweepBase = TrackedShift;
+            if (_gloveAtShift == null)
+            {
+                _gloveAtShift = s => GloveIn(_sweepBlocked, _sweepBase + s);
+            }
+            // Fingers closing onto the gun put the last place a few millimetres in: freed within 3 cm, more is the gun moved onto it.
+            return GloveSweep.Shift(_gloveAtShift, lastDrawnRoot - PlacedTarget().position, aim, axes, 0.005f, release, 0.03f);
+        }
+
         private bool GloveIn(System.Func<Vector3, bool> blocked, Vector3 shift)
         {
             for (int i = 0; i < _skinA.Length; i++)
@@ -675,8 +707,12 @@ namespace RavenfieldVR.Rig
             // for a few frames while the magazine it held stopped on the gun's face (user, 2026-10-16: "hands and mags
             // glitch through weapons"). Only growing it is immediate, so a keep-out that flickers does not shake the glove.
             // Out at up to 4 m/s (4.4 cm a frame keeps up with a fast hand; at once, a full 12 cm clearance or a flip of side
-            // jumped the glove in one frame; 255.I2-2), back in eased.
-            _keepOut = wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
+            // jumped the glove in one frame; 255.I2-2), back in eased. A swept contact goes at once: it only moves the glove
+            // on from where it was drawn, so it cannot jump, and easing it left a hand shoved in faster than 4 m/s inside the
+            // gun for a few frames (user, 2026-10-23).
+            bool swept = keepOut && KeepOutSweptFrame == KeepOutFrame;
+            _keepOut = swept ? wantOut
+                : wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));
         }
 
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>

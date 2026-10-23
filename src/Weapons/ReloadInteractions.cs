@@ -2858,6 +2858,7 @@ namespace RavenfieldVR.Weapons
                     held.FollowHand();
                 }
             }
+            KeepGloveOutAndRemember(off);
         }
 
         /// <summary>
@@ -2992,15 +2993,20 @@ namespace RavenfieldVR.Weapons
                 _freeHandClearSet = false; // away from the gun: its last clear place no longer says where it came from
                 return;
             }
-            _keepOutGun = _held.HandsSolid;
-            _keepOutHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
-            if (_keepOutGun == null && _keepOutHand == null)
+            if (!PrepareKeepOut())
             {
                 return;
             }
-            if (_keepOutBlocked == null)
+            // By contact first (Boneworks' physics hand: stopped where it meets the gun, slid along it), from where the glove was
+            // drawn last frame; the shortest way out of where the hand is now only when there is no such place.
+            if (SweepGlove(off, Vector3.zero))
             {
-                _keepOutBlocked = p => _keepOutGun != null && _keepOutGun(p) || _keepOutHand != null && _keepOutHand.NearSkin(p, GunVolume.Grow);
+                if (off.Model.KeepOut.sqrMagnitude < 1e-6f)
+                {
+                    _freeHandClearGun = Rig.ToGun(off.Palm.position);
+                    _freeHandClearSet = true;
+                }
+                return;
             }
             Vector3 bore = Rig.ToWorld(Data.MuzzlePoint);
             Vector3 away = Vector3.ProjectOnPlane(off.Palm.position - bore, Rig.AimWorld);
@@ -3021,21 +3027,94 @@ namespace RavenfieldVR.Weapons
 
         private void KeepOutOfGun(VRHand off, MagazineProp prop)
         {
-            _keepOutGun = _held.HandsSolid;
-            _keepOutHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
-            if (_keepOutGun == null && _keepOutHand == null)
+            if (!PrepareKeepOut())
             {
                 return;
-            }
-            if (_keepOutBlocked == null)
-            {
-                _keepOutBlocked = p => _keepOutGun != null && _keepOutGun(p) || _keepOutHand != null && _keepOutHand.NearSkin(p, GunVolume.Grow);
             }
             Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
             float length = Vector3.Distance(prop.BaseLocal, prop.TipLocal);
             float back = off.Model.ClearanceAlong(insert, _keepOutBlocked, Mathf.Min(0.12f, length));
             off.Model.KeepOut = -insert * back;
             off.Model.KeepOutFrame = Time.frameCount;
+            _seatKeepOutFrame = Time.frameCount;
+        }
+
+        /// <summary>What the glove is kept out of: the held gun's solid and the gun hand's skin. False when there is neither.</summary>
+        private bool PrepareKeepOut()
+        {
+            _keepOutGun = _held.HandsSolid;
+            _keepOutHand = _sys.Rig.Dominant != null ? _sys.Rig.Dominant.Model : null;
+            if (_keepOutGun == null && _keepOutHand == null)
+            {
+                return false;
+            }
+            if (_keepOutBlocked == null)
+            {
+                _keepOutBlocked = p => _keepOutGun != null && _keepOutGun(p) || _keepOutHand != null && _keepOutHand.NearSkin(p, GunVolume.Grow);
+            }
+            return true;
+        }
+
+        /// <summary>The frame the seating magazine's keep-out (back along its line, <see cref="KeepOutOfGun"/>) last set the glove's.</summary>
+        private int _seatKeepOutFrame = -10;
+
+        /// <summary>Where the off glove's root was drawn last frame, in the gun's space (it moves with the gun), and in which frame.</summary>
+        private Vector3 _offGloveDrawnGun;
+        private int _offGloveDrawnFrame = -10;
+
+        // Held at the gun more than this from where the real hand is, with that hand clear of it (it went round or through to the
+        // far side), the glove is let go to the hand: Boneworks' stuck hand is put back on the tracked one the same way.
+        private const float GloveRelease = 0.15f;
+        private static readonly Vector3[] GloveSlideAxes = new Vector3[3];
+
+        /// <summary>
+        /// The off glove kept out of the gun by contact (<see cref="RavenfieldVR.Rig.HandModel.SweptKeepOut"/>), aimed at the tracked hand plus
+        /// <paramref name="aim"/>, swept from where it was drawn last frame. False when it was not drawn by the gun last frame
+        /// or that place cannot be freed nearby: the caller keeps its own keep-out.
+        /// </summary>
+        private bool SweepGlove(VRHand off, Vector3 aim)
+        {
+            if (Time.frameCount - _offGloveDrawnFrame != 1 || off.Model == null)
+            {
+                return false;
+            }
+            Vector3 up = Rig.UpWorld, aimDir = Rig.AimWorld;
+            GloveSlideAxes[0] = aimDir;
+            GloveSlideAxes[1] = up;
+            GloveSlideAxes[2] = Vector3.Cross(up, aimDir).normalized;
+            Vector3? shift = off.Model.SweptKeepOut(_keepOutBlocked, Rig.ToWorld(_offGloveDrawnGun), aim, GloveSlideAxes, GloveRelease);
+            if (!shift.HasValue)
+            {
+                return false;
+            }
+            off.Model.KeepOut = shift.Value;
+            off.Model.KeepOutFrame = Time.frameCount;
+            off.Model.KeepOutSweptFrame = Time.frameCount;
+            return true;
+        }
+
+        /// <summary>
+        /// A hand holding a magazine off the well's line is kept out of the gun by contact too, aimed where it holds the magazine
+        /// (the magazine keeps itself out; the glove went in on its own: after a double-magazine reload the old magazine, promoted
+        /// in the hand still up at the well, eased in from beside it and its glove slid into the gun; user, 2026-10-23). Then the
+        /// glove's place this frame is kept for the next sweep. Last in <see cref="BeforeRender"/>: after every keep-out is set.
+        /// </summary>
+        private void KeepGloveOutAndRemember(VRHand off)
+        {
+            if (off.Model == null || !off.Tracked || Rig.GunBody == null
+                || (off.Palm.position - _held.GripWorld.position).sqrMagnitude > 0.7f * 0.7f)
+            {
+                _offGloveDrawnFrame = -10;
+                return;
+            }
+            if (off.Role == HandRole.Magazine && off.Held is MagazineProp held && !held.OnRail && _seatKeepOutFrame != Time.frameCount
+                && PrepareKeepOut())
+            {
+                SweepGlove(off, off.Model.KeepOutFrame == Time.frameCount ? off.Model.KeepOut : Vector3.zero);
+            }
+            off.Model.PlacedFromTracked(out _, out RigidPose placed);
+            _offGloveDrawnGun = Rig.ToGun(placed.position);
+            _offGloveDrawnFrame = Time.frameCount;
         }
 
         /// <summary>The point of the handguard (just under the bore, between the grip and the muzzle) nearest to <paramref name="point"/>.</summary>

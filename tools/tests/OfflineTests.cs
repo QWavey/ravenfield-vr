@@ -85,6 +85,88 @@ namespace RavenfieldVR.Tests
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
+            GloveSweepTests(mod);
+        }
+
+        /// <summary>
+        /// The drawn hand's contact with the gun (GloveSweep.Shift, Boneworks' physics hand): a 3 cm ball for the glove against
+        /// boxes for the gun, shifts from where the tracked hand puts it. A swipe through a thin receiver in one frame stays on the
+        /// near side, a hand pushed 10 cm deep stays at the surface, a clear hand is followed exactly, a diagonal push slides up
+        /// the wall, fingers closed a few millimetres into the gun are freed on their own side, and a hand far past the gun lets
+        /// the glove go to it (user, 2026-10-23: hands glitch through the gun with enough force, or on a double-magazine reload).
+        /// </summary>
+        private static void GloveSweepTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo shift = mod.GetType("RavenfieldVR.Rig.GloveSweep")?.GetMethod("Shift",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(shift != null, "Glove sweep: GloveSweep.Shift found");
+            if (shift == null)
+            {
+                return;
+            }
+            const float R = 0.03f;
+            var axes = new[] { new UnityEngine.Vector3(1f, 0f, 0f), new UnityEngine.Vector3(0f, 1f, 0f), new UnityEngine.Vector3(0f, 0f, 1f) };
+            // The glove (a ball round the tracked hand plus the shift) against a box min..max.
+            Func<UnityEngine.Vector3, bool> Ball(UnityEngine.Vector3 tracked, UnityEngine.Vector3 min, UnityEngine.Vector3 max) => s =>
+            {
+                UnityEngine.Vector3 c = tracked + s;
+                float dx = Math.Max(min.x - c.x, Math.Max(0f, c.x - max.x));
+                float dy = Math.Max(min.y - c.y, Math.Max(0f, c.y - max.y));
+                float dz = Math.Max(min.z - c.z, Math.Max(0f, c.z - max.z));
+                return dx * dx + dy * dy + dz * dz < R * R;
+            };
+            UnityEngine.Vector3? Run(Func<UnityEngine.Vector3, bool> blocked, UnityEngine.Vector3 from)
+                => (UnityEngine.Vector3?)shift.Invoke(null, new object[] { blocked, from, UnityEngine.Vector3.zero, axes, 0.005f, 0.15f, 0.03f });
+            var slabMin = new UnityEngine.Vector3(0.05f, -0.05f, -0.3f);
+            var slabMax = new UnityEngine.Vector3(0.09f, 0.05f, 0.3f); // a 4 cm receiver
+
+            // A swipe from 2 cm before the receiver to 6 cm past it in one frame: the tracked hand lands clear on the far side.
+            var far = new UnityEngine.Vector3(0.15f, 0f, 0f);
+            Func<UnityEngine.Vector3, bool> slab = Ball(far, slabMin, slabMax);
+            UnityEngine.Vector3? r = Run(slab, new UnityEngine.Vector3(-0.02f, 0f, 0f) - far);
+            UnityEngine.Vector3 glove = far + r.GetValueOrDefault();
+            Check(r.HasValue && !slab(r.Value) && glove.x < slabMin.x - R + 0.006f,
+                  $"Glove sweep: a fast swipe through a 4 cm receiver stays on the near side (glove x {glove.x * 100f:0.0} cm, wall at {(slabMin.x - R) * 100f:0.0})");
+
+            // The same swipe on 30 cm past it: the real hand is far beyond the gun, the glove is let go to it.
+            var wayPast = new UnityEngine.Vector3(0.30f, 0f, 0f);
+            r = Run(Ball(wayPast, slabMin, slabMax), new UnityEngine.Vector3(-0.02f, 0f, 0f) - wayPast);
+            Check(r.HasValue && r.Value.sqrMagnitude < 1e-8f, "Glove sweep: a hand 30 cm past the gun takes the glove with it (released)");
+
+            // Pushed 10 cm deep into a 20 cm block: the glove stays at the surface, never inside.
+            var blockMax = new UnityEngine.Vector3(0.25f, 0.05f, 0.3f);
+            var deep = new UnityEngine.Vector3(0.15f, 0f, 0f);
+            Func<UnityEngine.Vector3, bool> block = Ball(deep, slabMin, blockMax);
+            r = Run(block, new UnityEngine.Vector3(-0.02f, 0f, 0f) - deep);
+            glove = deep + r.GetValueOrDefault();
+            Check(r.HasValue && !block(r.Value) && Math.Abs(glove.x - (slabMin.x - R)) < 0.006f,
+                  $"Glove sweep: a hand pushed 10 cm into the gun keeps the glove at its surface (glove x {glove.x * 100f:0.0} cm)");
+
+            // Nothing in the way: the glove is drawn exactly at the hand.
+            r = Run(Ball(new UnityEngine.Vector3(-0.2f, 0f, 0f), slabMin, slabMax), new UnityEngine.Vector3(-0.05f, 0f, 0f));
+            Check(r.HasValue && r.Value.sqrMagnitude < 1e-8f, "Glove sweep: a hand clear of the gun is followed exactly");
+
+            // Pushed diagonally into a wall: the glove stops at it and slides up to the hand's height.
+            var wallMax = new UnityEngine.Vector3(0.5f, 1f, 1f);
+            var wallMin = new UnityEngine.Vector3(0.05f, -1f, -1f);
+            var diag = new UnityEngine.Vector3(0.1f, 0.1f, 0f);
+            Func<UnityEngine.Vector3, bool> wall = Ball(diag, wallMin, wallMax);
+            r = Run(wall, new UnityEngine.Vector3(0.01f, 0f, 0f) - diag);
+            glove = diag + r.GetValueOrDefault();
+            Check(r.HasValue && !wall(r.Value) && Math.Abs(glove.y - 0.1f) < 0.006f && glove.x < wallMin.x - R + 0.006f,
+                  $"Glove sweep: pushed diagonally into a wall the glove slides along it to the hand's height (glove {glove.x * 100f:0.0}, {glove.y * 100f:0.0} cm)");
+
+            // Fingers closed 5 mm into the receiver: freed on their own side, not pushed through.
+            var inside = new UnityEngine.Vector3(0.1f, 0f, 0f);
+            Func<UnityEngine.Vector3, bool> grip = Ball(inside, slabMin, blockMax);
+            r = Run(grip, new UnityEngine.Vector3(0.025f, 0f, 0f) - inside);
+            glove = inside + r.GetValueOrDefault();
+            Check(r.HasValue && !grip(r.Value) && glove.x < slabMin.x - R + 0.006f,
+                  $"Glove sweep: fingers a few millimetres in are freed on their own side (glove x {glove.x * 100f:0.0} cm)");
+
+            // Its last place deep in the gun (the gun swung onto the hand): no contact to keep; the caller searches instead.
+            r = Run(grip, new UnityEngine.Vector3(0.15f, 0f, 0f) - inside);
+            Check(!r.HasValue, "Glove sweep: a last place deep in the gun is left to the caller's search");
         }
 
         /// <summary>
