@@ -2667,3 +2667,13 @@ Checked and not changed (the reason each):
 - VRRig per-frame game calls (EnableFirstPersonRenderingMode, seat.HasAnyMountedWeapons, the scenery camera reads):
   their cost is the game's; time them with PerfProbe in a headset session before caching.
 - VRInputModule.OnTarget's GetComponent<Canvas> per result while the laser is on a panel: a handful a frame.
+
+Paused here (user left, 2026-10-23 evening). Next:
+- ShapeFit (a drop's collider pieces, main thread): tools/tests/ShapeFitBench.cs times it on the offline cloud: 1.67 ms a
+  fit of 2600 points, of which Slices 1.19 ms (hull points 242, 6 pieces: must stay the same). Look at Slices' 2D arrays
+  (bool/float[bins, cells], best[s, Directions + 2]) and the Vector3 indexers p[za]/p[ya]/p[xa] per point per direction.
+  Not yet in bench.ps1 (run: compile like GunVolumeBench, args: Managed dir, build/RavenfieldVR.dll).
+- Three read-only scouts were still running at the pause (render effects: LensEffects/VRScope/MagnifierFlip/
+  MuzzleFireball/MudSplash; UI lifecycle: CanvasManager/LoadingView/VRSettingsPanel/UISystem/SquadObjectiveMarkers/
+  IntroStage/HandPreview; installer/launcher). Their reports are in the session; verify each finding before fixing.
+- The installed game build is the 18:40 one: every commit since (fab5a66..) is built in build/ and dist/, not installed.
