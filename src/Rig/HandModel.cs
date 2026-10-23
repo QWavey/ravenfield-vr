@@ -609,7 +609,9 @@ namespace RavenfieldVR.Rig
                     return true;
                 }
             }
-            Matrix4x4 m = _root.localToWorldMatrix;
+            // The palm as posed with the capsules above (shifts are from where the skin was posed): the frame kept with the skin,
+            // not read from the transform (a native call) at every one of a sweep's placements.
+            Matrix4x4 m = _skinRootToWorld;
             foreach (Vector3 p in PalmSkin)
             {
                 if (blocked(m.MultiplyPoint3x4(p) + shift))
@@ -942,6 +944,11 @@ namespace RavenfieldVR.Rig
         private readonly Vector3[] _skinA = new Vector3[15], _skinB = new Vector3[15];
         private readonly float[] _skinR = new float[15];
         private bool _skinValid;
+        // With the skin: the palm's frame as posed (NearSkin's palm box test took it from the transform, a native call, for every
+        // point), and a sphere holding every capsule and the palm box, which answers most points with one distance.
+        private Matrix4x4 _skinRootInv, _skinRootToWorld;
+        private Vector3 _skinCenter;
+        private float _skinRadius;
 
         private void UpdateSkin()
         {
@@ -951,6 +958,7 @@ namespace RavenfieldVR.Rig
                 return;
             }
             int n = 0;
+            float rMax = 0f;
             for (int f = 0; f < 5; f++)
             {
                 for (int s = 0; s < 3; s++)
@@ -958,9 +966,28 @@ namespace RavenfieldVR.Rig
                     _skinA[n] = _joints[f][s].position;
                     _skinB[n] = s < 2 ? _joints[f][s + 1].position : _joints[f][2].TransformPoint(_child[f, 2]);
                     _skinR[n] = _shape.Radius[f, s] * _scale;
+                    rMax = Mathf.Max(rMax, _skinR[n]);
                     n++;
                 }
             }
+            _skinRootInv = _root.worldToLocalMatrix;
+            Matrix4x4 toWorld = _skinRootToWorld = _root.localToWorldMatrix;
+            Vector3 lo = _shape.PalmMin, hi = _shape.PalmMax;
+            Vector3 min = _skinA[0], max = _skinA[0];
+            for (int i = 0; i < n; i++)
+            {
+                min = Vector3.Min(Vector3.Min(min, _skinA[i]), _skinB[i]);
+                max = Vector3.Max(Vector3.Max(max, _skinA[i]), _skinB[i]);
+            }
+            for (int c = 0; c < 8; c++)
+            {
+                // The palm box's corners as NearSkin tests them (its x for the right hand: mirrored back for the left).
+                Vector3 corner = toWorld.MultiplyPoint3x4(new Vector3(((c & 1) == 0 ? lo.x : hi.x) * _hand.Mirror, (c & 2) == 0 ? lo.y : hi.y, (c & 4) == 0 ? lo.z : hi.z));
+                min = Vector3.Min(min, corner);
+                max = Vector3.Max(max, corner);
+            }
+            _skinCenter = (min + max) * 0.5f;
+            _skinRadius = (max - min).magnitude * 0.5f + rMax;
         }
 
         /// <summary>
@@ -1032,6 +1059,13 @@ namespace RavenfieldVR.Rig
             {
                 return false;
             }
+            // Beyond the sphere round the whole skin: near none of it (the usual answer, for a free hand's points tested
+            // against the gun hand every frame).
+            float ox = p.x - _skinCenter.x, oy = p.y - _skinCenter.y, oz = p.z - _skinCenter.z, reach = _skinRadius + grow;
+            if (ox * ox + oy * oy + oz * oz > reach * reach)
+            {
+                return false;
+            }
             for (int i = 0; i < _skinA.Length; i++)
             {
                 Vector3 a = _skinA[i], ab = _skinB[i] - a;
@@ -1042,7 +1076,7 @@ namespace RavenfieldVR.Rig
                     return true;
                 }
             }
-            Vector3 l = _root.InverseTransformPoint(p); // palm space (the glove's scale undone)
+            Vector3 l = _skinRootInv.MultiplyPoint3x4(p); // palm space as posed (the glove's scale undone)
             float g = grow / _scale;
             float x = l.x * _hand.Mirror; // as for the right hand
             Vector3 lo = _shape.PalmMin, hi = _shape.PalmMax;

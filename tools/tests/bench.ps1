@@ -17,4 +17,14 @@ Invoke-Csc @(
     (Join-Path $PSScriptRoot 'GunVolumeBench.cs')
 )
 & $exe $Managed (Join-Path $Root 'build/RavenfieldVR.dll')
-exit $LASTEXITCODE
+$code = $LASTEXITCODE
+# The glove skin's nearness test (HandModel.NearSkin), as copies before and after its bounding sphere (tools/tests/SkinBench.cs).
+$skin = Join-Path $out 'SkinBench.exe'
+Invoke-Csc @(
+    '-nologo', '-target:exe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig', "-out:$skin",
+    "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll",
+    (Join-Path $PSScriptRoot 'SkinBench.cs')
+)
+& $skin
+if ($LASTEXITCODE -ne 0) { $code = 1 }
+exit $code
