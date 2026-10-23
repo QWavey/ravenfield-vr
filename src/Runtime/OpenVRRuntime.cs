@@ -171,17 +171,12 @@ namespace RavenfieldVR.Runtime
                 return;
             }
             Running = false;
-            try
-            {
-                InputSubsystem?.Stop();
-                Display?.Stop();
-                InputSubsystem?.Destroy();
-                Display?.Destroy();
-            }
-            catch (Exception e)
-            {
-                Log.Exception("Stopping OpenVR", e);
-            }
+            // Each step on its own: one that threw skipped the rest, and the display was left running (and owning the
+            // compositor) when only the input's stop failed.
+            Log.Guard("Stopping OpenVR input", () => InputSubsystem?.Stop());
+            Log.Guard("Stopping OpenVR display", () => Display?.Stop());
+            Log.Guard("Destroying OpenVR input", () => InputSubsystem?.Destroy());
+            Log.Guard("Destroying OpenVR display", () => Display?.Destroy());
             InputSubsystem = null;
             Display = null;
             DashboardOpen = false; // left open when SteamVR went, the next start's first opening was taken as no change (lifecycle hunt)

@@ -106,8 +106,14 @@ namespace RavenfieldVR.Core
             FrameTimes.Add(frameMs);
             if (Slowest.Count < SlowestKept || frameMs > Slowest[Slowest.Count - 1].Key)
             {
-                int at = Slowest.FindIndex(k => k.Key < frameMs);
-                Slowest.Insert(at < 0 ? Slowest.Count : at, new KeyValuePair<float, string>(frameMs, Where ?? "-"));
+                // (A loop, not FindIndex with a lambda: capturing frameMs allocated a closure every probed frame, garbage
+                // counted in the very GC figures this probe reports.)
+                int at = 0;
+                while (at < Slowest.Count && Slowest[at].Key >= frameMs)
+                {
+                    at++;
+                }
+                Slowest.Insert(at, new KeyValuePair<float, string>(frameMs, Where ?? "-"));
                 if (Slowest.Count > SlowestKept)
                 {
                     Slowest.RemoveAt(SlowestKept);

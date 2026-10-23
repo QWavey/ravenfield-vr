@@ -430,12 +430,14 @@ namespace RavenfieldVR.Weapons
         /// round from the magazine (264): with none to chamber, a gun that locks open on empty stays caught back. Released
         /// with nothing chambered it went home unlocked; the empty animator held it back, and the next magazine (with rounds)
         /// sent it home without a round, so it went forward on its own and still needed a pull (user, 2026-10-18).
+        /// A launcher, break action or revolver has no chamber apart from its rounds: one taken into the chamber left the
+        /// rounds (which it fires from) one short, so a launcher reloaded in the free hand never fired again (scout, 2026-10-23).
         /// </summary>
         /// <returns>True if a round was chambered.</returns>
         public bool RackForward()
         {
             SlideLocked = false;
-            bool hasRound = FeedReady && MagRounds > 0;
+            bool hasRound = UsesChamber && FeedReady && MagRounds > 0;
             if (hasRound && !Chambered)
             {
                 MagRounds--;

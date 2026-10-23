@@ -118,14 +118,15 @@ namespace RavenfieldVR.UI
             _data.button = PointerEventData.InputButton.Left;
 
             _results.Clear();
-            eventSystem.RaycastAll(_data, _results);
             // The first hit on one of the canvases the laser targets: past the panel, the event camera's ray found any raycast
             // target of any canvas (a HUD element), which took the click and blocked the trigger (review, 2026-10-20); and the
             // results come sorted by sorting order first, so a HUD canvas sorted above the menu took it over the panel too (UI hunt,
-            // 2026-10-20 night).
+            // 2026-10-20 night). Cast only when the laser is on a panel: its results were thrown away otherwise, after asking every
+            // raycaster in the scene (the game's HUD too) every menu frame (UI hunt, 2026-10-23).
             RaycastResult first = default;
             if (HasHit)
             {
+                eventSystem.RaycastAll(_data, _results);
                 foreach (RaycastResult r in _results)
                 {
                     if (r.gameObject != null && OnTarget(r))
