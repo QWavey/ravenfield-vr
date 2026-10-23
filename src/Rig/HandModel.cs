@@ -588,9 +588,16 @@ namespace RavenfieldVR.Rig
             {
                 _gloveAtShift = s => GloveIn(_sweepBlocked, _sweepBase + s);
             }
+            // The settle onto a part still easing off (a bolt let go with the hand inside the gun: the glove eases back from the
+            // handle) is part of where the glove is drawn: swept with it, and taken back out of the keep-out (Apply adds it).
+            Vector3 g = _graspOffset;
             // Fingers closing onto the gun put the last place a few millimetres in: freed within 3 cm, more is the gun moved onto it.
-            return GloveSweep.Shift(_gloveAtShift, lastDrawnRoot - PlacedTarget().position, aim, axes, 0.005f, release, 0.03f);
+            Vector3? shift = GloveSweep.Shift(_gloveAtShift, lastDrawnRoot - PlacedTarget().position, aim + g, axes, 0.005f, release, 0.03f);
+            return shift.HasValue ? shift.Value - g : (Vector3?)null;
         }
+
+        /// <summary>The glove's settle onto the part it works (eased in <see cref="Apply"/>), as it is now.</summary>
+        internal Vector3 GraspOffset => _graspOffset;
 
         private bool GloveIn(System.Func<Vector3, bool> blocked, Vector3 shift)
         {

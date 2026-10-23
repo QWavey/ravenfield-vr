@@ -2213,6 +2213,15 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How far the support hand may be pulled from the handguard with the grip closed before it lets go.</summary>
         private const float SupportLetGo = 0.6f;
+        /// <summary>How far off a racked part's stroke line the hand may drift before it lets go of the part.</summary>
+        private const float RackDrift = 0.35f;
+        /// <summary>
+        /// How far past either end of its stroke the hand may pull a racked part before it lets go (the part stops there; the
+        /// real hand does not): Boneworks' grips break the same way once the hand has desynced from them.
+        /// </summary>
+        private const float RackOvershoot = 0.3f;
+        /// <summary>How far the glove of a hand working a part stays on it: to the rack's let-go, drift and overshoot together.</summary>
+        private const float HeldPartReach = 0.46f;
         private float _nextStretchBuzz;
         /// <summary>
         /// The support hand's distance from its own point (see <see cref="SupportAtOwnPoint"/>) where the hold took it: the stretch
@@ -2643,7 +2652,10 @@ namespace RavenfieldVR.Weapons
             }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
-            if (!off.GrabHeld || drift > 0.35f)
+            // Past the stroke's ends the part stops and the hand pulls on alone: far enough on, it has let go.
+            float unclamped = _rackBase + pull / StrokeLength;
+            float past = Mathf.Max(0f, Mathf.Max(unclamped - 1f, -unclamped)) * StrokeLength;
+            if (!off.GrabHeld || drift > RackDrift || past > RackOvershoot)
             {
                 EndRack(off, chamber: true);
             }
@@ -2935,9 +2947,13 @@ namespace RavenfieldVR.Weapons
                 }
             }
             off.Model.GraspAnchor = anchor;
-            // The support hand keeps to the handguard however far the stretch (see the foregrip's let-go); the others settle
-            // a few centimetres at most.
-            off.Model.GraspReach = off.Role == HandRole.Foregrip && !GripData.IsPistol ? SupportLetGo : 0.05f;
+            // The support hand keeps to the handguard however far the stretch (see the foregrip's let-go); a hand working a
+            // part (a bolt, handle, slide or pump being racked, a feed cover or an optic held) stays on it for as far as it
+            // holds it, as Boneworks' grip joint keeps the hand on the handle until the hand desyncs; the others settle a few
+            // centimetres at most. At 5 cm a hand drifting while racking left the glove off the handle, and a hand shoved into
+            // the gun drew it up to 30 cm inside (user, 2026-10-23: "hands glitch through the gun with enough force").
+            bool workedPart = anchor.HasValue && (off.Role == HandRole.Slide || off.Role == HandRole.Hinge || off.Role == HandRole.Optic);
+            off.Model.GraspReach = off.Role == HandRole.Foregrip && !GripData.IsPistol ? SupportLetGo : workedPart ? HeldPartReach : 0.05f;
             off.Model.GraspPinch = pinch;
         }
 
@@ -3113,7 +3129,7 @@ namespace RavenfieldVR.Weapons
                 SweepGlove(off, off.Model.KeepOutFrame == Time.frameCount ? off.Model.KeepOut : Vector3.zero);
             }
             off.Model.PlacedFromTracked(out _, out RigidPose placed);
-            _offGloveDrawnGun = Rig.ToGun(placed.position);
+            _offGloveDrawnGun = Rig.ToGun(placed.position + off.Model.GraspOffset);
             _offGloveDrawnFrame = Time.frameCount;
         }
 

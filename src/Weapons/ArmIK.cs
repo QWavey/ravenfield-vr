@@ -108,8 +108,11 @@ namespace RavenfieldVR.Weapons
                 bool anchored = off.Model != null && off.Model.GraspAnchor.HasValue;
                 // The point the glove grips with goes onto the part (the fist hollow, or the pinch on a bolt handle), not the
                 // palm centre: the arm sat 4 cm off what the glove held.
-                // This frame's grip point (the glove's is placed after the arm), eased with the glove's own time step.
-                Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - off.Model.GraspPointNow(), 0.05f) : Vector3.zero;
+                // This frame's grip point (the glove's is placed after the arm), eased with the glove's own time step. As far
+                // as the glove goes onto a part it works (a racked bolt or handle holds the hand all the way, Boneworks style):
+                // held at 5 cm the arm stayed with the real hand while the glove was on the handle.
+                float reach = off.Role == HandRole.Foregrip ? 0.05f : off.Model.GraspReach;
+                Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - off.Model.GraspPointNow(), reach) : Vector3.zero;
                 _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * Time.unscaledDeltaTime));
                 at += _anchorOffset;
                 var free = new RigidPose(at - palmPoint, rot);
