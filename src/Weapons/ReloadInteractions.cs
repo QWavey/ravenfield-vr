@@ -3040,6 +3040,13 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Its last clear place is only good while the hand stayed empty: kept from before it held something (a magazine,
+            // a bolt), it sent the way-out search back toward a place it had long left (review, 2026-10-23).
+            if (Time.frameCount - _freeHandFrame > 1)
+            {
+                _freeHandClearSet = false;
+            }
+            _freeHandFrame = Time.frameCount;
             // By contact first (Boneworks' physics hand: stopped where it meets the gun, slid along it), from where the glove was
             // drawn last frame; the shortest way out of where the hand is now only when there is no such place.
             if (SweepGlove(off, Vector3.zero))
@@ -3067,6 +3074,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>The free hand's palm where its glove was last clear of the gun (gun space), for the way back out.</summary>
         private Vector3 _freeHandClearGun;
         private bool _freeHandClearSet;
+        /// <summary>The last frame the hand was kept out of the gun as an empty hand.</summary>
+        private int _freeHandFrame = -10;
 
         private void KeepOutOfGun(VRHand off, MagazineProp prop)
         {
@@ -3156,7 +3165,7 @@ namespace RavenfieldVR.Weapons
                 SweepGlove(off, off.Model.KeepOutFrame == Time.frameCount ? off.Model.KeepOut : Vector3.zero);
             }
             off.Model.PlacedFromTracked(out _, out RigidPose placed);
-            _offGloveDrawnGun = Rig.ToGun(placed.position + off.Model.GraspOffset);
+            _offGloveDrawnGun = Rig.ToGun(placed.position + off.Model.GraspOffsetNext()); // where Apply draws it this frame
             _offGloveDrawnFrame = Time.frameCount;
         }
 
