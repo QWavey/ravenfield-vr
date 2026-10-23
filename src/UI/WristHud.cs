@@ -56,7 +56,7 @@ namespace RavenfieldVR.UI
             _ring.numCapVertices = 3;
             _ring.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _ring.receiveShadows = false;
-            _ring.material = new Material(Shader.Find("Sprites/Default"));
+            _ring.sharedMaterial = new Material(Shader.Find("Sprites/Default")); // its own, destroyed with it (sharedMaterial: .material may copy)
             _ring.startColor = _ring.endColor = new Color(0.86f, 0.9f, 0.84f, 0.9f);
             ringGo.SetActive(false);
         }
@@ -199,7 +199,7 @@ namespace RavenfieldVR.UI
             }
             if (_ring != null)
             {
-                Object.Destroy(_ring.material);
+                Object.Destroy(_ring.sharedMaterial); // (read through .material, a copy could be made here and the original kept)
                 Object.Destroy(_ring.gameObject);
             }
             _plate.Destroy();

@@ -228,7 +228,8 @@ namespace RavenfieldVR.UI
                 _plate.SetAlpha(_alpha);
             }
 
-            Vector3? target = Pointing ? Target(ui) : null;
+            // (Not with the order screen gone: the label still fades out for a moment, and Target read the destroyed screen.)
+            Vector3? target = Pointing && ui != null ? Target(ui) : null;
             bool arrow = target.HasValue;
             if (_arrow.activeSelf != arrow)
             {

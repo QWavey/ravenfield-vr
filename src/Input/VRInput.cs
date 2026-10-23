@@ -115,6 +115,7 @@ namespace RavenfieldVR.Input
         /// <summary>Extracts the embedded manifest + default bindings, registers them with SteamVR and resolves handles.</summary>
         public static bool Initialize()
         {
+            Ready = false; // (a start that fails part way is not left with the last session's handles)
             try
             {
                 string dir = Path.Combine(VRPlugin.PluginDir, "input");
@@ -502,6 +503,29 @@ namespace RavenfieldVR.Input
         private static readonly float[] HandAliveAt = new float[2];
         private static readonly bool[] HandOutageSaved = new bool[2];
         private static readonly bool[] HandRecovering = new bool[2];
+
+        /// <summary>
+        /// VR stopped: nothing is read from the SteamVR that is gone, and no button state is kept for the next start. Ready stayed
+        /// set, so reads went to the old session's input, and a grip held as VR stopped read as let go (and the edges after it
+        /// fired) on the first frame of the next start (bug hunt, 2026-10-23).
+        /// </summary>
+        public static void Shutdown()
+        {
+            Ready = false;
+            LastUpdateFrame = -1;
+            foreach (Array a in new Array[] { Held, Pressed, Released, Consumed, Unclaimed, HeldSince, HeldBeforeOutage, RawState, HandState,
+                                             HandAlive, HandAliveAt, HandOutageSaved, HandRecovering, Trigger, Grip, HapticUntil, HapticAmplitude })
+            {
+                Array.Clear(a, 0, a.Length);
+            }
+            Array.Clear(Curl[0], 0, Curl[0].Length);
+            Array.Clear(Curl[1], 0, Curl[1].Length);
+            _heldBeforeOutageSaved = false;
+            _noDataSince = -1f;
+            _lastActionStateError = EVRInputError.None;
+            Move = Vector2.zero;
+            TurnStick = Vector2.zero;
+        }
 
         /// <summary>
         /// One button of one hand this frame (returns whether it is held; sets its press and release). With the hand's reads in

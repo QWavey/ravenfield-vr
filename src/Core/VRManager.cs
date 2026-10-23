@@ -33,6 +33,9 @@ namespace RavenfieldVR.Core
         private void Awake()
         {
             Instance = this;
+            // The notice below draws with GUI, not GUILayout: no layout pass for it (it ran every frame, in VR too, where
+            // OnGUI returns at once).
+            useGUILayout = false;
         }
 
         private IEnumerator Start()
@@ -153,6 +156,7 @@ namespace RavenfieldVR.Core
         private string _flatNotice;
         private float _flatNoticeUntil;
         private bool _retry, _retrying;
+        private GUIStyle _noticeStyle, _noticeButton;
 
         private void FlatNotice(string text)
         {
@@ -169,16 +173,21 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
-            var style = new GUIStyle(GUI.skin.box) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            style.normal.textColor = Color.white;
+            // The styles made once (GUI.skin is only there inside OnGUI): new ones on each of OnGUI's calls, several a frame.
+            if (_noticeStyle == null)
+            {
+                _noticeStyle = new GUIStyle(GUI.skin.box) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+                _noticeStyle.normal.textColor = Color.white;
+                _noticeButton = new GUIStyle(GUI.skin.button) { fontSize = 18 };
+            }
             // 120 px: three lines and the title (at 90 the last line was cut off; user, 2026-10-19).
             var box = new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 120f);
-            GUI.Box(box, "Ravenfield VR\n" + _flatNotice, style);
+            GUI.Box(box, "Ravenfield VR\n" + _flatNotice, _noticeStyle);
             if (_retrying)
             {
                 return;
             }
-            var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
+            GUIStyle button = _noticeButton;
             const float w = 220f, h = 40f;
             // Try again starts VR in this game (no restart): connect the headset, then press it (user, 2026-10-19).
             if (GUI.Button(new Rect(Screen.width * 0.5f - w - 8f, box.yMax + 8f, w, h), "Try again (F6)", button))
@@ -464,6 +473,7 @@ namespace RavenfieldVR.Core
             UI = null;
             Weapons = null;
             Rig = null;
+            VRInput.Shutdown();
             OpenVRRuntime.Stop();
         }
 
