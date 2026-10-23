@@ -1625,6 +1625,7 @@ namespace RavenfieldVR.Weapons
             _fresh = false;
             HeldBy = hand;
             _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
+            _touchingGun = false; // nor a touch: let go pressed on the gun, the next grab's first touch was felt as a scrape
             LostByHand = false; // (a stale flag let go of the next grip at once; 255.B3-1)
             _drawnFor = null;
             hand.Role = HandRole.Magazine;
@@ -1709,6 +1710,7 @@ namespace RavenfieldVR.Weapons
         {
             _fresh = false;
             HeldBy = hand;
+            _touchingGun = false; // (as Attach)
             _body.isKinematic = true;
             SetCollidersEnabled(false);
             _dropTime = -1f;

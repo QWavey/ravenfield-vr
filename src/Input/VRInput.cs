@@ -235,7 +235,12 @@ namespace RavenfieldVR.Input
             Diagnose(input, err);
             if (err != EVRInputError.None && err != EVRInputError.NoData)
             {
-                Log.WarnOnce("uas:" + err, "UpdateActionState failed: " + err);
+                if (err != _lastActionStateError)
+                {
+                    // Once per error (its key and message were built every frame the input kept failing, only to be dropped).
+                    _lastActionStateError = err;
+                    Log.WarnOnce("uas:" + err, "UpdateActionState failed: " + err);
+                }
                 ClearEdges();
                 return;
             }
@@ -483,6 +488,7 @@ namespace RavenfieldVR.Input
         }
 
         private static float _noDataSince = -1f;
+        private static EVRInputError _lastActionStateError = EVRInputError.None;
         private static readonly bool[] HandState = new bool[2];
         private static readonly bool[,] HeldBeforeOutage = new bool[DigitalCount, 3];
         private static bool _heldBeforeOutageSaved;

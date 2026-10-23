@@ -570,13 +570,15 @@ namespace RavenfieldVR.Input
             // (user, 2026-10-21 night: "when aiming and pressing the switch ... it wants to switch sights and doesnt do the switch").
             Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
             bool aiming = system != null && system.Held != null && system.Held.Aiming;
-            bool sightToFlip = aiming && weapon != null && !system.Held.MagnifierByHand(weapon)
-                               && (ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) != null || weapon.HasAnyAltSightModes());
+            // Asked only when a long press needs it: worked out every aimed frame, its two script-key lookups each built a list
+            // and walked every key (input hunt, 2026-10-23).
+            bool SightToFlip() => aiming && weapon != null && !system.Held.MagnifierByHand(weapon)
+                                  && (ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) != null || weapon.HasAnyAltSightModes());
             if (_pushSwitchedAt >= 0f && (now - _pushSwitchedAt >= 3f || single || longPress))
             {
                 if (now - _pushSwitchedAt < 3f)
                 {
-                    if (longPress && sightToFlip && _pushWeapon == weapon)
+                    if (longPress && _pushWeapon == weapon && SightToFlip())
                     {
                         // Held while aiming: the sight flips, and the switch the press made is put back (the press cannot know yet
                         // whether it is a tap or a hold).

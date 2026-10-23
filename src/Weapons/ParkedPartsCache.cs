@@ -95,6 +95,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             _dirty = false;
+            string tmp = null;
             try
             {
                 var sb = new StringBuilder();
@@ -123,7 +124,7 @@ namespace RavenfieldVR.Weapons
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
                 // A temp file of this process's own (two games sharing the folder), swapped in whole: a failed move after a delete
                 // left no file at all.
-                string tmp = FilePath + "." + System.Diagnostics.Process.GetCurrentProcess().Id + ".tmp";
+                tmp = FilePath + "." + System.Diagnostics.Process.GetCurrentProcess().Id + ".tmp";
                 File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
                 if (File.Exists(FilePath))
                 {
@@ -146,6 +147,19 @@ namespace RavenfieldVR.Weapons
             {
                 _dirty = true; // tried again at the next write (else the entries missed it for the session)
                 Log.WarnOnce("parkedcache-write", "Writing the parked-ammunition cache failed: " + ex.Message);
+                // Its temp file not left behind: named by the process, a new one was left at every session whose swap failed (the
+                // cache held by another game).
+                try
+                {
+                    if (tmp != null && File.Exists(tmp))
+                    {
+                        File.Delete(tmp);
+                    }
+                }
+                catch (Exception)
+                {
+                    // (held as well: nothing more to do)
+                }
             }
         }
 
