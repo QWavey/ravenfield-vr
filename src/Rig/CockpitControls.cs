@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Runtime;
@@ -43,6 +44,7 @@ namespace RavenfieldVR.Rig
 
         /// <summary>A rim of a car or Humvee wheel when its mesh cannot be read: the wheel's origin with this radius.</summary>
         private const float DefaultRimRadius = 0.2f;
+        private static readonly List<Vector3> RimPoints = new List<Vector3>(); // MeasureRim's wheel-space vertices, reused
         /// <summary>How far a hand may sit off the rim's plane (along the turning axis) and off the rim itself and still take it.</summary>
         private const float RimPlaneReach = 0.12f;
         private const float RimRadialReach = 0.12f;
@@ -76,6 +78,7 @@ namespace RavenfieldVR.Rig
             {
                 ReleaseAll();
                 _seat = seat;
+                _palmSeat = null; // back in the same seat, its pair was the last ride's (a stale grab offset the stick until let go)
                 FindControls();
             }
             if (_seat == null || GameContext.GameMenuOpen)
@@ -417,10 +420,12 @@ namespace RavenfieldVR.Rig
             centre = Vector3.zero;
             radius = DefaultRimRadius;
             Transform wt = wheel.transform;
+            // Every vertex in the wheel's space, read once: the mesh's vertices getter copies the whole array, and the three
+            // passes below each read it again (seat-entry garbage; rig scout, 2026-10-23).
+            List<Vector3> points = RimPoints;
+            points.Clear();
             float outer = 0f;
-            int count = 0;
-            MeshFilter[] filters = wt.GetComponentsInChildren<MeshFilter>(false);
-            foreach (MeshFilter mf in filters)
+            foreach (MeshFilter mf in wt.GetComponentsInChildren<MeshFilter>(false))
             {
                 if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
                 {
@@ -431,31 +436,22 @@ namespace RavenfieldVR.Rig
                 {
                     Vector3 p = toWheel.MultiplyPoint3x4(v);
                     outer = Mathf.Max(outer, new Vector2(p.x, p.y).magnitude);
-                    count++;
+                    points.Add(p);
                 }
             }
-            if (count < 12 || outer < 0.1f)
+            if (points.Count < 12 || outer < 0.1f)
             {
                 return false;
             }
             // The rim is the outermost ring: the vertices within 6% of the outer radius, averaged.
             Vector3 sum = Vector3.zero;
             int ring = 0;
-            foreach (MeshFilter mf in filters)
+            foreach (Vector3 p in points)
             {
-                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
+                if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
                 {
-                    continue;
-                }
-                Matrix4x4 toWheel = wt.worldToLocalMatrix * mf.transform.localToWorldMatrix;
-                foreach (Vector3 v in mf.sharedMesh.vertices)
-                {
-                    Vector3 p = toWheel.MultiplyPoint3x4(v);
-                    if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
-                    {
-                        sum += p;
-                        ring++;
-                    }
+                    sum += p;
+                    ring++;
                 }
             }
             if (ring < 8)
@@ -464,22 +460,14 @@ namespace RavenfieldVR.Rig
             }
             Vector3 mean = sum / ring;
             float spread = 0f;
-            foreach (MeshFilter mf in filters)
+            foreach (Vector3 p in points)
             {
-                if (mf.sharedMesh == null || !mf.sharedMesh.isReadable)
+                if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
                 {
-                    continue;
-                }
-                Matrix4x4 toWheel = wt.worldToLocalMatrix * mf.transform.localToWorldMatrix;
-                foreach (Vector3 v in mf.sharedMesh.vertices)
-                {
-                    Vector3 p = toWheel.MultiplyPoint3x4(v);
-                    if (new Vector2(p.x, p.y).magnitude >= outer * 0.94f)
-                    {
-                        spread += new Vector2(p.x - mean.x, p.y - mean.y).magnitude;
-                    }
+                    spread += new Vector2(p.x - mean.x, p.y - mean.y).magnitude;
                 }
             }
+            points.Clear();
             float r = spread / ring;
             // Sane for a car or Humvee wheel: a rim of 10-30 cm, centred near the transform across the axis.
             if (r < 0.10f || r > 0.30f || new Vector2(mean.x, mean.y).magnitude > 0.15f || Mathf.Abs(mean.z) > 0.5f)

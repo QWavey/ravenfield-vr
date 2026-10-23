@@ -1114,7 +1114,8 @@ namespace RavenfieldVR.Rig
             // the headset only with post-processing, which is off by default, so the eyes got only the grey actor glow
             // (user, 2026-10-16: "it's just grey, and on the flat screen"). On while the goggles are.
             bool want = VRConfig.PostProcessing.Value || NightVision.isEnabled;
-            PostProcessLayer source = reference.GetComponent<PostProcessLayer>();
+            // (The layer is looked up only when wanted: off by default, a GetComponent every frame went unused.)
+            PostProcessLayer source = want ? reference.GetComponent<PostProcessLayer>() : null;
             if (!want || source == null || PpResources == null)
             {
                 if (_postProcess != null && _postProcess.enabled)

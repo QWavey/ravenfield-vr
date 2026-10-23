@@ -82,6 +82,7 @@ namespace RavenfieldVR.Tests
             PresetTests(mod);
             InstallCheckTests(mod);
             ArmNameTests(mod);
+            BlowLabelTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
@@ -484,6 +485,34 @@ namespace RavenfieldVR.Tests
                 }
             }
             Check(wrong.Count == 0, "Shell sizes: the shotguns' own shells are shells, magazines, rockets and pistol rounds are not" + (wrong.Count > 0 ? ": " + string.Join(", ", wrong.ToArray()) : ""));
+        }
+
+        /// <summary>A held thing's blow names: one per PropKind in its order, then the grenade (indexed by the kind's number).</summary>
+        private static void BlowLabelTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            Type melee = mod.GetType("RavenfieldVR.Weapons.MeleeHandler");
+            var labels = melee?.GetField("BlowLabels", flags)?.GetValue(null) as string[];
+            var keys = melee?.GetField("BlowKeys", flags)?.GetValue(null) as string[];
+            Type kind = mod.GetType("RavenfieldVR.Weapons.PropKind");
+            Check(labels != null && keys != null && kind != null, "Blow labels: MeleeHandler.BlowLabels, BlowKeys and PropKind found");
+            if (labels == null || keys == null || kind == null)
+            {
+                return;
+            }
+            var names = new List<string>();
+            foreach (object k in Enum.GetValues(kind))
+            {
+                names.Add(k.ToString().ToLowerInvariant());
+                Check((int)k == names.Count - 1, $"Blow labels: PropKind.{k} numbered by its place");
+            }
+            names.Add("grenade");
+            bool match = labels.Length == names.Count && keys.Length == names.Count;
+            for (int i = 0; match && i < names.Count; i++)
+            {
+                match = labels[i] == "a held " + names[i] && keys[i] == "blow:" + names[i];
+            }
+            Check(match, "Blow labels: one label and key per PropKind in its order, then the grenade");
         }
 
         /// <summary>

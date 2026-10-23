@@ -779,6 +779,7 @@ namespace RavenfieldVR.Weapons
         private readonly Vector3[] _bashAt = new Vector3[BashPoints], _bashInRig = new Vector3[BashPoints];
         private bool _bashHas;
         private Weapon _bashWeapon;
+        private string _bashName; // the weapon's name, read once: Object.name makes a new string each read, per point per fast frame
         private float _lastBash = -10f;
         private static readonly RaycastHit[] BashHits = new RaycastHit[16];
 
@@ -801,6 +802,7 @@ namespace RavenfieldVR.Weapons
             if (_bashWeapon != w)
             {
                 _bashWeapon = w;
+                _bashName = w.name;
                 _bashHas = false;
             }
             if (!_sys.Rig.Dominant.Tracked)
@@ -827,7 +829,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
                     float speed = (at - body.TransformPoint(_bashInRig[k])).magnitude / dt;
-                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, w.name, d.Key))
+                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, _bashName, d.Key))
                     {
                         _lastBash = Time.time;
                         _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
@@ -854,6 +856,9 @@ namespace RavenfieldVR.Weapons
         private readonly Vector3[] _blowAt = new Vector3[2], _blowInRig = new Vector3[2];
         private readonly object[] _blowHeld = new object[2];
         private float _lastBlow = -10f;
+        // What each held thing is called in the log and its once-key, made once (built every fast frame, hit or not).
+        private static readonly string[] BlowLabels = { "a held magazine", "a held shell", "a held rocket", "a held grenade" };
+        private static readonly string[] BlowKeys = { "blow:magazine", "blow:shell", "blow:rocket", "blow:grenade" };
 
         /// <summary>
         /// What a hand holds besides a gun, swung into an enemy, hits them lightly: a magazine, shell or rocket in the hand, or
@@ -887,8 +892,8 @@ namespace RavenfieldVR.Weapons
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
                     if (speed > Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value))
                     {
-                        string label = what is MagazineProp m ? m.Kind.ToString().ToLowerInvariant() : "grenade"; // (only for a swing)
-                        if (BashCast(source, user, _blowAt[i], at, speed, what is MagazineProp ? 0.45f : 0.55f, "a held " + label, "blow:" + label))
+                        int kind = what is MagazineProp m ? (int)m.Kind : BlowLabels.Length - 1; // PropKind's order, then the grenade
+                        if (BashCast(source, user, _blowAt[i], at, speed, what is MagazineProp ? 0.45f : 0.55f, BlowLabels[kind], BlowKeys[kind]))
                         {
                             _lastBlow = Time.time;
                             h.Haptic(0.08f, 60f, 0.9f);
