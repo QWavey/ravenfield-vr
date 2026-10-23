@@ -119,7 +119,11 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Weapons are being torn down (death, respawn, level change).</summary>
+        /// <summary>
+        /// The mod's weapons are being torn down (level change, VR stopped). A weapon still alive goes back to the automatic
+        /// fire it was authored with: forgotten while still set to semi, it was semi-only from then on (VR stopped mid-match:
+        /// the flat game has no selector, and a VR restart no longer counted it automatic; bug hunt, 2026-10-23).
+        /// </summary>
         public static void Clear()
         {
             foreach (CutShot c in Cuts)
@@ -130,6 +134,22 @@ namespace RavenfieldVR.Weapons
                 }
             }
             Cuts.Clear();
+            foreach (Weapon w in SemiByPlayer)
+            {
+                if (w == null || w.configuration == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    w.SetAutoFire(); // as Toggle: the loop and the volume too
+                }
+                catch (System.Exception e)
+                {
+                    w.configuration.auto = true; // (no audio source, or one gone: the mode alone)
+                    Core.Log.ExceptionOnce("FireSelector.Clear", e);
+                }
+            }
             SemiByPlayer.Clear();
         }
     }

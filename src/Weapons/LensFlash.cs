@@ -139,19 +139,30 @@ namespace RavenfieldVR.Weapons
             _pendingTrees = _cachedTrees;
             if (_pendingMuzzle != null && _cachedSystems.Length > 1)
             {
-                // Several barrels: this one's systems only (made only for a multi-barrel gun; one barrel's is the cache itself).
-                var systems = new List<ParticleSystem>();
-                var trees = new List<ParticleSystem[]>();
-                for (int i = 0; i < _cachedSystems.Length; i++)
+                // Several barrels: this one's systems only (made only for a multi-barrel gun; one barrel's is the cache itself),
+                // split once per muzzle cache: made on every shot, a rotary gun made two lists and two arrays fifty times a second.
+                if (!ReferenceEquals(_barrelsOf, _cachedSystems))
                 {
-                    if (_cachedSystems[i] != null && _cachedSystems[i].transform.IsChildOf(_pendingMuzzle))
-                    {
-                        systems.Add(_cachedSystems[i]);
-                        trees.Add(_cachedTrees[i]);
-                    }
+                    _barrels.Clear();
+                    _barrelsOf = _cachedSystems;
                 }
-                _pendingSystems = systems.ToArray();
-                _pendingTrees = trees.ToArray();
+                if (!_barrels.TryGetValue(_pendingMuzzle, out KeyValuePair<ParticleSystem[], ParticleSystem[][]> barrel))
+                {
+                    var systems = new List<ParticleSystem>();
+                    var trees = new List<ParticleSystem[]>();
+                    for (int i = 0; i < _cachedSystems.Length; i++)
+                    {
+                        if (_cachedSystems[i] != null && _cachedSystems[i].transform.IsChildOf(_pendingMuzzle))
+                        {
+                            systems.Add(_cachedSystems[i]);
+                            trees.Add(_cachedTrees[i]);
+                        }
+                    }
+                    barrel = new KeyValuePair<ParticleSystem[], ParticleSystem[][]>(systems.ToArray(), trees.ToArray());
+                    _barrels[_pendingMuzzle] = barrel;
+                }
+                _pendingSystems = barrel.Key;
+                _pendingTrees = barrel.Value;
             }
             else if (_pendingMuzzle != null && _cachedSystems.Length == 1 && (_cachedSystems[0] == null || !_cachedSystems[0].transform.IsChildOf(_pendingMuzzle)))
             {
@@ -216,7 +227,13 @@ namespace RavenfieldVR.Weapons
             s.Data = _pendingData;
             s.Frame = _pendingFrame;
             s.Systems = _pendingSystems;
-            s.Counts = (int[])_pendingCounts.Clone(); // (Pend fills the array in place)
+            // A copy (Pend fills its array in place), into the slot's own array when it fits: cloned, two arrays a frame
+            // while two guns fired together.
+            if (s.Counts.Length != _pendingCounts.Length)
+            {
+                s.Counts = new int[_pendingCounts.Length];
+            }
+            System.Array.Copy(_pendingCounts, s.Counts, _pendingCounts.Length);
             s.Trees = _pendingTrees;
             s.EveryShot = _pendingEveryShot;
             s.Info = _pendingInfo;
@@ -239,6 +256,12 @@ namespace RavenfieldVR.Weapons
 
         private static readonly ParticleSystem[] NoSystems = new ParticleSystem[0];
         private static readonly ParticleSystem[][] NoTrees = new ParticleSystem[0][];
+        // Each barrel's own systems and trees, split from the muzzle cache they came from (_barrelsOf).
+        private readonly Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>> _barrels =
+            new Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>>();
+        private ParticleSystem[] _barrelsOf;
+        // The weapons already told of in the log as flash-less (their message and key were built on every such shot).
+        private readonly HashSet<Weapon> _toldNoFlash = new HashSet<Weapon>(), _toldBehind = new HashSet<Weapon>();
         private Weapon _cachedFor;
         private float _cachedUntil = -1f;
         private ParticleSystem[] _cachedSystems = NoSystems;
@@ -396,7 +419,7 @@ namespace RavenfieldVR.Weapons
             _gunAuto = w.configuration.auto;
             if (size <= 0f)
             {
-                if (info.Any) // a smoke grenade or a knife has no flash to miss
+                if (info.Any && _toldNoFlash.Add(w)) // a smoke grenade or a knife has no flash to miss
                 {
                     Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
                                                             + $"(muzzle '{muzzle.name}', particles {info.Particles}, light {info.Light}).");
@@ -416,8 +439,11 @@ namespace RavenfieldVR.Weapons
             Vector3 dir = head.InverseTransformDirection(muzzle.forward);
             if (m.z < 0.02f)
             {
-                Log.InfoOnce("lensnone-behind:" + w.name, $"No lens flash for {w.name}: its muzzle '{muzzle.name}' is {m.z * 100f:0} cm in front of the eyes "
-                                                          + $"(behind them; muzzle points {(Vector3.Dot(muzzle.forward, head.forward) > 0f ? "forward" : "back")}).");
+                if (_toldBehind.Add(w))
+                {
+                    Log.InfoOnce("lensnone-behind:" + w.name, $"No lens flash for {w.name}: its muzzle '{muzzle.name}' is {m.z * 100f:0} cm in front of the eyes "
+                                                              + $"(behind them; muzzle points {(Vector3.Dot(muzzle.forward, head.forward) > 0f ? "forward" : "back")}).");
+                }
                 return; // behind the eyes
             }
             _gunHeld = held;
@@ -607,6 +633,9 @@ namespace RavenfieldVR.Weapons
         public void Destroy()
         {
             _fireball.Destroy();
+            _barrels.Clear();
+            _toldNoFlash.Clear();
+            _toldBehind.Clear();
             if (Instance == this)
             {
                 Instance = null;
