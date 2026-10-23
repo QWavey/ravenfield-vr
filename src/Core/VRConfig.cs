@@ -95,6 +95,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
         public static ConfigEntry<bool> TriggerReleasesSlide;
+        public static ConfigEntry<bool> MagSlapReleasesSlide;
         public static ConfigEntry<bool> MagazinePalming;
         public static ConfigEntry<bool> ReleaseDropsWeapon;
         public static ConfigEntry<float> WeaponReturnSeconds;
@@ -271,6 +272,8 @@ namespace RavenfieldVR.Core
                 "You spawn with empty hands, every weapon in its holster: reach for one to draw it (needs HolsterSwitching). Off: you spawn holding your first weapon, as in the flat game.");
             TriggerReleasesSlide = cfg.Bind("Weapons", "TriggerReleasesSlide", true,
                 "Pulling the trigger with the slide or bolt locked open sends it forward, like the slide release button (it chambers a round from a loaded magazine; with none to chamber, it stays back).");
+            MagSlapReleasesSlide = cfg.Bind("Weapons", "MagSlapReleasesSlide", true,
+                "Slamming a loaded magazine home into a gun whose slide or bolt is locked open sends it forward and chambers a round, as in Boneworks (a gentle push leaves it locked).");
             MagazineReadout = cfg.Bind("UI", "MagazineReadout", true,
                 "Look at the top of a magazine in your hand (or one lying within reach) to see how many rounds it holds.");
             ShowHolsters = cfg.Bind("Weapons", "ShowHolsters", true,

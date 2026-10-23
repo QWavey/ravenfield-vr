@@ -2012,6 +2012,7 @@ namespace RavenfieldVR.Weapons
                 if (lined)
                 {
                     prop.OnRail = true;
+                    _railInSpeed = 0f;
                     prop.RailDepth = Mathf.Clamp(along, rocket ? -RocketLineAhead : 0f, prop.RailLength);
                     if (magazine)
                     {
@@ -2061,10 +2062,17 @@ namespace RavenfieldVR.Weapons
                 prop.RailHandOffset = 0f;
                 prop.RailLateral0 = 0f;
                 prop.FromSeat = false;
+                _railInSpeed = 0f;
                 return;
             }
             prop.PrevDepth = prop.RailDepth;
             prop.RailDepth = Mathf.Clamp(along, prop.Kind == PropKind.Rocket ? -RocketLineAhead : 0f, prop.RailLength);
+            if (prop.Kind == PropKind.Magazine)
+            {
+                // How hard it is driven in, against the gun (the mag kick's measure: both hands share the body's motion).
+                _railInSpeed = Mathf.Max(_railInSpeed, Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(),
+                                                                  SeatPose.TransformDirection(prop.InsertDirLocal)));
+            }
             // Which way it is going, with 3 mm of play: a slow push still turns the hand into the push and a slow pull lets
             // go of it (a millimetre a frame was a speed: slower than 9 cm/s neither ever happened; bug hunt 2026-10-16).
             if (prop.MovingIn ? prop.RailDepth > prop.TurnDepth : prop.RailDepth < prop.TurnDepth)
@@ -2387,6 +2395,11 @@ namespace RavenfieldVR.Weapons
         /// <summary>When the fresh magazine started pressing past the old one's base (-1: not pressing).</summary>
         private float _kickPushSince = -1f;
 
+        /// <summary>The fastest the magazine on the rail has been driven in so far (m/s, against the gun), for the slap release at its seat.</summary>
+        private float _railInSpeed;
+        /// <summary>A magazine driven home at least this fast (m/s) releases a locked slide (<see cref="VRConfig.MagSlapReleasesSlide"/>).</summary>
+        private const float SlapSpeed = 0.9f;
+
         private void SeatProp(VRHand off, MagazineProp prop)
         {
             _seatedAt = Time.unscaledTime;
@@ -2404,6 +2417,20 @@ namespace RavenfieldVR.Weapons
                         _held.Nudge(Rig.AimWorld * 0.12f, 12f);
                         off.Haptic(0.06f, 100f, 0.9f);
                     }
+                    else if (Ammo.SlideLocked)
+                    {
+                        // Slammed home, the locked slide drops and chambers the first round (Boneworks' Gun.isSlideReleaseOnCollision);
+                        // a gentle push leaves it locked for the release or a rack. The speed is logged for tuning in the headset.
+                        bool slam = VRConfig.MagSlapReleasesSlide.Value && _railInSpeed >= SlapSpeed && Ammo.FeedReady && Ammo.MagRounds > 0;
+                        Log.Info($"{Data.Key}: magazine seated at {_railInSpeed:0.00} m/s into the locked gun ({(slam ? "slammed: the slide drops" : "the slide stays locked")}).");
+                        if (slam)
+                        {
+                            ReleaseSlide();
+                            _held.Nudge(Rig.AimWorld * 0.12f, 12f);
+                            off.Haptic(0.06f, 100f, 0.9f);
+                        }
+                    }
+                    _railInSpeed = 0f;
                     break;
                 case PropKind.Shell:
                 {

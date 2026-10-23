@@ -72,7 +72,7 @@ The counter on the side of your gun shows its state: `28+1` (28 in the magazine 
 1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a minute (`DroppedMagLifetime`); rounds still in them then go back to your reserve, so nothing is lost.
 2. Grip at your pouch (on your belt at the side of the off-hand hip by default): a fresh magazine is in your hand.
 3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it.
-4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go.
+4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go. Or slam the magazine home: driven in hard, it knocks the slide forward and chambers a round, as in Boneworks (a gentle push leaves it locked).
 
 Tactical reload with one hand: push a fresh magazine hard into the base of the seated one and it knocks the old one out, then slide the new one in. This works where the magazine sticks out of the gun; pistols and guns whose well swallows the magazine (KRISS Vector style) need B or a hand pull.
 
@@ -167,6 +167,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `HideGameWeaponHud` | on | Hide the game's weapon panel (name, ammo, slots); the gun, pouch and wrist show ammo |
 | `SkipDrawAnimation` | on | Skip the weapon's draw animation in VR (you draw it with your hand) |
 | `ReturnRoundsOnMagDrop` | on | Rounds in magazines that get cleared away return to your reserve |
+| `MagSlapReleasesSlide` | on | A loaded magazine slammed home sends a locked slide or bolt forward; off leaves it for A or a rack |
 | `HudDistance` / `HudHorizontalFov` | 4 m / 72° | Where the HUD frame sits and how wide it is |
 
 ## Building from source
