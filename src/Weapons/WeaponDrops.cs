@@ -744,56 +744,67 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             var root = new GameObject("RavenfieldVR Dropped " + entry.name);
-            int layer = PropPhysics.Layer;
-            root.layer = layer >= 0 ? layer : 0; // bullets pass through a weapon on the ground
-            model.transform.SetParent(root.transform, false);
-            model.transform.localPosition = Vector3.zero;
-            model.transform.localRotation = Quaternion.identity;
-            model.transform.localScale = scale.sqrMagnitude > 1e-6f ? scale : Vector3.one;
-            pose.ApplyTo(root.transform);
-
-            parts.Reset();
-            parts.Start();
-            ShapeFit.Piece[] shape = FitModel(entry, root.transform, model.transform.localScale, out string lateKey);
-            _lastShapeMs = (float)parts.Elapsed.TotalMilliseconds;
-            _lastLateFit = lateKey != null;
-            parts.Reset();
-            parts.Start();
-            List<Collider> boxes = ShapeFit.AddColliders(root, shape);
-            _lastColliderMs = (float)parts.Elapsed.TotalMilliseconds;
-            var body = root.AddComponent<Rigidbody>();
-            body.mass = 3f;
-            body.interpolation = RigidbodyInterpolation.Interpolate;
-            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            body.velocity = velocity;
-            body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
-            SetUpBody(body, boxes);
-            parts.Reset();
-            parts.Start();
-            PropPhysics.IgnorePlayer(boxes);
-            _lastIgnoreMs = (float)parts.Elapsed.TotalMilliseconds;
-            parts.Reset();
-            parts.Start();
-            OutOfTheGround(root.transform, boxes, open);
-            _lastGroundMs = (float)parts.Elapsed.TotalMilliseconds;
-
-            var drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time, Keep = keep };
-            drop.Reach = ReachOf(root.transform, boxes);
-            // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
-            // step, or that step pushes the weapon out of them and it skids or floats away.
-            parts.Reset();
-            parts.Start();
-            PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
-            _lastIgnoreMs += (float)parts.Elapsed.TotalMilliseconds;
-            if (lateKey != null)
+            DroppedWeapon drop;
+            try
             {
-                drop.LateFitKey = lateKey;
-                if (LateFitsUnderway.Add(lateKey))
+                int layer = PropPhysics.Layer;
+                root.layer = layer >= 0 ? layer : 0; // bullets pass through a weapon on the ground
+                model.transform.SetParent(root.transform, false);
+                model.transform.localPosition = Vector3.zero;
+                model.transform.localRotation = Quaternion.identity;
+                model.transform.localScale = scale.sqrMagnitude > 1e-6f ? scale : Vector3.one;
+                pose.ApplyTo(root.transform);
+
+                parts.Reset();
+                parts.Start();
+                ShapeFit.Piece[] shape = FitModel(entry, root.transform, model.transform.localScale, out string lateKey);
+                _lastShapeMs = (float)parts.Elapsed.TotalMilliseconds;
+                _lastLateFit = lateKey != null;
+                parts.Reset();
+                parts.Start();
+                List<Collider> boxes = ShapeFit.AddColliders(root, shape);
+                _lastColliderMs = (float)parts.Elapsed.TotalMilliseconds;
+                var body = root.AddComponent<Rigidbody>();
+                body.mass = 3f;
+                body.interpolation = RigidbodyInterpolation.Interpolate;
+                body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                body.velocity = velocity;
+                body.angularVelocity = UnityEngine.Random.insideUnitSphere * 2f;
+                SetUpBody(body, boxes);
+                parts.Reset();
+                parts.Start();
+                PropPhysics.IgnorePlayer(boxes);
+                _lastIgnoreMs = (float)parts.Elapsed.TotalMilliseconds;
+                parts.Reset();
+                parts.Start();
+                OutOfTheGround(root.transform, boxes, open);
+                _lastGroundMs = (float)parts.Elapsed.TotalMilliseconds;
+
+                drop = new DroppedWeapon { Go = root, Colliders = boxes, Entry = entry, Ammo = ammo, Spare = spare, DropTime = Time.time, Keep = keep };
+                drop.Reach = ReachOf(root.transform, boxes);
+                // The dying soldier's ragdoll and hitboxes are around the weapon right now: ignored before the first physics
+                // step, or that step pushes the weapon out of them and it skids or floats away.
+                parts.Reset();
+                parts.Start();
+                PropPhysics.IgnoreBodiesNear(boxes, root.transform.position, 1.5f, drop.IgnoredBodies);
+                _lastIgnoreMs += (float)parts.Elapsed.TotalMilliseconds;
+                if (lateKey != null)
                 {
-                    LateGather.Enqueue(drop);
+                    drop.LateFitKey = lateKey;
+                    if (LateFitsUnderway.Add(lateKey))
+                    {
+                        LateGather.Enqueue(drop);
+                    }
                 }
+                _drops.Add(drop);
             }
-            _drops.Add(drop);
+            catch
+            {
+                // Half made (a shape fit, a collider or the body threw; the death patch's guard logs it): not left lying at the
+                // death spot for the rest of the match, untracked and never culled (bug hunt, 2026-10-23).
+                UnityEngine.Object.Destroy(root);
+                throw;
+            }
             parts.Reset();
             parts.Start();
             Cull();
@@ -1108,8 +1119,15 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Of the content as it is now: a read-back finishing after a content reload put the old model's hull back into the
+            // cleared table, and the reloaded type kept it for the session (the late fits already check this; bug hunt, 2026-10-23).
+            int generation = _lateGeneration;
             void Keep(GunVolume done)
             {
+                if (generation != System.Threading.Volatile.Read(ref _lateGeneration))
+                {
+                    return;
+                }
                 if (done.HullPieces != null && done.HullPieces.Length > 0)
                 {
                     RenderedShapes[entry] = done.HullPieces;
@@ -1218,7 +1236,11 @@ namespace RavenfieldVR.Weapons
             ScaledShapes.Clear();
             LateFitsUnderway.Clear();
             LateGather.Clear();
-            _lateGeneration++; // fits still on a worker are of the old models
+            System.Threading.Interlocked.Increment(ref _lateGeneration); // fits and measurements still on a worker are of the old models
+            while (PendingBake.TryDequeue(out _))
+            {
+                // (shapes of the old models waiting to be cooked)
+            }
             _lateBaking = null;
             // The copies still lying on their box get their fit started again: their pending one was just dropped, and they kept
             // the box for good (threads hunt, 2026-10-21).
