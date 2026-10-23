@@ -1214,21 +1214,25 @@ namespace RavenfieldVR.Rig
 
         public void Dispose()
         {
-            // Null-safe: also the teardown of a rig whose construction threw part-way.
-            Suppressor?.Dispose();
-            _vignette?.Destroy();
-            _damage?.Destroy();
-            _mud?.Destroy();
-            _lens?.Destroy();
+            // Null-safe: also the teardown of a rig whose construction threw part-way. Each step on its own, as VRManager's: one
+            // that threw left the rest, the rig's root with its eye cameras too, alive in flat play.
+            Log.Guard("Rig.Suppressor.Dispose", () => Suppressor?.Dispose());
+            Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
+            Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
+            Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
+            Log.Guard("Rig.Lens.Destroy", () => _lens?.Destroy());
             foreach (VRHand h in Hands)
             {
-                h?.Destroy();
+                if (h != null)
+                {
+                    Log.Guard("Rig.Hand.Destroy", h.Destroy);
+                }
             }
             if (Root != null)
             {
                 UnityEngine.Object.Destroy(Root.gameObject);
             }
-            OpenVR.Compositor?.FadeToColor(0f, 0f, 0f, 0f, 0f, false);
+            Log.Guard("Rig.Compositor.Fade", () => OpenVR.Compositor?.FadeToColor(0f, 0f, 0f, 0f, 0f, false));
             if (Instance == this)
             {
                 Instance = null;
