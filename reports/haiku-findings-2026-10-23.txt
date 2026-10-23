@@ -190,6 +190,9 @@ I-14 Tiny   S:690-691 / S:1398-1401, P:104-123  temp leaks (zipPath null on fail
 I-15 Tiny   S:1210  "Update" silently downgrades an older setup (CompareVersions only sorts).
 I-16 Unsure S:408-417  Inside() is lexical: a junction created inside the game folder would be followed by
      File.Delete/File.Create.
+I-17 Unsure S:566-571, 598  whether .NET Framework's recursive Directory.Delete follows junctions.
+I-18 Unsure S:696-705  whether a connection closed early in the download throws or reads short silently (see I-4).
+I-19 Unsure L:21  whether Steam resolves a relative launch-option path (see I-8).
      Checked clean by the scout: zip slip / rooted / .. / sibling prefix (tested), empty path, uninstall refuses without
      a record, Steam files only written with Steam closed, launcher kept while a launch option uses it, running checks,
      VDF truncation throws before writing, appinfo bounds + SHA-1 + read-back, missing Steam/registry fallbacks, launcher
