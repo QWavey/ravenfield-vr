@@ -203,7 +203,7 @@ namespace RavenfieldVR.Setup
         }
 
         /// <summary>Offline tests: a made-up Steam folder in place of the one the registry names (null: the registry's).</summary>
-        internal static string SteamDirOverride;
+        internal static string SteamDirOverride = null; // set by the offline tests through reflection (no CS0649)
 
         public static string SteamDir()
         {

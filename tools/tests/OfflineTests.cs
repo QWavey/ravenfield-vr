@@ -87,6 +87,47 @@ namespace RavenfieldVR.Tests
             ShapeFitTests(mod);
             GloveSweepTests(mod);
             HapticPriorityTests(mod);
+            VolumeRotationTests(mod);
+        }
+
+        /// <summary>
+        /// GunVolume keeps each view's rotation as a matrix (GunVolume.Rot3) and turns points with it inline: it must land on the
+        /// very float bits Unity's Quaternion * Vector3 gives, or the solid tests (gloves, magazines) would change by a texel at
+        /// the edges. 2000 random rotations and points, every component compared bit for bit.
+        /// </summary>
+        private static void VolumeRotationTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags all = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                                                      | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance;
+            Type rot = mod.GetType("RavenfieldVR.Weapons.GunVolume")?.GetNestedType("Rot3", all);
+            System.Reflection.MethodInfo of = rot?.GetMethod("Of", all);
+            Check(of != null, "Volume rotation: GunVolume.Rot3.Of found");
+            if (of == null)
+            {
+                return;
+            }
+            float F(object m, string name) => (float)rot.GetField(name, all).GetValue(m);
+            var rng = new Random(5);
+            float R() => (float)(rng.NextDouble() * 2 - 1);
+            int differ = 0;
+            for (int i = 0; i < 2000; i++)
+            {
+                float x = R(), y = R(), z = R(), w = R(), n = (float)Math.Sqrt(x * x + y * y + z * z + w * w);
+                var q = new UnityEngine.Quaternion(x / n, y / n, z / n, w / n);
+                var p = new UnityEngine.Vector3(R() * 0.3f, R() * 0.3f, R() * 0.3f);
+                object m = of.Invoke(null, new object[] { q });
+                float px = F(m, "M00") * p.x + F(m, "M01") * p.y + F(m, "M02") * p.z;
+                float py = F(m, "M10") * p.x + F(m, "M11") * p.y + F(m, "M12") * p.z;
+                float pz = F(m, "M20") * p.x + F(m, "M21") * p.y + F(m, "M22") * p.z;
+                UnityEngine.Vector3 u = q * p;
+                if (BitConverter.ToInt32(BitConverter.GetBytes(px), 0) != BitConverter.ToInt32(BitConverter.GetBytes(u.x), 0)
+                    || BitConverter.ToInt32(BitConverter.GetBytes(py), 0) != BitConverter.ToInt32(BitConverter.GetBytes(u.y), 0)
+                    || BitConverter.ToInt32(BitConverter.GetBytes(pz), 0) != BitConverter.ToInt32(BitConverter.GetBytes(u.z), 0))
+                {
+                    differ++;
+                }
+            }
+            Check(differ == 0, $"Volume rotation: the matrix turns points to Quaternion * Vector3's own float bits ({differ} of 2000 differ)");
         }
 
         /// <summary>
