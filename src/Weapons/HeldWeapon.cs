@@ -1637,11 +1637,29 @@ namespace RavenfieldVR.Weapons
         /// <summary>The point is inside the drawn gun (its measured shape, not grown): what hides a muzzle flash from an eye.</summary>
         internal bool InsideDrawnGun(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideModel(world);
 
+        private int _handSolidFrame = -1;
+        private System.Func<Vector3, bool> _handSolidNow;
+
+        /// <summary>
+        /// <see cref="HandSolidNow"/> once a frame: SnapHands asks it, and RackSolid asks it again in the same pass while the off
+        /// hand racks, with nothing moved between (the volume posed, the seated magazine and slide tip looked at twice; review,
+        /// 2026-10-23).
+        /// </summary>
+        private System.Func<Vector3, bool> HandSolid()
+        {
+            if (_handSolidFrame != Time.frameCount)
+            {
+                _handSolidFrame = Time.frameCount;
+                _handSolidNow = HandSolidNow();
+            }
+            return _handSolidNow;
+        }
+
         /// <summary>
         /// The model's solid for the hands to close on, measured a moment after the weapon is in hand (its idle pose, every
         /// part in place) and kept per weapon type. Null until measured or when it cannot be.
         /// </summary>
-        private System.Func<Vector3, bool> HandSolid()
+        private System.Func<Vector3, bool> HandSolidNow()
         {
             if (_heldSince < 0f)
             {
@@ -1709,6 +1727,7 @@ namespace RavenfieldVR.Weapons
 
         private GunVolume _slideTipVolume;
         private bool _slideTipDone;
+        private bool? _slideTipWanted; // WeaponAnalyzer.WantsDrawnSlideTip for this weapon, asked once
 
         /// <summary>
         /// The rack point on the moving part's drawn tip, for a part the analysis could not read (WeaponAnalyzer.WantsDrawnSlideTip):
@@ -1725,7 +1744,13 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRigData d = Rig.Data;
             Transform slide = Rig.Slide;
-            if (slide == null || !WeaponAnalyzer.WantsDrawnSlideTip(d, slide))
+            // Asked once: its answer is the weapon's own, and asked every frame until the tip was read (the slide locked back on
+            // an empty gun, for as long as it stays so) it walked the slide's meshes into a new array and ran a regex each frame.
+            if (_slideTipWanted == null)
+            {
+                _slideTipWanted = slide != null && WeaponAnalyzer.WantsDrawnSlideTip(d, slide);
+            }
+            if (!_slideTipWanted.Value)
             {
                 _slideTipDone = true;
                 return;
@@ -2510,7 +2535,8 @@ namespace RavenfieldVR.Weapons
 
         private GunVolume _magVolume;
         private bool _magVolumeTried, _magSolidShown;
-        private float _magVolumeRetryAt, _partRetryAt;
+        private float _magVolumeRetryAt, _partRetryAt; // 0: no retry pending
+        private int _magVolumeTries, _partTries;
         private Transform _magFrame;
 
         /// <summary>
@@ -2539,17 +2565,27 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (_magVolume != null && _magVolume.Failed && Time.unscaledTime >= _magVolumeRetryAt)
+            if (_magVolume != null && _magVolume.Failed && _magVolumeTries < 3)
             {
-                // A failed measure (a read-back error, a renderer gone mid-way) is tried again a second later: latched, the seated
-                // magazine had no solid and the line fit never ran for the rest of the hold (review, 2026-10-20).
-                _magVolume = null;
-                _magVolumeTried = false;
-                _magVolumeRetryAt = Time.unscaledTime + 1f;
+                // A failed measure (a read-back error, a renderer gone mid-way) is tried again a second later, three times at
+                // most: latched, the seated magazine had no solid and the line fit never ran for the rest of the hold (review,
+                // 2026-10-20); retried with no wait and no limit, a measure that kept failing rendered and read back its views
+                // every second of the hold (bug hunt, 2026-10-23), as HandSolid's own volume is limited.
+                if (_magVolumeRetryAt <= 0f)
+                {
+                    _magVolumeRetryAt = Time.unscaledTime + 1f;
+                }
+                else if (Time.unscaledTime >= _magVolumeRetryAt)
+                {
+                    _magVolume = null;
+                    _magVolumeTried = false;
+                    _magVolumeRetryAt = 0f;
+                }
             }
             if (_magVolume == null && !_magVolumeTried)
             {
                 _magVolumeTried = true;
+                _magVolumeTries++;
                 var renderers = new List<Renderer>();
                 foreach (Transform part in Rig.MagazineParts)
                 {
@@ -2603,17 +2639,26 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
-            if (_partVolume != null && _partVolume.Failed && Time.unscaledTime >= _partRetryAt)
+            if (_partVolume != null && _partVolume.Failed && _partTries < 3)
             {
-                // Failed: tried again a second later (the racking hand closed on nothing for the rest of the hold).
-                _partVolume = null;
-                _partSolid = null;
-                _partTried = false;
-                _partRetryAt = Time.unscaledTime + 1f;
+                // Failed: tried again a second later (the racking hand closed on nothing for the rest of the hold), three times
+                // at most (see the seated magazine's volume).
+                if (_partRetryAt <= 0f)
+                {
+                    _partRetryAt = Time.unscaledTime + 1f;
+                }
+                else if (Time.unscaledTime >= _partRetryAt)
+                {
+                    _partVolume = null;
+                    _partSolid = null;
+                    _partTried = false;
+                    _partRetryAt = 0f;
+                }
             }
             if (_partVolume == null && !_partTried)
             {
                 _partTried = true;
+                _partTries++;
                 var renderers = new List<Renderer>();
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(false))
                 {
