@@ -970,6 +970,27 @@ namespace RavenfieldVR.Input
             _sprintFireSetOn = null;
         }
 
+        /// <summary>
+        /// VR is stopping: this session's toggles, stick latches and pending switches go with it. Kept, a crouch toggled before VR
+        /// stopped crouched the soldier the moment VR started again (the "try again" key), and a latch or a quick switch waiting
+        /// to be undone carried over (input hunt, 2026-10-23).
+        /// </summary>
+        public static void ResetSession()
+        {
+            ResetToggles();
+            _jumpLatch = _downLatch = false;
+            _modePressAt = -1f;
+            _modePressWeapon = null;
+            _modePressFiring = false;
+            _quickSwitchWeapon = null;
+            _pushSwitchedAt = -1f;
+            _pushWeapon = null;
+            _undoCyclePending = false;
+            _leaveHeldSince = -1f;
+            _leaveArmed = false;
+            _leaveTicks = 0;
+        }
+
         /// <summary>Resets toggles when the player respawns, gets into or out of a seat, or onto or off a ladder.</summary>
         public static void ResetToggles()
         {

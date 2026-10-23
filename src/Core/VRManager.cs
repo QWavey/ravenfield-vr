@@ -441,6 +441,7 @@ namespace RavenfieldVR.Core
             ScriptKeys.Clear();
             VRGameInput.Enabled = false;
             VRGameInput.RestoreGameSwitches();
+            VRGameInput.ResetSession();
             // Each guarded: one that threw left the rest undisposed and SteamVR running (bug hunt, 2026-10-22).
             UISystem ui = UI;
             WeaponSystem weapons = Weapons;
