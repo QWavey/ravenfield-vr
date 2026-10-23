@@ -2213,6 +2213,12 @@ namespace RavenfieldVR.Weapons
                 }
                 int count = n;
                 Quaternion rot = target.rotation;
+                // Turned once here (the buffer is refilled every call): turned at every point of every 5 mm step, a magazine
+                // swept against the gun made thousands of Quaternion * Vector3 calls a frame for the same rotation.
+                for (int i = 0; i < count; i++)
+                {
+                    points[i] = rot * points[i];
+                }
                 bool BlockedAt(Vector3 at)
                 {
                     // A rocket has no well open to it from the side: where it sits seated is the tube's front itself, and
@@ -2220,7 +2226,7 @@ namespace RavenfieldVR.Weapons
                     bool open = !rocket && OnWellLine(seat, at, rot);
                     for (int i = 0; i < count; i++)
                     {
-                        Vector3 p = at + rot * points[i];
+                        Vector3 p = at + points[i];
                         if (!solid(p))
                         {
                             continue;

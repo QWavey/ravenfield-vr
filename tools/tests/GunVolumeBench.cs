@@ -142,6 +142,30 @@ namespace RavenfieldVR.Tests
                 solidBest = Math.Min(solidBest, sw.Elapsed.TotalMilliseconds * 1e6 / pts.Length);
             }
             Console.WriteLine($"Solid: {solidBest:0.0} ns a call, {solidHits} hits" + (solidHits == hits ? " (same hits)" : $" (DIFFERENT: {solidHits - hits:+0;-0})"));
+
+            // What turning one point with Unity's Quaternion * Vector3 costs against adding an offset turned beforehand (the
+            // magazine keep-out's sample points, turned once a call since 2026-10-23).
+            var turn = new UnityEngine.Quaternion(0.1825742f, 0.3651484f, 0.5477226f, 0.7302967f);
+            double turnBest = double.MaxValue, addBest = double.MaxValue;
+            float sink = 0f;
+            for (int round = 0; round < 5; round++)
+            {
+                var sw = Stopwatch.StartNew();
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    sink += (origin + turn * pts[i]).x;
+                }
+                sw.Stop();
+                turnBest = Math.Min(turnBest, sw.Elapsed.TotalMilliseconds * 1e6 / pts.Length);
+                sw = Stopwatch.StartNew();
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    sink += (origin + pts[i]).x;
+                }
+                sw.Stop();
+                addBest = Math.Min(addBest, sw.Elapsed.TotalMilliseconds * 1e6 / pts.Length);
+            }
+            Console.WriteLine($"A point turned by Quaternion * Vector3 and offset: {turnBest:0.0} ns; offset by a point turned beforehand: {addBest:0.0} ns" + (sink == 1234.5f ? " " : ""));
             if (solidHits != hits)
             {
                 return 1;
