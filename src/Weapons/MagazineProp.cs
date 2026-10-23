@@ -1892,13 +1892,25 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
-        /// <summary>A hand let go of its magazines: it no longer closes on them.</summary>
-        private static void ReleaseHand(VRHand hand)
+        /// <summary>
+        /// <paramref name="leaving"/> left the hand: once no other magazine is in it, the hand no longer closes on them. With a
+        /// palmed one still between the fingers (the fresh one seated or dropped), clearing the shared solid let the fingers
+        /// close through it until it was set again (bug hunt, 2026-10-23).
+        /// </summary>
+        private static void ReleaseHand(VRHand hand, MagazineProp leaving)
         {
-            if (hand != null && hand.Model != null && hand.Model.Solid == HandSolids[(int)hand.Side])
+            if (hand == null || hand.Model == null || hand.Model.Solid != HandSolids[(int)hand.Side])
             {
-                hand.Model.Solid = null;
+                return;
             }
+            foreach (MagazineProp m in Alive)
+            {
+                if (!ReferenceEquals(m, leaving) && m.HeldBy == hand)
+                {
+                    return;
+                }
+            }
+            hand.Model.Solid = null;
         }
 
         private string ShapeKey => "prop:" + WeaponKey + ":" + Kind;
@@ -2537,7 +2549,7 @@ namespace RavenfieldVR.Weapons
                     HeldBy.Held = null;
                     HeldBy.Role = HandRole.Free;
                 }
-                ReleaseHand(HeldBy);
+                ReleaseHand(HeldBy, this);
                 HeldBy = null;
             }
             OnRail = false;
@@ -2734,7 +2746,7 @@ namespace RavenfieldVR.Weapons
                 HeldBy.Held = null;
                 HeldBy.Role = HandRole.Free;
             }
-            ReleaseHand(HeldBy);
+            ReleaseHand(HeldBy, this);
             HeldBy = null;
             Alive.Remove(this);
             if (Go != null)
