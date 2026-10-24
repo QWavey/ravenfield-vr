@@ -358,9 +358,9 @@ namespace RavenfieldVR.Weapons
             VRHand dom = _sys.Rig.Dominant;
             if (!_pinPulled)
             {
-                Vector3 pin = PinWorld;
+                // (Where the pin is, last: only on the frame the other hand grips. A modelled pin's centre searches its renderer.)
                 if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed && _pinRig != null && _pinRig.GunBody != null
-                    && Vector3.Distance(off.Palm.position, pin) < PinGrabRadius)
+                    && Vector3.Distance(off.Palm.position, PinWorld) < PinGrabRadius)
                 {
                     VRInput.Consume(DigitalAction.Grab, off.Side);
                     _holdingPin = true;
@@ -931,11 +931,28 @@ namespace RavenfieldVR.Weapons
             {
                 bool carried = (muzzle - _bashAt[count - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = BlowSpeed;
+                int near = -1; // a soldier anywhere the gun swept this frame: asked once, at its first fast point
                 for (int k = count - 1; k >= 0 && !carried; k--)
                 {
                     Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(count - 1));
                     float speed = (at - body.TransformPoint(_bashInRig[k])).magnitude / dt;
-                    if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, _bashName, d.Key))
+                    if (speed <= need)
+                    {
+                        continue;
+                    }
+                    if (near < 0)
+                    {
+                        // One overlap round the whole gun, as wide as its farthest point moved (a straight gun's points move
+                        // least to most from one end to the other), instead of up to 12 sweeps through the air on every fast
+                        // frame of a swing that meets nobody (review, 2026-10-24).
+                        float moved = Mathf.Max((muzzle - _bashAt[count - 1]).magnitude, (butt - _bashAt[0]).magnitude);
+                        near = SoldierNear(user, butt, muzzle, moved + BashRadius * 3f) ? 1 : 0;
+                    }
+                    if (near == 0)
+                    {
+                        break;
+                    }
+                    if (BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, _bashName, d.Key))
                     {
                         _lastBash = Time.time;
                         _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
@@ -1037,6 +1054,33 @@ namespace RavenfieldVR.Weapons
         internal static bool RecordNotes;
         internal static string FistNote = "", CastNote = "";
 
+        /// <summary>The radius of a blow's sweep (a gun's points, a fist, a held thing).</summary>
+        private const float BashRadius = 0.06f;
+        private static readonly Collider[] NearBuffer = new Collider[32];
+
+        /// <summary>
+        /// Whether a soldier a blow could hurt (alive, of another team, not the player) has a collider within a capsule round a
+        /// line: none, and no sweep along that line can hit one.
+        /// </summary>
+        private static bool SoldierNear(Actor user, Vector3 lineFrom, Vector3 lineTo, float radius)
+        {
+            int n = Physics.OverlapCapsuleNonAlloc(lineFrom, lineTo, radius, NearBuffer, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
+            if (n >= NearBuffer.Length)
+            {
+                return true; // (a full buffer: sweep to be sure)
+            }
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = NearBuffer[i];
+                Hurtable h = c != null ? BodyGrab.HurtableOf(c) : null;
+                if (h != null && h != user && !(h is Actor soldier && soldier.dead) && h.team != user.team)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, float weight, string label, string key)
         {
             Vector3 sweep = to - from;
@@ -1049,7 +1093,7 @@ namespace RavenfieldVR.Weapons
             // The player's own hitboxes are skipped by their owner below, not switched off and on every fast frame (255.P7-1).
             try
             {
-                const float radius = 0.06f;
+                const float radius = BashRadius;
                 int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, GameMeleeMask);
                 Hurtable best = null;
                 RaycastHit bestHit = default;

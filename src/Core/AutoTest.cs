@@ -616,11 +616,14 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("old Medium", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, renderScale: 1f, msaa: 2,
                     shadows: ShadowQuality.All, shadowDistance: 60f, cascades: 2, shadowResolution: ShadowResolution.Medium, lodBias: 1f, pixelLights: 2, hdr: true)),
                 new KeyValuePair<string, Func<string>>("High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High)),
+                // (The old High and Ultra forced 16x texture filtering, cfaa7f7~1: without it their old cost read 3 ms low.)
                 new KeyValuePair<string, Func<string>>("old High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 1.2f, msaa: 4,
-                    shadowDistance: 100f, cascades: 2, shadowResolution: ShadowResolution.High, lodBias: 1.5f, pixelLights: 4, reflections: true, softParticles: true)),
+                    shadowDistance: 100f, cascades: 2, shadowResolution: ShadowResolution.High, lodBias: 1.5f, pixelLights: 4, reflections: true, softParticles: true,
+                    anisotropic: AnisotropicFiltering.ForceEnable)),
                 new KeyValuePair<string, Func<string>>("Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
                 new KeyValuePair<string, Func<string>>("old Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.4f, msaa: 4,
-                    shadowDistance: 150f, cascades: 4, shadowResolution: ShadowResolution.VeryHigh, lodBias: 2f, pixelLights: 6)),
+                    shadowDistance: 150f, cascades: 4, shadowResolution: ShadowResolution.VeryHigh, lodBias: 2f, pixelLights: 6,
+                    anisotropic: AnisotropicFiltering.ForceEnable)),
                 // What Ultra pays for beyond High's settings: its grass, trees and view distance, and the forced 16x texture filter
                 // it had until 2026-10-24 (2.9 of its 8.9 ms then; reflections and soft particles cost nothing measurable).
                 new KeyValuePair<string, Func<string>>("Ultra, High's terrain", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, terrainOf: GraphicsPreset.High)),
@@ -3285,6 +3288,18 @@ namespace RavenfieldVR.Core
             var used = new HashSet<Actor>();
             string broughtNote = "";
             MeleeHandler.RecordNotes = true;
+            // Every other bot of the match quiet for the check (their AI paused, put back after): the player's own team shot the
+            // enemies brought to arm's length, so a shield died before a shot and soldiers lost 30-40 before their throw, none of
+            // it the grab's doing (2026-10-24). The shield's shooter fires by hand, without his AI.
+            var quiet = new List<Actor>();
+            foreach (Actor a in ActorManager.instance.actors)
+            {
+                if (a != null && a != player && a.aiControlled && a.controller != null && a.controller.enabled)
+                {
+                    a.controller.enabled = false;
+                    quiet.Add(a);
+                }
+            }
 
             // Who comes next: the living on foot first, then the seated, the dead last (respawned, the game may take a dead one away).
             int Rank(Actor a) => a.dead ? 2 : a.IsSeated() ? 1 : 0;
@@ -3338,6 +3353,16 @@ namespace RavenfieldVR.Core
             IEnumerator Bring(Actor a, float ahead, bool facingAway, bool[] there)
             {
                 Vector3 at = Spot(ahead);
+                // The earlier steps' soldiers still standing at the spot sent away first: left there, the next grab took the one
+                // from the step before (alive, standing in the same place: "took hold of Lens, NOT DOWN", 2026-10-24).
+                int away = 0;
+                foreach (Actor p in paused)
+                {
+                    if (p != null && p != a && !p.dead && (Vector3.ProjectOnPlane(p.CenterPosition() - at, Vector3.up)).sqrMagnitude < 4f)
+                    {
+                        p.SpawnAt(Spot(-20f) + sideAxis * (2f * ++away), Quaternion.LookRotation(flat, Vector3.up));
+                    }
+                }
                 for (int attempt = 0; attempt < 2; attempt++)
                 {
                     // Out of a seat first: a seated soldier hangs under his seat, and the respawn leaves him there (he went on
@@ -3391,6 +3416,20 @@ namespace RavenfieldVR.Core
 
             // The gun hand carried to a point slowly (under a metre a second: no bash on the way, as a hand moving a gun into
             // a soldier's chest would not be).
+            // The free hand carried to a point at a hand's pace (under a metre a second), turned as it rested: put there in one
+            // frame, a held soldier was carried a metre in a frame and hurt by the move (2026-10-24).
+            IEnumerator OffTo(Vector3 palm)
+            {
+                Vector3 from = off.PalmCentre;
+                float seconds = Mathf.Max(0.3f, (palm - from).magnitude / 0.8f);
+                for (float start = Time.realtimeSinceStartup, k = 0f; k < 1f;)
+                {
+                    k = Mathf.Clamp01((Time.realtimeSinceStartup - start) / seconds);
+                    OffAt(Vector3.Lerp(from, palm, k));
+                    yield return null;
+                }
+            }
+
             IEnumerator DomTo(Vector3 palm, Quaternion rotation)
             {
                 Vector3 from = dom.PalmCentre;
@@ -3480,8 +3519,9 @@ namespace RavenfieldVR.Core
                 OffAt(offRaw.position + offPalmFromRaw);
             }
 
-            // The free hand swung at a velocity for eight frames (a throw when the grip opens right after).
-            IEnumerator Swing(Vector3 velocity, string pictureAtFive)
+            // The free hand swung at a velocity for eight frames (a throw when the grip opens right after). fastest[0]: the
+            // fastest bone of the held body while swung (a blow-up starting in the hand tells itself apart from one in flight).
+            IEnumerator Swing(Vector3 velocity, string pictureAtFive, Actor watch = null, float[] fastest = null)
             {
                 Vector3 palm = off.PalmCentre;
                 for (int i = 0; i < 8; i++)
@@ -3489,6 +3529,13 @@ namespace RavenfieldVR.Core
                     palm += velocity * 0.011f;
                     OffAt(palm, null, velocity);
                     yield return null;
+                    if (fastest != null && watch != null && watch.ragdoll != null && watch.ragdoll.rigidbodies != null)
+                    {
+                        foreach (Rigidbody rb in watch.ragdoll.rigidbodies)
+                        {
+                            fastest[0] = rb != null ? Mathf.Max(fastest[0], rb.velocity.magnitude) : fastest[0];
+                        }
+                    }
                     if (i == 5 && pictureAtFive != null)
                     {
                         yield return Snap(pictureAtFive, palm);
@@ -3554,7 +3601,10 @@ namespace RavenfieldVR.Core
                     yield return Snap("02-taken-hold-of", off.PalmCentre);
                     float before = held.health;
                     float fastest = 0f;
-                    yield return Swing((flat + Vector3.up * 0.6f).normalized * 6f, "03-swinging");
+                    string fastestNote = "";
+                    int overCap = 0; // frames with a bone past the 25 m/s cap (one whip, or a body that keeps flying apart)
+                    var swungFastest = new float[1];
+                    yield return Swing((flat + Vector3.up * 0.6f).normalized * 6f, "03-swinging", held, swungFastest);
                     Vector3 palm = off.PalmCentre;
                     Input.VRInput.SimulatedGrab[os] = false;
                     yield return null;
@@ -3569,10 +3619,18 @@ namespace RavenfieldVR.Core
                     {
                         if (held.ragdoll.rigidbodies != null)
                         {
+                            bool over = false;
                             foreach (Rigidbody rb in held.ragdoll.rigidbodies)
                             {
-                                fastest = rb != null ? Mathf.Max(fastest, rb.velocity.magnitude) : fastest;
+                                float s = rb != null ? rb.velocity.magnitude : 0f;
+                                over |= s > 25.5f;
+                                if (s > fastest)
+                                {
+                                    fastest = s;
+                                    fastestNote = $"{rb.name}, {Time.realtimeSinceStartup - start:0.00} s after, {(held.dead ? "dead" : "alive")}";
+                                }
                             }
+                            overCap += over ? 1 : 0;
                         }
                         if (!flyingShot && Time.realtimeSinceStartup > start + 0.35f)
                         {
@@ -3587,8 +3645,36 @@ namespace RavenfieldVR.Core
                            + $"{(letGo ? "let go" : "NOT LET GO")} in a 6 m/s swing, the body at {flew:0.0} m/s{(grabbed && flew < 2f ? " (NOT THROWN with the swing)" : "")}"
                            // (Bones are held to 25 m/s while armed, each physics step; a collision or a joint's pull inside the step
                            // takes a limb a little past it, 32 m/s once. A blow-up was 180.)
-                           + $"{(fastest > 50f ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s)" : $", fastest bone after {fastest:0.0} m/s")}, "
-                           + $"health {before:0} -> {Health(held)} after landing");
+                           + $"{(fastest > 50f ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s" : $", fastest bone after {fastest:0.0} m/s")} ({fastestNote}; {overCap} frame(s) past the cap){(fastest > 50f ? ")" : "")}, "
+                           + $"health {before:0} -> {Health(held)} after landing; fastest bone while swung {swungFastest[0]:0.0} m/s");
+                }
+
+                // 1b. Slammed into the ground while still held: a held soldier is hurt by what he is slammed into, not only once
+                // thrown (user, 2026-10-24: "slamming people against things while still holding them also makes them take damage").
+                Actor slammed = Next(false);
+                yield return Bring(slammed, 0.8f, false, there);
+                if (!there[0])
+                {
+                    report($"slam while held: skipped (the soldier could not be brought: {broughtNote})");
+                }
+                else
+                {
+                    yield return Take(slammed.CenterPosition(), hit);
+                    bool holdingSlam = hit[0];
+                    Vector3 high = headAt + flat * 0.5f;
+                    yield return OffTo(high);
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    float slamFrom = slammed.health;
+                    // Straight down at 8 m/s to 20 cm over the ground, still gripping (stops at the first hurt).
+                    float drop = Mathf.Max(0.3f, high.y - Spot(0.5f).y - 0.2f);
+                    yield return Strike(off, off.PalmCentre, Vector3.down, drop, 8f, offRaw.rotation, slammed, hit);
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    bool slamHurt = slammed.dead || slammed.health < slamFrom - 1f;
+                    bool stillHeld = BodyGrab.IsHeld(slammed);
+                    yield return Snap("06b-slammed-while-held", slammed.CenterPosition());
+                    yield return LetGo();
+                    report($"slam while held: {(holdingSlam ? $"{slammed.name} held" : "NOT HELD")}, slammed down at 8 m/s: "
+                           + $"{(slamHurt ? $"hurt ({slamFrom:0} -> {Health(slammed)})" : "NOT HURT BY THE SLAM")}, {(stillHeld ? "still held" : "let go")}");
                 }
 
                 // 2. A fist while the other hand holds the gun (at the hip).
@@ -3645,7 +3731,8 @@ namespace RavenfieldVR.Core
                         Input.VRInput.SimulatedGrip[ds] = 0f;
                         Input.VRInput.SimulatedGrip[os] = 0f;
                         report($"boxing (no gun): {(right ? "the gun hand's fist hit" : "the gun hand's fist NO HIT")}, {(left ? "the other fist hit" : "the other fist NO HIT")}, "
-                               + $"{sparring.name} {hp:0} -> {Health(sparring)}");
+                               + $"{sparring.name} {hp:0} -> {Health(sparring)}"
+                               + (right && left ? "" : $" [last fist frame: {MeleeHandler.FistNote}; last sweep: {MeleeHandler.CastNote}]"));
                     }
                     OffAt(offRaw.position + offPalmFromRaw);
                 }
@@ -3696,6 +3783,12 @@ namespace RavenfieldVR.Core
                 // 5. A human shield: a soldier held up in front, his friend shooting at the player through him.
                 Actor shield = Next(false);
                 Actor shooter = Next(true);
+                if (shooter == shield)
+                {
+                    // The used list came round to the same soldier (it starts again when all were used): any other armed enemy. The
+                    // step was skipped in about half the runs (2026-10-24).
+                    shooter = enemies.FirstOrDefault(e => e != null && e != shield && Armed(e));
+                }
                 if (shield == null || shooter == null || shield == shooter)
                 {
                     report("human shield: skipped (two enemies are needed)");
@@ -3722,15 +3815,29 @@ namespace RavenfieldVR.Core
                             }
                             yield return new WaitForSecondsRealtime(1f);
                         }
+                        if (shooter.activeWeapon == null)
+                        {
+                            // Respawned with nothing in his hands and his AI paused, nothing draws one ("0 shot(s) ... (no weapon)",
+                            // 2026-10-24): one of the game's own guns, as the knife is given below.
+                            WeaponManager.WeaponEntry gunEntry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null
+                                && e.prefab.GetComponent<Weapon>() != null && e.prefab.GetComponent<MeleeWeapon>() == null && e.prefab.GetComponent<ThrowableWeapon>() == null);
+                            if (gunEntry != null)
+                            {
+                                shooter.EquipNewWeaponEntry(gunEntry, 0, true);
+                                yield return new WaitForSecondsRealtime(1f);
+                            }
+                        }
                         yield return Take(shield.CenterPosition(), hit);
                         bool holding = hit[0];
-                        // Held up in front of the chest.
+                        float liftedFrom = shield.health;
+                        // Held up in front of the chest, lifted there at a hand's pace.
                         Vector3 front = headAt + flat * 0.45f - Vector3.up * 0.2f;
-                        OffAt(front);
+                        yield return OffTo(front);
                         yield return new WaitForSecondsRealtime(0.8f);
                         yield return Snap("14-human-shield", front);
                         Weapon w = shooter.activeWeapon;
                         float shieldHp = shield.health, playerHp = player.health;
+                        string lifted = $"lifted {liftedFrom:0} -> {Health(shield)}{(shield.dead ? " (THE SHIELD DIED BEFORE THE SHOTS)" : "")}";
                         int shots = 0;
                         if (w != null && holding)
                         {
@@ -3755,7 +3862,7 @@ namespace RavenfieldVR.Core
                         yield return Snap("15-human-shield-shot", front);
                         bool stopped = shield.dead || shield.health < shieldHp - 1f;
                         bool playerHit = player.health < playerHp - 1f;
-                        report($"human shield: {(holding ? $"{shield.name} held up in front" : "NOT HELD")}, {shots} shot(s) by {shooter.name} ({(w != null ? w.name : "no weapon")}) at the player through him: "
+                        report($"human shield: {(holding ? $"{shield.name} held up in front ({lifted})" : "NOT HELD")}, {shots} shot(s) by {shooter.name} ({(w != null ? w.name : "no weapon")}) at the player through him: "
                                + $"{(stopped ? $"the shield took them ({shieldHp:0} -> {Health(shield)})" : "NO SHOT STOPPED BY THE SHIELD")}, "
                                + $"{(playerHit ? $"THE PLAYER WAS HIT ({playerHp:0} -> {player.health:0})" : "the player unhurt")}");
                         yield return LetGo();
@@ -3977,6 +4084,51 @@ namespace RavenfieldVR.Core
                            + $"{(fistHit ? "the other hand's fist hit him" : "the other hand's fist NO HIT")}; "
                            + $"{(knifeSlot < 0 ? "knife: none to be had" : knifeHit ? $"a knife{knifeNote} stabbed him" : !knifeTried ? "knife: not tried (the soldier was already dead or not held)" : $"the knife{knifeNote} NO HIT")}; health {hp:0} -> {Health(heldUp)}");
                 }
+
+                // 9. A gun drawn into the hand that holds a soldier (the weapon button, a respawn): the soldier is let go and the
+                // hand is clean, as a held magazine is let go then. Before, the body stayed on the gun hand's joint and the soldier
+                // on the hand after it let go, and that hand never grabbed or punched again (2026-10-24).
+                int gunSlot = drawn != null && player.weapons != null ? Array.IndexOf(player.weapons, drawn) : -1;
+                if (player.activeWeapon != null)
+                {
+                    player.HolsterActiveWeapon();
+                    yield return new WaitForSecondsRealtime(0.8f);
+                }
+                Actor drawnOn = Next(false);
+                if (gunSlot < 0 || dom.Role != Rig.HandRole.Free)
+                {
+                    report($"gun drawn into a holding hand: skipped ({(gunSlot < 0 ? "no gun to draw" : $"the gun hand is {dom.Role}")})");
+                }
+                else
+                {
+                    yield return Bring(drawnOn, 0.8f, false, there);
+                    if (!there[0])
+                    {
+                        report($"gun drawn into a holding hand: skipped (the soldier could not be brought: {broughtNote})");
+                    }
+                    else
+                    {
+                        yield return DomTo(drawnOn.CenterPosition(), Quaternion.LookRotation(flat, Vector3.up));
+                        Input.VRInput.SimulateGrabPress(dom.Side);
+                        for (float until = Time.realtimeSinceStartup + 0.5f; dom.Role != Rig.HandRole.Body && Time.realtimeSinceStartup < until;)
+                        {
+                            yield return null;
+                        }
+                        bool holding = dom.Role == Rig.HandRole.Body;
+                        player.SwitchWeapon(gunSlot);
+                        for (float until = Time.realtimeSinceStartup + 4f; (sys.Held == null || sys.Held.Weapon != drawn) && Time.realtimeSinceStartup < until;)
+                        {
+                            yield return null;
+                        }
+                        yield return null;
+                        bool letGo = !BodyGrab.IsHeld(drawnOn);
+                        bool clean = !(dom.Held is Actor);
+                        yield return Snap("25-gun-drawn-into-holding-hand", drawnOn.CenterPosition());
+                        Input.VRInput.SimulatedGrab[ds] = false;
+                        report($"gun drawn into a holding hand: {(holding ? $"{drawnOn.name} held by the gun hand" : "NOT HELD")}, {(sys.Held != null && sys.Held.Weapon == drawn ? $"{drawn.name} drawn" : "THE GUN NOT DRAWN")}; "
+                               + $"{(letGo ? "the soldier let go" : "NOT LET GO")}, {(clean ? "the hand clean" : "THE SOLDIER LEFT ON THE HAND")}");
+                    }
+                }
             }
             finally
             {
@@ -4001,6 +4153,13 @@ namespace RavenfieldVR.Core
                         {
                             a.controller.enabled = true;
                         }
+                    }
+                }
+                foreach (Actor a in quiet)
+                {
+                    if (a != null && a.controller != null)
+                    {
+                        a.controller.enabled = true;
                     }
                 }
             }
@@ -5311,7 +5470,7 @@ namespace RavenfieldVR.Core
         /// written into the weapon lines but never counted as problems (every report since 2026-10-17: the HK416s' "through the gun"
         /// was in the lines, not in the problems; improve round, 2026-10-22). tools/tests/failure_phrases_test.py keeps it in step.
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP|LEFT ON THE HAND|DIED BEFORE THE SHOTS");
 
         private static string FirstFrames(Exception e)
         {

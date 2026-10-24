@@ -13,8 +13,8 @@ namespace RavenfieldVR.Weapons
     /// Manual reloading with both hands. Magazines, shells and rockets ride a rail into the gun: near the well they
     /// lock onto the insertion axis and slide with your hand; only full depth seats them (with the mod's mag-in
     /// sound). Released magazines slide out of the well before they fall. Slides, charging handles, bolts and
-    /// pumps follow your hand along their real travel. Hands are never pinned to the weapon: the parts follow the
-    /// hand, not the other way round.
+    /// pumps follow your hand along their real travel: the parts follow the hand. The glove grips the part it works (a
+    /// bolt, a handle, a cover's latch, an optic: GraspAnchor), never the gun's body.
     /// </summary>
     public sealed partial class ReloadInteractions
     {
@@ -420,6 +420,10 @@ namespace RavenfieldVR.Weapons
                     // it stayed frozen part way open and its latch out of reach (check-1017h: the mg3's and MK46's covers
                     // at 59% after the cover check, the machine gun reload's squeeze at the latch took nothing).
                     EndCover(off);
+                }
+                if (_beltHeld)
+                {
+                    LetBeltHang(off); // the belt too: held on, it stayed drawn to where the lost hand was (review, 2026-10-24)
                 }
                 return;
             }
@@ -1246,6 +1250,9 @@ namespace RavenfieldVR.Weapons
             _kickPrevAlong = float.NaN;
             _kickPushSince = -1f;
             _kickTicked = false;
+            // And the glove's: the last drawn place and the last clear place were in the other sub-weapon's space (review).
+            _offGloveDrawnFrame = -10;
+            _freeHandClearSet = false;
             Casings.ShowChamber(_held, false, false);
             if (_ejecting != null)
             {

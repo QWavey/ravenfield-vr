@@ -1110,14 +1110,22 @@ namespace RavenfieldVR.Rig
             UpdatePostProcessing(reference);
         }
 
+        private Camera _ppSourceOf;
+        private PostProcessLayer _ppSource;
+
         private void UpdatePostProcessing(Camera reference)
         {
             // The game's night vision is a post-process profile (its green grade) on a volume the goggles switch on: drawn in
             // the headset only with post-processing, which is off by default, so the eyes got only the grey actor glow
             // (user, 2026-10-16: "it's just grey, and on the flat screen"). On while the goggles are.
             bool want = VRConfig.PostProcessing.Value || NightVision.isEnabled;
-            // (The layer is looked up only when wanted: off by default, a GetComponent every frame went unused.)
-            PostProcessLayer source = want ? reference.GetComponent<PostProcessLayer>() : null;
+            // (The layer is looked up only when wanted, and once per reference camera: a GetComponent every frame.)
+            if (want && !ReferenceEquals(_ppSourceOf, reference))
+            {
+                _ppSourceOf = reference;
+                _ppSource = reference.GetComponent<PostProcessLayer>();
+            }
+            PostProcessLayer source = want ? _ppSource : null;
             if (!want || source == null || PpResources == null)
             {
                 if (_postProcess != null && _postProcess.enabled)

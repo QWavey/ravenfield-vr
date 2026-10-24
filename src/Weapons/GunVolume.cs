@@ -192,8 +192,7 @@ namespace RavenfieldVR.Weapons
             foreach (View v in _views)
             {
                 v.WorldToView = v.ToView * _inv;
-                v.WorldRot = Rot3.Of(v.WorldToView);
-                v.ToRot = Rot3.Of(v.ToView);
+                v.WorldRot = Rot3.Of(v.WorldToView); // (ToRot is fixed: made with ToView in Measure)
             }
         }
 

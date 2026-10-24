@@ -154,6 +154,7 @@ namespace RavenfieldVR.Core
         // Flat play because VR did not start: said on the screen (it was only a log line, and the game simply came up flat
         // when SteamVR had not been started first), with F6 to try again once SteamVR runs (F7-F11 are the game's own).
         private string _flatNotice;
+        private string _noticeFor, _noticeText;
         private float _flatNoticeUntil;
         private bool _retry, _retrying;
         private GUIStyle _noticeStyle, _noticeButton;
@@ -182,7 +183,12 @@ namespace RavenfieldVR.Core
             }
             // 120 px: three lines and the title (at 90 the last line was cut off; user, 2026-10-19).
             var box = new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 120f);
-            GUI.Box(box, "Ravenfield VR\n" + _flatNotice, _noticeStyle);
+            if (!ReferenceEquals(_noticeFor, _flatNotice))
+            {
+                _noticeFor = _flatNotice; // the box's text made when the notice changes, not on each of OnGUI's calls
+                _noticeText = "Ravenfield VR\n" + _flatNotice;
+            }
+            GUI.Box(box, _noticeText, _noticeStyle);
             if (_retrying)
             {
                 return;
@@ -237,20 +243,21 @@ namespace RavenfieldVR.Core
         // nor its coroutines). Logged by the input check beside the fps (the GPU time SteamVR reports through Link was 2-3 ms
         // at 50 fps in play, so whether the frame is the game's or the mod's had to be measured; task 322).
         private static readonly System.Diagnostics.Stopwatch ModTime = new System.Diagnostics.Stopwatch();
-        private static int _modFrames;
+        private static long _modFrames;
 
-        /// <summary>The mod's main-thread ms a frame since the last call (and starts counting again).</summary>
-        internal static float TakeModMsPerFrame()
+        /// <summary>
+        /// The mod's main-thread ms a frame since this caller's last call: each caller keeps its own marks (the input check every
+        /// 2 s and the minute's frame-rate line shared one counter that each reset, so the minute's line said the last 2 s only
+        /// while the input check ran; review, 2026-10-24).
+        /// </summary>
+        internal static float ModMsPerFrameSince(ref double msMark, ref long frameMark)
         {
-            float ms = _modFrames > 0 ? (float)(ModTime.Elapsed.TotalMilliseconds / _modFrames) : 0f;
-            bool running = ModTime.IsRunning;
-            ModTime.Reset();
-            if (running)
-            {
-                ModTime.Start(); // (called from inside the mod's Update: the rest of it still counts)
-            }
-            _modFrames = 0;
-            return ms;
+            double ms = ModTime.Elapsed.TotalMilliseconds;
+            long frames = _modFrames;
+            float perFrame = frames > frameMark ? (float)((ms - msMark) / (frames - frameMark)) : 0f;
+            msMark = ms;
+            frameMark = frames;
+            return perFrame;
         }
 
         // Per-frame work goes to Log.Guard as delegates made once: passing a method group allocates a new delegate

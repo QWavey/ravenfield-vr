@@ -421,8 +421,9 @@ namespace RavenfieldVR.Rig
         public Vector3 KeepOut;
         public int KeepOutFrame = -10;
         /// <summary>
-        /// The frame <see cref="KeepOut"/> was last set by <see cref="SweptKeepOut"/>: a swept contact is continuous already (the
-        /// glove only moves from where it was drawn), so it is applied at once instead of eased.
+        /// The frame <see cref="KeepOut"/> was last set from a <see cref="SweptKeepOut"/> result (its caller sets both, as
+        /// ReloadInteractions.SweepGlove does): a swept contact is continuous already (the glove only moves from where it was
+        /// drawn), so it is applied at once instead of eased.
         /// </summary>
         public int KeepOutSweptFrame = -10;
         private Vector3 _keepOut;
@@ -704,9 +705,9 @@ namespace RavenfieldVR.Rig
             Vector3 wantOut = keepOut ? KeepOut : Vector3.zero;
             // Growing, it moves out at up to 4 m/s (4.4 cm a frame keeps up with a fast hand; at once, a full 12 cm clearance or
             // a flip of side jumped the glove in one frame; 255.I2-2); shrinking, it is eased back in, so a keep-out that
-            // flickers does not shake the glove. A swept contact goes at once: it only moves the glove on from where it was
-            // drawn, so it cannot jump, and easing it left a hand shoved in faster than 4 m/s inside the gun for a few frames
-            // (user, 2026-10-23).
+            // flickers does not shake the glove. A swept contact goes at once: it moves the glove on from where it was drawn,
+            // and easing it left a hand shoved in faster than 4 m/s inside the gun for a few frames (user, 2026-10-23). Its
+            // release (the hand 15 cm away and clear) puts the glove back on the hand in one frame, as Boneworks' does.
             bool swept = keepOut && KeepOutSweptFrame == KeepOutFrame;
             _keepOut = swept ? wantOut
                 : wantOut.sqrMagnitude >= _keepOut.sqrMagnitude ? Vector3.MoveTowards(_keepOut, wantOut, 4f * dt) : Vector3.Lerp(_keepOut, wantOut, 1f - Mathf.Exp(-18f * dt));

@@ -185,10 +185,7 @@ namespace RavenfieldVR.Weapons
             return any;
         }
 
-        /// <summary>
-        /// Your own dropped weapon goes back to its holster when you leave it lying for a while or walk away from it, as
-        /// long as its slot is still free (pick something else up into it and the dropped one stays a normal drop).
-        /// </summary>
+        /// <summary>The player was dead at the last update (<see cref="LetGoOfOwnDrops"/> runs on the death).</summary>
         private bool _playerWasDead;
 
         /// <summary>
@@ -211,6 +208,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Your own dropped weapon goes back to its holster when you leave it lying for a while or walk away from it, as
+        /// long as its slot is still free (pick something else up into it and the dropped one stays a normal drop).
+        /// </summary>
         private void ReturnOwnDrops(Actor actor)
         {
             for (int i = _drops.Count - 1; i >= 0; i--)

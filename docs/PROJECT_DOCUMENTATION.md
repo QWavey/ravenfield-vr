@@ -409,13 +409,33 @@ R870's grip, 29 cm under the bore): no shotgun could be loaded by hand, while th
   remembered as missing instead of rebuilt every frame). The pouch sits a hand's width from every holster spot (it used
   to overlap the off-hip holster).
 - **Throwables**: grenades with pins (`GrenadeDud` for pinned throws), throws with real hand velocity, melee along the
-  measured blade. A gun swung into an enemy hits with four points swept from butt to muzzle (`MeleeHandler.Bash`), and
-  since 2026-10-20 a magazine, shell or rocket in a hand or a grenade held to throw hits lightly too (`HandBlows`: the
-  palm's path, the knife's speed against the body, credited to the gun in use; task 306). A hand-sized throwable is held
+  measured blade. A melee weapon hits only what its blade is swung through: the game's own trigger attack (along the head's
+  facing) is suppressed while one is held (`WeaponSystem.Update`), and the blade's sweep switches the player's hitboxes off
+  around the game's `SphereCast` only when a cheap cast of the path finds something but the player (`PathHasTarget`). A
+  gun swung into an enemy hits with points every 10 cm (4 to 12) swept from butt to muzzle (`MeleeHandler.Bash`), after one
+  overlap round the whole gun says a soldier is near at all (`SoldierNear`), and since 2026-10-20 a magazine, shell or
+  rocket in a hand, a grenade held to throw or an empty fist hits too (`HandBlows`: the palm's path, at least `BlowSpeed`
+  against the body, credited to the gun in use; task 306). A hand-sized throwable is held
   by its drawn middle (`HeldWeapon.CentreGrenadeGrip`, for either hand), and that middle rests on the palm
   (`HeldWeapon.HoldFrame`: from the fist's hollow, the controller's grip origin on the palm's skin, out along the palm's
   normal by the skin it covers and its own half thickness, as a magazine rests), not on the palm centre where a gun's
   grip goes (2.6 cm inside the hand: a frag had 14 of 72 glove points in it).
+- **Soldiers** (`Weapons/BodyGrab.cs`, tasks 336-338): a free, empty hand gripping near a soldier knocks him over
+  (`Actor.FallOver`) and holds his nearest ragdoll bone through a locked `ConfigurableJoint` to a kinematic anchor that
+  follows the palm (`MovePosition`, so the physics pulls the body); a hand jump over 25 cm (a snap turn) carries the whole
+  body instead (`CarryBody`, once a frame for a body in both hands). While held and for 3 s after the throw the soldier is
+  "armed": `BodyImpacts` on each bone (removed once disarmed) hurts him and whoever he hits by the impact speed squared
+  (Boneworks' `Enemy_Health`), caps bone speed at 25 m/s and depenetration at 5, and his joint motors are off
+  (`ActiveRaggy.SetDrive(0, 1)`; the living 700-1000 kept him stiff in his falling pose; while held, again after the game's
+  death drive of 50). The game's own drive is put back on disarm, the death drive for a dead body. Tried and dropped
+  (each blew a limb up in the soldier check): the death drive of 50 on a living soldier, motors off again on a body that
+  died in flight, more solver passes. The held gun's stand-in ignores the held body (`GunCollider.IgnoreCollisionsWith`).
+  A throw sets
+  one velocity on every bone (at most 22 m/s). Held soldiers are a human shield (`HumanShieldPatch` on
+  `Projectile.CanHitHitbox`: bullets hit them whoever fired). An enemy's head taken from behind is a neck hold (AI paused);
+  a 70 degree turn of the wrist against the body kills him and leaves the ragdoll in the hand. A live grenade let go slowly
+  on a held body sticks to the bone (`StrappedGrenade`); its explosion kills the carrier (enemies only) and deals the
+  grenade's own damage to everyone else. Checked by `vrshots --fast --grabcheck` (nine steps with pictures).
 - **First drops without the analysis** (`ParkedPartsCache`, 2026-10-20): a drop template hides the parked ammunition the
   analysis found (`HideParkedAmmo`), and that was the only reason a type's first drop ran the whole analysis on a soldier's
   death frame (235-300 ms for the PKP, PKM, Type 80, BRN180s when the warm-up had reached 78 of 286 weapons). Every prefab

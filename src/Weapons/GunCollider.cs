@@ -377,6 +377,26 @@ namespace RavenfieldVR.Weapons
         /// <summary>Whether <paramref name="c"/> is one of the held gun's stand-in pieces.</summary>
         public static bool IsStandIn(Collider c) => Current != null && c != null && Current._boxes.Contains(c);
 
+        /// <summary>The stand-in's pieces no longer collide with what is under <paramref name="root"/> (a soldier the other hand holds).</summary>
+        internal void IgnoreCollisionsWith(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+            foreach (Collider c in root.GetComponentsInChildren<Collider>())
+            {
+                foreach (Collider b in _boxes)
+                {
+                    // (Unity refuses a pair unless both are enabled and active.)
+                    if (b != null && b.enabled && c.enabled && b.gameObject.activeInHierarchy)
+                    {
+                        Physics.IgnoreCollision(b, c, true);
+                    }
+                }
+            }
+        }
+
         private readonly WeaponRig _rig;
         private readonly GameObject _go;
         private readonly Rigidbody _body;

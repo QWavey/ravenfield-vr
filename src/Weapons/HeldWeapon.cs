@@ -1706,12 +1706,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Without its pin or ring, which pulled the middle toward the top.
             Bounds gb = GunCollider.VisibleBounds(rig, out bool gMeasured, ThrowableHandler.FindModPin(weapon.transform));
             if (!gMeasured)
             {
                 return; // tried again on the next draw (255.I5-1)
             }
-            // Without its pin or ring, which pulled the middle toward the top.
             GrenadeInFist.Add(rig.Data);
             if (Mathf.Max(gb.size.x, Mathf.Max(gb.size.y, gb.size.z)) < 0.2f)
             {
@@ -1821,16 +1821,19 @@ namespace RavenfieldVR.Weapons
             {
                 // Only while the weapon's own hand is on its grip: an animation that takes it away (an assisted reload,
                 // an inspect) must not pull the glove off the tracked hand.
-                main.Model.SnapPose = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose grip)
-                                      && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f
+                // (The hand pose asked once a frame: a weapon with none asked twice, every frame, for the note below.)
+                RigidPose grip = default;
+                bool posed = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out grip);
+                bool onGrip = posed && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f;
+                main.Model.SnapPose = onGrip
                     ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand
                     : (RigidPose?)null;
-                if (!_saidGripSnapOff && main.Model.SnapPose == null && _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out RigidPose off6))
+                if (!_saidGripSnapOff && posed && !onGrip)
                 {
                     _saidGripSnapOff = true; // once a hold: this runs every frame, and the strings and the pose were made every frame
                     // Said once: the glove then is not put on the grip pose (the RPG-7's hands "float while gripped", user,
                     // headset, 2026-10-18 evening; task 276).
-                    Log.InfoOnce("gripsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the gun hand is not put on the weapon's own grip pose: its hand bone is {Vector3.Distance(off6.position, Rig.ToWorld(Rig.Data.GripPoint)) * 100f:0.0} cm from the grip point (6 cm at most).");
+                    Log.InfoOnce("gripsnapoff:" + Rig.Data.Key, $"{Rig.Data.Key}: the gun hand is not put on the weapon's own grip pose: its hand bone is {Vector3.Distance(grip.position, Rig.ToWorld(Rig.Data.GripPoint)) * 100f:0.0} cm from the grip point (6 cm at most).");
                 }
             }
             if (off.Model == null)

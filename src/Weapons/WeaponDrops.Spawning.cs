@@ -620,8 +620,6 @@ namespace RavenfieldVR.Weapons
         /// <summary>The prefab's analysis when the last template build ran it (part of the model's ms; -1: not run).</summary>
         private static float _lastAnalysisMs = -1f;
 
-        // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
-        // at 0 that deleted the swapped rifle, rounds and all, inside this call (drops hunt, 2026-10-20).
         /// <summary>
         /// Let go with the hand under the ground, or a dying soldier's weapon in it: it fell through the world (terrain is a surface,
         /// not a solid). Put back on the surface between it and <paramref name="open"/> (the player's eyes, the soldier's chest).
@@ -639,6 +637,8 @@ namespace RavenfieldVR.Weapons
             PropPhysics.BackToward(root, pieces, open.Value, PropPhysics.BoundsOf(pieces), 0.8f);
         }
 
+        // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
+        // at 0 that deleted the swapped rifle, rounds and all, inside this call (drops hunt, 2026-10-20).
         public DroppedWeapon Spawn(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 scale, Vector3 velocity, int ammo, int spare, bool keep = false,
                                    Vector3? open = null)
         {
@@ -934,10 +934,10 @@ namespace RavenfieldVR.Weapons
             return ms;
         }
 
-        // False: it failed (the idle builder then gives the type up: it went back in line and copied the model again every turn).
         /// <summary>
         /// Menu warm-up: the world model a fallen soldier drops and its physics shape (hulls cooked), built ahead so a bot
-        /// dying with this weapon in a match costs no model copy, no mesh reading and no cooking.
+        /// dying with this weapon in a match costs no model copy, no mesh reading and no cooking. False: it failed (the idle
+        /// builder then gives the type up: it went back in line and copied the model again every turn).
         /// </summary>
         internal static bool Prepare(WeaponManager.WeaponEntry entry)
         {

@@ -153,16 +153,20 @@ namespace RavenfieldVR.UI
             _wasVisible = true;
             // The frame rate's share on time (task 336): changes every few seconds at most.
             int rate = VRConfig.WristFrameRate.Value && FrameBudget.RecentPercent >= 0 ? FrameBudget.RecentHz * 1000 + FrameBudget.RecentPercent : -1;
+            // With the GPU's time beside it: over the refresh interval the preset is too heavy, under it the CPU is the limit.
+            int gpu = rate < 0 ? -1 : FrameBudget.RecentGpuTenths;
             // Rebuilt only when what it shows changes: no string garbage every frame.
-            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate)
+            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu)
             {
                 _shownHp = hpWhole;
                 _shownCounter = counter;
                 _shownSpare = spare;
                 _shownRate = rate;
+                _shownGpu = gpu;
                 string reserve = spare == -1 ? "\u221e" : spare.ToString();
                 _text.text = (a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve")
-                             + (rate < 0 ? "" : "\n" + FrameBudget.RecentHz + " Hz  \u00b7  " + FrameBudget.RecentPercent + "% on time");
+                             + (rate < 0 ? "" : "\n" + FrameBudget.RecentHz + " Hz  \u00b7  " + FrameBudget.RecentPercent + "% on time")
+                             + (gpu < 0 ? "" : "  \u00b7  GPU " + (gpu / 10) + "." + (gpu % 10) + " ms");
                 _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
             if (becameVisible)
@@ -191,6 +195,7 @@ namespace RavenfieldVR.UI
         private string _shownCounter;
         private int _shownSpare = int.MinValue;
         private int _shownRate = int.MinValue;
+        private int _shownGpu = int.MinValue;
         private bool _wasVisible;
         private int _refitFrames;
         private float _lastPlateAlpha = -1f;

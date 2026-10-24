@@ -70,6 +70,8 @@ namespace RavenfieldVR.Weapons
             /// <summary>Where the hand was last frame (to carry the body over a jump of the hand).</summary>
             public Vector3 LastPalm;
             public Quaternion LastRotation;
+            /// <summary>The gun stand-in this body was last told not to collide with.</summary>
+            public GunCollider IgnoredGun;
         }
 
         public BodyGrab(VRRig rig)
@@ -111,11 +113,29 @@ namespace RavenfieldVR.Weapons
             return hb != null ? hb.parent : c.GetComponentInParent<Actor>();
         }
 
+        /// <summary>
+        /// Whether either hand holds a soldier at all: plain fields, no Unity object compared (the human shield asks it for
+        /// every bullet tested against a hitbox in the match).
+        /// </summary>
+        internal static bool AnyHeld
+        {
+            get
+            {
+                BodyGrab g = _instance;
+                return g != null && (g._holds[0] != null || g._holds[1] != null);
+            }
+        }
+
         /// <summary>Whether the player holds this soldier (in either hand, alive or dead): bullets hit him, whoever fired.</summary>
         internal static bool IsHeld(Actor a)
         {
             BodyGrab g = _instance;
-            return g != null && a != null && (g._holds[0] != null && g._holds[0].Actor == a || g._holds[1] != null && g._holds[1].Actor == a);
+            if (g == null)
+            {
+                return false;
+            }
+            Hold h0 = g._holds[0], h1 = g._holds[1];
+            return (h0 != null || h1 != null) && a != null && (h0 != null && h0.Actor == a || h1 != null && h1.Actor == a);
         }
 
         /// <summary>Whether this hand holds a soldier by the neck (the autotest's execution check).</summary>
@@ -394,6 +414,13 @@ namespace RavenfieldVR.Weapons
 
         private void Follow(int i, VRHand hand, Hold hold, Actor player, bool canHold)
         {
+            if (hand.Role != HandRole.Body)
+            {
+                // Taken over: the game drew a weapon into the hand (the weapon button, a respawn), as a held magazine is let go
+                // then (HeldWeapon). The body stayed on the gun hand's joint, and the soldier on the hand after it let go.
+                Release(i, hand, thrown: false);
+                return;
+            }
             if (hold.Neck)
             {
                 FollowNeck(i, hand, hold, player, canHold);
@@ -449,10 +476,17 @@ namespace RavenfieldVR.Weapons
                 a.fallAction.Start(); // held, not getting up (the game gets up when the fall timer is done and the body is still)
             }
             // Killed while held (a knife, a bullet), the game stiffened the joints again for the body (Actor.Die: SetDrive 50):
-            // limp again while it hangs from the hand.
+            // limp again while it hangs from the hand (only while held: see SavedDrive).
             if (a.ragdoll.jointDrive.positionSpring > 0f)
             {
                 BodyImpacts.Limp(a);
+            }
+            // The held gun's physics stand-in (it chases the other hand by velocity) never pushes the held body: it shoved the
+            // ragdoll about and hurt it ("slammed into RavenfieldVR Gun Collider", 2026-10-24). Again for each new gun.
+            if (!ReferenceEquals(hold.IgnoredGun, GunCollider.Current))
+            {
+                hold.IgnoredGun = GunCollider.Current;
+                GunCollider.Current?.IgnoreCollisionsWith(a.ragdoll.ragdollObject);
             }
             // No bone faster than the hand by more than MaxOverHand: a body caught in the ground or a wall was shot out by the
             // physics before (see MaxOverHand).
@@ -479,6 +513,10 @@ namespace RavenfieldVR.Weapons
         {
             Hold hold = _holds[i];
             _holds[i] = null;
+            if (hand != null && hold != null && ReferenceEquals(hand.Held, hold.Actor))
+            {
+                hand.Held = null; // (also when the hand was taken over: the soldier left on it kept it from ever grabbing or punching)
+            }
             if (hold != null && hold.Neck)
             {
                 ResumeAi(hold.Actor); // let go of the neck: he is free again
@@ -491,34 +529,25 @@ namespace RavenfieldVR.Weapons
                     Object.Destroy(hold.Joint);
                 }
                 // Still held by the other hand: stays armed (not for 3 s only) and down; the other hand's let-go throws.
+                Actor a = hold.Actor;
                 Hold other = _holds[1 - i];
-                bool stillHeld = other != null && other.Actor == hold.Actor;
-                if (hold.Actor != null && !stillHeld && (hold.Actor.ragdoll == null || !hold.Actor.ragdoll.IsRagdoll()))
+                if (a != null && !(other != null && other.Actor == a))
                 {
-                    BodyImpacts.Disarm(hold.Actor); // stood up or respawned under the hand: his joints as the game set them, now
-                }
-                else if (hold.Actor != null && !stillHeld)
-                {
-                    BodyImpacts.Arm(hold.Actor, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
-                    if (thrown && hold.Actor.ragdoll.rigidbodies != null)
+                    if (a.ragdoll == null || !a.ragdoll.IsRagdoll())
                     {
-                        // Thrown with the hand's motion (as everything let go: ThrowAndMelee), the whole body, not only the bone that
-                        // was held: the rest of a ragdoll hanging from one joint lags far behind it.
-                        // One velocity for every bone (the joints' own pulls left in made the body tumble off at any speed), at most
-                        // MaxThrowSpeed.
-                        Vector3 v = Vector3.ClampMagnitude(ThrowableHandler.Released(hand), MaxThrowSpeed);
-                        foreach (Rigidbody rb in hold.Actor.ragdoll.rigidbodies)
-                        {
-                            if (rb != null)
-                            {
-                                rb.velocity = v;
-                                rb.angularVelocity *= 0.25f;
-                            }
-                        }
+                        BodyImpacts.Disarm(a); // stood up or respawned under the hand: his joints as the game set them, now
                     }
-                    if (!hold.Actor.dead)
+                    else
                     {
-                        hold.Actor.fallAction.Start(); // down a moment after the throw too, before the game lets them get up
+                        BodyImpacts.Arm(a, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
+                        if (thrown && hand != null)
+                        {
+                            ThrowBody(a, hand);
+                        }
+                        if (!a.dead)
+                        {
+                            a.fallAction.Start(); // down a moment after the throw too, before the game lets them get up
+                        }
                     }
                 }
             }
@@ -526,6 +555,29 @@ namespace RavenfieldVR.Weapons
             {
                 hand.Role = HandRole.Free;
                 hand.Held = null;
+            }
+        }
+
+        /// <summary>
+        /// Thrown with the hand's motion (as everything let go: ThrowAndMelee), the whole body, not only the bone that was held:
+        /// the rest of a ragdoll hanging from one joint lags far behind it. One velocity for every bone (the joints' own pulls
+        /// left in made the body tumble off at any speed), at most <see cref="MaxThrowSpeed"/>.
+        /// </summary>
+        private static void ThrowBody(Actor a, VRHand hand)
+        {
+            Rigidbody[] bones = a.ragdoll.rigidbodies;
+            if (bones == null)
+            {
+                return;
+            }
+            Vector3 v = Vector3.ClampMagnitude(ThrowableHandler.Released(hand), MaxThrowSpeed);
+            foreach (Rigidbody rb in bones)
+            {
+                if (rb != null)
+                {
+                    rb.velocity = v;
+                    rb.angularVelocity *= 0.25f;
+                }
             }
         }
 
@@ -646,6 +698,9 @@ namespace RavenfieldVR.Weapons
         /// soldiers are active ragdolls: knocked over, every joint is still driven toward the animated pose (ActiveRaggy.Update,
         /// a slerp drive of 700-1000), so a held soldier stayed stiff in his falling pose, "crammed together" with "no physics"
         /// (user, 2026-10-24). Held and for the seconds after a throw the motors are off and he hangs and flies as a body does.
+        /// Tried and dropped the same night (each blew a limb up to 800-2300 m/s in the soldier check): the dead bodies' drive
+        /// of 50 on a living soldier (the game drives his joints toward the falling animation every frame, against the hand),
+        /// motors off again on a body that died in flight, and more solver passes for armed bones.
         /// </summary>
         private static readonly Dictionary<Actor, JointDrive> SavedDrive = new Dictionary<Actor, JointDrive>();
         private static readonly Dictionary<Actor, float> LastHit = new Dictionary<Actor, float>();
@@ -809,9 +864,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Collider other = c.collider;
-            if (other == null || _ragdollRoot != null && other.transform.IsChildOf(_ragdollRoot) || OwnBone(other) || PropPhysics.IsPlayerCollider(other))
+            if (other == null || _ragdollRoot != null && other.transform.IsChildOf(_ragdollRoot) || OwnBone(other) || PropPhysics.IsPlayerCollider(other)
+                || GunCollider.IsStandIn(other))
             {
-                return; // its own bones, the player's body and hands
+                return; // its own bones, the player's body and hands, the held gun's stand-in
             }
             float speed = c.relativeVelocity.magnitude;
             float damage = ImpactDamage(speed);
@@ -821,13 +877,13 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 point = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
             Vector3 dir = speed > 1e-3f ? -c.relativeVelocity / speed : Vector3.down;
-            Hurt(_owner, damage, speed, point, dir);
+            Hurt(_owner, damage, speed, point, dir, other);
             BodyGrab.FeelImpact(_owner, damage);
             // A soldier it hits is hurt and knocked over as well (thrown into a squad).
             Hitbox hb = other.GetComponent<Hitbox>();
             if (hb != null && hb.parent is Actor hit && hit != _owner && hit != _by && !hit.dead)
             {
-                Hurt(hit, damage, speed, point, -dir);
+                Hurt(hit, damage, speed, point, -dir, null);
                 if (hit.ragdoll != null && !hit.ragdoll.IsRagdoll())
                 {
                     hit.KnockOver(-dir * Mathf.Min(speed, 15f) * 20f);
@@ -843,7 +899,7 @@ namespace RavenfieldVR.Weapons
             return body != null && own != null && System.Array.IndexOf(own, body) >= 0;
         }
 
-        private static void Hurt(Actor a, float damage, float speed, Vector3 point, Vector3 dir)
+        private static void Hurt(Actor a, float damage, float speed, Vector3 point, Vector3 dir, Collider against)
         {
             if (a == null || a.dead || _by != null && a.team == _by.team)
             {
@@ -867,7 +923,7 @@ namespace RavenfieldVR.Weapons
                 string key = "bodyimpact:" + a.GetInstanceID();
                 if (!Log.Logged(key))
                 {
-                    Log.InfoOnce(key, $"{a.name}: thrown or slammed into something at {speed:0.0} m/s, {damage:0} damage.");
+                    Log.InfoOnce(key, $"{a.name}: thrown or slammed into {(against != null ? $"{against.name} (layer {against.gameObject.layer})" : "a soldier")} at {speed:0.0} m/s, {damage:0} damage.");
                 }
             }
             catch (System.Exception e)
@@ -888,9 +944,9 @@ namespace RavenfieldVR.Weapons
     {
         private static void Postfix(Projectile __instance, Hitbox hitbox, ref bool __result)
         {
-            if (__result || hitbox == null || !VRManager.Active)
+            if (__result || !BodyGrab.AnyHeld || hitbox == null || !VRManager.Active)
             {
-                return;
+                return; // (nothing held, the usual case: no Unity object asked)
             }
             if (hitbox.parent is Actor a && a != __instance.killCredit && BodyGrab.IsHeld(a))
             {

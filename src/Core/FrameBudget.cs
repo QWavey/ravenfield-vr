@@ -10,7 +10,7 @@ namespace RavenfieldVR.Core
     /// Once a minute of play, a log line saying how many frames kept to the headset's rate, with the graphics settings they were
     /// drawn with. Below the headset's rate SteamVR reprojects, and moving things ghost and lag in front of the view (user,
     /// 2026-10-24: on every preset with shadows, never on the game's own Fastest quality); the input check's fps covers only a
-    /// session's first minute and a half, mostly the menu. Always on: a bucket count a frame, no garbage.
+    /// session's first minute and a half (mostly the menu) and 10 s after each change of view. Always on: a bucket count a frame, no garbage.
     /// </summary>
     internal static class FrameBudget
     {
@@ -19,6 +19,8 @@ namespace RavenfieldVR.Core
         private static readonly int[] Buckets = new int[400]; // 0-100 ms; slower frames go in the last
         private static int _frames, _within, _gcAtStart = -1;
         private static float _seconds, _budgetMs;
+        private static double _modMs;
+        private static long _modFrames;
 
         // The GPU's time for each frame the compositor got (both eyes and the game's cameras): over the budget with the CPU
         // under it, a preset is too heavy; under it with frames still late, the CPU (the game, the mod) is the cause.
@@ -29,14 +31,20 @@ namespace RavenfieldVR.Core
 
         // The last few seconds as well, for the wrist display: picking a preset on the panel shows its effect at once.
         private const float ShortWindow = 3f;
-        private static int _shortFrames, _shortWithin;
-        private static float _shortSeconds;
+        private static int _shortFrames, _shortWithin, _shortGpuFrames;
+        private static float _shortSeconds, _shortGpuMs;
 
         /// <summary>The share of frames on time over the last few seconds of play (0-100), or -1 before the first.</summary>
         internal static int RecentPercent { get; private set; } = -1;
 
         /// <summary>The headset's refresh rate the share is measured against (0 before the first frame of play).</summary>
         internal static int RecentHz { get; private set; }
+
+        /// <summary>
+        /// The GPU's average time a frame over the last few seconds, in tenths of a millisecond (-1: not timed). Over the
+        /// refresh interval, the preset is too heavy; under it with frames late, the CPU is the cause.
+        /// </summary>
+        internal static int RecentGpuTenths { get; private set; } = -1;
 
         public static void Frame()
         {
@@ -72,8 +80,9 @@ namespace RavenfieldVR.Core
             {
                 RecentPercent = Mathf.RoundToInt(100f * _shortWithin / _shortFrames);
                 RecentHz = Mathf.RoundToInt(1000f / _budgetMs);
-                _shortFrames = _shortWithin = 0;
-                _shortSeconds = 0f;
+                RecentGpuTenths = _shortGpuFrames > 0 ? Mathf.RoundToInt(10f * _shortGpuMs / _shortGpuFrames) : -1;
+                _shortFrames = _shortWithin = _shortGpuFrames = 0;
+                _shortSeconds = _shortGpuMs = 0f;
             }
             _seconds += dt;
             if (_seconds >= Window)
@@ -121,6 +130,8 @@ namespace RavenfieldVR.Core
                 _lastTimedFrame = t.m_nFrameIndex;
                 GpuBuckets[Mathf.Min((int)(t.m_flTotalRenderGpuMs / BucketMs), GpuBuckets.Length - 1)]++;
                 _gpuFrames++;
+                _shortGpuMs += t.m_flTotalRenderGpuMs;
+                _shortGpuFrames++;
             }
             catch (System.Exception)
             {
@@ -140,7 +151,7 @@ namespace RavenfieldVR.Core
                      $"{preset}, {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye (render scale {XRSettings.eyeTextureResolutionScale:0.0#}), " +
                      $"MSAA {QualitySettings.antiAliasing}x, shadows " +
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
-                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.TakeModMsPerFrame():0.0} ms a frame.");
+                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame.");
             System.Array.Clear(Buckets, 0, Buckets.Length);
             System.Array.Clear(GpuBuckets, 0, GpuBuckets.Length);
             _frames = _within = _gpuFrames = 0;

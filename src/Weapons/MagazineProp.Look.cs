@@ -243,7 +243,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// While a loaded launcher is held: a copy of its rocket as it shows now, kept when it measures as the analysis did
-        /// (its size within half again, its middle within 3 cm; rocket-sized when the analysis found no box). Tried at most
+        /// (its size between half and double, its middle within 8 cm; rocket-sized when the analysis found no box). Tried at most
         /// twice a second for the first five tries, then every ten seconds, until one is kept; thirty tries at most (a copy
         /// is meshes made and thrown away: a launcher whose rocket never measures right would make them for as long as it is
         /// held; ten tries half a second apart were all spent in the first five seconds).
@@ -295,8 +295,8 @@ namespace RavenfieldVR.Weapons
             Bounds analysed = rig.Data.MagBounds;
             Bounds b = MeasureCopy(go, out bool any);
             float size = b.size.magnitude, expected = analysed.size.magnitude;
-            // Only a copy shrunk or moved away is refused (after the shot the game left it at 3% and up to 60 cm off):
-            // within half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept.
+            // Only a copy shrunk or moved away is refused (after the shot the game left it at 3% and up to 60 cm off): between
+            // half and double and within 8 cm (at half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept).
             bool fits = any && Longest(b) >= 0.12f && Longest(b) < 2f
                         && (expected < 0.02f || size > expected / 2f && size < expected * 2f && (b.center - analysed.center).magnitude < 0.08f);
             if (!fits)
@@ -536,12 +536,13 @@ namespace RavenfieldVR.Weapons
             float size = b.size.magnitude, expected = analysed.size.magnitude;
             if (!any || size < 0.02f || size > 1.5f || expected > 0.02f && (size > expected * 3f || size < expected / 3f))
             {
-                Log.InfoOnce("magbounds:" + key, $"Magazine copy of {key} measures {size * 100f:0.0} cm against {expected * 100f:0.0} cm analysed; the analysed size is used.");
+                Log.InfoOnce("magbounds-analysed:" + key, $"Magazine copy of {key} measures {size * 100f:0.0} cm against {expected * 100f:0.0} cm analysed; the analysed size is used.");
                 return analysed;
             }
             if ((b.center - analysed.center).magnitude > 0.01f || Mathf.Abs(size - expected) > 0.01f)
             {
-                Log.InfoOnce("magbounds:" + key, $"Magazine copy of {key}: shown bounds centre {b.center * 100f} cm, size {size * 100f:0.0} cm (analysed {analysed.center * 100f} cm, {expected * 100f:0.0} cm).");
+                // (A key of its own: sharing one with the line above, only whichever came first was ever logged for a gun.)
+                Log.InfoOnce("magbounds-shown:" + key, $"Magazine copy of {key}: shown bounds centre {b.center * 100f} cm, size {size * 100f:0.0} cm (analysed {analysed.center * 100f} cm, {expected * 100f:0.0} cm).");
             }
             return b;
         }

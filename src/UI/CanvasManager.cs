@@ -173,6 +173,10 @@ namespace RavenfieldVR.UI
                 {
                     continue; // the loading view draws it into its picture (it looks for new ones four times a second)
                 }
+                if (Rig.IntroStage.PlacesTitlesIn(c.gameObject.scene))
+                {
+                    continue; // the intro puts its titles in the world itself, behind the walkers
+                }
                 if (c.renderMode == RenderMode.WorldSpace)
                 {
                     continue; // already in the world (game nameplates etc.)

@@ -340,7 +340,6 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        // (The bounds of the raw hull were taken here too, and overwritten unread.)
                         Vector3[] pts = Solid(Thin(Dedupe(g.Hull), 180));
                         if (pts.Length > 255)
                         {
@@ -402,19 +401,25 @@ namespace RavenfieldVR.Weapons
             return keep.ToArray();
         }
 
-        private static Vector3[] _thinDirs;
+        private static Vector3[] _thinDirs, _thinDirsBefore;
 
         /// <summary>
-        /// <paramref name="max"/> directions on a Fibonacci sphere, evenly spread, one per point to keep: made once for the usual
-        /// count (they were made again, with a square root, a sine and a cosine each, for every piece). Fits also run on worker
-        /// threads: two that make them at once make the same directions, and the array is published whole.
+        /// <paramref name="max"/> directions on a Fibonacci sphere, evenly spread, one per point to keep: made once for each count
+        /// in use (they were made again, with a square root, a sine and a cosine each, for every piece). Two counts are: 180 for
+        /// every piece and 250 for a doubled one thinned again, so the last two are kept (one kept, each doubled piece made both
+        /// again; review, 2026-10-24). Fits also run on worker threads: two that make them at once make the same directions, and
+        /// each array is published whole.
         /// </summary>
         private static Vector3[] ThinDirections(int max)
         {
-            Vector3[] dirs = _thinDirs;
+            Vector3[] dirs = _thinDirs, before = _thinDirsBefore;
             if (dirs != null && dirs.Length == max)
             {
                 return dirs;
+            }
+            if (before != null && before.Length == max)
+            {
+                return before;
             }
             dirs = new Vector3[max];
             for (int i = 0; i < max; i++)
@@ -424,6 +429,7 @@ namespace RavenfieldVR.Weapons
                 float a = i * 2.39996323f;
                 dirs[i] = new Vector3(r * Mathf.Cos(a), y, r * Mathf.Sin(a));
             }
+            _thinDirsBefore = _thinDirs;
             _thinDirs = dirs;
             return dirs;
         }

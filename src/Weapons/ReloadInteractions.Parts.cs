@@ -181,29 +181,32 @@ namespace RavenfieldVR.Weapons
             get
             {
                 Weapon w = _held.Weapon;
-                // A magnifier the free hand flips by its own grip (MagnifierFlip) has one switch: that grip. This optic grab
-                // would also flip it on a quick tap at release, which the magnifier grip must never do.
-                if (w == null || _held.MagnifierByHand(w))
+                if (w == null)
                 {
                     return false;
                 }
-                if (w.HasAnyAltSightModes())
-                {
-                    return true;
-                }
-                // The script key asked twice a second, as the support keys are: ScriptKeys.Find makes and sorts a list, and a
-                // grab that took nothing asked it every frame of its quarter-second reach (gameplay workflow, 2026-10-24).
+                // The script keys asked twice a second, as the support keys are: ScriptKeys.Find makes and sorts a list, and a
+                // grab that took nothing asked it every frame of its quarter-second reach (gameplay workflow, 2026-10-24); the
+                // magnifier grip's test asks it too (review, 2026-10-24).
                 if (!ReferenceEquals(_magnifierKeyFor, w) || Time.unscaledTime - _magnifierKeyAt > 0.5f)
                 {
                     _magnifierKeyFor = w;
                     _magnifierKeyAt = Time.unscaledTime;
-                    _magnifierKey = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
+                    // A magnifier the free hand flips by its own grip (MagnifierFlip) has one switch: that grip. This optic grab
+                    // would also flip it on a quick tap at release, which the magnifier grip must never do.
+                    _magnifierByHand = _held.MagnifierByHand(w);
+                    _magnifierKey = !_magnifierByHand && Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
                 }
-                return _magnifierKey;
+                if (_magnifierByHand)
+                {
+                    return false;
+                }
+                return w.HasAnyAltSightModes() || _magnifierKey;
             }
         }
 
         private Weapon _magnifierKeyFor;
+        private bool _magnifierByHand;
         private float _magnifierKeyAt = -10f;
         private bool _magnifierKey;
 
@@ -400,17 +403,13 @@ namespace RavenfieldVR.Weapons
             if (!off.GrabHeld)
             {
                 // Let go short of the tray: it hangs from the box, still there to take (it vanished; 255.I3-1).
-                EndBelt(off);
-                _beltHanging = true;
-                _belt?.Show(true);
+                LetBeltHang(off);
                 return;
             }
             if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)
             {
                 // Pulled out to its length: it slips from the fingers and hangs from the box, still there to take again.
-                EndBelt(off);
-                _beltHanging = true;
-                _belt?.Show(true);
+                LetBeltHang(off);
                 off.Haptic(0.03f, 90f, 0.4f);
                 return;
             }
@@ -444,6 +443,14 @@ namespace RavenfieldVR.Weapons
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
             }
             EndBelt(off);
+        }
+
+        /// <summary>The belt slips from the hand and hangs from the box, still there to take again.</summary>
+        private void LetBeltHang(VRHand off)
+        {
+            EndBelt(off);
+            _beltHanging = true;
+            _belt?.Show(true);
         }
 
         private void EndBelt(VRHand off)

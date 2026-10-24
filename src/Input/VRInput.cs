@@ -413,6 +413,9 @@ namespace RavenfieldVR.Input
         /// trigger, grab) next to what the system reports for the controller devices, so a headset that shows no hands
         /// can be told apart from a binding that delivers nothing.
         /// </summary>
+        private static double _diagModMs;
+        private static long _diagModFrames;
+
         private static void Diagnose(CVRInput input, EVRInputError updateError)
         {
             float now = Time.unscaledTime;
@@ -426,7 +429,7 @@ namespace RavenfieldVR.Input
             sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart):0} fps");
             _diagFrames = 0;
             _diagWindowStart = now;
-            sb.Append($", mod {VRManager.TakeModMsPerFrame():0.0} ms a frame");
+            sb.Append($", mod {VRManager.ModMsPerFrameSince(ref _diagModMs, ref _diagModFrames):0.0} ms a frame");
             sb.Append(Weapons.WeaponDrops.TakeDropTiming());
             AppendGpuTiming(sb);
             Rig.VRRig rig = Rig.VRRig.Instance;
@@ -479,6 +482,10 @@ namespace RavenfieldVR.Input
                         }
                     }
                     _heldBeforeOutageSaved = true;
+                    // The hands' own outages are this one too: a hand still reading inactive on the first frame back saved
+                    // its buttons (zeroed here) over this, and a button held through it was pressed again when that hand came
+                    // back (review, 2026-10-24).
+                    HandOutageSaved[0] = HandOutageSaved[1] = true;
                 }
                 Array.Clear(Held, 0, Held.Length);
                 Array.Clear(Trigger, 0, Trigger.Length);

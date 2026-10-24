@@ -74,10 +74,10 @@ namespace RavenfieldVR.Rig
             }
             if (_isIntro && Time.unscaledTime >= _nextTitleScan)
             {
-                // Text that switches on later in the intro too, for the whole intro: tied to the walkers' staging (done after
-                // 0.65 s, or at once with no walkers), a title switched on later (the splash's text once the content has
-                // loaded) was made a head-locked frame by the canvas manager instead (UI scout, 2026-10-23). Placed ones are
-                // world space and skipped; a scene-wide search, so a few times a second.
+                // Text that switches on later in the intro too, for the whole intro (no longer only until the walkers are
+                // staged, 0.65 s): a title switched on later (the splash's text once the content has loaded) was taken by the
+                // canvas manager instead (UI scout, 2026-10-23). Placed ones are world space and skipped; a scene-wide search,
+                // ten times a second for the intro's few seconds.
                 _nextTitleScan = Time.unscaledTime + 0.1f;
                 PlaceTitleInWorld();
             }
@@ -287,6 +287,7 @@ namespace RavenfieldVR.Rig
         private static void PlaceTitleInWorld()
         {
             Camera cam = GameCamera();
+            _titleCamera = cam != null;
             if (cam == null)
             {
                 return;
@@ -359,6 +360,16 @@ namespace RavenfieldVR.Rig
             }
             return null;
         }
+
+        /// <summary>
+        /// Whether the intro places this scene's titles itself (the canvas manager then leaves them be): it scans ten times a
+        /// second, the manager every 0.4 s, and a late title the manager reached first became a menu panel in front of the
+        /// player instead of a title behind the walkers, about one in eight (review, 2026-10-24). Only once the intro has a
+        /// camera to place them by (before that the manager's way at least shows them).
+        /// </summary>
+        public static bool PlacesTitlesIn(UnityEngine.SceneManagement.Scene scene) => _isIntro && _titleCamera && scene.buildIndex == 0;
+
+        private static bool _titleCamera;
 
         /// <summary>
         /// While the intro plays, the view stands where its camera is, at standing eye height above the walkers'
