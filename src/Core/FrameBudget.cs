@@ -1,6 +1,7 @@
 using RavenfieldVR.Util;
 using UnityEngine;
 using UnityEngine.XR;
+using Valve.VR;
 
 namespace RavenfieldVR.Core
 {
@@ -32,7 +33,7 @@ namespace RavenfieldVR.Core
             float ms = dt * 1000f;
             if (_budgetMs <= 0f)
             {
-                _budgetMs = 1000f / (XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f); // once a window: a native call
+                _budgetMs = 1000f / RefreshRate(); // once a window
             }
             Buckets[Mathf.Min((int)(ms / BucketMs), Buckets.Length - 1)]++;
             _frames++;
@@ -47,6 +48,28 @@ namespace RavenfieldVR.Core
             {
                 Report();
             }
+        }
+
+        /// <summary>
+        /// The headset's refresh rate: SteamVR's display frequency (Unity's XRDevice.refreshRate read 0 Hz through Link in the
+        /// user's log), else Unity's, else 90.
+        /// </summary>
+        private static float RefreshRate()
+        {
+            try
+            {
+                ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
+                float hz = OpenVR.System?.GetFloatTrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_DisplayFrequency_Float, ref error) ?? 0f;
+                if (error == ETrackedPropertyError.TrackedProp_Success && hz > 1f)
+                {
+                    return hz;
+                }
+            }
+            catch (System.Exception)
+            {
+                // no OpenVR system (flat mode): Unity's below
+            }
+            return XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f;
         }
 
         private static void Report()
