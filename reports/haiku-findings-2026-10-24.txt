@@ -107,3 +107,77 @@ REFUTED by the skeptic  src/Weapons/HeldWeapon.cs:2093  The release method destr
      Why: Not confirmed. Release (HeldWeapon.cs:1991) is called through Log.Guard (WeaponSystem.cs:427), so the defect requires a throw in lines 2031-2092. None found: RestoreMagazine (HeldWeapon.Parts.cs:379-389) indexes _magOriginalScales, which is built from the same MagazineParts (WeaponRig.cs:453-456). RestoreChamberShells (Parts.cs:335-352) and ShowSpareParts (WeaponRig.cs:502-511) use arrays sized fr
 REFUTED by the skeptic  src/Weapons/WeaponDrops.cs:222  TemplateFor has no cleanup when HideParkedAmmo or StripStrays throws, so the active pivot from BuildWorldModelFromSubtree stays at the scene root.
      Why: The mechanism is right: BuildWorldModelFromSubtree returns an active pivot already at scene root (WeaponDrops.cs:987-1000). But the trigger needs HideParkedAmmo or StripStrays to throw, and none was found. HideParkedAmmo (WeaponDrops.cs:636-704) bounds-checks its indexes (671 p.Length > tpPath.Length; 640 childCount guard), and WeaponRig.Resolve and PathOf are bounds-safe (WeaponRig.cs:548-581). S
+
+
+================================================================================================
+2026-10-24: workflow rfvr-hunt-gameplay (4 Haiku finders + 4 Haiku skeptics, read-only; reload core, held weapon,
+second weapon and weapon system, input and hands)
+================================================================================================
+
+--- reload-core ---
+WG-reload-core-0  Minor (unsure)  src/Weapons/SecondWeapon.cs:550
+     PutAway's destroyed-weapon branch returns the reload's rounds through Ammo.ReturnSpare, which writes spareAmmo on the destroyed Weapon object, so those rounds are lost.
+     Trigger: The free-hand weapon is mid-reload (StartReload took _reloadRounds from the reserve and set _reloadDoneAt) and is destroyed by a path other than the WeaponDrops swap. WeaponDrops.cs:1857-1860 is the only place that calls TakeReloadRounds, which clears _reloadDoneAt first, so PutAway's branch runs only when that swap did not settle the reload. Then Weapon == null, AmmoState.ReturnSpareCapped (AmmoState.cs:494-502) writes into the dead object, and the rounds vanish. I found no concrete game path that destroys the free-hand weapon outside the swap, so this is unsure.
+     Fix: In the Weapon == null branch, hand _reloadRounds to WeaponSystem.ReturnRounds or to a live drop, the way the swap path passes inReload, instead of the destroyed weapon's AmmoState.
+     STATUS: open (low value: the game discards the destroyed gun's reserve in the same step; no live drop on death)
+WG-reload-core-1  Tiny (sure)  src/Weapons/ReloadInteractions.cs:681
+     TryGrab evaluates HasSwitchableSight unconditionally, and for weapons without alt sight modes that calls ScriptKeys.Find, which builds and sorts a new List every call (uncached per-frame garbage in Update).
+     Trigger: A grab press that takes nothing. TryGrab runs from Update (ReloadInteractions.cs:464-468) while VRHand.GrabReaching holds (VRInput.GetPressedRecently, 0.25 s window, VRInput.cs:634-635) with the off hand Free. That is about 22 frames per press. Each frame calls HasSwitchableSight (line 1194) -> ScriptKeys.Find -> KeysOn (ScriptKeys.cs:379-399, new List at 381, Sort at 397). The support-key lookups at ReloadInteractions.cs:116-125 are already cached on a 0.5 s timer; this one is not.
+     Fix: Cache the magnifier key with the same 0.5 s refresh used by RefreshSupportKeys (ReloadInteractions.cs:116-125), or compute it only on the frame the grab begins.
+     STATUS: fixed (45b9e47: the magnifier key asked twice a second)
+WG-reload-core-2  Tiny (unsure)  src/Weapons/ReloadInteractions.cs:2714
+     PalmOnPart probes the held gun's solid up to about 160 times per frame during a palm-grip pistol rack. The search is uncached and runs in BeforeRender, and it still scans all 51 steps when the palm line misses the part.
+     Trigger: A pistol slide racked with the palm grip (_rackPalm set in BeginRack, line 2310). UpdateGraspAnchor (line 2641-2643) calls PalmOnPart every BeforeRender frame for the whole stroke. The first loop makes up to 2 solid() calls per step for 51 steps (2714-2724). The second loop, from the surface outward, adds up to 61 more (2729-2735). When the line misses, the function returns null after the full first scan, every frame. The per-call cost of solid() is not measured, so the impact is unsure.
+     Fix: Throttle the search (for example every 3rd frame, reusing the last result), or narrow the step range around the last hit. Measure solid() cost with PerfProbe before changing it.
+     STATUS: not changed (each solid test ~24 ns: about 4 us a frame)
+
+--- held-core ---
+WG-held-core-0  Major (unsure)  src/Weapons/HeldWeapon.cs:177
+     Shadow-only renderers are switched to Off for the whole hold, so meshes Unity keeps invisible in ShadowsOnly mode start drawing in VR
+     Trigger: Any held gun with a ShadowsOnly renderer (the comment at lines 171-172 names helper boxes a mod's reload animation uses and shadow proxies of a flat view model). From the constructor (173-180) until Release (2128-2134) these are Off, which Unity draws in the main pass. WeaponAnalyzer.cs:105 treats ShadowsOnly as not visible, so the codebase's own model disagrees with this switch. Not verified in a headset: visibility depends on the VR camera's culling mask and where the mesh sits.
+     Fix: To drop the ground shadow without drawing the mesh, disable the renderer (r.enabled = false, restored in Release), which also keeps it out of VisibleRenderers. Confirm in a headset run before changing it.
+     STATUS: fixed (45b9e47: forceRenderingOff instead of ShadowCastingMode.Off)
+WG-held-core-1  Minor (sure)  src/Weapons/HeldWeapon.cs:714
+     Inertia lag is zeroed in one frame when the hand loses tracking, so a lagging gun snaps to the hand
+     Trigger: The controller leaves view (Tracked false while HasPose stays true, VRHand.cs:21-27) while a heavy or long gun is lagging. BeforeRender keeps the held pose and still adds _lagPos and _lagPitch (1486-1496, 1507), so the drawn gun jumps by the whole lag: up to 8 cm and 10 degrees by the clamps, a few cm in ordinary motion. The two-hand blend eases out over a third of a second (1424), but the lag does not.
+     Fix: While untracked, keep integrating the spring with zero hand acceleration (the held hand is still, so it settles in about 0.2 s), or ease the lag out the way _twoHandBlend does, instead of zeroing it.
+     STATUS: fixed (45b9e47: the lag eases out on a tracking loss)
+WG-held-core-2  Minor (sure)  src/Weapons/HeldWeapon.cs:170
+     Throwable stand-in is built from the grip before CentreGrenadeGrip moves it, so its origin stays stale for that hold
+     Trigger: The first draw in a session of each hand-sized throwable type whose grip CentreGrenadeGrip moves (GrenadeInFist does not yet hold its data, and the bounds are measured). GunCollider.Create captures origin = d.GripPoint before the shift (GunCollider.cs:623) and keeps it in _origin for the whole hold (used at 472 and 894). The stand-in then sits offset from the drawn grenade by the grip shift. Later draws are correct because the data is shared.
+     Fix: Create the stand-in after the throwable block (after line 235), or run CentreGrenadeGrip before GunCollider.Create, so the origin matches the grip the grenade is drawn at.
+     STATUS: fixed (45b9e47: the grip centred before the stand-in is made)
+WG-held-core-3  Minor (unsure)  src/Weapons/HeldWeapon.cs:1193
+     The foregrip recoil reduction also scales one-handed long guns, so the setting's maximum gives them no kick
+     Trigger: A one-handed long gun (not a handgun, not supported) with TwoHandRecoilReduction at 1.0, the maximum the config allows (VRConfig.cs:252-253). strength becomes 0, so the kick and the spring impulses (1202-1204) are zero. The setting is documented as the fraction removed while holding the foregrip, and the one-handed handgun branch skips the reduction. The Handling doc at 783 says two-handed is the baseline, so the scaling may be intended; unverified.
+     Fix: If the reduction should apply only with the foregrip, use oneHand alone for one-handed long guns. If the scaling is intended, say so in the setting's description and cap the range below 1.
+     STATUS: not changed (two-handed recoil is the documented baseline; one-handed scales from it)
+REFUTED by the skeptic  src/Weapons/GunCollider.cs:1044  SetRestIgnored's foreach over IList<Collider> allocates an enumerator on every call, every 0.1 s per resting body
+     Why: SetRestIgnored returns early at GunCollider.cs:1035-1038 when the body is known and its ignored state is unchanged, and at 1040-1043 when it is unknown and not wanted. The foreach at 1044 runs only on a state change (a body starting or stopping being ignored). A resting body whose state is stable hits the early return every 0.1 s and allocates nothing. The enumerator is created only on transitions
+REFUTED by the skeptic  src/Weapons/HeldWeapon.cs:1634  A sight mode's magnifier lens is rebuilt every frame while its construction keeps failing, with no retry cap
+     Why: The mechanism is correct if the VRScope constructor throws: UpdateModeScopes retries each frame with no cap (HeldWeapon.cs:1634-1636), the GameObject at VRScope.cs:88 is created before later throw sites, and the render steps at 1605-1606 are skipped. But nothing in the code shows a throw in normal use: Sprites/Default is a built-in shader (VRScope.cs:53), and the texture, root and materials are cr
+
+--- second-and-system ---
+WG-second-and-system-0  Minor (sure)  src/Weapons/SecondWeapon.cs:509
+     UpdateGlove drops and re-measures the free-hand gun's shape only when the volume Failed. A Stalled volume is kept for the whole hold, so the glove never gets a solid and the hand closes on nothing.
+     Trigger: A GunVolume measure whose views stop. GunVolume.Stalled (GunVolume.cs:160) turns true after 15 s with neither Ready nor Failed. _volume stays set, the Ready check at SecondWeapon.cs:524 returns every frame, Hand.Model.Solid is never assigned, and the retry at line 515 is never reached. HeldWeapon.Shape.cs:92 and MagazineProp.cs:1755 treat Stalled like Failed. The 2026-10-24 fix (71656b2) covered only the magazine, so this is the same gap on the second weapon.
+     Fix: Change line 509 to `if (_volume != null && (_volume.Failed || _volume.Stalled))`, as HeldWeapon.Shape.cs:92 does.
+     STATUS: fixed (45b9e47: a stalled glove volume measured again)
+WG-second-and-system-1  Minor (unsure)  src/Weapons/SecondWeapon.cs:156
+     A free-hand gun whose feed is not ready (feed cover open, or belt not laid, with rounds in the box) can neither fire nor reload, and nothing in the free hand can fix it. Each trigger pull dry-clicks until the gun is moved back to the gun hand.
+     Trigger: The gun was in the gun hand with its cover open or its belt unlaid (with BeltByHand, InsertMagazine sets BeltLaid false, AmmoState.cs:356), then was holstered and taken into the free hand. AmmoState.CanFire (AmmoState.cs:167) needs the cover shut and the belt laid. The reload gate at SecondWeapon.cs:156-157 needs MagRounds == 0, so no reload starts. CycleForTheHand cannot chamber without FeedReady (AmmoState.cs:440). Only ReloadInteractions (the gun-hand reload, lines 1134, 1427) calls SetCoverOpen or LayBelt; SecondWeapon never does. Also, with an empty chamber on a gun that locks open on empty, CycleForTheHand calls RackForward every frame (AmmoState.cs:322, 446-449). That builds two interpolated strings per frame for Log.InfoOnce, whose parameters are plain strings (Log.cs:63), so the state allocates every frame.
+     Fix: When the second weapon is taken into the free hand with a seated box, lay the belt and shut the cover as the gun-hand reload does (Ammo.LayBelt(), Ammo.SetCoverOpen(false)), or refuse the pairing while FeedReady is false. In CycleForTheHand, skip RackForward unless Ammo.FeedReady, and build the caught message only when it will be logged.
+     STATUS: fixed (45b9e47: cover shut and belt laid for the free hand)
+WG-second-and-system-2  Minor (unsure)  src/Weapons/WeaponSystem.cs:191
+     The free-hand weapon is put away as soon as its hand reports not tracked (!Second.Hand.Tracked). The main gun is deliberately kept through a tracking gap (UpdateGripToHold, lines 906-909: never drop on a tracking gap). A one-frame tracking loss holsters the second weapon and finishes a reload under way early.
+     Trigger: The free controller loses tracking for a frame or more (hand behind the body, or out of the base stations' view). UpdateSecond calls PutAway, which sends the weapon to its holster, finishes any reload, and frees the hand. The user has to re-grab it.
+     Fix: Keep the second weapon while Tracked is false, as the gun hand does, and end it only on a confirmed let-go (GrabHeld false, or after a grace period). BeforeRender already holds the last pose through its !Hand.HasPose early return.
+     STATUS: fixed (45b9e47: half-second tracking grace, then put away)
+REFUTED by the skeptic  src/Weapons/WeaponSystem.cs:157  UpdateSecond runs outside the try/catch that wraps Held.Update (lines 143-155). A throw from the second weapon's per-frame code skips the rest of WeaponSystem.Update on every frame while Second stays 
+     Why: The structure matches: UpdateSecond() at WeaponSystem.cs:157 is outside the try/catch that closes at 155. The only outer guard is Log.Guard("Weapons.Update") at VRManager.cs:231. No reachable throw was traced. The callees it names (Weapon.Fire, Shoot, Holster) are game code, and the finding itself says no input was traced. The one null path I checked, Array.IndexOf(actor.weapons) at WeaponSystem.c
+
+--- input-hands ---
+REFUTED by the skeptic  src/Input/VRInput.cs:827  The gun hand (VRInput._gunHand) is only ever set by SetGunHand and is never reset when the weapon leaves the hand or when VR stops, so the off hand stays the gun hand: the Fire/Use, SlideRelease/Squad
+     Why: The mechanics are accurate. SetGunHand is called only from TakeIntoHand (WeaponSystem.cs:971) and PassToOtherHand (:989). HolsterToEmptyHand (:874-888), LetFall (:1012-1035), ReleaseHeld (:423-432) and VRInput.Shutdown (VRInput.cs:512-528) never reset _gunHand. Every button read goes through Slot (VRInput.cs:603-684, 859-875), and AttachHeld gives a game-drawn weapon to Rig.Dominant (HeldWeapon.cs
+REFUTED by the skeptic  src/Rig/HandShape.cs:62  HandShape.Current re-reads the live Glove config on every call, although the setting says it applies when the game starts. A mid-session change makes the placement and tint code use the other glove's 
+     Why: The code matches the description. HandShape.Current re-reads VRConfig.Glove.Value on every call (HandShape.cs:62). Only the load is latched (:64-66). HandModel latches _shape at construction (HandModel.cs:66) and uses it for scale, mesh and material (:67, :121, :135). PalmSurfaceFromGrip (HandModel.cs:251, callers HeldWeapon.cs:1674 and MagazineProp.cs:1674), IndexFinger (:274) and SetGloveColor (
