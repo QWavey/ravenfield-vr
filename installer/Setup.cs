@@ -321,7 +321,7 @@ namespace RavenfieldVR.Setup
                 {
                     if (line.StartsWith("added=", StringComparison.Ordinal)) ours.Add(line.Substring(6));
                     else if (line.StartsWith("replaced=", StringComparison.Ordinal)) replaced.Add(line.Substring(9));
-                    else if (line.StartsWith("backup=", StringComparison.Ordinal)) previousBackup = line.Substring(7);
+                    else if (line.StartsWith("backup=", StringComparison.Ordinal)) previousBackup = ResolveBackup(game, line.Substring(7));
                     else if (line == "installedBepInEx=True") previousInstalledBepInEx = true;
                 }
                 _log("Updating the existing install.");
@@ -343,6 +343,13 @@ namespace RavenfieldVR.Setup
             }
             // An update backs up into the install's own backup folder: the record names one folder, and a file this update
             // replaced for the first time went into a new one Uninstall never looked in, so its original was not put back.
+            if (previousBackup.Length > 0 && !Directory.Exists(previousBackup) && Inside(game, RecordedBackup(game, previousBackup)) == null)
+            {
+                // The record's backup folder is gone and outside this game folder (an older record, the game moved off a drive
+                // since removed): a new one here, not one made, or failed, at the old place.
+                _log("The earlier install's backup folder is gone (" + previousBackup + "); new backups go into this game folder.");
+                previousBackup = "";
+            }
             string backupDir = previousBackup.Length > 0 ? previousBackup : Path.Combine(game, "RavenfieldVR-backup", stamp);
 
             bool installBepInEx = previousInstalledBepInEx || !File.Exists(Path.Combine(game, @"BepInEx\core\BepInEx.dll"));
@@ -392,7 +399,7 @@ namespace RavenfieldVR.Setup
                 "# Ravenfield VR install " + stamp,
                 "version=" + versionLabel,
                 "installedBepInEx=" + (installBepInEx ? "True" : "False"),
-                "backup=" + backupRef
+                "backup=" + RecordedBackup(game, backupRef)
             };
             lines.AddRange(added.Select(a => "added=" + a));
             lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
@@ -414,6 +421,45 @@ namespace RavenfieldVR.Setup
             string full = Path.GetFullPath(Path.Combine(root, rel));
             string bas = Path.GetFullPath(root).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
             return full.StartsWith(bas, StringComparison.OrdinalIgnoreCase) ? full : null;
+        }
+
+        /// <summary>
+        /// The backup folder as the record keeps it: relative to the game folder when inside it. Kept absolute, a game moved with
+        /// Steam's "Move install folder" pointed at the old place: Uninstall put no original back, and an update made its new
+        /// backups there (installer scout, 2026-10-23).
+        /// </summary>
+        internal static string RecordedBackup(string game, string backup)
+        {
+            if (string.IsNullOrEmpty(backup))
+            {
+                return "";
+            }
+            string full = Path.GetFullPath(backup);
+            string bas = Path.GetFullPath(game).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+            return full.StartsWith(bas, StringComparison.OrdinalIgnoreCase) ? full.Substring(bas.Length) : full;
+        }
+
+        /// <summary>
+        /// The record's backup folder in this game folder: a relative one under it; an absolute one (an older record) as it is
+        /// while it exists, else the same RavenfieldVR-backup folder under this game folder when the game was moved with it.
+        /// </summary>
+        internal static string ResolveBackup(string game, string recorded)
+        {
+            if (string.IsNullOrEmpty(recorded))
+            {
+                return "";
+            }
+            if (!Path.IsPathRooted(recorded))
+            {
+                return Inside(game, recorded) ?? "";
+            }
+            if (Directory.Exists(recorded))
+            {
+                return recorded;
+            }
+            int at = recorded.IndexOf(@"\RavenfieldVR-backup\", StringComparison.OrdinalIgnoreCase);
+            string moved = at >= 0 ? Inside(game, recorded.Substring(at + 1)) : null;
+            return moved != null && Directory.Exists(moved) ? moved : recorded;
         }
 
         private void InstallEntry(ZipArchiveEntry entry, string game, string rel, string backupDir, HashSet<string> ours, List<string> added, List<string> replaced)
@@ -494,7 +540,7 @@ namespace RavenfieldVR.Setup
             CheckCanUninstall(game);
             string manifestPath = Path.Combine(game, ManifestRelative);
             string[] lines = File.ReadAllLines(manifestPath);
-            string backup = lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "";
+            string backup = ResolveBackup(game, lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "");
             bool installedBepInEx = lines.Contains("installedBepInEx=True");
             // Decided before anything goes: BepInEx stays when other plugins use it or the settings are kept, and then its loader and
             // core (files this setup added with it) stay too. Deleted first, BepInEx was left in place but no longer loaded, and the

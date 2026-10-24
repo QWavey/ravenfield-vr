@@ -38,6 +38,7 @@ namespace RavenfieldVR.Tests
             SetupUninstallTests();
             SetupInstallTests();
             SetupForeignLoaderTests();
+            SetupMovedGameTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1317,6 +1318,64 @@ namespace RavenfieldVR.Tests
                 catch (Exception e)
                 {
                     Check(false, "Setup loader: threw " + e);
+                }
+                finally
+                {
+                    Installer.SteamDirOverride = null;
+                    try
+                    {
+                        System.IO.Directory.Delete(root, true);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A game moved after the install (Steam's "Move install folder"): Uninstall from the new place still puts the original it
+        /// replaced back. The record keeps its backup folder relative to the game; an older record's absolute path is followed to
+        /// the same folder under the moved game.
+        /// </summary>
+        private static void SetupMovedGameTests()
+        {
+            foreach (bool legacy in new[] { false, true })
+            {
+                string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-moved-" + Guid.NewGuid().ToString("N"));
+                string game = System.IO.Path.Combine(root, "game"), moved = System.IO.Path.Combine(root, "moved"), steam = System.IO.Path.Combine(root, "steam");
+                string what = legacy ? "an older record's absolute backup path" : "the record's relative backup path";
+                try
+                {
+                    System.IO.Directory.CreateDirectory(game);
+                    System.IO.Directory.CreateDirectory(steam);
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(game, "winhttp.dll"), "other tool");
+                    Installer.SteamDirOverride = steam;
+                    var log = new List<string>();
+                    var installer = new Installer(log.Add);
+                    installer.Install(game);
+                    string recordPath = System.IO.Path.Combine(game, Installer.ManifestRelative);
+                    string[] record = System.IO.File.ReadAllLines(recordPath);
+                    string backupLine = record.FirstOrDefault(l => l.StartsWith("backup=")) ?? "";
+                    if (!legacy)
+                    {
+                        Check(backupLine.StartsWith(@"backup=RavenfieldVR-backup\"), "Setup moved game: the record keeps its backup folder relative to the game (" + backupLine + ")");
+                    }
+                    else
+                    {
+                        System.IO.File.WriteAllLines(recordPath, record.Select(l => l.StartsWith("backup=") ? "backup=" + System.IO.Path.Combine(game, l.Substring(7)) : l));
+                    }
+                    System.IO.Directory.Move(game, moved);
+                    log.Clear();
+                    installer.Uninstall(moved, keepSettings: false);
+                    string winhttp = System.IO.Path.Combine(moved, "winhttp.dll");
+                    string now = System.IO.File.Exists(winhttp) ? System.IO.File.ReadAllText(winhttp) : "(none)";
+                    Check(now == "other tool", $"Setup moved game ({what}): Uninstall puts the original back (now '{now}'; {string.Join(" | ", log)})");
+                }
+                catch (Exception e)
+                {
+                    Check(false, $"Setup moved game ({what}): threw " + e);
                 }
                 finally
                 {
