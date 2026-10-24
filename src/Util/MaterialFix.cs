@@ -124,6 +124,10 @@ namespace RavenfieldVR.Util
             if (_gunmetal == null)
             {
                 Shader s = Usable("Standard") ?? Usable("Legacy Shaders/Diffuse");
+                if (s == null)
+                {
+                    return null; // (no usable shader: the slot stays empty, as it was; new Material(null) threw for every one)
+                }
                 _gunmetal = new Material(s) { name = "RavenfieldVR gunmetal", color = new Color(0.16f, 0.16f, 0.17f) };
                 if (_gunmetal.HasProperty("_Metallic"))
                 {
