@@ -84,8 +84,15 @@ namespace RavenfieldVR.Weapons
             for (int k = 0; k < n; k++)
             {
                 Collider c = Near[k];
-                Hitbox hb = c != null ? c.GetComponent<Hitbox>() : null;
-                if (hb == null || !(hb.parent is Actor a) || a == player || a.ragdoll == null)
+                if (c == null)
+                {
+                    continue;
+                }
+                // A standing soldier by its hitboxes; one already down (thrown, knocked over, dead) has only its ragdoll's
+                // colliders enabled, on a hitbox layer too, which may carry no Hitbox: the soldier above them then.
+                Hitbox hb = c.GetComponent<Hitbox>();
+                Actor a = hb != null ? hb.parent as Actor : c.GetComponentInParent<Actor>();
+                if (a == null || a == player || a.ragdoll == null)
                 {
                     continue;
                 }
