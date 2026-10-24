@@ -169,7 +169,7 @@ namespace RavenfieldVR.Core
             PostProcessing = cfg.Bind("Rendering", "PostProcessing", false,
                 "Copy the game's post-processing stack (colour grading, bloom, AO) onto the VR camera. Costs performance.");
             BodyShadow = cfg.Bind("Rendering", "BodyShadow", false,
-                "Your own soldier's shadow while on foot. Off: the body is the flat game's, its head at your eyes and its arms and gun in the game's " +
+                "Your own soldier's shadow on foot and in first-person seats. Off: the body is the flat game's, its head at your eyes and its arms and gun in the game's " +
                 "own animation, so with shadows on its shadow fell across your hands and gun and moved on its own in front of you.");
             MinFarClip = cfg.Bind("Rendering", "MinFarClip", 1500f,
                 new ConfigDescription("Smallest far plane used for the VR camera, in metres. The game's draw distance is used when larger; the graphics preset's view distance still caps it (Low 1200, Medium 2000, High 3000, Ultra 4000).",
