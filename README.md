@@ -93,8 +93,8 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 **Soldiers:** reach for a soldier with an empty hand and grip. They go limp and hang from your hand; drag them, slam them into things, or swing and let go to throw them. A hard impact hurts them and any soldier they hit, by the speed squared as in Boneworks (a shove does nothing, a slam a fifth of their health, at most a third in one impact), so it takes a few slams to finish one off. Soldiers of your own team are not hurt. Only an empty hand takes hold: the hand on your gun, a grenade or a magazine never grabs a soldier, the other, empty hand does.
 
 - **Human shield:** hold a soldier up in front of you; bullets hit him, his own friends' too.
-- **From behind:** reach for a soldier's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again.
-- **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go on his body: it sticks to him. Throw him away before it goes off.
+- **From behind:** reach for an enemy's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again. Your own team's soldiers are grabbed as bodies instead.
+- **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go slowly on his body (walking is fine): it sticks to him. Throw him away before it goes off: he dies in the blast, everyone near takes the grenade's normal explosion damage. Strapped to one of your own team, it is only an ordinary explosion for him.
 
 Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Fired cases fly out of the ejection port and lie on the ground for a while.
 

@@ -223,8 +223,8 @@ namespace RavenfieldVR.Weapons
             }
             try
             {
-                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated() && player != null && _holds[1 - i] == null
-                    && FromBehind(best, player) && NearHead(best, palm))
+                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated() && player != null && best.team != player.team
+                    && _holds[1 - i] == null && FromBehind(best, player) && NearHead(best, palm))
                 {
                     TakeNeck(i, hand, best);
                     return;
@@ -306,8 +306,9 @@ namespace RavenfieldVR.Weapons
         private static bool NearHead(Actor a, Vector3 palm) => (HeadOf(a) - palm).sqrMagnitude < NeckReach * NeckReach;
 
         /// <summary>
-        /// Taken by the head from behind: the soldier stands held, his AI paused (he neither turns nor shoots); a twist of the
-        /// wrist breaks his neck (<see cref="FollowNeck"/>), letting go lets him go.
+        /// Taken by the head from behind (an enemy: as every blow and throw of the mod, never the player's own team): the soldier
+        /// stands held, his AI paused (he neither turns nor shoots); a twist of the wrist breaks his neck (<see cref="FollowNeck"/>),
+        /// letting go lets him go.
         /// </summary>
         private void TakeNeck(int i, VRHand hand, Actor a)
         {
@@ -426,6 +427,12 @@ namespace RavenfieldVR.Weapons
             {
                 a.fallAction.Start(); // held, not getting up (the game gets up when the fall timer is done and the body is still)
             }
+            // Killed while held (a knife, a bullet), the game stiffened the joints again for the body (Actor.Die: SetDrive 50):
+            // limp again while it hangs from the hand.
+            if (a.ragdoll.jointDrive.positionSpring > 0f)
+            {
+                BodyImpacts.Limp(a);
+            }
             // No bone faster than the hand by more than MaxOverHand: a body caught in the ground or a wall was shot out by the
             // physics before (see MaxOverHand).
             float limit = hand.Velocity.magnitude + MaxOverHand;
@@ -460,16 +467,20 @@ namespace RavenfieldVR.Weapons
                 // Still held by the other hand: stays armed (not for 3 s only) and down; the other hand's let-go throws.
                 Hold other = _holds[1 - i];
                 bool stillHeld = other != null && other.Actor == hold.Actor;
-                if (hold.Actor != null && !stillHeld)
+                if (hold.Actor != null && !stillHeld && (hold.Actor.ragdoll == null || !hold.Actor.ragdoll.IsRagdoll()))
+                {
+                    BodyImpacts.Disarm(hold.Actor); // stood up or respawned under the hand: his joints as the game set them, now
+                }
+                else if (hold.Actor != null && !stillHeld)
                 {
                     BodyImpacts.Arm(hold.Actor, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
-                    if (thrown && hold.Actor.ragdoll != null && hold.Actor.ragdoll.rigidbodies != null)
+                    if (thrown && hold.Actor.ragdoll.rigidbodies != null)
                     {
                         // Thrown with the hand's motion (as everything let go: ThrowAndMelee), the whole body, not only the bone that
                         // was held: the rest of a ragdoll hanging from one joint lags far behind it.
                         // One velocity for every bone (the joints' own pulls left in made the body tumble off at any speed), at most
                         // MaxThrowSpeed.
-                        Vector3 v = Vector3.ClampMagnitude(hand.ThrowVelocity() + hand.BodyThrowVelocity() * (VRConfig.ThrowVelocityMultiplier.Value - 1f), MaxThrowSpeed);
+                        Vector3 v = Vector3.ClampMagnitude(ThrowableHandler.Released(hand), MaxThrowSpeed);
                         foreach (Rigidbody rb in hold.Actor.ragdoll.rigidbodies)
                         {
                             if (rb != null)
@@ -607,6 +618,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Dictionary<Actor, JointDrive> SavedDrive = new Dictionary<Actor, JointDrive>();
         private static readonly Dictionary<Actor, float> LastHit = new Dictionary<Actor, float>();
+        /// <summary>The bones with a live component (one each: a bone re-armed in the frame its old one goes gets one new one).</summary>
+        private static readonly HashSet<Rigidbody> ArmedBones = new HashSet<Rigidbody>();
         private static Actor _by;
 
         private Actor _owner;
@@ -614,6 +627,8 @@ namespace RavenfieldVR.Weapons
         private Rigidbody _body;
         private float _depenetration;
         private bool _limited;
+        /// <summary>Destroyed at the end of this frame: no more impacts through it.</summary>
+        private bool _gone;
 
         /// <summary>
         /// While armed (held, and for the seconds after a throw), the bone is pushed out of what it sinks into gently and never
@@ -622,43 +637,49 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private const float ArmedDepenetration = 5f, ArmedMaxSpeed = 25f;
 
+        /// <summary>
+        /// Only while armed: then the bone puts back what it changed and the component goes (it stayed on every bone of every
+        /// soldier ever held, each running this every physics step for the rest of the match; perf pass, 2026-10-24).
+        /// </summary>
         private void FixedUpdate()
         {
             if (_body == null)
             {
-                _body = GetComponent<Rigidbody>();
-                if (_body == null)
+                Go();
+                return;
+            }
+            if (_owner != null && ArmedUntil.TryGetValue(_owner, out float until))
+            {
+                if (Time.time <= until)
                 {
+                    if (!_limited)
+                    {
+                        _limited = true;
+                        _depenetration = _body.maxDepenetrationVelocity;
+                        _body.maxDepenetrationVelocity = ArmedDepenetration;
+                    }
+                    if (_body.velocity.sqrMagnitude > ArmedMaxSpeed * ArmedMaxSpeed)
+                    {
+                        _body.velocity = _body.velocity.normalized * ArmedMaxSpeed;
+                    }
                     return;
                 }
+                Disarm(_owner); // the first of its bones to see the time is up: the soldier's joints back, once
             }
-            bool armed = _owner != null && ArmedUntil.TryGetValue(_owner, out float until) && Time.time <= until;
-            if (armed)
+            if (_limited)
             {
-                if (!_limited)
-                {
-                    _limited = true;
-                    _depenetration = _body.maxDepenetrationVelocity;
-                    _body.maxDepenetrationVelocity = ArmedDepenetration;
-                }
-                if (_body.velocity.sqrMagnitude > ArmedMaxSpeed * ArmedMaxSpeed)
-                {
-                    _body.velocity = _body.velocity.normalized * ArmedMaxSpeed;
-                }
-            }
-            else if (_limited)
-            {
-                _limited = false;
                 _body.maxDepenetrationVelocity = _depenetration;
-                // No longer armed: the game's motors back (its own getting up needs them), once for the soldier.
-                if (SavedDrive.TryGetValue(_owner, out JointDrive drive))
-                {
-                    SavedDrive.Remove(_owner);
-                    if (_owner.ragdoll != null)
-                    {
-                        _owner.ragdoll.SetDrive(drive.positionSpring, drive.positionDamper);
-                    }
-                }
+            }
+            Go();
+        }
+
+        private void Go()
+        {
+            if (!_gone)
+            {
+                _gone = true;
+                ArmedBones.Remove(_body);
+                Destroy(this);
             }
         }
 
@@ -674,57 +695,85 @@ namespace RavenfieldVR.Weapons
             }
             _by = by;
             ArmedUntil[a] = until;
-            if (!SavedDrive.ContainsKey(a))
-            {
-                SavedDrive[a] = a.ragdoll.jointDrive;
-                a.ragdoll.SetDrive(0f, 1f); // limp
-            }
+            Limp(a);
+            Transform root = a.ragdoll.ragdollObject != null ? a.ragdoll.ragdollObject.transform : null;
             foreach (Rigidbody rb in a.ragdoll.rigidbodies)
             {
-                if (rb != null && rb.GetComponent<BodyImpacts>() == null)
+                if (rb != null && ArmedBones.Add(rb))
                 {
                     BodyImpacts b = rb.gameObject.AddComponent<BodyImpacts>();
                     b._owner = a;
-                    b._ragdollRoot = a.ragdoll.ragdollObject != null ? a.ragdoll.ragdollObject.transform : null;
-                }
-            }
-            if (ArmedUntil.Count > 64)
-            {
-                var gone = new List<Actor>();
-                foreach (KeyValuePair<Actor, float> kv in ArmedUntil)
-                {
-                    if (kv.Key == null || kv.Value < Time.time)
-                    {
-                        gone.Add(kv.Key);
-                    }
-                }
-                foreach (Actor g in gone)
-                {
-                    ArmedUntil.Remove(g);
-                    LastHit.Remove(g);
+                    b._body = rb;
+                    b._ragdollRoot = root;
                 }
             }
         }
+
+        /// <summary>The soldier's joint motors off (kept as the game set them, to put back on <see cref="Disarm"/>).</summary>
+        internal static void Limp(Actor a)
+        {
+            if (!SavedDrive.ContainsKey(a))
+            {
+                SavedDrive[a] = a.ragdoll.jointDrive;
+            }
+            a.ragdoll.SetDrive(0f, 1f);
+        }
+
+        /// <summary>
+        /// No longer armed: the joints as the game would have them now (a living soldier's to get up with; a dead one's as
+        /// Actor.Die sets them, not the living stiffness he had when taken, which held the body rigid in its last pose).
+        /// The bones' components see it and go.
+        /// </summary>
+        internal static void Disarm(Actor a)
+        {
+            ArmedUntil.Remove(a);
+            if (SavedDrive.TryGetValue(a, out JointDrive drive))
+            {
+                SavedDrive.Remove(a);
+                Restore(a, drive);
+            }
+            if (ArmedUntil.Count == 0)
+            {
+                LastHit.Clear(); // (the soldiers hit by thrown bodies too: only the last 0.15 s matter)
+            }
+        }
+
+        private static void Restore(Actor a, JointDrive drive)
+        {
+            if (a == null || a.ragdoll == null)
+            {
+                return;
+            }
+            if (a.dead)
+            {
+                a.ragdoll.SetDrive(DeadSpring, DeadDamper);
+            }
+            else
+            {
+                a.ragdoll.SetDrive(drive.positionSpring, drive.positionDamper);
+            }
+        }
+
+        /// <summary>The joints of a dead soldier, as the game sets them (Actor.Die).</summary>
+        private const float DeadSpring = 50f, DeadDamper = 1f;
 
         /// <summary>A new scene or VR stopping: nothing stays armed.</summary>
         internal static void Clear()
         {
             foreach (KeyValuePair<Actor, JointDrive> kv in SavedDrive)
             {
-                if (kv.Key != null && kv.Key.ragdoll != null)
-                {
-                    kv.Key.ragdoll.SetDrive(kv.Value.positionSpring, kv.Value.positionDamper);
-                }
+                Restore(kv.Key, kv.Value);
             }
             SavedDrive.Clear();
             ArmedUntil.Clear();
             LastHit.Clear();
+            ArmedBones.RemoveWhere(b => b == null); // a scene's bones went with it; live ones go on their next step
             _by = null;
         }
 
         private void OnCollisionEnter(Collision c)
         {
-            if (_owner == null || !ArmedUntil.TryGetValue(_owner, out float until) || Time.time > until)
+            if (_gone || _owner == null || !ArmedUntil.TryGetValue(_owner, out float until) || Time.time > until)
             {
                 return;
             }
@@ -811,7 +860,10 @@ namespace RavenfieldVR.Weapons
             if (hitbox.parent is Actor a && a != __instance.killCredit && BodyGrab.IsHeld(a))
             {
                 __result = true;
-                Log.InfoOnce("humanshield", $"A shot hit {a.name}, held as a shield.");
+                if (!Log.Logged("humanshield")) // (its line not built again for every bullet after the first)
+                {
+                    Log.InfoOnce("humanshield", $"A shot hit {a.name}, held as a shield.");
+                }
             }
         }
     }
@@ -827,6 +879,8 @@ namespace RavenfieldVR.Weapons
         private Rigidbody _bone;
         private Projectile _projectile;
         private Actor _carrier;
+        /// <summary>The carrier was seen dead: alive again later means respawned (actors are reused), the strap is off.</summary>
+        private bool _carrierDied;
         private Vector3 _localPosition;
         private Quaternion _localRotation;
 
@@ -858,13 +912,14 @@ namespace RavenfieldVR.Weapons
         {
             Actor a = _carrier;
             _carrier = null;
-            if (a == null || a.dead)
+            Actor by = _projectile != null ? _projectile.killCredit : null;
+            if (a == null || a.dead || by != null && a.team == by.team)
             {
-                return;
+                return; // (one of the thrower's own team: the grenade's own explosion only, as the game deals it)
             }
             try
             {
-                a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Explosion, _projectile != null ? _projectile.killCredit : null, _projectile != null ? _projectile.sourceWeapon : null)
+                a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Explosion, by, _projectile != null ? _projectile.sourceWeapon : null)
                 {
                     healthDamage = a.health + 100f,
                     balanceDamage = 500f,
@@ -886,6 +941,20 @@ namespace RavenfieldVR.Weapons
             {
                 Destroy(this); // the body gone: the grenade flies on by itself
                 return;
+            }
+            if (_carrier != null)
+            {
+                if (_carrier.dead)
+                {
+                    _carrierDied = true;
+                }
+                else if (_carrierDied)
+                {
+                    // Respawned elsewhere before it went off (the game reuses its soldiers): it stays where the body was.
+                    _carrier = null;
+                    Destroy(this);
+                    return;
+                }
             }
             Transform b = _bone.transform;
             transform.SetPositionAndRotation(b.TransformPoint(_localPosition), b.rotation * _localRotation);

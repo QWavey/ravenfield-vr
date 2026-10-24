@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using RavenfieldVR.Util;
 using UnityEngine;
 using UnityEngine.XR;
@@ -18,6 +19,13 @@ namespace RavenfieldVR.Core
         private static readonly int[] Buckets = new int[400]; // 0-100 ms; slower frames go in the last
         private static int _frames, _within, _gcAtStart = -1;
         private static float _seconds, _budgetMs;
+
+        // The GPU's time for each frame the compositor got (both eyes and the game's cameras): over the budget with the CPU
+        // under it, a preset is too heavy; under it with frames still late, the CPU (the game, the mod) is the cause.
+        private static readonly int[] GpuBuckets = new int[400];
+        private static int _gpuFrames;
+        private static uint _lastTimedFrame;
+        private static readonly uint TimingSize = (uint)Marshal.SizeOf(typeof(Compositor_FrameTiming));
 
         // The last few seconds as well, for the wrist display: picking a preset on the panel shows its effect at once.
         private const float ShortWindow = 3f;
@@ -56,6 +64,7 @@ namespace RavenfieldVR.Core
             {
                 _within++;
             }
+            SampleGpu();
             _shortFrames++;
             _shortWithin += onTime ? 1 : 0;
             _shortSeconds += dt;
@@ -95,17 +104,46 @@ namespace RavenfieldVR.Core
             return XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f;
         }
 
+        private static void SampleGpu()
+        {
+            try
+            {
+                CVRCompositor comp = OpenVR.Compositor;
+                if (comp == null)
+                {
+                    return;
+                }
+                var t = new Compositor_FrameTiming { m_nSize = TimingSize };
+                if (!comp.GetFrameTiming(ref t, 0) || t.m_nFrameIndex == _lastTimedFrame || t.m_flTotalRenderGpuMs <= 0f)
+                {
+                    return;
+                }
+                _lastTimedFrame = t.m_nFrameIndex;
+                GpuBuckets[Mathf.Min((int)(t.m_flTotalRenderGpuMs / BucketMs), GpuBuckets.Length - 1)]++;
+                _gpuFrames++;
+            }
+            catch (System.Exception)
+            {
+                // no compositor (flat mode): no GPU times
+            }
+        }
+
         private static void Report()
         {
             float hz = 1000f / _budgetMs;
             string preset = VRConfig.Graphics.Value.ToString();
+            string gpu = _gpuFrames > 0
+                ? $"GPU median {Percentile(GpuBuckets, _gpuFrames, 0.5f):0.0} ms, 95th {Percentile(GpuBuckets, _gpuFrames, 0.95f):0.0} ms"
+                : "GPU not timed";
             Log.Info($"Frame rate over the last minute of play: {100f * _within / _frames:0}% of {_frames} frames at the headset's {hz:0} Hz " +
-                     $"({_budgetMs:0.0} ms), median {Percentile(0.5f):0.0} ms, 95th {Percentile(0.95f):0.0} ms; {preset}, render scale " +
-                     $"{XRSettings.eyeTextureResolutionScale:0.0#}, MSAA {QualitySettings.antiAliasing}x, shadows " +
+                     $"({_budgetMs:0.0} ms), median {Percentile(Buckets, _frames, 0.5f):0.0} ms, 95th {Percentile(Buckets, _frames, 0.95f):0.0} ms, {gpu}; " +
+                     $"{preset}, {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye (render scale {XRSettings.eyeTextureResolutionScale:0.0#}), " +
+                     $"MSAA {QualitySettings.antiAliasing}x, shadows " +
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
                      $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.TakeModMsPerFrame():0.0} ms a frame.");
             System.Array.Clear(Buckets, 0, Buckets.Length);
-            _frames = _within = 0;
+            System.Array.Clear(GpuBuckets, 0, GpuBuckets.Length);
+            _frames = _within = _gpuFrames = 0;
             _seconds = _budgetMs = 0f;
         }
 
@@ -128,20 +166,20 @@ namespace RavenfieldVR.Core
             }
         }
 
-        /// <summary>The frame time at this share of the window's frames (the upper edge of its bucket).</summary>
-        private static float Percentile(float share)
+        /// <summary>The time at this share of a window's frames (the upper edge of its bucket).</summary>
+        private static float Percentile(int[] buckets, int count, float share)
         {
-            int need = Mathf.CeilToInt(share * _frames);
+            int need = Mathf.CeilToInt(share * count);
             int seen = 0;
-            for (int i = 0; i < Buckets.Length; i++)
+            for (int i = 0; i < buckets.Length; i++)
             {
-                seen += Buckets[i];
+                seen += buckets[i];
                 if (seen >= need)
                 {
                     return (i + 1) * BucketMs;
                 }
             }
-            return Buckets.Length * BucketMs;
+            return buckets.Length * BucketMs;
         }
     }
 }

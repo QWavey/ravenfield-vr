@@ -124,7 +124,8 @@ namespace RavenfieldVR.Core
         /// </summary>
         internal static string ApplyForBench(GraphicsPreset preset, float? renderScale = null, int? msaa = null, float? shadowDistance = null,
             int? cascades = null, bool? reflections = null, int? pixelLights = null, float? lodBias = null, ShadowResolution? shadowResolution = null,
-            ShadowQuality? shadows = null, bool? softParticles = null, bool? hdr = null)
+            ShadowQuality? shadows = null, bool? softParticles = null, bool? hdr = null, GraphicsPreset? terrainOf = null,
+            AnisotropicFiltering? anisotropic = null)
         {
             if (!Profiles.TryGetValue(preset, out Profile src))
             {
@@ -142,11 +143,22 @@ namespace RavenfieldVR.Core
             p.Shadows = shadows ?? p.Shadows;
             p.SoftParticles = softParticles ?? p.SoftParticles;
             p.Hdr = hdr ?? p.Hdr;
+            p.Anisotropic = anisotropic ?? p.Anisotropic;
+            if (terrainOf.HasValue && Profiles.TryGetValue(terrainOf.Value, out Profile t))
+            {
+                // Grass, trees, terrain detail and view distance of another preset.
+                p.DetailDensity = t.DetailDensity;
+                p.DetailDistance = t.DetailDistance;
+                p.TreeDistance = t.TreeDistance;
+                p.MinPixelError = t.MinPixelError;
+                p.FarClip = t.FarClip;
+            }
             ApplyProfile(p);
             UnityEngine.XR.XRSettings.eyeTextureResolutionScale = Mathf.Clamp(p.RenderScale, 0.5f, 2f);
             string shadowText = p.Shadows == ShadowQuality.Disable ? "off" : $"{p.ShadowDistance:0} m {p.Cascades} cascades {p.ShadowResolution}";
             return $"{preset}: scale {p.RenderScale:0.0#}, MSAA {p.Msaa}x, shadows {shadowText}, reflections {(p.RealtimeReflections ? "on" : "off")}, "
-                   + $"pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}, soft particles {(p.SoftParticles ? "on" : "off")}, HDR {(p.Hdr ? "as the game" : "off")}";
+                   + $"pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}, soft particles {(p.SoftParticles ? "on" : "off")}, HDR {(p.Hdr ? "as the game" : "off")}, "
+                   + $"grass x{p.DetailDensity:0.0#} to {p.DetailDistance:0} m, trees {p.TreeDistance:0} m, terrain error {p.MinPixelError:0}, anisotropic {p.Anisotropic}";
         }
 
         /// <summary>

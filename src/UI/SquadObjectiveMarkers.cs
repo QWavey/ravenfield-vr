@@ -9,7 +9,7 @@ namespace RavenfieldVR.UI
     /// the flags could not be seen and could not be pointed at. Now, with the squad order screen open and a hand held out
     /// pointing, every capture point shows a flag in its owner's team colour with its name on top. The flags are drawn over
     /// the world by the UI camera, as the order label and the arrow are. The flag the pointing line is within a few degrees of
-    /// is drawn brighter, and an order given then goes to that point (see <see cref="Aimed"/>).
+    /// is drawn brighter, and an order given then goes to that point (see <see cref="Aimed(Ray, Vector3, out float)"/>).
     /// Flags beyond <see cref="MaxDrawDistance"/> stand on the sightline at that distance, at the size they have there. The UI
     /// camera's far plane is 200 m and the capture points are spread farther apart than that.
     /// </summary>

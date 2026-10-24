@@ -602,7 +602,8 @@ namespace RavenfieldVR.Tests
             buckets[44] = 45; // 11.00-11.25 ms
             buckets[100] = 5; // 25.00-25.25 ms
             frames.SetValue(null, 100);
-            float P(float share) => (float)percentile.Invoke(null, new object[] { share });
+            // (The buckets and count are passed in: the GPU times have a set of their own.)
+            float P(float share) => (float)percentile.Invoke(null, new object[] { buckets, 100, share });
             string got = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.00} {1:0.00} {2:0.00}", P(0.5f), P(0.95f), P(0.99f));
             Check(got == "10.25 11.25 25.25", $"Frame budget: median, 95th and 99th from the buckets ({got})");
             Array.Clear(buckets, 0, buckets.Length);

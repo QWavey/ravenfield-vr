@@ -167,22 +167,25 @@ namespace RavenfieldVR.Core
             _gcStart = GC.CollectionCount(0);
         }
 
-        /// <summary>Perf bench: the frames since the last <see cref="Reset"/>, summed up.</summary>
-        internal static string Summary(out float cpuAvg, out float gpuAvg)
+        /// <summary>
+        /// Perf bench: the frames since the last <see cref="Reset"/>, summed up. The medians are what a setting costs (a few
+        /// hitches in a 5 s sample pulled the average of one far off another of the same setting); the 95th shows the hitches.
+        /// </summary>
+        internal static string Summary(out float cpuMedian, out float gpuMedian)
         {
-            cpuAvg = gpuAvg = -1f;
+            cpuMedian = gpuMedian = -1f;
             if (FrameTimes.Count == 0)
             {
                 return "no frames";
             }
             List<float> cpu = FrameTimes.OrderBy(f => f).ToList();
-            cpuAvg = FrameTimes.Average();
-            string s = $"frame {cpuAvg,6:0.00} ms (95th {cpu[(int)(cpu.Count * 0.95f)],6:0.00})";
+            cpuMedian = cpu[cpu.Count / 2];
+            string s = $"frame {cpuMedian,6:0.00} ms (avg {FrameTimes.Average(),6:0.00}, 95th {cpu[(int)(cpu.Count * 0.95f)],6:0.00})";
             if (GpuTimes.Count > 0)
             {
                 List<float> gpu = GpuTimes.OrderBy(f => f).ToList();
-                gpuAvg = GpuTimes.Average();
-                s += $", GPU {gpuAvg,6:0.00} ms (95th {gpu[(int)(gpu.Count * 0.95f)],6:0.00})";
+                gpuMedian = gpu[gpu.Count / 2];
+                s += $", GPU {gpuMedian,6:0.00} ms (95th {gpu[(int)(gpu.Count * 0.95f)],6:0.00})";
             }
             return s + $", {FrameTimes.Count} frames, {_dropped} dropped, {_reprojected} reprojected";
         }

@@ -160,9 +160,10 @@ namespace RavenfieldVR.Weapons
             Vector3 dir = velocity.normalized;
             muzzle.SetPositionAndRotation(hand.Palm.position + dir * 0.08f, Quaternion.LookRotation(dir));
             // Let go on a held body: strapped to its nearest bone, not thrown (user, 2026-10-24). Only a let-go, not a throw that
-            // starts beside the body the other hand holds.
+            // starts beside the body the other hand holds: slow against the player's own body, as CanStrap (the world velocity
+            // counted walking, so a shield carried along at a walk never took a grenade).
             Actor carrier = null;
-            Rigidbody strapTo = velocity.magnitude < StrapMaxSpeed ? BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach, out carrier) : null;
+            Rigidbody strapTo = hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed ? BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach, out carrier) : null;
             _spawned.Clear();
             try
             {

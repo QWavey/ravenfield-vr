@@ -111,8 +111,14 @@ namespace RavenfieldVR.Runtime
                 ApplyLiveSettings();
                 Running = true;
                 LastError = null;
-                Log.Info($"SteamVR running: {XRSettings.loadedDeviceName} {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye, " +
-                         $"{XRDevice.refreshRate:0} Hz, stereo {XRSettings.stereoRenderingMode}.");
+                // SteamVR's own figures: Unity's eye size and refresh rate read 0x0 and 0 Hz this early (the user's log through
+                // Link), and the frame-rate estimates need the pixels the headset really asks for.
+                uint eyeWidth = 0, eyeHeight = 0;
+                OpenVR.System?.GetRecommendedRenderTargetSize(ref eyeWidth, ref eyeHeight);
+                ETrackedPropertyError hzError = ETrackedPropertyError.TrackedProp_Success;
+                float hz = OpenVR.System?.GetFloatTrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_DisplayFrequency_Float, ref hzError) ?? 0f;
+                Log.Info($"SteamVR running: {XRSettings.loadedDeviceName}, {eyeWidth}x{eyeHeight} per eye at 100% (SteamVR's resolution setting "
+                         + $"included), render scale {XRSettings.eyeTextureResolutionScale:0.0#}, {hz:0} Hz, stereo {XRSettings.stereoRenderingMode}.");
                 // The tracking universe, which SteamVR keys a room's play area by (tools/vrshots.py gives the null driver one,
                 // so its room setup does not open and close the game; task 279).
                 ETrackedPropertyError universeError = ETrackedPropertyError.TrackedProp_Success;
