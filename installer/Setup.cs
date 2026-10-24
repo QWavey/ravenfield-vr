@@ -37,10 +37,29 @@ namespace RavenfieldVR.Setup
         {
             if (args.Length == 0)
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new SetupForm());
-                return 0;
+                // Guarded as the unattended runs are: a throw while the window starts (reading Steam's library list) was a crash
+                // with nothing written down (installer scout, 2026-10-23).
+                try
+                {
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                    Application.Run(new SetupForm());
+                    return 0;
+                }
+                catch (Exception e)
+                {
+                    string crash = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RavenfieldVR-setup.log");
+                    try
+                    {
+                        File.AppendAllText(crash, DateTime.Now.ToString("HH:mm:ss ") + "The setup window failed: " + e + Environment.NewLine);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                    MessageBox.Show("Ravenfield VR Setup could not start: " + e.Message + "\n\nDetails: " + crash, "Ravenfield VR Setup",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return 1;
+                }
             }
             string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RavenfieldVR-setup.log");
             var log = new List<string>();
@@ -53,7 +72,7 @@ namespace RavenfieldVR.Setup
                     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
                 }
                 bool Flag(string name) => args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
-                string game = Arg("--game") ?? Installer.FindRavenfield();
+                string game = Arg("--game") != null ? Installer.GamePath(Arg("--game")) : Installer.FindRavenfield();
                 var installer = new Installer(write);
                 if (Flag("--steam-option-test"))
                 {
@@ -247,7 +266,31 @@ namespace RavenfieldVR.Setup
             return libs;
         }
 
-        public static bool IsRavenfieldFolder(string dir) => !string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, "ravenfield.exe"));
+        public static bool IsRavenfieldFolder(string dir) => !string.IsNullOrEmpty(dir) && dir.IndexOfAny(Path.GetInvalidPathChars()) < 0
+                                                             && File.Exists(Path.Combine(dir, "ravenfield.exe"));
+
+        /// <summary>
+        /// A game folder as typed or pasted, made whole: trimmed, the quotes of Explorer's "Copy as path" taken off, and made
+        /// absolute. Used as typed, a pasted path with its quotes threw in the path checks (the window's own status line), and a
+        /// relative one went relative into the install record and Steam's launch option (installer scout, 2026-10-23).
+        /// </summary>
+        public static string GamePath(string text)
+        {
+            string dir = (text ?? "").Trim().Trim('"').Trim();
+            if (dir.Length == 0 || dir.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+            {
+                return dir;
+            }
+            try
+            {
+                string full = Path.GetFullPath(dir);
+                return full.Length > 3 ? full.TrimEnd('\\', '/') : full; // (a drive's root keeps its '\': "C:" is a folder of its own)
+            }
+            catch (Exception e) when (e is ArgumentException || e is NotSupportedException || e is PathTooLongException)
+            {
+                return dir;
+            }
+        }
 
         /// <summary>
         /// Ravenfield, or the launcher waiting for the headset to start it: the launcher holds its own exe and openvr_api.dll, and a
@@ -1258,7 +1301,7 @@ namespace RavenfieldVR.Setup
             _install.SetBounds(M, 440, 150, 36);
             _install.Click += async (s, e) =>
             {
-                string game = _path.Text.Trim();
+                string game = Installer.GamePath(_path.Text);
                 bool ok = await RunAsync(() => _installer.Install(game), "Installing…", null);
                 if (ok && (_steamLaunch.Checked || _steamPlay.Checked))
                 {
@@ -1279,7 +1322,7 @@ namespace RavenfieldVR.Setup
             _uninstall.Click += async (s, e) =>
             {
                 bool keep = _keepSettings.Checked;
-                string game = _path.Text.Trim();
+                string game = Installer.GamePath(_path.Text);
                 // Steam's options first, then the files: the launcher is kept while Steam still starts it (see Uninstall). Checked
                 // first: a refused uninstall (the game running) left Steam's options taken out and the mod installed.
                 if (!await RunAsync(() => _installer.CheckCanUninstall(game), "Checking…", null))
@@ -1326,7 +1369,7 @@ namespace RavenfieldVR.Setup
 
         private void RefreshState()
         {
-            string game = _path.Text.Trim();
+            string game = Installer.GamePath(_path.Text);
             bool valid = Installer.IsRavenfieldFolder(game);
             string installed = valid ? Installer.InstalledVersion(game) : null;
             string problem = valid ? Installer.BepInExProblem(game) : null;
@@ -1369,7 +1412,7 @@ namespace RavenfieldVR.Setup
 
         private void OpenConfig()
         {
-            string cfg = ConfigPath(_path.Text.Trim());
+            string cfg = ConfigPath(Installer.GamePath(_path.Text));
             if (File.Exists(cfg))
             {
                 Process.Start(new ProcessStartInfo("notepad.exe", "\"" + cfg + "\"") { UseShellExecute = true });
@@ -1475,7 +1518,7 @@ namespace RavenfieldVR.Setup
         /// </summary>
         private async Task UpdateFromGitHubFlow()
         {
-            string game = _path.Text.Trim();
+            string game = Installer.GamePath(_path.Text);
             if (!Installer.IsRavenfieldFolder(game))
             {
                 MessageBox.Show(this, "Choose your Ravenfield folder first (the one with ravenfield.exe).",

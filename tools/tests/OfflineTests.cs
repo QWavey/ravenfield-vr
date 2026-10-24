@@ -41,6 +41,7 @@ namespace RavenfieldVR.Tests
             SetupMovedGameTests();
             SetupBadPayloadTests();
             SetupInterruptedInstallTests();
+            GamePathTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1276,6 +1277,29 @@ namespace RavenfieldVR.Tests
                     {
                     }
                 }
+            }
+        }
+
+        /// <summary>A game folder as typed or pasted: Explorer's "Copy as path" quotes, spaces and a trailing separator come off; a relative one is made absolute.</summary>
+        private static void GamePathTests()
+        {
+            string game = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr game " + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(game);
+            try
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                foreach (string typed in new[] { "\"" + game + "\"", "  " + game + "\\ ", " \"" + game + "\\\" " })
+                {
+                    string got = Installer.GamePath(typed);
+                    Check(got == game && Installer.IsRavenfieldFolder(got), $"Game path: {Show(typed)} -> {Show(got)}");
+                }
+                Check(System.IO.Path.IsPathRooted(Installer.GamePath(@"some\relative")), "Game path: a relative folder is made absolute");
+                Check(Installer.GamePath(@"C:\") == @"C:\", "Game path: a drive's root keeps its separator");
+                Check(!Installer.IsRavenfieldFolder("a\"b<c") && Installer.GamePath("a\"b<c") == "a\"b<c", "Game path: invalid characters are no game folder, and do not throw");
+            }
+            finally
+            {
+                System.IO.Directory.Delete(game, true);
             }
         }
 
