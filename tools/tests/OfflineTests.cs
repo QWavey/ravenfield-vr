@@ -43,6 +43,7 @@ namespace RavenfieldVR.Tests
             SetupInterruptedInstallTests();
             GamePathTests();
             SetupMissingLoaderTests();
+            VersionCompareTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1320,6 +1321,20 @@ namespace RavenfieldVR.Tests
                 catch (System.IO.IOException)
                 {
                 }
+            }
+        }
+
+        /// <summary>Release versions compare as numbers part by part (the setup's Update / Downgrade label and the version list's order).</summary>
+        private static void VersionCompareTests()
+        {
+            foreach ((string a, string b, int sign) in new[]
+            {
+                ("1.11.0", "1.10.2", 1), ("1.10.0", "1.9.9", 1), ("1.9.0", "1.10.0", -1), ("1.11", "1.11.0", 0),
+                ("2.0.0", "1.99.99", 1), ("1.0.0", "1.0.0", 0), ("1.10.10", "1.10.9", 1),
+            })
+            {
+                int got = Math.Sign(GitHub.CompareVersions(a, b));
+                Check(got == sign, $"Versions: {a} vs {b} compares {got} (want {sign})");
             }
         }
 
