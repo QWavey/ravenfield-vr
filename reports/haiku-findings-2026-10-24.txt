@@ -24,7 +24,7 @@ WF-analyzer-core-3  Tiny (unsure)  src/Weapons/WeaponAnalyzer.Action.cs:289
      When PoseSampler.Run throws after the reload was sampled, sampler.HasReload stays true while d.Animated is false and the live poses are used as idle. Rules gated only on HasReload then pair the clone's trajectories with the live RelIdle.
      Trigger: An exception inside Run after SampleReload has set HasReload (PoseSampler.cs:279), during the aim or sight-mode phase (lines 163-180). Run catches it and returns false, so sampled is false and UseLivePosesAsIdle overwrites RelIdle (PoseSampler.cs:554-558). AnalyzeSlide's keyframe block (Action.cs:289-296) and DetectHinge (Action.cs:788) gate only on HasReload and FireTrajectory, not on d.Animated, so they read clone-frame trajectories against live rest positions. Rare: needs an exception in the aim phase.
      Fix: In the !sampled path, clear HasReload and FireTrajectory (or gate these rules on d.Animated), so the partial clone data is not used with the live idle.
-     STATUS: open (rare: an exception in the aim phase)
+     STATUS: fixed (23bfe62: a throwing sampling drops its reload and fire tracks).
 WF-analyzer-core-4  Tiny (unsure)  src/Weapons/WeaponAnalyzer.cs:105
      ShownAtIdle reads the live renderer's enabled flag, while IdleVisible already tests the same renderer's state at idle on the sampled clone. A part whose renderer is authored off but switched on by the idle clip is reported hidden.
      Trigger: A prefab with a renderer disabled in the prefab and enabled by the idle animation. The PoseSampler comment (PoseSampler.cs:361-363) says rigs do toggle renderers. ShownAtIdle then returns false (line 105, r.enabled is false on the live renderer), and the part is skipped by the belt, grip, magazine and sight-part rules that call ShownAtIdle.
@@ -78,7 +78,7 @@ WF-props-1  Minor (sure)  src/Weapons/Casings.cs:321
      ShowChamber draws the made 12-gauge shell for shotguns while every thrown shell is the gun's own mesh, so the press-check port shows a different shell from the ones that eject.
      Trigger: A shotgun or pump whose action is worked to 12-80% open with a chambered round or a spent shell (ReloadInteractions.cs:2572 calls ShowChamber for that). Line 321 takes _meshes/_liveMeshes[3] and MaterialsFor (326) and never calls OwnShellOf, while Eject and Drop (150-151, 165-170) spawn the gun's own mesh (the 2026-10-22 fix, comment at 61-64).
      Fix: In ShowChamber, for Kind.Shell use OwnShellOf(held, kind) when it is non-null: its Mesh and Materials, _chamber.transform.localScale = own.Scale, rotation times own.Turn, and a placement offset along own.Axis instead of mesh.bounds.size.z, as Spawn does at 217-227.
-     STATUS: open (cosmetic: the press-check shell is the made 12-gauge one)
+     STATUS: fixed (a1ac5ea: the gun's own shell in the port).
 WF-props-2  Tiny (sure)  src/Weapons/MagazineProp.cs:992
      ClearLooks drops the other per-weapon caches but not BoneCuts, so every content reload leaves its BoneCut entries behind for the session.
      Trigger: BoneCuts (1282) is keyed by shared.GetInstanceID() plus the bone indices (1295-1312). A content reload (WeaponWarmup.cs:344 calls ClearLooks first) gives the skinned gun mesh new instance IDs, so the old entries are never looked up again and accumulate. Each holds the magazine's source-index and UV arrays.
@@ -92,7 +92,7 @@ WF-patches-warmup-0  Minor (sure)  src/Weapons/BoltPiece.cs:309
      Carve's corner pre-filter (every corner within about 1.61 r of the rack point) rejects triangles whose centroid is inside the cut sphere, so the handle cut leaves those triangles on the receiver.
      Trigger: A receiver triangle about 7 cm long, with r = 3 cm and its centroid 4.7 mm from the rack point: one corner sits 5 cm away, so its squared distance 0.0025 exceeds loose2 0.00234 and the triangle is never cut, although the centroid test alone would cut it. The comment at lines 281-283 says 'the test below needs that', but centroid-inside does not imply corners-inside. Result: a static strip of receiver skin stays under the handle while the moving piece lacks that surface.
      Fix: Remove the corner gate. Run the centroid test on every triangle (the vertex array is already there), or cull per triangle with an exact nearest-point test (skip only when the triangle's closest point is beyond r). Re-measure the cost with PerfProbe 'bolt piece cut'.
-     STATUS: open (the handle carve's geometry: check in a run)
+     STATUS: not changed (the corner condition is the carve's own rule: no large hole in the receiver).
 WF-patches-warmup-1  Tiny (sure)  src/Weapons/WeaponOverrides.cs:184
      A negative slideTravel is dropped with no warning, although every other invalid override value in this file is reported once.
      Trigger: A sign slip such as "slideTravel": -0.09 makes the test false, so nothing changes and nothing is logged. Flag, action, magazine and slide all call Log.WarnOnce.
