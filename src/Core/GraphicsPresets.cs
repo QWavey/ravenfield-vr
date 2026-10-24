@@ -40,29 +40,35 @@ namespace RavenfieldVR.Core
 
         private static readonly Dictionary<GraphicsPreset, Profile> Profiles = new Dictionary<GraphicsPreset, Profile>
         {
+            // Tuned for multi-pass VR (2026-10-24): every shadow pass, MSAA sample and pixel light is paid once per eye, and
+            // directional shadows add a depth pass of the whole scene per eye. The old presets cost far more than the game's own
+            // levels: the user's 'Game' ran Ravenfield's 'Fastest' (no shadows, no pixel lights, LOD bias 0.3) smoothly, while
+            // even Low added shadows and a doubled LOD and dropped the frame rate into the headset's reprojection (ghosting,
+            // things lagging in front of the view); Ultra (scale 1.4, MSAA 4x, 4 cascades) ran 31-46 fps in play. Low is now about
+            // the game's 'Fast', Medium its 'Simple', High its 'Good' and Ultra its 'Beautiful', each at most 2 cascades.
             [GraphicsPreset.Low] = new Profile
             {
-                RenderScale = 0.8f, Msaa = 0, ShadowDistance = 35f, Cascades = 1, ShadowResolution = ShadowResolution.Low, Shadows = ShadowQuality.HardOnly,
-                LodBias = 0.6f, PixelLights = 1, TextureLimit = 1, Anisotropic = AnisotropicFiltering.Disable, SoftParticles = false, RealtimeReflections = false,
-                DetailDensity = 0.25f, DetailDistance = 35f, TreeDistance = 350f, MinPixelError = 12f, FarClip = 1200f
+                RenderScale = 0.8f, Msaa = 0, ShadowDistance = 15f, Cascades = 1, ShadowResolution = ShadowResolution.Low, Shadows = ShadowQuality.Disable,
+                LodBias = 0.4f, PixelLights = 0, TextureLimit = 1, Anisotropic = AnisotropicFiltering.Disable, SoftParticles = false, RealtimeReflections = false,
+                DetailDensity = 0.2f, DetailDistance = 30f, TreeDistance = 300f, MinPixelError = 12f, FarClip = 1200f
             },
             [GraphicsPreset.Medium] = new Profile
             {
-                RenderScale = 1.0f, Msaa = 2, ShadowDistance = 60f, Cascades = 2, ShadowResolution = ShadowResolution.Medium, Shadows = ShadowQuality.All,
-                LodBias = 1.0f, PixelLights = 2, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = false, RealtimeReflections = false,
-                DetailDensity = 0.55f, DetailDistance = 60f, TreeDistance = 700f, MinPixelError = 7f, FarClip = 2000f
+                RenderScale = 0.9f, Msaa = 2, ShadowDistance = 30f, Cascades = 1, ShadowResolution = ShadowResolution.Low, Shadows = ShadowQuality.HardOnly,
+                LodBias = 0.7f, PixelLights = 1, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = false, RealtimeReflections = false,
+                DetailDensity = 0.45f, DetailDistance = 50f, TreeDistance = 600f, MinPixelError = 8f, FarClip = 2000f
             },
             [GraphicsPreset.High] = new Profile
             {
-                RenderScale = 1.2f, Msaa = 4, ShadowDistance = 100f, Cascades = 2, ShadowResolution = ShadowResolution.High, Shadows = ShadowQuality.All,
-                LodBias = 1.5f, PixelLights = 4, TextureLimit = 0, Anisotropic = AnisotropicFiltering.ForceEnable, SoftParticles = true, RealtimeReflections = true,
-                DetailDensity = 0.85f, DetailDistance = 100f, TreeDistance = 1200f, MinPixelError = 4f, FarClip = 3000f
+                RenderScale = 1.0f, Msaa = 2, ShadowDistance = 60f, Cascades = 2, ShadowResolution = ShadowResolution.Medium, Shadows = ShadowQuality.All,
+                LodBias = 1.0f, PixelLights = 2, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = true, RealtimeReflections = false,
+                DetailDensity = 0.7f, DetailDistance = 80f, TreeDistance = 1000f, MinPixelError = 5f, FarClip = 3000f
             },
             [GraphicsPreset.Ultra] = new Profile
             {
-                RenderScale = 1.4f, Msaa = 4, ShadowDistance = 150f, Cascades = 4, ShadowResolution = ShadowResolution.VeryHigh, Shadows = ShadowQuality.All,
-                LodBias = 2.0f, PixelLights = 6, TextureLimit = 0, Anisotropic = AnisotropicFiltering.ForceEnable, SoftParticles = true, RealtimeReflections = true,
-                DetailDensity = 1f, DetailDistance = 160f, TreeDistance = 2000f, MinPixelError = 2f, FarClip = 4000f
+                RenderScale = 1.2f, Msaa = 4, ShadowDistance = 100f, Cascades = 2, ShadowResolution = ShadowResolution.High, Shadows = ShadowQuality.All,
+                LodBias = 1.5f, PixelLights = 3, TextureLimit = 0, Anisotropic = AnisotropicFiltering.ForceEnable, SoftParticles = true, RealtimeReflections = true,
+                DetailDensity = 1f, DetailDistance = 120f, TreeDistance = 1600f, MinPixelError = 3f, FarClip = 4000f
             },
         };
 

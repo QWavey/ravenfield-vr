@@ -120,7 +120,7 @@ Get in by holding your grip on a vehicle for half a second with an empty hand (o
 
 ## Graphics
 
-Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("Graphics"). A preset sets the render resolution, MSAA, shadow distance and quality, level of detail, per-pixel lights, texture size, vegetation and view distance, layered on top of the game's own options. "Game" leaves graphics to the game's options menu. Render scale stays adjustable after picking a preset.
+Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("Graphics"). A preset sets the render resolution, MSAA, shadow distance and quality, level of detail, per-pixel lights, texture size, vegetation and view distance, layered on top of the game's own options. "Game" leaves graphics to the game's options menu. Render scale stays adjustable after picking a preset. The presets are tuned for VR, where shadows, MSAA and per-pixel lights are paid once per eye: Low has no shadows (about the game's "Fast" quality), Medium hard shadows to 30 m ("Simple"), High soft shadows to 60 m ("Good"), Ultra to 100 m with 4x MSAA ("Beautiful"). If you see ghosting or things lagging in front of you, the frame rate is below the headset's: pick a lower preset (or "Game" with a low quality in the game's options).
 
 ## Odd modded weapons
 

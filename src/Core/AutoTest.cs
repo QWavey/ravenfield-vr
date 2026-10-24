@@ -559,6 +559,7 @@ namespace RavenfieldVR.Core
             UI.UISystem ui = UI.UISystem.Instance;
             var runs = new List<KeyValuePair<string, Func<string>>>
             {
+                new KeyValuePair<string, Func<string>>("Low", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Low)),
                 new KeyValuePair<string, Func<string>>("Medium", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium)),
                 new KeyValuePair<string, Func<string>>("High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High)),
                 new KeyValuePair<string, Func<string>>("Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),

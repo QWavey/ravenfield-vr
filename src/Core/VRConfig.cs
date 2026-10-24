@@ -412,6 +412,26 @@ namespace RavenfieldVR.Core
                 }
                 revision.Value = 5;
             }
+            if (revision.Value < 6)
+            {
+                // The presets were tuned for multi-pass VR (2026-10-24: the old ones dropped into reprojection even on Low): a
+                // render scale still at its preset's old value takes the new one (Medium 1 -> 0.9, High 1.2 -> 1, Ultra 1.4 -> 1.2).
+                float scale = RenderScale.Value;
+                GraphicsPreset preset = Graphics.Value;
+                if (preset == GraphicsPreset.Medium && Mathf.Approximately(scale, 1f))
+                {
+                    RenderScale.Value = 0.9f;
+                }
+                else if (preset == GraphicsPreset.High && Mathf.Approximately(scale, 1.2f))
+                {
+                    RenderScale.Value = 1f;
+                }
+                else if (preset == GraphicsPreset.Ultra && Mathf.Approximately(scale, 1.4f))
+                {
+                    RenderScale.Value = 1.2f;
+                }
+                revision.Value = 6;
+            }
         }
 
         /// <summary>Handedness as it was at startup: the setting takes effect on restart (the bindings are mirrored then).</summary>

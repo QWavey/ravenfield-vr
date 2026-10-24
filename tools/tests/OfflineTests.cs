@@ -1152,7 +1152,7 @@ namespace RavenfieldVR.Tests
                 // No config yet: the section and both entries are made.
                 RavenfieldVR.Launcher.PluginConfig.SetGraphicsPreset(dir, "High");
                 string made = System.IO.File.ReadAllText(cfg);
-                Check(RavenfieldVR.Launcher.PluginConfig.GetGraphicsPreset(dir) == "High" && made.Contains("[Rendering]") && made.Contains("RenderScale = 1.2"),
+                Check(RavenfieldVR.Launcher.PluginConfig.GetGraphicsPreset(dir) == "High" && made.Contains("[Rendering]") && made.Contains("RenderScale = 1" + Environment.NewLine),
                       "Launcher: a missing config gets the preset and its render scale (" + made.Replace("\r\n", " | ") + ")");
                 // A config BepInEx wrote: only the preset's two lines change, the comments, other sections and same-named keys elsewhere stay.
                 string[] original =
@@ -1173,11 +1173,11 @@ namespace RavenfieldVR.Tests
                         changed.Add(a + " -> " + b);
                     }
                 }
-                Check(changed.Count == 2 && changed.Contains("RenderScale = 0.95 -> RenderScale = 1.4") && changed.Contains("GraphicsPreset = Medium -> GraphicsPreset = Ultra"),
+                Check(changed.Count == 2 && changed.Contains("RenderScale = 0.95 -> RenderScale = 1.2") && changed.Contains("GraphicsPreset = Medium -> GraphicsPreset = Ultra"),
                       "Launcher: a new preset changes only its own line and the render scale in [Rendering] (" + string.Join("; ", changed) + ")");
                 // The same preset again: a render scale adjusted by hand stays.
                 string[] tuned = (string[])after.Clone();
-                tuned[Array.IndexOf(tuned, "RenderScale = 1.4")] = "RenderScale = 1.33";
+                tuned[Array.IndexOf(tuned, "RenderScale = 1.2")] = "RenderScale = 1.33";
                 System.IO.File.WriteAllLines(cfg, tuned);
                 RavenfieldVR.Launcher.PluginConfig.SetGraphicsPreset(dir, "Ultra");
                 Check(Array.IndexOf(System.IO.File.ReadAllLines(cfg), "RenderScale = 1.33") >= 0, "Launcher: the same preset again keeps a render scale set by hand");

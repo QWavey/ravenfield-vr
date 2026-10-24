@@ -260,7 +260,7 @@ namespace RavenfieldVR.Launcher
         /// <summary>The render scale each preset picks (the mod's GraphicsPresets profiles).</summary>
         private static readonly Dictionary<string, string> PresetRenderScale = new Dictionary<string, string>
         {
-            ["Low"] = "0.8", ["Medium"] = "1", ["High"] = "1.2", ["Ultra"] = "1.4"
+            ["Low"] = "0.8", ["Medium"] = "0.9", ["High"] = "1", ["Ultra"] = "1.2" // (as GraphicsPresets' profiles)
         };
 
         /// <summary>
