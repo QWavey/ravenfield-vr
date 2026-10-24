@@ -3108,6 +3108,172 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// Soldiers taken hold of and thrown, and a fist (user, 2026-10-24: "I cannot grab people with my hand and throw them
+        /// around", "I also cannot punch them with my hands if they are fists"; task 336). An enemy is put 80 cm in front of
+        /// the player with its AI paused and the free hand closed on its chest: it must go down and hang from the hand; the hand
+        /// swings and lets go: the body must fly on with it. A second enemy is punched through the chest with a closed empty
+        /// hand: it must be hurt. Both are killed afterwards (an enemy left at arm's length would fight the rest of the run).
+        /// </summary>
+        private static IEnumerator BodyGrabCheck(Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Actor player = LocalPlayer.actor;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            if (rig == null || player == null || off == null || off.Role != Rig.HandRole.Free || off.Held != null || ActorManager.instance == null)
+            {
+                report($"soldier grab: skipped (off hand {(off != null ? off.Role.ToString() : "missing")})");
+                yield break;
+            }
+            var enemies = new List<Actor>();
+            foreach (Actor a in ActorManager.instance.actors)
+            {
+                if (a != null && a != player && a.aiControlled && !a.dead && a.team != player.team && !a.IsSeated() && a.ragdoll != null
+                    && !a.ragdoll.IsRagdoll() && a.controller != null)
+                {
+                    enemies.Add(a);
+                }
+            }
+            if (enemies.Count == 0)
+            {
+                report("soldier grab: skipped (no enemy alive on foot)");
+                yield break;
+            }
+            Vector3 headAt = rig.Head.position;
+            enemies.Sort((x, y) => (x.transform.position - headAt).sqrMagnitude.CompareTo((y.transform.position - headAt).sqrMagnitude));
+            Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
+            int side = (int)off.Side;
+            Runtime.RigidPose raw = off.Raw;
+            Vector3 palmFromRaw = off.PalmCentre - raw.position;
+            var paused = new List<Actor>();
+
+            Vector3 Chest(Actor a)
+            {
+                try
+                {
+                    Transform t = a.ragdoll.HumanBoneTransformAnimated(HumanBodyBones.Chest) ?? a.ragdoll.HumanBoneTransformAnimated(HumanBodyBones.Spine);
+                    if (t != null)
+                    {
+                        return t.position;
+                    }
+                }
+                catch (Exception)
+                {
+                    // a rig without those bones mapped: the body's middle below
+                }
+                return a.transform.position + Vector3.up * 1.25f;
+            }
+
+            void PalmAt(Vector3 at, Vector3 velocity)
+            {
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(at - palmFromRaw, raw.rotation);
+                Rig.VRHand.ScriptedVelocity[side] = velocity;
+            }
+
+            void Bring(Actor a)
+            {
+                a.controller.enabled = false; // its AI paused: it must not walk off or fight at arm's length
+                paused.Add(a);
+                Vector3 at = headAt + flat * 0.8f;
+                at.y = player.transform.position.y;
+                if (Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out RaycastHit ground, 4f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
+                {
+                    at.y = ground.point.y;
+                }
+                a.SetPositionAndRotation(at, Quaternion.LookRotation(-flat, Vector3.up));
+            }
+
+            try
+            {
+                // Taken hold of and thrown.
+                Actor held = enemies[0];
+                Bring(held);
+                yield return new WaitForSecondsRealtime(0.3f);
+                PalmAt(Chest(held), Vector3.zero);
+                yield return null;
+                yield return null;
+                Input.VRInput.SimulateGrabPress(off.Side);
+                for (float until = Time.realtimeSinceStartup + 0.5f; off.Role != Rig.HandRole.Body && Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+                bool grabbed = off.Role == Rig.HandRole.Body;
+                bool down = held.ragdoll.IsRagdoll();
+                float before = held.health;
+                Vector3 swing = (flat + Vector3.up * 0.6f).normalized * 6f;
+                Vector3 palm = off.PalmCentre;
+                for (int i = 0; i < 8; i++)
+                {
+                    palm += swing * 0.011f;
+                    PalmAt(palm, swing);
+                    yield return null;
+                }
+                Input.VRInput.SimulatedGrab[side] = false;
+                yield return null;
+                yield return null;
+                Rigidbody main = held.ragdoll.IsRagdoll() ? held.ragdoll.MainRigidbody() : null;
+                float flew = main != null ? main.velocity.magnitude : 0f;
+                bool letGo = off.Role == Rig.HandRole.Free;
+                PalmAt(raw.position + palmFromRaw, Vector3.zero);
+                yield return new WaitForSecondsRealtime(2f);
+                Metric("soldier thrown: body m/s", flew);
+                report($"soldier grab: {(grabbed ? $"took hold of {held.name}" : "NOT GRABBED")}, {(down ? "down as a ragdoll" : "NOT DOWN")}; "
+                       + $"{(letGo ? "let go" : "NOT LET GO")} in a 6 m/s swing, the body at {flew:0.0} m/s{(grabbed && flew < 2f ? " (NOT THROWN with the swing)" : "")}, "
+                       + $"health {before:0} -> {(held.dead ? "dead" : held.health.ToString("0"))} after landing");
+
+                // A fist through a second enemy's chest.
+                Actor punched = enemies.Count > 1 ? enemies[1] : null;
+                if (punched == null || off.Role != Rig.HandRole.Free)
+                {
+                    report($"fist: skipped ({(punched == null ? "one enemy only" : "the free hand is " + off.Role)})");
+                    yield break;
+                }
+                Bring(punched);
+                yield return new WaitForSecondsRealtime(0.3f);
+                Vector3 chest = Chest(punched);
+                Vector3 from = chest - flat * 0.45f, to = chest + flat * 0.1f;
+                Input.VRInput.SimulatedGrip[side] = 1f;
+                for (int i = 0; i < 3; i++)
+                {
+                    PalmAt(from, Vector3.zero); // closed and still first: the punch is measured from here
+                    yield return null;
+                }
+                float hp = punched.health;
+                const float punch = 7f;
+                Vector3 at = from;
+                while ((at - from).sqrMagnitude < (to - from).sqrMagnitude && punched.health >= hp - 1f)
+                {
+                    at += flat * punch * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                    PalmAt(at, flat * punch);
+                    yield return null;
+                }
+                yield return null;
+                bool hurt = punched.dead || punched.health < hp - 1f;
+                report($"fist: {(hurt ? $"punched {punched.name}, health {hp:0} -> {(punched.dead ? "dead" : punched.health.ToString("0"))}" : "NO HIT on the enemy's chest at 7 m/s")}");
+            }
+            finally
+            {
+                Input.VRInput.SimulatedGrab[side] = false;
+                Input.VRInput.SimulatedGrip[side] = 0f;
+                Rig.VRHand.Scripted[side] = null;
+                Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
+                foreach (Actor a in paused)
+                {
+                    if (a != null)
+                    {
+                        if (!a.dead)
+                        {
+                            a.Damage(new DamageInfo(DamageInfo.DamageSourceType.Scripted, null, null) { healthDamage = 10000f, balanceDamage = 0f, point = a.transform.position, direction = Vector3.down });
+                        }
+                        if (a.controller != null)
+                        {
+                            a.controller.enabled = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// The drawn gun fires while sprinting: the game drops the trigger while sprinting unless allowFireWhileSprinting is set
         /// (user, 2026-10-19 night and 2026-10-20: "when running I cannot shoot", task 314).
         /// </summary>
@@ -4022,6 +4188,7 @@ namespace RavenfieldVR.Core
                             yield return GroundDriftCheck(lines.Add);
                             yield return HandVelocityCheck(lines.Add);
                             yield return SprintFireCheck(lines.Add);
+                            yield return BodyGrabCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
                             {

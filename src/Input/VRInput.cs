@@ -689,7 +689,10 @@ namespace RavenfieldVR.Input
 
         /// <summary>Autotest: how far a simulated hand's trigger finger is pulled (the finger pose only; it does not fire).</summary>
         internal static readonly float[] SimulatedTrigger = new float[2];
-        public static float GetGrip(Hand h) => Grip[(int)h];
+        public static float GetGrip(Hand h) => Math.Max(Grip[(int)h], SimulatedGrip[(int)h]);
+
+        /// <summary>Autotest: how far a simulated hand's grip is closed (a fist without the Grab action: task 336's punch check).</summary>
+        internal static readonly float[] SimulatedGrip = new float[2];
         public static bool HasSkeleton(Hand h) => SkeletonValid[(int)h];
 
         /// <summary>Finger curl 0..1 (0 thumb .. 4 pinky).</summary>
