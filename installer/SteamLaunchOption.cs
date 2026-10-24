@@ -196,8 +196,17 @@ namespace RavenfieldVR.Setup
             string text = Vdf.Serialize(root);
             File.WriteAllText(temp, text, new UTF8Encoding(false));
             // Read back whole before it replaces Steam's, as the Play entry's app cache is.
-            string back = File.ReadAllText(temp, Encoding.UTF8);
-            if (back != text || Vdf.Serialize(Vdf.Parse(back)) != text)
+            bool readBack;
+            try
+            {
+                string back = File.ReadAllText(temp, Encoding.UTF8);
+                readBack = back == text && Vdf.Serialize(Vdf.Parse(back)) == text;
+            }
+            catch (FormatException)
+            {
+                readBack = false; // (the temp file went with it too: a parse that threw left it behind)
+            }
+            if (!readBack)
             {
                 File.Delete(temp);
                 throw new InvalidDataException("the changed Steam config did not read back; Steam's file was left as it was.");
