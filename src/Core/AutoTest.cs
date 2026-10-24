@@ -59,6 +59,13 @@ namespace RavenfieldVR.Core
         private static readonly bool UiShots = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-uishots", StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
+        /// -rfvr-grabcheck (with -rfvr-autotest -vr): only the soldier checks (grab, throw, fist, a gun swung into one) with the first
+        /// rifle of the loadout drawn, then the report and quit (user, 2026-10-24: "is grabbing people possible rn? and throwing them
+        /// too? and hitting them with any weapon/fists? ... only focus on that").
+        /// </summary>
+        private static readonly bool GrabCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabcheck", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
         /// -rfvr-flashfilm (with -rfvr-autotest -vr, and -rfvr-only= for the guns): films what each eye gets while each gun
         /// shoots (its own muzzle flash and the lens flash on the view), frame by frame, into RavenfieldVR-shots/film-*.
         /// </summary>
@@ -345,6 +352,15 @@ namespace RavenfieldVR.Core
                     yield return PauseMenuCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (VRManager.Active && GrabCheckOnly)
+                {
+                    _context = "grab check";
+                    yield return DrawFirstGun();
+                    yield return BodyGrabCheck(Results.Add);
                     Write();
                     Application.Quit();
                     yield break;
@@ -3135,6 +3151,42 @@ namespace RavenfieldVR.Core
             return d.magnitude > 0.15f ? $"MOVED {d.magnitude * 100f:0} cm (up {d.y * 100f:0} cm)" : $"still ({d.magnitude * 100f:0.0} cm)";
         }
 
+        /// <summary>The first rifle (or else any gun) of the loadout drawn into the hand, for <see cref="GrabCheckOnly"/>.</summary>
+        private static IEnumerator DrawFirstGun()
+        {
+            Actor actor = LocalPlayer.actor;
+            if (actor == null || actor.weapons == null)
+            {
+                yield break;
+            }
+            int slot = -1;
+            for (int i = 0; i < actor.weapons.Length && slot < 0; i++)
+            {
+                Weapon w = actor.weapons[i];
+                if (w != null && !(w is MeleeWeapon) && !(w is ThrowableWeapon))
+                {
+                    slot = i;
+                }
+            }
+            if (slot < 0)
+            {
+                Results.Add("grab check: no gun in the loadout to draw");
+                yield break;
+            }
+            actor.SwitchWeapon(slot);
+            for (float until = Time.realtimeSinceStartup + 6f; Time.realtimeSinceStartup < until; )
+            {
+                HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                if (held != null && held.Weapon == actor.weapons[slot])
+                {
+                    break;
+                }
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(1f);
+            Results.Add($"grab check: drew {(actor.activeWeapon != null ? actor.activeWeapon.name : "nothing")}");
+        }
+
         /// <summary>
         /// Soldiers taken hold of and thrown, and a fist (user, 2026-10-24: "I cannot grab people with my hand and throw them
         /// around", "I also cannot punch them with my hands if they are fists"; task 336). An enemy is put 80 cm in front of
@@ -3155,9 +3207,9 @@ namespace RavenfieldVR.Core
             var enemies = new List<Actor>();
             foreach (Actor a in ActorManager.instance.actors)
             {
-                // Seated ones too, taken out of their seat when brought (a short match had all its enemies in vehicles and turrets).
-                if (a != null && a != player && a.aiControlled && !a.dead && a.team != player.team && a.ragdoll != null
-                    && !a.ragdoll.IsRagdoll() && a.controller != null)
+                // Any enemy bot, dead, seated or down too: each is spawned again standing where it is wanted (Bring). Taken out of a
+                // vehicle's seat instead, the soldiers of a short match came out already fallen, and the hand closed on air.
+                if (a != null && a != player && a.aiControlled && a.team != player.team && a.ragdoll != null && a.controller != null)
                 {
                     enemies.Add(a);
                 }
@@ -3190,13 +3242,17 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             Vector3 headAt = rig.Head.position;
-            enemies.Sort((x, y) => x.IsSeated() != y.IsSeated() ? (x.IsSeated() ? 1 : -1)
+            // The dead first (out of the fight), then those on foot, the seated last.
+            int Rank(Actor a) => a.dead ? 0 : a.IsSeated() ? 2 : 1;
+            enemies.Sort((x, y) => Rank(x) != Rank(y) ? Rank(x).CompareTo(Rank(y))
                 : (x.transform.position - headAt).sqrMagnitude.CompareTo((y.transform.position - headAt).sqrMagnitude));
             Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
             int side = (int)off.Side;
             Runtime.RigidPose raw = off.Raw;
             Vector3 palmFromRaw = off.PalmCentre - raw.position;
             var paused = new List<Actor>();
+            int gunSide = -1;
+            MeleeHandler.RecordNotes = true;
 
             Vector3 Chest(Actor a)
             {
@@ -3223,27 +3279,39 @@ namespace RavenfieldVR.Core
 
             void Bring(Actor a)
             {
-                if (a.IsSeated())
-                {
-                    a.LeaveSeat(false);
-                }
-                a.controller.enabled = false; // its AI paused: it must not walk off or fight at arm's length
-                paused.Add(a);
                 Vector3 at = headAt + flat * 0.8f;
                 at.y = player.transform.position.y;
                 if (Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out RaycastHit ground, 4f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
                 {
                     at.y = ground.point.y;
                 }
-                a.SetPositionAndRotation(at, Quaternion.LookRotation(-flat, Vector3.up));
+                // Spawned again there: standing, full health, out of any seat (the game's own respawn).
+                a.SpawnAt(at, Quaternion.LookRotation(-flat, Vector3.up));
+                a.controller.enabled = false; // its AI paused: it must not walk off or fight at arm's length
+                if (!paused.Contains(a))
+                {
+                    paused.Add(a);
+                }
             }
 
             try
             {
+                // The gun lowered to the hip first: a soldier spawned in front of a gun held out, or the gun moved through one, is a
+                // bash (and its half second's cooldown), not what is measured here.
+                Rig.VRHand gunHand = rig.Dominant;
+                if (gunHand != null)
+                {
+                    gunSide = (int)gunHand.Side;
+                    Vector3 sideways = Vector3.Cross(Vector3.up, flat).normalized * (gunHand.IsLeft ? -1f : 1f);
+                    Rig.VRHand.Scripted[gunSide] = new Runtime.RigidPose(headAt - Vector3.up * 0.7f + sideways * 0.3f, Quaternion.LookRotation(flat * 0.3f + Vector3.down, flat));
+                    Rig.VRHand.ScriptedVelocity[gunSide] = Vector3.zero;
+                    yield return new WaitForSecondsRealtime(0.7f);
+                }
+
                 // Taken hold of and thrown.
                 Actor held = enemies[0];
                 Bring(held);
-                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForSecondsRealtime(0.6f);
                 PalmAt(Chest(held), Vector3.zero);
                 yield return null;
                 yield return null;
@@ -3277,14 +3345,14 @@ namespace RavenfieldVR.Core
                        + $"health {before:0} -> {(held.dead ? "dead" : held.health.ToString("0"))} after landing");
 
                 // A fist through a second enemy's chest.
-                Actor punched = enemies.Count > 1 ? enemies[1] : null;
-                if (punched == null || off.Role != Rig.HandRole.Free)
+                Actor punched = enemies.Count > 1 ? enemies[1] : held; // (one enemy only: the same one, spawned again)
+                if (off.Role != Rig.HandRole.Free)
                 {
-                    report($"fist: skipped ({(punched == null ? "one enemy only" : "the free hand is " + off.Role)})");
+                    report($"fist: skipped (the free hand is {off.Role})");
                     yield break;
                 }
                 Bring(punched);
-                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForSecondsRealtime(0.6f);
                 Vector3 chest = Chest(punched);
                 Vector3 from = chest - flat * 0.45f, to = chest + flat * 0.1f;
                 Input.VRInput.SimulatedGrip[side] = 1f;
@@ -3304,7 +3372,49 @@ namespace RavenfieldVR.Core
                 }
                 yield return null;
                 bool hurt = punched.dead || punched.health < hp - 1f;
-                report($"fist: {(hurt ? $"punched {punched.name}, health {hp:0} -> {(punched.dead ? "dead" : punched.health.ToString("0"))}" : "NO HIT on the enemy's chest at 7 m/s")}");
+                report($"fist: {(hurt ? $"punched {punched.name}, health {hp:0} -> {(punched.dead ? "dead" : punched.health.ToString("0"))}" : "NO HIT on the enemy's chest at 7 m/s")}"
+                       + (hurt ? "" : $" [last fist frame: {MeleeHandler.FistNote}; last sweep: {MeleeHandler.CastNote}; grip {Input.VRInput.GetGrip(off.Side):0.0}, hand {off.Role}, tracked {off.Tracked}]"));
+                Input.VRInput.SimulatedGrip[side] = 0f;
+                PalmAt(raw.position + palmFromRaw, Vector3.zero);
+
+                // The gun in the other hand swung sideways through a third enemy's chest (or the punched one again).
+                HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                Rig.VRHand dom = rig.Dominant;
+                Actor bashed = enemies.Count > 2 ? enemies[2] : punched;
+                if (gun == null || gun.Weapon == null || dom == null || gun.Rig.Data.Action == ActionType.Melee || gun.Rig.Data.Action == ActionType.Throwable)
+                {
+                    report("gun bash: skipped (no gun in the hand)");
+                    yield break;
+                }
+                int ds = (int)dom.Side;
+                Runtime.RigidPose domRaw = dom.Raw;
+                Vector3 right = Vector3.Cross(Vector3.up, flat).normalized;
+                Vector3 target = chest; // where the soldier will stand: the same spot as the punched one's
+                Quaternion along = Quaternion.LookRotation(flat, Vector3.up); // the gun pointing ahead, across the swing
+                Vector3 swingFrom = target - flat * 0.45f - right * 0.6f, swingTo = target - flat * 0.45f + right * 0.6f;
+                gunSide = ds;
+                // The gun to its start before the soldier stands there, and still past the bash's half-second cooldown.
+                Rig.VRHand.Scripted[ds] = new Runtime.RigidPose(swingFrom, along);
+                Rig.VRHand.ScriptedVelocity[ds] = Vector3.zero;
+                yield return new WaitForSecondsRealtime(0.7f);
+                Bring(bashed);
+                yield return new WaitForSecondsRealtime(0.6f);
+                target = Chest(bashed);
+                float bashBefore = bashed.health;
+                const float swingSpeed = 6f;
+                Vector3 hand = swingFrom;
+                while ((hand - swingFrom).sqrMagnitude < (swingTo - swingFrom).sqrMagnitude && bashed.health >= bashBefore - 1f && !bashed.dead)
+                {
+                    hand += right * swingSpeed * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                    Rig.VRHand.Scripted[ds] = new Runtime.RigidPose(hand, along);
+                    Rig.VRHand.ScriptedVelocity[ds] = right * swingSpeed;
+                    yield return null;
+                }
+                yield return null;
+                bool bashedHurt = bashed.dead || bashed.health < bashBefore - 1f;
+                report($"gun bash: [last sweep: {MeleeHandler.CastNote}] {(bashedHurt ? $"{gun.Weapon.name} swung into {bashed.name} at 6 m/s, health {bashBefore:0} -> {(bashed.dead ? "dead" : bashed.health.ToString("0"))}" : $"NO HIT with {gun.Weapon.name} swung through the enemy's chest at 6 m/s")}");
+                Rig.VRHand.Scripted[ds] = new Runtime.RigidPose(domRaw.position, domRaw.rotation);
+                yield return null;
             }
             finally
             {
@@ -3312,6 +3422,12 @@ namespace RavenfieldVR.Core
                 Input.VRInput.SimulatedGrip[side] = 0f;
                 Rig.VRHand.Scripted[side] = null;
                 Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
+                MeleeHandler.RecordNotes = false;
+                if (gunSide >= 0)
+                {
+                    Rig.VRHand.Scripted[gunSide] = null;
+                    Rig.VRHand.ScriptedVelocity[gunSide] = Vector3.zero;
+                }
                 foreach (Actor a in paused)
                 {
                     if (a != null)

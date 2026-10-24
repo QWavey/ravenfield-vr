@@ -513,6 +513,7 @@ def main():
     ap.add_argument('--hands', action='store_true', help='glove close-ups and the pose sheet (flat)')
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
+    ap.add_argument('--grabcheck', action='store_true', help='only the soldier checks: grab, throw, fist, a gun swung into one (a few minutes)')
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
     ap.add_argument('--restore', action='store_true',
                     help="after a run that was killed before it finished: SteamVR's settings and play area back as they were")
@@ -544,7 +545,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck)) if on]
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck)) if on]
     if not modes:
         ap.print_help()
         return
@@ -591,6 +592,8 @@ def main():
             args, timeout = base + ['-rfvr-perfbench'], a.timeout or 20
         elif mode == 'autotest':
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
+        elif mode == 'grabcheck':
+            args, timeout = base + ['-rfvr-grabcheck'], a.timeout or 8
         else:
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 10
         since = time.time()

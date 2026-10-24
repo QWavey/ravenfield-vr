@@ -913,6 +913,12 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 at = fist ? h.PalmCentre : h.Palm.position; // a fist strikes with its knuckles, round the fist's hollow
+                if (RecordNotes && fist)
+                {
+                    float measured = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
+                    FistNote = $"same fist {ReferenceEquals(what, _blowHeld[i])}, {Time.time - _lastBlowBy[i]:0.00} s since its blow, "
+                               + $"{Time.time - _lastBash:0.00} s since a bash, moved {(at - _blowAt[i]).magnitude * 100f:0} cm at {measured:0.0} m/s";
+                }
                 // Each hand on its own clock (a left-right combination), a fist sooner again than a swung magazine.
                 if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.time - _lastBlowBy[i] > (fist ? 0.3f : 0.5f) && Time.time - _lastBash > 0.5f
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
@@ -937,6 +943,10 @@ namespace RavenfieldVR.Weapons
         }
 
         // weight: a pistol 0.6 (about a knife's light blow), a rifle 1, a machine gun 1.4; a held magazine or grenade less.
+        /// <summary>Autotest: notes on the last fist frame and the last sweep, kept while set (why a blow struck or not).</summary>
+        internal static bool RecordNotes;
+        internal static string FistNote = "", CastNote = "";
+
         private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, float weight, string label, string key)
         {
             Vector3 sweep = to - from;
@@ -986,6 +996,11 @@ namespace RavenfieldVR.Weapons
                     best = target;
                     bestHit = h;
                     bestDistance = h.distance;
+                }
+                if (RecordNotes)
+                {
+                    CastNote = $"{n} hit(s) over {length * 100f:0} cm, nearest soldier {(best != null ? best.name + $" at {bestDistance * 100f:0} cm" : "none")}, "
+                               + $"nearest wall {(wall < float.MaxValue ? $"{wall * 100f:0} cm" : "none")}";
                 }
                 if (best == null || bestDistance > wall)
                 {
