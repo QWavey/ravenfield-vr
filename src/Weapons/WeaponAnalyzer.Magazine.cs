@@ -247,6 +247,7 @@ namespace RavenfieldVR.Weapons
             if (mag == null)
             {
                 mag = FindMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot, beltFed);
+                Transform firstByName = mag;
                 if (mag != null && slide != null && (mag == slide || mag.IsChildOf(slide)))
                 {
                     mag = null;
@@ -264,6 +265,16 @@ namespace RavenfieldVR.Weapons
                 if (mag != null)
                 {
                     d.MagMethod = "name '" + mag.name + "'";
+                }
+                else if (firstByName != null)
+                {
+                    // Measured before it is changed (unswept-areas hunt, 2026-10-24): the first name match was dropped and the
+                    // next one is never tried; named here so a run shows which guns would get a magazine that way.
+                    Transform next = NextMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot, beltFed, firstByName, slide, sampler);
+                    if (next != null)
+                    {
+                        d.Notes += $"(the name search dropped '{firstByName.name}'; '{next.name}' is named like a magazine too and would pass) ";
+                    }
                 }
             }
             if (mag == null)

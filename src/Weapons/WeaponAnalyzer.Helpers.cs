@@ -247,6 +247,48 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
+        /// <summary>Whether <paramref name="t"/> or one above it is a bone of the arms mesh.</summary>
+        private static bool OnListedArm(Transform t, Transform root, HashSet<Transform> armListed)
+        {
+            for (Transform p = t; p != null && p != root; p = p.parent)
+            {
+                if (armListed.Contains(p))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Whether a part found by its magazine name would be taken (the name search's own tests): measured for the notes only,
+        /// as the search takes the first match and drops it without trying the next.
+        /// </summary>
+        private static Transform NextMagByName(Transform[] all, Transform root, Transform gunBody, Transform muzzle, HashSet<Transform> armRelated,
+            HashSet<Transform> gunBones, bool launcher, bool beltFed, Transform first, Transform slide, PoseSampler sampler)
+        {
+            bool past = false;
+            foreach (Transform t in all)
+            {
+                if (t == first)
+                {
+                    past = true;
+                    continue;
+                }
+                if (!past || !IsMagName(t.name, launcher) || beltFed && IsBeltPiece(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones)
+                    || slide != null && (t == slide || t.IsChildOf(slide)) || !ShownAtIdle(t, sampler))
+                {
+                    continue;
+                }
+                float size = sampler.LocalBounds(t).size.magnitude;
+                if (size <= 1e-4f || size >= 0.05f)
+                {
+                    return t;
+                }
+            }
+            return null;
+        }
+
         /// <summary>An arm-named transform with a mesh of its own, not on the arms' skeleton, with no arm-named relative.</summary>
         private static bool LoneArmNamedMesh(Transform t, Transform root, HashSet<Transform> named, HashSet<Transform> armListed)
         {

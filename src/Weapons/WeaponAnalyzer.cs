@@ -436,6 +436,17 @@ namespace RavenfieldVR.Weapons
                 named.Remove(t);
                 d.Warnings.Add($"'{t.name}' has an arm-like name but is a part of the gun (a mesh of its own, not on the arms)");
             }
+            // Measured before it is changed (unswept-areas hunt, 2026-10-24): a group with no mesh of its own but gun meshes under
+            // it ('Scope_Rings' holding 'Ring_L') is still taken for an arm by its name, its meshes hidden as the arm's and the
+            // receiver above it made arm-related. Named in the notes so a run shows which guns have one.
+            foreach (Transform t in named)
+            {
+                if (!armListed.Contains(t) && t.GetComponent<MeshFilter>() == null && t.GetComponent<SkinnedMeshRenderer>() == null
+                    && !OnListedArm(t, root, armListed) && t.GetComponentsInChildren<MeshRenderer>(true).Length > 0)
+                {
+                    d.Notes += $"arm-named group '{t.name}' holds meshes and is not on the arms (taken for an arm) ";
+                }
+            }
             // An unnamed skeleton (Bone, Bone.001...): a bone the gun's own skinned mesh uses is the gun's, even when the
             // arms mesh lists it too (all of the gun's bones counted as arm bones and the gun mesh was hidden).
             var gunSkinned = new HashSet<Transform>();
