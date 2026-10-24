@@ -1161,15 +1161,19 @@ namespace RavenfieldVR.Rig
         /// <summary>
         /// On foot the head sits at the body's eye point, so the body must not be drawn into the view. The game draws it
         /// (shadows on) for a third-person camera and for an override camera that renders the player (bodycam, cinematic
-        /// shake), and the head camera takes the game camera's layers, the body's among them. The body keeps its shadow, as
-        /// it does in first person. Once the view is off foot or the body is no longer drawn, the game's own rule is put back:
-        /// the override's rendering while one is on, else the first- or third-person state.
+        /// shake), and the head camera takes the game camera's layers, the body's among them. With BodyShadow on, the body keeps
+        /// its shadow, as it does in first person; off (the default), it is hidden outright, on foot and on a first-person seat or
+        /// ladder. Once the view is no longer at the body's eyes, the game's own rule is put back: the override's rendering while
+        /// one is on, else the first- or third-person state.
         /// </summary>
         private void UpdateBodyShadows(FpsActorController player)
         {
             bool drawn = player != null && (player.IsUsingOverrideCamera() ? player.cameraRenderOptions.renderPlayerActor : !player.firstPerson);
             bool shadow = VRConfig.BodyShadow.Value;
-            if (Mode == RigMode.OnFoot && player != null && (drawn || !shadow))
+            // On a seat or a ladder the head is at the body's eyes too while the game does not draw the body (its first-person
+            // seat camera; its arms on the wheel in their own animation): hidden there as well. A third-person seat camera draws it.
+            bool atEyes = Mode == RigMode.OnFoot || Mode == RigMode.Anchored && !drawn;
+            if (atEyes && player != null && (Mode == RigMode.OnFoot && drawn || !shadow))
             {
                 if (shadow)
                 {
@@ -1184,7 +1188,7 @@ namespace RavenfieldVR.Rig
                     // third-person copies follow the game's animation, so their shadow lay across the hands and the gun and moved on
                     // its own. ShadowsOnly to Off would draw the meshes: hidden outright, every frame for weapons picked up since.
                     HideBody(player);
-                    Log.InfoOnce("Rig.BodyHidden", "On foot the body and its shadow are hidden (BodyShadow off): its shadow fell across the view.");
+                    Log.InfoOnce("Rig.BodyHidden", "From the body's eyes the body and its shadow are hidden (BodyShadow off): its shadow fell across the view.");
                 }
                 _bodyShadowsOwner = player;
                 return;
