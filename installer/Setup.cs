@@ -360,7 +360,7 @@ namespace RavenfieldVR.Setup
                         continue;
                     }
                     string rel = entry.FullName.Replace('/', '\\');
-                    bool loader = LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase) || rel.StartsWith(@"BepInEx\core\", StringComparison.OrdinalIgnoreCase);
+                    bool loader = IsLoaderFile(rel);
                     bool mod = rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase) || rel.StartsWith(@"ravenfield_Data\", StringComparison.OrdinalIgnoreCase)
                                || rel.Equals(LauncherName, StringComparison.OrdinalIgnoreCase);
                     if (!(mod || loader && installBepInEx))
@@ -500,8 +500,11 @@ namespace RavenfieldVR.Setup
             // core (files this setup added with it) stay too. Deleted first, BepInEx was left in place but no longer loaded, and the
             // other mods stopped without a word (review, 2026-10-20).
             string pluginsDir = Path.Combine(game, @"BepInEx\plugins");
+            // Patchers count as other plugins: deleted with BepInEx, another tool's preloader patches went too (installer scout).
+            string patchersDir = Path.Combine(game, @"BepInEx\patchers");
             bool otherPlugins = Directory.Exists(pluginsDir) && Directory.EnumerateFileSystemEntries(pluginsDir)
-                .Any(e => !string.Equals(Path.GetFileName(e), "RavenfieldVR", StringComparison.OrdinalIgnoreCase));
+                .Any(e => !string.Equals(Path.GetFileName(e), "RavenfieldVR", StringComparison.OrdinalIgnoreCase))
+                || Directory.Exists(patchersDir) && Directory.EnumerateFileSystemEntries(patchersDir).Any();
             bool settingsKept = keepSettings && File.Exists(Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"));
             bool keepBepInEx = !installedBepInEx || otherPlugins || settingsKept;
             // A Steam launch option still running the launcher (Steam could not be changed): the launcher stays, or Ravenfield no
@@ -518,11 +521,14 @@ namespace RavenfieldVR.Setup
                 }
             });
             int removed = 0, restored = 0;
+            // BepInEx's loader files that were put back as the game's own originals (another tool's winhttp.dll): not deleted with
+            // BepInEx afterwards.
+            var restoredLoader = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string line in lines.Where(l => l.StartsWith("added=", StringComparison.Ordinal)))
             {
                 string rel = line.Substring(6);
                 // (BepInEx's own: what Install adds as the loader.)
-                bool bepInExOwn = LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase) || rel.StartsWith(@"BepInEx\core\", StringComparison.OrdinalIgnoreCase);
+                bool bepInExOwn = IsLoaderFile(rel);
                 if (keepBepInEx && bepInExOwn)
                 {
                     continue;
@@ -553,10 +559,20 @@ namespace RavenfieldVR.Setup
                 {
                     _log("Skipped the record's " + rel + ": not a path inside the game folder.");
                 }
+                else if (keepBepInEx && IsLoaderFile(rel))
+                {
+                    // BepInEx stays, so its loader stays: put back, another tool's own winhttp.dll took over from BepInEx's and every
+                    // BepInEx mod (Ravenfield VR's kept settings included) stopped loading (installer scout, 2026-10-23).
+                    _log("Kept BepInEx's " + rel + " (BepInEx stays); the game's original is in " + (src ?? "the backup folder") + ".");
+                }
                 else if (src != null && File.Exists(src))
                 {
                     File.Copy(src, dst, true);
                     restored++;
+                    if (IsLoaderFile(rel))
+                    {
+                        restoredLoader.Add(rel);
+                    }
                 }
                 else
                 {
@@ -599,7 +615,8 @@ namespace RavenfieldVR.Setup
                     foreach (string f in LoaderFiles)
                     {
                         string p = Path.Combine(game, f);
-                        if (File.Exists(p))
+                        // (Not one just put back as the game's original: deleted, the other tool lost its loader.)
+                        if (!restoredLoader.Contains(f) && File.Exists(p))
                         {
                             File.Delete(p);
                         }
@@ -609,6 +626,10 @@ namespace RavenfieldVR.Setup
             }
             _log($"Uninstalled: {removed} files removed, {restored} original file(s) restored.");
         }
+
+        /// <summary>BepInEx's own files as Install lays them out: its loader beside the game and its core.</summary>
+        private static bool IsLoaderFile(string rel) =>
+            LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase) || rel.StartsWith(@"BepInEx\core\", StringComparison.OrdinalIgnoreCase);
 
         private static void DeleteDir(string dir)
         {

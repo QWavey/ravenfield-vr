@@ -37,6 +37,7 @@ namespace RavenfieldVR.Tests
             LauncherTests();
             SetupUninstallTests();
             SetupInstallTests();
+            SetupForeignLoaderTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1260,6 +1261,62 @@ namespace RavenfieldVR.Tests
                 catch (Exception e)
                 {
                     Check(false, "Setup uninstall: threw " + e);
+                }
+                finally
+                {
+                    Installer.SteamDirOverride = null;
+                    try
+                    {
+                        System.IO.Directory.Delete(root, true);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A game that had another tool's own winhttp.dll (no BepInEx): installed over, then uninstalled. With BepInEx kept (the
+        /// settings kept) BepInEx's loader stays, so BepInEx still loads; with BepInEx removed the tool's original comes back and
+        /// is not deleted with BepInEx's loader.
+        /// </summary>
+        private static void SetupForeignLoaderTests()
+        {
+            foreach (bool keep in new[] { true, false })
+            {
+                string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-loader-" + Guid.NewGuid().ToString("N"));
+                string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+                try
+                {
+                    System.IO.Directory.CreateDirectory(game);
+                    System.IO.Directory.CreateDirectory(steam);
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                    string winhttp = System.IO.Path.Combine(game, "winhttp.dll");
+                    System.IO.File.WriteAllText(winhttp, "other tool");
+                    Installer.SteamDirOverride = steam;
+                    var log = new List<string>();
+                    var installer = new Installer(log.Add);
+                    installer.Install(game);
+                    string record = System.IO.File.ReadAllText(System.IO.Path.Combine(game, Installer.ManifestRelative));
+                    Check(record.Contains("replaced=winhttp.dll") && System.IO.File.ReadAllText(winhttp) == "doorstop",
+                          $"Setup loader ({(keep ? "kept" : "removed")}): the other tool's winhttp.dll is backed up and replaced by BepInEx's");
+                    if (keep)
+                    {
+                        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(game, @"BepInEx\config"));
+                        System.IO.File.WriteAllText(System.IO.Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"), "cfg");
+                    }
+                    log.Clear();
+                    installer.Uninstall(game, keepSettings: keep);
+                    string now = System.IO.File.Exists(winhttp) ? System.IO.File.ReadAllText(winhttp) : "(none)";
+                    Check(keep ? now == "doorstop" && System.IO.File.Exists(System.IO.Path.Combine(game, @"BepInEx\core\BepInEx.dll"))
+                               : now == "other tool" && !System.IO.Directory.Exists(System.IO.Path.Combine(game, "BepInEx")),
+                          keep ? $"Setup loader (BepInEx kept): BepInEx's winhttp.dll stays so BepInEx still loads (now '{now}'; {string.Join(" | ", log)})"
+                               : $"Setup loader (BepInEx removed): the other tool's winhttp.dll is back, not deleted (now '{now}'; {string.Join(" | ", log)})");
+                }
+                catch (Exception e)
+                {
+                    Check(false, "Setup loader: threw " + e);
                 }
                 finally
                 {
