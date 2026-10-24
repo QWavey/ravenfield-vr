@@ -152,6 +152,12 @@ namespace RavenfieldVR.Core
     [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnAllContentLoaded))]
     internal static class TestHostContentLoadedPatch
     {
-        private static void Postfix() => TestHost.WriteMap();
+        private static void Postfix()
+        {
+            // Every run's timeline (the fast test mode is judged by it): the moment the game's content is ready.
+            int mods = ModManager.instance != null && ModManager.instance.mods != null ? ModManager.instance.GetActiveMods().Count : -1;
+            Log.Info($"Content loaded {UnityEngine.Time.realtimeSinceStartup:0.0} s after the game started ({mods} active mod(s){(TestHost.Mods != null ? ", fast test mode" : "")}).");
+            TestHost.WriteMap();
+        }
     }
 }

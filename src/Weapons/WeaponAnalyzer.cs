@@ -21,6 +21,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Keys whose analysis could not be set up (the geometric fallback is kept): analysed again at the next scene.</summary>
         private static readonly HashSet<string> Failed = new HashSet<string>();
 
+        /// <summary>How many times each weapon's analysis threw this session (a few retries, then its fallback is kept).</summary>
+        private static readonly Dictionary<string, int> FailCounts = new Dictionary<string, int>();
+        private const int MaxTries = 3;
+
         private static readonly Regex ArmName = new Regex(
             @"(^|[^a-z])(arm(?!ature|or|our)|forearm(?![\s_.-]*(grip|wood|guard))|upperarm|hand(?!guard|le|stop|[\s_.-]*(grip|rest|rail))|wrist|finger|thumb(?![\s_.-]*(hole|rest))|index|middle|ring|pinky|pinkie|little|clavicle|shoulder(?![\s_.-]*(stock|pad|rest))|elbow|palm|knuckle)",
             RegexOptions.IgnoreCase);
@@ -180,6 +184,7 @@ namespace RavenfieldVR.Weapons
                 data = Fallback(w, key, slot);
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
                 Failed.Add(key);
+                FailCounts[key] = (FailCounts.TryGetValue(key, out int tries) ? tries : 0) + 1;
             }
             WeaponOverrides.Apply(w, data);
             if (data.ExportGlb != null)
@@ -209,6 +214,7 @@ namespace RavenfieldVR.Weapons
         {
             Cache.Clear();
             Failed.Clear();
+            FailCounts.Clear(); // new content: every weapon gets its tries again
         }
 
         /// <summary>The analysis under this key failed and is the fallback (analysed again after <see cref="ForgetFailed"/>).</summary>
@@ -216,15 +222,27 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Drops the analyses whose setup threw, so that the next scene analyses them again: the fallback was kept for the whole
-        /// session before, with no retry (2026-10-19). Called at each scene change (WeaponSystem.OnSceneChanged).
+        /// session before, with no retry (2026-10-19). Called at each scene change (WeaponSystem.OnSceneChanged). After
+        /// <see cref="MaxTries"/> throws the fallback stays: a weapon whose analysis always throws was analysed again in every
+        /// match (a hitch on its first draw or drop each time) and each try left a new rig in the caches keyed by rig.
         /// </summary>
         public static void ForgetFailed()
         {
+            var keep = new List<string>();
             foreach (string key in Failed)
             {
+                if (FailCounts.TryGetValue(key, out int tries) && tries >= MaxTries)
+                {
+                    keep.Add(key); // given up on for this session: its fallback stays
+                    continue;
+                }
                 Cache.Remove(key);
             }
             Failed.Clear();
+            foreach (string key in keep)
+            {
+                Failed.Add(key);
+            }
         }
 
         /// <summary>

@@ -74,6 +74,80 @@ namespace RavenfieldVR.Weapons
 
         private static int _fitted;
 
+        private sealed class StepResult
+        {
+            public bool Done;
+            public System.Exception Error;
+        }
+
+        /// <summary>
+        /// <see cref="Prepare"/> spread over frames for the menu: the analysis, the physics shape, the dropped model and each sub
+        /// weapon's analysis in a frame of its own, and the frames after each left alone in proportion to its time (about 6 ms
+        /// of warm-up a frame on average). In one frame a weapon's whole preparation was one long frame: the user's menu ran at
+        /// 16-40 fps while it went on (the input check's "mod 16-22 ms a frame", 2026-10-24 log). A match starting in between
+        /// stops it with the weapon not marked done (its first draw does the rest, as for a weapon not reached yet).
+        /// </summary>
+        private static IEnumerator PrepareInSteps(Weapon weapon, WeaponManager.WeaponEntry entry, StepResult result)
+        {
+            if (weapon == null || entry == null || Warmed.Contains(entry))
+            {
+                result.Done = true;
+                yield break;
+            }
+            WeaponRigData data = null;
+            var steps = new List<System.Action>
+            {
+                () => data = WeaponAnalyzer.Get(weapon, entry),
+                () => PrefitShape(weapon, data, entry)
+            };
+            if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
+            {
+                steps.Add(() => WeaponDrops.Prepare(entry)); // the model a fallen soldier drops (and the holstered copy)
+            }
+            foreach (Weapon sub in weapon.GetComponentsInChildren<Weapon>(true))
+            {
+                if (sub != weapon)
+                {
+                    steps.Add(() =>
+                    {
+                        if (sub != null && !WeaponAnalyzer.IsCached(sub, entry))
+                        {
+                            WeaponAnalyzer.Get(sub, entry);
+                        }
+                    });
+                }
+            }
+            var watch = new System.Diagnostics.Stopwatch();
+            foreach (System.Action step in steps)
+            {
+                if (InMatch())
+                {
+                    yield break; // a match began: not now
+                }
+                watch.Restart();
+                System.Exception error = null;
+                try
+                {
+                    step();
+                }
+                catch (System.Exception e)
+                {
+                    error = e;
+                }
+                if (error != null)
+                {
+                    result.Error = error;
+                    yield break;
+                }
+                int rest = Mathf.Clamp(Mathf.CeilToInt((float)watch.Elapsed.TotalMilliseconds / 6f), 1, 45);
+                for (int i = 0; i < rest; i++)
+                {
+                    yield return null;
+                }
+            }
+            result.Done = true;
+        }
+
         /// <summary>
         /// One weapon made ready as the menu does it: its analysis, its physics shape, its dropped model and
         /// its sub weapons' analyses. The autotest calls it for the weapons it tests, so its numbers are a match after the menu
@@ -286,25 +360,19 @@ namespace RavenfieldVR.Weapons
                     {
                         yield return new WaitForSecondsRealtime(1f); // a match that started during the wait above: not now
                     }
-                    var watch = System.Diagnostics.Stopwatch.StartNew();
-                    try
+                    var result = new StepResult();
+                    yield return PrepareInSteps(weapon, entry, result);
+                    if (result.Error != null)
                     {
-                        Prepare(weapon, entry);
+                        Warmed.Add(entry); // not tried again every pass
+                        Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {result.Error.Message}");
+                    }
+                    else if (result.Done)
+                    {
                         analysed++;
                         Warmed.Add(entry);
                     }
-                    catch (System.Exception e)
-                    {
-                        Warmed.Add(entry); // not tried again every pass
-                        Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {e.Message}");
-                    }
-                    // One analysis is a long frame (tens of milliseconds); the frames after it are left alone so the
-                    // menu averages about 6 ms of warm-up per frame instead of one hitch after another.
-                    int rest = Mathf.Clamp(Mathf.CeilToInt((float)watch.Elapsed.TotalMilliseconds / 6f), 1, 45);
-                    for (int i = 0; i < rest; i++)
-                    {
-                        yield return null;
-                    }
+                    // (Stopped part way because a match started: not marked, its first draw does the rest.)
                 }
                 Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted - fittedAtStart} physics shapes in {Time.realtimeSinceStartup - passStarted:0.0} s.");
                 ParkedPartsCache.Write(); // what this pass analysed, for the next session's first drops
