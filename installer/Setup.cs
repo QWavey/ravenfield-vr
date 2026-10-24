@@ -453,6 +453,14 @@ namespace RavenfieldVR.Setup
                 // and dropped out of the record, and Uninstall never removed them).
                 foreach (string old in ours)
                 {
+                    if (!installBepInEx && IsLoaderFile(old))
+                    {
+                        // A loader a loader-only install added (its BepInEx had lost winhttp.dll): kept and still recorded. The
+                        // next install skips loader entries (winhttp.dll is there now), and it was deleted here as no longer
+                        // part of the release, leaving BepInEx without its loader (review of 2026-10-24's changes).
+                        added.Add(old);
+                        continue;
+                    }
                     if (!added.Contains(old, StringComparer.OrdinalIgnoreCase))
                     {
                         string path = Inside(game, old);
@@ -715,7 +723,7 @@ namespace RavenfieldVR.Setup
                 {
                     _log("Skipped the record's " + rel + ": not a path inside the game folder.");
                 }
-                else if (keepBepInEx && IsLoaderFile(rel))
+                else if (keepBepInEx && installedBepInEx && IsLoaderFile(rel))
                 {
                     // BepInEx stays, so its loader stays: put back, another tool's own winhttp.dll took over from BepInEx's and every
                     // BepInEx mod (Ravenfield VR's kept settings included) stopped loading (installer scout, 2026-10-23).
@@ -1395,7 +1403,11 @@ namespace RavenfieldVR.Setup
             // Compared as versions: any other version read as an update, so an older setup run over a newer install went back a
             // version under an "Update" button (installer scout, 2026-10-23). An install that stopped part way is repaired.
             bool incomplete = installed != null && installed.IndexOf("incomplete", StringComparison.OrdinalIgnoreCase) >= 0;
-            int ahead = installed == null ? 0 : GitHub.CompareVersions(Installer.Version, installed.Split(' ')[0]);
+            // Only a real version is compared ('unknown version' from a copy without a record, a '-rc1' suffix): compared as text,
+            // they read as newer and the button said Downgrade.
+            string installedNumber = installed?.Split(' ')[0].Split('-')[0];
+            bool comparable = !string.IsNullOrEmpty(installedNumber) && char.IsDigit(installedNumber[0]);
+            int ahead = installed == null ? 0 : comparable ? GitHub.CompareVersions(Installer.Version, installedNumber) : 1;
             if (installed != null && problem == null)
             {
                 _status.Text = incomplete ? $"Ravenfield VR {installed}: install again to finish it."

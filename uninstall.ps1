@@ -36,6 +36,8 @@ function Resolve-Inside([string]$root, [string]$rel) {
     return $full
 }
 $backup = ($entries | Where-Object { $_ -like 'backup=*' } | Select-Object -First 1) -replace '^backup=', ''
+# Setup writes it relative to the game folder (a moved game keeps its backups): resolved there, not in the working directory.
+if ($backup -and -not [System.IO.Path]::IsPathRooted($backup)) { $backup = Join-Path $GameDir $backup }
 $installedBepInEx = ($entries -contains 'installedBepInEx=True')
 $loaderFiles = 'winhttp.dll', 'doorstop_config.ini', '.doorstop_version', 'changelog.txt'
 

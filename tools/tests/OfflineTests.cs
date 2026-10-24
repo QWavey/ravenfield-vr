@@ -326,6 +326,16 @@ namespace RavenfieldVR.Tests
                 Fit(gun);
             }
             Console.WriteLine($"TIMING shape fit: {timing.Elapsed.TotalMilliseconds / 20:0.00} ms a fit of {gun.Count} points; hull points {pieces0.Sum(h => h.Length)}");
+            // A thin part (a 1 mm strip 60 cm long, 3 cm wide): made solid it is doubled out along its thin axis, and a hull past
+            // 255 points does not cook (it became a box).
+            var plate = new List<UnityEngine.Vector3>();
+            for (int i = 0; i < 4000; i++)
+            {
+                plate.Add(new UnityEngine.Vector3(R(-0.015f, 0.015f), R(-0.0005f, 0.0005f), R(-0.3f, 0.3f)));
+            }
+            List<UnityEngine.Vector3[]> plateHulls = Fit(plate);
+            Check(plateHulls.Count > 0 && plateHulls.All(h => h.Length <= 255),
+                  $"Shape fit: a thin plate's pieces stay at or under 255 hull points ({string.Join("/", plateHulls.Select(h => h.Length))})");
             var dirs = new List<UnityEngine.Vector3>();
             for (int i = 0; i < 98; i++)
             {
@@ -1306,6 +1316,10 @@ namespace RavenfieldVR.Tests
                 string record = System.IO.File.ReadAllText(System.IO.Path.Combine(game, Installer.ManifestRelative));
                 Check(System.IO.File.Exists(winhttp) && System.IO.File.ReadAllText(core) == "the user's BepInEx" && record.Contains("installedBepInEx=False"),
                       "Setup missing loader: the loader is added and that BepInEx's core kept (" + string.Join(" | ", log) + ")");
+                log.Clear();
+                installer.Install(game); // an update or repair over it: the loader it added stays (it was removed as no longer in the release)
+                Check(System.IO.File.Exists(winhttp) && System.IO.File.ReadAllText(System.IO.Path.Combine(game, Installer.ManifestRelative)).Contains("added=winhttp.dll"),
+                      "Setup missing loader: installing again keeps the loader it added, and its record (" + string.Join(" | ", log) + ")");
                 installer.Uninstall(game, keepSettings: false);
                 Check(System.IO.File.Exists(winhttp) && System.IO.File.Exists(core), "Setup missing loader: Uninstall leaves BepInEx and the loader it now needs");
             }

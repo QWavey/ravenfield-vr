@@ -73,6 +73,8 @@ if (Test-Path $previousManifest) {
         Where-Object { $_.Name -ne 'install-manifest.txt' } | Remove-Item -Recurse -Force
     # Backed up into the install's own backup folder: the record names one folder, and an original first replaced by an
     # upgrade went into a new one that uninstall never looked in.
+    # Setup writes it relative to the game folder: resolved there, not in the working directory.
+    if ($previousBackup -and -not [System.IO.Path]::IsPathRooted($previousBackup)) { $previousBackup = Join-Path $GameDir $previousBackup }
     if ($previousBackup) { $backupDir = $previousBackup }
 }
 
