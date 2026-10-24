@@ -75,42 +75,49 @@ namespace RavenfieldVR.UI
             Instance = this;
             _rig = rig;
             _pointerHand = VRInput.Dominant;
+            try
+            {
+                var uiGo = new GameObject("VR UI Camera");
+                uiGo.transform.SetParent(rig.Root, false);
+                UiCamera = uiGo.AddComponent<Camera>();
+                UiCamera.stereoTargetEye = StereoTargetEyeMask.Both;
+                UiCamera.clearFlags = CameraClearFlags.Depth;
+                UiCamera.cullingMask = 1 << 5;
+                UiCamera.depth = rig.Camera.depth + 1f;
+                UiCamera.nearClipPlane = 0.01f;
+                UiCamera.farClipPlane = 200f;
+                UiCamera.allowHDR = false;
+                UiCamera.allowMSAA = true;
+                rig.Suppressor.Ignore(UiCamera);
+                rig.AddHeadCamera(UiCamera); // the UI is drawn from exactly the same eye pose as the world
 
-            var uiGo = new GameObject("VR UI Camera");
-            uiGo.transform.SetParent(rig.Root, false);
-            UiCamera = uiGo.AddComponent<Camera>();
-            UiCamera.stereoTargetEye = StereoTargetEyeMask.Both;
-            UiCamera.clearFlags = CameraClearFlags.Depth;
-            UiCamera.cullingMask = 1 << 5;
-            UiCamera.depth = rig.Camera.depth + 1f;
-            UiCamera.nearClipPlane = 0.01f;
-            UiCamera.farClipPlane = 200f;
-            UiCamera.allowHDR = false;
-            UiCamera.allowMSAA = true;
-            rig.Suppressor.Ignore(UiCamera);
-            rig.AddHeadCamera(UiCamera); // the UI is drawn from exactly the same eye pose as the world
+                var evGo = new GameObject("VR UI Event Camera");
+                evGo.transform.SetParent(rig.Root, false);
+                EventCamera = evGo.AddComponent<Camera>();
+                EventCamera.enabled = false;
+                EventCamera.stereoTargetEye = StereoTargetEyeMask.None;
+                EventCamera.fieldOfView = 60f;
+                EventCamera.nearClipPlane = 0.01f;
+                EventCamera.farClipPlane = 50f;
+                EventCamera.cullingMask = 0;
+                rig.Suppressor.Ignore(EventCamera);
 
-            var evGo = new GameObject("VR UI Event Camera");
-            evGo.transform.SetParent(rig.Root, false);
-            EventCamera = evGo.AddComponent<Camera>();
-            EventCamera.enabled = false;
-            EventCamera.stereoTargetEye = StereoTargetEyeMask.None;
-            EventCamera.fieldOfView = 60f;
-            EventCamera.nearClipPlane = 0.01f;
-            EventCamera.farClipPlane = 50f;
-            EventCamera.cullingMask = 0;
-            rig.Suppressor.Ignore(EventCamera);
-
-            Canvases = new CanvasManager(rig, EventCamera);
-            Loading = new LoadingView(rig, UiCamera, Canvases);
-            Settings = new VRSettingsPanel(rig, EventCamera);
-            Canvases.RegisterOwn(Settings.Canvas);
-            ModKeys = new ModKeysPanel(rig, EventCamera);
-            Canvases.RegisterOwn(ModKeys.Canvas);
-            _keyboard = new VRKeyboard();
-            _laser = new LaserPointer();
-            _wrist = new WristHud(rig);
-            _squad = new SquadPointing(rig);
+                Canvases = new CanvasManager(rig, EventCamera);
+                Loading = new LoadingView(rig, UiCamera, Canvases);
+                Settings = new VRSettingsPanel(rig, EventCamera);
+                Canvases.RegisterOwn(Settings.Canvas);
+                ModKeys = new ModKeysPanel(rig, EventCamera);
+                Canvases.RegisterOwn(ModKeys.Canvas);
+                _keyboard = new VRKeyboard();
+                _laser = new LaserPointer();
+                _wrist = new WristHud(rig);
+                _squad = new SquadPointing(rig);
+            }
+            catch
+            {
+                Dispose(); // VRManager never gets this object to dispose: what was built goes here
+                throw;
+            }
         }
 
         public void Update()
@@ -286,16 +293,18 @@ namespace RavenfieldVR.UI
 
         public void Dispose()
         {
-            RestoreModules();
-            Loading.Dispose();
-            Canvases.Dispose();
-            Settings.Dispose();
-            _sights.Restore();
-            ModKeys.Dispose();
-            _keyboard.Dispose();
-            _laser.Destroy();
-            _wrist.Destroy();
-            _squad.Destroy();
+            // Each step on its own and only what was made: also the teardown of a constructor that threw part way, whose laser
+            // and squad markers (DontDestroyOnLoad) stayed with Instance still set, one more set on every F6 retry (UI scout).
+            Log.Guard("UI.RestoreModules", RestoreModules);
+            Log.Guard("UI.Loading.Dispose", () => Loading?.Dispose());
+            Log.Guard("UI.Canvases.Dispose", () => Canvases?.Dispose());
+            Log.Guard("UI.Settings.Dispose", () => Settings?.Dispose());
+            Log.Guard("UI.Sights.Restore", () => _sights?.Restore());
+            Log.Guard("UI.ModKeys.Dispose", () => ModKeys?.Dispose());
+            Log.Guard("UI.Keyboard.Dispose", () => _keyboard?.Dispose());
+            Log.Guard("UI.Laser.Destroy", () => _laser?.Destroy());
+            Log.Guard("UI.Wrist.Destroy", () => _wrist?.Destroy());
+            Log.Guard("UI.Squad.Destroy", () => _squad?.Destroy());
             if (UiCamera != null)
             {
                 UnityEngine.Object.Destroy(UiCamera.gameObject);

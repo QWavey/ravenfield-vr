@@ -227,6 +227,8 @@ namespace RavenfieldVR.UI
             return null;
         }
 
+        private static Shader _sprites;
+
         private Flag MakeFlag(SpawnPoint spawn)
         {
             var flag = new Flag { Spawn = spawn };
@@ -236,9 +238,11 @@ namespace RavenfieldVR.UI
 
             // Sprites/Default, as the order arrow is: it blends, and the UI camera clears the depth before it draws layer 5, so
             // the world does not hide a flag.
-            flag.PoleMaterial = new Material(Shader.Find("Sprites/Default")) { color = PoleColour, renderQueue = 4000 };
+            // (The shader found once: two lookups by name for every flag, all made in the first pointing's frame.)
+            _sprites = _sprites != null ? _sprites : Shader.Find("Sprites/Default");
+            flag.PoleMaterial = new Material(_sprites) { color = PoleColour, renderQueue = 4000 };
             AddPart(root, "pole", _pole, flag.PoleMaterial);
-            flag.ClothMaterial = new Material(Shader.Find("Sprites/Default")) { color = Color.white, renderQueue = 4000 };
+            flag.ClothMaterial = new Material(_sprites) { color = Color.white, renderQueue = 4000 };
             AddPart(root, "cloth", _cloth, flag.ClothMaterial);
 
             var labelGo = new GameObject("name") { layer = 5 };
