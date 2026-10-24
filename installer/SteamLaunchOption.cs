@@ -40,8 +40,15 @@ namespace RavenfieldVR.Setup
         /// <summary>Adds the launcher in front of %command%, keeping the user's own options. Returns accounts changed.</summary>
         public static int Apply(string launcherPath, Action<string> log)
         {
-            int changed = LocalConfigs().Count(file => ApplyToFile(file, launcherPath, log));
-            log(changed > 0 ? $"Steam now opens the Ravenfield VR launcher when you press Play ({changed} Steam account(s))." : "Steam already opens the launcher.");
+            List<string> configs = LocalConfigs().ToList();
+            int changed = configs.Count(file => ApplyToFile(file, launcherPath, log));
+            // With no account's settings found (Steam elsewhere than the registry says, never signed in here) nothing was set:
+            // "already" claimed a launch option that does not exist (installer scout, 2026-10-23).
+            log(configs.Count == 0
+                ? "No Steam account settings were found under " + Path.Combine(Installer.SteamDir(), "userdata")
+                  + ", so Steam's launch option was not set. Start Ravenfield VR with " + Installer.LauncherName
+                  + ", or paste " + OptionFor(launcherPath) + " into Ravenfield's launch options in Steam."
+                : changed > 0 ? $"Steam now opens the Ravenfield VR launcher when you press Play ({changed} Steam account(s))." : "Steam already opens the launcher.");
             return changed;
         }
 

@@ -42,6 +42,7 @@ namespace RavenfieldVR.Tests
             SetupBadPayloadTests();
             SetupInterruptedInstallTests();
             GamePathTests();
+            SetupMissingLoaderTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1276,6 +1277,48 @@ namespace RavenfieldVR.Tests
                     catch (System.IO.IOException)
                     {
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A BepInEx 5 whose loader beside the game is gone: the install adds the loader (else nothing loads) and keeps that
+        /// BepInEx's core; Uninstall leaves the loader for it.
+        /// </summary>
+        private static void SetupMissingLoaderTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-noloader-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+            try
+            {
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(game, @"BepInEx\core"));
+                System.IO.Directory.CreateDirectory(steam);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                string core = System.IO.Path.Combine(game, @"BepInEx\core\BepInEx.dll"), winhttp = System.IO.Path.Combine(game, "winhttp.dll");
+                System.IO.File.WriteAllText(core, "the user's BepInEx");
+                Installer.SteamDirOverride = steam;
+                var log = new List<string>();
+                var installer = new Installer(log.Add);
+                installer.Install(game);
+                string record = System.IO.File.ReadAllText(System.IO.Path.Combine(game, Installer.ManifestRelative));
+                Check(System.IO.File.Exists(winhttp) && System.IO.File.ReadAllText(core) == "the user's BepInEx" && record.Contains("installedBepInEx=False"),
+                      "Setup missing loader: the loader is added and that BepInEx's core kept (" + string.Join(" | ", log) + ")");
+                installer.Uninstall(game, keepSettings: false);
+                Check(System.IO.File.Exists(winhttp) && System.IO.File.Exists(core), "Setup missing loader: Uninstall leaves BepInEx and the loader it now needs");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup missing loader: threw " + e.Message);
+            }
+            finally
+            {
+                Installer.SteamDirOverride = null;
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
                 }
             }
         }

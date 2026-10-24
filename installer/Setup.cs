@@ -420,7 +420,14 @@ namespace RavenfieldVR.Setup
                 using (Stream payload = openPayload())
                 using (var zip = new ZipArchive(payload, ZipArchiveMode.Read))
                 {
-                    if (!installBepInEx)
+                    // A BepInEx 5 without its loader beside the game (winhttp.dll gone: deleted, quarantined by antivirus) loads
+                    // nothing, the mod included, while the setup said it installed: the loader files go in, BepInEx's own core stays.
+                    bool addLoader = !installBepInEx && !File.Exists(Path.Combine(game, "winhttp.dll"));
+                    if (addLoader)
+                    {
+                        _log("BepInEx 5 is installed but its loader (winhttp.dll) is missing: adding the loader, keeping that BepInEx.");
+                    }
+                    else if (!installBepInEx)
                     {
                         _log("Keeping the BepInEx 5 already installed.");
                     }
@@ -434,7 +441,7 @@ namespace RavenfieldVR.Setup
                         bool loader = IsLoaderFile(rel);
                         bool mod = rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase) || rel.StartsWith(@"ravenfield_Data\", StringComparison.OrdinalIgnoreCase)
                                    || rel.Equals(LauncherName, StringComparison.OrdinalIgnoreCase);
-                        if (!(mod || loader && installBepInEx))
+                        if (!(mod || loader && installBepInEx || addLoader && LoaderFiles.Contains(rel, StringComparer.OrdinalIgnoreCase)))
                         {
                             continue;
                         }
