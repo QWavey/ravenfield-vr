@@ -2682,3 +2682,15 @@ Paused here (user left, 2026-10-23 evening). Next:
   (single-pass black quads, double water drops, VRScope leak on a failed attach, spare RTs), the installer scout's list.
 - v1.11.0 published: https://github.com/QWavey/ravenfield-vr/releases/tag/v1.11.0 (setup exe only). Installer scout: 4 majors
   (I-1..I-4: loader files on uninstall, no rollback, absolute backup path, update deletes before the download is checked).
+
+Run of 2026-10-24 (work-until-limit 85, no game run):
+- Installer, every scout item but two fixed with offline tests: b53bb99 (I-1, I-10 loader files on uninstall), 2a1cf15
+  (I-3 relative backup path, moved games), 91b644d (I-4, I-14 bad payload refused before anything changes, short
+  downloads), 22bdb0f (I-2 a stopped install keeps its record), 8cce4c6 (I-6, I-12 Steam files replaced in one step,
+  read back; stray '}'), d0c666f (I-8, I-11 pasted/relative game paths, guarded window start), cc6b801 (I-5, I-9 missing
+  loader, no claimed launch option), b533bcc (I-15 Downgrade/Repair). Not changed: I-7 (the Play entry's backup is the
+  latest pre-change copy, the useful one for a cache file Steam rewrites), I-13, I-16..I-19 (unsure).
+- Render effects (7628641): E-1, E-2, E-3, E-4, E-5, E-7 fixed (E-6 magnifier allocation open).
+- Workflow rfvr-hunt-unswept: reports/haiku-findings-2026-10-24.txt (18 confirmed). Fixed 71656b2; measured first
+  6c49d9e (run -rfvr-selftest and read the notes: 'arm-named group', 'the name search dropped'); the analysis-rule
+  findings wait for that run.

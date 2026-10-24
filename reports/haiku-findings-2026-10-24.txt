@@ -1,0 +1,109 @@
+Ravenfield VR - Haiku workflow findings, 2026-10-24 (second run of the day's improve + bug hunt, no game run)
+
+================================================================================================
+2026-10-24: workflow rfvr-hunt-unswept (4 Haiku finders + 4 Haiku skeptics, read-only; only skeptic-confirmed ones here)
+================================================================================================
+
+--- analyzer-core ---
+WF-analyzer-core-0  Major (sure)  src/Weapons/WeaponAnalyzer.cs:428
+     An arm-named transform with no mesh of its own (a group such as Scope_Rings) is kept as an arm bone by name alone, and arm-named meshes under it are kept as arm meshes too, so the group's ancestors (receiver and gun body) become arm-related.
+     Trigger: A gun whose model has a mesh-less group with an arm word (ring, middle, index, palm, finger, thumb, wrist, arm, shoulder, knuckle, elbow, little) under its receiver, not on the arms' skeleton. Example: group Scope_Rings holding meshes Ring_L and Ring_R. Ring_L is name-matched (line 406); LoneArmNamedMesh returns false for it because its named parent counts as an arm chain (Helpers.cs:259-261), and the group fails the MeshFilter/MeshRenderer test (Helpers.cs:253), so both stay in named. Consequences: (1) line 520-523 hides Ring_L's MeshRenderer as an arm mesh, so the part vanishes in the headset; (2) lines 468-475 add the group's ancestors (the receiver and gun body) to armRelated; (3) the gun-body climb at lines 561-569 stops at the first armRelated ancestor of the muzzle, so the gun body is taken as a sub-part, and IsPartCandidate (Helpers.cs:87) rejects the receiver. The comment at lines 411-413 describes this receiver-excluded failure and was fixed only for transforms that own a mesh. Frequency depends on mod naming; the mechanism is certain from the code.
+     Fix: Treat a name-matched transform as an arm only when it is in armListed or on an arm chain (the way OnArmChain is used for listed bones at line 462), not on its name alone. Alternatively, in LoneArmNamedMesh, do not let a non-armListed named parent make a mesh an arm chain member, and apply the same no-arm-subtree test to groups. Add a regression case for a mesh-less Scope_Rings group under the receiver.
+     STATUS: open - measured first (6c49d9e: 'arm-named group' note in the self-test); change after a run
+WF-analyzer-core-1  Minor (unsure)  src/Weapons/PoseSampler.cs:824
+     EventTracker.Scan treats every clip as looping. A non-looping clip's events are re-fired at each loop boundary while its state is still current.
+     Trigger: A non-looping fire or reload clip whose state is still current past its end, either crossfading out (the source state's normalizedTime keeps running past 1) or held without an exit. The loop-crossing loop at lines 824-828 has no clip.isLooping check, so an event at offset e from the clip start, for example a gunshot PlaySoundBank at about t=0, is re-added at 1.0 clip length plus e. Example: length 0.5 s, event at 0.01 s, from 0.48 s to now 0.60 s, gives a cue at 0.51 s. Effects: a Manual gun gets a bogus SlideBack or SlideForward cue (WeaponAnalyzer.Sounds.cs:49-63, cues later than 0.1 s with no earlier slide cue), and an extra reload cue shifts the sorted slot order (Sounds.cs:32-45, whose comment says an extra cue shifts later slots).
+     Fix: Check clip.isLooping. For non-looping clips only the first pass counts (loopStart = 0, and et must be within clip.length), so the start-of-clip event is not re-added at the end.
+     STATUS: fixed (71656b2: non-looping clips fire their events once)
+WF-analyzer-core-2  Tiny (sure)  src/Weapons/WeaponAnalyzer.cs:335
+     Fallback sets CyclesByHand from configuration.auto directly, while the full analysis (line 659-660) and ClassifyAction use AuthoredAuto. A semi-selected automatic gun is therefore classed differently by the two paths.
+     Trigger: The analysis throws (Get catch, lines 177-183) on a shell-fed gun whose configuration.auto is false because the player switched it to semi, and whose cooldown is at least 0.45. The fallback sets CyclesByHand true; the full analysis, which uses AuthoredAuto (its authored automatic mode counts as automatic, bug hunt 251.12), sets it false. Only the fallback path is affected.
+     Fix: Use !AuthoredAuto(w) on line 335, matching lines 659-660 and Action.cs:1015.
+     STATUS: fixed (71656b2: AuthoredAuto in the fallback)
+WF-analyzer-core-3  Tiny (unsure)  src/Weapons/WeaponAnalyzer.Action.cs:289
+     When PoseSampler.Run throws after the reload was sampled, sampler.HasReload stays true while d.Animated is false and the live poses are used as idle. Rules gated only on HasReload then pair the clone's trajectories with the live RelIdle.
+     Trigger: An exception inside Run after SampleReload has set HasReload (PoseSampler.cs:279), during the aim or sight-mode phase (lines 163-180). Run catches it and returns false, so sampled is false and UseLivePosesAsIdle overwrites RelIdle (PoseSampler.cs:554-558). AnalyzeSlide's keyframe block (Action.cs:289-296) and DetectHinge (Action.cs:788) gate only on HasReload and FireTrajectory, not on d.Animated, so they read clone-frame trajectories against live rest positions. Rare: needs an exception in the aim phase.
+     Fix: In the !sampled path, clear HasReload and FireTrajectory (or gate these rules on d.Animated), so the partial clone data is not used with the live idle.
+     STATUS: open (rare: an exception in the aim phase)
+WF-analyzer-core-4  Tiny (unsure)  src/Weapons/WeaponAnalyzer.cs:105
+     ShownAtIdle reads the live renderer's enabled flag, while IdleVisible already tests the same renderer's state at idle on the sampled clone. A part whose renderer is authored off but switched on by the idle clip is reported hidden.
+     Trigger: A prefab with a renderer disabled in the prefab and enabled by the idle animation. The PoseSampler comment (PoseSampler.cs:361-363) says rigs do toggle renderers. ShownAtIdle then returns false (line 105, r.enabled is false on the live renderer), and the part is skipped by the belt, grip, magazine and sight-part rules that call ShownAtIdle.
+     Fix: When the rig is sampled, use the clone's idle visibility alone (IdleVisible already includes the renderer's enabled state). Keep the live r.enabled check only for the static path (UseLivePosesAsIdle).
+     STATUS: open (needs a game run to see which parts)
+
+--- analyzer-magazine ---
+WF-analyzer-magazine-0  Major (sure)  src/Weapons/WeaponAnalyzer.Magazine.cs:249
+     FindMagByName returns only the first name-matched part in DFS order, and the caller then discards it (hidden at rest, under 5 cm, or the slide) instead of trying the next match, so a visible magazine later in the hierarchy is never used.
+     Trigger: A gun with no moving magazine in its reload. Steps 1-2 sit inside if (sampler.HasReload) (Magazine.cs:90-246), so for a no-reload gun this name fallback is the only magazine path. A MagName-matching part earlier in DFS order (all = GetComponentsInChildren<Transform>(true), WeaponAnalyzer.cs:386) is hidden at rest (a reload-only helper or hidden copy named mag/round) or shown but under 5 cm (a chambered 'Round'). Lines 254-263 null mag, line 269 returns, the visible magazine is never seen, and the gun gets the invisible-well warning.
+     Fix: Pass the sampler into FindMagByName and return the first candidate that passes ShownAtIdle, is not the slide, and clears the size floor (or pick the best-scoring candidate), instead of filtering the single first match afterwards.
+     STATUS: open - measured first (6c49d9e: 'the name search dropped' note); change after a run
+WF-analyzer-magazine-1  Minor (sure)  src/Weapons/WeaponAnalyzer.Helpers.cs:118
+     The name fallback has no location or candidate guard, and the off-bore seat correction is gated on HasReload, so a no-reload gun keeps a far, name-picked magazine seat with no note. Only a seat more than 0.6 m from the grip warns.
+     Trigger: A no-reload gun whose name-matched part sits 25-60 cm off the bore; or an akimbo gun whose second pistol's magazine (under a dual/akimbo/off-hand branch, which MagCandidate excludes at Magazine.cs:2045-2055) comes first in DFS order. FindMagByName applies only IsPartCandidate, so neither is rejected. The seat is then never moved or noted (Magazine.cs:334-335 and 363 both require HasReload), and CheckSanity warns only past 0.6 m (Helpers.cs:73).
+     Fix: In FindMagByName apply MagCandidate's guards (second-weapon parents, LooksLikeAWeapon, slide) and a grip-distance limit like step 2's 0.45 m. Warn when the seat is more than about 25 cm off the bore regardless of HasReload.
+     STATUS: open (needs a game run)
+WF-analyzer-magazine-2  Minor (unsure)  src/Weapons/WeaponAnalyzer.Magazine.cs:146
+     On an automatic gun with a 40+ round magazine (beltFed), a magazine part named plain 'Ammo' matches IsBeltPiece's ^ammo([ ._]?\d+)?$ and is excluded as a belt piece in all three candidate searches, so that magazine is never chosen.
+     Trigger: An automatic gun with a 40+ round drum or box magazine modelled as a part named 'Ammo' or 'Ammo.001'. Steps 1 and 2 (lines 146, 218) and FindMagByName (Helpers.cs:120) all skip it, leaving no magazine or a wrong one. Plausibility of the model naming is unverified.
+     Fix: Treat a plain 'ammo' part as a belt only when the gun has a feed cover or belt hinge, or when the part is not magazine-sized at the grip.
+     STATUS: open (needs a game run)
+WF-analyzer-magazine-3  Minor (unsure)  src/Weapons/WeaponAnalyzer.Magazine.cs:601
+     ParkedAmmo's size test mixes frames. magDims come from the magazine's own-frame local size (d.MagBounds), but each candidate's dims come from boxes[k].size, a gun-space axis-aligned box of its transformed corners. A part tilted relative to the gun has an inflated box, so a magazine-shaped part rotated about 5 degrees or more fails the 35% test.
+     Trigger: An unnamed spare magazine parked tilted in its rest pose. It is not matched by IsMagName, RoundName or AmmoPartName, so it stays drawn and floats beside the gun. Worked example: a 20 x 5 x 3 cm magazine rotated 10 degrees about one axis gives a gun-space box of about 20.6 x 8.4 x 3 cm, which fails the 1.76 cm tolerance on the middle dimension. Needs an unnamed, tilted spare, so impact is unverified.
+     Fix: Compare rotation-invariant quantities: use the candidate's own LocalBounds dims, or the gun-space box dims only against a gun-space magazine box.
+     STATUS: open (needs a game run)
+WF-analyzer-magazine-4  Minor (unsure)  src/Weapons/WeaponAnalyzer.cs:29
+     MagName matches generic bare words (round, shell, clip, belt, ammo, drum) and NotMagName (lines 54-61) has no handguard, stock, frame, sling or clip-on words. Such parts pass IsMagName, and FindMagByName takes the first one in DFS order (see the first finding).
+     Trigger: On a gun with no moving magazine, a receiver or frame named 'Shell', a 'Round' handguard or stock, a 'Belt clip', or an 'Ammo counter' that is at least 5 cm and shown at rest, placed earlier in the hierarchy than the magazine. Names are hypothetical; the regex behaviour is verified.
+     Fix: Anchor the generic words to magazine-ish context, exclude handguard/stock/frame/sling/clip-on names, and rank name candidates by distance from the grip.
+     STATUS: open (needs a game run; see C0)
+WF-analyzer-magazine-5  Minor (unsure)  src/Weapons/WeaponAnalyzer.Magazine.cs:2003
+     The 'magazine in the grip' test checks only the along-bore offset (under 5 cm) of the magazine centre from the measured grip point. It ignores the vertical and lateral position, so a rifle magazine well sitting just ahead of the grip can be marked as in the grip, which disables the mag kick. A fresh magazine then never knocks out the seated one.
+     Trigger: A measured-hands AR-type gun whose magazine centre lies within 5 cm of GripPoint along the bore. Real geometry was not checked against an export, so this is unverified.
+     Fix: Also require the magazine centre to lie below the grip (Dot with -Up) and within the grip's lateral radius before calling it in the grip.
+     STATUS: open (needs a game run)
+WF-analyzer-magazine-6  Tiny (unsure)  src/Weapons/WeaponAnalyzer.Magazine.cs:76
+     IsBeltPiece's exclusion uses bare substrings box|can|弹箱. 'can' matches Scan, Cannon and Canopy, and 'box' matches modelling primitives such as Box001, which the MagName comment (WeaponAnalyzer.cs:31-33) refuses to treat as a box. On a belt-fed gun such a link is not classed as a belt and can be taken for the magazine.
+     Trigger: A belt-fed gun (ammo of 40 or more and automatic) with a link named like 'Belt_Box001' or 'Scanned link'. Plausibility unverified.
+     Fix: Use the same pattern as MagName: ammo[ _]?(box|can)|box[ _]?mag|弹箱.
+     STATUS: open (needs a game run)
+
+--- props ---
+WF-props-0  Minor (unsure)  src/Weapons/MagazineProp.cs:1753
+     EnsureVolume re-measures a magazine's volume only once it has Failed, so a volume that stalls (neither Ready nor Failed) is kept for the magazine's whole life, unlike the gun's own volume.
+     Trigger: The staged measure runs as a coroutine on VRManager.Instance (GunVolume.cs:734). If its views stop (the condition HeldWeapon.Shape.cs:90-91 documents for the gun's volume, threads hunt 2026-10-21), the volume is never Ready or Failed. GunVolume.Stalled (GunVolume.cs:160) becomes true after 15 s, but line 1753 returns early on !Failed, so the magazine gets no finger solid (ShapeHand 1797-1800 returns while !Ready) and keeps its box colliders (TakeRenderedShape 1924 needs Ready) until it is gone.
+     Fix: In EnsureVolume treat Stalled like Failed: return only when the volume is present and neither Failed nor Stalled, and null _volume before re-measuring behind the existing 1 s gate, as HeldWeapon.Shape.cs:92-97 does.
+     STATUS: fixed (71656b2: a stalled magazine volume is measured again)
+WF-props-1  Minor (sure)  src/Weapons/Casings.cs:321
+     ShowChamber draws the made 12-gauge shell for shotguns while every thrown shell is the gun's own mesh, so the press-check port shows a different shell from the ones that eject.
+     Trigger: A shotgun or pump whose action is worked to 12-80% open with a chambered round or a spent shell (ReloadInteractions.cs:2572 calls ShowChamber for that). Line 321 takes _meshes/_liveMeshes[3] and MaterialsFor (326) and never calls OwnShellOf, while Eject and Drop (150-151, 165-170) spawn the gun's own mesh (the 2026-10-22 fix, comment at 61-64).
+     Fix: In ShowChamber, for Kind.Shell use OwnShellOf(held, kind) when it is non-null: its Mesh and Materials, _chamber.transform.localScale = own.Scale, rotation times own.Turn, and a placement offset along own.Axis instead of mesh.bounds.size.z, as Spawn does at 217-227.
+     STATUS: open (cosmetic: the press-check shell is the made 12-gauge one)
+WF-props-2  Tiny (sure)  src/Weapons/MagazineProp.cs:992
+     ClearLooks drops the other per-weapon caches but not BoneCuts, so every content reload leaves its BoneCut entries behind for the session.
+     Trigger: BoneCuts (1282) is keyed by shared.GetInstanceID() plus the bone indices (1295-1312). A content reload (WeaponWarmup.cs:344 calls ClearLooks first) gives the skinned gun mesh new instance IDs, so the old entries are never looked up again and accumulate. Each holds the magazine's source-index and UV arrays.
+     Fix: Add BoneCuts.Clear(); to ClearLooks next to the GripSections.Clear() and RenderedShapes.Clear() calls (lines 1005-1006).
+     STATUS: fixed (71656b2: BoneCuts cleared on a content reload)
+REFUTED by the skeptic  src/Weapons/MagazineProp.cs:389  MeasureSectionFromVolume sets _sectionMeasured before its early returns, so a magazine whose grip band is not measured keeps its box-derived widths for its whole life.
+     Why: Not a bug. The early returns at MagazineProp.cs:399-401 (length < 0.03) and 430-433 (hits < 8) depend only on per-magazine geometry: TipLocal, BaseLocal, InsertDirLocal and FrontLocal are readonly and set once in the constructor (59-65, 284-291), and _boxHalf is assigned only at 294. The hit count is fixed once the volume is Ready, because InsideModelLocal (GunVolume.cs:115) tests in the magazine'
+
+--- patches-warmup ---
+WF-patches-warmup-0  Minor (sure)  src/Weapons/BoltPiece.cs:309
+     Carve's corner pre-filter (every corner within about 1.61 r of the rack point) rejects triangles whose centroid is inside the cut sphere, so the handle cut leaves those triangles on the receiver.
+     Trigger: A receiver triangle about 7 cm long, with r = 3 cm and its centroid 4.7 mm from the rack point: one corner sits 5 cm away, so its squared distance 0.0025 exceeds loose2 0.00234 and the triangle is never cut, although the centroid test alone would cut it. The comment at lines 281-283 says 'the test below needs that', but centroid-inside does not imply corners-inside. Result: a static strip of receiver skin stays under the handle while the moving piece lacks that surface.
+     Fix: Remove the corner gate. Run the centroid test on every triangle (the vertex array is already there), or cull per triangle with an exact nearest-point test (skip only when the triangle's closest point is beyond r). Re-measure the cost with PerfProbe 'bolt piece cut'.
+     STATUS: open (the handle carve's geometry: check in a run)
+WF-patches-warmup-1  Tiny (sure)  src/Weapons/WeaponOverrides.cs:184
+     A negative slideTravel is dropped with no warning, although every other invalid override value in this file is reported once.
+     Trigger: A sign slip such as "slideTravel": -0.09 makes the test false, so nothing changes and nothing is logged. Flag, action, magazine and slide all call Log.WarnOnce.
+     Fix: Add an else-if for slideTravel < 0 that calls Log.WarnOnce('override-slideTravel:' + o.match, ...), in the same style as the other fields.
+     STATUS: fixed (71656b2: a negative slideTravel is reported)
+WF-patches-warmup-2  Tiny (unsure)  src/Weapons/WeaponPatches.cs:426
+     ThirdPersonAimPatch.Reported keeps every WeaponRigData it has seen, and it is never cleared on a content reload.
+     Trigger: Each content reload clears the analysis cache, which should make new WeaponRigData objects on the next analysis (inferred from WeaponAnalyzer.ClearCache use in WeaponWarmup.cs:339 and WeaponOverrides.cs:90; WeaponAnalyzer itself was not read). The set then keeps the old objects for the rest of the session, one per weapon kind per reload.
+     Fix: Key the set by rig.Data.Key (a string the InfoOnce key already uses), or clear it in WarmupContentLoadedPatch.Prefix.
+     STATUS: fixed (71656b2: cleared on a content reload)
+REFUTED by the skeptic  src/Weapons/HeldWeapon.cs:2093  The release method destroys the bolt piece only after several steps that can throw, although the same method moved Sounds.Destroy() to the top for that reason. BoltPiece.Destroy is the only thing that
+     Why: Not confirmed. Release (HeldWeapon.cs:1991) is called through Log.Guard (WeaponSystem.cs:427), so the defect requires a throw in lines 2031-2092. None found: RestoreMagazine (HeldWeapon.Parts.cs:379-389) indexes _magOriginalScales, which is built from the same MagazineParts (WeaponRig.cs:453-456). RestoreChamberShells (Parts.cs:335-352) and ShowSpareParts (WeaponRig.cs:502-511) use arrays sized fr
+REFUTED by the skeptic  src/Weapons/WeaponDrops.cs:222  TemplateFor has no cleanup when HideParkedAmmo or StripStrays throws, so the active pivot from BuildWorldModelFromSubtree stays at the scene root.
+     Why: The mechanism is right: BuildWorldModelFromSubtree returns an active pivot already at scene root (WeaponDrops.cs:987-1000). But the trigger needs HideParkedAmmo or StripStrays to throw, and none was found. HideParkedAmmo (WeaponDrops.cs:636-704) bounds-checks its indexes (671 p.Length > tpPath.Length; 640 childCount guard), and WeaponRig.Resolve and PathOf are bounds-safe (WeaponRig.cs:548-581). S
