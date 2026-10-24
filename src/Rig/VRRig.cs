@@ -1083,7 +1083,9 @@ namespace RavenfieldVR.Rig
             Camera.backgroundColor = background;
             Camera.farClipPlane = Mathf.Min(far, GraphicsPresets.FarClipCap);
             Camera.nearClipPlane = VRConfig.NearClip.Value;
-            Camera.allowHDR = reference.allowHDR;
+            // (HDR as the game's camera whenever post-processing draws: its grading and the night vision read past 1.)
+            bool postProcessing = VRConfig.PostProcessing.Value || NightVision.isEnabled;
+            Camera.allowHDR = !postProcessing && GraphicsPresets.AllowHdr.HasValue ? GraphicsPresets.AllowHdr.Value : reference.allowHDR;
             Camera.allowMSAA = GraphicsPresets.ForceMsaa ?? reference.allowMSAA;
             Camera.renderingPath = reference.renderingPath;
             // Only what the game camera itself asks for: forcing a depth texture makes the forward renderer draw every

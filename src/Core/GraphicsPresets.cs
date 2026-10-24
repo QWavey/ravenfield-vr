@@ -34,6 +34,8 @@ namespace RavenfieldVR.Core
             public float TreeDistance;
             public float MinPixelError;
             public float FarClip;
+            /// <summary>HDR colour targets (false: 8-bit ones, half the bandwidth; the same picture with post-processing off).</summary>
+            public bool Hdr = true;
 
             public Profile MemberwiseCloneProfile() => (Profile)MemberwiseClone();
         }
@@ -50,18 +52,18 @@ namespace RavenfieldVR.Core
             {
                 RenderScale = 0.8f, Msaa = 0, ShadowDistance = 15f, Cascades = 1, ShadowResolution = ShadowResolution.Low, Shadows = ShadowQuality.Disable,
                 LodBias = 0.4f, PixelLights = 0, TextureLimit = 1, Anisotropic = AnisotropicFiltering.Disable, SoftParticles = false, RealtimeReflections = false,
-                DetailDensity = 0.2f, DetailDistance = 30f, TreeDistance = 300f, MinPixelError = 12f, FarClip = 1200f
+                DetailDensity = 0.2f, DetailDistance = 30f, TreeDistance = 300f, MinPixelError = 12f, FarClip = 1200f, Hdr = false
             },
             [GraphicsPreset.Medium] = new Profile
             {
                 RenderScale = 0.9f, Msaa = 2, ShadowDistance = 30f, Cascades = 1, ShadowResolution = ShadowResolution.Low, Shadows = ShadowQuality.HardOnly,
                 LodBias = 0.7f, PixelLights = 1, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = false, RealtimeReflections = false,
-                DetailDensity = 0.45f, DetailDistance = 50f, TreeDistance = 600f, MinPixelError = 8f, FarClip = 2000f
+                DetailDensity = 0.45f, DetailDistance = 50f, TreeDistance = 600f, MinPixelError = 8f, FarClip = 2000f, Hdr = false
             },
             [GraphicsPreset.High] = new Profile
             {
                 RenderScale = 1.0f, Msaa = 2, ShadowDistance = 60f, Cascades = 2, ShadowResolution = ShadowResolution.Medium, Shadows = ShadowQuality.All,
-                LodBias = 1.0f, PixelLights = 2, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = true, RealtimeReflections = false,
+                LodBias = 1.0f, PixelLights = 2, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = false, RealtimeReflections = false,
                 DetailDensity = 0.7f, DetailDistance = 80f, TreeDistance = 1000f, MinPixelError = 5f, FarClip = 3000f
             },
             [GraphicsPreset.Ultra] = new Profile
@@ -86,6 +88,12 @@ namespace RavenfieldVR.Core
         /// <summary>MSAA the VR camera should allow (null: as the game's camera).</summary>
         public static bool? ForceMsaa { get; private set; }
 
+        /// <summary>
+        /// HDR the VR camera may use (null: as the game's camera). With post-processing off nothing reads past 1 (no bloom, no
+        /// tonemapping), so 8-bit targets give the same picture at half the colour bandwidth, paid per eye and per MSAA sample.
+        /// </summary>
+        public static bool? AllowHdr { get; private set; }
+
         public static void Apply()
         {
             if (!VRManager.Active)
@@ -97,6 +105,7 @@ namespace RavenfieldVR.Core
             {
                 FarClipCap = float.PositiveInfinity;
                 ForceMsaa = null;
+                AllowHdr = null;
                 RestoreTerrains();
                 // Switched to Game while running: the last preset's quality settings stayed. Once, on the change: restored on
                 // every options save it put back the start-up quality over a Quality level the player had just picked.
@@ -186,6 +195,7 @@ namespace RavenfieldVR.Core
             if (QualitySettings.realtimeReflectionProbes != p.RealtimeReflections) QualitySettings.realtimeReflectionProbes = p.RealtimeReflections;
             FarClipCap = p.FarClip;
             ForceMsaa = p.Msaa > 0;
+            AllowHdr = p.Hdr ? (bool?)null : false;
             ApplyTerrains(p);
         }
 
