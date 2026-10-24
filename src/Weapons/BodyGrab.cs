@@ -70,6 +70,12 @@ namespace RavenfieldVR.Weapons
 
         private void TryTake(int i, VRHand hand)
         {
+            // A fist swung at punching speed punches (MeleeHandler's blows), even with its grip just closed: a grab is a reach.
+            float punch = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
+            if (hand.BodyRelativeVelocity.sqrMagnitude > punch * punch)
+            {
+                return;
+            }
             Actor player = GameContext.PlayerActor;
             Vector3 palm = hand.PalmCentre;
             int n = Physics.OverlapSphereNonAlloc(palm, Reach, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
