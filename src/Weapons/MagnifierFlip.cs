@@ -102,8 +102,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!_gripping)
             {
-                if (off.Role == HandRole.Free && (off.GrabPressed || off.GrabReaching) && InReach(off.Palm.position)
-                    && ScriptKeys.Find(_held.Weapon, ScriptKeyPurpose.Magnifier) != null)
+                if (off.Role == HandRole.Free && (off.GrabPressed || off.GrabReaching) && InReach(off.Palm.position) && HasMagnifierKey())
                 {
                     BeginGrab(off);
                 }
@@ -115,6 +114,28 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Track(off);
+        }
+
+        private Weapon _keyFor;
+        private float _keyCheckedAt = -10f;
+        private bool _hasKey;
+        private Transform _rendererFor;
+        private Renderer _partRenderer;
+
+        /// <summary>
+        /// Whether the gun's script polls a magnifier key, asked at most twice a second: ScriptKeys.Find makes a list of the
+        /// weapon's keys, and a gun without one asked it every frame the reaching hand was in reach (render-effects scout,
+        /// 2026-10-23). A script that starts polling the key later is still seen within half a second.
+        /// </summary>
+        private bool HasMagnifierKey()
+        {
+            if (!ReferenceEquals(_keyFor, _held.Weapon) || Time.unscaledTime - _keyCheckedAt > 0.5f)
+            {
+                _keyFor = _held.Weapon;
+                _keyCheckedAt = Time.unscaledTime;
+                _hasKey = ScriptKeys.Find(_held.Weapon, ScriptKeyPurpose.Magnifier) != null;
+            }
+            return _hasKey;
         }
 
         /// <summary>The gun was put away or the active weapon changed: the hand lets go of the magnifier, with no flip.</summary>
@@ -131,7 +152,12 @@ namespace RavenfieldVR.Weapons
         private bool InReach(Vector3 palm)
         {
             Transform part = Part;
-            Renderer r = part.GetComponentInChildren<Renderer>();
+            if (!ReferenceEquals(_rendererFor, part))
+            {
+                _rendererFor = part; // (looked up once per part: it was every frame the grip was held)
+                _partRenderer = part.GetComponentInChildren<Renderer>();
+            }
+            Renderer r = _partRenderer;
             Vector3 centre = r != null ? r.bounds.center : part.position;
             float d = Vector3.Distance(palm, centre);
             if (d >= VRConfig.GrabRadius.Value)
