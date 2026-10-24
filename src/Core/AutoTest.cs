@@ -318,6 +318,24 @@ namespace RavenfieldVR.Core
                         Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
                     }
                 }
+                if (VRManager.Active && !VRConfig.BodyShadow.Value && LocalPlayer.controller != null && LocalPlayer.controller.thirdpersonRenderers != null)
+                {
+                    // The player's own body and its shadow hidden on foot (its shadow crossed the hands; task 336).
+                    int drawn = 0, all = 0;
+                    foreach (Renderer r in LocalPlayer.controller.thirdpersonRenderers)
+                    {
+                        if (r != null)
+                        {
+                            all++;
+                            drawn += r.forceRenderingOff ? 0 : 1;
+                        }
+                    }
+                    Results.Add($"The player's body on foot (BodyShadow off): {(drawn == 0 ? $"hidden, {all} renderer(s)" : $"{drawn} of {all} renderer(s) NOT HIDDEN")}");
+                    if (drawn > 0)
+                    {
+                        Problem($"[body] {drawn} of the player's body renderers still drawn on foot: their shadow crosses the view");
+                    }
+                }
                 if (VRManager.Active && UiShots)
                 {
                     yield return SquadPointingCheck();
