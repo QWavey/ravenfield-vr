@@ -59,6 +59,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The butt of the stock (gun-body space), or null for a gun without a stock behind the grip.</summary>
         private readonly Vector3? _stockButt;
 
+        /// <summary>The butt of the stock (gun-body space), or null for a gun without a stock behind the grip.</summary>
+        internal Vector3? StockButt => _stockButt;
+
         /// <summary>
         /// The stock is set in the shoulder pocket (Boneworks lets the stock bear on the body): the shoulder takes part of the
         /// kick and holds the gun up.

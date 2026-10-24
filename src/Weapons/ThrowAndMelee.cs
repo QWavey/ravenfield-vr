@@ -819,8 +819,9 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRigData d = rig.Data;
             Vector3 muzzle = rig.ToWorld(d.MuzzlePoint);
-            // The butt: the stock's end on a long gun, the grip's heel on a handgun.
-            Vector3 butt = rig.ToWorld(d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f);
+            // The butt: the stock's end on a long gun (where the drawn model ends: a rifle's stock runs 30 to 35 cm behind the grip,
+            // and a butt stroke with its last 10 cm hit nothing at a fixed 20), the grip's heel on a handgun.
+            Vector3 butt = rig.ToWorld(held.StockButt ?? (d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f));
             Transform body = _sys.Rig.Root;
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
             // Points at most 10 cm apart (4 to 12), from the butt to the muzzle: four on a rifle were 27 cm apart, and a head or an arm
