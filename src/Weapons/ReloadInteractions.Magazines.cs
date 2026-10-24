@@ -1,0 +1,925 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using RavenfieldVR.Core;
+using RavenfieldVR.Input;
+using RavenfieldVR.Rig;
+using RavenfieldVR.Runtime;
+using UnityEngine;
+
+namespace RavenfieldVR.Weapons
+{
+    // ReloadInteractions, part: magazines and shells in the hand: the magazine release, the pouch, and a held prop from
+    // free to seated on its rail. The class, grabbing and the frame's visuals: ReloadInteractions.cs; the self-checks:
+    // ReloadInteractions.SelfChecks.cs.
+    public sealed partial class ReloadInteractions
+    {
+        // ---- magazine release ----------------------------------------------------------------------
+
+        private void EjectMagazine()
+        {
+            if (_ejecting != null)
+            {
+                FinishEject();
+            }
+            // The rounds stay in the dropped magazine: pick it up again to use them (they return to the reserve if it
+            // despawns first).
+            int rounds = Ammo.EjectMagazine();
+            _ejecting = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            _ejecting.NotFresh();
+            Log.InfoOnce("eject:" + Data.Key, $"Magazine ejected from {Data.Key}: {rounds} rounds, {Rig.MagazineParts.Length} part(s) hidden on the gun, pull axis {Data.MagEjectAxis:F2}, rail {_ejecting.RailLength * 100f:0.0} cm.");
+            _ejecting.Owner = Ammo;
+            if (WellInGrip)
+            {
+                GripWellRail(_ejecting); // it drops clear of the grip, not let go half way up it (task 270)
+            }
+            _ejecting.RailDepth = _ejecting.RailLength;
+            _ejectTime = 0f;
+            _held.Sounds.Play(MechSound.MagOut, _ejecting.Go.transform.position);
+            _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
+        }
+
+        /// <summary>The off hand holds a fresh magazine near the well and has room for one more.</summary>
+        private bool CanPalm(VRHand off)
+        {
+            if (!VRConfig.MagazinePalming.Value || !off.Tracked || off.Role != HandRole.Magazine || _palmed != null || _ejecting != null)
+            {
+                return false;
+            }
+            // This gun's kind of magazine only: one picked up from another weapon was taken as the fresh one.
+            return off.Held is MagazineProp fresh && fresh.Kind == PropKind.Magazine && fresh.Go != null && fresh.WeaponKey == Data.Key
+                   && fresh.DistanceTo(SeatedMagBaseWorld) < 0.2f;
+        }
+
+        /// <summary>Tactical reload: the released magazine goes into the off hand, beside the fresh one.</summary>
+        private void TacticalEject(VRHand off)
+        {
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp prop = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            prop.Owner = Ammo;
+            prop.AttachPalmed(off);
+            _palmed = prop;
+            // From the well into the hand over a moment (it was beside the fresh one the next frame).
+            _palmedFrom = prop.Go != null ? RigidPose.Of(prop.Go.transform) : default;
+            _palmedAt = prop.Go != null ? Time.unscaledTime : -1f;
+            _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
+            off.Haptic(0.04f, 120f, 0.55f);
+        }
+
+        private float _refusedAt = -10f;
+        private RigidPose _palmedFrom;
+        private float _palmedAt = -1f;
+
+        /// <summary>The fresh magazine is gone from the hand (seated or dropped): the palmed one becomes the one it holds.</summary>
+        private void PromotePalmed(VRHand off)
+        {
+            MagazineProp palmed = _palmed;
+            _palmed = null;
+            if (palmed == null || palmed.Go == null)
+            {
+                return;
+            }
+            if (off.Held == null && off.GrabHeld)
+            {
+                palmed.Attach(off);
+                palmed.FollowHand();
+            }
+            else
+            {
+                palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
+            }
+        }
+
+        /// <summary>The ejected magazine leaves the well along its axis, then gravity takes it.</summary>
+        private void UpdateEject(float dt)
+        {
+            if (_ejecting == null)
+            {
+                return;
+            }
+            if (_ejecting.Go == null || _ejecting.HeldBy != null)
+            {
+                _ejecting = null;
+                return;
+            }
+            _ejectTime += dt;
+            float u = Mathf.Clamp01(_ejectTime / EjectSeconds);
+            _ejecting.RailDepth = _ejecting.RailLength * (1f - u * u);
+            _ejecting.RailPose(SeatPose).ApplyTo(_ejecting.Go.transform);
+            if (u >= 1f)
+            {
+                FinishEject();
+            }
+        }
+
+        private void FinishEject()
+        {
+            MagazineProp prop = _ejecting;
+            _ejecting = null;
+            if (prop == null || prop.Go == null)
+            {
+                return;
+            }
+            // The weapon may already be gone (replaced or destroyed by the game): the prop's own axis then.
+            Vector3 insert = Rig.GunBody != null ? SeatPose.TransformDirection(prop.InsertDirLocal) : prop.InsertDirWorld;
+            prop.Drop(_sys.Rig.Dominant.Velocity - insert * 1.1f + Vector3.down * 0.25f, Random.insideUnitSphere * 1.5f);
+        }
+
+        /// <summary>Where magazines, shells and rockets go in; chambers on a break-open barrel or crane swing out with it.</summary>
+        private RigidPose SeatPose => ChamberSeat(_seatChamber);
+
+        /// <summary>
+        /// The seat of chamber <paramref name="chamber"/> (a break action's; the magazine's own is chamber 0, and every other gun
+        /// has only that one): the magazine's seat moved to where that chamber's shell sits, swung open with the barrels.
+        /// </summary>
+        private RigidPose ChamberSeat(int chamber)
+        {
+            RigidPose seat = Data.MagSeat;
+            if (chamber > 0 && chamber < Data.ChamberShellRest.Count)
+            {
+                seat = new RigidPose(seat.position + Data.ChamberShellRest[chamber].position - Data.ChamberShellRest[0].position, seat.rotation);
+            }
+            if (Data.SeatOnHinge && _held.HingeOpenness > 0.001f)
+            {
+                seat = HingeRotate(seat, _held.HingeOpenness);
+            }
+            return Rig.GunBodyPose.Multiply(seat);
+        }
+
+        /// <summary>Which chamber the shell in the hand goes into (0 but on a break action of two or more).</summary>
+        private int _seatChamber;
+
+        /// <summary>The empty chamber nearest <paramref name="at"/> (world), or 0 when none is empty or the gun has one.</summary>
+        private int NearestEmptyChamber(Vector3 at)
+        {
+            bool[] full = _held.ChamberFull;
+            int best = 0;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < Data.ChamberShellRest.Count && i < full.Length; i++)
+            {
+                float distance = (ChamberSeat(i).position - at).sqrMagnitude;
+                if (!full[i] && distance < bestDistance)
+                {
+                    best = i;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>A gun-space pose carried along by the hinge opened <paramref name="openness"/> of the way.</summary>
+        private RigidPose HingeRotate(RigidPose pose, float openness) => Data.HingeRotated(pose, openness);
+
+        /// <summary>Base plate of the seated magazine, where a hand takes hold to pull it.</summary>
+        private Vector3 SeatedMagBaseWorld
+        {
+            get
+            {
+                Quaternion seatInv = Runtime.RigidPose.Conjugate(Data.MagSeat.rotation);
+                Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
+                Bounds b = Data.MagBounds;
+                float extent = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(insertLocal.x), Mathf.Abs(insertLocal.y), Mathf.Abs(insertLocal.z))));
+                return SeatPose.TransformPoint(b.center - insertLocal * extent);
+            }
+        }
+
+        /// <summary>The off hand takes the seated magazine: it unlatches and slides out along the well with the hand.</summary>
+        private void PullSeatedMagazine(VRHand off)
+        {
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp prop = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            prop.Owner = Ammo;
+            prop.Attach(off);
+            if (WellInGrip)
+            {
+                // Out along the whole grip, as it goes in (task 270): on the short rail it came off with half of it still up
+                // the grip, free there, where the keep-out now opens the well only to a magazine within 12 degrees.
+                GripWellRail(prop);
+            }
+            prop.OnRail = true;
+            prop.RailDepth = prop.RailLength;
+            prop.LastTick = prop.RailDepth;
+            // The hand took it wherever it grabbed (the grab zone is large): the magazine follows the hand's pull from
+            // here. Taken from the palm's depth, a grip a little up the magazine read as pushed home and seated it again
+            // on the same frame: pulling a magazine out by hand did nothing.
+            prop.RailHandOffset = HandAlongRail(off, prop, out float lateral0) - prop.RailLength;
+            // And wherever across it: the grab zone is large, so the hand is often several centimetres off the well's line.
+            // Measured from no offset, a hand 7 cm off knocked it off the rail on the first frame and it jumped to the hand
+            // through the receiver (user, 2026-10-16: "it always needs to exit how it entered").
+            prop.RailLateral0 = lateral0;
+            prop.FromSeat = true;
+            prop.MovingIn = false;
+            prop.TurnDepth = prop.RailDepth;
+            prop.PrevDepth = prop.RailDepth;
+            // An en-bloc clip under a bolt shut on a round is not taken back, but it still leaves along its line (check-1017h:
+            // the M1's clip was knocked off its rail on the first frame and jumped to the hand through the receiver).
+            prop.RailOutOnly = !AcceptsNow(prop);
+            prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
+            _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _held.Nudge(-SeatPose.TransformDirection(prop.InsertDirLocal) * 0.08f); // the latch gives with a tug
+            off.Haptic(0.03f, 120f, 0.5f);
+        }
+
+        // ---- pouch -----------------------------------------------------------------------------------
+
+        private void TakeFromPouch(VRHand off)
+        {
+            PropKind kind;
+            int rounds;
+            if (Ammo.UsesDetachableMag)
+            {
+                kind = PropKind.Magazine;
+                rounds = Ammo.RoundsForFreshMagazine();
+            }
+            else if (Data.Action == ActionType.SingleShot)
+            {
+                kind = PropKind.Rocket;
+                rounds = Ammo.MagRounds == 0 && (Ammo.InfiniteSpare || Ammo.SpareAmmo > 0) ? 1 : 0;
+            }
+            else
+            {
+                kind = PropKind.Shell;
+                rounds = Data.Action == ActionType.ShellFed || Breaks
+                    ? Ammo.ShellChunk()
+                    : Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
+            }
+            if (rounds <= 0)
+            {
+                if (kind == PropKind.Rocket)
+                {
+                    Log.InfoOnce("rocketnone:" + Data.Key, $"No rocket from the pouch for {Data.Key}: {(Ammo.MagRounds > 0 ? "it is still loaded" : "no rockets left")} (spare {Ammo.SpareAmmo}).");
+                }
+                off.Haptic(0.15f, 35f, 0.7f);
+                _sys.FlashMessage(Ammo.SpareAmmo <= 0 && !Ammo.InfiniteSpare ? "NO AMMO" : "FULL");
+                return;
+            }
+            Ammo.TakeSpare(rounds);
+            MagazineProp prop = MagazineProp.Create(Rig, kind, rounds);
+            prop.Owner = Ammo;
+            prop.Attach(off);
+            prop.FollowHand();
+            if (kind == PropKind.Rocket && prop.Go != null)
+            {
+                // What the hand holds, once per launcher (a rocket in the hand was reported invisible).
+                int drawn = 0;
+                float size = 0f;
+                foreach (Renderer r in prop.Go.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (r.enabled && !r.forceRenderingOff)
+                    {
+                        drawn++;
+                        size = Mathf.Max(size, r.bounds.size.magnitude);
+                    }
+                }
+                Log.InfoOnce("rocketheld:" + Data.Key, $"Rocket from the pouch for {Data.Key}: {drawn} drawn renderer(s), {size * 100f:0} cm across, "
+                                                       + $"{Vector3.Distance(prop.Go.transform.position, off.Palm.position) * 100f:0} cm from the palm, layer {prop.Go.layer}.");
+            }
+            _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.6f);
+            off.Haptic(0.03f, 140f, 0.45f);
+        }
+
+        // ---- held props: free, then on the rail --------------------------------------------------------
+
+        private bool AcceptsNow(MagazineProp prop)
+        {
+            if (prop.WeaponKey != Data.Key || !Manual)
+            {
+                return false;
+            }
+            switch (prop.Kind)
+            {
+                case PropKind.Magazine:
+                    // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber).
+                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || Ammo.SlideLocked || !Ammo.Chambered);
+                case PropKind.Rocket:
+                    return Ammo.MagRounds == 0;
+                default:
+                    return Ammo.TubeRoom > 0 && (!Breaks || Ammo.Open);
+            }
+        }
+
+        private void UpdateHeldProp(VRHand off)
+        {
+            var prop = off.Held as MagazineProp;
+            if (prop == null)
+            {
+                off.Role = HandRole.Free;
+                if (_palmed != null)
+                {
+                    PromotePalmed(off);
+                }
+                return;
+            }
+            if (prop.Go == null)
+            {
+                prop.Destroy(); // gone with a scene change: frees the hand (Drop threw on the destroyed object; prop physics hunt, 2026-10-21)
+                return;
+            }
+            if (!off.GrabHeld)
+            {
+                ReleaseProp(off, prop);
+                return;
+            }
+            if (prop.LostByHand)
+            {
+                // The hand went 45 cm on past the gun it could not pass through: it let go, the magazine falls where it was.
+                prop.LostByHand = false;
+                prop.Drop(Vector3.zero, Vector3.zero); // out of the hand (Drop frees it)
+                off.Haptic(0.03f, 90f, 0.4f);
+                return;
+            }
+            if (TryMagKick(off, prop))
+            {
+                return;
+            }
+            bool refused = !AcceptsNow(prop);
+            if (refused && _pullingIn == prop)
+            {
+                _pullingIn = null;
+            }
+            if (refused && !(prop.OnRail && prop.RailOutOnly))
+            {
+                prop.OnRail = false;
+                if (_pullingIn == prop)
+                {
+                    _pullingIn = null;
+                }
+                // Pushed into a well that will not take it (a magazine still seated, a full tube, a loaded launcher): a short
+                // blocked knock, at most once a second, instead of nothing at all (85-agent review).
+                float refusedAlong = HandAlongRail(off, prop, out float refusedLateral);
+                if (refusedLateral < 0.05f && refusedAlong > -0.02f && refusedAlong < prop.RailLength && Time.unscaledTime > _refusedAt + 1f)
+                {
+                    _refusedAt = Time.unscaledTime;
+                    off.Haptic(0.04f, 70f, 0.55f); // felt only: no knock sound against the gun (user, 2026-10-16)
+                }
+                return;
+            }
+
+            if (!prop.OnRail && prop.Kind == PropKind.Shell && Data.ChamberShellRest.Count > 1 && prop.Go != null)
+            {
+                // A double barrel's shell goes into the empty chamber it is held by (both took it into the first one).
+                _seatChamber = NearestEmptyChamber(prop.Go.transform.TransformPoint(prop.TipLocal));
+            }
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
+            RigidPose hold = prop.HoldPose(off);
+            if (!prop.OnRail && prop.Kind == PropKind.Magazine && WellInGrip)
+            {
+                GripWellRail(prop);
+            }
+            float along = HandAlongRail(off, prop, out float lateral);
+
+            if (!prop.OnRail)
+            {
+                prop.RailHandOffset = 0f;
+                prop.RailLateral0 = 0f;
+                prop.FromSeat = false;
+                float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
+                // A pistol's well is in the gun hand's grip: the controllers meet before the magazine is quite lined up, so
+                // it is taken a little more loosely there.
+                bool grip = prop.Kind == PropKind.Magazine && WellInGrip;
+                // A rocket is lined up at the launcher's mouth, an arm's length out on a shouldered launcher: taken more
+                // loosely too (it was close to impossible to start).
+                // Only at the tube's mouth: a rocket goes in at the front, its tail first (user, 2026-10-16); held beside the
+                // tube with its tail level with the middle, it was taken into the tube from the side.
+                bool rocket = prop.Kind == PropKind.Rocket;
+                // Taken loosely only at the well's mouth, where a magazine goes in (its tip within 2 cm of it). Higher up, off
+                // the line, the magazine is beside the gun: taken there, it slid sideways onto its line through the grip's (or
+                // the receiver's) wall in the 0.08 s switch, and sat in the well (user, 2026-10-19, headset: "the mag goes
+                // through the handle", the 1911s most; task 270). Deeper than the mouth only on the line already (within the
+                // well's play: the keep-out lets it no further) and nearly straight.
+                // Judged where the magazine is drawn, not where the hand is: held back at the mouth by the gun with the hand
+                // pushing on (a fast push passes the mouth's 2 cm in a frame), it is still at the mouth.
+                bool magazine = prop.Kind == PropKind.Magazine;
+                float drawnLateral = lateral;
+                float drawnAlong = magazine && prop.Go != null ? PoseAlongRail(prop, RigidPose.Of(prop.Go.transform), out drawnLateral) : along;
+                bool atMouth = !magazine || drawnAlong < MouthReach + 0.005f;
+                float lateralMax = rocket ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
+                float angleMax = !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
+                bool lined = (magazine ? drawnLateral : lateral) < lateralMax && along > (rocket ? -0.03f : -0.005f) && (rocket ? along < RocketTakenIn : (magazine ? drawnAlong : along) < prop.RailLength)
+                             && angle < angleMax;
+                if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
+                {
+                    // A rocket held like a stick (along the fist, either end first) at the launcher's mouth: onto the line
+                    // as it is, and from there it follows the hand along the tube. It had to be held with its tail out of
+                    // the top of the fist within 40 degrees of the tube, and scoped RPGs "could not be reloaded" (Tasks 231).
+                    // Where the hand has it: the line reaches out in front of the mouth. Taken onto the mouth itself, a rocket
+                    // taken 10 cm out jumped 10 cm and stayed ahead of the hand, loaded at 80% of the push (rocket film).
+                    lined = true;
+                    prop.RailHandOffset = 0f;
+                    prop.RailLateral0 = lateral;
+                }
+                if (lined)
+                {
+                    prop.OnRail = true;
+                    _railInSpeed = 0f;
+                    prop.RailDepth = Mathf.Clamp(along, rocket ? -RocketLineAhead : 0f, prop.RailLength);
+                    if (magazine)
+                    {
+                        // On at the depth where it is drawn, the hand's way in counted from there: held back at the mouth it starts
+                        // at the mouth; taken off the line there, at the mouth itself, so it moves onto the line under the well and
+                        // not through its lowest centimetre (task 270).
+                        prop.RailDepth = drawnLateral > MagazineProp.WellPlay * 0.75f ? 0f : Mathf.Clamp(drawnAlong, 0f, prop.RailLength);
+                        prop.RailHandOffset = along - prop.RailDepth;
+                    }
+                    prop.LastTick = prop.RailDepth;
+                    prop.MovingIn = false;
+                    prop.TurnDepth = prop.RailDepth;
+                    off.Haptic(0.015f, 180f, 0.3f);
+                    if (prop.Kind == PropKind.Magazine)
+                    {
+                        _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.5f); // onto the well's lip
+                    }
+                }
+                return;
+            }
+
+            if (_pullingIn == prop)
+            {
+                // Started straight into a well inside the grip: the rail takes it home (see below), whatever the hand does.
+                // A damped spring (about a third of a second, at most 0.6 m/s), not a constant 0.9 m/s: the hand turning
+                // from holding it into pushing it home (PushPalm) was over in a tenth of a second and never seen.
+                prop.RailDepth = Mathf.SmoothDamp(prop.RailDepth, prop.RailLength, ref prop.DepthVel, 0.09f, 0.6f, Mathf.Min(Time.unscaledDeltaTime, 0.05f));
+                if (prop.RailDepth >= prop.RailLength - 0.001f)
+                {
+                    _pullingIn = null;
+                    SeatProp(off, prop);
+                }
+                return;
+            }
+            // On the rail: the hand pushes the prop along the axis only (from where it took it, when pulled out).
+            along -= prop.RailHandOffset;
+            // A rocket in the tube is held by the tube: it comes out only the way it went in, back out of the mouth. The hand
+            // off its line leaves it on the line (it came off sideways through the tube's wall) until the hand is 35 cm off.
+            bool inTube = prop.Kind == PropKind.Rocket && prop.RailDepth > 0.03f;
+            // A magazine still in its well is held by the well the same way: it slides out along it, never sideways out of it.
+            bool inWell = prop.Kind == PropKind.Magazine && prop.RailDepth > 0.01f;
+            float offLine = prop.Kind == PropKind.Rocket ? -RocketLineAhead - 0.03f : -0.03f;
+            if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
+            {
+                prop.OnRail = false;
+                prop.RailOutOnly = false;
+                prop.RailHandOffset = 0f;
+                prop.RailLateral0 = 0f;
+                prop.FromSeat = false;
+                _railInSpeed = 0f;
+                return;
+            }
+            prop.PrevDepth = prop.RailDepth;
+            prop.RailDepth = Mathf.Clamp(along, prop.Kind == PropKind.Rocket ? -RocketLineAhead : 0f, prop.RailLength);
+            if (prop.Kind == PropKind.Magazine)
+            {
+                // How hard it is driven in, against the gun (the mag kick's measure: both hands share the body's motion).
+                _railInSpeed = Mathf.Max(_railInSpeed, Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(),
+                                                                  SeatPose.TransformDirection(prop.InsertDirLocal)));
+            }
+            // Which way it is going, with 3 mm of play: a slow push still turns the hand into the push and a slow pull lets
+            // go of it (a millimetre a frame was a speed: slower than 9 cm/s neither ever happened; bug hunt 2026-10-16).
+            if (prop.MovingIn ? prop.RailDepth > prop.TurnDepth : prop.RailDepth < prop.TurnDepth)
+            {
+                prop.TurnDepth = prop.RailDepth; // still going the same way: the turning point goes with it
+            }
+            else if (Mathf.Abs(prop.RailDepth - prop.TurnDepth) > 0.003f)
+            {
+                prop.MovingIn = !prop.MovingIn;
+                prop.TurnDepth = prop.RailDepth;
+            }
+            if (prop.FromSeat && prop.RailDepth < prop.RailLength - 0.015f)
+            {
+                prop.FromSeat = false; // out a little: pushed back now, it seats again
+            }
+            bool goingIn = prop.RailDepth > prop.PrevDepth + 1e-4f;
+            if (Mathf.Abs(prop.RailDepth - prop.LastTick) > 0.01f)
+            {
+                prop.LastTick = prop.RailDepth;
+                off.Haptic(0.006f, 200f, 0.15f);
+            }
+            if (prop.FromSeat)
+            {
+                return; // just pulled out of its seat: neither seated again nor drawn home until it comes out a little
+            }
+            if (refused)
+            {
+                // Out only: pushed back it stops short of its seat (the gun will not take it now).
+                prop.RailDepth = Mathf.Min(prop.RailDepth, prop.RailLength * 0.9f);
+                return;
+            }
+            prop.RailOutOnly = false;
+            // (98.5%, not 96: the prop gave way 3.6-5 mm short of the seat and the gun's magazine popped up there; review, 2026-10-20.)
+            if (prop.RailDepth >= prop.RailLength * 0.985f)
+            {
+                SeatProp(off, prop);
+            }
+            else if (goingIn && prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
+            {
+                // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
+                // the way in. A quarter of the way in and straight, it is drawn home the rest of the way. A rocket is not:
+                // it slides into the tube with the hand the whole way, the hand never letting go of it (user, 2026-10-16).
+                _pullingIn = prop;
+                // On from the hand's speed, but no faster than the spring's own 0.6 m/s (a 2 m/s push seated it in a frame or
+                // two; bug hunt 2026-10-16).
+                prop.DepthVel = Mathf.Clamp((prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f), 0f, 0.6f);
+                off.Haptic(0.012f, 160f, 0.35f);
+            }
+        }
+
+        /// <summary>How far past the tube's mouth a rocket's tail may be when it is taken onto the line (it goes in at the front).</summary>
+        private const float RocketTakenIn = 0.08f;
+
+        /// <summary>How far in front of the mouth a rocket's line reaches (where it is taken onto it, loosely held).</summary>
+        private const float RocketLineAhead = 0.12f;
+
+        /// <summary>
+        /// A rocket at the launcher's mouth, loosely held: its tail (the end that goes in) within 12 cm of the tube's line
+        /// at the muzzle, the rocket pointing into the tube within 60 degrees. Tail first only, as an RPG is loaded and as the
+        /// rocket is drawn on the line: taken by its warhead end it was drawn a rocket's length away from the hand, or
+        /// turned over (85-agent review). At the mouth only, no deeper than <see cref="RocketTakenIn"/>: held beside the tube
+        /// it was taken in from the side. <paramref name="depth"/>: how far in its tail already is.
+        /// </summary>
+        private static bool LooselyLined(MagazineProp prop, RigidPose hold, RigidPose seat, Vector3 insert, out float depth)
+        {
+            Vector3 mouth = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
+            Vector3 tail = hold.TransformPoint(prop.TipLocal), nose = hold.TransformPoint(prop.BaseLocal);
+            Vector3 rel = tail - mouth;
+            float along = Vector3.Dot(rel, insert);
+            depth = Mathf.Max(0f, along);
+            float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            float angle = Vector3.Angle(tail - nose, insert);
+            return lateral < 0.12f && along > -0.12f && along < RocketTakenIn && angle < 60f;
+        }
+
+        /// <summary>
+        /// How far along the well's rail the held prop's tip is (from the rail's mouth; the rail's length = seated), and how
+        /// far off the rail's line.
+        /// </summary>
+        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral) => PoseAlongRail(prop, prop.HoldPose(off), out lateral);
+
+        /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>
+        private float _gripWellDepth = -1f;
+
+        /// <summary>
+        /// A magazine going into a well in the grip runs on its rail from the grip's bottom: its rail was at most 9 cm, and on
+        /// the 1911s (12.6 cm in the grip seated) it began 3.6 cm up inside the grip, where the magazine was still free, turned
+        /// up to 40 degrees and 4 mm off its line, and showed through the grip's walls on the way in (user, 2026-10-19: "the
+        /// mag goes through the handle", the 1911s most; task 270). Measured once per hold, from the side, as the autotest does.
+        /// </summary>
+        private void GripWellRail(MagazineProp prop)
+        {
+            float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
+            if (_gripWellDepth < 0f && _held.HandsSolid != null)
+            {
+                RigidPose seated = SeatPose;
+                float depth = 0f;
+                for (float s = 0f; s <= length; s += 0.002f)
+                {
+                    if (!_held.InsideGunFromSide(seated.TransformPoint(prop.TipLocal - prop.InsertDirLocal * s)))
+                    {
+                        break;
+                    }
+                    depth = s;
+                }
+                if (depth > 0.01f) // else the gun's side view is not ready yet: measured again next frame
+                {
+                    _gripWellDepth = depth;
+                    Log.InfoOnce("gripwell:" + Data.Key, $"{Data.Key}: the well in the grip is {depth * 100f:0.0} cm deep from the side; a magazine's rail starts at its bottom ({prop.RailLength * 100f:0.0} cm before).");
+                }
+            }
+            if (_gripWellDepth > prop.RailLength)
+            {
+                prop.RailFromGripBottom(Mathf.Min(_gripWellDepth + 0.005f, length));
+            }
+        }
+
+        /// <summary>How far along its rail a prop at <paramref name="pose"/> is (0: its tip at the entry), and how far off it.</summary>
+        private float PoseAlongRail(MagazineProp prop, RigidPose pose, out float lateral)
+        {
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
+            Vector3 entryTip = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
+            Vector3 rel = pose.TransformPoint(prop.TipLocal) - entryTip;
+            lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            return Vector3.Dot(rel, insert);
+        }
+
+        /// <summary>The held magazine is under its well and roughly lined up (6 cm aside, 40 degrees): about to go in.</summary>
+        private bool LinedUpUnderWell(VRHand off, MagazineProp prop)
+        {
+            if (prop.Kind != PropKind.Magazine || !AcceptsNow(prop))
+            {
+                return false;
+            }
+            float along = HandAlongRail(off, prop, out float lateral);
+            float angle = Vector3.Angle(prop.HoldPose(off).TransformDirection(prop.InsertDirLocal), SeatPose.TransformDirection(prop.InsertDirLocal));
+            return lateral < 0.06f && angle < 40f && along > -0.06f && along < prop.RailLength;
+        }
+
+        /// <summary>
+        /// How far into its well (from the entry: its tip at the mouth) a magazine off its line can still be taken onto it. Past
+        /// that it is beside the gun, not under its well (task 270).
+        /// </summary>
+        internal const float MouthReach = 0.015f;
+
+        /// <summary>How far the support hand may be pulled from the handguard with the grip closed before it lets go.</summary>
+        private const float SupportLetGo = 0.6f;
+        /// <summary>How far off a racked part's stroke line the hand may drift before it lets go of the part.</summary>
+        private const float RackDrift = 0.35f;
+        /// <summary>
+        /// How far past either end of its stroke the hand may pull a racked part before it lets go (the part stops there; the
+        /// real hand does not): Boneworks' grips break the same way once the hand has desynced from them.
+        /// </summary>
+        private const float RackOvershoot = 0.3f;
+        /// <summary>How far the glove of a hand working a part stays on it: to the rack's let-go, drift and overshoot together.</summary>
+        private const float HeldPartReach = 0.46f;
+        private float _nextStretchBuzz;
+        /// <summary>
+        /// The support hand's distance from its own point (see <see cref="SupportAtOwnPoint"/>) where the hold took it: the stretch
+        /// counts from there, so a palm a few centimetres off the point on the grab is not a stretch. -1 until the hold is measured.
+        /// </summary>
+        private float _supportRest = -1f;
+
+        /// <summary>A magazine that is being drawn the last part of the way into a well inside the grip.</summary>
+        private MagazineProp _pullingIn;
+
+        /// <summary>The magazine well is inside the gun hand's grip (pistols, magazine-in-grip designs).</summary>
+        private bool WellInGrip
+        {
+            get
+            {
+                WeaponRigData d = Data;
+                Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
+                return d.IsPistol || Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
+            }
+        }
+
+        /// <summary>
+        /// Tactical reload with one hand: driving a fresh magazine into the base of the seated one knocks the old
+        /// one out of the well; the new one then slides in on the rail. Any magazine of the gun does it (an empty one
+        /// too), struck fast or pushed slowly and firmly past the old one's base, held straight or tilted; the window is
+        /// as big as the magazine. A magazine moving past beside the gun, clear of the base, does nothing.
+        /// </summary>
+        private bool TryMagKick(VRHand off, MagazineProp prop)
+        {
+            if (prop.Kind != PropKind.Magazine || prop.WeaponKey != Data.Key || !Manual || !Ammo.UsesDetachableMag || !Ammo.MagInserted
+                || _ejecting != null || Ammo.BoxLocked)
+            {
+                _kickPrevAlong = float.NaN;
+                _kickPushSince = -1f;
+                return false;
+            }
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(prop.InsertDirLocal);
+            float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
+            Vector3 oldBase = seat.TransformPoint(prop.TipLocal) - insert * length;
+            RigidPose hold = prop.HoldPose(off);
+            Vector3 rel = hold.TransformPoint(prop.TipLocal) - oldBase;
+            float along = Vector3.Dot(rel, insert);
+            float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
+            float angle = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), insert);
+            // The speed that counts is the new magazine's speed relative to the gun: driving it up into the old one
+            // and bringing the gun down onto it are the same strike.
+            // Averaged over the last moment (raw controller speed is noisy around these thresholds).
+            // Against the body: both hands share the rig's motion, but taken at each hand a turn moved them apart by its spin
+            // times their gap (0.2-0.4 m/s at a smooth turn), around these thresholds (user, 2026-10-20: the mag kick worse).
+            float speed = Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), insert);
+            // Sized by the magazine: a strike lands anywhere on the old base plate (as wide as the magazine) with any part
+            // of the fresh one's top; a slow push has to be on the base itself.
+            float strikeReach = Mathf.Clamp(prop.CrossHalf * 2f + 0.025f, 0.06f, 0.13f);
+            float pushReach = Mathf.Clamp(prop.CrossHalf + 0.025f, 0.035f, 0.08f);
+            float below = Mathf.Clamp(length * 0.25f, 0.04f, 0.08f);
+            float into = Mathf.Clamp(length * 0.45f, 0.06f, 0.12f);
+            bool near = along > -0.12f && along < into + 0.04f && lateral < strikeReach + 0.04f;
+            if (near && Data.MagKickable && Time.unscaledTime - _kickLogAt > 0.3f)
+            {
+                // Numbers for tuning in the headset: which condition holds a kick back (debug logging only: three lines a
+                // second flooded the log while a magazine was near the well; 255.P2-5).
+                _kickLogAt = Time.unscaledTime;
+                Log.Debug($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm (reach {strikeReach * 100f:0.0}), angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
+            }
+            // Passing the old magazine's base between two frames counts even when no single frame was inside the window.
+            bool crossed = !float.IsNaN(_kickPrevAlong) && _kickPrevAlong < 0f && along >= 0f;
+            _kickPrevAlong = near ? along : float.NaN;
+            if (!Data.MagKickable)
+            {
+                return false; // deep wells (pistol grips, KRISS Vector) leave nothing to hit
+            }
+            if (lateral > strikeReach || angle > MaxKickAngle)
+            {
+                _kickPushSince = -1f;
+                return false;
+            }
+            if (Time.unscaledTime - _seatedAt < 0.4f)
+            {
+                return false; // the push that just seated a magazine must not knock it straight back out with the next one
+            }
+            bool inWindow = along >= -below && along <= into;
+            if (inWindow && !_kickTicked)
+            {
+                _kickTicked = true;
+                off.Haptic(0.01f, 60f, 0.25f); // you are on the old magazine's base
+            }
+            else if (!inWindow)
+            {
+                _kickTicked = false;
+            }
+            // A slow, firm push: the fresh magazine's top pressed past the old one's base (where the old one would have to
+            // give way), held there a moment or pushed on, and not being pulled back out.
+            bool pressing = lateral <= pushReach && along >= 0.012f && along <= into && speed > -0.05f;
+            if (!pressing)
+            {
+                _kickPushSince = -1f;
+            }
+            else if (_kickPushSince < 0f)
+            {
+                _kickPushSince = Time.unscaledTime;
+            }
+            bool push = pressing && (along >= 0.03f || Time.unscaledTime - _kickPushSince >= 0.12f);
+            // Crossing at 8 cm/s; compared a little under it (a push at exactly 0.08 m/s was a coin flip: 252 ae).
+            bool strike = inWindow && speed >= 0.2f || crossed && speed >= 0.075f;
+            if (!strike && !push)
+            {
+                return false;
+            }
+            Log.Info($"Mag kick on {Data.Key} ({(strike ? "strike" : "push")}): along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm, angle {angle:0} deg, speed {speed:0.00} m/s");
+            _kickPrevAlong = float.NaN;
+            _kickPushSince = -1f;
+            KickOut(off, prop);
+            off.Haptic(0.04f, 80f, 0.8f);
+            return true;
+        }
+
+        /// <summary>
+        /// Knocked out by a fresh magazine: the old one comes off at the well's mouth, set aside by its own width (never out
+        /// of the inside of the gun or through the fresh one coming up), and flies clear forward, out in front of the gun
+        /// with the strike's push and a little sideways away from the gun hand's side, turning end over end with its top
+        /// leading. It used to drop straight down, spinning about the barrel (user, 2026-10-18: "drops straight down instead
+        /// of flipping out forward", task 260 a). (It was made at its seat, slid straight out along the well through the fresh
+        /// one, and dropped from inside the gun.) The release button still drops it straight out.
+        /// </summary>
+        private void KickOut(VRHand off, MagazineProp fresh)
+        {
+            if (_ejecting != null)
+            {
+                FinishEject();
+            }
+            int rounds = Ammo.EjectMagazine();
+            MagazineProp old = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
+            old.Owner = Ammo;
+            RigidPose seat = SeatPose;
+            Vector3 insert = seat.TransformDirection(old.InsertDirLocal);
+            Vector3 up = Rig.UpWorld, aim = Rig.AimWorld;
+            Vector3 gunRight = Vector3.Cross(up, aim).normalized;
+            // Away from the gun hand: to the left of a right hand's gun, to the right of a left hand's.
+            Vector3 side = _sys.Rig.Dominant.IsLeft ? gunRight : -gunRight;
+            float width = Mathf.Max(0.02f, old.CrossHalf * 2f);
+            old.RailDepth = old.RailLength * 0.15f; // at the mouth
+            RigidPose mouth = old.RailPose(seat);
+            mouth = new RigidPose(mouth.position + side * width - insert * 0.01f, mouth.rotation);
+            mouth.ApplyTo(old.Go.transform);
+            Vector3 push = Vector3.ClampMagnitude(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), 2.5f);
+            // Forward along the barrel with the strike and the gun hand's motion; out of the well, a little away from the gun
+            // hand and only a touch down. (Sideways and down alone, it fell straight down.)
+            Vector3 velocity = _sys.Rig.Dominant.Velocity + push * 0.5f + aim * Random.Range(1.4f, 1.9f) + side * 0.6f - insert * 0.6f + Vector3.down * 0.2f;
+            // End over end with the top (the insertion end) leading forward: the spin is about the axis across the gun, insert
+            // x aim, which carries the top along the barrel. A spin about the barrel itself only rolled it.
+            Vector3 tumble = Vector3.Cross(insert, aim).normalized * Random.Range(6f, 9f) + Random.insideUnitSphere * 1.5f;
+            old.Drop(velocity, tumble);
+            _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
+            _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f);
+            _held.Nudge(-insert * 0.06f);
+        }
+
+        /// <summary>How far (degrees) a fresh magazine may be tilted off the well's axis and still knock the old one out.</summary>
+        private const float MaxKickAngle = 75f;
+
+        private bool _kickTicked;
+        /// <summary>When the fresh magazine started pressing past the old one's base (-1: not pressing).</summary>
+        private float _kickPushSince = -1f;
+
+        /// <summary>The fastest the magazine on the rail has been driven in so far (m/s, against the gun), for the slap release at its seat.</summary>
+        private float _railInSpeed;
+        /// <summary>A magazine driven home at least this fast (m/s) releases a locked slide (<see cref="VRConfig.MagSlapReleasesSlide"/>).</summary>
+        private const float SlapSpeed = 0.9f;
+
+        private void SeatProp(VRHand off, MagazineProp prop)
+        {
+            _seatedAt = Time.unscaledTime;
+            Vector3 at = SeatPose.position;
+            switch (prop.Kind)
+            {
+                case PropKind.Magazine:
+                    Ammo.InsertMagazine(prop.Rounds);
+                    _held.Sounds.Play(MechSound.MagIn, at);
+                    _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
+                    if (Data.EnBloc && prop.Rounds > 0 && (Ammo.SlideLocked || !Ammo.Chambered))
+                    {
+                        // The clip pressed home releases the bolt: it slams forward on its own and chambers the first round.
+                        ReleaseSlide();
+                        _held.Nudge(Rig.AimWorld * 0.12f, 12f);
+                        off.Haptic(0.06f, 100f, 0.9f);
+                    }
+                    else if (Ammo.SlideLocked)
+                    {
+                        // Slammed home, the locked slide drops and chambers the first round (Boneworks' Gun.isSlideReleaseOnCollision);
+                        // a gentle push leaves it locked for the release or a rack. The speed is logged for tuning in the headset.
+                        bool slam = VRConfig.MagSlapReleasesSlide.Value && _railInSpeed >= SlapSpeed && Ammo.FeedReady && Ammo.MagRounds > 0;
+                        Log.Info($"{Data.Key}: magazine seated at {_railInSpeed:0.00} m/s into the locked gun ({(slam ? "slammed: the slide drops" : "the slide stays locked")}).");
+                        if (slam)
+                        {
+                            ReleaseSlide();
+                            _held.Nudge(Rig.AimWorld * 0.12f, 12f);
+                            off.Haptic(0.06f, 100f, 0.9f);
+                        }
+                    }
+                    _railInSpeed = 0f;
+                    break;
+                case PropKind.Shell:
+                {
+                    if (_seatChamber < _held.ChamberFull.Length)
+                    {
+                        _held.ChamberFull[_seatChamber] = true; // drawn in the chamber it went into, not the first empty one
+                    }
+                    int accepted = Ammo.LoadRounds(prop.Rounds);
+                    Ammo.ReturnSpare(prop.Rounds - accepted);
+                    _held.Sounds.Play(MechSound.ShellIn, at);
+                    break;
+                }
+                case PropKind.Rocket:
+                    Ammo.LoadRounds(1);
+                    _held.Sounds.Play(MechSound.MagIn, at);
+                    _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.1f);
+                    break;
+            }
+            prop.Destroy();
+            off.Haptic(0.05f, 110f, 0.8f);
+            _sys.Rig.Dominant.Haptic(0.05f, 110f, 0.6f);
+            if (_palmed != null)
+            {
+                PromotePalmed(off); // the old magazine stays in the hand
+            }
+        }
+
+        /// <summary>Let go at the pouch, gently: stowed. Flicked away from the hip it flies.</summary>
+        // Gentle against the body: running, the hand's world speed is the running speed, and a magazine put back while
+        // moving was thrown off the hip instead of stowed.
+        private bool Stows(VRHand off) => _sys.Zones.InPouch(off.Palm.position) && off.BodyThrowVelocity().magnitude < 1.2f;
+
+        private void ReleaseProp(VRHand off, MagazineProp prop)
+        {
+            _kickPrevAlong = float.NaN; // the next magazine's kick starts afresh (a stale crossing fired a kick; review, 2026-10-20)
+            _kickPushSince = -1f;
+            if (_pullingIn == prop)
+            {
+                // Let go while it was being drawn in: it finishes going in rather than falling out of the grip.
+                _pullingIn = null;
+                if (AcceptsNow(prop))
+                {
+                    SeatProp(off, prop);
+                    return;
+                }
+            }
+            if (_palmed != null)
+            {
+                // Letting go drops (or stows) everything the hand holds.
+                MagazineProp palmed = _palmed;
+                _palmed = null;
+                if (palmed.Go == null)
+                {
+                    palmed.Destroy(); // gone with a scene change: Drop throws on the destroyed object (as the held prop is guarded above)
+                }
+                else if (Stows(off))
+                {
+                    _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
+                    palmed.Rounds = 0;
+                    palmed.Destroy();
+                }
+                else
+                {
+                    palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
+                }
+            }
+            if (Stows(off))
+            {
+                // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
+                _sys.ReturnRounds(prop, prop.Rounds, prop.WeaponKey == Data.Key ? Ammo : null);
+                prop.Rounds = 0;
+                prop.Destroy();
+                _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.5f);
+                off.Haptic(0.02f, 120f, 0.3f);
+                return;
+            }
+            if (prop.Owner == null && prop.WeaponKey == Data.Key)
+            {
+                prop.Owner = Ammo;
+            }
+            if (prop.OnRail)
+            {
+                // Let go half way in: it slides back out of the well.
+                Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
+                prop.Drop(_sys.Rig.Dominant.Velocity - insert * 0.6f, Vector3.zero);
+                return;
+            }
+            prop.Drop(off.ThrowVelocity(), off.AngularVelocity);
+        }
+    }
+}
