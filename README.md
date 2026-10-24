@@ -152,6 +152,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting (a preset sets it) |
 | `StereoMode` | MultiPass | SinglePassInstanced is faster, but some map shaders then draw in one eye only |
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
+| `BodyShadow` | off | Your own soldier's shadow on foot. Its arms and gun move in the game's animation, not yours, so the shadow wanders across your hands |
 | `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms |
 | `TurnMode` / `SnapTurnAngle` | Snap / 30 | |
 | `HolsterLayout` | Boneworks | Boneworks, or Classic (pistols on the hips, gear on the chest) |

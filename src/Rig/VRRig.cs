@@ -1155,6 +1155,9 @@ namespace RavenfieldVR.Rig
         /// <summary>The player whose body was switched to shadow only for the view (see <see cref="UpdateBodyShadows"/>).</summary>
         private FpsActorController _bodyShadowsOwner;
 
+        /// <summary>The body's renderers switched off with their shadows (BodyShadow off), to switch on again.</summary>
+        private readonly List<Renderer> _hiddenBody = new List<Renderer>();
+
         /// <summary>
         /// On foot the head sits at the body's eye point, so the body must not be drawn into the view. The game draws it
         /// (shadows on) for a third-person camera and for an override camera that renders the player (bodycam, cinematic
@@ -1165,14 +1168,28 @@ namespace RavenfieldVR.Rig
         private void UpdateBodyShadows(FpsActorController player)
         {
             bool drawn = player != null && (player.IsUsingOverrideCamera() ? player.cameraRenderOptions.renderPlayerActor : !player.firstPerson);
-            if (Mode == RigMode.OnFoot && drawn)
+            bool shadow = VRConfig.BodyShadow.Value;
+            if (Mode == RigMode.OnFoot && player != null && (drawn || !shadow))
             {
-                // Every frame, not once: the game switches the body back to drawn whenever it sets a camera.
-                player.EnableFirstPersonRenderingMode();
+                if (shadow)
+                {
+                    // Every frame, not once: the game switches the body back to drawn whenever it sets a camera.
+                    player.EnableFirstPersonRenderingMode();
+                    Log.InfoOnce("Rig.BodyShadows", "On foot the body is kept out of the view (the game draws it for a third-person or override camera): shadow only.");
+                }
+                else
+                {
+                    // Not even its shadow (user, 2026-10-24: "alot of shjadoing and things flying around infront of my view" on every
+                    // preset with shadows, none on the game's Fastest): the body's head sits at the eyes and its arms and its guns'
+                    // third-person copies follow the game's animation, so their shadow lay across the hands and the gun and moved on
+                    // its own. ShadowsOnly to Off would draw the meshes: hidden outright, every frame for weapons picked up since.
+                    HideBody(player);
+                    Log.InfoOnce("Rig.BodyHidden", "On foot the body and its shadow are hidden (BodyShadow off): its shadow fell across the view.");
+                }
                 _bodyShadowsOwner = player;
-                Log.InfoOnce("Rig.BodyShadows", "On foot the body is kept out of the view (the game draws it for a third-person or override camera): shadow only.");
                 return;
             }
+            ShowBody();
             FpsActorController owner = _bodyShadowsOwner;
             _bodyShadowsOwner = null;
             if (owner == null)
@@ -1187,6 +1204,75 @@ namespace RavenfieldVR.Rig
             {
                 owner.EnableFirstPersonRenderingMode();
             }
+        }
+
+        /// <summary>
+        /// Hides the player's body, its accessories and its weapons' third-person copies, shadows and all (only what is still
+        /// drawn: one read a renderer each frame).
+        /// </summary>
+        private void HideBody(FpsActorController player)
+        {
+            Hide(player.thirdpersonRenderers);
+            Actor a = player.actor;
+            if (a == null)
+            {
+                return;
+            }
+            if (a.accessoryRenderer != null)
+            {
+                foreach (Renderer r in a.accessoryRenderer)
+                {
+                    Hide(r);
+                }
+            }
+            if (a.weaponImposterRenderers != null)
+            {
+                foreach (Renderer[] rs in a.weaponImposterRenderers.Values)
+                {
+                    Hide(rs);
+                }
+            }
+        }
+
+        private void Hide(Renderer[] rs)
+        {
+            if (rs == null)
+            {
+                return;
+            }
+            foreach (Renderer r in rs)
+            {
+                Hide(r);
+            }
+        }
+
+        private void Hide(Renderer r)
+        {
+            if (r != null && !r.forceRenderingOff)
+            {
+                r.forceRenderingOff = true;
+                if (!_hiddenBody.Contains(r))
+                {
+                    _hiddenBody.Add(r);
+                }
+            }
+        }
+
+        /// <summary>Puts back what <see cref="HideBody"/> hid (off foot, BodyShadow on, the rig gone); the game's own shadow rule follows.</summary>
+        private void ShowBody()
+        {
+            if (_hiddenBody.Count == 0)
+            {
+                return;
+            }
+            foreach (Renderer r in _hiddenBody)
+            {
+                if (r != null)
+                {
+                    r.forceRenderingOff = false;
+                }
+            }
+            _hiddenBody.Clear();
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -1223,6 +1309,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Lens.Destroy", () => _lens?.Destroy());
+            Log.Guard("Rig.ShowBody", ShowBody); // VR switched off on foot: the flat game's body casts its shadow again
             foreach (VRHand h in Hands)
             {
                 if (h != null)
