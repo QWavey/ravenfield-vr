@@ -387,6 +387,9 @@ namespace RavenfieldVR.Weapons
         private static readonly AccessTools.FieldRef<Actor, TimedAction> ClimbOf = AccessTools.FieldRefAccess<Actor, TimedAction>("climbObstacleAnimationAction");
         private static readonly HashSet<WeaponRigData> Reported = new HashSet<WeaponRigData>();
 
+        /// <summary>A content reload made new rigs: the old ones (kept here) go.</summary>
+        internal static void ForgetReported() => Reported.Clear();
+
         private static void Postfix(Actor __instance)
         {
             if (!VRManager.Active || __instance == null || __instance.aiControlled || __instance.dead || !ReferenceEquals(__instance, LocalPlayer.actor))

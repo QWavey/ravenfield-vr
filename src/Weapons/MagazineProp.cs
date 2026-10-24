@@ -1002,6 +1002,7 @@ namespace RavenfieldVR.Weapons
             LoadedLookTried.Clear();
             LoadedLookTries.Clear();
             SeatLooks.Clear();
+            BoneCuts.Clear(); // (kept, every content reload left its entries for the session)
             GripSections.Clear();
             RenderedShapes.Clear();
         }
@@ -1750,7 +1751,8 @@ namespace RavenfieldVR.Weapons
 
         private void EnsureVolume()
         {
-            if (_volume != null && !_volume.Failed || Go == null)
+            // (Stalled as the gun's own: a read-back that never came back left the magazine with no hand shape for its life.)
+            if (_volume != null && !_volume.Failed && !_volume.Stalled || Go == null)
             {
                 return;
             }

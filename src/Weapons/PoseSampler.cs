@@ -820,8 +820,11 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        // Event times repeat every loop; check each loop crossing in (from, now].
-                        for (float loopStart = Mathf.Floor(Mathf.Max(0f, from) / length) * length; loopStart <= now; loopStart += length)
+                        // Event times repeat every loop; check each loop crossing in (from, now]. A clip that does not loop plays its
+                        // events once: still current past its end (crossfading out, held), its start-of-clip events were added again
+                        // at each length, a shot's sound read as a slide cue a clip later (unswept-areas hunt, 2026-10-24).
+                        float lastLoop = clip.isLooping ? now : 0f;
+                        for (float loopStart = clip.isLooping ? Mathf.Floor(Mathf.Max(0f, from) / length) * length : 0f; loopStart <= lastLoop; loopStart += length)
                         {
                             float et = loopStart + e.time;
                             if (et > from && et <= now)

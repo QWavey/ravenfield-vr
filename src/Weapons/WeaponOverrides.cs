@@ -187,6 +187,11 @@ namespace RavenfieldVR.Weapons
                     Vector3 stroke = d.SlideTravel.sqrMagnitude > 1e-8f ? d.SlideTravel.normalized : -d.AimAxis.normalized;
                     d.SlideTravel = stroke * o.slideTravel;
                 }
+                else if (o.slideTravel < 0f)
+                {
+                    // Reported as every other invalid value here (it was dropped without a word).
+                    Log.WarnOnce("override-travel:" + o.match, $"Weapon override '{o.match}': slideTravel {o.slideTravel} is not a length (metres, above 0); the detected stroke is kept.");
+                }
                 bool? lockOnEmpty = Flag(o.lockOnEmpty, o.match, "lockOnEmpty");
                 if (lockOnEmpty.HasValue)
                 {

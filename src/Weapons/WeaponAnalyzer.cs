@@ -332,7 +332,8 @@ namespace RavenfieldVR.Weapons
         private static WeaponRigData Fallback(Weapon w, string key, int slot)
         {
             var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), Notes = "fallback", Slot = slot };
-            d.CyclesByHand = d.Action == ActionType.Manual || d.Action == ActionType.ShellFed && !w.configuration.auto && w.configuration.cooldown >= 0.45f;
+            // AuthoredAuto as the full analysis (a gun the player switched to semi is still an automatic one; scout, 2026-10-24).
+            d.CyclesByHand = d.Action == ActionType.Manual || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
             Transform muzzle = FindMuzzle(w, null, out _);
             Transform root = w.transform;
             d.GunBodyPath = WeaponRig.PathOf(root, muzzle) ?? new int[0];

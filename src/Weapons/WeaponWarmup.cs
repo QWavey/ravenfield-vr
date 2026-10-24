@@ -344,6 +344,7 @@ namespace RavenfieldVR.Weapons
             MagazineProp.ClearLooks();
             HeldWeapon.ClearNameCaches();
             BoltPiece.ClearCache();
+            ThirdPersonAimPatch.ForgetReported();
             WeaponWarmup.Forget(); // and so prepared again by the warm-up the postfix starts
         }
 
