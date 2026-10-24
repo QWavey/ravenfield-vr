@@ -183,6 +183,10 @@ namespace RavenfieldVR.Weapons
             catch (Exception e)
             {
                 Log.Exception($"Animator sampling failed for {_weapon.name}", e);
+                // What was recorded before the throw is the clone's, and the live pose becomes the idle now: kept, the rules
+                // that read the reload or the fire track paired them with that idle (unswept-areas hunt, 2026-10-24).
+                HasReload = false;
+                FireTrajectory = null;
                 return false;
             }
         }
