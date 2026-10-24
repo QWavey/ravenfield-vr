@@ -32,9 +32,18 @@ internal static class ShapeFitBench
 
         object[] pieces = (object[])cloud.Invoke(null, new object[] { gun, 0.03f, 16 });
         int hull = 0;
+        long sum = 17;
         foreach (object p in pieces)
         {
-            hull += ((Vector3[])p.GetType().GetField("Points").GetValue(p)).Length;
+            Vector3[] points = (Vector3[])p.GetType().GetField("Points").GetValue(p);
+            hull += points.Length;
+            foreach (Vector3 v in points)
+            {
+                // Every point's exact bits, in order: a faster fit must give the very same pieces.
+                sum = sum * 31 + BitConverter.ToInt32(BitConverter.GetBytes(v.x), 0);
+                sum = sum * 31 + BitConverter.ToInt32(BitConverter.GetBytes(v.y), 0);
+                sum = sum * 31 + BitConverter.ToInt32(BitConverter.GetBytes(v.z), 0);
+            }
         }
         const int runs = 200;
         var sw = Stopwatch.StartNew();
@@ -62,7 +71,7 @@ internal static class ShapeFitBench
             slices.Invoke(null, sliceArgs);
         }
         double slicing = sw.Elapsed.TotalMilliseconds / runs;
-        Console.WriteLine($"shape fit: {total:0.000} ms a fit of {gun.Count} points (slicing {slicing:0.000} ms), {pieces.Length} pieces, hull points {hull}");
+        Console.WriteLine($"shape fit: {total:0.000} ms a fit of {gun.Count} points (slicing {slicing:0.000} ms), {pieces.Length} pieces, hull points {hull}, checksum {sum:X}");
         return 0;
     }
 

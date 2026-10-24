@@ -519,66 +519,84 @@ namespace RavenfieldVR.Weapons
             int bins = Mathf.Clamp(Mathf.CeilToInt((max[za] - min[za]) / slice), 1, 80);
             int cells = Mathf.Clamp(Mathf.CeilToInt((max[ya] - min[ya]) / Cell) + 1, 1, 200);
             float zSpan = Mathf.Max(max[za] - min[za], 1e-5f);
-            var used = new bool[bins, cells];
-            var cellMinX = new float[bins, cells];
-            var cellMaxX = new float[bins, cells];
-            foreach (Vector3 p in points)
+            float minZ = min[za], minY = min[ya];
+            // Each point's three axes and its slice cell, read once: the Vector3 indexer (a switch) and the [,] arrays (a call per
+            // access on Mono) were most of a fit's time, and a fit runs on the main thread when a weapon is let go (the same
+            // arithmetic, so the same pieces: tools/tests/ShapeFitBench.cs checks every point's bits).
+            int n = points.Count;
+            float[] px = new float[n], py = new float[n], pz = new float[n];
+            int[] cellOf = new int[n];
+            for (int i = 0; i < n; i++)
             {
-                int b = Mathf.Min(bins - 1, (int)((p[za] - min[za]) / zSpan * bins));
-                int c = Mathf.Min(cells - 1, (int)((p[ya] - min[ya]) / Cell));
-                if (!used[b, c])
+                Vector3 p = points[i];
+                px[i] = p[xa];
+                py[i] = p[ya];
+                pz[i] = p[za];
+                int b = Mathf.Min(bins - 1, (int)((pz[i] - minZ) / zSpan * bins));
+                int c = Mathf.Min(cells - 1, (int)((py[i] - minY) / Cell));
+                cellOf[i] = b * cells + c;
+            }
+            var used = new bool[bins * cells];
+            var cellMinX = new float[bins * cells];
+            var cellMaxX = new float[bins * cells];
+            for (int i = 0; i < n; i++)
+            {
+                int k = cellOf[i];
+                if (!used[k])
                 {
-                    used[b, c] = true;
-                    cellMinX[b, c] = cellMaxX[b, c] = p[xa];
+                    used[k] = true;
+                    cellMinX[k] = cellMaxX[k] = px[i];
                 }
                 else
                 {
-                    cellMinX[b, c] = Mathf.Min(cellMinX[b, c], p[xa]);
-                    cellMaxX[b, c] = Mathf.Max(cellMaxX[b, c], p[xa]);
+                    cellMinX[k] = Mathf.Min(cellMinX[k], px[i]);
+                    cellMaxX[k] = Mathf.Max(cellMaxX[k], px[i]);
                 }
             }
 
             // Segments per slice, each joined to the piece of a matching segment in the slice before.
             var groups = new List<Group>();
-            var segOfCell = new int[bins, cells];
+            var segOfCell = new int[bins * cells];
             var segments = new List<Segment>();
             const int gapCells = 2; // a gap of 2 cm or more splits a slice
             for (int b = 0; b < bins; b++)
             {
+                int row = b * cells;
                 for (int c = 0; c < cells; c++)
                 {
-                    segOfCell[b, c] = -1;
+                    segOfCell[row + c] = -1;
                 }
                 int start = segments.Count;
                 int cc = 0;
                 while (cc < cells)
                 {
-                    if (!used[b, cc])
+                    if (!used[row + cc])
                     {
                         cc++;
                         continue;
                     }
-                    var seg = new Segment { C0 = cc, X0 = cellMinX[b, cc], X1 = cellMaxX[b, cc] };
+                    var seg = new Segment { C0 = cc, X0 = cellMinX[row + cc], X1 = cellMaxX[row + cc] };
                     int last = cc;
                     for (int k = cc + 1; k < cells && k - last <= gapCells; k++)
                     {
-                        if (used[b, k])
+                        if (used[row + k])
                         {
                             last = k;
-                            seg.X0 = Mathf.Min(seg.X0, cellMinX[b, k]);
-                            seg.X1 = Mathf.Max(seg.X1, cellMaxX[b, k]);
+                            seg.X0 = Mathf.Min(seg.X0, cellMinX[row + k]);
+                            seg.X1 = Mathf.Max(seg.X1, cellMaxX[row + k]);
                         }
                     }
                     seg.C1 = last;
                     seg.Y0 = min[ya] + cc * Cell;
                     seg.Y1 = min[ya] + (last + 1) * Cell;
                     seg.Piece = -1;
-                    foreach (Group g in groups)
+                    for (int gi = 0; gi < groups.Count; gi++)
                     {
+                        Group g = groups[gi];
                         if (g.LastBin == b - 1 && Mathf.Abs(g.Y0 - seg.Y0) < tol && Mathf.Abs(g.Y1 - seg.Y1) < tol
                             && Mathf.Abs(g.X0 - seg.X0) < tol && Mathf.Abs(g.X1 - seg.X1) < tol)
                         {
-                            seg.Piece = groups.IndexOf(g);
+                            seg.Piece = gi;
                             break;
                         }
                     }
@@ -598,7 +616,7 @@ namespace RavenfieldVR.Weapons
                     }
                     for (int k = seg.C0; k <= seg.C1; k++)
                     {
-                        segOfCell[b, k] = segments.Count;
+                        segOfCell[row + k] = segments.Count;
                     }
                     segments.Add(seg);
                     cc = last + 1;
@@ -612,48 +630,49 @@ namespace RavenfieldVR.Weapons
 
             // The outermost points of every slice segment, in 16 directions across the slice, plus its two ends, and how far
             // along the slice its points reach.
-            var best = new float[segments.Count, Directions + 2];
-            var bestPoint = new Vector3[segments.Count, Directions + 2];
+            const int slots = Directions + 2;
+            var best = new float[segments.Count * slots];
+            var bestPoint = new int[segments.Count * slots];
             var zLo = new float[segments.Count];
             var zHi = new float[segments.Count];
             for (int s = 0; s < segments.Count; s++)
             {
-                for (int d = 0; d < Directions + 2; d++)
+                for (int d = 0; d < slots; d++)
                 {
-                    best[s, d] = float.MinValue;
+                    best[s * slots + d] = float.MinValue;
                 }
                 zLo[s] = float.MaxValue;
                 zHi[s] = float.MinValue;
             }
-            foreach (Vector3 p in points)
+            for (int i = 0; i < n; i++)
             {
-                int b = Mathf.Min(bins - 1, (int)((p[za] - min[za]) / zSpan * bins));
-                int c = Mathf.Min(cells - 1, (int)((p[ya] - min[ya]) / Cell));
-                int s = segOfCell[b, c];
+                int s = segOfCell[cellOf[i]];
                 if (s < 0)
                 {
                     continue;
                 }
-                zLo[s] = Mathf.Min(zLo[s], p[za]);
-                zHi[s] = Mathf.Max(zHi[s], p[za]);
+                float x = px[i], y = py[i], z = pz[i];
+                zLo[s] = Mathf.Min(zLo[s], z);
+                zHi[s] = Mathf.Max(zHi[s], z);
+                int at = s * slots;
                 for (int d = 0; d < Directions; d++)
                 {
-                    float v = p[xa] * Dirs[d].x + p[ya] * Dirs[d].y;
-                    if (v > best[s, d])
+                    float v = x * Dirs[d].x + y * Dirs[d].y;
+                    if (v > best[at + d])
                     {
-                        best[s, d] = v;
-                        bestPoint[s, d] = p;
+                        best[at + d] = v;
+                        bestPoint[at + d] = i;
                     }
                 }
-                if (-p[za] > best[s, Directions])
+                if (-z > best[at + Directions])
                 {
-                    best[s, Directions] = -p[za];
-                    bestPoint[s, Directions] = p;
+                    best[at + Directions] = -z;
+                    bestPoint[at + Directions] = i;
                 }
-                if (p[za] > best[s, Directions + 1])
+                if (z > best[at + Directions + 1])
                 {
-                    best[s, Directions + 1] = p[za];
-                    bestPoint[s, Directions + 1] = p;
+                    best[at + Directions + 1] = z;
+                    bestPoint[at + Directions + 1] = i;
                 }
             }
             // A piece's first and last slices (its segments come in slice order, one a slice).
@@ -675,11 +694,12 @@ namespace RavenfieldVR.Weapons
             for (int s = 0; s < segments.Count; s++)
             {
                 List<Vector3> hull = groups[segments[s].Piece].Hull;
-                for (int d = 0; d < Directions + 2; d++)
+                int at = s * slots;
+                for (int d = 0; d < slots; d++)
                 {
-                    if (best[s, d] > float.MinValue)
+                    if (best[at + d] > float.MinValue)
                     {
-                        hull.Add(bestPoint[s, d]);
+                        hull.Add(points[bestPoint[at + d]]);
                     }
                 }
                 // At a piece's two ends, each outermost point of its end slice also at that slice's outer end: the piece's hull
@@ -692,9 +712,9 @@ namespace RavenfieldVR.Weapons
                 {
                     for (int d = 0; d < Directions; d++)
                     {
-                        if (best[s, d] > float.MinValue)
+                        if (best[at + d] > float.MinValue)
                         {
-                            Vector3 q = bestPoint[s, d];
+                            Vector3 q = points[bestPoint[at + d]];
                             if (atStart)
                             {
                                 q[za] = zLo[s];

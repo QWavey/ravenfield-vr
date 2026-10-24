@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
-    Builds and runs the offline timing of GunVolume's per-point solid tests (tools/tests/GunVolumeBench.cs) on the built
-    RavenfieldVR.dll. Prints ns per call and the hit count (the count must not change when the code gets faster).
+    Builds and runs the offline timings on the built RavenfieldVR.dll: GunVolume's per-point solid tests
+    (tools/tests/GunVolumeBench.cs), the glove skin's nearness test (SkinBench.cs) and the collider fit (ShapeFitBench.cs).
+    Each prints its time and a count or checksum that must not change when the code gets faster.
 #>
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\common.ps1')
@@ -26,5 +27,15 @@ Invoke-Csc @(
     (Join-Path $PSScriptRoot 'SkinBench.cs')
 )
 & $skin
+if ($LASTEXITCODE -ne 0) { $code = 1 }
+# A weapon's collider pieces (ShapeFit, on the main thread when it is let go): its time and every output point's checksum
+# (tools/tests/ShapeFitBench.cs; the checksum must not change when the code gets faster).
+$fit = Join-Path $out 'ShapeFitBench.exe'
+Invoke-Csc @(
+    '-nologo', '-target:exe', '-optimize+', '-langversion:latest', '-nostdlib', '-noconfig', "-out:$fit",
+    "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$Managed/UnityEngine.CoreModule.dll",
+    (Join-Path $PSScriptRoot 'ShapeFitBench.cs')
+)
+& $fit $Managed (Join-Path $Root 'build/RavenfieldVR.dll')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
 exit $code
