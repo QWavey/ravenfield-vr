@@ -222,6 +222,7 @@ namespace RavenfieldVR.Core
             ModTime.Start();
             _modFrames++;
             PerfProbe.Frame();
+            Log.Guard("Frame budget", FrameBudgetTick);
             // Guarded as the rest: one that threw ended the frame's Update before the input, rig and weapons ran.
             Log.Guard("VR events", PumpVREvents);
             Log.Guard("Frame pacing", PaceFrames);
@@ -256,7 +257,7 @@ namespace RavenfieldVR.Core
         // (garbage) on every call, ten times a frame.
         private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
         private Action[] _handApply;
-        private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing;
+        private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame;
 
         private static void UpdateInput()
         {

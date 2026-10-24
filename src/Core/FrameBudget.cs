@@ -1,0 +1,81 @@
+using RavenfieldVR.Util;
+using UnityEngine;
+using UnityEngine.XR;
+
+namespace RavenfieldVR.Core
+{
+    /// <summary>
+    /// Once a minute of play, a log line saying how many frames kept to the headset's rate, with the graphics settings they were
+    /// drawn with. Below the headset's rate SteamVR reprojects, and moving things ghost and lag in front of the view (user,
+    /// 2026-10-24: on every preset with shadows, never on the game's own Fastest quality); the input check's fps covers only a
+    /// session's first minute and a half, mostly the menu. Always on: a bucket count a frame, no garbage.
+    /// </summary>
+    internal static class FrameBudget
+    {
+        private const float Window = 60f;
+        private const float BucketMs = 0.25f;
+        private static readonly int[] Buckets = new int[400]; // 0-100 ms; slower frames go in the last
+        private static int _frames, _within;
+        private static float _seconds, _budgetMs;
+
+        public static void Frame()
+        {
+            if (!GameContext.InGame || GameContext.GameMenuOpen || Time.timeScale <= 0f)
+            {
+                return; // play only: a menu, the loadout screen or a pause draws far less
+            }
+            float dt = Time.unscaledDeltaTime;
+            if (dt <= 0f || dt > 1f)
+            {
+                return; // (a loading hitch is not the preset's)
+            }
+            float ms = dt * 1000f;
+            if (_budgetMs <= 0f)
+            {
+                _budgetMs = 1000f / (XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f); // once a window: a native call
+            }
+            Buckets[Mathf.Min((int)(ms / BucketMs), Buckets.Length - 1)]++;
+            _frames++;
+            // On time within a margin: frame pacing waits for the compositor, so a frame on time lands about one refresh interval
+            // after the last, and one late at about two.
+            if (ms <= _budgetMs * 1.2f)
+            {
+                _within++;
+            }
+            _seconds += dt;
+            if (_seconds >= Window)
+            {
+                Report();
+            }
+        }
+
+        private static void Report()
+        {
+            float hz = 1000f / _budgetMs;
+            string preset = VRConfig.Graphics.Value.ToString();
+            Log.Info($"Frame rate over the last minute of play: {100f * _within / _frames:0}% of {_frames} frames at the headset's {hz:0} Hz " +
+                     $"({_budgetMs:0.0} ms), median {Percentile(0.5f):0.0} ms, 95th {Percentile(0.95f):0.0} ms; {preset}, render scale " +
+                     $"{XRSettings.eyeTextureResolutionScale:0.0#}, MSAA {QualitySettings.antiAliasing}x, shadows " +
+                     $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}.");
+            System.Array.Clear(Buckets, 0, Buckets.Length);
+            _frames = _within = 0;
+            _seconds = _budgetMs = 0f;
+        }
+
+        /// <summary>The frame time at this share of the window's frames (the upper edge of its bucket).</summary>
+        private static float Percentile(float share)
+        {
+            int need = Mathf.CeilToInt(share * _frames);
+            int seen = 0;
+            for (int i = 0; i < Buckets.Length; i++)
+            {
+                seen += Buckets[i];
+                if (seen >= need)
+                {
+                    return (i + 1) * BucketMs;
+                }
+            }
+            return Buckets.Length * BucketMs;
+        }
+    }
+}
