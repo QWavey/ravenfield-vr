@@ -65,8 +65,12 @@ namespace RavenfieldVR.UI
         /// The capture point the pointing line (from the eye) is within <see cref="PointedDegrees"/> of, the nearest if several,
         /// or null. It is measured to the middle of the flag that is drawn for the point, so what is pointed at is what is seen.
         /// </summary>
-        internal static SpawnPoint Aimed(Ray line, Vector3 eye)
+        internal static SpawnPoint Aimed(Ray line, Vector3 eye) => Aimed(line, eye, out _);
+
+        /// <summary>The same, with how far off the line the flag is (degrees; past <see cref="PointedDegrees"/> when none).</summary>
+        internal static SpawnPoint Aimed(Ray line, Vector3 eye, out float bestAngle)
         {
+            bestAngle = PointedDegrees;
             ActorManager manager = ActorManager.instance;
             SpawnPoint[] spawns = manager != null ? manager.spawnPoints : null;
             if (spawns == null)
@@ -74,7 +78,6 @@ namespace RavenfieldVR.UI
                 return null;
             }
             SpawnPoint best = null;
-            float bestAngle = PointedDegrees;
             foreach (SpawnPoint spawn in spawns)
             {
                 if (spawn == null || spawn.isGhostSpawn || spawn.squadOrderPoint == null)
@@ -251,7 +254,9 @@ namespace RavenfieldVR.UI
             TextMesh label = labelGo.AddComponent<TextMesh>();
             label.font = _font;
             label.fontSize = 64;
-            label.characterSize = 0.011f; // about 0.7 units from the bottom of a letter to the top
+            // A line 64 x 0.1 x 0.1 = 0.64 units tall, capitals about 0.45 (half a metre at 25 m, about a degree). At 0.011 it was
+            // 0.07 units, a few pixels in the headset, and the flags looked nameless (user, 2026-10-24: "the flags dont have names").
+            label.characterSize = 0.1f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.text = string.IsNullOrEmpty(spawn.shortName) ? "?" : spawn.shortName;
@@ -260,7 +265,7 @@ namespace RavenfieldVR.UI
             mr.sharedMaterial = _font.material;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             flag.Label = label;
-            flag.Plate = new TextPlate(label, _font.material, 0.75f, 0.05f);
+            flag.Plate = new TextPlate(label, _font.material, 0.75f, 0.12f);
             return flag;
         }
 

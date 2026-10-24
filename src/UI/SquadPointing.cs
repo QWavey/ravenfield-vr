@@ -32,6 +32,17 @@ namespace RavenfieldVR.UI
         /// </summary>
         internal static SpawnPoint Objective { get; private set; }
 
+        /// <summary>
+        /// The enemy soldier the pointing line is on while the squad button is held, or null: letting go then gives the game's
+        /// attack-target order for them (in the flat game the squad button with the aim held; user, 2026-10-24: "I cannot mark
+        /// an enemy to tell my squad to attack him"). Picked as the game picks one: only an enemy that can see the player (in
+        /// view, not behind a wall or a door), a soldier in a vehicle by the vehicle.
+        /// </summary>
+        internal static Actor Enemy { get; private set; }
+
+        /// <summary>How far off the pointing line an enemy may be (degrees), or the body's own half width there when wider.</summary>
+        private const float EnemyDegrees = 4f;
+
         private const float Reach = 0.42f;      // eye to palm with the arm held out (a hand at the chest is about 0.3)
         private const float Straight = 32f;     // the hand points along the arm within this (degrees)
 
@@ -80,6 +91,7 @@ namespace RavenfieldVR.UI
             Pointing = false;
             PointingHand = null;
             Objective = null;
+            Enemy = null;
             VRRig rig = VRRig.Instance;
             if (rig == null || !VRManager.Active)
             {
@@ -115,8 +127,58 @@ namespace RavenfieldVR.UI
             {
                 Pointing = true;
                 Line = new Ray(head.position, (PointingHand.PalmCentre - head.position).normalized);
-                Objective = SquadObjectiveMarkers.Aimed(Line, head.position);
+                Objective = SquadObjectiveMarkers.Aimed(Line, head.position, out float flagAngle);
+                // Only while an order is being made (the squad button held, let go this frame, or its screen still open).
+                SquadPointUi ui = SquadPointUi.instance;
+                if (VRInput.GetHeld(DigitalAction.Squad) || VRInput.GetReleased(DigitalAction.Squad) || ui != null && ui.canvas != null && ui.canvas.enabled)
+                {
+                    Actor enemy = AimedEnemy(Line, out float enemyAngle);
+                    if (enemy != null && (Objective == null || enemyAngle < flagAngle))
+                    {
+                        Enemy = enemy;
+                        Objective = null; // the nearer of the two to the line: the soldier
+                    }
+                }
             }
+        }
+
+        /// <summary>The enemy nearest the pointing line within its tolerance, as <see cref="Enemy"/> says, or null.</summary>
+        private static Actor AimedEnemy(Ray line, out float bestAngle)
+        {
+            bestAngle = float.MaxValue;
+            if (ActorManager.instance == null || GameManager.instance == null)
+            {
+                return null;
+            }
+            System.Collections.Generic.List<Actor> enemies = ActorManager.AliveActorsOnTeam(1 - GameManager.PlayerTeam());
+            if (enemies == null)
+            {
+                return null;
+            }
+            Actor best = null;
+            foreach (Actor a in enemies)
+            {
+                if (a == null || a.dead || !ActorManager.ActorCanSeePlayer(a))
+                {
+                    continue;
+                }
+                bool seated = a.IsSeated() && a.seat != null && a.seat.vehicle != null && a.seat.vehicle.targetLockPoint != null;
+                Vector3 to = (seated ? a.seat.vehicle.targetLockPoint.position : a.CenterPosition()) - line.origin;
+                float distance = to.magnitude;
+                if (distance < 0.5f)
+                {
+                    continue;
+                }
+                float angle = Vector3.Angle(line.direction, to);
+                // A soldier near you counts anywhere on the body, a vehicle on its hull.
+                float allowed = Mathf.Max(EnemyDegrees, Mathf.Atan2(seated ? 2f : 0.45f, distance) * Mathf.Rad2Deg);
+                if (angle < allowed && angle < bestAngle)
+                {
+                    bestAngle = angle;
+                    best = a;
+                }
+            }
+            return best;
         }
 
         // ---- the game's cameras, turned along the pointing line for the squad order's own code -----------------------
@@ -201,7 +263,8 @@ namespace RavenfieldVR.UI
             Vector3 at = palm + Vector3.up * 0.075f;
             _label.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - head.position, Vector3.up));
             // What the order will be, from the pointing itself: the game's own text can name a flag that is hidden in VR.
-            string order = !Pointing ? "POINT WITH A HAND" : Objective != null ? ObjectiveOrder(Objective) : (Line.direction.y < -0.7f ? "REGROUP" : "GO TO");
+            string order = !Pointing ? "POINT WITH A HAND" : Enemy != null ? EnemyOrder(Enemy) : Objective != null ? ObjectiveOrder(Objective)
+                : (Line.direction.y < -0.7f ? "REGROUP" : "GO TO");
             // The label is refitted only when its text changed or it came back (and the frame after, once laid out), and its
             // colours are set only when they change: all of it ran every frame the squad button was held (and TextMesh.text's
             // getter builds a new string on every read, so the last text set is remembered).
@@ -257,6 +320,22 @@ namespace RavenfieldVR.UI
         private SpawnPoint _orderSpawn;
         private bool _orderDefend;
         private string _orderText = "";
+        private Actor _orderEnemy;
+        private Vehicle _orderVehicle;
+        private string _enemyText = "";
+
+        /// <summary>"ATTACK SOLDIER", or "ATTACK" and the vehicle the enemy sits in: the game's own words, built when the target changes.</summary>
+        private string EnemyOrder(Actor enemy)
+        {
+            Vehicle vehicle = enemy.IsSeated() && enemy.seat != null ? enemy.seat.vehicle : null;
+            if (!ReferenceEquals(enemy, _orderEnemy) || !ReferenceEquals(vehicle, _orderVehicle))
+            {
+                _orderEnemy = enemy;
+                _orderVehicle = vehicle;
+                _enemyText = vehicle != null ? "ATTACK " + vehicle.name : "ATTACK SOLDIER";
+            }
+            return _enemyText;
+        }
 
         /// <summary>"ATTACK A" or "DEFEND A" for a capture point: the game's own words for its flag, built again only when the point changes.</summary>
         private string ObjectiveOrder(SpawnPoint spawn)
@@ -274,6 +353,11 @@ namespace RavenfieldVR.UI
         /// <summary>Where the order would go: the capture point the line is on, the soldier picked, or the ground the line meets.</summary>
         private static Vector3? Target(SquadPointUi ui)
         {
+            if (Enemy != null)
+            {
+                return Enemy.IsSeated() && Enemy.seat != null && Enemy.seat.vehicle != null && Enemy.seat.vehicle.targetLockPoint != null
+                    ? Enemy.seat.vehicle.targetLockPoint.position : Enemy.CenterPosition();
+            }
             if (Objective != null)
             {
                 return Objective.transform.position;
@@ -423,6 +507,13 @@ namespace RavenfieldVR.UI
                     return false;
                 }
                 __instance.readyToIssueRegroupOrder = SquadPointing.Line.direction.y < -0.7f;
+                if (SquadPointing.Enemy != null && SquadPointUi.instance != null)
+                {
+                    // The game's attack-target order for the enemy pointed at: its squad attacks them (or, alone, the enemy is
+                    // marked), as the squad button with the aim held does in the flat game.
+                    __instance.pointOrderBaseType = SquadPointUi.SquadPointOrderBaseType.TargetOrder;
+                    SquadPointUi.instance.aimActor = SquadPointing.Enemy;
+                }
                 SquadPointing.Aim();
             }
             catch (System.Exception e)

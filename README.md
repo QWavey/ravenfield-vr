@@ -48,7 +48,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 | Right stick | Turn. Up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
 | B | Drop the magazine / open a break-action or revolver. Hold: slow motion (also in menus and while dead) | Reload a mounted gun |
 | A | Slide or bolt release; pulls a grenade's pin. Hold: fire mode (semi/auto, or the weapon's own mode switch) | Countermeasures. Hold: auto-hover (helicopter) |
-| X | Squad order (hold and point, release to send; the objectives' flags show while you point) | |
+| X | Squad order (hold and point, release to send; the objectives' flags show with their names while you point; point at an enemy you can see to have the squad attack them) | |
 | Y | Squad map. Hold: pause menu. Double: loadout | |
 | Menu (≡) | SteamVR's own dashboard (the match pauses behind it); not bound by the mod | |
 
