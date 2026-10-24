@@ -884,6 +884,7 @@ namespace RavenfieldVR.Weapons
         /// a grenade held to throw ("hitting things with held objects does no damage": only guns and blades hit; user,
         /// 2026-10-19 night, task 306). The palm's path, swept as a gun's points are, at the same speed against the player's
         /// own body (a swing, not a walk or a turn); once every half second at most. The damage is credited to the gun in use.
+        /// An empty hand closed into a fist punches the same way, every 0.3 s a hand, credited to the player alone.
         /// </summary>
         public void HandBlows(HeldWeapon held)
         {
