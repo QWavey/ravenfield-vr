@@ -181,3 +181,82 @@ REFUTED by the skeptic  src/Input/VRInput.cs:827  The gun hand (VRInput._gunHand
      Why: The mechanics are accurate. SetGunHand is called only from TakeIntoHand (WeaponSystem.cs:971) and PassToOtherHand (:989). HolsterToEmptyHand (:874-888), LetFall (:1012-1035), ReleaseHeld (:423-432) and VRInput.Shutdown (VRInput.cs:512-528) never reset _gunHand. Every button read goes through Slot (VRInput.cs:603-684, 859-875), and AttachHeld gives a game-drawn weapon to Rig.Dominant (HeldWeapon.cs
 REFUTED by the skeptic  src/Rig/HandShape.cs:62  HandShape.Current re-reads the live Glove config on every call, although the setting says it applies when the game starts. A mid-session change makes the placement and tint code use the other glove's 
      Why: The code matches the description. HandShape.Current re-reads VRConfig.Glove.Value on every call (HandShape.cs:62). Only the load is latched (:64-66). HandModel latches _shape at construction (HandModel.cs:66) and uses it for scale, mesh and material (:67, :121, :135). PalmSurfaceFromGrip (HandModel.cs:251, callers HeldWeapon.cs:1674 and MagazineProp.cs:1674), IndexFinger (:274) and SetGloveColor (
+
+
+================================================================================================
+2026-10-24: workflow rfvr-hunt-rest (4 Haiku finders + 4 Haiku skeptics, read-only; hand model, gun volume, sounds,
+input bridge and config). The hand-model area came back clean.
+================================================================================================
+
+--- hand-model ---
+(nothing found; checked: HandModel.cs Apply/StepEasing/StepPalm/SettlePalm: keep-out, held-palm and push easing use MoveTowards/Lerp with unscale; HandModel.cs _skinRootPos vs palm push and slide: _skinRootPos is set before SlideOnGrip/SettlePalm move the root, but t; HandModel.cs SolveFinger: the step loop terminates (guard counter Steps+4, locks only move forward, a segment's position; HandModel.cs ShortestWayOut/ClearanceAlong/SweptKeepOut: fixed 5 mm and 2 cm steps, the KeepOut shrink loop stops at 5 m; HandModel.cs mirroring: MirrorPoint, MirrorAxis (pseudo-vector) and MirrorRotation (x, -y, -z, w) are correct reflection; HandModel.cs finger index mapping: f 0..4 = thumb (+Y side), index, middle, ring, little in both the procedural and tact ...)
+
+--- gun-volume ---
+WR-gun-volume-0  Minor (sure)  src/Weapons/ShapeFit.cs:38
+     Every ShapeFit.Piece creates a native Mesh in its getter (line 38) that nothing ever destroys. Clearing the pieces drops them without Object.Destroy on each path: ShapeFit.ClearCache (line 816), GunVolume.ClearCache (GunVolume.cs 463-473), GunVolume eviction past CacheSize (GunVolume.cs 505-515), and WeaponDrops.ClearShapes, which clears ScaledShapes (WeaponDrops.Spawning.cs 1143). A search of src finds no Destroy of any piece mesh.
+     Trigger: Each content reload runs WarmupContentLoadedPatch.Prefix (WeaponWarmup.cs 339-343), which clears all three caches; the warm-up then bakes every type's pieces into new Mesh objects, and the old native meshes stay allocated for the rest of the session. Eviction past 24 cached volumes leaks the same way on a smaller scale.
+     Fix: Destroy the piece meshes when their pieces are dropped (a Piece release method called from each clear and eviction, after the colliders that use the mesh are gone), or pool meshes keyed by piece data so a reload reuses them.
+     STATUS: not changed (live drops may still use the meshes; bounded by content reloads, a few MB each)
+WR-gun-volume-1  Minor (unsure)  src/Weapons/GunVolume.cs:866
+     RenderViews releases its RenderTextures and reports each picture only on the success path. An exception in the async readback callback (GetData, RentPixels, CopyTo at 866-868) skips ReleaseTemporary (870) and job.Arrived (871), so the job never completes. The volume is then neither Ready nor Failed until Stalled after 15 s. Render (828-830) and the sync ReadNow branch (876-877) have no try/finally either. MeasureShare.Take guards the same operations (try/finally at 1164-1172, try/catch in the callback at 1177-1201, added after the 2026-10-20 review), but RenderViews does not. The camera GameObject is also created before the try (799-811).
+     Trigger: A readback callback, Render, or ReadNow throws on any view (a GPU or driver error surfacing as an exception). Each such failure leaks the RenderTextures already taken in that call, and an async callback failure keeps the in-flight place until the 15 s stall or a re-request. I did not find a path in these files that throws deterministically.
+     Fix: Wrap the callback body in try/catch that always calls RenderTexture.ReleaseTemporary(rt) and job.Arrived(index, pixels) with pixels null on error. Put the sync branch and the Render loop in try/finally that releases every RenderTexture obtained so far, the same way MeasureShare.Take does. Create the camera inside the try.
+     STATUS: fixed (e8e6ef0: texture released in a finally, a throwing read-back counts as a missing picture)
+WR-gun-volume-2  Tiny (unsure)  src/Weapons/ShapeFit.cs:344
+     FitPoints caps a piece's hull at 180 points with Thin (line 344), but Solid (lines 462-468) doubles every point along each principal axis thinner than 4 mm. A thin piece can therefore leave with up to 360 vertices, above the 255-vertex convex limit as I recall it (not checkable offline). Such a piece may then fail to cook and fall back to a box, which undoes the cap.
+     Trigger: A slice piece thinner than 4 mm along one principal axis, for example a sheet-metal part or a thin sight plate.
+     Fix: Cap the thinned set so that its doubled size stays under the limit (for example Thin(..., 127) when a thin axis is present), or apply the cap after Solid.
+     STATUS: fixed (726c25b: thinned to 250 points after Solid)
+REFUTED by the skeptic  src/Weapons/ShapeFit.cs:153  Fit stores its result under the key even when that result is empty: nothing measurable (Points.Count < 8, line 142) or an exception (lines 146-147). Later calls with the same key return the empty arra
+     Why: Mechanism confirmed: FitNow stores the result even when empty (ShapeFit.cs:153-156), and Fit returns the cached value without refitting (ShapeFit.cs:112-114). GunCollider.Fit boxes an empty result (GunCollider.cs:681-687). The trigger is not confirmed. The warm-up fits the prefab asset (WeaponWarmup.cs:54-61, 265), and ScanVisibleRenderers uses GetComponentsInChildren<Renderer>(false) (GunCollider
+REFUTED by the skeptic  src/Weapons/WeaponDrops.Spawning.cs:1048  The callback is published with a plain volatile store (v.OnReady = Keep), then Ready is read. The worker does the mirror image: it stores _ready (GunVolume.cs 943) and then reads OnReady (944). The co
+     Why: The publish pattern is as described: _ready and OnReady are both volatile (GunVolume.cs:83, 109). The worker stores _ready then loads OnReady (GunVolume.cs:943-944). The main thread stores OnReady then loads Ready (WeaponDrops.Spawning.cs:1048-1051). Store-load reordering could lose the callback, but only if the worker's publish lands within nanoseconds of the main thread's read. On the synchronou
+
+--- sounds ---
+WR-sounds-0  Minor (sure)  src/Weapons/SecondWeapon.cs:128
+     Free-hand reload finish and bolt-cycle sounds play while a menu that frees the cursor without pausing is open.
+     Trigger: Start a free-hand reload (0.8 to 4 s), then open StrategyUi or LoadoutUi before it ends. Both make GameContext.GameMenuOpen true (so VRGameInput.GunInputBlocked is true), but neither calls GameManager.PauseGame or SetTimeScale (only IngameMenuUi.cs:30, FpsActorController.cs:1754 and the mod's own headset/dashboard pauses in VRManager.cs:361/408 do), so Time.time keeps running. Update() returns from the _reloadDoneAt branch at lines 130-134 before the blocked check at line 136, so FinishReload() plays MagIn and SlideForward (lines 402-403) under the menu. CycleForTheHand (called ungated at line 161) plays SlideBack/SlideForward (lines 336-337) when a bolt gun's 0.45 s cycle delay ends under the menu. WeaponSystem.Update runs unconditionally (VRManager.cs:231) and UpdateSecond has no menu gate before Second.Update() (WeaponSystem.cs:223).
+     Fix: Gate the finish on !blocked (line 130: if (!blocked && Time.time >= _reloadDoneAt)) so it waits until input is unblocked, and skip CycleForTheHand while blocked (move the blocked check above line 161). Time.time-driven steps already freeze under timeScale 0, so only the non-pausing menus need this.
+     STATUS: not changed (the world goes on behind a menu that does not pause; its sounds are the world's)
+WR-sounds-1  Minor (sure)  src/Weapons/WeaponSounds.cs:239
+     PlaySlice hard-stops a slice that is still sounding (src.Stop()) with no fade, although the class says cuts never click.
+     Trigger: A slice is up to 0.5 s long (WeaponAnalyzer.Sounds.cs:81). If a new slice arrives 0.25 s or more after a slice that is still ringing on the same source, PlaySlice keeps that source index (line 233 only switches when the current slice started under 0.25 s ago) and Stop() at line 239 cuts the old slice mid-waveform. Example: a magazine-out slice still ringing when a magazine-in is taken 0.3 s later. Three slices within 0.25 s hit the same cut through the source switch. Update() (lines 294-309) fades only scheduled ends, so the forced cut is an abrupt step. The Update() comment at line 293 says the fade exists so cuts never click.
+     Fix: Stop cutting the outgoing slice: use a third slice source for the new slice and set the outgoing source's scheduled end to now + FadeTime so Update() fades it out, or only reuse a source whose slice has already faded.
+     STATUS: open (a fade needs a third source or a deferred start; check by ear in the game)
+WR-sounds-2  Tiny (sure)  src/Weapons/WeaponSounds.cs:311
+     Destroy() cuts any sound still playing as the gun is released, with no fade.
+     Trigger: HeldWeapon.Release calls Sounds.Destroy() (HeldWeapon.cs:2097), which destroys the slice sources and the one-shot source at once (lines 313-322). A gun holstered or dropped while a reload click or slice is still at non-zero amplitude stops with a click. Clips decay within about 0.1 to 0.2 s, so the click is small.
+     Fix: Detach the sources from GunBody (reparent to a persistent host), ramp them down or schedule their end, and destroy them after the longest clip plus FadeTime.
+     STATUS: open (as sounds-1)
+WR-sounds-3  Tiny (unsure)  src/Weapons/WeaponSounds.cs:78
+     Play() takes a position, but the mod-cue path never uses it, so cue sounds always come from the gun origin while the procedural fallback plays at the given position.
+     Trigger: A weapon with its own sounds plays an action that passes a specific spot: MagOut at the ejected magazine (ReloadInteractions.Magazines.cs:38), ShellIn at BeltStartWorld and FeedTrayWorld (ReloadInteractions.Parts.cs:388 and 442). PlayCue (lines 119-140) never reads position, and OneShotSource/Configure (lines 252-291) keep the source as a child of GunBody at local zero. A weapon without its own sounds plays the same action from the caller's position (ProceduralSounds.Play, ProceduralSounds.cs:104-113). The mod's native reload sounds also play from the weapon, so this may be intended. Not verified in a headset.
+     Fix: Either document that cue sounds are gun-anchored, or move the one-shot source to the given position (detach it from GunBody) for calls that pass one.
+     STATUS: open (needs a game run to hear where cues sound from)
+
+--- bridge-config ---
+WR-bridge-config-0  Minor (sure)  src/Input/GameInputBridge.cs:789
+     With SprintMode=Hold, UpdateSprint returns before the stance clear, so a crouch or prone toggled by the stick is never cleared and holding sprint does not sprint.
+     Trigger: SprintMode is Hold, the player flicks the turn stick down (CrouchToggled true, or ProneToggled after a hold), then holds the sprint button and pushes the stick. The Hold branch (lines 789-793) sets SprintActive and returns. The clearing at lines 817-822 runs only in the Toggle path. CrouchPatch (lines 1083-1093) keeps Crouch() true, and FpsActorController.IsSprinting (FpsActorController.cs:2229) requires actor.stance == Stand, so the player stays crouched and cannot sprint until the stick is flicked again.
+     Fix: In the Hold branch, when SprintActive and MoveStick is outside the idle threshold, clear CrouchToggled and ProneToggled the same way lines 817-822 do, or move that clearing above the mode split so both modes share it.
+     STATUS: fixed (726c25b: holding sprint with the stick pushed ends a toggled crouch/prone)
+WR-bridge-config-1  Minor (unsure)  src/Weapons/SandboxPoses.cs:63
+     The pose file is picked by SafeName(d.Key) only; the saved document's own key/weapon field is never compared with d.Key, so a colliding weapon kind gets another gun's grip and support.
+     Trigger: Two installed weapons whose keys map to the same SafeName (for example 'M4A1 CCO#1' and 'M4A1_CCO#1', a case-only difference (WrittenKey is OrdinalIgnoreCase), or keys with no letters or digits, which map to '.json'). One of them has a saved pose, and the other silently takes its grip. SandboxExport.Write (SandboxExport.cs:393-398) warns about this collision at export time only. The sandbox writes 'key' into every pose (scene.py:632), and the game never reads it. The export log says none of the 286 weapons collided on 2026-10-17, so the trigger is rare.
+     Fix: In Apply, read MiniJson.Str(doc, "key") and, when it is present and differs from d.Key, log a WarnOnce and return without applying. Optionally refuse keys whose SafeName is empty.
+     STATUS: open (sandbox tooling: compare the saved key)
+WR-bridge-config-2  Minor (unsure)  src/Weapons/SandboxPoses.cs:85
+     A saved pose replaces GripPoint outright after WeaponOverrides has moved it, so a later edit to that weapon's gripForward/gripUp override is silently ignored.
+     Trigger: A pose is saved for weapon X while its override is in effect. The pose stores the hand's place relative to the gun, and the override shift is already baked into it. Later the user changes gripForward or gripUp for X. WeaponAnalyzer.cs:184 applies the override (WeaponOverrides.cs:205), then WeaponAnalyzer.cs:191 runs SandboxPoses.Apply, which overwrites d.GripPoint at line 85. The new override has no effect and nothing is logged.
+     Fix: Log a WarnOnce when a pose replaces a grip that an override moved, or record the override in the pose document and reapply it. If the current precedence (saved pose wins) is intended, document it in the SandboxPoses class summary.
+     STATUS: open (sandbox tooling: order against WeaponOverrides)
+WR-bridge-config-3  Tiny (sure)  src/Input/GameInputBridge.cs:692
+     A long press of the gun hand's A with no weapon in hand logs 'Fire mode switched on ? by the game's key', although nothing was switched.
+     Trigger: SpawnEmptyHanded defaults to true, so the player starts with no weapon. A long press of FireMode reaches HandleWeaponButtons with weapon == null. HasFireModes(null) is false, so the path at lines 673-679 runs: HandleFireModePress(null) returns false, Set(KeyBinds.FireMode) is applied, and the Log.Info at line 692 writes the misleading line. The key has no consumer, so there is no functional effect.
+     Fix: Return early from the long-press branch when weapon is null, or log only when handled is true or weapon != null.
+     STATUS: open (a log line only)
+WR-bridge-config-4  Tiny (sure)  src/Weapons/SandboxPoses.cs:137
+     The weapon's notes say the sandbox pose was used even when neither hand was applied.
+     Trigger: Both saved hands are rejected or unreadable (the right hand is not role grip, and the left is not a valid support), so usedRight and usedLeft are both false. Line 137 still appends 'hands from the sandbox's saved pose' to d.Notes, and the weapon report carries that note.
+     Fix: Append the note only when usedRight || usedLeft.
+     STATUS: open (a note only)
