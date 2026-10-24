@@ -951,7 +951,7 @@ namespace RavenfieldVR.Weapons
             {
                 const float radius = 0.06f;
                 int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, 70913);
-                Hitbox best = null;
+                Hurtable best = null;
                 RaycastHit bestHit = default;
                 float bestDistance = float.MaxValue, wall = float.MaxValue;
                 for (int i = 0; i < n; i++)
@@ -976,12 +976,14 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
+                    // A standing soldier by its hitbox; one already down by its ragdoll's colliders, which may carry none.
                     Hitbox hb = h.collider.GetComponent<Hitbox>();
-                    if (hb == null || hb.parent == null || hb.parent == user || hb.parent is Actor a && a.dead || hb.parent.team == user.team)
+                    Hurtable target = hb != null ? hb.parent : h.collider.GetComponentInParent<Actor>();
+                    if (target == null || target == user || target is Actor a && a.dead || target.team == user.team)
                     {
                         continue;
                     }
-                    best = hb;
+                    best = target;
                     bestHit = h;
                     bestDistance = h.distance;
                 }
@@ -997,8 +999,8 @@ namespace RavenfieldVR.Weapons
                     direction = dir,
                     impactForce = dir * (150f * weight * Mathf.Min(speed, 8f))
                 };
-                best.parent.Damage(info);
-                Log.InfoOnce("bash:" + key, $"{label}: swung into {best.parent.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
+                best.Damage(info);
+                Log.InfoOnce("bash:" + key, $"{label}: swung into {best.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
                 return true;
             }
             catch (System.Exception e)

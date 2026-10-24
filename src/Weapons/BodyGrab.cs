@@ -35,11 +35,36 @@ namespace RavenfieldVR.Weapons
             public Actor Actor;
             public Rigidbody Bone;
             public ConfigurableJoint Joint;
+            /// <summary>How far the bone's pivot was from the palm when taken (its stretch is measured from there).</summary>
+            public float Reach;
         }
 
         public BodyGrab(VRRig rig)
         {
             _rig = rig;
+            _instance = this;
+        }
+
+        private static BodyGrab _instance;
+
+        /// <summary>
+        /// A held soldier slammed into something: each hand holding them feels it, harder the more it hurt (Boneworks' hands
+        /// feel every impact of what they hold).
+        /// </summary>
+        internal static void FeelImpact(Actor a, float damage)
+        {
+            BodyGrab g = _instance;
+            if (g == null || a == null)
+            {
+                return;
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                if (g._holds[i] != null && g._holds[i].Actor == a && g._rig.Hands[i] != null)
+                {
+                    g._rig.Hands[i].Haptic(0.06f, 70f, Mathf.Clamp(0.3f + damage / BodyImpacts.Cap, 0.3f, 1f));
+                }
+            }
         }
 
         /// <summary>Whether a hand is holding a soldier now.</summary>
@@ -113,13 +138,17 @@ namespace RavenfieldVR.Weapons
                 {
                     best.FallOver(); // the game's own: off a seat or ladder, weapon put away, ragdoll from the animated pose
                 }
-                Rigidbody bone = NearestBone(best, palm);
+                // Not the bone the other hand holds: two locked joints on one body pulled it between them every step.
+                Rigidbody bone = NearestBone(best, palm, _holds[1 - i]?.Bone);
                 if (bone == null)
                 {
                     return;
                 }
                 Rigidbody anchor = Anchor(i);
                 anchor.transform.SetPositionAndRotation(palm, hand.Palm.rotation);
+                // The game syncs transforms to the physics only on a step (autoSyncTransforms off): the joint below takes the
+                // anchor's physics pose, which was still where it was last let go (the world's origin on a first grab).
+                Physics.SyncTransforms();
                 var joint = bone.gameObject.AddComponent<ConfigurableJoint>();
                 joint.connectedBody = anchor;
                 joint.autoConfigureConnectedAnchor = true; // held where it was taken: no snap of the bone into the fist
@@ -129,9 +158,12 @@ namespace RavenfieldVR.Weapons
                 joint.projectionDistance = 0.02f;
                 joint.projectionAngle = 5f;
                 joint.enablePreprocessing = false;
-                _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint };
+                _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint, Reach = (bone.position - palm).magnitude };
                 BodyImpacts.Arm(best, float.PositiveInfinity, GameContext.PlayerActor);
-                PropPhysics.IgnorePlayer(best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>());
+                if (best.ragdoll.ragdollObject != null)
+                {
+                    PropPhysics.IgnorePlayer(best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>());
+                }
                 hand.Role = HandRole.Body;
                 hand.Held = best;
                 VRInput.Consume(DigitalAction.Grab, hand.Side);
@@ -169,7 +201,7 @@ namespace RavenfieldVR.Weapons
             // Moved by the physics (a kinematic body pulls what is jointed to it); it keeps up with the hand each step.
             anchor.MovePosition(palm);
             anchor.MoveRotation(hand.Palm.rotation);
-            if ((hold.Bone.position - palm).sqrMagnitude > MaxStretch * MaxStretch * 4f)
+            if ((hold.Bone.position - palm).magnitude > hold.Reach + MaxStretch)
             {
                 Release(i, hand, thrown: false); // wedged or pulled through something: let go rather than tear the ragdoll
                 return;
@@ -233,6 +265,10 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy()
         {
+            if (_instance == this)
+            {
+                _instance = null;
+            }
             ReleaseAll();
             foreach (Rigidbody a in _anchors)
             {
@@ -257,7 +293,7 @@ namespace RavenfieldVR.Weapons
             return _anchors[i];
         }
 
-        private static Rigidbody NearestBone(Actor a, Vector3 palm)
+        private static Rigidbody NearestBone(Actor a, Vector3 palm, Rigidbody taken)
         {
             Rigidbody best = null;
             float bestDistance = float.MaxValue;
@@ -267,7 +303,7 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Rigidbody rb in a.ragdoll.rigidbodies)
             {
-                if (rb == null)
+                if (rb == null || rb == taken)
                 {
                     continue;
                 }
@@ -299,7 +335,7 @@ namespace RavenfieldVR.Weapons
         /// as much and a shove barely at all: 6 m/s takes 3, 9 m/s 17, 10 m/s 23.
         /// </summary>
         internal const float PerSquare = 0.3f;
-        /// <summary>The most one impact takes: a soldier has 100; two hard slams kill, one does not.</summary>
+        /// <summary>The most one impact takes: a soldier has 100; three hard slams kill, one does not.</summary>
         internal const float Cap = 35f;
 
         private static readonly Dictionary<Actor, float> ArmedUntil = new Dictionary<Actor, float>();
@@ -363,7 +399,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Collider other = c.collider;
-            if (other == null || _ragdollRoot != null && other.transform.IsChildOf(_ragdollRoot) || PropPhysics.IsPlayerCollider(other))
+            if (other == null || _ragdollRoot != null && other.transform.IsChildOf(_ragdollRoot) || OwnBone(other) || PropPhysics.IsPlayerCollider(other))
             {
                 return; // its own bones, the player's body and hands
             }
@@ -376,6 +412,7 @@ namespace RavenfieldVR.Weapons
             Vector3 point = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
             Vector3 dir = speed > 1e-3f ? -c.relativeVelocity / speed : Vector3.down;
             Hurt(_owner, damage, speed, point, dir);
+            BodyGrab.FeelImpact(_owner, damage);
             // A soldier it hits is hurt and knocked over as well (thrown into a squad).
             Hitbox hb = other.GetComponent<Hitbox>();
             if (hb != null && hb.parent is Actor hit && hit != _owner && hit != _by && !hit.dead)
@@ -386,6 +423,14 @@ namespace RavenfieldVR.Weapons
                     hit.KnockOver(-dir * Mathf.Min(speed, 15f) * 20f);
                 }
             }
+        }
+
+        /// <summary>One of the owner's own ragdoll bones (also without a ragdoll root to test against).</summary>
+        private bool OwnBone(Collider other)
+        {
+            Rigidbody body = other.attachedRigidbody;
+            Rigidbody[] own = _owner.ragdoll != null ? _owner.ragdoll.rigidbodies : null;
+            return body != null && own != null && System.Array.IndexOf(own, body) >= 0;
         }
 
         private static void Hurt(Actor a, float damage, float speed, Vector3 point, Vector3 dir)

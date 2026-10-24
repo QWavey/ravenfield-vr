@@ -1193,6 +1193,12 @@ namespace RavenfieldVR.Rig
                 _bodyShadowsOwner = player;
                 return;
             }
+            RestoreBody();
+        }
+
+        /// <summary>The body drawn again and the game's own rule put back (off the body's eyes, BodyShadow on, the rig gone).</summary>
+        private void RestoreBody()
+        {
             ShowBody();
             FpsActorController owner = _bodyShadowsOwner;
             _bodyShadowsOwner = null;
@@ -1313,7 +1319,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Lens.Destroy", () => _lens?.Destroy());
-            Log.Guard("Rig.ShowBody", ShowBody); // VR switched off on foot: the flat game's body casts its shadow again
+            Log.Guard("Rig.ShowBody", RestoreBody); // VR switched off on foot: the flat game's body and its rule again
             foreach (VRHand h in Hands)
             {
                 if (h != null)
