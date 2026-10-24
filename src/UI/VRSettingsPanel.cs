@@ -99,6 +99,7 @@ namespace RavenfieldVR.UI
             Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
             TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);
+            Choice("Frame rate on wrist", VRConfig.WristFrameRate, new[] { true, false }, new[] { "On", "Off" });
             TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
             // The body's shadow beside it: a switch to see whether it was the shadow over the hands (task 336).
             TogglePair("Wrist display", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);

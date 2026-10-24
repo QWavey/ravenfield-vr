@@ -151,14 +151,18 @@ namespace RavenfieldVR.UI
             int hpWhole = Mathf.RoundToInt(hp);
             bool becameVisible = !_wasVisible;
             _wasVisible = true;
+            // The frame rate's share on time (task 336): changes every few seconds at most.
+            int rate = VRConfig.WristFrameRate.Value && FrameBudget.RecentPercent >= 0 ? FrameBudget.RecentHz * 1000 + FrameBudget.RecentPercent : -1;
             // Rebuilt only when what it shows changes: no string garbage every frame.
-            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare)
+            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate)
             {
                 _shownHp = hpWhole;
                 _shownCounter = counter;
                 _shownSpare = spare;
+                _shownRate = rate;
                 string reserve = spare == -1 ? "\u221e" : spare.ToString();
-                _text.text = a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve";
+                _text.text = (a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve")
+                             + (rate < 0 ? "" : "\n" + FrameBudget.RecentHz + " Hz  \u00b7  " + FrameBudget.RecentPercent + "% on time");
                 _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
             if (becameVisible)
@@ -186,6 +190,7 @@ namespace RavenfieldVR.UI
         private int _shownHp = int.MinValue;
         private string _shownCounter;
         private int _shownSpare = int.MinValue;
+        private int _shownRate = int.MinValue;
         private bool _wasVisible;
         private int _refitFrames;
         private float _lastPlateAlpha = -1f;

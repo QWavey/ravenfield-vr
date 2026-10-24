@@ -19,6 +19,17 @@ namespace RavenfieldVR.Core
         private static int _frames, _within, _gcAtStart = -1;
         private static float _seconds, _budgetMs;
 
+        // The last few seconds as well, for the wrist display: picking a preset on the panel shows its effect at once.
+        private const float ShortWindow = 3f;
+        private static int _shortFrames, _shortWithin;
+        private static float _shortSeconds;
+
+        /// <summary>The share of frames on time over the last few seconds of play (0-100), or -1 before the first.</summary>
+        internal static int RecentPercent { get; private set; } = -1;
+
+        /// <summary>The headset's refresh rate the share is measured against (0 before the first frame of play).</summary>
+        internal static int RecentHz { get; private set; }
+
         public static void Frame()
         {
             if (!GameContext.InGame || GameContext.GameMenuOpen || Time.timeScale <= 0f)
@@ -40,9 +51,20 @@ namespace RavenfieldVR.Core
             _frames++;
             // On time within a margin: frame pacing waits for the compositor, so a frame on time lands about one refresh interval
             // after the last, and one late at about two.
-            if (ms <= _budgetMs * 1.2f)
+            bool onTime = ms <= _budgetMs * 1.2f;
+            if (onTime)
             {
                 _within++;
+            }
+            _shortFrames++;
+            _shortWithin += onTime ? 1 : 0;
+            _shortSeconds += dt;
+            if (_shortSeconds >= ShortWindow)
+            {
+                RecentPercent = Mathf.RoundToInt(100f * _shortWithin / _shortFrames);
+                RecentHz = Mathf.RoundToInt(1000f / _budgetMs);
+                _shortFrames = _shortWithin = 0;
+                _shortSeconds = 0f;
             }
             _seconds += dt;
             if (_seconds >= Window)

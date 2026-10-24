@@ -42,6 +42,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> NearClip;
         public static ConfigEntry<bool> PostProcessing;
         public static ConfigEntry<bool> BodyShadow;
+        public static ConfigEntry<bool> WristFrameRate;
         public static ConfigEntry<float> MinFarClip;
 
         // Comfort
@@ -333,6 +334,9 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Width (m) of menu panels.", new AcceptableValueRange<float>(0.6f, 5f)));
             WristHud = cfg.Bind("UI", "WristHud", true, "Health and reserve ammo on your off-hand wrist.");
             GunAmmoCounter = cfg.Bind("UI", "GunAmmoCounter", true, "Small round counter on the side of the held weapon.");
+            WristFrameRate = cfg.Bind("UI", "WristFrameRate", true,
+                "The wrist display also shows how many frames of the last few seconds kept the headset's rate: under about 90%, " +
+                "SteamVR fills in frames and moving things ghost; pick a lower graphics preset.");
             LaserColor = cfg.Bind("UI", "LaserColor", "#E8B44A", "Menu laser colour (hex).");
             WorldCollision = cfg.Bind("Weapons", "WeaponWorldCollision", true,
                 "The gun in your hand is stopped by the world (walls, crates, sandbags, the ground) instead of passing through it, and can be rested " +
