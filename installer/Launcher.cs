@@ -302,7 +302,7 @@ namespace RavenfieldVR.Launcher
                 else if (sectionAt >= 0 && (line.StartsWith(key + " ") || line.StartsWith(key + "=")))
                 {
                     lines[i] = key + " = " + value;
-                    File.WriteAllLines(path, lines.ToArray(), new UTF8Encoding(false));
+                    WriteWhole(path, lines);
                     return;
                 }
             }
@@ -313,7 +313,34 @@ namespace RavenfieldVR.Launcher
                 sectionAt = lines.Count - 1;
             }
             lines.Insert(sectionAt + 1, key + " = " + value);
-            File.WriteAllLines(path, lines.ToArray(), new UTF8Encoding(false));
+            WriteWhole(path, lines);
+        }
+
+        /// <summary>
+        /// The mod's whole config written beside it and put in its place in one step: written in place, a crash or power cut
+        /// part way left it cut short, and BepInEx then wrote every setting back to its default (installer scout, 2026-10-23).
+        /// </summary>
+        private static void WriteWhole(string path, List<string> lines)
+        {
+            string temp = path + ".rfvr-tmp";
+            File.WriteAllLines(temp, lines.ToArray(), new UTF8Encoding(false));
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Replace(temp, path, null);
+                }
+                else
+                {
+                    File.Move(temp, path);
+                }
+            }
+            catch (Exception e) when (e is IOException || e is PlatformNotSupportedException)
+            {
+                // A volume that cannot replace in place (FAT, some network drives): the copy.
+                File.Copy(temp, path, true);
+                File.Delete(temp);
+            }
         }
     }
 
