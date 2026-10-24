@@ -188,13 +188,31 @@ namespace RavenfieldVR.Weapons
             }
             bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
                         || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
-            if (gone || Second.Done || !Second.Hand.Tracked)
+            if (gone || Second.Done)
             {
                 // The gun in the other hand went away (a seat, death), or a grenade thrown: back into its holster.
                 Second.PutAway();
                 Second = null;
                 return;
             }
+            if (!Second.Hand.Tracked)
+            {
+                // A tracking gap (the hand behind the back, out of the sensors' view): kept for half a second, as the gun hand keeps
+                // its gun, and not worked meanwhile. Put away on the first untracked frame, a glance away holstered it and it had to
+                // be taken again (gameplay workflow, 2026-10-24). After that it goes back to its holster, not let go: a grenade is
+                // not thrown on a lost hand's last motion.
+                if (_secondUntrackedAt < 0f)
+                {
+                    _secondUntrackedAt = Time.unscaledTime;
+                }
+                if (Time.unscaledTime - _secondUntrackedAt > 0.5f)
+                {
+                    Second.PutAway();
+                    Second = null;
+                }
+                return;
+            }
+            _secondUntrackedAt = -1f;
             if (!Second.Hand.GrabHeld)
             {
                 // Let go: back into its holster (a grenade let go in a throwing motion is thrown first).
@@ -205,10 +223,13 @@ namespace RavenfieldVR.Weapons
             Second.Update();
         }
 
+        private float _secondUntrackedAt = -1f; // since when the second weapon's hand has had no tracking (-1: tracked)
+
         /// <summary>The free hand takes this holstered weapon as a second one beside the gun in the other hand.</summary>
         internal void BeginSecond(Weapon weapon, VRHand hand)
         {
             Second = new SecondWeapon(this, weapon, RigFor(weapon), StateFor(weapon, create: true), hand);
+            _secondUntrackedAt = -1f;
             Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
             hand.Haptic(0.05f, 100f, 0.6f);
         }

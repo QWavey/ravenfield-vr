@@ -150,6 +150,14 @@ namespace RavenfieldVR.Weapons
                 UpdateThrowable(blocked && Armed ? _triggerWas : held);
                 return;
             }
+            if (Ammo != null && Ammo.Participates && Ammo.HasCover && Ammo.MagInserted && !Ammo.FeedReady && !_firing && _reloadDoneAt < 0f)
+            {
+                // A belt-fed gun taken into the free hand with its cover open or its belt not laid (left so by a reload in the gun
+                // hand): this hand cannot work the cover, and with rounds in the box it never reloads, so it could neither fire nor
+                // be fixed until moved back. Shut and laid for it, as its own reload does (gameplay workflow, 2026-10-24).
+                Ammo.CoverOpen = false;
+                Ammo.BeltLaid = true;
+            }
             CycleForTheHand();
             // In either reload mode: the game reloads only its active weapon, so with Assisted reloading an empty second weapon
             // stayed empty for as long as it was held (second-weapon hunt, 2026-10-20 night). This reload is the hand's own.
@@ -506,8 +514,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Quaternion frame = OpenVRMath.SafeLookRotation(Rig.Data.AimAxis, Rig.Data.Up);
-            if (_volume != null && _volume.Failed)
+            if (_volume != null && (_volume.Failed || _volume.Stalled))
             {
+                // (Stalled too, as the gun hand's: a read-back that never came back left the glove closing on nothing.)
                 _volume = null; // measured again a second later
                 _volumeRetryAt = Time.unscaledTime + 1f;
             }

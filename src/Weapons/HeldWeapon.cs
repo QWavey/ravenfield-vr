@@ -167,14 +167,23 @@ namespace RavenfieldVR.Weapons
                 {
                     Log.InfoOnce("matfix:" + rig.Data.Key, $"{weapon.name}: repaired {repaired} renderer(s) with shaders this graphics API cannot draw.");
                 }
+                // A throwable is held by its middle before its stand-in is made from the grip: made first, the first hold of each
+                // kind had its stand-in about the animation's palm, off the grenade (gameplay workflow, 2026-10-24).
+                _isKit = IsKit(weapon);
+                if (rig.Data.Action == ActionType.Throwable && !_isKit)
+                {
+                    CentreGrenadeGrip(rig, weapon);
+                }
                 _gunCollider = GunCollider.Create(rig);
                 // Renderers that draw only a shadow (helper boxes a mod's reload animation uses, shadow proxies of a flat
                 // view model) put a dark blob on the ground under the player in VR, where the weapon is drawn in the world.
+                // Not drawn at all while held: switched from ShadowsOnly to Off they drew their mesh, which ShadowsOnly
+                // keeps invisible (gameplay workflow, 2026-10-24).
                 foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
+                    if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly && !r.forceRenderingOff)
                     {
-                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                        r.forceRenderingOff = true;
                         _shadowOnly.Add(r);
                     }
                 }
@@ -227,12 +236,7 @@ namespace RavenfieldVR.Weapons
                     _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
                 }
                 _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
-                _isKit = IsKit(weapon);
                 _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
-                if (rig.Data.Action == ActionType.Throwable && !_isKit)
-                {
-                    CentreGrenadeGrip(rig, weapon);
-                }
                 ActionType action = rig.Data.Action;
                 RackPointGun = rig.Data.RackPoint;
                 // Task 299: a made handle (a piece cut out of the receiver, or an added latch) is never put beside the gun's own handle
@@ -291,7 +295,7 @@ namespace RavenfieldVR.Weapons
                 {
                     if (r != null)
                     {
-                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                        r.forceRenderingOff = false;
                     }
                 }
                 _shadowOnly.Clear();
@@ -711,10 +715,22 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void StepInertia(VRHand main, float dt)
         {
-            if (!VRConfig.WeaponWeight.Value || _inertiaOmega <= 0f || !main.Tracked)
+            if (!VRConfig.WeaponWeight.Value || _inertiaOmega <= 0f)
             {
                 _lagPos = _lagVel = Vector3.zero;
                 _lagPitch = _lagPitchVel = 0f;
+                _lagInit = false;
+                return;
+            }
+            if (!main.Tracked)
+            {
+                // Eased out, not dropped: zeroed in one frame, a heavy gun still lagging behind the hand jumped onto it the
+                // moment tracking was lost (gameplay workflow, 2026-10-24). Its history starts again when tracking is back.
+                float ease = Mathf.Exp(-12f * dt);
+                _lagPos *= ease;
+                _lagPitch *= ease;
+                _lagVel = Vector3.zero;
+                _lagPitchVel = 0f;
                 _lagInit = false;
                 return;
             }
@@ -2129,7 +2145,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (r != null)
                 {
-                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                    r.forceRenderingOff = false;
                 }
             }
             _shadowOnly.Clear();

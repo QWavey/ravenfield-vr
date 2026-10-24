@@ -187,9 +187,25 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                return w.HasAnyAltSightModes() || Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
+                if (w.HasAnyAltSightModes())
+                {
+                    return true;
+                }
+                // The script key asked twice a second, as the support keys are: ScriptKeys.Find makes and sorts a list, and a
+                // grab that took nothing asked it every frame of its quarter-second reach (gameplay workflow, 2026-10-24).
+                if (!ReferenceEquals(_magnifierKeyFor, w) || Time.unscaledTime - _magnifierKeyAt > 0.5f)
+                {
+                    _magnifierKeyFor = w;
+                    _magnifierKeyAt = Time.unscaledTime;
+                    _magnifierKey = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
+                }
+                return _magnifierKey;
             }
         }
+
+        private Weapon _magnifierKeyFor;
+        private float _magnifierKeyAt = -10f;
+        private bool _magnifierKey;
 
         /// <summary>
         /// The optics sit on the sight line over the gun itself: from just behind the grip to a little short of the muzzle
