@@ -312,3 +312,15 @@ RV-analysis-perf-ui-1  Tiny (sure)  src/Util/MaterialFix.cs:129  []
      Fix: Count a slot as repaired only when the replacement is non-null and differs from the original slot, or have the null path return the original array unchanged so Apply reports no change.
      STATUS: open
 REFUTED  C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Weapons\MagnifierFlip.cs:158  The renderer lookup in InReach is now cached for the part's whole life, where the original re-queried every frame; if the first lookup finds no active renderer,
+
+==== Per-frame allocation scout (Haiku, read-only), 2026-10-24 afternoon, work-until-limit 85 ====
+Verdict: the per-frame gameplay paths are already allocation-free (cached delegates, NonAlloc queries, text rebuilt on change).
+1. ScriptKeys.Name(KeyCode): Dictionary<KeyCode,string> looked up on every key a script polls (Harmony postfixes on InputProxy.GetKey*).
+   -> fixed 6326e53: string[512] by key code (offline test KeyNameTests).
+2. GunCollider.OnCollisionStay: Unity makes a Collision object per callback while the gun touches something (engine side).
+   -> not changed: dropping Stay changes the touch window; Physics.reuseCollisionCallbacks would also change the game's own callbacks.
+3. VRRig: EnableFirstPersonRenderingMode every frame on foot. -> moot with BodyShadow off (d6ce95e: the body is hidden, the call is skipped).
+4. VRInputModule.IntersectCanvases: List.Sort(Comparison) made a comparer twice a frame while the laser is on a menu.
+   -> fixed 6326e53: hits inserted in order.
+5. CanvasManager.Scan FindObjectsOfType<Canvas> every 1 s in a match; CameraSuppressor RemoveWhere every 15 frames. -> periodic, left.
+6. ScriptKeys.KeysOn new List per call (gated); ThrowAndMelee bash log string built per landed hit. -> only on those events, left.
