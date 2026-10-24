@@ -16,7 +16,7 @@ namespace RavenfieldVR.Core
         private const float Window = 60f;
         private const float BucketMs = 0.25f;
         private static readonly int[] Buckets = new int[400]; // 0-100 ms; slower frames go in the last
-        private static int _frames, _within;
+        private static int _frames, _within, _gcAtStart = -1;
         private static float _seconds, _budgetMs;
 
         public static void Frame()
@@ -34,6 +34,7 @@ namespace RavenfieldVR.Core
             if (_budgetMs <= 0f)
             {
                 _budgetMs = 1000f / RefreshRate(); // once a window
+                _gcAtStart = System.GC.CollectionCount(0);
             }
             Buckets[Mathf.Min((int)(ms / BucketMs), Buckets.Length - 1)]++;
             _frames++;
@@ -79,10 +80,30 @@ namespace RavenfieldVR.Core
             Log.Info($"Frame rate over the last minute of play: {100f * _within / _frames:0}% of {_frames} frames at the headset's {hz:0} Hz " +
                      $"({_budgetMs:0.0} ms), median {Percentile(0.5f):0.0} ms, 95th {Percentile(0.95f):0.0} ms; {preset}, render scale " +
                      $"{XRSettings.eyeTextureResolutionScale:0.0#}, MSAA {QualitySettings.antiAliasing}x, shadows " +
-                     $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}.");
+                     $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
+                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}).");
             System.Array.Clear(Buckets, 0, Buckets.Length);
             _frames = _within = 0;
             _seconds = _budgetMs = 0f;
+        }
+
+        /// <summary>
+        /// The game's collector: incremental in slices of up to 3 ms a frame (its boot.config gc-max-time-slice=3), a third of a
+        /// 90 Hz frame while a collection runs. Logged to weigh a shorter slice (a frame kept) against collections that then
+        /// fall behind and stop the world.
+        /// </summary>
+        private static string GcMode()
+        {
+            try
+            {
+                return UnityEngine.Scripting.GarbageCollector.isIncremental
+                    ? $"incremental, {UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds / 1e6:0.#} ms a frame"
+                    : "not incremental";
+            }
+            catch (System.Exception)
+            {
+                return "mode unknown";
+            }
         }
 
         /// <summary>The frame time at this share of the window's frames (the upper edge of its bucket).</summary>
