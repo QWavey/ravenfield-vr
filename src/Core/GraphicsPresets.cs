@@ -123,7 +123,8 @@ namespace RavenfieldVR.Core
         /// alone; <see cref="Apply"/> and the live settings put the player's back). Returns what was applied.
         /// </summary>
         internal static string ApplyForBench(GraphicsPreset preset, float? renderScale = null, int? msaa = null, float? shadowDistance = null,
-            int? cascades = null, bool? reflections = null, int? pixelLights = null, float? lodBias = null, ShadowResolution? shadowResolution = null)
+            int? cascades = null, bool? reflections = null, int? pixelLights = null, float? lodBias = null, ShadowResolution? shadowResolution = null,
+            ShadowQuality? shadows = null, bool? softParticles = null, bool? hdr = null)
         {
             if (!Profiles.TryGetValue(preset, out Profile src))
             {
@@ -138,10 +139,33 @@ namespace RavenfieldVR.Core
             p.PixelLights = pixelLights ?? p.PixelLights;
             p.LodBias = lodBias ?? p.LodBias;
             p.ShadowResolution = shadowResolution ?? p.ShadowResolution;
+            p.Shadows = shadows ?? p.Shadows;
+            p.SoftParticles = softParticles ?? p.SoftParticles;
+            p.Hdr = hdr ?? p.Hdr;
             ApplyProfile(p);
             UnityEngine.XR.XRSettings.eyeTextureResolutionScale = Mathf.Clamp(p.RenderScale, 0.5f, 2f);
-            return $"{preset}: scale {p.RenderScale:0.0#}, MSAA {p.Msaa}x, shadows {p.ShadowDistance:0} m {p.Cascades} cascades {p.ShadowResolution}, "
-                   + $"reflections {(p.RealtimeReflections ? "on" : "off")}, pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}";
+            string shadowText = p.Shadows == ShadowQuality.Disable ? "off" : $"{p.ShadowDistance:0} m {p.Cascades} cascades {p.ShadowResolution}";
+            return $"{preset}: scale {p.RenderScale:0.0#}, MSAA {p.Msaa}x, shadows {shadowText}, reflections {(p.RealtimeReflections ? "on" : "off")}, "
+                   + $"pixel lights {p.PixelLights}, LOD bias {p.LodBias:0.0#}, soft particles {(p.SoftParticles ? "on" : "off")}, HDR {(p.Hdr ? "as the game" : "off")}";
+        }
+
+        /// <summary>
+        /// Perf bench: the game's own quality, as the Game preset leaves it (the user's 'Fastest' ran smoothly while every preset
+        /// ghosted), at the given render scale. Put back by <see cref="Apply"/> as the other bench steps.
+        /// </summary>
+        internal static string ApplyGameForBench(float renderScale)
+        {
+            FarClipCap = float.PositiveInfinity;
+            ForceMsaa = null;
+            AllowHdr = null;
+            RestoreTerrains();
+            RestoreGameQuality();
+            UnityEngine.XR.XRSettings.eyeTextureResolutionScale = Mathf.Clamp(renderScale, 0.5f, 2f);
+            int level = QualitySettings.GetQualityLevel();
+            string name = level >= 0 && level < QualitySettings.names.Length ? QualitySettings.names[level] : "?";
+            return $"the game's own quality '{name}': scale {renderScale:0.0#}, MSAA {QualitySettings.antiAliasing}x, shadows "
+                   + $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, pixel lights {QualitySettings.pixelLightCount}, "
+                   + $"LOD bias {QualitySettings.lodBias:0.0#}";
         }
 
         /// <summary>The game's own quality settings, from before the first preset was applied.</summary>

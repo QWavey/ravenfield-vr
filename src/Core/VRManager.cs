@@ -98,7 +98,7 @@ namespace RavenfieldVR.Core
             // (Shutdown unsubscribes only when set) and the warm-up never started (lifecycle hunt, 2026-10-20).
             _subscribed = true;
             Log.Guard("GraphicsPresets.Apply", GraphicsPresets.Apply);
-            Log.Info("VR active.");
+            Log.Info($"VR active ({Time.realtimeSinceStartup:0.0} s after the game started).");
             // Content may have finished loading before VR came up; the warm-up skips rigs already analysed.
             WeaponWarmup.Start();
         }

@@ -21,6 +21,9 @@ namespace RavenfieldVR.Core
         /// <summary>The mods to load, or null: every mod, as the game does.</summary>
         internal static readonly string[] Mods = ParseMods(Environment.GetCommandLineArgs());
 
+        /// <summary>When the game's content was ready, in seconds after it started (0 before).</summary>
+        internal static float ContentReadyAt { get; set; }
+
         /// <summary>Which mod each weapon comes from (weapon name, workshop id or folder, mod title; tab separated).</summary>
         internal static string MapPath => Path.Combine(Paths.CachePath, "RavenfieldVR-weapon-mods.tsv");
 
@@ -156,6 +159,7 @@ namespace RavenfieldVR.Core
         {
             // Every run's timeline (the fast test mode is judged by it): the moment the game's content is ready.
             int mods = ModManager.instance != null && ModManager.instance.mods != null ? ModManager.instance.GetActiveMods().Count : -1;
+            TestHost.ContentReadyAt = UnityEngine.Time.realtimeSinceStartup;
             Log.Info($"Content loaded {UnityEngine.Time.realtimeSinceStartup:0.0} s after the game started ({mods} active mod(s){(TestHost.Mods != null ? ", fast test mode" : "")}).");
             TestHost.WriteMap();
         }

@@ -293,6 +293,7 @@ namespace RavenfieldVR.Core
         private static IEnumerator Run()
         {
             Application.runInBackground = true;
+            _matchAt = Time.realtimeSinceStartup;
             float deadline = Time.realtimeSinceStartup + 120f;
             while (LocalPlayer.actor == null && Time.realtimeSinceStartup < deadline)
             {
@@ -301,6 +302,7 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(4f);
             _context = "deploy";
             yield return Deploy();
+            _deployedAt = Time.realtimeSinceStartup;
             if (LocalPlayer.actor == null || LocalPlayer.actor.dead)
             {
                 Results.Add("Could not deploy the player; weapon tests skipped.");
@@ -575,30 +577,38 @@ namespace RavenfieldVR.Core
         private static IEnumerator PerfBench()
         {
             UI.UISystem ui = UI.UISystem.Instance;
+            // The game's own quality first (what the user plays smoothly), each preset beside its version before 2026-10-24 (the
+            // old values, as near as the bench can set them: terrain detail and draw distances stay the new preset's), then what
+            // High's parts cost one by one, and Low again at the end (the scene drifting during the bench shows there).
             var runs = new List<KeyValuePair<string, Func<string>>>
             {
+                new KeyValuePair<string, Func<string>>("Game (own quality)", () => GraphicsPresets.ApplyGameForBench(1f)),
                 new KeyValuePair<string, Func<string>>("Low", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Low)),
+                new KeyValuePair<string, Func<string>>("old Low", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Low, renderScale: 0.8f, msaa: 0,
+                    shadows: ShadowQuality.HardOnly, shadowDistance: 35f, cascades: 1, shadowResolution: ShadowResolution.Low, lodBias: 0.6f, pixelLights: 1, hdr: true)),
                 new KeyValuePair<string, Func<string>>("Medium", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium)),
+                new KeyValuePair<string, Func<string>>("old Medium", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, renderScale: 1f, msaa: 2,
+                    shadows: ShadowQuality.All, shadowDistance: 60f, cascades: 2, shadowResolution: ShadowResolution.Medium, lodBias: 1f, pixelLights: 2, hdr: true)),
                 new KeyValuePair<string, Func<string>>("High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High)),
+                new KeyValuePair<string, Func<string>>("old High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 1.2f, msaa: 4,
+                    shadowDistance: 100f, cascades: 2, shadowResolution: ShadowResolution.High, lodBias: 1.5f, pixelLights: 4, reflections: true, softParticles: true)),
                 new KeyValuePair<string, Func<string>>("Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
-                new KeyValuePair<string, Func<string>>("Ultra, reflections off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, reflections: false)),
-                new KeyValuePair<string, Func<string>>("Ultra, 2 cascades", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, cascades: 2)),
-                new KeyValuePair<string, Func<string>>("Ultra, shadows 100 m", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, shadowDistance: 100f)),
-                new KeyValuePair<string, Func<string>>("Ultra, shadow map High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, shadowResolution: ShadowResolution.High)),
-                new KeyValuePair<string, Func<string>>("Ultra, MSAA 2x", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, msaa: 2)),
-                new KeyValuePair<string, Func<string>>("Ultra, scale 1.2", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.2f)),
-                new KeyValuePair<string, Func<string>>("Ultra, 4 pixel lights", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, pixelLights: 4)),
-                new KeyValuePair<string, Func<string>>("Ultra, LOD bias 1.5", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, lodBias: 1.5f)),
-                new KeyValuePair<string, Func<string>>("Ultra, no UI camera", () =>
+                new KeyValuePair<string, Func<string>>("old Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.4f, msaa: 4,
+                    shadowDistance: 150f, cascades: 4, shadowResolution: ShadowResolution.VeryHigh, lodBias: 2f, pixelLights: 6)),
+                new KeyValuePair<string, Func<string>>("High, shadows off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, shadows: ShadowQuality.Disable)),
+                new KeyValuePair<string, Func<string>>("High, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, msaa: 0)),
+                new KeyValuePair<string, Func<string>>("High, scale 0.8", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 0.8f)),
+                new KeyValuePair<string, Func<string>>("High, LOD bias 0.4", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, lodBias: 0.4f)),
+                new KeyValuePair<string, Func<string>>("High, no UI camera", () =>
                 {
-                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra);
+                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.High);
                     if (ui != null && ui.UiCamera != null)
                     {
                         ui.UiCamera.enabled = false;
                     }
                     return d + ", UI camera off";
                 }),
-                new KeyValuePair<string, Func<string>>("Ultra again", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
+                new KeyValuePair<string, Func<string>>("Low again", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Low)),
             };
             Results.Add("Graphics bench (standing still; frame = CPU frame interval, GPU = the compositor's timing of our frames):");
             try
@@ -3145,7 +3155,8 @@ namespace RavenfieldVR.Core
             var enemies = new List<Actor>();
             foreach (Actor a in ActorManager.instance.actors)
             {
-                if (a != null && a != player && a.aiControlled && !a.dead && a.team != player.team && !a.IsSeated() && a.ragdoll != null
+                // Seated ones too, taken out of their seat when brought (a short match had all its enemies in vehicles and turrets).
+                if (a != null && a != player && a.aiControlled && !a.dead && a.team != player.team && a.ragdoll != null
                     && !a.ragdoll.IsRagdoll() && a.controller != null)
                 {
                     enemies.Add(a);
@@ -3175,11 +3186,12 @@ namespace RavenfieldVR.Core
                     seated += a.IsSeated() ? 1 : 0;
                     down += a.ragdoll != null && a.ragdoll.IsRagdoll() ? 1 : 0;
                 }
-                report($"soldier grab: skipped (no enemy alive on foot: {all} other soldiers, {ai} enemy bots, {alive} alive, {seated} seated, {down} down)");
+                report($"soldier grab: skipped (no enemy alive: {all} other soldiers, {ai} enemy bots, {alive} alive, {seated} seated, {down} down)");
                 yield break;
             }
             Vector3 headAt = rig.Head.position;
-            enemies.Sort((x, y) => (x.transform.position - headAt).sqrMagnitude.CompareTo((y.transform.position - headAt).sqrMagnitude));
+            enemies.Sort((x, y) => x.IsSeated() != y.IsSeated() ? (x.IsSeated() ? 1 : -1)
+                : (x.transform.position - headAt).sqrMagnitude.CompareTo((y.transform.position - headAt).sqrMagnitude));
             Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
             int side = (int)off.Side;
             Runtime.RigidPose raw = off.Raw;
@@ -3211,6 +3223,10 @@ namespace RavenfieldVR.Core
 
             void Bring(Actor a)
             {
+                if (a.IsSeated())
+                {
+                    a.LeaveSeat(false);
+                }
                 a.controller.enabled = false; // its AI paused: it must not walk off or fight at arm's length
                 paused.Add(a);
                 Vector3 at = headAt + flat * 0.8f;
@@ -4709,12 +4725,17 @@ namespace RavenfieldVR.Core
             m[2] = Math.Max(m[2], value);
         }
 
+        private static float _matchAt, _deployedAt;
+
         private static void Write(bool final = true)
         {
             _written |= final;
             var sb = new StringBuilder();
             sb.AppendLine($"Ravenfield VR {PluginInfo.Version} autotest, {DateTime.Now:yyyy-MM-dd HH:mm}, VR {(VRManager.Active ? "on" : "off")}");
             sb.AppendLine($"Problems: {Problems.Count}");
+            // Where a run's time goes (the fast test mode is judged by it; seconds after the game started).
+            sb.AppendLine($"Timeline: content ready {Core.TestHost.ContentReadyAt:0.0} s{(Core.TestHost.Mods != null ? " (fast test mode)" : "")}, match "
+                          + $"{_matchAt:0.0} s, player deployed {_deployedAt:0.0} s, this report {Time.realtimeSinceStartup:0.0} s");
             foreach (string p in Problems)
             {
                 sb.AppendLine("  ! " + p);
