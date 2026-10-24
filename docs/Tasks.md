@@ -5,7 +5,10 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-24)
 
-- Tasks: 335 (numbered 1-335). Done: 156. Open: 179, most of them code done and waiting for a check in the headset.
+- Tasks: 336 (numbered 1-336). Done: 156. Open: 180, most of them code done and waiting for a check in the headset.
+- 2026-10-24 afternoon (no game run): 336 = the presets' ghosting (retuned for multi-pass; the player's own body shadow hidden,
+  the likelier cause), soldiers grabbed and thrown with Boneworks' speed-squared impact damage, fists and whole-gun bashes,
+  a once-a-minute frame-rate log line to measure the presets on the user's PC. Check in the headset: For 336's list in its entry.
 - 2026-10-23/24 (no game run): 334 = Boneworks studied and its hand and reload behaviour imported (glove contact sweep,
   hands stay on worked parts, slam release, haptic stack; the user's hand-through-gun bug), released as 1.11.0; 335 =
   measured improve rounds and read-only Haiku hunts (scouts and three workflows), every finding with its status in
