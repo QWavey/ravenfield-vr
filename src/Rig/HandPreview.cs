@@ -18,11 +18,19 @@ namespace RavenfieldVR.Rig
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;
             var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
-            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            tex.Apply();
-            RenderTexture.active = prev;
-            File.WriteAllBytes(path, tex.EncodeToPNG());
-            UnityEngine.Object.Destroy(tex);
+            try
+            {
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+                File.WriteAllBytes(path, tex.EncodeToPNG());
+            }
+            finally
+            {
+                // (A write that failed, a full disk or a locked file, left the texture and the active render target behind.)
+                RenderTexture.active = prev;
+                UnityEngine.Object.Destroy(tex);
+            }
         }
 
         /// <summary>-rfvr-handshots: glove close-ups (written from the menu, then the game quits).</summary>

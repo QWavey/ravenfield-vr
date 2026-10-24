@@ -245,9 +245,12 @@ namespace RavenfieldVR.Rig
 
         private static IEnumerator IntroShots()
         {
+            float waited = 0f;
             foreach (float at in new[] { 0.6f, 2.5f, 5f, 7.5f })
             {
-                yield return new WaitForSecondsRealtime(at < 1f ? at : 2.5f);
+                // Each picture at the time its name says (waited 2.5 s each after the first, they were 0.6 s late).
+                yield return new WaitForSecondsRealtime(at - waited);
+                waited = at;
                 yield return new WaitForEndOfFrame();
                 Shots.Capture($"intro-{at:0.0}s");
             }
