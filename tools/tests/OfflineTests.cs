@@ -938,7 +938,7 @@ namespace RavenfieldVR.Tests
             try
             {
                 doc = parse.Invoke(null, new object[] { "{\"hand\": {\"position\": [0.1, -2.5e-1, 3], \"rotation\": [0, 0, NaN, 1], \"curl\": Infinity, \"spread\": -Infinity,"
-                                                       + " \"name\": \"M4A1 \\u00e4\\\"x\\\"\"}}" });
+                                                       + " \"huge\": 1e39, \"far\": [0, 1e39, 0], \"name\": \"M4A1 \\u00e4\\\"x\\\"\"}}" });
             }
             catch (System.Reflection.TargetInvocationException e)
             {
@@ -954,6 +954,8 @@ namespace RavenfieldVR.Tests
             Check(floats.Invoke(null, new object[] { hand, "rotation", 4 }) == null, "JSON: an array with a NaN in it counts as missing (that field only)");
             Check((float)num.Invoke(null, new object[] { hand, "curl", 0.5f }) == 0.5f && (float)num.Invoke(null, new object[] { hand, "spread", 0.25f }) == 0.25f,
                   "JSON: a non-finite number takes the fallback");
+            Check((float)num.Invoke(null, new object[] { hand, "huge", 0.5f }) == 0.5f && floats.Invoke(null, new object[] { hand, "far", 3 }) == null,
+                  "JSON: a number past a float's range (finite as a double, Infinity as a float) counts as missing");
             Check((string)str.Invoke(null, new object[] { hand, "name" }) == "M4A1 ä\"x\"", "JSON: \\u and quote escapes");
             // Nesting: a deep file is refused with a format error (a stack overflow closes the game, no catch stops it); real
             // nesting still reads.

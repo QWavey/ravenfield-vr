@@ -211,7 +211,7 @@ namespace RavenfieldVR.Core
             var f = new float[count];
             for (int k = 0; k < count; k++)
             {
-                if (!(list[k] is double x) || double.IsNaN(x) || double.IsInfinity(x))
+                if (!(list[k] is double x) || !IsFloat(x))
                 {
                     return null;
                 }
@@ -221,7 +221,10 @@ namespace RavenfieldVR.Core
         }
 
         public static float Num(object o, string key, float fallback) =>
-            o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is double x && !double.IsNaN(x) && !double.IsInfinity(x) ? (float)x : fallback;
+            o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is double x && IsFloat(x) ? (float)x : fallback;
+
+        /// <summary>A finite number a float can hold: 1e39 is finite as a double and Infinity as a float.</summary>
+        private static bool IsFloat(double x) => !double.IsNaN(x) && Math.Abs(x) <= float.MaxValue;
 
         public static bool Bool(object o, string key) =>
             o is Dictionary<string, object> d && d.TryGetValue(key, out object v) && v is bool b && b;
