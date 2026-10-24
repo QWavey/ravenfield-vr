@@ -43,7 +43,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 | --- | --- | --- |
 | Right trigger | Fire | Fire mounted weapon |
 | Left trigger | Use: enter vehicle, ladder, interact | Hold 1 s (the hand on your seat's side): leave vehicle |
-| Grips | Grab: foregrip, magazine, slide, bolt, cover, grenade pin, magnifier, holsters, pouch, anything lying on the ground. Hold half a second on a vehicle: get in | Grab: steering wheel (one or both hands), flight stick |
+| Grips | Grab: foregrip, magazine, slide, bolt, cover, grenade pin, magnifier, holsters, pouch, anything lying on the ground, a soldier. Closed on an empty hand: a fist. Hold half a second on a vehicle: get in | Grab: steering wheel (one or both hands), flight stick |
 | Left stick | Move. Click: sprint (you can shoot while sprinting). Double-click: VR settings. Hold: scoreboard | Steer and throttle (car), collective and yaw (helicopter), rudder and throttle (plane). Click: next seat |
 | Right stick | Turn. Up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
 | B | Drop the magazine / open a break-action or revolver. Hold: slow motion (also in menus and while dead) | Reload a mounted gun |
