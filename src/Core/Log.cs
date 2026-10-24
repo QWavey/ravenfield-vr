@@ -60,6 +60,15 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>Whether a once-only message under <paramref name="key"/> went out already (skip building a costly one).</summary>
+        public static bool Logged(string key)
+        {
+            lock (Once)
+            {
+                return Once.Contains(key);
+            }
+        }
+
         public static void InfoOnce(string key, string message)
         {
             bool first;

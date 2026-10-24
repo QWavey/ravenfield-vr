@@ -63,10 +63,15 @@ namespace RavenfieldVR.Weapons
                 bounds = BuildProcedural(go, kind, insertLocal, frontLocal, d.MagBounds, ShotgunShells(rig));
             }
             // What the hand holds, once per weapon and kind: the gun's own part copied or a made stand-in, and which part
-            // (a machine gun's box was invisible in the hand, or only its belt came out; Tasks 252 n).
-            Log.InfoOnce("propkind:" + kind + ":" + d.Key, $"{kind} of {d.Key} in the hand: {(standIn ? "a made stand-in" : "a copy of the gun's own")} "
-                + $"(part '{(rig.Magazine != null ? rig.Magazine.name : "none")}', {rig.MagazineParts.Length} part(s) with it), {bounds.size.x * 100f:0} x {bounds.size.y * 100f:0} x {bounds.size.z * 100f:0} cm"
-                + $"{(standIn ? "" : $", {go.GetComponentsInChildren<Renderer>(true).Length} renderer(s)")}.");
+            // (a machine gun's box was invisible in the hand, or only its belt came out; Tasks 252 n). The message only the first
+            // time: built on every magazine (every reload), with a walk of the copy's renderers, it was garbage each time.
+            string kindKey = "propkind:" + kind + ":" + d.Key;
+            if (!Log.Logged(kindKey))
+            {
+                Log.InfoOnce(kindKey, $"{kind} of {d.Key} in the hand: {(standIn ? "a made stand-in" : "a copy of the gun's own")} "
+                    + $"(part '{(rig.Magazine != null ? rig.Magazine.name : "none")}', {rig.MagazineParts.Length} part(s) with it), {bounds.size.x * 100f:0} x {bounds.size.y * 100f:0} x {bounds.size.z * 100f:0} cm"
+                    + $"{(standIn ? "" : $", {go.GetComponentsInChildren<Renderer>(true).Length} renderer(s)")}.");
+            }
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
@@ -87,8 +92,12 @@ namespace RavenfieldVR.Weapons
                 {
                     prop.RailLength = depth + 0.01f;
                 }
-                Log.InfoOnce("rocketrail:" + d.Key, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the {(tube ? "tube's front" : "muzzle point")} to the seated tail "
-                                                    + $"({depth * 100f:0} cm measured), along the rocket's length {Vector3.Angle(insertGun, -aim):0.0} deg off the aim.");
+                string railKey = "rocketrail:" + d.Key;
+                if (!Log.Logged(railKey))
+                {
+                    Log.InfoOnce(railKey, $"Rocket rail of {d.Key}: {prop.RailLength * 100f:0} cm from the {(tube ? "tube's front" : "muzzle point")} to the seated tail "
+                                          + $"({depth * 100f:0} cm measured), along the rocket's length {Vector3.Angle(insertGun, -aim):0.0} deg off the aim.");
+                }
             }
             RigidPose seat = rig.GunBodyPose.Multiply(d.MagSeat);
             seat.ApplyTo(go.transform);
