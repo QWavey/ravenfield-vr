@@ -354,57 +354,81 @@ namespace RavenfieldVR.Setup
             string backupDir = previousBackup.Length > 0 ? previousBackup : Path.Combine(game, "RavenfieldVR-backup", stamp);
 
             bool installBepInEx = previousInstalledBepInEx || !File.Exists(Path.Combine(game, @"BepInEx\core\BepInEx.dll"));
-            using (Stream payload = openPayload())
-            using (var zip = new ZipArchive(payload, ZipArchiveMode.Read))
+            // The record is written however the install ends: one that stopped part way (a locked file, a full disk) wrote none, so
+            // a retry took the files it had already written for the game's own (identical: not recorded, never removed) and an
+            // original it had backed up was never put back; after a first install Uninstall refused (installer scout, 2026-10-23).
+            void WriteRecord(IEnumerable<string> addedFiles, string version)
             {
-                if (!installBepInEx)
+                string backupRef = previousBackup.Length > 0 ? previousBackup : Directory.Exists(backupDir) ? backupDir : "";
+                var lines = new List<string>
                 {
-                    _log("Keeping the BepInEx 5 already installed.");
+                    "# Ravenfield VR install " + stamp,
+                    "version=" + version,
+                    "installedBepInEx=" + (installBepInEx ? "True" : "False"),
+                    "backup=" + RecordedBackup(game, backupRef)
+                };
+                lines.AddRange(addedFiles.Distinct(StringComparer.OrdinalIgnoreCase).Select(a => "added=" + a));
+                lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
+                Directory.CreateDirectory(Path.GetDirectoryName(manifestPath));
+                File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
+            }
+            try
+            {
+                using (Stream payload = openPayload())
+                using (var zip = new ZipArchive(payload, ZipArchiveMode.Read))
+                {
+                    if (!installBepInEx)
+                    {
+                        _log("Keeping the BepInEx 5 already installed.");
+                    }
+                    foreach (ZipArchiveEntry entry in zip.Entries)
+                    {
+                        if (entry.FullName.EndsWith("/", StringComparison.Ordinal) || entry.Length == 0 && entry.Name.Length == 0)
+                        {
+                            continue;
+                        }
+                        string rel = entry.FullName.Replace('/', '\\');
+                        bool loader = IsLoaderFile(rel);
+                        bool mod = rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase) || rel.StartsWith(@"ravenfield_Data\", StringComparison.OrdinalIgnoreCase)
+                                   || rel.Equals(LauncherName, StringComparison.OrdinalIgnoreCase);
+                        if (!(mod || loader && installBepInEx))
+                        {
+                            continue;
+                        }
+                        InstallEntry(entry, game, rel, backupDir, ours, added, replaced);
+                    }
                 }
-                foreach (ZipArchiveEntry entry in zip.Entries)
+
+                // Files an earlier version added that this one no longer has: they were the install's, so they go (left, they lingered
+                // and dropped out of the record, and Uninstall never removed them).
+                foreach (string old in ours)
                 {
-                    if (entry.FullName.EndsWith("/", StringComparison.Ordinal) || entry.Length == 0 && entry.Name.Length == 0)
+                    if (!added.Contains(old, StringComparer.OrdinalIgnoreCase))
                     {
-                        continue;
+                        string path = Inside(game, old);
+                        if (path != null && File.Exists(path))
+                        {
+                            File.Delete(path);
+                            _log("Removed " + old + " (no longer part of Ravenfield VR).");
+                        }
                     }
-                    string rel = entry.FullName.Replace('/', '\\');
-                    bool loader = IsLoaderFile(rel);
-                    bool mod = rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase) || rel.StartsWith(@"ravenfield_Data\", StringComparison.OrdinalIgnoreCase)
-                               || rel.Equals(LauncherName, StringComparison.OrdinalIgnoreCase);
-                    if (!(mod || loader && installBepInEx))
-                    {
-                        continue;
-                    }
-                    InstallEntry(entry, game, rel, backupDir, ours, added, replaced);
                 }
             }
-
-            // Files an earlier version added that this one no longer has: they were the install's, so they go (left, they lingered
-            // and dropped out of the record, and Uninstall never removed them).
-            foreach (string old in ours)
+            catch (Exception)
             {
-                if (!added.Contains(old, StringComparer.OrdinalIgnoreCase))
+                // What it wrote and what the earlier install had (not removed yet): Uninstall or the next install finishes it.
+                try
                 {
-                    string path = Inside(game, old);
-                    if (path != null && File.Exists(path))
-                    {
-                        File.Delete(path);
-                        _log("Removed " + old + " (no longer part of Ravenfield VR).");
-                    }
+                    WriteRecord(added.Concat(ours), versionLabel + " (incomplete: the install stopped part way)");
+                    _log("The install stopped part way; its record keeps what it changed, so installing again or Uninstall finishes it.");
                 }
+                catch (Exception recordError)
+                {
+                    _log("The install stopped part way, and its record could not be written either: " + recordError.Message);
+                }
+                throw;
             }
-
-            string backupRef = previousBackup.Length > 0 ? previousBackup : Directory.Exists(backupDir) ? backupDir : "";
-            var lines = new List<string>
-            {
-                "# Ravenfield VR install " + stamp,
-                "version=" + versionLabel,
-                "installedBepInEx=" + (installBepInEx ? "True" : "False"),
-                "backup=" + RecordedBackup(game, backupRef)
-            };
-            lines.AddRange(added.Select(a => "added=" + a));
-            lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
-            File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
+            WriteRecord(added, versionLabel);
             _log($"Installed Ravenfield VR {versionLabel}: {added.Count} files, {replaced.Count} original file(s) backed up.");
         }
 
@@ -506,10 +530,11 @@ namespace RavenfieldVR.Setup
                 return;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(dst));
+            // Recorded before it is written: one that fails half written (a full disk) is still the install's to remove.
             if (ours.Contains(rel))
             {
-                Extract(entry, dst);
                 added.Add(rel);
+                Extract(entry, dst);
                 return;
             }
             if (File.Exists(dst))
@@ -528,8 +553,8 @@ namespace RavenfieldVR.Setup
                 Extract(entry, dst);
                 return;
             }
-            Extract(entry, dst);
             added.Add(rel);
+            Extract(entry, dst);
         }
 
         private static void Extract(ZipArchiveEntry entry, string dst)

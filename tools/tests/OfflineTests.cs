@@ -40,6 +40,7 @@ namespace RavenfieldVR.Tests
             SetupForeignLoaderTests();
             SetupMovedGameTests();
             SetupBadPayloadTests();
+            SetupInterruptedInstallTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1319,6 +1320,77 @@ namespace RavenfieldVR.Tests
                 catch (Exception e)
                 {
                     Check(false, "Setup loader: threw " + e);
+                }
+                finally
+                {
+                    Installer.SteamDirOverride = null;
+                    try
+                    {
+                        System.IO.Directory.Delete(root, true);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A first install that stops part way (an original it replaces is locked by another program): it leaves a record of
+        /// what it changed, so Uninstall then puts the game back, and installing again records the files the failed attempt had
+        /// already written (identical to the release's, they were taken for the game's own and never removed).
+        /// </summary>
+        private static void SetupInterruptedInstallTests()
+        {
+            foreach (bool retry in new[] { false, true })
+            {
+                string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-stopped-" + Guid.NewGuid().ToString("N"));
+                string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+                string what = retry ? "installed again" : "uninstalled";
+                try
+                {
+                    System.IO.Directory.CreateDirectory(game);
+                    System.IO.Directory.CreateDirectory(steam);
+                    System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                    string winhttp = System.IO.Path.Combine(game, "winhttp.dll");
+                    System.IO.File.WriteAllText(winhttp, "other tool");
+                    Installer.SteamDirOverride = steam;
+                    var log = new List<string>();
+                    var installer = new Installer(log.Add);
+                    bool stopped = false;
+                    using (new System.IO.FileStream(winhttp, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read))
+                    {
+                        try
+                        {
+                            installer.Install(game);
+                        }
+                        catch (System.IO.IOException)
+                        {
+                            stopped = true;
+                        }
+                    }
+                    Check(stopped, $"Setup stopped install ({what}): the install stops at the locked winhttp.dll");
+                    string recordPath = System.IO.Path.Combine(game, Installer.ManifestRelative);
+                    log.Clear();
+                    if (retry)
+                    {
+                        installer.Install(game);
+                        string record = System.IO.File.Exists(recordPath) ? System.IO.File.ReadAllText(recordPath) : "";
+                        Check(record.Contains(@"added=BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll") && record.Contains("replaced=winhttp.dll")
+                              && !record.Contains("incomplete"),
+                              $"Setup stopped install (installed again): the record has the files the failed attempt wrote and the original it backed up ({string.Join(" | ", log)})");
+                    }
+                    else
+                    {
+                        installer.Uninstall(game, keepSettings: false);
+                        string now = System.IO.File.Exists(winhttp) ? System.IO.File.ReadAllText(winhttp) : "(none)";
+                        Check(now == "other tool" && !System.IO.File.Exists(System.IO.Path.Combine(game, @"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll")),
+                              $"Setup stopped install (uninstalled): Uninstall puts the game back (winhttp.dll '{now}'; {string.Join(" | ", log)})");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Check(false, $"Setup stopped install ({what}): threw " + e.Message);
                 }
                 finally
                 {
