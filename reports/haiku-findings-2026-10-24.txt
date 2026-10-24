@@ -260,3 +260,55 @@ WR-bridge-config-4  Tiny (sure)  src/Weapons/SandboxPoses.cs:137
      Trigger: Both saved hands are rejected or unreadable (the right hand is not role grip, and the left is not a valid support), so usedRight and usedLeft are both false. Line 137 still appends 'hands from the sandbox's saved pose' to d.Notes, and the weapon report carries that note.
      Fix: Append the note only when usedRight || usedLeft.
      STATUS: fixed (059c338)
+
+
+================================================================================================
+2026-10-24: workflow rfvr-review-own-changes (Haiku reviewers + skeptics over this run's own diffs)
+================================================================================================
+
+--- installer ---
+RV-installer-0  Major (sure)  installer/Setup.cs:444  [cc6b801 (with the stale-removal loop from 22bdb0f)]
+     A loader-only install (BepInEx present, winhttp.dll missing) records winhttp.dll, doorstop_config.ini, .doorstop_version and changelog.txt as added=. The next Install, Update or Repair deletes them again: the zip loop skips loader entries when installBepInEx and addLoader are both false, so they are missing from added, and the stale-removal loop (lines 454-465) deletes every ours entry not in added.
+     Fix: In the stale-removal loop, skip loader files when BepInEx is kept (if (!installBepInEx && IsLoaderFile(old)) continue;), or keep loader entries listed in ours when they are still present in the payload.
+     STATUS: fixed (f2f5226, offline test)
+RV-installer-1  Major (sure)  installer/Setup.cs:411  [2a1cf15]
+     The record now writes backup= relative to the game folder, but install.ps1 and uninstall.ps1 read the same manifest and use the value as written. uninstall.ps1 Resolve-Inside (lines 31-37, used at 74) and install.ps1 Join-Path $backupDir (line 95, set from line 76) resolve a relative path against the PowerShell working directory, not the game folder.
+     Fix: Make the PowerShell scripts resolve a non-rooted backup= value against $GameDir (or keep the record absolute for them). The writer and both script readers must agree on the format.
+     STATUS: fixed (f2f5226: the scripts resolve it under the game)
+RV-installer-2  Minor (sure)  installer/Setup.cs:718  [cc6b801 (the keep branch comes from b53bb99)]
+     When this setup did not install BepInEx (installedBepInEx=False), keepBepInEx is always true, so a loader file that addLoader replaced (the user's own doorstop_config.ini, .doorstop_version or changelog.txt that differed from the payload) is logged as 'Kept ... BepInEx stays' and never copied back from the backup. The user's file stays overwritten. Before cc6b801 loader files were only written when installBepInEx was true, so this state could not arise.
+     Fix: Skip the restore only when this setup installed BepInEx and keeps it: else if (keepBepInEx && installedBepInEx && IsLoaderFile(rel)). Otherwise restore the original.
+     STATUS: fixed (f2f5226)
+RV-installer-3  Minor (sure)  installer/Setup.cs:1398  [b533bcc]
+     InstalledVersion returns 'unknown version' when the plugin DLL exists without a manifest or without a version= line. RefreshState splits it to 'unknown' and passes it to CompareVersions, where '1' is compared with 'unknown' as a string and gives a negative result, so the label reads Downgrade and the status says the installed copy is newer than this setup. Before this commit the label was Update. Prerelease suffixes have the same weakness: 1.11.0-rc1 against 1.11.0 compares as lower.
+     Fix: Compare only when the installed label starts with a dotted number (strip a '-suffix' and any '(...)' part). Otherwise use the 'Update' label and a neutral status.
+     STATUS: fixed (f2f5226)
+RV-installer-4  Minor (sure)  installer/Setup.cs:481  [22bdb0f]
+     The 'record is written however the install ends' claim has two gaps. The final WriteRecord at line 481 is outside the try, so if it throws after every file was copied, the previous record stays and the new files and newly replaced originals are never recorded. The update's plugin-folder clearing (lines 375-386) also runs before the try, so a failure there, such as a locked RavenfieldVR.dll, writes no record at all.
+     Fix: Move the final WriteRecord inside the try (after the stale-removal loop), and put the clearing step under the same catch so an incomplete record is always written.
+     STATUS: open
+RV-installer-5  Tiny (sure)  installer/SteamLaunchOption.cs:195  [8cce4c6]
+     Temp files are left behind on failure. In Write, a read-back Vdf.Parse that throws FormatException skips the File.Delete of the .rfvr-tmp file. In ReplaceFile, a failed fallback File.Copy leaves the temp file and surfaces the copy's IOException, hiding the File.Replace error.
+     Fix: Wrap the replace and fallback in a try/catch that deletes the temp file when it still exists, then rethrow the original exception.
+     STATUS: open
+RV-installer-6  Tiny (sure)  installer/Setup.cs:730  [b53bb99]
+     restoredLoader only protects root-level LoaderFiles from the deletion loop. Restored BepInEx\core\ originals are copied back at lines 726-731, then removed by DeleteDir(BepInEx) at line 770. That contradicts the comment at lines 680-681 ('not deleted with BepInEx afterwards').
+     Fix: Do not restore BepInEx\core entries when BepInEx is being removed (they go with the folder), and correct the comment.
+     STATUS: open
+
+--- gameplay ---
+RV-gameplay-0  Minor (sure)  src/Weapons/LensFlash.cs:144  [33e82f4]
+     The per-barrel split cache (_barrels) is cleared on every swap between two guns, so two multi-barrel guns firing alternately still rebuild the split and allocate per shot, which commit 33e82f4 claims to remove.
+     Fix: Keep one split per cached array, for example store the barrel split alongside _cachedSystems/_cachedTrees in the cache entry and swap it with them in CacheMuzzle, instead of a single dictionary tied to the current array identity.
+     STATUS: open
+
+--- analysis-perf-ui ---
+RV-analysis-perf-ui-0  Minor (unsure)  src/Rig/IntroStage.cs:75  []
+     The intro title scan (every 0.1 s) can still lose a title to CanvasManager's own scan, so a title that switches on mid-intro can still end up head-locked.
+     Fix: Exclude the intro scene's canvases from CanvasManager.Scan while IntroStage is active, or run IntroStage's title placement from CanvasManager.Scan before Convert.
+     STATUS: open
+RV-analysis-perf-ui-1  Tiny (sure)  src/Util/MaterialFix.cs:129  []
+     With no usable fallback shader, empty slots stay null, but ApplyAll still counts each such renderer as repaired on every call, so the log claims repairs that did not happen.
+     Fix: Count a slot as repaired only when the replacement is non-null and differs from the original slot, or have the null path return the original array unchanged so Apply reports no change.
+     STATUS: open
+REFUTED  C:\Users\Flo\Downloads\NewApps\Ravenfield-VR\src\Weapons\MagnifierFlip.cs:158  The renderer lookup in InReach is now cached for the part's whole life, where the original re-queried every frame; if the first lookup finds no active renderer,

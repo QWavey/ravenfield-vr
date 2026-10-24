@@ -2721,3 +2721,9 @@ Run of 2026-10-24 (work-until-limit 85, no game run):
   measures recover from a stall), f199aa8 (the ground check's buffer grows), 7019978 (no swing on a zero-time frame),
   23bfe62 (a throwing sampling drops its tracks), a1ac5ea (the press check shows the gun's own shell). Open: the sound
   slices' hard stop when both sources are busy (needs a third source; check by ear).
+- Review of this run's own diffs (workflow rfvr-review-own-changes): three installer regressions fixed in f2f5226 (none in
+  the released 1.11.0). Still open from it (reports/haiku-findings-2026-10-24.txt, RV-*): the final install record is
+  written outside the try and the update's folder clearing runs before it; temp files left when a read-back throws; a
+  restored BepInEx core original is deleted with BepInEx; the lens flash's barrel split is cleared on every swap between
+  two multi-barrel guns; the intro scan can still race the canvas manager's; MaterialFix counts an unrepairable empty slot
+  as repaired.
