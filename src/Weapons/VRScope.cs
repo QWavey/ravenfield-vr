@@ -412,6 +412,23 @@ namespace RavenfieldVR.Weapons
             return made;
         }
 
+        /// <summary>
+        /// VR stopped: the kept lens pictures go too (up to three of about 9 MB at the default size, 200 MB at the largest, kept
+        /// for the rest of the game; render-effects scout, 2026-10-23).
+        /// </summary>
+        internal static void ReleaseSpares()
+        {
+            foreach (RenderTexture t in SpareTextures)
+            {
+                if (t != null)
+                {
+                    t.Release();
+                    Object.Destroy(t);
+                }
+            }
+            SpareTextures.Clear();
+        }
+
         private static void GiveBackTexture(RenderTexture t)
         {
             if (SpareTextures.Count < 3)

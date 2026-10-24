@@ -145,114 +145,165 @@ namespace RavenfieldVR.Weapons
             ActiveWeapon = weapon;
             ActiveRig = rig;
             ActiveAmmo = ammo;
-            Sounds = new WeaponSoundPlayer(rig, system.Sounds);
-            Reload = new ReloadInteractions(system, this);
-            _magnifierFlip = new MagnifierFlip(system, this);
-            _magOriginalScales = rig.MagazinePartScales;
-            if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
+            try
             {
-                _scope = new VRScope(system.Rig, rig);
-            }
-            else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
-            {
-                _modeScopes = new VRScope[rig.Data.Sights.Length];
-            }
-            _counter = new AmmoCounter(rig);
-            FindScopeLenses(weapon);
-            GiveMuzzle(weapon, rig);
-            int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
-            if (repaired > 0)
-            {
-                Log.InfoOnce("matfix:" + rig.Data.Key, $"{weapon.name}: repaired {repaired} renderer(s) with shaders this graphics API cannot draw.");
-            }
-            _gunCollider = GunCollider.Create(rig);
-            // Renderers that draw only a shadow (helper boxes a mod's reload animation uses, shadow proxies of a flat
-            // view model) put a dark blob on the ground under the player in VR, where the weapon is drawn in the world.
-            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
-            {
-                if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
+                Sounds = new WeaponSoundPlayer(rig, system.Sounds);
+                Reload = new ReloadInteractions(system, this);
+                _magnifierFlip = new MagnifierFlip(system, this);
+                _magOriginalScales = rig.MagazinePartScales;
+                if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
                 {
-                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    _shadowOnly.Add(r);
+                    _scope = new VRScope(system.Rig, rig);
                 }
-            }
-            // The flat game's casing particles give way to real cases (Casings), here and on its sub weapons.
-            foreach (Weapon w in weapon.GetComponentsInChildren<Weapon>(true))
-            {
-                ParticleSystem[] casings = w.configuration != null ? w.configuration.casingParticles : null;
-                if (casings == null)
+                else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
                 {
-                    continue;
+                    _modeScopes = new VRScope[rig.Data.Sights.Length];
                 }
-                foreach (ParticleSystem p in casings)
+                _counter = new AmmoCounter(rig);
+                FindScopeLenses(weapon);
+                GiveMuzzle(weapon, rig);
+                int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
+                if (repaired > 0)
                 {
-                    ParticleSystemRenderer pr = p != null ? p.GetComponent<ParticleSystemRenderer>() : null;
-                    if (pr != null && pr.enabled)
+                    Log.InfoOnce("matfix:" + rig.Data.Key, $"{weapon.name}: repaired {repaired} renderer(s) with shaders this graphics API cannot draw.");
+                }
+                _gunCollider = GunCollider.Create(rig);
+                // Renderers that draw only a shadow (helper boxes a mod's reload animation uses, shadow proxies of a flat
+                // view model) put a dark blob on the ground under the player in VR, where the weapon is drawn in the world.
+                foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
                     {
-                        pr.enabled = false;
-                        _hiddenCasings.Add(pr);
+                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                        _shadowOnly.Add(r);
+                    }
+                }
+                // The flat game's casing particles give way to real cases (Casings), here and on its sub weapons.
+                foreach (Weapon w in weapon.GetComponentsInChildren<Weapon>(true))
+                {
+                    ParticleSystem[] casings = w.configuration != null ? w.configuration.casingParticles : null;
+                    if (casings == null)
+                    {
+                        continue;
+                    }
+                    foreach (ParticleSystem p in casings)
+                    {
+                        ParticleSystemRenderer pr = p != null ? p.GetComponent<ParticleSystemRenderer>() : null;
+                        if (pr != null && pr.enabled)
+                        {
+                            pr.enabled = false;
+                            _hiddenCasings.Add(pr);
+                        }
+                    }
+                }
+                Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+                Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
+                if (_inertiaOmega > 0f && _inertiaOmega < 14f)
+                {
+                    // Picked up, a heavy weapon (a machine gun, a launcher) comes up into the hand over about half a second.
+                    _lagPos = Vector3.down * 0.05f;
+                    _lagPitch = 6f;
+                }
+                _weaponClass = ClassOf(rig, weapon);
+                if (!rig.Data.Handgun && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
+                {
+                    // The rearmost part of the drawn gun, 12 cm or more behind the grip, is a stock's butt.
+                    Bounds b = GunCollider.VisibleBounds(rig, out bool measured);
+                    float rear = float.MaxValue;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3 c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                        rear = Mathf.Min(rear, Vector3.Dot(c - rig.Data.GripPoint, rig.Data.AimAxis));
+                    }
+                    if (measured && rear < -0.12f)
+                    {
+                        _stockButt = rig.Data.GripPoint + rig.Data.AimAxis * rear + rig.Data.Up * 0.03f;
+                    }
+                }
+                if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
+                {
+                    _armIK = new ArmIK(system, this);
+                    _armRightBones = ResolveArm(weapon.transform, rig.Data.ArmRight);
+                    _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
+                }
+                _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
+                _isKit = IsKit(weapon);
+                _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
+                if (rig.Data.Action == ActionType.Throwable && !_isKit)
+                {
+                    CentreGrenadeGrip(rig, weapon);
+                }
+                ActionType action = rig.Data.Action;
+                RackPointGun = rig.Data.RackPoint;
+                // Task 299: a made handle (a piece cut out of the receiver, or an added latch) is never put beside the gun's own handle
+                // part (HandlePath): the hand takes that part and the mod moves it. The reload analysis set CarveHandle first (its
+                // stroke rule runs before the named-handle rule), then named the model's handle, and a piece of receiver was cut out
+                // beside the handle that already moved.
+                bool ownHandle = rig.Data.HandlePath != null;
+                if (rig.Data.SlidePath == null && rig.Data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
+                    || !ownHandle && (rig.Data.CarveHandle || rig.Data.AddedHandle))
+                {
+                    // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
+                    // it a handle that does. Not when the model's own handle is the one that moves (its own part is the handle, found
+                    // by ArOwnHandleNoSlide): a knob added beside it was the second pull-back handle (user, 2026-10-18, task 269).
+                    try
+                    {
+                        _boltPiece = BoltPiece.Create(rig);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Log.WarnOnce("boltpiece:" + rig.Data.Key, $"Could not build a moving handle for {rig.Data.Key}: {e.Message}");
                     }
                 }
             }
-            Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
-            Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
-            if (_inertiaOmega > 0f && _inertiaOmega < 14f)
+            catch (System.Exception)
             {
-                // Picked up, a heavy weapon (a machine gun, a launcher) comes up into the hand over about half a second.
-                _lagPos = Vector3.down * 0.05f;
-                _lagPitch = 6f;
+                // What was built before the step that threw (lifecycle hunt, 2026-10-24): the attach's catch has no
+                // weapon to Release, so a scope's camera and render texture, the round counter and the moving handle (no
+                // parent) stayed, and the gun's shadow-only renderers and casing particles stayed switched off.
+                UndoPartialBuild();
+                throw;
             }
-            _weaponClass = ClassOf(rig, weapon);
-            if (!rig.Data.Handgun && rig.Data.Action != ActionType.Melee && rig.Data.Action != ActionType.Throwable)
+        }
+
+        /// <summary>Undoes what a constructor that threw had built and changed; each step on its own.</summary>
+        private void UndoPartialBuild()
+        {
+            void Step(string what, System.Action undo)
             {
-                // The rearmost part of the drawn gun, 12 cm or more behind the grip, is a stock's butt.
-                Bounds b = GunCollider.VisibleBounds(rig, out bool measured);
-                float rear = float.MaxValue;
-                for (int i = 0; i < 8; i++)
-                {
-                    Vector3 c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
-                    rear = Mathf.Min(rear, Vector3.Dot(c - rig.Data.GripPoint, rig.Data.AimAxis));
-                }
-                if (measured && rear < -0.12f)
-                {
-                    _stockButt = rig.Data.GripPoint + rig.Data.AimAxis * rear + rig.Data.Up * 0.03f;
-                }
-            }
-            if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
-            {
-                _armIK = new ArmIK(system, this);
-                _armRightBones = ResolveArm(weapon.transform, rig.Data.ArmRight);
-                _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
-            }
-            _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
-            _isKit = IsKit(weapon);
-            _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
-            if (rig.Data.Action == ActionType.Throwable && !_isKit)
-            {
-                CentreGrenadeGrip(rig, weapon);
-            }
-            ActionType action = rig.Data.Action;
-            RackPointGun = rig.Data.RackPoint;
-            // Task 299: a made handle (a piece cut out of the receiver, or an added latch) is never put beside the gun's own handle
-            // part (HandlePath): the hand takes that part and the mod moves it. The reload analysis set CarveHandle first (its
-            // stroke rule runs before the named-handle rule), then named the model's handle, and a piece of receiver was cut out
-            // beside the handle that already moved.
-            bool ownHandle = rig.Data.HandlePath != null;
-            if (rig.Data.SlidePath == null && rig.Data.HandlePath == null && (action == ActionType.SelfLoading || action == ActionType.Manual || action == ActionType.ShellFed)
-                || !ownHandle && (rig.Data.CarveHandle || rig.Data.AddedHandle))
-            {
-                // No part of this model moves when the action is worked (or only a carrier inside the receiver does): give
-                // it a handle that does. Not when the model's own handle is the one that moves (its own part is the handle, found
-                // by ArOwnHandleNoSlide): a knob added beside it was the second pull-back handle (user, 2026-10-18, task 269).
                 try
                 {
-                    _boltPiece = BoltPiece.Create(rig);
+                    undo();
                 }
                 catch (System.Exception e)
                 {
-                    Log.WarnOnce("boltpiece:" + rig.Data.Key, $"Could not build a moving handle for {rig.Data.Key}: {e.Message}");
+                    Log.Exception("Undoing a failed weapon setup (" + what + ")", e);
                 }
             }
+            Step("stand-in", () => _gunCollider?.Destroy());
+            Step("scope", () => _scope?.Destroy());
+            Step("round counter", () => _counter?.Destroy());
+            Step("moving handle", () => _boltPiece?.Destroy());
+            Step("sounds", () => Sounds?.Destroy());
+            Step("renderers", () =>
+            {
+                foreach (Renderer r in _shadowOnly)
+                {
+                    if (r != null)
+                    {
+                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                    }
+                }
+                _shadowOnly.Clear();
+                foreach (ParticleSystemRenderer pr in _hiddenCasings)
+                {
+                    if (pr != null)
+                    {
+                        pr.enabled = true;
+                    }
+                }
+                _hiddenCasings.Clear();
+            });
         }
 
         public bool IsPistolGrip => Rig.Data.IsPistol;

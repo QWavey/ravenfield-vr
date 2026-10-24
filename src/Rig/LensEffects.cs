@@ -179,16 +179,13 @@ namespace RavenfieldVR.Rig
             catch
             {
                 // A throw while making the textures, quads or threads: do not stay the Instance with _ok false, or shots pile
-                // flashes into lists nothing prunes and the quads never show. Tear the quads down and let the caller log it.
+                // flashes into lists nothing prunes and the quads never show. Torn down whole and the caller logs it: only the
+                // quads went before, their materials, the shared mesh and both textures stayed (render-effects scout, 2026-10-23).
+                Destroy();
                 for (int q = 0; q < 3; q++)
                 {
-                    if (_quads[q] != null)
-                    {
-                        UnityEngine.Object.Destroy(_quads[q]);
-                        _quads[q] = null;
-                    }
+                    _quads[q] = null;
                 }
-                Instance = null;
                 throw;
             }
         }
@@ -476,9 +473,12 @@ namespace RavenfieldVR.Rig
             }
             for (int q = 0; q < 3; q++)
             {
-                if (_quads[q].activeSelf != _shownAny)
+                // Single-pass shows only the centred quad (LensEye): the eyes' two were drawn anyway, black, each a full-view
+                // additive quad every frame an effect was up (render-effects scout, 2026-10-23).
+                bool want = _shownAny && (q == 2 || !LensEye.SinglePass);
+                if (_quads[q].activeSelf != want)
                 {
-                    _quads[q].SetActive(_shownAny);
+                    _quads[q].SetActive(want);
                 }
             }
             if (_shownAny)
@@ -1010,6 +1010,10 @@ namespace RavenfieldVR.Rig
             _dropShade = _dropShade ?? new float[CW * S * CH * S * 3];
             for (int e = 0; e < 2; e++)
             {
+                if (e == 0 && OneEye)
+                {
+                    continue; // the left eye's picture is not drawn in single-pass (RenderBand): made, it was the same field twice
+                }
                 // No stereo shift in single-pass: both eyes are shown the one centred picture, so a per-eye shift would
                 // displace the drops rather than give them depth.
                 float shift = LensEye.SinglePass ? 0f : (e == 0 ? 2.5f : -2.5f);

@@ -1069,20 +1069,26 @@ namespace RavenfieldVR.Weapons
             }
             if (Held != null)
             {
-                ReleaseHeld();
+                Log.Guard("Weapons.ReleaseHeld", ReleaseHeld);
             }
-            MagazineProp.DestroyAll();
-            GrenadeDud.DestroyAll();
-            Casings.DestroyAll();
+            // Each step on its own, as VRManager's and the rig's: one that threw skipped the rest, the lens flash's muzzle
+            // objects (DontDestroyOnLoad) and the scopes' spare textures among them (render-effects scout, 2026-10-23).
             // Each part only if it was made (a constructor that threw part way disposes what it built).
-            Drops?.Dispose();
-            _pouch?.Destroy();
-            _lensFlash?.Destroy();
-            _holsters?.Destroy();
-            _readout?.Destroy();
-            FireSelector.Clear();
-            Zones?.Destroy();
-            Sounds?.Dispose();
+            Log.Guard("Weapons.Dispose.Props", () =>
+            {
+                MagazineProp.DestroyAll();
+                GrenadeDud.DestroyAll();
+                Casings.DestroyAll();
+            });
+            Log.Guard("Weapons.Dispose.Drops", () => Drops?.Dispose());
+            Log.Guard("Weapons.Dispose.Pouch", () => _pouch?.Destroy());
+            Log.Guard("Weapons.Dispose.LensFlash", () => _lensFlash?.Destroy());
+            Log.Guard("Weapons.Dispose.Holsters", () => _holsters?.Destroy());
+            Log.Guard("Weapons.Dispose.Readout", () => _readout?.Destroy());
+            Log.Guard("Weapons.Dispose.FireSelector", FireSelector.Clear);
+            Log.Guard("Weapons.Dispose.Zones", () => Zones?.Destroy());
+            Log.Guard("Weapons.Dispose.Sounds", () => Sounds?.Dispose());
+            Log.Guard("Weapons.Dispose.Scopes", VRScope.ReleaseSpares);
             VRGameInput.SuppressFire = false;
             if (Instance == this)
             {
