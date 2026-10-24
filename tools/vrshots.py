@@ -446,6 +446,60 @@ def prune_pictures(root=None):
     return count, size
 
 
+def weapon_mod_rows(game):
+    """The mod's weapon-to-mod list (BepInEx/cache/RavenfieldVR-weapon-mods.tsv, written on every full load):
+    (weapon name, workshop id / folder / 'game', mod title) rows, or None before the first full load."""
+    path = os.path.join(game, 'BepInEx', 'cache', 'RavenfieldVR-weapon-mods.tsv')
+    if not os.path.exists(path):
+        return None
+    rows = []
+    for line in open(path, encoding='utf-8'):
+        if line.startswith('#') or not line.strip():
+            continue
+        parts = line.rstrip('\n').split('\t')
+        if len(parts) >= 3:
+            rows.append((parts[0], parts[1], parts[2]))
+    return rows
+
+
+def fast_mods(game, filters):
+    """The fast test mode (-rfvr-mods=): the mods the given -rfvr-only filters need, and the filters with weapon ids turned
+    into exact names (ids are places in the game's weapon list, which changes when fewer mods load). (None, filters) when a
+    filter cannot be resolved offline: the run then loads every mod, as before."""
+    rows = weapon_mod_rows(game)
+    if rows is None:
+        log('fast mode: no weapon-to-mod list yet (one full run writes it): loading every mod')
+        return None, filters
+    index = {}
+    idx = os.path.join(REPO, 'reports', 'shots', 'weapons', 'sheets', 'index.json')
+    if os.path.exists(idx):
+        index = {w['id']: w['name'] for w in json.load(open(idx, encoding='utf-8'))}
+    mods, out = [], []
+    for f in filters:
+        raw = f[1:] if f.startswith('#') else f
+        if raw.isdigit():
+            name = index.get(int(raw))
+            if name is None:
+                log(f'fast mode: weapon id {f} not in the last weapons run\'s list: loading every mod')
+                return None, filters
+            f = '=' + name
+        lf = f.lower()
+        if lf.startswith('='):
+            hit = [r for r in rows if r[0].lower() == lf[1:]]
+        elif lf.startswith('mod:'):
+            hit = [r for r in rows if lf[4:] in r[2].lower() or lf[4:] in r[1].lower()]
+        else:
+            hit = [r for r in rows if lf in r[0].lower() or lf in r[2].lower()]
+        if not hit:
+            log(f'fast mode: no weapon matches {f!r} in the weapon-to-mod list: loading every mod')
+            return None, filters
+        for r in hit:
+            if r[1] != 'game' and r[1] not in mods:
+                mods.append(r[1])  # (one by one: two guns of one mod in one filter added it twice)
+        out.append(f)
+    return (mods or ['none']), out
+
+
 def main():
     # (Part names in the summary are often Chinese: printed to a cp1252 console or a redirected log they ended the run with
     # a UnicodeEncodeError after the pictures were taken.)
@@ -468,6 +522,11 @@ def main():
     ap.add_argument('--one-mag', action='store_true', help='with --film: aimed, full auto until one magazine is empty, nothing else')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--out', metavar='NAME', help='collect into reports/shots/NAME instead of the mode folder (a run that must not move the last one away)')
+    ap.add_argument('--fast', action='store_true',
+                    help="load only the mods the run needs (the game's own content for the autotest, UI, bench and flash runs; "
+                         "the guns' own mods for --weapon / --film): no 45 s load of every subscribed mod, no mutators")
+    ap.add_argument('--mods', metavar='TOKENS', help='with or without --fast: exactly these mods (workshop ids or title words, comma separated; none = only the game\'s)')
+    ap.add_argument('--map', default='island2023', help='the map the VR runs start on (default island2023, built in)')
     ap.add_argument('--no-build', action='store_true')
     ap.add_argument('--keep-pictures', action='store_true', help="keep earlier runs' pictures (by default only the newest run's stay)")
     ap.add_argument('--res', default='1440x1584')
@@ -502,9 +561,21 @@ def main():
     for mode in modes:
         shots = os.path.join(a.game, 'BepInEx', 'RavenfieldVR-shots')
         shutil.rmtree(shots, ignore_errors=True)  # the run starts with an empty folder (copied to reports/shots after)
-        base = ['-vr', '-map', 'island2023', '-nointro', '-rfvr-autotest']
+        base = ['-vr', '-map', a.map, '-nointro', '-rfvr-autotest']
+        filters = [x.replace(',', ' ') for x in (a.weapon if mode in ('weapons', 'weapon') else (a.film or []) if mode == 'film' else [])]
+        mods = None
+        if a.mods:
+            mods = [m.strip() for m in a.mods.split(',') if m.strip()]
+        elif a.fast and mode != 'weapons':
+            if filters and any(filters):
+                mods, filters = fast_mods(a.game, [f for f in filters if f])
+            elif mode not in ('weapon', 'film'):
+                mods = ['none']  # the game's own weapons and maps are enough
+        if mods is not None:
+            base.append('-rfvr-mods=' + ','.join(mods))
+            log(f'fast mode: loading only {", ".join(mods)} (not every subscribed mod)')
         if mode in ('weapons', 'weapon'):
-            only = ','.join(x.replace(',', ' ') for x in a.weapon)
+            only = ','.join(filters)
             args = base + ['-rfvr-deep', '-rfvr-grabshots', f'-rfvr-only={only}']
             if a.dumprig:
                 args.append('-rfvr-dumprig=' + ','.join(x.replace(',', ' ') for x in a.dumprig))
@@ -512,7 +583,7 @@ def main():
         elif mode == 'ui':
             args, timeout = base + ['-rfvr-uishots'], a.timeout or 20
         elif mode == 'film':
-            only = ','.join(x.replace(',', ' ') for x in a.film if x)
+            only = ','.join(f for f in filters if f)
             args, timeout = base + ['-rfvr-flashfilm', f'-rfvr-only={only}'] + (['-rfvr-filmonemag'] if a.one_mag else []), a.timeout or 20
         elif mode == 'flashcheck':
             args, timeout = base + ['-rfvr-flashcheck'], a.timeout or 45
@@ -521,7 +592,7 @@ def main():
         elif mode == 'autotest':
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
         else:
-            args, timeout = ['-novr', '-nointro', '-rfvr-handshots'], a.timeout or 10
+            args, timeout = ['-novr', '-nointro', '-rfvr-handshots'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 10
         since = time.time()
         if mode == 'hands':
             ran = run_game(a.game, args, timeout, vr=False)

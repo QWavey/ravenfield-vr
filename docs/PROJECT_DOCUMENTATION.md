@@ -600,7 +600,7 @@ All in `BepInEx/config/com.qwavey.ravenfieldvr.cfg` (most also on the in-headset
 
 Command-line flags: `-vr`, `-novr`, `-nointro`, `-map <name>`, `-rfvr-selftest`, `-rfvr-autotest`, `-rfvr-quick`,
 `-rfvr-perf`, `-rfvr-shots` (pictures outside the autotest, e.g. of the intro), `-rfvr-introdump`,
-`-rfvr-dumprig=<name>`.
+`-rfvr-dumprig=<name>`, `-rfvr-mods=<tokens>` (the fast test mode below).
 
 In-code constants worth knowing: `GunVolume.Grow` 7.2 mm, `FineTexel` 1.5 mm, `MaxTexels` 448, `CacheSize` 24 (12 until
 2026-10-16), in-flight limit 4 (warm-up); `HandModel.HandScale` 0.9, slide steps 0…3 cm down / 1 cm up, palm settle range −4…+2 cm;
@@ -643,6 +643,16 @@ VR autotest without a headset (null driver):
 report to `reports/shots/autotest/` (the run before to `autotest-previous/`); `--no-build --weapon "=NAME" ...` runs every
 check on just those weapons into `reports/shots/weapon/`. `python tools/metric_diff.py [autotest|weapon]` then lists the
 frame times, each mod section's average and maximum, and the measurements that moved against the run before.
+
+**Fast test mode (2026-10-24).** The game loads every subscribed mod before anything else (the user's 89 mods, 729 MB: 45-49 s
+in Player.log's "Mod Content loaded in"), then their mutators in every match. `-rfvr-mods=TOKENS` (src/Core/TestHost.cs)
+makes it load only the mods named: a workshop id or a word of the mod's title, comma separated; `none` loads only the
+game's own content (its weapons and built-in maps such as island2023). After every full load the mod writes which mod each
+weapon comes from to `BepInEx/cache/RavenfieldVR-weapon-mods.tsv`. `python tools/vrshots.py --fast ...` uses it: `--weapon`
+and `--film` runs load only their guns' mods (weapon ids are turned into exact names first, as the list's order changes),
+the autotest, UI, bench and flash-check runs load none; a filter it cannot resolve offline loads every mod, as before.
+`--mods TOKENS` names the mods by hand, `--map NAME` picks another built-in map. It is still the game's own Unity player
+(the mod needs Unity's engine, and no Unity editor is installed to build another), but without the minute of mod loading.
 
 Checks without the game (2026-10-20, issue #18): `powershell -File tools/tests/run-tests.ps1` compiles
 `tools/tests/OfflineTests.cs` with the installer's sources and `BindingsWriter` and runs 25 checks: the installer's path

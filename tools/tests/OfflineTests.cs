@@ -93,6 +93,7 @@ namespace RavenfieldVR.Tests
             BodyImpactTests(mod);
             KeyNameTests(mod);
             FrameBudgetTests(mod);
+            TestHostTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
@@ -554,6 +555,31 @@ namespace RavenfieldVR.Tests
             Check(D(6f) > 0f && D(6f) < D(9f), "Body impacts: past the threshold, harder hurts more");
             Check(D(9f) - D(8f) > D(7f) - D(6f), "Body impacts: by the speed squared (Boneworks' impact energy), each m/s more hurts more");
             Check(D(20f) == D(60f) && D(60f) < 50f, $"Body impacts: one impact is capped below half a soldier's health ({D(60f):0})");
+        }
+
+        /// <summary>
+        /// The fast test mode's mod filter (-rfvr-mods=): tokens parsed, a mod kept by its workshop id or a word of its title,
+        /// "none" keeping no mod, no option keeping every mod.
+        /// </summary>
+        private static void TestHostTests(System.Reflection.Assembly mod)
+        {
+            Type host = mod.GetType("RavenfieldVR.Core.TestHost");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo parse = host?.GetMethod("ParseMods", flags);
+            System.Reflection.MethodInfo keeps = host?.GetMethod("Keeps", flags, null, new[] { typeof(string[]), typeof(string), typeof(string), typeof(string) }, null);
+            Check(parse != null && keeps != null, "Fast test mode: ParseMods and Keeps found");
+            if (parse == null || keeps == null)
+            {
+                return;
+            }
+            var tokens = (string[])parse.Invoke(null, new object[] { new[] { "ravenfield.exe", "-vr", "-rfvr-mods= 2900000001 , Shotguns ,," } });
+            Check(tokens != null && string.Join("|", tokens) == "2900000001|shotguns", $"Fast test mode: tokens parsed ({(tokens == null ? "null" : string.Join("|", tokens))})");
+            Check(parse.Invoke(null, new object[] { new[] { "ravenfield.exe", "-vr" } }) == null, "Fast test mode: no option, no filter");
+            bool K(string[] t, string id, string folder, string title) => (bool)keeps.Invoke(null, new object[] { t, id, folder, title });
+            Check(K(tokens, "2900000001", "2900000001", "Modern Rifles Pack") && K(tokens, "2900000002", "2900000002", "Shotguns Expansion")
+                  && !K(tokens, "2900000003", "2900000003", "Vehicles Pack"), "Fast test mode: a mod kept by its workshop id or a word of its title, others not");
+            Check(!K(new[] { "none" }, "2900000001", "2900000001", "Modern Rifles Pack") && K(null, "1", "1", "Any"),
+                  "Fast test mode: none keeps no mod, no filter keeps every mod");
         }
 
         /// <summary>
