@@ -100,7 +100,8 @@ namespace RavenfieldVR.UI
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
             TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);
             TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
-            Choice("Wrist display", VRConfig.WristHud, new[] { true, false }, new[] { "On", "Off" });
+            // The body's shadow beside it: a switch to see whether it was the shadow over the hands (task 336).
+            TogglePair("Wrist display", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);
             TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
             Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
                 d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
