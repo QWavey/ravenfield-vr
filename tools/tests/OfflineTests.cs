@@ -90,6 +90,7 @@ namespace RavenfieldVR.Tests
             InstallCheckTests(mod);
             ArmNameTests(mod);
             BlowLabelTests(mod);
+            BodyImpactTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
@@ -504,7 +505,7 @@ namespace RavenfieldVR.Tests
             Check(wrong.Count == 0, "Shell sizes: the shotguns' own shells are shells, magazines, rockets and pistol rounds are not" + (wrong.Count > 0 ? ": " + string.Join(", ", wrong.ToArray()) : ""));
         }
 
-        /// <summary>A held thing's blow names: one per PropKind in its order, then the grenade (indexed by the kind's number).</summary>
+        /// <summary>A held thing's blow names: one per PropKind in its order, then the grenade, then the fist (indexed by the kind's number).</summary>
         private static void BlowLabelTests(System.Reflection.Assembly mod)
         {
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
@@ -524,12 +525,32 @@ namespace RavenfieldVR.Tests
                 Check((int)k == names.Count - 1, $"Blow labels: PropKind.{k} numbered by its place");
             }
             names.Add("grenade");
-            bool match = labels.Length == names.Count && keys.Length == names.Count;
+            bool match = labels.Length == names.Count + 1 && keys.Length == names.Count + 1;
             for (int i = 0; match && i < names.Count; i++)
             {
                 match = labels[i] == "a held " + names[i] && keys[i] == "blow:" + names[i];
             }
-            Check(match, "Blow labels: one label and key per PropKind in its order, then the grenade");
+            match &= labels[labels.Length - 1] == "a fist" && keys[keys.Length - 1] == "blow:fist";
+            Check(match, "Blow labels: one label and key per PropKind in its order, then the grenade, then the fist");
+        }
+
+        /// <summary>
+        /// A held or thrown soldier's impacts (BodyImpacts, after Boneworks' blunt impact damage): nothing below the threshold, then
+        /// more the faster, never past the cap.
+        /// </summary>
+        private static void BodyImpactTests(System.Reflection.Assembly mod)
+        {
+            Type impacts = mod.GetType("RavenfieldVR.Weapons.BodyImpacts");
+            System.Reflection.MethodInfo damage = impacts?.GetMethod("ImpactDamage", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(damage != null, "Body impacts: BodyImpacts.ImpactDamage found");
+            if (damage == null)
+            {
+                return;
+            }
+            float D(float speed) => (float)damage.Invoke(null, new object[] { speed });
+            Check(D(0f) == 0f && D(3f) == 0f && D(5f) == 0f, "Body impacts: a body dropped or dragged (5 m/s or less) is not hurt");
+            Check(D(6f) > 0f && D(6f) < D(9f), "Body impacts: past the threshold, harder hurts more");
+            Check(D(20f) == D(60f) && D(60f) < 50f, $"Body impacts: one impact is capped below half a soldier's health ({D(60f):0})");
         }
 
         /// <summary>

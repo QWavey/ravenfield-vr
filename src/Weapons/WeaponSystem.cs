@@ -22,6 +22,7 @@ namespace RavenfieldVR.Weapons
         private readonly ThrowableHandler _throwables;
         internal ThrowableHandler Throwables => _throwables;
         private readonly MeleeHandler _melee;
+        private readonly BodyGrab _bodyGrab; // a soldier held in an empty hand (dragged, swung, thrown)
         public readonly WeaponDrops Drops;
         private readonly PouchDisplay _pouch;
 
@@ -53,6 +54,7 @@ namespace RavenfieldVR.Weapons
                 Zones = new BodyZones(rig);
                 _throwables = new ThrowableHandler(this);
                 _melee = new MeleeHandler(this);
+                _bodyGrab = new BodyGrab(rig);
                 Drops = new WeaponDrops(this);
                 _pouch = new PouchDisplay(this);
                 _holsters = new HolsterDisplay(this);
@@ -166,6 +168,15 @@ namespace RavenfieldVR.Weapons
             UpdateDrivingWeapons();
             UpdateHolsters();
             UpdateGripToHold();
+            // Last: every other grab (a gun, a magazine, a holster, a drop) has had the press first.
+            try
+            {
+                _bodyGrab?.Update();
+            }
+            catch (Exception e)
+            {
+                Log.ExceptionOnce("BodyGrab.Update", e);
+            }
         }
 
         /// <summary>The second weapon in the free hand (null: none), beside the game's active one.</summary>
@@ -1057,6 +1068,8 @@ namespace RavenfieldVR.Weapons
 
         public void OnSceneChanged()
         {
+            _bodyGrab?.ReleaseAll();
+            BodyImpacts.Clear();
             GunVolume.OnSceneLoaded();
             if (Held != null)
             {
@@ -1110,6 +1123,11 @@ namespace RavenfieldVR.Weapons
             Log.Guard("Weapons.Dispose.Zones", () => Zones?.Destroy());
             Log.Guard("Weapons.Dispose.Sounds", () => Sounds?.Dispose());
             Log.Guard("Weapons.Dispose.Scopes", VRScope.ReleaseSpares);
+            Log.Guard("Weapons.Dispose.BodyGrab", () =>
+            {
+                _bodyGrab?.Destroy();
+                BodyImpacts.Clear();
+            });
             VRGameInput.SuppressFire = false;
             if (Instance == this)
             {

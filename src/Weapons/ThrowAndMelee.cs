@@ -781,8 +781,9 @@ namespace RavenfieldVR.Weapons
         private static bool NoFrameTime => Time.unscaledDeltaTime < 1e-4f;
 
         /// <summary>Points along the gun from its butt (0) to its muzzle (last), each swept from the last frame (world and body space).</summary>
-        private const int BashPoints = 4;
-        private readonly Vector3[] _bashAt = new Vector3[BashPoints], _bashInRig = new Vector3[BashPoints];
+        private const int MaxBashPoints = 12;
+        private readonly Vector3[] _bashAt = new Vector3[MaxBashPoints], _bashInRig = new Vector3[MaxBashPoints];
+        private int _bashCount;
         private bool _bashHas;
         private Weapon _bashWeapon;
         private string _bashName; // the weapon's name, read once: Object.name makes a new string each read, per point per fast frame
@@ -822,18 +823,26 @@ namespace RavenfieldVR.Weapons
             Vector3 butt = rig.ToWorld(d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f);
             Transform body = _sys.Rig.Root;
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
-            // Four points along the gun, from its butt to its muzzle, each swept on its own: with the muzzle's tip and the butt alone,
+            // Points at most 10 cm apart (4 to 12), from the butt to the muzzle: four on a rifle were 27 cm apart, and a head or an arm
+            // passing between their 12 cm sweeps took no hit (user, 2026-10-24: "I cannot punch them with parts of my weapons").
+            int count = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(butt, muzzle) / 0.1f) + 1, 4, MaxBashPoints);
+            if (count != _bashCount)
+            {
+                _bashCount = count;
+                _bashHas = false; // (the samples were of another spacing)
+            }
+            // Points along the gun, from its butt to its muzzle, each swept on its own: with the muzzle's tip and the butt alone,
             // a swing that landed with the middle of the gun (a handguard, a magazine, a receiver) hit nothing, and a pistol punch
             // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
             // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
             // (Not with the laser on one of the mod's panels either, as the trigger: review, 2026-10-20.)
             if (_bashHas && !NoFrameTime && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
             {
-                bool carried = (muzzle - _bashAt[BashPoints - 1]).sqrMagnitude > MaxSweep * MaxSweep;
+                bool carried = (muzzle - _bashAt[count - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
-                for (int k = BashPoints - 1; k >= 0 && !carried; k--)
+                for (int k = count - 1; k >= 0 && !carried; k--)
                 {
-                    Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
+                    Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(count - 1));
                     float speed = (at - body.TransformPoint(_bashInRig[k])).magnitude / dt;
                     if (speed > need && BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, _bashName, d.Key))
                     {
@@ -848,9 +857,9 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            for (int k = 0; k < BashPoints; k++)
+            for (int k = 0; k < count; k++)
             {
-                Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(BashPoints - 1));
+                Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(count - 1));
                 _bashAt[k] = at;
                 _bashInRig[k] = body.InverseTransformPoint(at);
             }
@@ -862,9 +871,13 @@ namespace RavenfieldVR.Weapons
         private readonly Vector3[] _blowAt = new Vector3[2], _blowInRig = new Vector3[2];
         private readonly object[] _blowHeld = new object[2];
         private float _lastBlow = -10f;
-        // What each held thing is called in the log and its once-key, made once (built every fast frame, hit or not).
-        private static readonly string[] BlowLabels = { "a held magazine", "a held shell", "a held rocket", "a held grenade" };
-        private static readonly string[] BlowKeys = { "blow:magazine", "blow:shell", "blow:rocket", "blow:grenade" };
+        private readonly float[] _lastBlowBy = { -10f, -10f };
+        // What each held thing is called in the log and its once-key, made once (built every fast frame, hit or not): PropKind's
+        // order, then the grenade, then an empty fist.
+        private static readonly string[] BlowLabels = { "a held magazine", "a held shell", "a held rocket", "a held grenade", "a fist" };
+        private static readonly string[] BlowKeys = { "blow:magazine", "blow:shell", "blow:rocket", "blow:grenade", "blow:fist" };
+        private const int GrenadeBlow = 3, FistBlow = 4;
+        private static readonly object[] Fists = { new object(), new object() }; // what an empty fist "holds", one a hand
 
         /// <summary>
         /// What a hand holds besides a gun, swung into an enemy, hits them lightly: a magazine, shell or rocket in the hand, or
@@ -876,13 +889,19 @@ namespace RavenfieldVR.Weapons
         {
             Actor user = Util.GameContext.PlayerActor;
             Weapon source = held != null && held.Weapon != null ? held.Weapon : user != null ? user.activeWeapon : null;
-            bool can = user != null && !user.dead && source != null && Util.GameContext.PlayerOnFoot && !VRGameInput.GunInputBlocked;
+            // (No weapon needed for a fist: the damage is the player's own then.)
+            bool canFist = user != null && !user.dead && Util.GameContext.PlayerOnFoot && !VRGameInput.GunInputBlocked;
+            bool can = canFist && source != null;
             Transform body = _sys.Rig.Root;
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
             for (int i = 0; i < 2; i++)
             {
                 VRHand h = _sys.Rig.Hands[i];
-                object what = !can || h == null || !h.Tracked ? null
+                // An empty hand closed into a fist punches (user, 2026-10-24: "I cannot punch them with my hands if they are fists";
+                // Boneworks' hands are physical, and their impacts are blunt attacks): a free hand with its grip closed.
+                bool fist = canFist && h != null && h.Tracked && h.Role == HandRole.Free && h.Held == null && VRInput.GetGrip(h.Side) > 0.6f;
+                object what = fist ? Fists[i]
+                    : !can || h == null || !h.Tracked ? null
                     : h.Held is MagazineProp prop && prop.Go != null ? prop
                     : h == _sys.Rig.Dominant && held != null && held.Weapon != null && held.Rig.Data.Action == ActionType.Throwable ? (object)held.Weapon
                     : null;
@@ -891,17 +910,20 @@ namespace RavenfieldVR.Weapons
                     _blowHeld[i] = null;
                     continue;
                 }
-                Vector3 at = h.Palm.position;
-                if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.time - _lastBlow > 0.5f && Time.time - _lastBash > 0.5f
+                Vector3 at = fist ? h.PalmCentre : h.Palm.position; // a fist strikes with its knuckles, round the fist's hollow
+                // Each hand on its own clock (a left-right combination), a fist sooner again than a swung magazine.
+                if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.time - _lastBlowBy[i] > (fist ? 0.3f : 0.5f) && Time.time - _lastBash > 0.5f
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
                 {
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
                     if (speed > Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value))
                     {
-                        int kind = what is MagazineProp m ? (int)m.Kind : BlowLabels.Length - 1; // PropKind's order, then the grenade
-                        if (BashCast(source, user, _blowAt[i], at, speed, what is MagazineProp ? 0.45f : 0.55f, BlowLabels[kind], BlowKeys[kind]))
+                        int kind = fist ? FistBlow : what is MagazineProp m ? (int)m.Kind : GrenadeBlow;
+                        float weight = fist ? 0.4f : what is MagazineProp ? 0.45f : 0.55f;
+                        if (BashCast(fist ? null : source, user, _blowAt[i], at, speed, weight, BlowLabels[kind], BlowKeys[kind]))
                         {
                             _lastBlow = Time.time;
+                            _lastBlowBy[i] = Time.time;
                             h.Haptic(0.08f, 60f, 0.9f);
                         }
                     }

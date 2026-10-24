@@ -184,6 +184,8 @@ namespace RavenfieldVR.Rig
                     return stick ? HandPoseId.FlightStick : HandPoseId.SteeringWheel;
                 case HandRole.Pointer:
                     return HandPoseId.LaserPoint;
+                case HandRole.Body:
+                    return HandPoseId.Fist; // a soldier held by a limb or the collar
                 default:
                     return HandPoseId.Relaxed;
             }
