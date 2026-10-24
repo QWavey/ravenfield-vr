@@ -161,7 +161,25 @@ namespace RavenfieldVR.Runtime
             {
                 Application.targetFrameRate = -1;
             }
+            if (Time.maximumDeltaTime > MaxCatchUp + 1e-4f)
+            {
+                if (_gameMaxCatchUp < 0f)
+                {
+                    _gameMaxCatchUp = Time.maximumDeltaTime;
+                }
+                Time.maximumDeltaTime = MaxCatchUp;
+            }
         }
+
+        /// <summary>
+        /// The game lets physics catch up a third of a second after a long frame (its Maximum Allowed Timestep, 0.333 s, read
+        /// from ravenfield_Data/globalgamemanagers): up to 20 of its 60 Hz steps in the frame after a hitch (a weapon's first
+        /// draw, 290 ms at worst in the autotest), and that frame was a second hitch in the headset right behind the first. A
+        /// tenth of a second while VR runs (6 steps at most): game time slows for that moment instead, and only below 10 fps.
+        /// The game's own value is put back when VR stops.
+        /// </summary>
+        private const float MaxCatchUp = 0.1f;
+        private static float _gameMaxCatchUp = -1f;
 
         // Also after a start that failed part way: its subsystems exist with Running still false.
         public static void Stop()
@@ -180,6 +198,11 @@ namespace RavenfieldVR.Runtime
             InputSubsystem = null;
             Display = null;
             DashboardOpen = false; // left open when SteamVR went, the next start's first opening was taken as no change (lifecycle hunt)
+            if (_gameMaxCatchUp > 0f)
+            {
+                Time.maximumDeltaTime = _gameMaxCatchUp;
+                _gameMaxCatchUp = -1f;
+            }
         }
 
         /// <summary>Drains the OpenVR event queue. Called once per frame from the main thread.</summary>
