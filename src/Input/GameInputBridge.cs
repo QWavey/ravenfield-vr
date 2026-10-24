@@ -689,7 +689,10 @@ namespace RavenfieldVR.Input
                     string when = modeNow ? (_pushSwitchedAt == now ? "on A's press" : "on A's release") : modeByRelease ? "after the double-press wait" : "A held";
                     string way = !handled ? (weapon != null && weapon.HasAnySubWeapons() ? "the game's variant cycle" : "the game's key")
                                  : system.LastPressWasSelector ? "the selector" : "the weapon's own script key";
-                    Log.Info($"Fire mode switched on {(weapon != null ? weapon.name : "?")} by {way}, {when}.");
+                    if (weapon != null) // (with no weapon in hand nothing was switched: the line claimed a switch on '?')
+                    {
+                        Log.Info($"Fire mode switched on {weapon.name} by {way}, {when}.");
+                    }
                 }
             }
             if (VRConfig.ReloadNow == ReloadMode.Assisted && VRInput.GetPressed(DigitalAction.MagRelease, VRInput.GunHand))
