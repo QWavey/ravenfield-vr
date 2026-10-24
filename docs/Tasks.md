@@ -2703,3 +2703,15 @@ Run of 2026-10-24 (work-until-limit 85, no game run):
 - Workflow rfvr-hunt-unswept: reports/haiku-findings-2026-10-24.txt (18 confirmed). Fixed 71656b2; measured first
   6c49d9e (run -rfvr-selftest and read the notes: 'arm-named group', 'the name search dropped'); the analysis-rule
   findings wait for that run.
+- Also fixed after that: the intro's title scan for the whole intro (8a737a5, U-1), MaterialFix with no usable shader
+  (58a0e8e), the glove picture write and the intro pictures' timing (51fc588, U-8/U-9), the launcher's write of the mod's
+  config in one step (76b0d6d, I-6), a number past a float's range in the pose file (4857eae), the second workflow's
+  gameplay findings (45b9e47: shadow-only renderers, inertia on tracking loss, grenade stand-in, second weapon's tracking
+  gap, stalled glove and stuck feed, magnifier key cache).
+- Checked and not changed, with the reason: the magazine's ignored pair with a vehicle hull it was let go inside
+  (deliberate: it passes through the hull and falls; a pickup resets the pair), the bolt carve's corner condition (its own
+  rule: a big triangle reaching far past the handle stays, no hole in the receiver), the per-frame game calls of the rig
+  (a few renderer setters and an array length), the settings panel's strings (about 75 small strings a second while open;
+  the UI setters skip unchanged values), the one-handed long gun's recoil (two-handed is the documented baseline), the
+  second weapon's reload rounds on a destroyed gun (the game drops that gun's whole reserve in the same step), the palm
+  rack's solid probes (about 4 us a frame), collider piece meshes on a content reload (live drops may use them).
