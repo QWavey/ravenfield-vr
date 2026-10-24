@@ -190,7 +190,10 @@ namespace RavenfieldVR.Weapons
                 {
                     Object.Destroy(hold.Joint);
                 }
-                if (hold.Actor != null)
+                // Still held by the other hand: stays armed (not for 3 s only) and down; the other hand's let-go throws.
+                Hold other = _holds[1 - i];
+                bool stillHeld = other != null && other.Actor == hold.Actor;
+                if (hold.Actor != null && !stillHeld)
                 {
                     BodyImpacts.Arm(hold.Actor, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
                     if (thrown && hold.Actor.ragdoll != null && hold.Actor.ragdoll.rigidbodies != null)
