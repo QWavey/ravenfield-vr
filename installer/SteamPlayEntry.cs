@@ -119,8 +119,7 @@ namespace RavenfieldVR.Setup
                 throw new InvalidDataException("the changed Steam app cache did not have the expected entry; Steam's file was left as it was.");
             }
             File.Copy(file, file + ".rfvr-backup", true);
-            File.Copy(temp, file, true);
-            File.Delete(temp);
+            SteamLaunchOption.ReplaceFile(temp, file);
             log(add ? "Added \"Ravenfield VR\" to the list Steam shows when you press Play on Ravenfield." : "Removed \"Ravenfield VR\" from Steam's Play list.");
             return true;
         }

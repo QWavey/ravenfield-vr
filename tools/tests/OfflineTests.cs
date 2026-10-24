@@ -1594,7 +1594,8 @@ namespace RavenfieldVR.Tests
             Check(Vdf.Parse(Vdf.Serialize(root)).Child("UserLocalConfigStore")?.Child("Software")?.Child("LaunchOptions")?.RawValue == option?.RawValue,
                   "Vdf: a round trip keeps the value");
             // A file cut short (Steam stopped mid-write) is a FormatException, never an index error.
-            foreach (string cut in new[] { "\"a\" \"b", "\"a\" \"b\\", "\"a\"", "\"a\" {", "\"", "\"a\" { \"b\" \"c\"" })
+            // A '}' outside any block too: parsed as the end, the rest of the file was dropped when it was written back.
+            foreach (string cut in new[] { "\"a\" \"b", "\"a\" \"b\\", "\"a\"", "\"a\" {", "\"", "\"a\" { \"b\" \"c\"", "\"a\" { } } \"rest\" { \"b\" \"c\" }" })
             {
                 Type thrown = null;
                 try

@@ -186,9 +186,38 @@ namespace RavenfieldVR.Setup
                 File.Copy(file, backup);
             }
             string temp = file + ".rfvr-tmp";
-            File.WriteAllText(temp, Vdf.Serialize(root), new UTF8Encoding(false));
-            File.Copy(temp, file, true);
-            File.Delete(temp);
+            string text = Vdf.Serialize(root);
+            File.WriteAllText(temp, text, new UTF8Encoding(false));
+            // Read back whole before it replaces Steam's, as the Play entry's app cache is.
+            string back = File.ReadAllText(temp, Encoding.UTF8);
+            if (back != text || Vdf.Serialize(Vdf.Parse(back)) != text)
+            {
+                File.Delete(temp);
+                throw new InvalidDataException("the changed Steam config did not read back; Steam's file was left as it was.");
+            }
+            ReplaceFile(temp, file);
+        }
+
+        /// <summary>
+        /// <paramref name="temp"/> takes the place of <paramref name="file"/> in one step (Windows' ReplaceFile): copied over it, a
+        /// crash part way through left Steam's account config cut short (installer scout, 2026-10-23). A volume that cannot
+        /// replace in place (FAT, some network drives) gets the copy.
+        /// </summary>
+        internal static void ReplaceFile(string temp, string file)
+        {
+            try
+            {
+                File.Replace(temp, file, null);
+            }
+            catch (Exception e) when (e is IOException || e is PlatformNotSupportedException)
+            {
+                if (!File.Exists(temp))
+                {
+                    throw;
+                }
+                File.Copy(temp, file, true);
+                File.Delete(temp);
+            }
         }
 
         /// <summary>Asks Steam to exit and waits for it (Steam -shutdown).</summary>
@@ -254,6 +283,11 @@ namespace RavenfieldVR.Setup
                 }
                 if (t[i] == '}')
                 {
+                    if (top)
+                    {
+                        // Written back, the rest of the file after it was dropped.
+                        throw new FormatException("Unexpected '}' outside any block.");
+                    }
                     i++;
                     return;
                 }
