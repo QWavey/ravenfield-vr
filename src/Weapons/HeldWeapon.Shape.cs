@@ -189,7 +189,7 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
-            if (_slideTipVolume.Failed)
+            if (_slideTipVolume.Failed || _slideTipVolume.Stalled) // (stalled: never Ready, it waited for the whole hold)
             {
                 _slideTipDone = true;
                 return;
@@ -982,7 +982,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (_magVolume != null && _magVolume.Failed && _magVolumeTries < 3)
+            if (_magVolume != null && (_magVolume.Failed || _magVolume.Stalled) && _magVolumeTries < 3)
             {
                 // A failed measure (a read-back error, a renderer gone mid-way) is tried again a second later, three times at
                 // most: latched, the seated magazine had no solid and the line fit never ran for the rest of the hold (review,
@@ -1056,7 +1056,7 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
-            if (_partVolume != null && _partVolume.Failed && _partTries < 3)
+            if (_partVolume != null && (_partVolume.Failed || _partVolume.Stalled) && _partTries < 3)
             {
                 // Failed: tried again a second later (the racking hand closed on nothing for the rest of the hold), three times
                 // at most (see the seated magazine's volume).
