@@ -244,7 +244,7 @@ WR-bridge-config-1  Minor (unsure)  src/Weapons/SandboxPoses.cs:63
      The pose file is picked by SafeName(d.Key) only; the saved document's own key/weapon field is never compared with d.Key, so a colliding weapon kind gets another gun's grip and support.
      Trigger: Two installed weapons whose keys map to the same SafeName (for example 'M4A1 CCO#1' and 'M4A1_CCO#1', a case-only difference (WrittenKey is OrdinalIgnoreCase), or keys with no letters or digits, which map to '.json'). One of them has a saved pose, and the other silently takes its grip. SandboxExport.Write (SandboxExport.cs:393-398) warns about this collision at export time only. The sandbox writes 'key' into every pose (scene.py:632), and the game never reads it. The export log says none of the 286 weapons collided on 2026-10-17, so the trigger is rare.
      Fix: In Apply, read MiniJson.Str(doc, "key") and, when it is present and differs from d.Key, log a WarnOnce and return without applying. Optionally refuse keys whose SafeName is empty.
-     STATUS: open (sandbox tooling: compare the saved key)
+     STATUS: fixed (059c338: the saved key is compared)
 WR-bridge-config-2  Minor (unsure)  src/Weapons/SandboxPoses.cs:85
      A saved pose replaces GripPoint outright after WeaponOverrides has moved it, so a later edit to that weapon's gripForward/gripUp override is silently ignored.
      Trigger: A pose is saved for weapon X while its override is in effect. The pose stores the hand's place relative to the gun, and the override shift is already baked into it. Later the user changes gripForward or gripUp for X. WeaponAnalyzer.cs:184 applies the override (WeaponOverrides.cs:205), then WeaponAnalyzer.cs:191 runs SandboxPoses.Apply, which overwrites d.GripPoint at line 85. The new override has no effect and nothing is logged.
@@ -254,9 +254,9 @@ WR-bridge-config-3  Tiny (sure)  src/Input/GameInputBridge.cs:692
      A long press of the gun hand's A with no weapon in hand logs 'Fire mode switched on ? by the game's key', although nothing was switched.
      Trigger: SpawnEmptyHanded defaults to true, so the player starts with no weapon. A long press of FireMode reaches HandleWeaponButtons with weapon == null. HasFireModes(null) is false, so the path at lines 673-679 runs: HandleFireModePress(null) returns false, Set(KeyBinds.FireMode) is applied, and the Log.Info at line 692 writes the misleading line. The key has no consumer, so there is no functional effect.
      Fix: Return early from the long-press branch when weapon is null, or log only when handled is true or weapon != null.
-     STATUS: open (a log line only)
+     STATUS: fixed (6db15dc)
 WR-bridge-config-4  Tiny (sure)  src/Weapons/SandboxPoses.cs:137
      The weapon's notes say the sandbox pose was used even when neither hand was applied.
      Trigger: Both saved hands are rejected or unreadable (the right hand is not role grip, and the left is not a valid support), so usedRight and usedLeft are both false. Line 137 still appends 'hands from the sandbox's saved pose' to d.Notes, and the weapon report carries that note.
      Fix: Append the note only when usedRight || usedLeft.
-     STATUS: open (a note only)
+     STATUS: fixed (059c338)
