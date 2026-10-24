@@ -3277,6 +3277,17 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.ScriptedVelocity[side] = velocity;
             }
 
+            // Pictures of each moment (user, 2026-10-24: "can i see the grab/ throw in images"): the eye's view, and one from 2.2 m to
+            // the side looking at what happens, both as grab-NN-*.png in the run's pictures.
+            Vector3 sideAxis = Vector3.Cross(Vector3.up, flat).normalized;
+            IEnumerator Snap(string name, Vector3 focus)
+            {
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("grab-" + name);
+                Vector3 from = focus + sideAxis * 2.2f + Vector3.up * 0.5f - flat * 0.6f;
+                Shots.Capture("grab-" + name + "-side", from, Quaternion.LookRotation(focus - from, Vector3.up), 70f);
+            }
+
             void Bring(Actor a)
             {
                 Vector3 at = headAt + flat * 0.8f;
@@ -3312,6 +3323,7 @@ namespace RavenfieldVR.Core
                 Actor held = enemies[0];
                 Bring(held);
                 yield return new WaitForSecondsRealtime(0.6f);
+                yield return Snap("01-soldier-in-front", Chest(held));
                 PalmAt(Chest(held), Vector3.zero);
                 yield return null;
                 yield return null;
@@ -3322,6 +3334,8 @@ namespace RavenfieldVR.Core
                 }
                 bool grabbed = off.Role == Rig.HandRole.Body;
                 bool down = held.ragdoll.IsRagdoll();
+                yield return new WaitForSecondsRealtime(0.3f); // hanging from the hand
+                yield return Snap("02-taken-hold-of", off.PalmCentre);
                 float before = held.health;
                 Vector3 swing = (flat + Vector3.up * 0.6f).normalized * 6f;
                 Vector3 palm = off.PalmCentre;
@@ -3330,6 +3344,10 @@ namespace RavenfieldVR.Core
                     palm += swing * 0.011f;
                     PalmAt(palm, swing);
                     yield return null;
+                    if (i == 5)
+                    {
+                        yield return Snap("03-swinging", palm);
+                    }
                 }
                 Input.VRInput.SimulatedGrab[side] = false;
                 yield return null;
@@ -3337,8 +3355,12 @@ namespace RavenfieldVR.Core
                 Rigidbody main = held.ragdoll.IsRagdoll() ? held.ragdoll.MainRigidbody() : null;
                 float flew = main != null ? main.velocity.magnitude : 0f;
                 bool letGo = off.Role == Rig.HandRole.Free;
+                yield return Snap("04-let-go", main != null ? main.position : palm);
                 PalmAt(raw.position + palmFromRaw, Vector3.zero);
-                yield return new WaitForSecondsRealtime(2f);
+                yield return new WaitForSecondsRealtime(0.35f);
+                yield return Snap("05-flying", main != null ? main.position : palm);
+                yield return new WaitForSecondsRealtime(1.65f);
+                yield return Snap("06-landed", main != null ? main.position : palm);
                 Metric("soldier thrown: body m/s", flew);
                 report($"soldier grab: {(grabbed ? $"took hold of {held.name}" : "NOT GRABBED")}, {(down ? "down as a ragdoll" : "NOT DOWN")}; "
                        + $"{(letGo ? "let go" : "NOT LET GO")} in a 6 m/s swing, the body at {flew:0.0} m/s{(grabbed && flew < 2f ? " (NOT THROWN with the swing)" : "")}, "
@@ -3361,6 +3383,7 @@ namespace RavenfieldVR.Core
                     PalmAt(from, Vector3.zero); // closed and still first: the punch is measured from here
                     yield return null;
                 }
+                yield return Snap("07-fist-ready", chest);
                 float hp = punched.health;
                 const float punch = 7f;
                 Vector3 at = from;
@@ -3370,7 +3393,7 @@ namespace RavenfieldVR.Core
                     PalmAt(at, flat * punch);
                     yield return null;
                 }
-                yield return null;
+                yield return Snap("08-fist-hit", chest);
                 bool hurt = punched.dead || punched.health < hp - 1f;
                 report($"fist: {(hurt ? $"punched {punched.name}, health {hp:0} -> {(punched.dead ? "dead" : punched.health.ToString("0"))}" : "NO HIT on the enemy's chest at 7 m/s")}"
                        + (hurt ? "" : $" [last fist frame: {MeleeHandler.FistNote}; last sweep: {MeleeHandler.CastNote}; grip {Input.VRInput.GetGrip(off.Side):0.0}, hand {off.Role}, tracked {off.Tracked}]"));
@@ -3400,6 +3423,7 @@ namespace RavenfieldVR.Core
                 Bring(bashed);
                 yield return new WaitForSecondsRealtime(0.6f);
                 target = Chest(bashed);
+                yield return Snap("09-gun-ready", target);
                 float bashBefore = bashed.health;
                 const float swingSpeed = 6f;
                 Vector3 hand = swingFrom;
@@ -3410,7 +3434,7 @@ namespace RavenfieldVR.Core
                     Rig.VRHand.ScriptedVelocity[ds] = right * swingSpeed;
                     yield return null;
                 }
-                yield return null;
+                yield return Snap("10-gun-swung", target);
                 bool bashedHurt = bashed.dead || bashed.health < bashBefore - 1f;
                 report($"gun bash: [last sweep: {MeleeHandler.CastNote}] {(bashedHurt ? $"{gun.Weapon.name} swung into {bashed.name} at 6 m/s, health {bashBefore:0} -> {(bashed.dead ? "dead" : bashed.health.ToString("0"))}" : $"NO HIT with {gun.Weapon.name} swung through the enemy's chest at 6 m/s")}");
                 Rig.VRHand.Scripted[ds] = new Runtime.RigidPose(domRaw.position, domRaw.rotation);
