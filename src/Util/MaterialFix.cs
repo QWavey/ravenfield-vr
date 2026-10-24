@@ -66,13 +66,14 @@ namespace RavenfieldVR.Util
             Material[] result = materials;
             for (int i = 0; i < materials.Length; i++)
             {
-                if (IsBroken(materials[i]))
+                Material repaired = IsBroken(materials[i]) ? Fix(materials[i]) : materials[i];
+                if (!ReferenceEquals(repaired, materials[i])) // (unrepairable, it stays as it was and is not counted as repaired)
                 {
                     if (ReferenceEquals(result, materials))
                     {
                         result = (Material[])materials.Clone();
                     }
-                    result[i] = Fix(materials[i]);
+                    result[i] = repaired;
                 }
             }
             return result;
