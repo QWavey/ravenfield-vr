@@ -224,14 +224,20 @@ namespace RavenfieldVR.UI
                 Vector2 local = rt.InverseTransformPoint(p);
                 if (rt.rect.Contains(local))
                 {
-                    _rectHits.Add((dist, c, p));
+                    // Kept nearest first as they come (a canvas or three): List.Sort with a comparison made a comparer object on
+                    // each call, twice a frame while the laser is on a menu.
+                    int at = _rectHits.Count;
+                    while (at > 0 && _rectHits[at - 1].Dist > dist)
+                    {
+                        at--;
+                    }
+                    _rectHits.Insert(at, (dist, c, p));
                 }
             }
             if (_rectHits.Count == 0)
             {
                 return false;
             }
-            _rectHits.Sort((a, b) => a.Dist.CompareTo(b.Dist));
             foreach ((float _, Canvas c, Vector3 p) in _rectHits)
             {
                 if (ShowsAt(c, p))

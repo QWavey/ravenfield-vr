@@ -91,6 +91,7 @@ namespace RavenfieldVR.Tests
             ArmNameTests(mod);
             BlowLabelTests(mod);
             BodyImpactTests(mod);
+            KeyNameTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
@@ -552,6 +553,34 @@ namespace RavenfieldVR.Tests
             Check(D(6f) > 0f && D(6f) < D(9f), "Body impacts: past the threshold, harder hurts more");
             Check(D(9f) - D(8f) > D(7f) - D(6f), "Body impacts: by the speed squared (Boneworks' impact energy), each m/s more hurts more");
             Check(D(20f) == D(60f) && D(60f) < 50f, $"Body impacts: one impact is capped below half a soldier's health ({D(60f):0})");
+        }
+
+        /// <summary>
+        /// The names a script's key polls are matched by (Input.GetKey(string)'s): letters, digits, function keys, keypad, mouse,
+        /// named keys, and a code past the cached range still named.
+        /// </summary>
+        private static void KeyNameTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo name = null;
+            Type keys = mod.GetType("RavenfieldVR.Input.ScriptKeys");
+            foreach (System.Reflection.MethodInfo m in keys != null ? keys.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static) : new System.Reflection.MethodInfo[0])
+            {
+                if (m.Name == "Name" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType.IsEnum)
+                {
+                    name = m;
+                }
+            }
+            Check(name != null, "Key names: ScriptKeys.Name(KeyCode) found");
+            if (name == null)
+            {
+                return;
+            }
+            Type keyCode = name.GetParameters()[0].ParameterType;
+            string N(int code) => (string)name.Invoke(null, new[] { Enum.ToObject(keyCode, code) });
+            // KeyCode: A 97, Alpha3 51, F5 286, Keypad7 263, Mouse1 324, LeftShift 304.
+            string got = $"{N(97)}|{N(51)}|{N(286)}|{N(263)}|{N(324)}|{N(304)}|{N(97)}";
+            Check(got == "a|3|f5|[7]|mouse 1|left shift|a", $"Key names: as Input.GetKey(string) names them, cached or not ({got})");
+            Check(!string.IsNullOrEmpty(N(700)), "Key names: a code past the cache still gets a name");
         }
 
         /// <summary>

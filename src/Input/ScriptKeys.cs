@@ -463,7 +463,8 @@ namespace RavenfieldVR.Input
 
         private static string CodeNameOf(string key) => CodeNames.TryGetValue(key, out string code) ? code : null;
 
-        private static readonly Dictionary<KeyCode, string> NameCache = new Dictionary<KeyCode, string>();
+        // By key code (every KeyCode is under 512): a lookup on each key a script polls, every frame, with no enum hashing.
+        private static readonly string[] NameCache = new string[512];
         private static readonly Dictionary<string, string> RawNameCache = new Dictionary<string, string>();
         private static readonly string[] MouseNames = { "mouse 0", "mouse 1", "mouse 2", "mouse 3", "mouse 4", "mouse 5", "mouse 6" };
 
@@ -473,12 +474,12 @@ namespace RavenfieldVR.Input
         /// <summary>The name Input.GetKey(string) uses for this key code (cached: polled by scripts every frame).</summary>
         public static string Name(KeyCode code)
         {
-            if (!NameCache.TryGetValue(code, out string name))
+            int i = (int)code;
+            if (i < 0 || i >= NameCache.Length)
             {
-                name = BuildName(code);
-                NameCache[code] = name;
+                return BuildName(code);
             }
-            return name;
+            return NameCache[i] ??= BuildName(code);
         }
 
         private static string BuildName(KeyCode code)
