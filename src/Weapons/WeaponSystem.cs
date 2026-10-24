@@ -149,6 +149,12 @@ namespace RavenfieldVR.Weapons
                     {
                         _throwables.Update(Held);
                     }
+                    else if (Held != null && Held.Weapon is MeleeWeapon)
+                    {
+                        // A blade hits what it is swung through (MeleeHandler), not on the trigger: the game's own attack on
+                        // the trigger struck along the head's facing, a hit without a swing, and with a swing a second hit.
+                        VRGameInput.SuppressFire = true;
+                    }
                     UpdateSubWeaponReloadTarget();
                 }
                 catch (Exception e)

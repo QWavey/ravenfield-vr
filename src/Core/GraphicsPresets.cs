@@ -66,10 +66,13 @@ namespace RavenfieldVR.Core
                 LodBias = 1.0f, PixelLights = 2, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = false, RealtimeReflections = false,
                 DetailDensity = 0.7f, DetailDistance = 80f, TreeDistance = 1000f, MinPixelError = 5f, FarClip = 3000f
             },
+            // Ultra's textures filtered as each asks (Enable), not forced to 16x: forced, the filter alone took 2.9 of Ultra's 8.9 ms
+            // of GPU a frame (the frozen bench, 2026-10-24: 5.99 ms with High's filtering; High's grass, trees and view distance,
+            // reflections off and soft particles off each saved nothing measurable).
             [GraphicsPreset.Ultra] = new Profile
             {
                 RenderScale = 1.2f, Msaa = 4, ShadowDistance = 100f, Cascades = 2, ShadowResolution = ShadowResolution.High, Shadows = ShadowQuality.All,
-                LodBias = 1.5f, PixelLights = 3, TextureLimit = 0, Anisotropic = AnisotropicFiltering.ForceEnable, SoftParticles = true, RealtimeReflections = true,
+                LodBias = 1.5f, PixelLights = 3, TextureLimit = 0, Anisotropic = AnisotropicFiltering.Enable, SoftParticles = true, RealtimeReflections = true,
                 DetailDensity = 1f, DetailDistance = 120f, TreeDistance = 1600f, MinPixelError = 3f, FarClip = 4000f
             },
         };

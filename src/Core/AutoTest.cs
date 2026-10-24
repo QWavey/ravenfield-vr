@@ -361,7 +361,16 @@ namespace RavenfieldVR.Core
                 {
                     _context = "grab check";
                     yield return DrawFirstGun();
-                    yield return BodyGrabCheck(Results.Add);
+                    // Its failures counted as the weapon checks' are (ReportWeapon): straight into the results, a soldier line
+                    // in capitals was read and never counted ("Problems: 0" over THE PHYSICS BLEW UP, 2026-10-24).
+                    yield return BodyGrabCheck(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[soldiers] " + l);
+                        }
+                        Results.Add(l);
+                    });
                     Write();
                     Application.Quit();
                     yield break;
@@ -612,12 +621,10 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra)),
                 new KeyValuePair<string, Func<string>>("old Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.4f, msaa: 4,
                     shadowDistance: 150f, cascades: 4, shadowResolution: ShadowResolution.VeryHigh, lodBias: 2f, pixelLights: 6)),
-                // What Ultra pays for beyond High's settings (old High, with Ultra's scale, MSAA, shadows and LOD, drew in 5.4 ms
-                // and Ultra in 8.8: what it adds is High's terrain and filtering otherwise).
+                // What Ultra pays for beyond High's settings: its grass, trees and view distance, and the forced 16x texture filter
+                // it had until 2026-10-24 (2.9 of its 8.9 ms then; reflections and soft particles cost nothing measurable).
                 new KeyValuePair<string, Func<string>>("Ultra, High's terrain", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, terrainOf: GraphicsPreset.High)),
-                new KeyValuePair<string, Func<string>>("Ultra, anisotropic as High", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, anisotropic: AnisotropicFiltering.Enable)),
-                new KeyValuePair<string, Func<string>>("Ultra, reflections off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, reflections: false)),
-                new KeyValuePair<string, Func<string>>("Ultra, soft particles off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, softParticles: false)),
+                new KeyValuePair<string, Func<string>>("Ultra, anisotropic forced", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, anisotropic: AnisotropicFiltering.ForceEnable)),
                 new KeyValuePair<string, Func<string>>("High, shadows off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, shadows: ShadowQuality.Disable)),
                 new KeyValuePair<string, Func<string>>("High, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, msaa: 0)),
                 new KeyValuePair<string, Func<string>>("High, scale 0.8", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 0.8f)),
@@ -3281,12 +3288,14 @@ namespace RavenfieldVR.Core
 
             // Who comes next: the living on foot first, then the seated, the dead last (respawned, the game may take a dead one away).
             int Rank(Actor a) => a.dead ? 2 : a.IsSeated() ? 1 : 0;
+            // (The game's soldiers always have five weapon slots: an armed one has something in one.)
+            bool Armed(Actor a) => a.activeWeapon != null || a.weapons != null && a.weapons.Any(w => w != null);
             Actor Next(bool needWeapon)
             {
                 Actor best = null;
                 foreach (Actor a in enemies)
                 {
-                    if (a == null || used.Contains(a) || needWeapon && a.activeWeapon == null && (a.weapons == null || a.weapons.Length == 0))
+                    if (a == null || used.Contains(a) || needWeapon && !Armed(a))
                     {
                         continue;
                     }
@@ -3300,7 +3309,7 @@ namespace RavenfieldVR.Core
                     used.Clear(); // all used: round again
                     foreach (Actor a in enemies)
                     {
-                        if (a != null && (best == null || Rank(a) < Rank(best)))
+                        if (a != null && !(needWeapon && !Armed(a)) && (best == null || Rank(a) < Rank(best)))
                         {
                             best = a;
                         }
@@ -3523,6 +3532,10 @@ namespace RavenfieldVR.Core
                     GunToHip();
                     yield return new WaitForSecondsRealtime(0.7f);
                 }
+                else
+                {
+                    report($"gun hand: skipped ({(gun == null || gun.Weapon == null ? "no gun in the hand" : "no soldier")})");
+                }
 
                 // 1. Taken hold of and thrown (the free hand; the other holds the gun).
                 Actor held = Next(false);
@@ -3572,8 +3585,9 @@ namespace RavenfieldVR.Core
                     Metric("soldier thrown: body m/s", flew);
                     report($"soldier grab: {(grabbed ? $"took hold of {held.name}" : "NOT GRABBED")}, {(down ? "down as a ragdoll" : "NOT DOWN")}; "
                            + $"{(letGo ? "let go" : "NOT LET GO")} in a 6 m/s swing, the body at {flew:0.0} m/s{(grabbed && flew < 2f ? " (NOT THROWN with the swing)" : "")}"
-                           // (Bones are held to 25 m/s while armed, a whipping limb reads that: only a bone past it blew up.)
-                           + $"{(fastest > 30f ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s)" : $", fastest bone after {fastest:0.0} m/s")}, "
+                           // (Bones are held to 25 m/s while armed, each physics step; a collision or a joint's pull inside the step
+                           // takes a limb a little past it, 32 m/s once. A blow-up was 180.)
+                           + $"{(fastest > 50f ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s)" : $", fastest bone after {fastest:0.0} m/s")}, "
                            + $"health {before:0} -> {Health(held)} after landing");
                 }
 
@@ -3901,7 +3915,7 @@ namespace RavenfieldVR.Core
                         yield return DomTo(hip, hipRotation);
                     }
                     // A knife in the free hand into the held body (one of the game's own knives when the loadout has none).
-                    bool knifeHit = false;
+                    bool knifeHit = false, knifeTried = false;
                     string knifeNote = "";
                     int knifeSlot = -1;
                     for (int s = 0; player.weapons != null && s < player.weapons.Length; s++)
@@ -3914,18 +3928,20 @@ namespace RavenfieldVR.Core
                     if (knifeSlot < 0 && player.weapons != null)
                     {
                         WeaponManager.WeaponEntry knifeEntry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.prefab.GetComponent<MeleeWeapon>() != null);
-                        // A slot of its own: not the grenade's (step 7) nor the gun's.
+                        // A slot of its own: an empty one, else one that is neither the grenade's (step 7) nor the gun's.
+                        knifeSlot = Array.IndexOf(player.weapons, null);
                         for (int s = player.weapons.Length - 1; s >= 0 && knifeSlot < 0; s--)
                         {
-                            if (player.weapons[s] == null || !(player.weapons[s] is ThrowableWeapon) && s != Array.IndexOf(player.weapons, drawn))
+                            if (!(player.weapons[s] is ThrowableWeapon) && s != Array.IndexOf(player.weapons, drawn))
                             {
                                 knifeSlot = s;
                             }
                         }
                         if (knifeEntry != null && knifeSlot >= 0)
                         {
+                            Weapon replaced = player.weapons[knifeSlot];
                             player.EquipNewWeaponEntry(knifeEntry, knifeSlot, false);
-                            knifeNote = $" ({knifeEntry.name}, given for the check)";
+                            knifeNote = $" ({knifeEntry.name}, given for the check{(replaced != null ? $" in place of {replaced.name}" : "")})";
                         }
                         else
                         {
@@ -3948,6 +3964,7 @@ namespace RavenfieldVR.Core
                             yield return Snap("23-knife-ready", body.worldCenterOfMass);
                             yield return Strike(dom, at0, flat, 0.7f, 6f, stab, heldUp, hit);
                             knifeHit = hit[0];
+                            knifeTried = true;
                             yield return Snap("24-held-soldier-stabbed", body.worldCenterOfMass);
                         }
                         else
@@ -3958,7 +3975,7 @@ namespace RavenfieldVR.Core
                     yield return LetGo();
                     report($"hits on a held soldier: {(holding ? $"{heldUp.name} held up by one hand" : "NOT HELD")}; "
                            + $"{(fistHit ? "the other hand's fist hit him" : "the other hand's fist NO HIT")}; "
-                           + $"{(knifeSlot < 0 ? "knife: none to be had" : knifeHit ? $"a knife{knifeNote} stabbed him" : $"the knife{knifeNote} NO HIT")}; health {hp:0} -> {Health(heldUp)}");
+                           + $"{(knifeSlot < 0 ? "knife: none to be had" : knifeHit ? $"a knife{knifeNote} stabbed him" : !knifeTried ? "knife: not tried (the soldier was already dead or not held)" : $"the knife{knifeNote} NO HIT")}; health {hp:0} -> {Health(heldUp)}");
                 }
             }
             finally

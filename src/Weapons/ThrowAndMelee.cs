@@ -649,6 +649,18 @@ namespace RavenfieldVR.Weapons
         private bool _hasLast;
         /// <summary>A blade that moved this far in one frame was carried (a teleport, a ladder, a seat), not swung.</summary>
         private const float MaxSweep = 1.5f;
+        /// <summary>The game's own melee mask (MeleeWeapon.ShootMeleeRay): the hitbox layers, the default layer and layer 12.</summary>
+        private const int GameMeleeMask = 70913;
+        /// <summary>The game's first-person layer (the drawn weapon and arms), never a wall a blow stops at.</summary>
+        private const int FirstPersonLayer = 18;
+        /// <summary>No fist, gun or held thing hits below this (m/s), whatever the knife's own setting: a walk is no blow.</summary>
+        private const float MinBlowSpeed = 2.2f;
+
+        /// <summary>
+        /// How fast a fist, a swung gun or a held thing must move against the body to hit (and the speed over which a hand
+        /// reaching for a soldier punches instead of grabbing): the knife's setting, at least <see cref="MinBlowSpeed"/>.
+        /// </summary>
+        internal static float BlowSpeed => Mathf.Max(MinBlowSpeed, VRConfig.MeleeSwingSpeed.Value);
         private float _lastHit = -10f;
         private float _bladeLength = -1f;
         private Vector3 _bladeDir = Vector3.forward;
@@ -747,13 +759,21 @@ namespace RavenfieldVR.Weapons
             Vector3 sweep = toTip - fromTip;
             Vector3 dir = sweep.normalized;
             float radius = Mathf.Clamp(melee.radius * 0.5f, 0.06f, 0.3f);
+            Vector3 midFrom = Vector3.Lerp(fromBase, fromTip, 0.5f);
+            Vector3 midTo = Vector3.Lerp(toBase, toTip, 0.5f);
+            // Nothing but the player in the blade's way (most fast frames of a swing through the air): no cast. The game's cast
+            // needs the player's own hitboxes switched off around it, and switching colliders off and on is paid in the physics
+            // scene: it ran on every fast frame of a swing that hit nothing (review, 2026-10-24).
+            if (!PathHasTarget(user, new Ray(fromTip, dir), sweep.magnitude + 0.05f, radius)
+                && !PathHasTarget(user, new Ray(midFrom, (midTo - midFrom).normalized), (midTo - midFrom).magnitude + 0.05f, radius))
+            {
+                return false;
+            }
             bool disabled = user.DisableHitboxColliders();
             bool hitSomething = false;
             try
             {
                 // Two casts: along the tip's path and along the middle of the blade.
-                Vector3 midFrom = Vector3.Lerp(fromBase, fromTip, 0.5f);
-                Vector3 midTo = Vector3.Lerp(toBase, toTip, 0.5f);
                 hitSomething = Cast(melee, new Ray(fromTip, dir), sweep.magnitude + 0.05f, radius, dir)
                                || Cast(melee, new Ray(midFrom, (midTo - midFrom).normalized), (midTo - midFrom).magnitude + 0.05f, radius, dir);
             }
@@ -772,9 +792,35 @@ namespace RavenfieldVR.Weapons
             return hitSomething;
         }
 
+        private static readonly RaycastHit[] PathHits = new RaycastHit[16];
+
+        /// <summary>
+        /// Whether a blade's path (as <see cref="Cast"/> sweeps it, the game's own back-off included) touches anything but the
+        /// player: another soldier, a wall, a vehicle, a loose body. The player's own hitboxes and body are left out by owner.
+        /// </summary>
+        private static bool PathHasTarget(Actor user, Ray ray, float distance, float radius)
+        {
+            float back = radius * 2f;
+            int n = Physics.SphereCastNonAlloc(new Ray(ray.origin - ray.direction * back, ray.direction), radius, PathHits, distance + back, GameMeleeMask);
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = PathHits[i].collider;
+                if (c == null || PropPhysics.IsPlayerCollider(c) || c.gameObject.layer == FirstPersonLayer)
+                {
+                    continue;
+                }
+                if (Hitbox.IsHitboxLayer(c.gameObject.layer) && BodyGrab.HurtableOf(c) == user)
+                {
+                    continue;
+                }
+                return true;
+            }
+            return n >= PathHits.Length; // (a full buffer: cast to be sure)
+        }
+
         private static bool Cast(MeleeWeapon melee, Ray ray, float distance, float radius, Vector3 direction)
         {
-            melee.SphereCast(ray, radius, distance, 70913, out RaycastHit hitWall, out MeleeWeapon.RaycastHitHitbox hitEnemy,
+            melee.SphereCast(ray, radius, distance, GameMeleeMask, out RaycastHit hitWall, out MeleeWeapon.RaycastHitHitbox hitEnemy,
                 out MeleeWeapon.RaycastHitHitbox hitAlly, out RaycastHit hitVehicle);
             float blocking = Mathf.Min(hitWall.distance, hitVehicle.distance);
             if (hitEnemy.hitInfo.collider != null && hitEnemy.hitInfo.distance < blocking)
@@ -884,7 +930,7 @@ namespace RavenfieldVR.Weapons
             if (_bashHas && !NoFrameTime && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
             {
                 bool carried = (muzzle - _bashAt[count - 1]).sqrMagnitude > MaxSweep * MaxSweep;
-                float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
+                float need = BlowSpeed;
                 for (int k = count - 1; k >= 0 && !carried; k--)
                 {
                     Vector3 at = Vector3.Lerp(butt, muzzle, k / (float)(count - 1));
@@ -968,7 +1014,7 @@ namespace RavenfieldVR.Weapons
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
                 {
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
-                    if (speed > Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value))
+                    if (speed > BlowSpeed)
                     {
                         int kind = fist ? FistBlow : what is MagazineProp m ? (int)m.Kind : GrenadeBlow;
                         float weight = fist ? 0.4f : what is MagazineProp ? 0.45f : 0.55f;
@@ -1004,7 +1050,7 @@ namespace RavenfieldVR.Weapons
             try
             {
                 const float radius = 0.06f;
-                int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, 70913);
+                int n = Physics.SphereCastNonAlloc(new Ray(from - dir * radius, dir), radius, BashHits, length + radius * 2f, GameMeleeMask);
                 Hurtable best = null;
                 RaycastHit bestHit = default;
                 float bestDistance = float.MaxValue, wall = float.MaxValue;
@@ -1020,7 +1066,7 @@ namespace RavenfieldVR.Weapons
                         // A wall or vehicle in the way stops the blow, as a knife's (an enemy behind a wall was hit; 255.B3-2);
                         // never the held gun's own stand-in or the player's body.
                         Rigidbody body = h.collider.attachedRigidbody;
-                        if (h.collider.gameObject.layer != 18 && !PropPhysics.IsPlayerCollider(h.collider) && (body == null || body.GetComponent<GunProxyBody>() == null))
+                        if (h.collider.gameObject.layer != FirstPersonLayer && !PropPhysics.IsPlayerCollider(h.collider) && (body == null || body.GetComponent<GunProxyBody>() == null))
                         {
                             wall = Mathf.Min(wall, h.distance);
                         }
@@ -1030,9 +1076,7 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
-                    // A standing soldier by its hitbox; one already down by its ragdoll's colliders, which may carry none.
-                    Hitbox hb = h.collider.GetComponent<Hitbox>();
-                    Hurtable target = hb != null ? hb.parent : h.collider.GetComponentInParent<Actor>();
+                    Hurtable target = BodyGrab.HurtableOf(h.collider);
                     if (target == null || target == user || target is Actor a && a.dead || target.team == user.team)
                     {
                         continue;
@@ -1059,7 +1103,10 @@ namespace RavenfieldVR.Weapons
                     impactForce = dir * (150f * weight * Mathf.Min(speed, 8f))
                 };
                 best.Damage(info);
-                Log.InfoOnce("bash:" + key, $"{label}: swung into {best.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
+                if (!Log.Logged("bash:" + key))
+                {
+                    Log.InfoOnce("bash:" + key, $"{label}: swung into {best.name} at {speed:0.0} m/s, {info.healthDamage:0} damage.");
+                }
                 return true;
             }
             catch (System.Exception e)

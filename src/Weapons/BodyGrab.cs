@@ -52,6 +52,8 @@ namespace RavenfieldVR.Weapons
 
         private readonly VRRig _rig;
         private readonly Hold[] _holds = new Hold[2];
+        private Actor _carriedActor;
+        private int _carriedFrame = -1;
         private readonly Rigidbody[] _anchors = new Rigidbody[2];
         private static readonly Collider[] Near = new Collider[48];
 
@@ -98,8 +100,16 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Whether a hand is holding a soldier now.</summary>
-        internal bool Holding(VRHand hand) => _holds[(int)hand.Side] != null;
+        /// <summary>
+        /// Who a collider on a hitbox layer belongs to: a standing soldier by his hitboxes; one already down (thrown, knocked
+        /// over, dead) has only his ragdoll's colliders enabled, on a hitbox layer too, which may carry no Hitbox: the soldier
+        /// above them then. (The grab and the gun bash both.)
+        /// </summary>
+        internal static Hurtable HurtableOf(Collider c)
+        {
+            Hitbox hb = c.GetComponent<Hitbox>();
+            return hb != null ? hb.parent : c.GetComponentInParent<Actor>();
+        }
 
         /// <summary>Whether the player holds this soldier (in either hand, alive or dead): bullets hit him, whoever fired.</summary>
         internal static bool IsHeld(Actor a)
@@ -145,9 +155,7 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
-                    Collider c = rb.GetComponent<Collider>();
-                    Vector3 on = c != null && c.enabled ? c.ClosestPoint(at) : rb.worldCenterOfMass;
-                    float d = (on - at).sqrMagnitude;
+                    float d = BoneDistanceSq(rb, at);
                     if (d <= bestDistance)
                     {
                         bestDistance = d;
@@ -162,6 +170,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Once a frame, after every other grab has had the press: free hands take hold of a soldier, held ones follow.</summary>
         public void Update()
         {
+            Actor player = GameContext.PlayerActor;
+            bool canHold = player != null && !player.dead && GameContext.PlayerOnFoot;
             for (int i = 0; i < 2; i++)
             {
                 VRHand hand = _rig.Hands[i];
@@ -172,25 +182,23 @@ namespace RavenfieldVR.Weapons
                 Hold hold = _holds[i];
                 if (hold != null)
                 {
-                    Follow(i, hand, hold);
+                    Follow(i, hand, hold, player, canHold);
                 }
-                else if (hand.Role == HandRole.Free && hand.Held == null && hand.Tracked && hand.GrabReaching && !VRGameInput.GunInputBlocked
-                         && GameContext.PlayerOnFoot)
+                else if (canHold && hand.Role == HandRole.Free && hand.Held == null && hand.Tracked && hand.GrabReaching && !VRGameInput.GunInputBlocked)
                 {
-                    TryTake(i, hand);
+                    TryTake(i, hand, player);
                 }
             }
         }
 
-        private void TryTake(int i, VRHand hand)
+        private void TryTake(int i, VRHand hand, Actor player)
         {
             // A fist swung at punching speed punches (MeleeHandler's blows), even with its grip just closed: a grab is a reach.
-            float punch = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
+            float punch = MeleeHandler.BlowSpeed;
             if (hand.BodyRelativeVelocity.sqrMagnitude > punch * punch)
             {
                 return;
             }
-            Actor player = GameContext.PlayerActor;
             Vector3 palm = hand.PalmCentre;
             int n = Physics.OverlapSphereNonAlloc(palm, Reach, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
             Actor best = null;
@@ -202,29 +210,28 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                // A standing soldier by its hitboxes; one already down (thrown, knocked over, dead) has only its ragdoll's
-                // colliders enabled, on a hitbox layer too, which may carry no Hitbox: the soldier above them then.
-                Hitbox hb = c.GetComponent<Hitbox>();
-                Actor a = hb != null ? hb.parent as Actor : c.GetComponentInParent<Actor>();
+                float d = (c.ClosestPoint(palm) - palm).sqrMagnitude;
+                if (d >= bestDistance)
+                {
+                    continue; // (whose it is asked only of a nearer one)
+                }
+                Actor a = HurtableOf(c) as Actor;
                 if (a == null || a == player || a.ragdoll == null)
                 {
                     continue;
                 }
-                float d = (c.ClosestPoint(palm) - palm).sqrMagnitude;
-                if (d < bestDistance)
-                {
-                    bestDistance = d;
-                    best = a;
-                }
+                bestDistance = d;
+                best = a;
             }
-            if (best == null)
+            Hold other = _holds[1 - i];
+            if (best == null || other != null && other.Neck && other.Actor == best)
             {
-                return;
+                return; // (held by the neck in the other hand: knocked over by this one, that hold would hang on a ragdoll)
             }
             try
             {
-                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated() && player != null && best.team != player.team
-                    && _holds[1 - i] == null && FromBehind(best, player) && NearHead(best, palm))
+                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated() && best.team != player.team
+                    && other == null && FromBehind(best, player) && NearHead(best, palm))
                 {
                     TakeNeck(i, hand, best);
                     return;
@@ -271,12 +278,23 @@ namespace RavenfieldVR.Weapons
             {
                 PropPhysics.IgnorePlayer(best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>());
             }
-            hand.Role = HandRole.Body;
-            hand.Held = best;
-            VRInput.Consume(DigitalAction.Grab, hand.Side);
+            TakeHand(hand, best);
             hand.Haptic(0.08f, 80f, 0.8f);
             Log.InfoOnce("bodygrab", $"Took hold of {best.name} by {bone.name} ({(best.dead ? "dead" : "alive")}).");
         }
+
+        private static void TakeHand(VRHand hand, Actor a)
+        {
+            hand.Role = HandRole.Body;
+            hand.Held = a;
+            VRInput.Consume(DigitalAction.Grab, hand.Side);
+        }
+
+        /// <summary>
+        /// A hand's rotation against the player's body (the rig): the neck's twist is the wrist's, and a snap or smooth turn
+        /// turned the hand in the world by as much (two 30 degree snaps read as 60 of the 70 that break the neck; review, 2026-10-24).
+        /// </summary>
+        private Quaternion InRig(Quaternion world) => Quaternion.Inverse(_rig.Root.rotation) * world;
 
         /// <summary>The player stands behind the soldier: the soldier faces away from him.</summary>
         private static bool FromBehind(Actor a, Actor player)
@@ -316,20 +334,16 @@ namespace RavenfieldVR.Weapons
             {
                 a.controller.enabled = false;
             }
-            _holds[i] = new Hold { Actor = a, Neck = true, NeckStart = hand.Palm.rotation };
-            hand.Role = HandRole.Body;
-            hand.Held = a;
-            VRInput.Consume(DigitalAction.Grab, hand.Side);
+            _holds[i] = new Hold { Actor = a, Neck = true, NeckStart = InRig(hand.Palm.rotation) };
+            TakeHand(hand, a);
             hand.Haptic(0.06f, 60f, 0.6f);
             Log.InfoOnce("neckhold", $"Took {a.name} by the neck from behind: a twist of the wrist breaks it.");
         }
 
-        private void FollowNeck(int i, VRHand hand, Hold hold)
+        private void FollowNeck(int i, VRHand hand, Hold hold, Actor player, bool canHold)
         {
             Actor a = hold.Actor;
-            Actor player = GameContext.PlayerActor;
-            if (a == null || player == null || player.dead || !GameContext.PlayerOnFoot || !hand.GrabHeld
-                || (HeadOf(a) - hand.PalmCentre).sqrMagnitude > 0.45f * 0.45f)
+            if (a == null || !canHold || !hand.GrabHeld || (HeadOf(a) - hand.PalmCentre).sqrMagnitude > 0.45f * 0.45f)
             {
                 Release(i, hand, thrown: false); // let go (or pulled away): his AI back
                 return;
@@ -342,12 +356,13 @@ namespace RavenfieldVR.Weapons
                 Attach(i, hand, a, hand.PalmCentre);
                 return;
             }
-            float twist = Quaternion.Angle(hold.NeckStart, hand.Palm.rotation);
+            float twist = Quaternion.Angle(hold.NeckStart, InRig(hand.Palm.rotation));
             if (twist < NeckTwist)
             {
                 return;
             }
-            // The neck breaks: a silent kill by the player, and the body stays in the hand.
+            // The neck breaks: a kill by the player (not the game's silent kill, which hides the body: this one ragdolls it), and
+            // the body stays in the hand.
             a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Melee, player, null)
             {
                 healthDamage = a.health + 100f,
@@ -365,8 +380,7 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                hand.Role = HandRole.Free;
-                hand.Held = null;
+                Release(i, hand, thrown: false); // (the hand free again)
             }
         }
 
@@ -378,16 +392,17 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private void Follow(int i, VRHand hand, Hold hold)
+        private void Follow(int i, VRHand hand, Hold hold, Actor player, bool canHold)
         {
             if (hold.Neck)
             {
-                FollowNeck(i, hand, hold);
+                FollowNeck(i, hand, hold, player, canHold);
                 return;
             }
             Actor a = hold.Actor;
-            if (a == null || hold.Bone == null || hold.Joint == null || a.ragdoll == null || !a.ragdoll.IsRagdoll()
-                || GameContext.PlayerActor == null || GameContext.PlayerActor.dead || !GameContext.PlayerOnFoot)
+            // (A body the game took away, its ragdoll switched off: Actor.KillSilently. The hand held it on, invisible.)
+            if (a == null || hold.Bone == null || hold.Joint == null || a.ragdoll == null || !a.ragdoll.IsRagdoll() || !canHold
+                || !hold.Bone.gameObject.activeInHierarchy)
             {
                 if (a != null && !a.dead && a.ragdoll != null && !a.ragdoll.IsRagdoll())
                 {
@@ -407,7 +422,13 @@ namespace RavenfieldVR.Weapons
             Quaternion rotation = hand.Palm.rotation;
             if ((palm - hold.LastPalm).sqrMagnitude > JumpDistance * JumpDistance)
             {
-                CarryBody(a, hold.LastPalm, hold.LastRotation, palm, rotation);
+                // Held in both hands, both jump in the same frame: the body is carried once (twice, it moved and turned twice).
+                if (_carriedActor != a || _carriedFrame != Time.frameCount)
+                {
+                    CarryBody(a, hold.LastPalm, hold.LastRotation, palm, rotation);
+                    _carriedActor = a;
+                    _carriedFrame = Time.frameCount;
+                }
                 anchor.transform.SetPositionAndRotation(palm, rotation);
                 anchor.position = palm;
                 anchor.rotation = rotation;
@@ -441,9 +462,14 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (Rigidbody rb in bones)
                 {
-                    if (rb != null && rb.velocity.sqrMagnitude > limit * limit)
+                    if (rb == null)
                     {
-                        rb.velocity = rb.velocity.normalized * limit;
+                        continue;
+                    }
+                    Vector3 v = rb.velocity;
+                    if (v.sqrMagnitude > limit * limit)
+                    {
+                        rb.velocity = v.normalized * limit;
                     }
                 }
             }
@@ -577,9 +603,7 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                Collider c = rb.GetComponent<Collider>();
-                Vector3 at = c != null && c.enabled ? c.ClosestPoint(palm) : rb.worldCenterOfMass;
-                float d = (at - palm).sqrMagnitude;
+                float d = BoneDistanceSq(rb, palm);
                 if (d < bestDistance)
                 {
                     bestDistance = d;
@@ -587,6 +611,13 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return best;
+        }
+
+        /// <summary>How far a point is from a ragdoll bone, squared: from its collider's surface, or its centre of mass.</summary>
+        private static float BoneDistanceSq(Rigidbody rb, Vector3 p)
+        {
+            Collider c = rb.GetComponent<Collider>();
+            return ((c != null && c.enabled ? c.ClosestPoint(p) : rb.worldCenterOfMass) - p).sqrMagnitude;
         }
     }
 
@@ -833,7 +864,11 @@ namespace RavenfieldVR.Weapons
                     direction = dir,
                 };
                 a.Damage(info);
-                Log.InfoOnce("bodyimpact:" + a.GetInstanceID(), $"{a.name}: thrown or slammed into something at {speed:0.0} m/s, {damage:0} damage.");
+                string key = "bodyimpact:" + a.GetInstanceID();
+                if (!Log.Logged(key))
+                {
+                    Log.InfoOnce(key, $"{a.name}: thrown or slammed into something at {speed:0.0} m/s, {damage:0} damage.");
+                }
             }
             catch (System.Exception e)
             {
@@ -877,6 +912,7 @@ namespace RavenfieldVR.Weapons
     internal sealed class StrappedGrenade : MonoBehaviour
     {
         private Rigidbody _bone;
+        private Transform _boneTransform, _self;
         private Projectile _projectile;
         private Actor _carrier;
         /// <summary>The carrier was seen dead: alive again later means respawned (actors are reused), the strap is off.</summary>
@@ -893,7 +929,9 @@ namespace RavenfieldVR.Weapons
             s._projectile = projectile;
             s._carrier = carrier;
             s._bone = bone;
-            Transform b = bone.transform;
+            s._boneTransform = bone.transform;
+            s._self = projectile.transform;
+            Transform b = s._boneTransform;
             projectile.transform.position = at;
             s._localPosition = b.InverseTransformPoint(at);
             s._localRotation = Quaternion.Inverse(b.rotation) * projectile.transform.rotation;
@@ -956,8 +994,7 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
-            Transform b = _bone.transform;
-            transform.SetPositionAndRotation(b.TransformPoint(_localPosition), b.rotation * _localRotation);
+            _self.SetPositionAndRotation(_boneTransform.TransformPoint(_localPosition), _boneTransform.rotation * _localRotation);
             _projectile.velocity = _bone.velocity;
         }
     }
