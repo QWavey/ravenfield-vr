@@ -144,6 +144,11 @@ namespace RavenfieldVR.Weapons
             if (a == null || hold.Bone == null || hold.Joint == null || a.ragdoll == null || !a.ragdoll.IsRagdoll()
                 || GameContext.PlayerActor == null || GameContext.PlayerActor.dead || !GameContext.PlayerOnFoot)
             {
+                if (a != null && !a.dead && a.ragdoll != null && !a.ragdoll.IsRagdoll())
+                {
+                    // Held down by fallAction each frame, so something else stood them up (the user's mutators include No Knockdown).
+                    Log.InfoOnce("bodygrab-up", $"Let go of {a.name}: stood up while held (a mutator that stops knockdowns does that).");
+                }
                 Release(i, hand, thrown: false);
                 return;
             }
