@@ -92,6 +92,7 @@ namespace RavenfieldVR.Tests
             BlowLabelTests(mod);
             BodyImpactTests(mod);
             KeyNameTests(mod);
+            FrameBudgetTests(mod);
             ShellSizeTests(mod);
             PoseToOpenVrTests(mod);
             ShapeFitTests(mod);
@@ -553,6 +554,33 @@ namespace RavenfieldVR.Tests
             Check(D(6f) > 0f && D(6f) < D(9f), "Body impacts: past the threshold, harder hurts more");
             Check(D(9f) - D(8f) > D(7f) - D(6f), "Body impacts: by the speed squared (Boneworks' impact energy), each m/s more hurts more");
             Check(D(20f) == D(60f) && D(60f) < 50f, $"Body impacts: one impact is capped below half a soldier's health ({D(60f):0})");
+        }
+
+        /// <summary>
+        /// The frame-rate log's percentiles from its 0.25 ms buckets: the upper edge of the bucket the share falls in.
+        /// </summary>
+        private static void FrameBudgetTests(System.Reflection.Assembly mod)
+        {
+            Type budget = mod.GetType("RavenfieldVR.Core.FrameBudget");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            var buckets = budget?.GetField("Buckets", flags)?.GetValue(null) as int[];
+            System.Reflection.FieldInfo frames = budget?.GetField("_frames", flags);
+            System.Reflection.MethodInfo percentile = budget?.GetMethod("Percentile", flags);
+            Check(buckets != null && frames != null && percentile != null, "Frame budget: buckets, count and percentile found");
+            if (buckets == null || frames == null || percentile == null)
+            {
+                return;
+            }
+            Array.Clear(buckets, 0, buckets.Length);
+            buckets[40] = 50; // 10.00-10.25 ms
+            buckets[44] = 45; // 11.00-11.25 ms
+            buckets[100] = 5; // 25.00-25.25 ms
+            frames.SetValue(null, 100);
+            float P(float share) => (float)percentile.Invoke(null, new object[] { share });
+            string got = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.00} {1:0.00} {2:0.00}", P(0.5f), P(0.95f), P(0.99f));
+            Check(got == "10.25 11.25 25.25", $"Frame budget: median, 95th and 99th from the buckets ({got})");
+            Array.Clear(buckets, 0, buckets.Length);
+            frames.SetValue(null, 0);
         }
 
         /// <summary>
