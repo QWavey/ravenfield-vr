@@ -138,7 +138,7 @@ if ($Package) {
     if (-not (Test-Path $icon)) { throw "Missing icon '$icon'. Regenerate it with: python tools/make_icon.py" }
     $metaDir = Join-Path $Build 'meta'
     New-Item -ItemType Directory -Force $metaDir | Out-Null
-    $asmVersion = "$version.0"
+    $asmVersion = if (($version -split '\.').Count -ge 4) { $version } else { "$version.0" }
     $year = (Get-Date).Year
     function New-AssemblyInfo([string]$Path, [string]$Title, [string]$Description) {
 @"

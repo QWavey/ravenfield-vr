@@ -944,6 +944,11 @@ namespace RavenfieldVR.Setup
         public static Color Card => Dark ? C(0x2B2B2B) : C(0xFBFBFB);
         public static Color CardBorder => Dark ? C(0x3A3A3A) : C(0xE6E6E6);
         public static Color TextCol => Dark ? C(0xF2F2F2) : C(0x1A1A1A);
+        // The status line's three states, each readable on the window in its theme (Windows 11's critical, caution and success
+        // hues, the orange darkened on the light window and lightened on the dark one).
+        public static Color Bad => Dark ? C(0xFF99A4) : C(0xC42B1C);
+        public static Color Warn => Dark ? C(0xFFB061) : C(0xB85C00);
+        public static Color Good => Dark ? C(0x6CCB5F) : C(0x0F7B0F);
         public static Color Subtle => Dark ? C(0xB4B4B4) : C(0x5D5D5D);
         public static Color Field => Dark ? C(0x2D2D2D) : C(0xFFFFFF);
         public static Color FieldBorder => Dark ? C(0x4A4A4A) : C(0xD0D0D0);
@@ -1388,6 +1393,7 @@ namespace RavenfieldVR.Setup
             bool valid = Installer.IsRavenfieldFolder(game);
             string installed = valid ? Installer.InstalledVersion(game) : null;
             string problem = valid ? Installer.BepInExProblem(game) : null;
+            _status.ForeColor = Ui.TextCol;
             if (!valid)
             {
                 _status.Text = "This folder does not contain ravenfield.exe.";
@@ -1398,7 +1404,8 @@ namespace RavenfieldVR.Setup
             }
             else if (installed == null)
             {
-                _status.Text = "Ravenfield VR is not installed yet.";
+                _status.Text = "Nothing is installed.";
+                _status.ForeColor = Ui.Bad;
             }
             // Compared as versions: any other version read as an update, so an older setup run over a newer install went back a
             // version under an "Update" button (installer scout, 2026-10-23). An install that stopped part way is repaired.
@@ -1410,10 +1417,13 @@ namespace RavenfieldVR.Setup
             int ahead = installed == null ? 0 : comparable ? GitHub.CompareVersions(Installer.Version, installedNumber) : 1;
             if (installed != null && problem == null)
             {
+                // Red: nothing installed (above). Orange: an update is suggested (an older or unfinished install). Green: up to date.
+                string on = comparable ? installed : "an unknown version";
                 _status.Text = incomplete ? $"Ravenfield VR {installed}: install again to finish it."
-                    : ahead == 0 ? $"Ravenfield VR {installed} is installed."
-                    : ahead > 0 ? $"Ravenfield VR {installed} is installed; this setup has {Installer.Version}."
-                    : $"Ravenfield VR {installed} is installed, newer than this setup's {Installer.Version}: installing goes back to {Installer.Version}.";
+                    : ahead == 0 ? $"You are up to date! (Version {installedNumber})"
+                    : ahead > 0 ? $"You are on version {on}. An Update is Suggested."
+                    : $"You are up to date! (Version {installed}, newer than this setup's {Installer.Version}: installing goes back to {Installer.Version}.)";
+                _status.ForeColor = incomplete || ahead > 0 ? Ui.Warn : Ui.Good;
             }
             _install.Text = installed == null ? "Install" : incomplete ? "Repair" : ahead == 0 ? "Reinstall" : ahead > 0 ? "Update" : "Downgrade";
             _install.Enabled = valid && problem == null;
@@ -1559,6 +1569,7 @@ namespace RavenfieldVR.Setup
             Control[] controls = { _install, _uninstall, _close, _path, _advanced };
             foreach (Control c in controls) c.Enabled = false;
             _status.Text = "Checking GitHub for versions…";
+            _status.ForeColor = Ui.TextCol;
             List<GitHub.Release> releases;
             try
             {
@@ -1626,6 +1637,7 @@ namespace RavenfieldVR.Setup
             }
             string previous = _status.Text;
             _status.Text = busyText;
+            _status.ForeColor = Ui.TextCol; // (working: not the state's colour; RefreshState sets it again when done)
             bool ok = false;
             try
             {
