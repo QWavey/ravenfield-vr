@@ -334,3 +334,14 @@ Heavier per-frame work, all already inside the profiler's "held: reload" 0.075 m
 Constants recomputed per frame (GunVolume.SetPose ToRot, LookRotation of the aim), unguarded transform writes of sight parts and the bolt piece,
 the lens colour set every frame: microseconds each.
 -> nothing changed: no measured cost to win back without a game run; noted for the next profiled run.
+
+==== Long-session growth scout (Haiku, read-only), 2026-10-24 evening ====
+Verdict: nothing grows per match or per drop in the weapon, rig, UI or drop code (drops, cases, duds, magazines, holster and
+pouch copies, scope cameras are destroyed or pruned on scene change). Plateaus or rare cases, not changed:
+- PerfProbe frame lists grow ~2.6 MB/h, only in profiled runs (-rfvr-perf / autotest), reset by the autotest.
+- Physics.IgnoreCollision pairs per drop (100-300): engine side, unsure whether destroyed colliders release them; to measure after ~200 drops.
+- WeaponRigData-keyed statics (AnimatorPoses, GrenadeInFist, InFistHollow, MagLineFitted, MagLineTableApply.Applied, ThirdPersonAimPatch.Reported)
+  keep one entry per FAILING weapon type per match (WeaponAnalyzer.ForgetFailed makes a new rig each scene): small unless many types fail.
+- Caches keyed by mesh/scale (BoltPiece.CarveCache, MagazineProp BoneCuts, ShapeFit/ScaledShapes, GunVolume.PixelPool): cleared on content
+  reload only; plateau per distinct key.
+- Small sets (LensFlash told-sets, SeeThroughShader, TurretAim Reported, Casings.OwnShells, MaterialFix.Fixed, Log.Once): bytes per entry.
