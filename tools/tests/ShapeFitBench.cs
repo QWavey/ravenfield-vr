@@ -71,6 +71,35 @@ internal static class ShapeFitBench
             slices.Invoke(null, sliceArgs);
         }
         double slicing = sw.Elapsed.TotalMilliseconds / runs;
+
+        // Each piece's own work after the slicing: dedupe, thin to 180, make solid (FitPoints' order).
+        MethodInfo dedupe = fit.GetMethod("Dedupe", any), thin = fit.GetMethod("Thin", any), solid = fit.GetMethod("Solid", any);
+        var hulls = new List<List<Vector3>>();
+        foreach (object g in (System.Collections.IEnumerable)slices.Invoke(null, sliceArgs))
+        {
+            var h = (List<Vector3>)g.GetType().GetField("Hull").GetValue(g);
+            if (h.Count >= 4)
+            {
+                hulls.Add(h);
+            }
+        }
+        double tDedupe = 0, tThin = 0, tSolid = 0;
+        for (int k = 0; k < runs; k++)
+        {
+            foreach (List<Vector3> h in hulls)
+            {
+                sw.Restart();
+                var a = (Vector3[])dedupe.Invoke(null, new object[] { h });
+                tDedupe += sw.Elapsed.TotalMilliseconds;
+                sw.Restart();
+                var b = (Vector3[])thin.Invoke(null, new object[] { a, 180 });
+                tThin += sw.Elapsed.TotalMilliseconds;
+                sw.Restart();
+                solid.Invoke(null, new object[] { b });
+                tSolid += sw.Elapsed.TotalMilliseconds;
+            }
+        }
+        Console.WriteLine($"  per fit: dedupe {tDedupe / runs:0.000} ms, thin {tThin / runs:0.000} ms, solid {tSolid / runs:0.000} ms ({hulls.Count} pieces, hull sizes {string.Join("/", hulls.ConvertAll(h => h.Count))})");
         Console.WriteLine($"shape fit: {total:0.000} ms a fit of {gun.Count} points (slicing {slicing:0.000} ms), {pieces.Length} pieces, hull points {hull}, checksum {sum:X}");
         return 0;
     }

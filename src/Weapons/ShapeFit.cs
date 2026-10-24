@@ -340,13 +340,9 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        var b = new Bounds(g.Hull[0], Vector3.zero);
-                        foreach (Vector3 p in g.Hull)
-                        {
-                            b.Encapsulate(p);
-                        }
+                        // (The bounds of the raw hull were taken here too, and overwritten unread.)
                         Vector3[] pts = Solid(Thin(Dedupe(g.Hull), 180));
-                        b = new Bounds(pts[0], Vector3.zero);
+                        var b = new Bounds(pts[0], Vector3.zero);
                         foreach (Vector3 p in pts)
                         {
                             b.Encapsulate(p);
@@ -373,31 +369,57 @@ namespace RavenfieldVR.Weapons
                 return pts;
             }
             var keep = new List<Vector3>(max);
-            var taken = new HashSet<int>();
+            var taken = new bool[pts.Length];
+            Vector3[] dirs = ThinDirections(max);
             for (int i = 0; i < max; i++)
             {
-                // Fibonacci sphere: evenly spread directions, one per point to keep.
-                float y = 1f - 2f * (i + 0.5f) / max;
-                float r = Mathf.Sqrt(Mathf.Max(0f, 1f - y * y));
-                float a = i * 2.39996323f;
-                var dir = new Vector3(r * Mathf.Cos(a), y, r * Mathf.Sin(a));
+                Vector3 dir = dirs[i];
                 int best = 0;
                 float bestDot = float.NegativeInfinity;
                 for (int k = 0; k < pts.Length; k++)
                 {
-                    float dot = Vector3.Dot(pts[k], dir);
+                    // Vector3.Dot's own sum, written out (the call per point per direction was most of a thinning).
+                    Vector3 p = pts[k];
+                    float dot = p.x * dir.x + p.y * dir.y + p.z * dir.z;
                     if (dot > bestDot)
                     {
                         bestDot = dot;
                         best = k;
                     }
                 }
-                if (taken.Add(best))
+                if (!taken[best])
                 {
+                    taken[best] = true;
                     keep.Add(pts[best]);
                 }
             }
             return keep.ToArray();
+        }
+
+        private static Vector3[] _thinDirs;
+
+        /// <summary>
+        /// <paramref name="max"/> directions on a Fibonacci sphere, evenly spread, one per point to keep: made once for the usual
+        /// count (they were made again, with a square root, a sine and a cosine each, for every piece). Fits also run on worker
+        /// threads: two that make them at once make the same directions, and the array is published whole.
+        /// </summary>
+        private static Vector3[] ThinDirections(int max)
+        {
+            Vector3[] dirs = _thinDirs;
+            if (dirs != null && dirs.Length == max)
+            {
+                return dirs;
+            }
+            dirs = new Vector3[max];
+            for (int i = 0; i < max; i++)
+            {
+                float y = 1f - 2f * (i + 0.5f) / max;
+                float r = Mathf.Sqrt(Mathf.Max(0f, 1f - y * y));
+                float a = i * 2.39996323f;
+                dirs[i] = new Vector3(r * Mathf.Cos(a), y, r * Mathf.Sin(a));
+            }
+            _thinDirs = dirs;
+            return dirs;
         }
 
         private const float MinThickness = 0.004f;
