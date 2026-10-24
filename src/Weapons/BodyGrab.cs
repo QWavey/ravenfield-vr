@@ -272,8 +272,12 @@ namespace RavenfieldVR.Weapons
     {
         /// <summary>Relative speed (m/s) below which an impact does nothing: a body dropped or dragged along the ground.</summary>
         internal const float Threshold = 5f;
-        /// <summary>Health per m/s above the threshold.</summary>
-        internal const float PerMetre = 5f;
+        /// <summary>
+        /// Health per (m/s)^2 past the threshold's square: Boneworks' Enemy_Health weighs an impact by its speed squared (its
+        /// thr_Impact 10 and mod_Impact 0.1 are on relativeVelocity.sqrMagnitude), so a slam at twice the speed hurts four times
+        /// as much and a shove barely at all: 6 m/s takes 3, 9 m/s 17, 10 m/s 23.
+        /// </summary>
+        internal const float PerSquare = 0.3f;
         /// <summary>The most one impact takes: a soldier has 100; two hard slams kill, one does not.</summary>
         internal const float Cap = 35f;
 
@@ -285,7 +289,7 @@ namespace RavenfieldVR.Weapons
         private Transform _ragdollRoot;
 
         /// <summary>The damage of an impact at this relative speed (pure: the offline tests check the curve).</summary>
-        internal static float ImpactDamage(float speed) => speed <= Threshold ? 0f : Mathf.Min((speed - Threshold) * PerMetre, Cap);
+        internal static float ImpactDamage(float speed) => speed <= Threshold ? 0f : Mathf.Min((speed * speed - Threshold * Threshold) * PerSquare, Cap);
 
         /// <summary>Arms (or keeps armed) every bone of the soldier until <paramref name="until"/> (game time).</summary>
         internal static void Arm(Actor a, float until, Actor by)

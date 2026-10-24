@@ -550,6 +550,7 @@ namespace RavenfieldVR.Tests
             float D(float speed) => (float)damage.Invoke(null, new object[] { speed });
             Check(D(0f) == 0f && D(3f) == 0f && D(5f) == 0f, "Body impacts: a body dropped or dragged (5 m/s or less) is not hurt");
             Check(D(6f) > 0f && D(6f) < D(9f), "Body impacts: past the threshold, harder hurts more");
+            Check(D(9f) - D(8f) > D(7f) - D(6f), "Body impacts: by the speed squared (Boneworks' impact energy), each m/s more hurts more");
             Check(D(20f) == D(60f) && D(60f) < 50f, $"Body impacts: one impact is capped below half a soldier's health ({D(60f):0})");
         }
 
