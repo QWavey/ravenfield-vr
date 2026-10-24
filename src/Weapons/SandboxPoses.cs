@@ -70,6 +70,14 @@ namespace RavenfieldVR.Weapons
                 // Read with the mod's own JSON reader: JsonUtility left the nested hands empty without a word, and the game
                 // kept the analysed grip (check-1017i, the M4A1 CCO's pose).
                 object doc = MiniJson.Parse(File.ReadAllText(path));
+                // The file is found by a file-safe name, which two weapon kinds can share: the pose saved for another one is not
+                // taken (bridge scout, 2026-10-24). A file from before the key was saved is taken as before.
+                string savedFor = MiniJson.Str(doc, "key");
+                if (!string.IsNullOrEmpty(savedFor) && savedFor != d.Key)
+                {
+                    Log.WarnOnce("sandbox-pose-key:" + d.Key, $"The sandbox pose file {path} was saved for {savedFor}, not {d.Key}: not used.");
+                    return;
+                }
                 var hands = MiniJson.Obj(doc, "hands");
                 var right = MiniJson.Obj(hands, "right");
                 var left = MiniJson.Obj(hands, "left");
@@ -133,6 +141,10 @@ namespace RavenfieldVR.Weapons
                 if (!usedRight && (rp == null || rq == null))
                 {
                     Log.Warn($"The sandbox pose for {d.Key} has no usable right hand (hands.right.mod.position / rotation): the mod's own grip is kept ({path}).");
+                }
+                if (!usedRight && !usedLeft)
+                {
+                    return; // (nothing of it was used: the notes and the log said the sandbox's pose was)
                 }
                 d.Notes += "hands from the sandbox's saved pose ";
                 // What it set, in the file's numbers (the autotest's check reads it back against the file).
