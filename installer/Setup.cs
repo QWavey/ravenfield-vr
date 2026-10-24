@@ -306,6 +306,7 @@ namespace RavenfieldVR.Setup
             {
                 throw new InvalidOperationException(bepProblem);
             }
+            CheckPayload(openPayload);
 
             string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
             var added = new List<string>();
@@ -422,6 +423,40 @@ namespace RavenfieldVR.Setup
             string bas = Path.GetFullPath(root).TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
             return full.StartsWith(bas, StringComparison.OrdinalIgnoreCase) ? full : null;
         }
+
+        /// <summary>
+        /// Throws, before anything in the game folder changes, unless the payload is a whole zip holding the mod's plugin. An
+        /// update clears the installed plugin first: a truncated or wrong download (a cut-off connection, an HTML error page)
+        /// left the game with no mod at all and the record still naming the old version (installer scout, 2026-10-23).
+        /// </summary>
+        private static void CheckPayload(Func<Stream> openPayload)
+        {
+            using (Stream payload = openPayload())
+            {
+                if (payload == null)
+                {
+                    throw new InvalidOperationException("The release to install is missing. Nothing was changed.");
+                }
+                ZipArchive zip;
+                try
+                {
+                    zip = new ZipArchive(payload, ZipArchiveMode.Read);
+                }
+                catch (InvalidDataException e)
+                {
+                    throw new InvalidOperationException("The release to install is damaged (not a complete zip: " + e.Message + "). Nothing was changed.", e);
+                }
+                using (zip)
+                {
+                    if (!zip.Entries.Any(e => string.Equals(e.FullName.Replace('\\', '/'), PluginEntry, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        throw new InvalidOperationException("The release to install has no " + PluginEntry + ": not a Ravenfield VR release. Nothing was changed.");
+                    }
+                }
+            }
+        }
+
+        private const string PluginEntry = "BepInEx/plugins/RavenfieldVR/RavenfieldVR.dll";
 
         /// <summary>
         /// The backup folder as the record keeps it: relative to the game folder when inside it. Kept absolute, a game moved with
@@ -756,21 +791,35 @@ namespace RavenfieldVR.Setup
             PrepareTls();
             string dest = Path.Combine(Path.GetTempPath(),
                 "RavenfieldVR-" + release.Version + "-" + Guid.NewGuid().ToString("N") + ".zip");
-            using (var resp = (HttpWebResponse)Request(release.ZipUrl).GetResponse())
-            using (Stream src = resp.GetResponseStream())
-            using (var dst = new FileStream(dest, FileMode.Create, FileAccess.Write))
+            try
             {
-                long total = resp.ContentLength, done = 0;
-                byte[] buf = new byte[81920];
-                int n;
-                while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                using (var resp = (HttpWebResponse)Request(release.ZipUrl).GetResponse())
+                using (Stream src = resp.GetResponseStream())
+                using (var dst = new FileStream(dest, FileMode.Create, FileAccess.Write))
                 {
-                    dst.Write(buf, 0, n);
-                    done += n;
-                    if (progress != null) progress(done, total);
+                    long total = resp.ContentLength, done = 0;
+                    byte[] buf = new byte[81920];
+                    int n;
+                    while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        dst.Write(buf, 0, n);
+                        done += n;
+                        if (progress != null) progress(done, total);
+                    }
+                    // A connection closed early ends the read without an error: a short file is no release.
+                    if (total > 0 && done != total)
+                    {
+                        throw new IOException($"The download stopped at {done} of {total} bytes.");
+                    }
                 }
+                return dest;
             }
-            return dest;
+            catch
+            {
+                // (The caller never learns the path of a download that failed: its temp file went with it here or not at all.)
+                try { File.Delete(dest); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                throw;
+            }
         }
 
         /// <summary>Compares dotted numeric versions (1.10.1 &gt; 1.9.0); non-numeric parts fall back to ordinal.</summary>

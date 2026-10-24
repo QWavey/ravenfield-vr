@@ -39,6 +39,7 @@ namespace RavenfieldVR.Tests
             SetupInstallTests();
             SetupForeignLoaderTests();
             SetupMovedGameTests();
+            SetupBadPayloadTests();
             ModTests(args);
             Console.WriteLine($"{_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
@@ -1329,6 +1330,79 @@ namespace RavenfieldVR.Tests
                     catch (System.IO.IOException)
                     {
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// An update from a payload that is no whole release (bytes that are no zip, the release zip cut off half way, a zip
+        /// without the plugin): refused before anything changes, the installed mod and its record left as they were.
+        /// </summary>
+        private static void SetupBadPayloadTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-payload-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game");
+            try
+            {
+                System.IO.Directory.CreateDirectory(game);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(game, "ravenfield.exe"), "");
+                var installer = new Installer(_ => { });
+                installer.Install(game);
+                byte[] release;
+                using (System.IO.Stream s = typeof(Installer).Assembly.GetManifestResourceStream("RavenfieldVR.Setup.payload.zip"))
+                using (var m = new System.IO.MemoryStream())
+                {
+                    s.CopyTo(m);
+                    release = m.ToArray();
+                }
+                byte[] empty;
+                using (var m = new System.IO.MemoryStream())
+                {
+                    using (var z = new System.IO.Compression.ZipArchive(m, System.IO.Compression.ZipArchiveMode.Create, true))
+                    {
+                        using (var w = new System.IO.StreamWriter(z.CreateEntry("readme.txt").Open()))
+                        {
+                            w.Write("no plugin");
+                        }
+                    }
+                    empty = m.ToArray();
+                }
+                string plugin = System.IO.Path.Combine(game, @"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll");
+                string recordPath = System.IO.Path.Combine(game, Installer.ManifestRelative);
+                string record = System.IO.File.ReadAllText(recordPath);
+                var bad = new[]
+                {
+                    ("bytes that are no zip", System.Text.Encoding.ASCII.GetBytes("<html>404 Not Found</html>")),
+                    ("the release cut off half way", release.Take(release.Length / 2).ToArray()),
+                    ("a zip without the plugin", empty),
+                };
+                foreach ((string what, byte[] bytes) in bad)
+                {
+                    string error = null;
+                    try
+                    {
+                        installer.InstallFrom(game, () => new System.IO.MemoryStream(bytes), "9.9.9");
+                    }
+                    catch (InvalidOperationException e)
+                    {
+                        error = e.Message;
+                    }
+                    Check(error != null && error.Contains("Nothing was changed") && System.IO.File.Exists(plugin) && System.IO.File.ReadAllText(recordPath) == record,
+                          $"Setup payload ({what}): refused before the installed mod is touched ({error ?? "installed"})");
+                }
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup payload: threw " + e);
+            }
+            finally
+            {
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
                 }
             }
         }
