@@ -789,6 +789,13 @@ namespace RavenfieldVR.Input
             if (VRConfig.Sprint.Value == SprintMode.Hold)
             {
                 SprintActive = VRInput.GetHeld(DigitalAction.Sprint);
+                // Sprinting ends a crouch or prone the stick toggled, as the toggle mode does once the run starts: returned before
+                // that, held sprint kept the stance and did not run (bridge scout, 2026-10-24).
+                if (SprintActive && MoveStick.sqrMagnitude >= 0.04f)
+                {
+                    CrouchToggled = false;
+                    ProneToggled = false;
+                }
                 return;
             }
             if (VRInput.GetPressed(DigitalAction.Sprint))

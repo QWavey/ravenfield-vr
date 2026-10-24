@@ -342,6 +342,12 @@ namespace RavenfieldVR.Weapons
                         }
                         // (The bounds of the raw hull were taken here too, and overwritten unread.)
                         Vector3[] pts = Solid(Thin(Dedupe(g.Hull), 180));
+                        if (pts.Length > 255)
+                        {
+                            // A thin piece is doubled out along its thin axes (Solid): 180 points became up to 360, past the 255 a
+                            // convex hull may have, and its cooking failed, a box instead (gun-volume scout, 2026-10-24).
+                            pts = Thin(pts, 250);
+                        }
                         var b = new Bounds(pts[0], Vector3.zero);
                         foreach (Vector3 p in pts)
                         {
