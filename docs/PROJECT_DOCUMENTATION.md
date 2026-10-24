@@ -206,6 +206,16 @@ Who provides solids:
 
 Without a solid (volume not ready, depth shader missing) the glove falls back to the earlier fixed curls with a cap.
 
+**Contact (2026-10-23, after Boneworks' `PhysHand`).** The glove is not placed at the tracked hand and then pushed out of the
+gun: it is swept there. `Rig/GloveSweep.cs` (pure, offline-tested) moves it from where it was drawn last frame (kept in the
+gun's space, so the gun moving does not drag it through) toward the tracked hand in small steps, stops at the last clear
+step and slides what is left along the gun's axes. Once the tracked hand is clear of the gun by 15 cm the glove goes back
+to it (Boneworks' `CheckStuck`/`SetHand`). This fixed a fast swipe through a thin receiver (the old search started from
+the hand's new place, already past the gun) and the double-magazine reload's promoted magazine hand (it had no keep-out).
+A hand working a part (bolt, handle, slide, pump, feed cover, optic) keeps its glove on the part for as far as it holds it
+(46 cm), the arm with it. Slamming a magazine into a locked gun at 0.9 m/s or more sends the slide home
+(`MagSlapReleasesSlide`), and a weaker haptic no longer cuts a stronger one short (`VRInput.HapticAllowed`).
+
 ### 3.5 Weapon analysis (`Weapons/WeaponAnalyzer.cs`, `Weapons/PoseSampler.cs`, `Weapons/WeaponRig.cs`, `Weapons/WeaponWarmup.cs`, `Weapons/WeaponOverrides.cs`)
 
 `WeaponAnalyzer` samples each weapon's animator on an inert clone (`PoseSampler`: idle, fire, reload, aim and sight
@@ -966,3 +976,26 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    script is destroyed; the loading overlay fades with the view; reload rotations are kept only for drawn moving parts.
 9. **Tests**: 95 C# checks, the sheets test; an `AmmoState` check is not possible offline (the game's `Weapon` type
    initializer runs native code).
+
+## 16. Work Log (2026-10-23 and 24)
+
+1. **Boneworks studied from its files** (IL2CPP: a self-made `global-metadata.dat` parser and raw asset reads; never
+   launched, nothing written there; Tasks.md 334). Its reload geometry matches ours (4 cm plug radius); imported its
+   behaviour: the glove contact sweep, hands staying on worked parts, the slam release and the haptic stack (see 3.4).
+2. **The user's hand-through-gun bug** (fast swipes, the double-magazine reload): fixed by the sweep. Released as 1.11.0.
+3. **Performance, measured offline** (`tools/tests/bench.ps1`): gun-volume point test 92 -> 24 ns, the glove skin's
+   nearness 59 -> 18 ns, `ShapeFit` (a drop's collider pieces, main thread) 1.54 -> 0.41 ms with the same pieces (a
+   checksum of every point), per-frame and per-shot garbage removed in the input module, lens flash, melee, the menu
+   notice (no GUI layout pass) and the magnifier grip.
+4. **Bug hunts by read-only Haiku scouts and three workflows** (finders plus skeptics), every finding checked before a fix;
+   all listed with their status in `reports/haiku-findings-2026-10-23.txt` and `-24.txt`. Among them: a launcher or
+   revolver reloaded in the free hand lost a round; a semi-switched gun stayed semi-only after VR stopped; VR input kept
+   its state over a restart; shadow-only renderers drew their mesh while held; the second weapon was holstered on a
+   one-frame tracking loss; teardowns (OpenVR, the rig, weapons, UI) each guarded per step.
+5. **Setup**: an uninstall no longer clobbers another tool's `winhttp.dll`, a bad download changes nothing, a stopped
+   install keeps its record, moved games keep their backups, Steam's files are replaced in one step, quoted or relative
+   paths are made whole, Downgrade/Repair labels; each with an offline test (154 checks).
+6. **Clean**: `HeldWeapon`, `ReloadInteractions`, `WeaponAnalyzer`, `WeaponDrops` and `MagazineProp` split into partial
+   files at their own sections (pure moves, verified by line multiset; see the file table in 4).
+7. **Measured before changed**: two analysis rules a fix would change for every gun (arm-named groups, the first magazine
+   name match) now write notes; a `-rfvr-selftest` run lists the guns they affect.
