@@ -642,7 +642,7 @@ namespace RavenfieldVR.Weapons
             Vector3 tip = rig.ToWorld(rig.Data.GripPoint + _bladeDir * _bladeLength);
             float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
             Transform body = _sys.Rig.Root;
-            if (_hasLast)
+            if (_hasLast && !NoFrameTime)
             {
                 // The swing is the blade's speed against the player's own body: running (about 6 m/s) or turning with the
                 // stick with a knife held still counted as swinging it (2.6 m/s needed) and cut whatever you ran into.
@@ -774,6 +774,12 @@ namespace RavenfieldVR.Weapons
 
         // ---- a gun swung into someone ---------------------------------------------------------------
 
+        /// <summary>
+        /// A frame with no time (reported as 0): no swing is measured on it, only the samples refreshed. Its speed divided by the
+        /// floored dt read a 0.3 mm change as 3 m/s, a swing (throw/melee scout, 2026-10-23).
+        /// </summary>
+        private static bool NoFrameTime => Time.unscaledDeltaTime < 1e-4f;
+
         /// <summary>Points along the gun from its butt (0) to its muzzle (last), each swept from the last frame (world and body space).</summary>
         private const int BashPoints = 4;
         private readonly Vector3[] _bashAt = new Vector3[BashPoints], _bashInRig = new Vector3[BashPoints];
@@ -821,7 +827,7 @@ namespace RavenfieldVR.Weapons
             // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
             // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
             // (Not with the laser on one of the mod's panels either, as the trigger: review, 2026-10-20.)
-            if (_bashHas && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
+            if (_bashHas && !NoFrameTime && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
             {
                 bool carried = (muzzle - _bashAt[BashPoints - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = Mathf.Max(2.2f, VRConfig.MeleeSwingSpeed.Value);
@@ -886,7 +892,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 at = h.Palm.position;
-                if (ReferenceEquals(what, _blowHeld[i]) && Time.time - _lastBlow > 0.5f && Time.time - _lastBash > 0.5f
+                if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.time - _lastBlow > 0.5f && Time.time - _lastBash > 0.5f
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
                 {
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
