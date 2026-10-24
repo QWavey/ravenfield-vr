@@ -324,3 +324,13 @@ Verdict: the per-frame gameplay paths are already allocation-free (cached delega
    -> fixed 6326e53: hits inserted in order.
 5. CanvasManager.Scan FindObjectsOfType<Canvas> every 1 s in a match; CameraSuppressor RemoveWhere every 15 frames. -> periodic, left.
 6. ScriptKeys.KeysOn new List per call (gated); ThrowAndMelee bash log string built per landed hit. -> only on those events, left.
+
+==== Render-path scout (Haiku, read-only), 2026-10-24 evening: HeldWeapon.BeforeRender, ReloadInteractions, GrenadeDud, FireSelector, DrivingWeapons, WeaponSounds ====
+Verdict: no per-frame heap allocation on these paths (one array in DrawDebugZones, only with ShowGrabZones on).
+Heavier per-frame work, all already inside the profiler's "held: reload" 0.075 ms a frame average:
+- ReloadInteractions.KeepEmptyHandOut: about 130 solid tests a frame while the free off hand is within 0.7 m of the grip.
+- MagazineProp.KeepOffGun: up to 144 point tests per 5 mm of hand travel with a magazine in the hand near the gun (skipped when still).
+- ReloadInteractions.PalmOnPart while racking with the palm: up to about 160 solid calls.
+Constants recomputed per frame (GunVolume.SetPose ToRot, LookRotation of the aim), unguarded transform writes of sight parts and the bolt piece,
+the lens colour set every frame: microseconds each.
+-> nothing changed: no measured cost to win back without a game run; noted for the next profiled run.
