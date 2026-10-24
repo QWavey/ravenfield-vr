@@ -1392,13 +1392,18 @@ namespace RavenfieldVR.Setup
             {
                 _status.Text = "Ravenfield VR is not installed yet.";
             }
-            else
+            // Compared as versions: any other version read as an update, so an older setup run over a newer install went back a
+            // version under an "Update" button (installer scout, 2026-10-23). An install that stopped part way is repaired.
+            bool incomplete = installed != null && installed.IndexOf("incomplete", StringComparison.OrdinalIgnoreCase) >= 0;
+            int ahead = installed == null ? 0 : GitHub.CompareVersions(Installer.Version, installed.Split(' ')[0]);
+            if (installed != null && problem == null)
             {
-                _status.Text = installed == Installer.Version
-                    ? $"Ravenfield VR {installed} is installed."
-                    : $"Ravenfield VR {installed} is installed; this setup has {Installer.Version}.";
+                _status.Text = incomplete ? $"Ravenfield VR {installed}: install again to finish it."
+                    : ahead == 0 ? $"Ravenfield VR {installed} is installed."
+                    : ahead > 0 ? $"Ravenfield VR {installed} is installed; this setup has {Installer.Version}."
+                    : $"Ravenfield VR {installed} is installed, newer than this setup's {Installer.Version}: installing goes back to {Installer.Version}.";
             }
-            _install.Text = installed == null ? "Install" : installed == Installer.Version ? "Reinstall" : "Update";
+            _install.Text = installed == null ? "Install" : incomplete ? "Repair" : ahead == 0 ? "Reinstall" : ahead > 0 ? "Update" : "Downgrade";
             _install.Enabled = valid && problem == null;
             _uninstall.Enabled = valid && installed != null;
             _openConfig.Visible = valid && File.Exists(ConfigPath(game));
