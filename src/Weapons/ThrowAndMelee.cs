@@ -86,7 +86,7 @@ namespace RavenfieldVR.Weapons
             {
                 _armed = false;
                 Vector3 v = ThrowableHandler.Released(hand);
-                if (v.magnitude > 1.1f && Throw(weapon, hand, v))
+                if ((v.magnitude > 1.1f || CanStrap(hand)) && Throw(weapon, hand, v))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
                 }
@@ -104,7 +104,7 @@ namespace RavenfieldVR.Weapons
                 {
                     v = body;
                 }
-                if (body.magnitude > 1.6f)
+                if (body.magnitude > 1.6f || CanStrap(hand))
                 {
                     _armed = false;
                     if (Throw(weapon, hand, v))
@@ -120,6 +120,16 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool GameContextBlocksThrow() => VRGameInput.GunInputBlocked; // a menu, the laser on a panel, or the match paused
+
+        /// <summary>
+        /// A live grenade (its pin out, or one without a pin) let go on a body the other hand holds is strapped to it, however
+        /// slowly it is let go (a slow let-go elsewhere puts it back on the chest): <see cref="StrappedGrenade"/>.
+        /// </summary>
+        private bool CanStrap(VRHand hand) => (!_usesPin || _pinPulled) && hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed
+                                              && BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach) != null;
+
+        /// <summary>A let-go slower than this beside a held body straps the grenade to it; faster is a throw (m/s).</summary>
+        private const float StrapMaxSpeed = 2.5f;
 
         /// <returns>Something left the hand (a live grenade or a dud).</returns>
         private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
@@ -149,6 +159,10 @@ namespace RavenfieldVR.Weapons
             Quaternion savedRot = muzzle.localRotation;
             Vector3 dir = velocity.normalized;
             muzzle.SetPositionAndRotation(hand.Palm.position + dir * 0.08f, Quaternion.LookRotation(dir));
+            // Let go on a held body: strapped to its nearest bone, not thrown (user, 2026-10-24). Only a let-go, not a throw that
+            // starts beside the body the other hand holds.
+            Actor carrier = null;
+            Rigidbody strapTo = velocity.magnitude < StrapMaxSpeed ? BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach, out carrier) : null;
             _spawned.Clear();
             try
             {
@@ -165,8 +179,15 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                p.velocity = velocity;
-                p.transform.rotation = Quaternion.LookRotation(dir);
+                if (strapTo != null && p is GrenadeProjectile)
+                {
+                    StrappedGrenade.Strap(p, strapTo, carrier, hand.Palm.position);
+                }
+                else
+                {
+                    p.velocity = velocity;
+                    p.transform.rotation = Quaternion.LookRotation(dir);
+                }
                 LastLiveCount++;
             }
             _spawned.Clear();
@@ -554,6 +575,28 @@ namespace RavenfieldVR.Weapons
             PullPin(null);
             Throw(weapon, hand, lob);
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
+        }
+
+        /// <summary>
+        /// Autotest: the grenade in the hand let go where the hand is, its pin pulled first (the strap check: let go on a held
+        /// body, it must be strapped to it). Returns how many live grenades left the hand.
+        /// </summary>
+        internal int TestLetGoLive(HeldWeapon held)
+        {
+            var weapon = held != null ? held.Weapon as ThrowableWeapon : null;
+            if (weapon == null)
+            {
+                return 0;
+            }
+            if (_pinFor != weapon)
+            {
+                SetupPin(held, weapon);
+            }
+            if (_usesPin && !_pinPulled)
+            {
+                PullPin(null);
+            }
+            return Throw(weapon, _sys.Rig.Dominant, Vector3.zero) ? LastLiveCount : 0;
         }
 
         /// <summary>Death or a new map: the grenades drawn next are fresh ones, pins in.</summary>

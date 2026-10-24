@@ -90,7 +90,11 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 
 **Grenades:** pull the pin with your other hand (grip the ring at the top and pull it away), or press A to flick it out one-handed. Nothing happens while you keep holding the grenade; hold the trigger, throw with your arm and let go of the trigger at the end of the throw, and the fuse starts as it leaves your hand. Thrown with the pin still in, it is a dud: it bounces and lies there, and picking it up puts it back in your pouch. Put the grenade away with the pin out and the pin goes back in. Smoke grenades work the same; ammo bags, medic bags and charges have no pin. **Melee weapons** hit what you swing them through. So does any gun, anywhere from its butt to its muzzle, and an empty hand closed into a fist (grip pressed, nothing held): punch.
 
-**Soldiers:** reach for a soldier with an empty hand and grip. They go limp and hang from your hand; drag them, slam them into things, or swing and let go to throw them. A hard impact hurts them and any soldier they hit, by the speed squared as in Boneworks (a shove does nothing, a slam a fifth of their health, at most a third in one impact), so it takes a few slams to finish one off. Soldiers of your own team are not hurt.
+**Soldiers:** reach for a soldier with an empty hand and grip. They go limp and hang from your hand; drag them, slam them into things, or swing and let go to throw them. A hard impact hurts them and any soldier they hit, by the speed squared as in Boneworks (a shove does nothing, a slam a fifth of their health, at most a third in one impact), so it takes a few slams to finish one off. Soldiers of your own team are not hurt. Only an empty hand takes hold: the hand on your gun, a grenade or a magazine never grabs a soldier, the other, empty hand does.
+
+- **Human shield:** hold a soldier up in front of you; bullets hit him, his own friends' too.
+- **From behind:** reach for a soldier's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again.
+- **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go on his body: it sticks to him. Throw him away before it goes off.
 
 Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Fired cases fly out of the ejection port and lie on the ground for a while.
 
