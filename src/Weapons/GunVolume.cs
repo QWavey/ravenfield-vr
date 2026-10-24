@@ -859,22 +859,42 @@ namespace RavenfieldVR.Weapons
                     AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
                     {
                         Color32[] pixels = null;
-                        if (!request.hasError)
+                        try
                         {
-                            // Into a pooled buffer (2 MB a picture, ten a weapon: new arrays every measure were large-object
-                            // garbage); back to the pool once decoded.
-                            Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
-                            pixels = RentPixels(data.Length);
-                            data.CopyTo(pixels);
+                            if (!request.hasError)
+                            {
+                                // Into a pooled buffer (2 MB a picture, ten a weapon: new arrays every measure were large-object
+                                // garbage); back to the pool once decoded.
+                                Unity.Collections.NativeArray<Color32> data = request.GetData<Color32>();
+                                pixels = RentPixels(data.Length);
+                                data.CopyTo(pixels);
+                            }
                         }
-                        RenderTexture.ReleaseTemporary(rt);
+                        catch (Exception e)
+                        {
+                            // The picture counts as missing (the measure fails, and is tried again) rather than never arriving: a
+                            // throw here skipped both lines below, the texture stayed taken and the job waited 15 s for its stall
+                            // (gun-volume scout, 2026-10-24; MeasureShare's read-back was guarded so already).
+                            pixels = null;
+                            Log.ExceptionOnce("GunVolume read-back", e);
+                        }
+                        finally
+                        {
+                            RenderTexture.ReleaseTemporary(rt);
+                        }
                         job.Arrived(index, pixels);
                     });
                 }
                 else
                 {
-                    job.Arrived(index, ReadNow(rt));
-                    RenderTexture.ReleaseTemporary(rt);
+                    try
+                    {
+                        job.Arrived(index, ReadNow(rt));
+                    }
+                    finally
+                    {
+                        RenderTexture.ReleaseTemporary(rt);
+                    }
                 }
             }
         }
