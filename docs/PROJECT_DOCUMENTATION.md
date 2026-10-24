@@ -549,7 +549,7 @@ Tools (`tools/`, Python, local files only):
 | `src/Weapons/WeaponAnalyzer.cs` (+ `.HandsAndSights`, `.Action`, `.Magazine`, `.Sounds`, `.Helpers`), `PoseSampler.cs` | rig analysis by sampled animation | works for any mod |
 | `src/Weapons/ShapeFit.cs`, `GunCollider.cs` | convex physics shapes, prop physics, body ignoring | "only the model is the hitbox" |
 | `src/Weapons/MagazineProp.cs` | physical magazines, shells, rockets | reload props |
-| `src/Weapons/WeaponDrops.cs` | dropped weapons, pickup, return, warm-up prep | drops |
+| `src/Weapons/WeaponDrops.cs` (+ `.Spawning`, `.Pickup`, `.OwnWeapon`) | dropped weapons, pickup, return, warm-up prep | drops |
 | `src/Weapons/WeaponSystem.cs` | owner of held weapon, holsters, let-go, equip take-over | weapon lifecycle |
 | `src/Weapons/WeaponSelfTest.cs` | all-weapons report | analysis regressions |
 | `src/Weapons/WeaponPatches.cs` | Harmony hooks on the game's weapons (CanFire, Shoot, Reload, Update, aiming) | where a shot reaches the mod; the Shoot prefix records the muzzle that fires (the game moves on to the next barrel before the postfix) |
