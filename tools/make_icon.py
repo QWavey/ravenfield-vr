@@ -4,7 +4,9 @@ Renders each ICO size individually with supersampling (crisp small sizes),
 then packs them into a single multi-resolution .ico. Also writes a 256px PNG
 preview for eyeballing.
 """
+import io
 import os
+import struct
 import sys
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -104,17 +106,53 @@ def render(S):
     return img
 
 
-SIZES = [256, 128, 64, 48, 32, 16]
+# 20, 24 and 40 too: what Windows and Chrome ask for at 125-200% display scale (a 16 or 32 scaled up was blurry).
+SIZES = [256, 128, 64, 48, 40, 32, 24, 20, 16]
 frames = []
 for s in SIZES:
     ss = min(1024, s * (4 if s >= 128 else 16))
     frames.append(render(ss).resize((s, s), Image.LANCZOS))
 
-# Pack all sizes into one .ico
-frames[0].save(OUT_ICO, format="ICO",
-               sizes=[(s, s) for s in SIZES],
-               append_images=frames[1:])
-print("Wrote", OUT_ICO, "sizes:", SIZES)
+
+def dib(img):
+    """One frame as an icon bitmap: a 32-bit BGRA image (bottom-up) and its 1-bit mask (set where fully transparent)."""
+    w, h = img.size
+    px = img.tobytes("raw", "BGRA")
+    xor = b"".join(px[y * w * 4:(y + 1) * w * 4] for y in reversed(range(h)))
+    alpha = img.getchannel("A").tobytes()
+    stride = ((w + 31) // 32) * 4
+    mask = bytearray()
+    for y in reversed(range(h)):
+        row = bytearray(stride)
+        for x in range(w):
+            if alpha[y * w + x] == 0:
+                row[x >> 3] |= 0x80 >> (x & 7)
+        mask += row
+    header = struct.pack("<IiiHHIIiiII", 40, w, h * 2, 1, 32, 0, len(xor) + len(mask), 0, 0, 0, 0)
+    return header + xor + bytes(mask)
+
+
+def png(img):
+    out = io.BytesIO()
+    img.save(out, format="PNG", optimize=True)
+    return out.getvalue()
+
+
+# Pack all sizes into one .ico, written here rather than by Pillow: Pillow stores every size as PNG, and a PNG frame
+# needs Windows' image codecs to read. Chrome reads a downloaded exe's icon in a sandbox without them and showed the
+# generic program icon for our Setup (Explorer, unsandboxed, showed ours). Bitmaps below 256 and PNG only at 256, as
+# Rufus, Claude's and EA's installers have theirs (2026-10-25).
+images = [png(f) if f.width >= 256 else dib(f) for f in frames]
+with open(OUT_ICO, "wb") as ico:
+    ico.write(struct.pack("<HHH", 0, 1, len(frames)))
+    offset = 6 + 16 * len(frames)
+    for f, data in zip(frames, images):
+        side = f.width if f.width < 256 else 0  # 0 means 256
+        ico.write(struct.pack("<BBBBHHII", side, side, 0, 0, 1, 32, len(data), offset))
+        offset += len(data)
+    for data in images:
+        ico.write(data)
+print("Wrote", OUT_ICO, "sizes:", SIZES, "(bitmaps below 256, PNG at 256)")
 if len(sys.argv) > 2:          # optional 256px preview only when a path is given
     frames[0].save(OUT_PNG)
     print("Wrote preview", OUT_PNG)
