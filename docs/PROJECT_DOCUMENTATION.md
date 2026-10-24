@@ -548,7 +548,7 @@ Tools (`tools/`, Python, local files only):
 | `src/Weapons/ReloadInteractions.cs` (+ `.SelfChecks.cs`) | manual reloads, H3VR kick/palming, pouch, rack grips; the in-game self-checks apart | reload feel |
 | `src/Weapons/WeaponAnalyzer.cs` (+ `.HandsAndSights`, `.Action`, `.Magazine`, `.Sounds`, `.Helpers`), `PoseSampler.cs` | rig analysis by sampled animation | works for any mod |
 | `src/Weapons/ShapeFit.cs`, `GunCollider.cs` | convex physics shapes, prop physics, body ignoring | "only the model is the hitbox" |
-| `src/Weapons/MagazineProp.cs` | physical magazines, shells, rockets | reload props |
+| `src/Weapons/MagazineProp.cs` (+ `.Look`, `.Holding`) | physical magazines, shells, rockets | reload props |
 | `src/Weapons/WeaponDrops.cs` (+ `.Spawning`, `.Pickup`, `.OwnWeapon`) | dropped weapons, pickup, return, warm-up prep | drops |
 | `src/Weapons/WeaponSystem.cs` | owner of held weapon, holsters, let-go, equip take-over | weapon lifecycle |
 | `src/Weapons/WeaponSelfTest.cs` | all-weapons report | analysis regressions |
