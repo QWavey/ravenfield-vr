@@ -291,6 +291,7 @@ namespace RavenfieldVR.Weapons
 
         private static GameObject _chamber;
         private static bool _chamberLive;
+        private static OwnShell _chamberOwn;
 
         /// <summary>
         /// Press check: with the slide or bolt eased back part way, the round in the chamber (or a bolt gun's fired case)
@@ -318,19 +319,26 @@ namespace RavenfieldVR.Weapons
                 mr.shadowCastingMode = ShadowCastingMode.Off;
             }
             MeshFilter mf = _chamber.GetComponent<MeshFilter>();
-            Mesh mesh = live ? _liveMeshes[(int)kind] : _meshes[(int)kind];
-            if (mf.sharedMesh != mesh || _chamberLive != live)
+            // The gun's own shell, as the ones it throws out (the port showed the made 12-gauge shell while the gun ejected its
+            // own; props scout, 2026-10-24).
+            OwnShell own = OwnShellOf(held, kind);
+            Mesh mesh = own != null ? own.Mesh : live ? _liveMeshes[(int)kind] : _meshes[(int)kind];
+            if (mf.sharedMesh != mesh || _chamberLive != live || !ReferenceEquals(_chamberOwn, own))
             {
                 mf.sharedMesh = mesh;
                 _chamberLive = live;
-                _chamber.GetComponent<MeshRenderer>().sharedMaterials = MaterialsFor(kind, live);
+                _chamberOwn = own;
+                _chamber.GetComponent<MeshRenderer>().sharedMaterials = own != null ? own.Materials : MaterialsFor(kind, live);
+                _chamber.transform.localScale = own != null ? own.Scale : Vector3.one;
             }
             WeaponRig rig = held.ActiveRig;
             Transform port = held.ActiveWeapon.configuration.casingParticles[0].transform;
             Vector3 aim = rig.AimWorld;
             // In the port, head toward the shooter, the length of a case back from its mouth.
             Vector3 right = rig.DirToWorld(Vector3.Cross(rig.Data.Up, rig.Data.AimAxis).normalized);
-            _chamber.transform.SetPositionAndRotation(port.position - right * 0.004f - aim * mesh.bounds.size.z * 0.5f, Quaternion.LookRotation(aim, rig.UpWorld));
+            float length = own != null ? mesh.bounds.size[own.Axis] * own.Scale[own.Axis] : mesh.bounds.size.z;
+            Quaternion look = Quaternion.LookRotation(aim, rig.UpWorld);
+            _chamber.transform.SetPositionAndRotation(port.position - right * 0.004f - aim * length * 0.5f, own != null ? look * own.Turn : look);
             if (!_chamber.activeSelf)
             {
                 _chamber.SetActive(true);
