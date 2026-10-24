@@ -11,6 +11,8 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
   measured improve rounds and read-only Haiku hunts (scouts and three workflows), every finding with its status in
   reports/haiku-findings-2026-10-23.txt and -24.txt. Check in the headset first: For 334's list, then a -rfvr-selftest
   run for the two measured-first analysis notes (For 335).
+- 1.11.1 published 2026-10-24 (https://github.com/QWavey/ravenfield-vr/releases/tag/v1.11.1): this run's fixes, speed-ups and
+  setup hardening.
 
 ## At a glance (2026-10-21, evening)
 
