@@ -653,6 +653,8 @@ and `--film` runs load only their guns' mods (weapon ids are turned into exact n
 the autotest, UI, bench and flash-check runs load none; a filter it cannot resolve offline loads every mod, as before.
 `--mods TOKENS` names the mods by hand, `--map NAME` picks another built-in map. It is still the game's own Unity player
 (the mod needs Unity's engine, and no Unity editor is installed to build another), but without the minute of mod loading.
+Measured 2026-10-24 on the same RK-44 deep run: every mod 226 s (89 mods loaded in 73.7 s), `--fast` 178 s (no mod,
+the game's content step 7.1 s), the same results and pictures (reports/shots/fast-baseline, fast-mode).
 
 Checks without the game (2026-10-20, issue #18): `powershell -File tools/tests/run-tests.ps1` compiles
 `tools/tests/OfflineTests.cs` with the installer's sources and `BindingsWriter` and runs 25 checks: the installer's path

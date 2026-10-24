@@ -3153,7 +3153,29 @@ namespace RavenfieldVR.Core
             }
             if (enemies.Count == 0)
             {
-                report("soldier grab: skipped (no enemy alive on foot)");
+                // Why none, counted (the first deep runs skipped here with no clue: no bots, all seated, all down?).
+                int all = 0, ai = 0, alive = 0, seated = 0, down = 0;
+                foreach (Actor a in ActorManager.instance.actors)
+                {
+                    if (a == null || a == player)
+                    {
+                        continue;
+                    }
+                    all++;
+                    if (!a.aiControlled || a.team == player.team)
+                    {
+                        continue;
+                    }
+                    ai++;
+                    if (a.dead)
+                    {
+                        continue;
+                    }
+                    alive++;
+                    seated += a.IsSeated() ? 1 : 0;
+                    down += a.ragdoll != null && a.ragdoll.IsRagdoll() ? 1 : 0;
+                }
+                report($"soldier grab: skipped (no enemy alive on foot: {all} other soldiers, {ai} enemy bots, {alive} alive, {seated} seated, {down} down)");
                 yield break;
             }
             Vector3 headAt = rig.Head.position;

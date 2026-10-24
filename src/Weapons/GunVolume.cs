@@ -427,6 +427,14 @@ namespace RavenfieldVR.Weapons
 
         private static readonly Dictionary<int, Stack<Color32[]>> PixelPool = new Dictionary<int, Stack<Color32[]>>();
 
+        /// <summary>
+        /// Pixels the pool holds now, and the most it keeps: each weapon's views have a size of their own (up to 448 x 448, 0.8 MB
+        /// a picture), and twelve a size for every size ever seen held tens of MB for the whole session after a warm-up of
+        /// hundreds of weapons (growth scout, 2026-10-24). Past the cap a returned picture is left to the collector.
+        /// </summary>
+        private static long _pooledPixels;
+        private const long MaxPooledPixels = 6 * 1024 * 1024; // 24 MB of Color32
+
         /// <summary>A picture buffer of this many pixels: pooled (rented on the main thread, given back by the worker).</summary>
         private static Color32[] RentPixels(int length)
         {
@@ -434,6 +442,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (PixelPool.TryGetValue(length, out Stack<Color32[]> free) && free.Count > 0)
                 {
+                    _pooledPixels -= length;
                     return free.Pop();
                 }
             }
@@ -452,9 +461,10 @@ namespace RavenfieldVR.Weapons
                 {
                     free = PixelPool[pixels.Length] = new Stack<Color32[]>();
                 }
-                if (free.Count < 12)
+                if (free.Count < 12 && _pooledPixels + pixels.Length <= MaxPooledPixels)
                 {
                     free.Push(pixels);
+                    _pooledPixels += pixels.Length;
                 }
             }
         }
@@ -470,6 +480,11 @@ namespace RavenfieldVR.Weapons
             }
             Cache.Clear();
             CacheOrder.Clear();
+            lock (PixelPool)
+            {
+                PixelPool.Clear(); // new content, new view sizes
+                _pooledPixels = 0;
+            }
         }
 
         private static GunVolume Cached(string key, Func<GunVolume> build)
