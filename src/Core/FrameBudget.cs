@@ -81,7 +81,7 @@ namespace RavenfieldVR.Core
                      $"({_budgetMs:0.0} ms), median {Percentile(0.5f):0.0} ms, 95th {Percentile(0.95f):0.0} ms; {preset}, render scale " +
                      $"{XRSettings.eyeTextureResolutionScale:0.0#}, MSAA {QualitySettings.antiAliasing}x, shadows " +
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
-                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}).");
+                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.TakeModMsPerFrame():0.0} ms a frame.");
             System.Array.Clear(Buckets, 0, Buckets.Length);
             _frames = _within = 0;
             _seconds = _budgetMs = 0f;
