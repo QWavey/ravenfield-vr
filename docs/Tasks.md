@@ -2715,3 +2715,9 @@ Run of 2026-10-24 (work-until-limit 85, no game run):
   the UI setters skip unchanged values), the one-handed long gun's recoil (two-handed is the documented baseline), the
   second weapon's reload rounds on a destroyed gun (the game drops that gun's whole reserve in the same step), the palm
   rack's solid probes (about 4 us a frame), collider piece meshes on a content reload (live drops may use them).
+- Third workflow (hand model clean; gun volume, sounds, input bridge and config): fixed e8e6ef0 (a throwing read-back),
+  726c25b (sprint on hold with a toggled crouch/prone; thin pieces past 255 hull points), 059c338 and 6db15dc (sandbox
+  poses for another kind, two misleading log lines); also 962b595 (the seated magazine's, racked part's and slide tip's
+  measures recover from a stall), f199aa8 (the ground check's buffer grows), 7019978 (no swing on a zero-time frame),
+  23bfe62 (a throwing sampling drops its tracks), a1ac5ea (the press check shows the gun's own shell). Open: the sound
+  slices' hard stop when both sources are busy (needs a third source; check by ear).
