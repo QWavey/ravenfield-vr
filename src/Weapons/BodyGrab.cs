@@ -13,8 +13,8 @@ namespace RavenfieldVR.Weapons
     /// people with my hand and throw them around with them taking damage"). As Boneworks does it (Tasks 334): its enemies are
     /// ragdolls (PuppetMaster) the hand takes hold of, and an impact past a threshold is blunt damage scaled by its speed
     /// (Enemy_Health's damageFromImpact / thr_Impact, ImpactSFX's bluntAttack). Here: the grip near a soldier knocks them over
-    /// (the game's own ragdoll, Actor.FallOver), the hand holds the nearest ragdoll bone through a locked joint to a body that
-    /// follows the hand, and while held and for a few seconds after a throw, every hard impact of that ragdoll (a wall, the
+    /// (the game's own ragdoll, Actor.FallOver), the hand holds the nearest ragdoll bone through a joint (fixed in place, its turn
+    /// damped and torque-limited) to a body that follows the hand, and while held and for a few seconds after a throw, every hard impact of that ragdoll (a wall, the
     /// ground, another soldier) hurts it (<see cref="BodyImpacts"/>). Held, the soldier does not get up.
     /// Only a hand that holds nothing takes hold: a hand on a gun, a tool, a grenade or a magazine never does (its role is not
     /// Free), the other, empty hand does (user, 2026-10-24).
@@ -41,6 +41,31 @@ namespace RavenfieldVR.Weapons
         /// the hand turned, instead of dragged after it (dragged at the speed limit above, the stretch let go of it).
         /// </summary>
         private const float JumpDistance = 0.25f;
+        /// <summary>
+        /// Or turned this far in one frame (degrees): a snap turn with the hand near the head moves it less than
+        /// <see cref="JumpDistance"/>, and the body whipped round after it at 15 m/s, lifting off (soldier check, 2026-10-25).
+        /// </summary>
+        private const float JumpAngle = 20f;
+        /// <summary>
+        /// The hold's turn, per kilogram of the body held (see <see cref="Attach"/>): its spring (N m per radian), damper (N m s
+        /// per radian) and the most torque it gives (N m).
+        /// </summary>
+        private const float HoldTwist = 30f, HoldTwistDamper = 3f, HoldTwistTorque = 20f;
+
+        /// <summary>The ragdoll's whole mass (kg), at least 1.</summary>
+        private static float BodyMass(Actor a)
+        {
+            float mass = 0f;
+            if (a.ragdoll.rigidbodies != null)
+            {
+                foreach (Rigidbody rb in a.ragdoll.rigidbodies)
+                {
+                    mass += rb != null ? rb.mass : 0f;
+                }
+            }
+            return Mathf.Max(1f, mass);
+        }
+
         /// <summary>The head within this of the fist's hollow, taken from behind: a neck hold, not a knock-down.</summary>
         private const float NeckReach = 0.22f;
         /// <summary>How far behind: the soldier's facing within this of the way from the player to him (degrees).</summary>
@@ -269,7 +294,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>The hand holds the ragdoll's nearest bone through a locked joint to a body that follows the hand.</summary>
+        /// <summary>The hand holds the ragdoll's nearest bone through a joint (fixed in place, its turn damped and limited) to a body that follows the hand.</summary>
         private void Attach(int i, VRHand hand, Actor best, Vector3 palm)
         {
             // Not the bone the other hand holds: two locked joints on one body pulled it between them every step.
@@ -287,16 +312,46 @@ namespace RavenfieldVR.Weapons
             joint.connectedBody = anchor;
             joint.autoConfigureConnectedAnchor = true; // held where it was taken: no snap of the bone into the fist
             joint.xMotion = joint.yMotion = joint.zMotion = ConfigurableJointMotion.Locked;
-            joint.angularXMotion = joint.angularYMotion = joint.angularZMotion = ConfigurableJointMotion.Locked;
+            // The bone's turn held by a damped, torque-limited drive, not locked: locked to the kinematic hand, every turn of the
+            // wrist was levered through the whole body (a quick turn whipped it at the speed cap and lifted it), and wherever the
+            // body could not turn with it the lock pushed with whatever it took: "they go crazy and fling in the air" (user,
+            // 2026-10-25). Scaled by the body's mass: about 9 degrees of sag under its weight, damped, and a capped torque.
+            float mass = BodyMass(best);
+            joint.angularXMotion = joint.angularYMotion = joint.angularZMotion = ConfigurableJointMotion.Free;
+            joint.rotationDriveMode = RotationDriveMode.Slerp;
+            joint.slerpDrive = new JointDrive { positionSpring = HoldTwist * mass, positionDamper = HoldTwistDamper * mass, maximumForce = HoldTwistTorque * mass };
+            joint.targetRotation = Quaternion.identity;
             joint.projectionMode = JointProjectionMode.PositionAndRotation; // a heavy body hanging from it does not stretch the joint
             joint.projectionDistance = 0.02f;
             joint.projectionAngle = 5f;
             joint.enablePreprocessing = false;
             _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint, Reach = (bone.position - palm).magnitude, LastPalm = palm, LastRotation = hand.Palm.rotation };
+            // Taken as he runs, or as he tumbles: every bone moves with the hand from the first step. The game ragdolls a running
+            // soldier with his speed in every bone (Actor.FallOver: Ragdoll(cachedVelocity)); the hold stopped the bone it took at
+            // once, and the rest of him (80 kg at 6 m/s) pulled his joints apart and flung him: "all the npcs i grabbed were walking
+            // or running and then flinged around in my hand and formed themselves long bodys" (user, 2026-10-25).
+            Vector3 handVelocity = hand.Velocity;
+            foreach (Rigidbody rb in best.ragdoll.rigidbodies)
+            {
+                if (rb != null)
+                {
+                    rb.velocity = handVelocity;
+                    rb.angularVelocity = Vector3.zero;
+                }
+            }
             BodyImpacts.Arm(best, float.PositiveInfinity, GameContext.PlayerActor); // (its bones' speed kept in check while armed)
             if (best.ragdoll.ragdollObject != null)
             {
                 PropPhysics.IgnorePlayer(best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>());
+                // The held gun's stand-in too, from the first physics step (it was told only on the next frame's Follow: a step or
+                // two of the stand-in shoving a body taken beside the gun).
+                _holds[i].IgnoredGun = GunCollider.Current;
+                GunCollider.Current?.IgnoreCollisionsWith(best.ragdoll.ragdollObject);
+            }
+            if (!Log.Logged("bodygrab-mass"))
+            {
+                Log.InfoOnce("bodygrab-mass", $"Held body: {mass:0.0} kg over {best.ragdoll.rigidbodies.Length} bones, taken by {bone.name} ({bone.mass:0.0} kg); "
+                                              + $"its turn: spring {joint.slerpDrive.positionSpring:0} N m/rad, damper {joint.slerpDrive.positionDamper:0}, at most {joint.slerpDrive.maximumForce:0} N m.");
             }
             TakeHand(hand, best);
             hand.Haptic(0.08f, 80f, 0.8f);
@@ -447,7 +502,7 @@ namespace RavenfieldVR.Weapons
             Rigidbody anchor = Anchor(i);
             Vector3 palm = hand.PalmCentre;
             Quaternion rotation = hand.Palm.rotation;
-            if ((palm - hold.LastPalm).sqrMagnitude > JumpDistance * JumpDistance)
+            if ((palm - hold.LastPalm).sqrMagnitude > JumpDistance * JumpDistance || Quaternion.Angle(rotation, hold.LastRotation) > JumpAngle)
             {
                 // Held in both hands, both jump in the same frame: the body is carried once (twice, it moved and turned twice).
                 if (_carriedActor != a || _carriedFrame != Time.frameCount)

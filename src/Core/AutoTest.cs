@@ -3446,7 +3446,9 @@ namespace RavenfieldVR.Core
             IEnumerator OffTo(Vector3 palm)
             {
                 Vector3 from = off.PalmCentre;
-                float seconds = Mathf.Max(0.3f, (palm - from).magnitude / 0.8f);
+                // (At most 3 s: from a hand sent far off, or to a body flung far away, the move never ended and the run waited out its
+                // timeout; a soldier run, 2026-10-25.)
+                float seconds = Mathf.Clamp((palm - from).magnitude / 0.8f, 0.3f, 3f);
                 for (float start = Time.realtimeSinceStartup, k = 0f; k < 1f;)
                 {
                     k = Mathf.Clamp01((Time.realtimeSinceStartup - start) / seconds);
@@ -3455,11 +3457,37 @@ namespace RavenfieldVR.Core
                 }
             }
 
+            // A held body watched for some seconds (the hand left where it is): result[0] its fastest bone (m/s), result[1] how far its
+            // centre rose above where it started (m); note[0] (when given) which bone was fastest and in which frame.
+            IEnumerator HeldBodyFor(Actor a, float seconds, float[] result, string[] note = null)
+            {
+                float from = a.CenterPosition().y;
+                int frame = 0;
+                for (float start = Time.realtimeSinceStartup; Time.realtimeSinceStartup < start + seconds && a.ragdoll.rigidbodies != null;)
+                {
+                    yield return null;
+                    frame++;
+                    foreach (Rigidbody rb in a.ragdoll.rigidbodies)
+                    {
+                        float s = rb != null ? rb.velocity.magnitude : 0f;
+                        if (s > result[0])
+                        {
+                            result[0] = s;
+                            if (note != null)
+                            {
+                                note[0] = $"{rb.name}, frame {frame}";
+                            }
+                        }
+                    }
+                    result[1] = Mathf.Max(result[1], a.CenterPosition().y - from);
+                }
+            }
+
             IEnumerator DomTo(Vector3 palm, Quaternion rotation)
             {
                 Vector3 from = dom.PalmCentre;
                 Quaternion fromRotation = Rig.VRHand.Scripted[ds].HasValue ? Rig.VRHand.Scripted[ds].Value.rotation : domRaw.rotation;
-                float seconds = Mathf.Max(0.3f, (palm - from).magnitude / 0.8f);
+                float seconds = Mathf.Clamp((palm - from).magnitude / 0.8f, 0.3f, 3f); // (at most 3 s, as OffTo)
                 for (float start = Time.realtimeSinceStartup, k = 0f; k < 1f;)
                 {
                     k = Mathf.Clamp01((Time.realtimeSinceStartup - start) / seconds);
@@ -3704,6 +3732,199 @@ namespace RavenfieldVR.Core
                            + $"{(slamHurt ? $"hurt ({slamFrom:0} -> {Health(slammed)})" : "NOT HURT BY THE SLAM")}, {(stillHeld ? "still held" : "let go")}");
                 }
 
+                // 1c. Held in a hand that trembles as a tracked controller does (2 mm and 1 degree a frame, 2 s): the user's held soldiers
+                // "go crazy and fling in the air" (2026-10-25), and the scripted hand, perfectly still, never showed it.
+                Actor shaken = Next(false);
+                yield return Bring(shaken, 0.8f, false, there);
+                if (!there[0])
+                {
+                    report($"held in a trembling hand: skipped (the soldier could not be brought: {broughtNote})");
+                }
+                else
+                {
+                    yield return Take(shaken.CenterPosition(), hit);
+                    bool holdingShaken = hit[0];
+                    yield return new WaitForSecondsRealtime(0.5f); // hanging from the hand first
+                    Vector3 still = off.PalmCentre;
+                    var tremor = new System.Random(7); // (the same tremor every run)
+                    float Noise() => (float)(tremor.NextDouble() * 2.0 - 1.0);
+                    float shakeFastest = 0f, risen = 0f, hipsFrom = shaken.CenterPosition().y;
+                    int shakeFrames = 0, wildFrames = 0;
+                    for (float start = Time.realtimeSinceStartup; Time.realtimeSinceStartup < start + 2f && shaken.ragdoll.rigidbodies != null;)
+                    {
+                        OffAt(still + new Vector3(Noise(), Noise(), Noise()) * 0.002f, Quaternion.Euler(Noise(), Noise(), Noise()) * offRaw.rotation);
+                        yield return null;
+                        float frameFastest = 0f;
+                        foreach (Rigidbody rb in shaken.ragdoll.rigidbodies)
+                        {
+                            frameFastest = Mathf.Max(frameFastest, rb != null ? rb.velocity.magnitude : 0f);
+                        }
+                        shakeFrames++;
+                        wildFrames += frameFastest > 6f ? 1 : 0;
+                        shakeFastest = Mathf.Max(shakeFastest, frameFastest);
+                        risen = Mathf.Max(risen, shaken.CenterPosition().y - hipsFrom);
+                    }
+                    bool heldOn = BodyGrab.IsHeld(shaken);
+                    yield return Snap("06c-held-in-a-trembling-hand", shaken.CenterPosition());
+                    Metric("held in a trembling hand: fastest bone m/s", shakeFastest);
+                    Metric("held in a trembling hand: frames with a bone over 6 m/s", wildFrames);
+                    bool wild = shakeFastest > 10f || wildFrames > shakeFrames / 10;
+                    report($"held in a trembling hand (2 mm, 1 deg a frame, 2 s): {(holdingShaken ? $"{shaken.name} held" : "NOT HELD")}, fastest bone {shakeFastest:0.0} m/s, "
+                           + $"{wildFrames} of {shakeFrames} frames with a bone over 6 m/s, the body rose {risen * 100f:0} cm"
+                           + $"{(wild ? " (NOT STILL: the body went wild)" : "")}{(heldOn ? "" : ", NOT HELD ON")}");
+
+                    // A snap turn while holding him: the hand swung 45 degrees round the head in one frame and turned with it, as the
+                    // rig turns it (a hand near the head moves under the 25 cm a jump needs, but turns all the same).
+                    if (heldOn)
+                    {
+                        Quaternion snap = Quaternion.AngleAxis(45f, Vector3.up);
+                        OffAt(headAt + snap * (still - headAt), snap * offRaw.rotation);
+                        float[] turned = new float[2];
+                        string[] turnNote = { "" };
+                        yield return HeldBodyFor(shaken, 1f, turned, turnNote);
+                        bool turnHeld = BodyGrab.IsHeld(shaken);
+                        Metric("held through a snap turn: fastest bone m/s", turned[0]);
+                        report($"held through a 45 degree snap turn: fastest bone {turned[0]:0.0} m/s ({turnNote[0]}), the body rose {turned[1] * 100f:0} cm"
+                               + $"{(turned[0] > 10f || turned[1] > 0.5f ? " (NOT STILL: the body went wild)" : "")}{(turnHeld ? "" : ", NOT HELD ON")}");
+                        // And a quick turn of the wrist (90 degrees in 0.2 s and back, about 450 a second): under the snap turn's 20 a
+                        // frame, the hand's turn reaches the body through the hold.
+                        Vector3 wristAt = headAt + snap * (still - headAt);
+                        Quaternion wristFrom = snap * offRaw.rotation;
+                        Vector3 forearm = snap * flat;
+                        float[] twisted = new float[2];
+                        string[] twistNote = { "" };
+                        float twistBase = shaken.CenterPosition().y;
+                        int twistFrame = 0;
+                        for (float start = Time.realtimeSinceStartup, k = 0f; k < 1f && shaken.ragdoll.rigidbodies != null;)
+                        {
+                            k = Mathf.Clamp01((Time.realtimeSinceStartup - start) / 0.4f);
+                            float angle = 90f * (k < 0.5f ? k * 2f : 2f - k * 2f);
+                            OffAt(wristAt, Quaternion.AngleAxis(angle, forearm) * wristFrom);
+                            yield return null;
+                            twistFrame++;
+                            foreach (Rigidbody rb in shaken.ragdoll.rigidbodies)
+                            {
+                                float s = rb != null ? rb.velocity.magnitude : 0f;
+                                if (s > twisted[0])
+                                {
+                                    twisted[0] = s;
+                                    twistNote[0] = $"{rb.name}, frame {twistFrame} of the turn at {angle:0} deg";
+                                }
+                            }
+                            twisted[1] = Mathf.Max(twisted[1], shaken.CenterPosition().y - twistBase);
+                        }
+                        yield return HeldBodyFor(shaken, 0.5f, twisted, twistNote);
+                        Metric("held through a quick wrist turn: fastest bone m/s", twisted[0]);
+                        report($"held through a quick wrist turn (90 degrees in 0.2 s and back): fastest bone {twisted[0]:0.0} m/s ({twistNote[0]}), the body rose {twisted[1] * 100f:0} cm"
+                               + $"{(twisted[0] > 10f || twisted[1] > 0.5f ? " (NOT STILL: the body went wild)" : "")}{(BodyGrab.IsHeld(shaken) ? "" : ", NOT HELD ON")}");
+                    }
+                    yield return LetGo();
+                    yield return new WaitForSecondsRealtime(1.5f); // down on the ground
+
+                    // A body lying on the ground taken with the hand a little into the ground (a controller is not stopped by the
+                    // terrain), then lifted to the chest at a hand's pace.
+                    Rigidbody lying = shaken.ragdoll.IsRagdoll() ? shaken.ragdoll.MainRigidbody() : null;
+                    if (lying != null)
+                    {
+                        Vector3 reach = lying.worldCenterOfMass;
+                        if (Physics.Raycast(reach + Vector3.up * 0.5f, Vector3.down, out RaycastHit floor, 2f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
+                        {
+                            reach.y = Mathf.Min(reach.y, floor.point.y + 0.05f); // 5 cm over the ground at most: the hand dips under the body
+                        }
+                        yield return Take(reach - Vector3.up * 0.08f, hit);
+                        bool tookLying = hit[0];
+                        float[] lifted = new float[2];
+                        if (tookLying)
+                        {
+                            // Lifted at a hand's pace (as OffTo), watched all the way up, then held at the chest.
+                            Vector3 liftFrom = off.PalmCentre, liftTo = headAt + flat * 0.45f - Vector3.up * 0.3f;
+                            float liftSeconds = Mathf.Clamp((liftTo - liftFrom).magnitude / 0.8f, 0.3f, 3f);
+                            for (float start = Time.realtimeSinceStartup, k = 0f; k < 1f && shaken.ragdoll.rigidbodies != null;)
+                            {
+                                k = Mathf.Clamp01((Time.realtimeSinceStartup - start) / liftSeconds);
+                                OffAt(Vector3.Lerp(liftFrom, liftTo, k));
+                                yield return null;
+                                foreach (Rigidbody rb in shaken.ragdoll.rigidbodies)
+                                {
+                                    lifted[0] = Mathf.Max(lifted[0], rb != null ? rb.velocity.magnitude : 0f);
+                                }
+                            }
+                            yield return HeldBodyFor(shaken, 0.8f, lifted);
+                        }
+                        Metric("lying body taken into the ground and lifted: fastest bone m/s", lifted[0]);
+                        report($"lying body taken 8 cm into the ground and lifted: {(tookLying ? "taken" : "NOT TAKEN")}, fastest bone {lifted[0]:0.0} m/s held at the chest"
+                               + $"{(lifted[0] > 10f ? " (NOT STILL: the body went wild)" : "")}");
+                        yield return LetGo();
+                    }
+                }
+
+                // 1d. A soldier taken as he runs (user, 2026-10-25: "all the npcs i grabbed were walking or running and then flinged around
+                // in my hand and formed themselves long bodys and flinged in the air"): the game ragdolls him with his running speed in
+                // every bone, then the hand holds one of them. Knocked over running at 6 m/s across the hand, taken on the next frame.
+                Actor runner = Next(false);
+                yield return Bring(runner, 0.8f, false, there);
+                if (!there[0])
+                {
+                    report($"taken running: skipped (the soldier could not be brought: {broughtNote})");
+                }
+                else
+                {
+                    Vector3 run = sideAxis * 6f;
+                    Vector3 grabAt = runner.CenterPosition();
+                    runner.FallOver();
+                    foreach (Rigidbody rb in runner.ragdoll.rigidbodies)
+                    {
+                        if (rb != null)
+                        {
+                            rb.velocity = run;
+                        }
+                    }
+                    // The body's span (its two bones farthest apart): a body pulled apart at its joints is "long".
+                    float Span()
+                    {
+                        float most = 0f;
+                        Rigidbody[] bones = runner.ragdoll.rigidbodies;
+                        for (int a = 0; bones != null && a < bones.Length; a++)
+                        {
+                            for (int b = a + 1; b < bones.Length; b++)
+                            {
+                                if (bones[a] != null && bones[b] != null)
+                                {
+                                    most = Mathf.Max(most, (bones[a].position - bones[b].position).magnitude);
+                                }
+                            }
+                        }
+                        return most;
+                    }
+                    float restSpan = Span();
+                    yield return Take(grabAt + run * 0.011f, hit);
+                    bool tookRunner = hit[0];
+                    float[] ran = new float[2];
+                    float longest = restSpan;
+                    if (tookRunner)
+                    {
+                        float riseFrom = runner.CenterPosition().y;
+                        for (float start = Time.realtimeSinceStartup; Time.realtimeSinceStartup < start + 1.2f && runner.ragdoll.rigidbodies != null;)
+                        {
+                            yield return null;
+                            foreach (Rigidbody rb in runner.ragdoll.rigidbodies)
+                            {
+                                ran[0] = Mathf.Max(ran[0], rb != null ? rb.velocity.magnitude : 0f);
+                            }
+                            ran[1] = Mathf.Max(ran[1], runner.CenterPosition().y - riseFrom);
+                            longest = Mathf.Max(longest, Span());
+                        }
+                    }
+                    yield return Snap("06d-taken-running", runner.CenterPosition());
+                    yield return LetGo();
+                    Metric("taken running: fastest bone m/s", ran[0]);
+                    Metric("taken running: longest span / at rest", restSpan > 0f ? longest / restSpan : 0f);
+                    bool stretched = restSpan > 0f && longest > restSpan * 1.25f;
+                    report($"taken running (6 m/s across the hand): {(tookRunner ? $"{runner.name} taken" : "NOT TAKEN")}, fastest bone {ran[0]:0.0} m/s, the body rose {ran[1] * 100f:0} cm, "
+                           + $"its span {restSpan:0.00} -> {longest:0.00} m{(stretched ? " (NOT WHOLE: pulled apart at the joints)" : "")}"
+                           + $"{(ran[0] > 10f || ran[1] > 0.5f ? " (NOT STILL: the body went wild)" : "")}");
+                }
+
                 // 2. A fist while the other hand holds the gun (at the hip).
                 Actor boxer = Next(false);
                 yield return Bring(boxer, 0.8f, false, there);
@@ -3877,6 +4098,9 @@ namespace RavenfieldVR.Core
                         float shieldHp = shield.health, playerHp = player.health;
                         string lifted = $"lifted {liftedFrom:0} -> {Health(shield)}{(shield.dead ? " (THE SHIELD DIED BEFORE THE SHOTS)" : "")}";
                         int shots = 0;
+                        // How the held body moves as the shots hit it: each bullet that hits a ragdoll bone pushes it with the
+                        // gun's impact force (Projectile, 200 by default), and the user's held soldiers "fling in the air" (2026-10-25).
+                        float[] shotFly = new float[2];
                         if (w != null && holding)
                         {
                             Vector3 chest = headAt - Vector3.up * 0.35f;
@@ -3893,16 +4117,18 @@ namespace RavenfieldVR.Core
                                     report($"human shield: the shot threw {e.GetType().Name}: {e.Message}");
                                     break;
                                 }
-                                yield return new WaitForSecondsRealtime(0.15f);
+                                yield return HeldBodyFor(shield, 0.15f, shotFly);
                             }
-                            yield return new WaitForSecondsRealtime(0.4f);
+                            yield return HeldBodyFor(shield, 0.4f, shotFly);
+                            Metric("human shield: fastest bone while shot, m/s", shotFly[0]);
                         }
                         yield return Snap("15-human-shield-shot", front);
                         bool stopped = shield.dead || shield.health < shieldHp - 1f;
                         bool playerHit = player.health < playerHp - 1f;
                         report($"human shield: {(holding ? $"{shield.name} held up in front ({lifted})" : "NOT HELD")}, {shots} shot(s) by {shooter.name} ({(w != null ? w.name : "no weapon")}) at the player through him: "
                                + $"{(stopped ? $"the shield took them ({shieldHp:0} -> {Health(shield)})" : "NO SHOT STOPPED BY THE SHIELD")}, "
-                               + $"{(playerHit ? $"THE PLAYER WAS HIT ({playerHp:0} -> {player.health:0})" : "the player unhurt")}");
+                               + $"{(playerHit ? $"THE PLAYER WAS HIT ({playerHp:0} -> {player.health:0})" : "the player unhurt")}"
+                               + $"; fastest bone while shot {shotFly[0]:0.0} m/s, the body rose {shotFly[1] * 100f:0} cm{(shotFly[0] > 10f ? " (NOT STILL: the body went wild)" : "")}");
                         yield return LetGo();
                         yield return new WaitForSecondsRealtime(0.3f);
                     }
