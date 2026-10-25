@@ -899,6 +899,16 @@ namespace RavenfieldVR.Rig
         private RigidPose _stillAnchor;
         private Vector3 _stillLastSeen;
 
+        /// <summary>
+        /// On foot: the player's physics body (the character controller's transform, moved only in the physics step), where it was as
+        /// the rig was last placed, and the game's smoothing of the view then (SmoothPlayerMovement: the view drawn between two steps).
+        /// The rig is placed once a frame from the smoothed view: a thing that must move with the player in each physics step (a held
+        /// body's grab anchor, BodyGrab) takes the hand's place against the body from these, and the body's place in the step.
+        /// </summary>
+        internal Transform PlacedBody { get; private set; }
+        internal Vector3 PlacedBodyAt { get; private set; }
+        internal Vector3 PlacedSmoothing { get; private set; }
+
         private Camera PlaceOrigin(FpsActorController player)
         {
             Vector3 hl = HeadLocal;
@@ -912,6 +922,9 @@ namespace RavenfieldVR.Rig
                     }
                     Transform anchorT = player.fpParent != null ? player.fpParent.fpCameraParent : player.fpCameraRoot;
                     Vector3 anchor = anchorT.position;
+                    PlacedBody = player.transform;
+                    PlacedBodyAt = player.transform.position;
+                    PlacedSmoothing = player.smoothPlayerMovement != null ? player.smoothPlayerMovement.GetInterpolatedSmoothWorldMovementDelta() : Vector3.zero;
                     Quaternion r = Quaternion.Euler(0f, Yaw, 0f);
                     Vector3 origin = anchor - r * new Vector3(hl.x, 0f, hl.z);
                     float compensation = 0f;

@@ -45,7 +45,7 @@ namespace RavenfieldVR.Weapons
             string fitKey = null;
             if (CopiesModel(rig, kind))
             {
-                go = CheckedCopy(rig, kind, out bounds);
+                go = CheckedCopy(rig, kind, rounds > 0, out bounds);
                 fitKey = go != null ? "mag:" + d.Key : null;
                 if (go == null)
                 {
@@ -117,7 +117,7 @@ namespace RavenfieldVR.Weapons
             bounds = d.MagBounds;
             if (CopiesModel(rig, kind))
             {
-                go = CheckedCopy(rig, kind, out bounds);
+                go = CheckedCopy(rig, kind, true, out bounds); // (the pouch shows full ones)
                 if (go == null)
                 {
                     bounds = d.MagBounds;
@@ -149,11 +149,22 @@ namespace RavenfieldVR.Weapons
         /// nothing in the hand: scaled back to the analysed size, it is kept if it then sits where the magazine was
         /// measured; otherwise (or with nothing in it drawn, or a "rocket" too short to be one) the made one is used.
         /// </summary>
-        private static GameObject CheckedCopy(WeaponRig rig, PropKind kind, out Bounds bounds)
+        private static GameObject CheckedCopy(WeaponRig rig, PropKind kind, bool loaded, out Bounds bounds)
         {
             WeaponRigData d = rig.Data;
             bounds = d.MagBounds;
-            GameObject go = kind == PropKind.Rocket ? LoadedLook(d.Key) : null;
+            // A magazine with rounds in it: as the gun's looked loaded (see LoadedMags), not as it shows now.
+            GameObject go = kind == PropKind.Rocket ? LoadedLook(d.Key) : kind == PropKind.Magazine && loaded ? Kept(LoadedMags, d.Key) : null;
+            if (go != null && kind == PropKind.Magazine)
+            {
+                if (DrawsAnything(go))
+                {
+                    bounds = RenderedBounds(go, d.MagBounds, d.Key);
+                    return go;
+                }
+                Object.Destroy(go); // (drawing nothing: as it shows now, below)
+                go = null;
+            }
             if (go != null)
             {
                 if (DrawsAnything(go))
@@ -237,6 +248,74 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<string, float> LoadedLookTried = new Dictionary<string, float>();
         private static readonly Dictionary<string, int> LoadedLookTries = new Dictionary<string, int>();
         private static GameObject _loadedLooksHolder;
+
+        /// <summary>
+        /// Each gun's magazine as it looks with rounds in it (key: the weapon), copied while it sits loaded in the gun. A magazine
+        /// from the pouch is a copy of the gun's own as it shows when taken, and a gun shot empty shows its magazine empty (a mod's
+        /// hides its top rounds in the empty pose, or swaps in an empty model): the full magazine in the hand looked empty (user,
+        /// 2026-10-25). An empty one taken out of the gun is copied as it shows (empty).
+        /// </summary>
+        private static readonly Dictionary<string, GameObject> LoadedMags = new Dictionary<string, GameObject>();
+        private static readonly Dictionary<string, float> LoadedMagTried = new Dictionary<string, float>();
+        private static readonly Dictionary<string, int> LoadedMagTries = new Dictionary<string, int>();
+
+        /// <summary>
+        /// While a gun with a loaded magazine in it is held (outside a reload): a copy of its magazine as it shows now, kept when it
+        /// measures as the analysis did (half to double the size, its middle within 3 cm). Every two seconds, ten tries at most.
+        /// </summary>
+        internal static void KeepLoadedMagazine(WeaponRig rig)
+        {
+            string key = rig.Data.Key;
+            if (LoadedMags.ContainsKey(key) || rig.Weapon == null || rig.Weapon.reloading || !CopiesModel(rig, PropKind.Magazine)
+                || LoadedMagTries.TryGetValue(key, out int tries) && tries >= 10
+                || LoadedMagTried.TryGetValue(key, out float tried) && Time.unscaledTime < tried + 2f)
+            {
+                return;
+            }
+            LoadedMagTried[key] = Time.unscaledTime;
+            LoadedMagTries[key] = tries + 1;
+            GameObject go = CopyVisuals(rig);
+            if (go == null)
+            {
+                return;
+            }
+            Bounds analysed = rig.Data.MagBounds;
+            Bounds b = MeasureCopy(go, out bool any);
+            float size = b.size.magnitude, expected = analysed.size.magnitude;
+            if (!any || expected >= 0.02f && (size < expected / 2f || size > expected * 2f || (b.center - analysed.center).magnitude > 0.03f))
+            {
+                Log.InfoOnce("maglook-no:" + key, $"Magazine of {key} not kept as it looks loaded (try {tries + 1}): {(any ? $"{size * 100f:0} cm across against {expected * 100f:0} analysed, middle {(b.center - analysed.center).magnitude * 100f:0.0} cm off" : "nothing drawn")}.");
+                Object.Destroy(go);
+                return;
+            }
+            if (_loadedLooksHolder == null)
+            {
+                _loadedLooksHolder = new GameObject("RavenfieldVR loaded rockets");
+                _loadedLooksHolder.SetActive(false); // kept, never drawn
+                Object.DontDestroyOnLoad(_loadedLooksHolder);
+            }
+            go.transform.SetParent(_loadedLooksHolder.transform, false);
+            go.name = "magazine " + key;
+            LoadedMags[key] = go;
+            Log.InfoOnce("maglook:" + key, $"Magazine of {key} kept as it looks loaded: {go.GetComponentsInChildren<Renderer>(true).Length} renderer(s), {size * 100f:0} cm across.");
+        }
+
+        /// <summary>Self-check: whether a loaded look of this gun's magazine is kept.</summary>
+        internal static bool KeepsLoadedLook(string key) => LoadedMags.ContainsKey(key);
+
+        /// <summary>Self-check: how many renderers of a prop's model draw (on, active, with a size).</summary>
+        internal static int DrawnCount(MagazineProp prop)
+        {
+            int n = 0;
+            if (prop != null && prop.Go != null)
+            {
+                foreach (Renderer r in prop.Go.GetComponentsInChildren<Renderer>(true))
+                {
+                    n += r.enabled && r.gameObject.activeInHierarchy && r.transform.lossyScale.sqrMagnitude > 1e-8f ? 1 : 0;
+                }
+            }
+            return n;
+        }
 
         /// <summary>The last look at each launcher's loaded rocket (gun space) while its far seat waits to be taken over.</summary>
         private static readonly Dictionary<string, (RigidPose pose, float at)> SeatLooks = new Dictionary<string, (RigidPose pose, float at)>();
@@ -418,6 +497,16 @@ namespace RavenfieldVR.Weapons
             LoadedLooks.Clear();
             LoadedLookTried.Clear();
             LoadedLookTries.Clear();
+            foreach (GameObject look in LoadedMags.Values)
+            {
+                if (look != null)
+                {
+                    Object.Destroy(look);
+                }
+            }
+            LoadedMags.Clear();
+            LoadedMagTried.Clear();
+            LoadedMagTries.Clear();
             SeatLooks.Clear();
             BoneCuts.Clear(); // (kept, every content reload left its entries for the session)
             GripSections.Clear();
@@ -425,9 +514,12 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A new copy of the launcher's rocket as it looked loaded; null when none was kept (or its meshes are gone).</summary>
-        private static GameObject LoadedLook(string key)
+        private static GameObject LoadedLook(string key) => Kept(LoadedLooks, key);
+
+        /// <summary>A new copy of a kept look (<see cref="LoadedLooks"/>, <see cref="LoadedMags"/>); null when none was kept (or its meshes are gone).</summary>
+        private static GameObject Kept(Dictionary<string, GameObject> kept, string key)
         {
-            if (!LoadedLooks.TryGetValue(key, out GameObject look))
+            if (!kept.TryGetValue(key, out GameObject look))
             {
                 return null;
             }
@@ -446,7 +538,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Object.Destroy(look);
                 }
-                LoadedLooks.Remove(key);
+                kept.Remove(key);
                 return null;
             }
             GameObject go = Object.Instantiate(look);

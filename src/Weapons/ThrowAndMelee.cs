@@ -822,7 +822,7 @@ namespace RavenfieldVR.Weapons
         {
             melee.SphereCast(ray, radius, distance, GameMeleeMask, out RaycastHit hitWall, out MeleeWeapon.RaycastHitHitbox hitEnemy,
                 out MeleeWeapon.RaycastHitHitbox hitAlly, out RaycastHit hitVehicle);
-            float blocking = Mathf.Min(hitWall.distance, hitVehicle.distance);
+            float blocking = Mathf.Min(hitWall.collider == null || BlocksBlow(hitWall.collider) ? hitWall.distance : float.MaxValue, hitVehicle.distance);
             if (hitEnemy.hitInfo.collider != null && hitEnemy.hitInfo.distance < blocking)
             {
                 melee.DamageHitbox(direction, hitEnemy);
@@ -980,6 +980,9 @@ namespace RavenfieldVR.Weapons
         private readonly object[] _blowHeld = new object[2];
         private float _lastBlow = -10f;
         private readonly float[] _lastBlowBy = { -10f, -10f };
+
+        /// <summary>When each hand last landed a blow (game time): a fist that just hit does not then take hold of whom it hit (BodyGrab).</summary>
+        internal static readonly float[] LastHandBlow = { -10f, -10f };
         // What each held thing is called in the log and its once-key, made once (built every fast frame, hit or not): PropKind's
         // order, then the grenade, then an empty fist.
         private static readonly string[] BlowLabels = { "a held magazine", "a held shell", "a held rocket", "a held grenade", "a fist" };
@@ -1039,6 +1042,7 @@ namespace RavenfieldVR.Weapons
                         {
                             _lastBlow = Time.time;
                             _lastBlowBy[i] = Time.time;
+                            LastHandBlow[i] = Time.time;
                             h.Haptic(0.08f, 60f, 0.9f);
                         }
                     }
@@ -1081,6 +1085,45 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
+        /// <summary>
+        /// Whether something a blow meets on its way stops it: a wall, a vehicle, a loose thing. Never the player's own body, hands
+        /// or what they hold (the held gun's stand-in, a magazine in a hand), and never a soldier's own gear: a mod's soldier with
+        /// colliders on his helmet, vest or pack, or a gun with colliders of its own, took no blow at all, fist, gun or knife
+        /// (user, 2026-10-25: "I cannot punch enemies with things or my fists"; not one blow in the session's log).
+        /// </summary>
+        internal static bool BlocksBlow(Collider c)
+        {
+            if (c == null || c.gameObject.layer == FirstPersonLayer || PropPhysics.IsPlayerCollider(c))
+            {
+                return false;
+            }
+            Rigidbody body = c.attachedRigidbody;
+            if (body != null && body.GetComponent<GunProxyBody>() != null)
+            {
+                return false;
+            }
+            if (c.GetComponentInParent<Actor>() != null)
+            {
+                return false; // (a soldier's: the soldier is what it hits)
+            }
+            VRRig rig = VRRig.Instance;
+            if (rig != null)
+            {
+                foreach (VRHand h in rig.Hands)
+                {
+                    if (h != null && h.Held is MagazineProp prop && prop.Go != null && c.transform.IsChildOf(prop.Go.transform))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>A collider as the log names it: its object, kind, layer and the root it is under.</summary>
+        private static string Describe(Collider c) => c == null ? "nothing"
+            : $"{c.name} ({c.GetType().Name}, layer {c.gameObject.layer}, under {c.transform.root.name}{(c.attachedRigidbody != null ? c.attachedRigidbody.isKinematic ? ", kinematic" : ", dynamic" : "")})";
+
         private static bool BashCast(Weapon w, Actor user, Vector3 from, Vector3 to, float speed, float weight, string label, string key)
         {
             Vector3 sweep = to - from;
@@ -1098,6 +1141,7 @@ namespace RavenfieldVR.Weapons
                 Hurtable best = null;
                 RaycastHit bestHit = default;
                 float bestDistance = float.MaxValue, wall = float.MaxValue;
+                Collider wallHit = null;
                 for (int i = 0; i < n; i++)
                 {
                     RaycastHit h = BashHits[i];
@@ -1107,12 +1151,11 @@ namespace RavenfieldVR.Weapons
                     }
                     if (!Hitbox.IsHitboxLayer(h.collider.gameObject.layer))
                     {
-                        // A wall or vehicle in the way stops the blow, as a knife's (an enemy behind a wall was hit; 255.B3-2);
-                        // never the held gun's own stand-in or the player's body.
-                        Rigidbody body = h.collider.attachedRigidbody;
-                        if (h.collider.gameObject.layer != FirstPersonLayer && !PropPhysics.IsPlayerCollider(h.collider) && (body == null || body.GetComponent<GunProxyBody>() == null))
+                        // A wall or vehicle in the way stops the blow, as a knife's (an enemy behind a wall was hit; 255.B3-2).
+                        if (h.distance < wall && BlocksBlow(h.collider))
                         {
-                            wall = Mathf.Min(wall, h.distance);
+                            wall = h.distance;
+                            wallHit = h.collider;
                         }
                         continue;
                     }
@@ -1132,7 +1175,12 @@ namespace RavenfieldVR.Weapons
                 if (RecordNotes)
                 {
                     CastNote = $"{n} hit(s) over {length * 100f:0} cm, nearest soldier {(best != null ? best.name + $" at {bestDistance * 100f:0} cm" : "none")}, "
-                               + $"nearest wall {(wall < float.MaxValue ? $"{wall * 100f:0} cm" : "none")}";
+                               + $"nearest wall {(wallHit != null ? $"{Describe(wallHit)} at {wall * 100f:0} cm" : "none")}";
+                }
+                if (best != null && bestDistance > wall && !Log.Logged("blow-walled"))
+                {
+                    // (Once a session, for the log: what stopped a blow that was on its way to a soldier.)
+                    Log.InfoOnce("blow-walled", $"{label}: a blow at {best.name} was stopped by {Describe(wallHit)} {(bestDistance - wall) * 100f:0} cm before him.");
                 }
                 if (best == null || bestDistance > wall)
                 {

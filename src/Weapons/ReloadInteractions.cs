@@ -310,6 +310,10 @@ namespace RavenfieldVR.Weapons
                 {
                     MagazineProp.KeepLoadedLook(Rig); // its rocket as it sits loaded: the one from the pouch is drawn with it
                 }
+                else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds > 0)
+                {
+                    MagazineProp.KeepLoadedMagazine(Rig); // its magazine as it sits loaded: a full one from the pouch is drawn with it
+                }
                 if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !VRGameInput.GunInputBlocked)
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);

@@ -3,6 +3,7 @@ using HarmonyLib;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
+using RavenfieldVR.UI;
 using RavenfieldVR.Util;
 using UnityEngine;
 
@@ -24,8 +25,23 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal sealed class BodyGrab
     {
-        /// <summary>How far from the fist's hollow a soldier's collider may be to be taken.</summary>
-        private const float Reach = 0.13f;
+        /// <summary>
+        /// How far from the fist's hollow a soldier's collider may be to be taken (13 cm, and a hand reaching for a walking soldier
+        /// "grabs the air many times": user, 2026-10-25).
+        /// </summary>
+        private const float Reach = 0.18f;
+        /// <summary>How long a squeeze of the grip still takes a soldier the hand reaches (s; the other grabs' window is 0.25).</summary>
+        private const float GrabWindow = 0.4f;
+        /// <summary>A hand faster than this (m/s, against the body) punches rather than takes hold (the melee swing speed is 2.6).</summary>
+        private const float GrabMaxSpeed = 2.6f;
+        /// <summary>
+        /// A squeeze takes hold only when it began with a soldier this near (m): a punch closes the fist before its swing, away from
+        /// whom it hits, and with the longer reach and window above a fist closed and swung took hold of the soldier instead of
+        /// punching him ("punching enemies doesn't work": user, 2026-10-25).
+        /// </summary>
+        private const float SqueezeNear = 0.35f;
+        private readonly bool[] _squeezedNear = new bool[2];
+
         /// <summary>How long after the throw the body's impacts still hurt.</summary>
         private const float ImpactsAfterThrow = 3f;
         /// <summary>Stretched this far off the hand (wedged against a wall, the arm pulled on): let go.</summary>
@@ -48,9 +64,16 @@ namespace RavenfieldVR.Weapons
         private const float JumpAngle = 20f;
         /// <summary>
         /// The hold's turn, per kilogram of the body held (see <see cref="Attach"/>): its spring (N m per radian), damper (N m s
-        /// per radian) and the most torque it gives (N m).
+        /// per radian) and the most torque it gives (N m). The damper about critical for a body hung by a bone.
         /// </summary>
-        private const float HoldTwist = 30f, HoldTwistDamper = 3f, HoldTwistTorque = 20f;
+        private const float HoldTwist = 30f, HoldTwistDamper = 8f, HoldTwistTorque = 20f;
+        /// <summary>
+        /// A held body crushed against something that does not give (one contact of a bone over this, N s) is let go: run into a
+        /// wall with a soldier held, the hand pressed him into it with no limit, 3000 N s in a step, and he was flung (the soldier
+        /// check's run, 2026-10-25). Dragged over rocks and slammed down, a contact stays under about 300. (Not a break force on the
+        /// hold: its force spikes past 50 g for a step in plain holding, and broken there it flung the body.)
+        /// </summary>
+        internal const float CrushImpulse = 1000f;
 
         /// <summary>The ragdoll's whole mass (kg), at least 1.</summary>
         private static float BodyMass(Actor a)
@@ -66,12 +89,15 @@ namespace RavenfieldVR.Weapons
             return Mathf.Max(1f, mass);
         }
 
-        /// <summary>The head within this of the fist's hollow, taken from behind: a neck hold, not a knock-down.</summary>
-        private const float NeckReach = 0.22f;
-        /// <summary>How far behind: the soldier's facing within this of the way from the player to him (degrees).</summary>
-        private const float BehindDegrees = 70f;
-        /// <summary>The wrist turned this far from where it took hold (degrees): the neck breaks.</summary>
-        internal const float NeckTwist = 70f;
+        /// <summary>
+        /// The head within this of the fist's hollow, taken from behind: a neck hold, not a knock-down (22 cm missed a hand on the
+        /// back of the neck: "neck snapping doesn't work", user, 2026-10-25).
+        /// </summary>
+        private const float NeckReach = 0.3f;
+        /// <summary>How far behind: the way the soldier looks within this of the way from the player to him (degrees; behind his shoulders).</summary>
+        private const float BehindDegrees = 90f;
+        /// <summary>The wrist turned this far from where it took hold (degrees): the neck breaks (70 was near the end of a wrist's roll).</summary>
+        internal const float NeckTwist = 55f;
         /// <summary>How near to a held body's bone a live grenade must be let go to be strapped to it (m).</summary>
         internal const float StrapReach = 0.3f;
 
@@ -95,8 +121,10 @@ namespace RavenfieldVR.Weapons
             /// <summary>Where the hand was last frame (to carry the body over a jump of the hand).</summary>
             public Vector3 LastPalm;
             public Quaternion LastRotation;
-            /// <summary>The gun stand-in this body was last told not to collide with.</summary>
-            public GunCollider IgnoredGun;
+            /// <summary>The gun stand-in this body does not collide with until the two are apart (null: none), and the last one seen.</summary>
+            public GunCollider IgnoredGun, SeenGun;
+            /// <summary>The body's colliders (its own pairs ignored while held).</summary>
+            public Collider[] Colliders;
         }
 
         public BodyGrab(VRRig rig)
@@ -161,6 +189,55 @@ namespace RavenfieldVR.Weapons
             }
             Hold h0 = g._holds[0], h1 = g._holds[1];
             return (h0 != null || h1 != null) && a != null && (h0 != null && h0.Actor == a || h1 != null && h1.Actor == a);
+        }
+
+        /// <summary>A body crushed against something that does not give is let go by every hand holding it (see <see cref="CrushImpulse"/>).</summary>
+        internal static void LetGoCrushed(Actor a, Collider against, float impulse)
+        {
+            BodyGrab g = _instance;
+            if (g == null || a == null)
+            {
+                return;
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                Hold h = g._holds[i];
+                if (h != null && !h.Neck && h.Actor == a)
+                {
+                    if (!Log.Logged("bodygrab-crushed"))
+                    {
+                        Log.InfoOnce("bodygrab-crushed", $"Let go of {a.name}: crushed against {against.name} ({impulse:0} N s in a step).");
+                    }
+                    g.Release(i, g._rig.Hands[i], thrown: false);
+                }
+            }
+        }
+
+        /// <summary>Whether <paramref name="rb"/> is a bone of a body a hand holds as a ragdoll.</summary>
+        internal static bool IsHeldBone(Rigidbody rb)
+        {
+            BodyGrab g = _instance;
+            if (g == null || rb == null)
+            {
+                return false;
+            }
+            foreach (Hold h in g._holds)
+            {
+                if (h != null && !h.Neck && h.Actor != null && h.Actor.ragdoll != null && h.Actor.ragdoll.rigidbodies != null
+                    && System.Array.IndexOf(h.Actor.ragdoll.rigidbodies, rb) >= 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The bone a hand holds a body by (the autotest's), or null.</summary>
+        internal static Rigidbody HeldBone(VRHand hand)
+        {
+            BodyGrab g = _instance;
+            Hold h = g != null && hand != null ? g._holds[(int)hand.Side] : null;
+            return h != null ? h.Bone : null;
         }
 
         /// <summary>Whether this hand holds a soldier by the neck (the autotest's execution check).</summary>
@@ -229,19 +306,55 @@ namespace RavenfieldVR.Weapons
                 {
                     Follow(i, hand, hold, player, canHold);
                 }
-                else if (canHold && hand.Role == HandRole.Free && hand.Held == null && hand.Tracked && hand.GrabReaching && !VRGameInput.GunInputBlocked)
+                else
                 {
-                    TryTake(i, hand, player);
+                    if (hand.GrabPressed)
+                    {
+                        _squeezedNear[i] = SoldierNear(hand.PalmCentre, player); // (where this squeeze began)
+                    }
+                    else if (_squeezedNear[i] && hand.BodyRelativeVelocity.sqrMagnitude > GrabMaxSpeed * GrabMaxSpeed)
+                    {
+                        // Swung after the squeeze: a punch, not a reach. A fist closed near a soldier and thrown took hold as the punch
+                        // slowed on him (within the grab window) and knocked him over instead of punching (user, 2026-10-25: "I
+                        // cannot punch enemies with my fists"; his no-knockdown mutator stood him straight up again).
+                        _squeezedNear[i] = false;
+                    }
+                    // (Nor a fist that just landed a blow: its squeeze was the punch's, and it stopped on him after it.)
+                    if (canHold && _squeezedNear[i] && Time.time - MeleeHandler.LastHandBlow[i] > 0.6f
+                        && hand.Role == HandRole.Free && hand.Held == null && hand.Tracked && !VRGameInput.GunInputBlocked
+                        && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow))
+                    {
+                        TryTake(i, hand, player);
+                    }
                 }
             }
+            HandBody.Follow(_rig, canHold);
+        }
+
+        /// <summary>Autotest: why the last squeeze near a soldier took no one.</summary>
+        internal static string WhyNot = "";
+
+        /// <summary>Whether a soldier (not the player) has a collider within <see cref="SqueezeNear"/> of <paramref name="palm"/>.</summary>
+        private static bool SoldierNear(Vector3 palm, Actor player)
+        {
+            int n = Physics.OverlapSphereNonAlloc(palm, SqueezeNear, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
+            for (int k = 0; k < n; k++)
+            {
+                if (Near[k] != null && HurtableOf(Near[k]) is Actor a && a != player && a.ragdoll != null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void TryTake(int i, VRHand hand, Actor player)
         {
             // A fist swung at punching speed punches (MeleeHandler's blows), even with its grip just closed: a grab is a reach.
-            float punch = MeleeHandler.BlowSpeed;
+            float punch = Mathf.Max(MeleeHandler.BlowSpeed, GrabMaxSpeed);
             if (hand.BodyRelativeVelocity.sqrMagnitude > punch * punch)
             {
+                WhyNot = $"too fast {hand.BodyRelativeVelocity.magnitude:0.0}";
                 return;
             }
             Vector3 palm = hand.PalmCentre;
@@ -271,6 +384,7 @@ namespace RavenfieldVR.Weapons
             Hold other = _holds[1 - i];
             if (best == null || other != null && other.Neck && other.Actor == best)
             {
+                WhyNot = $"no one within reach ({n} colliders)";
                 return; // (held by the neck in the other hand: knocked over by this one, that hold would hang on a ragdoll)
             }
             try
@@ -280,6 +394,12 @@ namespace RavenfieldVR.Weapons
                 {
                     TakeNeck(i, hand, best);
                     return;
+                }
+                if (!best.dead && !best.ragdoll.IsRagdoll() && (HeadOf(best) - palm).sqrMagnitude < 0.45f * 0.45f && !Log.Logged("neck-missed"))
+                {
+                    Log.InfoOnce("neck-missed", $"No neck hold on {best.name}: {BehindAngle(best, player):0} degrees from behind him (under {BehindDegrees:0} needed), "
+                                                + $"the head {(HeadOf(best) - palm).magnitude * 100f:0} cm from the fist (under {NeckReach * 100f:0}), {(best.team == player.team ? "a friend" : "an enemy")}"
+                                                + $"{(best.IsSeated() ? ", seated" : "")}{(other != null ? ", the other hand holding someone" : "")}: knocked down instead.");
                 }
                 if (!best.ragdoll.IsRagdoll())
                 {
@@ -304,15 +424,28 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Rigidbody anchor = Anchor(i);
+            anchor.isKinematic = false; // (driven by its velocity while it holds: see GrabAnchor)
+            if (BodyImpacts.RecordContacts && anchor.GetComponent<AnchorProbe>() == null)
+            {
+                anchor.gameObject.AddComponent<AnchorProbe>(); // (the autotest's: how evenly the anchor moves)
+            }
             anchor.transform.SetPositionAndRotation(palm, hand.Palm.rotation);
+            GrabAnchor driver = anchor.GetComponent<GrabAnchor>();
+            driver.Follow(palm, hand.Palm.rotation, _rig.PlacedBody, _rig.PlacedBodyAt, _rig.PlacedSmoothing); // (this grab's, from its first step)
+            driver.Bones = _holds[1 - i] != null && _holds[1 - i].Actor == best ? null : best.ragdoll.rigidbodies; // (one hand carries a body)
             // The game syncs transforms to the physics only on a step (autoSyncTransforms off): the joint below takes the
             // anchor's physics pose, which was still where it was last let go (the world's origin on a first grab).
             Physics.SyncTransforms();
+            anchor.velocity = anchor.angularVelocity = Vector3.zero;
             var joint = bone.gameObject.AddComponent<ConfigurableJoint>();
+            // Held at the bone's centre of mass, not its pivot (the hips' pivot is 30 cm from its middle): the lock's pull on a
+            // heavy body hanging from it turns the bone no more, only the drive below does. Turning the hand still swings the body
+            // round the palm.
+            joint.anchor = bone.centerOfMass;
             joint.connectedBody = anchor;
             joint.autoConfigureConnectedAnchor = true; // held where it was taken: no snap of the bone into the fist
             joint.xMotion = joint.yMotion = joint.zMotion = ConfigurableJointMotion.Locked;
-            // The bone's turn held by a damped, torque-limited drive, not locked: locked to the kinematic hand, every turn of the
+            // The bone's turn held by a damped, torque-limited drive, not locked: locked to the hand, every turn of the
             // wrist was levered through the whole body (a quick turn whipped it at the speed cap and lifted it), and wherever the
             // body could not turn with it the lock pushed with whatever it took: "they go crazy and fling in the air" (user,
             // 2026-10-25). Scaled by the body's mass: about 9 degrees of sag under its weight, damped, and a capped torque.
@@ -342,11 +475,20 @@ namespace RavenfieldVR.Weapons
             BodyImpacts.Arm(best, float.PositiveInfinity, GameContext.PlayerActor); // (its bones' speed kept in check while armed)
             if (best.ragdoll.ragdollObject != null)
             {
-                PropPhysics.IgnorePlayer(best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>());
-                // The held gun's stand-in too, from the first physics step (it was told only on the next frame's Follow: a step or
-                // two of the stand-in shoving a body taken beside the gun).
-                _holds[i].IgnoredGun = GunCollider.Current;
-                GunCollider.Current?.IgnoreCollisionsWith(best.ragdoll.ragdollObject);
+                Collider[] own = best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>();
+                _holds[i].Colliders = own;
+                PropPhysics.IgnorePlayer(own);
+                // Its bones no longer collide with one another while held: a limp leg swung into its own hips as the player walked (its
+                // Leg.L.002 on its Bone at 1442 N s, the soldier check, 2026-10-25), and the hand kept the body from giving way. Unity
+                // forgets these pairs when the ragdoll is switched off (the soldier stands up or respawns): he is whole again then.
+                for (int x = 0; x < own.Length; x++)
+                {
+                    for (int y = x + 1; y < own.Length; y++)
+                    {
+                        PropPhysics.Ignore(own[x], own[y]);
+                    }
+                }
+                MeetGun(_holds[i]);
             }
             if (!Log.Logged("bodygrab-mass"))
             {
@@ -357,6 +499,68 @@ namespace RavenfieldVR.Weapons
             hand.Haptic(0.08f, 80f, 0.8f);
             Log.InfoOnce("bodygrab", $"Took hold of {best.name} by {bone.name} ({(best.dead ? "dead" : "alive")}).");
         }
+
+        /// <summary>
+        /// The other hand's gun meets the held body's trunk and head (its physics stand-in pushes them as anything: "guns go through
+        /// them", user, 2026-10-25), except from a grab or a draw beside him until the two are apart: overlapping, the body was shoved
+        /// out of the gun at the physics' depenetration speed. Never his arms and legs: light and dangling, a foot caught between the
+        /// gun and his held hips was flung at the speed cap (the soldier check's sweep, 312 N s). (The body was ignored for the whole
+        /// hold before, as it was shoved and hurt: the shoving was the hand's broken anchor, see GrabAnchor; the stand-in's touch
+        /// does no damage, see BodyImpacts.)
+        /// </summary>
+        private static void MeetGun(Hold hold)
+        {
+            GameObject body = hold.Actor != null && hold.Actor.ragdoll != null ? hold.Actor.ragdoll.ragdollObject : null;
+            GunCollider gun = GunCollider.Current;
+            if (body == null)
+            {
+                return;
+            }
+            if (!ReferenceEquals(gun, hold.SeenGun))
+            {
+                hold.SeenGun = gun;
+                gun?.IgnoreColliders(Limbs(hold.Actor));
+                if (hold.IgnoredGun != null && !ReferenceEquals(hold.IgnoredGun, gun))
+                {
+                    hold.IgnoredGun.StopIgnoring(body);
+                    hold.IgnoredGun = null;
+                }
+                if (gun != null && gun.Overlaps(body))
+                {
+                    gun.IgnoreCollisionsWith(body);
+                    hold.IgnoredGun = gun;
+                }
+            }
+            else if (hold.IgnoredGun != null && !hold.IgnoredGun.Overlaps(body))
+            {
+                hold.IgnoredGun.StopIgnoring(body);
+                hold.IgnoredGun = null;
+            }
+        }
+
+        /// <summary>A body's arm and leg colliders: those of its bones lighter than <see cref="LimbMass"/>.</summary>
+        private static List<Collider> Limbs(Actor a)
+        {
+            LimbScratch.Clear();
+            if (a != null && a.ragdoll != null && a.ragdoll.rigidbodies != null)
+            {
+                foreach (Rigidbody rb in a.ragdoll.rigidbodies)
+                {
+                    if (rb != null && rb.mass < LimbMass)
+                    {
+                        foreach (Collider c in rb.GetComponents<Collider>())
+                        {
+                            LimbScratch.Add(c);
+                        }
+                    }
+                }
+            }
+            return LimbScratch;
+        }
+
+        private static readonly List<Collider> LimbScratch = new List<Collider>();
+        /// <summary>A bone lighter than this (kg) is a limb (a soldier's arms and legs weigh 4, his hips and chest 16, his head 8).</summary>
+        private const float LimbMass = 6f;
 
         private static void TakeHand(VRHand hand, Actor a)
         {
@@ -372,11 +576,25 @@ namespace RavenfieldVR.Weapons
         private Quaternion InRig(Quaternion world) => Quaternion.Inverse(_rig.Root.rotation) * world;
 
         /// <summary>The player stands behind the soldier: the soldier faces away from him.</summary>
-        private static bool FromBehind(Actor a, Actor player)
+        private static bool FromBehind(Actor a, Actor player) => BehindAngle(a, player) < BehindDegrees;
+
+        /// <summary>
+        /// The angle between the soldier's facing and the way from the player to him (0: straight behind him), by his body or by
+        /// where he looks, whichever is more behind: the game turns his body only once he looks more than 50 degrees off it
+        /// (Actor.Update), so his body's facing alone could read a hold from straight behind as from the side; and a soldier
+        /// turning his head to look round at the player is still held from behind.
+        /// </summary>
+        private static float BehindAngle(Actor a, Actor player)
         {
             Vector3 away = Vector3.ProjectOnPlane(a.transform.position - player.transform.position, Vector3.up);
-            Vector3 facing = Vector3.ProjectOnPlane(a.transform.forward, Vector3.up);
-            return away.sqrMagnitude > 1e-4f && facing.sqrMagnitude > 1e-4f && Vector3.Angle(away, facing) < BehindDegrees;
+            if (away.sqrMagnitude < 1e-4f)
+            {
+                return 180f;
+            }
+            Vector3 body = Vector3.ProjectOnPlane(a.transform.forward, Vector3.up);
+            float angle = body.sqrMagnitude > 1e-4f ? Vector3.Angle(away, body) : 180f;
+            Vector3 looks = a.controller != null ? Vector3.ProjectOnPlane(a.controller.FacingDirection(), Vector3.up) : Vector3.zero;
+            return looks.sqrMagnitude > 1e-4f ? Mathf.Min(angle, Vector3.Angle(away, looks)) : angle;
         }
 
         private static Vector3 HeadOf(Actor a)
@@ -502,7 +720,8 @@ namespace RavenfieldVR.Weapons
             Rigidbody anchor = Anchor(i);
             Vector3 palm = hand.PalmCentre;
             Quaternion rotation = hand.Palm.rotation;
-            if ((palm - hold.LastPalm).sqrMagnitude > JumpDistance * JumpDistance || Quaternion.Angle(rotation, hold.LastRotation) > JumpAngle)
+            bool jumped = (palm - hold.LastPalm).sqrMagnitude > JumpDistance * JumpDistance || Quaternion.Angle(rotation, hold.LastRotation) > JumpAngle;
+            if (jumped)
             {
                 // Held in both hands, both jump in the same frame: the body is carried once (twice, it moved and turned twice).
                 if (_carriedActor != a || _carriedFrame != Time.frameCount)
@@ -518,9 +737,8 @@ namespace RavenfieldVR.Weapons
             }
             hold.LastPalm = palm;
             hold.LastRotation = rotation;
-            // Moved by the physics (a kinematic body pulls what is jointed to it); it keeps up with the hand each step.
-            anchor.MovePosition(palm);
-            anchor.MoveRotation(rotation);
+            // Moved in each physics step (GrabAnchor): the hand's place against the player, wherever the player is in that step.
+            anchor.GetComponent<GrabAnchor>().Follow(palm, rotation, _rig.PlacedBody, _rig.PlacedBodyAt, _rig.PlacedSmoothing, jumped);
             if ((hold.Bone.position - palm).magnitude > hold.Reach + MaxStretch)
             {
                 Release(i, hand, thrown: false); // wedged or pulled through something: let go rather than tear the ragdoll
@@ -536,13 +754,7 @@ namespace RavenfieldVR.Weapons
             {
                 BodyImpacts.Limp(a);
             }
-            // The held gun's physics stand-in (it chases the other hand by velocity) never pushes the held body: it shoved the
-            // ragdoll about and hurt it ("slammed into RavenfieldVR Gun Collider", 2026-10-24). Again for each new gun.
-            if (!ReferenceEquals(hold.IgnoredGun, GunCollider.Current))
-            {
-                hold.IgnoredGun = GunCollider.Current;
-                GunCollider.Current?.IgnoreCollisionsWith(a.ragdoll.ragdollObject);
-            }
+            MeetGun(hold);
             // No bone faster than the hand by more than MaxOverHand: a body caught in the ground or a wall was shot out by the
             // physics before (see MaxOverHand).
             float limit = hand.Velocity.magnitude + MaxOverHand;
@@ -568,6 +780,15 @@ namespace RavenfieldVR.Weapons
         {
             Hold hold = _holds[i];
             _holds[i] = null;
+            if (_anchors[i] != null)
+            {
+                _anchors[i].GetComponent<GrabAnchor>().Stop();
+            }
+            Hold still = _holds[1 - i];
+            if (hold != null && still != null && still.Actor == hold.Actor && !still.Neck && _anchors[1 - i] != null && hold.Actor != null && hold.Actor.ragdoll != null)
+            {
+                _anchors[1 - i].GetComponent<GrabAnchor>().Bones = hold.Actor.ragdoll.rigidbodies; // the other hand carries him now
+            }
             if (hand != null && hold != null && ReferenceEquals(hand.Held, hold.Actor))
             {
                 hand.Held = null; // (also when the hand was taken over: the soldier left on it kept it from ever grabbing or punching)
@@ -636,26 +857,50 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>Autotest: how many times a held body was carried over a jump of the hand.</summary>
+        internal static int Carries;
+
+        private static Vector3[] CarryAt = new Vector3[0];
+        private static Quaternion[] CarryTurn = new Quaternion[0];
+
         /// <summary>The whole body moved and turned as the hand moved and turned between two frames (its pose kept).</summary>
         private static void CarryBody(Actor a, Vector3 fromPalm, Quaternion fromRotation, Vector3 toPalm, Quaternion toRotation)
         {
+            Carries++;
             Rigidbody[] bones = a.ragdoll != null ? a.ragdoll.rigidbodies : null;
             if (bones == null)
             {
                 return;
             }
             Quaternion turn = toRotation * Quaternion.Inverse(fromRotation);
-            foreach (Rigidbody rb in bones)
+            // Every new pose from the old ones first: the bones are nested (a thigh under the hips, the head under the chest), and set
+            // one by one each child was carried again with every parent before it, the head three times: thrown 1.5 m off the hand by
+            // a snap turn, the hold torn 0.9 m apart, the body flung (soldier check, 2026-10-25: "same when I turn": user).
+            if (CarryAt.Length < bones.Length)
             {
-                if (rb == null)
+                CarryAt = new Vector3[bones.Length];
+                CarryTurn = new Quaternion[bones.Length];
+            }
+            for (int k = 0; k < bones.Length; k++)
+            {
+                if (bones[k] != null)
                 {
-                    continue;
+                    Transform b = bones[k].transform;
+                    CarryAt[k] = toPalm + turn * (b.position - fromPalm);
+                    CarryTurn[k] = turn * b.rotation;
                 }
-                Transform b = rb.transform;
-                b.SetPositionAndRotation(toPalm + turn * (b.position - fromPalm), turn * b.rotation);
-                rb.velocity = turn * rb.velocity;
+            }
+            for (int k = 0; k < bones.Length; k++)
+            {
+                if (bones[k] != null)
+                {
+                    bones[k].transform.SetPositionAndRotation(CarryAt[k], CarryTurn[k]);
+                    bones[k].velocity = turn * bones[k].velocity;
+                    bones[k].angularVelocity = turn * bones[k].angularVelocity;
+                }
             }
         }
+
 
         /// <summary>Lets go of everything (scene change, VR stopping).</summary>
         public void ReleaseAll()
@@ -682,6 +927,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The grab anchor's mass (kg): a hundred soldiers.</summary>
+        private const float AnchorMass = 10000f;
+
         private Rigidbody Anchor(int i)
         {
             if (_anchors[i] == null)
@@ -689,8 +937,14 @@ namespace RavenfieldVR.Weapons
                 var go = new GameObject("RavenfieldVR Body Grab " + (i == 0 ? "L" : "R"));
                 Object.DontDestroyOnLoad(go);
                 Rigidbody rb = go.AddComponent<Rigidbody>();
-                rb.isKinematic = true; // no collider: it only carries the joint
-                rb.interpolation = RigidbodyInterpolation.Interpolate;
+                rb.isKinematic = true; // (until it holds: see GrabAnchor) no collider: it only carries the joint
+                rb.useGravity = false;
+                rb.mass = AnchorMass; // a held body's pull on it moves it next to nothing (it is set going again every step)
+                rb.inertiaTensor = Vector3.one * AnchorMass;
+                rb.inertiaTensorRotation = Quaternion.identity;
+                rb.drag = rb.angularDrag = 0f;
+                rb.maxAngularVelocity = 100f;
+                go.AddComponent<GrabAnchor>();
                 _anchors[i] = rb;
             }
             return _anchors[i];
@@ -729,20 +983,230 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
+    /// A hand's grab anchor, moved in each physics step, not once a frame: the hand's place against the player's physics body
+    /// (<see cref="VRRig.PlacedBody"/>), put where that body is in the step (the body moves in the physics step while the rig is placed
+    /// once a frame: moved with the hand's frame pose the anchor went by uneven steps as the player walked).
+    /// <para>
+    /// A heavy body set going at the speed that takes it there in the step, not a kinematic one moved there: PhysX placed a kinematic
+    /// anchor right but its joint pulled the held bone as if the anchor stood still, braking the body against the world at every
+    /// step while it was dragged along. Walking or running, the hold first lagged and stretched, then the physics' answer went wrong
+    /// (10^17 N in a step on a body held calmly as a run started): bodies spun, were pulled "long", flung, or slipped out of the
+    /// hand (user, 2026-10-25: "when I run the bodies still turn crazy"; "he let go of an enemy while walking forward and
+    /// backwards"). Turning in place it held: the hand moved slowly then.
+    /// </para>
+    /// </summary>
+    internal sealed class GrabAnchor : MonoBehaviour
+    {
+        private Rigidbody _body;
+        private Transform _player;
+        // The last frames' samples (game time, the hand's place against the body, the hand itself, its turn), newest at _newest: each
+        // physics step takes the hand as it was a fixed time before the step, between two of them (see FixedUpdate).
+        private const int Samples = 8;
+        private readonly float[] _time = new float[Samples];
+        private readonly Vector3[] _from = new Vector3[Samples], _palm = new Vector3[Samples];
+        private readonly Quaternion[] _turn = new Quaternion[Samples];
+        private int _newest, _count;
+        private bool _active;
+        // The player's physics body in the last step, and its speed then (see Carried).
+        private Vector3 _lastBody, _lastSpeed;
+        private bool _hasBody, _hasSpeed;
+
+        /// <summary>
+        /// The held body's bones, which take every change of the player's speed with the anchor (null on a second hand holding the same
+        /// body: one hand carries it). See <see cref="Carried"/>.
+        /// </summary>
+        internal Rigidbody[] Bones;
+
+        private void Awake() => _body = GetComponent<Rigidbody>();
+
+        /// <summary>
+        /// Where the hand is this frame, and the player's physics body the rig was placed against (where it was then, and the game's
+        /// smoothing of the view then: the hand's place against the body holds none of it). <paramref name="jumped"/>: the hand
+        /// jumped (a teleport, a snap turn, a long frame) and the body was carried: nothing between the old place and the new.
+        /// </summary>
+        internal void Follow(Vector3 palm, Quaternion rotation, Transform body, Vector3 bodyAt, Vector3 smoothing, bool jumped = false)
+        {
+            Vector3 from = palm - bodyAt - smoothing;
+            float now = Time.time;
+            if (!_active || jumped || body != _player)
+            {
+                _count = 0; // (nothing between the old place and this one)
+                _hasBody = _hasSpeed = false;
+            }
+            if (_count == 0 || now > _time[_newest])
+            {
+                _newest = (_newest + 1) % Samples;
+                _count = Mathf.Min(_count + 1, Samples);
+            }
+            _time[_newest] = now;
+            _from[_newest] = from;
+            _palm[_newest] = palm;
+            _turn[_newest] = rotation;
+            _player = body;
+            _active = true;
+        }
+
+        /// <summary>Let go: it stays where it is (kinematic until the next grab, not drifting off at its last speed).</summary>
+        internal void Stop()
+        {
+            _active = false;
+            if (_body != null && !_body.isKinematic)
+            {
+                _body.velocity = _body.angularVelocity = Vector3.zero;
+                _body.isKinematic = true;
+            }
+        }
+
+        /// <summary>
+        /// The player's change of speed in this step given to every bone of the held body too, so it is carried as one thing. The game
+        /// starts, stops and turns back a walk or a run in one physics step (0 to 3.4 m/s walking, about 6 running): left to the hold,
+        /// that reaches the one bone it holds at once and the rest by its joints, the limbs whipped round (the soldier check's walk,
+        /// 2026-10-25: fastest bone 6.5 to 7 m/s without, 4 to 5 with). Smoothing the anchor's walk instead left the body a run start's
+        /// half metre behind the hand. The hand's own swings stay the physics' (a throw, a slam).
+        /// </summary>
+        private void Carried(Vector3 body)
+        {
+            float dt = Time.fixedDeltaTime;
+            if (_hasBody)
+            {
+                Vector3 speed = (body - _lastBody) / dt;
+                if (_hasSpeed && Bones != null)
+                {
+                    Vector3 change = speed - _lastSpeed;
+                    // (Not a respawn's or a ladder's jump: no walk changes by 15 m/s in a step.)
+                    if (change.sqrMagnitude > 1e-4f && change.sqrMagnitude < 15f * 15f)
+                    {
+                        foreach (Rigidbody rb in Bones)
+                        {
+                            if (rb != null)
+                            {
+                                rb.velocity += change;
+                            }
+                        }
+                    }
+                }
+                _lastSpeed = speed;
+                _hasSpeed = true;
+            }
+            _lastBody = body;
+            _hasBody = true;
+        }
+
+        private void FixedUpdate()
+        {
+            if (!_active || _body == null)
+            {
+                return;
+            }
+            // The hand as it was a fixed time before this step (a physics step and a frame: always between two frames' samples): taken
+            // as the last frame left it, a turn of the view (applied once a frame) reached the anchor in uneven steps, one or two
+            // frames of it a step. (Between the last two samples only, the step was sometimes before both and the steps went uneven.)
+            float at = Time.fixedTime - Time.fixedDeltaTime - 0.012f;
+            int newer = _newest, older = _newest;
+            for (int k = 1; k < _count; k++)
+            {
+                int i = (_newest - k + Samples) % Samples;
+                older = i;
+                if (_time[i] <= at)
+                {
+                    break;
+                }
+                newer = i;
+            }
+            float span = _time[newer] - _time[older];
+            float u = span > 1e-5f ? Mathf.Clamp01((at - _time[older]) / span) : 1f;
+            // From the player's physics body, which moves in the physics step only (the camera point the rig follows, and its parent,
+            // also move once a frame: from them the anchor still went by uneven steps, 3.5 m/s off the step before while walking
+            // steadily). (Not on foot, or the player gone since the frame: the hand as it was.)
+            if (_player != null)
+            {
+                Carried(_player.position);
+            }
+            Vector3 place = _player != null ? _player.position + Vector3.Lerp(_from[older], _from[newer], u) : Vector3.Lerp(_palm[older], _palm[newer], u);
+            Quaternion facing = Quaternion.Slerp(_turn[older], _turn[newer], u);
+            // Set going at the speed that takes it there in this step (see the class: the joint's physics sees how fast it moves).
+            float dt = Time.fixedDeltaTime;
+            _body.velocity = (place - _body.position) / dt;
+            (facing * Quaternion.Inverse(_body.rotation)).ToAngleAxis(out float angle, out Vector3 axis);
+            angle = angle > 180f ? angle - 360f : angle;
+            _body.angularVelocity = float.IsNaN(axis.x) || float.IsInfinity(axis.x) ? Vector3.zero : axis * (angle * Mathf.Deg2Rad / dt);
+        }
+    }
+
+    /// <summary>
+    /// Autotest only (<see cref="BodyImpacts.RecordContacts"/>): on a hand's grab anchor, how unevenly it moves from one physics step to
+    /// the next (the largest change of its step velocity, m/s). Steady walking moves it the same each step; moved in Update with the
+    /// hand's frame pose, a frame rate not a multiple of the physics rate could move it by uneven steps.
+    /// </summary>
+    internal sealed class AnchorProbe : MonoBehaviour
+    {
+        internal static float MostJerk;
+        /// <summary>Set by the autotest while the walk is steady (not starting, turning back or stopping).</summary>
+        internal static bool Steady;
+        private Rigidbody _body;
+        private Vector3 _last, _lastStep;
+        private bool _has, _hasStep;
+
+        private void Awake() => _body = GetComponent<Rigidbody>();
+
+        private void FixedUpdate()
+        {
+            Vector3 now = _body.position;
+            if (_has)
+            {
+                Vector3 step = (now - _last) / Time.fixedDeltaTime;
+                if (_hasStep && BodyImpacts.RecordContacts && Steady)
+                {
+                    MostJerk = Mathf.Max(MostJerk, (step - _lastStep).magnitude);
+                }
+                _lastStep = step;
+                _hasStep = true;
+            }
+            _last = now;
+            _has = true;
+        }
+    }
+
+    /// <summary>Autotest only (<see cref="BodyImpacts.RecordContacts"/>): every contact of a held bone each step, not only the first.</summary>
+    internal sealed class ContactRecorder : MonoBehaviour
+    {
+        internal Actor Owner;
+        private Rigidbody _body;
+
+        private void Awake() => _body = GetComponent<Rigidbody>();
+
+        private void OnCollisionEnter(Collision c) => BodyImpacts.Record(c, _body, Owner);
+
+        private void OnCollisionStay(Collision c) => BodyImpacts.Record(c, _body, Owner);
+
+        private void FixedUpdate()
+        {
+            if (!BodyImpacts.RecordContacts)
+            {
+                Destroy(this); // recording over
+            }
+        }
+    }
+
+    /// <summary>
     /// On each ragdoll bone of a soldier the player has taken hold of: an impact faster than <see cref="Threshold"/> hurts the
     /// soldier, and a soldier it hits too (Boneworks' blunt impact damage: a threshold, then more the faster). Armed while held
     /// and for a few seconds after the throw; a soldier of the player's own team takes no damage.
     /// </summary>
     internal sealed class BodyImpacts : MonoBehaviour
     {
-        /// <summary>Relative speed (m/s) below which an impact does nothing: a body dropped or dragged along the ground.</summary>
-        internal const float Threshold = 5f;
+        /// <summary>
+        /// Relative speed (m/s) below which an impact does nothing: a body dropped or dragged along the ground. Boneworks' (its
+        /// thr_Impact of 10 on the speed squared): at 5, once the held body stopped whipping round the hand, a slam at a hand's
+        /// real speed hurt nobody ("slamming them against the ground or an object they don't take damage": user, 2026-10-25).
+        /// </summary>
+        internal const float Threshold = 3.2f;
         /// <summary>
         /// Health per (m/s)^2 past the threshold's square: Boneworks' Enemy_Health weighs an impact by its speed squared (its
         /// thr_Impact 10 and mod_Impact 0.1 are on relativeVelocity.sqrMagnitude), so a slam at twice the speed hurts four times
-        /// as much and a shove barely at all: 6 m/s takes 3, 9 m/s 17, 10 m/s 23.
+        /// as much and a shove barely at all: 4 m/s takes 2.6, 5 m/s 6.6, 6 m/s 11.6, 8 m/s 24.
         /// </summary>
-        internal const float PerSquare = 0.3f;
+        internal const float PerSquare = 0.45f;
         /// <summary>The most one impact takes: a soldier has 100; three hard slams kill, one does not.</summary>
         internal const float Cap = 35f;
 
@@ -766,7 +1230,8 @@ namespace RavenfieldVR.Weapons
         private Actor _owner;
         private Transform _ragdollRoot;
         private Rigidbody _body;
-        private float _depenetration;
+        private float _depenetration, _maxSpin;
+        private int _iterations, _velocityIterations;
         private bool _limited;
         /// <summary>Destroyed at the end of this frame: no more impacts through it.</summary>
         private bool _gone;
@@ -777,6 +1242,16 @@ namespace RavenfieldVR.Weapons
         /// in the autotest (2026-10-24).
         /// </summary>
         private const float ArmedDepenetration = 5f, ArmedMaxSpeed = 25f;
+        /// <summary>
+        /// And never turns faster than this (rad/s, about 1700 deg/s: a throw's whirl is under it), should the physics' answer for
+        /// a held body go wrong again (with the hand's old anchor its hips read up to millions of deg/s: see GrabAnchor).
+        /// </summary>
+        private const float ArmedMaxSpin = 30f;
+        /// <summary>
+        /// And is solved with this many passes (the game's ragdolls get 3 and 2): 13 bones, 80 kg, hanging from one joint to the
+        /// hand settle the closer for it, and it is one body at a time.
+        /// </summary>
+        private const int ArmedIterations = 16, ArmedVelocityIterations = 8;
 
         /// <summary>
         /// Only while armed: then the bone puts back what it changed and the component goes (it stayed on every bone of every
@@ -798,10 +1273,20 @@ namespace RavenfieldVR.Weapons
                         _limited = true;
                         _depenetration = _body.maxDepenetrationVelocity;
                         _body.maxDepenetrationVelocity = ArmedDepenetration;
+                        _maxSpin = _body.maxAngularVelocity;
+                        _body.maxAngularVelocity = ArmedMaxSpin;
+                        _iterations = _body.solverIterations;
+                        _velocityIterations = _body.solverVelocityIterations;
+                        _body.solverIterations = Mathf.Max(_iterations, ArmedIterations);
+                        _body.solverVelocityIterations = Mathf.Max(_velocityIterations, ArmedVelocityIterations);
                     }
                     if (_body.velocity.sqrMagnitude > ArmedMaxSpeed * ArmedMaxSpeed)
                     {
                         _body.velocity = _body.velocity.normalized * ArmedMaxSpeed;
+                    }
+                    if (_body.angularVelocity.sqrMagnitude > ArmedMaxSpin * ArmedMaxSpin)
+                    {
+                        _body.angularVelocity = _body.angularVelocity.normalized * ArmedMaxSpin;
                     }
                     return;
                 }
@@ -810,6 +1295,9 @@ namespace RavenfieldVR.Weapons
             if (_limited)
             {
                 _body.maxDepenetrationVelocity = _depenetration;
+                _body.maxAngularVelocity = _maxSpin;
+                _body.solverIterations = _iterations;
+                _body.solverVelocityIterations = _velocityIterations;
             }
             Go();
         }
@@ -847,8 +1335,18 @@ namespace RavenfieldVR.Weapons
                     b._body = rb;
                     b._ragdollRoot = root;
                 }
+                if (RecordContacts && rb != null && rb.GetComponent<ContactRecorder>() == null)
+                {
+                    rb.gameObject.AddComponent<ContactRecorder>().Owner = a; // (the autotest's: every contact each step, not only the first)
+                }
             }
         }
+
+        /// <summary>
+        /// A held body's joints: no spring, a little damping, as a limp body's muscles have (a spring fought the hand and blew limbs
+        /// up: see above).
+        /// </summary>
+        private const float HeldDamper = 5f;
 
         /// <summary>The soldier's joint motors off (kept as the game set them, to put back on <see cref="Disarm"/>).</summary>
         internal static void Limp(Actor a)
@@ -857,7 +1355,74 @@ namespace RavenfieldVR.Weapons
             {
                 SavedDrive[a] = a.ragdoll.jointDrive;
             }
-            a.ragdoll.SetDrive(0f, 1f);
+            a.ragdoll.SetDrive(0f, HeldDamper);
+            HoldTogether(a);
+        }
+
+        /// <summary>A ragdoll's joints' projection as the game set it, put back on <see cref="Disarm"/>.</summary>
+        private sealed class Projection
+        {
+            public ConfigurableJoint[] Joints;
+            public JointProjectionMode[] Modes;
+            public float[] Distances, Angles;
+        }
+
+        private static readonly Dictionary<Actor, Projection> SavedProjection = new Dictionary<Actor, Projection>();
+
+        /// <summary>
+        /// While armed, the ragdoll's own joints are projected: no limb further than a few centimetres off the bone it hangs from,
+        /// whatever pulls at it (bodies "formed themselves long": user, 2026-10-25, 1.1 m pulled to 2.9-8.2 m in the soldier check's
+        /// walk while the hand's anchor was wrong: see GrabAnchor).
+        /// </summary>
+        private static void HoldTogether(Actor a)
+        {
+            ConfigurableJoint[] joints = a.ragdoll.joints;
+            if (joints == null || SavedProjection.ContainsKey(a))
+            {
+                return;
+            }
+            var saved = new Projection
+            {
+                Joints = joints,
+                Modes = new JointProjectionMode[joints.Length],
+                Distances = new float[joints.Length],
+                Angles = new float[joints.Length]
+            };
+            for (int k = 0; k < joints.Length; k++)
+            {
+                ConfigurableJoint j = joints[k];
+                if (j == null)
+                {
+                    continue;
+                }
+                saved.Modes[k] = j.projectionMode;
+                saved.Distances[k] = j.projectionDistance;
+                saved.Angles[k] = j.projectionAngle;
+                j.projectionMode = JointProjectionMode.PositionAndRotation;
+                j.projectionDistance = 0.05f;
+                j.projectionAngle = 180f; // (places only: a limb's turn is its joint's limits' business)
+            }
+            SavedProjection[a] = saved;
+        }
+
+        /// <summary>The ragdoll's joints projected as the game had them (see <see cref="HoldTogether"/>).</summary>
+        private static void LetApart(Actor a)
+        {
+            if (!SavedProjection.TryGetValue(a, out Projection saved))
+            {
+                return;
+            }
+            SavedProjection.Remove(a);
+            for (int k = 0; k < saved.Joints.Length; k++)
+            {
+                ConfigurableJoint j = saved.Joints[k];
+                if (j != null)
+                {
+                    j.projectionMode = saved.Modes[k];
+                    j.projectionDistance = saved.Distances[k];
+                    j.projectionAngle = saved.Angles[k];
+                }
+            }
         }
 
         /// <summary>
@@ -873,12 +1438,14 @@ namespace RavenfieldVR.Weapons
             if (a != null && a.ragdoll != null)
             {
                 GunCollider.Current?.StopIgnoring(a.ragdoll.ragdollObject);
+                GunCollider.Current?.StopIgnoringUnder(a.ragdoll.ragdollObject);
             }
             if (SavedDrive.TryGetValue(a, out JointDrive drive))
             {
                 SavedDrive.Remove(a);
                 Restore(a, drive);
             }
+            LetApart(a); // (its joints' projection as the game had it)
             if (ArmedUntil.Count == 0)
             {
                 LastHit.Clear(); // (the soldiers hit by thrown bodies too: only the last 0.15 s matter)
@@ -918,15 +1485,63 @@ namespace RavenfieldVR.Weapons
             _by = null;
         }
 
+        /// <summary>
+        /// Autotest: while set, the hardest contact any armed bone has (its impulse, against what), each physics step: what pushes a
+        /// held body about (walking with one held "pulled them apart and flung them": user, 2026-10-25).
+        /// </summary>
+        internal static bool RecordContacts;
+        internal static float HardestImpulse;
+        internal static string HardestContact = "";
+
+        internal static void Record(Collision c, Rigidbody on, Actor owner)
+        {
+            float impulse = c.impulse.magnitude;
+            if (impulse > HardestImpulse && c.collider != null)
+            {
+                HardestImpulse = impulse;
+                Collider o = c.collider;
+                bool own = owner != null && owner.ragdoll != null && owner.ragdoll.rigidbodies != null && o.attachedRigidbody != null
+                           && System.Array.IndexOf(owner.ragdoll.rigidbodies, o.attachedRigidbody) >= 0;
+                Actor whose = o.GetComponentInParent<Actor>();
+                Rigidbody body = o.attachedRigidbody;
+                HardestContact = $"{o.name} ({o.GetType().Name}, layer {o.gameObject.layer}{(PropPhysics.IsPlayerCollider(o) ? ", THE PLAYER'S" : "")}"
+                                 + $"{(own ? ", its own bone" : "")}{(whose == owner ? ", ITS OWN SOLDIER'S" : whose != null ? $", {whose.name}'s" : "")}"
+                                 + $", under {(o.transform.parent != null ? o.transform.parent.name : "nothing")}"
+                                 + $"{(body == null ? ", no body" : body.isKinematic ? ", kinematic" : ", dynamic")}{(o.isTrigger ? ", trigger" : "")}, {(o.enabled ? "on" : "off")}) on {(on != null ? on.name : "?")}, {impulse:0.0} N s";
+            }
+        }
+
+        private void OnCollisionStay(Collision c) => Crushed(c);
+
+        /// <summary>Crushed against something that does not give while a hand holds him (see BodyGrab.CrushImpulse): let go.</summary>
+        private void Crushed(Collision c)
+        {
+            if (_gone || _owner == null || c.impulse.sqrMagnitude < BodyGrab.CrushImpulse * BodyGrab.CrushImpulse || c.collider == null)
+            {
+                return;
+            }
+            Rigidbody other = c.rigidbody;
+            if (other != null && !other.isKinematic || BodyGrab.IsHeldBone(other) || OwnBone(c.collider))
+            {
+                return; // (a loose thing gives way)
+            }
+            BodyGrab.LetGoCrushed(_owner, c.collider, c.impulse.magnitude);
+        }
+
         private void OnCollisionEnter(Collision c)
         {
+            Crushed(c);
+            if (RecordContacts && !_gone)
+            {
+                Record(c, _body, _owner);
+            }
             if (_gone || _owner == null || !ArmedUntil.TryGetValue(_owner, out float until) || Time.time > until)
             {
                 return;
             }
             Collider other = c.collider;
             if (other == null || _ragdollRoot != null && other.transform.IsChildOf(_ragdollRoot) || OwnBone(other) || PropPhysics.IsPlayerCollider(other)
-                || GunCollider.IsStandIn(other))
+                || GunCollider.IsStandIn(other) || HandBody.Is(other))
             {
                 return; // its own bones, the player's body and hands, the held gun's stand-in
             }
@@ -1040,6 +1655,26 @@ namespace RavenfieldVR.Weapons
         /// <summary>Grenades strapped this session (the autotest's check).</summary>
         internal static int Count { get; private set; }
 
+        /// <summary>The last grenade strapped (the autotest's).</summary>
+        private static StrappedGrenade _last;
+
+        /// <summary>Autotest: where the last strapped grenade sits against its bone's surface, and the countdown over it.</summary>
+        internal static string LastNote()
+        {
+            StrappedGrenade s = _last;
+            if (s == null || s._bone == null || s._self == null)
+            {
+                return "no strapped grenade";
+            }
+            Collider c = s._bone.GetComponent<Collider>();
+            Vector3 at = s._self.position;
+            string place = c == null ? "its bone has no collider"
+                : (c.ClosestPoint(at) - at).sqrMagnitude < 1e-6f ? "INSIDE THE BODY"
+                : $"{(c.ClosestPoint(at) - at).magnitude * 100f:0.0} cm out of {s._bone.name}";
+            FuseCountdown fc = s.GetComponent<FuseCountdown>();
+            return $"{place}, countdown {(fc != null && fc.Shown != null ? $"'{fc.Shown}'" : "NOT SHOWN")}";
+        }
+
         internal static StrappedGrenade Strap(Projectile projectile, Rigidbody bone, Actor carrier, Vector3 at)
         {
             StrappedGrenade s = projectile.gameObject.AddComponent<StrappedGrenade>();
@@ -1049,13 +1684,50 @@ namespace RavenfieldVR.Weapons
             s._boneTransform = bone.transform;
             s._self = projectile.transform;
             Transform b = s._boneTransform;
+            at = OnSurface(bone, at);
             projectile.transform.position = at;
             s._localPosition = b.InverseTransformPoint(at);
             s._localRotation = Quaternion.Inverse(b.rotation) * projectile.transform.rotation;
             projectile.velocity = bone.velocity;
+            if (projectile is GrenadeProjectile grenade && projectile.GetComponent<FuseCountdown>() == null)
+            {
+                projectile.gameObject.AddComponent<FuseCountdown>().Grenade = grenade;
+            }
             Count++;
+            _last = s;
             Log.InfoOnce("grenadestrap", $"Strapped {projectile.name} to {bone.name}: it goes off with the body.");
             return s;
+        }
+
+        /// <summary>How far out of the body a strapped grenade sits (m): about its own half width.</summary>
+        private const float OnTop = 0.035f;
+
+        /// <summary>
+        /// On the bone's surface where the hand let it go, not where the palm was: let go against the body, the palm is inside its
+        /// collider and the grenade was strapped inside the body, out of sight ("I'm not even seeing the grenade": user, 2026-10-25).
+        /// </summary>
+        private static Vector3 OnSurface(Rigidbody bone, Vector3 at)
+        {
+            Collider c = bone.GetComponent<Collider>();
+            if (c == null || !c.enabled)
+            {
+                return at;
+            }
+            Vector3 surface = c.ClosestPoint(at);
+            Vector3 outward;
+            if ((surface - at).sqrMagnitude > 1e-6f)
+            {
+                outward = (at - surface).normalized; // (outside: on the side the hand was)
+            }
+            else
+            {
+                // Inside: out along the way from the bone's middle through the palm, to where that line leaves the collider.
+                Vector3 middle = c.bounds.center;
+                outward = at - middle;
+                outward = outward.sqrMagnitude > 1e-6f ? outward.normalized : Vector3.up;
+                surface = c.ClosestPoint(middle + outward * 2f);
+            }
+            return surface + outward * OnTop;
         }
 
         /// <summary>
@@ -1113,6 +1785,120 @@ namespace RavenfieldVR.Weapons
             }
             _self.SetPositionAndRotation(_boneTransform.TransformPoint(_localPosition), _boneTransform.rotation * _localRotation);
             _projectile.velocity = _bone.velocity;
+        }
+    }
+
+    /// <summary>
+    /// The seconds left on a strapped grenade's fuse, shown over it and turned to the player's eyes, white, then red for the last
+    /// second (user, 2026-10-25: "there isn't a number going down"). It follows the grenade wherever it goes (a body thrown with
+    /// it, the grenade flying on by itself) and is gone with the explosion.
+    /// </summary>
+    internal sealed class FuseCountdown : MonoBehaviour
+    {
+        internal GrenadeProjectile Grenade;
+        /// <summary>The text shown now (the autotest's check), null before the first frame.</summary>
+        internal string Shown => _text != null ? _text.text : null;
+        private static Font _font;
+        private GameObject _go;
+        private TextMesh _text;
+        private TextPlate _plate;
+        private int _shown = -1;
+        private int _fitFrames;
+
+        private void Build()
+        {
+            if (_font == null)
+            {
+                _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            }
+            _go = new GameObject("RavenfieldVR Fuse Countdown") { layer = 18 }; // (as the magazine readout: drawn by the VR view)
+            _text = _go.AddComponent<TextMesh>();
+            _text.font = _font;
+            _text.fontSize = 64;
+            _text.characterSize = 0.005f; // about 3 cm tall digits: read from across a room's width
+            _text.fontStyle = FontStyle.Bold;
+            _text.anchor = TextAnchor.LowerCenter;
+            _text.alignment = TextAlignment.Center;
+            var mr = _go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _font.material;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            _plate = new TextPlate(_text, _font.material, 0.75f, 0.008f);
+            _fitFrames = 2;
+        }
+
+        private void LateUpdate()
+        {
+            VRRig rig = VRRig.Instance;
+            if (Grenade == null || !Grenade.enabled || rig == null || rig.Head == null)
+            {
+                Destroy(this); // gone off (the game switches the grenade off as it explodes), or nothing to show it to
+                return;
+            }
+            if (_go == null)
+            {
+                Build();
+            }
+            float left = Mathf.Max(0f, Grenade.detonationTime - Time.time);
+            // Whole seconds, then tenths for the last one.
+            int shown = left >= 1f ? Mathf.CeilToInt(left) * 10 : Mathf.CeilToInt(left * 10f);
+            if (shown != _shown)
+            {
+                _shown = shown;
+                _text.text = left >= 1f ? (shown / 10).ToString() : (shown / 10f).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+                _text.color = left >= 1f ? new Color(1f, 0.93f, 0.75f) : new Color(1f, 0.3f, 0.25f);
+                _fitFrames = 2; // (the plate round the new text, laid out by the next frame)
+            }
+            Transform head = rig.Head;
+            Vector3 at = Grenade.transform.position + Vector3.up * 0.07f;
+            Vector3 toEye = head.position - at;
+            at += toEye.normalized * 0.04f; // (a little toward the eyes: in front of the body it sits on)
+            // A beat as each new number comes up (a quarter bigger, back in a quarter second).
+            float beat = 1f + 0.25f * Mathf.Clamp01(1f - (Mathf.Ceil(left) - left) * 4f);
+            _go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(-toEye.normalized, head.up));
+            _go.transform.localScale = Vector3.one * beat;
+            if (_fitFrames > 0)
+            {
+                _fitFrames--;
+                _plate.Fit();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_go != null)
+            {
+                Destroy(_go);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A living soldier the hand holds as a ragdoll does not get up: the user's no-knockdown mutator stood held soldiers up out of
+    /// the hand, and as he got up the game blended his limbs back to his animation while the hand held them, a bone to 33 m/s
+    /// (user, 2026-10-25; the soldier check with his mods: "stood up while held"). Let go, he gets up as the game has him.
+    /// (A respawn stands the soldier up another way, ActiveRaggy.InstantAnimate: not stopped.)
+    /// </summary>
+    [HarmonyPatch]
+    internal static class HeldStaysDownPatch
+    {
+        private static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(Actor), "GetUp");
+            yield return AccessTools.Method(typeof(Actor), nameof(Actor.InstantGetUp));
+        }
+
+        private static bool Prefix(Actor __instance, System.Reflection.MethodBase __originalMethod)
+        {
+            if (__instance == null || __instance.dead || __instance.ragdoll == null || !__instance.ragdoll.IsRagdoll() || !BodyGrab.IsHeld(__instance))
+            {
+                return true;
+            }
+            if (!Log.Logged("bodygrab-keptdown"))
+            {
+                Log.InfoOnce("bodygrab-keptdown", $"Kept {__instance.name} down while held ({__originalMethod.Name} asked him up: the game's fall timer, or a mod such as a no-knockdown mutator).");
+            }
+            return false;
         }
     }
 

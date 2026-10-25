@@ -405,6 +405,95 @@ namespace RavenfieldVR.Weapons
 
         private readonly List<GameObject> _ignoredBodies = new List<GameObject>();
 
+        /// <summary>
+        /// The stand-in's pieces no longer collide with these (a held soldier's limbs: see BodyGrab.MeetGun), its new pieces too
+        /// when the shape is rebuilt, until <see cref="StopIgnoringUnder"/>.
+        /// </summary>
+        internal void IgnoreColliders(IList<Collider> colliders)
+        {
+            foreach (Collider c in colliders)
+            {
+                if (c != null && !_ignoredColliders.Contains(c))
+                {
+                    _ignoredColliders.Add(c);
+                    SetIgnored(c, true);
+                }
+            }
+        }
+
+        /// <summary>Collides again with the colliders <see cref="IgnoreColliders"/> took that are under <paramref name="root"/>.</summary>
+        internal void StopIgnoringUnder(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+            for (int i = _ignoredColliders.Count - 1; i >= 0; i--)
+            {
+                Collider c = _ignoredColliders[i];
+                if (c == null || c.transform.IsChildOf(root.transform))
+                {
+                    _ignoredColliders.RemoveAt(i);
+                    if (c != null)
+                    {
+                        SetIgnored(c, false);
+                    }
+                }
+            }
+        }
+
+        private readonly List<Collider> _ignoredColliders = new List<Collider>();
+
+        private void SetIgnored(Collider c, bool ignore)
+        {
+            foreach (Collider b in _boxes)
+            {
+                // (Unity refuses a pair unless both are enabled and active.)
+                if (b != null && b.enabled && c.enabled && b.gameObject.activeInHierarchy && c.gameObject.activeInHierarchy)
+                {
+                    Physics.IgnoreCollision(b, c, ignore);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether a piece of the stand-in's bounds overlaps a collider's under <paramref name="root"/> (bounding boxes: it says yes
+        /// a little early, never too late).
+        /// </summary>
+        internal bool Overlaps(GameObject root)
+        {
+            if (root == null)
+            {
+                return false;
+            }
+            root.GetComponentsInChildren(OverlapScratch);
+            try
+            {
+                foreach (Collider c in OverlapScratch)
+                {
+                    if (c == null || !c.enabled)
+                    {
+                        continue;
+                    }
+                    Bounds cb = c.bounds;
+                    foreach (Collider b in _boxes)
+                    {
+                        if (b != null && b.enabled && b.bounds.Intersects(cb))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            finally
+            {
+                OverlapScratch.Clear();
+            }
+        }
+
+        private static readonly List<Collider> OverlapScratch = new List<Collider>();
+
         private void SetIgnored(GameObject root, bool ignore)
         {
             foreach (Collider c in root.GetComponentsInChildren<Collider>())
@@ -586,6 +675,11 @@ namespace RavenfieldVR.Weapons
             foreach (GameObject root in _ignoredBodies)
             {
                 SetIgnored(root, true);
+            }
+            _ignoredColliders.RemoveAll(c => c == null);
+            foreach (Collider c in _ignoredColliders)
+            {
+                SetIgnored(c, true);
             }
             _nextRestCheck = 0f; // re-ignore the resting props at once with the new boxes, not up to 0.1 s later (they were shoved)
         }
@@ -1189,6 +1283,9 @@ namespace RavenfieldVR.Weapons
         private float _worldContactUntil;
         /// <summary>A moving body this heavy (a vehicle) holds the gun back like the level; lighter ones are pushed.</summary>
         private const float HeavyMass = 30f;
+        /// <summary>Against a held body the stand-in follows the hand no faster than this (m/s): it presses, it does not shove.</summary>
+        private const float PressSpeed = 1.5f;
+        private float _softUntil;
 
         private void OnCollisionEnter(Collision c) => Touch(c);
         private void OnCollisionStay(Collision c) => Touch(c);
@@ -1198,6 +1295,12 @@ namespace RavenfieldVR.Weapons
             Rigidbody other = c.rigidbody;
             if (other != null && !other.isKinematic && other.mass < HeavyMass)
             {
+                if (BodyGrab.IsHeldBone(other))
+                {
+                    // A body the other hand holds: the gun stops on it and presses it gently. Chased at full speed it shoved his
+                    // dangling legs 20 cm out of their joints, a bone to 13 m/s (the soldier check's walk, the gun at the hip).
+                    _worldContactUntil = _softUntil = Time.time + Mathf.Max(0.12f, Time.fixedDeltaTime * 3f);
+                }
                 return; // loose props and ragdoll limbs are pushed: they do not hold the gun back
             }
             if (PropPhysics.IsPlayerCollider(c.collider))
@@ -1229,7 +1332,7 @@ namespace RavenfieldVR.Weapons
                 Body.angularVelocity = Vector3.zero;
                 return;
             }
-            Body.velocity = Vector3.ClampMagnitude(delta / dt, MaxSpeed);
+            Body.velocity = Vector3.ClampMagnitude(delta / dt, Time.time < _softUntil ? PressSpeed : MaxSpeed);
             Quaternion dq = TargetRot * Runtime.RigidPose.Conjugate(Body.rotation);
             dq.ToAngleAxis(out float angle, out Vector3 axis);
             if (angle > 180f)

@@ -720,6 +720,12 @@ namespace RavenfieldVR.Input
 
         /// <summary>Autotest: how far a simulated hand's grip is closed (a fist without the Grab action: task 336's punch check).</summary>
         internal static readonly float[] SimulatedGrip = new float[2];
+
+        /// <summary>Autotest: the move stick pushed (the soldier check walks with a body in the hand), used while not zero.</summary>
+        internal static Vector2 SimulatedMove;
+
+        /// <summary>The move stick: the simulated one while the autotest pushes it, else the controller's.</summary>
+        public static Vector2 MoveOrSimulated => SimulatedMove != Vector2.zero ? SimulatedMove : Move;
         public static bool HasSkeleton(Hand h) => SkeletonValid[(int)h];
 
         /// <summary>Finger curl 0..1 (0 thumb .. 4 pinky).</summary>

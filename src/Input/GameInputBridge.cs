@@ -121,7 +121,7 @@ namespace RavenfieldVR.Input
             float dz = VRConfig.StickDeadzone.Value;
             // Scrolling one of the mod's panels uses the sticks: they must not also walk, jump or crouch.
             bool scrollingPanel = SticksOnPanel;
-            MoveStick = scrollingPanel ? Vector2.zero : ApplyDeadzone(VRInput.Move, dz);
+            MoveStick = scrollingPanel ? Vector2.zero : ApplyDeadzone(VRInput.MoveOrSimulated, dz);
             TurnStickRaw = scrollingPanel ? Vector2.zero : VRInput.TurnStick;
 
             // The hand holding the weapon fires it; the other uses (with the weapon passed to the other hand, VRInput has the

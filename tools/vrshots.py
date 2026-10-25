@@ -514,6 +514,7 @@ def main():
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--grabcheck', action='store_true', help='only the soldier checks: grab, throw, fist, a gun swung into one (a few minutes)')
+    ap.add_argument('--walkcheck', action='store_true', help="with --grabcheck: only the soldier check's walks with a soldier held")
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
     ap.add_argument('--restore', action='store_true',
                     help="after a run that was killed before it finished: SteamVR's settings and play area back as they were")
@@ -593,7 +594,7 @@ def main():
         elif mode == 'autotest':
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
         elif mode == 'grabcheck':
-            args, timeout = base + ['-rfvr-grabcheck'], a.timeout or 8
+            args, timeout = base + ['-rfvr-grabcheck'] + (['-rfvr-walkcheck'] if a.walkcheck else []), a.timeout or 8
         else:
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 10
         since = time.time()

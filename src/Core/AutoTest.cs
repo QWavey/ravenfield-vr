@@ -65,6 +65,8 @@ namespace RavenfieldVR.Core
         /// too? and hitting them with any weapon/fists? ... only focus on that").
         /// </summary>
         private static readonly bool GrabCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabcheck", StringComparison.OrdinalIgnoreCase));
+        /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
+        private static readonly bool WalkCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-walkcheck", StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
         /// -rfvr-flashfilm (with -rfvr-autotest -vr, and -rfvr-only= for the guns): films what each eye gets while each gun
@@ -3605,6 +3607,10 @@ namespace RavenfieldVR.Core
                 GunToHip();
                 yield return new WaitForSecondsRealtime(0.7f);
                 HeldWeapon gun = sys.Held;
+                if (WalkCheckOnly)
+                {
+                    goto Walks;
+                }
 
                 // 0. The gun hand never takes hold of a soldier: the gun put to one's chest and its grip closed.
                 Actor first = Next(false);
@@ -4227,6 +4233,7 @@ namespace RavenfieldVR.Core
                             yield return new WaitForSecondsRealtime(0.2f);
                         }
                         bool strapped = StrappedGrenade.Count > strappedBefore;
+                        string strapLook = StrappedGrenade.LastNote(); // (where it sits on the body, and its countdown)
                         // Not down as a ragdoll, nothing was tried: say why (a run's "0 live grenade(s)" had no grenade let go at all).
                         string notStrapped = body != null ? $"{live} live grenade(s) left the hand"
                             : BodyGrab.HoldsNeck(off) ? "held by the neck, standing: nothing let go" : "he was not down as a ragdoll: nothing let go";
@@ -4244,7 +4251,7 @@ namespace RavenfieldVR.Core
                         }
                         yield return Snap("20-strapped-grenade-went-off", body != null ? body.position : front);
                         report($"grenade strap: {(holding ? $"{carrier.name} held" : "NOT HELD")}, {(drawnGrenade ? "a grenade drawn in the other hand" : "NO GRENADE DRAWN")}, "
-                               + $"{(strapped ? "strapped to the body" : $"NOT STRAPPED ({notStrapped})")}, thrown; "
+                               + $"{(strapped ? $"strapped to the body ({strapLook})" : $"NOT STRAPPED ({notStrapped})")}, thrown; "
                                + $"{(carrier.dead ? "it went off on him (dead)" : $"NOT KILLED by it ({hp:0} -> {carrier.health:0})")}");
                         OffAt(offRaw.position + offPalmFromRaw);
                     }
@@ -4397,9 +4404,309 @@ namespace RavenfieldVR.Core
                                + $"{(letGo ? "the soldier let go" : "NOT LET GO")}, {(clean ? "the hand clean" : "THE SOLDIER LEFT ON THE HAND")}");
                     }
                 }
+
+                Walks:
+                // 10. Walking with a soldier held (user, 2026-10-25: "they only appear when walking while having them grabbed then they
+                // turn like crazy and fling away", and pulled "long"): taken, held, the move stick pushed 1.5 s forward and 1.5 s back with
+                // the hand carried along as a real hand is (the scripted pose is in the world), then a second standing. Twice: at the
+                // chest, the feet on the ground, and held high, the feet off it. Last: the player may end a little off the spot.
+                float SpanOf(Actor a)
+                {
+                    float most = 0f;
+                    Rigidbody[] bones = a.ragdoll.rigidbodies;
+                    for (int x = 0; bones != null && x < bones.Length; x++)
+                    {
+                        for (int y = x + 1; y < bones.Length; y++)
+                        {
+                            if (bones[x] != null && bones[y] != null)
+                            {
+                                most = Mathf.Max(most, (bones[x].position - bones[y].position).magnitude);
+                            }
+                        }
+                    }
+                    return most;
+                }
+                // How far apart its most stretched joint is (the two anchor points of a ragdoll joint, m): a body pulled apart at its
+                // joints, not one that unfolds to its full length (its span grows then too).
+                float GapOf(Actor a)
+                {
+                    float most = 0f;
+                    ConfigurableJoint[] joints = a.ragdoll.joints;
+                    for (int k = 0; joints != null && k < joints.Length; k++)
+                    {
+                        ConfigurableJoint j = joints[k];
+                        if (j != null && j.connectedBody != null)
+                        {
+                            most = Mathf.Max(most, (j.transform.TransformPoint(j.anchor) - j.connectedBody.transform.TransformPoint(j.connectedAnchor)).magnitude);
+                        }
+                    }
+                    return most;
+                }
+                // run: sprinting; turn: degrees a second of smooth turning instead of walking (one way, then back).
+                IEnumerator WalkWith(string how, float up, bool run = false, float turn = 0f)
+                {
+                    Actor walked = Next(false);
+                    yield return Bring(walked, 0.8f, false, there);
+                    if (!there[0] || off.Role != Rig.HandRole.Free)
+                    {
+                        report($"walking with a soldier held {how}: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
+                        yield break;
+                    }
+                    BodyImpacts.RecordContacts = true; // (before the grab: its bones get the recorder as they are armed)
+                    yield return Snap("25b-before-taking-" + how.Replace(", ", "-").Replace(" ", "-"), walked.CenterPosition());
+                    BodyGrab.WhyNot = "no press seen";
+                    yield return Take(walked.CenterPosition(), hit);
+                    bool tookWalked = hit[0];
+                    float walkFastest = 0f, walkRise = 0f, walkRest = 0f, walkLongest = 0f, walkedMetres = 0f, walkGap = 0f, walkSpin = 0f;
+                    string walkNote = "", spinNote = "";
+                    Quaternion lastTurn = Quaternion.identity;
+                    bool hadTurn = false;
+                    int turnedFrames = 0;
+                    int carriesFrom = BodyGrab.Carries;
+                    bool heldWalking = false;
+                    if (tookWalked)
+                    {
+                        yield return OffTo(rig.Head.position + flat * 0.3f + Vector3.up * up);
+                        yield return new WaitForSecondsRealtime(0.4f);
+                        Transform root = rig.Root;
+                        Vector3 palmInRig = root.InverseTransformPoint(off.PalmCentre);
+                        Quaternion turnInRig = Quaternion.Inverse(root.rotation) * offRaw.rotation;
+                        walkRest = walkLongest = SpanOf(walked);
+                        BodyImpacts.HardestImpulse = 0f; // the walk's contacts, not the grab's
+                        BodyImpacts.HardestContact = "none";
+                        AnchorProbe.MostJerk = 0f;
+                        Vector3 walkFrom = player.transform.position;
+                        float heightFrom = walked.CenterPosition().y - player.transform.position.y; // (against the player's feet: the ground may slope)
+                        int frame = 0;
+                        try
+                        {
+                            for (float start = Time.realtimeSinceStartup; Time.realtimeSinceStartup < start + 4f && walked.ragdoll.rigidbodies != null;)
+                            {
+                                float t = Time.realtimeSinceStartup - start;
+                                float way = t < 1.5f ? 1f : t < 3f ? -1f : 0f;
+                                if (turn > 0f)
+                                {
+                                    rig.AddYaw(way * turn * Mathf.Min(Time.unscaledDeltaTime, 0.1f)); // as the smooth turn does it, once a frame
+                                }
+                                else
+                                {
+                                    Input.VRInput.SimulatedMove = new Vector2(0f, way);
+                                }
+                                Input.VRGameInput.TestSprint = run && way != 0f; AnchorProbe.Steady = t > 0.3f && t < 1.3f || t > 1.8f && t < 2.8f; // (the walk's steady stretches)
+                                OffAt(root.TransformPoint(palmInRig), root.rotation * turnInRig);
+                                yield return null;
+                                frame++;
+                                foreach (Rigidbody rb in walked.ragdoll.rigidbodies)
+                                {
+                                    float s = rb != null ? rb.velocity.magnitude : 0f;
+                                    if (s > walkFastest)
+                                    {
+                                        walkFastest = s;
+                                        walkNote = $"{rb.name}, frame {frame}";
+                                    }
+                                }
+                                walkRise = Mathf.Max(walkRise, walked.CenterPosition().y - player.transform.position.y - heightFrom);
+                                walkLongest = Mathf.Max(walkLongest, SpanOf(walked));
+                                walkGap = Mathf.Max(walkGap, GapOf(walked));
+                                // How fast the body is seen to turn: its main bone's orientation from one frame to the next (the physics' angular
+                                // velocity of a small bone read after a step ran to millions of deg/s with the bone turning far less).
+                                Rigidbody main = walked.ragdoll.MainRigidbody();
+                                if (main != null)
+                                {
+                                    if (hadTurn && Time.unscaledDeltaTime > 1e-4f)
+                                    {
+                                        float seen = Quaternion.Angle(lastTurn, main.rotation) / Time.unscaledDeltaTime;
+                                        if (seen > walkSpin)
+                                        {
+                                            walkSpin = seen;
+                                            Rigidbody heldBy = BodyGrab.HeldBone(off);
+                                            spinNote = $"{main.name}{(heldBy == main ? ", the held bone" : heldBy != null ? $", held by {heldBy.name}" : "")} at {t:0.00} s, "
+                                                       + $"its spin {main.angularVelocity.magnitude * Mathf.Rad2Deg:0} deg/s, {(walked.ragdoll.IsRagdoll() ? "a ragdoll" : "NOT A RAGDOLL")}, "
+                                                       + $"{BodyGrab.Carries - carriesFrom} carries so far";
+                                        }
+                                        turnedFrames += seen > 720f ? 1 : 0;
+                                    }
+                                    lastTurn = main.rotation;
+                                    hadTurn = true;
+                                }
+                                walkedMetres = Mathf.Max(walkedMetres, Vector3.ProjectOnPlane(player.transform.position - walkFrom, Vector3.up).magnitude);
+                            }
+                        }
+                        finally
+                        {
+                            Input.VRInput.SimulatedMove = Vector2.zero;
+                            Input.VRGameInput.TestSprint = false;
+                        }
+                        heldWalking = BodyGrab.IsHeld(walked);
+                        BodyImpacts.RecordContacts = false;
+                    }
+                    yield return Snap("26-walking-with-a-soldier-" + how.Replace(", ", "-").Replace(" ", "-"), walked.CenterPosition());
+                    yield return LetGo();
+                    Metric($"walking with a soldier held {how}: fastest bone m/s", walkFastest);
+                    Metric($"walking with a soldier held {how}: longest span / at rest", walkRest > 0f ? walkLongest / walkRest : 0f);
+                    bool walkStretched = walkGap > 0.1f; // (a joint 10 cm apart)
+                    Metric($"walking with a soldier held {how}: widest joint gap, cm", walkGap * 100f);
+                    Metric($"walking with a soldier held {how}: the body's fastest seen turn, deg/s", walkSpin);
+                    report($"walking with a soldier held {how} ({(turn > 0f ? $"turning {turn:0} deg/s one way 1.5 s, then back" : "1.5 s forward, 1.5 s back")}): {(tookWalked ? $"{walked.name} taken" : $"NOT TAKEN ({BodyGrab.WhyNot}; {(walked.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm)")}, the player went {walkedMetres:0.0} m"
+                           + $"{(tookWalked && turn <= 0f && walkedMetres < 1f ? " (NOT WALKED: the stick moved nothing)" : "")}, fastest bone {walkFastest:0.0} m/s ({walkNote}), the body turned at most {walkSpin:0} deg/s ({spinNote}; {turnedFrames} frames over 720 deg/s), "
+                           + $"the body rose {walkRise * 100f:0} cm, its span {walkRest:0.00} -> {walkLongest:0.00} m, its widest joint gap {walkGap * 100f:0} cm{(walkStretched ? " (NOT WHOLE: pulled apart at the joints)" : "")}"
+                           + $", hardest contact: {BodyImpacts.HardestContact}, while walking steadily the hand's anchor at most {AnchorProbe.MostJerk:0.00} m/s off its last step"
+                           + $"{(walkFastest > 10f || walkRise > 0.5f ? " (NOT STILL: the body went wild)" : "")}{(tookWalked && !heldWalking ? ", NOT HELD ON" : "")}");
+                }
+                // A punch with the fist squeezed by the grip (the Grab press, as a controller's grip button gives it) away from the soldier,
+                // then swung into him at 3 m/s: a punch, not a hold (user, 2026-10-25: "punching enemies doesn't work"; the fists above
+                // close by the grip's pull alone, which never takes hold).
+                Actor punchedAt = Next(false);
+                yield return Bring(punchedAt, 0.8f, false, there);
+                if (!there[0] || off.Role != Rig.HandRole.Free)
+                {
+                    report($"punch with a squeezed fist: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
+                }
+                else
+                {
+                    // (90 cm: a soldier aiming at the player holds his arms and rifle out, and a squeeze within reach of them takes hold.)
+                    Vector3 punchFrom = punchedAt.CenterPosition() - flat * 0.9f;
+                    OffAt(punchFrom, Quaternion.LookRotation(flat, Vector3.up));
+                    yield return null;
+                    yield return null;
+                    Input.VRInput.SimulateGrabPress(off.Side); // squeezed 90 cm before his middle
+                    Input.VRInput.SimulatedGrip[os] = 1f; // (a grip button pressed is pulled all the way too: the fist)
+                    yield return new WaitForSecondsRealtime(0.1f);
+                    yield return Strike(off, punchFrom, flat, 1.1f, 3f, Quaternion.LookRotation(flat, Vector3.up), punchedAt, hit);
+                    bool punchHurt = hit[0];
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    bool punchTook = BodyGrab.IsHeld(punchedAt);
+                    Input.VRInput.SimulatedGrip[os] = 0f;
+                    yield return LetGo();
+                    report($"punch with a squeezed fist (squeezed 90 cm before his middle, 3 m/s): {(punchHurt ? "hit him" : "NO HIT")}, {(punchTook ? "NOT A PUNCH: took hold of him instead" : "not taken hold of")}"
+                           + (punchHurt ? "" : $" [last fist frame: {MeleeHandler.FistNote}; last sweep: {MeleeHandler.CastNote}; {(punchedAt.CenterPosition() - punchFrom).magnitude:0.00} m from the start]"));
+                }
+                // And squeezed 45 cm before his middle, then thrown at him (3.5 m/s) and slowing on him (1 m/s): a punch that slows on
+                // its target is no reach for him (it took hold of him so: user, 2026-10-25).
+                Actor pushedAt = Next(false);
+                yield return Bring(pushedAt, 0.8f, false, there);
+                if (there[0] && off.Role == Rig.HandRole.Free)
+                {
+                    Vector3 pushFrom = pushedAt.CenterPosition() - flat * 0.45f;
+                    OffAt(pushFrom, Quaternion.LookRotation(flat, Vector3.up));
+                    yield return null;
+                    yield return null;
+                    Input.VRInput.SimulateGrabPress(off.Side);
+                    Input.VRInput.SimulatedGrip[os] = 1f;
+                    for (float d = 0f; d < 0.5f;)
+                    {
+                        float v = d < 0.25f ? 3.5f : 1f;
+                        d += v * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                        OffAt(pushFrom + flat * d, Quaternion.LookRotation(flat, Vector3.up), flat * v);
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    bool pushTook = BodyGrab.IsHeld(pushedAt);
+                    Input.VRInput.SimulatedGrip[os] = 0f;
+                    yield return LetGo();
+                    report($"squeezed fist slowing on him (squeezed 45 cm before his middle, 3.5 then 1 m/s): {(pushTook ? "NOT A PUNCH: took hold of him" : "not taken hold of")}");
+                }
+
+                yield return WalkWith("at the chest", -0.3f);
+                yield return WalkWith("at the chest, running", -0.3f, run: true);
+                yield return WalkWith("at the chest, turning", -0.3f, turn: VRConfig.SmoothTurnSpeed.Value);
+
+                // 11. Collisions (user, 2026-10-25: "the enemies/friendlies don't have collisions with my gun or hand", "guns go
+                // through them"): the gun swept through a soldier the other hand holds up, and a closed fist (the grip pulled, no
+                // grab) swept through a body on the ground. Each: did it meet him, how far he was pushed, nothing flown off.
+                float FastestBone(Actor a)
+                {
+                    float most = 0f;
+                    foreach (Rigidbody rb in a.ragdoll.rigidbodies)
+                    {
+                        most = rb != null ? Mathf.Max(most, rb.velocity.magnitude) : most;
+                    }
+                    return most;
+                }
+                Actor gunPushed = Next(false);
+                yield return Bring(gunPushed, 0.8f, false, there);
+                if (!there[0] || off.Role != Rig.HandRole.Free || sys.Held == null)
+                {
+                    report($"gun through a held soldier: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : sys.Held == null ? "no gun in the hand" : $"the free hand is {off.Role}")})");
+                }
+                else
+                {
+                    BodyImpacts.RecordContacts = true; // (before the grab: its bones get the recorder as they are armed)
+                    yield return Take(gunPushed.CenterPosition(), hit);
+                    bool heldForGun = hit[0];
+                    yield return OffTo(rig.Head.position + flat * 0.45f - Vector3.up * 0.3f);
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    BodyImpacts.HardestImpulse = 0f;
+                    BodyImpacts.HardestContact = "none";
+                    Rigidbody chestBone = gunPushed.ragdoll.MainRigidbody();
+                    Vector3 sweepFrom = gunPushed.CenterPosition() - sideAxis * 0.5f, chestFrom = chestBone != null ? chestBone.position : Vector3.zero;
+                    float gunFastest = 0f, gunMoved = 0f;
+                    for (float d = 0f; d < 1f && heldForGun;)
+                    {
+                        d += 1.5f * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                        DomAt(sweepFrom + sideAxis * d, Quaternion.LookRotation(flat, Vector3.up), sideAxis * 1.5f);
+                        yield return null;
+                        gunFastest = Mathf.Max(gunFastest, FastestBone(gunPushed));
+                        gunMoved = chestBone != null ? Mathf.Max(gunMoved, (chestBone.position - chestFrom).magnitude) : gunMoved;
+                    }
+                    string gunContact = BodyImpacts.HardestContact;
+                    BodyImpacts.RecordContacts = false;
+                    GunToHip();
+                    yield return Snap("27-gun-swept-through-a-held-soldier", gunPushed.CenterPosition());
+                    report($"gun through a held soldier (swept 1 m at 1.5 m/s across his middle): {(heldForGun ? $"{gunPushed.name} held" : "NOT HELD")}, "
+                           + $"{(gunContact.Contains("Gun Collider") ? "the gun met him" : "THE GUN WENT THROUGH HIM")} (hardest contact: {gunContact}), "
+                           + $"his chest pushed {gunMoved * 100f:0} cm, fastest bone {gunFastest:0.0} m/s{(gunFastest > 10f ? " (NOT STILL: the body went wild)" : "")}");
+                    yield return LetGo();
+                }
+                Actor fistPushed = Next(false);
+                yield return Bring(fistPushed, 0.8f, false, there);
+                if (!there[0] || off.Role != Rig.HandRole.Free)
+                {
+                    report($"fist through a body on the ground: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
+                }
+                else
+                {
+                    // A body: knocked down, let go, killed where he lies (a living one stands up again soon, at once under a
+                    // mutator that stops knockdowns).
+                    yield return Take(fistPushed.CenterPosition(), hit);
+                    yield return LetGo();
+                    if (!fistPushed.dead)
+                    {
+                        fistPushed.Kill(new DamageInfo(DamageInfo.DamageSourceType.Unknown, null, null) { healthDamage = fistPushed.health + 100f });
+                    }
+                    yield return new WaitForSecondsRealtime(1.5f);
+                    Rigidbody lyingBone = fistPushed.ragdoll.MainRigidbody();
+                    bool lying = fistPushed.ragdoll.IsRagdoll() && lyingBone != null;
+                    float fistFastest = 0f, fistMoved = 0f;
+                    if (lying)
+                    {
+                        BodyImpacts.RecordContacts = true;
+                        Vector3 torso = lyingBone.worldCenterOfMass, lyingFrom = lyingBone.position;
+                        Vector3 fistFrom = torso - sideAxis * 0.4f + Vector3.up * 0.05f;
+                        Input.VRInput.SimulatedGrip[os] = 1f; // a fist, no grab press
+                        for (float d = 0f; d < 0.8f;)
+                        {
+                            d += 2f * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                            OffAt(fistFrom + sideAxis * d, Quaternion.LookRotation(sideAxis, Vector3.up), sideAxis * 2f);
+                            yield return null;
+                            fistFastest = Mathf.Max(fistFastest, FastestBone(fistPushed));
+                            fistMoved = Mathf.Max(fistMoved, (lyingBone.position - lyingFrom).magnitude);
+                        }
+                        Input.VRInput.SimulatedGrip[os] = 0f;
+                        BodyImpacts.RecordContacts = false;
+                    }
+                    yield return Snap("28-fist-swept-through-a-body", fistPushed.CenterPosition());
+                    report($"fist through a body on the ground (swept 0.8 m at 2 m/s through his hips): {(lying ? $"{fistPushed.name} down" : "NOT DOWN as a ragdoll")}, "
+                           + $"his hips pushed {fistMoved * 100f:0} cm{(lying && fistMoved < 0.03f ? " (NOT PUSHED: the fist went through him)" : "")}, fastest bone {fistFastest:0.0} m/s"
+                           + $"{(fistFastest > 10f ? " (NOT STILL: the body went wild)" : "")}");
+                    OffAt(offRaw.position + offPalmFromRaw);
+                }
             }
             finally
             {
+                Input.VRInput.SimulatedMove = Vector2.zero;
+                Input.VRGameInput.TestSprint = false;
+                BodyImpacts.RecordContacts = false;
                 MeleeHandler.RecordNotes = false;
                 Input.VRInput.SimulatedGrab[os] = false;
                 Input.VRInput.SimulatedGrab[ds] = false;

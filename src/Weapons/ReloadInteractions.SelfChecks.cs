@@ -2849,6 +2849,14 @@ namespace RavenfieldVR.Weapons
                     report(handleLine);
                 }
             }
+            // A full magazine as the pouch makes it while the gun's own sits empty: drawn as it looks loaded, not as the empty one
+            // shows (user, 2026-10-25: "it shows an empty mag, but it's full").
+            MagazineProp full = MagazineProp.Create(Rig, PropKind.Magazine, Ammo.Capacity), empty = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            int fullDrawn = MagazineProp.DrawnCount(full), emptyDrawn = MagazineProp.DrawnCount(empty);
+            report($"empty reload: a full magazine from the pouch with the gun's empty draws {fullDrawn} renderer(s) (an empty one {emptyDrawn}; "
+                   + $"{(MagazineProp.KeepsLoadedLook(Data.Key) ? "the loaded look kept" : "NO LOADED LOOK KEPT")}){(fullDrawn < emptyDrawn ? " (THE FULL ONE DRAWS LESS THAN AN EMPTY ONE)" : "")}");
+            full?.Destroy();
+            empty?.Destroy();
             // A fresh magazine in.
             Ammo.InsertMagazine(Ammo.Capacity);
             yield return new WaitForSecondsRealtime(0.6f);
