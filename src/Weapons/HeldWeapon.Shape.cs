@@ -122,11 +122,13 @@ namespace RavenfieldVR.Weapons
                 if (!hullUsed || CookHullWithin(_volume.HullPieces, 1.5f))
                 {
                     _hullApplied = true;
-                    bool t = Core.PerfProbe.Part("hands: shape chosen");
+                    // Apart: the choice already made for the type (every draw) and the first one's comparison (once a type).
+                    string shapePart = _volume.Unreadable || RenderedShapeBetter.ContainsKey(Rig.Data.Key) ? "hands: shape chosen (known)" : "hands: shape chosen (compared)";
+                    bool t = Core.PerfProbe.Part(shapePart);
                     ChooseShape();
                     if (t)
                     {
-                        Core.PerfProbe.End("hands: shape chosen");
+                        Core.PerfProbe.End(shapePart);
                     }
                 }
             }
@@ -635,16 +637,26 @@ namespace RavenfieldVR.Weapons
                 string key = d.Key, slideName = Rig.Slide.name;
                 try
                 {
+                    // Its views a frame apart, each with the gun as it is then; given up (NaN) once the gun is let go, or the slide
+                    // leaves home or a reload starts in between (measured with the slide home only, as above).
+                    WeaponRig rig = Rig;
+                    (Vector3, Vector3)? AxesNow() => !_releasedHold && rig.GunBody != null && SlideOffset < 0.002f && !Weapon.reloading
+                        ? (rig.AimWorld, rig.DirToWorld(d.Up))
+                        : ((Vector3, Vector3)?)null;
                     GunVolume.VisibleShareAsync(gun, mine, Rig.AimWorld, Rig.DirToWorld(d.Up), (share, views) =>
                     {
                         SlideMeasuring.Remove(key);
+                        if (float.IsNaN(share))
+                        {
+                            return; // given up between its views: measured again on a later hold
+                        }
                         SlideSeen[key] = share;
                         Log.Info($"{key}: its slide '{slideName}' is {(share < 0f ? "not measurable" : $"{share * 100f:0}% seen from outside ({views})")}.");
                         if (!_releasedHold && Rig != null && Rig.Data.Key == key)
                         {
                             AddKnobOnHiddenSlide(share);
                         }
-                    }, 0.004f);
+                    }, 0.004f, AxesNow);
                 }
                 catch (System.Exception e)
                 {

@@ -121,6 +121,31 @@ namespace RavenfieldVR.Weapons
         public List<Vector3> SurfacePoints(int stride)
         {
             var points = new List<Vector3>();
+            WalkSurface(stride, points, 1);
+            return points;
+        }
+
+        /// <summary>
+        /// Every (all / <paramref name="count"/>)-th of <see cref="SurfacePoints"/>, about <paramref name="count"/> of them, without
+        /// the whole list: the physics shape's match took 150 of some 20 000 points and dropped the rest, twice a choice (135 KB
+        /// a draw in the profile, 2026-10-25).
+        /// </summary>
+        public List<Vector3> SurfaceSample(int stride, int count)
+        {
+            int all = WalkSurface(stride, null, 1);
+            int every = Mathf.Max(1, all / Mathf.Max(1, count));
+            var points = new List<Vector3>(all / every + 1);
+            WalkSurface(stride, points, every);
+            return points;
+        }
+
+        /// <summary>
+        /// The surface points in <see cref="SurfacePoints"/>' order: every <paramref name="every"/>-th added to
+        /// <paramref name="into"/> (none when null). Returns how many there are.
+        /// </summary>
+        private int WalkSurface(int stride, List<Vector3> into, int every)
+        {
+            int n = 0;
             foreach (View v in _views)
             {
                 if (v.BareNear == null)
@@ -138,13 +163,23 @@ namespace RavenfieldVR.Weapons
                         {
                             continue;
                         }
-                        float x = v.MinX + (i + 0.5f) * v.Texel, y = v.MinY + (j + 0.5f) * v.Texel;
-                        points.Add(toFrame * new Vector3(x, y, a));
-                        points.Add(toFrame * new Vector3(x, y, b));
+                        if (into != null)
+                        {
+                            float x = v.MinX + (i + 0.5f) * v.Texel, y = v.MinY + (j + 0.5f) * v.Texel;
+                            if (n % every == 0)
+                            {
+                                into.Add(toFrame * new Vector3(x, y, a));
+                            }
+                            if ((n + 1) % every == 0)
+                            {
+                                into.Add(toFrame * new Vector3(x, y, b));
+                            }
+                        }
+                        n += 2;
                     }
                 }
             }
-            return points;
+            return n;
         }
 
         /// <summary>The part spent on the main thread (rendering and reading back the views), over all its frames.</summary>
@@ -1052,10 +1087,13 @@ namespace RavenfieldVR.Weapons
         /// but they come back from the GPU a frame or two later, and <paramref name="done"/> runs then on the main thread with the
         /// share and the per-view text (-1 when not measurable). It runs before this returns when there is nothing to measure or
         /// when asynchronous read-back is not supported. If this throws, <paramref name="done"/> is never called.
+        /// With <paramref name="axesNow"/> (the gun's aim and up now, null once it is gone) the views are rendered one a frame, and
+        /// a measuring given up between them (the gun put away or hidden) ends with NaN: measure it again on a later hold.
         /// </summary>
-        internal static void VisibleShareAsync(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, Action<float, string> done, float texel = 0.002f)
+        internal static void VisibleShareAsync(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, Action<float, string> done,
+            float texel = 0.002f, Func<(Vector3, Vector3)?> axesNow = null)
         {
-            MeasureShare(gun, part, aimWorld, upWorld, texel, true, done);
+            MeasureShare(gun, part, aimWorld, upWorld, texel, true, done, axesNow);
         }
 
         /// <summary>
@@ -1063,7 +1101,8 @@ namespace RavenfieldVR.Weapons
         /// otherwise, or where asynchronous read-back is not supported, each is read at once and <paramref name="done"/> runs
         /// before this returns.
         /// </summary>
-        private static void MeasureShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, float texel, bool deferred, Action<float, string> done)
+        private static void MeasureShare(List<Renderer> gun, ICollection<Renderer> part, Vector3 aimWorld, Vector3 upWorld, float texel, bool deferred, Action<float, string> done,
+            Func<(Vector3, Vector3)?> axesNow = null)
         {
             Shader shader = DepthShader();
             if (shader == null || part.Count == 0)
@@ -1103,8 +1142,13 @@ namespace RavenfieldVR.Weapons
             }
             float radius = Mathf.Max(0.05f, wb.extents.magnitude);
             int size = Mathf.Clamp(Mathf.CeilToInt(2f * radius / texel), 64, 512);
-            Vector3 aim = aimWorld.normalized, up = upWorld.normalized, right = Vector3.Cross(up, aim).normalized;
-            var views = new[] { (right, up, "left"), (-right, up, "right"), (-up, aim, "top"), (up, aim, "bottom") };
+            string[] viewNames = { "left", "right", "top", "bottom" };
+            // A view's direction and up, from the gun's aim and up as they are when it is taken.
+            (Vector3, Vector3) ViewDir(int v, Vector3 aimW, Vector3 upW)
+            {
+                Vector3 aim = aimW.normalized, up = upW.normalized, right = Vector3.Cross(up, aim).normalized;
+                return v == 0 ? (right, up) : v == 1 ? (-right, up) : v == 2 ? (-up, aim) : (up, aim);
+            }
             int layer = FreeLayer();
             var owners = new List<GameObject>();
             foreach (Renderer r in all)
@@ -1120,22 +1164,6 @@ namespace RavenfieldVR.Weapons
             {
                 oldLayers[i] = owners[i].layer;
             }
-            var go = new GameObject("RavenfieldVR Visibility Camera");
-            Camera cam = go.AddComponent<Camera>();
-            cam.enabled = false;
-            cam.orthographic = true;
-            cam.orthographicSize = radius;
-            cam.aspect = 1f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
-            cam.cullingMask = 1 << layer;
-            cam.stereoTargetEye = StereoTargetEyeMask.None;
-            cam.useOcclusionCulling = false;
-            cam.allowHDR = false;
-            cam.allowMSAA = false;
-            cam.renderingPath = RenderingPath.Forward;
-            cam.nearClipPlane = 0.005f;
-            cam.farClipPlane = 2f * radius + 0.2f;
             void SetLayers(bool rest, bool own)
             {
                 for (int i = 0; i < all.Count; i++)
@@ -1150,13 +1178,19 @@ namespace RavenfieldVR.Weapons
             // The pictures in order, three a view: the rest of the gun, the gun with the part, the part alone. Each is read back as
             // soon as it is rendered, or, when deferred, asked for and taken when it arrives; the comparison runs once all of them
             // are in, on the same pixels either way.
-            int shots = views.Length * 3;
+            int shots = viewNames.Length * 3;
             var pictures = new Color32[shots][];
             int left = shots;
+            bool finished = false; // done is called once (a staged measuring given up still has read-backs coming)
             // Asynchronous read-back is queued behind the frame's GPU work; where it is not supported, each picture is read at once.
             bool readLater = deferred && SystemInfo.supportsAsyncGPUReadback;
             void Finish()
             {
+                if (finished)
+                {
+                    return;
+                }
+                finished = true;
                 if (Array.Exists(pictures, p => p == null))
                 {
                     done(-1f, ""); // a picture missing (its read-back failed): not measured
@@ -1164,7 +1198,7 @@ namespace RavenfieldVR.Weapons
                 }
                 long partPx = 0, seenPx = 0;
                 var parts = new List<string>();
-                for (int v = 0; v < views.Length; v++)
+                for (int v = 0; v < viewNames.Length; v++)
                 {
                     Color32[] without = pictures[3 * v], with = pictures[3 * v + 1], alone = pictures[3 * v + 2];
                     long own = 0, seen = 0;
@@ -1184,7 +1218,7 @@ namespace RavenfieldVR.Weapons
                     }
                     partPx += own;
                     seenPx += seen;
-                    parts.Add($"{views[v].Item3} {(own == 0 ? 0f : 100f * seen / own):0}%");
+                    parts.Add($"{viewNames[v]} {(own == 0 ? 0f : 100f * seen / own):0}%");
                     ReturnPixels(without);
                     ReturnPixels(with);
                     ReturnPixels(alone);
@@ -1240,33 +1274,108 @@ namespace RavenfieldVR.Weapons
                     }
                 });
             }
-            void Shoot(int shot, Vector3 dir, Vector3 camUp)
+            // One view's three pictures, from where the gun is now (a camera of its own: staged views are taken a frame apart).
+            void ShootView(int v, Vector3 aimW, Vector3 upW)
             {
-                Take(shot, Render(cam, wb.center - dir * (radius + 0.1f), Quaternion.LookRotation(dir, camUp), size, size, shader));
-            }
-            try
-            {
-                for (int v = 0; v < views.Length; v++)
+                (Vector3 dir, Vector3 camUp) = ViewDir(v, aimW, upW);
+                Bounds now = mine[0].bounds;
+                foreach (Renderer r in all)
                 {
-                    Vector3 dir = views[v].Item1, camUp = views[v].Item2;
+                    now.Encapsulate(r.bounds);
+                }
+                foreach (Renderer r in mine)
+                {
+                    now.Encapsulate(r.bounds);
+                }
+                Vector3 at = now.center - dir * (radius + 0.1f);
+                Quaternion look = Quaternion.LookRotation(dir, camUp);
+                var go = new GameObject("RavenfieldVR Visibility Camera");
+                try
+                {
+                    Camera cam = go.AddComponent<Camera>();
+                    cam.enabled = false;
+                    cam.orthographic = true;
+                    cam.orthographicSize = radius;
+                    cam.aspect = 1f;
+                    cam.clearFlags = CameraClearFlags.SolidColor;
+                    cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                    cam.cullingMask = 1 << layer;
+                    cam.stereoTargetEye = StereoTargetEyeMask.None;
+                    cam.useOcclusionCulling = false;
+                    cam.allowHDR = false;
+                    cam.allowMSAA = false;
+                    cam.renderingPath = RenderingPath.Forward;
+                    cam.nearClipPlane = 0.005f;
+                    cam.farClipPlane = 2f * radius + 0.2f;
                     SetLayers(true, false);
-                    Shoot(3 * v, dir, camUp);
+                    Take(3 * v, Render(cam, at, look, size, size, shader));
                     SetLayers(true, true);
-                    Shoot(3 * v + 1, dir, camUp);
+                    Take(3 * v + 1, Render(cam, at, look, size, size, shader));
                     SetLayers(false, true);
-                    Shoot(3 * v + 2, dir, camUp);
+                    Take(3 * v + 2, Render(cam, at, look, size, size, shader));
+                }
+                finally
+                {
+                    for (int i = 0; i < owners.Count; i++)
+                    {
+                        if (owners[i] != null)
+                        {
+                            owners[i].layer = oldLayers[i];
+                        }
+                    }
+                    UnityEngine.Object.Destroy(go);
                 }
             }
-            finally
+            bool Shown(Renderer r) => r != null && r.enabled && r.gameObject.activeInHierarchy;
+            // One view a frame, each from the gun as it is then: all twelve pictures in the frame the slide was first home took up to
+            // 57 ms ("hands: hidden slide checked" on the 92g, 6 ms on average over a run's holds; 2026-10-25). Put away, dropped or
+            // hidden in between, it is given up with NaN and measured again on a later hold.
+            System.Collections.IEnumerator ShootStaged()
             {
-                for (int i = 0; i < owners.Count; i++)
+                for (int v = 0; v < viewNames.Length; v++)
                 {
-                    if (owners[i] != null)
+                    if (v > 0)
                     {
-                        owners[i].layer = oldLayers[i];
+                        yield return null;
+                    }
+                    bool taken = false;
+                    try
+                    {
+                        (Vector3, Vector3)? axes = all.TrueForAll(Shown) && mine.TrueForAll(Shown) ? axesNow() : null;
+                        if (axes != null)
+                        {
+                            bool timed = Core.PerfProbe.Part("slide seen: one view a frame"); // (its frame's cost, in a profiled run)
+                            ShootView(v, axes.Value.Item1, axes.Value.Item2);
+                            if (timed)
+                            {
+                                Core.PerfProbe.End("slide seen: one view a frame");
+                            }
+                            taken = true;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WarnOnce("slidemeasure-view", "A slide measurement's view failed: " + e.Message);
+                    }
+                    if (!taken)
+                    {
+                        if (!finished)
+                        {
+                            finished = true;
+                            done(float.NaN, "");
+                        }
+                        yield break;
                     }
                 }
-                UnityEngine.Object.Destroy(go);
+            }
+            if (readLater && axesNow != null && VRManager.Instance != null)
+            {
+                VRManager.Instance.StartCoroutine(ShootStaged());
+                return;
+            }
+            for (int v = 0; v < viewNames.Length; v++)
+            {
+                ShootView(v, aimWorld, upWorld);
             }
             if (!readLater)
             {

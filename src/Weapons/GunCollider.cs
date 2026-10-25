@@ -641,9 +641,9 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            List<Vector3> surface = volume.SurfacePoints(6);
+            List<Vector3> surface = volume.SurfaceSample(6, surfaceSamples); // (the same points the whole list was sampled for)
             int covered = 0, tested = 0;
-            for (int i = 0; i < surface.Count; i += Mathf.Max(1, surface.Count / surfaceSamples))
+            for (int i = 0; i < surface.Count; i++)
             {
                 Vector3 p = t.TransformPoint(surface[i]);
                 tested++;
