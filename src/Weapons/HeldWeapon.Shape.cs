@@ -155,13 +155,24 @@ namespace RavenfieldVR.Weapons
                     Core.PerfProbe.End("hands: hidden slide checked");
                 }
             }
-            bool timed = Core.PerfProbe.Part("hands: slide tip, magazine, line");
+            // (Each on its own: together they had a 13-14 ms frame once in a run, about a second into a draw; 2026-10-25.)
+            bool timed = Core.PerfProbe.Part("hands: slide tip");
             RackOnDrawnSlideTip();
+            if (timed)
+            {
+                Core.PerfProbe.End("hands: slide tip");
+            }
+            timed = Core.PerfProbe.Part("hands: seated magazine");
             UpdateSeatedMagSolid();
+            if (timed)
+            {
+                Core.PerfProbe.End("hands: seated magazine");
+            }
+            timed = Core.PerfProbe.Part("hands: magazine line");
             FitMagazineLine();
             if (timed)
             {
-                Core.PerfProbe.End("hands: slide tip, magazine, line");
+                Core.PerfProbe.End("hands: magazine line");
             }
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
         }
