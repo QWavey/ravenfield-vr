@@ -15,6 +15,9 @@ namespace RavenfieldVR.Core
         public static void Info(string message) => _source?.LogInfo(message);
         public static void Warn(string message) => _source?.LogWarning(message);
         public static void Error(string message) => _source?.LogError(message);
+        /// <summary>Whether debug lines are written: asked before building one that runs often (its text is built before Debug checks).</summary>
+        internal static bool DebugOn => VRConfig.DebugLogging != null && VRConfig.DebugLogging.Value;
+
         public static void Debug(string message)
         {
             if (VRConfig.DebugLogging != null && VRConfig.DebugLogging.Value)

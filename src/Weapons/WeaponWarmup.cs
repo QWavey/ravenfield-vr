@@ -155,6 +155,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static void Prepare(Weapon weapon, WeaponManager.WeaponEntry entry)
         {
+            VRScope.WarmAssets(); // (once: what any scoped draw needs, as the menu's pass makes it)
             if (weapon == null || entry == null || Warmed.Contains(entry))
             {
                 return;
@@ -294,6 +295,18 @@ namespace RavenfieldVR.Weapons
         private static IEnumerator Run()
         {
             _running = true;
+            // The scope lens's textures first (one frame, once a game): no weapon's, and the first scoped draw made them.
+            VRScope.WarmAssets();
+            yield return null;
+            // Then the mod's own code compiled (CodeWarmup): a few seconds of the menu at 4 ms a frame, waiting while a match runs.
+            while (!CodeWarmup.Step(4f))
+            {
+                do
+                {
+                    yield return null;
+                }
+                while (InMatch());
+            }
             var entries = new List<WeaponManager.WeaponEntry>();
             var taken = new List<WeaponManager.WeaponEntry>(); // the list this pass works from, in the game's order
             float started = Time.realtimeSinceStartup;

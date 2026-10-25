@@ -813,6 +813,12 @@ namespace RavenfieldVR.Weapons
         internal static void Disarm(Actor a)
         {
             ArmedUntil.Remove(a);
+            // Away from the hand now: the held gun's stand-in collides with him again (it ignored him while he was held; lifted
+            // at the release itself, the body still overlapping the gun was shoved out of it).
+            if (a != null && a.ragdoll != null)
+            {
+                GunCollider.Current?.StopIgnoring(a.ragdoll.ragdollObject);
+            }
             if (SavedDrive.TryGetValue(a, out JointDrive drive))
             {
                 SavedDrive.Remove(a);

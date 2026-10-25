@@ -2310,6 +2310,8 @@ namespace RavenfieldVR.Weapons
             Vector3 from = GripRig.ToWorld(GripData.SupportPoint);
             bool took = false;
             string role = "";
+            // The handover's two tests where the palm came nearest the handle: a failure names which one held it back.
+            float nearRack = float.MaxValue, nearGuard = 0f;
             VRInput.SimulatedGrab[side] = true;
             try
             {
@@ -2321,9 +2323,19 @@ namespace RavenfieldVR.Weapons
                 yield return null;
                 for (int i = 1; i <= 20 && !took; i++)
                 {
-                    VRHand.Scripted[side] = At(Vector3.Lerp(from, RackPointWorld, i / 20f));
+                    // Toward the handle where it sits on the gun as the gun hand holds it: the live one swings with the two-hand
+                    // turn as the palm moves, and a palm sent after it each frame chased it.
+                    Vector3 rackOnGun = UnsteeredGunPoint(GripRig.ToGun(RackPointWorld));
+                    VRHand.Scripted[side] = At(Vector3.Lerp(from, rackOnGun, i / 20f));
                     yield return null;
                     took = off.Role == HandRole.Slide;
+                    Vector3 palm = _held.TwoHanded ? PalmOnLiveGun(off.Palm.position) : off.Palm.position; // (as the handover measures it)
+                    float dRack = RackZoneDistance(palm);
+                    if (dRack < nearRack)
+                    {
+                        nearRack = dRack;
+                        nearGuard = ForegripDistance(palm);
+                    }
                 }
                 role = off.Role.ToString();
             }
@@ -2342,7 +2354,7 @@ namespace RavenfieldVR.Weapons
                 VRInput.SimulatedGrab[side] = false;
             }
             Core.AutoTest.Metric("support hand slid onto the charging handle: taken (1) or not (0)", took ? 1 : 0);
-            report($"support hand slid back onto the charging handle, grip held: {(took ? "took the handle" : $"DID NOT TAKE IT (the hand: {role})")}");
+            report($"support hand slid back onto the charging handle, grip held: {(took ? "took the handle" : $"DID NOT TAKE IT (the hand: {role}; nearest {nearRack * 100f:0.0} cm from the handle, grab radius {VRConfig.GrabRadius.Value * 100f:0.0} cm, {nearGuard * 100f:0.0} cm from the handguard: needs under half)")}");
             yield return new WaitForSecondsRealtime(0.3f);
             if (HandDriven && Ammo.BoltOpen)
             {

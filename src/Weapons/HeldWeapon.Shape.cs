@@ -122,23 +122,45 @@ namespace RavenfieldVR.Weapons
                 if (!hullUsed || CookHullWithin(_volume.HullPieces, 1.5f))
                 {
                     _hullApplied = true;
+                    bool t = Core.PerfProbe.Part("hands: shape chosen");
                     ChooseShape();
+                    if (t)
+                    {
+                        Core.PerfProbe.End("hands: shape chosen");
+                    }
                 }
             }
             _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
+            // The steps once a draw timed apart in a profiled run: the hands' step had a 40 ms frame once, about a second
+            // into a draw, where the measured shape becomes ready (2026-10-25).
             if (!_rackSnapped)
             {
                 _rackSnapped = true;
+                bool t = Core.PerfProbe.Part("hands: rack point snapped");
                 SnapRackPoint();
+                if (t)
+                {
+                    Core.PerfProbe.End("hands: rack point snapped");
+                }
             }
             if (!_knobChecked && SlideOffset < 0.002f && !Weapon.reloading)
             {
                 _knobChecked = true; // with the slide home: measured with it locked back, it read as seen (rule review)
+                bool t = Core.PerfProbe.Part("hands: hidden slide checked");
                 KnobOnHiddenSlide();
+                if (t)
+                {
+                    Core.PerfProbe.End("hands: hidden slide checked");
+                }
             }
+            bool timed = Core.PerfProbe.Part("hands: slide tip, magazine, line");
             RackOnDrawnSlideTip();
             UpdateSeatedMagSolid();
             FitMagazineLine();
+            if (timed)
+            {
+                Core.PerfProbe.End("hands: slide tip, magazine, line");
+            }
             return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
         }
 

@@ -188,25 +188,24 @@ namespace RavenfieldVR.Weapons
                 // The script keys asked twice a second, as the support keys are: ScriptKeys.Find makes and sorts a list, and a
                 // grab that took nothing asked it every frame of its quarter-second reach (gameplay workflow, 2026-10-24); the
                 // magnifier grip's test asks it too (review, 2026-10-24).
+                // A magnifier the free hand flips by its own grip (MagnifierFlip) has one switch: that grip. This optic grab
+                // would also flip it on a quick tap at release, which the magnifier grip must never do. Read live: its part
+                // shows and hides as the lens flips (cached, a stale answer let a release tap the key; review, 2026-10-24).
+                if (_held.MagnifierByHand(w))
+                {
+                    return false;
+                }
                 if (!ReferenceEquals(_magnifierKeyFor, w) || Time.unscaledTime - _magnifierKeyAt > 0.5f)
                 {
                     _magnifierKeyFor = w;
                     _magnifierKeyAt = Time.unscaledTime;
-                    // A magnifier the free hand flips by its own grip (MagnifierFlip) has one switch: that grip. This optic grab
-                    // would also flip it on a quick tap at release, which the magnifier grip must never do.
-                    _magnifierByHand = _held.MagnifierByHand(w);
-                    _magnifierKey = !_magnifierByHand && Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
-                }
-                if (_magnifierByHand)
-                {
-                    return false;
+                    _magnifierKey = Input.ScriptKeys.Find(w, Input.ScriptKeyPurpose.Magnifier) != null;
                 }
                 return w.HasAnyAltSightModes() || _magnifierKey;
             }
         }
 
         private Weapon _magnifierKeyFor;
-        private bool _magnifierByHand;
         private float _magnifierKeyAt = -10f;
         private bool _magnifierKey;
 

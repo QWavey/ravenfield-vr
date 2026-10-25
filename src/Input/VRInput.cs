@@ -573,11 +573,30 @@ namespace RavenfieldVR.Input
             }
         }
 
+        /// <summary>The controller type as SteamVR answers it, read into one buffer (a new one every 2 s for the session before).</summary>
+        private static readonly StringBuilder ControllerTypeText = new StringBuilder(64);
+
+        private static bool SameText(StringBuilder sb, string s)
+        {
+            if (s == null || sb.Length != s.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (sb[i] != s[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private static void RefreshControllerTypes(CVRInput input)
         {
             var poseData = new InputPoseActionData_t();
             var info = new InputOriginInfo_t();
-            var sb = new StringBuilder(64);
+            StringBuilder sb = ControllerTypeText;
             for (int h = 0; h < 2; h++)
             {
                 if (input.GetPoseActionDataForNextFrame(_pose, Universe, ref poseData, PoseSize, HandSource[h]) != EVRInputError.None
@@ -596,12 +615,13 @@ namespace RavenfieldVR.Input
                 {
                     continue; // a failed query keeps the type known (it fell back to unknown, and Touch's slow motion with it)
                 }
-                string type = sb.ToString();
-                if (type != ControllerTypes[h])
+                if (SameText(sb, ControllerTypes[h]))
                 {
-                    ControllerTypes[h] = type;
-                    Log.Info($"{(Hand)h} controller: {type}");
+                    continue; // the usual answer: no string made
                 }
+                string type = sb.ToString();
+                ControllerTypes[h] = type;
+                Log.Info($"{(Hand)h} controller: {type}");
             }
         }
 

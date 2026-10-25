@@ -689,10 +689,11 @@ namespace RavenfieldVR.Weapons
             float below = Mathf.Clamp(length * 0.25f, 0.04f, 0.08f);
             float into = Mathf.Clamp(length * 0.45f, 0.06f, 0.12f);
             bool near = along > -0.12f && along < into + 0.04f && lateral < strikeReach + 0.04f;
-            if (near && Data.MagKickable && Time.unscaledTime - _kickLogAt > 0.3f)
+            if (near && Data.MagKickable && Log.DebugOn && Time.unscaledTime - _kickLogAt > 0.3f)
             {
                 // Numbers for tuning in the headset: which condition holds a kick back (debug logging only: three lines a
-                // second flooded the log while a magazine was near the well; 255.P2-5).
+                // second flooded the log while a magazine was near the well; 255.P2-5; and built only then: the line was made
+                // three times a second during every reload with logging off, allocation hunt 2026-10-24).
                 _kickLogAt = Time.unscaledTime;
                 Log.Debug($"Mag kick test {Data.Key}: along {along * 100f:0.0} cm, lateral {lateral * 100f:0.0} cm (reach {strikeReach * 100f:0.0}), angle {angle:0} deg, speed {speed:0.00} m/s, kickable {Data.MagKickable}, rounds {prop.Rounds}");
             }

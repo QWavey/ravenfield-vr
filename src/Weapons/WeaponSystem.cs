@@ -436,12 +436,21 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // (Timed on its own in a profiled run: a new weapon object, the drawn one after a respawn, builds its rig here.)
+            bool timed = PerfProbe.Part("draw: rig");
             WeaponRig rig = RigFor(weapon);
+            if (timed)
+            {
+                PerfProbe.End("draw: rig");
+            }
             try
             {
                 AmmoState state = StateFor(weapon, create: true);
                 Held = new HeldWeapon(this, weapon, rig, state);
-                Log.Debug($"Holding {weapon.name} ({rig.Data.Action})");
+                if (Log.DebugOn)
+                {
+                    Log.Debug($"Holding {weapon.name} ({rig.Data.Action})"); // (built only when logged: every draw before)
+                }
             }
             catch (Exception e)
             {

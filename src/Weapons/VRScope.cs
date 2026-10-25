@@ -152,6 +152,12 @@ namespace RavenfieldVR.Weapons
             mr.receiveShadows = false;
         }
 
+        /// <summary>
+        /// The lens's disc, reticle and shadow made ahead by the weapon warm-up: drawn texel by texel on the first scoped draw
+        /// in a match, they came with its one-off hitch ("draw: scope" 37 ms at most against 0.5 ms on average, 2026-10-25).
+        /// </summary>
+        internal static void WarmAssets() => EnsureAssets();
+
         private static void EnsureAssets()
         {
             if (_disc == null)

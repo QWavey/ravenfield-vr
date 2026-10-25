@@ -377,13 +377,36 @@ namespace RavenfieldVR.Weapons
         /// <summary>Whether <paramref name="c"/> is one of the held gun's stand-in pieces.</summary>
         public static bool IsStandIn(Collider c) => Current != null && c != null && Current._boxes.Contains(c);
 
-        /// <summary>The stand-in's pieces no longer collide with what is under <paramref name="root"/> (a soldier the other hand holds).</summary>
+        /// <summary>
+        /// The stand-in's pieces no longer collide with what is under <paramref name="root"/> (a soldier the other hand holds),
+        /// its new pieces too when the shape is rebuilt (<see cref="UseShape"/>), until <see cref="StopIgnoring"/>.
+        /// </summary>
         internal void IgnoreCollisionsWith(GameObject root)
         {
             if (root == null)
             {
                 return;
             }
+            if (!_ignoredBodies.Contains(root))
+            {
+                _ignoredBodies.Add(root);
+            }
+            SetIgnored(root, true);
+        }
+
+        /// <summary>Collides with <paramref name="root"/> again (the soldier let go and flown clear: the gun pushes him as anything).</summary>
+        internal void StopIgnoring(GameObject root)
+        {
+            if (root != null && _ignoredBodies.Remove(root))
+            {
+                SetIgnored(root, false);
+            }
+        }
+
+        private readonly List<GameObject> _ignoredBodies = new List<GameObject>();
+
+        private void SetIgnored(GameObject root, bool ignore)
+        {
             foreach (Collider c in root.GetComponentsInChildren<Collider>())
             {
                 foreach (Collider b in _boxes)
@@ -391,7 +414,7 @@ namespace RavenfieldVR.Weapons
                     // (Unity refuses a pair unless both are enabled and active.)
                     if (b != null && b.enabled && c.enabled && b.gameObject.activeInHierarchy)
                     {
-                        Physics.IgnoreCollision(b, c, true);
+                        Physics.IgnoreCollision(b, c, ignore);
                     }
                 }
             }
@@ -556,6 +579,13 @@ namespace RavenfieldVR.Weapons
             foreach (Collider b in _boxes)
             {
                 b.enabled = _enabled;
+            }
+            // A soldier held in the other hand: the new pieces leave him alone as the old did (rebuilt once a draw, the stand-in
+            // shoved a body taken before it; review, 2026-10-24).
+            _ignoredBodies.RemoveAll(r => r == null);
+            foreach (GameObject root in _ignoredBodies)
+            {
+                SetIgnored(root, true);
             }
             _nextRestCheck = 0f; // re-ignore the resting props at once with the new boxes, not up to 0.1 s later (they were shoved)
         }

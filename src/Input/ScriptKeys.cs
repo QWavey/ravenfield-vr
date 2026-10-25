@@ -77,6 +77,7 @@ namespace RavenfieldVR.Input
         private static readonly Dictionary<string, VirtualKey> Virtual = new Dictionary<string, VirtualKey>();
         private static readonly Dictionary<int, Dictionary<string, ScriptKey>> Seen = new Dictionary<int, Dictionary<string, ScriptKey>>();
         private static float _lastPrune;
+        private static readonly List<int> DeadScripts = new List<int>(); // (made once: a new list every 5 s before)
 
         /// <summary>Only in VR: flat play keeps the game's input untouched.</summary>
         public static bool Enabled;
@@ -178,7 +179,8 @@ namespace RavenfieldVR.Input
             if (now - _lastPrune > 5f)
             {
                 _lastPrune = now;
-                var dead = new List<int>();
+                List<int> dead = DeadScripts;
+                dead.Clear();
                 foreach (KeyValuePair<int, Dictionary<string, ScriptKey>> kv in Seen)
                 {
                     foreach (ScriptKey k in kv.Value.Values)
@@ -394,7 +396,7 @@ namespace RavenfieldVR.Input
                     }
                 }
             }
-            list.Sort((a, b) => a.Purpose != b.Purpose ? a.Purpose.CompareTo(b.Purpose) : string.CompareOrdinal(a.Key, b.Key));
+            list.Sort((a, b) => a.Purpose != b.Purpose ? ((int)a.Purpose).CompareTo((int)b.Purpose) : string.CompareOrdinal(a.Key, b.Key));
             return list;
         }
 
@@ -412,20 +414,33 @@ namespace RavenfieldVR.Input
                     }
                 }
             }
-            list.Sort((a, b) => a.Purpose != b.Purpose ? a.Purpose.CompareTo(b.Purpose) : string.CompareOrdinal(a.Label, b.Label));
+            list.Sort((a, b) => a.Purpose != b.Purpose ? ((int)a.Purpose).CompareTo((int)b.Purpose) : string.CompareOrdinal(a.Label, b.Label));
             return list;
         }
 
+        /// <summary>
+        /// The weapon's key of this purpose (the first by name, as <see cref="KeysOn"/> sorts them), without the list and the sort
+        /// KeysOn makes: the input bridge and the reload ask it twice a second for the gun in hand (allocation hunt, 2026-10-24).
+        /// </summary>
         public static ScriptKey Find(Weapon weapon, ScriptKeyPurpose purpose)
         {
-            foreach (ScriptKey k in KeysOn(weapon))
+            if (weapon == null)
             {
-                if (k.Purpose == purpose)
+                return null;
+            }
+            Transform root = weapon.transform;
+            ScriptKey best = null;
+            foreach (Dictionary<string, ScriptKey> keys in Seen.Values)
+            {
+                foreach (ScriptKey k in keys.Values)
                 {
-                    return k;
+                    if (k.Purpose == purpose && k.Alive && k.Script.transform.IsChildOf(root) && (best == null || string.CompareOrdinal(k.Key, best.Key) < 0))
+                    {
+                        best = k;
+                    }
                 }
             }
-            return null;
+            return best;
         }
 
         // ---- key names -----------------------------------------------------------------------------------

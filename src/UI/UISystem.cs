@@ -138,9 +138,9 @@ namespace RavenfieldVR.UI
                 VRInput.Consume(DigitalAction.ModKeys);
                 ModKeys.Toggle();
             }
-            if (Settings.IsOpen && Time.unscaledTime >= _nextSettingsRefresh)
+            if (Settings.IsOpen && (Settings.Changed || Time.unscaledTime >= _nextSettingsRefresh))
             {
-                _nextSettingsRefresh = Time.unscaledTime + 0.2f; // its values change by hand: five times a second is plenty
+                _nextSettingsRefresh = Time.unscaledTime + 2f; // at once after a press; otherwise for changes made elsewhere
                 Settings.Refresh();
             }
             ModKeys.Update();

@@ -596,9 +596,9 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// The graphics bench (task 215): standing still in the match, each preset and then Ultra with one setting lowered
-        /// at a time, 2 s to settle and 5 s measured: the frame time and the GPU time SteamVR's compositor measured. The
-        /// saved settings are never changed (the player's are put back at the end).
+        /// The graphics bench (task 215): standing still in the match with the world frozen, each preset and its variants, 1.5 s
+        /// to settle and 4 s measured, the whole list twice: the frame time and the GPU time SteamVR's compositor measured
+        /// (medians). The saved settings are never changed (the player's are put back at the end).
         /// </summary>
         private static IEnumerator PerfBench()
         {
@@ -624,10 +624,12 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("old Ultra", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.4f, msaa: 4,
                     shadowDistance: 150f, cascades: 4, shadowResolution: ShadowResolution.VeryHigh, lodBias: 2f, pixelLights: 6,
                     anisotropic: AnisotropicFiltering.ForceEnable)),
-                // What Ultra pays for beyond High's settings: its grass, trees and view distance, and the forced 16x texture filter
-                // it had until 2026-10-24 (2.9 of its 8.9 ms then; reflections and soft particles cost nothing measurable).
-                new KeyValuePair<string, Func<string>>("Ultra, High's terrain", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, terrainOf: GraphicsPreset.High)),
+                // What Ultra pays for: the forced 16x texture filter it had until 2026-10-24 (2.9 of its 8.9 ms then; its terrain,
+                // reflections and soft particles cost nothing measurable), and what would bring it under 11.1 ms at the Quest 3's
+                // size over Link (12.2 ms at 2528x2704 an eye).
                 new KeyValuePair<string, Func<string>>("Ultra, anisotropic forced", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, anisotropic: AnisotropicFiltering.ForceEnable)),
+                new KeyValuePair<string, Func<string>>("Ultra, MSAA 2x", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, msaa: 2)),
+                new KeyValuePair<string, Func<string>>("Ultra, scale 1.1", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Ultra, renderScale: 1.1f)),
                 new KeyValuePair<string, Func<string>>("High, shadows off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, shadows: ShadowQuality.Disable)),
                 new KeyValuePair<string, Func<string>>("High, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, msaa: 0)),
                 new KeyValuePair<string, Func<string>>("High, scale 0.8", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 0.8f)),
@@ -655,7 +657,9 @@ namespace RavenfieldVR.Core
             {
                 GameManager.PauseGame();
             }
-            Results.Add($"Graphics bench (standing still, the world {(froze ? "frozen" : "NOT FROZEN")}, {Rounds} rounds; frame = CPU frame interval, "
+            // (Already paused, by the dashboard or the headset taken off, the world is frozen as well.)
+            bool frozen = GameManager.instance != null && GameManager.IsPaused();
+            Results.Add($"Graphics bench (standing still, the world {(frozen ? "frozen" : "NOT FROZEN")}, {Rounds} rounds; frame = CPU frame interval, "
                         + "GPU = the compositor's timing of our frames; medians):");
             try
             {
@@ -707,8 +711,9 @@ namespace RavenfieldVR.Core
                 string rounds = string.Join(" / ", got.Select(s => s.Value.ToString("0.00", CultureInfo.InvariantCulture)));
                 Results.Add(string.Format(CultureInfo.InvariantCulture, "  {0,-26} frame {1,6:0.00} ms, GPU {2,6:0.00} ms (GPU by round {3})   last: {4}",
                                           run.Key, cpu, gpu, rounds, lines[run.Key]));
-                Metric($"bench {run.Key}: GPU ms", gpu);
-                Metric($"bench {run.Key}: frame ms", cpu);
+                // (Medians since 2026-10-24, named so: the runs before held averages under "GPU ms" and "frame ms".)
+                Metric($"bench {run.Key}: GPU median ms", gpu);
+                Metric($"bench {run.Key}: frame median ms", cpu);
             }
         }
 
@@ -730,6 +735,9 @@ namespace RavenfieldVR.Core
                     Shots.Capture($"{shot}-{index:000}-{name}");
                     RackCloseUps($"{shot}-{index:000}-{name}", held, ref rackCam);
                 });
+                // The support hand slid onto the handle as well (only the runs without pictures had it, so a one-weapon run
+                // could not check a gun that failed it).
+                yield return held.Reload.SupportSlideSelfCheck(lines.Add);
             }
             if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
             {
@@ -1397,11 +1405,19 @@ namespace RavenfieldVR.Core
                 Metric($"held still ({how}): most turn between frames, degrees", maxA);
                 Metric($"held still ({how}): most move between frames, mm", maxM * 1000f);
                 bool shaky = maxA > 0.2f || maxM > 0.002f;
+                // How many frames went over: one is a jump (the PKP's one 0.38 deg frame, 2026-10-25, none in the run before), a
+                // shake keeps going over.
+                int over = 0;
+                for (int i = 0; i < angles.Count && i < moves.Count; i++)
+                {
+                    over += angles[i] > 0.2f || moves[i] > 0.002f ? 1 : 0;
+                }
+                string overNote = shaky ? $", {over} of {angles.Count} frames over" : "";
                 if (shaky)
                 {
-                    Problem($"[{name}] held still ({how}) the weapon shakes: up to {maxA:0.00} deg and {maxM * 1000f:0.0} mm between frames (average {avgA:0.000} deg, {avgM * 1000f:0.00} mm)");
+                    Problem($"[{name}] held still ({how}) the weapon shakes: up to {maxA:0.00} deg and {maxM * 1000f:0.0} mm between frames (average {avgA:0.000} deg, {avgM * 1000f:0.00} mm{overNote})");
                 }
-                return $"{how}: up to {maxA:0.00} deg / {maxM * 1000f:0.0} mm a frame (average {avgA:0.000} deg / {avgM * 1000f:0.00} mm){(shaky ? " (SHAKES)" : "")}";
+                return $"{how}: up to {maxA:0.00} deg / {maxM * 1000f:0.0} mm a frame (average {avgA:0.000} deg / {avgM * 1000f:0.00} mm){(shaky ? $" (SHAKES{overNote})" : "")}";
             }
             IEnumerator Sample(List<float> angles, List<float> moves)
             {
@@ -3375,6 +3391,12 @@ namespace RavenfieldVR.Core
                     {
                         a.transform.SetParent(a.originalParent, true);
                     }
+                    // Its AI on while it respawns (paused just after, as before): paused already (the quiet bots), it kept its old
+                    // facing and turned the body back to it, and the neck check's soldier no longer faced away (2026-10-24).
+                    if (a.controller != null)
+                    {
+                        a.controller.enabled = true;
+                    }
                     a.SpawnAt(at, Quaternion.LookRotation(facingAway ? flat : -flat, Vector3.up));
                     // A bot that had died has no squad until the game's own spawner gives it one: the game's AI then read the
                     // missing squad every frame (NullReferenceException in AiActorController.GetWeaponEffectivenessAgainstTarget).
@@ -3641,11 +3663,13 @@ namespace RavenfieldVR.Core
                     }
                     yield return Snap("06-landed", main != null ? main.position : palm);
                     Metric("soldier thrown: body m/s", flew);
+                    bool blewUp = fastest > 100f || overCap > 20;
                     report($"soldier grab: {(grabbed ? $"took hold of {held.name}" : "NOT GRABBED")}, {(down ? "down as a ragdoll" : "NOT DOWN")}; "
                            + $"{(letGo ? "let go" : "NOT LET GO")} in a 6 m/s swing, the body at {flew:0.0} m/s{(grabbed && flew < 2f ? " (NOT THROWN with the swing)" : "")}"
-                           // (Bones are held to 25 m/s while armed, each physics step; a collision or a joint's pull inside the step
-                           // takes a limb a little past it, 32 m/s once. A blow-up was 180.)
-                           + $"{(fastest > 50f ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s" : $", fastest bone after {fastest:0.0} m/s")} ({fastestNote}; {overCap} frame(s) past the cap){(fastest > 50f ? ")" : "")}, "
+                           // (Bones are held to 25 m/s while armed, each physics step; a limp limb flicking off the ground as it is let go
+                           // goes past it inside a step, 18-53 m/s for a few frames in 20 runs. A blow-up was the body flying apart: 180,
+                           // 834-2325 m/s, 190-260 frames past the cap, 2026-10-24.)
+                           + $"{(blewUp ? $" (THE PHYSICS BLEW UP: a bone at {fastest:0} m/s" : $", fastest bone after {fastest:0.0} m/s")} ({fastestNote}; {overCap} frame(s) past the cap){(blewUp ? ")" : "")}, "
                            + $"health {before:0} -> {Health(held)} after landing; fastest bone while swung {swungFastest[0]:0.0} m/s");
                 }
 
@@ -3725,6 +3749,17 @@ namespace RavenfieldVR.Core
                         bool right = hit[0];
                         yield return Snap("10-boxing-gun-hand-punch", sparring.CenterPosition());
                         yield return new WaitForSecondsRealtime(0.4f);
+                        // Unbalanced by the first, he was still stumbling or falling and the second punch, aimed at where he was when it
+                        // began, passed him (2 of 19 runs): as a boxer would, wait for him to come to rest (1.5 s at most).
+                        for (float until = Time.realtimeSinceStartup + 1.5f; Time.realtimeSinceStartup < until && !sparring.dead;)
+                        {
+                            Rigidbody main = sparring.ragdoll != null && sparring.ragdoll.IsRagdoll() ? sparring.ragdoll.MainRigidbody() : null;
+                            if ((main != null ? main.velocity : sparring.Velocity()).sqrMagnitude < 0.5f * 0.5f)
+                            {
+                                break;
+                            }
+                            yield return null;
+                        }
                         yield return Punch(off, sparring, sideAxis * 0.1f * (off.IsLeft ? -1f : 1f), hit);
                         bool left = hit[0];
                         yield return Snap("11-boxing-other-hand-punch", sparring.CenterPosition());
@@ -3963,6 +3998,9 @@ namespace RavenfieldVR.Core
                             yield return new WaitForSecondsRealtime(0.2f);
                         }
                         bool strapped = StrappedGrenade.Count > strappedBefore;
+                        // Not down as a ragdoll, nothing was tried: say why (a run's "0 live grenade(s)" had no grenade let go at all).
+                        string notStrapped = body != null ? $"{live} live grenade(s) left the hand"
+                            : BodyGrab.HoldsNeck(off) ? "held by the neck, standing: nothing let go" : "he was not down as a ragdoll: nothing let go";
                         yield return Snap("18-grenade-strapped", body != null ? body.position : front);
                         // Thrown away with the free hand.
                         yield return Swing((flat + Vector3.up * 0.7f).normalized * 9f, null);
@@ -3977,7 +4015,7 @@ namespace RavenfieldVR.Core
                         }
                         yield return Snap("20-strapped-grenade-went-off", body != null ? body.position : front);
                         report($"grenade strap: {(holding ? $"{carrier.name} held" : "NOT HELD")}, {(drawnGrenade ? "a grenade drawn in the other hand" : "NO GRENADE DRAWN")}, "
-                               + $"{(strapped ? "strapped to the body" : $"NOT STRAPPED ({live} live grenade(s) left the hand)")}, thrown; "
+                               + $"{(strapped ? "strapped to the body" : $"NOT STRAPPED ({notStrapped})")}, thrown; "
                                + $"{(carrier.dead ? "it went off on him (dead)" : $"NOT KILLED by it ({hp:0} -> {carrier.health:0})")}");
                         OffAt(offRaw.position + offPalmFromRaw);
                     }
@@ -4023,6 +4061,7 @@ namespace RavenfieldVR.Core
                     }
                     // A knife in the free hand into the held body (one of the game's own knives when the loadout has none).
                     bool knifeHit = false, knifeTried = false;
+                    string knifeNotTried = "the soldier was already dead or not held";
                     string knifeNote = "";
                     int knifeSlot = -1;
                     for (int s = 0; player.weapons != null && s < player.weapons.Length; s++)
@@ -4076,13 +4115,13 @@ namespace RavenfieldVR.Core
                         }
                         else
                         {
-                            knifeNote += " (the knife did not come into the hand)";
+                            knifeNotTried = "THE KNIFE NOT IN THE HAND";
                         }
                     }
                     yield return LetGo();
                     report($"hits on a held soldier: {(holding ? $"{heldUp.name} held up by one hand" : "NOT HELD")}; "
                            + $"{(fistHit ? "the other hand's fist hit him" : "the other hand's fist NO HIT")}; "
-                           + $"{(knifeSlot < 0 ? "knife: none to be had" : knifeHit ? $"a knife{knifeNote} stabbed him" : !knifeTried ? "knife: not tried (the soldier was already dead or not held)" : $"the knife{knifeNote} NO HIT")}; health {hp:0} -> {Health(heldUp)}");
+                           + $"{(knifeSlot < 0 ? "knife: none to be had" : knifeHit ? $"a knife{knifeNote} stabbed him" : !knifeTried ? $"knife: not tried ({knifeNotTried})" : $"the knife{knifeNote} NO HIT")}; health {hp:0} -> {Health(heldUp)}");
                 }
 
                 // 9. A gun drawn into the hand that holds a soldier (the weapon button, a respawn): the soldier is let go and the
@@ -4596,7 +4635,13 @@ namespace RavenfieldVR.Core
                     report("weapon let go 30 cm in the ground: GONE");
                     yield break;
                 }
-                float above = gun.Go.transform.position.y - ground.point.y;
+                // Against the ground where it ends, as the magazine's above: put back toward the eyes, it lies nearer, and on a slope
+                // a GREASER 5 cm above the terrain read as 12 cm under the ground where it was let go (2026-10-25). Buried, the
+                // ground over it is still found.
+                Vector3 gunEnd = gun.Go.transform.position;
+                float groundY = Physics.Raycast(gunEnd + Vector3.up * 0.5f, Vector3.down, out RaycastHit floor, 2f, ~PropPhysics.BodyMask & ~(1 << gun.Go.layer),
+                                                QueryTriggerInteraction.Ignore) ? floor.point.y : ground.point.y;
+                float above = gunEnd.y - groundY;
                 Metric("weapon let go 30 cm in the ground: cm above the ground after 1.5 s", above * 100f);
                 string under = "";
                 if (above < -0.1f)
@@ -4744,6 +4789,11 @@ namespace RavenfieldVR.Core
             // the numbers are then those of a match after the menu, not each weapon's first analysis and shape fits in the middle
             // of its checks (2026-10-21). The profiler starts again after it.
             PerfProbe.SetContext("preparing the weapons as the menu does");
+            while (!CodeWarmup.Step(50f))
+            {
+                yield return null; // the mod's code compiled as the menu compiles it, before the weapons there too
+            }
+            Results.Add("Compiled ahead: " + CodeWarmup.Summary);
             var prepared = System.Diagnostics.Stopwatch.StartNew();
             foreach (WeaponManager.WeaponEntry e in entries)
             {

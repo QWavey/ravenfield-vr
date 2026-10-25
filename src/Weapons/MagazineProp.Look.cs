@@ -295,8 +295,9 @@ namespace RavenfieldVR.Weapons
             Bounds analysed = rig.Data.MagBounds;
             Bounds b = MeasureCopy(go, out bool any);
             float size = b.size.magnitude, expected = analysed.size.magnitude;
-            // Only a copy shrunk or moved away is refused (after the shot the game left it at 3% and up to 60 cm off): between
-            // half and double and within 8 cm (at half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept).
+            // Refused: a copy drawn too small or too big (12 cm to 2 m long), or shrunk or moved away from what the analysis saw
+            // (after the shot the game left it at 3% and up to 60 cm off): kept between half and double the size and within
+            // 8 cm (at half again and 3 cm, the RPG-7V [PG-7VR]'s and the Panzerfaust's were never kept).
             bool fits = any && Longest(b) >= 0.12f && Longest(b) < 2f
                         && (expected < 0.02f || size > expected / 2f && size < expected * 2f && (b.center - analysed.center).magnitude < 0.08f);
             if (!fits)

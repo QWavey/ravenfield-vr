@@ -148,12 +148,24 @@ namespace RavenfieldVR.Weapons
             ActiveWeapon = weapon;
             ActiveRig = rig;
             ActiveAmmo = ammo;
+            // Each step timed on its own in a profiled run: drawing a weapon took 5-17 ms on average, up to 31 (2026-10-24).
+            string part = null;
+            void Step(string next)
+            {
+                if (part != null)
+                {
+                    Core.PerfProbe.End(part);
+                }
+                part = next != null && Core.PerfProbe.Part(next) ? next : null;
+            }
             try
             {
+                Step("draw: sounds, reload");
                 Sounds = new WeaponSoundPlayer(rig, system.Sounds);
                 Reload = new ReloadInteractions(system, this);
                 _magnifierFlip = new MagnifierFlip(system, this);
                 _magOriginalScales = rig.MagazinePartScales;
+                Step("draw: scope");
                 if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
                 {
                     _scope = new VRScope(system.Rig, rig);
@@ -162,7 +174,9 @@ namespace RavenfieldVR.Weapons
                 {
                     _modeScopes = new VRScope[rig.Data.Sights.Length];
                 }
+                Step("draw: counter");
                 _counter = new AmmoCounter(rig);
+                Step("draw: lenses, muzzle, materials");
                 FindScopeLenses(weapon);
                 GiveMuzzle(weapon, rig);
                 int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
@@ -172,12 +186,14 @@ namespace RavenfieldVR.Weapons
                 }
                 // A throwable is held by its middle before its stand-in is made from the grip: made first, the first hold of each
                 // kind had its stand-in about the animation's palm, off the grenade (gameplay workflow, 2026-10-24).
+                Step("draw: stand-in");
                 _isKit = IsKit(weapon);
                 if (rig.Data.Action == ActionType.Throwable && !_isKit)
                 {
                     CentreGrenadeGrip(rig, weapon);
                 }
                 _gunCollider = GunCollider.Create(rig);
+                Step("draw: renderers, casings, stock");
                 // Renderers that draw only a shadow (helper boxes a mod's reload animation uses, shadow proxies of a flat
                 // view model) put a dark blob on the ground under the player in VR, where the weapon is drawn in the world.
                 // Not drawn at all while held: switched from ShadowsOnly to Off they drew their mesh, which ShadowsOnly
@@ -232,6 +248,7 @@ namespace RavenfieldVR.Weapons
                         _stockButt = rig.Data.GripPoint + rig.Data.AimAxis * rear + rig.Data.Up * 0.03f;
                     }
                 }
+                Step("draw: arms, hands, handle");
                 if (VRConfig.HandsNow == HandsMode.WeaponArms && (rig.Data.ArmRight != null || rig.Data.ArmLeft != null) && rig.ArmRenderers.Length > 0)
                 {
                     _armIK = new ArmIK(system, this);
@@ -262,9 +279,11 @@ namespace RavenfieldVR.Weapons
                         Log.WarnOnce("boltpiece:" + rig.Data.Key, $"Could not build a moving handle for {rig.Data.Key}: {e.Message}");
                     }
                 }
+                Step(null);
             }
             catch (System.Exception)
             {
+                Step(null);
                 // What was built before the step that threw (lifecycle hunt, 2026-10-24): the attach's catch has no
                 // weapon to Release, so a scope's camera and render texture, the round counter and the moving handle (no
                 // parent) stayed, and the gun's shadow-only renderers and casing particles stayed switched off.
@@ -1573,9 +1592,25 @@ namespace RavenfieldVR.Weapons
             _renderedRootSet = true;
 
             bool part = Core.PerfProbe.Part("held: parts and hands"); // (timed apart in a profiled run)
+            // Each of the three on its own too: a 40 ms frame in it, once, about a second into a draw, named none of them (2026-10-25).
+            bool step = part && Core.PerfProbe.Part("held: parts and hands: parts");
             Reload.StepParts();
+            if (step)
+            {
+                Core.PerfProbe.End("held: parts and hands: parts");
+            }
+            step = part && Core.PerfProbe.Part("held: parts and hands: overrides");
             ApplyPartOverrides();
+            if (step)
+            {
+                Core.PerfProbe.End("held: parts and hands: overrides");
+            }
+            step = part && Core.PerfProbe.Part("held: parts and hands: hands");
             SnapHands(main, off);
+            if (step)
+            {
+                Core.PerfProbe.End("held: parts and hands: hands");
+            }
             if (part)
             {
                 Core.PerfProbe.End("held: parts and hands");

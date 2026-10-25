@@ -155,8 +155,20 @@ namespace RavenfieldVR.UI
 
         private static void Stretch(RectTransform rt, float left, float right) => UiKit.Stretch(rt, left, right);
 
-        private static Button MakeButton(RectTransform parent, string label, float x, float width, Action onClick, out Text text) =>
-            UiKit.MakeButton(parent, label, x, width, onClick, out text);
+        // Every button marks the panel for a refresh: its values change by hand (see Changed).
+        private Button MakeButton(RectTransform parent, string label, float x, float width, Action onClick, out Text text) =>
+            UiKit.MakeButton(parent, label, x, width, () =>
+            {
+                onClick();
+                Changed = true;
+            }, out text);
+
+        /// <summary>
+        /// A button was pressed since the last <see cref="Refresh"/>: refreshed at once then, and only every two seconds
+        /// otherwise (for values changed elsewhere: a preset's render scale, the measured eye height). Five times a second,
+        /// it built its fourteen value strings each time while open (allocation hunt, 2026-10-24).
+        /// </summary>
+        public bool Changed { get; private set; } = true;
 
         private RectTransform LabeledRow(string label)
         {
@@ -351,6 +363,7 @@ namespace RavenfieldVR.UI
 
         public void Refresh()
         {
+            Changed = false;
             foreach (Action r in _refreshers)
             {
                 r();

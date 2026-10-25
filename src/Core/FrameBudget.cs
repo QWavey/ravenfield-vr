@@ -62,6 +62,9 @@ namespace RavenfieldVR.Core
             {
                 _budgetMs = 1000f / RefreshRate(); // once a window
                 _gcAtStart = System.GC.CollectionCount(0);
+                // The mod's own time counted from here (the first window's figure was an average since VR started, menus and
+                // loading included; review, 2026-10-24).
+                VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames);
             }
             Buckets[Mathf.Min((int)(ms / BucketMs), Buckets.Length - 1)]++;
             _frames++;

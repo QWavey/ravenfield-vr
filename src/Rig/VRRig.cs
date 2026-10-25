@@ -1093,12 +1093,13 @@ namespace RavenfieldVR.Rig
             Camera.depthTextureMode = reference.depthTextureMode;
             Camera.useOcclusionCulling = reference.useOcclusionCulling;
             Camera.layerCullSpherical = reference.layerCullSpherical;
-            // layerCullDistances returns a fresh array on every read: copy it when the source camera changes and
-            // twice a second after that, not every frame.
+            // layerCullDistances returns a fresh array on every read: copy it when the source camera changes and every five
+            // seconds after that (the game sets them when its options apply or a level starts; twice a second was 320 bytes of
+            // garbage a second; allocation hunt, 2026-10-24).
             if (reference != _cullSource || Time.frameCount >= _nextCullCopy)
             {
                 _cullSource = reference;
-                _nextCullCopy = Time.frameCount + 45;
+                _nextCullCopy = Time.frameCount + 450;
                 float[] cull = reference.layerCullDistances;
                 if (cull != null && cull.Length == 32)
                 {

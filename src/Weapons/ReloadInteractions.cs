@@ -14,7 +14,8 @@ namespace RavenfieldVR.Weapons
     /// lock onto the insertion axis and slide with your hand; only full depth seats them (with the mod's mag-in
     /// sound). Released magazines slide out of the well before they fall. Slides, charging handles, bolts and
     /// pumps follow your hand along their real travel: the parts follow the hand. The glove grips the part it works (a
-    /// bolt, a handle, a cover's latch, an optic: GraspAnchor), never the gun's body.
+    /// bolt, a handle, a cover's latch, an optic: GraspAnchor) or, a support hand, the handguard or the gun's own
+    /// support point.
     /// </summary>
     public sealed partial class ReloadInteractions
     {
@@ -510,8 +511,9 @@ namespace RavenfieldVR.Weapons
                         // stayed on the handguard (it lets go only at 60 cm of stretch) and the rack never started, a rack being taken
                         // by a squeeze and this squeeze the handguard's (user, 2026-10-20 night: "i cannot pull back the bolt thingy
                         // again"; rack trace). As a new grab decides: well within the handle's zone, and the handle clearly nearer
-                        // than the handguard line (half its distance).
-                        Vector3 palmNow = off.Palm.position;
+                        // than the handguard line (half its distance). Measured on the gun as the gun hand alone holds it (see
+                        // PalmOnLiveGun): steered, the handle swung away from the palm coming for it.
+                        Vector3 palmNow = _held.TwoHanded ? PalmOnLiveGun(off.Palm.position) : off.Palm.position;
                         float dRack = RackZoneDistance(palmNow);
                         if (dRack < VRConfig.GrabRadius.Value && dRack < 0.5f * ForegripDistance(palmNow))
                         {
@@ -1205,8 +1207,23 @@ namespace RavenfieldVR.Weapons
         {
             WeaponRigData d = GripData;
             RigidPose hand = HeldWeapon.HoldFrame(_sys.Rig.Dominant, d);
-            Quaternion gunRot = hand.rotation * Runtime.RigidPose.Conjugate(d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
-            return hand.position + gunRot * (gunPoint - d.GripPoint);
+            return hand.position + UnsteeredRotation(hand, d) * (gunPoint - d.GripPoint);
+        }
+
+        private static Quaternion UnsteeredRotation(RigidPose hand, WeaponRigData d) =>
+            hand.rotation * Runtime.RigidPose.Conjugate(d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
+
+        /// <summary>
+        /// A world point (the off palm) put on the live gun where it lies on the gun as the gun hand alone holds it (the inverse of
+        /// <see cref="UnsteeredGunPoint"/>): measured against the live, steered gun, a support palm slid back toward the charging
+        /// handle chased it, the two-hand turn swinging the gun onto the palm, and stayed 8-11 cm off (2026-10-25: the
+        /// JOLT-20-S and the PATRIOT GL never took the handle, in every autotest).
+        /// </summary>
+        private Vector3 PalmOnLiveGun(Vector3 palm)
+        {
+            WeaponRigData d = GripData;
+            RigidPose hand = HeldWeapon.HoldFrame(_sys.Rig.Dominant, d);
+            return GripRig.ToWorld(d.GripPoint + Quaternion.Inverse(UnsteeredRotation(hand, d)) * (palm - hand.position));
         }
 
         /// <summary>The handguard point of the gun as the gun hand alone holds it: <see cref="HandguardPoint"/> without the two-hand turn.</summary>

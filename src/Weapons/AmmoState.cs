@@ -501,24 +501,39 @@ namespace RavenfieldVR.Weapons
             SpareAmmo = Mathf.Max(SpareAmmo, (int)System.Math.Min(cap, (long)SpareAmmo + rounds));
         }
 
-        private int _counterKey = int.MinValue;
+        private long _counterKey = long.MinValue;
+        /// <summary>
+        /// Each text made once per state: a full-auto gun changed its count every 6-9 frames and built a new string each time,
+        /// garbage collected in the middle of a fire fight (allocation hunt, 2026-10-24). A few dozen states a gun; capped.
+        /// </summary>
+        private readonly System.Collections.Generic.Dictionary<long, string> _counterTexts = new System.Collections.Generic.Dictionary<long, string>();
         private string _counterText = "";
 
-        /// <summary>Everything the counter text depends on, so the string is only rebuilt when something changed.</summary>
-        private int CounterKey()
+        /// <summary>
+        /// Everything the counter text depends on, exactly (rounds, capacity and flags each in their own bits: a mixed hash of
+        /// them could name two states alike, and the text cached for one would show for the other).
+        /// </summary>
+        private long CounterKey()
         {
-            int flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
-                        | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0);
-            return (MagRounds * 397) ^ (Capacity << 20) ^ (flags << 12);
+            long flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
+                         | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0);
+            return ((long)(uint)MagRounds << 32) | ((long)(Capacity & 0xFFFFF) << 12) | flags;
         }
 
         public string CounterText()
         {
-            int key = CounterKey();
+            long key = CounterKey();
             if (key != _counterKey)
             {
                 _counterKey = key;
-                _counterText = BuildCounterText();
+                if (!_counterTexts.TryGetValue(key, out _counterText))
+                {
+                    _counterText = BuildCounterText();
+                    if (_counterTexts.Count < 256)
+                    {
+                        _counterTexts[key] = _counterText;
+                    }
+                }
             }
             return _counterText;
         }
