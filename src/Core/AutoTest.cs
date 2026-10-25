@@ -1433,8 +1433,11 @@ namespace RavenfieldVR.Core
                         yield break;
                     }
                     Vector3 pos = body.position - rig.Root.position; // the rig itself may be carried by the player's body
-                    angles.Add(Quaternion.Angle(lastRot, body.rotation));
-                    moves.Add(Vector3.Distance(lastPos, pos));
+                    // As much as a 90 Hz headset frame would show: a frame longer than that (the busy PC's 30 fps) carried three
+                    // frames of a slow drift and read as a shake (the PKP's 0.4 deg frames, 2026-10-25; 0.00 at 13 ms frames).
+                    float toHeadsetFrame = Mathf.Min(1f, (1f / 90f) / Mathf.Max(Time.unscaledDeltaTime, 1e-4f));
+                    angles.Add(Quaternion.Angle(lastRot, body.rotation) * toHeadsetFrame);
+                    moves.Add(Vector3.Distance(lastPos, pos) * toHeadsetFrame);
                     lastPos = pos;
                     lastRot = body.rotation;
                 }
