@@ -520,7 +520,8 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Weapon w in actor.weapons)
             {
-                if (w != null && w.UserIsPlayer() && RigFor(w).Data.Key == prop.WeaponKey)
+                // (Its analysis's key, not a rig made for it: asked here, a rig was built and kept for every weapon only looked at.)
+                if (w != null && w.UserIsPlayer() && WeaponAnalyzer.Get(w).Key == prop.WeaponKey)
                 {
                     return StateFor(w, create: true);
                 }
