@@ -22,6 +22,8 @@ namespace RavenfieldVR.Weapons
         public readonly AmmoState Ammo;
         public readonly VRHand Hand;
         private readonly WeaponSystem _sys;
+        /// <summary>Its class (pistol, rifle, launcher...), as the gun hand would read it: its grip and its kick.</summary>
+        private readonly WeaponClass _class;
         private bool _firing;
         private Vector3 _kickPos, _kickPosVel;
         private Vector2 _kickRot, _kickRotVel;
@@ -100,12 +102,13 @@ namespace RavenfieldVR.Weapons
                 // from where its throw animation's palm was; second-weapon hunt, 2026-10-21).
                 HeldWeapon.CentreGrenadeGrip(rig, weapon);
             }
+            _class = Rig != null ? HeldWeapon.ClassOf(Rig, weapon) : WeaponClass.Rifle;
             if (hand.Model != null && Rig != null)
             {
                 // Its own grip pose, as the gun hand's: unset, every second weapon took the rifle grip, a pistol's thumb wrapped over
                 // its slide for the whole hold (hand hunt, 2026-10-20).
                 hand.Model.WeaponIsPistol = Rig.Data.IsPistol;
-                hand.Model.WeaponClass = HeldWeapon.ClassOf(Rig, weapon);
+                hand.Model.WeaponClass = _class;
                 hand.Model.WeaponGripCurls = Rig.Data.GripCurls;
                 hand.Model.WeaponGripThumbBase = Rig.Data.GripThumbBase;
                 hand.Model.WeaponGripThumbCurl = Rig.Data.GripThumbCurl;
@@ -418,7 +421,9 @@ namespace RavenfieldVR.Weapons
             // cycles the action on the shot, with its own sounds, so the stroke that follows only moves the rounds.
             _animatedCycle = Rig.Data.CyclesByHand && Weapon.animator != null && Weapon.animator.isActiveAndEnabled;
             Weapon.Configuration c = Weapon.configuration;
-            float kick = HeldWeapon.ShotKick(c, Rig.Data, Rig.Data.Handgun ? WeaponClass.Pistol : WeaponClass.Rifle, out float climbShare);
+            // (By its class as the gun hand reads it: a launcher or machine gun classed as a rifle by its handgun flag lost their kick
+            // floors in this hand; round-2 scout, 2026-10-27.)
+            float kick = HeldWeapon.ShotKick(c, Rig.Data, _class, out float climbShare);
             float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? 1.15f : 1.6f); // held in one hand
             _kickPosVel += new Vector3(0f, 0.1f * kick, -0.9f * kick * Mathf.Max(0.3f, 2f - climbShare)) * strength;
             _kickRotVel += new Vector2(-(180f * kick * climbShare), Random.Range(-25f, 25f)) * strength;
