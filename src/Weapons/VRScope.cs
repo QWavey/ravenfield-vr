@@ -83,39 +83,49 @@ namespace RavenfieldVR.Weapons
             _eyePoint = eyePoint;
             _eyeDirection = eyeDirection;
             _fov = fov;
-            _texture = TakeTexture(VRConfig.ScopeResolution.Value);
+            // Whatever it made given back if a step throws part way (the draw goes on without a lens: its picture, its object and
+            // its materials were left behind, a render texture each time).
+            try
+            {
+                _texture = TakeTexture(VRConfig.ScopeResolution.Value);
 
-            _root = new GameObject("RavenfieldVR Scope");
-            // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
-            // An ocular is 1-2.5 cm across the glass: a measured "lens" much bigger (a K13 ACOG's took the whole housing) was
-            // a dark disc as wide as the receiver beside the sight.
-            _radius = Mathf.Clamp(radius, 0.008f, 0.025f);
-            rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(eyeDirection, rig.Data.Up));
+                _root = new GameObject("RavenfieldVR Scope");
+                // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
+                // An ocular is 1-2.5 cm across the glass: a measured "lens" much bigger (a K13 ACOG's took the whole housing) was
+                // a dark disc as wide as the receiver beside the sight.
+                _radius = Mathf.Clamp(radius, 0.008f, 0.025f);
+                rig.AttachInGunSpace(_root.transform, lensPos, Quaternion.LookRotation(eyeDirection, rig.Data.Up));
 
-            var camGo = new GameObject("Scope Camera");
-            camGo.transform.SetParent(_root.transform, false);
-            camGo.transform.localPosition = new Vector3(0f, 0f, 0.02f);
-            _camera = camGo.AddComponent<Camera>();
-            _camera.targetTexture = _texture;
-            _noShadows = camGo.AddComponent<ScopeNoShadows>();
-            _noShadows.enabled = false;
-            _camera.stereoTargetEye = StereoTargetEyeMask.None;
-            _camera.nearClipPlane = 0.05f;
-            _camera.enabled = false;
-            vrRig.Suppressor.Ignore(_camera);
+                var camGo = new GameObject("Scope Camera");
+                camGo.transform.SetParent(_root.transform, false);
+                camGo.transform.localPosition = new Vector3(0f, 0f, 0.02f);
+                _camera = camGo.AddComponent<Camera>();
+                _camera.targetTexture = _texture;
+                _noShadows = camGo.AddComponent<ScopeNoShadows>();
+                _noShadows.enabled = false;
+                _camera.stereoTargetEye = StereoTargetEyeMask.None;
+                _camera.nearClipPlane = 0.05f;
+                _camera.enabled = false;
+                vrRig.Suppressor.Ignore(_camera);
 
-            EnsureAssets();
-            _lensMaterial = new Material(SpriteShader) { mainTexture = _texture, renderQueue = 3000 };
-            CreateDisc("Lens", _lensMaterial, 0f);
-            _reticleMaterial = new Material(SpriteShader) { mainTexture = _reticle, renderQueue = 3001 };
-            CreateDisc("Reticle", _reticleMaterial, -0.0008f);
-            _shadowMesh = Object.Instantiate(_disc);
-            _shadowMesh.name = "ScopeShadow";
-            _shadowMesh.MarkDynamic();
-            _shadowUv = _shadowMesh.uv;
-            _shadowMaterial = new Material(SpriteShader) { mainTexture = _shadow, renderQueue = 3002 };
-            CreateDisc("Shadow", _shadowMaterial, -0.0012f, _shadowMesh);
-            SetShadow(Vector2.zero);
+                EnsureAssets();
+                _lensMaterial = new Material(SpriteShader) { mainTexture = _texture, renderQueue = 3000 };
+                CreateDisc("Lens", _lensMaterial, 0f);
+                _reticleMaterial = new Material(SpriteShader) { mainTexture = _reticle, renderQueue = 3001 };
+                CreateDisc("Reticle", _reticleMaterial, -0.0008f);
+                _shadowMesh = Object.Instantiate(_disc);
+                _shadowMesh.name = "ScopeShadow";
+                _shadowMesh.MarkDynamic();
+                _shadowUv = _shadowMesh.uv;
+                _shadowMaterial = new Material(SpriteShader) { mainTexture = _shadow, renderQueue = 3002 };
+                CreateDisc("Shadow", _shadowMaterial, -0.0012f, _shadowMesh);
+                SetShadow(Vector2.zero);
+            }
+            catch
+            {
+                Destroy();
+                throw;
+            }
         }
 
         /// <summary>
