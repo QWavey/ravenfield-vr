@@ -2794,6 +2794,20 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### 346. Ideas from the user (2026-10-27 night, not started)
+- [ ] (a) A hand swung against a soldier's gun knocks it aside with his arms (his aim pushed off the player for a moment), without
+      taking it from him.
+- [ ] (b) Grabbing a soldier's gun: take hold of it in his hands (wrest it away, or hold it pointed off).
+- [ ] (c) Pulling the magazine out of a soldier's gun: he has to reload before he fires again.
+
+### For 345: surface grabs (2026-10-27 night)
+- The drawn hand goes on the body where the palm met the taken bone's surface (BodyGrab.SurfaceAt: nearest surface point from
+  outside; from inside, out across the capsule, box or sphere), a hand's skin (2 cm) off it, and its fingers close round the
+  bone (HandModel solid, HandRole.Body). The physics hold stays at the bone's centre as before: pinning the touched point
+  levered the body round it (15-68 m/s bones), and pulling the body onto the palm put it into the ground when the hand was
+  there (the lying body at 20 m/s). Reach 0.18 -> 0.16 m. Soldier check surface-c: 1 problem (the human shield's 46 m/s bone
+  while shot), snap 0.7, lying 1.8, running 9.3, turning 2.0, friends pass. The glove's drawn place not checked in a picture.
+
 ### For 345: friends, the three open test items, performance (2026-10-27 night, work-until-limit 80; nothing pushed)
 
 - Friends ("things work on enemies more than on friendlies": user): the neck hold, thrown or slammed bodies, the strapped
