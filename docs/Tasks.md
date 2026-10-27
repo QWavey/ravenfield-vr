@@ -2794,6 +2794,17 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
+- Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
+  thread. Ultra (scale 1.2, MSAA 4x, shadows 100 m, LOD 1.5): 19%, 22 ms, GPU 11. Medium (scale 0.9, MSAA 2x, shadows 30 m, LOD
+  0.7): 2-6%, 22.3 ms (SteamVR's half rate, 45 fps) with the GPU at only 7 ms: the eyes' render on the main thread 3.5 ms (3.6x
+  Game's), FinishFrameRendering 5.6, Update scripts 3.1, physics 1.1, the scene grown to 273 bodies (58 awake), 5158 renderers.
+  The work a frame (about 14 ms, PlayerSendFrameStarted's wait aside) is past the 11.1 ms budget, so SteamVR holds half rate.
+- [ ] NEXT: bring Medium's CPU under the budget: what of the eyes' 3.5 ms is the shadow pass (paid per eye in multi-pass: try
+      shadows from a few big casters only, or a shorter distance/cascade) and what is LOD bias 0.7 (more renderers drawn); measure
+      each with the frame rate line in a headset session or the bench at 1508x1664. Also the 27 garbage collections in the first
+      minute (loading?).
+
 ### 347. A magazine pushed in stays in the hand until the user lets go (user, 2026-10-27 night, not started)
 - [ ] When a magazine is inserted and seats, the hand stays on it (the glove on the seated magazine) until the user opens the
       grip, instead of being let go at the seat. While still held from the insert it cannot be pulled out again: to take it out the
