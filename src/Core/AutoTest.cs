@@ -3635,7 +3635,7 @@ namespace RavenfieldVR.Core
                         bool took = dom.Role == Rig.HandRole.Body || BodyGrab.IsHeld(first);
                         yield return Snap("00-gun-hand-does-not-grab", first.CenterPosition());
                         Input.VRInput.SimulatedGrab[ds] = false;
-                        report($"gun hand: {(took ? "GRABBED A SOLDIER WITH THE GUN IN THE HAND" : $"the grip on the gun ({gun.Weapon.name}) takes no soldier")}");
+                        report($"gun hand: {(took ? "GRABBED A SOLDIER WITH THE GUN IN THE HAND" : $"the grip on the gun ({(gun.Weapon != null ? gun.Weapon.name : "gone since")}) takes no soldier")}");
                     }
                     else
                     {
