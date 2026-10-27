@@ -41,6 +41,15 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private const float SqueezeNear = 0.35f;
         private readonly bool[] _squeezedNear = new bool[2];
+        /// <summary>How fast each hand moved as its squeeze began (m/s, against the body).</summary>
+        private readonly float[] _squeezeSpeed = new float[2];
+
+        /// <summary>
+        /// A hand faster than this after its squeeze swings (a punch): faster than a reach, and faster than it was as it squeezed,
+        /// by half a metre a second. A punch closes the fist and then speeds up; a reach for a moving soldier squeezes still moving
+        /// fast and slows down to him (spent by the speed alone, a quick reach would grab the air again).
+        /// </summary>
+        private float SwungSpeed(int i) => Mathf.Max(GrabMaxSpeed, _squeezeSpeed[i] + 0.5f);
 
         /// <summary>How long after the throw the body's impacts still hurt.</summary>
         private const float ImpactsAfterThrow = 3f;
@@ -311,8 +320,9 @@ namespace RavenfieldVR.Weapons
                     if (hand.GrabPressed)
                     {
                         _squeezedNear[i] = SoldierNear(hand.PalmCentre, player); // (where this squeeze began)
+                        _squeezeSpeed[i] = hand.BodyRelativeVelocity.magnitude;
                     }
-                    else if (_squeezedNear[i] && hand.BodyRelativeVelocity.sqrMagnitude > GrabMaxSpeed * GrabMaxSpeed)
+                    else if (_squeezedNear[i] && hand.BodyRelativeVelocity.sqrMagnitude > SwungSpeed(i) * SwungSpeed(i))
                     {
                         // Swung after the squeeze: a punch, not a reach. A fist closed near a soldier and thrown took hold as the punch
                         // slowed on him (within the grab window) and knocked him over instead of punching (user, 2026-10-25: "I
