@@ -19,7 +19,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Called just before a soldier dies (its weapons are destroyed right after).</summary>
         public void OnActorDying(Actor actor, DamageInfo info)
         {
-            if (!VRConfig.EnemyWeaponDrops.Value || actor == null || !actor.aiControlled)
+            // (None kept at all: no drop built on the death frame only for the cull at its end to destroy it again.)
+            if (!VRConfig.EnemyWeaponDrops.Value || VRConfig.MaxDroppedWeapons.Value <= 0 || actor == null || !actor.aiControlled)
             {
                 return;
             }
