@@ -341,6 +341,19 @@ namespace RavenfieldVR.Weapons
             HandBody.Follow(_rig, canHold);
         }
 
+        /// <summary>
+        /// Whether hand <paramref name="i"/>'s squeeze is a reach for a soldier: made near one, in the grab window, and the hand not
+        /// sped up past its speed at the squeeze since (a punch speeds up after the squeeze, a reach slows into him). Its fist does not
+        /// punch him then (MeleeHandler.HandBlows): a quick reach squeezed on the way met his arm at 3 m/s, punched it, and the blow
+        /// kept the hand from taking hold for 0.6 s ("my hand grabs the air many times": user, 2026-10-25; final test, 2026-10-27).
+        /// </summary>
+        internal static bool Reaching(int i)
+        {
+            BodyGrab g = _instance;
+            return g != null && i >= 0 && i < 2 && g._holds[i] == null && g._squeezedNear[i] && g._rig.Hands[i] != null
+                   && VRInput.GetPressedRecently(DigitalAction.Grab, g._rig.Hands[i].Side, GrabWindow);
+        }
+
         /// <summary>Autotest: why the last squeeze near a soldier took no one.</summary>
         internal static string WhyNot = "";
 
@@ -399,7 +412,9 @@ namespace RavenfieldVR.Weapons
             }
             try
             {
-                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated() && best.team != player.team
+                // Any soldier, a friend as well as an enemy: the game lets the player's bullets and knife hurt his own side, and the neck
+                // was the one hold a friend escaped ("things work on enemies more than on friendlies": user, 2026-10-27).
+                if (!best.dead && !best.ragdoll.IsRagdoll() && !best.IsSeated()
                     && other == null && FromBehind(best, player) && NearHead(best, palm))
                 {
                     TakeNeck(i, hand, best);
@@ -893,13 +908,15 @@ namespace RavenfieldVR.Weapons
                 CarryAt = new Vector3[bones.Length];
                 CarryTurn = new Quaternion[bones.Length];
             }
+            // From the physics' own poses (Rigidbody), not the drawn ones: a held body is drawn extrapolated (DrawAhead), each bone
+            // carried on by its own speed and spin, and those poses do not fit its joints. Written back as the new physics poses, the
+            // solver pulled the joints together again in one step: an arm at 14.6 m/s after a snap turn (final test, 2026-10-27).
             for (int k = 0; k < bones.Length; k++)
             {
                 if (bones[k] != null)
                 {
-                    Transform b = bones[k].transform;
-                    CarryAt[k] = toPalm + turn * (b.position - fromPalm);
-                    CarryTurn[k] = turn * b.rotation;
+                    CarryAt[k] = toPalm + turn * (bones[k].position - fromPalm);
+                    CarryTurn[k] = turn * bones[k].rotation;
                 }
             }
             for (int k = 0; k < bones.Length; k++)
@@ -1648,7 +1665,8 @@ namespace RavenfieldVR.Weapons
 
         private static void Hurt(Actor a, float damage, float speed, Vector3 point, Vector3 dir, Collider against)
         {
-            if (a == null || a.dead || _by != null && a.team == _by.team)
+            // (A friend thrown or slammed is hurt as an enemy is: the player's bullets hurt his own side too.)
+            if (a == null || a.dead)
             {
                 return;
             }
@@ -1811,9 +1829,9 @@ namespace RavenfieldVR.Weapons
             Actor a = _carrier;
             _carrier = null;
             Actor by = _projectile != null ? _projectile.killCredit : null;
-            if (a == null || a.dead || by != null && a.team == by.team)
+            if (a == null || a.dead)
             {
-                return; // (one of the thrower's own team: the grenade's own explosion only, as the game deals it)
+                return; // (a friend it is strapped to dies of it as well: the player chose to strap it there)
             }
             try
             {

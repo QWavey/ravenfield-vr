@@ -1028,7 +1028,8 @@ namespace RavenfieldVR.Weapons
                 VRHand h = _sys.Rig.Hands[i];
                 // An empty hand closed into a fist punches (user, 2026-10-24: "I cannot punch them with my hands if they are fists";
                 // Boneworks' hands are physical, and their impacts are blunt attacks): a free hand with its grip closed.
-                bool fist = canFist && h != null && h.Tracked && h.Role == HandRole.Free && h.Held == null && VRInput.GetGrip(h.Side) > 0.6f;
+                bool fist = canFist && h != null && h.Tracked && h.Role == HandRole.Free && h.Held == null && VRInput.GetGrip(h.Side) > 0.6f
+                            && !BodyGrab.Reaching(i); // (a hand reaching to take hold of a soldier does not punch him on the way)
                 object what = fist ? Fists[i]
                     : !can || h == null || !h.Tracked ? null
                     : h.Held is MagazineProp prop && prop.Go != null ? prop
@@ -1082,7 +1083,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Collider[] NearBuffer = new Collider[32];
 
         /// <summary>
-        /// Whether a soldier a blow could hurt (alive, of another team, not the player) has a collider within a capsule round a
+        /// Whether a soldier a blow could hurt (alive, of either team, not the player) has a collider within a capsule round a
         /// line: none, and no sweep along that line can hit one.
         /// </summary>
         private static bool SoldierNear(Actor user, Vector3 lineFrom, Vector3 lineTo, float radius)
@@ -1096,9 +1097,9 @@ namespace RavenfieldVR.Weapons
             {
                 Collider c = NearBuffer[i];
                 Hurtable h = c != null ? BodyGrab.HurtableOf(c) : null;
-                if (h != null && h != user && !(h is Actor soldier && soldier.dead) && h.team != user.team)
+                if (h != null && h != user && !(h is Actor soldier && soldier.dead))
                 {
-                    return true;
+                    return true; // (a friend too: the game's own knife and the player's bullets hurt his own side)
                 }
             }
             return false;
@@ -1183,7 +1184,7 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     Hurtable target = BodyGrab.HurtableOf(h.collider);
-                    if (target == null || target == user || target is Actor a && a.dead || target.team == user.team)
+                    if (target == null || target == user || target is Actor a && a.dead)
                     {
                         continue;
                     }
