@@ -272,7 +272,10 @@ namespace RavenfieldVR.Weapons
                 Log.WarnOnce("idledrop:" + e.name, $"Building the dropped model of {e.name} while idle failed: {ex.Message}");
                 NoModel.Add(e);
             }
-            if (watch.Elapsed.TotalMilliseconds > 30.0)
+            // In the follow view (dead, the headset still showing the match) a step over 4 ms waits a second too: a template or a
+            // shape fit of 5-30 ms ran on every frame there, each one a third of a 90 Hz frame or more (perf scouts, 2026-10-27).
+            double took = watch.Elapsed.TotalMilliseconds;
+            if (took > 30.0 || !GameContext.GameMenuOpen && took > 4.0)
             {
                 _nextIdleBuild = now + 1f;
             }
