@@ -4443,7 +4443,12 @@ namespace RavenfieldVR.Core
                         ConfigurableJoint j = joints[k];
                         if (j != null && j.connectedBody != null)
                         {
-                            most = Mathf.Max(most, (j.transform.TransformPoint(j.anchor) - j.connectedBody.transform.TransformPoint(j.connectedAnchor)).magnitude);
+                            // The physics' poses (Rigidbody), not the drawn ones: a held body is drawn extrapolated, each bone carried on by its
+                            // own speed, and the drawn joints stood apart by a frame's difference of speeds.
+                            Rigidbody self = j.GetComponent<Rigidbody>(), other = j.connectedBody;
+                            Vector3 mine = self != null ? self.position + self.rotation * Vector3.Scale(j.anchor, j.transform.lossyScale) : j.transform.TransformPoint(j.anchor);
+                            Vector3 theirs = other.position + other.rotation * Vector3.Scale(j.connectedAnchor, other.transform.lossyScale);
+                            most = Mathf.Max(most, (mine - theirs).magnitude);
                         }
                     }
                     return most;
@@ -4581,8 +4586,17 @@ namespace RavenfieldVR.Core
                 // A punch with the fist squeezed by the grip (the Grab press, as a controller's grip button gives it) away from the soldier,
                 // then swung into him at 3 m/s: a punch, not a hold (user, 2026-10-25: "punching enemies doesn't work"; the fists above
                 // close by the grip's pull alone, which never takes hold).
+                // The gun put away for the squeezed fists: drawn (the gun-drawn step leaves it in the gun hand), the off hand's squeeze
+                // took it instead, the off hand stayed a weapon hand and every step after was skipped (final test, 2026-10-27).
+                int punchGunSlot = player.activeWeapon != null && player.weapons != null ? Array.IndexOf(player.weapons, player.activeWeapon) : -1;
+                if (player.activeWeapon != null)
+                {
+                    player.HolsterActiveWeapon();
+                    yield return new WaitForSecondsRealtime(0.8f);
+                }
                 Actor punchedAt = Next(false);
-                yield return Bring(punchedAt, 0.8f, false, there);
+                // 1.2 m ahead: brought at 0.8 m, "90 cm before his middle" put the fist 10 cm behind the player's own middle.
+                yield return Bring(punchedAt, 1.2f, false, there);
                 if (!there[0] || off.Role != Rig.HandRole.Free)
                 {
                     report($"punch with a squeezed fist: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
@@ -4642,6 +4656,8 @@ namespace RavenfieldVR.Core
                     yield return null;
                     yield return null;
                     bool pressed = false;
+                    BodyGrab.WhyNot = "no take tried";
+                    float reachHp = reachedFor.health;
                     for (float d = 0f; d < 0.5f;)
                     {
                         float v = d < 0.2f ? 3f : Mathf.Lerp(3f, 0.4f, (d - 0.2f) / 0.3f);
@@ -4659,9 +4675,21 @@ namespace RavenfieldVR.Core
                     bool reachTook = BodyGrab.IsHeld(reachedFor);
                     Input.VRInput.SimulatedGrip[os] = 0f;
                     yield return LetGo();
-                    report($"quick reach squeezed on the way (3 m/s, slowing to him): {(reachTook ? "took hold of him" : "NOT TAKEN: the reach grabbed the air")}");
+                    report($"quick reach squeezed on the way (3 m/s, slowing to him): {(reachTook ? "took hold of him" : "NOT TAKEN: the reach grabbed the air")}"
+                           + (reachTook ? "" : $" [{BodyGrab.WhyNot}; {(reachedFor.health < reachHp - 0.5f ? "a blow landed on the way" : "no blow")}, "
+                                               + $"{Time.time - MeleeHandler.LastHandBlow[os]:0.00} s since the hand's last blow; {(reachedFor.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm]"));
                 }
 
+                // The gun back in the gun hand for the walks (carried as a player carries it) and the gun's sweep through a soldier.
+                if (punchGunSlot >= 0 && sys.Held == null)
+                {
+                    player.SwitchWeapon(punchGunSlot);
+                    for (float until = Time.realtimeSinceStartup + 4f; sys.Held == null && Time.realtimeSinceStartup < until;)
+                    {
+                        yield return null;
+                    }
+                    GunToHip();
+                }
                 yield return WalkWith("at the chest", -0.3f);
                 yield return WalkWith("at the chest, running", -0.3f, run: true);
                 yield return WalkWith("at the chest, turning", -0.3f, turn: VRConfig.SmoothTurnSpeed.Value);
@@ -4755,6 +4783,83 @@ namespace RavenfieldVR.Core
                            + $"his hips pushed {fistMoved * 100f:0} cm{(lying && fistMoved < 0.03f ? " (NOT PUSHED: the fist went through him)" : "")}, fastest bone {fistFastest:0.0} m/s"
                            + $"{(fistFastest > 10f ? " (NOT STILL: the body went wild)" : "")}");
                     OffAt(offRaw.position + offPalmFromRaw);
+                }
+
+                // 12. The player's own side (user, 2026-10-27: "things are working on enemies more than on friendlies, check that it
+                // works on everyone"): a friend taken hold of, punched, and taken by the neck from behind, as the enemies above.
+                var friends = new List<Actor>();
+                foreach (Actor a in ActorManager.instance.actors)
+                {
+                    if (a != null && a != player && a.aiControlled && a.team == player.team && a.ragdoll != null && a.controller != null && !a.dead)
+                    {
+                        friends.Add(a);
+                    }
+                }
+                friends.Sort((x, y) => (x.CenterPosition() - player.transform.position).sqrMagnitude.CompareTo((y.CenterPosition() - player.transform.position).sqrMagnitude));
+                if (friends.Count == 0)
+                {
+                    report("friends: skipped (no bot on the player's side)");
+                }
+                else if (off.Role != Rig.HandRole.Free)
+                {
+                    report($"friends: skipped (the free hand is {off.Role})");
+                }
+                else
+                {
+                    Actor FriendAt(int k) => friends[k % friends.Count];
+                    Actor taken = FriendAt(0);
+                    yield return Bring(taken, 0.8f, false, there);
+                    string takenNote = "the soldier could not be brought: " + broughtNote;
+                    bool friendTaken = false;
+                    if (there[0])
+                    {
+                        yield return Take(taken.CenterPosition(), hit);
+                        friendTaken = hit[0];
+                        takenNote = friendTaken ? $"{taken.name} taken" : $"NOT TAKEN ({BodyGrab.WhyNot})";
+                        yield return LetGo();
+                    }
+                    Actor punched = FriendAt(1);
+                    string punchNote = "skipped";
+                    yield return Bring(punched, 0.8f, false, there);
+                    if (there[0])
+                    {
+                        float hp = punched.health;
+                        yield return Punch(off, punched, Vector3.zero, hit);
+                        Input.VRInput.SimulatedGrip[os] = 0f;
+                        punchNote = hit[0] ? $"punched {punched.name}, health {hp:0} -> {Health(punched)}" : "NO HIT on the friend at 7 m/s";
+                        OffAt(offRaw.position + offPalmFromRaw);
+                    }
+                    Actor necked = FriendAt(2);
+                    string neckNote = "skipped";
+                    yield return Bring(necked, 0.6f, true, there);
+                    if (there[0])
+                    {
+                        Vector3 head = necked.CenterPosition() + Vector3.up * 0.45f;
+                        try
+                        {
+                            Transform h = necked.ragdoll.HumanBoneTransformAnimated(HumanBodyBones.Head);
+                            head = h != null ? h.position : head;
+                        }
+                        catch (Exception)
+                        {
+                            // a rig without the head mapped: above the centre
+                        }
+                        Quaternion grip = Quaternion.LookRotation(flat, Vector3.up);
+                        OffAt(head, grip);
+                        yield return null;
+                        Input.VRInput.SimulateGrabPress(off.Side);
+                        yield return new WaitForSecondsRealtime(0.4f);
+                        bool friendNeck = BodyGrab.HoldsNeck(off) && !necked.ragdoll.IsRagdoll();
+                        for (int i = 1; i <= 8; i++)
+                        {
+                            OffAt(head, Quaternion.AngleAxis(-12f * i, flat) * grip);
+                            yield return null;
+                        }
+                        yield return new WaitForSecondsRealtime(0.3f);
+                        neckNote = $"{(friendNeck ? "held by the neck" : "NOT HELD BY THE NECK")}, {(necked.dead ? "the turn broke it (dead)" : "NOT KILLED by the turn")}";
+                        yield return LetGo();
+                    }
+                    report($"friends ({friends.Count} on the player's side): grab: {takenNote}; fist: {punchNote}; neck ({necked.name}): {neckNote}");
                 }
             }
             finally
