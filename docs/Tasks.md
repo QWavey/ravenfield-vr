@@ -5,7 +5,10 @@ under "All tasks" every task as written; the notes ("For NNN") at the end.
 
 ## At a glance (2026-10-25)
 
-- Tasks: 343 (numbered 1-343). Done: 156. Open: 187, most of them code done and waiting for a check in the headset.
+- Tasks: 344 (numbered 1-344). Done: 156. Open: 188, most of them code done and waiting for a check in the headset.
+- 344 (2026-10-27, work-until-limit 40, not pushed: the user's GitHub has problems): bug hunt, improve and optimize with two
+  Haiku workflow rounds; the hand-to-body delay (the anchor at the step's own time, held bones drawn extrapolated), scout fixes
+  (For 344). Tested only at the end, as the user asked.
 - 1.13.0 (2026-10-25): 342 (the hand's grab anchor: no more flinging, spinning or long bodies; user: "fixed!!") and 343 (punches, neck, grenade countdown,
   gun and fist collisions with soldiers, the full magazine drawn full).
 - 342: held soldiers spun, flung and slipped out of the hand walking or running because the grab anchor was kinematic (PhysX solved
