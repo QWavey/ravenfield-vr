@@ -42,9 +42,10 @@ namespace RavenfieldVR.Weapons
         private int _followedFrame;
 
         /// <summary>
-        /// The layer the fists use, set to meet ragdoll bones only: one with no name that no renderer or collider of the scene is on
-        /// (unnamed was not enough: a map or a mod may still use one, and its objects would have stopped colliding with anything
-        /// but ragdolls), not the shape camera's (GunVolume) nor the held gun's hiding place. Chosen as a scene loads
+        /// The layer the fists use, set to meet ragdoll bones only: one with no name that no collider of the scene is on (unnamed was
+        /// not enough: a map or a mod may still use one, and its colliders would have stopped colliding with anything but ragdolls),
+        /// not the shape camera's (GunVolume) nor the held gun's hiding place. Renderers do not count: a layer's collisions are
+        /// nothing to them, and with them counted the full mod list's island2023 left no layer at all (final test, 2026-10-27). Chosen as a scene loads
         /// (<see cref="OnSceneLoaded"/>, a scene-wide search) or on the first fist; a layer given up gets back the collisions it had.
         /// -1 when none is free (no fist physics then).
         /// </summary>
@@ -59,10 +60,6 @@ namespace RavenfieldVR.Weapons
                 }
                 _layerScene = scene;
                 var used = new bool[32];
-                foreach (Renderer r in Object.FindObjectsOfType<Renderer>())
-                {
-                    used[r.gameObject.layer] = true;
-                }
                 foreach (Collider c in Object.FindObjectsOfType<Collider>())
                 {
                     if (c.GetComponent<HandBody>() == null)
@@ -112,7 +109,20 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
-                Log.Info(_layer >= 0 ? $"Fist physics on layer {_layer} (meets ragdoll bones only)." : "Fist physics: no free layer in this scene, fists push nothing.");
+                if (_layer >= 0)
+                {
+                    Log.Info($"Fist physics on layer {_layer} (meets ragdoll bones only).");
+                }
+                else
+                {
+                    var taken = new System.Text.StringBuilder();
+                    for (int l = 23; l < 32; l++)
+                    {
+                        string name = LayerMask.LayerToName(l);
+                        taken.Append($" {l}:{(used[l] ? "collider" : !string.IsNullOrEmpty(name) ? name : l == PropPhysics.HiddenFromPlayerLayer ? "hidden gun" : l == shapeLayer ? "shapes" : "?")}");
+                    }
+                    Log.Info($"Fist physics: no free layer in this scene, fists push nothing (layers{taken}).");
+                }
                 return _layer;
             }
         }
