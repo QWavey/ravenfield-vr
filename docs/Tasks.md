@@ -2819,7 +2819,13 @@ array (debug option only).
   overlays live there), dropped weapons' and magazines' shadows (only with shadows on), the GunVolume cache's 60-140 MB (its
   own trade, 5c9af24), the water-drop scratch's 14 MB (only with WaterDrops on).
 - The user's own bottleneck is not in these runs (they hold 90 Hz): the frame rate line in a headset session's log now says
-  which phase and camera take the time.
+  which phase and camera take the time. vrshots keeps the user's last session log as BepInEx/LogOutput.player.log.
+- Full autotest with all mods (final-345, 70 guns, 15 min): 2 problems (GREASER rack grip as before; the fist through a lying
+  body pushed 1 cm, 7-31 cm in the soldier checks). But the frame rate DECAYED over the run: 98% at 7.8 ms in the first minute,
+  91% at 11.3 in the tenth, then 49% 13.5, 1% 17.8, 0% 25.5 ms (GPU 2.5 -> 4); every phase two to four times dearer (eyes
+  1.16 -> 3.57 ms, physics 0.19 -> 3.15, Update scripts 0.88 -> 3.89, even the UI camera 0.46 -> 1.09), unnamed cameras
+  (weapons' own scope cameras?) appearing. The fast autotest did not decay; auto1 mildly (8.3 -> 11.5). NEXT: run a long session
+  and read the new scene counts (bodies awake, renderers, cameras, managed MB) beside the decay: piling up, or a hot laptop.
 
 ### For 344: final test after the 40% ceiling (2026-10-27 evening; nothing pushed)
 
