@@ -981,6 +981,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Dictionary<string, ShapeFit.Piece[]> ScaledShapes = new Dictionary<string, ShapeFit.Piece[]>();
         private static readonly Dictionary<WeaponManager.WeaponEntry, int> EntryNumbers = new Dictionary<WeaponManager.WeaponEntry, int>();
+        /// <summary>The last number given (never reset: emptied on a content reload, the table must not give a number twice).</summary>
+        private static int _entryNumbers;
 
         /// <summary>
         /// The name a weapon entry's shape caches are kept under: its display name and its own number. Two entries can share a
@@ -991,7 +993,7 @@ namespace RavenfieldVR.Weapons
         {
             if (!EntryNumbers.TryGetValue(entry, out int number))
             {
-                number = EntryNumbers.Count + 1;
+                number = ++_entryNumbers;
                 EntryNumbers[entry] = number;
             }
             return entry.name + "#" + number;
@@ -1141,6 +1143,7 @@ namespace RavenfieldVR.Weapons
             // for the session and its kills fell back to the box and late fit; bug hunt, 2026-10-23).
             IdleFailed.Clear();
             IdleBuilds.Clear(); // (the old content's entries: queued again from what the soldiers carry now)
+            EntryNumbers.Clear(); // (the replaced content's entries; the numbers go on from the last one)
             RenderedShapes.Clear();
             ScaledShapes.Clear();
             LateFitsUnderway.Clear();
