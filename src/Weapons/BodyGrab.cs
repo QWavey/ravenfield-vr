@@ -1002,6 +1002,8 @@ namespace RavenfieldVR.Weapons
         // The last frames' samples (game time, the hand's place against the body, the hand itself, its turn), newest at _newest: each
         // physics step takes the hand as it was a fixed time before the step, between two of them (see FixedUpdate).
         private const int Samples = 8;
+        /// <summary>How far past the newest sample the hand is carried on (in sample spans: one more frame at most).</summary>
+        private const float AnchorAhead = 2f;
         private readonly float[] _time = new float[Samples];
         private readonly Vector3[] _from = new Vector3[Samples], _palm = new Vector3[Samples];
         private readonly Quaternion[] _turn = new Quaternion[Samples];
@@ -1098,10 +1100,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            // The hand as it was a fixed time before this step (a physics step and a frame: always between two frames' samples): taken
-            // as the last frame left it, a turn of the view (applied once a frame) reached the anchor in uneven steps, one or two
-            // frames of it a step. (Between the last two samples only, the step was sometimes before both and the steps went uneven.)
-            float at = Time.fixedTime - Time.fixedDeltaTime - 0.012f;
+            // The hand as it is at this step's time, on the line through the frames' samples: taken as the last frame left it, a turn of
+            // the view (applied once a frame) reached the anchor in uneven steps, one or two frames of it a step. At the step's own time,
+            // not a step and a frame before it (always between two samples, for the kinematic anchor's sake): the body trailed the hand
+            // by about 45 ms, 9 cm at a 2 m/s swing ("a grab delay between my hand and the body": user, 2026-10-25). The newest sample
+            // is a frame old at most, so this looks a frame ahead at most (AnchorAhead).
+            float at = Time.fixedTime;
             int newer = _newest, older = _newest;
             for (int k = 1; k < _count; k++)
             {
@@ -1114,7 +1118,7 @@ namespace RavenfieldVR.Weapons
                 newer = i;
             }
             float span = _time[newer] - _time[older];
-            float u = span > 1e-5f ? Mathf.Clamp01((at - _time[older]) / span) : 1f;
+            float u = span > 1e-5f ? Mathf.Clamp((at - _time[older]) / span, 0f, AnchorAhead) : 1f;
             // From the player's physics body, which moves in the physics step only (the camera point the rig follows, and its parent,
             // also move once a frame: from them the anchor still went by uneven steps, 3.5 m/s off the step before while walking
             // steadily). (Not on foot, or the player gone since the frame: the hand as it was.)
@@ -1122,8 +1126,8 @@ namespace RavenfieldVR.Weapons
             {
                 Carried(_player.position);
             }
-            Vector3 place = _player != null ? _player.position + Vector3.Lerp(_from[older], _from[newer], u) : Vector3.Lerp(_palm[older], _palm[newer], u);
-            Quaternion facing = Quaternion.Slerp(_turn[older], _turn[newer], u);
+            Vector3 place = _player != null ? _player.position + Vector3.LerpUnclamped(_from[older], _from[newer], u) : Vector3.LerpUnclamped(_palm[older], _palm[newer], u);
+            Quaternion facing = Quaternion.SlerpUnclamped(_turn[older], _turn[newer], u);
             // Set going at the speed that takes it there in this step (see the class: the joint's physics sees how fast it moves).
             float dt = Time.fixedDeltaTime;
             _body.velocity = (place - _body.position) / dt;
