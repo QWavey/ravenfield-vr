@@ -1937,6 +1937,10 @@ namespace RavenfieldVR.Weapons
             {
                 return; // that glove is on the second weapon's own grip pose (cleared here every frame, it grasped 4.3 cm off its grip)
             }
+            if (off.Role == HandRole.Body)
+            {
+                return; // nor while it holds a soldier: its glove is on him where it took hold (BodyGrab), cleared here every frame
+            }
             if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
                 && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
             {

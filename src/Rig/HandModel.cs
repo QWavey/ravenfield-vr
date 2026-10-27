@@ -1113,9 +1113,9 @@ namespace RavenfieldVR.Rig
             return l.z > lo.z - g && l.z < hi.z + g && l.y > lo.y - g && l.y < hi.y + g && x > lo.x - g && x < hi.x + g;
         }
 
-        /// <summary>Holding a measured weapon by its grip or handguard: palm and fingers close on its model.</summary>
+        /// <summary>Holding a measured weapon by its grip or handguard, or a soldier by a bone: palm and fingers close on its model.</summary>
         private bool Closing => Solid != null && !ClosingDisabled && (_hand.Role == HandRole.Weapon || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Throwable
-                                                                       || _hand.Role == HandRole.Magazine || _hand.Role == HandRole.Slide);
+                                                                       || _hand.Role == HandRole.Magazine || _hand.Role == HandRole.Slide || _hand.Role == HandRole.Body);
 
         private Quaternion JointRest(int f, int s) => f == 0 && s == 0 ? _thumbBase : _restRotations[f][s];
 

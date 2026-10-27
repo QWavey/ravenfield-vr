@@ -29,7 +29,12 @@ namespace RavenfieldVR.Weapons
         /// How far from the fist's hollow a soldier's collider may be to be taken (13 cm, and a hand reaching for a walking soldier
         /// "grabs the air many times": user, 2026-10-25).
         /// </summary>
-        private const float Reach = 0.18f;
+        private const float Reach = 0.16f;
+        /// <summary>
+        /// The drawn hand's middle (the fist's hollow) sits this far off the taken bone's surface: the palm on a chest, the fingers
+        /// round an arm or a leg (m).
+        /// </summary>
+        private const float HandSkin = 0.02f;
         /// <summary>How long a squeeze of the grip still takes a soldier the hand reaches (s; the other grabs' window is 0.25).</summary>
         private const float GrabWindow = 0.4f;
         /// <summary>A hand faster than this (m/s, against the body) punches rather than takes hold (the melee swing speed is 2.6).</summary>
@@ -124,6 +129,8 @@ namespace RavenfieldVR.Weapons
             public ConfigurableJoint Joint;
             /// <summary>How far the bone's pivot was from the palm when taken (its stretch is measured from there).</summary>
             public float Reach;
+            /// <summary>Where the drawn hand's middle sits on the bone (its own space): a hand's skin off where the palm met its surface.</summary>
+            public Vector3 SeatAt;
             /// <summary>A living soldier held by the head from behind, standing (no joint, his AI paused).</summary>
             public bool Neck;
             public Quaternion NeckStart;
@@ -463,12 +470,25 @@ namespace RavenfieldVR.Weapons
             Physics.SyncTransforms();
             anchor.velocity = anchor.angularVelocity = Vector3.zero;
             var joint = bone.gameObject.AddComponent<ConfigurableJoint>();
-            // Held at the bone's centre of mass, not its pivot (the hips' pivot is 30 cm from its middle): the lock's pull on a
-            // heavy body hanging from it turns the bone no more, only the drive below does. Turning the hand still swings the body
-            // round the palm.
+            // Held at the bone's centre of mass, not its pivot or the touched point (the hips' pivot is 30 cm from its middle): the
+            // lock's pull on a heavy body hanging from it turns the bone no more, only the drive below does (held at the touched
+            // point, its weight levered the bone round it: 15-68 m/s bones in the soldier check, 2026-10-27; and the body pulled onto
+            // a hand in the ground went into the terrain). Turning the hand still swings the body round the palm.
             joint.anchor = bone.centerOfMass;
             joint.connectedBody = anchor;
             joint.autoConfigureConnectedAnchor = true; // held where it was taken: no snap of the bone into the fist
+            // The drawn hand goes on the body instead: where the palm met the bone's surface (any point of any bone), a hand's skin
+            // off it. Drawn at the tracked hand, it was inside a soldier (a reach goes through bodies, the hands have no collision on
+            // the way) or in the air beside him ("my hand should actually go on the body parts, not inside them or in the air":
+            // user, 2026-10-27). The glove follows that point as the body moves (Follow), as on a gun's grip.
+            Collider boneCollider = bone.GetComponent<Collider>();
+            Vector3 grabPoint = bone.transform.TransformPoint(bone.centerOfMass);
+            Vector3 outward = (palm - grabPoint).sqrMagnitude > 1e-8f ? (palm - grabPoint).normalized : Vector3.up;
+            if (boneCollider != null && boneCollider.enabled)
+            {
+                grabPoint = SurfaceAt(boneCollider, palm, out outward);
+            }
+            Vector3 seatAt = bone.transform.InverseTransformPoint(grabPoint + outward * HandSkin);
             joint.xMotion = joint.yMotion = joint.zMotion = ConfigurableJointMotion.Locked;
             // The bone's turn held by a damped, torque-limited drive, not locked: locked to the hand, every turn of the
             // wrist was levered through the whole body (a quick turn whipped it at the speed cap and lifted it), and wherever the
@@ -483,7 +503,7 @@ namespace RavenfieldVR.Weapons
             joint.projectionDistance = 0.02f;
             joint.projectionAngle = 5f;
             joint.enablePreprocessing = false;
-            _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint, Reach = (bone.position - palm).magnitude, LastPalm = palm, LastRotation = hand.Palm.rotation };
+            _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint, Reach = (bone.position - palm).magnitude, LastPalm = palm, LastRotation = hand.Palm.rotation, SeatAt = seatAt };
             // Taken as he runs, or as he tumbles: every bone moves with the hand from the first step. The game ragdolls a running
             // soldier with his speed in every bone (Actor.FallOver: Ragdoll(cachedVelocity)); the hold stopped the bone it took at
             // once, and the rest of him (80 kg at 6 m/s) pulled his joints apart and flung him: "all the npcs i grabbed were walking
@@ -522,8 +542,18 @@ namespace RavenfieldVR.Weapons
                                               + $"its turn: spring {joint.slerpDrive.positionSpring:0} N m/rad, damper {joint.slerpDrive.positionDamper:0}, at most {joint.slerpDrive.maximumForce:0} N m.");
             }
             TakeHand(hand, best);
+            if (hand.Model != null && boneCollider != null)
+            {
+                // The palm rests on the bone and every finger closes until it touches it (as on a gun's grip): round a wrist or an
+                // arm, flat on a chest, not a fist inside him.
+                Collider held = boneCollider;
+                hand.Model.Solid = p => (held.ClosestPoint(p) - p).sqrMagnitude < 0.009f * 0.009f;
+                hand.Model.SolidAnchor = bone.transform;
+                hand.Model.SolidVersion++;
+            }
             hand.Haptic(0.08f, 80f, 0.8f);
-            Log.InfoOnce("bodygrab", $"Took hold of {best.name} by {bone.name} ({(best.dead ? "dead" : "alive")}).");
+            Log.InfoOnce("bodygrab", $"Took hold of {best.name} by {bone.name} ({(best.dead ? "dead" : "alive")}), "
+                                     + $"the palm {(palm - grabPoint).magnitude * 100f:0} cm {(Vector3.Dot(palm - grabPoint, outward) >= 0f ? "off" : "inside")} its surface.");
         }
 
         /// <summary>
@@ -765,6 +795,13 @@ namespace RavenfieldVR.Weapons
             hold.LastRotation = rotation;
             // Moved in each physics step (GrabAnchor): the hand's place against the player, wherever the player is in that step.
             anchor.GetComponent<GrabAnchor>().Follow(palm, rotation, _rig.PlacedBody, _rig.PlacedBodyAt, _rig.PlacedSmoothing, jumped);
+            if (hand.Model != null && hold.Bone != null)
+            {
+                // The glove on the body where the palm met it (Attach), moved with the bone; turned as the hand is.
+                Runtime.RigidPose glove = hand.Model.TrackedGlovePose;
+                Vector3 shift = hold.Bone.transform.TransformPoint(hold.SeatAt) - palm;
+                hand.Model.SnapPose = new Runtime.RigidPose(glove.position + shift, glove.rotation);
+            }
             if ((hold.Bone.position - palm).magnitude > hold.Reach + MaxStretch)
             {
                 Release(i, hand, thrown: false); // wedged or pulled through something: let go rather than tear the ragdoll
@@ -814,6 +851,12 @@ namespace RavenfieldVR.Weapons
             if (hold != null && still != null && still.Actor == hold.Actor && !still.Neck && _anchors[1 - i] != null && hold.Actor != null && hold.Actor.ragdoll != null)
             {
                 _anchors[1 - i].GetComponent<GrabAnchor>().Bones = hold.Actor.ragdoll.rigidbodies; // the other hand carries him now
+            }
+            if (hand != null && hand.Model != null && hold != null && hold.Bone != null && hand.Model.SolidAnchor == hold.Bone.transform)
+            {
+                hand.Model.Solid = null; // (its fingers off the bone it held, the glove back on the tracked hand: only what this hold set)
+                hand.Model.SolidAnchor = null;
+                hand.Model.SnapPose = null;
             }
             if (hand != null && hold != null && ReferenceEquals(hand.Held, hold.Actor))
             {
@@ -1022,6 +1065,65 @@ namespace RavenfieldVR.Weapons
                 _anchors[i] = rb;
             }
             return _anchors[i];
+        }
+
+        /// <summary>
+        /// Where a palm at <paramref name="palm"/> meets a bone's collider, and the surface's outward normal there: the nearest
+        /// surface point from outside. From inside (a reach goes through bodies) the shortest way out across the shape: off a
+        /// capsule's axis, through a box's nearest face, away from a sphere's centre.
+        /// </summary>
+        internal static Vector3 SurfaceAt(Collider c, Vector3 palm, out Vector3 normal)
+        {
+            Vector3 closest = c.ClosestPoint(palm);
+            Vector3 off = palm - closest;
+            if (off.sqrMagnitude > 1e-8f)
+            {
+                normal = off.normalized;
+                return closest;
+            }
+            Transform t = c.transform;
+            Vector3 local = t.InverseTransformPoint(palm);
+            Vector3 way;
+            switch (c)
+            {
+                case CapsuleCollider cap:
+                {
+                    Vector3 axis = cap.direction == 0 ? Vector3.right : cap.direction == 1 ? Vector3.up : Vector3.forward;
+                    Vector3 rel = local - cap.center;
+                    way = rel - axis * Vector3.Dot(rel, axis);
+                    if (way.sqrMagnitude < 1e-10f)
+                    {
+                        way = Vector3.Cross(axis, axis == Vector3.up ? Vector3.right : Vector3.up);
+                    }
+                    break;
+                }
+                case BoxCollider box:
+                {
+                    Vector3 rel = local - box.center, half = box.size * 0.5f;
+                    float dx = half.x - Mathf.Abs(rel.x), dy = half.y - Mathf.Abs(rel.y), dz = half.z - Mathf.Abs(rel.z);
+                    way = dx <= dy && dx <= dz ? new Vector3(rel.x >= 0f ? 1f : -1f, 0f, 0f)
+                        : dy <= dz ? new Vector3(0f, rel.y >= 0f ? 1f : -1f, 0f)
+                        : new Vector3(0f, 0f, rel.z >= 0f ? 1f : -1f);
+                    break;
+                }
+                case SphereCollider sphere:
+                    way = local - sphere.center;
+                    break;
+                default:
+                    way = local - t.InverseTransformPoint(c.bounds.center);
+                    break;
+            }
+            Vector3 dir = t.TransformDirection(way);
+            dir = dir.sqrMagnitude > 1e-10f ? dir.normalized : Vector3.up;
+            // Back in from past the shape along that way: where the ray enters is where the palm comes out.
+            float past = c.bounds.extents.magnitude * 2f + 0.05f;
+            if (c.Raycast(new Ray(palm + dir * past, -dir), out RaycastHit hit, past))
+            {
+                normal = hit.normal;
+                return hit.point;
+            }
+            normal = dir;
+            return c.ClosestPoint(palm + dir * past);
         }
 
         private static Rigidbody NearestBone(Actor a, Vector3 palm, Rigidbody taken)
