@@ -438,11 +438,6 @@ namespace RavenfieldVR.Weapons
                 // jump back from the lost pose read as a sideways slide and switched the sight with no press (grab-zone hunt,
                 // 2026-10-21).
                 _offLostTracking = false;
-                if (_opticHeld)
-                {
-                    _opticGrabGun = GripRig.ToGun(off.Palm.position);
-                    _opticSwitched = true; // and no switch from this hold any more: the hand was not moving it
-                }
                 // A rack too: its stroke was measured from where the hand began it, and the hand came back somewhere else (the lost
                 // pose rides with the body). The first tracked frame read the jump as a full pull, ejected the chambered round and
                 // chambered the next (round-2 scout, 2026-10-27).
@@ -1251,6 +1246,17 @@ namespace RavenfieldVR.Weapons
         /// <summary>The off hand's motion measured again from where it is now (a kick's push, a rack's stroke): after a jump in its pose.</summary>
         private void ReanchorMotion(VRHand off)
         {
+            if (_opticHeld)
+            {
+                _opticGrabGun = GripRig.ToGun(off.Palm.position);
+                _opticSwitched = true; // and no switch from this hold any more: the hand was not moving it
+            }
+            if (_coverHeld)
+            {
+                // (Back from a pause: the hand moved while it was up opened or shut the cover on the first frame; round-2 scout.)
+                _coverGrabAngle = CoverAngle(off.Palm.position);
+                _coverGrabOpenness = _held.HingeOpenness;
+            }
             _kickPrevAlong = float.NaN;
             _kickPushSince = -1f;
             _kickTicked = false;

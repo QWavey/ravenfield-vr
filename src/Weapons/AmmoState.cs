@@ -33,7 +33,27 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>This is a fire-mode variant that shares its parent's magazine, cover and belt.</summary>
         private bool Shared => MagazineOf != null && !ReferenceEquals(MagazineOf, this);
-        public bool Chambered;
+        /// <summary>
+        /// A round in the chamber. Shared with a fire-mode variant as the magazine is (one gun, one chamber): its own, set from its
+        /// weapon's full load when it was made, gave the first switch to it with the magazine empty a round to fire it did not
+        /// have (round-2 scout, 2026-10-27). The slide and bolt as well.
+        /// </summary>
+        public bool Chambered
+        {
+            get => Shared ? MagazineOf.Chambered : _chambered;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.Chambered = value;
+                }
+                else
+                {
+                    _chambered = value;
+                }
+            }
+        }
+        private bool _chambered;
         private bool _magInserted = true;
 
         /// <summary>
@@ -57,11 +77,41 @@ namespace RavenfieldVR.Weapons
                 }
             }
         }
-        public bool SlideLocked;
+        public bool SlideLocked
+        {
+            get => Shared ? MagazineOf.SlideLocked : _slideLocked;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.SlideLocked = value;
+                }
+                else
+                {
+                    _slideLocked = value;
+                }
+            }
+        }
+        private bool _slideLocked;
         /// <summary>Break-action / revolver: open for loading (cannot fire).</summary>
         public bool Open;
         /// <summary>Bolt / pump / lever left open by hand (manual actions do not spring shut).</summary>
-        public bool BoltOpen;
+        public bool BoltOpen
+        {
+            get => Shared ? MagazineOf.BoltOpen : _boltOpen;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.BoltOpen = value;
+                }
+                else
+                {
+                    _boltOpen = value;
+                }
+            }
+        }
+        private bool _boltOpen;
         /// <summary>Machine gun feed cover lifted (cannot fire). Shared with a fire-mode variant on the same model (255.B6-3).</summary>
         public bool CoverOpen
         {
@@ -97,7 +147,22 @@ namespace RavenfieldVR.Weapons
         }
         private bool _beltLaid = true;
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
-        public bool SpentInChamber;
+        public bool SpentInChamber
+        {
+            get => Shared ? MagazineOf.SpentInChamber : _spentInChamber;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.SpentInChamber = value;
+                }
+                else
+                {
+                    _spentInChamber = value;
+                }
+            }
+        }
+        private bool _spentInChamber;
         /// <summary>Break-action / revolver: fired cases still in the chambers (they fall out when it is opened).</summary>
         public int SpentCases;
 
@@ -498,7 +563,8 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             int cap = Weapon != null && Weapon.configuration.spareAmmo > 0 ? Weapon.configuration.spareAmmo : int.MaxValue;
-            SpareAmmo = Mathf.Max(SpareAmmo, (int)System.Math.Min(cap, (long)SpareAmmo + rounds));
+            // (From 0 on a gun with no reserve: its -1 is the game's no-resupply mark, and a returned magazine came back a round short.)
+            SpareAmmo = Mathf.Max(SpareAmmo, (int)System.Math.Min(cap, (long)Mathf.Max(0, SpareAmmo) + rounds));
         }
 
         private long _counterKey = long.MinValue;
