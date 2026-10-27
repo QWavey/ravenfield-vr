@@ -2826,6 +2826,10 @@ array (debug option only).
   1.16 -> 3.57 ms, physics 0.19 -> 3.15, Update scripts 0.88 -> 3.89, even the UI camera 0.46 -> 1.09), unnamed cameras
   (weapons' own scope cameras?) appearing. The fast autotest did not decay; auto1 mildly (8.3 -> 11.5). NEXT: run a long session
   and read the new scene counts (bodies awake, renderers, cameras, managed MB) beside the decay: piling up, or a hot laptop.
+- Right after it, the same all-mods soldier check that ran 99% at 7.3-7.8 ms half an hour before ran 49% at 13.5 ms (GPU the
+  same 2.5 ms), the scene modest (79 bodies, 39 awake, 3806 renderers, 5 cameras, 317 MB managed): the laptop slowing after
+  hours of runs, more likely than piling up. Flaky in that run: the gun-through step's hardest contact was a second soldier's
+  bone (Wheels against Baron), the running walk as in auto1.
 
 ### For 344: final test after the 40% ceiling (2026-10-27 evening; nothing pushed)
 
