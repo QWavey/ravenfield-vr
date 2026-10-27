@@ -167,3 +167,25 @@ namespace RavenfieldVR.Rig
         }
     }
 }
+
+namespace RavenfieldVR.Rig
+{
+    /// <summary>
+    /// The game's background camera (the sky and distant scenery behind the main camera's depth-only clear) does not draw while VR
+    /// runs: the head camera takes its layers and sky into its own pass (VRRig.CopyCameraSettings), and the background camera's
+    /// render, its mask zeroed by the suppressor, filled the desktop window under the mirror for nothing (0.11 ms of main thread
+    /// a frame at 0.6 renders a frame, the frame rate line's camera times, 2026-10-27). After its own LateUpdate, which switches it
+    /// on with the main camera every frame; its settings stay as the game keeps them, for the head camera to read.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(BackgroundCamera), "LateUpdate")]
+    internal static class BackgroundCameraOffInVRPatch
+    {
+        private static void Postfix(BackgroundCamera __instance)
+        {
+            if (Core.VRManager.Active && __instance != null && __instance.camera != null && __instance.camera.enabled)
+            {
+                __instance.camera.enabled = false;
+            }
+        }
+    }
+}
