@@ -563,26 +563,70 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateScopeLenses()
         {
-            if (_scopeLenses.Count == 0 || Rig.Data.Sights == null || Rig.Data.Sights.Length < 2 || Weapon == null)
+            if (_scopeLenses.Count == 0 || Weapon == null)
             {
                 return;
             }
             Camera cam = Weapon.renderTextureCamera;
-            SightLine sight = CurrentSight;
-            bool cameraOnLine = cam == null || sight == null || OffSightLine(sight, cam.transform.position) < 0.015f;
-            foreach (Renderer r in _scopeLenses)
+            if (Rig.Data.Sights != null && Rig.Data.Sights.Length >= 2)
             {
-                if (r == null)
+                SightLine sight = CurrentSight;
+                bool cameraOnLine = cam == null || sight == null || OffSightLine(sight, cam.transform.position) < 0.015f;
+                foreach (Renderer r in _scopeLenses)
                 {
-                    continue;
-                }
-                bool inUse = cameraOnLine && (sight == null || LensOnLine(sight, r));
-                if (r.enabled != inUse)
-                {
-                    r.enabled = inUse;
+                    if (r == null)
+                    {
+                        continue;
+                    }
+                    bool inUse = cameraOnLine && (sight == null || LensOnLine(sight, r));
+                    if (r.enabled != inUse)
+                    {
+                        r.enabled = inUse;
+                    }
                 }
             }
+            GateScopeCamera(cam);
         }
+
+        /// <summary>
+        /// The game's own scope camera (a weapon's render-texture camera) draws only while one of its lenses is shown, and without
+        /// shadows unless the scope shadows setting asks for them, as the mod's own lens (VRScope): it drew the whole scene again
+        /// every frame with its shadow cascades, the lens hidden in the other sight mode as well (perf scouts, 2026-10-27: the
+        /// mod's lens measured 3.4 ms a frame that way, 2.8 of it the shadows). A lens we cannot see the state of keeps it on.
+        /// </summary>
+        private void GateScopeCamera(Camera cam)
+        {
+            if (cam == null)
+            {
+                return;
+            }
+            bool shown = false;
+            foreach (Renderer r in _scopeLenses)
+            {
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy)
+                {
+                    shown = true;
+                    break;
+                }
+            }
+            if (cam.enabled != shown)
+            {
+                cam.enabled = shown;
+                _scopeCameraGated = cam;
+            }
+            if (_scopeNoShadows == null || _scopeNoShadows.gameObject != cam.gameObject)
+            {
+                _scopeNoShadows = cam.GetComponent<VRScope.ScopeNoShadows>() ?? cam.gameObject.AddComponent<VRScope.ScopeNoShadows>();
+            }
+            bool noShadows = !VRConfig.ScopeShadows.Value;
+            if (_scopeNoShadows.enabled != noShadows)
+            {
+                _scopeNoShadows.enabled = noShadows;
+            }
+        }
+
+        private Camera _scopeCameraGated;
+        private VRScope.ScopeNoShadows _scopeNoShadows;
 
         private float OffSightLine(SightLine sight, Vector3 world) =>
             Vector3.ProjectOnPlane(Rig.ToGun(world) - sight.EyePoint, sight.EyeDirection).magnitude;
@@ -2104,6 +2148,16 @@ namespace RavenfieldVR.Weapons
             // The lenses and the round counter too (their objects have no parent): last, a step below that threw left them behind
             // (lifecycle hunt, 2026-10-20).
             _scope?.Destroy();
+            // The game's scope camera as the game had it (switched off by the lens gate: the weapon held again or by anyone else).
+            if (_scopeCameraGated != null)
+            {
+                _scopeCameraGated.enabled = true;
+                _scopeCameraGated = null;
+            }
+            if (_scopeNoShadows != null)
+            {
+                _scopeNoShadows.enabled = false;
+            }
             if (_modeScopes != null)
             {
                 foreach (VRScope s in _modeScopes)

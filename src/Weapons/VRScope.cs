@@ -381,7 +381,7 @@ namespace RavenfieldVR.Weapons
         private ScopeNoShadows _noShadows;
 
         /// <summary>On the lens camera: shadows off while it renders (the shadow distance is global; put back after).</summary>
-        private sealed class ScopeNoShadows : MonoBehaviour
+        internal sealed class ScopeNoShadows : MonoBehaviour
         {
             private float _distance;
 
