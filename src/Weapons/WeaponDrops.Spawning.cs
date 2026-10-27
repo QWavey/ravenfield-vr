@@ -1140,6 +1140,7 @@ namespace RavenfieldVR.Weapons
             // A type whose preparation threw is tried again with the reloaded content (kept, it was never idle-prepared again
             // for the session and its kills fell back to the box and late fit; bug hunt, 2026-10-23).
             IdleFailed.Clear();
+            IdleBuilds.Clear(); // (the old content's entries: queued again from what the soldiers carry now)
             RenderedShapes.Clear();
             ScaledShapes.Clear();
             LateFitsUnderway.Clear();
