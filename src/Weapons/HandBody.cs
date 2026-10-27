@@ -42,37 +42,86 @@ namespace RavenfieldVR.Weapons
         private int _followedFrame;
 
         /// <summary>
-        /// The layer the fists use: an unnamed one (no game object is on it), set to meet ragdoll bones only. -1 when none is free
-        /// (no fist physics then).
+        /// The layer the fists use, set to meet ragdoll bones only: one with no name that no renderer or collider of the scene is on
+        /// (unnamed was not enough: a map or a mod may still use one, and its objects would have stopped colliding with anything
+        /// but ragdolls), not the shape camera's (GunVolume) nor the held gun's hiding place. Chosen as a scene loads
+        /// (<see cref="OnSceneLoaded"/>, a scene-wide search) or on the first fist; a layer given up gets back the collisions it had.
+        /// -1 when none is free (no fist physics then).
         /// </summary>
         private static int Layer
         {
             get
             {
-                if (_layer != -2)
+                int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+                if (_layer != -2 && _layerScene == scene)
                 {
                     return _layer;
                 }
-                _layer = -1;
+                _layerScene = scene;
+                var used = new bool[32];
+                foreach (Renderer r in Object.FindObjectsOfType<Renderer>())
+                {
+                    used[r.gameObject.layer] = true;
+                }
+                foreach (Collider c in Object.FindObjectsOfType<Collider>())
+                {
+                    if (c.GetComponent<HandBody>() == null)
+                    {
+                        used[c.gameObject.layer] = true;
+                    }
+                }
+                int shapeLayer = GunVolume.ShapeLayer;
+                int chosen = -1;
                 for (int l = 31; l >= 23; l--)
                 {
-                    if (string.IsNullOrEmpty(LayerMask.LayerToName(l)) && l != PropPhysics.HiddenFromPlayerLayer)
+                    if (!used[l] && string.IsNullOrEmpty(LayerMask.LayerToName(l)) && l != PropPhysics.HiddenFromPlayerLayer && l != shapeLayer)
                     {
-                        _layer = l;
+                        chosen = l;
                         break;
                     }
                 }
+                if (chosen == _layer)
+                {
+                    return _layer;
+                }
+                if (_layer >= 0 && _savedRow != null)
+                {
+                    for (int other = 0; other < 32; other++)
+                    {
+                        Physics.IgnoreLayerCollision(_layer, other, _savedRow[other]); // (as it was before the fists took it)
+                    }
+                }
+                _layer = chosen;
+                _savedRow = null;
                 if (_layer >= 0)
                 {
+                    _savedRow = new bool[32];
+                    for (int other = 0; other < 32; other++)
+                    {
+                        _savedRow[other] = Physics.GetIgnoreLayerCollision(_layer, other);
+                    }
                     for (int other = 0; other < 32; other++)
                     {
                         Physics.IgnoreLayerCollision(_layer, other, other != Hitbox.RAGDOLL_LAYER);
                     }
+                    foreach (HandBody b in Bodies)
+                    {
+                        if (b != null)
+                        {
+                            b.gameObject.layer = _layer;
+                        }
+                    }
                 }
-                Log.Info(_layer >= 0 ? $"Fist physics on layer {_layer} (meets ragdoll bones only)." : "Fist physics: no free layer, fists push nothing.");
+                Log.Info(_layer >= 0 ? $"Fist physics on layer {_layer} (meets ragdoll bones only)." : "Fist physics: no free layer in this scene, fists push nothing.");
                 return _layer;
             }
         }
+
+        private static int _layerScene = -1;
+        private static bool[] _savedRow;
+
+        /// <summary>A new scene: the fists' layer chosen now, in the load (its scene-wide search not on the first punch).</summary>
+        internal static void OnSceneLoaded() => _ = Layer;
 
         /// <summary>Whether <paramref name="c"/> is one of the fists (a held body's impact with it is the punch's, not a slam).</summary>
         internal static bool Is(Collider c) => c != null && c.GetComponent<HandBody>() != null;

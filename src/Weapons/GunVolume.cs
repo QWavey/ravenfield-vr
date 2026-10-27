@@ -585,6 +585,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>A new scene: its free layer found now, in the load (on the first hold it scanned every renderer of the map; 255.P3-3).</summary>
         internal static void OnSceneLoaded() => FreeLayer();
 
+        /// <summary>The shape camera's layer in this scene (the fists keep off it: HandBody).</summary>
+        internal static int ShapeLayer => FreeLayer();
+
         /// <summary>
         /// A layer nothing in the scene draws on (unnamed and holding no renderer), so the shape camera sees only the
         /// renderers moved onto it. Checked once per scene.

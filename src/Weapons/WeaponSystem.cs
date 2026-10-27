@@ -1086,6 +1086,7 @@ namespace RavenfieldVR.Weapons
             _bodyGrab?.ReleaseAll();
             BodyImpacts.Clear();
             GunVolume.OnSceneLoaded();
+            HandBody.OnSceneLoaded();
             if (Held != null)
             {
                 ReleaseHeld();
