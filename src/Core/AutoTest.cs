@@ -3410,6 +3410,12 @@ namespace RavenfieldVR.Core
                         new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
                     }
                     a.controller.enabled = false;
+                    // And looking the way he was put (paused, the AI's last look stayed as it was: the game turns his body toward his
+                    // look once it is 50 degrees off, and the neck check's soldier ended up facing 94-107 degrees off away).
+                    if (a.controller is AiActorController looker)
+                    {
+                        looker.facingDirectionVector = facingAway ? flat : -flat;
+                    }
                     if (!paused.Contains(a))
                     {
                         paused.Add(a);
