@@ -262,6 +262,17 @@ namespace RavenfieldVR.Weapons
         private ParticleSystem[] _barrelsOf;
         // The weapons already told of in the log as flash-less (their message and key were built on every such shot).
         private readonly HashSet<Weapon> _toldNoFlash = new HashSet<Weapon>(), _toldBehind = new HashSet<Weapon>();
+        private static readonly System.Predicate<Weapon> IsGone = w => w == null;
+
+        /// <summary>First time for this weapon (the sets drop weapons gone with their soldier or scene: kept, every one stayed for the session).</summary>
+        private static bool TellOnce(HashSet<Weapon> told, Weapon w)
+        {
+            if (told.Count >= 64)
+            {
+                told.RemoveWhere(IsGone);
+            }
+            return told.Add(w);
+        }
         private Weapon _cachedFor;
         private float _cachedUntil = -1f;
         private ParticleSystem[] _cachedSystems = NoSystems;
@@ -421,7 +432,7 @@ namespace RavenfieldVR.Weapons
             _gunHeld = held; // (before the flash-less return: the glow was measured against the gun before)
             if (size <= 0f)
             {
-                if (info.Any && _toldNoFlash.Add(w)) // a smoke grenade or a knife has no flash to miss
+                if (info.Any && TellOnce(_toldNoFlash, w)) // a smoke grenade or a knife has no flash to miss
                 {
                     Log.InfoOnce("lensnone-size:" + w.name, $"No lens flash for {w.name}: its flash particles did not come out on the shot "
                                                             + $"(muzzle '{muzzle.name}', particles {info.Particles}, light {info.Light}).");
@@ -441,7 +452,7 @@ namespace RavenfieldVR.Weapons
             Vector3 dir = head.InverseTransformDirection(muzzle.forward);
             if (m.z < 0.02f)
             {
-                if (_toldBehind.Add(w))
+                if (TellOnce(_toldBehind, w))
                 {
                     Log.InfoOnce("lensnone-behind:" + w.name, $"No lens flash for {w.name}: its muzzle '{muzzle.name}' is {m.z * 100f:0} cm in front of the eyes "
                                                               + $"(behind them; muzzle points {(Vector3.Dot(muzzle.forward, head.forward) > 0f ? "forward" : "back")}).");
