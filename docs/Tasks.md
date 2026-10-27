@@ -2794,6 +2794,20 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### For 344: Haiku workflow round 2 (5 scouts: ammo and fire, second weapon, zones and pouch, UI, reload parts; 2026-10-27)
+
+16 findings. Fixed (committed locally, not pushed): seated body spots placed for a 2.23 m body while uncalibrated (the 1.65
+m default was scaled by the seated 1.35 too); a rack measured from its old start after a tracking loss (the jump ejected a
+round), and optic and cover holds not measured again after a pause (one helper, ReanchorMotion, for both); the free-hand
+weapon's update unguarded (a throw skipped the holsters, drops and grabs each frame) and cleared only after its put-away; a
+destroyed free-hand weapon's reload rounds going into its own gone reserve (now a reserve of its kind, else its drop); the
+free-hand kick classing launchers and machine guns as rifles; a fire-mode variant's own chamber (the first switch to it on
+an empty magazine fired a round it did not have: chamber, slide and bolt are now shared as the magazine is); a returned
+magazine into a no-reserve gun counted from its -1. Refuted: the wrist-look statics at shutdown (unreachable). Declined: the
+menu laser's RaycastAll, its click-handler lookup and the canvas group lookup (a few microseconds a frame, only with a menu
+up: under the noise), the laser meeting a panel from behind (a reach past a 0.6 m menu; the sign wants checking in the
+scene). Stopped at the 40% ceiling with two verifiers of already fixed findings still running.
+
 ### For 338: soldier review, frozen bench and estimated frame rates (2026-10-24 night)
 - Review workflow soldier-code-review (6 Haiku readers: per-frame cost of BodyGrab and ThrowAndMelee, bugs in each, cleanness,
   the autotest's BodyGrabCheck; a Haiku skeptic per finding): 38 findings, 29 confirmed. Fixed: knife trigger double hit,
