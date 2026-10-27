@@ -1924,6 +1924,7 @@ namespace RavenfieldVR.Weapons
 
         private void OnDestroy()
         {
+            _plate?.Destroy(); // (its own material: left, every strapped grenade leaked one)
             if (_go != null)
             {
                 Destroy(_go);
