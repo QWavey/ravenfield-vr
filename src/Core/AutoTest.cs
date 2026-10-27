@@ -4470,6 +4470,7 @@ namespace RavenfieldVR.Core
                     int turnedFrames = 0;
                     int carriesFrom = BodyGrab.Carries;
                     bool heldWalking = false;
+                    Vector3? walkStart = null;
                     if (tookWalked)
                     {
                         yield return OffTo(rig.Head.position + flat * 0.3f + Vector3.up * up);
@@ -4482,6 +4483,7 @@ namespace RavenfieldVR.Core
                         BodyImpacts.HardestContact = "none";
                         AnchorProbe.MostJerk = 0f;
                         Vector3 walkFrom = player.transform.position;
+                        walkStart = walkFrom;
                         float heightFrom = walked.CenterPosition().y - player.transform.position.y; // (against the player's feet: the ground may slope)
                         int frame = 0;
                         try
@@ -4548,6 +4550,15 @@ namespace RavenfieldVR.Core
                     }
                     yield return Snap("26-walking-with-a-soldier-" + how.Replace(", ", "-").Replace(" ", "-"), walked.CenterPosition());
                     yield return LetGo();
+                    // The player back where the walk began: the spots the next steps bring their soldiers to are put from where he
+                    // stood at the start, and up to a metre off them the next soldier stood out of the scripted hand's reach ("NOT
+                    // TAKEN ... 1.66 m from the palm", 2026-10-25).
+                    if (walkStart.HasValue)
+                    {
+                        yield return new WaitForSecondsRealtime(0.3f); // (the let-go body clear of the hand first)
+                        player.SetPositionAndRotation(walkStart.Value, player.transform.rotation);
+                        yield return new WaitForSecondsRealtime(0.3f);
+                    }
                     Metric($"walking with a soldier held {how}: fastest bone m/s", walkFastest);
                     Metric($"walking with a soldier held {how}: longest span / at rest", walkRest > 0f ? walkLongest / walkRest : 0f);
                     bool walkStretched = walkGap > 0.1f; // (a joint 10 cm apart)
