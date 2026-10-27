@@ -477,6 +477,7 @@ namespace RavenfieldVR.Weapons
             {
                 Collider[] own = best.ragdoll.ragdollObject.GetComponentsInChildren<Collider>();
                 _holds[i].Colliders = own;
+                DrawAhead(best);
                 PropPhysics.IgnorePlayer(own);
                 // Its bones no longer collide with one another while held: a limp leg swung into its own hips as the player walked (its
                 // Leg.L.002 on its Bone at 1442 N s, the soldier check, 2026-10-25), and the hand kept the body from giving way. Unity
@@ -809,6 +810,7 @@ namespace RavenfieldVR.Weapons
                 Hold other = _holds[1 - i];
                 if (a != null && !(other != null && other.Actor == a))
                 {
+                    DrawAsGame(a);
                     if (a.ragdoll == null || !a.ragdoll.IsRagdoll())
                     {
                         BodyImpacts.Disarm(a); // stood up or respawned under the hand: his joints as the game set them, now
@@ -901,6 +903,50 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+
+        /// <summary>
+        /// While a hand holds a body, its bones are drawn carried on to the frame's time (extrapolated): drawn at the last physics
+        /// step (the game's ragdolls are not interpolated), at 60 steps a second under a 90 Hz view, a held body moved in steps and
+        /// trailed the hand by up to a step ("a grab delay between my hand and the body": user, 2026-10-25). As the game had them
+        /// when let go of (a body flying or lying is drawn as any other).
+        /// </summary>
+        private static void DrawAhead(Actor a)
+        {
+            if (a == null || a.ragdoll == null || a.ragdoll.rigidbodies == null || DrawnAs.ContainsKey(a))
+            {
+                return;
+            }
+            Rigidbody[] bones = a.ragdoll.rigidbodies;
+            var was = new RigidbodyInterpolation[bones.Length];
+            for (int k = 0; k < bones.Length; k++)
+            {
+                if (bones[k] != null)
+                {
+                    was[k] = bones[k].interpolation;
+                    bones[k].interpolation = RigidbodyInterpolation.Extrapolate;
+                }
+            }
+            DrawnAs[a] = was;
+        }
+
+        private static void DrawAsGame(Actor a)
+        {
+            if (a == null || !DrawnAs.TryGetValue(a, out RigidbodyInterpolation[] was))
+            {
+                return;
+            }
+            DrawnAs.Remove(a);
+            Rigidbody[] bones = a.ragdoll != null ? a.ragdoll.rigidbodies : null;
+            for (int k = 0; bones != null && k < bones.Length && k < was.Length; k++)
+            {
+                if (bones[k] != null)
+                {
+                    bones[k].interpolation = was[k];
+                }
+            }
+        }
+
+        private static readonly Dictionary<Actor, RigidbodyInterpolation[]> DrawnAs = new Dictionary<Actor, RigidbodyInterpolation[]>();
 
         /// <summary>Lets go of everything (scene change, VR stopping).</summary>
         public void ReleaseAll()
