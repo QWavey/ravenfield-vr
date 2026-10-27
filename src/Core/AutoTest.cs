@@ -4632,6 +4632,9 @@ namespace RavenfieldVR.Core
                     yield return null;
                     Input.VRInput.SimulateGrabPress(off.Side);
                     Input.VRInput.SimulatedGrip[os] = 1f;
+                    // (Squeezed at rest, then thrown: pressed in the frame the throw began, the squeeze was made at 3.5 m/s and read as a
+                    // reach slowing into him, which takes hold.)
+                    yield return new WaitForSecondsRealtime(0.1f);
                     for (float d = 0f; d < 0.5f;)
                     {
                         float v = d < 0.25f ? 3.5f : 1f;

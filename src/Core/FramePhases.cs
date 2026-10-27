@@ -16,8 +16,13 @@ namespace RavenfieldVR.Core
     {
         private struct Marker { }
 
+        // One slot per marker: the start of each top-level phase, and of each step inside it (a slot's time runs to the next stamp).
         private static string[] _names = new string[0];
+        private static int[] _phaseOf = new int[0];
         private static long[] _ticks = new long[0];
+        private static string[] _phaseNames = new string[0];
+        private static double[] _phaseMs = new double[0];
+        private static int[] _order = new int[0];
         private static int _last = -1;
         private static long _lastStamp;
         private static int _frames;
@@ -50,19 +55,32 @@ namespace RavenfieldVR.Core
                     return;
                 }
                 int n = root.subSystemList.Length;
-                _names = new string[n];
-                _ticks = new long[n];
+                var names = new List<string>();
+                var phaseOf = new List<int>();
+                _phaseNames = new string[n];
+                _phaseMs = new double[n];
                 for (int i = 0; i < n; i++)
                 {
                     PlayerLoopSystem phase = root.subSystemList[i];
-                    _names[i] = phase.type != null ? phase.type.Name : "phase " + i;
-                    int index = i;
-                    var marker = new PlayerLoopSystem { type = typeof(Marker), updateDelegate = () => Stamp(index) };
-                    var list = new List<PlayerLoopSystem>(phase.subSystemList ?? new PlayerLoopSystem[0]);
-                    list.Insert(0, marker);
+                    _phaseNames[i] = phase.type != null ? phase.type.Name : "phase " + i;
+                    var list = new List<PlayerLoopSystem>();
+                    list.Add(MarkerFor(names.Count, i == 0));
+                    names.Add(_phaseNames[i] + " (own)");
+                    phaseOf.Add(i);
+                    foreach (PlayerLoopSystem step in phase.subSystemList ?? new PlayerLoopSystem[0])
+                    {
+                        list.Add(MarkerFor(names.Count, false));
+                        names.Add(step.type != null ? step.type.Name : "?");
+                        phaseOf.Add(i);
+                        list.Add(step);
+                    }
                     phase.subSystemList = list.ToArray();
                     root.subSystemList[i] = phase;
                 }
+                _names = names.ToArray();
+                _phaseOf = phaseOf.ToArray();
+                _ticks = new long[_names.Length];
+                _order = new int[_names.Length];
                 PlayerLoop.SetPlayerLoop(root);
                 Camera.onPreCull += PreCull;
                 Camera.onPostRender += PostRender;
@@ -73,18 +91,21 @@ namespace RavenfieldVR.Core
             }
         }
 
-        private static void Stamp(int phase)
+        private static PlayerLoopSystem MarkerFor(int slot, bool frameStart) =>
+            new PlayerLoopSystem { type = typeof(Marker), updateDelegate = () => Stamp(slot, frameStart) };
+
+        private static void Stamp(int slot, bool frameStart)
         {
             long now = Stopwatch.GetTimestamp();
             if (_last >= 0)
             {
                 _ticks[_last] += now - _lastStamp;
             }
-            if (phase == 0)
+            if (frameStart)
             {
                 _frames++;
             }
-            _last = phase;
+            _last = slot;
             _lastStamp = now;
         }
 
@@ -122,11 +143,25 @@ namespace RavenfieldVR.Core
             }
             double perMs = 1000.0 / Stopwatch.Frequency / _frames;
             var s = new System.Text.StringBuilder("phases a frame:");
-            for (int i = 0; i < _names.Length; i++)
+            System.Array.Clear(_phaseMs, 0, _phaseMs.Length);
+            for (int k = 0; k < _names.Length; k++)
             {
-                s.Append(' ').Append(_names[i]).Append(' ').Append((_ticks[i] * perMs).ToString("0.00"));
-                _ticks[i] = 0;
+                _phaseMs[_phaseOf[k]] += _ticks[k] * perMs;
+                _order[k] = k;
             }
+            for (int i = 0; i < _phaseNames.Length; i++)
+            {
+                s.Append(' ').Append(_phaseNames[i]).Append(' ').Append(_phaseMs[i].ToString("0.00"));
+            }
+            // The costliest steps whatever their phase (where a phase's time is spent).
+            System.Array.Sort(_order, (a, b) => _ticks[b].CompareTo(_ticks[a]));
+            s.Append("; costliest steps:");
+            for (int k = 0; k < _order.Length && k < 10; k++)
+            {
+                int slot = _order[k];
+                s.Append(' ').Append(_names[slot]).Append(' ').Append((_ticks[slot] * perMs).ToString("0.00")).Append(',');
+            }
+            System.Array.Clear(_ticks, 0, _ticks.Length);
             Sorted.Clear();
             foreach (KeyValuePair<Camera, CameraTime> kv in Cameras)
             {
