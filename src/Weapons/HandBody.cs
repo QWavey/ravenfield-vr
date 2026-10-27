@@ -38,6 +38,8 @@ namespace RavenfieldVR.Weapons
         private Rigidbody _body;
         private SphereCollider _sphere;
         private bool _want;
+        /// <summary>The frame <see cref="Follow"/> last set it: no longer followed (VR stopped, the grab system gone), it switches off.</summary>
+        private int _followedFrame;
 
         /// <summary>
         /// The layer the fists use: an unnamed one (no game object is on it), set to meet ragdoll bones only. -1 when none is free
@@ -102,6 +104,7 @@ namespace RavenfieldVR.Weapons
                 }
                 b._hand = hand;
                 b._want = want;
+                b._followedFrame = Time.frameCount;
             }
         }
 
@@ -131,7 +134,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 fist = _hand.PalmCentre;
-            if (!_want)
+            if (!_want || Time.frameCount - _followedFrame > 2)
             {
                 if (_sphere.enabled)
                 {
