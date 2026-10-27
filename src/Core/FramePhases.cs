@@ -179,6 +179,24 @@ namespace RavenfieldVR.Core
                  .Append(((float)t.Renders / _frames).ToString("0.#")).Append("x),");
             }
             s.Append($" {Sorted.Count} camera(s) rendered");
+            // What the scene holds (a scan once a minute): a session whose frames grew slower minute by minute (a 70-gun autotest,
+            // 7.8 to 25.5 ms, every phase two to four times dearer, physics most; 2026-10-27) tells here whether bodies, renderers
+            // or cameras piled up, or the same scene simply ran slower (a hot laptop).
+            try
+            {
+                Rigidbody[] bodies = Object.FindObjectsOfType<Rigidbody>();
+                int awake = 0;
+                foreach (Rigidbody b in bodies)
+                {
+                    awake += b != null && !b.isKinematic && !b.IsSleeping() ? 1 : 0;
+                }
+                s.Append($"; scene: {bodies.Length} bodies ({awake} awake), {Object.FindObjectsOfType<Renderer>().Length} renderers, "
+                         + $"{Camera.allCamerasCount} cameras on, {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB managed");
+            }
+            catch (System.Exception)
+            {
+                // (counted next time)
+            }
             Cameras.Clear(); // (cameras of an old map forgotten with the window)
             _frames = 0;
             return s.ToString();
