@@ -38,6 +38,8 @@ NOT_BY_PATTERN = {
     'COVERED BY': "the pause menu check counts it (bad) and raises Problem(...)",
     'OUT OF SIGHT': "the pause menu check counts it (bad) and raises Problem(...)",
     '(INSIDE OUT)': "the flat self-test's report (WeaponSelfTest), read by eye",
+    "THE PLAYER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
+    "ITS OWN SOLDIER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
 }
 CAPS = re.compile(r"\(?\b[A-Z][A-Z0-9'()]+(?:[ -]\(?[A-Z0-9'()]+\b\)?)+")
 
