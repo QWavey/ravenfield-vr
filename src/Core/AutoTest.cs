@@ -3606,6 +3606,19 @@ namespace RavenfieldVR.Core
 
             string Health(Actor a) => a.dead ? "dead" : a.health.ToString("0");
 
+            // Whether a collider of soldier a lies within radius of point (his arms and rifle as well as his body).
+            bool HisWithin(Actor a, Vector3 point, float radius)
+            {
+                foreach (Collider c in Physics.OverlapSphere(point, radius, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide))
+                {
+                    if (c != null && BodyGrab.HurtableOf(c) == a)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             try
             {
                 var there = new bool[1];
@@ -4626,7 +4639,18 @@ namespace RavenfieldVR.Core
                 yield return Bring(pushedAt, 0.8f, false, there);
                 if (there[0] && off.Role == Rig.HandRole.Free)
                 {
-                    Vector3 pushFrom = pushedAt.CenterPosition() - flat * 0.45f;
+                    // Squeezed where none of him is in the hand's reach (18 cm) but some is near (35 cm): a squeeze in reach of his arm,
+                    // held out with his rifle, rightly takes hold at once. Searched back from 45 cm along the line to him.
+                    float pushBack = 0.45f;
+                    for (float back = 0.45f; back <= 1.0f; back += 0.05f)
+                    {
+                        pushBack = back;
+                        if (!HisWithin(pushedAt, pushedAt.CenterPosition() - flat * back, 0.2f))
+                        {
+                            break;
+                        }
+                    }
+                    Vector3 pushFrom = pushedAt.CenterPosition() - flat * pushBack;
                     OffAt(pushFrom, Quaternion.LookRotation(flat, Vector3.up));
                     yield return null;
                     yield return null;
@@ -4635,9 +4659,9 @@ namespace RavenfieldVR.Core
                     // (Squeezed at rest, then thrown: pressed in the frame the throw began, the squeeze was made at 3.5 m/s and read as a
                     // reach slowing into him, which takes hold.)
                     yield return new WaitForSecondsRealtime(0.1f);
-                    for (float d = 0f; d < 0.5f;)
+                    for (float d = 0f; d < pushBack + 0.05f;)
                     {
-                        float v = d < 0.25f ? 3.5f : 1f;
+                        float v = d < pushBack - 0.2f ? 3.5f : 1f;
                         d += v * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
                         OffAt(pushFrom + flat * d, Quaternion.LookRotation(flat, Vector3.up), flat * v);
                         yield return null;
@@ -4646,7 +4670,7 @@ namespace RavenfieldVR.Core
                     bool pushTook = BodyGrab.IsHeld(pushedAt);
                     Input.VRInput.SimulatedGrip[os] = 0f;
                     yield return LetGo();
-                    report($"squeezed fist slowing on him (squeezed 45 cm before his middle, 3.5 then 1 m/s): {(pushTook ? "NOT A PUNCH: took hold of him" : "not taken hold of")}");
+                    report($"squeezed fist slowing on him (squeezed {pushBack * 100f:0} cm before his middle, out of reach of him, 3.5 then 1 m/s): {(pushTook ? "NOT A PUNCH: took hold of him" : "not taken hold of")}");
                 }
                 // And the other way round: a quick reach squeezed on the way, at 3 m/s, slowing to him (a reach for a soldier: it takes
                 // hold; spent by speed alone, it grabbed the air: "my hand grabs the air many times", user, 2026-10-25).
