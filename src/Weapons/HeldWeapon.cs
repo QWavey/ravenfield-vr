@@ -2022,6 +2022,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private GameObject[] _debug;
+        private readonly Vector3[] _debugPoints = new Vector3[5]; // (one array, not one a frame while the option is on)
 
         /// <summary>Debug.ShowGrabZones: spheres on the grip, foregrip, rack point, magazine well and sight eye point.</summary>
         private void DrawDebugZones()
@@ -2033,14 +2034,12 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRigData d = Rig.Data;
             WeaponRigData a = ActiveRig.Data;
-            Vector3[] points =
-            {
-                Rig.ToWorld(d.GripPoint),
-                Rig.ToWorld(d.SupportPoint),
-                ActiveRig.ToWorld((ReferenceEquals(ActiveRig, Rig) ? RackPointGun : a.RackPoint) + a.SlideTravel.normalized * SlideOffset),
-                ActiveRig.ToWorld(a.MagSeat.position),
-                d.HasEyePoint ? Rig.ToWorld(d.EyePoint) : Rig.ToWorld(d.MuzzlePoint)
-            };
+            Vector3[] points = _debugPoints;
+            points[0] = Rig.ToWorld(d.GripPoint);
+            points[1] = Rig.ToWorld(d.SupportPoint);
+            points[2] = ActiveRig.ToWorld((ReferenceEquals(ActiveRig, Rig) ? RackPointGun : a.RackPoint) + a.SlideTravel.normalized * SlideOffset);
+            points[3] = ActiveRig.ToWorld(a.MagSeat.position);
+            points[4] = d.HasEyePoint ? Rig.ToWorld(d.EyePoint) : Rig.ToWorld(d.MuzzlePoint);
             if (_debug == null)
             {
                 Color[] colors =
