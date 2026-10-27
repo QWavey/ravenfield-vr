@@ -86,6 +86,7 @@ namespace RavenfieldVR.Core
 
             VRGameInput.Enabled = inputReady;
             _active = true;
+            FramePhases.Install(); // (where each frame's time goes, in the once-a-minute frame rate line)
             ScriptKeys.Enabled = true;
             Application.onBeforeRender += OnBeforeRender;
             SceneManager.activeSceneChanged += OnSceneChanged;

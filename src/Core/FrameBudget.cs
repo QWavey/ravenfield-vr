@@ -154,7 +154,8 @@ namespace RavenfieldVR.Core
                      $"{preset}, {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye (render scale {XRSettings.eyeTextureResolutionScale:0.0#}), " +
                      $"MSAA {QualitySettings.antiAliasing}x, shadows " +
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
-                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame.");
+                     $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame; "
+                     + FramePhases.TakeReport());
             System.Array.Clear(Buckets, 0, Buckets.Length);
             System.Array.Clear(GpuBuckets, 0, GpuBuckets.Length);
             _frames = _within = _gpuFrames = 0;
