@@ -4463,7 +4463,7 @@ namespace RavenfieldVR.Core
                     BodyGrab.WhyNot = "no press seen";
                     yield return Take(walked.CenterPosition(), hit);
                     bool tookWalked = hit[0];
-                    float walkFastest = 0f, walkRise = 0f, walkRest = 0f, walkLongest = 0f, walkedMetres = 0f, walkGap = 0f, walkSpin = 0f;
+                    float walkFastest = 0f, walkRise = 0f, walkRest = 0f, walkLongest = 0f, walkedMetres = 0f, walkGap = 0f, walkSpin = 0f, walkLag = 0f;
                     string walkNote = "", spinNote = "";
                     Quaternion lastTurn = Quaternion.identity;
                     bool hadTurn = false;
@@ -4484,6 +4484,8 @@ namespace RavenfieldVR.Core
                         AnchorProbe.MostJerk = 0f;
                         Vector3 walkFrom = player.transform.position;
                         walkStart = walkFrom;
+                        Rigidbody lagBone = BodyGrab.HeldBone(off);
+                        float restOff = lagBone != null ? (lagBone.worldCenterOfMass - off.PalmCentre).magnitude : 0f;
                         float heightFrom = walked.CenterPosition().y - player.transform.position.y; // (against the player's feet: the ground may slope)
                         int frame = 0;
                         try
@@ -4514,6 +4516,10 @@ namespace RavenfieldVR.Core
                                     }
                                 }
                                 walkRise = Mathf.Max(walkRise, walked.CenterPosition().y - player.transform.position.y - heightFrom);
+                                if (lagBone != null && BodyGrab.HeldBone(off) == lagBone)
+                                {
+                                    walkLag = Mathf.Max(walkLag, Mathf.Abs((lagBone.worldCenterOfMass - off.PalmCentre).magnitude - restOff));
+                                }
                                 walkLongest = Mathf.Max(walkLongest, SpanOf(walked));
                                 walkGap = Mathf.Max(walkGap, GapOf(walked));
                                 // How fast the body is seen to turn: its main bone's orientation from one frame to the next (the physics' angular
@@ -4563,10 +4569,12 @@ namespace RavenfieldVR.Core
                     Metric($"walking with a soldier held {how}: longest span / at rest", walkRest > 0f ? walkLongest / walkRest : 0f);
                     bool walkStretched = walkGap > 0.1f; // (a joint 10 cm apart)
                     Metric($"walking with a soldier held {how}: widest joint gap, cm", walkGap * 100f);
+                    Metric($"walking with a soldier held {how}: the held bone off its place against the hand, cm", walkLag * 100f);
                     Metric($"walking with a soldier held {how}: the body's fastest seen turn, deg/s", walkSpin);
                     report($"walking with a soldier held {how} ({(turn > 0f ? $"turning {turn:0} deg/s one way 1.5 s, then back" : "1.5 s forward, 1.5 s back")}): {(tookWalked ? $"{walked.name} taken" : $"NOT TAKEN ({BodyGrab.WhyNot}; {(walked.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm)")}, the player went {walkedMetres:0.0} m"
                            + $"{(tookWalked && turn <= 0f && walkedMetres < 1f ? " (NOT WALKED: the stick moved nothing)" : "")}, fastest bone {walkFastest:0.0} m/s ({walkNote}), the body turned at most {walkSpin:0} deg/s ({spinNote}; {turnedFrames} frames over 720 deg/s), "
                            + $"the body rose {walkRise * 100f:0} cm, its span {walkRest:0.00} -> {walkLongest:0.00} m, its widest joint gap {walkGap * 100f:0} cm{(walkStretched ? " (NOT WHOLE: pulled apart at the joints)" : "")}"
+                           + $", the held bone at most {walkLag * 100f:0} cm off its place against the hand (the hand's lead and the body's sag)"
                            + $", hardest contact: {BodyImpacts.HardestContact}, while walking steadily the hand's anchor at most {AnchorProbe.MostJerk:0.00} m/s off its last step"
                            + $"{(walkFastest > 10f || walkRise > 0.5f ? " (NOT STILL: the body went wild)" : "")}{(tookWalked && !heldWalking ? ", NOT HELD ON" : "")}");
                 }
