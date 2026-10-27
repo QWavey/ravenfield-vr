@@ -955,6 +955,7 @@ namespace RavenfieldVR.Weapons
             {
                 Release(i, _rig.Hands[i], thrown: false);
             }
+            DrawnAs.Clear(); // (a soldier gone with his scene before the let-go was never given his drawing back, nor taken off the list)
         }
 
         public void Destroy()
@@ -1529,6 +1530,13 @@ namespace RavenfieldVR.Weapons
                 Restore(kv.Key, kv.Value);
             }
             SavedDrive.Clear();
+            // (Their joints' projection as the game had it, where the soldier is still there; the scene's gone ones dropped: kept,
+            // every soldier ever held stayed in the list for the session.)
+            foreach (Actor a in new List<Actor>(SavedProjection.Keys))
+            {
+                LetApart(a);
+            }
+            SavedProjection.Clear();
             ArmedUntil.Clear();
             LastHit.Clear();
             ArmedBones.RemoveWhere(b => b == null); // a scene's bones went with it; live ones go on their next step
