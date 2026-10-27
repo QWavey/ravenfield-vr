@@ -2776,6 +2776,21 @@ Worked out from what each preset draws per eye in multi-pass VR (pixels, MSAA sa
 
 Smaller ones: the player's hidden body takes its shadow casters (body, gear, the gun's third-person copy) out of every shadow pass, about 0.1-0.3 ms a frame with shadows on; after a hitch the next frame runs at most 6 physics steps instead of up to 20 (one stall instead of two); the allocation fixes save well under 0.1 ms but mean fewer garbage-collection slices (up to 3 ms each).
 
+### For 344: Haiku workflow round 1 (10 scouts by area, one skeptic per finding; 48 agents, 2026-10-27)
+
+38 findings, 21 kept by the skeptics, 17 refuted. Fixed (committed locally): the knife's wall branch counting a soldier's gear
+as a hit; the knife's cast with no exception guard; fist and held-thing blows swept with no soldier near; the knife's
+pre-check switching the player's hitboxes for bare level geometry; a corpse taken saving the death's drive 50 (a soldier
+respawned in the hand kept it, floppy at his next knockdown); the gun overlap test walking the ragdoll every frame (now its
+cached colliders); a rail magazine let go dropping with the gun hand's speed only; the lens's mono quad drawn black in
+both eyes in multi-pass; a failed lens worker frame leaving the last picture frozen; the glow's occlusion disc sized by
+the brightness-scaled flash; the told-once sets keeping gone weapons; a made stand-in's failed grip measure cached for
+the weapon; MaxDroppedWeapons 0 still building every death's drop; the idle-build queue and the entry numbers kept over a
+content reload; the first input-check line's frame rate. Not done: a held body's own collider pairs stay ignored after
+the let-go (re-enabled while its bones overlap it would pop; needs a test of a thrown corpse first); the knife's blocking
+test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
+array (debug option only).
+
 ### For 338: soldier review, frozen bench and estimated frame rates (2026-10-24 night)
 - Review workflow soldier-code-review (6 Haiku readers: per-frame cost of BodyGrab and ThrowAndMelee, bugs in each, cleanness,
   the autotest's BodyGrabCheck; a Haiku skeptic per finding): 38 findings, 29 confirmed. Fixed: knife trigger double hit,
