@@ -4631,6 +4631,36 @@ namespace RavenfieldVR.Core
                     yield return LetGo();
                     report($"squeezed fist slowing on him (squeezed 45 cm before his middle, 3.5 then 1 m/s): {(pushTook ? "NOT A PUNCH: took hold of him" : "not taken hold of")}");
                 }
+                // And the other way round: a quick reach squeezed on the way, at 3 m/s, slowing to him (a reach for a soldier: it takes
+                // hold; spent by speed alone, it grabbed the air: "my hand grabs the air many times", user, 2026-10-25).
+                Actor reachedFor = Next(false);
+                yield return Bring(reachedFor, 0.8f, false, there);
+                if (there[0] && off.Role == Rig.HandRole.Free)
+                {
+                    Vector3 reachFrom = reachedFor.CenterPosition() - flat * 0.55f;
+                    OffAt(reachFrom, Quaternion.LookRotation(flat, Vector3.up));
+                    yield return null;
+                    yield return null;
+                    bool pressed = false;
+                    for (float d = 0f; d < 0.5f;)
+                    {
+                        float v = d < 0.2f ? 3f : Mathf.Lerp(3f, 0.4f, (d - 0.2f) / 0.3f);
+                        d += v * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                        OffAt(reachFrom + flat * d, Quaternion.LookRotation(flat, Vector3.up), flat * v);
+                        if (!pressed && d >= 0.15f)
+                        {
+                            pressed = true;
+                            Input.VRInput.SimulateGrabPress(off.Side); // squeezed on the way, 40 cm before his middle, at 3 m/s
+                            Input.VRInput.SimulatedGrip[os] = 1f;
+                        }
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    bool reachTook = BodyGrab.IsHeld(reachedFor);
+                    Input.VRInput.SimulatedGrip[os] = 0f;
+                    yield return LetGo();
+                    report($"quick reach squeezed on the way (3 m/s, slowing to him): {(reachTook ? "took hold of him" : "NOT TAKEN: the reach grabbed the air")}");
+                }
 
                 yield return WalkWith("at the chest", -0.3f);
                 yield return WalkWith("at the chest, running", -0.3f, run: true);
