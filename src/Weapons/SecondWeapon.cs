@@ -554,9 +554,11 @@ namespace RavenfieldVR.Weapons
                 // destroys this one at the end of that frame; a loadout change). The hand is freed all the same: its role came
                 // back only through HealHandRoles, and its shape to close on stayed the destroyed weapon's, so the next grip
                 // that set no shape of its own closed the fingers on an invisible gun (bug hunt, 2026-10-19).
-                if (_reloadDoneAt >= 0f && Ammo != null)
+                if (_reloadDoneAt >= 0f)
                 {
-                    Ammo.ReturnSpare(_reloadRounds); // a reload under way gives back what it took (review, 2026-10-20)
+                    // A reload under way gives back what it took (review, 2026-10-20): to a reserve of its kind still about. Into its
+                    // own, the destroyed weapon's, they were lost with it (round-2 scout, 2026-10-27; the swap hands them over first).
+                    _sys.ReturnRoundsOfKind(Rig?.Data?.Key, _reloadRounds);
                     _reloadDoneAt = -1f;
                 }
                 FreeHand();

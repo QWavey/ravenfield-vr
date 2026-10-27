@@ -162,7 +162,16 @@ namespace RavenfieldVR.Weapons
                     Log.ExceptionOnce("Held.Update", e);
                 }
             }
-            UpdateSecond();
+            // Caught as the held gun's is: thrown (a game call in the holster or the hand's model gone under it), it skipped the hand
+            // roles, the drops, the holsters and the body grabs every frame after it (round-2 scout, 2026-10-27).
+            try
+            {
+                UpdateSecond();
+            }
+            catch (Exception e)
+            {
+                Log.ExceptionOnce("UpdateSecond", e);
+            }
             HealHandRoles();
             if (GameContext.PlayerActor == null || GameContext.PlayerActor.dead)
             {
@@ -199,8 +208,9 @@ namespace RavenfieldVR.Weapons
             {
                 // The game drew the other hand's weapon (its number key): it is the gun hand's now. Only this hand lets go: put
                 // away as well, it was holstered under the gun hand and vanished from both (review, 2026-10-20).
-                Second.HandOver();
-                Second = null;
+                SecondWeapon handed = Second;
+                Second = null; // (first: one that throws in its hand-over is not handed over again every frame)
+                handed.HandOver();
                 return;
             }
             bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
@@ -208,8 +218,9 @@ namespace RavenfieldVR.Weapons
             if (gone || Second.Done)
             {
                 // The gun in the other hand went away (a seat, death), or a grenade thrown: back into its holster.
-                Second.PutAway();
+                SecondWeapon away = Second;
                 Second = null;
+                away.PutAway();
                 return;
             }
             if (!Second.Hand.Tracked)
@@ -224,8 +235,9 @@ namespace RavenfieldVR.Weapons
                 }
                 if (Time.unscaledTime - _secondUntrackedAt > 0.5f)
                 {
-                    Second.PutAway();
+                    SecondWeapon away = Second;
                     Second = null;
+                    away.PutAway();
                 }
                 return;
             }
@@ -233,8 +245,9 @@ namespace RavenfieldVR.Weapons
             if (!Second.Hand.GrabHeld)
             {
                 // Let go: back into its holster (a grenade let go in a throwing motion is thrown first).
-                Second.LetGo();
+                SecondWeapon let = Second;
                 Second = null;
+                let.LetGo();
                 return;
             }
             Second.Update();
@@ -513,6 +526,12 @@ namespace RavenfieldVR.Weapons
             {
                 return owner;
             }
+            return LiveOwnerOfKind(prop.WeaponKey);
+        }
+
+        /// <summary>A weapon of the kind <paramref name="key"/> names (its analysis key) the player carries: its reserve, or null.</summary>
+        private AmmoState LiveOwnerOfKind(string key)
+        {
             Actor actor = GameContext.PlayerActor;
             if (actor == null || actor.weapons == null)
             {
@@ -521,7 +540,7 @@ namespace RavenfieldVR.Weapons
             foreach (Weapon w in actor.weapons)
             {
                 // (Its analysis's key, not a rig made for it: asked here, a rig was built and kept for every weapon only looked at.)
-                if (w != null && w.UserIsPlayer() && WeaponAnalyzer.Get(w).Key == prop.WeaponKey)
+                if (w != null && w.UserIsPlayer() && WeaponAnalyzer.Get(w).Key == key)
                 {
                     return StateFor(w, create: true);
                 }
@@ -546,6 +565,25 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Drops?.ReturnRoundsToOwnDrop(prop.WeaponKey, rounds);
+        }
+
+        /// <summary>
+        /// Rounds of a weapon that is gone (destroyed in the hand) back into a reserve of its kind: a weapon of that kind the player
+        /// carries, else the player's own dropped one. Its own reserve went with it.
+        /// </summary>
+        internal void ReturnRoundsOfKind(string key, int rounds)
+        {
+            if (rounds <= 0 || key == null)
+            {
+                return;
+            }
+            AmmoState into = LiveOwnerOfKind(key);
+            if (into != null)
+            {
+                into.ReturnSpareCapped(rounds);
+                return;
+            }
+            Drops?.ReturnRoundsToOwnDrop(key, rounds);
         }
 
         public AmmoState StateFor(Weapon weapon, bool create)
