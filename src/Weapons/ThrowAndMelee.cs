@@ -777,6 +777,12 @@ namespace RavenfieldVR.Weapons
                 hitSomething = Cast(melee, new Ray(fromTip, dir), sweep.magnitude + 0.05f, radius, dir)
                                || Cast(melee, new Ray(midFrom, (midTo - midFrom).normalized), (midTo - midFrom).magnitude + 0.05f, radius, dir);
             }
+            catch (System.Exception e)
+            {
+                // (As BashCast: the game's damage code, or a mod's hitbox, throwing inside it escaped the render step on every fast
+                // frame of a swing.)
+                Log.ExceptionOnce("knife swing", e);
+            }
             finally
             {
                 if (disabled)
@@ -838,7 +844,7 @@ namespace RavenfieldVR.Weapons
                 melee.HitVehicle(direction, hitVehicle);
                 return true;
             }
-            if (hitWall.collider != null)
+            if (hitWall.collider != null && BlocksBlow(hitWall.collider))
             {
                 Rigidbody body = hitWall.collider.attachedRigidbody;
                 Destructible destructible = hitWall.collider.GetComponentInParent<Destructible>();
@@ -1034,7 +1040,9 @@ namespace RavenfieldVR.Weapons
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
                 {
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
-                    if (speed > BlowSpeed)
+                    // (Not swept with no soldier anywhere round the hand's path this frame, as the gun's bash: a sphere cast on every
+                    // fast frame of every swing through the air.)
+                    if (speed > BlowSpeed && SoldierNear(user, _blowAt[i], at, BashRadius * 3f))
                     {
                         int kind = fist ? FistBlow : what is MagazineProp m ? (int)m.Kind : GrenadeBlow;
                         float weight = fist ? 0.4f : what is MagazineProp ? 0.45f : 0.55f;
