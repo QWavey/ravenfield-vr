@@ -411,6 +411,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal void IgnoreColliders(IList<Collider> colliders)
         {
+            _ignoredColliders.RemoveAll(IsGone); // (bodies gone without a let-go: a respawn, a scene change)
+            _ignoredBodies.RemoveAll(IsGoneBody);
             foreach (Collider c in colliders)
             {
                 if (c != null && !_ignoredColliders.Contains(c))
@@ -443,6 +445,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private readonly List<Collider> _ignoredColliders = new List<Collider>();
+        private static readonly System.Predicate<Collider> IsGone = c => c == null;
+        private static readonly System.Predicate<GameObject> IsGoneBody = g => g == null;
 
         private void SetIgnored(Collider c, bool ignore)
         {
