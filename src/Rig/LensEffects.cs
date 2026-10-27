@@ -116,6 +116,7 @@ namespace RavenfieldVR.Rig
         private readonly Job _job = new Job();
         private volatile bool _busy, _done, _stop, _failed;
         private bool _resultAny, _shownAny, _resultFlash, _resultHit;
+        private float _lastPainted = -1f; // (when the last picture was asked of the worker: the low-health edge alone, 30 a second)
         // The flash and glow strength in each eye's finished picture, and in the one shown now (the film's frame log).
         private readonly float[] _resultPower = new float[2], _resultGlow = new float[2], _shownPower = new float[2], _shownGlow = new float[2];
         private volatile float _workMs, _workMsMax;
@@ -467,9 +468,15 @@ namespace RavenfieldVR.Rig
                 j.LowHealth = dead ? 0f : _lowHealth;
                 j.Drops = dead || !(VRConfig.WaterDrops.Value || TestDrops) ? 0f : DropsFade(now);
                 j.DropsSeed = _dropsSeed;
-                any |= j.Hit > 0.001f || j.LowHealth > 0.001f || j.Drops > 0.001f;
-                if (any || _shownAny)
+                bool others = any || j.Hit > 0.001f || j.Drops > 0.001f;
+                any = others || j.LowHealth > 0.001f;
+                // Only the low-health edge on the lens: painted 30 times a second, not every frame. Its heartbeat moves slowly, and the
+                // whole picture was repainted and uploaded for both eyes on every frame while health stayed under half (perf scouts,
+                // 2026-10-27: 0.3-0.8 ms a frame estimated). A flash, a hit or drops paint every frame as before.
+                bool lowOnlyWait = !others && any && _shownAny && now - _lastPainted < 1f / 30f;
+                if ((any || _shownAny) && !lowOnlyWait)
                 {
+                    _lastPainted = now;
                     _jobSerial = _nextSerial;
                     _resultAny = any;
                     _resultFlash = j.Flashes[0].Count + j.Flashes[1].Count > 0;
