@@ -292,7 +292,9 @@ namespace RavenfieldVR.Weapons
             float sideBox = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(sideLocal))), frontBox = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(FrontLocal)));
             _sectionKey = key + "|" + InsertDirLocal.ToString("F3");
             _boxHalf = new Vector2(frontBox, sideBox);
-            if (kind == PropKind.Magazine && GripSection(go, key, InsertDirLocal, FrontLocal, sideLocal, out float frontGrip, out float sideGrip))
+            // (Kept per weapon only for the gun's own copy: a made stand-in's result was kept for the weapon too, and when its copy
+            // came out right later, its grip was never measured.)
+            if (kind == PropKind.Magazine && GripSection(go, fitKey != null ? key : null, InsertDirLocal, FrontLocal, sideLocal, out float frontGrip, out float sideGrip))
             {
                 // Where the hand holds it, not its box: the box of a raked or curved magazine counted part of its length
                 // as width (a 25 cm magazine tipped 20 degrees, an AK's bend), and most rifle and pistol magazines were
