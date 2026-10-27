@@ -426,7 +426,8 @@ namespace RavenfieldVR.Input
             }
             _nextDiagnose = now + 2f;
             var sb = new StringBuilder("Input check: UpdateActionState " + updateError);
-            sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart):0} fps");
+            // (The first line has no window behind it: its frames counted since the game started, over the time since then, read 0 fps.)
+            sb.Append($", space {Universe}, unity origin {OpenVRRuntime.TrackingOriginName}, {(_diagWindowStart > 0f ? (_diagFrames / Mathf.Max(0.01f, now - _diagWindowStart)).ToString("0") : "?")} fps");
             _diagFrames = 0;
             _diagWindowStart = now;
             sb.Append($", mod {VRManager.ModMsPerFrameSince(ref _diagModMs, ref _diagModFrames):0.0} ms a frame");
