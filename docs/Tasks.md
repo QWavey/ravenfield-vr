@@ -2794,6 +2794,27 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### For 344: final test after the 40% ceiling (2026-10-27 evening; nothing pushed)
+
+- Offline suite: all green after one fix (failure_phrases_test failed on 4 capital phrases from 1.13.0: a strapped grenade
+  INSIDE THE BODY and a full magazine that DRAWS LESS THAN AN EMPTY one now count as autotest problems; the hardest contact's
+  THE PLAYER'S / ITS OWN SOLDIER'S are listed as diagnostics).
+- Soldier check, all mods (final-full): found a regression of this run: "Fist physics: no free layer in this scene" on
+  island2023 (eae8b4e counted renderers; only colliders matter for a layer's collisions). Fixed (31145f1), final-full2: layer
+  31 in the map. Passing: grab and swing, slam, trembling hand, wrist turn, lying body, taken running, fist with a gun, boxing,
+  gun bash, neck, grenade strap (3.4 cm out of the bone, countdown '4'), hits on a held soldier, gun drawn into a holding hand.
+- Open: (a) after "gun drawn into a holding hand" the 90 cm squeezed punch leaves the off hand as Weapon (both all-mod runs):
+  the squeeze near the drawn sniper seems to take the gun, and the slowing/quick-reach/walk/collision cases after it are
+  skipped. Test geometry, from the 60 -> 90 cm move in 1.13.0 (fast4-7 drew the same sniper and went on); the punch itself
+  is NO HIT as in auto1. (b) The 45 degree snap turn is noisy: 0.6 m/s in final-full and final-auto, 14.6 m/s (Arm.L.001,
+  frame 6) in final-full2; 6.4 in fast7 before this run. CarryBody reads the bones' drawn (now extrapolated) pose: a few cm,
+  not enough alone, but worth reading Rigidbody.position there. (c) Quick autotest (final-auto, 38 weapons, 7 problems as
+  auto1): the new "quick reach squeezed on the way" grabbed the air in its first run, and the running walk saw "no press"
+  with the soldier 4 cm from the palm; many soldiers could not be brought there (1.8-4 m off), so check both in a soldier
+  check first. Fixed since auto1: the neck, the GREASER's shake, the running walk's fling. Still as in auto1: AA-AA second
+  shotgun not fired, BUNDLE O' BUSS part not ready, GREASER rack grip, the 90 cm punch.
+- Perf against auto1 (same 38 weapons): the per-frame sections' means sum 0.817 -> 0.798 ms (flat, within noise).
+
 ### For 344: Haiku workflow round 2 (5 scouts: ammo and fire, second weapon, zones and pouch, UI, reload parts; 2026-10-27)
 
 16 findings. Fixed (committed locally, not pushed): seated body spots placed for a 2.23 m body while uncalibrated (the 1.65
