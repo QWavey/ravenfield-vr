@@ -276,9 +276,28 @@ def report_since(game, start):
         return False
 
 
+def keep_player_log(logfile):
+    """The user's own last session's log kept beside it (LogOutput.player.log) before a run overwrites it: its once-a-minute frame
+    rate lines are where their headset's bottleneck shows, and every vrshots run replaced it (2026-10-27). A log a vrshots run
+    wrote (its pictures, its autotest's end) is not kept."""
+    try:
+        with open(logfile, encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError:
+        return
+    if 'RavenfieldVR-shots' in text or 'Autotest finished' in text or 'Frame rate over the last minute' not in text:
+        return  # (a test run's, or a session too short to say anything about the frame rate)
+    try:
+        shutil.copy2(logfile, os.path.join(os.path.dirname(logfile), 'LogOutput.player.log'))
+        log('the last session of your own kept as BepInEx/LogOutput.player.log')
+    except OSError:
+        pass
+
+
 def run_game(game, args, timeout_min, vr):
     exe = os.path.join(game, 'ravenfield.exe')
     logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
+    keep_player_log(logfile)
     full = args + ['-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720']
     for attempt in range(1, 4):
         start = time.time()
