@@ -2794,6 +2794,12 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### 347. A magazine pushed in stays in the hand until the user lets go (user, 2026-10-27 night, not started)
+- [ ] When a magazine is inserted and seats, the hand stays on it (the glove on the seated magazine) until the user opens the
+      grip, instead of being let go at the seat. While still held from the insert it cannot be pulled out again: to take it out the
+      user lets go and grabs it again. The user's observation: with the hand still on the seated magazine the buggy seat animation
+      does not play, which is good (it plays when the hand is let go at the seat).
+
 ### 346. Ideas from the user (2026-10-27 night, not started)
 - [ ] (a) A hand swung against a soldier's gun knocks it aside with his arms (his aim pushed off the player for a moment), without
       taking it from him.
