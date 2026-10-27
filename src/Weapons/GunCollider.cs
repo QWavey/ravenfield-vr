@@ -1297,14 +1297,16 @@ namespace RavenfieldVR.Weapons
         private void Touch(Collision c)
         {
             Rigidbody other = c.rigidbody;
+            if (other != null && !other.isKinematic && BodyGrab.IsHeldBone(other))
+            {
+                // A body the other hand holds, however heavy its bones (a mod's ragdoll): the gun stops on it and presses it gently.
+                // Chased at full speed it shoved his dangling legs 20 cm out of their joints, a bone to 13 m/s (the soldier check's
+                // walk, the gun at the hip).
+                _worldContactUntil = _softUntil = Time.time + Mathf.Max(0.12f, Time.fixedDeltaTime * 3f);
+                return;
+            }
             if (other != null && !other.isKinematic && other.mass < HeavyMass)
             {
-                if (BodyGrab.IsHeldBone(other))
-                {
-                    // A body the other hand holds: the gun stops on it and presses it gently. Chased at full speed it shoved his
-                    // dangling legs 20 cm out of their joints, a bone to 13 m/s (the soldier check's walk, the gun at the hip).
-                    _worldContactUntil = _softUntil = Time.time + Mathf.Max(0.12f, Time.fixedDeltaTime * 3f);
-                }
                 return; // loose props and ragdoll limbs are pushed: they do not hold the gun back
             }
             if (PropPhysics.IsPlayerCollider(c.collider))
