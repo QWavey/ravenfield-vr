@@ -2794,6 +2794,33 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### For 345: friends, the three open test items, performance (2026-10-27 night, work-until-limit 80; nothing pushed)
+
+- Friends ("things work on enemies more than on friendlies": user): the neck hold, thrown or slammed bodies, the strapped
+  grenade and every melee target pick skipped the player's own team. The game hurts friends with the player's bullets (after
+  2 m) and its knife, at full damage, so they are now treated alike. The soldier check has a friends step (grab, fist, neck):
+  passes.
+- 344's open items: (a) the 90 cm punch started the fist inside the player (soldier at 0.8 m) and took the drawn sniper: the
+  soldier now at 1.2 m and the gun put away for the squeeze steps, drawn again for the walks: the punch hits, the steps after it
+  run. (b) The snap turn's 14.6 m/s: CarryBody read the extrapolated drawn poses, which do not fit the joints; it carries the
+  physics poses now (0.6 m/s in the runs since). (c) The quick reach: its fist met his arm at 3 m/s and punched, and the blow
+  blocked the take; a squeeze made near a soldier and not sped up past its own speed is a reach and does not punch
+  (BodyGrab.Reaching): takes hold. The slowing fist test now squeezes out of his reach (his arm and rifle reach about 45 cm).
+- Frame rate line: each player loop phase, the costliest steps and each camera's render a frame (FramePhases). All mods,
+  soldier check, null driver 1440x1584: 99% of frames at 90 Hz, median 7.8 ms, GPU 2.3; FinishFrameRendering 2.55 ms (eyes
+  1.22, the mod's UI camera 0.48, the game's screen cameras about 0.5), PlayerSendFrameStarted 1.78 (the before-render
+  callbacks; the mod's part is inside its 0.5 ms), Update scripts 0.8, audio 0.39, physics 0.22.
+- Single-pass instanced is not possible: the game's shaders have no STEREO_INSTANCING_ON variants (0 in its assets, against
+  221 INSTANCING_ON), so the world would draw in one eye. Multi-pass stays.
+- Perf workflow (6 Haiku scouts by resource, a skeptic each, 30 agents): 20 confirmed, none big. Done: the game's own scope
+  camera draws only while a lens of it is shown, without shadows unless ScopeShadows; the background camera off in VR; weapon
+  builds in the dead follow view at most one 4 ms+ step a second. Not done: the lens picture repainted every frame while hurt
+  (a separate low-health quad; 0.3-0.8 ms estimated, unmeasured), the UI camera when nothing is on layer 5 (most of the mod's
+  overlays live there), dropped weapons' and magazines' shadows (only with shadows on), the GunVolume cache's 60-140 MB (its
+  own trade, 5c9af24), the water-drop scratch's 14 MB (only with WaterDrops on).
+- The user's own bottleneck is not in these runs (they hold 90 Hz): the frame rate line in a headset session's log now says
+  which phase and camera take the time.
+
 ### For 344: final test after the 40% ceiling (2026-10-27 evening; nothing pushed)
 
 - Offline suite: all green after one fix (failure_phrases_test failed on 4 capital phrases from 1.13.0: a strapped grenade
