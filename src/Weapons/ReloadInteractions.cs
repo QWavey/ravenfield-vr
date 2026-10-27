@@ -443,23 +443,17 @@ namespace RavenfieldVR.Weapons
                     _opticGrabGun = GripRig.ToGun(off.Palm.position);
                     _opticSwitched = true; // and no switch from this hold any more: the hand was not moving it
                 }
+                // A rack too: its stroke was measured from where the hand began it, and the hand came back somewhere else (the lost
+                // pose rides with the body). The first tracked frame read the jump as a full pull, ejected the chambered round and
+                // chambered the next (round-2 scout, 2026-10-27).
+                ReanchorMotion(off);
             }
             bool paused = GameManager.IsPaused();
             if (_wasPaused && !paused)
             {
                 // Back from a pause: re-anchor the motion baselines so a hand that moved while paused does not jump a kick or
                 // a rack on the first frame back (the cockpit re-anchors its wheel and stick the same way, 2026-10-21).
-                _kickPrevAlong = float.NaN;
-                _kickPushSince = -1f;
-                _kickTicked = false;
-                _supportRest = -1f;
-                if (_racking)
-                {
-                    _rackBase = Travel > 1e-5f ? Mathf.Clamp01(_held.SlideOffset / Travel) : _rackBase;
-                    _rackStartGun = Rig.ToGun(off.Palm.position);
-                    _tugStroke = _rackBase * StrokeLength;
-                    _lastTick = _tugStroke;
-                }
+                ReanchorMotion(off);
             }
             _wasPaused = paused;
             // Grenades: the pin (ThrowableHandler) and loose props (WeaponSystem) take the off hand's grab. A grip closed a
@@ -1253,6 +1247,22 @@ namespace RavenfieldVR.Weapons
         /// or a launcher's grip (HeldWeapon.SupportHeldInPlace, task 277). Its stretch and its glove are taken from that point.
         /// </summary>
         private bool SupportAtOwnPoint => GripData.IsPistol || SupportBehindGrip || _held.SupportHeldInPlace();
+
+        /// <summary>The off hand's motion measured again from where it is now (a kick's push, a rack's stroke): after a jump in its pose.</summary>
+        private void ReanchorMotion(VRHand off)
+        {
+            _kickPrevAlong = float.NaN;
+            _kickPushSince = -1f;
+            _kickTicked = false;
+            _supportRest = -1f;
+            if (_racking)
+            {
+                _rackBase = Travel > 1e-5f ? Mathf.Clamp01(_held.SlideOffset / Travel) : _rackBase;
+                _rackStartGun = Rig.ToGun(off.Palm.position);
+                _tugStroke = _rackBase * StrokeLength;
+                _lastTick = _tugStroke;
+            }
+        }
 
         /// <summary>Weapon is going away: finish what is in progress so no ammo is lost or duplicated.</summary>
         public void Release()

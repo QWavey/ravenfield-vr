@@ -127,10 +127,13 @@ namespace RavenfieldVR.Weapons
             // Holsters stay where they were set; the stock's pocket goes with the weapon's hand and the pouch with the hand
             // that reaches for it (the weapon may have been passed to the other hand).
             float gunSide = VRInput.GunHand == Hand.Left ? -1f : 1f;
-            float height = VRConfig.EyeHeight.Value > 0.3f ? VRConfig.EyeHeight.Value : 1.65f;
-            if (VRConfig.SeatedMode.Value)
+            float height = 1.65f;
+            if (VRConfig.EyeHeight.Value > 0.3f)
             {
-                height *= 1.35f; // seated calibration is lower than standing anatomy
+                // A seated calibration is lower than standing anatomy. Only a calibrated height: the 1.65 m default is a standing one
+                // already, and scaled it put the spots for a 2.23 m body, the pouch at the shins, until (or, for a seated head under
+                // 1 m, never) the calibration landed (round-2 scout, 2026-10-27).
+                height = VRConfig.EyeHeight.Value * (VRConfig.SeatedMode.Value ? 1.35f : 1f);
             }
 
             // The neck pivot the head turns about (about 9 cm under and 8 cm behind the eyes): looking down at the pouch
