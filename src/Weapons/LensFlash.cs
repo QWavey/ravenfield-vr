@@ -65,7 +65,7 @@ namespace RavenfieldVR.Weapons
         private Transform _gunMuzzle;
         /// <summary>The barrel the pending shot left from; null for all-muzzle weapons or when not recorded.</summary>
         private Transform _pendingMuzzle;
-        private float _gunSize;
+        private float _gunSize, _gunSizeRaw;
         private bool _gunAuto;
 
         /// <summary>Autotest: one eye's flash as the limiter let it through (the steps it was charged; 0 for a soft one).</summary>
@@ -416,7 +416,9 @@ namespace RavenfieldVR.Weapons
             // flash-less set it to nothing, and the glow went out in the middle of a burst).
             float gunSize = info.Particles ? FlashSize(data, w, info, true) : size;
             _gunSize = gunSize * strength;
+            _gunSizeRaw = gunSize; // (the strength scales the brightness only: the glow's occlusion is measured by its size)
             _gunAuto = w.configuration.auto;
+            _gunHeld = held; // (before the flash-less return: the glow was measured against the gun before)
             if (size <= 0f)
             {
                 if (info.Any && _toldNoFlash.Add(w)) // a smoke grenade or a knife has no flash to miss
@@ -446,7 +448,6 @@ namespace RavenfieldVR.Weapons
                 }
                 return; // behind the eyes
             }
-            _gunHeld = held;
             _gunAhead = ahead;
             float strongest = 0f, seenMost = 0f;
             // Now and then (about one shot in three) the whole view flashes with it, a loud gun's more: the same in both eyes,
@@ -605,7 +606,7 @@ namespace RavenfieldVR.Weapons
                 if (shown > 0.001f && LensEffects.CoreInWorld && Time.frameCount - _glowVisFrame >= 3)
                 {
                     // Seen past the gun, measured every third frame while it glows.
-                    _glowVis[e] = Visibility(_gunHeld, plume, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(Mathf.Max(0.1f, _gunSize)));
+                    _glowVis[e] = Visibility(_gunHeld, plume, head.TransformPoint(new Vector3(ex, 0f, 0f)), 0.025f * Mathf.Sqrt(Mathf.Max(0.1f, _gunSizeRaw)));
                     if (e == 1)
                     {
                         _glowVisFrame = Time.frameCount;

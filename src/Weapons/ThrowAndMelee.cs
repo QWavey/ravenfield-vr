@@ -653,6 +653,8 @@ namespace RavenfieldVR.Weapons
         private const int GameMeleeMask = 70913;
         /// <summary>The game's first-person layer (the drawn weapon and arms), never a wall a blow stops at.</summary>
         private const int FirstPersonLayer = 18;
+        /// <summary>The vehicles' layer, as the game's melee cast reads it (MeleeWeapon.SphereCast).</summary>
+        private const int VehicleLayer = 12;
         /// <summary>No fist, gun or held thing hits below this (m/s), whatever the knife's own setting: a walk is no blow.</summary>
         private const float MinBlowSpeed = 2.2f;
 
@@ -815,11 +817,20 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (Hitbox.IsHitboxLayer(c.gameObject.layer) && BodyGrab.HurtableOf(c) == user)
+                if (Hitbox.IsHitboxLayer(c.gameObject.layer))
                 {
+                    if (BodyGrab.HurtableOf(c) != user)
+                    {
+                        return true; // another's hitbox (the game's cast takes any but the user's)
+                    }
                     continue;
                 }
-                return true;
+                // A vehicle, a loose thing or a breakable: the cast pushes, breaks or hits it. Static level geometry it does nothing
+                // with: each fast frame past a wall switched the player's hitboxes off and on for two casts (scout, 2026-10-27).
+                if (c.gameObject.layer == VehicleLayer || c.attachedRigidbody != null || c.GetComponentInParent<Destructible>() != null)
+                {
+                    return true;
+                }
             }
             return n >= PathHits.Length; // (a full buffer: cast to be sure)
         }

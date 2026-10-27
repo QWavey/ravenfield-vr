@@ -400,6 +400,14 @@ namespace RavenfieldVR.Rig
                     ShowsFlash = _resultFlash;
                     ShowsHit = _resultHit;
                 }
+                else
+                {
+                    // Half drawn: not shown, nor the last good picture left on the lens (a throw that repeated kept a red hit glow or a
+                    // flash frozen in view; the job goes again only while there is something to draw).
+                    _shownAny = false;
+                    ShowsFlash = false;
+                    ShowsHit = false;
+                }
                 _failed = false;
                 _busy = false;
             }
@@ -475,7 +483,10 @@ namespace RavenfieldVR.Rig
             {
                 // Single-pass shows only the centred quad (LensEye): the eyes' two were drawn anyway, black, each a full-view
                 // additive quad every frame an effect was up (render-effects scout, 2026-10-23).
-                bool want = _shownAny && (q == 2 || !LensEye.SinglePass);
+                // And multi-pass never shows the centred quad (no eye renders as mono): drawn anyway, black, a full-view additive quad
+                // in each eye while any effect was up, the low-health edge for as long as health stayed under half (scout,
+                // 2026-10-27). The autotest's and -rfvr-shots pictures render it themselves.
+                bool want = _shownAny && (q == 2 ? LensEye.SinglePass || Shots.Enabled : !LensEye.SinglePass);
                 if (_quads[q].activeSelf != want)
                 {
                     _quads[q].SetActive(want);

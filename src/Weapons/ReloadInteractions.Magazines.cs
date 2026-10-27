@@ -915,9 +915,11 @@ namespace RavenfieldVR.Weapons
             }
             if (prop.OnRail)
             {
-                // Let go half way in: it slides back out of the well.
+                // Let go half way in: it slides back out of the well, with the off hand's pull out along it (a push in is not carried:
+                // the gun hand's speed alone lost a flick out of the well; scout, 2026-10-27).
                 Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
-                prop.Drop(_sys.Rig.Dominant.Velocity - insert * 0.6f, Vector3.zero);
+                float pulledOut = Mathf.Min(0f, Vector3.Dot(off.ThrowVelocity() - _sys.Rig.Dominant.ThrowVelocity(), insert));
+                prop.Drop(_sys.Rig.Dominant.Velocity + insert * pulledOut - insert * 0.6f, Vector3.zero);
                 return;
             }
             prop.Drop(off.ThrowVelocity(), off.AngularVelocity);

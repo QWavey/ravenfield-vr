@@ -498,6 +498,27 @@ namespace RavenfieldVR.Weapons
 
         private static readonly List<Collider> OverlapScratch = new List<Collider>();
 
+        /// <summary>The same against a body's colliders already in hand (a held body's, each frame it still touches the gun).</summary>
+        internal bool Overlaps(IList<Collider> colliders)
+        {
+            foreach (Collider c in colliders)
+            {
+                if (c == null || !c.enabled)
+                {
+                    continue;
+                }
+                Bounds cb = c.bounds;
+                foreach (Collider b in _boxes)
+                {
+                    if (b != null && b.enabled && b.bounds.Intersects(cb))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private void SetIgnored(GameObject root, bool ignore)
         {
             foreach (Collider c in root.GetComponentsInChildren<Collider>())

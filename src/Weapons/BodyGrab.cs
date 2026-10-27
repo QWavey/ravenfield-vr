@@ -542,7 +542,7 @@ namespace RavenfieldVR.Weapons
                     hold.IgnoredGun = gun;
                 }
             }
-            else if (hold.IgnoredGun != null && !hold.IgnoredGun.Overlaps(body))
+            else if (hold.IgnoredGun != null && !(hold.Colliders != null ? hold.IgnoredGun.Overlaps(hold.Colliders) : hold.IgnoredGun.Overlaps(body)))
             {
                 hold.IgnoredGun.StopIgnoring(body);
                 hold.IgnoredGun = null;
@@ -1414,7 +1414,10 @@ namespace RavenfieldVR.Weapons
         {
             if (!SavedDrive.ContainsKey(a))
             {
-                SavedDrive[a] = a.ragdoll.jointDrive;
+                // A corpse's drive is Actor.Die's 50, not the living one: the game respawned him in the hand (SpawnAt sets 700/3), the
+                // let-go gave him the saved 50 back as a living soldier, and his next knockdown was floppy. Disarm's dead branch does
+                // not read the saved drive, so a corpse is let go as before.
+                SavedDrive[a] = a.dead ? new JointDrive { positionSpring = 700f, positionDamper = 3f, maximumForce = a.ragdoll.jointDrive.maximumForce } : a.ragdoll.jointDrive;
             }
             a.ragdoll.SetDrive(0f, HeldDamper);
             HoldTogether(a);
