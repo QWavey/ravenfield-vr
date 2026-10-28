@@ -1873,8 +1873,14 @@ namespace RavenfieldVR.Weapons
 
         private void Crushed(Collision c)
         {
-            float pace = _owner != null && ArmedUntil.TryGetValue(_owner, out float held) ? WorldPace(held) : 1f;
-            if (_gone || _owner == null || c.impulse.sqrMagnitude * pace * pace < BodyGrab.CrushImpulse * BodyGrab.CrushImpulse || c.collider == null)
+            float crush = BodyGrab.CrushImpulse * BodyGrab.CrushImpulse;
+            float impulse = c.impulse.sqrMagnitude;
+            if (_gone || _owner == null || impulse < crush || c.collider == null)
+            {
+                return; // (first on the raw impulse: the world's pace is never over 1, and this runs for every resting contact)
+            }
+            float pace = ArmedUntil.TryGetValue(_owner, out float held) ? WorldPace(held) : 1f;
+            if (impulse * pace * pace < crush)
             {
                 return;
             }
