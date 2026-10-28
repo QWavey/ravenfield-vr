@@ -401,8 +401,18 @@ namespace RavenfieldVR.UI
                 return;
             }
             float want = Input.VRGameInput.WristLookGesture ? 1f : 0f;
-            _matchBar.alpha = Mathf.MoveTowards(_matchBar.alpha, want, Time.unscaledDeltaTime * 8f);
-            _matchBar.blocksRaycasts = want > 0f;
+            // Written only when they change (the rest of the time faded out or in): a canvas group's setter tells every graphic
+            // under it, the match bar's whole canvas, each frame it ran.
+            float alpha = _matchBar.alpha;
+            if (alpha != want)
+            {
+                _matchBar.alpha = Mathf.MoveTowards(alpha, want, Time.unscaledDeltaTime * 8f);
+            }
+            bool blocks = want > 0f;
+            if (_matchBar.blocksRaycasts != blocks)
+            {
+                _matchBar.blocksRaycasts = blocks;
+            }
         }
 
         private CanvasGroup _matchBar;
