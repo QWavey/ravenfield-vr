@@ -771,7 +771,7 @@ namespace RavenfieldVR.Weapons
             part.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = part.AddComponent<MeshRenderer>();
             mr.sharedMaterials = Util.MaterialFix.Fix(materials);
-            mr.shadowCastingMode = ShadowCastingMode.On;
+            mr.shadowCastingMode = ShadowCastingMode.Off; // (a magazine's shadow is hardly seen; its pieces were drawn into the shadow maps per eye)
             if (owned)
             {
                 part.AddComponent<OwnedMesh>().Mesh = mesh;

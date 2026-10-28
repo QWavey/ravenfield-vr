@@ -146,6 +146,17 @@ namespace RavenfieldVR.Weapons
                 }
                 HideParkedAmmo(entry, template);
                 StripStrays(entry, template);
+                // Its copies cast no shadows (they still take them): each lying or holstered weapon's pieces were drawn into the shadow
+                // maps once per eye with a preset's shadows on, for a shadow few would see at Medium's resolution (perf scouts,
+                // 2026-10-27; the user's Medium ran at half rate on the CPU, Tasks 348). One of only shadows has nothing left to draw.
+                foreach (Renderer r in template.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly)
+                    {
+                        r.enabled = false;
+                    }
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
                 if (_templateRoot == null)
                 {
                     _templateRoot = new GameObject("RavenfieldVR Drop Templates");
