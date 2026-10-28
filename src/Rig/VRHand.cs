@@ -62,6 +62,8 @@ namespace RavenfieldVR.Rig
         private bool _tipOnRawKnown, _gripOnRawKnown;
         private Quaternion _lastRigRotation = Quaternion.identity;
         private Vector3 _lastRigMeasured;
+        /// <summary>The frame before was taken as a jump of the rig (its measure not kept as the one to compare with).</summary>
+        private bool _lastRigJumped;
         private Matrix4x4 _lastRigMatrix = Matrix4x4.identity;
         private bool _hasLastRig;
         private RigidPose _lastRawLocal;
@@ -174,17 +176,30 @@ namespace RavenfieldVR.Rig
                 // A jump of the rig (a teleport, a respawn without a mode change) is no motion: told by a change of over 20 m/s from
                 // the frame before, not by the speed, which a vehicle reaches (a 15 m/s cap dropped a fast car's or a jet's speed
                 // from what was let go inside it; review, 2026-10-20). Half a throw's peak would take a jump in.
+                // The jump is not kept as the one to compare with (kept, the frame after it read as a jump back and was dropped too:
+                // after a snap turn in a car at 25 m/s, two frames without the car's motion; round-4 scout): the frame before it
+                // stays, for one frame. A second change as large in a row is the rig's new motion, kept from then on.
                 Vector3 measured = rigVelocity;
                 if ((measured - _lastRigMeasured).sqrMagnitude > 400f)
                 {
                     rigVelocity = Vector3.zero;
                     rigSpin = Vector3.zero;
+                    if (_lastRigJumped)
+                    {
+                        _lastRigMeasured = measured;
+                    }
+                    _lastRigJumped = !_lastRigJumped;
                 }
-                _lastRigMeasured = measured;
+                else
+                {
+                    _lastRigMeasured = measured;
+                    _lastRigJumped = false;
+                }
             }
             else
             {
                 _lastRigMeasured = Vector3.zero;
+                _lastRigJumped = false;
             }
             _lastRigRotation = steadyRotation;
             _lastRigMatrix = steadyRoot;

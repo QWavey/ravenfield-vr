@@ -232,6 +232,10 @@ namespace RavenfieldVR.Core
             Log.Guard("Frame budget", FrameBudgetTick);
             // Guarded as the rest: one that threw ended the frame's Update before the input, rig and weapons ran.
             Log.Guard("VR events", PumpVREvents);
+            if (_pauseAfterLoad)
+            {
+                Log.Guard("Pause after load", _pauseAfterLoadCheck ?? (_pauseAfterLoadCheck = PauseAfterLoad));
+            }
             Log.Guard("Frame pacing", PaceFrames);
             Log.Guard("Input", _inputUpdate);
             Log.Guard("Rig.Update", _rigUpdate);
@@ -348,12 +352,50 @@ namespace RavenfieldVR.Core
             _pausedForDashboard = false;
             _pausedForHeadset = false;
             _speedBeforePause = 1f;
+            _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
             Weapons?.OnSceneChanged();
             UI?.OnSceneChanged();
         }
 
         // Whether the match is paused because the SteamVR dashboard is open (not by the player).
         private bool _pausedForDashboard;
+
+        /// <summary>The headset is off (its last worn edge said so).</summary>
+        private bool _headsetOff;
+
+        /// <summary>A level loaded: a pause for the dashboard or the headset is put back once the player is in the match.</summary>
+        private bool _pauseAfterLoad;
+
+        private Action _pauseAfterLoadCheck;
+
+        /// <summary>
+        /// The pause a level load took away (the game unpauses on every load, and the dashboard and headset edges came before
+        /// it): with the dashboard still open or the headset still off, the match was played behind them (headset taken off on
+        /// the menu, a match started from the monitor; round-4 scout). Once, when the player is first in the match; not again
+        /// after that, so a match unpaused from the monitor on purpose stays so.
+        /// </summary>
+        private void PauseAfterLoad()
+        {
+            bool dashboard = OpenVRRuntime.DashboardOpen, off = _headsetOff;
+            if (!dashboard && !off)
+            {
+                _pauseAfterLoad = false;
+                return;
+            }
+            if (!GameContext.InGame || GameManager.instance == null)
+            {
+                return; // (loading, or not spawned yet)
+            }
+            _pauseAfterLoad = false;
+            bool menuOpen = IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
+            if (!GameManager.IsPaused() && !menuOpen)
+            {
+                _speedBeforePause = Time.timeScale;
+                GameManager.PauseGame();
+                _pausedForDashboard = dashboard;
+                _pausedForHeadset = off;
+            }
+        }
 
         /// <summary>
         /// The SteamVR dashboard pauses the match behind it (time and sound), and closing it resumes. The game's own pause
@@ -409,6 +451,7 @@ namespace RavenfieldVR.Core
         /// </summary>
         private void OnHeadsetWorn(bool worn)
         {
+            _headsetOff = !worn;
             if (!worn)
             {
                 if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())

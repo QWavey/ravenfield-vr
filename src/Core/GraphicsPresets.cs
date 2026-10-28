@@ -226,8 +226,14 @@ namespace RavenfieldVR.Core
                 AllowHdr = null;
                 RestoreTerrains();
                 // Switched to Game while running: the last preset's quality settings stayed. Once, on the change: restored on
-                // every options save it put back the start-up quality over a Quality level the player had just picked.
-                RestoreGameQuality();
+                // every options save it put back the start-up quality over a Quality level the player had just picked. The game's
+                // own level applied again, not the copy taken when the first preset applied: a Quality level picked and saved on
+                // the main menu since then was put back to the one from VR start (round-4 scout). The game sets nothing of these
+                // but its level (Options.Apply's SetQualityLevel), and the mod never changes the level itself.
+                if (_gameQuality != null)
+                {
+                    QualitySettings.SetQualityLevel(QualitySettings.GetQualityLevel(), applyExpensiveChanges: true);
+                }
                 _gameQuality = null; // the next preset takes the game's quality as it is then
                 return;
             }

@@ -207,6 +207,8 @@ namespace RavenfieldVR.Rig
         }
 
         private bool _neutralPending;
+        /// <summary>The on-foot yaw was worked out before the headset's first pose (from an untracked head): worked out again at it.</summary>
+        private bool _yawFromUntrackedHead;
 
         // ---- view shake when shooting (Tasks 211) -------------------------------------------------------------
 
@@ -553,6 +555,7 @@ namespace RavenfieldVR.Rig
             {
                 // Face the direction the game spawned / dropped us in.
                 Yaw = player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
+                _yawFromUntrackedHead = !HeadTracked;
                 if (_calibrationStart < 0f && VRConfig.EyeHeight.Value <= 0f)
                 {
                     _calibrationStart = Time.unscaledTime + 1.5f;
@@ -834,6 +837,17 @@ namespace RavenfieldVR.Rig
                 Recenter();
             }
             FpsActorController player = GameContext.Player;
+            if (_yawFromUntrackedHead && HeadTracked)
+            {
+                // The first pose of a view entered on foot before it (the headset asleep at the spawn, VR started in a match): the
+                // view faced the body plus wherever the headset then faced, until the next seat, ladder or respawn (round-4 scout).
+                // Turns made with the stick before it are dropped with it.
+                _yawFromUntrackedHead = false;
+                if (Mode == RigMode.OnFoot && player != null)
+                {
+                    Yaw = player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
+                }
+            }
             Camera reference = null;
             try
             {
