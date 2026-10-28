@@ -90,6 +90,33 @@ namespace RavenfieldVR.UI
         /// <summary>Any converted canvas is visible (as of the last <see cref="Update"/>).</summary>
         public bool AnyVisible { get; private set; }
 
+        /// <summary>
+        /// For the frame rate line: the game's canvases this manager draws in the world (the UI camera renders each once per eye), how
+        /// many of them show something, and how many are switched on but faded out (a canvas group at no alpha: still batched).
+        /// </summary>
+        internal string Counts()
+        {
+            int on = 0, shown = 0, faded = 0;
+            foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
+            {
+                Tracked t = kv.Value;
+                if (t.Canvas == null || !t.Canvas.isActiveAndEnabled)
+                {
+                    continue;
+                }
+                on++;
+                if (HasVisibleGraphics(t))
+                {
+                    shown++;
+                }
+                else
+                {
+                    faded++;
+                }
+            }
+            return $"{_tracked.Count} game canvases ({on} on: {shown} shown, {faded} faded out)";
+        }
+
         public void Update()
         {
             if (Time.unscaledTime >= _nextScan)
