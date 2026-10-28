@@ -71,13 +71,40 @@ namespace RavenfieldVR.Core
                 {
                     digits &= c >= '0' && c <= '9';
                 }
+                // Whole words of the title (a short token such as "ar" took most of the 89 mods as a part of a word, and the fast
+                // mode loaded nearly all of them); a token of several words is those words in a row.
                 if (digits ? t == id || t == (folder ?? "").ToLowerInvariant()
-                    : (title ?? "").ToLowerInvariant().Contains(t) || (folder ?? "").ToLowerInvariant() == t)
+                    : Words(title).Contains(Words(t)) || (folder ?? "").ToLowerInvariant() == t)
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>The text's words (letters and digits, any script), lower-case, one space apart and round them: " shotguns expansion ".</summary>
+        private static string Words(string text)
+        {
+            var s = new System.Text.StringBuilder(" ");
+            bool inWord = false;
+            foreach (char c in (text ?? "").ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    s.Append(c);
+                    inWord = true;
+                }
+                else if (inWord)
+                {
+                    s.Append(' ');
+                    inWord = false;
+                }
+            }
+            if (inWord)
+            {
+                s.Append(' ');
+            }
+            return s.ToString();
         }
 
         internal static bool Keeps(ModInformation mod)

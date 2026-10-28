@@ -753,6 +753,9 @@ namespace RavenfieldVR.Tests
                   && !K(tokens, "2900000003", "2900000003", "Vehicles Pack"), "Fast test mode: a mod kept by its workshop id or a word of its title, others not");
             Check(!K(new[] { "none" }, "2900000001", "2900000001", "Modern Rifles Pack") && K(null, "1", "1", "Any"),
                   "Fast test mode: none keeps no mod, no filter keeps every mod");
+            Check(!K(new[] { "ar" }, "2900000001", "2900000001", "Modern Rifles Pack") && K(new[] { "rifles pack" }, "2900000001", "2900000001", "Modern Rifles Pack")
+                  && K(new[] { "m4" }, "2900000004", "2900000004", "[M4] Carbine (Mk2)") && !K(new[] { "rifles modern" }, "2900000001", "2900000001", "Modern Rifles Pack"),
+                  "Fast test mode: whole words of the title only, several words in a row");
         }
 
         /// <summary>
