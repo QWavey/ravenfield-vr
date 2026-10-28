@@ -2794,6 +2794,18 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### NEXT GAME RUN (when the user says the PC is free; everything since 2026-10-28 morning is built but not run)
+1. `python -I tools/vrshots.py --grabcheck --out check-1028` (all mods): soldier check steps 12 (friends) and 13 (a soldier's gun:
+   knock, magazine pulled, wrest or held pushed off), the slowing fist, the quick reach, lifting without hurt (350), the
+   walks (a hand inside the body now takes the heaviest bone).
+2. `python -I tools/vrshots.py --no-build --bench --out bench-1028`: Medium's parts one at a time (348) and the presets with
+   the suppressed cameras' and UI camera's shadows gone: compare with bench-quest2.
+3. `python -I tools/vrshots.py --no-build --fast --autotest --out auto-1028`: the seated magazine hold on the sample's rifles
+   and pistols (347), the scope cameras gated, no regressions against final-auto.
+4. `python -I tools/frame_report.py reports/shots/<run>/game-log.txt` on each: the new frame line (play frames only, the mod's
+   sections, the canvases the UI camera draws).
+5. Then the user's headset: Medium with "Hold the frame rate" on and off; their log via `tools/frame_report.py`.
+
 ### 350. A soldier picked up is hurt by barely touching the ground (user, 2026-10-28: "When picking up a soldier they take damage even when only slightly touching the ground, maybe calculate force?")
 - [ ] (Built 2026-10-28: an impact counts at the lesser of its contact speed and its impulse over a 16 kg trunk bone, BodyImpacts.ImpactMass; within 0.15 s a harder blow adds the difference. Check in a game run: lifting and dragging hurt nothing, the soldier check's slam and throw still hurt.) The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
       body's mass), not by a light touch while it is lifted or dragged.
