@@ -75,5 +75,63 @@ for in_use in (True, False):
     finally:
         shutil.rmtree(base, ignore_errors=True)
 
+
+
+def make_with_bepinex(base, patcher):
+    """An install that put BepInEx in itself and replaced another tool's winhttp.dll (backed up), optionally with a patcher."""
+    game, steam = make(base, False)
+    with open(os.path.join(game, 'winhttp.dll'), 'w', encoding='utf-8') as f:
+        f.write('bepinex loader')
+    bak = os.path.join(game, 'RavenfieldVR-backup', '20261028-000000')
+    os.makedirs(bak, exist_ok=True)
+    with open(os.path.join(bak, 'winhttp.dll'), 'w', encoding='utf-8') as f:
+        f.write('original')
+    if patcher:
+        os.makedirs(os.path.join(game, 'BepInEx', 'patchers'), exist_ok=True)
+        with open(os.path.join(game, 'BepInEx', 'patchers', 'other.patcher.dll'), 'w', encoding='utf-8') as f:
+            f.write('patcher')
+    os.remove(os.path.join(game, 'BepInEx/config/other.plugin.cfg'))
+    with open(os.path.join(game, 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'), 'w', encoding='utf-8') as f:
+        f.write('version=test\ninstalledBepInEx=True\nbackup=RavenfieldVR-backup\\20261028-000000\n'
+                'added=BepInEx\\core\\BepInEx.dll\nadded=BepInEx\\plugins\\RavenfieldVR\\RavenfieldVR.dll\nreplaced=winhttp.dll\n')
+    return game, steam
+
+
+def read(game, rel):
+    with open(os.path.join(game, rel), encoding='utf-8') as f:
+        return f.read()
+
+
+# BepInEx it installed, with another mod's preloader patcher: kept with -RemoveConfig (as the setup keeps it), its loader too.
+base = tempfile.mkdtemp(prefix='rfvr-uninstall-')
+try:
+    game, steam = make_with_bepinex(base, patcher=True)
+    code, out = run(game, steam, '-RemoveConfig')
+    check(code == 0 and exists(game, 'BepInEx/patchers/other.patcher.dll') and exists(game, 'BepInEx/core/BepInEx.dll'),
+          f'-RemoveConfig with another mod\'s patcher: BepInEx kept ({out.strip()[-200:]})')
+    check(exists(game, 'winhttp.dll') and read(game, 'winhttp.dll') == 'bepinex loader', 'BepInEx kept: its own loader kept, not the backed-up original')
+finally:
+    shutil.rmtree(base, ignore_errors=True)
+
+# No patcher, -RemoveConfig: BepInEx goes, and the loader file it replaced is put back and left there.
+base = tempfile.mkdtemp(prefix='rfvr-uninstall-')
+try:
+    game, steam = make_with_bepinex(base, patcher=False)
+    code, out = run(game, steam, '-RemoveConfig')
+    check(code == 0 and not exists(game, 'BepInEx'), f'-RemoveConfig, nothing else on BepInEx: BepInEx removed ({out.strip()[-200:]})')
+    check(exists(game, 'winhttp.dll') and read(game, 'winhttp.dll') == 'original', "the other tool's winhttp.dll put back and not deleted with BepInEx")
+finally:
+    shutil.rmtree(base, ignore_errors=True)
+
+# No patcher, settings kept: BepInEx stays with its own loader.
+base = tempfile.mkdtemp(prefix='rfvr-uninstall-')
+try:
+    game, steam = make_with_bepinex(base, patcher=False)
+    code, out = run(game, steam)
+    check(code == 0 and exists(game, 'BepInEx/core/BepInEx.dll') and read(game, 'winhttp.dll') == 'bepinex loader',
+          f'settings kept: BepInEx and its own loader stay ({out.strip()[-200:]})')
+finally:
+    shutil.rmtree(base, ignore_errors=True)
+
 print(f'{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

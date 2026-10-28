@@ -46,6 +46,10 @@ $loaderFiles = 'winhttp.dll', 'doorstop_config.ini', '.doorstop_version', 'chang
 # without a word (review, 2026-10-20).
 $pluginsRoot = Join-Path $GameDir 'BepInEx/plugins'
 $otherPlugins = @(Get-ChildItem -LiteralPath $pluginsRoot -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'RavenfieldVR' }).Count -gt 0
+# Preloader patchers are other mods' too, as the setup counts them: with -RemoveConfig and no other plugin, the whole BepInEx folder
+# went with them (round-7 scout).
+$patchersRoot = Join-Path $GameDir 'BepInEx/patchers'
+$otherPlugins = $otherPlugins -or (@(Get-ChildItem -LiteralPath $patchersRoot -Force -ErrorAction SilentlyContinue).Count -gt 0)
 $keepBepInEx = (-not $installedBepInEx) -or $otherPlugins -or (-not $RemoveConfig)
 
 # A Steam launch option that still runs the launcher (the setup puts it there): deleted, Ravenfield no longer started from Steam
@@ -68,14 +72,23 @@ foreach ($line in $entries) {
         if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Force }
     }
 }
+# A loader file the install replaced (another tool's winhttp.dll and the like): put back only when BepInEx goes. While BepInEx stays,
+# its own loader stays (put back, every BepInEx plugin stopped loading); when it goes, the original put back is not then deleted
+# with it (as the setup's uninstall does; round-7 scout).
+$restoredLoader = @{}
 foreach ($line in $entries) {
     if ($line -like 'replaced=*') {
         $rel = $line -replace '^replaced=', ''
         $dst = Resolve-Inside $GameDir $rel
         if (-not $dst) { continue }
+        if ($keepBepInEx -and $installedBepInEx -and ($loaderFiles -contains $rel)) {
+            Write-Warning "Kept BepInEx's $rel (BepInEx stays); the file it replaced is in the Ravenfield VR backup folder."
+            continue
+        }
         $src = if ($backup) { Resolve-Inside $backup $rel } else { $null }
         if ($src -and (Test-Path -LiteralPath $src)) {
             Copy-Item -LiteralPath $src -Destination $dst -Force
+            if ($loaderFiles -contains $rel) { $restoredLoader[$rel] = $true }
         }
         else {
             Write-Warning "Backup for $rel not found; left the modded file in place."
@@ -105,11 +118,11 @@ if ($installedBepInEx) {
     if ($keepBepInEx) {
         # Kept for the other plugins or for the settings (the config is kept unless -RemoveConfig, as the header says: the whole
         # BepInEx folder went before, the config with it; review, 2026-10-20).
-        if ($otherPlugins) { Write-Warning 'Other BepInEx plugins are installed; BepInEx itself was left in place.' }
+        if ($otherPlugins) { Write-Warning 'Other BepInEx plugins or patchers are installed; BepInEx itself was left in place.' }
         else { Write-Step 'BepInEx left in place so your Ravenfield VR settings are kept (use -RemoveConfig to remove it too).' }
     }
     else {
-        foreach ($p in @('BepInEx') + $loaderFiles) {
+        foreach ($p in @('BepInEx') + @($loaderFiles | Where-Object { -not $restoredLoader.ContainsKey($_) })) {
             $full = Join-Path $GameDir $p
             if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
         }
