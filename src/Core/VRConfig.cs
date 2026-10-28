@@ -93,6 +93,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> VRScopes;
         public static ConfigEntry<int> ScopeResolution;
         public static ConfigEntry<bool> ScopeShadows;
+        public static ConfigEntry<bool> HoldFrameRate;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -267,6 +268,10 @@ namespace RavenfieldVR.Core
                 "Magnified picture-in-picture scope lens for scoped weapons that only had a 2D scope overlay.");
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
+            HoldFrameRate = cfg.Bind("Rendering", "HoldFrameRate", false,
+                "While frames keep missing the headset's rate, lower the preset's costliest settings one step at a time (shadow distance, "
+                + "shadows, LOD bias, grass, pixel lights) and bring them back when there is room again. Off: the preset stays as set. "
+                + "Not with the Game preset (the game's own options).");
             ScopeShadows = cfg.Bind("Weapons", "ScopeShadows", false,
                 "Shadows in the scope lens's magnified picture. Off by default: the lens draws the shadow cascades a second time, about 2.8 ms of the 3.4 ms the lens costs each frame while aiming through it (measured on the RECON LRR, 2026-10-17).");
             HolsterSwitching = cfg.Bind("Weapons", "HolsterSwitching", true,

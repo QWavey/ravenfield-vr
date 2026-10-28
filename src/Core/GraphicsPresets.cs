@@ -85,6 +85,94 @@ namespace RavenfieldVR.Core
         // What the game itself set for each terrain (after its own options), so presets can go up again as well as down.
         private static readonly Dictionary<Terrain, TerrainOriginal> Originals = new Dictionary<Terrain, TerrainOriginal>();
 
+        // ---- holding the frame rate (VRConfig.HoldFrameRate) ------------------------------------------------------------------
+
+        /// <summary>How many steps the preset is held below itself for the frame rate (0: as set; up to <see cref="HoldSteps"/>).</summary>
+        internal static int HoldLevel { get; private set; }
+        private const int HoldSteps = 5;
+        private static int _missedWindows, _roomyWindows, _upWait = 10;
+        private static float _lastStepDown = -100f, _lastStepUp = -100f;
+
+        /// <summary>
+        /// The preset held down <see cref="HoldLevel"/> steps, the costliest for the CPU in multi-pass first (each is paid once per eye;
+        /// the user's Medium ran at half rate with the GPU at 7 ms, Tasks 348): the shadow distance shortened, then shadows off, the LOD
+        /// bias lowered toward the game's own 0.3, the grass thinned, no pixel lights.
+        /// </summary>
+        private static Profile Adapted(Profile p)
+        {
+            if (HoldLevel <= 0)
+            {
+                return p;
+            }
+            Profile a = p.MemberwiseCloneProfile();
+            if (HoldLevel >= 1)
+            {
+                a.ShadowDistance = Mathf.Max(10f, a.ShadowDistance * 0.6f);
+            }
+            if (HoldLevel >= 2)
+            {
+                a.Shadows = ShadowQuality.Disable;
+            }
+            if (HoldLevel >= 3)
+            {
+                a.LodBias = Mathf.Max(0.3f, a.LodBias - 0.3f);
+            }
+            if (HoldLevel >= 4)
+            {
+                a.DetailDensity *= 0.5f;
+                a.DetailDistance *= 0.7f;
+            }
+            if (HoldLevel >= 5)
+            {
+                a.PixelLights = 0;
+            }
+            return a;
+        }
+
+        /// <summary>
+        /// The last few seconds' share of frames on time (FrameBudget, every 3 s of play). Two windows in a row under 85%: a step down.
+        /// Thirty seconds at 98% or more: a step back up, and if that step is taken back within 15 s, the next waits twice as long (up
+        /// to two minutes), so it does not see-saw on the edge.
+        /// </summary>
+        internal static void OnRecentFrames(int percentOnTime)
+        {
+            bool on = VRConfig.HoldFrameRate.Value && Profiles.ContainsKey(VRConfig.Graphics.Value);
+            if (!on)
+            {
+                if (HoldLevel != 0)
+                {
+                    HoldLevel = 0;
+                    _upWait = 10;
+                    Apply();
+                }
+                _missedWindows = _roomyWindows = 0;
+                return;
+            }
+            float now = Time.unscaledTime;
+            _missedWindows = percentOnTime < 85 ? _missedWindows + 1 : 0;
+            _roomyWindows = percentOnTime >= 98 ? _roomyWindows + 1 : 0;
+            if (_missedWindows >= 2 && HoldLevel < HoldSteps)
+            {
+                if (now - _lastStepUp < 15f)
+                {
+                    _upWait = Mathf.Min(40, _upWait * 2); // the step up did not hold
+                }
+                HoldLevel++;
+                _lastStepDown = now;
+                _missedWindows = _roomyWindows = 0;
+                Log.Info($"Frame rate: {percentOnTime}% of frames on time, the preset held down to step {HoldLevel} of {HoldSteps}.");
+                Apply();
+            }
+            else if (_roomyWindows >= _upWait && HoldLevel > 0)
+            {
+                HoldLevel--;
+                _lastStepUp = now;
+                _missedWindows = _roomyWindows = 0;
+                Log.Info($"Frame rate: room again, the preset back up to step {HoldLevel} of {HoldSteps}.");
+                Apply();
+            }
+        }
+
         /// <summary>Far plane limit for the VR camera, or infinity when the game decides.</summary>
         public static float FarClipCap { get; private set; } = float.PositiveInfinity;
 
@@ -116,9 +204,9 @@ namespace RavenfieldVR.Core
                 _gameQuality = null; // the next preset takes the game's quality as it is then
                 return;
             }
-            ApplyProfile(p);
+            ApplyProfile(Adapted(p));
             Log.Info($"Graphics preset {preset}: render scale {VRConfig.RenderScale.Value:0.0#}, MSAA {p.Msaa}x, shadows {p.ShadowDistance:0} m, " +
-                     $"LOD bias {p.LodBias:0.0#}, view distance {p.FarClip:0} m.");
+                     $"LOD bias {p.LodBias:0.0#}, view distance {p.FarClip:0} m{(HoldLevel > 0 ? $"; held down {HoldLevel} step(s) for the frame rate" : "")}.");
         }
 
         /// <summary>
@@ -241,6 +329,8 @@ namespace RavenfieldVR.Core
         /// <summary>The preset was picked (launcher, settings panel): it also sets the render scale, which stays adjustable.</summary>
         public static void OnPresetChanged()
         {
+            HoldLevel = 0; // (a preset picked starts as itself: the frame rate hold steps down from it again if it must)
+            _upWait = 10;
             if (Profiles.TryGetValue(VRConfig.Graphics.Value, out Profile p))
             {
                 VRConfig.RenderScale.Value = p.RenderScale;
