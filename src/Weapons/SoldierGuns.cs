@@ -100,7 +100,10 @@ namespace RavenfieldVR.Weapons
                 // little bigger than the gun).
                 // (A squeeze made a moment before the hand got there counts, as for every other reach: GetPressedRecently is unclaimed
                 // presses only, so one the gun took is not taken again.)
+                // (And only a hand arriving slower than a swing: a fist closed in the wind-up and swung into the gun knocks it aside below,
+                // it does not take it; round-3 skeptic, 2026-10-28.)
                 if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
+                    && hand.BodyRelativeVelocity.sqrMagnitude <= SwingSpeed * SwingSpeed
                     && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(soldier, palm))
                 {
                     bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(i, hand, soldier, gun) : Wrest(i, hand, soldier, gun);
