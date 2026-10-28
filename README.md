@@ -156,7 +156,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `GraphicsPreset` | Medium | Low, Medium, High, Ultra or Game |
 | `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting (a preset sets it) |
 | `StereoMode` | MultiPass | Leave it: the game's own shaders have no single-pass variants, so with SinglePassInstanced the world draws in one eye only |
-| `HoldFrameRate` | off | While frames keep missing the headset's rate, lower the preset's costliest settings a step at a time (shadow distance, shadows, level of detail, grass, per-pixel lights) and bring them back when there is room. The wrist display says how many steps. Also on the panel ("Hold the frame rate") |
+| `HoldFrameRate` | off | While frames keep missing the headset's rate, lower the preset's costliest settings a step at a time (shadow distance, shadows, level of detail, grass, per-pixel lights, last 15% of the resolution) and bring them back when there is room. The wrist display says how many steps. Also on the panel ("Hold the frame rate") |
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
 | `WristFrameRate` | on | The wrist display also shows the share of frames at the headset's rate and the GPU's time a frame (last few seconds) |
 | `BodyShadow` | off | Your own soldier's shadow on foot and in first-person seats. Its arms and gun move in the game's animation, not yours, so the shadow wanders across your hands |

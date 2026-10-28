@@ -89,14 +89,28 @@ namespace RavenfieldVR.Core
 
         /// <summary>How many steps the preset is held below itself for the frame rate (0: as set; up to <see cref="HoldSteps"/>).</summary>
         internal static int HoldLevel { get; private set; }
-        private const int HoldSteps = 5;
+        private const int HoldSteps = 6;
+
+        /// <summary>
+        /// The eye resolution to draw at: the setting's, and at the hold's last step 15% less (never below 60% unless the setting
+        /// itself is): the GPU's own lever, where the steps before it are mostly the CPU's (the user's Ultra had the GPU at 11 ms).
+        /// </summary>
+        internal static float EffectiveRenderScale()
+        {
+            float scale = VRConfig.RenderScale.Value;
+            if (HoldLevel >= 6)
+            {
+                scale = Mathf.Max(Mathf.Min(scale, 0.6f), scale * 0.85f);
+            }
+            return Mathf.Clamp(scale, 0.5f, 2f);
+        }
         private static int _missedWindows, _roomyWindows, _upWait = 10;
         private static float _lastStepDown = -100f, _lastStepUp = -100f;
 
         /// <summary>
         /// The preset held down <see cref="HoldLevel"/> steps, the costliest for the CPU in multi-pass first (each is paid once per eye;
         /// the user's Medium ran at half rate with the GPU at 7 ms, Tasks 348): the shadow distance shortened, then shadows off, the LOD
-        /// bias lowered toward the game's own 0.3, the grass thinned, no pixel lights.
+        /// bias lowered toward the game's own 0.3, the grass thinned, no pixel lights; last the render scale (<see cref="EffectiveRenderScale"/>).
         /// </summary>
         private static Profile Adapted(Profile p)
         {
@@ -143,6 +157,7 @@ namespace RavenfieldVR.Core
                 {
                     HoldLevel = 0;
                     _upWait = 10;
+                    ApplyRenderScaleIfHeld();
                     Apply();
                 }
                 _missedWindows = _roomyWindows = 0;
@@ -159,6 +174,7 @@ namespace RavenfieldVR.Core
                 }
                 HoldLevel++;
                 _lastStepDown = now;
+                ApplyRenderScaleIfHeld();
                 _missedWindows = _roomyWindows = 0;
                 Log.Info($"Frame rate: {percentOnTime}% of frames on time, the preset held down to step {HoldLevel} of {HoldSteps}.");
                 Apply();
@@ -167,9 +183,20 @@ namespace RavenfieldVR.Core
             {
                 HoldLevel--;
                 _lastStepUp = now;
+                ApplyRenderScaleIfHeld();
                 _missedWindows = _roomyWindows = 0;
                 Log.Info($"Frame rate: room again, the preset back up to step {HoldLevel} of {HoldSteps}.");
                 Apply();
+            }
+        }
+
+        /// <summary>The eyes' resolution as the hold leaves it (only a change: a new scale reallocates the eye targets).</summary>
+        private static void ApplyRenderScaleIfHeld()
+        {
+            float scale = EffectiveRenderScale();
+            if (!Mathf.Approximately(UnityEngine.XR.XRSettings.eyeTextureResolutionScale, scale))
+            {
+                UnityEngine.XR.XRSettings.eyeTextureResolutionScale = scale;
             }
         }
 

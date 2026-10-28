@@ -141,7 +141,7 @@ namespace RavenfieldVR.Runtime
         /// <summary>Settings that can change while running (render scale, mirror, frame pacing).</summary>
         public static void ApplyLiveSettings()
         {
-            XRSettings.eyeTextureResolutionScale = Mathf.Clamp(VRConfig.RenderScale.Value, 0.5f, 2f);
+            XRSettings.eyeTextureResolutionScale = GraphicsPresets.EffectiveRenderScale(); // (the setting's, less at the frame rate hold's last step)
             try
             {
                 SetMirrorViewMode((ushort)VRConfig.Mirror.Value);

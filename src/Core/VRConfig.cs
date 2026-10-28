@@ -270,7 +270,7 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
             HoldFrameRate = cfg.Bind("Rendering", "HoldFrameRate", false,
                 "While frames keep missing the headset's rate, lower the preset's costliest settings one step at a time (shadow distance, "
-                + "shadows, LOD bias, grass, pixel lights) and bring them back when there is room again. Off: the preset stays as set. "
+                + "shadows, LOD bias, grass, pixel lights, last 15% of the render scale) and bring them back when there is room again. Off: the preset stays as set. "
                 + "Not with the Game preset (the game's own options).");
             ScopeShadows = cfg.Bind("Weapons", "ScopeShadows", false,
                 "Shadows in the scope lens's magnified picture. Off by default: the lens draws the shadow cascades a second time, about 2.8 ms of the 3.4 ms the lens costs each frame while aiming through it (measured on the RECON LRR, 2026-10-17).");
