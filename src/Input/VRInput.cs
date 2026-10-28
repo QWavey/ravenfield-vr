@@ -112,10 +112,14 @@ namespace RavenfieldVR.Input
 
         public static string ManifestPath { get; private set; }
 
+        /// <summary>Why the last <see cref="Initialize"/> failed (for the notice in the headset), or null.</summary>
+        public static string InitError { get; private set; }
+
         /// <summary>Extracts the embedded manifest + default bindings, registers them with SteamVR and resolves handles.</summary>
         public static bool Initialize()
         {
             Ready = false; // (a start that fails part way is not left with the last session's handles)
+            InitError = null;
             try
             {
                 string dir = Path.Combine(VRPlugin.PluginDir, "input");
@@ -126,12 +130,14 @@ namespace RavenfieldVR.Input
                 if (input == null)
                 {
                     Log.Error("OpenVR.Input is unavailable; controller input disabled.");
+                    InitError = "SteamVR's input is unavailable.";
                     return false;
                 }
                 EVRInputError err = input.SetActionManifestPath(ManifestPath);
                 if (err != EVRInputError.None)
                 {
                     Log.Error($"SteamVR rejected the action manifest ({err}): {ManifestPath}");
+                    InitError = $"SteamVR rejected the controller bindings ({err}).";
                     return false;
                 }
 
@@ -162,6 +168,7 @@ namespace RavenfieldVR.Input
             catch (Exception e)
             {
                 Log.Exception("SteamVR Input initialisation", e);
+                InitError = "setting it up failed: " + e.Message;
                 return false;
             }
         }

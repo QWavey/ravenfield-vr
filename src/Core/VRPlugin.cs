@@ -34,10 +34,12 @@ namespace RavenfieldVR.Core
 
             string installProblem = InstallCheck.Run(Paths.GameRootPath);
             bool wantVR = VRConfig.EnableVR.Value;
+            string startProblem = null;
             if (installProblem != null)
             {
                 Log.Error(installProblem);
                 wantVR = false;
+                startProblem = installProblem;
             }
 
             _harmony = new Harmony(PluginInfo.Guid);
@@ -52,6 +54,8 @@ namespace RavenfieldVR.Core
                 Log.Exception("Harmony patching failed, VR disabled", e);
                 _harmony.UnpatchSelf();
                 wantVR = false;
+                startProblem = "VR is off: the mod could not hook into this version of the game (" + e.GetType().Name
+                               + "; a game update?). Update Ravenfield VR. Playing flat.";
             }
 
             var host = new GameObject("RavenfieldVR");
@@ -59,6 +63,7 @@ namespace RavenfieldVR.Core
             host.hideFlags = HideFlags.DontSave;
             VRManager manager = host.AddComponent<VRManager>();
             manager.RequestVR = wantVR;
+            manager.StartProblem = startProblem;
             AutoTest.Install();
             Rig.IntroStage.Install(manager);
             PerfProbe.Enabled |= System.Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perf", System.StringComparison.OrdinalIgnoreCase));

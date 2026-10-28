@@ -31,18 +31,31 @@ namespace RavenfieldVR.Input
                 }
                 return $"\"path\": \"/user/hand/{hand}/input/{input}\"";
             });
-            if (letterFaces)
+            // The description names the buttons by their letters ("B: drop magazine") and their hands ("Left stick hold",
+            // "right A"): both mirrored, or the left-handed layout's text named the buttons where the right-handed one has them
+            // (letters: input hunt, 2026-10-21; the hands, which every controller's text names: round-4 scout).
+            mirrored = Description.Replace(mirrored, d =>
             {
-                // The description names the buttons by their letters ("B: drop magazine"): mirrored too, or the left-handed
-                // layout's text named the right hand's buttons (input hunt, 2026-10-21).
-                mirrored = Description.Replace(mirrored, d => Letter.Replace(d.Value, l => MirrorLetter(l.Groups[1].Value) + ":"));
-            }
-            return mirrored.Replace("Ravenfield VR default", "Ravenfield VR left-handed")
-                           .Replace("Right hand shoots, left hand moves", "Left hand shoots, right hand moves");
+                string text = letterFaces ? Letter.Replace(d.Value, l => MirrorLetter(l.Groups[1].Value) + ":") : d.Value;
+                return HandWord.Replace(text, w => OtherHand(w.Value));
+            });
+            return mirrored.Replace("Ravenfield VR default", "Ravenfield VR left-handed");
         }
 
         private static readonly Regex Description = new Regex(@"""description""\s*:\s*""(?:[^""\\]|\\.)*""");
         private static readonly Regex Letter = new Regex(@"\b([ABXY]):");
+        private static readonly Regex HandWord = new Regex(@"\b(left|right)\b", RegexOptions.IgnoreCase);
+
+        /// <summary>The other hand's word, in the same case ("Left" to "Right", "right" to "left").</summary>
+        private static string OtherHand(string word)
+        {
+            string other = word.ToLowerInvariant() == "left" ? "right" : "left";
+            if (word.Length > 1 && word.ToUpperInvariant() == word)
+            {
+                return other.ToUpperInvariant();
+            }
+            return char.IsUpper(word[0]) ? char.ToUpperInvariant(other[0]) + other.Substring(1) : other;
+        }
 
         private static string MirrorLetter(string l)
         {

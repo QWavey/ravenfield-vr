@@ -31,6 +31,8 @@ namespace RavenfieldVR.UI
         private readonly WristHud _wrist;
         private readonly SquadPointing _squad;
         private readonly SeatSights _sights = new SeatSights();
+        /// <summary>Text held in front of the eyes for a while (a start-up problem the player has to know of).</summary>
+        internal HeadNotice Notice { get; private set; }
         private VRInputModule _module;
         private EventSystem _eventSystem;
         private readonly List<BaseInputModule> _disabledModules = new List<BaseInputModule>();
@@ -115,6 +117,7 @@ namespace RavenfieldVR.UI
                 _keyboard = new VRKeyboard();
                 _laser = new LaserPointer();
                 _wrist = new WristHud(rig);
+                Notice = new HeadNotice();
                 _squad = new SquadPointing(rig);
             }
             catch
@@ -257,6 +260,7 @@ namespace RavenfieldVR.UI
             Canvases.BeforeRender();
             Settings.BeforeRender();
             _sights.BeforeRender(_rig.Head);
+            Notice?.BeforeRender(_rig.Head);
             ModKeys.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
@@ -308,6 +312,7 @@ namespace RavenfieldVR.UI
             Log.Guard("UI.Keyboard.Dispose", () => _keyboard?.Dispose());
             Log.Guard("UI.Laser.Destroy", () => _laser?.Destroy());
             Log.Guard("UI.Wrist.Destroy", () => _wrist?.Destroy());
+            Log.Guard("UI.Notice.Destroy", () => Notice?.Destroy());
             Log.Guard("UI.Squad.Destroy", () => _squad?.Destroy());
             if (UiCamera != null)
             {

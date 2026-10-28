@@ -22,6 +22,12 @@ namespace RavenfieldVR.Core
         public static bool Active => Instance != null && Instance._active;
 
         public bool RequestVR;
+        /// <summary>
+        /// Why VR was switched off before it started (the install check, a failed patch), shown on the screen: the restart or
+        /// reinstall it asks for was only in the log, and the game simply came up flat (round-4 scout). Null when VR was not
+        /// asked for by the player's own choice (EnableVR off), which needs no notice.
+        /// </summary>
+        public string StartProblem;
 
         public VRRig Rig { get; private set; }
         public WeaponSystem Weapons { get; private set; }
@@ -46,6 +52,10 @@ namespace RavenfieldVR.Core
             if (!RequestVR)
             {
                 Log.Info("VR disabled (config or install check); running flat.");
+                if (StartProblem != null)
+                {
+                    FlatNotice(StartProblem, retry: false); // (F6 cannot mend an install or a patch: no Try again)
+                }
                 yield break;
             }
             if (!_retry && !ShouldStartVR(out string reason))
@@ -86,6 +96,14 @@ namespace RavenfieldVR.Core
 
             VRGameInput.Enabled = inputReady;
             _active = true;
+            if (!inputReady)
+            {
+                // VR runs, the controllers do nothing: said in the headset and on the monitor, not only in the log (round-4 scout).
+                string why = "Controller input did not start: " + (VRInput.InitError ?? "see the BepInEx log.") + " Restart SteamVR, then the game.";
+                Log.Guard("Input notice", () => UI?.Notice?.Show(why, 30f));
+                _activeNotice = why;
+                _flatNoticeUntil = Time.unscaledTime + 40f;
+            }
             FramePhases.Install(); // (where each frame's time goes, in the once-a-minute frame rate line)
             ScriptKeys.Enabled = true;
             Application.onBeforeRender += OnBeforeRender;
@@ -160,19 +178,30 @@ namespace RavenfieldVR.Core
         private bool _retry, _retrying;
         private GUIStyle _noticeStyle, _noticeButton;
 
-        private void FlatNotice(string text)
+        /// <summary>A notice on the monitor with VR running (the controllers' input did not start), for 40 s.</summary>
+        private string _activeNotice;
+        /// <summary>The notice offers Try again (F6): not for what only a restart or a reinstall mends.</summary>
+        private bool _noticeRetry = true;
+
+        private void FlatNotice(string text, bool retry = true)
         {
             _flatNotice = text;
             _flatNoticeUntil = Time.unscaledTime + 40f;
             _retrying = false;
+            _noticeRetry = retry;
         }
 
         private void OnGUI()
         {
             // Up while the cursor is free (the menus: its buttons can be clicked there); in a match, where the cursor is locked,
             // for 40 s, and F6 still tries again after that.
-            if (_active || _flatNotice == null || Time.unscaledTime > _flatNoticeUntil && Cursor.lockState == CursorLockMode.Locked)
+            string notice = _active ? _activeNotice : _flatNotice;
+            if (notice == null || (_active || Cursor.lockState == CursorLockMode.Locked) && Time.unscaledTime > _flatNoticeUntil)
             {
+                if (_active)
+                {
+                    _activeNotice = null; // (once gone, gone: OnGUI returns at once again)
+                }
                 return;
             }
             // The styles made once (GUI.skin is only there inside OnGUI): new ones on each of OnGUI's calls, several a frame.
@@ -184,10 +213,10 @@ namespace RavenfieldVR.Core
             }
             // 120 px: three lines and the title (at 90 the last line was cut off; user, 2026-10-19).
             var box = new Rect(Screen.width * 0.15f, 20f, Screen.width * 0.7f, 120f);
-            if (!ReferenceEquals(_noticeFor, _flatNotice))
+            if (!ReferenceEquals(_noticeFor, notice))
             {
-                _noticeFor = _flatNotice; // the box's text made when the notice changes, not on each of OnGUI's calls
-                _noticeText = "Ravenfield VR\n" + _flatNotice;
+                _noticeFor = notice; // the box's text made when the notice changes, not on each of OnGUI's calls
+                _noticeText = "Ravenfield VR\n" + notice;
             }
             GUI.Box(box, _noticeText, _noticeStyle);
             if (_retrying)
@@ -196,6 +225,16 @@ namespace RavenfieldVR.Core
             }
             GUIStyle button = _noticeButton;
             const float w = 220f, h = 40f;
+            if (_active || !_noticeRetry)
+            {
+                // Nothing to try again: one button that puts the notice away.
+                if (GUI.Button(new Rect(Screen.width * 0.5f - w * 0.5f, box.yMax + 8f, w, h), "OK", button))
+                {
+                    _activeNotice = null;
+                    _flatNotice = null;
+                }
+                return;
+            }
             // Try again starts VR in this game (no restart): connect the headset, then press it (user, 2026-10-19).
             if (GUI.Button(new Rect(Screen.width * 0.5f - w - 8f, box.yMax + 8f, w, h), "Try again (F6)", button))
             {
@@ -220,7 +259,7 @@ namespace RavenfieldVR.Core
         {
             if (!_active)
             {
-                if (_flatNotice != null && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F6))
+                if (_flatNotice != null && _noticeRetry && !_retrying && UnityEngine.Input.GetKeyDown(KeyCode.F6))
                 {
                     RetryVR();
                 }
