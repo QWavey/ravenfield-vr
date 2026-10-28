@@ -22,6 +22,20 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Every magazine, shell and rocket prop that exists (held, palmed, sliding or lying around).</summary>
         public static IReadOnlyList<MagazineProp> All => Alive;
+
+        /// <summary>Whether <paramref name="body"/> is a loose magazine (dropped, lying or falling: not held, seated or carried).</summary>
+        internal static bool IsLooseBody(Rigidbody body)
+        {
+            for (int i = 0; i < Alive.Count; i++)
+            {
+                MagazineProp m = Alive[i];
+                if (m._body == body)
+                {
+                    return m.IsDropped && !body.isKinematic;
+                }
+            }
+            return false;
+        }
         private static Material _metal, _brass, _olive;
 
         public readonly GameObject Go;
@@ -398,6 +412,8 @@ namespace RavenfieldVR.Weapons
             // A knocked-out magazine is given 6 to 9 rad/s end over end; Unity's default cap of 7 cut the faster half of that
             // (prop physics hunt, 2026-10-21).
             _body.maxAngularVelocity = 12f;
+            // Pushed out of what it ends up in (a gun swung into it, a hand) gently, not at PhysX's 10 m/s.
+            _body.maxDepenetrationVelocity = 2f;
             _body.isKinematic = true;
             SetCollidersEnabled(false);
             Alive.Add(this);
@@ -717,9 +733,12 @@ namespace RavenfieldVR.Weapons
             // (prop physics hunt, 2026-10-21).
             _ignoredBodies.Clear();
             PropPhysics.IgnoreBodiesNear(_colliders, Go.transform.position, 1f, _ignoredBodies);
+            // Met by the held gun like any loose thing (passing through only while it starts inside it, out of the well): ignored
+            // however it moved, a magazine went through the gun ("mags still glitch through guns": user, 2026-10-28). The gun pushes
+            // it no faster than it moves itself (GunProxyBody.Touch), which is what had magazines flying off it before.
             foreach (Collider c in _colliders)
             {
-                GunCollider.Current?.OnPropDropped(c, always: Kind == PropKind.Magazine);
+                GunCollider.Current?.OnPropDropped(c);
             }
         }
 

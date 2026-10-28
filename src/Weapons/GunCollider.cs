@@ -1153,9 +1153,10 @@ namespace RavenfieldVR.Weapons
         private float _nextRestCheck;
 
         /// <summary>
-        /// Weapons and magazines lying still on the ground are not shoved by the gun in your hand: reaching down with the gun
-        /// held low (or the stand-in jumping back to the gun) pushed them away, so things you wanted to pick up floated off.
-        /// Something falling or flying still bounces off the gun; one lying still is ignored until it moves again.
+        /// Weapons lying still on the ground are not shoved by the gun in your hand: reaching down with the gun held low (or the
+        /// stand-in jumping back to the gun) pushed them away, so things you wanted to pick up floated off. Something falling or
+        /// flying still bounces off the gun; one lying still is ignored until it moves again. Magazines are always met (the user,
+        /// 2026-10-28: they went through the gun), pushed no faster than the gun moves (GunProxyBody.Touch).
         /// </summary>
         private void UpdateRestingProps()
         {
@@ -1177,15 +1178,6 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
-            IReadOnlyList<MagazineProp> mags = MagazineProp.All;
-            for (int i = 0; i < mags.Count; i++)
-            {
-                MagazineProp m = mags[i];
-                if (m.IsDropped && m.Go != null)
-                {
-                    SetRestIgnored(m.Body, m.Colliders, m.DroppedFor, always: true);
-                }
-            }
             if (_restIgnored.Count > 64)
             {
                 _restScratch.Clear();
@@ -1203,10 +1195,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        // always: ignored however it moves (a magazine). The stand-in follows the hand by velocity, up to 25 m/s with no give, and
-        // a falling or just-dropped magazine it met left at the hand's speed or more ("mags flying around", user, 2026-10-20;
-        // flung-magazine hunt). A dropped weapon, heavier, still bounces off.
-        private void SetRestIgnored(Rigidbody body, IList<Collider> colliders, float lyingFor, bool always = false)
+        private void SetRestIgnored(Rigidbody body, IList<Collider> colliders, float lyingFor)
         {
             if (body == null || colliders == null || body.isKinematic)
             {
@@ -1215,7 +1204,7 @@ namespace RavenfieldVR.Weapons
             bool known = _restIgnored.TryGetValue(body, out bool ignored);
             float speedSq = body.velocity.sqrMagnitude;
             // Settled for a moment and slow; once ignored, only a real push or fall (above 0.8 m/s) makes it collide again.
-            bool want = always || (ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (body.IsSleeping() || speedSq < 0.25f * 0.25f && body.angularVelocity.sqrMagnitude < 1f));
+            bool want = ignored ? speedSq < 0.8f * 0.8f : lyingFor > 0.75f && (body.IsSleeping() || speedSq < 0.25f * 0.25f && body.angularVelocity.sqrMagnitude < 1f);
             if (known && want == ignored)
             {
                 return;
@@ -1262,22 +1251,13 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>A prop just became physical: if it starts inside the gun it passes through until clear.</summary>
-        // always: never met by the gun (a magazine; see SetRestIgnored), ignored from its first physics step, not only once the next
-        // check (a tenth of a second on) finds it.
-        public void OnPropDropped(Collider c, bool always = false)
+        public void OnPropDropped(Collider c)
         {
             if (c != null && c.attachedRigidbody != null)
             {
                 // Picked up, its colliders were switched off and Unity forgot its ignored pairs with the gun: a magazine
                 // that lay still before was still marked ignored, so one set down gently was shoved by the gun again.
                 _restIgnored.Remove(c.attachedRigidbody);
-            }
-            if (always && c != null)
-            {
-                foreach (Collider b in _boxes)
-                {
-                    PropPhysics.Ignore(c, b); // (switched off while seated: Unity refuses those with an error, a drop at a time)
-                }
             }
             if (c == null || _boxes.Count == 0 || !Touches(c))
             {
@@ -1326,6 +1306,10 @@ namespace RavenfieldVR.Weapons
         private float _worldContactUntil;
         /// <summary>A moving body this heavy (a vehicle) holds the gun back like the level; lighter ones are pushed.</summary>
         private const float HeavyMass = 30f;
+        /// <summary>A prop the gun pushes leaves no faster than the gun plus this (m/s), turning no faster than <see cref="PushSpin"/> (rad/s).</summary>
+        private const float PushOver = 1f, PushSpin = 15f;
+        /// <summary>The loose props' layer, looked up each physics step (it is chosen per scene).</summary>
+        private int _propLayer = -1;
         /// <summary>Against a held body the stand-in follows the hand no faster than this (m/s): it presses, it does not shove.</summary>
         private const float PressSpeed = 1.5f;
         private float _softUntil;
@@ -1346,7 +1330,22 @@ namespace RavenfieldVR.Weapons
             }
             if (other != null && !other.isKinematic && other.mass < HeavyMass)
             {
-                return; // loose props and ragdoll limbs are pushed: they do not hold the gun back
+                // Loose props and ragdoll limbs are pushed: they do not hold the gun back. A loose prop no faster than the gun itself
+                // moves (and a little): the stand-in is chased to the hand with no give, and a magazine it met left at the hand's speed
+                // or more ("mags flying around", user, 2026-10-20), so magazines were let pass through the gun instead.
+                if (_propLayer >= 0 && other.gameObject.layer == _propLayer && !BodyGrab.IsHeldBone(other))
+                {
+                    float top = (Body != null ? Body.velocity.magnitude : 0f) + PushOver;
+                    if (other.velocity.sqrMagnitude > top * top)
+                    {
+                        other.velocity = other.velocity.normalized * top;
+                    }
+                    if (other.angularVelocity.sqrMagnitude > PushSpin * PushSpin)
+                    {
+                        other.angularVelocity = other.angularVelocity.normalized * PushSpin;
+                    }
+                }
+                return;
             }
             if (PropPhysics.IsPlayerCollider(c.collider))
             {
@@ -1363,6 +1362,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            _propLayer = PropPhysics.Layer;
             float dt = Time.fixedDeltaTime;
             if (dt < 1e-5f)
             {

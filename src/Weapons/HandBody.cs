@@ -167,6 +167,77 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The empty hand's reach for loose magazines it pushes (m round the palm's centre).</summary>
+        private const float PushRadius = 0.06f;
+        /// <summary>
+        /// A hand moving into a loose magazine faster than this (m/s) pushes it: a tap or a swipe moves it, a slow reach to take it
+        /// (the hand slows as it closes in) passes through and takes it.
+        /// </summary>
+        private const float PushApproach = 0.5f;
+        /// <summary>What a pushed magazine keeps of the hand's motion along its surface (a hand sweeping over it drags it a little).</summary>
+        private const float PushDrag = 0.3f;
+        private static readonly Collider[] PushScratch = new Collider[16];
+        private static readonly float[] PushedAt = new float[2];
+
+        /// <summary>
+        /// Once a frame: an empty hand pushes the loose magazines it moves into (the user, 2026-10-28: "they also not collide with hands
+        /// when not grabbed"). Done here, not by a collider: the fist's layer meets ragdolls only, and a collider on the hand would have
+        /// pushed a magazine away from every hand reaching to take it and shoved the held gun's stand-in. A magazine the hand moves into
+        /// faster than <see cref="PushApproach"/> takes the hand's speed along their contact (in game units: BodyGrab.SlowMotion),
+        /// and is never sent faster than the hand.
+        /// </summary>
+        internal static void PushProps(VRRig rig, bool allowed)
+        {
+            int layer = PropPhysics.Layer;
+            if (rig == null || !allowed || layer < 0 || MagazineProp.All.Count == 0)
+            {
+                return;
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                VRHand hand = rig.Hands[i];
+                if (hand == null || !hand.Tracked || hand.Role != HandRole.Free || hand.Held != null || VRGameInput.GunInputBlocked)
+                {
+                    continue;
+                }
+                Vector3 centre = hand.PalmCentre;
+                int n = Physics.OverlapSphereNonAlloc(centre, PushRadius, PushScratch, 1 << layer, QueryTriggerInteraction.Ignore);
+                if (n == 0)
+                {
+                    continue;
+                }
+                Vector3 handVelocity = hand.Velocity / BodyGrab.SlowMotion();
+                for (int k = 0; k < n; k++)
+                {
+                    Collider c = PushScratch[k];
+                    Rigidbody body = c != null ? c.attachedRigidbody : null;
+                    if (body == null || body.isKinematic || GunCollider.IsStandIn(c) || !MagazineProp.IsLooseBody(body))
+                    {
+                        continue;
+                    }
+                    Vector3 surface = c.ClosestPoint(centre);
+                    Vector3 normal = surface - centre;
+                    normal = normal.sqrMagnitude > 1e-8f ? normal.normalized : (body.worldCenterOfMass - centre).normalized;
+                    Vector3 relative = handVelocity - body.velocity;
+                    float approach = Vector3.Dot(relative, normal);
+                    if (approach < PushApproach || float.IsNaN(approach))
+                    {
+                        continue;
+                    }
+                    Vector3 along = relative - normal * approach;
+                    Vector3 v = body.velocity + normal * approach + along * PushDrag;
+                    float top = handVelocity.magnitude;
+                    body.velocity = v.sqrMagnitude > top * top ? v.normalized * top : v;
+                    body.WakeUp();
+                    if (Time.unscaledTime - PushedAt[i] > 0.15f)
+                    {
+                        PushedAt[i] = Time.unscaledTime;
+                        hand.Haptic(0.015f, 80f, 0.25f); // (a light tap: felt, not a grab)
+                    }
+                }
+            }
+        }
+
         private static HandBody Create(VRHand hand)
         {
             var go = new GameObject("RavenfieldVR Fist " + hand.Side) { layer = Layer };
