@@ -303,6 +303,10 @@ namespace RavenfieldVR.Core
         private static IEnumerator Run()
         {
             Application.runInBackground = true;
+            // The hand reload checks for the run, whatever reload mode the player saved: with Assisted saved, the magazine, belt and
+            // cover checks returned without a line and every gun "passed" its hand reload untried (round-7 scout). (A run-time
+            // override: the saved setting stays.)
+            VRConfig.TestReload = ReloadMode.Manual;
             _matchAt = Time.realtimeSinceStartup;
             float deadline = Time.realtimeSinceStartup + 120f;
             while (LocalPlayer.actor == null && Time.realtimeSinceStartup < deadline)
@@ -316,6 +320,7 @@ namespace RavenfieldVR.Core
             if (LocalPlayer.actor == null || LocalPlayer.actor.dead)
             {
                 Results.Add("Could not deploy the player; weapon tests skipped.");
+                Problem("[deploy] the player could not be deployed: no weapon or check ran"); // (counted: the run read "Problems: 0"; round-7 scout)
             }
             else
             {
@@ -716,12 +721,18 @@ namespace RavenfieldVR.Core
                 {
                     continue;
                 }
-                float cpu = got.Average(s => s.Key), gpu = got.Average(s => s.Value);
-                string rounds = string.Join(" / ", got.Select(s => s.Value.ToString("0.00", CultureInfo.InvariantCulture)));
-                Results.Add(string.Format(CultureInfo.InvariantCulture, "  {0,-26} frame {1,6:0.00} ms, GPU {2,6:0.00} ms (GPU by round {3})   last: {4}",
-                                          run.Key, cpu, gpu, rounds, lines[run.Key]));
+                float cpu = got.Average(s => s.Key);
+                // A round with no GPU timing reads -1: averaged in, a 9 ms and a missing round printed 4 (round-7 scout).
+                List<float> gpuRounds = got.Where(s => s.Value >= 0f).Select(s => s.Value).ToList();
+                string gpuText = gpuRounds.Count > 0 ? gpuRounds.Average().ToString("0.00", CultureInfo.InvariantCulture) : "n/a";
+                string rounds = string.Join(" / ", got.Select(s => s.Value >= 0f ? s.Value.ToString("0.00", CultureInfo.InvariantCulture) : "n/a"));
+                Results.Add(string.Format(CultureInfo.InvariantCulture, "  {0,-26} frame {1,6:0.00} ms, GPU {2,6} ms (GPU by round {3})   last: {4}",
+                                          run.Key, cpu, gpuText, rounds, lines[run.Key]));
                 // (Medians since 2026-10-24, named so: the runs before held averages under "GPU ms" and "frame ms".)
-                Metric($"bench {run.Key}: GPU median ms", gpu);
+                if (gpuRounds.Count > 0)
+                {
+                    Metric($"bench {run.Key}: GPU median ms", gpuRounds.Average());
+                }
                 Metric($"bench {run.Key}: frame median ms", cpu);
             }
         }
@@ -850,6 +861,7 @@ namespace RavenfieldVR.Core
                     if (actor == null || actor.dead)
                     {
                         Results.Add($"film {entry.name}: the player could not respawn, stopping");
+                        Problem($"[{entry.name}] film: the player could not respawn; the films after it were not made");
                         yield break;
                     }
                 }
@@ -1111,6 +1123,7 @@ namespace RavenfieldVR.Core
                     if (actor == null || actor.dead)
                     {
                         Results.Add("flash check: the player could not respawn, stopping");
+                        Problem("[flash check] the player could not respawn; the flash check stopped part way");
                         break;
                     }
                 }
@@ -2582,7 +2595,7 @@ namespace RavenfieldVR.Core
         /// Aimed, the hand shaken as a tremor does (0.3 deg at 9 Hz about the head's right axis, from the aimed pose), and how much
         /// of it reaches the barrel: the steadying (ScopeSteadying through a magnifier, AimSteadying on iron sights) is measured
         /// where it acts (bug hunt 2026-10-19: no run had shaken an aimed gun; SteadyCheck never aims and only adds velocity
-        /// noise). With the setting on, more than 75% coming through is a problem.
+        /// noise). With the setting on, more coming through than halfway between a working filter's share and all of it is a problem.
         /// </summary>
         private static IEnumerator AimedTremor(HeldWeapon held, string name, int side, Action<string> report)
         {
@@ -2622,7 +2635,9 @@ namespace RavenfieldVR.Core
             string which = magnified > 1.8f ? $"scope {magnified:0.0}x, ScopeSteadying {setting * 100f:0}%" : $"{magnified:0.0}x sight, AimSteadying {setting * 100f:0}%";
             Metric("aimed tremor reaching the barrel, %", through);
             report($"aimed tremor (0.3 deg at 9 Hz): {through:0}% reaches the barrel ({which}{(stillAiming ? "" : "; the aim was lost meanwhile")})");
-            if (setting > 0f && stillAiming && through > 75f)
+            // The line between what a working filter lets through (100 - 100 * setting) and what none does (100): at 25% a working one
+            // gives 75-77% and failed the fixed 75 (round-7 scout).
+            if (setting > 0f && stillAiming && through > 100f - 50f * setting)
             {
                 Problem($"[{name}] aimed, a hand tremor is not steadied: {through:0}% of it reaches the barrel ({which})");
             }
@@ -5256,11 +5271,11 @@ namespace RavenfieldVR.Core
                 {
                     float magMoved = groundMag.Go != null ? Vector3.Distance(groundMag.Go.transform.position, magBefore) : -1f;
                     Metric("dropped magazine: cm moved by a body walking through it", magMoved * 100f);
-                    lines.Add($"a soldier walking through a magazine on the ground: {(magMoved < 0f ? "gone" : magMoved > 0.15f ? $"PUSHED {magMoved * 100f:0} cm" : $"stayed ({magMoved * 100f:0.0} cm)")}");
+                    lines.Add($"a soldier walking through a magazine on the ground: {(magMoved < 0f ? "GONE (vanished in the check)" : magMoved > 0.15f ? $"PUSHED {magMoved * 100f:0} cm" : $"stayed ({magMoved * 100f:0.0} cm)")}");
                     groundMag.Destroy();
                 }
                 Metric("dropped weapon: cm moved by a body walking through it", moved * 100f);
-                lines.Add($"a soldier walking through a lying {target.Entry.name}: {(moved < 0f ? "gone" : moved > 0.15f ? $"PUSHED {moved * 100f:0} cm" : $"stayed ({moved * 100f:0.0} cm)")}");
+                lines.Add($"a soldier walking through a lying {target.Entry.name}: {(moved < 0f ? "GONE (vanished in the check)" : moved > 0.15f ? $"PUSHED {moved * 100f:0} cm" : $"stayed ({moved * 100f:0.0} cm)")}");
             }
             // A type whose dropped shape was never fitted, as in a match started before the warm-up reached it (task 309): it is
             // not fitted on the death frame any more; it lies on a box and gets its own shape a moment later, fitted on a worker.
@@ -5373,7 +5388,7 @@ namespace RavenfieldVR.Core
                 float moved = mag.Go != null ? Vector3.Distance(mag.Go.transform.position, before) : -1f;
                 Metric("magazine set down gently: cm the gun pushed it", moved * 100f);
                 report("magazine picked up, set down gently and the gun swept through it: "
-                       + (moved < 0f ? "gone" : moved > 0.05f ? $"NOT LEFT ALONE (pushed {moved * 100f:0} cm)" : $"stayed ({moved * 100f:0.0} cm)"));
+                       + (moved < 0f ? "GONE (vanished in the check)" : moved > 0.05f ? $"NOT LEFT ALONE (pushed {moved * 100f:0} cm)" : $"stayed ({moved * 100f:0.0} cm)"));
             }
             finally
             {
@@ -5843,6 +5858,7 @@ namespace RavenfieldVR.Core
                     if (actor == null || actor.dead)
                     {
                         Results.Add($"{entry.name}: player could not respawn, stopping");
+                        Problem($"[{entry.name}] the player could not respawn: this weapon and the rest were not tested");
                         yield break;
                     }
                 }
@@ -6503,6 +6519,7 @@ namespace RavenfieldVR.Core
             {
                 yield break;
             }
+            ReloadMode? reloadBefore = VRConfig.TestReload; // (the run's Manual, put back after: cleared, the rest of the run used the saved mode)
             VRConfig.TestReload = ReloadMode.Assisted;
             _shots = 0;
             w.onSpawnProjectiles.AddListener(CountShot);
@@ -6523,7 +6540,7 @@ namespace RavenfieldVR.Core
             finally
             {
                 w.onSpawnProjectiles.RemoveListener(CountShot);
-                VRConfig.TestReload = null;
+                VRConfig.TestReload = reloadBefore;
             }
             int fired = _shots, used = before - w.ammo;
             Metric("assisted reloading: rounds used per shot (bolt and pump guns)", fired > 0 ? (double)used / fired : 0);
@@ -6539,7 +6556,7 @@ namespace RavenfieldVR.Core
         /// written into the weapon lines but never counted as problems (every report since 2026-10-17: the HK416s' "through the gun"
         /// was in the lines, not in the problems; improve round, 2026-10-22). tools/tests/failure_phrases_test.py keeps it in step.
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|HUNG IN THE AIR|\(JUMPED:|\(TRAILED |FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP|LEFT ON THE HAND|DIED BEFORE THE SHOTS|INSIDE THE BODY|DRAWS LESS THAN AN EMPTY");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|\(FLOATING\)|\bGONE\b|HUNG IN THE AIR|\(JUMPED:|\(TRAILED |FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP|LEFT ON THE HAND|DIED BEFORE THE SHOTS|INSIDE THE BODY|DRAWS LESS THAN AN EMPTY");
 
         private static string FirstFrames(Exception e)
         {
@@ -6637,7 +6654,7 @@ namespace RavenfieldVR.Core
             _written |= final;
             var sb = new StringBuilder();
             sb.AppendLine($"Ravenfield VR {PluginInfo.Version} autotest, {DateTime.Now:yyyy-MM-dd HH:mm}, VR {(VRManager.Active ? "on" : "off")}");
-            sb.AppendLine($"Problems: {Problems.Count}");
+            sb.AppendLine($"Problems: {Problems.Count}, weapons reported: {_tested}"); // (a run that tested nothing read as clean)
             // Where a run's time goes (the fast test mode is judged by it; seconds after the game started).
             sb.AppendLine($"Timeline: content ready {Core.TestHost.ContentReadyAt:0.0} s{(Core.TestHost.Mods != null ? " (fast test mode)" : "")}, match "
                           + $"{_matchAt:0.0} s, player deployed {_deployedAt:0.0} s, this report {Time.realtimeSinceStartup:0.0} s");
