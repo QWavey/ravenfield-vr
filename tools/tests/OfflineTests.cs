@@ -36,6 +36,7 @@ namespace RavenfieldVR.Tests
             PlayEntryTests();
             LauncherTests();
             SetupUninstallTests();
+            SetupKeepAndRestoreTests();
             SetupInstallTests();
             SetupForeignLoaderTests();
             SetupMovedGameTests();
@@ -1368,12 +1369,19 @@ namespace RavenfieldVR.Tests
                 saved.Remember = true;
                 saved.Save();
                 var read = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
-                Check(read.Mode == RavenfieldVR.Launcher.PlayMode.Flat && read.Preset == "Low" && read.Remember,
-                      $"Launcher: the remembered choice reads back (mode {read.Mode}, preset {read.Preset}, remember {read.Remember})");
+                // The preset shown is the mod's config's (Ultra, set above): one picked in the headset since is the newer choice, and the
+                // launcher's own copy put it back on the next start (round 7, 2026-10-28). Its copy counts only with no config.
+                Check(read.Mode == RavenfieldVR.Launcher.PlayMode.Flat && read.Preset == "Ultra" && read.Remember,
+                      $"Launcher: the remembered choice reads back, with the config's preset (mode {read.Mode}, preset {read.Preset}, remember {read.Remember})");
+                string cfgKept = System.IO.File.ReadAllText(cfg);
+                System.IO.File.Delete(cfg);
+                var noConfig = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
+                Check(noConfig.Preset == "Low", $"Launcher: with no config yet, its own remembered preset (got {noConfig.Preset})");
                 System.IO.File.WriteAllText(System.IO.Path.Combine(cfgDir, "RavenfieldVR.launcher.ini"), "garbage\n=x\nmode=VR\npreset=Insane\nremember=yes\n");
                 var damaged = RavenfieldVR.Launcher.LauncherSettings.Load(dir);
                 Check(damaged.Mode == RavenfieldVR.Launcher.PlayMode.VR && damaged.Preset == "Medium" && !damaged.Remember,
                       $"Launcher: a damaged choice file keeps the defaults it cannot read (mode {damaged.Mode}, preset {damaged.Preset}, remember {damaged.Remember})");
+                System.IO.File.WriteAllText(cfg, cfgKept);
             }
             catch (Exception e)
             {
@@ -1451,6 +1459,64 @@ namespace RavenfieldVR.Tests
                     catch (System.IO.IOException)
                     {
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Round 7 (2026-10-28): "Keep my settings" keeps BepInEx when the game never wrote the mod's config (the launcher's choice
+        /// went with it), a Steam config that cannot be read keeps the launcher (it may still start it), and a backup copy put back
+        /// is deleted with its emptied folders (each conflict left another folder of them).
+        /// </summary>
+        private static void SetupKeepAndRestoreTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-keep-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+            try
+            {
+                void Write(string rel, string text)
+                {
+                    string p = System.IO.Path.Combine(game, rel);
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(p));
+                    System.IO.File.WriteAllText(p, text);
+                }
+                Write("ravenfield.exe", "");
+                Write(Installer.LauncherName, "launcher");
+                Write(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll", "mod");
+                Write(@"BepInEx\core\BepInEx.dll", "loader");
+                Write(@"BepInEx\config\RavenfieldVR.launcher.ini", "mode=VR"); // (no com.qwavey.ravenfieldvr.cfg: the game never ran)
+                Write(@"ravenfield_Data\keep.dat", "modded");
+                Write(@"RavenfieldVR-backup\20261028-000000\ravenfield_Data\keep.dat", "original");
+                Write(Installer.ManifestRelative, "version=test\ninstalledBepInEx=True\nbackup=RavenfieldVR-backup\\20261028-000000\nadded=" + Installer.LauncherName
+                                                  + "\nadded=BepInEx\\core\\BepInEx.dll\nadded=BepInEx\\plugins\\RavenfieldVR\\RavenfieldVR.dll\nreplaced=ravenfield_Data\\keep.dat\n");
+                string cfgDir = System.IO.Path.Combine(steam, "userdata", "12345", "config");
+                System.IO.Directory.CreateDirectory(cfgDir);
+                // Cut short mid-write (Steam stopped while writing it): it cannot be parsed.
+                System.IO.File.WriteAllText(System.IO.Path.Combine(cfgDir, "localconfig.vdf"), "\"UserLocalConfigStore\"\n{\n\t\"Software\"\n\t{\n\t\t\"Val");
+                Installer.SteamDirOverride = steam;
+                var log = new List<string>();
+                new Installer(log.Add).Uninstall(game, keepSettings: true);
+                bool Has(string rel) => System.IO.File.Exists(System.IO.Path.Combine(game, rel)) || System.IO.Directory.Exists(System.IO.Path.Combine(game, rel));
+                string all = string.Join(" | ", log);
+                Check(Has(@"BepInEx\core\BepInEx.dll") && Has(@"BepInEx\config\RavenfieldVR.launcher.ini"),
+                      "Setup uninstall, settings kept with no mod config yet: BepInEx and the launcher's choice kept (" + all + ")");
+                Check(Has(Installer.LauncherName), "Setup uninstall: an unreadable Steam config keeps the launcher (" + all + ")");
+                Check(Has(@"ravenfield_Data\keep.dat") && System.IO.File.ReadAllText(System.IO.Path.Combine(game, @"ravenfield_Data\keep.dat")) == "original"
+                      && !Has(@"RavenfieldVR-backup"), "Setup uninstall: the original put back and its backup copy and emptied folders gone (" + all + ")");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup keep and restore: threw " + e);
+            }
+            finally
+            {
+                Installer.SteamDirOverride = null;
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
                 }
             }
         }

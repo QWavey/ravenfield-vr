@@ -413,7 +413,17 @@ namespace RavenfieldVR.Setup
                 lines.AddRange(addedFiles.Distinct(StringComparer.OrdinalIgnoreCase).Select(a => "added=" + a));
                 lines.AddRange(replaced.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => "replaced=" + r));
                 Directory.CreateDirectory(Path.GetDirectoryName(manifestPath));
-                File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
+                // Whole or not at all: written in place, a full disk cut the record short (no version, nothing for Uninstall to undo).
+                string tmp = manifestPath + ".tmp";
+                File.WriteAllLines(tmp, lines, new UTF8Encoding(false));
+                if (File.Exists(manifestPath))
+                {
+                    File.Replace(tmp, manifestPath, null);
+                }
+                else
+                {
+                    File.Move(tmp, manifestPath);
+                }
             }
             try
             {
@@ -471,6 +481,9 @@ namespace RavenfieldVR.Setup
                         }
                     }
                 }
+                // The final record inside the try: written after it, a failed write (a scanner holding the file, a full disk) left the
+                // earlier version's record, which did not name what this update added or replaced (round-7 scout).
+                WriteRecord(added, versionLabel);
             }
             catch (Exception)
             {
@@ -486,7 +499,6 @@ namespace RavenfieldVR.Setup
                 }
                 throw;
             }
-            WriteRecord(added, versionLabel);
             _log($"Installed Ravenfield VR {versionLabel}: {added.Count} files, {replaced.Count} original file(s) backed up.");
         }
 
@@ -669,8 +681,9 @@ namespace RavenfieldVR.Setup
             bool otherPlugins = Directory.Exists(pluginsDir) && Directory.EnumerateFileSystemEntries(pluginsDir)
                 .Any(e => !string.Equals(Path.GetFileName(e), "RavenfieldVR", StringComparison.OrdinalIgnoreCase))
                 || Directory.Exists(patchersDir) && Directory.EnumerateFileSystemEntries(patchersDir).Any();
-            bool settingsKept = keepSettings && File.Exists(Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg"));
-            bool keepBepInEx = !installedBepInEx || otherPlugins || settingsKept;
+            // Kept settings keep BepInEx, as uninstall.ps1 keeps it: decided by the mod's config alone, the launcher's choice, the
+            // weapon overrides and the sandbox's poses went with BepInEx when the game had not written its config yet (round-7 scout).
+            bool keepBepInEx = !installedBepInEx || otherPlugins || keepSettings;
             // A Steam launch option still running the launcher (Steam could not be changed): the launcher stays, or Ravenfield no
             // longer starts from Steam.
             bool launcherInUse = SteamLaunchOption.LocalConfigs().Any(f =>
@@ -679,12 +692,18 @@ namespace RavenfieldVR.Setup
                 {
                     return SteamLaunchOption.Read(f).IndexOf(LauncherName, StringComparison.OrdinalIgnoreCase) >= 0;
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    return false;
+                    // Unreadable (cut short, locked): whether it still starts the launcher is not known, so the launcher stays. Taken as
+                    // no, it was deleted while Steam's option still started it (round-7 scout).
+                    _log("Could not read " + f + " (" + e.Message + "): it is not known whether Steam still starts " + LauncherName + ", so it is kept.");
+                    return true;
                 }
             });
             int removed = 0, restored = 0;
+            // The backup copies put back: deleted once the record is gone (each install and uninstall with a conflicting file left
+            // another folder of them; round-7 scout). Copies not put back stay.
+            var restoredFrom = new List<string>();
             // BepInEx's loader files that were put back as the game's own originals (another tool's winhttp.dll): not deleted with
             // BepInEx afterwards.
             var restoredLoader = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -729,10 +748,18 @@ namespace RavenfieldVR.Setup
                     // BepInEx mod (Ravenfield VR's kept settings included) stopped loading (installer scout, 2026-10-23).
                     _log("Kept BepInEx's " + rel + " (BepInEx stays); the game's original is in " + (src ?? "the backup folder") + ".");
                 }
+                else if (rel.StartsWith(@"BepInEx\plugins\RavenfieldVR\", StringComparison.OrdinalIgnoreCase)
+                         || !keepBepInEx && installedBepInEx && rel.StartsWith(@"BepInEx\", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Removed with its folder below: put back first, it was deleted with the folder and the log said "restored"
+                    // (round-7 scout). The original stays in the backup folder.
+                    _log("Left " + rel + " out of the restore: it goes with its folder; the original is in " + (src ?? "the backup folder") + ".");
+                }
                 else if (src != null && File.Exists(src))
                 {
                     File.Copy(src, dst, true);
                     restored++;
+                    restoredFrom.Add(src);
                     if (IsLoaderFile(rel))
                     {
                         restoredLoader.Add(rel);
@@ -744,6 +771,53 @@ namespace RavenfieldVR.Setup
                 }
             }
             DeleteDir(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR"));
+            // The record is gone with that folder: the copies put back go now, then their folders if nothing else is left in them.
+            foreach (string copy in restoredFrom)
+            {
+                try
+                {
+                    File.Delete(copy);
+                }
+                catch (Exception e)
+                {
+                    _log("Could not delete the backup copy " + copy + ": " + e.Message);
+                }
+            }
+            foreach (string folder in restoredFrom.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase)
+                         .OrderByDescending(d => d.Length))
+            {
+                // Up to the backups' root, each only when empty (a copy that was not put back keeps its folders).
+                for (string d = folder; d != null && backup.Length > 0 && d.TrimEnd('\\').Length >= backup.TrimEnd('\\').Length; d = Path.GetDirectoryName(d))
+                {
+                    try
+                    {
+                        if (Directory.Exists(d) && !Directory.EnumerateFileSystemEntries(d).Any())
+                        {
+                            Directory.Delete(d);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    catch (IOException)
+                    {
+                        break;
+                    }
+                }
+            }
+            string backupsRoot = Path.Combine(game, "RavenfieldVR-backup");
+            try
+            {
+                if (Directory.Exists(backupsRoot) && !Directory.EnumerateFileSystemEntries(backupsRoot).Any())
+                {
+                    Directory.Delete(backupsRoot);
+                }
+            }
+            catch (IOException)
+            {
+                // (in use: left)
+            }
             DeleteDir(Path.Combine(game, @"ravenfield_Data\UnitySubsystems\XRSDKOpenVR"));
             string subsystems = Path.Combine(game, @"ravenfield_Data\UnitySubsystems");
             if (Directory.Exists(subsystems) && !Directory.EnumerateFileSystemEntries(subsystems).Any())
