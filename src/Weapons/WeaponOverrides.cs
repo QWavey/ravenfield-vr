@@ -79,8 +79,24 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 bool changed = _file != null;
-                _file = JsonUtility.FromJson<WeaponOverrideFile>(File.ReadAllText(path)) ?? new WeaponOverrideFile();
-                _loadedStamp = stamp;
+                _loadedStamp = stamp; // (a broken file is not read again until it is saved again)
+                string text = File.ReadAllText(path);
+                WeaponOverrideFile read;
+                try
+                {
+                    read = JsonUtility.FromJson<WeaponOverrideFile>(text) ?? new WeaponOverrideFile();
+                }
+                catch (Exception e)
+                {
+                    // Each broken save said (once a session before: a second slip went unsaid), and the overrides that loaded last
+                    // kept (dropped, every weapon lost its corrections over one missing comma; round-7 scout).
+                    Log.WarnOnce("overrides:" + stamp.Ticks, $"Could not read {path} ({e.Message}): "
+                                 + (_file != null ? "the overrides read before stay until it is fixed." : "no overrides until it is fixed."));
+                    _file = _file ?? new WeaponOverrideFile();
+                    return;
+                }
+                WarnUnknownKeys(text);
+                _file = read;
                 _matchesChecked = false;
                 if (changed)
                 {
@@ -97,6 +113,32 @@ namespace RavenfieldVR.Weapons
             {
                 Log.WarnOnce("overrides", "Could not read " + FilePath + ": " + e.Message);
                 _file = new WeaponOverrideFile();
+            }
+        }
+
+        private static readonly string[] KnownKeys =
+        {
+            "weapons", "match", "contains", "action", "magazine", "slide", "slideTravel", "lockOnEmpty", "gripForward", "gripUp", "pitch", "magKick"
+        };
+
+        private static readonly System.Text.RegularExpressions.Regex Key = new System.Text.RegularExpressions.Regex("\"([^\"\\]+)\"\\s*:");
+
+        /// <summary>
+        /// Keys the file has that no override field takes, said once each: the reader matches names exactly and skips the rest
+        /// without a word, so "slidetravel" or "Match" did nothing and nothing said why (round-7 scout).
+        /// </summary>
+        private static void WarnUnknownKeys(string text)
+        {
+            foreach (System.Text.RegularExpressions.Match m in Key.Matches(text))
+            {
+                string key = m.Groups[1].Value;
+                if (Array.IndexOf(KnownKeys, key) >= 0)
+                {
+                    continue;
+                }
+                string near = KnownKeys.FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+                Log.WarnOnce("override-key:" + key, $"Weapon overrides: \"{key}\" is no setting of an override, so it is left out"
+                             + (near != null ? $" (the name is \"{near}\", in that case)." : $" (they are: {string.Join(", ", KnownKeys.Skip(1).ToArray())})."));
             }
         }
 
@@ -276,7 +318,8 @@ namespace RavenfieldVR.Weapons
             string entry = w.weaponEntry != null ? w.weaponEntry.name : null;
             if (o.contains)
             {
-                return (w.name + " " + entry + " " + w.displayName).ToLowerInvariant().Contains(match);
+                // (The "(Clone)" tag dropped here too: "clone" or "(c" named every spawned gun and none of their prefabs; round-7 scout.)
+                return ((w.name ?? "").Replace("(Clone)", "") + " " + entry + " " + w.displayName).ToLowerInvariant().Contains(match);
             }
             return Same(w.name, match) || Same(entry, match) || Same(w.displayName, match);
         }
