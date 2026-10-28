@@ -37,6 +37,42 @@ namespace RavenfieldVR.Core
         }
 
         private static readonly Dictionary<Camera, CameraTime> Cameras = new Dictionary<Camera, CameraTime>();
+
+        // The mod's own guarded sections (Log.Guard), time only, in every session: the autotest's PerfProbe names them, but only in
+        // its runs, and the user's play spent 0.8-1.3 ms a frame on the mod against the autotest's 0.4-0.5 (2026-10-27).
+        private sealed class SectionTime
+        {
+            public string Name;
+            public long Ticks;
+            public long Start;
+        }
+
+        private static readonly Dictionary<string, SectionTime> Sections = new Dictionary<string, SectionTime>();
+        private static readonly List<SectionTime> SortedSections = new List<SectionTime>();
+        private static int _mainThread = -1;
+
+        internal static void SectionBegin(string name)
+        {
+            if (_mainThread < 0 || System.Threading.Thread.CurrentThread.ManagedThreadId != _mainThread)
+            {
+                return; // (not installed yet, or a worker's)
+            }
+            if (!Sections.TryGetValue(name, out SectionTime s))
+            {
+                s = Sections[name] = new SectionTime { Name = name };
+            }
+            s.Start = Stopwatch.GetTimestamp();
+        }
+
+        internal static void SectionEnd(string name)
+        {
+            if (_mainThread < 0 || System.Threading.Thread.CurrentThread.ManagedThreadId != _mainThread || !Sections.TryGetValue(name, out SectionTime s) || s.Start == 0)
+            {
+                return;
+            }
+            s.Ticks += Stopwatch.GetTimestamp() - s.Start;
+            s.Start = 0;
+        }
         private static readonly List<CameraTime> Sorted = new List<CameraTime>();
 
         /// <summary>The markers put into the player loop (once: a later SetPlayerLoop by the game or a mod drops them, and the line says so).</summary>
@@ -47,6 +83,7 @@ namespace RavenfieldVR.Core
                 return;
             }
             _installed = true;
+            _mainThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
             try
             {
                 PlayerLoopSystem root = PlayerLoop.GetCurrentPlayerLoop();
@@ -179,6 +216,25 @@ namespace RavenfieldVR.Core
                  .Append(((float)t.Renders / _frames).ToString("0.#")).Append("x),");
             }
             s.Append($" {Sorted.Count} camera(s) rendered");
+            // The mod's costliest sections (inclusive: a section inside another counts in both).
+            SortedSections.Clear();
+            foreach (KeyValuePair<string, SectionTime> kv in Sections)
+            {
+                if (kv.Value.Ticks > 0)
+                {
+                    SortedSections.Add(kv.Value);
+                }
+            }
+            SortedSections.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
+            s.Append("; the mod's costliest sections:");
+            for (int i = 0; i < SortedSections.Count && i < 6; i++)
+            {
+                s.Append(' ').Append(SortedSections[i].Name).Append(' ').Append((SortedSections[i].Ticks * perMs).ToString("0.00")).Append(',');
+            }
+            foreach (KeyValuePair<string, SectionTime> kv in Sections)
+            {
+                kv.Value.Ticks = 0;
+            }
             // What the scene holds (a scan once a minute): a session whose frames grew slower minute by minute (a 70-gun autotest,
             // 7.8 to 25.5 ms, every phase two to four times dearer, physics most; 2026-10-27) tells here whether bodies, renderers
             // or cameras piled up, or the same scene simply ran slower (a hot laptop).

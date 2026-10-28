@@ -95,6 +95,10 @@ namespace RavenfieldVR.Core
             {
                 PerfProbe.Begin(context);
             }
+            else
+            {
+                FramePhases.SectionBegin(context); // (time only, always: the frame rate line's costliest mod sections)
+            }
             try
             {
                 action();
@@ -110,6 +114,10 @@ namespace RavenfieldVR.Core
                 if (PerfProbe.Enabled)
                 {
                     PerfProbe.End(context);
+                }
+                else
+                {
+                    FramePhases.SectionEnd(context);
                 }
             }
         }
