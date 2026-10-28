@@ -103,6 +103,8 @@ namespace RavenfieldVR.Input
             return max;
         }
 
+        private static bool _squadWasHeld, _squadFromPanel;
+
         public static void Compute()
         {
             if (!Enabled || _computedFrame == Time.frameCount)
@@ -128,6 +130,19 @@ namespace RavenfieldVR.Input
             // two hands' buttons trade places).
             Hand dom = VRInput.GunHand;
             Hand off = VRInput.FreeHand;
+            // A squad hold begun with the laser on one of the mod's panels never orders (the game commits it on the release); one begun
+            // off a panel finishes as it began if the laser comes onto a panel meanwhile. Tracked before the returns below: its edge
+            // is every frame's (round-7 scout).
+            bool squadHeld = VRInput.GetHeld(DigitalAction.Squad);
+            if (!squadHeld)
+            {
+                _squadFromPanel = false;
+            }
+            else if (!_squadWasHeld)
+            {
+                _squadFromPanel = PanelOpen && PointerOverUI;
+            }
+            _squadWasHeld = squadHeld;
             // (The match paused behind the SteamVR dashboard or with the headset off counts too: a stick flick there toggled crouch
             // or prone for when it resumed; rig hunt, 2026-10-20 night.)
             bool menu = GameContext.GameMenuOpen || !GameContext.InGame || GameManager.instance != null && GameManager.IsPaused();
@@ -235,9 +250,11 @@ namespace RavenfieldVR.Input
                 _leaveArmed = false; // a seat taken with the trigger still held: let go once before it counts
             }
             Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
-            Set(KeyBinds.Call, VRInput.GetHeld(DigitalAction.Squad));
-            Set(KeyBinds.NextWeapon, VRInput.GetPressed(DigitalAction.WeaponNext));
-            Set(KeyBinds.Countermeasures, VRInput.GetPressed(DigitalAction.Countermeasures));
+            // (Next weapon, squad and countermeasures with the laser on a panel: its stick or trackpad click switched the weapon behind
+            // it, started an order or fired the countermeasures; round-7 scout.)
+            Set(KeyBinds.Call, squadHeld && !_squadFromPanel);
+            Set(KeyBinds.NextWeapon, !onPanel && VRInput.GetPressed(DigitalAction.WeaponNext));
+            Set(KeyBinds.Countermeasures, !onPanel && VRInput.GetPressed(DigitalAction.Countermeasures));
             Set(KeyBinds.Goggles, goggles);
             Set(KeyBinds.Map, WristLookGesture);
 
@@ -521,7 +538,7 @@ namespace RavenfieldVR.Input
             // FirstPersonControllerInput feeds -Horizontal as the strafe input, so positive stick X is negative Horizontal.
             SetAxis(KeyBinds.Horizontal, -MoveStick.x);
             SetAxis(KeyBinds.Vertical, MoveStick.y);
-            Set(KeyBinds.Kick, VRInput.GetHeld(DigitalAction.Kick));
+            Set(KeyBinds.Kick, !(PanelOpen && PointerOverUI) && VRInput.GetHeld(DigitalAction.Kick)); // (not with the laser on a panel)
 
             HandleWeaponButtons(actor.activeWeapon);
 

@@ -89,10 +89,14 @@ namespace RavenfieldVR.UI
             _given = HandSign.None;
         }
 
-        /// <summary>Signs are read only in a match, with the player alive, and when no menu, squad button, order screen, ladder or wrist view is up.</summary>
+        /// <summary>
+        /// Signs are read only in a match, with the player alive, and when no menu, squad button, order screen, ladder or wrist view is
+        /// up, nor the match paused (the SteamVR dashboard, the headset off: no menu is up then, and a hand held still ordered the
+        /// squad behind the pause; round-7 scout).
+        /// </summary>
         private static bool CanSign()
         {
-            if (!GameContext.InGame || !GameContext.PlayerAlive || GameContext.GameMenuOpen)
+            if (!GameContext.InGame || !GameContext.PlayerAlive || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 return false;
             }

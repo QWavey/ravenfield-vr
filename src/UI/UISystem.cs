@@ -150,7 +150,7 @@ namespace RavenfieldVR.UI
                 _nextSettingsRefresh = Time.unscaledTime + 2f; // at once after a press; otherwise for changes made elsewhere
                 Settings.Refresh();
             }
-            ModKeys.Update();
+            ModKeys.Update(_module != null && _module.PressActive);
 
             MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || (!GameContext.InGame && Canvases.AnyVisible);
             VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen;

@@ -38,6 +38,9 @@ namespace RavenfieldVR.UI
         private readonly List<Canvas> _candidatesFrom = new List<Canvas>();
         private float _candidatesUntil = -1f;
         private bool _pressed;
+
+        /// <summary>The laser's press is down (a button held under it).</summary>
+        public bool PressActive => _pressed;
         private readonly bool[] _triggerDown = new bool[2];
         private readonly bool[] _triggerPressed = new bool[2];
         private readonly bool[] _triggerReleased = new bool[2];

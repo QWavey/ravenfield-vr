@@ -58,9 +58,11 @@ namespace RavenfieldVR.UI
 
         public void Close() => _root.SetActive(false);
 
-        public void Update()
+        public void Update(bool pressing)
         {
-            if (IsOpen && Time.unscaledTime - _lastBuild > RebuildSeconds)
+            // Not while the laser holds a press: the rows rebuilt under it, its Press button was gone at the release and the tap
+            // never went out (round-7 scout).
+            if (IsOpen && !pressing && Time.unscaledTime - _lastBuild > RebuildSeconds)
             {
                 Rebuild(force: false);
             }
