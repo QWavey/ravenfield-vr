@@ -100,6 +100,61 @@ namespace RavenfieldVR.Tests
             GloveSweepTests(mod);
             HapticPriorityTests(mod);
             VolumeRotationTests(mod);
+            NoticeWrapTests(mod);
+            ToolClassTests(mod);
+        }
+
+        /// <summary>
+        /// The headset notice's text is broken into short lines by hand (a TextMesh does not wrap): no line past the width unless
+        /// one word is, every word kept in order, and a break of the message's own starting the count again.
+        /// </summary>
+        private static void NoticeWrapTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo wrap = mod.GetType("RavenfieldVR.UI.HeadNotice")?.GetMethod("Wrap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(wrap != null, "Head notice: HeadNotice.Wrap found");
+            if (wrap == null)
+            {
+                return;
+            }
+            string W(string s, int width) => (string)wrap.Invoke(null, new object[] { s, width });
+            const string message = "Controller input did not start: SteamVR rejected the controller bindings (InvalidParam). Restart SteamVR, then the game.";
+            string wrapped = W(message, 48);
+            bool short_ = true;
+            foreach (string line in wrapped.Split('\n'))
+            {
+                short_ &= line.Length <= 48;
+            }
+            Check(short_ && wrapped.Contains("\n"), "Head notice: a long message is broken into lines of at most 48 characters");
+            Check(wrapped.Replace('\n', ' ') == message, "Head notice: every word kept, in order, one space or break between");
+            Check(W("abcdefghijklmnopqrstuvwxyz", 10) == "abcdefghijklmnopqrstuvwxyz", "Head notice: a word longer than the width stays whole");
+            Check(W("one two\nthree four five", 12) == "one two\nthree four\nfive", $"Head notice: the message's own break starts the count again (got {W("one two\nthree four five", 12).Replace("\n", "|")})");
+        }
+
+        /// <summary>
+        /// An infinite-magazine gun (the game's ammo -1) is classed NoAmmo with the tools but is no tool: it is aimed down, measured
+        /// and its shape fitted as a gun (round 4 of 2026-10-28).
+        /// </summary>
+        private static void ToolClassTests(System.Reflection.Assembly mod)
+        {
+            Type dataType = mod.GetType("RavenfieldVR.Weapons.WeaponRigData");
+            Type actionType = mod.GetType("RavenfieldVR.Weapons.ActionType");
+            System.Reflection.PropertyInfo isTool = dataType?.GetProperty("IsTool");
+            Check(isTool != null && actionType != null, "Tools: WeaponRigData.IsTool found");
+            if (isTool == null || actionType == null)
+            {
+                return;
+            }
+            bool Tool(string action, bool infinite)
+            {
+                object d = Activator.CreateInstance(dataType);
+                dataType.GetField("Action").SetValue(d, Enum.Parse(actionType, action));
+                dataType.GetField("InfiniteAmmo").SetValue(d, infinite);
+                return (bool)isTool.GetValue(d);
+            }
+            Check(Tool("NoAmmo", false) && Tool("Melee", false) && Tool("Throwable", false), "Tools: a tool with no ammo, a blade and a throwable are tools");
+            Check(!Tool("NoAmmo", true), "Tools: an infinite-magazine gun (NoAmmo, ammo -1) is not a tool");
+            Check(!Tool("SelfLoading", false) && !Tool("Manual", false), "Tools: guns with magazines are not tools");
         }
 
         /// <summary>

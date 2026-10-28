@@ -91,7 +91,9 @@ namespace RavenfieldVR.UI
                 {
                     continue;
                 }
-                if (line > 0 && line + 1 + word.Length > width)
+                int firstBreak = word.IndexOf('\n');
+                int lead = firstBreak >= 0 ? firstBreak : word.Length; // (what of it goes on this line)
+                if (line > 0 && line + 1 + lead > width)
                 {
                     sb.Append('\n');
                     line = 0;
