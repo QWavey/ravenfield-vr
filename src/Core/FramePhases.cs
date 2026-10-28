@@ -231,6 +231,13 @@ namespace RavenfieldVR.Core
                  .Append(((float)t.Renders / _frames).ToString("0.#")).Append("x),");
             }
             s.Append($" {Sorted.Count} camera(s) rendered");
+            // The eyes' depth texture (copied from the game's camera): on, the forward renderer draws every opaque object once more per
+            // eye, so it is worth seeing whether anything still asks for it with post-processing off.
+            Camera eyes = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Camera : null;
+            if (eyes != null && eyes.depthTextureMode != DepthTextureMode.None)
+            {
+                s.Append($" (the eyes draw a {eyes.depthTextureMode} texture)");
+            }
             // The mod's costliest sections (inclusive: a section inside another counts in both).
             SortedSections.Clear();
             foreach (KeyValuePair<string, SectionTime> kv in Sections)
