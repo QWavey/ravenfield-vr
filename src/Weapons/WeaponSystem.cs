@@ -1140,6 +1140,7 @@ namespace RavenfieldVR.Weapons
             SoldierGuns.Clear();
             GunVolume.OnSceneLoaded();
             HandBody.OnSceneLoaded();
+            Log.Guard("Retired hull meshes", ShapeFit.ReleaseRetired); // (replaced content's, now that the old scene's drops are gone)
             if (Held != null)
             {
                 ReleaseHeld();

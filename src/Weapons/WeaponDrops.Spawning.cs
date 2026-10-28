@@ -1175,6 +1175,14 @@ namespace RavenfieldVR.Weapons
             IdleFailed.Clear();
             IdleBuilds.Clear(); // (the old content's entries: queued again from what the soldiers carry now)
             EntryNumbers.Clear(); // (the replaced content's entries; the numbers go on from the last one)
+            foreach (ShapeFit.Piece[] pieces in RenderedShapes.Values)
+            {
+                ShapeFit.Retire(pieces); // (their meshes destroyed once no drop in the world collides with them)
+            }
+            foreach (ShapeFit.Piece[] pieces in ScaledShapes.Values)
+            {
+                ShapeFit.Retire(pieces);
+            }
             RenderedShapes.Clear();
             ScaledShapes.Clear();
             LateFitsUnderway.Clear();

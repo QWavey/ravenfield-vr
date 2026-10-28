@@ -28,6 +28,9 @@ namespace RavenfieldVR.Weapons
             public bool Baked;
             private Mesh _mesh;
 
+            /// <summary>Its hull mesh if one was made (a destroyed one reads as none: <see cref="Mesh"/> makes it again).</summary>
+            internal Mesh MadeMesh => _mesh;
+
             /// <summary>Hull source mesh (shared by every copy of the model).</summary>
             public Mesh Mesh
             {
@@ -77,10 +80,99 @@ namespace RavenfieldVR.Weapons
         internal static bool TryCached(string key, out Piece[] pieces) => Cache.TryGetValue(key, out pieces);
 
         /// <summary>Keeps <paramref name="pieces"/> under <paramref name="key"/> (fitted elsewhere, from <see cref="Gather"/>'s points).</summary>
-        internal static void Store(string key, Piece[] pieces) => Cache[key] = pieces;
+        internal static void Store(string key, Piece[] pieces)
+        {
+            if (Cache.TryGetValue(key, out Piece[] old) && !ReferenceEquals(old, pieces))
+            {
+                Retire(old);
+            }
+            Cache[key] = pieces;
+        }
 
         /// <summary>Forgets the pieces kept under <paramref name="key"/> (autotest).</summary>
-        internal static void Forget(string key) => Cache.Remove(key);
+        internal static void Forget(string key)
+        {
+            if (Cache.TryGetValue(key, out Piece[] old))
+            {
+                Retire(old);
+                Cache.Remove(key);
+            }
+        }
+
+        /// <summary>
+        /// Hull meshes of pieces no cache keeps any more, to destroy once no collider holds them (<see cref="ReleaseRetired"/>):
+        /// dropped with their pieces, every content reload (and every weapon overrides edit) left a generation of native meshes and
+        /// their cooked PhysX data for the rest of the session. Not destroyed at once: a drawn gun's stand-in and the drops
+        /// already in the world still collide with them (round-4 scout).
+        /// </summary>
+        private static readonly List<Mesh> Retired = new List<Mesh>();
+
+        /// <summary>These pieces are no longer kept: their hull meshes are retired.</summary>
+        internal static void Retire(Piece[] pieces)
+        {
+            if (pieces == null)
+            {
+                return;
+            }
+            foreach (Piece p in pieces)
+            {
+                Mesh m = p?.MadeMesh;
+                if (m != null && !Retired.Contains(m))
+                {
+                    Retired.Add(m);
+                }
+            }
+        }
+
+        /// <summary>
+        /// At a scene change (main thread): the retired hull meshes no collider uses any more, inactive templates and objects kept
+        /// across scenes included, and no kept piece shares, destroyed; the rest wait for the next scene change. A piece still
+        /// holding one that went (a stand-in's, an old drop's) makes its mesh again when next asked for it.
+        /// </summary>
+        internal static void ReleaseRetired()
+        {
+            if (Retired.Count == 0)
+            {
+                return;
+            }
+            var inUse = new HashSet<Mesh>();
+            foreach (MeshCollider c in Resources.FindObjectsOfTypeAll<MeshCollider>())
+            {
+                if (c != null && c.sharedMesh != null)
+                {
+                    inUse.Add(c.sharedMesh);
+                }
+            }
+            foreach (Piece[] kept in Cache.Values)
+            {
+                foreach (Piece p in kept)
+                {
+                    if (p?.MadeMesh != null)
+                    {
+                        inUse.Add(p.MadeMesh);
+                    }
+                }
+            }
+            int destroyed = 0;
+            for (int i = Retired.Count - 1; i >= 0; i--)
+            {
+                Mesh m = Retired[i];
+                if (m != null && inUse.Contains(m))
+                {
+                    continue;
+                }
+                if (m != null)
+                {
+                    UnityEngine.Object.Destroy(m);
+                    destroyed++;
+                }
+                Retired.RemoveAt(i);
+            }
+            if (destroyed > 0)
+            {
+                Log.Info($"Physics shapes: {destroyed} hull meshes of replaced weapon content destroyed ({Retired.Count} still in use).");
+            }
+        }
 
         /// <summary>
         /// The points <see cref="Fit"/> would fit, in the space <paramref name="frameFromWorld"/> maps into, copied out for a fit on a
@@ -825,6 +917,13 @@ namespace RavenfieldVR.Weapons
             return new Piece { Points = pts, Bounds = new Bounds(center, size) };
         }
 
-        public static void ClearCache() => Cache.Clear();
+        public static void ClearCache()
+        {
+            foreach (Piece[] pieces in Cache.Values)
+            {
+                Retire(pieces);
+            }
+            Cache.Clear();
+        }
     }
 }
