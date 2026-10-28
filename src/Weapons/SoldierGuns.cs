@@ -42,6 +42,7 @@ namespace RavenfieldVR.Weapons
         private readonly float[] _lastKnock = { -10f, -10f };
         /// <summary>The soldier whose gun each hand holds pushed off (one with no other weapon to draw: see <see cref="Wrest"/>), or null.</summary>
         private readonly Actor[] _holdingGunOf = new Actor[2];
+        private readonly float[] _nextStrain = new float[2];
 
         private sealed class Knock
         {
@@ -345,6 +346,11 @@ namespace RavenfieldVR.Weapons
             if (Knocks.TryGetValue(soldier, out Knock k))
             {
                 k.At = Time.time; // (the knock kept at its start: full throw, fire held)
+            }
+            if (Time.time >= _nextStrain[i])
+            {
+                _nextStrain[i] = Time.time + 0.25f;
+                hand.Haptic(0.02f, 60f, 0.3f); // he pulls against the hand: felt as a light strain while it holds his gun off
             }
         }
 
