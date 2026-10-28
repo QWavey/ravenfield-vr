@@ -331,7 +331,7 @@ namespace RavenfieldVR.Weapons
             return null;
         }
 
-        private static Vector3 PartCenter(Transform t)
+        internal static Vector3 PartCenter(Transform t)
         {
             Renderer r = t.GetComponentInChildren<Renderer>(true);
             return r != null && !(r is SkinnedMeshRenderer) ? r.bounds.center : t.position;

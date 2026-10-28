@@ -1271,8 +1271,9 @@ namespace RavenfieldVR.Weapons
             }
             if (Supported)
             {
-                // Long guns: the support hand takes part of it; a pistol cupped in two hands a good part.
-                strength *= fd.IsPistol ? 0.6f : 1f - VRConfig.TwoHandRecoilReduction.Value;
+                // The support hand takes its share, a long gun's foregrip and a pistol cupped in two hands alike: the setting's
+                // (a pistol's fixed 0.6, the setting's old default, kept 40% off at 0 and at 1; round-5 scout). The same at the default 0.4.
+                strength *= 1f - VRConfig.TwoHandRecoilReduction.Value;
             }
             else
             {

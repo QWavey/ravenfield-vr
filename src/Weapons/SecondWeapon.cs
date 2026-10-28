@@ -71,6 +71,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>Its pin pulled (the hand's trigger squeezed: the other hand holds the gun and cannot pull it).</summary>
         internal bool Armed { get; private set; }
 
+        /// <summary>A throwable with a pin to pull (a grenade, with pins on): only that one makes the pull's sound and drops a pin.</summary>
+        private readonly bool _usesPin;
+        /// <summary>
+        /// Its own pin part, hidden while the pin is out as the grenade hand hides it (it stayed in place in the free hand, only the
+        /// sound said it was pulled; round-5 scout), and the scale it is given back.
+        /// </summary>
+        private readonly Transform _modPin;
+        private readonly Vector3 _modPinScale;
+
         /// <summary>Done with: thrown and nothing left to throw. The weapon system lets it go.</summary>
         internal bool Done { get; private set; }
 
@@ -116,6 +125,15 @@ namespace RavenfieldVR.Weapons
             _gripHand = Rig != null && !(weapon is ThrowableWeapon) ? ModHand.Find(weapon.transform, Rig.Data.ArmRight) : null;
             // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
             Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
+            _usesPin = weapon is ThrowableWeapon pinned && ThrowableHandler.HasPin(pinned);
+            if (_usesPin)
+            {
+                _modPin = ThrowableHandler.FindModPin(weapon.transform);
+                if (_modPin != null)
+                {
+                    _modPinScale = _modPin.localScale;
+                }
+            }
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
         }
 
@@ -191,9 +209,11 @@ namespace RavenfieldVR.Weapons
         {
             if (trigger && !_triggerWas && !Armed)
             {
-                Armed = true;
-                _sys.Sounds.Play(MechSound.PinPull, Hand.Palm.position, 0.8f);
-                Hand.Haptic(0.03f, 120f, 0.5f);
+                Armed = true; // (a molotov, C4 or bag too: the trigger's release throws it)
+                if (_usesPin)
+                {
+                    PullPin();
+                }
             }
             if (!trigger && _triggerWas && Armed)
             {
@@ -204,6 +224,39 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _triggerWas = trigger;
+        }
+
+        /// <summary>
+        /// The pin out of a grenade: its sound and buzz, its own pin part gone from the grenade and a copy of it falling away from the
+        /// hand (the other hand holds the gun: nothing keeps it), or a plain ring for a grenade with no pin part of its own. Only
+        /// pinned grenades: a molotov, C4 or a bag made the pull's sound and buzz too (round-5 scout).
+        /// </summary>
+        private void PullPin()
+        {
+            _sys.Sounds.Play(MechSound.PinPull, Hand.Palm.position, 0.8f);
+            Hand.Haptic(0.03f, 120f, 0.5f);
+            GameObject ring;
+            if (_modPin != null)
+            {
+                ring = PinRing.CreateFrom(_modPin, ThrowableHandler.PartCenter(_modPin));
+                _modPin.localScale = Vector3.one * 1e-4f;
+            }
+            else
+            {
+                ring = PinRing.Create();
+                RigidPose palm = Hand.Palm;
+                ring.transform.SetPositionAndRotation(palm.position + palm.Forward * 0.035f, palm.rotation);
+            }
+            PinRing.Drop(ring, Hand.Velocity);
+        }
+
+        /// <summary>The grenade's own pin part shown again (the next one in hand, or the grenade leaving the hand).</summary>
+        private void RestorePin()
+        {
+            if (_modPin != null)
+            {
+                _modPin.localScale = _modPinScale;
+            }
         }
 
         /// <summary>
@@ -297,6 +350,7 @@ namespace RavenfieldVR.Weapons
                 return; // nothing left the hand (a script took the throw): still armed, still in the hand
             }
             Armed = false; // the next one comes with its pin in
+            RestorePin();
             _sys.Sounds.Play(MechSound.Spoon, Hand.Palm.position, 0.8f);
             Hand.Haptic(0.04f, 90f, 0.6f);
             Log.Info($"Second weapon: {weapon.name} thrown from the {Hand.Side} hand ({velocity.magnitude:0.0} m/s).");
@@ -446,6 +500,10 @@ namespace RavenfieldVR.Weapons
             _kickRotVel += (-stiffness * _kickRot - damping * _kickRotVel) * dt;
             _kickRot = Vector2.ClampMagnitude(_kickRot + _kickRotVel * dt, 25f);
 
+            if (Armed && _modPin != null)
+            {
+                _modPin.localScale = Vector3.one * 1e-4f; // (its animator writes the pin part every frame: kept hidden while out)
+            }
             WeaponRigData d = Rig.Data;
             RigidPose hand = HeldWeapon.HoldFrame(Hand, d);
             Quaternion gripInGun = d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up);
@@ -664,6 +722,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
         private void FreeHand()
         {
+            // Its pin part as the model has it: a grenade put away with its pin out is hidden again by whichever hand draws it
+            // (TakePulled, the grenade hand's SetupPin), and one handed over must not give its next holder a hidden scale to keep.
+            RestorePin();
             // Its scope camera as the game had it (the gate switched it off away from the eye).
             if (_scopeCameraGated != null)
             {

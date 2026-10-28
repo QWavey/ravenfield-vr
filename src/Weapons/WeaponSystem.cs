@@ -398,7 +398,6 @@ namespace RavenfieldVR.Weapons
                     PerfProbe.End("render: weapon taken over");
                 }
             }
-            _throwables.BeforeRender();
             Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
             // Parts of this step timed on their own in a profiled run: a 300 ms call in it came with no part to name (2026-10-21).
             bool part = PerfProbe.Part("render: pouch and holsters");
@@ -426,6 +425,9 @@ namespace RavenfieldVR.Weapons
                     _melee.Bash(Held); // a gun swung into someone hits them (user, 2026-10-16)
                 }
             }
+            // After the held grenade is placed this frame: the fuse ring set from its gun body before that sat where the grenade was
+            // drawn the frame before (a frame behind it as it moved; round-5 scout).
+            _throwables.BeforeRender();
             _melee.HandBlows(Held != null && Held.Weapon != null ? Held : null); // and a magazine or grenade in a hand (task 306)
             foreach (VRHand h in Rig.Hands)
             {
