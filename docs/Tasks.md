@@ -2810,6 +2810,18 @@ array (debug option only).
   needs measuring (a collection that falls behind stops the world).
 - [ ] Check in a game run: the soldier check's step 13 (soldier's gun), the seated magazine hold on a rifle and a pistol, the
       hold-the-frame-rate steps on Medium, the bench's Medium variants.
+- Also built: the suppressed game cameras and the mod's UI camera render without shadow maps (both cost more with a preset's
+  shadows on: the FP camera 0.13 -> 0.38 ms, the UI camera 0.53 -> 1.0 ms); dropped, holstered and magazine copies cast no
+  shadows; the hold's last step takes 15% off the render scale; a body impact hurts by force (350); a hand inside several bones
+  takes the heaviest; the frame line names the mod's costliest sections in every session (the user's play: 0.8-1.3 ms of mod).
+- Bug hunt round 3 (6 Haiku finders on the last two days' changes, a skeptic each): fixed - the soldier check's magazine and
+  wrest steps on soldiers that cannot give them, silent skips, the squeeze search past the player; the gun's release clearing
+  a soldier-holding glove (two places); the free hand's scoped gun drawing its camera every frame; a body hold's glove left
+  snapped after a scene change; a reach kept fast neither grabbing nor punching; the frame probe timing menus and loading, its
+  camera table growing with no frames, its scene scan a frame each minute; a killed test log kept as the player's (test runs
+  now log "Test run:"); a pulled magazine not telling the gun (a soldier with no rounds stood on his empty gun), goggles taken
+  as the weapon to draw after a wrest, a squeeze just before the gun not counting; the seated hold's glove pinned after a
+  let-go during tracking loss, the weapon arms not following the pinned glove. Refuted or stale: the rest.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
