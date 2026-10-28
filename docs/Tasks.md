@@ -2886,6 +2886,14 @@ array (debug option only).
       a grab from the other fingers) start against the rig, not the world (their start stayed where the player had been). Check
       in a game run: tactical reloads and mag drops while running and in slow motion. Thrown grenades, dropped guns and casings
       in slow motion still leave the hand at the world's pace (ask the user whether they want the same).
+- The user's play of 1.14.0 (2026-10-28 afternoon, log read live): no mod errors. Found: switched from Medium to Game mid-session,
+      the Game preset kept Medium's shadows, MSAA and LOD (1% of frames on time against Medium's 41-70%): round 4's fix re-applied
+      the current Quality level, which Unity ignores (the same level). Fixed (3b6f053): the copy of the game's settings is put back
+      again, taken anew whenever the game applies another level; the installer in dist/ rebuilt with it; the game's own copy waits
+      for the game to be closed (copy build/RavenfieldVR.dll and .pdb). Medium stays CPU-bound (GPU 3.3 ms; the game's scripts 2.5-5
+      ms a frame); the mod's costliest section was Input (0.16-0.24 ms): now timed in its three parts for the next session. M4A1
+      magazines seated at 0.4-0.8 m/s left its bolt locked (as on the rifle; the slap release is at 0.9 m/s, a P220 at 1.01 slammed).
+      Autotest gained the slow-motion magazine and the running-ease checks (a161b9e).
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
