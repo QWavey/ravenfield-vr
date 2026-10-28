@@ -63,6 +63,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every failure a self-check writes in capitals counts as a problem in the autotest (tools/tests/failure_phrases_test.py).
 python -I (Join-Path $PSScriptRoot 'failure_phrases_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# Every Harmony patch named by a string finds its game method (tools/tests/harmony_targets_test.py; skipped without .ref).
+python -I (Join-Path $PSScriptRoot 'harmony_targets_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every setting in the README's table exists with the default it gives (tools/tests/readme_settings_test.py).
 python -I (Join-Path $PSScriptRoot 'readme_settings_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
