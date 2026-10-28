@@ -1389,6 +1389,14 @@ namespace RavenfieldVR.Weapons
         internal const float PerSquare = 0.45f;
         /// <summary>The most one impact takes: a soldier has 100; three hard slams kill, one does not.</summary>
         internal const float Cap = 35f;
+        /// <summary>
+        /// The mass an impact's impulse is weighed against (kg, a trunk bone's): an impact counts at the speed at which that much body
+        /// would have taken its impulse, if that is less than the contact's own speed. A trunk slammed down counts at its speed as
+        /// before; a foot or a hand brushing the ground while the body is lifted or dragged, fast but with next to no force behind
+        /// it, does not count ("they take damage even when only slightly touching the ground, maybe calculate force?": user,
+        /// 2026-10-28).
+        /// </summary>
+        internal const float ImpactMass = 16f;
 
         private static readonly Dictionary<Actor, float> ArmedUntil = new Dictionary<Actor, float>();
 
@@ -1402,7 +1410,12 @@ namespace RavenfieldVR.Weapons
         /// motors off again on a body that died in flight, and more solver passes for armed bones.
         /// </summary>
         private static readonly Dictionary<Actor, JointDrive> SavedDrive = new Dictionary<Actor, JointDrive>();
-        private static readonly Dictionary<Actor, float> LastHit = new Dictionary<Actor, float>();
+        private struct HitWindow
+        {
+            public float At, Dealt;
+        }
+
+        private static readonly Dictionary<Actor, HitWindow> LastHit = new Dictionary<Actor, HitWindow>();
         /// <summary>The bones with a live component (one each: a bone re-armed in the frame its old one goes gets one new one).</summary>
         private static readonly HashSet<Rigidbody> ArmedBones = new HashSet<Rigidbody>();
         private static Actor _by;
@@ -1736,7 +1749,7 @@ namespace RavenfieldVR.Weapons
                 return; // its own bones, the player's body and hands, the held gun's stand-in
             }
             float speed = c.relativeVelocity.magnitude;
-            float damage = ImpactDamage(speed);
+            float damage = ImpactDamage(Mathf.Min(speed, c.impulse.magnitude / ImpactMass));
             if (damage <= 0f)
             {
                 return;
@@ -1772,11 +1785,22 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (LastHit.TryGetValue(a, out float last) && Time.time - last < 0.15f)
+            // One impact, many bones touching at once: counted once, at its hardest. A hand or a foot meets the ground first, its blow
+            // light now (ImpactMass), and the trunk a few steps later takes the difference: first come alone, it held the slam to the
+            // hand's share.
+            if (LastHit.TryGetValue(a, out HitWindow window) && Time.time - window.At < 0.15f)
             {
-                return; // one impact, many bones touching at once: counted once
+                if (damage <= window.Dealt)
+                {
+                    return;
+                }
+                LastHit[a] = new HitWindow { At = window.At, Dealt = damage };
+                damage -= window.Dealt;
             }
-            LastHit[a] = Time.time;
+            else
+            {
+                LastHit[a] = new HitWindow { At = Time.time, Dealt = damage };
+            }
             try
             {
                 var info = new DamageInfo(DamageInfo.DamageSourceType.Melee, _by, null)

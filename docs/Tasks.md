@@ -2795,7 +2795,7 @@ test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pr
 array (debug option only).
 
 ### 350. A soldier picked up is hurt by barely touching the ground (user, 2026-10-28: "When picking up a soldier they take damage even when only slightly touching the ground, maybe calculate force?")
-- [ ] The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
+- [ ] (Built 2026-10-28: an impact counts at the lesser of its contact speed and its impulse over a 16 kg trunk bone, BodyImpacts.ImpactMass; within 0.15 s a harder blow adds the difference. Check in a game run: lifting and dragging hurt nothing, the soldier check's slam and throw still hurt.) The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
       body's mass), not by a light touch while it is lifted or dragged.
 
 ### 349. Work-until-limit 65 of 2026-10-28 (the game not started; all built, committed locally, nothing pushed)
