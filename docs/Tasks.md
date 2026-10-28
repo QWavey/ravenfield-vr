@@ -2820,7 +2820,8 @@ array (debug option only).
   steps down (shadow distance, shadows, LOD bias, grass, pixel lights), back up after 30 s at 98% (twice as long after a failed
   step up, at most 2 min); the wrist readout says how many steps. The frame rate line also counts the game canvases the UI
   camera draws (the UI camera was 0.5-1.0 ms of main thread in the user's session) - faded-out ones are still batched: if
-  many, switch their Canvas off while faded (next).
+  many, switch their Canvas off while faded (next). Not for the match bar, the one canvas the mod fades: the game sets the
+  game mode canvas's enabled every frame (GameManager.Update, its hide-UI key); its group is now written only on a change.
 - Garbage: the mod's own allocations are 24-49 bytes a frame (the autotest's sections); the user's 15-27 collections a minute
   (3 ms slices a frame while each runs) come from the game and the 34 mods (the fast test: 3-4 a minute). A shorter slice
   needs measuring (a collection that falls behind stops the world).
