@@ -636,6 +636,13 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("High, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, msaa: 0)),
                 new KeyValuePair<string, Func<string>>("High, scale 0.8", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, renderScale: 0.8f)),
                 new KeyValuePair<string, Func<string>>("High, LOD bias 0.4", () => GraphicsPresets.ApplyForBench(GraphicsPreset.High, lodBias: 0.4f)),
+                // What Medium's parts cost one by one (Tasks 348: the user's Medium ran at half rate on the CPU, its eyes 3.5 ms of main
+                // thread against Game's 0.97): each variant leaves out one of them.
+                new KeyValuePair<string, Func<string>>("Medium, shadows off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, shadows: ShadowQuality.Disable)),
+                new KeyValuePair<string, Func<string>>("Medium, LOD bias 0.3", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, lodBias: 0.3f)),
+                new KeyValuePair<string, Func<string>>("Medium, Low's grass and trees", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, terrainOf: GraphicsPreset.Low)),
+                new KeyValuePair<string, Func<string>>("Medium, no pixel lights", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, pixelLights: 0)),
+                new KeyValuePair<string, Func<string>>("Medium, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, msaa: 0)),
                 new KeyValuePair<string, Func<string>>("High, no UI camera", () =>
                 {
                     string d = GraphicsPresets.ApplyForBench(GraphicsPreset.High);

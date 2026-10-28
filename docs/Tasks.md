@@ -2800,18 +2800,19 @@ array (debug option only).
   0.7): 2-6%, 22.3 ms (SteamVR's half rate, 45 fps) with the GPU at only 7 ms: the eyes' render on the main thread 3.5 ms (3.6x
   Game's), FinishFrameRendering 5.6, Update scripts 3.1, physics 1.1, the scene grown to 273 bodies (58 awake), 5158 renderers.
   The work a frame (about 14 ms, PlayerSendFrameStarted's wait aside) is past the 11.1 ms budget, so SteamVR holds half rate.
-- [ ] NEXT: bring Medium's CPU under the budget: what of the eyes' 3.5 ms is the shadow pass (paid per eye in multi-pass: try
+- [ ] (2026-10-28: the bench has Medium's parts one at a time now: shadows off, LOD bias 0.3, Low's grass and trees, no pixel
+      lights, MSAA off; run `vrshots.py --bench` and change the preset by what it shows.) NEXT: bring Medium's CPU under the budget: what of the eyes' 3.5 ms is the shadow pass (paid per eye in multi-pass: try
       shadows from a few big casters only, or a shorter distance/cascade) and what is LOD bias 0.7 (more renderers drawn); measure
       each with the frame rate line in a headset session or the bench at 1508x1664. Also the 27 garbage collections in the first
       minute (loading?).
 
-### 347. A magazine pushed in stays in the hand until the user lets go (user, 2026-10-27 night, not started)
+### 347. A magazine pushed in stays in the hand until the user lets go (user, 2026-10-27 night; built 2026-10-28, b220e4b: check in a game run)
 - [ ] When a magazine is inserted and seats, the hand stays on it (the glove on the seated magazine) until the user opens the
       grip, instead of being let go at the seat. While still held from the insert it cannot be pulled out again: to take it out the
       user lets go and grabs it again. The user's observation: with the hand still on the seated magazine the buggy seat animation
       does not play, which is good (it plays when the hand is let go at the seat).
 
-### 346. Ideas from the user (2026-10-27 night, not started)
+### 346. Ideas from the user (2026-10-27 night; built 2026-10-28, d682fa1: SoldierGuns, the soldier check's step 13; check in a game run)
 - [ ] (a) A hand swung against a soldier's gun knocks it aside with his arms (his aim pushed off the player for a moment), without
       taking it from him.
 - [ ] (b) Grabbing a soldier's gun: take hold of it in his hands (wrest it away, or hold it pointed off).
