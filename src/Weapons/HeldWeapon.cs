@@ -717,10 +717,13 @@ namespace RavenfieldVR.Weapons
             WeaponRig own = _system.RigFor(sub);
             WeaponRigData d = own.Data;
             bool noMagazine = d.MagazinePath == null && d.SlidePath == null;
+            // Or its magazine or slide is the parent's own part (a variant on the same model whose analysis found them: the CZ Bren 2
+            // BR's "Bren Semi"): a second rig over the same parts, with its own estimated hands and grab zones (Tasks 197).
+            bool sharesParts = own.Magazine != null && own.Magazine == Rig.Magazine || own.Slide != null && own.Slide == Rig.Slide;
             bool sameAction = d.Action == Rig.Data.Action;
-            if (noMagazine && sameAction && Rig.Data.MagazinePath != null)
+            if ((noMagazine || sharesParts) && sameAction && Rig.Data.MagazinePath != null)
             {
-                Log.InfoOnce("subrig:" + d.Key, $"{d.Key}: fire-mode variant of {Rig.Data.Key}, reloads with its magazine.");
+                Log.InfoOnce("subrig:" + d.Key, $"{d.Key}: fire-mode variant of {Rig.Data.Key}, reloads with its magazine{(sharesParts ? " (its parts are the parent's)" : "")}.");
                 return Rig;
             }
             return own;
